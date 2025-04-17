@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="stylesheet" href="./govuk-frontend.min.css" />
+  <script type="module"
+    src="https://sacpsglobalnavpoc.blob.core.windows.net/dev/cps-global-nav/cps-global-nav.esm.js"></script>
+  <title>Dummy home page</title>
+
+
+  <script type="module" crossorigin src="/app/dev/assets/index-CoKuV-Ss.js"></script>
+</head>
+
+<body class="govuk-template__body js-enabled">
+
+  <header class="govuk-header " role="banner" data-module="govuk-header">
+    <div class="govuk-header__container govuk-width-container">
+      <div class="govuk-header__logo">
+        <a href="/" class="govuk-header__link govuk-header__link--homepage" data-testid="link-homepage">
+          <span class="govuk-header__logotype">
+            <span class="govuk-header__logotype-text">
+              Crown Prosecution Service
+            </span>
+          </span>
+        </a>
+        <span className="govuk-header__link--homepage">Dummy home page</span>
+      </div>
+    </div>
+  </header>
+  <div class="govuk-width-container">
+    <div id="root"></div>
+    <div></div>
+  </div>
+</body>
+
+<script>
+  document.addEventListener("click", (ev) => console.log(ev.detail));
+</script>
+
+</html>
