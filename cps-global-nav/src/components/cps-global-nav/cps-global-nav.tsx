@@ -91,7 +91,27 @@ export class CpsGlobalNav {
     </div>
   );
 
+  renderHeader = () => (
+    <>
+      <header class="govuk-header background-black">
+        <div class="govuk-header__container">
+          <div class="govuk-header__logo">
+            <a href="#" class="govuk-header__link govuk-header__link--homepage">
+              <span class="header-title">CPS</span> <span class="header-sub-title">Casey McCase Face</span>
+            </a>
+          </div>
+        </div>
+      </header>
+      <div class="header-divider"></div>
+    </>
+  );
+
   render() {
-    return this.config ? this.renderOk() : this.renderNoMatchingConfig();
+    return (
+      <>
+        {this.renderHeader()}
+        {this.config ? this.renderOk() : this.renderNoMatchingConfig()}
+      </>
+    );
   }
 }
