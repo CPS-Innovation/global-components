@@ -30,7 +30,8 @@ export class NavLink {
   };
 
   render() {
-    const mode: LinkMode = this.disabled || !this.href ? "disabled" : this.openInNewTab ? "new-tab" : !this.href.startsWith("http") ? "emit-event" : "standard";
+    const mode: LinkMode =
+      this.disabled || !this.href ? "disabled" : this.openInNewTab ? "new-tab" : this.href.startsWith("http") || this.href.startsWith("/") ? "standard" : "emit-event";
 
     const renderLink = () => {
       switch (mode) {

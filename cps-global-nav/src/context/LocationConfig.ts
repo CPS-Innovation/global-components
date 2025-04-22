@@ -58,15 +58,42 @@ export const appLocationConfigs: AppLocationConfig[] = [
     pathRoots: ["http://localhost:3333"],
     pathMatchers: [
       {
+        paths: [""],
+        matchedLinkCode: "cases",
+        showSecondRow: true,
+        // add query params in alphabetical order e.g. ?a=1&b=2&c=1 rather than ?b=2&a=1&c=1
+        onwardLinks: {
+          "tasks": "/?urn={urn}&caseId={caseId}",
+          "cases": "/?urn={urn}&caseId={caseId}",
+          "bulk-um-classification": "/bulk-um-classification",
+          "review": "/review",
+          "details": "Please navigate to details page for case {caseId}",
+        },
+      },
+      {
         paths: ["/urns/(?<urn>[^/]+)/cases/(?<caseId>[^/]+)"],
+        matchedLinkCode: "tasks",
+        showSecondRow: false,
+        onwardLinks: {
+          tasks: "/urns/12AB121212/cases/11112222",
+          cases: "/urns/34AB343434/cases/333344444",
+        },
+      },
+    ],
+  },
+  {
+    pathRoots: ["https://cps-innovation.github.io"],
+    pathMatchers: [
+      {
+        paths: ["/global-components/urns/(?<urn>[^/]+)/cases/(?<caseId>[^/]+)"],
         matchedLinkCode: "tasks",
         showSecondRow: true,
         // add query params in alphabetical order e.g. ?a=1&b=2&c=1 rather than ?b=2&a=1&c=1
         onwardLinks: {
-          "tasks": "http://localhost:3333/?urn={urn}&caseId={caseId}",
-          "cases": "http://localhost:3333/?urn={urn}&caseId={caseId}",
-          "bulk-um-classification": "/bulk-um-classification",
-          "review": "/review",
+          "tasks": "/global-components/?urn={urn}&caseId={caseId}",
+          "cases": "/global-components/?urn={urn}&caseId={caseId}",
+          "bulk-um-classification": "/global-components/bulk-um-classification",
+          "review": "/global-components/review",
           "details": "Please navigate to details page for case {caseId}",
         },
       },
@@ -75,8 +102,8 @@ export const appLocationConfigs: AppLocationConfig[] = [
         matchedLinkCode: "tasks",
         showSecondRow: false,
         onwardLinks: {
-          tasks: "http://localhost:3333/urns/12AB121212/cases/11112222",
-          cases: "http://localhost:3333/urns/34AB343434/cases/333344444",
+          tasks: "/global-components/urns/12AB121212/cases/11112222",
+          cases: "/global-components/urns/34AB343434/cases/333344444",
         },
       },
     ],

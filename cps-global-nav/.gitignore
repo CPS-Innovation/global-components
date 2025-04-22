@@ -1,8 +1,6 @@
 dist/
 
-www/build/
-www/host.config.json
-www/index.html
+www/
 
 loader/
 

@@ -4,6 +4,8 @@ import { LinkCode, MatchedPathMatcher } from "../../context/LocationConfig";
 
 type LinkHelperArg = { code: LinkCode; label: string; children?: LinkCode[]; openInNewTab?: boolean };
 
+const SURVEY_LINK = "https://forms.office.com/e/Cxmsq5xTWx";
+
 const SHOULD_SHOW_NAME = false;
 const SHOULD_SHOW_CMS_LINKS = false;
 const SHOULD_SHOW_MATERIALS_MENU = false;
@@ -30,60 +32,66 @@ export class CpsGlobalNav {
     openInNewTab,
   });
 
-  render() {
-    return (
-      <div>
-        <div class="level-1 background">
-          <ul>
-            <nav-link {...this.linkHelper({ code: "tasks", label: "Tasks" })}></nav-link>
-            <nav-link {...this.linkHelper({ code: "cases", label: "Cases", children: ["details", "case-materials", "review"] })}></nav-link>
-          </ul>
-          <ul>
-            <nav-link label="Give feedback" href="https://forms.office.com/e/Cxmsq5xTWx"></nav-link>
-          </ul>
-        </div>
-        <div class="background-divider"></div>
-        {this.config.showSecondRow && (
-          <>
-            <div class="level-2">
-              {SHOULD_SHOW_NAME && (
-                <div class="background-left-only">
-                  <span class="name">{this.name}</span>
-                </div>
-              )}
-              <ul>
-                <nav-link {...this.linkHelper({ code: "details", label: "Details" })}></nav-link>
+  renderNoMatchingConfig = () => <div class="level-1 background-grey no-config">No menu config found for {window.location.href}</div>;
 
-                {SHOULD_SHOW_MATERIALS_MENU ? (
-                  <drop-down
-                    label="Materials"
-                    links={[
-                      this.linkHelper({ code: "case-materials", label: "Case Materials" }),
-                      this.linkHelper({ code: "bulk-um-classification", label: "Bulk UM classification" }),
-                    ]}
-                  ></drop-down>
-                ) : (
-                  <nav-link {...this.linkHelper({ code: "case-materials", label: "Materials" })}></nav-link>
-                )}
-                <nav-link {...this.linkHelper({ code: "review", label: "Review" })}></nav-link>
-              </ul>
-              <div class="slot-container">
-                <slot />
-              </div>
-              <ul>
-                {SHOULD_SHOW_CMS_LINKS && (
-                  <drop-down
-                    label="CMS Classic"
-                    menuAlignment="right"
-                    links={[this.linkHelper({ code: "cms-pre-charge-triage", label: "Pre-charge triage", openInNewTab: true })]}
-                  ></drop-down>
-                )}
-              </ul>
-            </div>
-            <div class="background-divider"></div>
-          </>
-        )}
+  renderOk = () => (
+    <div>
+      <div class="level-1 background-grey">
+        <ul>
+          <nav-link {...this.linkHelper({ code: "tasks", label: "Tasks" })}></nav-link>
+          <nav-link {...this.linkHelper({ code: "cases", label: "Cases", children: ["details", "case-materials", "review"] })}></nav-link>
+        </ul>
+        <ul>
+          <nav-link label="Give feedback" href={SURVEY_LINK}></nav-link>
+        </ul>
       </div>
-    );
+
+      <div class="background-divider"></div>
+
+      {this.config.showSecondRow && (
+        <>
+          <div class="level-2 background-white">
+            {SHOULD_SHOW_NAME && (
+              <div class="background-left-only">
+                <span class="name">{this.name}</span>
+              </div>
+            )}
+            <ul>
+              <nav-link {...this.linkHelper({ code: "details", label: "Details" })}></nav-link>
+
+              {SHOULD_SHOW_MATERIALS_MENU ? (
+                <drop-down
+                  label="Materials"
+                  links={[
+                    this.linkHelper({ code: "case-materials", label: "Case Materials" }),
+                    this.linkHelper({ code: "bulk-um-classification", label: "Bulk UM classification" }),
+                  ]}
+                ></drop-down>
+              ) : (
+                <nav-link {...this.linkHelper({ code: "case-materials", label: "Materials" })}></nav-link>
+              )}
+              <nav-link {...this.linkHelper({ code: "review", label: "Review" })}></nav-link>
+            </ul>
+            <div class="slot-container">
+              <slot />
+            </div>
+            <ul>
+              {SHOULD_SHOW_CMS_LINKS && (
+                <drop-down
+                  label="CMS Classic"
+                  menuAlignment="right"
+                  links={[this.linkHelper({ code: "cms-pre-charge-triage", label: "Pre-charge triage", openInNewTab: true })]}
+                ></drop-down>
+              )}
+            </ul>
+          </div>
+          <div class="background-divider"></div>
+        </>
+      )}
+    </div>
+  );
+
+  render() {
+    return this.config ? this.renderOk() : this.renderNoMatchingConfig();
   }
 }
