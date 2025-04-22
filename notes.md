@@ -4,6 +4,8 @@ saglobalcomponents
 
 # Deployment
 
+## Setup
+
 - sacpsglobalcomponents.blob.core.windows.net in `SUBSCRIPTION_NAME` subscription
 
 - enable anonymous access
@@ -12,10 +14,12 @@ saglobalcomponents
 
 - use `az` cli
 
--
-
 ```bash
 az login
 az account list --refresh
 az account set --subscription "SUBSCRIPTION_NAME"
 ```
+
+## Publish
+
+`npm run publish`

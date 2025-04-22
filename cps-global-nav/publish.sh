@@ -1,7 +1,7 @@
 ENVIRONMENT=$1
 VERSION=$(jq -r '.version' package.json)
 STORAGE_ACCOUNT_NAME=sacpsglobalcomponents
-CACHE_CONTROL="max-age=1, stale-while-revalidate=3600, stale-if-error=3600"
+CACHE_CONTROL="max-age=20, stale-while-revalidate=3600, stale-if-error=3600"
 
 npm run build
 npm run bundle
