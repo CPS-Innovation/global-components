@@ -5,17 +5,26 @@
 
 ## Properties
 
-| Property | Attribute | Description                                       | Type     | Default     |
-| -------- | --------- | ------------------------------------------------- | -------- | ----------- |
-| `name`   | `name`    | The text to appear at the start of the second row | `string` | `undefined` |
+| Property | Attribute | Description                                       | Type     | Default            |
+| -------- | --------- | ------------------------------------------------- | -------- | ------------------ |
+| `name`   | `name`    | The text to appear at the start of the second row | `string` | `"Please wait..."` |
 
 
-## Events
+## Dependencies
 
-| Event               | Description | Type                  |
-| ------------------- | ----------- | --------------------- |
-| `cpsGlobalNavEvent` |             | `CustomEvent<string>` |
+### Depends on
 
+- [nav-link](internal)
+- [drop-down](internal)
+
+### Graph
+```mermaid
+graph TD;
+  cps-global-nav --> nav-link
+  cps-global-nav --> drop-down
+  drop-down --> nav-link
+  style cps-global-nav fill:#f9f,stroke:#333,stroke-width:4px
+```
 
 ----------------------------------------------
 
