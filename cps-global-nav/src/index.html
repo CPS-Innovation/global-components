@@ -5,35 +5,34 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=5.0" />
   <title>CPS Global Nav development</title>
-  <link rel="stylesheet" href="/govuk-frontend.min.css" />
   <script type="module" src="/build/cps-global-nav.esm.js"></script>
 
   <style>
     body {
-      margin: 20px 0;
+      margin: 0;
+      padding: 0;
       position: relative;
+      background-size: 2.9rem 2.9rem;
+      background-image:
+        linear-gradient(to right, #eee 1px, transparent 1px),
+        linear-gradient(to bottom, #eee 1px, transparent 1px);
     }
 
     body>div {
-      max-width: 87.5rem;
+      max-width: 90rem;
       margin: 0 auto;
+      padding-top: 3em;
     }
 
     body>div>div {
-      min-height: 1000px;
-      border-color: grey;
-      border-style: dotted;
-      border-width: 0 1px 1px 1px;
+      min-height: 100rem;
     }
   </style>
 </head>
 
 <body>
   <div>
-    <cps-global-nav name="McLove, Eoin">
-      <span style="border: 1px solid lightgrey; padding: 5px;"><a href="#" class="govuk-link">A link from the host
-          app</a></span>
-    </cps-global-nav>
+    <cps-global-nav></cps-global-nav>
     <div></div>
   </div>
 </body>

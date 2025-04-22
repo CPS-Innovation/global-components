@@ -15,10 +15,18 @@ a.govuk-link {
   }
 }
 
-.background {
-  box-shadow: 0 0 0 100vmax govuk-colour("light-grey");
+@mixin background($gdsColorName) {
+  box-shadow: 0 0 0 100vmax govuk-colour($gdsColorName);
   clip-path: inset(0 -100vmax);
-  background-color: govuk-colour("light-grey");
+  background-color: govuk-colour($gdsColorName);
+}
+
+.background-white {
+  @include background("white");
+}
+
+.background-grey {
+  @include background("light-grey");
 }
 
 .background-divider {
@@ -27,6 +35,11 @@ a.govuk-link {
   clip-path: inset(0 -100vmax);
   background-color: $govuk-border-colour;
   z-index: -1;
+}
+
+.no-config {
+  @include govuk-font($size: 19);
+  color: $govuk-secondary-text-colour;
 }
 
 @mixin horizontal-list {
