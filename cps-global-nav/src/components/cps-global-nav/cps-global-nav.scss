@@ -5,6 +5,24 @@ $level-height: 3rem;
   display: block;
 }
 
+header {
+  @include govuk-font($size: 19);
+
+  .header-title {
+    font-weight: 700;
+  }
+
+  border-bottom: none !important;
+}
+
+.header-divider {
+  height: 10px;
+  box-shadow: 0 0 0 100vmax govuk-colour("blue");
+  clip-path: inset(0 -100vmax);
+  background-color: govuk-colour("blue");
+  z-index: -1;
+}
+
 a.govuk-link {
   color: $govuk-brand-colour;
   @include govuk-font($size: 19);
@@ -27,6 +45,10 @@ a.govuk-link {
 
 .background-grey {
   @include background("light-grey");
+}
+
+.background-black {
+  @include background("black");
 }
 
 .background-divider {
