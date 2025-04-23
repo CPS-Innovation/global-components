@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 export default function Home() {
   return (
     <div>
@@ -10,9 +12,9 @@ export default function Home() {
         <div className="govuk-grid-column-one-third">
           <div className="govuk-card">
             <h2 className="govuk-heading-m">
-              <a href="/tasks" className="govuk-link">
+              <Link href="/tasks" className="govuk-link">
                 Tasks
-              </a>
+              </Link>
             </h2>
             <p className="govuk-body">View and manage your assigned tasks</p>
           </div>
@@ -21,9 +23,9 @@ export default function Home() {
         <div className="govuk-grid-column-one-third">
           <div className="govuk-card">
             <h2 className="govuk-heading-m">
-              <a href="/cases" className="govuk-link">
+              <Link href="/cases" className="govuk-link">
                 Cases
-              </a>
+              </Link>
             </h2>
             <p className="govuk-body">Access and review case information</p>
           </div>
@@ -32,9 +34,9 @@ export default function Home() {
         <div className="govuk-grid-column-one-third">
           <div className="govuk-card">
             <h2 className="govuk-heading-m">
-              <a href="/review" className="govuk-link">
+              <Link href="/review" className="govuk-link">
                 Review
-              </a>
+              </Link>
             </h2>
             <p className="govuk-body">Review and approve pending items</p>
           </div>

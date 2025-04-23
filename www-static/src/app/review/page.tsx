@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 export default function Review() {
   return (
     <div>
@@ -8,14 +10,14 @@ export default function Review() {
             <h2 className="govuk-tabs__title">Contents</h2>
             <ul className="govuk-tabs__list">
               <li className="govuk-tabs__list-item govuk-tabs__list-item--selected">
-                <a className="govuk-tabs__tab" href="#pending">
+                <Link className="govuk-tabs__tab" href="/review?tab=pending">
                   Pending Review (3)
-                </a>
+                </Link>
               </li>
               <li className="govuk-tabs__list-item">
-                <a className="govuk-tabs__tab" href="#completed">
+                <Link className="govuk-tabs__tab" href="/review?tab=completed">
                   Completed
-                </a>
+                </Link>
               </li>
             </ul>
 
@@ -35,9 +37,12 @@ export default function Review() {
                     <p className="govuk-body">
                       Updated case details requiring review and approval.
                     </p>
-                    <a href="#" className="govuk-button">
+                    <Link
+                      href="/review/case/CPS-2025-0123"
+                      className="govuk-button"
+                    >
                       Review Changes
-                    </a>
+                    </Link>
                   </div>
                 </div>
 
@@ -53,9 +58,12 @@ export default function Review() {
                     <p className="govuk-body">
                       New witness statement added to case CPS-2025-0122.
                     </p>
-                    <a href="#" className="govuk-button">
+                    <Link
+                      href="/review/document/CPS-2025-0122"
+                      className="govuk-button"
+                    >
                       Review Document
-                    </a>
+                    </Link>
                   </div>
                 </div>
 
@@ -72,9 +80,12 @@ export default function Review() {
                       Request to change case status to &quot;Ready for
                       Court&quot;.
                     </p>
-                    <a href="#" className="govuk-button">
+                    <Link
+                      href="/review/status/CPS-2025-0122"
+                      className="govuk-button"
+                    >
                       Review Request
-                    </a>
+                    </Link>
                   </div>
                 </div>
               </div>

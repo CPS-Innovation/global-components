@@ -7,7 +7,7 @@ npm run build
 # If using azcopy with az AD account login, the AD account needs the "Storage Blob Data Contributor" role
 
 export AZCOPY_AUTO_LOGIN_TYPE=AZCLI
-azcopy sync ./out/ https://$STORAGE_ACCOUNT_NAME.blob.core.windows.net/\$web/  --recursive=true --delete-destination=true
+azcopy sync ./out/ https://$STORAGE_ACCOUNT_NAME.blob.core.windows.net/\$web/static/  --recursive=true --delete-destination=true
 
 # az storage blob delete-batch \
 #     --auth-mode login \
@@ -20,6 +20,3 @@ azcopy sync ./out/ https://$STORAGE_ACCOUNT_NAME.blob.core.windows.net/\$web/  -
 #     --account-name $STORAGE_ACCOUNT_NAME \
 #     --destination $CONTAINER_NAME \
 #     --source ./out
-
-
-

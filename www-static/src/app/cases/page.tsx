@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 export default function Cases() {
   return (
     <div>
@@ -39,9 +41,9 @@ export default function Cases() {
             <tbody className="govuk-table__body">
               <tr className="govuk-table__row">
                 <td className="govuk-table__cell">
-                  <a href="#" className="govuk-link">
+                  <Link href="/cases/CPS-2025-0123" className="govuk-link">
                     CPS-2025-0123
-                  </a>
+                  </Link>
                 </td>
                 <td className="govuk-table__cell">Theft and handling</td>
                 <td className="govuk-table__cell">22 April 2025</td>
@@ -51,9 +53,9 @@ export default function Cases() {
               </tr>
               <tr className="govuk-table__row">
                 <td className="govuk-table__cell">
-                  <a href="#" className="govuk-link">
+                  <Link href="/cases/CPS-2025-0122" className="govuk-link">
                     CPS-2025-0122
-                  </a>
+                  </Link>
                 </td>
                 <td className="govuk-table__cell">Public order offence</td>
                 <td className="govuk-table__cell">21 April 2025</td>
@@ -65,9 +67,9 @@ export default function Cases() {
               </tr>
               <tr className="govuk-table__row">
                 <td className="govuk-table__cell">
-                  <a href="#" className="govuk-link">
+                  <Link href="/cases/CPS-2025-0121" className="govuk-link">
                     CPS-2025-0121
-                  </a>
+                  </Link>
                 </td>
                 <td className="govuk-table__cell">Criminal damage</td>
                 <td className="govuk-table__cell">20 April 2025</td>
@@ -86,43 +88,49 @@ export default function Cases() {
             aria-label="results"
           >
             <div className="govuk-pagination__prev">
-              <a
+              <Link
                 className="govuk-link govuk-pagination__link"
-                href="#"
+                href="/cases?page=1"
                 rel="prev"
               >
                 <span className="govuk-pagination__link-title">Previous</span>
-              </a>
+              </Link>
             </div>
             <ul className="govuk-pagination__list">
               <li className="govuk-pagination__item govuk-pagination__item--current">
-                <a
+                <Link
                   className="govuk-link govuk-pagination__link"
-                  href="#"
+                  href="/cases?page=1"
                   aria-current="page"
                 >
                   1
-                </a>
+                </Link>
               </li>
               <li className="govuk-pagination__item">
-                <a className="govuk-link govuk-pagination__link" href="#">
+                <Link
+                  className="govuk-link govuk-pagination__link"
+                  href="/cases?page=2"
+                >
                   2
-                </a>
+                </Link>
               </li>
               <li className="govuk-pagination__item">
-                <a className="govuk-link govuk-pagination__link" href="#">
+                <Link
+                  className="govuk-link govuk-pagination__link"
+                  href="/cases?page=3"
+                >
                   3
-                </a>
+                </Link>
               </li>
             </ul>
             <div className="govuk-pagination__next">
-              <a
+              <Link
                 className="govuk-link govuk-pagination__link"
-                href="#"
+                href="/cases?page=2"
                 rel="next"
               >
                 <span className="govuk-pagination__link-title">Next</span>
-              </a>
+              </Link>
             </div>
           </nav>
         </div>

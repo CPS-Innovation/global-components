@@ -2,6 +2,7 @@ import { Metadata } from "next";
 import GovUKInit from "./components/GovUKInit";
 import "./styles.scss";
 import Script from "next/script";
+import Link from "next/link";
 
 export const metadata: Metadata = {
   title: "CPS Digital Services",
@@ -35,19 +36,19 @@ export default function RootLayout({
                 <h2 className="govuk-visually-hidden">Support links</h2>
                 <ul className="govuk-footer__inline-list">
                   <li className="govuk-footer__inline-list-item">
-                    <a className="govuk-footer__link" href="#">
+                    <Link className="govuk-footer__link" href="/help">
                       Help
-                    </a>
+                    </Link>
                   </li>
                   <li className="govuk-footer__inline-list-item">
-                    <a className="govuk-footer__link" href="#">
+                    <Link className="govuk-footer__link" href="/privacy">
                       Privacy
-                    </a>
+                    </Link>
                   </li>
                   <li className="govuk-footer__inline-list-item">
-                    <a className="govuk-footer__link" href="#">
+                    <Link className="govuk-footer__link" href="/cookies">
                       Cookies
-                    </a>
+                    </Link>
                   </li>
                 </ul>
               </div>
