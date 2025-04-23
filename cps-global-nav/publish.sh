@@ -7,7 +7,9 @@ npm run build
 npm run bundle
 
 for FILE in cps-global-components.js cps-global-components.js.map; do
-    az storage blob upload --overwrite true --auth-mode login \
+    az storage blob upload \
+        --overwrite true \
+        --auth-mode login \
         --content-cache-control "$CACHE_CONTROL" \
         --account-name $STORAGE_ACCOUNT_NAME \
         --container-name $ENVIRONMENT \
