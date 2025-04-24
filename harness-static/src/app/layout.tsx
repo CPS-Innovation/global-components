@@ -1,5 +1,4 @@
 import { Metadata } from "next";
-import GovUKInit from "./components/GovUKInit";
 import "./styles.scss";
 import Script from "next/script";
 import Link from "next/link";
@@ -56,7 +55,6 @@ export default function RootLayout({
             </div>
           </div>
         </footer>
-        <GovUKInit />
       </body>
     </html>
   );

@@ -52,7 +52,7 @@ export default async function CaseMaterials({
               <tr className="govuk-table__row">
                 <td className="govuk-table__cell">
                   <Image
-                    src="/file.svg"
+                    src="/static-app/file.svg"
                     alt="Document"
                     width={20}
                     height={20}
@@ -68,7 +68,7 @@ export default async function CaseMaterials({
               <tr className="govuk-table__row">
                 <td className="govuk-table__cell">
                   <Image
-                    src="/file.svg"
+                    src="/static-app/file.svg"
                     alt="Document"
                     width={20}
                     height={20}
