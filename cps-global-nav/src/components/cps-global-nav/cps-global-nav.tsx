@@ -21,8 +21,17 @@ export class CpsGlobalNav {
   @Prop() name: string = "Please wait...";
   @State() config: MatchedPathMatcher;
 
-  async componentWillLoad() {
+  /**
+   * We have address as State so that we get a rerender triggered whenever it updates
+   */
+  @State() address: string;
+
+  async componentWillRender() {
     this.config = getLocationConfig(window);
+
+    window.navigation.addEventListener("navigate", event => {
+      this.address = event.destination.url;
+    });
   }
 
   linkHelper = ({ code, label, children = [], openInNewTab }: LinkHelperArg) => ({
