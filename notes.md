@@ -23,3 +23,20 @@ az account set --subscription "SUBSCRIPTION_NAME"
 ## Publish
 
 `npm run publish`
+
+## Typings
+
+```typescript
+declare global {
+  namespace React {
+    namespace JSX {
+      interface IntrinsicElements {
+        ["cps-global-nav"]: React.DetailedHTMLProps<
+          React.HTMLAttributes<HTMLElement>,
+          HTMLElement
+        >;
+      }
+    }
+  }
+}
+```
