@@ -1,4 +1,4 @@
-export type LinkCode = "tasks" | "cases" | "details" | "case-materials" | "bulk-um-classification" | "review" | "cms-pre-charge-triage";
+export type LinkCode = "tasks" | "cases" | "details" | "case-materials" | "review" | "cms-pre-charge-triage" | "bulk-um-classification";
 
 export type OnwardLinkDefinitions = Partial<{ [key in LinkCode]: string }>;
 
@@ -23,12 +23,10 @@ export const appLocationConfigs: AppLocationConfig[] = [
         matchedLinkCode: "case-materials",
         showSecondRow: true,
         onwardLinks: {
-          "tasks": "https://cps-dev.outsystemsenterprise.com/WorkManagementApp/TaskList",
-          "cases": "https://cps-tst.outsystemsenterprise.com/WorkManagementApp/TaskList?IsCasesNavigation=true",
-          "bulk-um-classification": "https://housekeeping-fn-staging.int.cps.gov.uk/api/init/{caseId}",
-          "review": "https://cps-dev.outsystemsenterprise.com/CaseReview/RedirectCW?URN={urn}&CMSCaseId={caseId}",
-          "cms-pre-charge-triage": "/api/navigate-cms?action=activate_task&screen=case_details&taskId={taskId}&caseId={caseId}&wId=MASTER",
-          "details": "https://cps-tst.outsystemsenterprise.com/WorkManagementApp/CaseOverview?URN={urn}&CaseId={caseId}&IsDCFCase=false",
+          tasks: "https://cps-dev.outsystemsenterprise.com/WorkManagementApp/TaskList",
+          cases: "https://cps-tst.outsystemsenterprise.com/WorkManagementApp/TaskList?IsCasesNavigation=true",
+          review: "https://cps-dev.outsystemsenterprise.com/CaseReview/RedirectCW?URN={urn}&CMSCaseId={caseId}",
+          details: "https://cps-tst.outsystemsenterprise.com/WorkManagementApp/CaseOverview?URN={urn}&CaseId={caseId}&IsDCFCase=false",
         },
       },
       {
@@ -36,11 +34,10 @@ export const appLocationConfigs: AppLocationConfig[] = [
         matchedLinkCode: "case-materials",
         showSecondRow: true,
         onwardLinks: {
-          "tasks": "https://cps-dev.outsystemsenterprise.com/WorkManagementApp/TaskList",
-          "cases": "https://cps-tst.outsystemsenterprise.com/WorkManagementApp/TaskList?IsCasesNavigation=true",
-          "bulk-um-classification": "https://housekeeping-fn-staging.int.cps.gov.uk/api/init/{caseId}",
-          "review": "https://cps-dev.outsystemsenterprise.com/CaseReview/RedirectCW?URN={urn}&CMSCaseId={caseId}",
-          "details": "https://cps-tst.outsystemsenterprise.com/WorkManagementApp/CaseOverview?URN={urn}&CaseId={caseId}&IsDCFCase=false",
+          tasks: "https://cps-dev.outsystemsenterprise.com/WorkManagementApp/TaskList",
+          cases: "https://cps-tst.outsystemsenterprise.com/WorkManagementApp/TaskList?IsCasesNavigation=true",
+          review: "https://cps-dev.outsystemsenterprise.com/CaseReview/RedirectCW?URN={urn}&CMSCaseId={caseId}",
+          details: "https://cps-tst.outsystemsenterprise.com/WorkManagementApp/CaseOverview?URN={urn}&CaseId={caseId}&IsDCFCase=false",
         },
       },
       {
@@ -63,11 +60,10 @@ export const appLocationConfigs: AppLocationConfig[] = [
         showSecondRow: true,
         // add query params in alphabetical order e.g. ?a=1&b=2&c=1 rather than ?b=2&a=1&c=1
         onwardLinks: {
-          "tasks": "/?urn={urn}&caseId={caseId}",
-          "cases": "/?urn={urn}&caseId={caseId}",
-          "bulk-um-classification": "/bulk-um-classification",
-          "review": "/review",
-          "details": "Please navigate to details page for case {caseId}",
+          tasks: "/?urn={urn}&caseId={caseId}",
+          cases: "/?urn={urn}&caseId={caseId}",
+          review: "/review",
+          details: "Please navigate to details page for case {caseId}",
         },
       },
       {
@@ -82,28 +78,55 @@ export const appLocationConfigs: AppLocationConfig[] = [
     ],
   },
   {
-    pathRoots: ["https://cps-innovation.github.io"],
+    pathRoots: ["http://127.0.0.1:3000/static-app", "https://sacpsglobalcomponents.z33.web.core.windows.net/static-app"],
     pathMatchers: [
       {
-        paths: ["/global-components/urns/(?<urn>[^/]+)/cases/(?<caseId>[^/]+)"],
-        matchedLinkCode: "tasks",
-        showSecondRow: true,
-        // add query params in alphabetical order e.g. ?a=1&b=2&c=1 rather than ?b=2&a=1&c=1
-        onwardLinks: {
-          "tasks": "/global-components/?urn={urn}&caseId={caseId}",
-          "cases": "/global-components/?urn={urn}&caseId={caseId}",
-          "bulk-um-classification": "/global-components/bulk-um-classification",
-          "review": "/global-components/review",
-          "details": "Please navigate to details page for case {caseId}",
-        },
-      },
-      {
-        paths: [""],
+        paths: ["/static-app/tasks"],
         matchedLinkCode: "tasks",
         showSecondRow: false,
         onwardLinks: {
-          tasks: "/global-components/urns/12AB121212/cases/11112222",
-          cases: "/global-components/urns/34AB343434/cases/333344444",
+          cases: "/static-app/cases",
+        },
+      },
+      {
+        paths: ["/static-app/cases/urns/(?<urn>[^/]+)/cases/(?<caseId>[^/]+)/review"],
+        matchedLinkCode: "review",
+        showSecondRow: true,
+        onwardLinks: {
+          "tasks": "/static-app/tasks",
+          "cases": "/static-app/cases",
+          "details": "/static-app/cases/urns/{urn}/cases/{caseId}",
+          "case-materials": "/static-app/cases/urns/{urn}/cases/{caseId}/materials",
+        },
+      },
+      {
+        paths: ["/static-app/cases/urns/(?<urn>[^/]+)/cases/(?<caseId>[^/]+)/materials"],
+        matchedLinkCode: "case-materials",
+        showSecondRow: true,
+        onwardLinks: {
+          tasks: "/static-app/tasks",
+          cases: "/static-app/cases",
+          details: "/static-app/cases/urns/{urn}/cases/{caseId}",
+          review: "/static-app/cases/urns/{urn}/cases/{caseId}/review",
+        },
+      },
+      {
+        paths: ["/static-app/cases/urns/(?<urn>[^/]+)/cases/(?<caseId>[^/]+)"],
+        matchedLinkCode: "details",
+        showSecondRow: true,
+        onwardLinks: {
+          "tasks": "/static-app/tasks",
+          "cases": "/static-app/cases",
+          "review": "/static-app/cases/urns/{urn}/cases/{caseId}/review",
+          "case-materials": "/static-app/cases/urns/{urn}/cases/{caseId}/materials",
+        },
+      },
+      {
+        paths: ["/static-app/cases"],
+        matchedLinkCode: "cases",
+        showSecondRow: false,
+        onwardLinks: {
+          tasks: "/static-app/tasks",
         },
       },
     ],
