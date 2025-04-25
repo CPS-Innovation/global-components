@@ -1,3 +1,6 @@
+/* Import GOV.UK Frontend styles */
+@import "node_modules/govuk-frontend/dist/govuk/all";
+
 :root {
   --max-width: 1100px;
   --border-radius: 12px;
@@ -28,44 +31,4 @@ body {
 a {
   color: inherit;
   text-decoration: none;
-}
-
-.app {
-  min-height: 100vh;
-  display: flex;
-  flex-direction: column;
-}
-
-main {
-  flex: 1;
-  padding: 20px;
-  max-width: var(--max-width);
-  margin: 0 auto;
-  width: 100%;
-}
-
-.govuk-width-container {
-  max-width: 1100px;
-  margin: 0 auto;
-  padding: 0 15px;
-}
-
-@media (min-width: 40.0625em) {
-  .govuk-width-container {
-    padding: 0 30px;
-  }
-}
-
-.govuk-footer {
-  margin-top: auto;
-  padding-top: 25px;
-  padding-bottom: 15px;
-  border-top: 1px solid #b1b4b6;
-  color: #0b0c0c;
-  background: #f3f2f1;
-}
-
-.govuk-pagination {
-  margin-top: 30px;
-  margin-bottom: 30px;
 }

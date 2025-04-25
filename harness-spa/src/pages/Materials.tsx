@@ -40,14 +40,6 @@ const Materials: React.FC = () => {
             <tbody className="govuk-table__body">
               <tr className="govuk-table__row">
                 <td className="govuk-table__cell">
-                  <img
-                    src="/spa-app/file.svg"
-                    alt="Document"
-                    width={20}
-                    height={20}
-                    className="govuk-!-margin-right-2"
-                    style={{ verticalAlign: "middle" }}
-                  />
                   <Link to="#" className="govuk-link">
                     Witness Statement
                   </Link>
@@ -57,14 +49,6 @@ const Materials: React.FC = () => {
               </tr>
               <tr className="govuk-table__row">
                 <td className="govuk-table__cell">
-                  <img
-                    src="/spa-app/file.svg"
-                    alt="Document"
-                    width={20}
-                    height={20}
-                    className="govuk-!-margin-right-2"
-                    style={{ verticalAlign: "middle" }}
-                  />
                   <Link to="#" className="govuk-link">
                     Police Report
                   </Link>
