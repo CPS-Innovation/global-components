@@ -1,5 +1,6 @@
 import React from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
+// @ts-ignore: Unreachable code error
 import "./styles/globals.scss";
 
 // Components
