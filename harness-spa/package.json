@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "description": "SPA version of the CPS harness application",
   "scripts": {
-    "dev": "vite",
+    "dev": "VITE_GLOBAL_SCRIPT_URL=http://localhost:3334/build/cps-global-nav.esm.js vite",
     "build": "vite build",
     "preview": "vite preview",
     "lint": "eslint src --ext ts,tsx --report-unused-disable-directives --max-warnings 0",

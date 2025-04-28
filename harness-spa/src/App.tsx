@@ -15,8 +15,10 @@ import Cookies from "./pages/Cookies";
 import Review from "./pages/Review";
 import Tasks from "./pages/Tasks";
 import Materials from "./pages/Materials";
+import { useGlobalNavigation } from "./hooks/useGlobalNavigation";
 
-const App: React.FC = () => {
+export const App: React.FC = () => {
+  useGlobalNavigation();
   return (
     <div className="app govuk-template__body js-enabled">
       <Layout>
