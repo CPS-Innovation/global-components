@@ -1,9 +1,11 @@
-ENVIRONMENT=$1
-VERSION=$(jq -r '.version' package.json)
-STORAGE_ACCOUNT_NAME=sacpsglobalcomponents
-CACHE_CONTROL="max-age=20, stale-while-revalidate=3600, stale-if-error=3600"
-
+#VERSION=$(jq -r '.version' package.json)
 npm run build
+
+az storage container create \
+    --auth-mode login \
+    --account-name $STORAGE_ACCOUNT_NAME \
+    --name $ENVIRONMENT \
+    --public-access container
 
 for FILE in cps-global-components.js cps-global-components.js.map; do
     az storage blob upload \

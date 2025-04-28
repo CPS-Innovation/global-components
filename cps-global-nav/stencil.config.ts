@@ -1,6 +1,10 @@
 import { Config } from "@stencil/core";
 import { sass } from "@stencil/sass";
 
+// Pick out ONLY the env values that we care about
+// @ts-ignore
+const { SURVEY_LINK, SHOULD_SHOW_HEADER, SHOULD_SHOW_MENU } = process.env;
+
 export const config: Config = {
   namespace: "cps-global-nav",
 
@@ -25,7 +29,9 @@ export const config: Config = {
     },
   ],
   testing: {
-    browserHeadless: "new",
+    browserHeadless: "shell",
   },
   plugins: [sass()],
+
+  env: { SURVEY_LINK, SHOULD_SHOW_HEADER, SHOULD_SHOW_MENU },
 };

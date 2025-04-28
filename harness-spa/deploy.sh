@@ -1,13 +1,11 @@
 #!/bin/bash
 
-ENVIRONMENT=$1
-VERSION=$(jq -r '.version' package.json)
+#VERSION=$(jq -r '.version' package.json)
 STORAGE_ACCOUNT_NAME=sacpsglobalcomponents
 CONTAINER_NAME=\$web
-VITE_GLOBAL_SCRIPT_URL=https://sacpsglobalcomponents.blob.core.windows.net/dev/cps-global-components.js npm run build
+VITE_GLOBAL_SCRIPT_URL=https://$STORAGE_ACCOUNT_NAME.blob.core.windows.net/dev/cps-global-components.js npm run build
 
 # If using azcopy with az AD account login, the AD account needs the "Storage Blob Data Contributor" role
-
 export AZCOPY_AUTO_LOGIN_TYPE=AZCLI
 azcopy sync ./dist/ https://$STORAGE_ACCOUNT_NAME.blob.core.windows.net/\$web/spa-app/  --recursive=true --delete-destination=true
 

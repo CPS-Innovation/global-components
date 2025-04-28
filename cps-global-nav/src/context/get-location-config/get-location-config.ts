@@ -11,6 +11,7 @@ export const getLocationConfig = ({ location: { href } }: Window): MatchedPathMa
   const flatConfigs = flattenConfig(appLocationConfigs);
 
   console.table(flatConfigs, [nameof<(typeof flatConfigs)[0]>("pathRoot"), nameof<(typeof flatConfigs)[0]>("path")]);
+
   const config = flatConfigs.find(config => isPathMatch(config, href, fullPath));
 
   if (!config) {
