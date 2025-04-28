@@ -6,8 +6,7 @@ mkdir -p ./host/static-app
 
 # Copy out directory contents to host/static-app
 cp -r ./out/* ./host/static-app/
-
-cp ../cps-global-nav/dist/cps-global-components.* ./host/
+cp ../cps-global-nav/dist/cps-global-components.* ./public/static-app/
 
 cp -r ./host/static-app/govuk/assets ./host
 

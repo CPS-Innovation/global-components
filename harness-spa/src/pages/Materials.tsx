@@ -1,20 +1,9 @@
-import Link from "next/link";
-import Image from "next/image";
+import React from "react";
+import { Link, useParams } from "react-router-dom";
 
-export function generateStaticParams() {
-  return [
-    { urn: "12AB1212121", caseId: "100001" },
-    { urn: "12AB1212121", caseId: "100002" },
-    { urn: "12AB3333333", caseId: "100003" },
-  ];
-}
+const Materials: React.FC = () => {
+  const { urn, caseId } = useParams<{ urn: string; caseId: string }>();
 
-export default async function CaseMaterials({
-  params,
-}: {
-  params: Promise<{ urn: string; caseId: string }>;
-}) {
-  const { urn, caseId } = await params;
   return (
     <div>
       <h1 className="govuk-heading-xl">Case Materials</h1>
@@ -51,14 +40,7 @@ export default async function CaseMaterials({
             <tbody className="govuk-table__body">
               <tr className="govuk-table__row">
                 <td className="govuk-table__cell">
-                  <Image
-                    src="/static-app/file.svg"
-                    alt="Document"
-                    width={20}
-                    height={20}
-                    className="govuk-!-margin-right-2"
-                  />
-                  <Link prefetch={false} href="#" className="govuk-link">
+                  <Link to="#" className="govuk-link">
                     Witness Statement
                   </Link>
                 </td>
@@ -67,14 +49,7 @@ export default async function CaseMaterials({
               </tr>
               <tr className="govuk-table__row">
                 <td className="govuk-table__cell">
-                  <Image
-                    src="/static-app/file.svg"
-                    alt="Document"
-                    width={20}
-                    height={20}
-                    className="govuk-!-margin-right-2"
-                  />
-                  <Link prefetch={false} href="#" className="govuk-link">
+                  <Link to="#" className="govuk-link">
                     Police Report
                   </Link>
                 </td>
@@ -86,15 +61,13 @@ export default async function CaseMaterials({
 
           <div className="govuk-button-group">
             <Link
-              prefetch={false}
-              href={`/cases/urns/${urn}/cases/${caseId}`}
+              to={`/cases/urns/${urn}/cases/${caseId}`}
               className="govuk-button govuk-button--secondary"
             >
               Back to Case
             </Link>
             <Link
-              prefetch={false}
-              href={`/cases/urns/${urn}/cases/${caseId}/review`}
+              to={`/cases/urns/${urn}/cases/${caseId}/review`}
               className="govuk-button"
             >
               Review Case
@@ -104,4 +77,6 @@ export default async function CaseMaterials({
       </div>
     </div>
   );
-}
+};
+
+export default Materials;

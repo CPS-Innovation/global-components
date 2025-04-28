@@ -1,19 +1,9 @@
-import Link from "next/link";
+import React from "react";
+import { Link, useParams } from "react-router-dom";
 
-export function generateStaticParams() {
-  return [
-    { urn: "12AB1212121", caseId: "100001" },
-    { urn: "12AB1212121", caseId: "100002" },
-    { urn: "12AB3333333", caseId: "100003" },
-  ];
-}
+const Review: React.FC = () => {
+  const { urn, caseId } = useParams<{ urn: string; caseId: string }>();
 
-export default async function CaseReview({
-  params,
-}: {
-  params: Promise<{ urn: string; caseId: string }>;
-}) {
-  const { urn, caseId } = await params;
   return (
     <div>
       <h1 className="govuk-heading-xl">Case Review</h1>
@@ -44,15 +34,13 @@ export default async function CaseReview({
 
           <div className="govuk-button-group">
             <Link
-              prefetch={false}
-              href={`/cases/urns/${urn}/cases/${caseId}`}
+              to={`/cases/urns/${urn}/cases/${caseId}`}
               className="govuk-button govuk-button--secondary"
             >
               Back to Case
             </Link>
             <Link
-              prefetch={false}
-              href={`/cases/urns/${urn}/cases/${caseId}/materials`}
+              to={`/cases/urns/${urn}/cases/${caseId}/materials`}
               className="govuk-button"
             >
               View Materials
@@ -62,4 +50,6 @@ export default async function CaseReview({
       </div>
     </div>
   );
-}
+};
+
+export default Review;
