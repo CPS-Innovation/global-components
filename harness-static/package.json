@@ -8,7 +8,7 @@
     "start": "next start",
     "lint": "next lint",
     "publish": "./publish.sh dev",
-    "host-local": "./host-static.sh"
+    "host-local": "./host-local.sh"
   },
   "dependencies": {
     "govuk-frontend": "^5.9.0",

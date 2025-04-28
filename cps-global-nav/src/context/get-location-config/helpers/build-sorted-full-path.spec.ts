@@ -9,6 +9,10 @@ describe("buildSortedFullPath", () => {
     expect(buildSortedFullPath({ pathname: "/foo/bar", search: "?baz=1" } as Location)).toEqual("/foo/bar?baz=1");
   });
 
+  it("returns a full path with a single query param and a hash", () => {
+    expect(buildSortedFullPath({ pathname: "/foo/bar", search: "?baz=1", hash: "#qux" } as Location)).toEqual("/foo/bar?baz=1#qux");
+  });
+
   it("returns a full path with multiple query params, with the params being sorted alphabetically", () => {
     expect(buildSortedFullPath({ pathname: "/foo/bar", search: "?baz=1&dog=2&cat=3&baz=2" } as Location)).toEqual("/foo/bar?baz=1&baz=2&cat=3&dog=2");
   });

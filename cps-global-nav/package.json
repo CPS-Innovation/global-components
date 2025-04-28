@@ -32,12 +32,11 @@
     "loader/"
   ],
   "scripts": {
-    "build": "stencil build",
+    "build": "stencil build && rollup -c",
     "start": "stencil build --dev --watch --serve",
     "test": "stencil test --spec",
     "test.watch": "stencil test --spec --watchAll",
     "generate": "stencil generate",
-    "bundle": "rollup -c",
     "publish": "./publish.sh dev"
   },
   "devDependencies": {
