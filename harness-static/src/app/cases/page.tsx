@@ -42,6 +42,7 @@ export default function Cases() {
               <tr className="govuk-table__row">
                 <td className="govuk-table__cell">
                   <Link
+                    prefetch={false}
                     href="/cases/urns/12AB1212121/cases/100001"
                     className="govuk-link"
                   >
@@ -57,6 +58,7 @@ export default function Cases() {
               <tr className="govuk-table__row">
                 <td className="govuk-table__cell">
                   <Link
+                    prefetch={false}
                     href="/cases/urns/12AB1212121/cases/100002"
                     className="govuk-link"
                   >
@@ -74,6 +76,7 @@ export default function Cases() {
               <tr className="govuk-table__row">
                 <td className="govuk-table__cell">
                   <Link
+                    prefetch={false}
                     href="/cases/urns/12AB3333333/cases/100003"
                     className="govuk-link"
                   >
@@ -98,6 +101,7 @@ export default function Cases() {
           >
             <div className="govuk-pagination__prev">
               <Link
+                prefetch={false}
                 className="govuk-link govuk-pagination__link"
                 href="/cases?page=1"
                 rel="prev"
@@ -108,6 +112,7 @@ export default function Cases() {
             <ul className="govuk-pagination__list">
               <li className="govuk-pagination__item govuk-pagination__item--current">
                 <Link
+                  prefetch={false}
                   className="govuk-link govuk-pagination__link"
                   href="/cases?page=1"
                   aria-current="page"
@@ -117,6 +122,7 @@ export default function Cases() {
               </li>
               <li className="govuk-pagination__item">
                 <Link
+                  prefetch={false}
                   className="govuk-link govuk-pagination__link"
                   href="/cases?page=2"
                 >
@@ -125,6 +131,7 @@ export default function Cases() {
               </li>
               <li className="govuk-pagination__item">
                 <Link
+                  prefetch={false}
                   className="govuk-link govuk-pagination__link"
                   href="/cases?page=3"
                 >
@@ -134,6 +141,7 @@ export default function Cases() {
             </ul>
             <div className="govuk-pagination__next">
               <Link
+                prefetch={false}
                 className="govuk-link govuk-pagination__link"
                 href="/cases?page=2"
                 rel="next"

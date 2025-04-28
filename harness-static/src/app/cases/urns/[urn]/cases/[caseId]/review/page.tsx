@@ -44,12 +44,14 @@ export default async function CaseReview({
 
           <div className="govuk-button-group">
             <Link
+              prefetch={false}
               href={`/cases/urns/${urn}/cases/${caseId}`}
               className="govuk-button govuk-button--secondary"
             >
               Back to Case
             </Link>
             <Link
+              prefetch={false}
               href={`/cases/urns/${urn}/cases/${caseId}/materials`}
               className="govuk-button"
             >

@@ -11,11 +11,17 @@ export default defineConfig({
   build: {
     outDir: "dist",
     sourcemap: true,
+    rollupOptions: {
+      external: "/cps-global-components.js",
+    },
   },
   css: {
     preprocessorOptions: {
       scss: {
-        includePaths: [path.resolve(__dirname, "node_modules")],
+        includePaths: [
+          path.resolve(__dirname, "node_modules"),
+          path.resolve(__dirname, "src/styles"),
+        ],
       },
     },
   },

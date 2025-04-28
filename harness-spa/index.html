@@ -6,7 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#0b0c0c" />
     <link rel="stylesheet" href="/assets/govuk-frontend/govuk-frontend.min.css">
-    <script type="module" src="/cps-global-components.js"></script>
+    <script type="module" src="%VITE_GLOBAL_SCRIPT_URL%"></script>
     <title>CPS Harness</title>
 </head>
 
@@ -14,7 +14,6 @@
     <script>
         document.body.className = ((document.body.className) ? document.body.className + ' js-enabled' : 'js-enabled');
     </script>
-
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
 </body>

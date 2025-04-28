@@ -58,7 +58,7 @@ export default async function CaseMaterials({
                     height={20}
                     className="govuk-!-margin-right-2"
                   />
-                  <Link href="#" className="govuk-link">
+                  <Link prefetch={false} href="#" className="govuk-link">
                     Witness Statement
                   </Link>
                 </td>
@@ -74,7 +74,7 @@ export default async function CaseMaterials({
                     height={20}
                     className="govuk-!-margin-right-2"
                   />
-                  <Link href="#" className="govuk-link">
+                  <Link prefetch={false} href="#" className="govuk-link">
                     Police Report
                   </Link>
                 </td>
@@ -86,12 +86,14 @@ export default async function CaseMaterials({
 
           <div className="govuk-button-group">
             <Link
+              prefetch={false}
               href={`/cases/urns/${urn}/cases/${caseId}`}
               className="govuk-button govuk-button--secondary"
             >
               Back to Case
             </Link>
             <Link
+              prefetch={false}
               href={`/cases/urns/${urn}/cases/${caseId}/review`}
               className="govuk-button"
             >
