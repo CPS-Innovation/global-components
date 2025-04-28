@@ -132,7 +132,7 @@ export const appLocationConfigs: AppLocationConfig[] = [
     ],
   },
   {
-    pathRoots: ["http://127.0.0.1:3000/spa-app", "https://sacpsglobalcomponents.z33.web.core.windows.net/spa-app"],
+    pathRoots: ["http://localhost:3000/spa-app", "http://127.0.0.1:3000/spa-app", "https://sacpsglobalcomponents.z33.web.core.windows.net/spa-app"],
     pathMatchers: [
       {
         paths: ["/spa-app/#/tasks"],
