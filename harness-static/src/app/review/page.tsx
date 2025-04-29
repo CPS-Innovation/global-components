@@ -10,12 +10,20 @@ export default function Review() {
             <h2 className="govuk-tabs__title">Contents</h2>
             <ul className="govuk-tabs__list">
               <li className="govuk-tabs__list-item govuk-tabs__list-item--selected">
-                <Link className="govuk-tabs__tab" href="/review?tab=pending">
+                <Link
+                  prefetch={false}
+                  className="govuk-tabs__tab"
+                  href="/review?tab=pending"
+                >
                   Pending Review (3)
                 </Link>
               </li>
               <li className="govuk-tabs__list-item">
-                <Link className="govuk-tabs__tab" href="/review?tab=completed">
+                <Link
+                  prefetch={false}
+                  className="govuk-tabs__tab"
+                  href="/review?tab=completed"
+                >
                   Completed
                 </Link>
               </li>
@@ -38,6 +46,7 @@ export default function Review() {
                       Updated case details requiring review and approval.
                     </p>
                     <Link
+                      prefetch={false}
                       href="/review/case/CPS-2025-0123"
                       className="govuk-button"
                     >
@@ -59,6 +68,7 @@ export default function Review() {
                       New witness statement added to case CPS-2025-0122.
                     </p>
                     <Link
+                      prefetch={false}
                       href="/review/document/CPS-2025-0122"
                       className="govuk-button"
                     >
@@ -81,6 +91,7 @@ export default function Review() {
                       Court&quot;.
                     </p>
                     <Link
+                      prefetch={false}
                       href="/review/status/CPS-2025-0122"
                       className="govuk-button"
                     >

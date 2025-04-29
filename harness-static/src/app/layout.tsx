@@ -36,17 +36,29 @@ export default function RootLayout({
                 <h2 className="govuk-visually-hidden">Support links</h2>
                 <ul className="govuk-footer__inline-list">
                   <li className="govuk-footer__inline-list-item">
-                    <Link className="govuk-footer__link" href="/help">
+                    <Link
+                      prefetch={false}
+                      className="govuk-footer__link"
+                      href="/help"
+                    >
                       Help
                     </Link>
                   </li>
                   <li className="govuk-footer__inline-list-item">
-                    <Link className="govuk-footer__link" href="/privacy">
+                    <Link
+                      prefetch={false}
+                      className="govuk-footer__link"
+                      href="/privacy"
+                    >
                       Privacy
                     </Link>
                   </li>
                   <li className="govuk-footer__inline-list-item">
-                    <Link className="govuk-footer__link" href="/cookies">
+                    <Link
+                      prefetch={false}
+                      className="govuk-footer__link"
+                      href="/cookies"
+                    >
                       Cookies
                     </Link>
                   </li>

@@ -52,7 +52,21 @@ export const appLocationConfigs: AppLocationConfig[] = [
     ],
   },
   {
-    pathRoots: ["http://localhost:3333"],
+    pathRoots: ["https://cps-dev.outsystemsenterprise.com/WorkManagementApp"],
+    pathMatchers: [
+      {
+        paths: ["/WorkManagementApp/TaskList"],
+        matchedLinkCode: "tasks",
+        showSecondRow: false,
+        onwardLinks: {
+          tasks: "/WorkManagementApp/TaskList",
+          cases: "https://sacpsglobalcomponents.z33.web.core.windows.net/static-app/cases",
+        },
+      },
+    ],
+  },
+  {
+    pathRoots: ["http://localhost:3333" /* npm start inside cps-global-nav*/],
     pathMatchers: [
       {
         paths: [""],
@@ -81,19 +95,11 @@ export const appLocationConfigs: AppLocationConfig[] = [
     pathRoots: ["http://127.0.0.1:3000/static-app", "https://sacpsglobalcomponents.z33.web.core.windows.net/static-app"],
     pathMatchers: [
       {
-        paths: ["/static-app/tasks"],
-        matchedLinkCode: "tasks",
-        showSecondRow: false,
-        onwardLinks: {
-          cases: "/static-app/cases",
-        },
-      },
-      {
         paths: ["/static-app/cases/urns/(?<urn>[^/]+)/cases/(?<caseId>[^/]+)/review"],
         matchedLinkCode: "review",
         showSecondRow: true,
         onwardLinks: {
-          "tasks": "/static-app/tasks",
+          "tasks": "https://cps-dev.outsystemsenterprise.com/WorkManagementApp/TaskList",
           "cases": "/static-app/cases",
           "details": "/static-app/cases/urns/{urn}/cases/{caseId}",
           "case-materials": "/static-app/cases/urns/{urn}/cases/{caseId}/materials",
@@ -104,7 +110,7 @@ export const appLocationConfigs: AppLocationConfig[] = [
         matchedLinkCode: "case-materials",
         showSecondRow: true,
         onwardLinks: {
-          tasks: "/static-app/tasks",
+          tasks: "https://cps-dev.outsystemsenterprise.com/WorkManagementApp/TaskList",
           cases: "/static-app/cases",
           details: "/static-app/cases/urns/{urn}/cases/{caseId}",
           review: "/static-app/cases/urns/{urn}/cases/{caseId}/review",
@@ -115,7 +121,7 @@ export const appLocationConfigs: AppLocationConfig[] = [
         matchedLinkCode: "details",
         showSecondRow: true,
         onwardLinks: {
-          "tasks": "/static-app/tasks",
+          "tasks": "https://cps-dev.outsystemsenterprise.com/WorkManagementApp/TaskList",
           "cases": "/static-app/cases",
           "review": "/static-app/cases/urns/{urn}/cases/{caseId}/review",
           "case-materials": "/static-app/cases/urns/{urn}/cases/{caseId}/materials",
@@ -126,7 +132,61 @@ export const appLocationConfigs: AppLocationConfig[] = [
         matchedLinkCode: "cases",
         showSecondRow: false,
         onwardLinks: {
-          tasks: "/static-app/tasks",
+          tasks: "https://cps-dev.outsystemsenterprise.com/WorkManagementApp/TaskList",
+        },
+      },
+    ],
+  },
+  {
+    pathRoots: ["http://localhost:3000/spa-app", "http://127.0.0.1:3000/spa-app", "https://sacpsglobalcomponents.z33.web.core.windows.net/spa-app"],
+    pathMatchers: [
+      {
+        paths: ["/spa-app/#/tasks"],
+        matchedLinkCode: "tasks",
+        showSecondRow: false,
+        onwardLinks: {
+          cases: "/spa-app/#/cases",
+        },
+      },
+      {
+        paths: ["/spa-app/#/cases/urns/(?<urn>[^/]+)/cases/(?<caseId>[^/]+)/review"],
+        matchedLinkCode: "review",
+        showSecondRow: true,
+        onwardLinks: {
+          "tasks": "/spa-app/#/tasks",
+          "cases": "/spa-app/#/cases",
+          "details": "/spa-app/#/cases/urns/{urn}/cases/{caseId}",
+          "case-materials": "/spa-app/#/cases/urns/{urn}/cases/{caseId}/materials",
+        },
+      },
+      {
+        paths: ["/spa-app/#/cases/urns/(?<urn>[^/]+)/cases/(?<caseId>[^/]+)/materials"],
+        matchedLinkCode: "case-materials",
+        showSecondRow: true,
+        onwardLinks: {
+          tasks: "/spa-app/#/tasks",
+          cases: "/spa-app/#/cases",
+          details: "/spa-app/#/cases/urns/{urn}/cases/{caseId}",
+          review: "/spa-app/#/cases/urns/{urn}/cases/{caseId}/review",
+        },
+      },
+      {
+        paths: ["/spa-app/#/cases/urns/(?<urn>[^/]+)/cases/(?<caseId>[^/]+)"],
+        matchedLinkCode: "details",
+        showSecondRow: true,
+        onwardLinks: {
+          "tasks": "/spa-app/#/tasks",
+          "cases": "/spa-app/#/cases",
+          "review": "/spa-app/#/cases/urns/{urn}/cases/{caseId}/review",
+          "case-materials": "/spa-app/#/cases/urns/{urn}/cases/{caseId}/materials",
+        },
+      },
+      {
+        paths: ["/spa-app/#/cases"],
+        matchedLinkCode: "cases",
+        showSecondRow: false,
+        onwardLinks: {
+          tasks: "/spa-app/#/tasks",
         },
       },
     ],

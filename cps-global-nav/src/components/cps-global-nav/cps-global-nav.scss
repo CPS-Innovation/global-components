@@ -5,6 +5,13 @@ $level-height: 3rem;
   display: block;
 }
 
+.skip-link {
+  // ignore the container width so the skip link is aligned
+  // to the left of the screen
+  width: 100vw;
+  margin-left: calc(50% - 50vw);
+}
+
 header {
   @include govuk-font($size: 19);
 
