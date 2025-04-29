@@ -1,13 +1,9 @@
 import { Component, Prop, h, State, Fragment } from "@stencil/core";
 import { getLocationConfig } from "../../context/get-location-config";
 import { LinkCode, MatchedPathMatcher } from "../../context/LocationConfig";
+import { SHOULD_SHOW_HEADER, SHOULD_SHOW_MENU, SURVEY_LINK } from "../../config";
 
 type LinkHelperArg = { code: LinkCode; label: string; children?: LinkCode[]; openInNewTab?: boolean; parentCode?: LinkCode };
-
-const SURVEY_LINK = "https://forms.office.com/e/Cxmsq5xTWx";
-
-const SHOULD_SHOW_HEADER = true;
-const SHOULD_SHOW_MENU = true;
 
 const SHOULD_SHOW_NAME = false;
 const SHOULD_SHOW_CMS_LINKS = false;
@@ -53,9 +49,11 @@ export class CpsGlobalNav {
           <nav-link {...this.linkHelper({ code: "tasks", label: "Tasks" })}></nav-link>
           <nav-link {...this.linkHelper({ code: "cases", label: "Cases", children: ["details", "case-materials", "review"] })}></nav-link>
         </ul>
-        <ul>
-          <nav-link label="Give feedback" href={SURVEY_LINK}></nav-link>
-        </ul>
+        {SURVEY_LINK && (
+          <ul>
+            <nav-link label="Give feedback" href={SURVEY_LINK}></nav-link>
+          </ul>
+        )}
       </div>
 
       <div class="background-divider"></div>
@@ -124,8 +122,8 @@ export class CpsGlobalNav {
   render() {
     return (
       <>
-        {SHOULD_SHOW_HEADER ? this.renderHeader() : undefined}
-        {SHOULD_SHOW_MENU ? (this.config ? this.renderOk() : this.renderNoMatchingConfig()) : undefined}
+        {SHOULD_SHOW_HEADER && this.renderHeader()}
+        {SHOULD_SHOW_MENU && (this.config ? this.renderOk() : this.renderNoMatchingConfig())}
       </>
     );
   }

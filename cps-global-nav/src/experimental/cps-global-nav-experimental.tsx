@@ -43,7 +43,7 @@ export class CpsGlobalNavExperimental {
   // }
 
   async componentWillLoad() {
-    console.log(window.location.search);
+    console.debug(window.location.search);
     //this.getCaseDatePromise = this.getCaseDate();
   }
 

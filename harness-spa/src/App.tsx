@@ -23,7 +23,7 @@ export const App: React.FC = () => {
     <div className="app govuk-template__body js-enabled">
       <Layout>
         <Routes>
-          <Route path="/" element={<Navigate to="/tasks" replace />} />
+          <Route path="/" element={<Navigate to="/cases" replace />} />
           <Route path="/tasks" element={<Tasks />} />
           <Route path="/cases" element={<Cases />} />
           <Route
