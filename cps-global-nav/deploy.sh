@@ -7,15 +7,16 @@ az storage container create \
     --name $ENVIRONMENT \
     --public-access container
 
-for FILE in cps-global-components.js cps-global-components.js.map; do
+FILES=($(find dist -type f -path "$FILE_PATTERN"))
+
+for FILE in "${FILES[@]}"; do
+    DESTINATION_FILE=$(echo $FILE | sed "s|^dist/||") 
     az storage blob upload \
         --overwrite true \
         --auth-mode login \
         --content-cache-control "$CACHE_CONTROL" \
         --account-name $STORAGE_ACCOUNT_NAME \
         --container-name $ENVIRONMENT \
-        --name "$FILE" \
-        --file "./dist/$FILE"
+        --name "$DESTINATION_FILE" \
+        --file "$FILE"
 done
-
-
