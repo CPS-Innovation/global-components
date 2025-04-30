@@ -5,7 +5,7 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   return (
     <>
       <div className="govuk-width-container">
-        <cps-global-nav></cps-global-nav>
+        <cps-global-header></cps-global-header>
         <main className="govuk-main-wrapper" id="main-content" role="main">
           {children}
         </main>

@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 
-const GLOBAL_EVENT_NAME = "cps-global-nav-event";
+const GLOBAL_EVENT_NAME = "cps-global-header-event";
 type GlobalNavigationEvent = CustomEventInit<string>;
 
 export const useGlobalNavigation = () => {

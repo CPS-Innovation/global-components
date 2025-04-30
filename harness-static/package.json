@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "deploy:latest": "./deploy.sh latest",
+    "deploy:unstable": "./deploy.sh unstable",
     "deploy:dev": "./deploy.sh dev",
     "deploy:test": "./deploy.sh test",
     "host-local": "./host-local.sh"
