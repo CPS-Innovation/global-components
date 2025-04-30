@@ -9,7 +9,7 @@ const SHOULD_SHOW_NAME = false;
 const SHOULD_SHOW_CMS_LINKS = false;
 const SHOULD_SHOW_MATERIALS_MENU = false;
 @Component({
-  tag: "cps-global-header", // rename everything in the repo properly in #FCT2-6249
+  tag: "cps-global-header",
   styleUrl: "cps-global-header.scss",
   shadow: true,
 })
