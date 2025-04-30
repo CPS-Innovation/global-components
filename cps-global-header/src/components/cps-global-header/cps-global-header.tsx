@@ -13,7 +13,7 @@ const SHOULD_SHOW_MATERIALS_MENU = false;
   styleUrl: "cps-global-header.scss",
   shadow: true,
 })
-export class CpsGlobalNav {
+export class CpsGlobalHeader {
   /**
    * The text to appear at the start of the second row
    */

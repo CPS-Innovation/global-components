@@ -19,10 +19,10 @@ export class NavLink {
     cancelable: true,
     bubbles: true,
   })
-  cpsGlobalNavEvent: EventEmitter<string>;
+  CpsGlobalHeaderEvent: EventEmitter<string>;
 
   emitEvent = () => {
-    this.cpsGlobalNavEvent.emit(this.href);
+    this.CpsGlobalHeaderEvent.emit(this.href);
   };
 
   launchNewTab = () => {

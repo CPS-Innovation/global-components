@@ -9,7 +9,7 @@ import { Component, Prop, h, Event, EventEmitter, State } from "@stencil/core";
   styleUrl: "../components/cps-global-header/cps-global-header.scss",
   shadow: true,
 })
-export class CpsGlobalNavExperimental {
+export class CpsGlobalHeaderExperimental {
   /**
    * The text to appear at the start of the second row
    */
@@ -18,12 +18,12 @@ export class CpsGlobalNavExperimental {
   @Prop() forceEnvironment: string;
 
   @Event({
-    eventName: "cpsGlobalNavEvent",
+    eventName: "cpsGlobalHeaderEvent",
     composed: true,
     cancelable: true,
     bubbles: true,
   })
-  cpsGlobalNavEvent: EventEmitter<string>;
+  CpsGlobalHeaderEvent: EventEmitter<string>;
 
   @State() leadDefendantPresentationName: string = "Please wait...";
 
@@ -65,7 +65,7 @@ export class CpsGlobalNavExperimental {
   }
 
   emitWindowEvent() {
-    this.cpsGlobalNavEvent.emit("foo");
+    this.CpsGlobalHeaderEvent.emit("foo");
   }
 
   render() {

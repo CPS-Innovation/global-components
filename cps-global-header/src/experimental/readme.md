@@ -13,9 +13,9 @@
 
 ## Events
 
-| Event               | Description | Type                  |
-| ------------------- | ----------- | --------------------- |
-| `cpsGlobalNavEvent` |             | `CustomEvent<string>` |
+| Event                  | Description | Type                  |
+| ---------------------- | ----------- | --------------------- |
+| `cpsGlobalHeaderEvent` |             | `CustomEvent<string>` |
 
 
 ----------------------------------------------

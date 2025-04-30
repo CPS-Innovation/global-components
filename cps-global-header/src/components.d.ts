@@ -50,7 +50,7 @@ declare global {
         new (): HTMLCpsGlobalHeaderElement;
     };
     interface HTMLCpsGlobalHeaderExperimentalElementEventMap {
-        "cpsGlobalNavEvent": string;
+        "cpsGlobalHeaderEvent": string;
     }
     interface HTMLCpsGlobalHeaderExperimentalElement extends Components.CpsGlobalHeaderExperimental, HTMLStencilElement {
         addEventListener<K extends keyof HTMLCpsGlobalHeaderExperimentalElementEventMap>(type: K, listener: (this: HTMLCpsGlobalHeaderExperimentalElement, ev: CpsGlobalHeaderExperimentalCustomEvent<HTMLCpsGlobalHeaderExperimentalElementEventMap[K]>) => any, options?: boolean | AddEventListenerOptions): void;
@@ -109,7 +109,7 @@ declare namespace LocalJSX {
           * The text to appear at the start of the second row
          */
         "name"?: string;
-        "onCpsGlobalNavEvent"?: (event: CpsGlobalHeaderExperimentalCustomEvent<string>) => void;
+        "onCpsGlobalHeaderEvent"?: (event: CpsGlobalHeaderExperimentalCustomEvent<string>) => void;
     }
     interface DropDown {
         "label"?: string;
