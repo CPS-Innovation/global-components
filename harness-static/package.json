@@ -7,7 +7,9 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "deploy": "./deploy.sh dev",
+    "deploy:latest": "./deploy.sh latest",
+    "deploy:dev": "./deploy.sh dev",
+    "deploy:test": "./deploy.sh test",
     "host-local": "./host-local.sh"
   },
   "dependencies": {
