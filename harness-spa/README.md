@@ -32,7 +32,7 @@ harness-spa/
 │   ├── styles/
 │   │   └── globals.scss
 │   ├── types/
-│   │   └── cps-global-nav.d.ts
+│   │   └── cps-global-header.d.ts
 │   ├── App.tsx
 │   └── main.tsx
 ├── index.html

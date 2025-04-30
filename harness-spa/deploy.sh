@@ -6,7 +6,7 @@ STORAGE_ACCOUNT_NAME=sacpsglobalcomponents
 CONTAINER_NAME=\$web
 VITE_GLOBAL_SCRIPT_URL=https://$STORAGE_ACCOUNT_NAME.blob.core.windows.net/$ENVIRONMENT/cps-global-components.js npm run build
 
-if [[ "$ENVIRONMENT" = "latest" ]]; then
+if [[ "$ENVIRONMENT" = "unstable" ]]; then
     FOLDER_SUFFIX=""
 else
     FOLDER_SUFFIX="-$ENVIRONMENT"
@@ -27,3 +27,5 @@ azcopy sync ./dist/ https://$STORAGE_ACCOUNT_NAME.blob.core.windows.net/$CONTAIN
 #     --account-name $STORAGE_ACCOUNT_NAME \
 #     --destination $CONTAINER_NAME \
 #     --source ./out
+
+

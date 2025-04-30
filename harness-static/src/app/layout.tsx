@@ -25,7 +25,7 @@ export default function RootLayout({
       </head>
       <body className="govuk-template__body">
         <div className="govuk-width-container">
-          <cps-global-nav></cps-global-nav>
+          <cps-global-header></cps-global-header>
           <main className="govuk-main-wrapper" id="main-content" role="main">
             {children}
           </main>

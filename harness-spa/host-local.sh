@@ -7,7 +7,7 @@ mkdir -p ./host/spa-app
 # Copy out directory contents to host/static-app
 cp -r ./dist/* ./host/spa-app/
 
-cp ../cps-global-nav/dist/cps-global-components.* ./host/
+cp ../cps-global-header/dist/cps-global-components.* ./host/
 
 # Start http-server on the host directory with base path /static-app
 npx http-server ./host -p 3000 --cors -o spa-app
