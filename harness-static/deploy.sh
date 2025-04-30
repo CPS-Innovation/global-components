@@ -5,7 +5,7 @@ ENVIRONMENT=$1
 STORAGE_ACCOUNT_NAME=sacpsglobalcomponents
 CONTAINER_NAME=\$web
 
-if [[ "$ENVIRONMENT" = "latest" ]]; then
+if [[ "$ENVIRONMENT" = "unstable" ]]; then
     BASE_PATH="/static-app"
 else
     BASE_PATH="/static-app-$ENVIRONMENT"

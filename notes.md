@@ -31,7 +31,7 @@ declare global {
   namespace React {
     namespace JSX {
       interface IntrinsicElements {
-        ["cps-global-nav"]: React.DetailedHTMLProps<
+        ["cps-global-header"]: React.DetailedHTMLProps<
           React.HTMLAttributes<HTMLElement>,
           HTMLElement
         >;
