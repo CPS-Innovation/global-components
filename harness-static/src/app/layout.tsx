@@ -20,6 +20,7 @@ export default function RootLayout({
           src={process.env.GLOBAL_SCRIPT_URL}
           type="module"
           crossOrigin="anonymous"
+          referrerPolicy="no-referrer-when-downgrade"
         />
       </head>
       <body className="govuk-template__body">
