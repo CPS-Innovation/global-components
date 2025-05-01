@@ -19,6 +19,11 @@ header {
     font-weight: 700;
   }
 
+  .govuk-header__link--homepage:hover{
+    text-decoration-line: none !important;
+    border-bottom: 0 !important;
+  }
+
   border-bottom: none !important;
 }
 
