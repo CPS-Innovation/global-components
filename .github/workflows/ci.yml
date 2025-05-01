@@ -1,0 +1,19 @@
+name: Node.js CI
+on:
+  pull_request:
+    branches: [main, master] # Runs on PRs targeting main or master branch
+jobs:
+  build:
+    name: CI
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./cps-global-header # Set the working directory to the foo subdirectory
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: ".nvmrc"
+      - run: npm ci
+      - run: npm run build
+      - run: npm test
