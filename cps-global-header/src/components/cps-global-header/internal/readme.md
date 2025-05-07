@@ -5,13 +5,13 @@
 
 ## Properties
 
-| Property       | Attribute         | Description | Type      | Default     |
-| -------------- | ----------------- | ----------- | --------- | ----------- |
-| `disabled`     | `disabled`        |             | `boolean` | `undefined` |
-| `href`         | `href`            |             | `string`  | `undefined` |
-| `label`        | `label`           |             | `string`  | `undefined` |
-| `openInNewTab` | `open-in-new-tab` |             | `boolean` | `undefined` |
-| `selected`     | `selected`        |             | `boolean` | `undefined` |
+| Property       | Attribute         | Description | Type                                              | Default     |
+| -------------- | ----------------- | ----------- | ------------------------------------------------- | ----------- |
+| `disabled`     | `disabled`        |             | `boolean`                                         | `undefined` |
+| `href`         | `href`            |             | `string \| { link: string; isOutSystems: true; }` | `undefined` |
+| `label`        | `label`           |             | `string`                                          | `undefined` |
+| `openInNewTab` | `open-in-new-tab` |             | `boolean`                                         | `undefined` |
+| `selected`     | `selected`        |             | `boolean`                                         | `undefined` |
 
 
 ## Events

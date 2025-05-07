@@ -1,6 +1,8 @@
 export type LinkCode = "tasks" | "cases" | "details" | "case-materials" | "review" | "cms-pre-charge-triage" | "bulk-um-classification";
 
-export type OnwardLinkDefinitions = Partial<{ [key in LinkCode]: string }>;
+export type OnwardLinkDefinition = string | { link: string; isOutSystems: true };
+
+export type OnwardLinkDefinitions = Partial<{ [key in LinkCode]: OnwardLinkDefinition }>;
 
 export type PathMatcher = { paths: string[]; matchedLinkCode: LinkCode; showSecondRow: boolean; onwardLinks: OnwardLinkDefinitions };
 
@@ -77,7 +79,7 @@ export const appLocationConfigs: AppLocationConfig[] = [
           tasks: "/?urn={urn}&caseId={caseId}",
           cases: "/?urn={urn}&caseId={caseId}",
           review: "/review",
-          details: "Please navigate to details page for case {caseId}",
+          details: { link: "Please navigate to details page for case {caseId}", isOutSystems: true },
         },
       },
       {
@@ -187,6 +189,29 @@ export const appLocationConfigs: AppLocationConfig[] = [
         showSecondRow: false,
         onwardLinks: {
           tasks: "/spa-app/#/tasks",
+        },
+      },
+    ],
+  },
+  {
+    pathRoots: ["https://personal-3hxfhjxg.outsystemscloud.com/Steftest"],
+    pathMatchers: [
+      {
+        paths: ["/Steftest/AnotherPage"],
+        matchedLinkCode: "cases",
+        showSecondRow: false,
+        onwardLinks: {
+          tasks: { link: "/Steftest/", isOutSystems: true },
+          cases: { link: "/Steftest/AnotherPage", isOutSystems: true },
+        },
+      },
+      {
+        paths: ["/Steftest/", "/Steftest/Home"],
+        matchedLinkCode: "tasks",
+        showSecondRow: false,
+        onwardLinks: {
+          tasks: { link: "/Steftest/", isOutSystems: true },
+          cases: { link: "/Steftest/AnotherPage", isOutSystems: true },
         },
       },
     ],
