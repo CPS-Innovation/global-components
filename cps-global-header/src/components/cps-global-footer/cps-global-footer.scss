@@ -1,0 +1,9 @@
+@import "../common/common.scss";
+
+:host {
+  display: block;
+}
+
+.govuk-footer {
+  border-top: none;
+}

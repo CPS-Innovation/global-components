@@ -6,8 +6,12 @@
  */
 import { HTMLStencilElement, JSXBase } from "@stencil/core/internal";
 import { LinkProps } from "./components/cps-global-header/internal/LinkProps";
+import { OnwardLinkDefinition } from "./context/LocationConfig";
 export { LinkProps } from "./components/cps-global-header/internal/LinkProps";
+export { OnwardLinkDefinition } from "./context/LocationConfig";
 export namespace Components {
+    interface CpsGlobalFooter {
+    }
     interface CpsGlobalHeader {
         /**
           * The text to appear at the start of the second row
@@ -28,7 +32,7 @@ export namespace Components {
     }
     interface NavLink {
         "disabled": boolean;
-        "href": string;
+        "href": OnwardLinkDefinition;
         "label": string;
         "openInNewTab"?: boolean;
         "selected": boolean;
@@ -43,6 +47,12 @@ export interface NavLinkCustomEvent<T> extends CustomEvent<T> {
     target: HTMLNavLinkElement;
 }
 declare global {
+    interface HTMLCpsGlobalFooterElement extends Components.CpsGlobalFooter, HTMLStencilElement {
+    }
+    var HTMLCpsGlobalFooterElement: {
+        prototype: HTMLCpsGlobalFooterElement;
+        new (): HTMLCpsGlobalFooterElement;
+    };
     interface HTMLCpsGlobalHeaderElement extends Components.CpsGlobalHeader, HTMLStencilElement {
     }
     var HTMLCpsGlobalHeaderElement: {
@@ -90,6 +100,7 @@ declare global {
         new (): HTMLNavLinkElement;
     };
     interface HTMLElementTagNameMap {
+        "cps-global-footer": HTMLCpsGlobalFooterElement;
         "cps-global-header": HTMLCpsGlobalHeaderElement;
         "cps-global-header-experimental": HTMLCpsGlobalHeaderExperimentalElement;
         "drop-down": HTMLDropDownElement;
@@ -97,6 +108,8 @@ declare global {
     }
 }
 declare namespace LocalJSX {
+    interface CpsGlobalFooter {
+    }
     interface CpsGlobalHeader {
         /**
           * The text to appear at the start of the second row
@@ -118,13 +131,14 @@ declare namespace LocalJSX {
     }
     interface NavLink {
         "disabled"?: boolean;
-        "href"?: string;
+        "href"?: OnwardLinkDefinition;
         "label"?: string;
         "onCps-global-header-event"?: (event: NavLinkCustomEvent<string>) => void;
         "openInNewTab"?: boolean;
         "selected"?: boolean;
     }
     interface IntrinsicElements {
+        "cps-global-footer": CpsGlobalFooter;
         "cps-global-header": CpsGlobalHeader;
         "cps-global-header-experimental": CpsGlobalHeaderExperimental;
         "drop-down": DropDown;
@@ -135,6 +149,7 @@ export { LocalJSX as JSX };
 declare module "@stencil/core" {
     export namespace JSX {
         interface IntrinsicElements {
+            "cps-global-footer": LocalJSX.CpsGlobalFooter & JSXBase.HTMLAttributes<HTMLCpsGlobalFooterElement>;
             "cps-global-header": LocalJSX.CpsGlobalHeader & JSXBase.HTMLAttributes<HTMLCpsGlobalHeaderElement>;
             "cps-global-header-experimental": LocalJSX.CpsGlobalHeaderExperimental & JSXBase.HTMLAttributes<HTMLCpsGlobalHeaderExperimentalElement>;
             "drop-down": LocalJSX.DropDown & JSXBase.HTMLAttributes<HTMLDropDownElement>;
