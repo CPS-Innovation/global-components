@@ -25,7 +25,7 @@ export class CpsGlobalHeader {
    */
   @State() address: string;
 
-  async componentWillRender() {
+  async componentWillLoad() {
     this.config = getLocationConfig(window);
 
     window.navigation.addEventListener("navigate", event => {

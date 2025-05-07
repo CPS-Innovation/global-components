@@ -1,0 +1,27 @@
+/* 
+    Note: these styles are not necessarily required for the CPS global components themselves.
+    - The @import brings in GDS styles for the purposes of this test rig.
+    - The .html rule centres the app content.
+    - The remaining rules enable the background of the header to bleed out horizontally and
+      to overcome a built in outsystems css rule that hides content that overflows the main
+      site container. (We disable the rule and reimplement it on the next child after the header).
+*/
+@import url("/Steftest/govuk-frontend-5.10.0.min.css");
+
+html {
+  max-width: 1280px;
+  margin: auto;
+}
+
+.screen-container {
+  overflow: visible;
+}
+
+.site-content {
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+cps-global-header {
+  margin-bottom: 2rem;
+}
