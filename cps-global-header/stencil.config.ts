@@ -3,7 +3,7 @@ import { sass } from "@stencil/sass";
 
 // Pick out ONLY the env values that we care about
 // @ts-ignore
-const { SURVEY_LINK, SHOULD_SHOW_HEADER, SHOULD_SHOW_MENU } = process.env;
+const { SURVEY_LINK, SHOULD_SHOW_HEADER, SHOULD_SHOW_MENU, APP_INSIGHTS_KEY } = process.env;
 
 export const config: Config = {
   namespace: "cps-global-header",
@@ -33,5 +33,5 @@ export const config: Config = {
   },
   plugins: [sass()],
 
-  env: { SURVEY_LINK, SHOULD_SHOW_HEADER, SHOULD_SHOW_MENU },
+  env: { SURVEY_LINK, SHOULD_SHOW_HEADER, SHOULD_SHOW_MENU, APP_INSIGHTS_KEY },
 };

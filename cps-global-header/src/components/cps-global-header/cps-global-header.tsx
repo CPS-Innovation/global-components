@@ -2,6 +2,7 @@ import { Component, Prop, h, State, Fragment } from "@stencil/core";
 import { getLocationConfig } from "../../context/get-location-config";
 import { LinkCode, MatchedPathMatcher } from "../../context/LocationConfig";
 import { SHOULD_SHOW_HEADER, SHOULD_SHOW_MENU, SURVEY_LINK } from "../../config";
+import { trackPageView } from "../../analytics";
 
 type LinkHelperArg = { code: LinkCode; label: string; children?: LinkCode[]; openInNewTab?: boolean; parentCode?: LinkCode };
 
@@ -25,12 +26,17 @@ export class CpsGlobalHeader {
    */
   @State() address: string;
 
-  async componentWillLoad() {
-    this.config = getLocationConfig(window);
+  componentWillLoad() {
+    trackPageView();
 
     window.navigation.addEventListener("navigate", event => {
       this.address = event.destination.url;
+      trackPageView();
     });
+  }
+
+  async componentWillRender() {
+    this.config = getLocationConfig(window);
   }
 
   linkHelper = ({ code, label, children = [], openInNewTab }: LinkHelperArg) => ({
