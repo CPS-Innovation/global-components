@@ -1,5 +1,5 @@
 import { ApplicationInsights } from "@microsoft/applicationinsights-web";
-import { APP_INSIGHTS_KEY } from "./config";
+import { APP_INSIGHTS_KEY, ENVIRONMENT } from "./config";
 
 let appInsights: ApplicationInsights | undefined;
 
@@ -26,4 +26,4 @@ const initialise = () => {
 
 initialise();
 
-export const trackPageView = () => appInsights?.trackPageView();
+export const trackPageView = () => appInsights?.trackPageView({ properties: { Environment: ENVIRONMENT } });
