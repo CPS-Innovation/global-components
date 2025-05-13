@@ -1,6 +1,8 @@
 import { ApplicationInsights } from "@microsoft/applicationinsights-web";
 import { APP_INSIGHTS_KEY, ENVIRONMENT } from "./config";
 
+const STORAGE_PREFIX = "CPS_global_components";
+
 let appInsights: ApplicationInsights | undefined;
 
 const initialise = () => {
@@ -18,6 +20,12 @@ const initialise = () => {
   appInsights = new ApplicationInsights({
     config: {
       connectionString,
+      // Make sure the names of the session storage buffers do not clash with the host
+      //  app's own use of app insights
+      namePrefix: STORAGE_PREFIX,
+      // Not sure what this one does: I think it is the storage object used when app insights
+      //  tracking requests are not getting through to the server (network down?)
+      storagePrefix: STORAGE_PREFIX,
     },
   });
 
