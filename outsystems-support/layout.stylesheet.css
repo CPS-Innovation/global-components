@@ -13,7 +13,8 @@ html {
   margin: auto;
 }
 
-.screen-container {
+/* div used below to make the rule more specific than the default OS bare .screen-container rule  */
+div.screen-container {
   overflow: visible;
 }
 
