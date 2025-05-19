@@ -194,24 +194,24 @@ export const appLocationConfigs: AppLocationConfig[] = [
     ],
   },
   {
-    pathRoots: ["https://personal-3hxfhjxg.outsystemscloud.com/Steftest"],
+    pathRoots: ["https://cps-dev.outsystemsenterprise.com/CpsGlobalComponentsTestHarness"],
     pathMatchers: [
       {
-        paths: ["/Steftest/AnotherPage"],
+        paths: ["/CpsGlobalComponentsTestHarness/Page2"],
         matchedLinkCode: "cases",
         showSecondRow: false,
         onwardLinks: {
-          tasks: { link: "/Steftest/", isOutSystems: true },
-          cases: { link: "/Steftest/AnotherPage", isOutSystems: true },
+          tasks: { link: "/CpsGlobalComponentsTestHarness/", isOutSystems: true },
+          cases: { link: "/CpsGlobalComponentsTestHarness/Page2", isOutSystems: true },
         },
       },
       {
-        paths: ["/Steftest/", "/Steftest/Home"],
+        paths: ["/CpsGlobalComponentsTestHarness/", "/CpsGlobalComponentsTestHarness/Home"],
         matchedLinkCode: "tasks",
         showSecondRow: false,
         onwardLinks: {
-          tasks: { link: "/Steftest/", isOutSystems: true },
-          cases: { link: "/Steftest/AnotherPage", isOutSystems: true },
+          tasks: { link: "/CpsGlobalComponentsTestHarness/", isOutSystems: true },
+          cases: { link: "/CpsGlobalComponentsTestHarness/Page2", isOutSystems: true },
         },
       },
     ],
