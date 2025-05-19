@@ -9,7 +9,9 @@ const nextConfig: NextConfig = {
   },
   distDir: "out",
   sassOptions: {
-    additionalData: `$govuk-assets-path: "${process.env.BASE_PATH}/assets/";`,
+    additionalData: `$govuk-assets-path: "${
+      process.env.BASE_PATH || ""
+    }/assets/";`,
   },
 };
 
