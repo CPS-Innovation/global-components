@@ -20,8 +20,8 @@ Add the css in `layout.stylesheet.css` to the `Style Sheet` property of `LayoutC
 
 ## General styling of the harness
 
-[!TIP]
-These are not required for the global components themselves but are used to make a pleasant looking test harness:
+> [!TIP]
+> These are not required for the global components themselves but are used to make a pleasant looking test harness:
 
 ### Download the compiled GDS assets
 
