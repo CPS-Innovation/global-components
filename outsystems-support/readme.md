@@ -1,6 +1,6 @@
 ## Working demo
 
-See https://personal-3hxfhjxg.outsystemscloud.com/Steftest/
+See https://cps-dev.outsystemsenterprise.com/CpsGlobalComponentsTestHarness/
 
 ## Create a layout block
 
