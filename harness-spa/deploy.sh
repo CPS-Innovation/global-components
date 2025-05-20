@@ -4,7 +4,7 @@ ENVIRONMENT=$1
 #VERSION=$(jq -r '.version' package.json)
 STORAGE_ACCOUNT_NAME=sacpsglobalcomponents
 CONTAINER_NAME=\$web
-VITE_GLOBAL_SCRIPT_URL=https://$STORAGE_ACCOUNT_NAME.blob.core.windows.net/$ENVIRONMENT/cps-global-components.js npm run build
+VITE_GLOBAL_SCRIPT_URL=https://$STORAGE_ACCOUNT_NAME.blob.core.windows.net/$ENVIRONMENT/cps-global-components.js vite build
 
 if [[ "$ENVIRONMENT" = "unstable" ]]; then
     FOLDER_SUFFIX=""
