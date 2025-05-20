@@ -36,9 +36,6 @@ function scriptHelper() {
     case "cps-dev":
       environment = "dev";
       break;
-    case "personal-3hxfhjxg":
-      environment = "unstable";
-      break;
     default:
       alert(
         `The LayoutCPS -> OnInitialize -> JavaScript does not recognise this domain: ${window.location.hostname}. Please check the script in Service Studio.`
