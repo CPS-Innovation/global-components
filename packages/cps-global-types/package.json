@@ -1,0 +1,20 @@
+{
+  "name": "cps-global-types",
+  "version": "1.0.0",
+  "description": "JSX typings for cps-global-components custom elements",
+  "main": "index.js",
+  "types": "index.d.ts",
+  "files": [
+    "index.js"
+  ],
+  "keywords": [
+    "typescript",
+    "jsx",
+    "react",
+    "custom-element",
+    "types",
+    "web-components"
+  ],
+  "author": "Stef Stachow",
+  "license": "MIT"
+}

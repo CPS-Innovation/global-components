@@ -32,9 +32,9 @@ importers:
       '@types/react-dom':
         specifier: ^19.0.0
         version: 19.1.5(@types/react@19.1.4)
-      cps-global-header:
-        specifier: file:../../packages/cps-global-components
-        version: link:../../packages/cps-global-components
+      cps-global-types:
+        specifier: workspace:*
+        version: link:../../packages/cps-global-types
       govuk-frontend:
         specifier: ^5.9.0
         version: 5.10.1
@@ -136,6 +136,8 @@ importers:
       rollup:
         specifier: ^4.40.0
         version: 4.41.0
+
+  packages/cps-global-types: {}
 
 packages:
 
