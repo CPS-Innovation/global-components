@@ -8,7 +8,81 @@ importers:
 
   .: {}
 
-  cps-global-header:
+  apps/harness-html:
+    dependencies:
+      stream-replace-string:
+        specifier: ^2.0.0
+        version: 2.0.0
+    devDependencies:
+      '@11ty/eleventy':
+        specifier: ^3.1.0
+        version: 3.1.0
+      govuk-frontend:
+        specifier: ^5.10.1
+        version: 5.10.1
+
+  apps/harness-spa:
+    dependencies:
+      '@types/node':
+        specifier: ^22.0.0
+        version: 22.15.21
+      '@types/react':
+        specifier: ^19.0.0
+        version: 19.1.4
+      '@types/react-dom':
+        specifier: ^19.0.0
+        version: 19.1.5(@types/react@19.1.4)
+      cps-global-header:
+        specifier: file:../../packages/cps-global-header
+        version: link:../../packages/cps-global-header
+      govuk-frontend:
+        specifier: ^5.9.0
+        version: 5.10.1
+      react:
+        specifier: ^19.0.0
+        version: 19.1.0
+      react-dom:
+        specifier: ^19.0.0
+        version: 19.1.0(react@19.1.0)
+      react-router-dom:
+        specifier: ^7.0.0
+        version: 7.6.0(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
+      typescript:
+        specifier: ^5.0.4
+        version: 5.8.3
+    devDependencies:
+      '@typescript-eslint/eslint-plugin':
+        specifier: ^8.0.0
+        version: 8.32.1(@typescript-eslint/parser@8.32.1(eslint@8.57.1)(typescript@5.8.3))(eslint@8.57.1)(typescript@5.8.3)
+      '@typescript-eslint/parser':
+        specifier: ^8.0.0
+        version: 8.32.1(eslint@8.57.1)(typescript@5.8.3)
+      '@vitejs/plugin-react':
+        specifier: ^4.0.0
+        version: 4.4.1(vite@6.3.5(@types/node@22.15.21)(sass-embedded@1.89.0)(sass@1.89.0))
+      eslint:
+        specifier: ^8.39.0
+        version: 8.57.1
+      eslint-plugin-react:
+        specifier: ^7.32.2
+        version: 7.37.5(eslint@8.57.1)
+      eslint-plugin-react-hooks:
+        specifier: ^5.0.0
+        version: 5.2.0(eslint@8.57.1)
+      eslint-plugin-react-refresh:
+        specifier: ^0.4.1
+        version: 0.4.20(eslint@8.57.1)
+      http-server:
+        specifier: ^14.1.1
+        version: 14.1.1
+      sass:
+        specifier: ^1.87.0
+        version: 1.89.0
+      vite:
+        specifier: ^6.0.0
+        version: 6.3.5(@types/node@22.15.21)(sass-embedded@1.89.0)(sass@1.89.0)
+
+  packages/cps-global-header:
     dependencies:
       '@azure/msal-browser':
         specifier: ^4.0.0
@@ -62,80 +136,6 @@ importers:
       rollup:
         specifier: ^4.40.0
         version: 4.41.0
-
-  harness-html:
-    dependencies:
-      stream-replace-string:
-        specifier: ^2.0.0
-        version: 2.0.0
-    devDependencies:
-      '@11ty/eleventy':
-        specifier: ^3.1.0
-        version: 3.1.0
-      govuk-frontend:
-        specifier: ^5.10.1
-        version: 5.10.1
-
-  harness-spa:
-    dependencies:
-      '@types/node':
-        specifier: ^22.0.0
-        version: 22.15.21
-      '@types/react':
-        specifier: ^19.0.0
-        version: 19.1.4
-      '@types/react-dom':
-        specifier: ^19.0.0
-        version: 19.1.5(@types/react@19.1.4)
-      cps-global-header:
-        specifier: file:../cps-global-header
-        version: link:../cps-global-header
-      govuk-frontend:
-        specifier: ^5.9.0
-        version: 5.10.1
-      react:
-        specifier: ^19.0.0
-        version: 19.1.0
-      react-dom:
-        specifier: ^19.0.0
-        version: 19.1.0(react@19.1.0)
-      react-router-dom:
-        specifier: ^7.0.0
-        version: 7.6.0(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
-      typescript:
-        specifier: ^5.0.4
-        version: 5.8.3
-    devDependencies:
-      '@typescript-eslint/eslint-plugin':
-        specifier: ^8.0.0
-        version: 8.32.1(@typescript-eslint/parser@8.32.1(eslint@8.57.1)(typescript@5.8.3))(eslint@8.57.1)(typescript@5.8.3)
-      '@typescript-eslint/parser':
-        specifier: ^8.0.0
-        version: 8.32.1(eslint@8.57.1)(typescript@5.8.3)
-      '@vitejs/plugin-react':
-        specifier: ^4.0.0
-        version: 4.4.1(vite@6.3.5(@types/node@22.15.21)(sass-embedded@1.89.0)(sass@1.89.0))
-      eslint:
-        specifier: ^8.39.0
-        version: 8.57.1
-      eslint-plugin-react:
-        specifier: ^7.32.2
-        version: 7.37.5(eslint@8.57.1)
-      eslint-plugin-react-hooks:
-        specifier: ^5.0.0
-        version: 5.2.0(eslint@8.57.1)
-      eslint-plugin-react-refresh:
-        specifier: ^0.4.1
-        version: 0.4.20(eslint@8.57.1)
-      http-server:
-        specifier: ^14.1.1
-        version: 14.1.1
-      sass:
-        specifier: ^1.87.0
-        version: 1.89.0
-      vite:
-        specifier: ^6.0.0
-        version: 6.3.5(@types/node@22.15.21)(sass-embedded@1.89.0)(sass@1.89.0)
 
 packages:
 

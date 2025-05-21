@@ -8,7 +8,7 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: ./cps-global-header # Set the working directory to the foo subdirectory
+        working-directory: ./packages/cps-global-header # Set the working directory to the foo subdirectory
     steps:
     - uses: actions/checkout@v4
     - name: Install pnpm
