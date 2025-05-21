@@ -8,6 +8,5 @@
   "scripts": {
     "preinstall": "npx only-allow pnpm",
     "dev:all": "pnpm -r run dev"
-  },
-  "packageManager": "pnpm@10.7.1+sha1.11ea2eb2e09f608614c62db024375b462aa3d861"
+  }
 }
