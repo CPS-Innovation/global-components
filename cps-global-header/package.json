@@ -32,6 +32,7 @@
     "loader/"
   ],
   "scripts": {
+    "preinstall": "npx only-allow pnpm",
     "dev": "dotenvx run -f .env.local -- stencil build --dev --watch --serve",
     "test": "stencil test --spec",
     "test.watch": "stencil test --spec --watchAll",
