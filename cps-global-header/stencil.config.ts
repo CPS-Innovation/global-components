@@ -7,7 +7,6 @@ const { SURVEY_LINK, SHOULD_SHOW_HEADER, SHOULD_SHOW_MENU, APP_INSIGHTS_KEY, ENV
 
 export const config: Config = {
   namespace: "cps-global-header",
-
   outputTargets: [
     {
       type: "dist",
@@ -34,4 +33,8 @@ export const config: Config = {
   plugins: [sass()],
 
   env: { SURVEY_LINK, SHOULD_SHOW_HEADER, SHOULD_SHOW_MENU, APP_INSIGHTS_KEY, ENVIRONMENT },
+  devServer: {
+    // 3333 is the default, but lets set it explicitly as we have references to this from the other apps
+    port: 3333,
+  },
 };

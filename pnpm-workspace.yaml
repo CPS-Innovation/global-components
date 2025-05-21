@@ -1,0 +1,8 @@
+packages:
+  # Current structure (all at top level)
+  - "cps-global-header"
+  - "harness-spa"
+  - "harness-html"
+  # Future structure (will uncomment later)
+  # - 'packages/*'
+  # - 'apps/*'

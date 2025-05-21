@@ -1,0 +1,83 @@
+---
+layout: base.njk
+title: Cases - UK Government Service
+---
+
+{% block content %}
+  <div class="govuk-grid-row">
+    <div class="govuk-grid-column-full">
+      <h1 class="govuk-heading-xl">Cases</h1>
+      
+      <div class="govuk-form-group">
+        <label class="govuk-label" for="search">
+          Search cases
+        </label>
+        <input class="govuk-input govuk-input--width-20" id="search" name="search" type="text">
+      </div>
+      
+      <table class="govuk-table">
+        <caption class="govuk-table__caption govuk-table__caption--m">All cases</caption>
+        <thead class="govuk-table__head">
+          <tr class="govuk-table__row">
+            <th scope="col" class="govuk-table__header">URN</th>
+            <th scope="col" class="govuk-table__header">Case ID</th>
+            <th scope="col" class="govuk-table__header">Description</th>
+            <th scope="col" class="govuk-table__header">Status</th>
+            <th scope="col" class="govuk-table__header">Last updated</th>
+            <th scope="col" class="govuk-table__header">Actions</th>
+          </tr>
+        </thead>
+        <tbody class="govuk-table__body">
+          <tr class="govuk-table__row">
+            <td class="govuk-table__cell">12AB1212121</td>
+            <td class="govuk-table__cell">
+              <a href="/cases/urns/12AB1212121/cases/100001" class="govuk-link">100001</a>
+            </td>
+            <td class="govuk-table__cell">Theft case involving multiple suspects</td>
+            <td class="govuk-table__cell">
+              <strong class="govuk-tag govuk-tag--blue">Active</strong>
+            </td>
+            <td class="govuk-table__cell">2 days ago</td>
+            <td class="govuk-table__cell">
+              <a href="/cases/urns/12AB1212121/cases/100001" class="govuk-link">View</a> | 
+              <a href="/cases/urns/12AB1212121/cases/100001/review" class="govuk-link">Review</a> | 
+              <a href="/cases/urns/12AB1212121/cases/100001/materials" class="govuk-link">Materials</a>
+            </td>
+          </tr>
+          <tr class="govuk-table__row">
+            <td class="govuk-table__cell">12AB1212121</td>
+            <td class="govuk-table__cell">
+              <a href="/cases/urns/12AB1212121/cases/100002" class="govuk-link">100002</a>
+            </td>
+            <td class="govuk-table__cell">Fraud investigation in progress</td>
+            <td class="govuk-table__cell">
+              <strong class="govuk-tag govuk-tag--green">Pending</strong>
+            </td>
+            <td class="govuk-table__cell">1 week ago</td>
+            <td class="govuk-table__cell">
+              <a href="/cases/urns/12AB1212121/cases/100002" class="govuk-link">View</a> | 
+              <a href="/cases/urns/12AB1212121/cases/100002/review" class="govuk-link">Review</a> | 
+              <a href="/cases/urns/12AB1212121/cases/100002/materials" class="govuk-link">Materials</a>
+            </td>
+          </tr>
+          <tr class="govuk-table__row">
+            <td class="govuk-table__cell">12AB3333333</td>
+            <td class="govuk-table__cell">
+              <a href="/cases/urns/12AB3333333/cases/100003" class="govuk-link">100003</a>
+            </td>
+            <td class="govuk-table__cell">Assault case with pending court date</td>
+            <td class="govuk-table__cell">
+              <strong class="govuk-tag govuk-tag--purple">Court scheduled</strong>
+            </td>
+            <td class="govuk-table__cell">Today</td>
+            <td class="govuk-table__cell">
+              <a href="/cases/urns/12AB3333333/cases/100003" class="govuk-link">View</a> | 
+              <a href="/cases/urns/12AB3333333/cases/100003/review" class="govuk-link">Review</a> | 
+              <a href="/cases/urns/12AB3333333/cases/100003/materials" class="govuk-link">Materials</a>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+{% endblock %}

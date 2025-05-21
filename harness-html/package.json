@@ -1,0 +1,26 @@
+{
+  "name": "harness-html",
+  "version": "1.0.0",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "preinstall": "npx only-allow pnpm",
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "eleventy --serve",
+    "dev": "BASE_PATH=foo pnpm start",
+    "deploy:unstable": "./deploy.sh unstable",
+    "deploy:dev": "./deploy.sh dev",
+    "deploy:test": "./deploy.sh test"
+  },
+  "keywords": [],
+  "author": "Stef Stachow",
+  "license": "ISC",
+  "description": "",
+  "devDependencies": {
+    "@11ty/eleventy": "^3.1.0",
+    "govuk-frontend": "^5.10.1"
+  },
+  "dependencies": {
+    "stream-replace-string": "^2.0.0"
+  }
+}

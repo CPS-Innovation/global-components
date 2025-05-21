@@ -1,5 +1,6 @@
 #VERSION=$(jq -r '.version' package.json)
-npm run build
+stencil build 
+rollup -c
 
 az storage container create \
     --auth-mode login \

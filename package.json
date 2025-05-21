@@ -1,0 +1,12 @@
+{
+  "name": "cps-global-components",
+  "private": true,
+  "engines": {
+    "node": ">=22.0.0",
+    "pnpm": ">=10.0.0"
+  },
+  "scripts": {
+    "preinstall": "npx only-allow pnpm",
+    "dev:all": "pnpm -r run dev"
+  }
+}
