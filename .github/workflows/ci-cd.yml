@@ -86,7 +86,7 @@ jobs:
       - name: List files and create JSON matrix
         id: set-environments
         run: |
-          files=$(ls ./configuration | jq -R . | jq -s -c . |  jq 'map(capture("config\\.(?<environment>[A-Za-z0-9]+)\\.json") | .environment)' | jq -c .)
+          files=$(ls ./configuration | jq -R . | jq -s -c . |  jq 'map(capture("config\\.(?<environment>[A-Za-z0-9_-]+)\\.json") | .environment)' | jq -c .)
           echo "Files found: $files"
           echo "environments=$files" >> "$GITHUB_OUTPUT"
 
@@ -129,7 +129,7 @@ jobs:
               --source "${{ steps.download.outputs.download-path }}/${{env.BUILD_ARTIFACT_NAME}}" \
               --connection-string "${{ secrets.BLOB_STORAGE_CONNECTION_STRING }}" \
               --overwrite \
-              --content-cache-control ${{env.CACHE_CONTROL}}
+              --content-cache-control "${{env.CACHE_CONTROL}}"
 
   repo-security-scan:
     runs-on: ubuntu-latest
