@@ -11,6 +11,7 @@ permissions:
 
 env:
   BUILD_PATH: "./packages/cps-global-components/dist/cps-global-components.*"
+  BUILD_ARTIFACT_NAME: build-artifact
   DEPLOY_ENVIRONMENT: ci-cd-test
 
 jobs:
@@ -63,13 +64,14 @@ jobs:
       - uses: actions/upload-artifact@v4
         id: upload
         with:
-          name: build-artefact
+          name: ${{env.BUILD_ARTIFACT_NAME}}
           path: ${{ env.BUILD_PATH }}
           retention-days: 1
 
   deploy:
     needs: build-and-test
     runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     permissions:
       contents: write
 
@@ -78,45 +80,42 @@ jobs:
         id: download
         with:
           artifact-ids: ${{needs.build-and-test.outputs.artifact-id}}
-
-      - run: ls -la
-      # - uses: azure/cli@v2
-      #   with:
-      #     azcliversion: latest
-      #     inlineScript: |
-      #       az storage container create \
-      #         --name $DEPLOY_ENVIRONMENT \
-      #         --public-access container \
-      #         --connection-string "${{ secrets.BLOB_STORAGE_CONNECTION_STRING }}"
       - uses: azure/cli@v2
         with:
           azcliversion: latest
           inlineScript: |
-            ls -la 
-            # az storage blob upload-batch \
-            #   --destination $DEPLOY_ENVIRONMENT \
-            #   --source "${{ steps.download.outputs.download-path }}" \
-            #   --connection-string "${{ secrets.BLOB_STORAGE_CONNECTION_STRING }}"
-  # security-scan:
-  #   runs-on: ubuntu-latest
-  #   if: github.event_name == 'pull_request'
+            az storage container create \
+              --name $DEPLOY_ENVIRONMENT \
+              --public-access container \
+              --connection-string "${{ secrets.BLOB_STORAGE_CONNECTION_STRING }}"
+      - uses: azure/cli@v2
+        with:
+          azcliversion: latest
+          inlineScript: |
+            az storage blob upload-batch \
+              --destination $DEPLOY_ENVIRONMENT \
+              --source "${{ steps.download.outputs.download-path }}/${{env.BUILD_ARTIFACT_NAME}}" \
+              --connection-string "${{ secrets.BLOB_STORAGE_CONNECTION_STRING }}"
 
-  #   steps:
-  #     - uses: actions/checkout@v4
+  security-scan:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
 
-  #     - uses: pnpm/action-setup@v4
-  #       with:
-  #         version: latest
-  #         run_install: false
+    steps:
+      - uses: actions/checkout@v4
 
-  #     - uses: actions/setup-node@v4
-  #       with:
-  #         node-version-file: ".nvmrc"
-  #         cache: "pnpm"
+      - uses: pnpm/action-setup@v4
+        with:
+          version: latest
+          run_install: false
 
-  #     - run: pnpm install --frozen-lockfile
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: ".nvmrc"
+          cache: "pnpm"
 
-  #     - run: pnpm audit --audit-level high
-  #       continue-on-error: true
+      - run: pnpm install --frozen-lockfile
 
-  #     - uses: actions/dependency-review-action@v4
+      - run: pnpm audit --audit-level high
+
+      - uses: actions/dependency-review-action@v4
