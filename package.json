@@ -1,12 +1,23 @@
 {
   "name": "cps-global-components",
   "private": true,
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
   "engines": {
     "node": ">=22.0.0",
     "pnpm": ">=10.0.0"
   },
   "scripts": {
     "preinstall": "npx only-allow pnpm",
-    "dev:all": "pnpm -r run dev"
-  }
+    "dev:all": "pnpm -r run dev",
+    "validate": "pnpm --filter cps-global-configuration validate"
+  },
+  "files": [
+    "dist",
+    "package.json"
+  ]
 }

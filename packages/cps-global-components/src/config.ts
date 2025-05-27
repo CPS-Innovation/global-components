@@ -1,9 +1,28 @@
-import { Env } from "@stencil/core";
+import { validateConfig } from "cps-global-configuration";
 
-export const SURVEY_LINK = Env.SURVEY_LINK;
-export const SHOULD_SHOW_HEADER = Env.SHOULD_SHOW_HEADER === "true";
-export const SHOULD_SHOW_MENU = Env.SHOULD_SHOW_MENU === "true";
-export const APP_INSIGHTS_KEY = Env.APP_INSIGHTS_KEY;
-export const ENVIRONMENT = Env.ENVIRONMENT;
+const configUrl = new URL("./", import.meta.url).href + "config.json";
 
-console.debug({ SURVEY_LINK, SHOULD_SHOW_HEADER, SHOULD_SHOW_MENU, APP_INSIGHTS_KEY, ENVIRONMENT });
+export type Config = Awaited<ReturnType<typeof loadConfig>>;
+
+export let CONFIG: Config;
+
+const loadConfig = () =>
+  fetch(configUrl)
+    .then(response => response.json())
+    .then(json => {
+      const { success, data, error } = validateConfig(json);
+      if (!success) {
+        throw new Error(`Invalid config JSON retrieved from ${configUrl}: ${JSON.stringify(error)}`);
+      }
+      console.debug(data);
+      CONFIG = data;
+      return data;
+    });
+
+// We make the act of getting config synchronous by
+//  - exporting loadConfig as the default
+//  - in stencil.config.ts, setting this as the `globalScript`
+// This means this runs to completion before any of the other app code.
+// Which in turn means we can safely do const {SETTING} = CONFIG in application code
+// without faffing about with awaiting.
+export default loadConfig;
