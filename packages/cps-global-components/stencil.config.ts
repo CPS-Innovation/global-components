@@ -25,6 +25,7 @@ export const config: Config = {
       type: "www",
       serviceWorker: null, // disable service workers
       empty: false,
+      copy: [{ src: "config.json", dest: "./build/config.json", warn: true }],
     },
   ],
   testing: {

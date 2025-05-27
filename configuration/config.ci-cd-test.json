@@ -1,0 +1,14 @@
+{
+  "environment": "ci-cd-test",
+  "appInsightsKey": "e572c03c-8d38-4771-b193-962f13da1b1a",
+  "surveyLink": "https://forms.office.com/e/Cxmsq5xTWx",
+  "links": [
+    {
+      "id": "link1",
+      "label": "Google",
+      "href": "https://www.google.com",
+      "activeWhen": ["*"],
+      "links": []
+    }
+  ]
+}

@@ -1,7 +1,7 @@
 import { Component, Prop, h, State, Fragment } from "@stencil/core";
 import { getLocationConfig } from "../../context/get-location-config";
 import { LinkCode, MatchedPathMatcher } from "../../context/LocationConfig";
-import { SHOULD_SHOW_HEADER, SHOULD_SHOW_MENU, SURVEY_LINK } from "../../config";
+import { CONFIG_ASYNC as configAsync, SHOULD_SHOW_HEADER, SHOULD_SHOW_MENU, SURVEY_LINK } from "../../config";
 import { trackPageView } from "../../analytics";
 
 type LinkHelperArg = { code: LinkCode; label: string; children?: LinkCode[]; openInNewTab?: boolean; parentCode?: LinkCode };
@@ -9,6 +9,9 @@ type LinkHelperArg = { code: LinkCode; label: string; children?: LinkCode[]; ope
 const SHOULD_SHOW_NAME = false;
 const SHOULD_SHOW_CMS_LINKS = false;
 const SHOULD_SHOW_MATERIALS_MENU = false;
+
+const { environment } = await configAsync;
+console.debug({ environment });
 @Component({
   tag: "cps-global-header",
   styleUrl: "cps-global-header.scss",
