@@ -1,0 +1,10 @@
+--container-architecture linux/amd64 
+--platform ubuntu-latest=catthehacker/ubuntu:act-latest 
+--action-offline-mode
+--container-options -v /tmp:/tmp
+--eventpath .act-event.json
+--artifact-server-path .act-artifacts
+--secret-file .act-secrets
+
+# Only worked when on mac created symlink /root -> /tmp/root and created /tmp/root/.azure
+# Needs checking to see if this cargo-cult or not.
