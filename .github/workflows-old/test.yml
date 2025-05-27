@@ -1,0 +1,19 @@
+on: [push]
+
+name: AzureCLISample
+
+env:
+  ENVIRONMENT: unstable
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Azure CLI script
+        uses: azure/cli@v2
+        with:
+          azcliversion: latest
+          inlineScript: |
+            az storage blob list  \
+              --container-name $ENVIRONMENT \
+              --connection-string "${{ secrets.BLOB_STORAGE_CONNECTION_STRING }}"

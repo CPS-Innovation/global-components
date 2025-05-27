@@ -2,3 +2,9 @@ node_modules
 not-tracked
 
 **/.claude/settings.local.json
+.DS_Store
+
+.actrc
+.act-event.json
+.act-artifacts
+.act-secrets
