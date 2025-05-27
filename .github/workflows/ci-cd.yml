@@ -71,6 +71,7 @@ jobs:
   deploy:
     needs: build-and-test
     runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     permissions:
       contents: write
 
@@ -95,26 +96,26 @@ jobs:
               --destination $DEPLOY_ENVIRONMENT \
               --source "${{ steps.download.outputs.download-path }}/${{env.BUILD_ARTIFACT_NAME}}" \
               --connection-string "${{ secrets.BLOB_STORAGE_CONNECTION_STRING }}"
-  # security-scan:
-  #   runs-on: ubuntu-latest
-  #   if: github.event_name == 'pull_request'
 
-  #   steps:
-  #     - uses: actions/checkout@v4
+  security-scan:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
 
-  #     - uses: pnpm/action-setup@v4
-  #       with:
-  #         version: latest
-  #         run_install: false
+    steps:
+      - uses: actions/checkout@v4
 
-  #     - uses: actions/setup-node@v4
-  #       with:
-  #         node-version-file: ".nvmrc"
-  #         cache: "pnpm"
+      - uses: pnpm/action-setup@v4
+        with:
+          version: latest
+          run_install: false
 
-  #     - run: pnpm install --frozen-lockfile
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: ".nvmrc"
+          cache: "pnpm"
 
-  #     - run: pnpm audit --audit-level high
-  #       continue-on-error: true
+      - run: pnpm install --frozen-lockfile
 
-  #     - uses: actions/dependency-review-action@v4
+      - run: pnpm audit --audit-level high
+
+      - uses: actions/dependency-review-action@v4
