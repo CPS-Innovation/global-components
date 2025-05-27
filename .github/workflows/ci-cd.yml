@@ -98,7 +98,7 @@ jobs:
             az storage blob upload-batch \
               --destination $DEPLOY_ENVIRONMENT \
               --source "${{ steps.download.outputs.download-path }}/${{env.BUILD_ARTIFACT_NAME}}" \
-              --connection-string "${{ secrets.BLOB_STORAGE_CONNECTION_STRING }}"
+              --connection-string "${{ secrets.BLOB_STORAGE_CONNECTION_STRING }}" \
               --overwrite
 
   repo-security-scan:
