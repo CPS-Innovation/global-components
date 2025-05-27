@@ -79,20 +79,21 @@ jobs:
         with:
           artifact-ids: ${{needs.build-and-test.outputs.artifact-id}}
 
-      - run: ls -la
-      # - uses: azure/cli@v2
-      #   with:
-      #     azcliversion: latest
-      #     inlineScript: |
-      #       az storage container create \
-      #         --name $DEPLOY_ENVIRONMENT \
-      #         --public-access container \
-      #         --connection-string "${{ secrets.BLOB_STORAGE_CONNECTION_STRING }}"
+      - run: ls -alR
       - uses: azure/cli@v2
         with:
           azcliversion: latest
           inlineScript: |
-            ls -la 
+            az storage container create \
+              --name $DEPLOY_ENVIRONMENT \
+              --public-access container \
+              --connection-string "${{ secrets.BLOB_STORAGE_CONNECTION_STRING }}"
+      - uses: azure/cli@v2
+        with:
+          azcliversion: latest
+          inlineScript: |
+            ls -alR
+            echo ${{ steps.download.outputs.download-path }}
             # az storage blob upload-batch \
             #   --destination $DEPLOY_ENVIRONMENT \
             #   --source "${{ steps.download.outputs.download-path }}" \
