@@ -72,6 +72,7 @@ jobs:
     needs: build-and-test
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+
     permissions:
       contents: write
 
@@ -102,6 +103,7 @@ jobs:
 
   repo-security-scan:
     runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
 
     steps:
       - uses: actions/checkout@v4
@@ -123,7 +125,10 @@ jobs:
       - uses: actions/dependency-review-action@v4
 
   org-security-scan:
-    uses: CPS-Innovation/.github/.github/workflows/security-scan.yml@main
+    if: github.event_name == 'pull_request'
+
     permissions:
       security-events: write
       statuses: write
+
+    uses: CPS-Innovation/.github/.github/workflows/security-scan.yml@main
