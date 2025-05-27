@@ -100,9 +100,8 @@ jobs:
               --connection-string "${{ secrets.BLOB_STORAGE_CONNECTION_STRING }}"
               --overwrite
 
-  security-scan:
+  repo-security-scan:
     runs-on: ubuntu-latest
-    if: github.event_name == 'pull_request'
 
     steps:
       - uses: actions/checkout@v4
@@ -122,3 +121,9 @@ jobs:
       - run: pnpm audit --audit-level high
 
       - uses: actions/dependency-review-action@v4
+
+  org-security-scan:
+    uses: CPS-Innovation/.github/.github/workflows/security-scan.yml@main
+    permissions:
+      security-events: write
+      statuses: write
