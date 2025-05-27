@@ -13,14 +13,15 @@ function validateFile(filePath: string): boolean {
   try {
     const fileContent = fs.readFileSync(filePath, 'utf-8');
     const jsonData = JSON.parse(fileContent);
+    const filename = path.basename(filePath);
     
-    const result = validateConfig(jsonData);
+    const result = validateConfig(jsonData, filename);
     
     if (result.success) {
-      console.log(`✅ ${path.basename(filePath)} is valid`);
+      console.log(`✅ ${filename} is valid`);
       return true;
     } else {
-      console.error(`❌ ${path.basename(filePath)} is invalid:`);
+      console.error(`❌ ${filename} is invalid:`);
       console.error(result.error);
       return false;
     }

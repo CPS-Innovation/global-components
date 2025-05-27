@@ -2,29 +2,29 @@ import { z } from "zod";
 
 export const LinkSchema: z.ZodType<Link> = z.lazy(() =>
   z.object({
-    id: z.string(),
-    label: z.string(),
-    href: z.string(),
-    activeWhen: z.array(z.string()),
-    links: z.array(LinkSchema).optional(),
+    ID: z.string(),
+    LABEL: z.string(),
+    HREF: z.string(),
+    ACTIVE_WHEN: z.array(z.string()),
+    LINKS: z.array(LinkSchema).optional(),
   })
 );
 
 export const ConfigSchema = z.object({
-  environment: z.string(),
-  appInsightsKey: z.string().optional(),
-  surveyLink: z.string(),
-  showHeader: z.boolean().optional(),
-  showMenu: z.boolean().optional(),
-  links: z.array(LinkSchema),
+  ENVIRONMENT: z.string(),
+  APP_INSIGHTS_KEY: z.string().optional(),
+  SURVEY_LINK: z.string(),
+  SHOULD_SHOW_HEADER: z.boolean(),
+  SHOULD_SHOW_MENU: z.boolean(),
+  LINKS: z.array(LinkSchema),
 });
 
 export type Link = {
-  id: string;
-  label: string;
-  href: string;
-  activeWhen: string[];
-  links?: Link[];
+  ID: string;
+  LABEL: string;
+  HREF: string;
+  ACTIVE_WHEN: string[];
+  LINKS?: Link[];
 };
 
 export type Config = z.infer<typeof ConfigSchema>;

@@ -62,6 +62,8 @@ jobs:
 
       - run: pnpm run build
 
+      - run: pnpm -w run validate
+
       - uses: actions/upload-artifact@v4
         id: upload
         with:
@@ -69,26 +71,50 @@ jobs:
           path: ${{ env.BUILD_PATH }}
           retention-days: 1
 
-  deploy:
+  generate-matrix:
     needs: build-and-test
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+
+    outputs:
+      environments: ${{ steps.set-environments.outputs.environments }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: List files and create JSON matrix
+        id: set-environments
+        run: |
+          files=$(ls ./configuration | jq -R . | jq -s -c . |  jq 'map(capture("config\\.(?<environment>[A-Za-z0-9]+)\\.json") | .environment)' | jq -c .)
+          echo "Files found: $files"
+          echo "environments=$files" >> "$GITHUB_OUTPUT"
+
+  deploy:
+    needs: generate-matrix
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    strategy:
+      matrix:
+        environment: ${{ fromJson(needs.generate-matrix.outputs.environments) }}
 
     permissions:
       contents: write
 
     steps:
+      - uses: actions/checkout@v4
+
       - uses: actions/download-artifact@v4
         id: download
         with:
           artifact-ids: ${{needs.build-and-test.outputs.artifact-id}}
+
+      - run: cp ./configuration/config.${{matrix.environment}}.json ${{ steps.download.outputs.download-path }}/${{env.BUILD_ARTIFACT_NAME}}/config.json
 
       - uses: azure/cli@v2
         with:
           azcliversion: latest
           inlineScript: |
             az storage container create \
-              --name $DEPLOY_ENVIRONMENT \
+              --name ${{matrix.environment}} \
               --public-access container \
               --connection-string "${{ secrets.BLOB_STORAGE_CONNECTION_STRING }}"
 
@@ -97,7 +123,7 @@ jobs:
           azcliversion: latest
           inlineScript: |
             az storage blob upload-batch \
-              --destination $DEPLOY_ENVIRONMENT \
+              --destination ${{matrix.environment}} \
               --source "${{ steps.download.outputs.download-path }}/${{env.BUILD_ARTIFACT_NAME}}" \
               --connection-string "${{ secrets.BLOB_STORAGE_CONNECTION_STRING }}" \
               --overwrite \

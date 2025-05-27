@@ -1,7 +1,8 @@
 import { ApplicationInsights } from "@microsoft/applicationinsights-web";
-import { APP_INSIGHTS_KEY, ENVIRONMENT } from "./config";
+import { CONFIG } from "./config";
 
 const STORAGE_PREFIX = "CPS_global_components";
+const { ENVIRONMENT, APP_INSIGHTS_KEY } = CONFIG;
 
 let appInsights: ApplicationInsights | undefined;
 

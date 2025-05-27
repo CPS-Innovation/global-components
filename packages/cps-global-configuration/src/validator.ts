@@ -6,11 +6,25 @@ export interface ValidationResult {
   error?: string;
 }
 
-export function validateConfig(jsonData: unknown): ValidationResult {
+export function validateConfig(jsonData: unknown, filename?: string): ValidationResult {
   try {
     const result = ConfigSchema.safeParse(jsonData);
     
     if (result.success) {
+      // If filename is provided, validate that ENVIRONMENT matches
+      if (filename) {
+        const match = filename.match(/^config\.(.+)\.json$/);
+        if (match) {
+          const expectedEnvironment = match[1];
+          if (result.data.ENVIRONMENT !== expectedEnvironment) {
+            return {
+              success: false,
+              error: `ENVIRONMENT field value "${result.data.ENVIRONMENT}" does not match filename environment "${expectedEnvironment}"`,
+            };
+          }
+        }
+      }
+      
       return {
         success: true,
         data: result.data,
@@ -29,6 +43,19 @@ export function validateConfig(jsonData: unknown): ValidationResult {
   }
 }
 
-export function validateConfigStrict(jsonData: unknown): Config {
-  return ConfigSchema.parse(jsonData);
+export function validateConfigStrict(jsonData: unknown, filename?: string): Config {
+  const parsed = ConfigSchema.parse(jsonData);
+  
+  // If filename is provided, validate that ENVIRONMENT matches
+  if (filename) {
+    const match = filename.match(/^config\.(.+)\.json$/);
+    if (match) {
+      const expectedEnvironment = match[1];
+      if (parsed.ENVIRONMENT !== expectedEnvironment) {
+        throw new Error(`ENVIRONMENT field value "${parsed.ENVIRONMENT}" does not match filename environment "${expectedEnvironment}"`);
+      }
+    }
+  }
+  
+  return parsed;
 }
