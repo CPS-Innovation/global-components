@@ -50,6 +50,8 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
+      - run: pnpm -C ../cps-global-configuration build
+
       # - run: pnpm run lint
       #   continue-on-error: false
 
