@@ -14,6 +14,7 @@ export default {
   plugins: [
     dynamicImportVars({
       errorWhenNoFilesFound: true,
+      exclude: "**/*.entry.js.map",
     }),
   ],
 };
