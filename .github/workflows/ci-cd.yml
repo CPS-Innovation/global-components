@@ -80,6 +80,7 @@ jobs:
         id: download
         with:
           artifact-ids: ${{needs.build-and-test.outputs.artifact-id}}
+
       - uses: azure/cli@v2
         with:
           azcliversion: latest
@@ -88,6 +89,7 @@ jobs:
               --name $DEPLOY_ENVIRONMENT \
               --public-access container \
               --connection-string "${{ secrets.BLOB_STORAGE_CONNECTION_STRING }}"
+
       - uses: azure/cli@v2
         with:
           azcliversion: latest
@@ -96,10 +98,10 @@ jobs:
               --destination $DEPLOY_ENVIRONMENT \
               --source "${{ steps.download.outputs.download-path }}/${{env.BUILD_ARTIFACT_NAME}}" \
               --connection-string "${{ secrets.BLOB_STORAGE_CONNECTION_STRING }}"
+              --overwrite
 
-  security-scan:
+  repo-security-scan:
     runs-on: ubuntu-latest
-    if: github.event_name == 'pull_request'
 
     steps:
       - uses: actions/checkout@v4
@@ -119,3 +121,9 @@ jobs:
       - run: pnpm audit --audit-level high
 
       - uses: actions/dependency-review-action@v4
+
+  org-security-scan:
+    uses: CPS-Innovation/.github/.github/workflows/security-scan.yml@main
+    permissions:
+      security-events: write
+      statuses: write
