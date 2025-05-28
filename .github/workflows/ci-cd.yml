@@ -62,7 +62,7 @@ jobs:
       # - run: pnpm run test:coverage
       #   continue-on-error: true
 
-      - run: pnpm run build
+      - run: 'pnpm run build --intro ''window.cps_global_components_build = {Branch: \"${{ github.head_ref }}\", Sha: \"${{ github.sha }}\", RunId: \"${{ github.run_id }}\"};'''
 
       - run: pnpm -w run validate
 
