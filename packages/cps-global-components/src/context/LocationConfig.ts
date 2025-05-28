@@ -94,14 +94,14 @@ export const appLocationConfigs: AppLocationConfig[] = [
     ],
   },
   {
-    pathRoots: ["http://127.0.0.1:3000/static-app", "https://sacpsglobalcomponents.z33.web.core.windows.net/static-app"],
+    pathRoots: ["http://localhost:3335/static-app", "http://127.0.0.1:3000/static-app", "https://sacpsglobalcomponents.z33.web.core.windows.net/static-app"],
     pathMatchers: [
       {
         paths: ["/static-app/cases/urns/(?<urn>[^/]+)/cases/(?<caseId>[^/]+)/review"],
         matchedLinkCode: "review",
         showSecondRow: true,
         onwardLinks: {
-          "tasks": "https://cps-dev.outsystemsenterprise.com/WorkManagementApp/TaskList",
+          "tasks": "/static-app/",
           "cases": "/static-app/cases",
           "details": "/static-app/cases/urns/{urn}/cases/{caseId}",
           "case-materials": "/static-app/cases/urns/{urn}/cases/{caseId}/materials",
@@ -112,7 +112,7 @@ export const appLocationConfigs: AppLocationConfig[] = [
         matchedLinkCode: "case-materials",
         showSecondRow: true,
         onwardLinks: {
-          tasks: "https://cps-dev.outsystemsenterprise.com/WorkManagementApp/TaskList",
+          tasks: "/static-app/",
           cases: "/static-app/cases",
           details: "/static-app/cases/urns/{urn}/cases/{caseId}",
           review: "/static-app/cases/urns/{urn}/cases/{caseId}/review",
@@ -123,7 +123,7 @@ export const appLocationConfigs: AppLocationConfig[] = [
         matchedLinkCode: "details",
         showSecondRow: true,
         onwardLinks: {
-          "tasks": "https://cps-dev.outsystemsenterprise.com/WorkManagementApp/TaskList",
+          "tasks": "/static-app/",
           "cases": "/static-app/cases",
           "review": "/static-app/cases/urns/{urn}/cases/{caseId}/review",
           "case-materials": "/static-app/cases/urns/{urn}/cases/{caseId}/materials",
@@ -134,7 +134,15 @@ export const appLocationConfigs: AppLocationConfig[] = [
         matchedLinkCode: "cases",
         showSecondRow: false,
         onwardLinks: {
-          tasks: "https://cps-dev.outsystemsenterprise.com/WorkManagementApp/TaskList",
+          tasks: "/static-app/",
+        },
+      },
+      {
+        paths: ["/static-app"],
+        matchedLinkCode: "tasks",
+        showSecondRow: false,
+        onwardLinks: {
+          cases: "/static-app/cases",
         },
       },
     ],

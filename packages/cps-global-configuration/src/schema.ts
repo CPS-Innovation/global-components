@@ -17,6 +17,7 @@ export const ConfigSchema = z.object({
   SHOULD_SHOW_HEADER: z.boolean(),
   SHOULD_SHOW_MENU: z.boolean(),
   LINKS: z.array(LinkSchema),
+  _CONFIG_ERROR: z.string().optional(),
 });
 
 export type Link = {

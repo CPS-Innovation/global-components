@@ -5,9 +5,9 @@
 
 ## Properties
 
-| Property | Attribute | Description                                       | Type     | Default            |
-| -------- | --------- | ------------------------------------------------- | -------- | ------------------ |
-| `name`   | `name`    | The text to appear at the start of the second row | `string` | `"Please wait..."` |
+| Property | Attribute | Description | Type     | Default            |
+| -------- | --------- | ----------- | -------- | ------------------ |
+| `name`   | `name`    |             | `string` | `"Please wait..."` |
 
 
 ## Dependencies

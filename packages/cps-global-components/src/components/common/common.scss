@@ -6,14 +6,30 @@
   background-color: govuk-colour($gdsColorName);
 }
 
-.background-grey {
-  @include background("light-grey");
-}
-
 .header-divider {
   height: 10px;
   box-shadow: 0 0 0 100vmax govuk-colour("blue");
   clip-path: inset(0 -100vmax);
   background-color: govuk-colour("blue");
+  z-index: -1;
+}
+
+.background-white {
+  @include background("white");
+}
+
+.background-grey {
+  @include background("light-grey");
+}
+
+.background-black {
+  @include background("black");
+}
+
+.background-divider {
+  height: 1px;
+  box-shadow: 0 0 0 100vmax $govuk-border-colour;
+  clip-path: inset(0 -100vmax);
+  background-color: $govuk-border-colour;
   z-index: -1;
 }

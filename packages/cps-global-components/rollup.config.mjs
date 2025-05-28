@@ -1,12 +1,12 @@
 import dynamicImportVars from "@rollup/plugin-dynamic-import-vars";
 
 export default {
-  input: "./dist/cps-global-header/cps-global-header.esm.js",
+  input: "./dist/cps-global-components/cps-global-components.esm.js",
 
   output: [
     {
       file: "dist/cps-global-components.js",
-      format: "esm", // ES modules
+      format: "es", // ES modules
       sourcemap: true,
       inlineDynamicImports: true,
     },
@@ -14,7 +14,6 @@ export default {
   plugins: [
     dynamicImportVars({
       errorWhenNoFilesFound: true,
-      exclude: "**/*.entry.js.map",
     }),
   ],
 };
