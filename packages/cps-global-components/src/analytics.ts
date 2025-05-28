@@ -1,7 +1,7 @@
 import { ApplicationInsights } from "@microsoft/applicationinsights-web";
 import { CONFIG_ASYNC } from "./config";
 
-const STORAGE_PREFIX = "CPS_global_components";
+const STORAGE_PREFIX = "cps_global_components";
 
 const initialisationPromise = CONFIG_ASYNC.then(({ APP_INSIGHTS_KEY }) => {
   if (!APP_INSIGHTS_KEY) {
@@ -31,7 +31,15 @@ const initialisationPromise = CONFIG_ASYNC.then(({ APP_INSIGHTS_KEY }) => {
   return appInsights;
 });
 
+declare global {
+  interface Window {
+    cps_global_components_build?: // title case properties as we put these values straight
+    // into analytics and that is the convention there
+    { Branch: string; Sha: string; RunId: number };
+  }
+}
+
 export const trackPageViewAsync = async () => {
   const [appInsights, { ENVIRONMENT }] = await Promise.all([initialisationPromise, CONFIG_ASYNC]);
-  appInsights?.trackPageView({ properties: { Environment: ENVIRONMENT } });
+  appInsights?.trackPageView({ properties: { Environment: ENVIRONMENT, ...window.cps_global_components_build } });
 };

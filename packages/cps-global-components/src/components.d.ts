@@ -10,105 +10,123 @@ import { OnwardLinkDefinition } from "./context/LocationConfig";
 export { LinkProps } from "./components/cps-global-header/internal/LinkProps";
 export { OnwardLinkDefinition } from "./context/LocationConfig";
 export namespace Components {
-    interface CpsGlobalFooter {
-    }
-    interface CpsGlobalHeader {
-        "name": string;
-    }
-    interface DropDown {
-        "label": string;
-        "links": LinkProps[];
-        "menuAlignment": "left" | "right";
-    }
-    interface NavLink {
-        "disabled": boolean;
-        "href": OnwardLinkDefinition;
-        "label": string;
-        "openInNewTab"?: boolean;
-        "selected": boolean;
-    }
+  interface CpsGlobalFooter {}
+  interface CpsGlobalHeader {
+    name: string;
+  }
+  interface CpsGlobalHeaderExperimental {
+    forceEnvironment: string;
+    /**
+     * The text to appear at the start of the second row
+     */
+    name: string;
+  }
+  interface DropDown {
+    label: string;
+    links: LinkProps[];
+    menuAlignment: "left" | "right";
+  }
+  interface NavLink {
+    disabled: boolean;
+    href: OnwardLinkDefinition;
+    label: string;
+    openInNewTab?: boolean;
+    selected: boolean;
+  }
 }
 export interface NavLinkCustomEvent<T> extends CustomEvent<T> {
-    detail: T;
-    target: HTMLNavLinkElement;
+  detail: T;
+  target: HTMLNavLinkElement;
 }
 declare global {
-    interface HTMLCpsGlobalFooterElement extends Components.CpsGlobalFooter, HTMLStencilElement {
-    }
-    var HTMLCpsGlobalFooterElement: {
-        prototype: HTMLCpsGlobalFooterElement;
-        new (): HTMLCpsGlobalFooterElement;
-    };
-    interface HTMLCpsGlobalHeaderElement extends Components.CpsGlobalHeader, HTMLStencilElement {
-    }
-    var HTMLCpsGlobalHeaderElement: {
-        prototype: HTMLCpsGlobalHeaderElement;
-        new (): HTMLCpsGlobalHeaderElement;
-    };
-    interface HTMLDropDownElement extends Components.DropDown, HTMLStencilElement {
-    }
-    var HTMLDropDownElement: {
-        prototype: HTMLDropDownElement;
-        new (): HTMLDropDownElement;
-    };
-    interface HTMLNavLinkElementEventMap {
-        "cps-global-header-event": string;
-    }
-    interface HTMLNavLinkElement extends Components.NavLink, HTMLStencilElement {
-        addEventListener<K extends keyof HTMLNavLinkElementEventMap>(type: K, listener: (this: HTMLNavLinkElement, ev: NavLinkCustomEvent<HTMLNavLinkElementEventMap[K]>) => any, options?: boolean | AddEventListenerOptions): void;
-        addEventListener<K extends keyof DocumentEventMap>(type: K, listener: (this: Document, ev: DocumentEventMap[K]) => any, options?: boolean | AddEventListenerOptions): void;
-        addEventListener<K extends keyof HTMLElementEventMap>(type: K, listener: (this: HTMLElement, ev: HTMLElementEventMap[K]) => any, options?: boolean | AddEventListenerOptions): void;
-        addEventListener(type: string, listener: EventListenerOrEventListenerObject, options?: boolean | AddEventListenerOptions): void;
-        removeEventListener<K extends keyof HTMLNavLinkElementEventMap>(type: K, listener: (this: HTMLNavLinkElement, ev: NavLinkCustomEvent<HTMLNavLinkElementEventMap[K]>) => any, options?: boolean | EventListenerOptions): void;
-        removeEventListener<K extends keyof DocumentEventMap>(type: K, listener: (this: Document, ev: DocumentEventMap[K]) => any, options?: boolean | EventListenerOptions): void;
-        removeEventListener<K extends keyof HTMLElementEventMap>(type: K, listener: (this: HTMLElement, ev: HTMLElementEventMap[K]) => any, options?: boolean | EventListenerOptions): void;
-        removeEventListener(type: string, listener: EventListenerOrEventListenerObject, options?: boolean | EventListenerOptions): void;
-    }
-    var HTMLNavLinkElement: {
-        prototype: HTMLNavLinkElement;
-        new (): HTMLNavLinkElement;
-    };
-    interface HTMLElementTagNameMap {
-        "cps-global-footer": HTMLCpsGlobalFooterElement;
-        "cps-global-header": HTMLCpsGlobalHeaderElement;
-        "drop-down": HTMLDropDownElement;
-        "nav-link": HTMLNavLinkElement;
-    }
+  interface HTMLCpsGlobalFooterElement extends Components.CpsGlobalFooter, HTMLStencilElement {}
+  var HTMLCpsGlobalFooterElement: {
+    prototype: HTMLCpsGlobalFooterElement;
+    new (): HTMLCpsGlobalFooterElement;
+  };
+  interface HTMLCpsGlobalHeaderElement extends Components.CpsGlobalHeader, HTMLStencilElement {}
+  var HTMLCpsGlobalHeaderElement: {
+    prototype: HTMLCpsGlobalHeaderElement;
+    new (): HTMLCpsGlobalHeaderElement;
+  };
+  interface HTMLDropDownElement extends Components.DropDown, HTMLStencilElement {}
+  var HTMLDropDownElement: {
+    prototype: HTMLDropDownElement;
+    new (): HTMLDropDownElement;
+  };
+  interface HTMLNavLinkElementEventMap {
+    "cps-global-header-event": string;
+  }
+  interface HTMLNavLinkElement extends Components.NavLink, HTMLStencilElement {
+    addEventListener<K extends keyof HTMLNavLinkElementEventMap>(
+      type: K,
+      listener: (this: HTMLNavLinkElement, ev: NavLinkCustomEvent<HTMLNavLinkElementEventMap[K]>) => any,
+      options?: boolean | AddEventListenerOptions,
+    ): void;
+    addEventListener<K extends keyof DocumentEventMap>(type: K, listener: (this: Document, ev: DocumentEventMap[K]) => any, options?: boolean | AddEventListenerOptions): void;
+    addEventListener<K extends keyof HTMLElementEventMap>(
+      type: K,
+      listener: (this: HTMLElement, ev: HTMLElementEventMap[K]) => any,
+      options?: boolean | AddEventListenerOptions,
+    ): void;
+    addEventListener(type: string, listener: EventListenerOrEventListenerObject, options?: boolean | AddEventListenerOptions): void;
+    removeEventListener<K extends keyof HTMLNavLinkElementEventMap>(
+      type: K,
+      listener: (this: HTMLNavLinkElement, ev: NavLinkCustomEvent<HTMLNavLinkElementEventMap[K]>) => any,
+      options?: boolean | EventListenerOptions,
+    ): void;
+    removeEventListener<K extends keyof DocumentEventMap>(type: K, listener: (this: Document, ev: DocumentEventMap[K]) => any, options?: boolean | EventListenerOptions): void;
+    removeEventListener<K extends keyof HTMLElementEventMap>(
+      type: K,
+      listener: (this: HTMLElement, ev: HTMLElementEventMap[K]) => any,
+      options?: boolean | EventListenerOptions,
+    ): void;
+    removeEventListener(type: string, listener: EventListenerOrEventListenerObject, options?: boolean | EventListenerOptions): void;
+  }
+  var HTMLNavLinkElement: {
+    prototype: HTMLNavLinkElement;
+    new (): HTMLNavLinkElement;
+  };
+  interface HTMLElementTagNameMap {
+    "cps-global-footer": HTMLCpsGlobalFooterElement;
+    "cps-global-header": HTMLCpsGlobalHeaderElement;
+    "drop-down": HTMLDropDownElement;
+    "nav-link": HTMLNavLinkElement;
+  }
 }
 declare namespace LocalJSX {
-    interface CpsGlobalFooter {
-    }
-    interface CpsGlobalHeader {
-        "name"?: string;
-    }
-    interface DropDown {
-        "label"?: string;
-        "links"?: LinkProps[];
-        "menuAlignment"?: "left" | "right";
-    }
-    interface NavLink {
-        "disabled"?: boolean;
-        "href"?: OnwardLinkDefinition;
-        "label"?: string;
-        "onCps-global-header-event"?: (event: NavLinkCustomEvent<string>) => void;
-        "openInNewTab"?: boolean;
-        "selected"?: boolean;
-    }
-    interface IntrinsicElements {
-        "cps-global-footer": CpsGlobalFooter;
-        "cps-global-header": CpsGlobalHeader;
-        "drop-down": DropDown;
-        "nav-link": NavLink;
-    }
+  interface CpsGlobalFooter {}
+  interface CpsGlobalHeader {
+    name?: string;
+  }
+  interface DropDown {
+    label?: string;
+    links?: LinkProps[];
+    menuAlignment?: "left" | "right";
+  }
+  interface NavLink {
+    "disabled"?: boolean;
+    "href"?: OnwardLinkDefinition;
+    "label"?: string;
+    "onCps-global-header-event"?: (event: NavLinkCustomEvent<string>) => void;
+    "openInNewTab"?: boolean;
+    "selected"?: boolean;
+  }
+  interface IntrinsicElements {
+    "cps-global-footer": CpsGlobalFooter;
+    "cps-global-header": CpsGlobalHeader;
+    "drop-down": DropDown;
+    "nav-link": NavLink;
+  }
 }
 export { LocalJSX as JSX };
 declare module "@stencil/core" {
-    export namespace JSX {
-        interface IntrinsicElements {
-            "cps-global-footer": LocalJSX.CpsGlobalFooter & JSXBase.HTMLAttributes<HTMLCpsGlobalFooterElement>;
-            "cps-global-header": LocalJSX.CpsGlobalHeader & JSXBase.HTMLAttributes<HTMLCpsGlobalHeaderElement>;
-            "drop-down": LocalJSX.DropDown & JSXBase.HTMLAttributes<HTMLDropDownElement>;
-            "nav-link": LocalJSX.NavLink & JSXBase.HTMLAttributes<HTMLNavLinkElement>;
-        }
+  export namespace JSX {
+    interface IntrinsicElements {
+      "cps-global-footer": LocalJSX.CpsGlobalFooter & JSXBase.HTMLAttributes<HTMLCpsGlobalFooterElement>;
+      "cps-global-header": LocalJSX.CpsGlobalHeader & JSXBase.HTMLAttributes<HTMLCpsGlobalHeaderElement>;
+      "drop-down": LocalJSX.DropDown & JSXBase.HTMLAttributes<HTMLDropDownElement>;
+      "nav-link": LocalJSX.NavLink & JSXBase.HTMLAttributes<HTMLNavLinkElement>;
     }
+  }
 }
