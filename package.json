@@ -15,7 +15,7 @@
     "preinstall": "npx only-allow pnpm",
     "dev:all": "pnpm -r run dev",
     "validate": "pnpm --filter cps-global-configuration validate",
-    "run-html-harness": "pnpm --filter cps-global-components build --intro 'window.cps_global_components_build = window.cps_global_components_build || {Branch: \"local\", Sha: \"local\", RunId: 0};' && cp -r ./packages/cps-global-components/dist/cps-global-components.js ./apps/harness-html/src/assets/ && pnpm --filter harness-html start"
+    "run-html-harness": "pnpm --filter cps-global-components build --intro 'window.cps_global_components_build = window.cps_global_components_build || {Sha: \"local\", RunId: 0};' && cp -r ./packages/cps-global-components/dist/cps-global-components.js ./apps/harness-html/src/assets/ && pnpm --filter harness-html start"
   },
   "files": [
     "dist",
