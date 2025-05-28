@@ -1,14 +1,11 @@
 import { ApplicationInsights } from "@microsoft/applicationinsights-web";
-import { CONFIG } from "./config";
+import { CONFIG_ASYNC } from "./config";
 
 const STORAGE_PREFIX = "CPS_global_components";
-const { ENVIRONMENT, APP_INSIGHTS_KEY } = CONFIG;
 
-let appInsights: ApplicationInsights | undefined;
-
-const initialise = () => {
+const initialisationPromise = CONFIG_ASYNC.then(({ APP_INSIGHTS_KEY }) => {
   if (!APP_INSIGHTS_KEY) {
-    return;
+    return null;
   }
 
   const connectionString = [
@@ -18,7 +15,7 @@ const initialise = () => {
     "ApplicationId=3dafc37d-8c9c-4480-90fc-532ac2b8bba2",
   ].join(";");
 
-  appInsights = new ApplicationInsights({
+  const appInsights = new ApplicationInsights({
     config: {
       connectionString,
       // Make sure the names of the session storage buffers do not clash with the host
@@ -31,8 +28,10 @@ const initialise = () => {
   });
 
   appInsights.loadAppInsights();
+  return appInsights;
+});
+
+export const trackPageViewAsync = async () => {
+  const [appInsights, { ENVIRONMENT }] = await Promise.all([initialisationPromise, CONFIG_ASYNC]);
+  appInsights?.trackPageView({ properties: { Environment: ENVIRONMENT } });
 };
-
-initialise();
-
-export const trackPageView = () => appInsights?.trackPageView({ properties: { Environment: ENVIRONMENT } });

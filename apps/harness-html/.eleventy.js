@@ -26,6 +26,10 @@ export default function (eleventyConfig) {
     }
   );
 
+  eleventyConfig.addPassthroughCopy({
+    "src/assets/cps-global-components.js": "assets/cps-global-components.js",
+  });
+
   eleventyConfig.setServerOptions({ port: 3335 });
   eleventyConfig.addPlugin(HtmlBasePlugin);
 
