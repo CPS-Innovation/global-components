@@ -7,7 +7,7 @@
     "preinstall": "npx only-allow pnpm",
     "test": "echo \"Error: no test specified\" && exit 1",
     "start": "eleventy --serve",
-    "dev": "BASE_PATH=foo pnpm start",
+    "dev": "pnpm start",
     "deploy:unstable": "./deploy.sh unstable",
     "deploy:dev": "./deploy.sh dev",
     "deploy:test": "./deploy.sh test"
