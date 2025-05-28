@@ -1,4 +1,4 @@
-@import "node_modules/govuk-frontend/dist/govuk/index";
+@import "../common/common.scss";
 $level-height: 3rem;
 
 :host {
@@ -27,14 +27,6 @@ header {
   border-bottom: none !important;
 }
 
-.header-divider {
-  height: 10px;
-  box-shadow: 0 0 0 100vmax govuk-colour("blue");
-  clip-path: inset(0 -100vmax);
-  background-color: govuk-colour("blue");
-  z-index: -1;
-}
-
 a.govuk-link {
   color: $govuk-brand-colour;
   @include govuk-font($size: 19);
@@ -43,32 +35,6 @@ a.govuk-link {
   &:visited {
     color: $govuk-brand-colour;
   }
-}
-
-@mixin background($gdsColorName) {
-  box-shadow: 0 0 0 100vmax govuk-colour($gdsColorName);
-  clip-path: inset(0 -100vmax);
-  background-color: govuk-colour($gdsColorName);
-}
-
-.background-white {
-  @include background("white");
-}
-
-.background-grey {
-  @include background("light-grey");
-}
-
-.background-black {
-  @include background("black");
-}
-
-.background-divider {
-  height: 1px;
-  box-shadow: 0 0 0 100vmax $govuk-border-colour;
-  clip-path: inset(0 -100vmax);
-  background-color: $govuk-border-colour;
-  z-index: -1;
 }
 
 .no-config {
