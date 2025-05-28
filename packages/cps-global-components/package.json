@@ -1,5 +1,5 @@
 {
-  "name": "cps-global-header",
+  "name": "cps-global-components",
   "version": "0.0.1",
   "description": "Stencil Component Starter",
   "main": "dist/index.cjs.js",
@@ -7,15 +7,11 @@
   "types": "test.d.ts",
   "collection": "dist/collection/collection-manifest.json",
   "collection:main": "dist/collection/index.js",
-  "unpkg": "dist/cps-global-header/cps-global-header.esm.js",
+  "unpkg": "dist/cps-global-components/cps-global-components.esm.js",
   "exports": {
     ".": {
-      "import": "./dist/cps-global-header/cps-global-header.esm.js",
-      "require": "./dist/cps-global-header/cps-global-header.cjs.js"
-    },
-    "./cps-global-header": {
-      "import": "./dist/components/cps-global-header.js",
-      "types": "./dist/components/cps-global-header.d.ts"
+      "import": "./dist/cps-global-components/cps-global-components.esm.js",
+      "require": "./dist/cps-global-components/cps-global-components.cjs.js"
     },
     "./loader": {
       "import": "./loader/index.js",
@@ -33,7 +29,7 @@
   ],
   "scripts": {
     "preinstall": "npx only-allow pnpm",
-    "build": "stencil build",
+    "build": "stencil build && rollup --config",
     "dev": "stencil build --dev --watch --serve",
     "test": "stencil test --spec",
     "test.watch": "stencil test --spec --watchAll",
