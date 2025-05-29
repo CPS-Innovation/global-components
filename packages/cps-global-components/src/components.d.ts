@@ -80,7 +80,7 @@ declare global {
         new (): HTMLDropDownElement;
     };
     interface HTMLNavLinkElementEventMap {
-        "cpsGlobalHeaderEvent": string;
+        "cps-global-header-event": string;
     }
     interface HTMLNavLinkElement extends Components.NavLink, HTMLStencilElement {
         addEventListener<K extends keyof HTMLNavLinkElementEventMap>(type: K, listener: (this: HTMLNavLinkElement, ev: NavLinkCustomEvent<HTMLNavLinkElementEventMap[K]>) => any, options?: boolean | AddEventListenerOptions): void;
@@ -127,7 +127,7 @@ declare namespace LocalJSX {
         "disabled"?: boolean;
         "href"?: OnwardLinkDefinition;
         "label"?: string;
-        "onCpsGlobalHeaderEvent"?: (event: NavLinkCustomEvent<string>) => void;
+        "onCps-global-header-event"?: (event: NavLinkCustomEvent<string>) => void;
         "openInNewTab"?: boolean;
         "selected"?: boolean;
     }

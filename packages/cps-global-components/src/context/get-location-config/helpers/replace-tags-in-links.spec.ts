@@ -12,10 +12,16 @@ describe("replaceTagsInLinks", () => {
   });
 
   it("replaces tags in link definitions", () => {
-    expect(replaceTagsInLinks({ cases: "a={foo}&b={bar}", tasks: "{bar}/{foo}", details: "foo/bar" }, { foo: "AAA", bar: "BBB", baz: "CCC" })).toEqual({
-      cases: "a=AAA&b=BBB",
-      tasks: "BBB/AAA",
-      details: "foo/bar",
+    expect(
+      replaceTagsInLinks(
+        { "cases": "a={foo}&b={bar}", "tasks": "{bar}/{foo}", "details": "foo/bar", "case-materials": { link: "{foo}/{bar}", isOutSystems: true } },
+        { foo: "AAA", bar: "BBB", baz: "CCC" },
+      ),
+    ).toEqual({
+      "cases": "a=AAA&b=BBB",
+      "tasks": "BBB/AAA",
+      "details": "foo/bar",
+      "case-materials": { link: "AAA/BBB", isOutSystems: true },
     });
   });
 });

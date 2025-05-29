@@ -94,7 +94,7 @@ export const appLocationConfigs: AppLocationConfig[] = [
     ],
   },
   {
-    pathRoots: ["http://localhost:3335/static-app", "http://127.0.0.1:3000/static-app", "https://sacpsglobalcomponents.z33.web.core.windows.net/static-app"],
+    pathRoots: ["http://localhost:3335/static-app"],
     pathMatchers: [
       {
         paths: ["/static-app/cases/urns/(?<urn>[^/]+)/cases/(?<caseId>[^/]+)/review"],
@@ -115,7 +115,7 @@ export const appLocationConfigs: AppLocationConfig[] = [
           tasks: "/static-app/",
           cases: "/static-app/cases",
           details: "/static-app/cases/urns/{urn}/cases/{caseId}",
-          review: "/static-app/cases/urns/{urn}/cases/{caseId}/review",
+          review: { link: "/static-app/cases/urns/{urn}/cases/{caseId}/review", isOutSystems: true },
         },
       },
       {
@@ -125,7 +125,7 @@ export const appLocationConfigs: AppLocationConfig[] = [
         onwardLinks: {
           "tasks": "/static-app/",
           "cases": "/static-app/cases",
-          "review": "/static-app/cases/urns/{urn}/cases/{caseId}/review",
+          "review": { link: "/static-app/cases/urns/{urn}/cases/{caseId}/review", isOutSystems: true },
           "case-materials": "/static-app/cases/urns/{urn}/cases/{caseId}/materials",
         },
       },
@@ -169,7 +169,7 @@ export const appLocationConfigs: AppLocationConfig[] = [
           tasks: "/accessibility/static",
           cases: "/accessibility/static/cases",
           details: "/accessibility/static/cases/urns/{urn}/cases/{caseId}",
-          review: "/accessibility/static/cases/urns/{urn}/cases/{caseId}/review",
+          review: { link: "/accessibility/static/cases/urns/{urn}/cases/{caseId}/review", isOutSystems: true },
         },
       },
       {
@@ -179,7 +179,7 @@ export const appLocationConfigs: AppLocationConfig[] = [
         onwardLinks: {
           "tasks": "/accessibility/static",
           "cases": "/accessibility/static/cases",
-          "review": "/accessibility/static/cases/urns/{urn}/cases/{caseId}/review",
+          "review": { link: "/accessibility/static/cases/urns/{urn}/cases/{caseId}/review", isOutSystems: true },
           "case-materials": "/accessibility/static/cases/urns/{urn}/cases/{caseId}/materials",
         },
       },
