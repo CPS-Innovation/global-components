@@ -33,9 +33,6 @@
     "dev": "stencil build --dev --watch --serve",
     "test": "stencil test --spec",
     "test.watch": "stencil test --spec --watchAll",
-    "deploy:unstable": "dotenvx run -f .env.unstable -- bash ./deploy.sh",
-    "deploy:dev": "dotenvx run -f .env.dev -- bash ./deploy.sh",
-    "deploy:test": "dotenvx run -f .env.test -- bash ./deploy.sh",
     "deploy:prod": "dotenvx run -f .env.prod -- bash ./deploy.sh",
     "deploy:outsystems": "dotenvx run -f .env.outsystems -- bash ./deploy.sh",
     "generate": "stencil generate"
