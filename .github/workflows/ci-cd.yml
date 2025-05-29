@@ -163,7 +163,7 @@ jobs:
                 --connection-string "${{ secrets.BLOB_STORAGE_CONNECTION_STRING }}"
 
             az storage blob upload-batch \
-              --destination "${{matrix.environment}}/static" \
+              --destination "\$web/${{matrix.environment}}/static" \
               --source "./apps/harness-html/_site" \
               --connection-string "${{ secrets.BLOB_STORAGE_CONNECTION_STRING }}"
 
@@ -173,7 +173,7 @@ jobs:
                 --connection-string "${{ secrets.BLOB_STORAGE_CONNECTION_STRING }}"
 
             az storage blob upload-batch \
-              --destination "${{matrix.environment}}/spa" \
+              --destination "\$web/${{matrix.environment}}/spa" \
               --source "./apps/harness-spa/dist" \
               --connection-string "${{ secrets.BLOB_STORAGE_CONNECTION_STRING }}"
 
