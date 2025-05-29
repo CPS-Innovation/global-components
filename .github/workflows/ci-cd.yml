@@ -46,7 +46,9 @@ jobs:
           node-version-file: ".nvmrc"
           cache: "pnpm"
 
-      - run: pnpm --filter cps-global-components install --frozen-lockfile
+      - run: pnpm install --frozen-lockfile
+        env:
+          CI: true
 
       - run: pnpm --filter cps-global-configuration build
 
@@ -54,8 +56,6 @@ jobs:
       #   continue-on-error: false
 
       - run: pnpm --filter cps-global-components test
-        env:
-          CI: true
 
       # - run: pnpm run test:coverage
       #   continue-on-error: true
