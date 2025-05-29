@@ -90,5 +90,8 @@
     <script>
       window.GOVUKFrontend.initAll()
     </script>-->
+    <script>
+      document.addEventListener("cps-global-header-event", (ev) => window.location.href = ev.detail);
+    </script>
   </body>
 </html>
