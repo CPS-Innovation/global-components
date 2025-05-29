@@ -9,9 +9,6 @@
     "preview": "vite preview",
     "lint": "eslint src --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
     "type-check": "tsc --noEmit",
-    "deploy:unstable": "./deploy.sh unstable",
-    "deploy:dev": "./deploy.sh dev",
-    "deploy:test": "./deploy.sh test",
     "host-local": "./host-local.sh"
   },
   "dependencies": {
