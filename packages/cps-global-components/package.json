@@ -29,7 +29,8 @@
   ],
   "scripts": {
     "preinstall": "npx only-allow pnpm",
-    "build": "stencil build && rollup --config",
+    "build": "stencil build",
+    "rollup": "rollup --config",
     "dev": "stencil build --dev --watch --serve",
     "test": "stencil test --spec",
     "test.watch": "stencil test --spec --watchAll",
@@ -57,6 +58,7 @@
     "govuk-frontend": "^5.7.1",
     "http-server": "^14.1.1",
     "uuid": "^11.0.4",
-    "cps-global-configuration": "workspace:*"
+    "cps-global-configuration": "workspace:*",
+    "cps-global-core": "workspace:*"
   }
 }
