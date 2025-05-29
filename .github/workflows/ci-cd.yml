@@ -10,12 +10,25 @@ permissions:
   contents: read
 
 env:
-  BUILD_PATH: "./packages/cps-global-components/dist/cps-global-components.*"
   BUILD_ARTIFACT_NAME: build-artifact
-  CACHE_CONTROL: "max-age=20, stale-while-revalidate=3600, stale-if-error=3600"
-  DEPLOY_ENVIRONMENT: ci-cd-test
 
 jobs:
+  generate-matrix:
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+
+    outputs:
+      environments: ${{ steps.set-environments.outputs.environments }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: List files and create JSON matrix
+        id: set-environments
+        run: |
+          files=$(ls ./configuration | grep 'config\..*\.json' | jq -R . | jq -s -c . |  jq 'map(capture("config\\.(?<environment>[A-Za-z0-9_-]+)\\.json") | .environment)' | jq -c .)
+          echo "Files found: $files"
+          echo "environments=$files" >> "$GITHUB_OUTPUT"
+
   build-and-test:
     runs-on: ubuntu-latest
 
@@ -31,8 +44,7 @@ jobs:
           run_install: false
 
       - shell: bash
-        run: |
-          echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_ENV
+        run: echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_ENV
 
       - uses: actions/cache@v4
         with:
@@ -68,28 +80,11 @@ jobs:
         id: upload
         with:
           name: ${{env.BUILD_ARTIFACT_NAME}}
-          path: ${{ env.BUILD_PATH }}
+          path: "./packages/cps-global-components/dist/cps-global-components.*"
           retention-days: 1
 
-  generate-matrix:
-    needs: build-and-test
-    runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-
-    outputs:
-      environments: ${{ steps.set-environments.outputs.environments }}
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: List files and create JSON matrix
-        id: set-environments
-        run: |
-          files=$(ls ./configuration | grep 'config\..*\.json' | jq -R . | jq -s -c . |  jq 'map(capture("config\\.(?<environment>[A-Za-z0-9_-]+)\\.json") | .environment)' | jq -c .)
-          echo "Files found: $files"
-          echo "environments=$files" >> "$GITHUB_OUTPUT"
-
-  deploy:
-    needs: generate-matrix
+  deploy-script:
+    needs: [generate-matrix, build-and-test]
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     strategy:
@@ -127,7 +122,56 @@ jobs:
               --source "${{ steps.download.outputs.download-path }}/${{env.BUILD_ARTIFACT_NAME}}" \
               --connection-string "${{ secrets.BLOB_STORAGE_CONNECTION_STRING }}" \
               --overwrite \
-              --content-cache-control "${{env.CACHE_CONTROL}}"
+              --content-cache-control "max-age=20, stale-while-revalidate=3600, stale-if-error=3600"
+
+  deploy-harnesses:
+    needs: generate-matrix
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    strategy:
+      matrix:
+        environment: ${{ fromJson(needs.generate-matrix.outputs.environments) }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - run: |
+          # Extract our account name from the connection string
+          ACCOUNT_NAME=$(echo ${{secrets.BLOB_STORAGE_CONNECTION_STRING}} | sed -n 's/.*AccountName=\([^;]*\).*/\1/p')
+
+          # Both harnesses look to env variables for the location of the global script
+          GLOBAL_SCRIPT_URL="https://$ACCOUNT_NAME.blob.core.windows.net/${{matrix.environment}}/cps-global-components.js"
+          echo "GLOBAL_SCRIPT_URL=$GLOBAL_SCRIPT_URL" >> $GITHUB_ENV
+          echo "VITE_GLOBAL_SCRIPT_URL=$GLOBAL_SCRIPT_URL" >> $GITHUB_ENV
+
+          # The static harness also needs a BASE_PATH for hyperlinks to be consistent
+          echo "BASE_PATH=/${{matrix.environment}}/static"
+
+      - run: pnpm --filter "./apps/**" build
+
+      - uses: azure/cli@v2
+        with:
+          azcliversion: latest
+          inlineScript: |
+            az storage blob delete-batch \
+                --source '$web' \
+                --pattern "${{matrix.environment}}/static" \
+                --connection-string "${{ secrets.BLOB_STORAGE_CONNECTION_STRING }}"
+
+            az storage blob upload-batch \
+              --destination "${{matrix.environment}}/static" \
+              --source "./apps/harness-html/_site" \
+              --connection-string "${{ secrets.BLOB_STORAGE_CONNECTION_STRING }}"
+
+            az storage blob delete-batch \
+                --source '$web' \
+                --pattern "${{matrix.environment}}/spa" \
+                --connection-string "${{ secrets.BLOB_STORAGE_CONNECTION_STRING }}"
+
+            az storage blob upload-batch \
+              --destination "${{matrix.environment}}/spa" \
+              --source "./apps/harness-spa/dist" \
+              --connection-string "${{ secrets.BLOB_STORAGE_CONNECTION_STRING }}"
 
   repo-security-scan:
     runs-on: ubuntu-latest

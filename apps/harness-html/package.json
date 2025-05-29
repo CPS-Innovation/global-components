@@ -6,6 +6,7 @@
   "scripts": {
     "preinstall": "npx only-allow pnpm",
     "test": "echo \"Error: no test specified\" && exit 1",
+    "build": "eleventy",
     "start": "GLOBAL_SCRIPT_URL=/assets/cps-global-components.js BASE_PATH=/static-app eleventy --serve",
     "dev": "pnpm start",
     "deploy:unstable": "./deploy.sh unstable",
