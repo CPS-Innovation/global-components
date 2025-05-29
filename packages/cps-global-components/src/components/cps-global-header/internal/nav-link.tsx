@@ -1,7 +1,6 @@
 import { Component, Prop, h, Event, EventEmitter } from "@stencil/core";
 import { OnwardLinkDefinition } from "../../../context/LocationConfig";
-
-window.addEventListener("cps-global-header-event", (event: Event & { detail: string }) => console.debug("A navigation event has been fired: ", event));
+import { GLOBAL_EVENT_NAME } from "cps-global-core";
 
 type LinkMode = "standard" | "new-tab" | "emit-event" | "disabled";
 
@@ -17,15 +16,15 @@ export class NavLink {
   @Prop() openInNewTab?: boolean;
 
   @Event({
-    eventName: "cps-global-header-event",
+    eventName: GLOBAL_EVENT_NAME,
     composed: true,
     cancelable: true,
     bubbles: true,
   })
-  CpsGlobalHeaderEvent: EventEmitter<string>;
+  cpsGlobalHeaderEvent: EventEmitter<string>;
 
   emitEvent = (link: string) => {
-    this.CpsGlobalHeaderEvent.emit(link);
+    this.cpsGlobalHeaderEvent.emit(link);
   };
 
   launchNewTab = (link: string) => {

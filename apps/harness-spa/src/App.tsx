@@ -15,7 +15,7 @@ import Cookies from "./pages/Cookies";
 import Review from "./pages/Review";
 import Tasks from "./pages/Tasks";
 import Materials from "./pages/Materials";
-import { useGlobalNavigation } from "./hooks/useGlobalNavigation";
+import { useGlobalNavigation } from "cps-global-react-helpers";
 
 export const App: React.FC = () => {
   useGlobalNavigation();

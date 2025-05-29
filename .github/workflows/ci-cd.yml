@@ -52,7 +52,7 @@ jobs:
         env:
           CI: true
 
-      - run: pnpm --filter cps-global-configuration build
+      - run: pnpm --filter "./packages/*" build
 
       # - run: pnpm run lint
       #   continue-on-error: false
@@ -62,9 +62,9 @@ jobs:
       # - run: pnpm run test:coverage
       #   continue-on-error: true
 
-      - run: 'pnpm --filter cps-global-components run build --intro ''window.cps_global_components_build = {Sha: "${{ github.sha }}", RunId: "${{ github.run_id }}"};'''
-
       - run: pnpm --filter cps-global-configuration validate
+
+      - run: 'pnpm --filter cps-global-components run rollup --intro ''window.cps_global_components_build = {Sha: "${{ github.sha }}", RunId: "${{ github.run_id }}"};'''
 
       - uses: actions/upload-artifact@v4
         id: upload
