@@ -34,7 +34,6 @@
     "test": "stencil test --spec",
     "test.watch": "stencil test --spec --watchAll",
     "deploy:prod": "dotenvx run -f .env.prod -- bash ./deploy.sh",
-    "deploy:outsystems": "dotenvx run -f .env.outsystems -- bash ./deploy.sh",
     "generate": "stencil generate"
   },
   "devDependencies": {
