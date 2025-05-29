@@ -16,9 +16,9 @@
 
 ## Events
 
-| Event                     | Description | Type                  |
-| ------------------------- | ----------- | --------------------- |
-| `cps-global-header-event` |             | `CustomEvent<string>` |
+| Event                  | Description | Type                  |
+| ---------------------- | ----------- | --------------------- |
+| `cpsGlobalHeaderEvent` |             | `CustomEvent<string>` |
 
 
 ## Dependencies
