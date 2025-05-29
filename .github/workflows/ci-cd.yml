@@ -127,7 +127,7 @@ jobs:
 
       - run: |
           # Extract our account name from the connection string
-          ACCOUNT_NAME=$(echo ${{secrets.BLOB_STORAGE_CONNECTION_STRING}} | sed -n 's/.*AccountName=\([^;]*\).*/\1/p')
+          ACCOUNT_NAME=$(echo ${{secrets.BLOB_STORAGE_CONNECTION_STRING}} | grep -oP 'AccountName=\K[^;]+')
 
           # Both harnesses look to env variables for the location of the global script
           GLOBAL_SCRIPT_URL="https://$ACCOUNT_NAME.blob.core.windows.net/${{matrix.environment}}/cps-global-components.js"
@@ -135,7 +135,7 @@ jobs:
           echo "VITE_GLOBAL_SCRIPT_URL=$GLOBAL_SCRIPT_URL" >> $GITHUB_ENV
 
           # The static harness also needs a BASE_PATH for hyperlinks to be consistent
-          echo "BASE_PATH=/${{matrix.environment}}/static"
+          echo "BASE_PATH=/${{matrix.environment}}/static" >> $GITHUB_ENV
 
       - uses: pnpm/action-setup@v4
         with:
@@ -159,7 +159,7 @@ jobs:
           inlineScript: |
             az storage blob delete-batch \
                 --source '$web' \
-                --pattern "${{matrix.environment}}/static" \
+                --pattern "${{matrix.environment}}/static/*" \
                 --connection-string "${{ secrets.BLOB_STORAGE_CONNECTION_STRING }}"
 
             az storage blob upload-batch \
@@ -169,7 +169,7 @@ jobs:
 
             az storage blob delete-batch \
                 --source '$web' \
-                --pattern "${{matrix.environment}}/spa" \
+                --pattern "${{matrix.environment}}/spa/*" \
                 --connection-string "${{ secrets.BLOB_STORAGE_CONNECTION_STRING }}"
 
             az storage blob upload-batch \
