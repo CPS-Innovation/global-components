@@ -148,7 +148,7 @@ jobs:
         env:
           CI: true
 
-      - run: pnpm --filter "./apps/**" build
+      - run: pnpm --recursive build
 
       - uses: azure/cli@v2
         with:
