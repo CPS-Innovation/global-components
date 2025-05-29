@@ -127,7 +127,7 @@ jobs:
 
       - run: |
           # Extract our account name from the connection string
-          ACCOUNT_NAME=$(echo ${{secrets.BLOB_STORAGE_CONNECTION_STRING}} | grep -oP 'AccountName=\K[^;]+')
+          ACCOUNT_NAME=$(echo "${{secrets.BLOB_STORAGE_CONNECTION_STRING}}" | grep -oP 'AccountName=\K[^;]+')
 
           # Both harnesses look to env variables for the location of the global script
           GLOBAL_SCRIPT_URL="https://$ACCOUNT_NAME.blob.core.windows.net/${{matrix.environment}}/cps-global-components.js"
