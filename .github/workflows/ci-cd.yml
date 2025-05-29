@@ -18,9 +18,7 @@ env:
 jobs:
   build-and-test:
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: ./packages/cps-global-components
+
     outputs:
       artifact-id: ${{ steps.upload.outputs.artifact-id }}
 
@@ -48,23 +46,23 @@ jobs:
           node-version-file: ".nvmrc"
           cache: "pnpm"
 
-      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter cps-global-components install --frozen-lockfile
 
-      - run: pnpm -C ../cps-global-configuration build
+      - run: pnpm --filter cps-global-configuration build
 
       # - run: pnpm run lint
       #   continue-on-error: false
 
-      - run: pnpm test
+      - run: pnpm --filter cps-global-components test
         env:
           CI: true
 
       # - run: pnpm run test:coverage
       #   continue-on-error: true
 
-      - run: 'pnpm run build --intro ''window.cps_global_components_build = {Sha: "${{ github.sha }}", RunId: "${{ github.run_id }}"};'''
+      - run: 'pnpm --filter cps-global-components run build --intro ''window.cps_global_components_build = {Sha: "${{ github.sha }}", RunId: "${{ github.run_id }}"};'''
 
-      - run: pnpm -w run validate
+      - run: pnpm --filter cps-global-configuration validate
 
       - uses: actions/upload-artifact@v4
         id: upload
@@ -86,7 +84,7 @@ jobs:
       - name: List files and create JSON matrix
         id: set-environments
         run: |
-          files=$(ls ./configuration | jq -R . | jq -s -c . |  jq 'map(capture("config\\.(?<environment>[A-Za-z0-9_-]+)\\.json") | .environment)' | jq -c .)
+          files=$(ls ./configuration | grep 'config\..*\.json' | jq -R . | jq -s -c . |  jq 'map(capture("config\\.(?<environment>[A-Za-z0-9_-]+)\\.json") | .environment)' | jq -c .)
           echo "Files found: $files"
           echo "environments=$files" >> "$GITHUB_OUTPUT"
 
