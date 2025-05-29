@@ -109,7 +109,7 @@ jobs:
               --connection-string "${{ secrets.BLOB_STORAGE_CONNECTION_STRING }}" \
               --overwrite \
               --content-cache-control "max-age=20, stale-while-revalidate=3600, stale-if-error=3600" \
-              --metadata cps-global-components-build-sha=${{ github.sha }} cps-global-components-build-run-id=${{ github.run_id }}
+              --metadata buildsha=${{ github.sha }} buildrunid=${{ github.run_id }}
 
   deploy-harnesses:
     needs: generate-matrix
