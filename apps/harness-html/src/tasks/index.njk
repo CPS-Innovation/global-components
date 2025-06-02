@@ -1,0 +1,66 @@
+---
+layout: base.njk
+title: Tasks - UK Government Service
+---
+
+{% block content %}
+  <div class="govuk-grid-row">
+    <div class="govuk-grid-column-full">
+      <h1 class="govuk-heading-xl">Your tasks</h1>
+
+      <table class="govuk-table">
+        <caption class="govuk-table__caption govuk-table__caption--m">Tasks to complete today</caption>
+        <thead class="govuk-table__head">
+          <tr class="govuk-table__row">
+            <th scope="col" class="govuk-table__header">Task</th>
+            <th scope="col" class="govuk-table__header">Description</th>
+            <th scope="col" class="govuk-table__header govuk-table__header--numeric">Due date</th>
+            <th scope="col" class="govuk-table__header">Priority</th>
+            <th scope="col" class="govuk-table__header">Status</th>
+          </tr>
+        </thead>
+        <tbody class="govuk-table__body">
+          <tr class="govuk-table__row">
+            <td class="govuk-table__cell">
+              <a href="/cases/urns/12AB1212121/cases/100001" class="govuk-link">Review material for Case #100001</a>
+            </td>
+            <td class="govuk-table__cell">Review new evidence submitted for case 12AB1212121/100001</td>
+            <td class="govuk-table__cell govuk-table__cell--numeric">Today</td>
+            <td class="govuk-table__cell">
+              <strong class="govuk-tag govuk-tag--red">High</strong>
+            </td>
+            <td class="govuk-table__cell">
+              <strong class="govuk-tag govuk-tag--blue">New</strong>
+            </td>
+          </tr>
+          <tr class="govuk-table__row">
+            <td class="govuk-table__cell">
+              <a href="/cases/urns/12AB1212121/cases/100002" class="govuk-link">Complete case report for Case #100002</a>
+            </td>
+            <td class="govuk-table__cell">Finalize report for case 12AB1212121/100002</td>
+            <td class="govuk-table__cell govuk-table__cell--numeric">Today</td>
+            <td class="govuk-table__cell">
+              <strong class="govuk-tag govuk-tag--orange">Medium</strong>
+            </td>
+            <td class="govuk-table__cell">
+              <strong class="govuk-tag govuk-tag--blue">In progress</strong>
+            </td>
+          </tr>
+          <tr class="govuk-table__row">
+            <td class="govuk-table__cell">
+              <a href="/cases/urns/12AB3333333/cases/100003" class="govuk-link">Schedule hearing for Case #100003</a>
+            </td>
+            <td class="govuk-table__cell">Coordinate with court for case 12AB3333333/100003</td>
+            <td class="govuk-table__cell govuk-table__cell--numeric">Tomorrow</td>
+            <td class="govuk-table__cell">
+              <strong class="govuk-tag govuk-tag--green">Low</strong>
+            </td>
+            <td class="govuk-table__cell">
+              <strong class="govuk-tag govuk-tag--grey">Not started</strong>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+{% endblock %}

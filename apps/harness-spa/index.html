@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="en" class="govuk-template">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#0b0c0c" />
+
+    <script type="module" referrerpolicy="no-referrer-when-downgrade" src="%VITE_GLOBAL_SCRIPT_URL%"></script>
+    <title>CPS Harness</title>
+</head>
+
+<body class="govuk-template__body js-enabled">
+    <script>
+        document.body.className = ((document.body.className) ? document.body.className + ' js-enabled' : 'js-enabled');
+    </script>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+</body>
+
+</html>

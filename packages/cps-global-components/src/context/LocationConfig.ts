@@ -1,0 +1,335 @@
+export type LinkCode = "tasks" | "cases" | "details" | "case-materials" | "review" | "cms-pre-charge-triage" | "bulk-um-classification";
+
+export type OnwardLinkDefinition = string | { link: string; isOutSystems: true };
+
+export type OnwardLinkDefinitions = Partial<{ [key in LinkCode]: OnwardLinkDefinition }>;
+
+export type PathMatcher = { paths: string[]; matchedLinkCode: LinkCode; showSecondRow: boolean; onwardLinks: OnwardLinkDefinitions };
+
+export type MatchedPathMatcher = Omit<PathMatcher, "paths"> & {
+  href: string;
+  pathTags?: { [key: string]: string };
+};
+
+export type AppLocationConfig = {
+  pathRoots: string[];
+  pathMatchers: PathMatcher[];
+};
+
+export const appLocationConfigs: AppLocationConfig[] = [
+  {
+    pathRoots: ["https://polaris-dev-notprod.cps.gov.uk/polaris-ui", "https://polaris-dev-cmsproxy.azurewebsites.net/polaris-ui", "http://localhost:3000/polaris-ui"],
+    pathMatchers: [
+      {
+        paths: ["/polaris-ui/case-details/(?<urn>[^/]+)/(?<caseId>\\d+).*taskId=(?<taskId>\\d+)"],
+        matchedLinkCode: "case-materials",
+        showSecondRow: true,
+        onwardLinks: {
+          tasks: "https://cps-dev.outsystemsenterprise.com/WorkManagementApp/TaskList",
+          cases: "https://cps-tst.outsystemsenterprise.com/WorkManagementApp/TaskList?IsCasesNavigation=true",
+          review: "https://cps-dev.outsystemsenterprise.com/CaseReview/RedirectCW?URN={urn}&CMSCaseId={caseId}",
+          details: "https://cps-tst.outsystemsenterprise.com/WorkManagementApp/CaseOverview?URN={urn}&CaseId={caseId}&IsDCFCase=false",
+        },
+      },
+      {
+        paths: ["/polaris-ui/case-details/(?<urn>[^/]+)/(?<caseId>\\d+)"],
+        matchedLinkCode: "case-materials",
+        showSecondRow: true,
+        onwardLinks: {
+          tasks: "https://cps-dev.outsystemsenterprise.com/WorkManagementApp/TaskList",
+          cases: "https://cps-tst.outsystemsenterprise.com/WorkManagementApp/TaskList?IsCasesNavigation=true",
+          review: "https://cps-dev.outsystemsenterprise.com/CaseReview/RedirectCW?URN={urn}&CMSCaseId={caseId}",
+          details: "https://cps-tst.outsystemsenterprise.com/WorkManagementApp/CaseOverview?URN={urn}&CaseId={caseId}&IsDCFCase=false",
+        },
+      },
+      {
+        paths: ["/polaris-ui"],
+        matchedLinkCode: "case-materials",
+        showSecondRow: false,
+        onwardLinks: {
+          tasks: "https://cps-dev.outsystemsenterprise.com/WorkManagementApp/TaskList",
+          cases: "https://cps-tst.outsystemsenterprise.com/WorkManagementApp/TaskList?IsCasesNavigation=true",
+        },
+      },
+    ],
+  },
+  {
+    pathRoots: ["https://cps-dev.outsystemsenterprise.com/WorkManagementApp"],
+    pathMatchers: [
+      {
+        paths: ["/WorkManagementApp/TaskList"],
+        matchedLinkCode: "tasks",
+        showSecondRow: false,
+        onwardLinks: {
+          tasks: "/WorkManagementApp/TaskList",
+          cases: "https://sacpsglobalcomponents.z33.web.core.windows.net/static-app/cases",
+        },
+      },
+    ],
+  },
+  {
+    pathRoots: ["http://localhost:3333" /* npm start inside cps-global-header*/],
+    pathMatchers: [
+      {
+        paths: [""],
+        matchedLinkCode: "cases",
+        showSecondRow: true,
+        // add query params in alphabetical order e.g. ?a=1&b=2&c=1 rather than ?b=2&a=1&c=1
+        onwardLinks: {
+          tasks: "/?urn={urn}&caseId={caseId}",
+          cases: "/?urn={urn}&caseId={caseId}",
+          review: "/review",
+          details: { link: "Please navigate to details page for case {caseId}", isOutSystems: true },
+        },
+      },
+      {
+        paths: ["/urns/(?<urn>[^/]+)/cases/(?<caseId>[^/]+)"],
+        matchedLinkCode: "tasks",
+        showSecondRow: false,
+        onwardLinks: {
+          tasks: "/urns/12AB121212/cases/11112222",
+          cases: "/urns/34AB343434/cases/333344444",
+        },
+      },
+    ],
+  },
+  {
+    pathRoots: ["http://localhost:3335/static-app"],
+    pathMatchers: [
+      {
+        paths: ["/static-app/cases/urns/(?<urn>[^/]+)/cases/(?<caseId>[^/]+)/review"],
+        matchedLinkCode: "review",
+        showSecondRow: true,
+        onwardLinks: {
+          "tasks": "/static-app/",
+          "cases": "/static-app/cases",
+          "details": "/static-app/cases/urns/{urn}/cases/{caseId}",
+          "case-materials": "/static-app/cases/urns/{urn}/cases/{caseId}/materials",
+        },
+      },
+      {
+        paths: ["/static-app/cases/urns/(?<urn>[^/]+)/cases/(?<caseId>[^/]+)/materials"],
+        matchedLinkCode: "case-materials",
+        showSecondRow: true,
+        onwardLinks: {
+          tasks: "/static-app/",
+          cases: "/static-app/cases",
+          details: "/static-app/cases/urns/{urn}/cases/{caseId}",
+          review: { link: "/static-app/cases/urns/{urn}/cases/{caseId}/review", isOutSystems: true },
+        },
+      },
+      {
+        paths: ["/static-app/cases/urns/(?<urn>[^/]+)/cases/(?<caseId>[^/]+)"],
+        matchedLinkCode: "details",
+        showSecondRow: true,
+        onwardLinks: {
+          "tasks": "/static-app/",
+          "cases": "/static-app/cases",
+          "review": { link: "/static-app/cases/urns/{urn}/cases/{caseId}/review", isOutSystems: true },
+          "case-materials": "/static-app/cases/urns/{urn}/cases/{caseId}/materials",
+        },
+      },
+      {
+        paths: ["/static-app/cases"],
+        matchedLinkCode: "cases",
+        showSecondRow: false,
+        onwardLinks: {
+          tasks: "/static-app/",
+        },
+      },
+      {
+        paths: ["/static-app"],
+        matchedLinkCode: "tasks",
+        showSecondRow: false,
+        onwardLinks: {
+          cases: "/static-app/cases",
+        },
+      },
+    ],
+  },
+  {
+    pathRoots: ["https://sacpsglobalcomponents.z33.web.core.windows.net/accessibility/static"],
+    pathMatchers: [
+      {
+        paths: ["/accessibility/static/cases/urns/(?<urn>[^/]+)/cases/(?<caseId>[^/]+)/review"],
+        matchedLinkCode: "review",
+        showSecondRow: true,
+        onwardLinks: {
+          "tasks": "/accessibility/static",
+          "cases": "/accessibility/static/cases",
+          "details": "/accessibility/static/cases/urns/{urn}/cases/{caseId}",
+          "case-materials": "/accessibility/static/cases/urns/{urn}/cases/{caseId}/materials",
+        },
+      },
+      {
+        paths: ["/accessibility/static/cases/urns/(?<urn>[^/]+)/cases/(?<caseId>[^/]+)/materials"],
+        matchedLinkCode: "case-materials",
+        showSecondRow: true,
+        onwardLinks: {
+          tasks: "/accessibility/static",
+          cases: "/accessibility/static/cases",
+          details: "/accessibility/static/cases/urns/{urn}/cases/{caseId}",
+          review: { link: "/accessibility/static/cases/urns/{urn}/cases/{caseId}/review", isOutSystems: true },
+        },
+      },
+      {
+        paths: ["/accessibility/static/cases/urns/(?<urn>[^/]+)/cases/(?<caseId>[^/]+)"],
+        matchedLinkCode: "details",
+        showSecondRow: true,
+        onwardLinks: {
+          "tasks": "/accessibility/static",
+          "cases": "/accessibility/static/cases",
+          "review": { link: "/accessibility/static/cases/urns/{urn}/cases/{caseId}/review", isOutSystems: true },
+          "case-materials": "/accessibility/static/cases/urns/{urn}/cases/{caseId}/materials",
+        },
+      },
+      {
+        paths: ["/accessibility/static/cases"],
+        matchedLinkCode: "cases",
+        showSecondRow: false,
+        onwardLinks: {
+          tasks: "/accessibility/static",
+        },
+      },
+      {
+        paths: ["/accessibility/static"],
+        matchedLinkCode: "tasks",
+        showSecondRow: false,
+        onwardLinks: {
+          cases: "/accessibility/static/cases",
+        },
+      },
+    ],
+  },
+  {
+    pathRoots: ["https://sacpsglobalcomponents.z33.web.core.windows.net/accessibility/spa"],
+    pathMatchers: [
+      {
+        paths: ["/accessibility/spa/#/cases/urns/(?<urn>[^/]+)/cases/(?<caseId>[^/]+)/review"],
+        matchedLinkCode: "review",
+        showSecondRow: true,
+        onwardLinks: {
+          "tasks": "/accessibility/spa/#/tasks",
+          "cases": "/accessibility/spa/#/cases",
+          "details": "/accessibility/spa/#/cases/urns/{urn}/cases/{caseId}",
+          "case-materials": "/accessibility/spa/#/cases/urns/{urn}/cases/{caseId}/materials",
+        },
+      },
+      {
+        paths: ["/accessibility/spa/#/cases/urns/(?<urn>[^/]+)/cases/(?<caseId>[^/]+)/materials"],
+        matchedLinkCode: "case-materials",
+        showSecondRow: true,
+        onwardLinks: {
+          tasks: "/accessibility/spa/#/tasks",
+          cases: "/accessibility/spa/#/cases",
+          details: "/accessibility/spa/#/cases/urns/{urn}/cases/{caseId}",
+          review: "/accessibility/spa/#/cases/urns/{urn}/cases/{caseId}/review",
+        },
+      },
+      {
+        paths: ["/accessibility/spa/#/cases/urns/(?<urn>[^/]+)/cases/(?<caseId>[^/]+)"],
+        matchedLinkCode: "details",
+        showSecondRow: true,
+        onwardLinks: {
+          "tasks": "/accessibility/spa/#/tasks",
+          "cases": "/accessibility/spa/#/cases",
+          "review": "/accessibility/spa/#/cases/urns/{urn}/cases/{caseId}/review",
+          "case-materials": "/accessibility/spa/#/cases/urns/{urn}/cases/{caseId}/materials",
+        },
+      },
+      {
+        paths: ["/accessibility/spa/#/cases"],
+        matchedLinkCode: "cases",
+        showSecondRow: false,
+        onwardLinks: {
+          tasks: "/accessibility/spa/#/tasks",
+        },
+      },
+      {
+        paths: ["/accessibility/spa"],
+        matchedLinkCode: "tasks",
+        showSecondRow: false,
+        onwardLinks: {
+          cases: "/accessibility/spa/#/cases",
+        },
+      },
+    ],
+  },
+  {
+    pathRoots: ["http://localhost:3000/spa-app", "http://127.0.0.1:3000/spa-app", "https://sacpsglobalcomponents.z33.web.core.windows.net/spa-app"],
+    pathMatchers: [
+      {
+        paths: ["/spa-app/#/tasks"],
+        matchedLinkCode: "tasks",
+        showSecondRow: false,
+        onwardLinks: {
+          cases: "/spa-app/#/cases",
+        },
+      },
+      {
+        paths: ["/spa-app/#/cases/urns/(?<urn>[^/]+)/cases/(?<caseId>[^/]+)/review"],
+        matchedLinkCode: "review",
+        showSecondRow: true,
+        onwardLinks: {
+          "tasks": "/spa-app/#/tasks",
+          "cases": "/spa-app/#/cases",
+          "details": "/spa-app/#/cases/urns/{urn}/cases/{caseId}",
+          "case-materials": "/spa-app/#/cases/urns/{urn}/cases/{caseId}/materials",
+        },
+      },
+      {
+        paths: ["/spa-app/#/cases/urns/(?<urn>[^/]+)/cases/(?<caseId>[^/]+)/materials"],
+        matchedLinkCode: "case-materials",
+        showSecondRow: true,
+        onwardLinks: {
+          tasks: "/spa-app/#/tasks",
+          cases: "/spa-app/#/cases",
+          details: "/spa-app/#/cases/urns/{urn}/cases/{caseId}",
+          review: "/spa-app/#/cases/urns/{urn}/cases/{caseId}/review",
+        },
+      },
+      {
+        paths: ["/spa-app/#/cases/urns/(?<urn>[^/]+)/cases/(?<caseId>[^/]+)"],
+        matchedLinkCode: "details",
+        showSecondRow: true,
+        onwardLinks: {
+          "tasks": "/spa-app/#/tasks",
+          "cases": "/spa-app/#/cases",
+          "review": "/spa-app/#/cases/urns/{urn}/cases/{caseId}/review",
+          "case-materials": "/spa-app/#/cases/urns/{urn}/cases/{caseId}/materials",
+        },
+      },
+      {
+        paths: ["/spa-app/#/cases"],
+        matchedLinkCode: "cases",
+        showSecondRow: false,
+        onwardLinks: {
+          tasks: "/spa-app/#/tasks",
+        },
+      },
+    ],
+  },
+  {
+    pathRoots: ["https://cps-dev.outsystemsenterprise.com/CpsGlobalComponentsTestHarness"],
+    pathMatchers: [
+      {
+        paths: ["/CpsGlobalComponentsTestHarness/Page2"],
+        matchedLinkCode: "cases",
+        showSecondRow: false,
+        onwardLinks: {
+          tasks: { link: "/CpsGlobalComponentsTestHarness/", isOutSystems: true },
+          cases: { link: "/CpsGlobalComponentsTestHarness/Page2", isOutSystems: true },
+        },
+      },
+      {
+        paths: ["/CpsGlobalComponentsTestHarness/", "/CpsGlobalComponentsTestHarness/Home"],
+        matchedLinkCode: "tasks",
+        showSecondRow: false,
+        onwardLinks: {
+          tasks: { link: "/CpsGlobalComponentsTestHarness/", isOutSystems: true },
+          cases: { link: "/CpsGlobalComponentsTestHarness/Page2", isOutSystems: true },
+        },
+      },
+    ],
+  },
+];
