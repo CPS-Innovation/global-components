@@ -10,71 +10,10 @@ permissions:
   contents: read
 
 env:
-  BUILD_PATH: "./packages/cps-global-components/dist/cps-global-components.*"
   BUILD_ARTIFACT_NAME: build-artifact
-  CACHE_CONTROL: "max-age=20, stale-while-revalidate=3600, stale-if-error=3600"
-  DEPLOY_ENVIRONMENT: ci-cd-test
 
 jobs:
-  build-and-test:
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: ./packages/cps-global-components
-    outputs:
-      artifact-id: ${{ steps.upload.outputs.artifact-id }}
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: pnpm/action-setup@v4
-        with:
-          version: latest
-          run_install: false
-
-      - shell: bash
-        run: |
-          echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_ENV
-
-      - uses: actions/cache@v4
-        with:
-          path: ${{ env.STORE_PATH }}
-          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
-          restore-keys: |
-            ${{ runner.os }}-pnpm-store-
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version-file: ".nvmrc"
-          cache: "pnpm"
-
-      - run: pnpm install --frozen-lockfile
-
-      - run: pnpm -C ../cps-global-configuration build
-
-      # - run: pnpm run lint
-      #   continue-on-error: false
-
-      - run: pnpm test
-        env:
-          CI: true
-
-      # - run: pnpm run test:coverage
-      #   continue-on-error: true
-
-      - run: 'pnpm run build --intro ''window.cps_global_components_build = {Sha: "${{ github.sha }}", RunId: "${{ github.run_id }}"};'''
-
-      - run: pnpm -w run validate
-
-      - uses: actions/upload-artifact@v4
-        id: upload
-        with:
-          name: ${{env.BUILD_ARTIFACT_NAME}}
-          path: ${{ env.BUILD_PATH }}
-          retention-days: 1
-
   generate-matrix:
-    needs: build-and-test
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
 
@@ -86,12 +25,56 @@ jobs:
       - name: List files and create JSON matrix
         id: set-environments
         run: |
-          files=$(ls ./configuration | jq -R . | jq -s -c . |  jq 'map(capture("config\\.(?<environment>[A-Za-z0-9_-]+)\\.json") | .environment)' | jq -c .)
+          files=$(ls ./configuration | grep 'config\..*\.json' | jq -R . | jq -s -c . |  jq 'map(capture("config\\.(?<environment>[A-Za-z0-9_-]+)\\.json") | .environment)' | jq -c .)
           echo "Files found: $files"
           echo "environments=$files" >> "$GITHUB_OUTPUT"
 
-  deploy:
-    needs: generate-matrix
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    outputs:
+      artifact-id: ${{ steps.upload.outputs.artifact-id }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: latest
+          run_install: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: ".nvmrc"
+          cache: "pnpm"
+
+      - run: pnpm install
+        env:
+          CI: true
+
+      - run: pnpm --filter "./packages/*" build
+
+      # - run: pnpm run lint
+      #   continue-on-error: false
+
+      - run: pnpm --filter cps-global-components test
+
+      # - run: pnpm run test:coverage
+      #   continue-on-error: true
+
+      - run: pnpm --filter cps-global-configuration validate
+
+      - run: 'pnpm --filter cps-global-components run rollup --intro ''window.cps_global_components_build = {Sha: "${{ github.sha }}", RunId: "${{ github.run_id }}"};'''
+
+      - uses: actions/upload-artifact@v4
+        id: upload
+        with:
+          name: ${{env.BUILD_ARTIFACT_NAME}}
+          path: "./packages/cps-global-components/dist/cps-global-components.*"
+          retention-days: 1
+
+  deploy-script:
+    needs: [generate-matrix, build-and-test]
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     strategy:
@@ -120,16 +103,76 @@ jobs:
               --public-access container \
               --connection-string "${{ secrets.BLOB_STORAGE_CONNECTION_STRING }}"
 
-      - uses: azure/cli@v2
-        with:
-          azcliversion: latest
-          inlineScript: |
             az storage blob upload-batch \
               --destination ${{matrix.environment}} \
               --source "${{ steps.download.outputs.download-path }}/${{env.BUILD_ARTIFACT_NAME}}" \
               --connection-string "${{ secrets.BLOB_STORAGE_CONNECTION_STRING }}" \
               --overwrite \
-              --content-cache-control "${{env.CACHE_CONTROL}}"
+              --content-cache-control "max-age=20, stale-while-revalidate=3600, stale-if-error=3600" \
+              --metadata buildsha=${{ github.sha }} buildrunid=${{ github.run_id }}
+
+  deploy-harnesses:
+    needs: generate-matrix
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    strategy:
+      matrix:
+        environment: ${{ fromJson(needs.generate-matrix.outputs.environments) }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - run: |
+          # Extract our account name from the connection string
+          ACCOUNT_NAME=$(echo "${{secrets.BLOB_STORAGE_CONNECTION_STRING}}" | grep -oP 'AccountName=\K[^;]+')
+
+          # Both harnesses look to env variables for the location of the global script
+          GLOBAL_SCRIPT_URL="https://$ACCOUNT_NAME.blob.core.windows.net/${{matrix.environment}}/cps-global-components.js"
+          echo "GLOBAL_SCRIPT_URL=$GLOBAL_SCRIPT_URL" >> $GITHUB_ENV
+          echo "VITE_GLOBAL_SCRIPT_URL=$GLOBAL_SCRIPT_URL" >> $GITHUB_ENV
+
+          # The static harness also needs a BASE_PATH for hyperlinks to be consistent
+          echo "BASE_PATH=/${{matrix.environment}}/static" >> $GITHUB_ENV
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: latest
+          run_install: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: ".nvmrc"
+          cache: "pnpm"
+
+      - run: pnpm install
+        env:
+          CI: true
+
+      - run: pnpm --recursive build
+
+      - uses: azure/cli@v2
+        with:
+          azcliversion: latest
+          inlineScript: |
+            az storage blob delete-batch \
+                --source '$web' \
+                --pattern "${{matrix.environment}}/static/*" \
+                --connection-string "${{ secrets.BLOB_STORAGE_CONNECTION_STRING }}"
+
+            az storage blob upload-batch \
+              --destination "\$web/${{matrix.environment}}/static" \
+              --source "./apps/harness-html/_site" \
+              --connection-string "${{ secrets.BLOB_STORAGE_CONNECTION_STRING }}"
+
+            az storage blob delete-batch \
+                --source '$web' \
+                --pattern "${{matrix.environment}}/spa/*" \
+                --connection-string "${{ secrets.BLOB_STORAGE_CONNECTION_STRING }}"
+
+            az storage blob upload-batch \
+              --destination "\$web/${{matrix.environment}}/spa" \
+              --source "./apps/harness-spa/dist" \
+              --connection-string "${{ secrets.BLOB_STORAGE_CONNECTION_STRING }}"
 
   repo-security-scan:
     runs-on: ubuntu-latest

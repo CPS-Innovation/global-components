@@ -23,6 +23,13 @@ export default defineConfig({
           path.resolve(__dirname, "src/styles"),
         ],
         api: "legacy",
+        quietDeps: true,
+        silenceDeprecations: [
+          "mixed-decls",
+          "slash-div",
+          "import",
+          "legacy-js-api",
+        ],
       },
     },
   },

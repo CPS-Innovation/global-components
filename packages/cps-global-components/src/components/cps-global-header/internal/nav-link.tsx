@@ -1,7 +1,8 @@
 import { Component, Prop, h, Event, EventEmitter } from "@stencil/core";
 import { OnwardLinkDefinition } from "../../../context/LocationConfig";
+import * as core from "cps-global-core";
 
-window.addEventListener("cps-global-header-event", (event: Event & { detail: string }) => console.debug("A navigation event has been fired: ", event));
+window.addEventListener(core.GLOBAL_EVENT_NAME, (event: Event & { detail: string }) => console.debug("A navigation event has been fired: ", event));
 
 type LinkMode = "standard" | "new-tab" | "emit-event" | "disabled";
 
@@ -24,19 +25,9 @@ export class NavLink {
   })
   CpsGlobalHeaderEvent: EventEmitter<string>;
 
-  emitEvent = (link: string) => {
-    this.CpsGlobalHeaderEvent.emit(link);
-  };
+  emitEvent = (link: string) => this.CpsGlobalHeaderEvent.emit(link);
 
-  launchNewTab = (link: string) => {
-    window.open(link, "_blank", "noopener,noreferrer");
-  };
-
-  async connectedCallback() {}
-
-  async disconnectedCallback() {
-    console.log("Disconnected");
-  }
+  launchNewTab = (link: string) => window.open(link, "_blank", "noopener,noreferrer");
 
   render() {
     let isOutSystems: boolean;
@@ -61,13 +52,13 @@ export class NavLink {
           );
         case "new-tab":
           return (
-            <button class="linkButton" onClick={() => this.launchNewTab(link)}>
+            <button class="linkButton" role="link" aria-label={`Navigates the page to ${link}`} onClick={() => this.launchNewTab(link)}>
               {this.label}
             </button>
           );
         case "emit-event":
           return (
-            <button class="linkButton" onClick={() => this.emitEvent(link)}>
+            <button class="linkButton" role="link" aria-label={`Navigates the page to ${link}`} onClick={() => this.emitEvent(link)}>
               {this.label}
             </button>
           );
