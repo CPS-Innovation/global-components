@@ -1,21 +1,32 @@
 import { Config, Link } from "cps-global-configuration";
 import { Context } from "cps-global-configuration/dist/schema";
 
-const buildSortedFullPath = ({ origin, pathname, hash, search }: Location) => {
+const buildSanitizedAddress = ({ origin, pathname, hash, search }: Location) => {
   const params = new URLSearchParams(search);
   const sortedParams = new URLSearchParams([...params.entries()].sort((a, b) => a[0].localeCompare(b[0])));
   return origin + pathname + (sortedParams.toString() ? `?${sortedParams.toString()}` : "") + hash;
 };
 
-const findContextInfo = (contextArr: Context[], address: string) => {
+type FindContextResult =
+  | {
+      found: true;
+      contexts: string;
+      tags: {
+        [key: string]: string;
+      };
+    }
+  | { found: false; contexts?: undefined; tags?: undefined };
+
+const findContext = (contextArr: Context[], address: string): FindContextResult => {
   for (const { paths, contexts } of contextArr) {
     for (const path of paths) {
       const match = address.match(path);
       if (match) {
-        return { contexts, tags: match.groups || {} };
+        return { found: true, contexts, tags: match.groups || {} };
       }
     }
   }
+  return { found: false };
 };
 
 const shouldShowLink =
@@ -28,6 +39,8 @@ const isContextMatch = (contextStringA: string, contextStringB: string) => conte
 const replaceTagsInString = (source: string, tags: { [key: string]: string }) =>
   Object.keys(tags).reduce((acc, curr) => acc.replace(new RegExp(`{${curr}}`, "g"), tags[curr]), source);
 
+type MapLinkResult = ReturnType<ReturnType<typeof mapLink>>;
+
 const mapLink =
   (contexts: string, tags: { [key: string]: string }) =>
   ({ label, href, level, activeContexts, openInNewTab }: Link) => ({
@@ -35,10 +48,12 @@ const mapLink =
     level,
     openInNewTab,
     href: replaceTagsInString(href, tags),
-    isActive: isContextMatch(contexts, activeContexts),
+    selected: isContextMatch(contexts, activeContexts),
   });
 
-const groupByLevel = (links: ReturnType<ReturnType<typeof mapLink>>[]) => {
+export type ResolvedLink = Omit<MapLinkResult, "level">;
+
+const groupByLevel = (links: MapLinkResult[]): ResolvedLink[][] => {
   const result = [];
 
   for (const { level, ...rest } of links) {
@@ -51,10 +66,19 @@ const groupByLevel = (links: ReturnType<ReturnType<typeof mapLink>>[]) => {
   return result;
 };
 
-export const menuHelper = ({ LINKS, CONTEXTS }: Config, { location }: Window) => {
-  const sanitizedPath = buildSortedFullPath(location);
-  const { contexts, tags } = findContextInfo(CONTEXTS, sanitizedPath);
+export type MenuHelperResult =
+  | {
+      found: true;
+      links: ResolvedLink[][];
+    }
+  | { found: false; links?: undefined };
 
+export const menuHelper = ({ LINKS, CONTEXTS }: Config, { location }: Window): MenuHelperResult => {
+  const sanitizedAddress = buildSanitizedAddress(location);
+  const { found, contexts, tags } = findContext(CONTEXTS, sanitizedAddress);
+  if (!found) {
+    return { found: false, links: undefined };
+  }
   const links = LINKS.filter(shouldShowLink(contexts)).map(mapLink(contexts, tags));
-  return groupByLevel(links);
+  return { found: true, links: groupByLevel(links) };
 };

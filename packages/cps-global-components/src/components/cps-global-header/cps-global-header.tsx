@@ -1,16 +1,8 @@
 import { Component, Prop, h, State, Fragment } from "@stencil/core";
-import { getLocationConfig } from "../../context/get-location-config";
-import { LinkCode, MatchedPathMatcher } from "../../context/LocationConfig";
 import { CONFIG_ASYNC } from "../../config.js";
 import { trackPageViewAsync } from "../../analytics";
 import { Config } from "cps-global-configuration";
-import { menuHelper } from "./menu-helper";
-
-type LinkHelperArg = { code: LinkCode; label: string; children?: LinkCode[]; openInNewTab?: boolean; parentCode?: LinkCode };
-
-const SHOULD_SHOW_NAME = false;
-const SHOULD_SHOW_CMS_LINKS = false;
-const SHOULD_SHOW_MATERIALS_MENU = false;
+import { menuHelper, ResolvedLink } from "./menu-helper";
 
 @Component({
   tag: "cps-global-header",
@@ -19,7 +11,6 @@ const SHOULD_SHOW_MATERIALS_MENU = false;
 })
 export class CpsGlobalHeader {
   @Prop() name: string = "Please wait...";
-  @State() config: MatchedPathMatcher;
   @State() CONFIG: Config;
 
   // We have address as State so that we get a rerender triggered whenever it updates
@@ -36,27 +27,17 @@ export class CpsGlobalHeader {
     this.CONFIG = await CONFIG_ASYNC;
   }
 
-  async componentWillRender() {
-    this.config = getLocationConfig(window);
-  }
-
-  linkHelper = ({ code, label, children = [], openInNewTab }: LinkHelperArg) => ({
-    label,
-    href: this.config.matchedLinkCode === code ? this.config.href : this.config?.onwardLinks[code],
-    selected: this.config?.matchedLinkCode === code || children.includes(this.config?.matchedLinkCode),
-    openInNewTab,
-  });
-
   renderError = (msg: string) => <div class="level-1 background-grey no-config">{msg}</div>;
 
-  renderOk = () => {
+  renderOk = ([level1Links, level2Links]: ResolvedLink[][]) => {
     const { SURVEY_LINK } = this.CONFIG;
     return (
       <div>
         <div class="level-1 background-grey">
           <ul>
-            <nav-link {...this.linkHelper({ code: "tasks", label: "Tasks" })}></nav-link>
-            <nav-link {...this.linkHelper({ code: "cases", label: "Cases", children: ["details", "case-materials", "review"] })}></nav-link>
+            {level1Links.map(link => (
+              <nav-link {...link}></nav-link>
+            ))}
           </ul>
           {SURVEY_LINK && (
             <ul>
@@ -67,41 +48,13 @@ export class CpsGlobalHeader {
 
         <div class="background-divider"></div>
 
-        {this.config.showSecondRow && (
+        {!!level2Links?.length && (
           <>
             <div class="level-2 background-white">
-              {SHOULD_SHOW_NAME && (
-                <div class="background-left-only">
-                  <span class="name">{this.name}</span>
-                </div>
-              )}
               <ul>
-                <nav-link {...this.linkHelper({ code: "details", label: "Details", parentCode: "cases" })}></nav-link>
-
-                {SHOULD_SHOW_MATERIALS_MENU ? (
-                  <drop-down
-                    label="Materials"
-                    links={[
-                      this.linkHelper({ code: "case-materials", label: "Case Materials", parentCode: "cases" }),
-                      this.linkHelper({ code: "bulk-um-classification", label: "Bulk UM classification", parentCode: "cases" }),
-                    ]}
-                  ></drop-down>
-                ) : (
-                  <nav-link {...this.linkHelper({ code: "case-materials", label: "Materials", parentCode: "cases" })}></nav-link>
-                )}
-                <nav-link {...this.linkHelper({ code: "review", label: "Review", parentCode: "cases" })}></nav-link>
-              </ul>
-              <div class="slot-container">
-                <slot />
-              </div>
-              <ul>
-                {SHOULD_SHOW_CMS_LINKS && (
-                  <drop-down
-                    label="CMS Classic"
-                    menuAlignment="right"
-                    links={[this.linkHelper({ code: "cms-pre-charge-triage", label: "Pre-charge triage", openInNewTab: true })]}
-                  ></drop-down>
-                )}
+                {level2Links.map(link => (
+                  <nav-link {...link}></nav-link>
+                ))}
               </ul>
             </div>
             <div class="background-divider"></div>
@@ -131,12 +84,13 @@ export class CpsGlobalHeader {
 
   render() {
     const { _CONFIG_ERROR, SHOULD_SHOW_HEADER, SHOULD_SHOW_MENU } = this.CONFIG;
-    console.log(menuHelper(this.CONFIG, window));
+    const { found, links } = menuHelper(this.CONFIG, window);
+
     return (
       <>
         {!!_CONFIG_ERROR && this.renderError(_CONFIG_ERROR)}
         {SHOULD_SHOW_HEADER && this.renderHeader()}
-        {SHOULD_SHOW_MENU && (this.config ? this.renderOk() : this.renderError(`No menu config found for ${window.location.href}`))}
+        {SHOULD_SHOW_MENU && (found ? this.renderOk(links) : this.renderError(`No menu config found for ${window.location.href}`))}
       </>
     );
   }

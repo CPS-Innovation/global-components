@@ -163,15 +163,11 @@ $arrow-length: $level-height/2;
     }
   }
 
-  .slot-container {
-    margin-left: auto;
-  }
-
-  ul:last-child {
-    li {
-      margin-right: 0;
-    }
-  }
+  // ul:last-child {
+  //   li {
+  //     margin-right: 0;
+  //   }
+  // }
 
   .selected {
     & > a,
