@@ -1,5 +1,5 @@
-export const buildSortedFullPath = ({ pathname, hash, search }: Location) => {
-  const urlParams = new URLSearchParams(search);
-  urlParams.sort();
-  return `${pathname}${urlParams.size ? "?" : ""}${urlParams.toString()}${hash || ""}`;
+export const buildSortedFullPath = ({ origin, pathname, hash, search }: Location) => {
+  const params = new URLSearchParams(search);
+  const sortedParams = new URLSearchParams([...params.entries()].sort((a, b) => a[0].localeCompare(b[0])));
+  return origin + pathname + (sortedParams.toString() ? `?${sortedParams.toString()}` : "") + hash;
 };

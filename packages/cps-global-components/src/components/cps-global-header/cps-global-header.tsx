@@ -4,6 +4,7 @@ import { LinkCode, MatchedPathMatcher } from "../../context/LocationConfig";
 import { CONFIG_ASYNC } from "../../config.js";
 import { trackPageViewAsync } from "../../analytics";
 import { Config } from "cps-global-configuration";
+import { menuHelper } from "./menu-helper";
 
 type LinkHelperArg = { code: LinkCode; label: string; children?: LinkCode[]; openInNewTab?: boolean; parentCode?: LinkCode };
 
@@ -130,6 +131,7 @@ export class CpsGlobalHeader {
 
   render() {
     const { _CONFIG_ERROR, SHOULD_SHOW_HEADER, SHOULD_SHOW_MENU } = this.CONFIG;
+    console.log(menuHelper(this.CONFIG, window));
     return (
       <>
         {!!_CONFIG_ERROR && this.renderError(_CONFIG_ERROR)}

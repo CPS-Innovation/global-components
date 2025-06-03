@@ -13,6 +13,9 @@ export namespace Components {
     interface CpsGlobalFooter {
     }
     interface CpsGlobalHeader {
+        /**
+          * @default "Please wait..."
+         */
         "name": string;
     }
     interface CpsGlobalHeaderExperimental {
@@ -25,6 +28,9 @@ export namespace Components {
     interface DropDown {
         "label": string;
         "links": LinkProps[];
+        /**
+          * @default "left"
+         */
         "menuAlignment": "left" | "right";
     }
     interface NavLink {
@@ -108,6 +114,9 @@ declare namespace LocalJSX {
     interface CpsGlobalFooter {
     }
     interface CpsGlobalHeader {
+        /**
+          * @default "Please wait..."
+         */
         "name"?: string;
     }
     interface CpsGlobalHeaderExperimental {
@@ -121,6 +130,9 @@ declare namespace LocalJSX {
     interface DropDown {
         "label"?: string;
         "links"?: LinkProps[];
+        /**
+          * @default "left"
+         */
         "menuAlignment"?: "left" | "right";
     }
     interface NavLink {
