@@ -34,6 +34,7 @@ export namespace Components {
         "menuAlignment": "left" | "right";
     }
     interface NavLink {
+        "ariaSelected"?: boolean;
         "disabled": boolean;
         "href": OnwardLinkDefinition;
         "label": string;
@@ -136,6 +137,7 @@ declare namespace LocalJSX {
         "menuAlignment"?: "left" | "right";
     }
     interface NavLink {
+        "ariaSelected"?: boolean;
         "disabled"?: boolean;
         "href"?: OnwardLinkDefinition;
         "label"?: string;

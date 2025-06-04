@@ -51,16 +51,17 @@ const mapLink =
     selected: isContextMatch(contexts, activeContexts),
   });
 
-export type ResolvedLink = Omit<MapLinkResult, "level">;
+export type ResolvedLink = Omit<MapLinkResult, "level"> & { ariaSelected?: true };
 
 const groupByLevel = (links: MapLinkResult[]): ResolvedLink[][] => {
-  const result = [];
+  const highestSelectedLevel = Math.max(...links.filter(({ selected }) => selected).map(({ level }) => level));
+  const result: ResolvedLink[][] = [];
 
   for (const { level, ...rest } of links) {
     if (!result[level]) {
       result[level] = [];
     }
-    result[level].push({ ...rest });
+    result[level].push({ ...rest, ariaSelected: level === highestSelectedLevel && rest.selected ? true : undefined });
   }
 
   return result;
@@ -79,6 +80,7 @@ export const menuHelper = ({ LINKS, CONTEXTS }: Config, { location }: Window): M
   if (!found) {
     return { found: false, links: undefined };
   }
+  console.debug({ contexts, tags });
   const links = LINKS.filter(shouldShowLink(contexts)).map(mapLink(contexts, tags));
   return { found: true, links: groupByLevel(links) };
 };

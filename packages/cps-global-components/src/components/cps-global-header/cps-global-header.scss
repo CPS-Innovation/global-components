@@ -57,11 +57,11 @@ a.govuk-link {
 
 .level-1 {
   height: $level-height;
-  display: flex;
-  align-items: center;
+
   ul {
     @include horizontal-list();
-
+    display: flex;
+    align-items: center;
     nav-link {
       align-self: stretch;
 
@@ -83,12 +83,10 @@ a.govuk-link {
       }
     }
     margin-left: -1 * $level-height / 5;
-  }
 
-  ul:last-child {
-    margin-left: auto;
-    li {
-      margin: 0;
+    nav-link:last-child {
+      margin-left: auto;
+      margin-right: 0;
     }
   }
 

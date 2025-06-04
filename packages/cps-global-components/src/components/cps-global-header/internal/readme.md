@@ -7,6 +7,7 @@
 
 | Property       | Attribute         | Description | Type                                              | Default     |
 | -------------- | ----------------- | ----------- | ------------------------------------------------- | ----------- |
+| `ariaSelected` | `aria-selected`   |             | `boolean`                                         | `undefined` |
 | `disabled`     | `disabled`        |             | `boolean`                                         | `undefined` |
 | `href`         | `href`            |             | `string \| { link: string; isOutSystems: true; }` | `undefined` |
 | `label`        | `label`           |             | `string`                                          | `undefined` |

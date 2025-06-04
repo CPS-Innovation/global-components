@@ -33,30 +33,26 @@ export class CpsGlobalHeader {
     const { SURVEY_LINK } = this.CONFIG;
     return (
       <div>
-        <div class="level-1 background-grey">
+        <nav class="level-1 background-grey" aria-label="Menu">
           <ul>
             {level1Links.map(link => (
               <nav-link {...link}></nav-link>
             ))}
+            {SURVEY_LINK && <nav-link label="Give feedback" href={SURVEY_LINK}></nav-link>}
           </ul>
-          {SURVEY_LINK && (
-            <ul>
-              <nav-link label="Give feedback" href={SURVEY_LINK}></nav-link>
-            </ul>
-          )}
-        </div>
+        </nav>
 
         <div class="background-divider"></div>
 
         {!!level2Links?.length && (
           <>
-            <div class="level-2 background-white">
+            <nav class="level-2 background-white" aria-label="Sub-menu">
               <ul>
                 {level2Links.map(link => (
                   <nav-link {...link}></nav-link>
                 ))}
               </ul>
-            </div>
+            </nav>
             <div class="background-divider"></div>
           </>
         )}

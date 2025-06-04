@@ -14,6 +14,7 @@ export class NavLink {
   @Prop() label: string;
   @Prop() href: OnwardLinkDefinition;
   @Prop() selected: boolean;
+  @Prop() ariaSelected?: boolean;
   @Prop() disabled: boolean;
   @Prop() openInNewTab?: boolean;
 
@@ -46,31 +47,35 @@ export class NavLink {
       switch (mode) {
         case "disabled":
           return (
-            <a class="govuk-link disabled" aria-disabled={true} href={link}>
+            <a class="govuk-link disabled" role="link" aria-disabled={true} href={link}>
               {this.label}
             </a>
           );
         case "new-tab":
           return (
-            <button class="linkButton" role="link" aria-label={`Navigates the page to ${link}`} onClick={() => this.launchNewTab(link)}>
+            <button class="linkButton" role="link" onClick={() => this.launchNewTab(link)}>
               {this.label}
             </button>
           );
         case "emit-event":
           return (
-            <button class="linkButton" role="link" aria-label={`Navigates the page to ${link}`} onClick={() => this.emitEvent(link)}>
+            <button class="linkButton" role="link" onClick={() => this.emitEvent(link)}>
               {this.label}
             </button>
           );
         default:
           return (
-            <a class="govuk-link" href={link}>
+            <a class="govuk-link" role="link" href={link}>
               {this.label}
             </a>
           );
       }
     };
 
-    return <li class={this.selected ? "selected" : ""}>{renderLink()}</li>;
+    return (
+      <li class={this.selected ? "selected" : ""} aria-current={this.ariaSelected ? "page" : undefined}>
+        {renderLink()}
+      </li>
+    );
   }
 }
