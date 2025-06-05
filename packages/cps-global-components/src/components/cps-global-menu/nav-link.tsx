@@ -16,6 +16,7 @@ export class NavLink {
   @Prop() ariaSelected?: boolean;
   @Prop() disabled: boolean;
   @Prop() openInNewTab?: boolean;
+  @Prop() preferEventNavigation?: boolean;
 
   @Event({
     eventName: "cps-global-header-event",
@@ -30,7 +31,7 @@ export class NavLink {
   launchNewTab = (link: string) => window.open(link, "_blank", "noopener,noreferrer");
 
   render() {
-    const mode: LinkMode = this.disabled || !this.href ? "disabled" : this.openInNewTab ? "new-tab" /*: isOutSystems ? "emit-event"*/ : "standard";
+    const mode: LinkMode = this.disabled || !this.href ? "disabled" : this.openInNewTab ? "new-tab" : this.preferEventNavigation ? "emit-event" : "standard";
 
     const renderLink = () => {
       switch (mode) {
@@ -46,12 +47,12 @@ export class NavLink {
               {this.label}
             </button>
           );
-        // case "emit-event":
-        //   return (
-        //     <button class="linkButton" role="link" onClick={() => this.emitEvent(this.href)}>
-        //       {this.label}
-        //     </button>
-        //   );
+        case "emit-event":
+          return (
+            <button class="linkButton" role="link" onClick={() => this.emitEvent(this.href)}>
+              {this.label}
+            </button>
+          );
         default:
           return (
             <a class="govuk-link" role="link" href={this.href}>

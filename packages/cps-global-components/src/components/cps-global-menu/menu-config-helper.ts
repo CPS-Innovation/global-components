@@ -34,7 +34,8 @@ const shouldShowLink =
   ({ visibleContexts }: Link) =>
     !visibleContexts || isContextMatch(contexts, visibleContexts);
 
-const isContextMatch = (contextStringA: string, contextStringB: string) => contextStringA.split(" ").some(contextValue => contextStringB.split(" ").includes(contextValue));
+const isContextMatch = (contextStringA: string = "", contextStringB: string = "") =>
+  contextStringA.split(" ").some(contextValue => contextStringB.split(" ").includes(contextValue));
 
 const replaceTagsInString = (source: string, tags: { [key: string]: string }) =>
   Object.keys(tags).reduce((acc, curr) => acc.replace(new RegExp(`{${curr}}`, "g"), tags[curr]), source);
@@ -43,12 +44,13 @@ type MapLinkResult = ReturnType<ReturnType<typeof mapLink>>;
 
 const mapLink =
   (contexts: string, tags: { [key: string]: string }) =>
-  ({ label, href, level, activeContexts, openInNewTab }: Link) => ({
+  ({ label, href, level, activeContexts, openInNewTab, preferEventNavigationContexts }: Link) => ({
     label,
     level,
     openInNewTab,
     href: replaceTagsInString(href, tags),
     selected: isContextMatch(contexts, activeContexts),
+    preferEventNavigation: isContextMatch(contexts, preferEventNavigationContexts),
   });
 
 export type ResolvedLink = Omit<MapLinkResult, "level"> & { ariaSelected?: true };

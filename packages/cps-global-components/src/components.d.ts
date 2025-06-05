@@ -24,6 +24,7 @@ export namespace Components {
         "href": string;
         "label": string;
         "openInNewTab"?: boolean;
+        "preferEventNavigation"?: boolean;
         "selected": boolean;
     }
 }
@@ -101,6 +102,7 @@ declare namespace LocalJSX {
         "label"?: string;
         "onCps-global-header-event"?: (event: NavLinkCustomEvent<string>) => void;
         "openInNewTab"?: boolean;
+        "preferEventNavigation"?: boolean;
         "selected"?: boolean;
     }
     interface IntrinsicElements {

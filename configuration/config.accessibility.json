@@ -73,7 +73,8 @@
       "level": 1,
       "href": "/accessibility/static/cases/urns/{urn}/cases/{caseId}/review",
       "visibleContexts": "case",
-      "activeContexts": "review"
+      "activeContexts": "review",
+      "preferEventNavigationContexts": "details"
     }
   ]
 }
