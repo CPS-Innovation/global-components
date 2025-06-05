@@ -1,5 +1,4 @@
 import { Component, Prop, h, Event, EventEmitter } from "@stencil/core";
-import { OnwardLinkDefinition } from "../../../context/LocationConfig";
 import * as core from "cps-global-core";
 
 window.addEventListener(core.GLOBAL_EVENT_NAME, (event: Event & { detail: string }) => console.debug("A navigation event has been fired: ", event));
@@ -12,10 +11,12 @@ type LinkMode = "standard" | "new-tab" | "emit-event" | "disabled";
 })
 export class NavLink {
   @Prop() label: string;
-  @Prop() href: OnwardLinkDefinition;
+  @Prop() href: string;
   @Prop() selected: boolean;
+  @Prop() ariaSelected?: boolean;
   @Prop() disabled: boolean;
   @Prop() openInNewTab?: boolean;
+  @Prop() preferEventNavigation?: boolean;
 
   @Event({
     eventName: "cps-global-header-event",
@@ -30,47 +31,41 @@ export class NavLink {
   launchNewTab = (link: string) => window.open(link, "_blank", "noopener,noreferrer");
 
   render() {
-    let isOutSystems: boolean;
-    let link: string;
-    if (!this.href) {
-    } else if (typeof this.href === "string") {
-      link = this.href;
-    } else {
-      link = this.href.link;
-      isOutSystems = true;
-    }
-
-    const mode: LinkMode = this.disabled || !this.href ? "disabled" : this.openInNewTab ? "new-tab" : isOutSystems ? "emit-event" : "standard";
+    const mode: LinkMode = this.disabled || !this.href ? "disabled" : this.openInNewTab ? "new-tab" : this.preferEventNavigation ? "emit-event" : "standard";
 
     const renderLink = () => {
       switch (mode) {
         case "disabled":
           return (
-            <a class="govuk-link disabled" aria-disabled={true} href={link}>
+            <a class="govuk-link disabled" role="link" aria-disabled={true} href={this.href}>
               {this.label}
             </a>
           );
         case "new-tab":
           return (
-            <button class="linkButton" role="link" aria-label={`Navigates the page to ${link}`} onClick={() => this.launchNewTab(link)}>
+            <button class="linkButton" role="link" onClick={() => this.launchNewTab(this.href)}>
               {this.label}
             </button>
           );
         case "emit-event":
           return (
-            <button class="linkButton" role="link" aria-label={`Navigates the page to ${link}`} onClick={() => this.emitEvent(link)}>
+            <button class="linkButton" role="link" onClick={() => this.emitEvent(this.href)}>
               {this.label}
             </button>
           );
         default:
           return (
-            <a class="govuk-link" href={link}>
+            <a class="govuk-link" role="link" href={this.href}>
               {this.label}
             </a>
           );
       }
     };
 
-    return <li class={this.selected ? "selected" : ""}>{renderLink()}</li>;
+    return (
+      <li class={this.selected ? "selected" : ""} aria-current={this.ariaSelected ? "page" : undefined}>
+        {renderLink()}
+      </li>
+    );
   }
 }

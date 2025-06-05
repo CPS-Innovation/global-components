@@ -5,28 +5,6 @@ $level-height: 3rem;
   display: block;
 }
 
-.skip-link {
-  // ignore the container width so the skip link is aligned
-  // to the left of the screen
-  width: 100vw;
-  margin-left: calc(50% - 50vw);
-}
-
-header {
-  @include govuk-font($size: 19);
-
-  .header-title {
-    font-weight: 700;
-  }
-
-  .govuk-header__link--homepage:hover {
-    text-decoration-line: none !important;
-    border-bottom: 0 !important;
-  }
-
-  border-bottom: none !important;
-}
-
 a.govuk-link {
   color: $govuk-brand-colour;
   @include govuk-font($size: 19);
@@ -57,11 +35,11 @@ a.govuk-link {
 
 .level-1 {
   height: $level-height;
-  display: flex;
-  align-items: center;
+
   ul {
     @include horizontal-list();
-
+    display: flex;
+    align-items: center;
     nav-link {
       align-self: stretch;
 
@@ -83,12 +61,10 @@ a.govuk-link {
       }
     }
     margin-left: -1 * $level-height / 5;
-  }
 
-  ul:last-child {
-    margin-left: auto;
-    li {
-      margin: 0;
+    nav-link.survey-link {
+      margin-left: auto;
+      margin-right: 0;
     }
   }
 
@@ -163,15 +139,11 @@ $arrow-length: $level-height/2;
     }
   }
 
-  .slot-container {
-    margin-left: auto;
-  }
-
-  ul:last-child {
-    li {
-      margin-right: 0;
-    }
-  }
+  // ul:last-child {
+  //   li {
+  //     margin-right: 0;
+  //   }
+  // }
 
   .selected {
     & > a,
