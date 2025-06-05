@@ -2,7 +2,7 @@ import { Component, h, State, Fragment } from "@stencil/core";
 import { CONFIG_ASYNC } from "../../config/config-async";
 import { Config } from "cps-global-configuration";
 import { renderError } from "../common/render-error";
-import { initiateTracking } from "../../anayltics/initiate-tracking";
+import { initiateTracking } from "../../analytics/initiate-tracking";
 
 @Component({
   tag: "cps-global-header",
