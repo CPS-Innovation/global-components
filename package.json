@@ -14,7 +14,8 @@
   "scripts": {
     "preinstall": "npx only-allow pnpm",
     "dev:all": "pnpm -r run dev",
-    "run-html-harness": "./scripts/run-html-harness.sh"
+    "run-html-harness": "./scripts/run-html-harness.sh",
+    "run-spa-harness": "./scripts/run-spa-harness.sh"
   },
   "files": [
     "dist",
