@@ -4,7 +4,7 @@ import { CONFIG_ASYNC } from "../../config/config-async";
 import { Config } from "cps-global-configuration";
 import { menuConfig, MenuHelperResult } from "./menu-config/menu-config";
 import { renderError } from "../common/render-error";
-import { initiateTracking } from "../../anayltics/initiate-tracking";
+import { initiateTracking } from "../../analytics/initiate-tracking";
 
 @Component({
   tag: "cps-global-menu",
@@ -32,7 +32,7 @@ export class CpsGlobalMenu {
       <div>
         <nav class="level-1 background-grey" aria-label="Menu">
           <ul>
-            {level1Links.map(link => (
+            {level1Links?.map(link => (
               <nav-link {...link}></nav-link>
             ))}
             {SURVEY_LINK && <nav-link class="survey-link" label="Give feedback" href={SURVEY_LINK}></nav-link>}

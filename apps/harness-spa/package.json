@@ -4,7 +4,7 @@
   "description": "SPA version of the CPS harness application",
   "scripts": {
     "preinstall": "npx only-allow pnpm",
-    "dev": "VITE_GLOBAL_SCRIPT_URL=http://localhost:3333/build/cps-global-header.esm.js vite",
+    "dev": "VITE_GLOBAL_SCRIPT_URL=/assets/cps-global-components.js vite",
     "build": "vite build",
     "build-local": "VITE_GLOBAL_SCRIPT_URL=http://localhost:3333/build/cps-global-header.esm.js vite build",
     "preview": "vite preview",
