@@ -17,7 +17,7 @@ type FindContextResult =
     }
   | { found: false; contexts?: undefined; tags?: undefined };
 
-const findContext = (contextArr: Context[], address: string): FindContextResult => {
+const findContextForAddress = (contextArr: Context[], address: string): FindContextResult => {
   for (const { paths, contexts } of contextArr) {
     for (const path of paths) {
       const match = address.match(path);
@@ -67,20 +67,18 @@ const groupByLevel = (links: MapLinkResult[]): ResolvedLink[][] => {
   return result;
 };
 
-export type MenuHelperResult =
-  | {
-      found: true;
-      links: ResolvedLink[][];
-    }
-  | { found: false; links?: undefined };
+export type MenuHelperResult = {
+  found: boolean;
+  links: ResolvedLink[][];
+};
 
-export const menuHelper = ({ LINKS, CONTEXTS }: Config, { location }: Window): MenuHelperResult => {
+export const menuConfigHelper = ({ LINKS, CONTEXTS }: Config, { location }: Window): MenuHelperResult => {
   const sanitizedAddress = buildSanitizedAddress(location);
-  const { found, contexts, tags } = findContext(CONTEXTS, sanitizedAddress);
+  const { found, contexts, tags } = findContextForAddress(CONTEXTS, sanitizedAddress);
   if (!found) {
-    return { found: false, links: undefined };
+    return { found, links: undefined };
   }
-  console.debug({ contexts, tags });
+
   const links = LINKS.filter(shouldShowLink(contexts)).map(mapLink(contexts, tags));
-  return { found: true, links: groupByLevel(links) };
+  return { found, links: groupByLevel(links) };
 };
