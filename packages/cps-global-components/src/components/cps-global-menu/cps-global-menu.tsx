@@ -1,10 +1,10 @@
 import { Component, Prop, h, State, Fragment } from "@stencil/core";
-import { CONFIG_ASYNC } from "../../config";
+import { CONFIG_ASYNC } from "../../config/config-async";
 
 import { Config } from "cps-global-configuration";
-import { menuConfigHelper, ResolvedLink } from "./menu-config-helper";
+import { menuConfig, MenuHelperResult } from "./menu-config/menu-config";
 import { renderError } from "../common/render-error";
-import { initiateTracking } from "../common/initiate-tracking";
+import { initiateTracking } from "../../anayltics/initiate-tracking";
 
 @Component({
   tag: "cps-global-menu",
@@ -26,7 +26,7 @@ export class CpsGlobalMenu {
     this.CONFIG = await CONFIG_ASYNC();
   }
 
-  renderOk = ([level1Links, level2Links]: ResolvedLink[][]) => {
+  renderOk = ([level1Links, level2Links]: MenuHelperResult["links"]) => {
     const { SURVEY_LINK } = this.CONFIG;
     return (
       <div>
@@ -59,7 +59,7 @@ export class CpsGlobalMenu {
 
   render() {
     const { _CONFIG_ERROR } = this.CONFIG;
-    const { found, links } = menuConfigHelper(this.CONFIG, window);
+    const { found, links } = menuConfig(this.CONFIG, window);
 
     if (_CONFIG_ERROR) {
       return renderError(_CONFIG_ERROR);

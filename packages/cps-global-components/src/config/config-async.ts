@@ -1,14 +1,11 @@
 import { validateConfig, Config } from "cps-global-configuration";
+import { scriptUrl } from "./script-url";
 
 let cachedConfigPromise: Promise<Config>;
 
 export const CONFIG_ASYNC = () => {
-  if (cachedConfigPromise) {
-    console.debug("Returning cached config");
-    return cachedConfigPromise;
-  }
   const internal = async () => {
-    const configUrl = new URL("./", import.meta.url).href + "config.json";
+    const configUrl = new URL("./", scriptUrl()).href + "config.json";
     try {
       const response = await fetch(configUrl);
       const json = await response.json();
@@ -22,7 +19,6 @@ export const CONFIG_ASYNC = () => {
     }
   };
 
-  cachedConfigPromise = internal();
-
+  cachedConfigPromise = cachedConfigPromise || internal();
   return cachedConfigPromise;
 };

@@ -1,4 +1,4 @@
-import { trackPageViewAsync } from "../../analytics";
+import { trackPageViewAsync } from "./track-page-view-async";
 
 let initiated = false;
 
