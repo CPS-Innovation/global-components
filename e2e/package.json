@@ -1,6 +1,7 @@
 {
-  "name": "e2e-tests",
+  "name": "e2e",
   "version": "1.0.0",
+  "type": "module",
   "description": "E2E tests using Jest and Puppeteer",
   "scripts": {
     "test": "jest",
@@ -14,5 +15,13 @@
     "puppeteer": "^22.4.0",
     "ts-jest": "^29.1.2",
     "typescript": "^5.3.3"
+  },
+  "dependencies": {
+    "@types/serve-handler": "^6.1.4",
+    "cps-global-configuration": "workspace:*",
+    "expect-puppeteer": "^11.0.0",
+    "serve-handler": "^6.1.6",
+    "ts-node": "^10.9.2",
+    "tsx": "^4.19.4"
   }
 }

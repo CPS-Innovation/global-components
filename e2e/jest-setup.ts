@@ -1,1 +1,2 @@
-import 'jest-puppeteer';
+import "jest-puppeteer";
+import "expect-puppeteer";

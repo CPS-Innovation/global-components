@@ -13,7 +13,7 @@
   },
   "scripts": {
     "preinstall": "npx only-allow pnpm",
-    "dev:all": "pnpm -r run dev",
+    "run-e2e": "./scripts/run-e2e.sh",
     "run-html-harness": "./scripts/run-html-harness.sh",
     "run-spa-harness": "./scripts/run-spa-harness.sh"
   },
