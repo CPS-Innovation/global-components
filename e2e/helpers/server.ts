@@ -11,14 +11,13 @@ const server = createServer((request, response) => {
     const config = decode(request.headers["x-config"] as string);
     response.writeHead(200, { "Content-Type": "application/json" });
     response.end(config);
-    return;
+  } else {
+    // For all other requests, delegate to serve-handler
+    return handler(request, response, {
+      public: "./harness",
+      rewrites: [{ source: "!(*.js|*.json)", destination: "/index.html" }],
+    });
   }
-
-  // For all other requests, delegate to serve-handler
-  return handler(request, response, {
-    public: "./harness",
-    rewrites: [{ source: "!(*.js|*.json)", destination: "/index.html" }],
-  });
 });
 
 server.listen(3000, () => {

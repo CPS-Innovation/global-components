@@ -1,4 +1,4 @@
-import { Component, h, Fragment } from "@stencil/core";
+import { Component, h } from "@stencil/core";
 
 @Component({
   tag: "cps-global-banner",
@@ -8,11 +8,11 @@ import { Component, h, Fragment } from "@stencil/core";
 export class CpsGlobalBanner {
   render() {
     return (
-      <>
+      <div>
         <a href="#main-content" class="govuk-skip-link skip-link" data-module="govuk-skip-link">
           Skip to main content
         </a>
-        <header class="govuk-header background-black">
+        <header class="govuk-header background-black" data-testId="banner">
           <div class="govuk-header__container">
             <div class="govuk-header__logo">
               <span class="govuk-header__link govuk-header__link--homepage">
@@ -22,7 +22,7 @@ export class CpsGlobalBanner {
           </div>
         </header>
         <div class="header-divider"></div>
-      </>
+      </div>
     );
   }
 }
