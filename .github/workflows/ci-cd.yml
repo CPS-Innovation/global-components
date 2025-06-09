@@ -94,6 +94,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - uses: benjlevesque/short-sha@v3.0
+        id: short-sha
+
       - uses: actions/download-artifact@v4
         id: download
         with:
@@ -116,7 +119,7 @@ jobs:
               --connection-string "${{ secrets.BLOB_STORAGE_CONNECTION_STRING }}" \
               --overwrite \
               --content-cache-control "max-age=20, stale-while-revalidate=3600, stale-if-error=3600" \
-              --metadata buildsha=${{ github.sha }} buildrunid=${{ github.run_id }}
+              --metadata buildsha=${{ steps.short-sha.outputs.sha }} buildrunid=${{ github.run_id }} buildtimestamp="${{ github.event.repository.updated_at }}"
 
   deploy-harnesses:
     needs: generate-matrix
