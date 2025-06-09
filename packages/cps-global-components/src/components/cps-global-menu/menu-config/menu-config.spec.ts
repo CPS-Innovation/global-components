@@ -35,8 +35,8 @@ describe("menuConfig", () => {
   const mockConfig: Config = {
     ENVIRONMENT: "test",
     SURVEY_LINK: "https://example.com/survey",
-    SHOULD_SHOW_HEADER: true,
-    SHOULD_SHOW_MENU: true,
+    SHOW_BANNER: true,
+    SHOW_MENU: true,
     LINKS: [
       {
         label: "Link 1",
