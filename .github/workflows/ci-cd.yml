@@ -68,6 +68,7 @@ jobs:
 
       - run: |
           cp -r ./packages/cps-global-components/dist/cps-global-components.js ./e2e/harness
+          npx puppeteer browsers install chrome
           pnpm --filter e2e test
 
       - uses: actions/upload-artifact@v4

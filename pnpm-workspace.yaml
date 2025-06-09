@@ -2,7 +2,5 @@ packages:
   - packages/*
   - apps/*
   - e2e
-ignoredBuiltDependencies:
-  - puppeteer
 overrides:
-  tar-fs@>=3.0.0 <3.0.9: '>=3.0.9'
+  tar-fs@>=3.0.0 <3.0.9: ">=3.0.9"
