@@ -67,7 +67,7 @@ jobs:
 
       - run: pnpm --filter cps-global-configuration validate
 
-      - run: 'pnpm --filter cps-global-components run rollup --intro ''window.cps_global_components_build = {Sha: "${{ steps.short-sha.outputs.sha }}", RunId: "${{ github.run_id }}", Timestamp: "${{ github.event.repository.updated_at }}"};'''
+      - run: 'pnpm --filter cps-global-components run rollup --intro ''window.cps_global_components_build = {Sha: "${{ steps.short-sha.outputs.sha }}", RunId: "${{ github.run_number }}", Timestamp: "${{ github.event.repository.updated_at }}"};'''
 
       - run: |
           cp -r ./packages/cps-global-components/dist/cps-global-components.js ./e2e/harness
@@ -119,7 +119,7 @@ jobs:
               --connection-string "${{ secrets.BLOB_STORAGE_CONNECTION_STRING }}" \
               --overwrite \
               --content-cache-control "max-age=20, stale-while-revalidate=3600, stale-if-error=3600" \
-              --metadata buildsha=${{ steps.short-sha.outputs.sha }} buildrunid=${{ github.run_id }} buildtimestamp="${{ github.event.repository.updated_at }}"
+              --metadata buildsha=${{ steps.short-sha.outputs.sha }} buildrunid=${{ github.run_number }} buildtimestamp="${{ github.event.repository.updated_at }}"
 
   deploy-harnesses:
     needs: generate-matrix
