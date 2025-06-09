@@ -33,39 +33,39 @@ export class NavLink {
   render() {
     const mode: LinkMode = this.disabled || !this.href ? "disabled" : this.openInNewTab ? "new-tab" : this.preferEventNavigation ? "emit-event" : "standard";
 
+    const coreProps = {
+      "role": "link",
+      "aria-current": this.ariaSelected ? "page" : undefined,
+    };
     const renderLink = () => {
       switch (mode) {
         case "disabled":
           return (
-            <a class="govuk-link disabled" role="link" aria-disabled={true} href={this.href}>
+            <a {...coreProps} class="govuk-link disabled" aria-disabled={true} href={this.href}>
               {this.label}
             </a>
           );
         case "new-tab":
           return (
-            <button class="linkButton" role="link" onClick={() => this.launchNewTab(this.href)}>
+            <button {...coreProps} class="linkButton" onClick={() => this.launchNewTab(this.href)}>
               {this.label}
             </button>
           );
         case "emit-event":
           return (
-            <button class="linkButton" role="link" onClick={() => this.emitEvent(this.href)}>
+            <button {...coreProps} class="linkButton" onClick={() => this.emitEvent(this.href)}>
               {this.label}
             </button>
           );
         default:
           return (
-            <a class="govuk-link" role="link" href={this.href}>
+            <a {...coreProps} class="govuk-link" href={this.href}>
               {this.label}
             </a>
           );
       }
     };
 
-    return (
-      <li class={this.selected ? "selected" : ""} aria-current={this.ariaSelected ? "page" : undefined}>
-        {renderLink()}
-      </li>
-    );
+    return <li class={this.selected ? "selected" : ""}>{renderLink()}</li>;
   }
 }
