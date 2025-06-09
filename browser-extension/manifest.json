@@ -5,7 +5,16 @@
   "description": "Hide header elements on specified URLs",
   "permissions": [
     "storage",
-    "activeTab"
+    "activeTab",
+    "declarativeNetRequest",
+    "declarativeNetRequestWithHostAccess"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "host_permissions": [
+    "https://sacpsglobalcomponents.blob.core.windows.net/*",
+    "<all_urls>"
   ],
   "action": {
     "default_popup": "popup.html",

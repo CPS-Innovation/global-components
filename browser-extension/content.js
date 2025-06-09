@@ -26,25 +26,27 @@ function injectGlobalComponentsScript() {
 }
 
 function hideHeadersAndInjectComponent() {
+  // Hide headers
   const headers = document.querySelectorAll('header:not(cps-global-header header)');
-  let componentInserted = false;
-  
-  headers.forEach((header, index) => {
+  headers.forEach((header) => {
     if (!header.closest('cps-global-header')) {
       header.style.display = 'none';
-      
-      if (!componentInserted && index === 0) {
-        const cpsHeader = document.createElement('cps-global-header');
-        header.parentNode.insertBefore(cpsHeader, header);
-        componentInserted = true;
-        console.log('[Header Hider Extension] cps-global-header component added to DOM');
-      }
     }
   });
   
+  // Hide BlueLine
   const blueLine = document.getElementById('b1-BlueLine');
   if (blueLine) {
     blueLine.style.display = 'none';
+  }
+  
+  // Insert cps-global-header at the beginning of the first div with role="main"
+  const mainDiv = document.querySelector('div[role="main"]');
+  if (mainDiv && !document.querySelector('cps-global-header')) {
+    const cpsHeader = document.createElement('cps-global-header');
+    cpsHeader.style.cssText = 'top: -50px; position: relative;';
+    mainDiv.insertBefore(cpsHeader, mainDiv.firstChild);
+    console.log('[Header Hider Extension] cps-global-header component added to div[role="main"]');
   }
   
   const observer = new MutationObserver(function(mutations) {
@@ -81,11 +83,12 @@ function hideHeadersAndInjectComponent() {
         // Check if cps-global-header still exists, if not, re-add it
         const existingCpsHeader = document.querySelector('cps-global-header');
         if (!existingCpsHeader) {
-          const firstHeader = document.querySelector('header:not(cps-global-header header)');
-          if (firstHeader) {
+          const mainDiv = document.querySelector('div[role="main"]');
+          if (mainDiv) {
             const cpsHeader = document.createElement('cps-global-header');
-            firstHeader.parentNode.insertBefore(cpsHeader, firstHeader);
-            console.log('[Header Hider Extension] cps-global-header component RE-INSERTED after being removed');
+            cpsHeader.style.cssText = 'top: -50px; position: relative;';
+            mainDiv.insertBefore(cpsHeader, mainDiv.firstChild);
+            console.log('[Header Hider Extension] cps-global-header component RE-INSERTED to div[role="main"] after being removed');
           }
         }
       }
