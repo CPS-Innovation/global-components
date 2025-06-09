@@ -1,31 +1,48 @@
 import { z } from "zod";
 
-export const LinkSchema: z.ZodType<Link> = z.lazy(() =>
+export type Link = {
+  label: string;
+  href: string;
+  activeContexts: string;
+  openInNewTab?: boolean;
+  visibleContexts?: string;
+  preferEventNavigationContexts?: string;
+  level: number;
+};
+
+export type Context = {
+  paths: string[];
+  contexts: string;
+};
+
+const LinkSchema: z.ZodType<Link> = z.lazy(() =>
   z.object({
-    ID: z.string(),
-    LABEL: z.string(),
-    HREF: z.string(),
-    ACTIVE_WHEN: z.array(z.string()),
-    LINKS: z.array(LinkSchema).optional(),
+    label: z.string(),
+    href: z.string(),
+    activeContexts: z.string(),
+    openInNewTab: z.boolean().optional(),
+    visibleContexts: z.string().optional(),
+    preferEventNavigationContexts: z.string().optional(),
+    level: z.number(),
+  })
+);
+
+const ContextSchema: z.ZodType<Context> = z.lazy(() =>
+  z.object({
+    paths: z.array(z.string()),
+    contexts: z.string(),
   })
 );
 
 export const ConfigSchema = z.object({
   ENVIRONMENT: z.string(),
   APP_INSIGHTS_KEY: z.string().optional(),
-  SURVEY_LINK: z.string(),
-  SHOULD_SHOW_HEADER: z.boolean(),
-  SHOULD_SHOW_MENU: z.boolean(),
-  LINKS: z.array(LinkSchema),
+  SURVEY_LINK: z.string().optional(),
+  SHOULD_SHOW_HEADER: z.boolean().optional(),
+  SHOULD_SHOW_MENU: z.boolean().optional(),
+  CONTEXTS: z.array(ContextSchema).optional(),
+  LINKS: z.array(LinkSchema).optional(),
   _CONFIG_ERROR: z.string().optional(),
 });
-
-export type Link = {
-  ID: string;
-  LABEL: string;
-  HREF: string;
-  ACTIVE_WHEN: string[];
-  LINKS?: Link[];
-};
 
 export type Config = z.infer<typeof ConfigSchema>;
