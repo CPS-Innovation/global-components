@@ -30,7 +30,7 @@ export class CpsGlobalMenu {
     const { SURVEY_LINK } = this.CONFIG;
     return (
       <div>
-        <nav class="level-1 background-grey" aria-label="Menu">
+        <nav class="level-1 background-grey" aria-label="Menu" data-testid="menu-level-1">
           <ul>
             {level1Links?.map(link => (
               <nav-link {...link}></nav-link>
@@ -43,7 +43,7 @@ export class CpsGlobalMenu {
 
         {!!level2Links?.length && (
           <>
-            <nav class="level-2 background-white" aria-label="Sub-menu">
+            <nav class="level-2 background-white" aria-label="Sub-menu" data-testid="menu-level-2">
               <ul>
                 {level2Links.map(link => (
                   <nav-link {...link}></nav-link>
