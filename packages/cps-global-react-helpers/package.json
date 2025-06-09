@@ -1,7 +1,6 @@
 {
   "name": "cps-global-react-helpers",
   "version": "1.0.0",
-  "type": "module",
   "description": "React helpers for CPS global components",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
