@@ -5,14 +5,14 @@
   "description": "E2E tests using Jest and Puppeteer",
   "scripts": {
     "test": "jest",
-    "test:watch": "jest --watch"
+    "test:watch": "jest --watch",
+    "postinstall": "npx puppeteer browsers install"
   },
   "devDependencies": {
     "@types/jest": "^29.5.12",
     "@types/node": "^20.11.24",
     "jest": "^29.7.0",
     "jest-puppeteer": "^10.0.1",
-    "puppeteer": "^22.4.0",
     "ts-jest": "^29.1.2",
     "typescript": "^5.3.3"
   },
@@ -20,6 +20,7 @@
     "@types/serve-handler": "^6.1.4",
     "cps-global-configuration": "workspace:*",
     "expect-puppeteer": "^11.0.0",
+    "puppeteer": "^24.10.0",
     "serve-handler": "^6.1.6",
     "ts-node": "^10.9.2",
     "tsx": "^4.19.4"
