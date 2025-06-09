@@ -1,5 +1,218 @@
-<html>
+<!DOCTYPE html>
+<html lang="en" class="govuk-template">
 
-<body>Hello, world!</body>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+
+  <title>CPS Global Components - GitHub Pages</title>
+
+  <link rel="shortcut icon" sizes="16x16 32x32 48x48" href="assets/images/favicon.ico" type="image/x-icon">
+  <link rel="mask-icon" href="assets/images/govuk-icon-mask.svg" color="#0b0c0c">
+  <link rel="apple-touch-icon" sizes="180x180" href="assets/images/govuk-icon-180.png">
+  <link rel="apple-touch-icon" sizes="167x167" href="assets/images/govuk-icon-180.png">
+  <link rel="apple-touch-icon" sizes="152x152" href="assets/images/govuk-icon-180.png">
+  <link rel="apple-touch-icon" href="assets/images/govuk-icon-180.png">
+  <link rel="manifest" href="assets/manifest.json">
+
+  <link href="govuk-frontend-5.10.2.min.css" rel="stylesheet">
+
+  <style>
+    .govuk-header {
+      border-bottom: 10px solid #1d70b8;
+    }
+  </style>
+
+  <meta property="og:image" content="assets/images/govuk-opengraph-image.png">
+</head>
+
+<body class="govuk-template__body">
+  <script>document.body.className += ' js-enabled';</script>
+
+  <a href="#main-content" class="govuk-skip-link" data-module="govuk-skip-link">Skip to main content</a>
+
+  <header class="govuk-header" data-module="govuk-header">
+    <div class="govuk-header__container govuk-width-container">
+      <div class="govuk-header__logo">
+        <a href="/" class="govuk-header__link govuk-header__link--homepage">
+
+          <span class="govuk-header__logotype-text">
+            CPS
+          </span>
+        </a>
+      </div>
+      <div class="govuk-header__content">
+        <span class="govuk-header__service-name">
+
+        </span>
+      </div>
+    </div>
+  </header>
+
+  <div class="govuk-width-container">
+    <main class="govuk-main-wrapper" id="main-content">
+      <h1 class="govuk-heading-xl">CPS Global Components</h1>
+
+      <h2 class="govuk-heading-l">CI-CD</h2>
+      <div id="builds-content">
+        <p class="govuk-body">Loading builds...</p>
+      </div>
+
+      <h2 class="govuk-heading-l">Configuration Files</h2>
+      <div id="config-content">
+        <p class="govuk-body">Loading configurations...</p>
+      </div>
+    </main>
+  </div>
+
+  <footer class="govuk-footer">
+    <div class="govuk-width-container">
+      <div class="govuk-footer__meta">
+        <div class="govuk-footer__meta-item govuk-footer__meta-item--grow">
+          <svg class="govuk-footer__licence-logo" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 483.2 195.7"
+            height="17" width="41" aria-label="Open Government Licence initials">
+            <path fill="currentColor"
+              d="M421.5 142.8V.1l-50.7 32.3v161.1h112.4v-50.7zm-122.3-9.6A47.12 47.12 0 0 1 221 97.8c0-26 21.1-47.1 47.1-47.1 16.7 0 31.4 8.7 39.7 21.8l42.7-27.2A97.63 97.63 0 0 0 268.1 0c-36.5 0-68.3 20.1-85.1 49.7A98 98 0 0 0 97.8 0C43.9 0 0 43.9 0 97.8s43.9 97.8 97.8 97.8c36.5 0 68.3-20.1 85.1-49.7a97.76 97.76 0 0 0 149.6 25.4l19.4 22.2h3v-87.8h-80l24.3 27.5zM97.8 145c-26 0-47.1-21.1-47.1-47.1s21.1-47.1 47.1-47.1 47.2 21 47.2 47S123.8 145 97.8 145" />
+          </svg>
+          <span class="govuk-footer__licence-description">
+            All content is available under the
+            <a class="govuk-footer__link"
+              href="https://www.nationalarchives.gov.uk/doc/open-government-licence/version/3/" rel="license">Open
+              Government Licence v3.0</a>, except where otherwise stated
+          </span>
+        </div>
+        <div class="govuk-footer__meta-item">
+          <a class="govuk-footer__link govuk-footer__copyright-logo"
+            href="https://www.nationalarchives.gov.uk/information-management/re-using-public-sector-information/uk-government-licensing-framework/crown-copyright/">©
+            Crown copyright</a>
+        </div>
+      </div>
+    </div>
+  </footer>
+
+  <script>
+    // Fetch and display GitHub Actions builds
+    async function fetchBuilds() {
+      const buildsDiv = document.getElementById('builds-content');
+      try {
+        const response = await fetch('https://api.github.com/repos/CPS-Innovation/global-components/actions/runs');
+        const data = await response.json();
+
+        // Filter for CI-CD, Security builds
+        const cicdBuilds = data.workflow_runs.filter(run => run.name === 'CI-CD, Security');
+
+        if (cicdBuilds.length === 0) {
+          buildsDiv.innerHTML = '<p class="govuk-body">No CI-CD, Security builds found.</p>';
+          return;
+        }
+
+        // Create table
+        let tableHTML = `
+                    <table class="govuk-table">
+                        <thead class="govuk-table__head">
+                            <tr class="govuk-table__row">
+                                <th scope="col" class="govuk-table__header">Run Number</th>
+                                <th scope="col" class="govuk-table__header">Conclusion</th>
+                                <th scope="col" class="govuk-table__header">Created At</th>
+                                <th scope="col" class="govuk-table__header">Updated At</th>
+                                <th scope="col" class="govuk-table__header">Triggered By</th>
+                                <th scope="col" class="govuk-table__header">Display Title</th>
+                            </tr>
+                        </thead>
+                        <tbody class="govuk-table__body">
+                `;
+
+        cicdBuilds.forEach(build => {
+          const createdAt = new Date(build.created_at).toLocaleString();
+          const updatedAt = new Date(build.updated_at).toLocaleString();
+          const conclusion = build.conclusion || 'In Progress';
+          const triggeredBy = build.triggering_actor?.login || 'Unknown';
+
+          tableHTML += `
+                        <tr class="govuk-table__row">
+                            <td class="govuk-table__cell">${build.run_number}</td>
+                            <td class="govuk-table__cell">${conclusion}</td>
+                            <td class="govuk-table__cell">${createdAt}</td>
+                            <td class="govuk-table__cell">${updatedAt}</td>
+                            <td class="govuk-table__cell">${triggeredBy}</td>
+                            <td class="govuk-table__cell">${build.display_title}</td>
+                        </tr>
+                    `;
+        });
+
+        tableHTML += '</tbody></table>';
+        buildsDiv.innerHTML = tableHTML;
+
+      } catch (error) {
+        buildsDiv.innerHTML = `<p class="govuk-error-message">Error loading builds: ${error.message}</p>`;
+      }
+    }
+
+    // Fetch and display configuration files
+    async function fetchConfigs() {
+      const configDiv = document.getElementById('config-content');
+      const configFiles = [
+        'config.accessibility.json',
+        'config.dev.json',
+        'config.staging.json',
+        'config.test.json',
+        'config.unstable.json'
+      ];
+
+      try {
+        let tableHTML = `
+                    <table class="govuk-table">
+                        <thead class="govuk-table__head">
+                            <tr class="govuk-table__row">
+                                <th scope="col" class="govuk-table__header">ENVIRONMENT</th>
+                                <th scope="col" class="govuk-table__header">SHOW_BANNER</th>
+                                <th scope="col" class="govuk-table__header">SHOW_MENU</th>
+                            </tr>
+                        </thead>
+                        <tbody class="govuk-table__body">
+                `;
+
+        for (const file of configFiles) {
+          try {
+            const response = await fetch(`https://raw.githubusercontent.com/CPS-Innovation/global-components/main/configuration/${file}`);
+            const config = await response.json();
+
+            const environment = file.replace('config.', '').replace('.json', '');
+            const showBanner = config.SHOW_BANNER !== undefined ? config.SHOW_BANNER : 'N/A';
+            const showMenu = config.SHOW_MENU !== undefined ? config.SHOW_MENU : 'N/A';
+
+            tableHTML += `
+                            <tr class="govuk-table__row">
+                                <td class="govuk-table__cell">${environment}</td>
+                                <td class="govuk-table__cell">${showBanner}</td>
+                                <td class="govuk-table__cell">${showMenu}</td>
+                            </tr>
+                        `;
+          } catch (error) {
+            console.error(`Error loading ${file}:`, error);
+          }
+        }
+
+        tableHTML += '</tbody></table>';
+        configDiv.innerHTML = tableHTML;
+
+      } catch (error) {
+        configDiv.innerHTML = `<p class="govuk-error-message">Error loading configurations: ${error.message}</p>`;
+      }
+    }
+
+    // Load data when page loads
+    window.addEventListener('load', () => {
+      fetchBuilds();
+      fetchConfigs();
+    });
+  </script>
+
+  <script src="govuk-frontend-5.10.2.min.js"></script>
+  <script>
+    window.GOVUKFrontend.initAll();
+  </script>
+</body>
 
 </html>
