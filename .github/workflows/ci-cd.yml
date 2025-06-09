@@ -67,6 +67,7 @@ jobs:
       - run: 'pnpm --filter cps-global-components run rollup --intro ''window.cps_global_components_build = {Sha: "${{ github.sha }}", RunId: "${{ github.run_id }}"};'''
 
       - run: |
+          ls -la /home/runner/.cache/puppeteer
           cp -r ./packages/cps-global-components/dist/cps-global-components.js ./e2e/harness
           pnpm --filter e2e test
 
