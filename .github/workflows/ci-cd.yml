@@ -62,13 +62,13 @@ jobs:
       # - run: pnpm run test:coverage
       #   continue-on-error: true
 
-      - run: |
-          cp -r ./packages/cps-global-components/dist/cps-global-components.js ./e2e/harness
-          pnpm --filter e2e test
-
       - run: pnpm --filter cps-global-configuration validate
 
       - run: 'pnpm --filter cps-global-components run rollup --intro ''window.cps_global_components_build = {Sha: "${{ github.sha }}", RunId: "${{ github.run_id }}"};'''
+
+      - run: |
+          cp -r ./packages/cps-global-components/dist/cps-global-components.js ./e2e/harness
+          pnpm --filter e2e test
 
       - uses: actions/upload-artifact@v4
         id: upload
