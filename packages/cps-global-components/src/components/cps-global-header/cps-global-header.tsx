@@ -1,4 +1,4 @@
-import { Component, h, State, Fragment } from "@stencil/core";
+import { Component, h, State } from "@stencil/core";
 import { CONFIG_ASYNC } from "../../config/config-async";
 import { Config } from "cps-global-configuration";
 import { renderError } from "../common/render-error";
@@ -17,13 +17,13 @@ export class CpsGlobalHeader {
   }
 
   render() {
-    const { _CONFIG_ERROR, SHOULD_SHOW_HEADER, SHOULD_SHOW_MENU } = this.CONFIG;
+    const { _CONFIG_ERROR, SHOW_BANNER, SHOW_MENU } = this.CONFIG;
     return (
-      <>
+      <div>
         {!!_CONFIG_ERROR && renderError(_CONFIG_ERROR)}
-        {SHOULD_SHOW_HEADER && <cps-global-banner></cps-global-banner>}
-        {SHOULD_SHOW_MENU && <cps-global-menu></cps-global-menu>}
-      </>
+        {SHOW_BANNER && <cps-global-banner></cps-global-banner>}
+        {SHOW_MENU && <cps-global-menu></cps-global-menu>}
+      </div>
     );
   }
 }

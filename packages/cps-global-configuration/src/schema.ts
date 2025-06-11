@@ -37,11 +37,11 @@ const ContextSchema: z.ZodType<Context> = z.lazy(() =>
 export const ConfigSchema = z.object({
   ENVIRONMENT: z.string(),
   APP_INSIGHTS_KEY: z.string().optional(),
-  SURVEY_LINK: z.string(),
-  SHOULD_SHOW_HEADER: z.boolean(),
-  SHOULD_SHOW_MENU: z.boolean(),
-  CONTEXTS: z.array(ContextSchema),
-  LINKS: z.array(LinkSchema),
+  SURVEY_LINK: z.string().optional(),
+  SHOW_BANNER: z.boolean().optional(),
+  SHOW_MENU: z.boolean().optional(),
+  CONTEXTS: z.array(ContextSchema).optional(),
+  LINKS: z.array(LinkSchema).optional(),
   _CONFIG_ERROR: z.string().optional(),
 });
 
