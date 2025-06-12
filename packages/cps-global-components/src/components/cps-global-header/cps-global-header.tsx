@@ -7,6 +7,7 @@ import { initiateTracking } from "../../analytics/initiate-tracking";
 @Component({
   tag: "cps-global-header",
   shadow: true,
+  styleUrl: "cps-global-header.scss",
 })
 export class CpsGlobalHeader {
   @State() CONFIG: Config;
