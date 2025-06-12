@@ -23,7 +23,8 @@ export const config: Config = {
       empty: false,
       copy: [
         { src: "config.json", dest: "./build/config.json", warn: false },
-        { src: "config.js", dest: "./build/config.js", warn: false },
+        { src: "config.override.json", dest: "./build/config.override.json", warn: false },
+        { src: "config.override.js", dest: "./build/config.override.js", warn: false },
       ],
     },
   ],
