@@ -1,31 +1,11 @@
-import fetchJsonp from "fetch-jsonp";
-
-const isTestMode = () =>
-  localStorage.getItem("cps-global-components-test-override") === "true" &&
-  (window.location.hostname.includes(".outsystemsenterprise.com") || window.location.hostname.includes("localhost"));
-
-export const tryFetchOverrideConfig = async (configUrl: string) => {
-  try {
-    const response = isTestMode() ? await fetch(configUrl.replace(".json", ".override.json")) : null;
-    return response?.ok ? response : null;
-  } catch (err) {
-    return null;
-  }
-};
-
-export const tryFetchOverrideConfigAsJsonP = async (configUrl: string) => {
-  try {
-    const response = isTestMode() ? await fetchJsonp(configUrl.replace(".json", ".override.js"), { jsonpCallbackFunction: "cps_global_components_config_jsonp_callback" }) : null;
-    return response?.ok ? response : null;
-  } catch (err) {
-    return null;
-  }
-};
+import { isOverrideMode } from "../is-override-mode";
+import { isOutSystemsApp } from "./is-outsystems-app";
 
 export const trySetupOutSystemsShim = () => {
-  if (!isTestMode()) {
+  if (!(isOverrideMode() && isOutSystemsApp())) {
     return null;
   }
+
   console.log("Running mutation observer");
   // Hide headers
   const headers = document.querySelectorAll("header:not(cps-global-header header)");
@@ -44,9 +24,9 @@ export const trySetupOutSystemsShim = () => {
   // Insert cps-global-header at the beginning of the first div with role="main"
   const mainDiv = document.querySelector('div[role="main"]');
   if (mainDiv && !document.querySelector("cps-global-header")) {
-    const cpsHeader = document.createElement("cps-global-header");
-    cpsHeader.style.cssText = "top: -50px; position: relative;";
-    mainDiv.insertBefore(cpsHeader, mainDiv.firstChild);
+    const cpsHeader: HTMLCpsGlobalHeaderElement = document.createElement("cps-global-header");
+    (cpsHeader as HTMLElement).style.cssText = "top: -50px; position: relative;";
+    mainDiv.insertBefore(cpsHeader as HTMLElement, mainDiv.firstChild);
     console.log('[Header Hider Extension] cps-global-header component added to div[role="main"]');
   }
 
@@ -87,8 +67,8 @@ export const trySetupOutSystemsShim = () => {
           const mainDiv = document.querySelector('div[role="main"]');
           if (mainDiv) {
             const cpsHeader = document.createElement("cps-global-header");
-            cpsHeader.style.cssText = "top: -50px; position: relative;";
-            mainDiv.insertBefore(cpsHeader, mainDiv.firstChild);
+            (cpsHeader as HTMLElement).style.cssText = "top: -50px; position: relative;";
+            mainDiv.insertBefore(cpsHeader as HTMLElement, mainDiv.firstChild);
             console.log('[Header Hider Extension] cps-global-header component RE-INSERTED to div[role="main"] after being removed');
           }
         }

@@ -33,3 +33,9 @@
   background-color: $govuk-border-colour;
   z-index: -1;
 }
+
+.error {
+  @include govuk-font($size: 19);
+  color: $govuk-secondary-text-colour;
+  font-weight: bold;
+}
