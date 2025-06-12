@@ -15,11 +15,6 @@ a.govuk-link {
   }
 }
 
-.no-config {
-  @include govuk-font($size: 19);
-  color: $govuk-secondary-text-colour;
-}
-
 @mixin horizontal-list {
   list-style-type: none;
   margin: 0;

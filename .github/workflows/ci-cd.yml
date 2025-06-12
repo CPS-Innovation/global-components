@@ -102,7 +102,14 @@ jobs:
         with:
           artifact-ids: ${{needs.build-and-test.outputs.artifact-id}}
 
-      - run: cp ./configuration/config.${{matrix.environment}}.json ${{ steps.download.outputs.download-path }}/${{env.BUILD_ARTIFACT_NAME}}/config.json
+      - run: |
+          cp ./configuration/config.${{matrix.environment}}.json ${{ steps.download.outputs.download-path }}/${{env.BUILD_ARTIFACT_NAME}}/config.json
+          if [ -f "./configuration/config.${{matrix.environment}}.override.json" ]; then
+            cp ./configuration/config.${{matrix.environment}}.override.json ${{ steps.download.outputs.download-path }}/${{env.BUILD_ARTIFACT_NAME}}/config.override.json
+
+            cp ./configuration/config.${{matrix.environment}}.override.json ${{ steps.download.outputs.download-path }}/${{env.BUILD_ARTIFACT_NAME}}/config.override.js
+            sed -i '1s/^/cps_global_components_config_jsonp_callback(/; $s/$/);/' ${{ steps.download.outputs.download-path }}/${{env.BUILD_ARTIFACT_NAME}}/config.override.js
+          fi
 
       - uses: azure/cli@v2
         with:
