@@ -21,7 +21,11 @@ export const config: Config = {
       type: "www",
       serviceWorker: null, // disable service workers
       empty: false,
-      copy: [{ src: "config.json", dest: "./build/config.json", warn: true }],
+      copy: [
+        { src: "config.json", dest: "./build/config.json", warn: false },
+        { src: "config.override.json", dest: "./build/config.override.json", warn: false },
+        { src: "config.override.js", dest: "./build/config.override.js", warn: false },
+      ],
     },
   ],
   testing: {
@@ -42,4 +46,5 @@ export const config: Config = {
     // 3333 is the default, but lets set it explicitly as we have references to this from the other apps
     port: 3333,
   },
+  globalScript: "src/global-script.js",
 };
