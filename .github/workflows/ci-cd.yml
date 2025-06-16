@@ -191,6 +191,27 @@ jobs:
               --source "./apps/harness-spa/dist" \
               --connection-string "${{ secrets.BLOB_STORAGE_CONNECTION_STRING }}"
 
+  deploy-home:
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: azure/cli@v2
+        with:
+          azcliversion: latest
+          inlineScript: |
+            az storage blob delete-batch \
+                --source '$web' \
+                --pattern "home/*" \
+                --connection-string "${{ secrets.BLOB_STORAGE_CONNECTION_STRING }}"
+
+            az storage blob upload-batch \
+              --destination "\$web/home" \
+              --source "./apps/home" \
+              --connection-string "${{ secrets.BLOB_STORAGE_CONNECTION_STRING }}"
+
   repo-security-scan:
     runs-on: ubuntu-latest
     if: github.event_name == 'pull_request'
