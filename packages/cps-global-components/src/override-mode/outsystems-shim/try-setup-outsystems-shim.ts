@@ -61,6 +61,12 @@ export const trySetupOutSystemsShim = () => {
           newBlueLine.style.display = "none";
         }
 
+        // Hide floating nav
+        const floatingNav = document.getElementById("b1-PlaceholderNavigation");
+        if (floatingNav && floatingNav.style.display !== "none") {
+          floatingNav.style.display = "none";
+        }
+
         // Check if cps-global-header still exists, if not, re-add it
         const existingCpsHeader = document.querySelector("cps-global-header");
         if (!existingCpsHeader) {
