@@ -48,7 +48,7 @@ export const trySetupOutSystemsShim = () => {
         });
 
         // Hide new headers
-        const newHeaders = document.querySelectorAll("header:not(cps-global-header header)");
+        const newHeaders = document.querySelectorAll("header:not(cps-global-header header):not([class*='tabs'])");
         newHeaders.forEach((header: HTMLElement) => {
           if (!header.closest("cps-global-header") && header.style.display !== "none") {
             header.style.display = "none";
