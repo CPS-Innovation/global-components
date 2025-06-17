@@ -235,15 +235,6 @@ jobs:
               --overwrite true \
               --connection-string "${{ secrets.BLOB_STORAGE_CONNECTION_STRING }}"
 
-            blob_data=$(<../configuration/config.dev.override.json)
-
-            az storage blob upload \
-              --data "cps_global_components_config_jsonp_callback($blob_data);" \
-              --container-name "dev" \
-              --name config.override.js \
-              --overwrite true \
-              --connection-string "${{ secrets.BLOB_STORAGE_CONNECTION_STRING }}"
-
   repo-security-scan:
     runs-on: ubuntu-latest
     if: github.event_name == 'pull_request'
