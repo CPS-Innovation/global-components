@@ -229,7 +229,7 @@ jobs:
                 --connection-string "${{ secrets.BLOB_STORAGE_CONNECTION_STRING }}"
                 
             az storage blob upload \
-              --file ../apps/tactical-redirect/index.html \
+              --file ./apps/tactical-redirect/index.html \
               --container-name tactical-redirect \
               --name index.html \
               --overwrite true \
