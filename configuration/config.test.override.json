@@ -21,11 +21,7 @@
     },
     {
       "paths": [
-<<<<<<< HEAD
         "https://cps-dev.outsystemsenterprise.com/CaseReview/LandingPage\\?CMSCaseId=(?<caseId>\\d+)&URN=(?<urn>[^&]+)"
-=======
-        "https://cps-tst.outsystemsenterprise.com/CaseReview/LandingPage\\?CMSCaseId=(?<caseId>\\d+)&URN=(?<urn>[^&]+)"
->>>>>>> main
       ],
       "contexts": "case review"
     },
@@ -88,11 +84,7 @@
     {
       "label": "Review",
       "level": 1,
-<<<<<<< HEAD
       "href": "https://cps-dev.outsystemsenterprise.com/CaseReview/LandingPage?CMSCaseId={caseId}&URN={urn}",
-=======
-      "href": "https://cps-tst.outsystemsenterprise.com/CaseReview/LandingPage?CMSCaseId={caseId}&URN={urn}",
->>>>>>> main
       "visibleContexts": "case",
       "activeContexts": "review"
     }
