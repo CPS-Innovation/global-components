@@ -7,6 +7,33 @@ export const trySetupOutSystemsShim = () => {
   }
 
   console.log("Running mutation observer");
+  
+  // Copy existing localStorage values
+  const copyLocalStorageValue = (sourceKey: string, targetKey: string) => {
+    const value = localStorage.getItem(sourceKey);
+    if (value !== null) {
+      localStorage.setItem(targetKey, value);
+    }
+  };
+  
+const fromKey1 = "$OS_Users$WorkManagementApp$ClientVars$Cookies";
+const toKey1 = "$OS_Users$CaseReview$ClientVars$Cookies";
+
+const fromKey2 = "$OS_Users$WorkManagementApp$ClientVars$JSONString";
+const toKey2 = "$OS_Users$CaseReview$ClientVars$CmsAuthValues";
+
+  // Initial copy of existing values
+  copyLocalStorageValue(fromKey1, toKey1);
+  copyLocalStorageValue(fromKey2, toKey2);
+  
+  // Listen for storage changes to copy new or updated values
+  window.addEventListener("storage", (e) => {
+    if (e.key === fromKey1 && e.newValue !== null) {
+      localStorage.setItem(toKey1, e.newValue);
+    } else if (e.key === fromKey2 && e.newValue !== null) {
+      localStorage.setItem(toKey2, e.newValue);
+    }
+  });
   // Hide headers
   const headers = document.querySelectorAll("header:not(cps-global-header header)");
   headers.forEach((header: HTMLElement) => {
