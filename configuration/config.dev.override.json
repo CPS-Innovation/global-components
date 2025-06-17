@@ -6,9 +6,7 @@
   "SHOW_MENU": true,
   "CONTEXTS": [
     {
-      "paths": [
-        "https://sacpsglobalcomponents.z33.web.core.windows.net/home"
-      ],
+      "paths": ["https://sacpsglobalcomponents.z33.web.core.windows.net/home"],
       "contexts": "home"
     },
     {
@@ -18,8 +16,12 @@
       "contexts": "case materials"
     },
     {
+      "paths": ["https://polaris"],
+      "contexts": "cases"
+    },
+    {
       "paths": [
-        "https://cps-tst.outsystemsenterprise.com/CaseReview/LandingPage\\?CMSCaseId=(?<caseId>\\d+)&URN=(?<urn>[^&]+)"
+        "https://cps-dev.outsystemsenterprise.com/CaseReview/LandingPage\\?CMSCaseId=(?<caseId>\\d+)&URN=(?<urn>[^&]+)"
       ],
       "contexts": "case review"
     },
@@ -40,6 +42,10 @@
         "https://cps-dev.outsystemsenterprise.com/WorkManagementApp/TaskList"
       ],
       "contexts": "tasks"
+    },
+    {
+      "paths": ["https://housekeeping"],
+      "contexts": "cases"
     }
   ],
   "LINKS": [
@@ -78,7 +84,7 @@
     {
       "label": "Review",
       "level": 1,
-      "href": "https://cps-tst.outsystemsenterprise.com/CaseReview/LandingPage?CMSCaseId={caseId}&URN={urn}",
+      "href": "https://cps-dev.outsystemsenterprise.com/CaseReview/LandingPage?CMSCaseId={caseId}&URN={urn}",
       "visibleContexts": "case",
       "activeContexts": "review"
     }
