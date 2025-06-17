@@ -212,6 +212,29 @@ jobs:
               --source "./apps/home" \
               --connection-string "${{ secrets.BLOB_STORAGE_CONNECTION_STRING }}"
 
+  deploy-tactical-redirect:
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: azure/cli@v2
+        with:
+          azcliversion: latest
+          inlineScript: |
+            az storage container create \
+                --name tactical-redirect \
+                --public-access container \
+                --connection-string "${{ secrets.BLOB_STORAGE_CONNECTION_STRING }}"
+                
+            az storage blob upload \
+              --file ../apps/tactical-redirect/index.html \
+              --container-name tactical-redirect \
+              --name index.html \
+              --overwrite true \
+              --connection-string "${{ secrets.BLOB_STORAGE_CONNECTION_STRING }}"
+
   repo-security-scan:
     runs-on: ubuntu-latest
     if: github.event_name == 'pull_request'
