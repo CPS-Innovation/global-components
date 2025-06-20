@@ -5,6 +5,8 @@ import { Config } from "cps-global-configuration";
 import { menuConfig, MenuHelperResult } from "./menu-config/menu-config";
 import { renderError } from "../common/render-error";
 import { initiateTracking } from "../../analytics/initiate-tracking";
+import "./menu-config/helpers/dom/initialisation";
+import { initialiseDomObservation } from "./menu-config/helpers/dom/initialisation";
 
 @Component({
   tag: "cps-global-menu",
@@ -14,8 +16,10 @@ import { initiateTracking } from "../../analytics/initiate-tracking";
 export class CpsGlobalMenu {
   @Prop() name: string = "Please wait...";
   @State() CONFIG: Config;
+
   // We have address as State so that we get a rerender triggered whenever it updates
   @State() address: string;
+  @State() mutationFlag: number;
 
   async componentWillLoad() {
     initiateTracking();
@@ -24,6 +28,14 @@ export class CpsGlobalMenu {
     });
 
     this.CONFIG = await CONFIG_ASYNC();
+
+    // For host apps where we can not find caseId, urn etc tags in the address, we can observe the dom
+    //  for these values.
+    initialiseDomObservation(this.CONFIG, window, () => {
+      // If the dom changes and tags have been found, this subscribing function sets some
+      //  arbitrary State to ensure a rerender.
+      this.mutationFlag = +new Date();
+    });
   }
 
   renderOk = ([level1Links, level2Links]: MenuHelperResult["links"]) => {

@@ -37,6 +37,9 @@
   <div>
     <cps-global-header></cps-global-header>
   </div>
+
+  <a href="/polaris-ui/case-details/foo/123/789"></a>
+  <button onclick="window.history.pushState('page2', 'Title', `http://localhost:3333/${Date.now()}`)">Navigate</button>
   <div></div>
 
 </body>
@@ -44,5 +47,49 @@
 <script>
   document.addEventListener("cps-global-header-event", (ev) => alert(`Event received with data: ${ev.detail}`));
 </script>
+
+<!-- <script>
+
+  (function () {
+    // Function to create and add a timestamped hyperlink
+    function addTimestampedLink() {
+      // Get current timestamp as integer (milliseconds since epoch)
+      const timestamp = Date.now();
+
+      // Create the hyperlink element
+      const link = document.createElement('a');
+      link.href = `https://foo.com/polaris-ui/case-details/foo/${timestamp}`;
+      link.textContent = `Link added at ${new Date().toLocaleTimeString()} - ${timestamp}`;
+      link.style.display = 'block';
+      link.style.marginBottom = '5px';
+      link.style.color = '#0066cc';
+      link.style.textDecoration = 'underline';
+
+      // Add click handler to show the timestamp
+      link.addEventListener('click', function (e) {
+        e.preventDefault();
+        alert(`Timestamp: ${timestamp}`);
+      });
+
+      // Append to document body
+      document.body.appendChild(link);
+    }
+
+    // Wait for DOM to be ready
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', function () {
+        // Add first link immediately
+        addTimestampedLink();
+
+        // Then add a new link every 5 seconds
+        setInterval(addTimestampedLink, 5000);
+      });
+    } else {
+      // DOM is already ready
+      addTimestampedLink();
+      setInterval(addTimestampedLink, 5000);
+    }
+  })();
+</script> -->
 
 </html>
