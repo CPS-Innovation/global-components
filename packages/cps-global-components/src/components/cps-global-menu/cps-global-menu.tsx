@@ -30,6 +30,7 @@ export class CpsGlobalMenu {
     this.CONFIG = await CONFIG_ASYNC();
 
     initialiseDomObservation(this.CONFIG, window, () => {
+      console.log("I am in the loop");
       this.mutationFlag = +new Date();
     });
   }

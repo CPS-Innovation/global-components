@@ -1,5 +1,5 @@
 import { Config } from "cps-global-configuration";
-import { findContext } from "../find-context";
+import { findContext } from "../context/find-context";
 import { setupMutationObserver } from "./mutations";
 import { resetDomTags } from "./tags";
 

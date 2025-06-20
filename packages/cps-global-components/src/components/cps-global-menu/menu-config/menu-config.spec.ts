@@ -1,20 +1,23 @@
-jest.mock("./helpers/find-context");
+jest.mock("./helpers/context/find-context");
 jest.mock("./helpers/should-show-link");
 jest.mock("./helpers/map-link-config");
 jest.mock("./helpers/group-links-by-level");
+jest.mock("./helpers/dom/tags");
 
 import { menuConfig } from "./menu-config";
 import { Config } from "cps-global-configuration";
-import { findContext } from "./helpers/find-context";
+import { findContext } from "./helpers/context/find-context";
 import { shouldShowLink } from "./helpers/should-show-link";
 import { mapLinkConfig } from "./helpers/map-link-config";
 import { groupLinksByLevel } from "./helpers/group-links-by-level";
+import { getDomTags } from "./helpers/dom/tags";
 
 // Type the mocked functions
 const mockFindContext = findContext as jest.MockedFunction<typeof findContext>;
 const mockShouldShowLink = shouldShowLink as jest.MockedFunction<typeof shouldShowLink>;
 const mockMapLinkConfig = mapLinkConfig as jest.MockedFunction<typeof mapLinkConfig>;
 const mockGroupLinksByLevel = groupLinksByLevel as jest.MockedFunction<typeof groupLinksByLevel>;
+const mockGetDomTags = getDomTags as jest.MockedFunction<typeof getDomTags>;
 
 describe("menuConfig", () => {
   // Test data
@@ -73,6 +76,7 @@ describe("menuConfig", () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    mockGetDomTags.mockReturnValue(undefined);
   });
 
   it("should return not found when context is not found", () => {
@@ -368,5 +372,61 @@ describe("menuConfig", () => {
     });
 
     expect(mockFindContext).toHaveBeenCalledWith([], mockWindow);
+  });
+
+  it("should merge tags from DOM when getDomTags returns tagsCalled", () => {
+    const contextTags = {
+      contextTag1: "value1",
+      contextTag2: "value2",
+    };
+
+    const domTags = {
+      domTag1: "domValue1",
+      domTag2: "domValue2",
+      tagsCalled: "true",
+    };
+
+    mockGetDomTags.mockReturnValue(domTags);
+
+    mockFindContext.mockReturnValue({
+      found: true,
+      paths: ["https://example.com/test"],
+      contexts: "test-context",
+      domTags: undefined,
+      tags: contextTags,
+      contextIndex: 0,
+    });
+
+    mockShouldShowLink.mockReturnValue(jest.fn().mockReturnValue(true));
+
+    const mockMapFunction = jest.fn().mockReturnValue({
+      label: "Test",
+      href: "/test",
+      level: 0,
+      selected: false,
+      openInNewTab: false,
+      preferEventNavigation: false,
+    });
+    mockMapLinkConfig.mockReturnValue(mockMapFunction);
+
+    mockGroupLinksByLevel.mockReturnValue([[]]);
+
+    menuConfig(mockConfig, mockWindow);
+
+    // Verify that mapLinkConfig was called with merged tags
+    expect(mockMapLinkConfig).toHaveBeenCalledWith("test-context", {
+      ...contextTags,
+      ...domTags,
+    });
+
+    // Verify that the merged tags include both context and DOM tags
+    const mergedTags = mockMapLinkConfig.mock.calls[0][1];
+    expect(mergedTags).toEqual({
+      contextTag1: "value1",
+      contextTag2: "value2",
+      domTag1: "domValue1",
+      domTag2: "domValue2",
+      tagsCalled: "true",
+    });
   });
 });

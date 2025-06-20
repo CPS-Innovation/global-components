@@ -1,5 +1,5 @@
 import { Config } from "cps-global-configuration";
-import { findContext } from "./helpers/find-context";
+import { findContext } from "./helpers/context/find-context";
 import { shouldShowLink } from "./helpers/should-show-link";
 import { mapLinkConfig } from "./helpers/map-link-config";
 import { GroupedLink, groupLinksByLevel } from "./helpers/group-links-by-level";

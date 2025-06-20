@@ -1,48 +1,39 @@
 import { DomTags } from "cps-global-configuration/dist/schema";
 import { cacheDomTags } from "./tags";
 
-const processMutations = ([mutation, ...rest]: MutationRecord[], domTags: DomTags[]): number =>
-  !mutation || mutation.type !== "childList" ? 0 : processMutationNodes([...mutation.addedNodes], domTags) + processMutations(rest, domTags);
+const extractTagsFromElement = (element: Element, domTags: DomTags[]) => {
+  let tags: Record<string, string> = {};
 
-const processMutationNodes = ([node, ...rest]: Node[], domTags: DomTags[]): number =>
-  !node || node.nodeType !== Node.ELEMENT_NODE ? 0 : tryExtractDomTags(node as Element, domTags) + processMutationNodes(rest, domTags);
-
-const tryExtractDomTags = (element: Element, domTags: DomTags[]) => {
-  const tags = processDomTags(element, domTags);
-  cacheDomTags(tags);
-  return Object.keys(tags).length;
-};
-
-const processDomTags = (element: Element, [domTag, ...rest]: DomTags[]): Record<string, string> => {
-  if (!domTag) {
-    return {};
+  for (const domTag of domTags) {
+    const foundElements = element.matches(domTag.cssSelector) ? [element] : [...element.querySelectorAll(domTag.cssSelector)];
+    for (const foundElement of foundElements) {
+      const match = foundElement.outerHTML.match(domTag.regex);
+      tags = { ...tags, ...match?.groups };
+    }
   }
 
-  const foundElements = element.matches(domTag.cssSelector) ? [element] : [...element.querySelectorAll(domTag.cssSelector)];
-  return {
-    ...processFoundElements(foundElements, domTag.regex),
-    ...processDomTags(element, rest),
-  };
+  return tags;
 };
 
-const processFoundElements = ([foundElement, ...rest]: Element[], regex: string): Record<string, string> => {
-  if (!foundElement) {
-    return {};
+const processMutations = (mutations: MutationRecord[], domTags: DomTags[]) => {
+  let tags: Record<string, string> = {};
+
+  for (const mutation of mutations) {
+    if (mutation.type !== "childList") continue;
+    for (const node of mutation.addedNodes) {
+      if (!node || node.nodeType !== Node.ELEMENT_NODE) continue;
+      tags = { ...tags, ...extractTagsFromElement(node as Element, domTags) };
+    }
   }
 
-  const match = foundElement.outerHTML.match(regex);
-  return {
-    ...match?.groups,
-    ...processFoundElements(rest, regex),
-  };
+  return tags;
 };
 
 export const setupMutationObserver = (rootElement: Element, domTags: DomTags[], callback: () => void) => {
-  // We are being asked to find tags in any new DOM elements
   const observer = new MutationObserver(mutations => {
-    const foundTagCount = processMutations(mutations, domTags);
-    if (foundTagCount) {
-      // We have found at least one tag in the new DOM elements, let's inform our subscriber
+    const newTags = processMutations(mutations, domTags);
+    cacheDomTags(newTags);
+    if (Object.keys(newTags).length) {
       callback();
     }
   });
@@ -52,8 +43,9 @@ export const setupMutationObserver = (rootElement: Element, domTags: DomTags[], 
     subtree: true,
   });
 
-  // Run the logic
-  tryExtractDomTags(window.document.body, domTags);
+  // Process initial DOM state
+  const tags = extractTagsFromElement(rootElement, domTags);
+  cacheDomTags(tags);
 
   return observer;
 };
