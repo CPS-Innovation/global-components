@@ -45,7 +45,13 @@
     },
     {
       "paths": ["https://housekeeping"],
-      "contexts": "cases"
+      "contexts": "case materials",
+      "domTags": [
+        {
+          "cssSelector": "a[href*='/polaris-ui/case-details/']",
+          "regex": "/polaris-ui/case-details/(?<caseId>[^/]+)/(?<urn>[^/?#]+)"
+        }
+      ]
     }
   ],
   "LINKS": [
