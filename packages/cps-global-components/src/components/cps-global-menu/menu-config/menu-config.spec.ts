@@ -2,18 +2,15 @@ jest.mock("./helpers/find-context");
 jest.mock("./helpers/should-show-link");
 jest.mock("./helpers/map-link-config");
 jest.mock("./helpers/group-links-by-level");
-jest.mock("./helpers/build-sanitized-address");
 
 import { menuConfig } from "./menu-config";
 import { Config } from "cps-global-configuration";
-import { buildSanitizedAddress } from "./helpers/build-sanitized-address";
 import { findContext } from "./helpers/find-context";
 import { shouldShowLink } from "./helpers/should-show-link";
 import { mapLinkConfig } from "./helpers/map-link-config";
 import { groupLinksByLevel } from "./helpers/group-links-by-level";
 
 // Type the mocked functions
-const mockBuildSanitizedAddress = buildSanitizedAddress as jest.MockedFunction<typeof buildSanitizedAddress>;
 const mockFindContext = findContext as jest.MockedFunction<typeof findContext>;
 const mockShouldShowLink = shouldShowLink as jest.MockedFunction<typeof shouldShowLink>;
 const mockMapLinkConfig = mapLinkConfig as jest.MockedFunction<typeof mapLinkConfig>;
@@ -79,11 +76,10 @@ describe("menuConfig", () => {
   });
 
   it("should return not found when context is not found", () => {
-    mockBuildSanitizedAddress.mockReturnValue("https://example.com/test?param=value#section");
     mockFindContext.mockReturnValue({
       found: false,
-      contexts: undefined,
-      tags: undefined,
+      domTags: undefined,
+      contextIndex: undefined,
     });
 
     const result = menuConfig(mockConfig, mockWindow);
@@ -93,23 +89,23 @@ describe("menuConfig", () => {
       links: undefined,
     });
 
-    expect(mockBuildSanitizedAddress).toHaveBeenCalledWith(mockLocation);
-    expect(mockFindContext).toHaveBeenCalledWith(mockConfig.CONTEXTS, "https://example.com/test?param=value#section");
+    expect(mockFindContext).toHaveBeenCalledWith(mockConfig.CONTEXTS, mockWindow);
     expect(mockShouldShowLink).not.toHaveBeenCalled();
     expect(mockMapLinkConfig).not.toHaveBeenCalled();
     expect(mockGroupLinksByLevel).not.toHaveBeenCalled();
   });
 
   it("should process links when context is found", () => {
-    const sanitizedAddress = "https://example.com/test?param=value#section";
     const foundContexts = "test-context";
     const foundTags = { tag1: "value1", tag2: "value2" };
 
-    mockBuildSanitizedAddress.mockReturnValue(sanitizedAddress);
     mockFindContext.mockReturnValue({
       found: true,
+      paths: ["https://example.com/test"],
       contexts: foundContexts,
+      domTags: undefined,
       tags: foundTags,
+      contextIndex: 0,
     });
 
     // Mock shouldShowLink to filter out the second link
@@ -157,8 +153,7 @@ describe("menuConfig", () => {
       links: groupedLinks,
     });
 
-    expect(mockBuildSanitizedAddress).toHaveBeenCalledWith(mockLocation);
-    expect(mockFindContext).toHaveBeenCalledWith(mockConfig.CONTEXTS, sanitizedAddress);
+    expect(mockFindContext).toHaveBeenCalledWith(mockConfig.CONTEXTS, mockWindow);
     expect(mockShouldShowLink).toHaveBeenCalledWith(foundContexts);
     expect(mockFilterFunction).toHaveBeenCalledTimes(3);
     expect(mockMapLinkConfig).toHaveBeenCalledWith(foundContexts, foundTags);
@@ -189,11 +184,13 @@ describe("menuConfig", () => {
       LINKS: [],
     };
 
-    mockBuildSanitizedAddress.mockReturnValue("https://example.com/test");
     mockFindContext.mockReturnValue({
       found: true,
+      paths: ["https://example.com/test"],
       contexts: "test-context",
+      domTags: undefined,
       tags: {},
+      contextIndex: 0,
     });
     mockShouldShowLink.mockReturnValue(jest.fn());
     mockMapLinkConfig.mockReturnValue(jest.fn());
@@ -210,11 +207,13 @@ describe("menuConfig", () => {
   });
 
   it("should handle all links being filtered out", () => {
-    mockBuildSanitizedAddress.mockReturnValue("https://example.com/test");
     mockFindContext.mockReturnValue({
       found: true,
+      paths: ["https://example.com/test"],
       contexts: "test-context",
+      domTags: undefined,
       tags: {},
+      contextIndex: 0,
     });
 
     // Mock shouldShowLink to filter out all links
@@ -242,11 +241,13 @@ describe("menuConfig", () => {
       type: "advanced",
     };
 
-    mockBuildSanitizedAddress.mockReturnValue("https://example.com/test");
     mockFindContext.mockReturnValue({
       found: true,
+      paths: ["https://example.com/test"],
       contexts: "user-context section-context",
+      domTags: undefined,
       tags: complexTags,
+      contextIndex: 0,
     });
 
     mockShouldShowLink.mockReturnValue(jest.fn().mockReturnValue(true));
@@ -279,11 +280,13 @@ describe("menuConfig", () => {
       location: differentLocation,
     } as Window;
 
-    mockBuildSanitizedAddress.mockReturnValue("https://app.example.com/admin/users?filter=active&sort=name#top");
     mockFindContext.mockReturnValue({
       found: true,
+      paths: ["https://app.example.com/admin/.*"],
       contexts: "admin",
+      domTags: undefined,
       tags: { section: "users" },
+      contextIndex: 0,
     });
 
     mockShouldShowLink.mockReturnValue(jest.fn().mockReturnValue(true));
@@ -301,16 +304,17 @@ describe("menuConfig", () => {
 
     menuConfig(mockConfig, differentWindow);
 
-    expect(mockBuildSanitizedAddress).toHaveBeenCalledWith(differentLocation);
-    expect(mockFindContext).toHaveBeenCalledWith(mockConfig.CONTEXTS, "https://app.example.com/admin/users?filter=active&sort=name#top");
+    expect(mockFindContext).toHaveBeenCalledWith(mockConfig.CONTEXTS, differentWindow);
   });
 
   it("should maintain link processing order", () => {
-    mockBuildSanitizedAddress.mockReturnValue("https://example.com/test");
     mockFindContext.mockReturnValue({
       found: true,
+      paths: ["https://example.com/test"],
       contexts: "test-context",
+      domTags: undefined,
       tags: {},
+      contextIndex: 0,
     });
 
     // All links pass the filter
@@ -350,11 +354,10 @@ describe("menuConfig", () => {
       CONTEXTS: [],
     };
 
-    mockBuildSanitizedAddress.mockReturnValue("https://example.com/test");
     mockFindContext.mockReturnValue({
       found: false,
-      contexts: undefined,
-      tags: undefined,
+      domTags: undefined,
+      contextIndex: undefined,
     });
 
     const result = menuConfig(configWithNoContexts, mockWindow);
@@ -364,6 +367,6 @@ describe("menuConfig", () => {
       links: undefined,
     });
 
-    expect(mockFindContext).toHaveBeenCalledWith([], "https://example.com/test");
+    expect(mockFindContext).toHaveBeenCalledWith([], mockWindow);
   });
 });

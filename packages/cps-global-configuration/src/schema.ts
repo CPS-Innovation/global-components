@@ -10,11 +10,6 @@ export type Link = {
   level: number;
 };
 
-export type Context = {
-  paths: string[];
-  contexts: string;
-};
-
 const LinkSchema: z.ZodType<Link> = z.lazy(() =>
   z.object({
     label: z.string(),
@@ -27,10 +22,29 @@ const LinkSchema: z.ZodType<Link> = z.lazy(() =>
   })
 );
 
+export type DomTags = {
+  cssSelector: string;
+  regex: string;
+};
+
+const DomTagsSchema: z.ZodType<DomTags> = z.lazy(() =>
+  z.object({
+    cssSelector: z.string(),
+    regex: z.string(),
+  })
+);
+
+export type Context = {
+  paths: string[];
+  contexts: string;
+  domTags?: DomTags[];
+};
+
 const ContextSchema: z.ZodType<Context> = z.lazy(() =>
   z.object({
     paths: z.array(z.string()),
     contexts: z.string(),
+    domTags: z.array(DomTagsSchema).optional(),
   })
 );
 
