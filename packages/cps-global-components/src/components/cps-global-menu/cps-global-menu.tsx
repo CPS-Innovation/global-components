@@ -29,8 +29,11 @@ export class CpsGlobalMenu {
 
     this.CONFIG = await CONFIG_ASYNC();
 
+    // For host apps where we can not find caseId, urn etc tags in the address, we can observe the dom
+    //  for these values.
     initialiseDomObservation(this.CONFIG, window, () => {
-      console.log("I am in the loop");
+      // If the dom changes and tags have been found, this subscribing function sets some
+      //  arbitrary State to ensure a rerender.
       this.mutationFlag = +new Date();
     });
   }

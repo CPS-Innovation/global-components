@@ -32,8 +32,8 @@ const processMutations = (mutations: MutationRecord[], domTags: DomTags[]) => {
 export const setupMutationObserver = (rootElement: Element, domTags: DomTags[], callback: () => void) => {
   const observer = new MutationObserver(mutations => {
     const newTags = processMutations(mutations, domTags);
-    cacheDomTags(newTags);
     if (Object.keys(newTags).length) {
+      cacheDomTags(newTags);
       callback();
     }
   });
@@ -45,7 +45,10 @@ export const setupMutationObserver = (rootElement: Element, domTags: DomTags[], 
 
   // Process initial DOM state
   const tags = extractTagsFromElement(rootElement, domTags);
-  cacheDomTags(tags);
+  if (Object.keys(tags).length) {
+    cacheDomTags(tags);
+    // No need for the callback on first call
+  }
 
   return observer;
 };
