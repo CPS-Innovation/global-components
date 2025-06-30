@@ -1,10 +1,4 @@
-import { isOverrideMode } from "./is-override-mode";
-
 export const trySetupOverrideMode = () => {
-  if (!isOverrideMode()) {
-    return;
-  }
-
   try {
     let favicon = (document.querySelector("link[rel*='icon']") || document.createElement("link")) as HTMLLinkElement;
     favicon.type = "image/x-icon";
