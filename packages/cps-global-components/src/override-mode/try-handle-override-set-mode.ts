@@ -1,0 +1,29 @@
+const SET_KEY = "cps-global-components-override";
+const REDIRECT_KEY = "cps-global-components-override-redirect";
+
+const tryHandleOverrideSetMode = () => {
+  const { searchParams } = new URL(window.location.href);
+  const setFlag = searchParams.get(SET_KEY);
+  if (!setFlag) {
+    return;
+  }
+
+  if (setFlag === "true") {
+    localStorage.setItem(SET_KEY, "true");
+  } else {
+    localStorage.removeItem(SET_KEY);
+  }
+
+  const [nextUrl, ...remainingUrls] = searchParams.getAll(REDIRECT_KEY);
+  if (!nextUrl) {
+    return;
+  }
+
+  const url = new URL(nextUrl);
+  url.searchParams.set(SET_KEY, setFlag);
+  remainingUrls.forEach(remainingUrl => url.searchParams.append(REDIRECT_KEY, remainingUrl));
+  window.location.href = url.toString();
+  return;
+};
+
+export { tryHandleOverrideSetMode };

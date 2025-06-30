@@ -1,0 +1,54 @@
+<html>
+
+<body>
+  <script>
+    // Listen for messages from parent
+    window.addEventListener("message", function (event) {
+      // In a real scenario, you would validate event.origin for security
+      if (!event.data.action) {
+        return;
+      }
+
+      const { action, key, value, requestId } = event.data;
+      let response = { requestId };
+
+      try {
+        switch (action) {
+          case "store":
+            localStorage.setItem(key, value);
+            response = { ...response, success: true, message: `Stored ${key}` }
+            break;
+
+          case "retrieve":
+            response = {
+              ...response, success: true, value: localStorage.getItem(key), message: key in localStorage ?
+                `Retrieved ${key}` : `Key ${key} not found`
+            }
+            break;
+
+          case "clear":
+            if (key) {
+              localStorage.removeItem(key);
+              response = { ...response, success: true, message: `Cleared ${key}` }
+            } else {
+              localStorage.clear();
+              response = { ...response, success: true, message: "Cleared all data" }
+            }
+            break;
+
+          default:
+            response = { ...response, success: false, message: `Unknown action: ${action}` }
+
+        }
+      } catch (error) {
+        response = { ...response, success: false, message: error.message }
+      }
+
+      // Send response back to parent
+      event.source.postMessage(response, event.origin);
+    });
+
+  </script>
+</body>
+
+</html>
