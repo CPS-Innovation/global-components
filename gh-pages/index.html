@@ -66,9 +66,15 @@
 
       <h2 class="govuk-heading-l">Developer Tools</h2>
       <div class="govuk-body">
+        <p>Override flag management:</p>
+        <p>
+          <a href="#" id="set-override-flag" class="govuk-link">Set override flag</a> |
+          <a href="#" id="unset-override-flag" class="govuk-link">Unset override flag</a>
+        </p>
+
         <p>Test override bookmarklet for managing localStorage values:</p>
         <a href="javascript:(function() {
-    const KEY = 'cps-global-components-test-override';
+    const KEY = 'cps-global-components-override';
     const VALUE = 'true';
     
     const existingDialog = document.getElementById('cps-bookmarklet-dialog');
@@ -316,10 +322,45 @@
       }
     }
 
+    // Function to set override flag link hrefs
+    function setupOverrideLinks() {
+      const SET_KEY = "cps-global-components-override";
+      const REDIRECT_KEY = "cps-global-components-override-redirect";
+
+      const overrideLocations = [
+        "https://polaris-qa-notprod.cps.gov.uk/polaris-ui",
+        "https://housekeeping-staging.int.cps.gov.uk",
+        "https://cps-dev.outsystemsenterprise.com/AuthHandover/override.html",
+        "https://cps-innovation.github.io/global-components/" //back to here
+      ];
+
+      const buildOverrideLink = (setFlag) => {
+        const [nextUrl, ...remainingUrls] = overrideLocations;
+
+        const url = new URL(nextUrl);
+        url.searchParams.set(SET_KEY, setFlag);
+        remainingUrls.forEach(remainingUrl => url.searchParams.append(REDIRECT_KEY, remainingUrl));
+        return url.toString();
+      }
+
+
+      const setOverrideLink = document.getElementById('set-override-flag');
+      const unsetOverrideLink = document.getElementById('unset-override-flag');
+
+      if (setOverrideLink) {
+        setOverrideLink.href = buildOverrideLink(true);
+      }
+
+      if (unsetOverrideLink) {
+        unsetOverrideLink.href = buildOverrideLink(false);
+      }
+    }
+
     // Load data when page loads
     window.addEventListener('load', () => {
       fetchBuilds();
       fetchConfigs();
+      setupOverrideLinks();
     });
   </script>
 
