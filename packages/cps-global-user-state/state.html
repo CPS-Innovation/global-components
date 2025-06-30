@@ -4,7 +4,7 @@
   <script>
     // Listen for messages from parent
     window.addEventListener("message", function (event) {
-      // In a real scenario, you would validate event.origin for security
+      // todo: validate event.origin for security
       if (!event.data.action) {
         return;
       }

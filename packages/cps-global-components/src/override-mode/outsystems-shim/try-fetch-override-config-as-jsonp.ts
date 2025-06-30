@@ -1,6 +1,5 @@
 import fetchJsonp from "fetch-jsonp";
 import { ConfigFetch } from "../../config/ConfigFetch";
-
 import { isOutSystemsApp } from "./is-outsystems-app";
 
 export const tryFetchOverrideConfigAsJsonP: ConfigFetch = async (configUrl: string) =>

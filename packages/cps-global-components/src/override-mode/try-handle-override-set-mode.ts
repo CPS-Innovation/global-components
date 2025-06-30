@@ -1,17 +1,18 @@
-const SET_KEY = "cps-global-components-override";
-const REDIRECT_KEY = "cps-global-components-override-redirect";
+import { OVERRIDE_KEY, OVERRIDE_VALUE, REDIRECT_KEY } from "./constants";
+
+
 
 const tryHandleOverrideSetMode = () => {
   const { searchParams } = new URL(window.location.href);
-  const setFlag = searchParams.get(SET_KEY);
+  const setFlag = searchParams.get(OVERRIDE_KEY);
   if (!setFlag) {
     return;
   }
 
-  if (setFlag === "true") {
-    localStorage.setItem(SET_KEY, "true");
+  if (setFlag === OVERRIDE_VALUE) {
+    localStorage.setItem(OVERRIDE_KEY, OVERRIDE_VALUE);
   } else {
-    localStorage.removeItem(SET_KEY);
+    localStorage.removeItem(OVERRIDE_KEY);
   }
 
   const [nextUrl, ...remainingUrls] = searchParams.getAll(REDIRECT_KEY);
@@ -20,7 +21,7 @@ const tryHandleOverrideSetMode = () => {
   }
 
   const url = new URL(nextUrl);
-  url.searchParams.set(SET_KEY, setFlag);
+  url.searchParams.set(OVERRIDE_KEY, setFlag);
   remainingUrls.forEach(remainingUrl => url.searchParams.append(REDIRECT_KEY, remainingUrl));
   window.location.href = url.toString();
   return;

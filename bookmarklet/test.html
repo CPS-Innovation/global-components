@@ -67,11 +67,11 @@
         <h1>CPS Global Components Test Override Bookmarklet</h1>
 
         <p>This bookmarklet allows you to set or remove the localStorage value for
-            <code>cps-global-components-test-override</code>.
+            <code>cps-global-components-override</code>.
         </p>
 
         <a href="javascript:(function() {
-    const KEY = 'cps-global-components-test-override';
+    const KEY = 'cps-global-components-override';
     const VALUE = 'true';
     
     const existingDialog = document.getElementById('cps-bookmarklet-dialog');
@@ -195,7 +195,7 @@
     </div>
     <script>
         function checkStatus() {
-            const KEY = 'cps-global-components-test-override';
+            const KEY = 'cps-global-components-override';
             const value = localStorage.getItem(KEY);
             const statusEl = document.getElementById('current-status');
             if (value) {
