@@ -1,6 +1,11 @@
 import { Config } from "@stencil/core";
 import { sass } from "@stencil/sass";
 
+const esModules = [
+  "cps-global-os-handover",
+  // dependencies of esm packages
+].join("|");
+
 export const config: Config = {
   namespace: "cps-global-components",
   outputTargets: [
@@ -30,6 +35,10 @@ export const config: Config = {
   ],
   testing: {
     browserHeadless: "shell",
+    transform: {
+      "^.+\\.(ts|tsx|js|jsx|css)$": "@stencil/core/testing/jest-preprocessor",
+    },
+    transformIgnorePatterns: [`/node_modules/(?!${esModules})`],
   },
   plugins: [
     sass({

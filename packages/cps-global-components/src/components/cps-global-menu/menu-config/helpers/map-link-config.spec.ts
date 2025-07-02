@@ -13,7 +13,7 @@ describe("mapLinkConfig", () => {
   };
 
   it("should map basic link properties", () => {
-    const mapper = mapLinkConfig("test", {});
+    const mapper = mapLinkConfig({ contexts: "test", tags: {} });
     const result = mapper(basicLink);
 
     expect(result).toEqual({
@@ -27,17 +27,17 @@ describe("mapLinkConfig", () => {
   });
 
   it("should determine selected based on context match", () => {
-    const mapper1 = mapLinkConfig("test admin", {});
-    const mapper2 = mapLinkConfig("user guest", {});
-    
+    const mapper1 = mapLinkConfig({ contexts: "test admin", tags: {} });
+    const mapper2 = mapLinkConfig({ contexts: "user guest", tags: {} });
+
     expect(mapper1(basicLink).selected).toBe(true);
     expect(mapper2(basicLink).selected).toBe(false);
   });
 
   it("should determine preferEventNavigation based on context match", () => {
-    const mapper1 = mapLinkConfig("event user", {});
-    const mapper2 = mapLinkConfig("admin test", {});
-    
+    const mapper1 = mapLinkConfig({ contexts: "event user", tags: {} });
+    const mapper2 = mapLinkConfig({ contexts: "admin test", tags: {} });
+
     expect(mapper1(basicLink).preferEventNavigation).toBe(true);
     expect(mapper2(basicLink).preferEventNavigation).toBe(false);
   });
@@ -47,10 +47,10 @@ describe("mapLinkConfig", () => {
       ...basicLink,
       href: "/users/{userId}/posts/{postId}",
     };
-    
-    const mapper = mapLinkConfig("test", { userId: "123", postId: "456" });
+
+    const mapper = mapLinkConfig({ contexts: "test", tags: { userId: "123", postId: "456" } });
     const result = mapper(linkWithTags);
-    
+
     expect(result.href).toBe("/users/123/posts/456");
   });
 
@@ -59,15 +59,18 @@ describe("mapLinkConfig", () => {
       ...basicLink,
       href: "/{section}/{subsection}/{id}?type={type}",
     };
-    
-    const mapper = mapLinkConfig("test", {
-      section: "admin",
-      subsection: "users",
-      id: "789",
-      type: "detail",
+
+    const mapper = mapLinkConfig({
+      contexts: "test",
+      tags: {
+        section: "admin",
+        subsection: "users",
+        id: "789",
+        type: "detail",
+      },
     });
     const result = mapper(linkWithTags);
-    
+
     expect(result.href).toBe("/admin/users/789?type=detail");
   });
 
@@ -76,10 +79,10 @@ describe("mapLinkConfig", () => {
       ...basicLink,
       href: "/users/{userId}/posts/{postId}",
     };
-    
-    const mapper = mapLinkConfig("test", { userId: "123" });
+
+    const mapper = mapLinkConfig({ contexts: "test", tags: { userId: "123" } });
     const result = mapper(linkWithTags);
-    
+
     expect(result.href).toBe("/users/123/posts/{postId}");
   });
 
@@ -88,10 +91,10 @@ describe("mapLinkConfig", () => {
       ...basicLink,
       openInNewTab: true,
     };
-    
-    const mapper = mapLinkConfig("test", {});
+
+    const mapper = mapLinkConfig({ contexts: "test", tags: {} });
     const result = mapper(linkNewTab);
-    
+
     expect(result.openInNewTab).toBe(true);
   });
 
@@ -100,10 +103,10 @@ describe("mapLinkConfig", () => {
       ...basicLink,
       activeContexts: undefined,
     };
-    
-    const mapper = mapLinkConfig("test", {});
+
+    const mapper = mapLinkConfig({ contexts: "test", tags: {} });
     const result = mapper(linkNoActive);
-    
+
     expect(result.selected).toBe(false);
   });
 
@@ -112,10 +115,10 @@ describe("mapLinkConfig", () => {
       ...basicLink,
       preferEventNavigationContexts: undefined,
     };
-    
-    const mapper = mapLinkConfig("event", {});
+
+    const mapper = mapLinkConfig({ contexts: "event", tags: {} });
     const result = mapper(linkNoEvent);
-    
+
     expect(result.preferEventNavigation).toBe(false);
   });
 
@@ -125,13 +128,13 @@ describe("mapLinkConfig", () => {
       activeContexts: "admin user moderator",
       preferEventNavigationContexts: "event-admin event-user",
     };
-    
-    const mapper1 = mapLinkConfig("user guest", {});
+
+    const mapper1 = mapLinkConfig({ contexts: "user guest", tags: {} });
     const result1 = mapper1(complexLink);
     expect(result1.selected).toBe(true);
     expect(result1.preferEventNavigation).toBe(false);
-    
-    const mapper2 = mapLinkConfig("event-admin test", {});
+
+    const mapper2 = mapLinkConfig({ contexts: "event-admin test", tags: {} });
     const result2 = mapper2(complexLink);
     expect(result2.selected).toBe(false);
     expect(result2.preferEventNavigation).toBe(true);
@@ -142,10 +145,10 @@ describe("mapLinkConfig", () => {
       ...basicLink,
       label: "  Special Label with Spaces  ",
     };
-    
-    const mapper = mapLinkConfig("test", {});
+
+    const mapper = mapLinkConfig({ contexts: "test", tags: {} });
     const result = mapper(linkWithSpecialLabel);
-    
+
     expect(result.label).toBe("  Special Label with Spaces  ");
   });
 
@@ -154,10 +157,10 @@ describe("mapLinkConfig", () => {
       ...basicLink,
       href: "/test/{tag1}/{tag2}",
     };
-    
-    const mapper = mapLinkConfig("test", {});
+
+    const mapper = mapLinkConfig({ contexts: "test", tags: {} });
     const result = mapper(linkWithTags);
-    
+
     expect(result.href).toBe("/test/{tag1}/{tag2}");
   });
 
@@ -166,10 +169,10 @@ describe("mapLinkConfig", () => {
       ...basicLink,
       href: "/{id}/edit/{id}/confirm/{id}",
     };
-    
-    const mapper = mapLinkConfig("test", { id: "999" });
+
+    const mapper = mapLinkConfig({ contexts: "test", tags: { id: "999" } });
     const result = mapper(linkWithRepeatedTags);
-    
+
     expect(result.href).toBe("/999/edit/999/confirm/999");
   });
 
@@ -183,10 +186,10 @@ describe("mapLinkConfig", () => {
       openInNewTab: true,
       preferEventNavigationContexts: "app-event section-event",
     };
-    
-    const mapper = mapLinkConfig("app-section app-event", { appId: "myapp", sectionId: "mysection" });
+
+    const mapper = mapLinkConfig({ contexts: "app-section app-event", tags: { appId: "myapp", sectionId: "mysection" } });
     const result = mapper(fullLink);
-    
+
     expect(result).toEqual({
       label: "Full Featured Link",
       level: 2,

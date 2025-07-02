@@ -1,5 +1,5 @@
 import { validateConfig, Config } from "cps-global-configuration";
-import { getArtifactUrl } from "../get-artifact-url";
+import { getArtifactUrl } from "../helpers/get-artifact-url";
 import { tryFetchOverrideConfig } from "../override-mode/try-fetch-override-config";
 import { ConfigFetch } from "./ConfigFetch";
 import { tryFetchOverrideConfigAsJsonP } from "../override-mode/outsystems-shim/try-fetch-override-config-as-jsonp";
