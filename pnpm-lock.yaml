@@ -135,7 +135,7 @@ importers:
     dependencies:
       '@azure/msal-browser':
         specifier: ^4.0.0
-        version: 4.13.2
+        version: 4.14.0
       '@dotenvx/dotenvx':
         specifier: ^1.41.0
         version: 1.45.1
@@ -301,12 +301,12 @@ packages:
     resolution: {integrity: sha512-30iZtAPgz+LTIYoeivqYo853f02jBYSd5uGnGpkFV0M3xOt9aN73erkgYAmZU43x4VfqcnLxW9Kpg3R5LC4YYw==}
     engines: {node: '>=6.0.0'}
 
-  '@azure/msal-browser@4.13.2':
-    resolution: {integrity: sha512-lS75bF6FYZRwsacKLXc8UYu/jb+gOB7dtZq5938chCvV/zKTFDnzuXxCXhsSUh0p8s/P8ztgbfdueD9lFARQlQ==}
+  '@azure/msal-browser@4.14.0':
+    resolution: {integrity: sha512-6VB06LypBS0Cf/dSUwRZse/eGnfAHwDof7GpCfoo3JjnruSN40jFBw+QXZd1ox5OLC6633EdWRRz+TGeHMEspg==}
     engines: {node: '>=0.8.0'}
 
-  '@azure/msal-common@15.7.1':
-    resolution: {integrity: sha512-a0eowoYfRfKZEjbiCoA5bPT3IlWRAdGSvi63OU23Hv+X6EI8gbvXCoeqokUceFMoT9NfRUWTJSx5FiuzruqT8g==}
+  '@azure/msal-common@15.8.0':
+    resolution: {integrity: sha512-gYqq9MsWT/KZh8iTG37DkGv+wgfllgImTMB++Z83qn75M5eZ0cMX5kSSXdJqHbFm1qxaYydv+2kiVyA9ksN9pA==}
     engines: {node: '>=0.8.0'}
 
   '@babel/code-frame@7.27.1':
@@ -4281,11 +4281,11 @@ snapshots:
       '@jridgewell/gen-mapping': 0.3.10
       '@jridgewell/trace-mapping': 0.3.27
 
-  '@azure/msal-browser@4.13.2':
+  '@azure/msal-browser@4.14.0':
     dependencies:
-      '@azure/msal-common': 15.7.1
+      '@azure/msal-common': 15.8.0
 
-  '@azure/msal-common@15.7.1': {}
+  '@azure/msal-common@15.8.0': {}
 
   '@babel/code-frame@7.27.1':
     dependencies:
