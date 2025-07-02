@@ -7,10 +7,10 @@ import { trySetupOverrideMode } from "./override-mode/try-setup-override-mode";
 export default async () => {
   tryHandleOverrideSetMode();
 
-  const isOverrideMode = detectOverrideMode();
+  const isOverrideMode = detectOverrideMode(window);
   initialiseConfig(isOverrideMode);
   if (isOverrideMode) {
-    trySetupOutSystemsShim();
-    trySetupOverrideMode();
+    trySetupOutSystemsShim(window);
+    trySetupOverrideMode(window);
   }
 };

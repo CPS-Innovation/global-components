@@ -4,13 +4,19 @@ import { replaceTagsInString } from "./replace-tags-in-string";
 
 export type MapLinkConfigResult = ReturnType<ReturnType<typeof mapLinkConfig>>;
 
+type MapLinkConfigParams = { contexts: string; tags: Record<string, string>; handoverAdapter?: ((targetUrl: string) => string) | false };
+
 export const mapLinkConfig =
-  (contexts: string, tags: { [key: string]: string }) =>
-  ({ label, href, level, activeContexts, openInNewTab, preferEventNavigationContexts }: Link) => ({
-    label,
-    level,
-    openInNewTab,
-    href: replaceTagsInString(href, tags),
-    selected: isContextMatch(contexts, activeContexts),
-    preferEventNavigation: isContextMatch(contexts, preferEventNavigationContexts),
-  });
+  ({ contexts, tags, handoverAdapter }: MapLinkConfigParams) =>
+  ({ label, href, level, activeContexts, openInNewTab, preferEventNavigationContexts }: Link) => {
+    const processedHref = replaceTagsInString(href, tags);
+
+    return {
+      label,
+      level,
+      openInNewTab,
+      href: handoverAdapter ? handoverAdapter(processedHref) : processedHref,
+      selected: isContextMatch(contexts, activeContexts),
+      preferEventNavigation: isContextMatch(contexts, preferEventNavigationContexts),
+    };
+  };

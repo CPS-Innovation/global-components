@@ -56,6 +56,9 @@ export const ConfigSchema = z.object({
   SHOW_MENU: z.boolean().optional(),
   CONTEXTS: z.array(ContextSchema).optional(),
   LINKS: z.array(LinkSchema).optional(),
+  OS_HANDOVER_URL: z.string().optional(),
+  COOKIE_HANDOVER_URL: z.string().optional(),
+  TOKEN_HANDOVER_URL: z.string().optional(),
   _CONFIG_ERROR: z.string().optional(),
 });
 

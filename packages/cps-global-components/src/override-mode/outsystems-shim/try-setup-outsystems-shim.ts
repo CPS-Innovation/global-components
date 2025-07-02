@@ -1,7 +1,7 @@
-import { isOutSystemsApp } from "./is-outsystems-app";
+import { isOutSystemsApp } from "../../helpers/is-outsystems-app";
 
-export const trySetupOutSystemsShim = () => {
-  if (!isOutSystemsApp()) {
+export const trySetupOutSystemsShim = (window: Window) => {
+  if (!isOutSystemsApp(window.location.href)) {
     return null;
   }
 
