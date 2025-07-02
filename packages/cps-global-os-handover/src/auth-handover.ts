@@ -12,11 +12,15 @@ const COOKIE_HANDOVER_URL = window.cps_global_components_cookie_handover_url;
 const TOKEN_HANDOVER_URL = window.cps_global_components_token_handover_url;
 
 if (!COOKIE_HANDOVER_URL) {
-  throw new Error(`COOKIE_HANDOVER_URL environment variable not specified`);
+  throw new Error(
+    `window.cps_global_components_cookie_handover_url not specified`
+  );
 }
 
 if (!TOKEN_HANDOVER_URL) {
-  throw new Error(`TOKEN_HANDOVER_URL environment variable not specified`);
+  throw new Error(
+    `window.cps_global_components_token_handover_url not specified`
+  );
 }
 
 const currentUrl = window.location.href;
