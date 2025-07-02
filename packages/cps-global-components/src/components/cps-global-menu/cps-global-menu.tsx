@@ -2,7 +2,7 @@ import { Component, Prop, h, State, Fragment } from "@stencil/core";
 import { CONFIG_ASYNC } from "../../config/config-async";
 
 import { Config } from "cps-global-configuration";
-import { menuConfig, MenuHelperResult } from "./menu-config/menu-config";
+import { menuConfig, MenuConfigResult } from "./menu-config/menu-config";
 import { renderError } from "../common/render-error";
 import { initiateTracking } from "../../analytics/initiate-tracking";
 import "./menu-config/helpers/dom/initialisation";
@@ -38,7 +38,7 @@ export class CpsGlobalMenu {
     });
   }
 
-  renderOk = ([level1Links, level2Links]: MenuHelperResult["links"]) => {
+  renderOk = ([level1Links, level2Links]: MenuConfigResult["links"]) => {
     const { SURVEY_LINK } = this.CONFIG;
     return (
       <div>

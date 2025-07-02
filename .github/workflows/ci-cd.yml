@@ -77,7 +77,9 @@ jobs:
         id: upload
         with:
           name: ${{env.BUILD_ARTIFACT_NAME}}
-          path: "./packages/cps-global-components/dist/cps-global-components.*"
+          path: |
+            ./packages/cps-global-components/dist/cps-global-components.*
+            ./packages/cps-global-os-handover/dist/auth-handover.*
           retention-days: 1
 
   deploy-script:
@@ -212,28 +214,53 @@ jobs:
               --source "./apps/home" \
               --connection-string "${{ secrets.BLOB_STORAGE_CONNECTION_STRING }}"
 
-  deploy-tactical-redirect:
+  deploy-auth-handover:
+    needs: [generate-matrix, build-and-test]
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    strategy:
+      matrix:
+        environment: ${{ fromJson(needs.generate-matrix.outputs.environments) }}
+
+    permissions:
+      contents: write
 
     steps:
       - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        id: download
+        with:
+          artifact-ids: ${{needs.build-and-test.outputs.artifact-id}}
+
+      - name: Prepare auth-handover script with environment config
+        run: |
+          # Read config values for the environment
+          CONFIG_FILE="./configuration/config.${{matrix.environment}}.json"
+          COOKIE_HANDOVER_URL=$(jq -r '.COOKIE_HANDOVER_URL' "$CONFIG_FILE")
+          TOKEN_HANDOVER_URL=$(jq -r '.TOKEN_HANDOVER_URL' "$CONFIG_FILE")
+
+          # Create the output directory
+          mkdir -p ./prepared-auth-handover
+
+          # Prepend the window variables to the auth-handover.js file
+          echo "window.cps_global_components_cookie_handover_url = '$COOKIE_HANDOVER_URL';" > ./prepared-auth-handover/auth-handover.js
+          echo "window.cps_global_components_token_handover_url = '$TOKEN_HANDOVER_URL';" >> ./prepared-auth-handover/auth-handover.js
+          cat "${{ steps.download.outputs.download-path }}/${{env.BUILD_ARTIFACT_NAME}}/auth-handover.js" >> ./prepared-auth-handover/auth-handover.js
+
+          # Copy the source map
+          cp "${{ steps.download.outputs.download-path }}/${{env.BUILD_ARTIFACT_NAME}}/auth-handover.js.map" ./prepared-auth-handover/
 
       - uses: azure/cli@v2
         with:
           azcliversion: latest
           inlineScript: |
-            az storage container create \
-                --name tactical-redirect \
-                --public-access container \
-                --connection-string "${{ secrets.BLOB_STORAGE_CONNECTION_STRING }}"
-                
-            az storage blob upload \
-              --file ./apps/tactical-redirect/index.html \
-              --container-name tactical-redirect \
-              --name index.html \
-              --overwrite true \
-              --connection-string "${{ secrets.BLOB_STORAGE_CONNECTION_STRING }}"
+            az storage blob upload-batch \
+              --destination ${{matrix.environment}} \
+              --source "./prepared-auth-handover" \
+              --connection-string "${{ secrets.BLOB_STORAGE_CONNECTION_STRING }}" \
+              --overwrite \
+              --content-cache-control "max-age=20, stale-while-revalidate=3600, stale-if-error=3600"
 
   repo-security-scan:
     runs-on: ubuntu-latest

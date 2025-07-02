@@ -37,6 +37,9 @@ describe("menuConfig", () => {
     SURVEY_LINK: "https://example.com/survey",
     SHOW_BANNER: true,
     SHOW_MENU: true,
+    OS_HANDOVER_URL: "",
+    COOKIE_HANDOVER_URL: "",
+    TOKEN_HANDOVER_URL: "",
     LINKS: [
       {
         label: "Link 1",
@@ -160,7 +163,7 @@ describe("menuConfig", () => {
     expect(mockFindContext).toHaveBeenCalledWith(mockConfig.CONTEXTS, mockWindow);
     expect(mockShouldShowLink).toHaveBeenCalledWith(foundContexts);
     expect(mockFilterFunction).toHaveBeenCalledTimes(3);
-    expect(mockMapLinkConfig).toHaveBeenCalledWith(foundContexts, foundTags);
+    expect(mockMapLinkConfig).toHaveBeenCalledWith({ contexts: foundContexts, tags: foundTags, handoverAdapter: expect.any(Function) });
     expect(mockMapFunction).toHaveBeenCalledTimes(2); // Only called for filtered links
     expect(mockGroupLinksByLevel).toHaveBeenCalledWith([
       {
@@ -269,7 +272,7 @@ describe("menuConfig", () => {
 
     menuConfig(mockConfig, mockWindow);
 
-    expect(mockMapLinkConfig).toHaveBeenCalledWith("user-context section-context", complexTags);
+    expect(mockMapLinkConfig).toHaveBeenCalledWith({ contexts: "user-context section-context", tags: complexTags, handoverAdapter: expect.any(Function) });
   });
 
   it("should handle different window locations", () => {
@@ -414,13 +417,17 @@ describe("menuConfig", () => {
     menuConfig(mockConfig, mockWindow);
 
     // Verify that mapLinkConfig was called with merged tags
-    expect(mockMapLinkConfig).toHaveBeenCalledWith("test-context", {
-      ...contextTags,
-      ...domTags,
+    expect(mockMapLinkConfig).toHaveBeenCalledWith({
+      contexts: "test-context",
+      tags: {
+        ...contextTags,
+        ...domTags,
+      },
+      handoverAdapter: expect.any(Function),
     });
 
     // Verify that the merged tags include both context and DOM tags
-    const mergedTags = mockMapLinkConfig.mock.calls[0][1];
+    const mergedTags = mockMapLinkConfig.mock.calls[0][0].tags;
     expect(mergedTags).toEqual({
       contextTag1: "value1",
       contextTag2: "value2",

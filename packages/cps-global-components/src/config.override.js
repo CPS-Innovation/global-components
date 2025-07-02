@@ -4,12 +4,24 @@ cps_global_components_config_jsonp_callback({
   SURVEY_LINK: "https://forms.office.com/e/Cxmsq5xTWx",
   SHOW_BANNER: true,
   SHOW_MENU: true,
+  OS_HANDOVER_URL: "https://cps-dev.outsystemsenterprise.com/AuthHandover/index.html",
+  COOKIE_HANDOVER_URL: "https://cin3.cps.gov.uk/polaris",
+  TOKEN_HANDOVER_URL: "https://polaris-qa-notprod.cps.gov.uk/auth-refresh-cms-modern-token",
   CONTEXTS: [
     { paths: ["http://localhost:3333/cases/(?<caseId>\\d+)/materials"], contexts: "case materials" },
     { paths: ["http://localhost:3333/cases/(?<caseId>\\d+)/review"], contexts: "case review" },
     { paths: ["http://localhost:3333/cases/(?<caseId>\\d+)"], contexts: "case details" },
     { paths: ["http://localhost:3333/cases"], contexts: "cases" },
-    { paths: ["http://localhost:3333/"], contexts: "tasks" },
+    {
+      paths: ["http://localhost:3333/"],
+      contexts: "tasks",
+      domTags: [
+        {
+          cssSelector: "a[href*='/polaris-ui/case-details/']",
+          regex: "/polaris-ui/case-details/(?<urn>[^/]+)/(?<caseId>\\d+)",
+        },
+      ],
+    },
   ],
   LINKS: [
     { label: "Tasks", level: 0, href: "/", activeContexts: "tasks" },
