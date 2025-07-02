@@ -1,8 +1,15 @@
 // Browser entry point that automatically executes handleRedirect
-import { handleRedirect as internalHandleRedirect } from "./handover";
+import { handleRedirect } from "./handover";
 
-const COOKIE_HANDOVER_URL = process.env.COOKIE_HANDOVER_URL;
-const TOKEN_HANDOVER_URL = process.env.TOKEN_HANDOVER_URL;
+declare global {
+  interface Window {
+    cps_global_components_cookie_handover_url: string;
+    cps_global_components_token_handover_url: string;
+  }
+}
+
+const COOKIE_HANDOVER_URL = window.cps_global_components_cookie_handover_url;
+const TOKEN_HANDOVER_URL = window.cps_global_components_token_handover_url;
 
 if (!COOKIE_HANDOVER_URL) {
   throw new Error(`COOKIE_HANDOVER_URL environment variable not specified`);
@@ -11,9 +18,10 @@ if (!COOKIE_HANDOVER_URL) {
 if (!TOKEN_HANDOVER_URL) {
   throw new Error(`TOKEN_HANDOVER_URL environment variable not specified`);
 }
+
 const currentUrl = window.location.href;
 
-const nextUrl = internalHandleRedirect({
+const nextUrl = handleRedirect({
   currentUrl,
   cookieHandoverUrl: COOKIE_HANDOVER_URL,
   tokenHandoverUrl: TOKEN_HANDOVER_URL,
