@@ -75,10 +75,12 @@ jobs:
 
       - run: |
           mkdir -p ./to-deploy
+          ls -la ./to-deploy
           cp ./packages/cps-global-components/dist/cps-global-components.js ./to-deploy
           cp ./packages/cps-global-components/dist/cps-global-components.js.map ./to-deploy
           cp ./packages/cps-global-os-handover/dist/auth-handover.js ./to-deploy
           cp ./packages/cps-global-os-handover/dist/auth-handover.js.map ./to-deploy
+          ls -la ./to-deploy
 
       - uses: actions/upload-artifact@v4
         id: upload
