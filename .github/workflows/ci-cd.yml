@@ -75,16 +75,17 @@ jobs:
 
       - run: |
           mkdir -p ./to-deploy
-          cp ./packages/cps-global-components/dist/* ./to-deploy
-          cp ./packages/cps-global-os-handover/dist/* ./to-deploy
+          cp ./packages/cps-global-components/dist/cps-global-components.js ./to-deploy
+          cp ./packages/cps-global-components/dist/cps-global-components.js.map ./to-deploy
+          cp ./packages/cps-global-os-handover/dist/auth-handover.js ./to-deploy
+          cp ./packages/cps-global-os-handover/dist/auth-handover.js.map ./to-deploy
 
       - uses: actions/upload-artifact@v4
         id: upload
         with:
           name: ${{env.BUILD_ARTIFACT_NAME}}
           path: |
-            ./to-deploy/cps-global-components.*
-            ./to-deploy/auth-handover.js*
+            ./to-deploy/*
           retention-days: 1
 
   deploy-script:
