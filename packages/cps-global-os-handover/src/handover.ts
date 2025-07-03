@@ -11,11 +11,31 @@ const stages = {
   OS_TOKEN_RETURN: "os-token-return",
 };
 
+const localStorageKeys = {
+  WMA_JSON: "$OS_Users$WorkManagementApp$ClientVars$JSONString",
+  WMA_COOKIES: "$OS_Users$WorkManagementApp$ClientVars$Cookies",
+  CASE_REVIEW_JSON: "$OS_Users$CaseReview$ClientVars$CmsAuthValues",
+  CASE_REVIEW_COOKIES: "$OS_Users$CaseReview$ClientVars$Cookies",
+};
+
+const storeAuth = (cookies: string, token: string) => {
+  const cmsAuthValuesJson = JSON.stringify({
+    Cookies: cookies,
+    Token: token,
+    ExpiryTime: new Date().toISOString(),
+  });
+
+  localStorage[localStorageKeys.WMA_COOKIES] = cookies;
+  localStorage[localStorageKeys.CASE_REVIEW_COOKIES] = cookies;
+  localStorage[localStorageKeys.WMA_JSON] = cmsAuthValuesJson;
+  localStorage[localStorageKeys.CASE_REVIEW_JSON] = cmsAuthValuesJson;
+};
+
 const stripParams = (url: URL, ...keys: string[]) =>
   keys.map((key) => {
     const value = url.searchParams.get(key);
     url.searchParams.delete(key);
-    return value;
+    return value || "";
   });
 
 const setParams = (url: URL, params: Record<string, string>) =>
@@ -86,8 +106,9 @@ export const handleRedirect = ({
       );
 
       console.log({ target, cookies, token });
+      storeAuth(cookies, token);
 
-      return target!;
+      return target;
     }
     default:
       throw new Error(
