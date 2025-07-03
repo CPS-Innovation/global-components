@@ -4,7 +4,7 @@
   "SURVEY_LINK": "https://forms.office.com/e/Cxmsq5xTWx",
   "SHOW_BANNER": true,
   "SHOW_MENU": false,
-  "OS_HANDOVER_URL": "https://cps-dev.outsystemsenterprise.com/AuthHandover/index.html",
+  "OS_HANDOVER_URL": "https://sacpsglobalcomponents.blob.core.windows.net/dev/auth-handover-shim.html",
   "COOKIE_HANDOVER_URL": "https://cin3.cps.gov.uk/polaris",
   "TOKEN_HANDOVER_URL": "https://polaris-qa-notprod.cps.gov.uk/auth-refresh-cms-modern-token",
   "CONTEXTS": [],

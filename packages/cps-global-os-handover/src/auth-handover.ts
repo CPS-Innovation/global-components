@@ -31,4 +31,4 @@ const nextUrl = handleRedirect({
   tokenHandoverUrl: TOKEN_HANDOVER_URL,
 });
 
-window.location.href = nextUrl;
+window.location.replace(nextUrl);
