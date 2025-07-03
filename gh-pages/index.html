@@ -220,7 +220,7 @@
         const data = await response.json();
 
         // Filter for CI-CD, Security builds
-        const cicdBuilds = data.workflow_runs.filter(run => run.name === 'CI-CD, Security');
+        const cicdBuilds = data.workflow_runs.filter(run => run.event === "push");
 
         if (cicdBuilds.length === 0) {
           buildsDiv.innerHTML = '<p class="govuk-body">No CI-CD, Security builds found.</p>';
