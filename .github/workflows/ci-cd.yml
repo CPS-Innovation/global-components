@@ -74,13 +74,12 @@ jobs:
           pnpm --filter e2e test
 
       - run: |
+          rm -rf ./to-deploy
           mkdir -p ./to-deploy
-          ls -la ./to-deploy
           cp ./packages/cps-global-components/dist/cps-global-components.js ./to-deploy
           cp ./packages/cps-global-components/dist/cps-global-components.js.map ./to-deploy
           cp ./packages/cps-global-os-handover/dist/auth-handover.js ./to-deploy
           cp ./packages/cps-global-os-handover/dist/auth-handover.js.map ./to-deploy
-          ls -la ./to-deploy
 
       - uses: actions/upload-artifact@v4
         id: upload
@@ -249,6 +248,7 @@ jobs:
           TOKEN_HANDOVER_URL=$(jq -r '.TOKEN_HANDOVER_URL' "$CONFIG_FILE")
 
           # Create the output directory
+          rm -rf ./prepared-auth-handover
           mkdir -p ./prepared-auth-handover
 
           # Prepend the window variables to the auth-handover.js file
@@ -258,6 +258,7 @@ jobs:
 
           # Copy the source map
           cp "${{ steps.download.outputs.download-path }}/${{env.BUILD_ARTIFACT_NAME}}/auth-handover.js.map" ./prepared-auth-handover/
+          ls -la ./prepared-auth-handover/
 
       - uses: azure/cli@v2
         with:
