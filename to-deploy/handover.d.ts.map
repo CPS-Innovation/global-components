@@ -1,0 +1,1 @@
+{"version":3,"file":"handover.d.ts","sourceRoot":"","sources":["../src/handover.ts"],"names":[],"mappings":"AA+BA,eAAO,MAAM,iBAAiB,GAAI,6BAG/B;IACD,WAAW,EAAE,MAAM,CAAC;IACpB,SAAS,EAAE,MAAM,CAAC;CACnB,WAOA,CAAC;AAEF,eAAO,MAAM,cAAc,GAAI,sDAI5B;IACD,UAAU,EAAE,MAAM,CAAC;IACnB,iBAAiB,EAAE,MAAM,CAAC;IAC1B,gBAAgB,EAAE,MAAM,CAAC;CAC1B,WA0CA,CAAC"}
