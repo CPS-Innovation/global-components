@@ -5,7 +5,7 @@
   "SHOW_BANNER": true,
   "SHOW_MENU": true,
   "OS_HANDOVER_URL": "https://cps-dev.outsystemsenterprise.com/AuthHandover/auth-handover.html",
-  "COOKIE_HANDOVER_URL": "https://cin3.cps.gov.uk/polaris",
+  "COOKIE_HANDOVER_URL": "https://polaris-qa-notprod.cps.gov.uk/polaris",
   "TOKEN_HANDOVER_URL": "https://polaris-qa-notprod.cps.gov.uk/auth-refresh-cms-modern-token",
   "CONTEXTS": [
     {
@@ -27,6 +27,10 @@
         "https://cps-dev.outsystemsenterprise.com/CaseReview/LandingPage\\?CMSCaseId=(?<caseId>\\d+)&URN=(?<urn>[^&]+)"
       ],
       "contexts": "case review"
+    },
+    {
+      "paths": ["https://cps-dev.outsystemsenterprise.com/CaseReview/"],
+      "contexts": "cases"
     },
     {
       "paths": [
@@ -52,7 +56,7 @@
       "domTags": [
         {
           "cssSelector": "a[href*='/polaris-ui/case-details/']",
-          "regex": "/polaris-ui/case-details/(?<caseId>[^/]+)/(?<urn>[^/?#]+)"
+          "regex": "/polaris-ui/case-details/(?<urn>[^/]+)/(?<caseId>\\d+)"
         }
       ]
     }
