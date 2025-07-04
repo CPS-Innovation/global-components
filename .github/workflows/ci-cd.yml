@@ -258,6 +258,11 @@ jobs:
 
           # Copy the source map
           cp "${{ steps.download.outputs.download-path }}/${{env.BUILD_ARTIFACT_NAME}}/auth-handover.js.map" ./prepared-auth-handover/
+          
+          # Debug: Show the first few lines of the prepared file
+          echo "=== First 5 lines of prepared auth-handover.js ==="
+          head -n 5 ./prepared-auth-handover/auth-handover.js
+          echo "=== File info ==="
           ls -la ./prepared-auth-handover/
 
       - uses: azure/cli@v2
