@@ -258,7 +258,7 @@ jobs:
 
           # Copy the source map
           cp "${{ steps.download.outputs.download-path }}/${{env.BUILD_ARTIFACT_NAME}}/auth-handover.js.map" ./prepared-auth-handover/
-          
+
           # Debug: Show the first few lines of the prepared file
           echo "=== First 5 lines of prepared auth-handover.js ==="
           head -n 5 ./prepared-auth-handover/auth-handover.js
@@ -273,7 +273,7 @@ jobs:
               --destination ${{matrix.environment}} \
               --source "./prepared-auth-handover" \
               --connection-string "${{ secrets.BLOB_STORAGE_CONNECTION_STRING }}" \
-              --overwrite \
+              --overwrite true \
               --content-cache-control "max-age=20, stale-while-revalidate=3600, stale-if-error=3600"
 
   repo-security-scan:
