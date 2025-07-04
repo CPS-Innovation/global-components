@@ -54,6 +54,7 @@ export const ConfigSchema = z.object({
   SURVEY_LINK: z.string().optional(),
   SHOW_BANNER: z.boolean().optional(),
   SHOW_MENU: z.boolean().optional(),
+  SHOW_GOVUK_REBRAND: z.boolean().optional(),
   CONTEXTS: z.array(ContextSchema).optional(),
   LINKS: z.array(LinkSchema).optional(),
   OS_HANDOVER_URL: z.string().optional(),
