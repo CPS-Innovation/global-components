@@ -40,9 +40,13 @@ export class CpsGlobalMenu {
 
   renderOk = ([level1Links, level2Links]: MenuConfigResult["links"]) => {
     const { SURVEY_LINK } = this.CONFIG;
+
+    const classes = this.CONFIG.SHOW_GOVUK_REBRAND
+      ? { flag: "govuk-template--rebranded", level1Background: "background-light-blue", divider: "background-divider-blue" }
+      : { flag: "", level1Background: "background-grey", divider: "background-divider" };
     return (
-      <div>
-        <nav class="level-1 background-grey" aria-label="Menu" data-testid="menu-level-1">
+      <div class={classes.flag}>
+        <nav class={`level-1 ${classes.level1Background}`} aria-label="Menu" data-testid="menu-level-1">
           <ul>
             {level1Links?.map(link => (
               <nav-link {...link}></nav-link>
@@ -51,7 +55,7 @@ export class CpsGlobalMenu {
           </ul>
         </nav>
 
-        <div class="background-divider"></div>
+        <div class={classes.divider}></div>
 
         {!!level2Links?.length && (
           <>
@@ -62,7 +66,7 @@ export class CpsGlobalMenu {
                 ))}
               </ul>
             </nav>
-            <div class="background-divider"></div>
+            <div class={classes.divider}></div>
           </>
         )}
       </div>
