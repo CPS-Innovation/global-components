@@ -8,3 +8,5 @@ not-tracked
 .act-event.json
 .act-artifacts
 .act-secrets
+.claude
+CLAUDE.md

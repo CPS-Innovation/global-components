@@ -25,7 +25,7 @@ jobs:
       - name: List files and create JSON matrix
         id: set-environments
         run: |
-          files=$(ls ./configuration | grep 'config\..*\.json' | jq -R . | jq -s -c . |  jq 'map(capture("config\\.(?<environment>[A-Za-z0-9_-]+)\\.json") | .environment)' | jq -c .)
+          files=$(ls ./configuration | grep 'config\.[^\\.]*\.json' | jq -R . | jq -s -c . |  jq 'map(capture("config\\.(?<environment>[A-Za-z0-9_-]+)\\.json") | .environment)' | jq -c .)
           echo "Files found: $files"
           echo "environments=$files" >> "$GITHUB_OUTPUT"
 
@@ -37,6 +37,9 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+
+      - uses: benjlevesque/short-sha@v3.0
+        id: short-sha
 
       - uses: pnpm/action-setup@v4
         with:
@@ -64,13 +67,26 @@ jobs:
 
       - run: pnpm --filter cps-global-configuration validate
 
-      - run: 'pnpm --filter cps-global-components run rollup --intro ''window.cps_global_components_build = {Sha: "${{ github.sha }}", RunId: "${{ github.run_id }}"};'''
+      - run: 'pnpm --filter cps-global-components run rollup --intro ''window.cps_global_components_build = {Sha: "${{ steps.short-sha.outputs.sha }}", RunId: "${{ github.run_number }}", Timestamp: "${{ github.event.repository.updated_at }}"};'''
+
+      - run: |
+          cp -r ./packages/cps-global-components/dist/cps-global-components.js ./e2e/harness
+          pnpm --filter e2e test
+
+      - run: |
+          rm -rf ./to-deploy
+          mkdir -p ./to-deploy
+          cp ./packages/cps-global-components/dist/cps-global-components.js ./to-deploy
+          cp ./packages/cps-global-components/dist/cps-global-components.js.map ./to-deploy
+          cp ./packages/cps-global-os-handover/dist/auth-handover.js ./to-deploy
+          cp ./packages/cps-global-os-handover/dist/auth-handover.js.map ./to-deploy
 
       - uses: actions/upload-artifact@v4
         id: upload
         with:
           name: ${{env.BUILD_ARTIFACT_NAME}}
-          path: "./packages/cps-global-components/dist/cps-global-components.*"
+          path: |
+            ./to-deploy/*
           retention-days: 1
 
   deploy-script:
@@ -87,12 +103,22 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - uses: benjlevesque/short-sha@v3.0
+        id: short-sha
+
       - uses: actions/download-artifact@v4
         id: download
         with:
           artifact-ids: ${{needs.build-and-test.outputs.artifact-id}}
 
-      - run: cp ./configuration/config.${{matrix.environment}}.json ${{ steps.download.outputs.download-path }}/${{env.BUILD_ARTIFACT_NAME}}/config.json
+      - run: |
+          cp ./configuration/config.${{matrix.environment}}.json ${{ steps.download.outputs.download-path }}/${{env.BUILD_ARTIFACT_NAME}}/config.json
+          if [ -f "./configuration/config.${{matrix.environment}}.override.json" ]; then
+            cp ./configuration/config.${{matrix.environment}}.override.json ${{ steps.download.outputs.download-path }}/${{env.BUILD_ARTIFACT_NAME}}/config.override.json
+
+            cp ./configuration/config.${{matrix.environment}}.override.json ${{ steps.download.outputs.download-path }}/${{env.BUILD_ARTIFACT_NAME}}/config.override.js
+            sed -i '1s/^/cps_global_components_config_jsonp_callback(/; $s/$/);/' ${{ steps.download.outputs.download-path }}/${{env.BUILD_ARTIFACT_NAME}}/config.override.js
+          fi
 
       - uses: azure/cli@v2
         with:
@@ -107,9 +133,9 @@ jobs:
               --destination ${{matrix.environment}} \
               --source "${{ steps.download.outputs.download-path }}/${{env.BUILD_ARTIFACT_NAME}}" \
               --connection-string "${{ secrets.BLOB_STORAGE_CONNECTION_STRING }}" \
-              --overwrite \
+              --overwrite true \
               --content-cache-control "max-age=20, stale-while-revalidate=3600, stale-if-error=3600" \
-              --metadata buildsha=${{ github.sha }} buildrunid=${{ github.run_id }}
+              --metadata buildsha=${{ steps.short-sha.outputs.sha }} buildrunid=${{ github.run_number }} buildtimestamp="${{ github.event.repository.updated_at }}"
 
   deploy-harnesses:
     needs: generate-matrix
@@ -173,6 +199,82 @@ jobs:
               --destination "\$web/${{matrix.environment}}/spa" \
               --source "./apps/harness-spa/dist" \
               --connection-string "${{ secrets.BLOB_STORAGE_CONNECTION_STRING }}"
+
+  deploy-home:
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: azure/cli@v2
+        with:
+          azcliversion: latest
+          inlineScript: |
+            az storage blob delete-batch \
+                --source '$web' \
+                --pattern "home/*" \
+                --connection-string "${{ secrets.BLOB_STORAGE_CONNECTION_STRING }}"
+
+            az storage blob upload-batch \
+              --destination "\$web/home" \
+              --source "./apps/home" \
+              --connection-string "${{ secrets.BLOB_STORAGE_CONNECTION_STRING }}"
+
+  deploy-auth-handover:
+    needs: [generate-matrix, build-and-test]
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    strategy:
+      matrix:
+        environment: ${{ fromJson(needs.generate-matrix.outputs.environments) }}
+
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        id: download
+        with:
+          artifact-ids: ${{needs.build-and-test.outputs.artifact-id}}
+
+      - name: Prepare auth-handover script with environment config
+        run: |
+          # Read config values for the environment
+          CONFIG_FILE="./configuration/config.${{matrix.environment}}.json"
+          COOKIE_HANDOVER_URL=$(jq -r '.COOKIE_HANDOVER_URL' "$CONFIG_FILE")
+          TOKEN_HANDOVER_URL=$(jq -r '.TOKEN_HANDOVER_URL' "$CONFIG_FILE")
+
+          # Create the output directory
+          rm -rf ./prepared-auth-handover
+          mkdir -p ./prepared-auth-handover
+
+          # Prepend the window variables to the auth-handover.js file
+          echo "window.cps_global_components_cookie_handover_url = '$COOKIE_HANDOVER_URL';" > ./prepared-auth-handover/auth-handover.js
+          echo "window.cps_global_components_token_handover_url = '$TOKEN_HANDOVER_URL';" >> ./prepared-auth-handover/auth-handover.js
+          cat "${{ steps.download.outputs.download-path }}/${{env.BUILD_ARTIFACT_NAME}}/auth-handover.js" >> ./prepared-auth-handover/auth-handover.js
+
+          # Copy the source map
+          cp "${{ steps.download.outputs.download-path }}/${{env.BUILD_ARTIFACT_NAME}}/auth-handover.js.map" ./prepared-auth-handover/
+
+          # Debug: Show the first few lines of the prepared file
+          echo "=== First 5 lines of prepared auth-handover.js ==="
+          head -n 5 ./prepared-auth-handover/auth-handover.js
+          echo "=== File info ==="
+          ls -la ./prepared-auth-handover/
+
+      - uses: azure/cli@v2
+        with:
+          azcliversion: latest
+          inlineScript: |
+            az storage blob upload-batch \
+              --destination ${{matrix.environment}} \
+              --source "./prepared-auth-handover" \
+              --connection-string "${{ secrets.BLOB_STORAGE_CONNECTION_STRING }}" \
+              --overwrite true \
+              --content-cache-control "max-age=20, stale-while-revalidate=3600, stale-if-error=3600"
 
   repo-security-scan:
     runs-on: ubuntu-latest

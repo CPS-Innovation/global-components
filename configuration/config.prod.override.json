@@ -1,0 +1,12 @@
+{
+  "ENVIRONMENT": "prod.override",
+  "APP_INSIGHTS_KEY": "e572c03c-8d38-4771-b193-962f13da1b1a",
+  "SURVEY_LINK": "https://forms.office.com/e/Cxmsq5xTWx",
+  "SHOW_BANNER": true,
+  "SHOW_MENU": false,
+  "OS_HANDOVER_URL": "https://cps.outsystemsenterprise.com/AuthHandover/auth-handover.html",
+  "COOKIE_HANDOVER_URL": "https://polaris.cps.gov.uk/polaris",
+  "TOKEN_HANDOVER_URL": "https://polaris.cps.gov.uk/auth-refresh-cms-modern-token",
+  "CONTEXTS": [],
+  "LINKS": []
+}

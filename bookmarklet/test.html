@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CPS Bookmarklet Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        h1 {
+            color: #333;
+        }
+
+        .bookmarklet-link {
+            display: inline-block;
+            background: #007bff;
+            color: white;
+            padding: 10px 20px;
+            text-decoration: none;
+            border-radius: 4px;
+            margin: 20px 0;
+        }
+
+        .bookmarklet-link:hover {
+            background: #0056b3;
+        }
+
+        .instructions {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 4px;
+            margin: 20px 0;
+        }
+
+        code {
+            background: #e9ecef;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: monospace;
+        }
+
+        .status {
+            margin-top: 20px;
+            padding: 15px;
+            background: #e7f3ff;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h1>CPS Global Components Test Override Bookmarklet</h1>
+
+        <p>This bookmarklet allows you to set or remove the localStorage value for
+            <code>cps-global-components-override</code>.
+        </p>
+
+        <a href="javascript:(function() {
+    const KEY = 'cps-global-components-override';
+    const VALUE = 'true';
+    
+    const existingDialog = document.getElementById('cps-bookmarklet-dialog');
+    if (existingDialog) {
+        existingDialog.remove();
+        return;
+    }
+    
+    const dialog = document.createElement('div');
+    dialog.id = 'cps-bookmarklet-dialog';
+    dialog.style.cssText = `
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        background: white;
+        border: 2px solid #333;
+        border-radius: 8px;
+        padding: 20px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        z-index: 999999;
+        font-family: Arial, sans-serif;
+        min-width: 300px;
+        max-height: 160px;
+    `;
+    
+    const title = document.createElement('h3');
+    title.textContent = 'CPS Global Components Test Override';
+    title.style.cssText = 'margin: 0 0 15px 0; color: #333;';
+    
+    const currentValue = localStorage.getItem(KEY);
+    const status = document.createElement('p');
+    status.style.cssText = 'margin: 0 0 15px 0; color: #666;';
+    status.textContent = currentValue ? `Current value: &quot;${currentValue}&quot;` : 'No value set';
+    
+    const buttonContainer = document.createElement('div');
+    buttonContainer.style.cssText = 'display: flex; gap: 10px; justify-content: space-between;';
+    
+    const setButton = document.createElement('button');
+    setButton.textContent = 'Set Value';
+    setButton.style.cssText = `
+        padding: 8px 16px;
+        background: #4CAF50;
+        color: white;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 14px;
+        max-height: 34px;
+    `;
+    setButton.onmouseover = function() { this.style.background = '#45a049'; };
+    setButton.onmouseout = function() { this.style.background = '#4CAF50'; };
+    setButton.onclick = function() {
+        localStorage.setItem(KEY, VALUE);
+        alert(`localStorage[&quot;${KEY}&quot;] set to &quot;${VALUE}&quot;`);
+        dialog.remove();
+    };
+    
+    const removeButton = document.createElement('button');
+    removeButton.textContent = 'Remove Value';
+    removeButton.style.cssText = `
+        padding: 8px 16px;
+        background: #f44336;
+        color: white;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 14px;
+        max-height: 34px;
+    `;
+    removeButton.onmouseover = function() { this.style.background = '#da190b'; };
+    removeButton.onmouseout = function() { this.style.background = '#f44336'; };
+    removeButton.onclick = function() {
+        localStorage.removeItem(KEY);
+        alert(`localStorage[&quot;${KEY}&quot;] removed`);
+        dialog.remove();
+    };
+    
+    const closeButton = document.createElement('button');
+    closeButton.textContent = 'Close';
+    closeButton.style.cssText = `
+        padding: 8px 16px;
+        background: #ddd;
+        color: #333;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 14px;
+        max-height: 34px;
+    `;
+    closeButton.onmouseover = function() { this.style.background = '#ccc'; };
+    closeButton.onmouseout = function() { this.style.background = '#ddd'; };
+    closeButton.onclick = function() {
+        dialog.remove();
+    };
+    
+    buttonContainer.appendChild(setButton);
+    buttonContainer.appendChild(removeButton);
+    buttonContainer.appendChild(closeButton);
+    
+    dialog.appendChild(title);
+    dialog.appendChild(status);
+    dialog.appendChild(buttonContainer);
+    
+    document.body.appendChild(dialog);
+})();" class="bookmarklet-link">CPS Global Components test override</a>
+        <div class="instructions">
+            <h2>How to use:</h2>
+            <ol>
+                <li>Drag the blue "CPS Global Components test override" button above to your bookmarks bar</li>
+                <li>Navigate to any website where you want to manage the localStorage value</li>
+                <li>Click the bookmarklet in your bookmarks bar</li>
+                <li>Use the popup to set or remove the value</li>
+            </ol>
+        </div>
+        <div class="status">
+            <h3>Current localStorage Status:</h3>
+            <p id="current-status">Checking...</p>
+            <button onclick="checkStatus()">Refresh Status</button>
+        </div>
+    </div>
+    <script>
+        function checkStatus() {
+            const KEY = 'cps-global-components-override';
+            const value = localStorage.getItem(KEY);
+            const statusEl = document.getElementById('current-status');
+            if (value) {
+                statusEl.innerHTML = `<strong>Key:</strong> ${KEY}<br><strong>Value:</strong> "${value}"`;
+            } else {
+                statusEl.innerHTML = 'No value set for this domain';
+            }
+        }
+
+        checkStatus();
+    </script>
+</body>
+
+</html>
