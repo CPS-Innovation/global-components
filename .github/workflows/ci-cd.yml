@@ -252,32 +252,18 @@ jobs:
           mkdir -p ./prepared-auth-handover
 
           # Prepend the window variables to the auth-handover.js file
-          echo "window.cps_global_components_cookie_handover_url = '$COOKIE_HANDOVER_URL';" > ./prepared-auth-handover/auth-handover.js
-          echo "window.cps_global_components_token_handover_url = '$TOKEN_HANDOVER_URL';" >> ./prepared-auth-handover/auth-handover.js
-
-          echo "window.cps_global_components_cookie_handover_url = '$COOKIE_HANDOVER_URL';" > ./prepared-auth-handover/auth-handover-debug.js
-          echo "window.cps_global_components_token_handover_url = '$TOKEN_HANDOVER_URL';" >> ./prepared-auth-handover/auth-handover-debug.js
-          echo "window.foo = 'bar';" >> ./prepared-auth-handover/auth-handover-debug.js
-          cat "${{ steps.download.outputs.download-path }}/${{env.BUILD_ARTIFACT_NAME}}/auth-handover.js" >> ./prepared-auth-handover/auth-handover-debug.js
-
-          cat "${{ steps.download.outputs.download-path }}/${{env.BUILD_ARTIFACT_NAME}}/auth-handover.js" >> ./prepared-auth-handover/auth-handover.js
-
-          # Copy the source map
-          cp "${{ steps.download.outputs.download-path }}/${{env.BUILD_ARTIFACT_NAME}}/auth-handover.js.map" ./prepared-auth-handover/
-
-          # Debug: Show the first few lines of the prepared file
-          echo "=== First 5 lines of prepared auth-handover.js ==="
-          head -n 5 ./prepared-auth-handover/auth-handover.js
-          echo "=== File info ==="
-          ls -la ./prepared-auth-handover/
+          echo "window.cps_global_components_cookie_handover_url = '$COOKIE_HANDOVER_URL';" > ./prepared-auth-handover/prepared-auth-handover.js
+          echo "window.cps_global_components_token_handover_url = '$TOKEN_HANDOVER_URL';" >> ./prepared-auth-handover/prepared-auth-handover.js
+          cat "${{ steps.download.outputs.download-path }}/${{env.BUILD_ARTIFACT_NAME}}/auth-handover.js" >> ./prepared-auth-handover/prepared-auth-handover.js
 
       - uses: azure/cli@v2
         with:
           azcliversion: latest
           inlineScript: |
-            az storage blob upload-batch \
-              --destination ${{matrix.environment}} \
-              --source "./prepared-auth-handover" \
+            az storage blob upload \
+              --container-name ${{matrix.environment}} \
+              --file "./prepared-auth-handover/prepared-auth-handover.js" \
+              --name "auth-handover.js" \
               --connection-string "${{ secrets.BLOB_STORAGE_CONNECTION_STRING }}" \
               --overwrite true \
               --content-cache-control "max-age=20, stale-while-revalidate=3600, stale-if-error=3600" \
