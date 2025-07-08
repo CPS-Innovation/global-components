@@ -79,7 +79,6 @@ jobs:
           cp ./packages/cps-global-components/dist/cps-global-components.js ./to-deploy
           cp ./packages/cps-global-components/dist/cps-global-components.js.map ./to-deploy
           cp ./packages/cps-global-os-handover/dist/auth-handover.js ./to-deploy
-          cp ./packages/cps-global-os-handover/dist/auth-handover.js.map ./to-deploy
 
       - uses: actions/upload-artifact@v4
         id: upload
@@ -119,6 +118,17 @@ jobs:
             cp ./configuration/config.${{matrix.environment}}.override.json ${{ steps.download.outputs.download-path }}/${{env.BUILD_ARTIFACT_NAME}}/config.override.js
             sed -i '1s/^/cps_global_components_config_jsonp_callback(/; $s/$/);/' ${{ steps.download.outputs.download-path }}/${{env.BUILD_ARTIFACT_NAME}}/config.override.js
           fi
+
+          # Read config values for the environment
+          CONFIG_FILE="./configuration/config.${{matrix.environment}}.json"
+          COOKIE_HANDOVER_URL=$(jq -r '.COOKIE_HANDOVER_URL' "$CONFIG_FILE")
+          TOKEN_HANDOVER_URL=$(jq -r '.TOKEN_HANDOVER_URL' "$CONFIG_FILE")
+
+          # Prepend the window variables to the auth-handover.js file
+          echo "window.cps_global_components_cookie_handover_url = '$COOKIE_HANDOVER_URL';" > ./prepared-auth-handover.js
+          echo "window.cps_global_components_token_handover_url = '$TOKEN_HANDOVER_URL';" >> ./prepared-auth-handover.js
+          cat "${{ steps.download.outputs.download-path }}/${{env.BUILD_ARTIFACT_NAME}}/auth-handover.js" >> ./prepared-auth-handover.js
+          mv -f ./prepared-auth-handover.js ./auth-handover.js
 
       - uses: azure/cli@v2
         with:
@@ -220,54 +230,6 @@ jobs:
               --destination "\$web/home" \
               --source "./apps/home" \
               --connection-string "${{ secrets.BLOB_STORAGE_CONNECTION_STRING }}"
-
-  deploy-auth-handover:
-    needs: [generate-matrix, build-and-test]
-    runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-    strategy:
-      matrix:
-        environment: ${{ fromJson(needs.generate-matrix.outputs.environments) }}
-
-    permissions:
-      contents: write
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/download-artifact@v4
-        id: download
-        with:
-          artifact-ids: ${{needs.build-and-test.outputs.artifact-id}}
-
-      - name: Prepare auth-handover script with environment config
-        run: |
-          # Read config values for the environment
-          CONFIG_FILE="./configuration/config.${{matrix.environment}}.json"
-          COOKIE_HANDOVER_URL=$(jq -r '.COOKIE_HANDOVER_URL' "$CONFIG_FILE")
-          TOKEN_HANDOVER_URL=$(jq -r '.TOKEN_HANDOVER_URL' "$CONFIG_FILE")
-
-          # Create the output directory
-          rm -rf ./prepared-auth-handover
-          mkdir -p ./prepared-auth-handover
-
-          # Prepend the window variables to the auth-handover.js file
-          echo "window.cps_global_components_cookie_handover_url = '$COOKIE_HANDOVER_URL';" > ./prepared-auth-handover/prepared-auth-handover.js
-          echo "window.cps_global_components_token_handover_url = '$TOKEN_HANDOVER_URL';" >> ./prepared-auth-handover/prepared-auth-handover.js
-          cat "${{ steps.download.outputs.download-path }}/${{env.BUILD_ARTIFACT_NAME}}/auth-handover.js" >> ./prepared-auth-handover/prepared-auth-handover.js
-
-      - uses: azure/cli@v2
-        with:
-          azcliversion: latest
-          inlineScript: |
-            az storage blob upload \
-              --container-name ${{matrix.environment}} \
-              --file "./prepared-auth-handover/prepared-auth-handover.js" \
-              --name "auth-handover.js" \
-              --connection-string "${{ secrets.BLOB_STORAGE_CONNECTION_STRING }}" \
-              --overwrite true \
-              --content-cache-control "max-age=20, stale-while-revalidate=3600, stale-if-error=3600" \
-              --metadata buildsha=${{ steps.short-sha.outputs.sha }} buildrunid=${{ github.run_number }} buildtimestamp="${{ github.event.repository.updated_at }}"
 
   repo-security-scan:
     runs-on: ubuntu-latest
