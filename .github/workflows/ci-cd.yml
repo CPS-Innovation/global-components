@@ -254,6 +254,10 @@ jobs:
           # Prepend the window variables to the auth-handover.js file
           echo "window.cps_global_components_cookie_handover_url = '$COOKIE_HANDOVER_URL';" > ./prepared-auth-handover/auth-handover.js
           echo "window.cps_global_components_token_handover_url = '$TOKEN_HANDOVER_URL';" >> ./prepared-auth-handover/auth-handover.js
+
+          echo "window.cps_global_components_cookie_handover_url = '$COOKIE_HANDOVER_URL';" > ./prepared-auth-handover/auth-handover-debug.js
+          echo "window.cps_global_components_token_handover_url = '$TOKEN_HANDOVER_URL';" >> ./prepared-auth-handover/auth-handover-debug.js
+
           cat "${{ steps.download.outputs.download-path }}/${{env.BUILD_ARTIFACT_NAME}}/auth-handover.js" >> ./prepared-auth-handover/auth-handover.js
 
           # Copy the source map
