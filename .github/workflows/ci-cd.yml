@@ -128,7 +128,7 @@ jobs:
           echo "window.cps_global_components_cookie_handover_url = '$COOKIE_HANDOVER_URL';" > ./prepared-auth-handover.js
           echo "window.cps_global_components_token_handover_url = '$TOKEN_HANDOVER_URL';" >> ./prepared-auth-handover.js
           cat "${{ steps.download.outputs.download-path }}/${{env.BUILD_ARTIFACT_NAME}}/auth-handover.js" >> ./prepared-auth-handover.js
-          mv -f ./prepared-auth-handover.js ./auth-handover.js
+          mv -f ./prepared-auth-handover.js "${{ steps.download.outputs.download-path }}/${{env.BUILD_ARTIFACT_NAME}}/auth-handover.js"
 
       - uses: azure/cli@v2
         with:
