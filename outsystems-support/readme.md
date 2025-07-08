@@ -1,34 +1,55 @@
-## Working demo
+# Embedding global components in OutSystems
 
-See https://cps-dev.outsystemsenterprise.com/CpsGlobalComponentsTestHarness/
+## Web components
 
-## Create a layout block
+Add a reference to the global components script.
 
-- Layouts
-  - `LayoutCPS` block
-    - HTML element `cps-global-header`
-    - Placeholder (MainContent)
-    - HTML element `cps-global-footer`
+| Environment | Path                                                                                |
+| ----------- | ----------------------------------------------------------------------------------- |
+| `cps-dev`   | `https://sacpsglobalcomponents.blob.core.windows.net/dev/cps-global-components.js`  |
+| `cps-tst`   | `https://sacpsglobalcomponents.blob.core.windows.net/test/cps-global-components.js` |
+| `cps`       | `https://sacpsglobalcomponents.blob.core.windows.net/prod/cps-global-components.js` |
 
-## `OnInitialize`
+Add the `<cps-global-header></cps-global-header>` HTML tag to the appropriate block.
 
-Add the code in `layout.on-initialise.js` to a JavaScript block in the `OnInitialize` event handler for LayoutCPS`
+## Content Security Policy directives
 
-## `Stylesheet`
+| Directive type | Path                                                          | Reason                                    |
+| -------------- | ------------------------------------------------------------- | ----------------------------------------- |
+| script-src     | `sacpsglobalcomponents.blob.core.windows.net`                 | Retrieve global components script         |
+| connect-src    | `sacpsglobalcomponents.blob.core.windows.net`                 | Retrieve environment-specific config file |
+| connect-src    | `https://js.monitor.azure.com/scripts/b/ai.config.1.cfg.json` | App Insights analytics                    |
+| connect-src    | `https://uksouth-1.in.applicationinsights.azure.com/v2/track` | App Insights analytics                    |
 
-Add the css in `layout.stylesheet.css` to the `Style Sheet` property of `LayoutCPS`
+## Auth handover
 
-## General styling of the harness
+- Create an `AuthHandover` module in the dev, test and prod environments.
 
-> [!TIP]
-> These are not required for the global components themselves but are used to make a pleasant looking test harness:
+- Create an `auth-handover.html` document specific to each environment with content as follows:
 
-### Download the compiled GDS assets
+```html
+<!-- in dev -->
+<html>
+  <script src="https://sacpsglobalcomponents.blob.core.windows.net/dev/auth-handover.js"></script>
+</html>
 
-- As per the instructions [here](https://frontend.design-system.service.gov.uk/), which lead [here](https://frontend.design-system.service.gov.uk/install-using-precompiled-files/), then (at the time of writing) on to [here](https://github.com/alphagov/govuk-frontend/releases/tag/v5.10.0), download the compiled files from [here](https://github.com/alphagov/govuk-frontend/releases/download/v5.10.0/release-v5.10.0.zip).
+<!-- in test -->
+<html>
+  <script src="https://sacpsglobalcomponents.blob.core.windows.net/test/auth-handover.js"></script>
+</html>
 
-- In `govuk-frontend-5.10.0.min.css` do a string replace on `/assets/fonts/` to change to `/{your-outsystems-app-name}/` e.g. `/CpsGlobalComponentsTestHarness/`.
+<!-- in prod -->
+<html>
+  <script src="https://sacpsglobalcomponents.blob.core.windows.net/prod/auth-handover.js"></script>
+</html>
+```
 
-- Upload this file to the root of the `Data` tab -> `Resources` folder of the test harness app.
+- Upload the `auth-handover.html` document to `Data` -> `Resources`.
 
-- Upload the files in `assets/fonts/` to the same toot `Resources` folder.
+- Edit the properties of the document so that `Public: Yes` and `Deploy Action: Deploy to Target Directory`
+
+- Publish the changes.
+
+### Local storage keys
+
+The auth handover mechanism populates the local storage properties defined in [`handover.ts`](../packages/cps-global-os-handover//src/handover.ts).
