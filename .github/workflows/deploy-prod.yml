@@ -1,0 +1,22 @@
+name: Deploy to Production
+
+on:
+  workflow_dispatch:
+    inputs:
+      run_number:
+        description: 'Build run number to deploy'
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  deploy-prod:
+    uses: ./.github/workflows/deploy-environment.yml
+    with:
+      environment: prod
+      artifact-name: build-artifact
+      run-id: ${{ inputs.run_number }}
+    secrets:
+      BLOB_STORAGE_CONNECTION_STRING: ${{ secrets.BLOB_STORAGE_CONNECTION_STRING }}

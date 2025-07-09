@@ -1,0 +1,154 @@
+name: Deploy to Environment
+
+on:
+  workflow_call:
+    inputs:
+      environment:
+        required: true
+        type: string
+      artifact-name:
+        required: true
+        type: string
+      artifact-id:
+        required: false
+        type: string
+      run-id:
+        required: false
+        type: string
+    secrets:
+      BLOB_STORAGE_CONNECTION_STRING:
+        required: true
+
+jobs:
+  deploy-scripts-and-config:
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment == 'prod' && 'production' || inputs.environment }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: benjlevesque/short-sha@v3.0
+        id: short-sha
+
+      - name: Download artifact from current workflow
+        if: ${{ inputs.artifact-id != '' }}
+        uses: actions/download-artifact@v4
+        id: download-current
+        with:
+          artifact-ids: ${{ inputs.artifact-id }}
+
+      - name: Download artifact from specific run
+        if: ${{ inputs.run-id != '' }}
+        uses: actions/download-artifact@v4
+        id: download-specific
+        with:
+          name: ${{ inputs.artifact-name }}
+          run-id: ${{ inputs.run-id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set download path
+        id: set-path
+        run: |
+          if [ "${{ inputs.artifact-id }}" != "" ]; then
+            echo "path=${{ steps.download-current.outputs.download-path }}" >> $GITHUB_OUTPUT
+          else
+            echo "path=." >> $GITHUB_OUTPUT
+          fi
+
+      - run: |
+          DOWNLOAD_PATH="${{ steps.set-path.outputs.path }}"
+          cp ./configuration/config.${{ inputs.environment }}.json $DOWNLOAD_PATH/${{ inputs.artifact-name }}/config.json
+          if [ -f "./configuration/config.${{ inputs.environment }}.override.json" ]; then
+            cp ./configuration/config.${{ inputs.environment }}.override.json $DOWNLOAD_PATH/${{ inputs.artifact-name }}/config.override.json
+
+            cp ./configuration/config.${{ inputs.environment }}.override.json $DOWNLOAD_PATH/${{ inputs.artifact-name }}/config.override.js
+            sed -i '1s/^/cps_global_components_config_jsonp_callback(/; $s/$/);/' $DOWNLOAD_PATH/${{ inputs.artifact-name }}/config.override.js
+          fi
+
+          # Read config values for the environment
+          CONFIG_FILE="./configuration/config.${{ inputs.environment }}.json"
+          COOKIE_HANDOVER_URL=$(jq -r '.COOKIE_HANDOVER_URL' "$CONFIG_FILE")
+          TOKEN_HANDOVER_URL=$(jq -r '.TOKEN_HANDOVER_URL' "$CONFIG_FILE")
+
+          # Prepend the window variables to the auth-handover.js file
+          echo "window.cps_global_components_cookie_handover_url = '$COOKIE_HANDOVER_URL';" > ./prepared-auth-handover.js
+          echo "window.cps_global_components_token_handover_url = '$TOKEN_HANDOVER_URL';" >> ./prepared-auth-handover.js
+          cat "$DOWNLOAD_PATH/${{ inputs.artifact-name }}/auth-handover.js" >> ./prepared-auth-handover.js
+          mv -f ./prepared-auth-handover.js "$DOWNLOAD_PATH/${{ inputs.artifact-name }}/auth-handover.js"
+
+      - uses: azure/cli@v2
+        with:
+          azcliversion: latest
+          inlineScript: |
+            DOWNLOAD_PATH="${{ steps.set-path.outputs.path }}"
+            
+            az storage container create \
+              --name ${{ inputs.environment }} \
+              --public-access container \
+              --connection-string "${{ secrets.BLOB_STORAGE_CONNECTION_STRING }}"
+
+            az storage blob upload-batch \
+              --destination ${{ inputs.environment }} \
+              --source "$DOWNLOAD_PATH/${{ inputs.artifact-name }}" \
+              --connection-string "${{ secrets.BLOB_STORAGE_CONNECTION_STRING }}" \
+              --overwrite true \
+              --content-cache-control "max-age=20, stale-while-revalidate=3600, stale-if-error=3600" \
+              --metadata buildsha=${{ steps.short-sha.outputs.sha }} buildrunid=${{ github.run_number }} buildtimestamp="${{ github.event.repository.updated_at }}"
+
+  deploy-harnesses:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - run: |
+          # Extract our account name from the connection string
+          ACCOUNT_NAME=$(echo "${{ secrets.BLOB_STORAGE_CONNECTION_STRING }}" | grep -oP 'AccountName=\K[^;]+')
+
+          # Both harnesses look to env variables for the location of the global script
+          GLOBAL_SCRIPT_URL="https://$ACCOUNT_NAME.blob.core.windows.net/${{ inputs.environment }}/cps-global-components.js"
+          echo "GLOBAL_SCRIPT_URL=$GLOBAL_SCRIPT_URL" >> $GITHUB_ENV
+          echo "VITE_GLOBAL_SCRIPT_URL=$GLOBAL_SCRIPT_URL" >> $GITHUB_ENV
+
+          # The static harness also needs a BASE_PATH for hyperlinks to be consistent
+          echo "BASE_PATH=/${{ inputs.environment }}/static" >> $GITHUB_ENV
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: latest
+          run_install: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: ".nvmrc"
+          cache: "pnpm"
+
+      - run: pnpm install
+        env:
+          CI: true
+
+      - run: pnpm --recursive build
+
+      - uses: azure/cli@v2
+        with:
+          azcliversion: latest
+          inlineScript: |
+            az storage blob delete-batch \
+                --source '$web' \
+                --pattern "${{ inputs.environment }}/static/*" \
+                --connection-string "${{ secrets.BLOB_STORAGE_CONNECTION_STRING }}"
+
+            az storage blob upload-batch \
+              --destination "\$web/${{ inputs.environment }}/static" \
+              --source "./apps/harness-html/_site" \
+              --connection-string "${{ secrets.BLOB_STORAGE_CONNECTION_STRING }}"
+
+            az storage blob delete-batch \
+                --source '$web' \
+                --pattern "${{ inputs.environment }}/spa/*" \
+                --connection-string "${{ secrets.BLOB_STORAGE_CONNECTION_STRING }}"
+
+            az storage blob upload-batch \
+              --destination "\$web/${{ inputs.environment }}/spa" \
+              --source "./apps/harness-spa/dist" \
+              --connection-string "${{ secrets.BLOB_STORAGE_CONNECTION_STRING }}"
