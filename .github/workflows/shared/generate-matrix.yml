@@ -1,0 +1,25 @@
+name: Generate Environment Matrix
+
+on:
+  workflow_call:
+    outputs:
+      environments:
+        description: "JSON array of environment names"
+        value: ${{ jobs.generate-matrix.outputs.environments }}
+
+jobs:
+  generate-matrix:
+    runs-on: ubuntu-latest
+
+    outputs:
+      environments: ${{ steps.set-environments.outputs.environments }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: List files and create JSON matrix
+        id: set-environments
+        run: |
+          files=$(ls ./configuration | grep 'config\.[^\\.]*\.json' | jq -R . | jq -s -c . |  jq 'map(capture("config\\.(?<environment>[A-Za-z0-9_-]+)\\.json") | .environment)' | jq -c .)
+          echo "Files found: $files"
+          echo "environments=$files" >> "$GITHUB_OUTPUT"
