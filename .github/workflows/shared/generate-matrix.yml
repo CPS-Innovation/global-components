@@ -1,0 +1,41 @@
+name: Generate Environment Matrix
+
+on:
+  workflow_call:
+    outputs:
+      environments:
+        description: "JSON array of environment names"
+        value: ${{ jobs.generate-matrix.outputs.environments }}
+
+jobs:
+  generate-matrix:
+    runs-on: ubuntu-latest
+
+    outputs:
+      environments: ${{ steps.set-environments.outputs.environments }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: List files and create JSON matrix
+        id: set-environments
+        run: |
+          # Get all environment names from config files
+          all_envs=$(ls ./configuration | grep 'config\.[^\\.]*\.json' | jq -R . | jq -s -c . |  jq 'map(capture("config\\.(?<environment>[A-Za-z0-9_-]+)\\.json") | .environment)' | jq -c .)
+          
+          # Check if commit message (title + body) or PR title contains [prod]
+          COMMIT_MESSAGE="${{ github.event.head_commit.message }}"
+          PR_TITLE="${{ github.event.pull_request.title }}"
+          
+          if [[ "$COMMIT_MESSAGE" == *"[prod]"* ]] || [[ "$PR_TITLE" == *"[prod]"* ]]; then
+            echo "Found [prod] flag, including prod environment"
+            echo "Commit message: $COMMIT_MESSAGE"
+            echo "PR title: $PR_TITLE"
+            files=$all_envs
+          else
+            echo "No [prod] flag found, excluding prod environment"
+            files=$(echo $all_envs | jq 'map(select(. != "prod"))' | jq -c .)
+          fi
+          
+          echo "Environments: $files"
+          echo "environments=$files" >> "$GITHUB_OUTPUT"

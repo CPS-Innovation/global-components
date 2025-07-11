@@ -1,0 +1,23 @@
+name: Ad-hoc Release to Unstable
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-and-test:
+    uses: ./.github/workflows/shared/build-and-test.yml
+    with:
+      branch: ${{ github.ref_name }}
+
+  deploy-script:
+    needs: build-and-test
+    uses: ./.github/workflows/shared/deploy-script.yml
+    with:
+      environment: unstable
+      artifact-id: ${{ needs.build-and-test.outputs.artifact-id }}
+      branch: ${{ github.ref_name }}
+    secrets:
+      BLOB_STORAGE_CONNECTION_STRING: ${{ secrets.BLOB_STORAGE_CONNECTION_STRING }}
