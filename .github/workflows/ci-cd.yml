@@ -15,10 +15,10 @@ env:
 jobs:
   generate-matrix:
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-    uses: ./.github/workflows/shared/generate-matrix.yml
+    uses: ./.github/workflows/sub-workflow-generate-matrix.yml
 
   build-and-test:
-    uses: ./.github/workflows/shared/build-and-test.yml
+    uses: ./.github/workflows/sub-workflow-build-and-test.yml
 
   deploy-script:
     needs: [generate-matrix, build-and-test]
@@ -26,7 +26,7 @@ jobs:
     strategy:
       matrix:
         environment: ${{ fromJson(needs.generate-matrix.outputs.environments) }}
-    uses: ./.github/workflows/shared/deploy-script.yml
+    uses: ./.github/workflows/sub-workflow-deploy-script.yml
     with:
       environment: ${{ matrix.environment }}
       artifact-id: ${{ needs.build-and-test.outputs.artifact-id }}
@@ -39,7 +39,7 @@ jobs:
     strategy:
       matrix:
         environment: ${{ fromJson(needs.generate-matrix.outputs.environments) }}
-    uses: ./.github/workflows/shared/deploy-harnesses.yml
+    uses: ./.github/workflows/sub-workflow-deploy-harnesses.yml
     with:
       environment: ${{ matrix.environment }}
     secrets:
@@ -47,13 +47,13 @@ jobs:
 
   deploy-home:
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-    uses: ./.github/workflows/shared/deploy-home.yml
+    uses: ./.github/workflows/sub-workflow-deploy-home.yml
     secrets:
       BLOB_STORAGE_CONNECTION_STRING: ${{ secrets.BLOB_STORAGE_CONNECTION_STRING }}
 
   repo-security-scan:
     if: github.event_name == 'pull_request'
-    uses: ./.github/workflows/shared/repo-security-scan.yml
+    uses: ./.github/workflows/sub-workflow-repo-security-scan.yml
 
   org-security-scan:
     if: github.event_name == 'pull_request'
