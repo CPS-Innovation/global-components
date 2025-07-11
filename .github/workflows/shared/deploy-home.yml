@@ -1,0 +1,28 @@
+name: Deploy Home
+
+on:
+  workflow_call:
+    secrets:
+      BLOB_STORAGE_CONNECTION_STRING:
+        required: true
+
+jobs:
+  deploy-home:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: azure/cli@v2
+        with:
+          azcliversion: latest
+          inlineScript: |
+            az storage blob delete-batch \
+                --source '$web' \
+                --pattern "home/*" \
+                --connection-string "${{ secrets.BLOB_STORAGE_CONNECTION_STRING }}"
+
+            az storage blob upload-batch \
+              --destination "\$web/home" \
+              --source "./apps/home" \
+              --connection-string "${{ secrets.BLOB_STORAGE_CONNECTION_STRING }}"
