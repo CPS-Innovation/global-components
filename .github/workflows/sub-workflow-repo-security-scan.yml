@@ -3,6 +3,9 @@ name: Repository Security Scan
 on:
   workflow_call:
 
+permissions:
+  contents: read
+
 jobs:
   repo-security-scan:
     runs-on: ubuntu-latest
