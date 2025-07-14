@@ -1,3 +1,5 @@
+import { areAllCookieStringsEqual } from "./are-all-cookie-strings-equal";
+
 const paramKeys = {
   STAGE: "stage",
   COOKIES: "cc",
@@ -87,9 +89,22 @@ export const handleRedirect = ({
       return nextUrl.toString();
     }
     case stages.OS_COOKIE_RETURN: {
-      setParams(url, { [paramKeys.STAGE]: stages.OS_TOKEN_RETURN });
       const [cookies] = stripParams(url, paramKeys.COOKIES);
 
+      const canGoStraightToTarget = areAllCookieStringsEqual(
+        cookies,
+        localStorage[localStorageKeys.WMA_COOKIES],
+        localStorage[localStorageKeys.CASE_REVIEW_COOKIES]
+      );
+
+      if (canGoStraightToTarget) {
+        // The cookies we have in storage are the same as the ones we have been just given
+        //  which means that our values as currently stored are still valid
+        const [target] = stripParams(url, paramKeys.R);
+        return target;
+      }
+
+      setParams(url, { [paramKeys.STAGE]: stages.OS_TOKEN_RETURN });
       const nextUrl = createUrl(tokenHandoverUrl, {
         [paramKeys.R]: url.toString(),
         [paramKeys.COOKIES]: cookies!,
@@ -105,7 +120,6 @@ export const handleRedirect = ({
         paramKeys.TOKEN
       );
 
-      console.log({ target, cookies, token });
       storeAuth(cookies, token);
 
       return target;

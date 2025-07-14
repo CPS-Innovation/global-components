@@ -29,6 +29,10 @@
       "contexts": "case review"
     },
     {
+      "paths": ["https://cps-dev.outsystemsenterprise.com/CaseReview/"],
+      "contexts": "cases"
+    },
+    {
       "paths": [
         "https://cps-dev.outsystemsenterprise.com/WorkManagementApp/CaseOverview\\?CaseId=(?<caseId>\\d+)&URN=(?<urn>[^&]+)"
       ],
