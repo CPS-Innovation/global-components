@@ -1,0 +1,15 @@
+name: Ad-hoc Release to Unstable
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  deploy-to-unstable:
+    uses: ./.github/workflows/sub-workflow-core-deploy.yml
+    with:
+      environments: '["unstable"]'
+    secrets:
+      BLOB_STORAGE_CONNECTION_STRING: ${{ secrets.BLOB_STORAGE_CONNECTION_STRING }}
