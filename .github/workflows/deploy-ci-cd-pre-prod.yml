@@ -1,4 +1,4 @@
-name: CI-CD Main Branch Deployment
+name: "Internal: ci-cd deploy all pre-prod environments"
 
 on:
   push:

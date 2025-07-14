@@ -1,4 +1,4 @@
-name: Core Deploy Workflow
+name: "Internal: sub-workflow: deploy environment"
 
 on:
   workflow_call:
