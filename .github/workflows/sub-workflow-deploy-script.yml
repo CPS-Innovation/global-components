@@ -1,4 +1,4 @@
-name: Reusable Deploy Script
+name: "Internal: sub-workflow: deploy components and auth handover scripts for environment"
 
 on:
   workflow_call:
@@ -12,7 +12,7 @@ on:
       branch:
         required: false
         type: string
-        default: ''
+        default: ""
     secrets:
       BLOB_STORAGE_CONNECTION_STRING:
         required: true
