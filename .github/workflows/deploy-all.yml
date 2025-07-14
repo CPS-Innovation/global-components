@@ -1,4 +1,4 @@
-name: Manual Deploy to All Environments (including Production)
+name: "Deploy: all environments including prod"
 
 on:
   workflow_dispatch:

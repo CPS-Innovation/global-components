@@ -1,4 +1,4 @@
-name: Deploy Home
+name: "Internal: sub-workflow: deploy home"
 
 on:
   workflow_call:

@@ -1,4 +1,4 @@
-name: Repository Security Scan
+name: "Internal: security scan"
 
 on:
   workflow_call:

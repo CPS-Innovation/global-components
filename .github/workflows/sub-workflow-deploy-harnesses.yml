@@ -1,4 +1,4 @@
-name: Deploy Harnesses
+name: "Internal: sub-workflow: deploy harness for environment"
 
 on:
   workflow_call:

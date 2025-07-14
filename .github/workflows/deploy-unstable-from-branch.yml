@@ -1,4 +1,4 @@
-name: Ad-hoc Release to Unstable
+name: "Deploy: any branch to unstable environment"
 
 on:
   workflow_dispatch:
