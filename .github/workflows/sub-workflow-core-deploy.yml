@@ -1,0 +1,45 @@
+name: Core Deploy Workflow
+
+on:
+  workflow_call:
+    inputs:
+      environments:
+        description: "JSON array of environment names to deploy to"
+        type: string
+        required: true
+    secrets:
+      BLOB_STORAGE_CONNECTION_STRING:
+        required: true
+
+jobs:
+  build-and-test:
+    uses: ./.github/workflows/sub-workflow-build-and-test.yml
+
+  deploy-script:
+    needs: [build-and-test]
+    strategy:
+      matrix:
+        environment: ${{ fromJson(inputs.environments) }}
+    uses: ./.github/workflows/sub-workflow-deploy-script.yml
+    with:
+      environment: ${{ matrix.environment }}
+      artifact-id: ${{ needs.build-and-test.outputs.artifact-id }}
+    secrets:
+      BLOB_STORAGE_CONNECTION_STRING: ${{ secrets.BLOB_STORAGE_CONNECTION_STRING }}
+
+  deploy-harnesses:
+    needs: [build-and-test]
+    strategy:
+      matrix:
+        environment: ${{ fromJson(inputs.environments) }}
+    uses: ./.github/workflows/sub-workflow-deploy-harnesses.yml
+    with:
+      environment: ${{ matrix.environment }}
+    secrets:
+      BLOB_STORAGE_CONNECTION_STRING: ${{ secrets.BLOB_STORAGE_CONNECTION_STRING }}
+
+  deploy-home:
+    needs: [build-and-test]
+    uses: ./.github/workflows/sub-workflow-deploy-home.yml
+    secrets:
+      BLOB_STORAGE_CONNECTION_STRING: ${{ secrets.BLOB_STORAGE_CONNECTION_STRING }}
