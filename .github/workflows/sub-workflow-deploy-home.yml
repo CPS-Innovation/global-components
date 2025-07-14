@@ -6,6 +6,9 @@ on:
       BLOB_STORAGE_CONNECTION_STRING:
         required: true
 
+permissions:
+  contents: read
+
 jobs:
   deploy-home:
     runs-on: ubuntu-latest

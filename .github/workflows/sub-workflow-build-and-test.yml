@@ -15,6 +15,9 @@ on:
         description: "The short SHA of the commit"
         value: ${{ jobs.build-and-test.outputs.sha }}
 
+permissions:
+  contents: read
+
 env:
   BUILD_ARTIFACT_NAME: build-artifact
 
