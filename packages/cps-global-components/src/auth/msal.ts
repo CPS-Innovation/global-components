@@ -14,6 +14,11 @@ export const msal = async (tenantId: string, clientId: string) => {
 
     await instance.initialize();
 
+    const response = await instance.ssoSilent({
+      scopes: ["User.Read"],
+    });
+    console.log(response);
+
     const accounts = instance.getAllAccounts();
     console.log(accounts);
     if (accounts.length > 0) {
