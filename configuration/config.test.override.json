@@ -1,5 +1,7 @@
 {
   "ENVIRONMENT": "test.override",
+  "AD_TENANT_ID": "00dd0d1d-d7e6-4338-ac51-565339c7088c",
+  "AD_CLIENT_ID": "8d6133af-9593-47c6-94d0-5c65e9e310f1",
   "APP_INSIGHTS_KEY": "e572c03c-8d38-4771-b193-962f13da1b1a",
   "SURVEY_LINK": "https://forms.office.com/e/Cxmsq5xTWx",
   "SHOW_BANNER": true,

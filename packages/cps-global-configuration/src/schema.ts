@@ -50,6 +50,8 @@ const ContextSchema: z.ZodType<Context> = z.lazy(() =>
 
 export const ConfigSchema = z.object({
   ENVIRONMENT: z.string(),
+  AD_TENANT_ID: z.string().optional(),
+  AD_CLIENT_ID: z.string().optional(),
   APP_INSIGHTS_KEY: z.string().optional(),
   SURVEY_LINK: z.string().optional(),
   SHOW_BANNER: z.boolean().optional(),
