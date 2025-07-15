@@ -9,6 +9,9 @@ export const msal = async (tenantId: string, clientId: string) => {
         redirectUri: "https://sacpsglobalcomponents.z33.web.core.windows.net/home",
         postLogoutRedirectUri: "/",
       },
+      cache: {
+        cacheLocation: "sessionStorage",
+      },
     });
 
     await instance.initialize();
