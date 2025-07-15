@@ -6,7 +6,7 @@ export const msal = async (tenantId: string, clientId: string) => {
       auth: {
         clientId,
         authority: `https://login.microsoftonline.com/${tenantId}`,
-        redirectUri: "https://sacpsglobalcomponents.z33.web.core.windows.net/home/",
+        redirectUri: "https://sacpsglobalcomponents.blob.core.windows.net/dev/empty.html",
       },
       cache: {
         cacheLocation: "sessionStorage",
