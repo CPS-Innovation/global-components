@@ -51,7 +51,7 @@ export class CpsGlobalMenu {
             {level1Links?.map(link => (
               <nav-link {...link}></nav-link>
             ))}
-            {SURVEY_LINK && <nav-link class="survey-link" label="Give feedback" href={SURVEY_LINK}></nav-link>}
+            {SURVEY_LINK && <nav-link openInNewTab class="survey-link" label="Give feedback" href={SURVEY_LINK}></nav-link>}
           </ul>
         </nav>
 
