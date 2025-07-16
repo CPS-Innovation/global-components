@@ -26,14 +26,14 @@ export const trySetupOutSystemsShim = (window: Window) => {
     (cpsHeader as HTMLElement).style.cssText = "top: -50px; position: relative;";
     mainDiv.insertBefore(cpsHeader as HTMLElement, mainDiv.firstChild);
     console.log('[Header Hider Extension] cps-global-header component added to div[role="main"]');
-    
+
     // Check all ancestors and remove position: sticky
     let ancestor = cpsHeader.parentElement;
     while (ancestor) {
       const computedStyle = window.getComputedStyle(ancestor);
-      if (computedStyle.position === 'sticky') {
-        ancestor.style.position = 'static';
-        console.log('[Header Hider Extension] Removed position: sticky from ancestor element', ancestor);
+      if (computedStyle.position === "sticky") {
+        ancestor.style.position = "relative";
+        console.log("[Header Hider Extension] Removed position: sticky from ancestor element", ancestor);
       }
       ancestor = ancestor.parentElement;
     }
