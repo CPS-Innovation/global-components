@@ -5,21 +5,30 @@ $level-height: 3rem;
   display: block;
 }
 
-a.govuk-link {
-  color: $govuk-brand-colour;
-  @include govuk-font($size: 19);
-  text-decoration: none;
+@mixin link-colours {
+  color: $govuk-error-colour;
+
+  &:hover,
+  &:visited:hover {
+    color: $govuk-link-hover-colour;
+  }
+
+  &:focus,
+  &:visited:focus {
+    color: $govuk-link-active-colour;
+  }
 
   &:visited {
     color: $govuk-brand-colour;
   }
 
-  &:hover,
-  &:focus,
-  &:hover:visited,
-  &:focus:visited {
-    color: $govuk-link-active-colour;
-  }
+  display: none;
+}
+
+a.govuk-link {
+  @include link-colours();
+  @include govuk-font($size: 19);
+  text-decoration: none;
 }
 
 @mixin horizontal-list {
@@ -36,15 +45,9 @@ a.govuk-link {
 }
 
 @mixin border-bottom-active-link {
-  li.selected:not(:has(:focus)):before {
-    background-color: #1d70b8;
-    content: "";
-    display: block;
-    height: 3px;
-    position: absolute;
-    bottom: 0;
-    left: 0;
-    width: 100%;
+  li.selected a,
+  li.selected button {
+    border-bottom: 3px solid $govuk-link-colour;
   }
 }
 
@@ -53,7 +56,7 @@ a.govuk-link {
   ul {
     @include horizontal-list();
     @include border-bottom-active-link();
-    //margin-left: -1 * $level-height / 5;
+    margin-left: -1 * $level-height / 5;
 
     nav-link {
       align-self: stretch;
@@ -63,13 +66,14 @@ a.govuk-link {
 
         a {
           display: inline-block;
-          padding: $level-height / 5;
+          padding: ($level-height / 5 + 0.05) 0;
+          margin: 0 $level-height / 5;
         }
 
         button {
           display: inline-block;
-          padding: $level-height / 5;
-          margin: 0;
+          padding: ($level-height / 5 + 0.05) 0;
+          margin: 0 $level-height / 5;
         }
       }
     }
@@ -101,12 +105,13 @@ a.govuk-link {
 }
 
 a.disabled {
-  color: #b1b4b6;
+  color: $govuk-border-colour;
   pointer-events: none;
   cursor: default;
 }
 
 .linkButton {
+  @include link-colours();
   margin: 0.125rem;
   display: inline;
   background: transparent;
@@ -114,7 +119,7 @@ a.disabled {
   cursor: pointer;
   font-size: 1.187rem;
   width: fit-content;
-  color: #1d70b8;
+  color: $govuk-link-colour;
   @include govuk-font($size: 19);
   padding: 0;
   &:focus {
@@ -122,8 +127,8 @@ a.disabled {
     box-shadow: 0 -2px $govuk-focus-colour, 0 4px $govuk-text-colour;
     outline: 0.1875rem solid transparent;
   }
-  &:focus,
-  &:hover {
-    color: $govuk-link-active-colour;
-  }
+  // &:focus,
+  // &:hover {
+  //   color: $govuk-link-active-colour;
+  // }
 }
