@@ -8,9 +8,9 @@ export const trySetupOutSystemsShim = (window: Window) => {
   console.log("Running mutation observer");
 
   // Hide headers
-  const headers = document.querySelectorAll("header:not(cps-global-header header)");
+  const headers = document.querySelectorAll("header:not(cps-global-header header):not([class*='tabs'])");
   headers.forEach((header: HTMLElement) => {
-    if (!header.closest("cps-global-header")) {
+    if (!header.closest("cps-global-header") && header.style.display !== "none") {
       header.style.display = "none";
     }
   });
