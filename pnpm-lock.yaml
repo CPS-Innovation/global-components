@@ -136,7 +136,7 @@ importers:
     dependencies:
       '@azure/msal-browser':
         specifier: ^4.0.0
-        version: 4.15.0
+        version: 4.16.0
       '@dotenvx/dotenvx':
         specifier: ^1.41.0
         version: 1.47.6
@@ -347,12 +347,12 @@ packages:
   '@asamuzakjp/css-color@3.2.0':
     resolution: {integrity: sha512-K1A6z8tS3XsmCMM86xoWdn7Fkdn9m6RSVtocUrJYIwZnFVkng/PvkEoWtOWmP+Scc6saYWHWZYbndEEXxl24jw==}
 
-  '@azure/msal-browser@4.15.0':
-    resolution: {integrity: sha512-+AIGTvpVz+FIx5CsM1y+nW0r/qOb/ChRdM8/Cbp+jKWC0Wdw4ldnwPdYOBi5NaALUQnYITirD9XMZX7LdklEzQ==}
+  '@azure/msal-browser@4.16.0':
+    resolution: {integrity: sha512-yF8gqyq7tVnYftnrWaNaxWpqhGQXoXpDfwBtL7UCGlIbDMQ1PUJF/T2xCL6NyDNHoO70qp1xU8GjjYTyNIefkw==}
     engines: {node: '>=0.8.0'}
 
-  '@azure/msal-common@15.8.1':
-    resolution: {integrity: sha512-ltIlFK5VxeJ5BurE25OsJIfcx1Q3H/IZg2LjV9d4vmH+5t4c1UCyRQ/HgKLgXuCZShs7qfc/TC95GYZfsUsJUQ==}
+  '@azure/msal-common@15.9.0':
+    resolution: {integrity: sha512-lbz/D+C9ixUG3hiZzBLjU79a0+5ZXCorjel3mwXluisKNH0/rOS/ajm8yi4yI9RP5Uc70CAcs9Ipd0051Oh/kA==}
     engines: {node: '>=0.8.0'}
 
   '@babel/code-frame@7.27.1':
@@ -4744,11 +4744,11 @@ snapshots:
       '@csstools/css-tokenizer': 3.0.4
       lru-cache: 10.4.3
 
-  '@azure/msal-browser@4.15.0':
+  '@azure/msal-browser@4.16.0':
     dependencies:
-      '@azure/msal-common': 15.8.1
+      '@azure/msal-common': 15.9.0
 
-  '@azure/msal-common@15.8.1': {}
+  '@azure/msal-common@15.9.0': {}
 
   '@babel/code-frame@7.27.1':
     dependencies:
