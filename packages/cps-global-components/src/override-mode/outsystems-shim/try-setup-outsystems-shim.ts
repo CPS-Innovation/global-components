@@ -2,41 +2,15 @@ import { isOutSystemsApp } from "../../helpers/is-outsystems-app";
 
 export const trySetupOutSystemsShim = (window: Window) => {
   if (!isOutSystemsApp(window.location.href)) {
-    return null;
+    return;
   }
 
   console.log("Running mutation observer");
 
-  // Copy existing localStorage values
-  const copyLocalStorageValue = (sourceKey: string, targetKey: string) => {
-    const value = localStorage.getItem(sourceKey);
-    if (value !== null) {
-      localStorage.setItem(targetKey, value);
-    }
-  };
-
-  const fromKey1 = "$OS_Users$WorkManagementApp$ClientVars$Cookies";
-  const toKey1 = "$OS_Users$CaseReview$ClientVars$Cookies";
-
-  const fromKey2 = "$OS_Users$WorkManagementApp$ClientVars$JSONString";
-  const toKey2 = "$OS_Users$CaseReview$ClientVars$CmsAuthValues";
-
-  // Initial copy of existing values
-  copyLocalStorageValue(fromKey1, toKey1);
-  copyLocalStorageValue(fromKey2, toKey2);
-
-  // Listen for storage changes to copy new or updated values
-  window.addEventListener("storage", e => {
-    if (e.key === fromKey1 && e.newValue !== null) {
-      localStorage.setItem(toKey1, e.newValue);
-    } else if (e.key === fromKey2 && e.newValue !== null) {
-      localStorage.setItem(toKey2, e.newValue);
-    }
-  });
   // Hide headers
-  const headers = document.querySelectorAll("header:not(cps-global-header header)");
+  const headers = document.querySelectorAll("header:not(cps-global-header header):not([class*='tabs'])");
   headers.forEach((header: HTMLElement) => {
-    if (!header.closest("cps-global-header")) {
+    if (!header.closest("cps-global-header") && header.style.display !== "none") {
       header.style.display = "none";
     }
   });
@@ -47,13 +21,28 @@ export const trySetupOutSystemsShim = (window: Window) => {
     blueLine.style.display = "none";
   }
 
-  // Insert cps-global-header at the beginning of the first div with role="main"
-  const mainDiv = document.querySelector('div[role="main"]');
-  if (mainDiv && !document.querySelector("cps-global-header")) {
+  const insertHeader = () => {
     const cpsHeader: HTMLCpsGlobalHeaderElement = document.createElement("cps-global-header");
     (cpsHeader as HTMLElement).style.cssText = "top: -50px; position: relative;";
     mainDiv.insertBefore(cpsHeader as HTMLElement, mainDiv.firstChild);
     console.log('[Header Hider Extension] cps-global-header component added to div[role="main"]');
+
+    // Check all ancestors and remove position: sticky
+    let ancestor = cpsHeader.parentElement;
+    while (ancestor) {
+      const computedStyle = window.getComputedStyle(ancestor);
+      if (computedStyle.position === "sticky") {
+        ancestor.style.position = "relative";
+        console.log("[Header Hider Extension] Removed position: sticky from ancestor element", ancestor);
+      }
+      ancestor = ancestor.parentElement;
+    }
+  };
+
+  // Insert cps-global-header at the beginning of the first div with role="main"
+  const mainDiv = document.querySelector('div[role="main"]');
+  if (mainDiv && !document.querySelector("cps-global-header")) {
+    insertHeader();
   }
 
   const observer = new MutationObserver(function (mutations) {
@@ -98,10 +87,7 @@ export const trySetupOutSystemsShim = (window: Window) => {
         if (!existingCpsHeader) {
           const mainDiv = document.querySelector('div[role="main"]');
           if (mainDiv) {
-            const cpsHeader = document.createElement("cps-global-header");
-            (cpsHeader as HTMLElement).style.cssText = "top: -50px; position: relative;";
-            mainDiv.insertBefore(cpsHeader as HTMLElement, mainDiv.firstChild);
-            console.log('[Header Hider Extension] cps-global-header component RE-INSERTED to div[role="main"] after being removed');
+            insertHeader();
           }
         }
       }
