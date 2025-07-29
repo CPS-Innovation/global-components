@@ -1,0 +1,134 @@
+@import "../common/common.scss";
+$level-height: 3rem;
+
+:host {
+  display: block;
+}
+
+@mixin link-colours {
+  color: $govuk-error-colour;
+
+  &:hover,
+  &:visited:hover {
+    color: $govuk-link-hover-colour;
+  }
+
+  &:focus,
+  &:visited:focus {
+    color: $govuk-link-active-colour;
+  }
+
+  &:visited {
+    color: $govuk-brand-colour;
+  }
+
+  display: none;
+}
+
+a.govuk-link {
+  @include link-colours();
+  @include govuk-font($size: 19);
+  text-decoration: none;
+}
+
+@mixin horizontal-list {
+  list-style-type: none;
+  margin: 0;
+  padding: 0;
+  height: $level-height;
+  display: flex;
+  align-items: center;
+  & > li {
+    float: left;
+    box-sizing: border-box;
+  }
+}
+
+@mixin border-bottom-active-link {
+  li.selected a,
+  li.selected button {
+    border-bottom: 3px solid $govuk-link-colour;
+  }
+}
+
+.level {
+  height: $level-height;
+  ul {
+    @include horizontal-list();
+    @include border-bottom-active-link();
+    margin-left: -1 * $level-height / 5;
+
+    nav-link {
+      align-self: stretch;
+
+      li {
+        height: 100%;
+
+        a {
+          display: inline-block;
+          padding: ($level-height / 5 + 0.05) 0;
+          margin: 0 $level-height / 5;
+        }
+
+        button {
+          display: inline-block;
+          padding: ($level-height / 5 + 0.05) 0;
+          margin: 0 $level-height / 5;
+        }
+      }
+    }
+    .selected {
+      position: relative;
+    }
+  }
+}
+
+.level-1 {
+  nav-link.survey-link {
+    margin-left: auto;
+    margin-right: 0;
+  }
+
+  a,
+  button {
+    font-weight: bold;
+  }
+}
+
+.level-2 {
+  .selected {
+    a,
+    button {
+      font-weight: bold;
+    }
+  }
+}
+
+a.disabled {
+  color: $govuk-border-colour;
+  pointer-events: none;
+  cursor: default;
+}
+
+.linkButton {
+  @include link-colours();
+  margin: 0.125rem;
+  display: inline;
+  background: transparent;
+  border-width: 0;
+  cursor: pointer;
+  font-size: 1.187rem;
+  width: fit-content;
+  color: $govuk-link-colour;
+  @include govuk-font($size: 19);
+  padding: 0;
+  &:focus {
+    background-color: $govuk-focus-colour;
+    box-shadow: 0 -2px $govuk-focus-colour, 0 4px $govuk-text-colour;
+    outline: 0.1875rem solid transparent;
+  }
+  // &:focus,
+  // &:hover {
+  //   color: $govuk-link-active-colour;
+  // }
+}

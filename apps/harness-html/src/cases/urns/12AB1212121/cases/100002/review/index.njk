@@ -1,0 +1,61 @@
+---
+layout: base.njk
+title: Review Case 12AB1212121/100002
+---
+
+{% block content %}
+  <div class="govuk-grid-row">
+    <div class="govuk-grid-column-two-thirds">
+      <h1 class="govuk-heading-xl">Review Case 12AB1212121/100002</h1>
+      
+      <div class="govuk-warning-text">
+        <span class="govuk-warning-text__icon" aria-hidden="true">!</span>
+        <strong class="govuk-warning-text__text">
+          <span class="govuk-warning-text__assistive">Warning</span>
+          Waiting for financial records from bank before proceeding with case review.
+        </strong>
+      </div>
+      
+      <form action="#" method="post">
+        <div class="govuk-form-group">
+          <fieldset class="govuk-fieldset">
+            <legend class="govuk-fieldset__legend govuk-fieldset__legend--m">
+              Decision
+            </legend>
+            <div class="govuk-radios">
+              <div class="govuk-radios__item">
+                <input class="govuk-radios__input" id="decision-proceed" name="decision" type="radio" value="proceed" disabled>
+                <label class="govuk-label govuk-radios__label" for="decision-proceed">
+                  Proceed with case
+                </label>
+              </div>
+              <div class="govuk-radios__item">
+                <input class="govuk-radios__input" id="decision-review" name="decision" type="radio" value="review" checked>
+                <label class="govuk-label govuk-radios__label" for="decision-review">
+                  Further review needed
+                </label>
+              </div>
+              <div class="govuk-radios__item">
+                <input class="govuk-radios__input" id="decision-close" name="decision" type="radio" value="close" disabled>
+                <label class="govuk-label govuk-radios__label" for="decision-close">
+                  Close case
+                </label>
+              </div>
+            </div>
+          </fieldset>
+        </div>
+        
+        <div class="govuk-form-group">
+          <label class="govuk-label govuk-label--m" for="review-notes">
+            Review notes
+          </label>
+          <textarea class="govuk-textarea" id="review-notes" name="review-notes" rows="5" aria-describedby="review-notes-hint">Awaiting financial records from suspect's bank to proceed with case review. Expected by end of week.</textarea>
+        </div>
+        
+        <button class="govuk-button govuk-button--secondary" data-module="govuk-button">
+          Save notes
+        </button>
+      </form>
+    </div>
+  </div>
+{% endblock %}

@@ -1,0 +1,43 @@
+{
+  "name": "cps-global-react-helpers",
+  "version": "1.0.0",
+  "description": "React helpers for CPS global components",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "clean": "rm -rf dist",
+    "test": "jest",
+    "test:watch": "jest --watch"
+  },
+  "peerDependencies": {
+    "react": ">=19.0.0",
+    "react-router-dom": ">=7.0.0"
+  },
+  "dependencies": {
+    "cps-global-core": "workspace:*"
+  },
+  "devDependencies": {
+    "@testing-library/react": "^16.0.0",
+    "@testing-library/react-hooks": "^8.0.1",
+    "@types/jest": "^29.5.0",
+    "@types/react": "^19.0.0",
+    "jest": "^29.7.0",
+    "jest-environment-jsdom": "^29.7.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "react-router-dom": "^7.0.0",
+    "ts-jest": "^29.1.0",
+    "typescript": "^5.0.0"
+  },
+  "keywords": [
+    "cps",
+    "react",
+    "hooks"
+  ],
+  "author": "",
+  "license": "ISC"
+}

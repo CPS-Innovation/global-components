@@ -1,0 +1,26 @@
+{
+  "name": "cps-global-user-state",
+  "version": "1.0.0",
+  "description": "User state management for CPS global components",
+  "main": "dist/index.js",
+  "module": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "clean": "rm -rf dist",
+    "prepublishOnly": "npm run clean && npm run build"
+  },
+  "keywords": [
+    "cps",
+    "user-state",
+    "state-management"
+  ],
+  "license": "MIT",
+  "devDependencies": {
+    "typescript": "^5.0.0"
+  }
+}

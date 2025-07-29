@@ -1,0 +1,12 @@
+{
+  "ENVIRONMENT": "staging",
+  "APP_INSIGHTS_KEY": "e572c03c-8d38-4771-b193-962f13da1b1a",
+  "SURVEY_LINK": "https://forms.office.com/e/Cxmsq5xTWx",
+  "SHOW_BANNER": true,
+  "SHOW_MENU": false,
+  "OS_HANDOVER_URL": "",
+  "COOKIE_HANDOVER_URL": "",
+  "TOKEN_HANDOVER_URL": "",
+  "CONTEXTS": [],
+  "LINKS": []
+}

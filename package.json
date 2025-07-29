@@ -1,0 +1,24 @@
+{
+  "name": "cps-global-components",
+  "private": true,
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "engines": {
+    "node": ">=22.0.0",
+    "pnpm": ">=10.0.0"
+  },
+  "scripts": {
+    "preinstall": "npx only-allow pnpm",
+    "run-e2e": "./scripts/run-e2e.sh",
+    "run-html-harness": "./scripts/run-html-harness.sh",
+    "run-spa-harness": "./scripts/run-spa-harness.sh"
+  },
+  "files": [
+    "dist",
+    "package.json"
+  ]
+}

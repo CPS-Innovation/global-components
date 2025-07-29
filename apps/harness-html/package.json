@@ -1,0 +1,24 @@
+{
+  "name": "harness-html",
+  "version": "1.0.0",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "preinstall": "npx only-allow pnpm",
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "build": "eleventy",
+    "start": "GLOBAL_SCRIPT_URL=/assets/cps-global-components.js BASE_PATH=/accessibility/static eleventy --serve",
+    "dev": "pnpm start"
+  },
+  "keywords": [],
+  "author": "Stef Stachow",
+  "license": "ISC",
+  "description": "",
+  "devDependencies": {
+    "@11ty/eleventy": "^3.1.0",
+    "govuk-frontend": "^5.10.1"
+  },
+  "dependencies": {
+    "stream-replace-string": "^2.0.0"
+  }
+}

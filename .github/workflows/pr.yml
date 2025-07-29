@@ -1,0 +1,20 @@
+name: "Internal: pull request validation"
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+  security-events: write
+  statuses: write
+
+jobs:
+  build-and-test:
+    uses: ./.github/workflows/sub-workflow-build-and-test.yml
+
+  repo-security-scan:
+    uses: ./.github/workflows/sub-workflow-repo-security-scan.yml
+
+  org-security-scan:
+    uses: CPS-Innovation/.github/.github/workflows/security-scan.yml@main
