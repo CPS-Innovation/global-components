@@ -1,9 +1,9 @@
 @import "node_modules/govuk-frontend/dist/govuk/index";
 
-@mixin background($gdsColorName) {
-  box-shadow: 0 0 0 100vmax govuk-colour($gdsColorName);
+@mixin background($color) {
+  box-shadow: 0 0 0 100vmax $color;
   clip-path: inset(0 -100vmax);
-  background-color: govuk-colour($gdsColorName);
+  background-color: $color;
 }
 
 .header-divider {
@@ -15,15 +15,23 @@
 }
 
 .background-white {
-  @include background("white");
+  @include background(govuk-colour("white"));
 }
 
 .background-grey {
-  @include background("light-grey");
+  @include background(govuk-colour("light-grey"));
 }
 
 .background-black {
-  @include background("black");
+  @include background(govuk-colour("black"));
+}
+
+.background-blue {
+  @include background(govuk-colour("blue"));
+}
+
+.background-light-blue {
+  @include background(rgb(244, 248, 251));
 }
 
 .background-divider {
@@ -32,4 +40,18 @@
   clip-path: inset(0 -100vmax);
   background-color: $govuk-border-colour;
   z-index: -1;
+}
+
+.background-divider-blue {
+  height: 1px;
+  box-shadow: 0 0 0 100vmax rgb(142, 184, 220);
+  clip-path: inset(0 -100vmax);
+  background-color: rgb(142, 184, 220);
+  z-index: -1;
+}
+
+.error {
+  @include govuk-font($size: 19);
+  color: $govuk-secondary-text-colour;
+  font-weight: bold;
 }

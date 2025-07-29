@@ -1,0 +1,90 @@
+name: Reusable Build and Test
+
+on:
+  workflow_call:
+    inputs:
+      branch:
+        required: false
+        type: string
+        default: ''
+    outputs:
+      artifact-id:
+        description: "The ID of the uploaded artifact"
+        value: ${{ jobs.build-and-test.outputs.artifact-id }}
+      sha:
+        description: "The short SHA of the commit"
+        value: ${{ jobs.build-and-test.outputs.sha }}
+
+permissions:
+  contents: read
+
+env:
+  BUILD_ARTIFACT_NAME: build-artifact
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    outputs:
+      artifact-id: ${{ steps.upload.outputs.artifact-id }}
+      sha: ${{ steps.short-sha.outputs.sha }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: benjlevesque/short-sha@v3.0
+        id: short-sha
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: latest
+          run_install: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: ".nvmrc"
+          cache: "pnpm"
+
+      - run: pnpm install
+        env:
+          CI: true
+
+      - run: pnpm --filter "./packages/*" build
+
+      # - run: pnpm run lint
+      #   continue-on-error: false
+
+      - run: pnpm --filter cps-global-components test
+
+      # - run: pnpm run test:coverage
+      #   continue-on-error: true
+
+      - run: pnpm --filter cps-global-configuration validate
+
+      - name: Build with metadata
+        run: |
+          BUILD_INFO='window.cps_global_components_build = {Sha: "${{ steps.short-sha.outputs.sha }}", RunId: "${{ github.run_number }}", Timestamp: "${{ github.event.repository.updated_at }}"'
+          if [ -n "${{ inputs.branch }}" ]; then
+            BUILD_INFO="${BUILD_INFO}, Branch: \"${{ inputs.branch }}\""
+          fi
+          BUILD_INFO="${BUILD_INFO}};"
+          pnpm --filter cps-global-components run rollup --intro "$BUILD_INFO"
+
+      - run: |
+          cp -r ./packages/cps-global-components/dist/cps-global-components.js ./e2e/harness
+          pnpm --filter e2e test
+
+      - run: |
+          rm -rf ./to-deploy
+          mkdir -p ./to-deploy
+          cp ./packages/cps-global-components/dist/cps-global-components.js ./to-deploy
+          cp ./packages/cps-global-components/dist/cps-global-components.js.map ./to-deploy
+          cp ./packages/cps-global-os-handover/dist/auth-handover.js ./to-deploy
+
+      - uses: actions/upload-artifact@v4
+        id: upload
+        with:
+          name: ${{env.BUILD_ARTIFACT_NAME}}
+          path: |
+            ./to-deploy/*
+          retention-days: 1

@@ -7,6 +7,7 @@ import { initiateTracking } from "../../analytics/initiate-tracking";
 @Component({
   tag: "cps-global-header",
   shadow: true,
+  styleUrl: "cps-global-header.scss",
 })
 export class CpsGlobalHeader {
   @State() CONFIG: Config;
@@ -17,12 +18,12 @@ export class CpsGlobalHeader {
   }
 
   render() {
-    const { _CONFIG_ERROR, SHOULD_SHOW_HEADER, SHOULD_SHOW_MENU } = this.CONFIG;
+    const { _CONFIG_ERROR, SHOW_BANNER, SHOW_MENU } = this.CONFIG;
     return (
       <div>
         {!!_CONFIG_ERROR && renderError(_CONFIG_ERROR)}
-        {SHOULD_SHOW_HEADER && <cps-global-banner></cps-global-banner>}
-        {SHOULD_SHOW_MENU && <cps-global-menu></cps-global-menu>}
+        {SHOW_BANNER && <cps-global-banner></cps-global-banner>}
+        {SHOW_MENU && <cps-global-menu></cps-global-menu>}
       </div>
     );
   }

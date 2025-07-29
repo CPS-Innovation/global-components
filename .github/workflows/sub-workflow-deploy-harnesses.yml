@@ -1,0 +1,73 @@
+name: "Internal: sub-workflow: deploy harness for environment"
+
+on:
+  workflow_call:
+    inputs:
+      environment:
+        required: true
+        type: string
+    secrets:
+      BLOB_STORAGE_CONNECTION_STRING:
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  deploy-harnesses:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - run: |
+          # Extract our account name from the connection string
+          ACCOUNT_NAME=$(echo "${{secrets.BLOB_STORAGE_CONNECTION_STRING}}" | grep -oP 'AccountName=\K[^;]+')
+
+          # Both harnesses look to env variables for the location of the global script
+          GLOBAL_SCRIPT_URL="https://$ACCOUNT_NAME.blob.core.windows.net/${{ inputs.environment }}/cps-global-components.js"
+          echo "GLOBAL_SCRIPT_URL=$GLOBAL_SCRIPT_URL" >> $GITHUB_ENV
+          echo "VITE_GLOBAL_SCRIPT_URL=$GLOBAL_SCRIPT_URL" >> $GITHUB_ENV
+
+          # The static harness also needs a BASE_PATH for hyperlinks to be consistent
+          echo "BASE_PATH=/${{ inputs.environment }}/static" >> $GITHUB_ENV
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: latest
+          run_install: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: ".nvmrc"
+          cache: "pnpm"
+
+      - run: pnpm install
+        env:
+          CI: true
+
+      - run: pnpm --recursive build
+
+      - uses: azure/cli@v2
+        with:
+          azcliversion: latest
+          inlineScript: |
+            az storage blob delete-batch \
+                --source '$web' \
+                --pattern "${{ inputs.environment }}/static/*" \
+                --connection-string "${{ secrets.BLOB_STORAGE_CONNECTION_STRING }}"
+
+            az storage blob upload-batch \
+              --destination "\$web/${{ inputs.environment }}/static" \
+              --source "./apps/harness-html/_site" \
+              --connection-string "${{ secrets.BLOB_STORAGE_CONNECTION_STRING }}"
+
+            az storage blob delete-batch \
+                --source '$web' \
+                --pattern "${{ inputs.environment }}/spa/*" \
+                --connection-string "${{ secrets.BLOB_STORAGE_CONNECTION_STRING }}"
+
+            az storage blob upload-batch \
+              --destination "\$web/${{ inputs.environment }}/spa" \
+              --source "./apps/harness-spa/dist" \
+              --connection-string "${{ secrets.BLOB_STORAGE_CONNECTION_STRING }}"

@@ -1,23 +1,28 @@
 import { Config } from "cps-global-configuration";
-import { buildSanitizedAddress } from "./helpers/build-sanitized-address";
-import { findContext } from "./helpers/find-context";
+import { findContext } from "./helpers/context/find-context";
 import { shouldShowLink } from "./helpers/should-show-link";
 import { mapLinkConfig } from "./helpers/map-link-config";
 import { GroupedLink, groupLinksByLevel } from "./helpers/group-links-by-level";
+import { getDomTags } from "./helpers/dom/tags";
+import { isOutSystemsApp } from "../../../helpers/is-outsystems-app";
+import { createOutboundUrl } from "cps-global-os-handover";
 
-export type MenuHelperResult = {
+export type MenuConfigResult = {
   found: boolean;
   links: GroupedLink[][];
 };
 
-export const menuConfig = ({ LINKS, CONTEXTS }: Config, { location }: Window): MenuHelperResult => {
-  const sanitizedAddress = buildSanitizedAddress(location);
-
-  const { found, contexts, tags } = findContext(CONTEXTS, sanitizedAddress);
-  if (!found) {
-    return { found, links: undefined };
+export const menuConfig = ({ LINKS, CONTEXTS, OS_HANDOVER_URL }: Config, window: Window): MenuConfigResult => {
+  const foundContext = findContext(CONTEXTS, window);
+  if (!foundContext.found) {
+    return { found: false, links: undefined };
   }
+  const { found, contexts, tags } = foundContext;
 
-  const links = LINKS.filter(shouldShowLink(contexts)).map(mapLinkConfig(contexts, tags));
+  const tagsFromDom = getDomTags();
+  const handoverAdapter =
+    !isOutSystemsApp(window.location.origin) && ((targetUrl: string) => (isOutSystemsApp(targetUrl) ? createOutboundUrl({ handoverUrl: OS_HANDOVER_URL, targetUrl }) : targetUrl));
+
+  const links = LINKS.filter(shouldShowLink(contexts)).map(mapLinkConfig({ contexts, tags: { ...tags, ...tagsFromDom }, handoverAdapter }));
   return { found, links: groupLinksByLevel(links) };
 };

@@ -2,9 +2,11 @@ import { Component, Prop, h, State, Fragment } from "@stencil/core";
 import { CONFIG_ASYNC } from "../../config/config-async";
 
 import { Config } from "cps-global-configuration";
-import { menuConfig, MenuHelperResult } from "./menu-config/menu-config";
+import { menuConfig, MenuConfigResult } from "./menu-config/menu-config";
 import { renderError } from "../common/render-error";
 import { initiateTracking } from "../../analytics/initiate-tracking";
+import "./menu-config/helpers/dom/initialisation";
+import { initialiseDomObservation } from "./menu-config/helpers/dom/initialisation";
 
 @Component({
   tag: "cps-global-menu",
@@ -14,8 +16,10 @@ import { initiateTracking } from "../../analytics/initiate-tracking";
 export class CpsGlobalMenu {
   @Prop() name: string = "Please wait...";
   @State() CONFIG: Config;
+
   // We have address as State so that we get a rerender triggered whenever it updates
   @State() address: string;
+  @State() mutationFlag: number;
 
   async componentWillLoad() {
     initiateTracking();
@@ -24,33 +28,45 @@ export class CpsGlobalMenu {
     });
 
     this.CONFIG = await CONFIG_ASYNC();
+
+    // For host apps where we can not find caseId, urn etc tags in the address, we can observe the dom
+    //  for these values.
+    initialiseDomObservation(this.CONFIG, window, () => {
+      // If the dom changes and tags have been found, this subscribing function sets some
+      //  arbitrary State to ensure a rerender.
+      this.mutationFlag = +new Date();
+    });
   }
 
-  renderOk = ([level1Links, level2Links]: MenuHelperResult["links"]) => {
+  renderOk = ([level1Links, level2Links]: MenuConfigResult["links"]) => {
     const { SURVEY_LINK } = this.CONFIG;
+
+    const classes = this.CONFIG.SHOW_GOVUK_REBRAND
+      ? { flag: "govuk-template--rebranded", level1Background: "background-light-blue", divider: "background-divider-blue" }
+      : { flag: "", level1Background: "background-grey", divider: "background-divider" };
     return (
-      <div>
-        <nav class="level-1 background-grey" aria-label="Menu">
+      <div class={classes.flag}>
+        <nav class={`level level-1 ${classes.level1Background}`} aria-label="Menu" data-testid="menu-level-1">
           <ul>
             {level1Links?.map(link => (
               <nav-link {...link}></nav-link>
             ))}
-            {SURVEY_LINK && <nav-link class="survey-link" label="Give feedback" href={SURVEY_LINK}></nav-link>}
+            {SURVEY_LINK && <nav-link openInNewTab class="survey-link" label="Give feedback" href={SURVEY_LINK}></nav-link>}
           </ul>
         </nav>
 
-        <div class="background-divider"></div>
+        <div class={classes.divider}></div>
 
         {!!level2Links?.length && (
           <>
-            <nav class="level-2 background-white" aria-label="Sub-menu">
+            <nav class="level level-2 background-white" aria-label="Sub-menu" data-testid="menu-level-2">
               <ul>
                 {level2Links.map(link => (
                   <nav-link {...link}></nav-link>
                 ))}
               </ul>
             </nav>
-            <div class="background-divider"></div>
+            <div class={classes.divider}></div>
           </>
         )}
       </div>

@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en" class="govuk-template">
+
+<head>
+  <title>Example - GOV.UK</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <link rel="manifest" href="/home/assets/manifest.json">
+  <link rel="stylesheet" href="/home/govuk-frontend-5.10.0.min.css">
+
+  <script type="module" referrerpolicy="no-referrer-when-downgrade"
+    src="https://sacpsglobalcomponents.blob.core.windows.net/dev/cps-global-components.js">
+    </script>
+</head>
+
+<body class="govuk-template__body">
+  <script>document.body.className += ' js-enabled' + ('noModule' in HTMLScriptElement.prototype ? ' govuk-frontend-supported' : '');</script>
+
+  <div class="govuk-width-container">
+    <cps-global-header></cps-global-header>
+
+    <main class="govuk-main-wrapper" id="main-content" role="main">
+      <h1 class="govuk-heading-l">Home</h1>
+    </main>
+
+    <cps-global-footer></cps-global-footer>
+  </div>
+
+  <script type="module" src="/home/govuk-frontend-5.10.0.min.js"></script>
+  <script type="module">
+    import { initAll } from '/home/govuk-frontend-5.10.0.min.js'
+    initAll()
+  </script>
+
+  <script>
+    document.addEventListener("cps-global-header-event", (ev) => console.log(`Event received with data: ${ev.detail}`));
+  </script>
+</body>
+
+</html>

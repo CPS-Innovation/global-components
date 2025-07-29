@@ -1,0 +1,107 @@
+{
+  "ENVIRONMENT": "dev.override",
+  "AD_TENANT_ID": "00dd0d1d-d7e6-4338-ac51-565339c7088c",
+  "AD_CLIENT_ID": "8d6133af-9593-47c6-94d0-5c65e9e310f1",
+  "APP_INSIGHTS_KEY": "e572c03c-8d38-4771-b193-962f13da1b1a",
+  "SURVEY_LINK": "https://forms.office.com/e/Cxmsq5xTWx",
+  "SHOW_BANNER": true,
+  "SHOW_MENU": true,
+  "OS_HANDOVER_URL": "https://cps-dev.outsystemsenterprise.com/AuthHandover/auth-handover.html",
+  "COOKIE_HANDOVER_URL": "https://polaris-qa-notprod.cps.gov.uk/polaris",
+  "TOKEN_HANDOVER_URL": "https://polaris-qa-notprod.cps.gov.uk/auth-refresh-cms-modern-token",
+  "CONTEXTS": [
+    {
+      "paths": ["https://sacpsglobalcomponents.z33.web.core.windows.net/home"],
+      "contexts": "home"
+    },
+    {
+      "paths": [
+        "https://polaris-qa-notprod.cps.gov.uk/polaris-ui/case-details/(?<urn>[^/]+)/(?<caseId>\\d+)"
+      ],
+      "contexts": "case materials"
+    },
+    {
+      "paths": ["https://polaris"],
+      "contexts": "cases"
+    },
+    {
+      "paths": [
+        "https://cps-dev.outsystemsenterprise.com/CaseReview/LandingPage\\?CMSCaseId=(?<caseId>\\d+)&URN=(?<urn>[^&]+)"
+      ],
+      "contexts": "case review"
+    },
+    {
+      "paths": ["https://cps-dev.outsystemsenterprise.com/CaseReview/"],
+      "contexts": "cases"
+    },
+    {
+      "paths": [
+        "https://cps-dev.outsystemsenterprise.com/WorkManagementApp/CaseOverview\\?CaseId=(?<caseId>\\d+)&URN=(?<urn>[^&]+)"
+      ],
+      "contexts": "case details"
+    },
+    {
+      "paths": [
+        "https://cps-dev.outsystemsenterprise.com/WorkManagementApp/Cases"
+      ],
+      "contexts": "cases"
+    },
+    {
+      "paths": [
+        "https://cps-dev.outsystemsenterprise.com/WorkManagementApp/TaskList"
+      ],
+      "contexts": "tasks"
+    },
+    {
+      "paths": ["https://housekeeping"],
+      "contexts": "case materials",
+      "domTags": [
+        {
+          "cssSelector": "a[href*='/polaris-ui/case-details/']",
+          "regex": "/polaris-ui/case-details/(?<urn>[^/]+)/(?<caseId>\\d+)"
+        }
+      ]
+    }
+  ],
+  "LINKS": [
+    {
+      "label": "Home",
+      "level": 0,
+      "href": "https://sacpsglobalcomponents.z33.web.core.windows.net/home/",
+      "activeContexts": "home"
+    },
+    {
+      "label": "Tasks",
+      "level": 0,
+      "href": "https://cps-dev.outsystemsenterprise.com/WorkManagementApp/TaskList",
+      "activeContexts": "tasks"
+    },
+    {
+      "label": "Cases",
+      "level": 0,
+      "href": "https://cps-dev.outsystemsenterprise.com/WorkManagementApp/Cases?IsCasesNavigation=true",
+      "activeContexts": "cases case"
+    },
+    {
+      "label": "Details",
+      "level": 1,
+      "href": "https://cps-dev.outsystemsenterprise.com/WorkManagementApp/CaseOverview?CaseId={caseId}&URN={urn}",
+      "visibleContexts": "case",
+      "activeContexts": "details"
+    },
+    {
+      "label": "Materials",
+      "level": 1,
+      "href": "https://polaris-qa-notprod.cps.gov.uk/polaris-ui/case-details/{urn}/{caseId}",
+      "visibleContexts": "case",
+      "activeContexts": "materials"
+    },
+    {
+      "label": "Review",
+      "level": 1,
+      "href": "https://cps-dev.outsystemsenterprise.com/CaseReview/LandingPage?CMSCaseId={caseId}&URN={urn}",
+      "visibleContexts": "case",
+      "activeContexts": "review"
+    }
+  ]
+}
