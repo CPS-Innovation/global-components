@@ -6,7 +6,7 @@
   "SURVEY_LINK": "https://forms.office.com/e/Cxmsq5xTWx",
   "SHOW_BANNER": true,
   "SHOW_MENU": true,
-  "OS_HANDOVER_URL": "https://cps-dev.outsystemsenterprise.com/AuthHandover/auth-handover.html",
+  "OS_HANDOVER_URL": "https://cps-tst.outsystemsenterprise.com/Casework_Patterns/auth-handover-test.html",
   "COOKIE_HANDOVER_URL": "https://polaris-qa-notprod.cps.gov.uk/polaris",
   "TOKEN_HANDOVER_URL": "https://polaris-qa-notprod.cps.gov.uk/auth-refresh-cms-modern-token",
   "CONTEXTS": [
@@ -26,29 +26,29 @@
     },
     {
       "paths": [
-        "https://cps-dev.outsystemsenterprise.com/CaseReview/LandingPage\\?CMSCaseId=(?<caseId>\\d+)&URN=(?<urn>[^&]+)"
+        "https://cps-tst.outsystemsenterprise.com/CaseReview/LandingPage\\?CMSCaseId=(?<caseId>\\d+)&URN=(?<urn>[^&]+)"
       ],
       "contexts": "case review"
     },
     {
-      "paths": ["https://cps-dev.outsystemsenterprise.com/CaseReview/"],
+      "paths": ["https://cps-tst.outsystemsenterprise.com/CaseReview/"],
       "contexts": "cases"
     },
     {
       "paths": [
-        "https://cps-dev.outsystemsenterprise.com/WorkManagementApp/CaseOverview\\?CaseId=(?<caseId>\\d+)&URN=(?<urn>[^&]+)"
+        "https://cps-tst.outsystemsenterprise.com/WorkManagementApp/CaseOverview\\?CaseId=(?<caseId>\\d+)&URN=(?<urn>[^&]+)"
       ],
       "contexts": "case details"
     },
     {
       "paths": [
-        "https://cps-dev.outsystemsenterprise.com/WorkManagementApp/Cases"
+        "https://cps-tst.outsystemsenterprise.com/WorkManagementApp/Cases"
       ],
       "contexts": "cases"
     },
     {
       "paths": [
-        "https://cps-dev.outsystemsenterprise.com/WorkManagementApp/TaskList"
+        "https://cps-tst.outsystemsenterprise.com/WorkManagementApp/TaskList"
       ],
       "contexts": "tasks"
     },
@@ -73,19 +73,19 @@
     {
       "label": "Tasks",
       "level": 0,
-      "href": "https://cps-dev.outsystemsenterprise.com/WorkManagementApp/TaskList",
+      "href": "https://cps-tst.outsystemsenterprise.com/WorkManagementApp/TaskList",
       "activeContexts": "tasks"
     },
     {
       "label": "Cases",
       "level": 0,
-      "href": "https://cps-dev.outsystemsenterprise.com/WorkManagementApp/Cases?IsCasesNavigation=true",
+      "href": "https://cps-tst.outsystemsenterprise.com/WorkManagementApp/Cases?IsCasesNavigation=true",
       "activeContexts": "cases case"
     },
     {
       "label": "Details",
       "level": 1,
-      "href": "https://cps-dev.outsystemsenterprise.com/WorkManagementApp/CaseOverview?CaseId={caseId}&URN={urn}",
+      "href": "https://cps-tst.outsystemsenterprise.com/WorkManagementApp/CaseOverview?CaseId={caseId}&URN={urn}",
       "visibleContexts": "case",
       "activeContexts": "details"
     },
@@ -99,7 +99,7 @@
     {
       "label": "Review",
       "level": 1,
-      "href": "https://cps-dev.outsystemsenterprise.com/CaseReview/LandingPage?CMSCaseId={caseId}&URN={urn}",
+      "href": "https://cps-tst.outsystemsenterprise.com/CaseReview/LandingPage?CMSCaseId={caseId}&URN={urn}",
       "visibleContexts": "case",
       "activeContexts": "review"
     }
