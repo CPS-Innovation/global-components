@@ -82,7 +82,7 @@ const handleMutations = (mutations: MutationRecord[]) => {
   });
 };
 
-export const trySetupOutSystemsShim = (window: Window) => {
+export const setupOutSystemsShim = (window: Window) => {
   if (!isOutSystemsApp(window.location.href)) {
     return;
   }
