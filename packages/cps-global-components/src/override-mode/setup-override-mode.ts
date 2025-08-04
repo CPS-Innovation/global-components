@@ -1,4 +1,4 @@
-export const trySetupOverrideMode = ({ document }: Window) => {
+export const setupOverrideMode = ({ document }: Window) => {
   try {
     let favicon = (document.querySelector("link[rel*='icon']") || document.createElement("link")) as HTMLLinkElement;
     favicon.type = "image/x-icon";
