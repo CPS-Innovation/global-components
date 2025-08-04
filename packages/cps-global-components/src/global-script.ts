@@ -6,6 +6,7 @@ import { handleOverrideSetMode } from "./override-mode/handle-override-set-mode"
 import { setupOverrideMode } from "./override-mode/setup-override-mode";
 import { isOSAuthMisaligned, createOutboundUrl } from "cps-global-os-handover";
 import { isOutSystemsApp } from "./helpers/is-outsystems-app";
+import { msal } from "./auth/msal";
 export default async () => {
   handleOverrideSetMode();
 
@@ -14,6 +15,11 @@ export default async () => {
   if (isOverrideMode) {
     setupOutSystemsShim(window);
     setupOverrideMode(window);
+
+    const { AD_TENANT_ID, AD_CLIENT_ID } = await configPromise;
+    if (AD_TENANT_ID && AD_CLIENT_ID) {
+      await msal(AD_TENANT_ID, AD_CLIENT_ID);
+    }
 
     const isAuthRealignmentRequired = isOutSystemsApp(window.location.href) && isOSAuthMisaligned();
     if (isAuthRealignmentRequired) {

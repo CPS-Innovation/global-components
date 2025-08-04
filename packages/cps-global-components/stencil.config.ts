@@ -1,5 +1,6 @@
 import { Config } from "@stencil/core";
 import { sass } from "@stencil/sass";
+import { readFileSync } from "fs";
 
 const esModules = [
   "cps-global-os-handover",
@@ -54,6 +55,10 @@ export const config: Config = {
   devServer: {
     // 3333 is the default, but lets set it explicitly as we have references to this from the other apps
     port: 3333,
+    // https: {
+    //   cert: readFileSync("localhost.crt", "utf8"),
+    //   key: readFileSync("localhost.key", "utf8"),
+    // },
   },
   globalScript: "src/global-script.js",
 };

@@ -7,16 +7,22 @@ export const msal = async (tenantId: string, clientId: string) => {
         clientId,
         authority: `https://login.microsoftonline.com/${tenantId}`,
         redirectUri: "https://sacpsglobalcomponents.blob.core.windows.net/dev/empty.html",
+        onRedirectNavigate(url) {
+          console.warn(url);
+        },
       },
       cache: {
         cacheLocation: "sessionStorage",
       },
+      system: {
+        iframeHashTimeout: 50 * 1000,
+      },
     });
 
     await instance.initialize();
-
     const response = await instance.ssoSilent({
       scopes: ["User.Read"],
+      redirectUri: "https://sacpsglobalcomponents.blob.core.windows.net/dev/empty.html",
     });
     console.log(response);
 
@@ -30,6 +36,7 @@ export const msal = async (tenantId: string, clientId: string) => {
         scopes: ["https://graph.microsoft.com/User.Read"],
         account: accounts[0],
         forceRefresh: false,
+        redirectUri: "https://sacpsglobalcomponents.blob.core.windows.net/dev/empty.html",
       };
 
       const response = await instance.acquireTokenSilent(tokenRequest);
