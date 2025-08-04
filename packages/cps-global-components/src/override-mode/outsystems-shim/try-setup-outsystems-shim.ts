@@ -42,7 +42,7 @@ const ensureGlobalHeader = () => {
   }
 
   const cpsHeader: HTMLCpsGlobalHeaderElement = document.createElement("cps-global-header");
-  (cpsHeader as HTMLElement).style.cssText = "top: -50px; position: relative;";
+  (cpsHeader as HTMLElement).style.cssText = "top: -50px; position: relative; margin-bottom: 20px;";
   mainDiv.insertBefore(cpsHeader as HTMLElement, mainDiv.firstChild);
   console.log('[Header Hider Extension] cps-global-header component added to div[role="main"]');
 
