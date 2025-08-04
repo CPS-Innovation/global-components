@@ -19,7 +19,7 @@ export default async () => {
     if (isAuthRealignmentRequired) {
       const { OS_HANDOVER_URL } = await configPromise;
       const redirectUrl = createOutboundUrl({ handoverUrl: OS_HANDOVER_URL, targetUrl: window.location.href });
-      console.log(`I would like to redirect to ${redirectUrl}`);
+      console.log(`OS auths not aligned: navigate to ${redirectUrl}`);
     }
   }
 };
