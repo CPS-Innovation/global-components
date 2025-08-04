@@ -1,8 +1,8 @@
 import { validateConfig, Config } from "cps-global-configuration";
 import { getArtifactUrl } from "../helpers/get-artifact-url";
-import { tryFetchOverrideConfig } from "../override-mode/try-fetch-override-config";
+import { fetchOverrideConfig } from "../override-mode/fetch-override-config";
 import { ConfigFetch } from "./ConfigFetch";
-import { tryFetchOverrideConfigAsJsonP } from "../override-mode/outsystems-shim/try-fetch-override-config-as-jsonp";
+import { fetchOverrideConfigAsJsonP } from "../override-mode/outsystems-shim/fetch-override-config-as-jsonp";
 
 let cachedConfigPromise: Promise<Config> = undefined;
 
@@ -27,16 +27,16 @@ const getConfigObject = async ([source, ...rest]: ConfigFetch[], configUrl: stri
 
 const getConfig: ConfigFetch = async (configUrl: string) => await fetch(configUrl);
 
-export const initialiseConfig = (isOverrideMode: boolean) => {
-  const internal = async () => {
+export const initialiseConfig = (isOverrideMode: boolean): Promise<Config> => {
+  const internal = async (): Promise<Config> => {
     const configUrl = getArtifactUrl("config.json");
     try {
       const configObject = await getConfigObject(
         isOverrideMode
           ? [
-              tryFetchOverrideConfig,
-              // remove tryFetchOverrideConfigAsJsonP when outsystems have embedded us properly
-              tryFetchOverrideConfigAsJsonP,
+              fetchOverrideConfig,
+              // remove fetchOverrideConfigAsJsonP when outsystems have embedded us properly
+              fetchOverrideConfigAsJsonP,
               getConfig,
             ]
           : [getConfig],
