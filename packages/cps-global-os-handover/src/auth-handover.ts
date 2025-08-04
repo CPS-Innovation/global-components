@@ -1,4 +1,7 @@
-// Browser entry point that automatically executes handleRedirect
+/**  Browser entry point that automatically executes handleRedirect. T
+ * The OS auth-handover-*.html endpoint should reference this file via
+ * a `script` tag reference.
+ */
 import { handleRedirect } from "./handover";
 
 declare global {
