@@ -18,9 +18,7 @@ export default async () => {
 
     const config = await CONFIG();
     initialiseMsal(window, config);
-    const { isAuthed, username, error } = await msal();
-    console.log({ isAuthed, username, error });
-
+    msal().then(({ isAuthed, username, error }) => console.log({ isAuthed, username, error }));
     // Temporary code
     const isAuthRealignmentRequired = isOutSystemsApp(window.location.href) && isOSAuthMisaligned();
     if (isAuthRealignmentRequired) {
