@@ -1,4 +1,4 @@
-jest.mock("./helpers/context/find-context");
+jest.mock("../../../config/context/find-context");
 jest.mock("./helpers/should-show-link");
 jest.mock("./helpers/map-link-config");
 jest.mock("./helpers/group-links-by-level");
@@ -6,7 +6,7 @@ jest.mock("./helpers/dom/tags");
 
 import { menuConfig } from "./menu-config";
 import { Config } from "cps-global-configuration";
-import { findContext } from "./helpers/context/find-context";
+import { findContext } from "../../../config/context/find-context";
 import { shouldShowLink } from "./helpers/should-show-link";
 import { mapLinkConfig } from "./helpers/map-link-config";
 import { groupLinksByLevel } from "./helpers/group-links-by-level";
@@ -73,6 +73,7 @@ describe("menuConfig", () => {
       {
         paths: ["https://example.com/test"],
         contexts: "test-context",
+        msalRedirectUrl: "foo",
       },
     ],
   };
@@ -113,6 +114,7 @@ describe("menuConfig", () => {
       domTags: undefined,
       tags: foundTags,
       contextIndex: 0,
+      msalRedirectUrl: "foo",
     });
 
     // Mock shouldShowLink to filter out the second link
@@ -198,6 +200,7 @@ describe("menuConfig", () => {
       domTags: undefined,
       tags: {},
       contextIndex: 0,
+      msalRedirectUrl: "foo",
     });
     mockShouldShowLink.mockReturnValue(jest.fn());
     mockMapLinkConfig.mockReturnValue(jest.fn());
@@ -221,6 +224,7 @@ describe("menuConfig", () => {
       domTags: undefined,
       tags: {},
       contextIndex: 0,
+      msalRedirectUrl: "foo",
     });
 
     // Mock shouldShowLink to filter out all links
@@ -255,6 +259,7 @@ describe("menuConfig", () => {
       domTags: undefined,
       tags: complexTags,
       contextIndex: 0,
+      msalRedirectUrl: "foo",
     });
 
     mockShouldShowLink.mockReturnValue(jest.fn().mockReturnValue(true));
@@ -294,6 +299,7 @@ describe("menuConfig", () => {
       domTags: undefined,
       tags: { section: "users" },
       contextIndex: 0,
+      msalRedirectUrl: "foo",
     });
 
     mockShouldShowLink.mockReturnValue(jest.fn().mockReturnValue(true));
@@ -322,6 +328,7 @@ describe("menuConfig", () => {
       domTags: undefined,
       tags: {},
       contextIndex: 0,
+      msalRedirectUrl: "foo",
     });
 
     // All links pass the filter
@@ -398,6 +405,7 @@ describe("menuConfig", () => {
       domTags: undefined,
       tags: contextTags,
       contextIndex: 0,
+      msalRedirectUrl: "foo",
     });
 
     mockShouldShowLink.mockReturnValue(jest.fn().mockReturnValue(true));

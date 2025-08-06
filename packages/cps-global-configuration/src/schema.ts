@@ -37,6 +37,7 @@ const DomTagsSchema: z.ZodType<DomTags> = z.lazy(() =>
 export type Context = {
   paths: string[];
   contexts: string;
+  msalRedirectUrl: string;
   domTags?: DomTags[];
 };
 
@@ -44,13 +45,14 @@ const ContextSchema: z.ZodType<Context> = z.lazy(() =>
   z.object({
     paths: z.array(z.string()),
     contexts: z.string(),
+    msalRedirectUrl: z.string(),
     domTags: z.array(DomTagsSchema).optional(),
   })
 );
 
 export const ConfigSchema = z.object({
   ENVIRONMENT: z.string(),
-  AD_TENANT_ID: z.string().optional(),
+  AD_TENANT_AUTHORITY: z.string().optional(),
   AD_CLIENT_ID: z.string().optional(),
   APP_INSIGHTS_KEY: z.string().optional(),
   SURVEY_LINK: z.string().optional(),
