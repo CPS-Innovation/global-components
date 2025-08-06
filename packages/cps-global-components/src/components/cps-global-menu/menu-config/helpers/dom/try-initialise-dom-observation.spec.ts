@@ -1,9 +1,9 @@
-jest.mock("../context/find-context");
+jest.mock("../../../../../config/context/find-context");
 jest.mock("./mutations");
 jest.mock("./tags");
 
-import { initialiseDomObservation } from "./initialisation";
-import { findContext } from "../context/find-context";
+import { tryInitialiseDomObservation } from "./try-initialise-dom-observation";
+import { findContext } from "../../../../../config/context/find-context";
 import { setupMutationObserver } from "./mutations";
 import { resetDomTags } from "./tags";
 import { Config } from "cps-global-configuration";
@@ -13,7 +13,7 @@ const mockFindContext = findContext as jest.MockedFunction<typeof findContext>;
 const mockSetupMutationObserver = setupMutationObserver as jest.MockedFunction<typeof setupMutationObserver>;
 const mockResetDomTags = resetDomTags as jest.MockedFunction<typeof resetDomTags>;
 
-describe("initialisation", () => {
+describe("try-initialise-dom-observation", () => {
   let mockConfig: Config;
   let mockWindow: Window;
   let mockCallback: jest.Mock;
@@ -54,7 +54,7 @@ describe("initialisation", () => {
     it("should add navigation event listener", () => {
       mockFindContext.mockReturnValue({ found: false });
 
-      initialiseDomObservation(mockConfig, mockWindow, mockCallback);
+      tryInitialiseDomObservation(mockConfig, mockWindow, mockCallback);
 
       expect(mockWindow.navigation.addEventListener).toHaveBeenCalledWith("navigate", expect.any(Function));
     });
@@ -62,7 +62,7 @@ describe("initialisation", () => {
     it("should immediately call findContext and resetDomTags on initialisation", () => {
       mockFindContext.mockReturnValue({ found: false });
 
-      initialiseDomObservation(mockConfig, mockWindow, mockCallback);
+      tryInitialiseDomObservation(mockConfig, mockWindow, mockCallback);
 
       expect(mockFindContext).toHaveBeenCalledWith(mockConfig.CONTEXTS, mockWindow);
       expect(mockResetDomTags).toHaveBeenCalled();
@@ -72,22 +72,23 @@ describe("initialisation", () => {
       it("should not setup mutation observer", () => {
         mockFindContext.mockReturnValue({ found: false });
 
-        initialiseDomObservation(mockConfig, mockWindow, mockCallback);
+        tryInitialiseDomObservation(mockConfig, mockWindow, mockCallback);
 
         expect(mockSetupMutationObserver).not.toHaveBeenCalled();
       });
 
       it("should not setup mutation observer for empty domTags array", () => {
-        mockFindContext.mockReturnValue({ 
-          found: true, 
-          domTags: [], 
+        mockFindContext.mockReturnValue({
+          found: true,
+          domTags: [],
           contextIndex: 0,
           paths: ["test"],
           contexts: "test",
-          tags: {}
+          tags: {},
+          msalRedirectUrl: "foo",
         });
 
-        initialiseDomObservation(mockConfig, mockWindow, mockCallback);
+        tryInitialiseDomObservation(mockConfig, mockWindow, mockCallback);
 
         expect(mockSetupMutationObserver).not.toHaveBeenCalled();
       });
@@ -102,37 +103,35 @@ describe("initialisation", () => {
       ];
 
       it("should setup mutation observer", () => {
-        mockFindContext.mockReturnValue({ 
-          found: true, 
-          domTags: mockDomTags, 
+        mockFindContext.mockReturnValue({
+          found: true,
+          domTags: mockDomTags,
           contextIndex: 0,
           paths: ["test"],
           contexts: "test",
-          tags: {}
+          tags: {},
+          msalRedirectUrl: "foo",
         });
         mockSetupMutationObserver.mockReturnValue(mockObserver);
 
-        initialiseDomObservation(mockConfig, mockWindow, mockCallback);
+        tryInitialiseDomObservation(mockConfig, mockWindow, mockCallback);
 
-        expect(mockSetupMutationObserver).toHaveBeenCalledWith(
-          mockWindow.document.body,
-          mockDomTags,
-          mockCallback
-        );
+        expect(mockSetupMutationObserver).toHaveBeenCalledWith(mockWindow.document.body, mockDomTags, mockCallback);
       });
 
       it("should cache the context index and skip setup for same context", () => {
-        mockFindContext.mockReturnValue({ 
-          found: true, 
-          domTags: mockDomTags, 
+        mockFindContext.mockReturnValue({
+          found: true,
+          domTags: mockDomTags,
           contextIndex: 5,
           paths: ["test"],
           contexts: "test",
-          tags: {}
+          tags: {},
+          msalRedirectUrl: "foo",
         });
         mockSetupMutationObserver.mockReturnValue(mockObserver);
 
-        initialiseDomObservation(mockConfig, mockWindow, mockCallback);
+        tryInitialiseDomObservation(mockConfig, mockWindow, mockCallback);
 
         // Trigger navigation event with same context
         navigateListeners[0]({} as Event);
@@ -146,7 +145,7 @@ describe("initialisation", () => {
       it("should call findContext on navigation events", () => {
         mockFindContext.mockReturnValue({ found: false });
 
-        initialiseDomObservation(mockConfig, mockWindow, mockCallback);
+        tryInitialiseDomObservation(mockConfig, mockWindow, mockCallback);
         expect(mockFindContext).toHaveBeenCalledTimes(1);
 
         // Trigger navigation event
@@ -158,7 +157,7 @@ describe("initialisation", () => {
       it("should call resetDomTags on navigation events", () => {
         mockFindContext.mockReturnValue({ found: false });
 
-        initialiseDomObservation(mockConfig, mockWindow, mockCallback);
+        tryInitialiseDomObservation(mockConfig, mockWindow, mockCallback);
         expect(mockResetDomTags).toHaveBeenCalledTimes(1);
 
         // Trigger navigation event
@@ -170,27 +169,24 @@ describe("initialisation", () => {
       it("should setup new observer when moving from no domTags to having domTags", () => {
         mockFindContext.mockReturnValue({ found: false });
 
-        initialiseDomObservation(mockConfig, mockWindow, mockCallback);
+        tryInitialiseDomObservation(mockConfig, mockWindow, mockCallback);
         expect(mockSetupMutationObserver).not.toHaveBeenCalled();
 
         // Navigate to context with domTags
         const mockDomTags: DomTags[] = [{ cssSelector: "[data-new]", regex: "new" }];
-        mockFindContext.mockReturnValue({ 
-          found: true, 
-          domTags: mockDomTags, 
+        mockFindContext.mockReturnValue({
+          found: true,
+          domTags: mockDomTags,
           contextIndex: 3,
           paths: ["test"],
           contexts: "test",
-          tags: {}
+          tags: {},
+          msalRedirectUrl: "foo",
         });
         mockSetupMutationObserver.mockReturnValue(mockObserver);
         navigateListeners[0]({} as Event);
 
-        expect(mockSetupMutationObserver).toHaveBeenCalledWith(
-          mockWindow.document.body,
-          mockDomTags,
-          mockCallback
-        );
+        expect(mockSetupMutationObserver).toHaveBeenCalledWith(mockWindow.document.body, mockDomTags, mockCallback);
       });
     });
   });

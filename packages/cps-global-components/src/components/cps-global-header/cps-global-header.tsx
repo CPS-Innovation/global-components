@@ -1,5 +1,5 @@
 import { Component, h, State } from "@stencil/core";
-import { CONFIG_ASYNC } from "../../config/config-async";
+import { CONFIG } from "../../config/config-async";
 import { Config } from "cps-global-configuration";
 import { renderError } from "../common/render-error";
 import { initiateTracking } from "../../analytics/initiate-tracking";
@@ -14,7 +14,7 @@ export class CpsGlobalHeader {
 
   async componentWillLoad() {
     initiateTracking();
-    this.CONFIG = await CONFIG_ASYNC();
+    this.CONFIG = await CONFIG();
   }
 
   render() {

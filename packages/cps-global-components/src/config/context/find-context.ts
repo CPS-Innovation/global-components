@@ -8,8 +8,9 @@ type ReturnType =
         [key: string]: string;
       };
       contextIndex: number;
+      msalRedirectUrl: string;
     })
-  | { found: false; domTags?: undefined; contextIndex?: undefined };
+  | { found: false; domTags?: undefined; contextIndex?: undefined; msalRedirectUrl?: undefined };
 
 export const findContext = (contextArr: Context[], window: Window): ReturnType => {
   const address = buildSanitizedAddress(window.location);

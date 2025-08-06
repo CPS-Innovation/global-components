@@ -6,7 +6,7 @@ describe("Global menu", () => {
     await arrange({
       SHOW_BANNER: true,
       SHOW_MENU: true,
-      CONTEXTS: [{ contexts: "e2e", paths: [".*"] }],
+      CONTEXTS: [{ contexts: "e2e", paths: [".*"], msalRedirectUrl: "foo" }],
       LINKS: [
         {
           label: "Link A",
