@@ -29,6 +29,7 @@ describe("findContext", () => {
       {
         paths: ["https://example.com/page"],
         contexts: "page-context",
+        msalRedirectUrl: "foo",
       },
     ];
     const mockWindow = createMockWindow("https://example.com/page");
@@ -41,6 +42,7 @@ describe("findContext", () => {
       contexts: "page-context",
       domTags: undefined,
       tags: {},
+      msalRedirectUrl: "foo",
     });
   });
 
@@ -49,6 +51,7 @@ describe("findContext", () => {
       {
         paths: ["https://example.com/users/\\d+"],
         contexts: "user-context",
+        msalRedirectUrl: "foo",
       },
     ];
     const mockWindow = createMockWindow("https://example.com/users/123");
@@ -61,6 +64,7 @@ describe("findContext", () => {
       contexts: "user-context",
       domTags: undefined,
       tags: {},
+      msalRedirectUrl: "foo",
     });
   });
 
@@ -69,6 +73,7 @@ describe("findContext", () => {
       {
         paths: ["https://example.com/users/(?<userId>\\d+)/posts/(?<postId>\\d+)"],
         contexts: "post-context",
+        msalRedirectUrl: "foo",
       },
     ];
     const mockWindow = createMockWindow("https://example.com/users/123/posts/456");
@@ -84,6 +89,7 @@ describe("findContext", () => {
         userId: "123",
         postId: "456",
       },
+      msalRedirectUrl: "foo",
     });
   });
 
@@ -92,10 +98,12 @@ describe("findContext", () => {
       {
         paths: ["https://example.com/.*"],
         contexts: "general-context",
+        msalRedirectUrl: "foo",
       },
       {
         paths: ["https://example.com/specific"],
         contexts: "specific-context",
+        msalRedirectUrl: "bar",
       },
     ];
     const mockWindow = createMockWindow("https://example.com/specific");
@@ -108,6 +116,7 @@ describe("findContext", () => {
       contexts: "general-context",
       domTags: undefined,
       tags: {},
+      msalRedirectUrl: "foo",
     });
   });
 
@@ -116,6 +125,7 @@ describe("findContext", () => {
       {
         paths: ["https://example.com/admin", "https://example.com/dashboard"],
         contexts: "admin-context",
+        msalRedirectUrl: "foo",
       },
     ];
     const mockWindow = createMockWindow("https://example.com/dashboard");
@@ -128,6 +138,7 @@ describe("findContext", () => {
       contexts: "admin-context",
       domTags: undefined,
       tags: {},
+      msalRedirectUrl: "foo",
     });
   });
 
@@ -136,6 +147,7 @@ describe("findContext", () => {
       {
         paths: ["https://example.com/api/v(?<version>\\d+)/(?<resource>\\w+)(?:\\?.*)?"],
         contexts: "api-context",
+        msalRedirectUrl: "foo",
       },
     ];
     const mockWindow = createMockWindow("https://example.com/api/v2/users?page=1&limit=10");
@@ -151,6 +163,7 @@ describe("findContext", () => {
         version: "2",
         resource: "users",
       },
+      msalRedirectUrl: "foo",
     });
   });
 
@@ -159,10 +172,12 @@ describe("findContext", () => {
       {
         paths: ["https://example.com/page1"],
         contexts: "page1-context",
+        msalRedirectUrl: "foo",
       },
       {
         paths: ["https://example.com/page2"],
         contexts: "page2-context",
+        msalRedirectUrl: "foo",
       },
     ];
     const mockWindow = createMockWindow("https://example.com/page3");
@@ -178,6 +193,7 @@ describe("findContext", () => {
       {
         paths: ["^https://example.com/page$"],
         contexts: "exact-page-context",
+        msalRedirectUrl: "foo",
       },
     ];
     const mockWindow = createMockWindow("https://example.com/page/subpage");
@@ -193,10 +209,12 @@ describe("findContext", () => {
       {
         paths: ["https://example.com/(?<section>\\w+)"],
         contexts: "section-context-1",
+        msalRedirectUrl: "foo",
       },
       {
         paths: ["https://example.com/(?<section>\\w+)"],
         contexts: "section-context-2",
+        msalRedirectUrl: "bar",
       },
     ];
     const mockWindow = createMockWindow("https://example.com/about");
@@ -211,6 +229,7 @@ describe("findContext", () => {
       tags: {
         section: "about",
       },
+      msalRedirectUrl: "foo",
     });
   });
 
@@ -219,6 +238,7 @@ describe("findContext", () => {
       {
         paths: ["https://example.com/with-dom-tags"],
         contexts: "dom-tags-context",
+        msalRedirectUrl: "foo",
         domTags: [
           {
             cssSelector: ".header",
@@ -250,6 +270,7 @@ describe("findContext", () => {
         },
       ],
       tags: {},
+      msalRedirectUrl: "foo",
     });
   });
 
@@ -258,6 +279,7 @@ describe("findContext", () => {
       {
         paths: ["https://example.com/no-dom-tags"],
         contexts: "no-dom-tags-context",
+        msalRedirectUrl: "foo",
       },
     ];
     const mockWindow = createMockWindow("https://example.com/no-dom-tags");
@@ -270,6 +292,7 @@ describe("findContext", () => {
       contexts: "no-dom-tags-context",
       domTags: undefined,
       tags: {},
+      msalRedirectUrl: "foo",
     });
   });
 
@@ -278,6 +301,7 @@ describe("findContext", () => {
       {
         paths: ["https://example.com/products/(?<productId>\\d+)"],
         contexts: "product-context",
+        msalRedirectUrl: "foo",
         domTags: [
           {
             cssSelector: "[data-product-id]",
@@ -303,6 +327,7 @@ describe("findContext", () => {
       tags: {
         productId: "123",
       },
+      msalRedirectUrl: "foo",
     });
   });
 
@@ -311,6 +336,7 @@ describe("findContext", () => {
       {
         paths: ["https://example.com/search\\?bar=2&foo=1"],
         contexts: "search-context",
+        msalRedirectUrl: "foo",
       },
     ];
     // URL with parameters in different order should still match after sorting
@@ -324,6 +350,7 @@ describe("findContext", () => {
       contexts: "search-context",
       domTags: undefined,
       tags: {},
+      msalRedirectUrl: "foo",
     });
   });
 
@@ -332,6 +359,7 @@ describe("findContext", () => {
       {
         paths: ["https://example.com/page#section"],
         contexts: "page-with-hash",
+        msalRedirectUrl: "foo",
       },
     ];
     const mockWindow = createMockWindow("https://example.com/page#section");
@@ -344,6 +372,7 @@ describe("findContext", () => {
       contexts: "page-with-hash",
       domTags: undefined,
       tags: {},
+      msalRedirectUrl: "foo",
     });
   });
 });

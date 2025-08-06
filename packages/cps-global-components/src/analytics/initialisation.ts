@@ -1,5 +1,5 @@
 import { ApplicationInsights } from "@microsoft/applicationinsights-web";
-import { CONFIG_ASYNC } from "../config/config-async";
+import { CONFIG } from "../config/config-async";
 
 const STORAGE_PREFIX = "cps_global_components";
 
@@ -7,7 +7,7 @@ let cachedInitialisationPromise: Promise<{ appInsights: ApplicationInsights; ENV
 
 export const initialisation = () => {
   const internal = async () => {
-    const { APP_INSIGHTS_KEY, ENVIRONMENT } = await CONFIG_ASYNC();
+    const { APP_INSIGHTS_KEY, ENVIRONMENT } = await CONFIG();
     if (!APP_INSIGHTS_KEY) {
       return { appInsights: null, ENVIRONMENT };
     }

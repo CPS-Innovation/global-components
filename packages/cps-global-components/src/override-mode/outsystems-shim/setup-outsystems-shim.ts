@@ -1,4 +1,4 @@
-import { isOutSystemsApp } from "../../helpers/is-outsystems-app";
+import { isOutSystemsApp } from "../../utils/is-outsystems-app";
 
 const hideOSHeader = () => {
   console.log("[Header Hider Extension] HIDING the OS header");

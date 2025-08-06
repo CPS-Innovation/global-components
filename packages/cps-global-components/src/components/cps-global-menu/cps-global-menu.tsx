@@ -1,12 +1,12 @@
 import { Component, Prop, h, State, Fragment } from "@stencil/core";
-import { CONFIG_ASYNC } from "../../config/config-async";
+import { CONFIG } from "../../config/config-async";
 
 import { Config } from "cps-global-configuration";
 import { menuConfig, MenuConfigResult } from "./menu-config/menu-config";
 import { renderError } from "../common/render-error";
 import { initiateTracking } from "../../analytics/initiate-tracking";
-import "./menu-config/helpers/dom/initialisation";
-import { initialiseDomObservation } from "./menu-config/helpers/dom/initialisation";
+import "./menu-config/helpers/dom/try-initialise-dom-observation";
+import { tryInitialiseDomObservation } from "./menu-config/helpers/dom/try-initialise-dom-observation";
 
 @Component({
   tag: "cps-global-menu",
@@ -27,11 +27,11 @@ export class CpsGlobalMenu {
       this.address = event.destination.url;
     });
 
-    this.CONFIG = await CONFIG_ASYNC();
+    this.CONFIG = await CONFIG();
 
     // For host apps where we can not find caseId, urn etc tags in the address, we can observe the dom
     //  for these values.
-    initialiseDomObservation(this.CONFIG, window, () => {
+    tryInitialiseDomObservation(this.CONFIG, window, () => {
       // If the dom changes and tags have been found, this subscribing function sets some
       //  arbitrary State to ensure a rerender.
       this.mutationFlag = +new Date();

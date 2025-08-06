@@ -1,6 +1,6 @@
 import { Component, h, State, Fragment } from "@stencil/core";
 import { detectOverrideMode } from "../../override-mode/detect-override-mode";
-import { CONFIG_ASYNC } from "../../config/config-async";
+import { CONFIG } from "../../config/config-async";
 import { Config } from "cps-global-configuration";
 
 @Component({
@@ -12,7 +12,7 @@ export class CpsGlobalBanner {
   @State() CONFIG: Config;
 
   async componentWillLoad() {
-    this.CONFIG = await CONFIG_ASYNC();
+    this.CONFIG = await CONFIG();
   }
 
   private handleTitleClick = () => {
