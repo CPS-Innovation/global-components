@@ -74,6 +74,7 @@ export const initialiseMsal = async (window: Window & typeof globalThis, { AD_TE
 
   if (!(authority && clientId && redirectUri)) {
     // todo: feedback or logging
+    cachedPromise = Promise.resolve({ isAuthed: false, error: new Error(`Missing one or more of ${{ authority, clientId, redirectUri }}`) });
     return;
   }
 
@@ -83,6 +84,7 @@ export const initialiseMsal = async (window: Window & typeof globalThis, { AD_TE
   //  don't launch MSAL if it is the redirectUrl that we are launching
   if (window.location.href.toLowerCase().startsWith(redirectUri.toLowerCase())) {
     // todo: feedback or logging
+    cachedPromise = Promise.resolve({ isAuthed: false, error: new Error(`We think we are the MSAL AD redirectUri loading and hence not a real application`) });
     return;
   }
   cachedPromise = internal({ authority, clientId, redirectUri });
