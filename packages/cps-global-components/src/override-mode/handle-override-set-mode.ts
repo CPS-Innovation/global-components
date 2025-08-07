@@ -1,8 +1,6 @@
 import { OVERRIDE_KEY, OVERRIDE_VALUE, REDIRECT_KEY } from "./constants";
 
-
-
-const tryHandleOverrideSetMode = () => {
+const handleOverrideSetMode = () => {
   const { searchParams } = new URL(window.location.href);
   const setFlag = searchParams.get(OVERRIDE_KEY);
   if (!setFlag) {
@@ -27,4 +25,4 @@ const tryHandleOverrideSetMode = () => {
   return;
 };
 
-export { tryHandleOverrideSetMode };
+export { handleOverrideSetMode };

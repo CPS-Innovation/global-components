@@ -51,6 +51,7 @@ const createUrl = (baseUrl: string, params: Record<string, string>) => {
   return url;
 };
 
+/** Used to create a navigation link that utilises OS auth handover. */
 export const createOutboundUrl = ({
   handoverUrl,
   targetUrl,
@@ -66,6 +67,7 @@ export const createOutboundUrl = ({
   return nextUrl.toString();
 };
 
+/** Used at the point of redirecting on the OS domain.  */
 export const handleRedirect = ({
   currentUrl,
   cookieHandoverUrl,
@@ -129,4 +131,14 @@ export const handleRedirect = ({
         `Unknown ${paramKeys.STAGE} query parameter: ${stage || "empty"}`
       );
   }
+};
+
+export const isOSAuthMisaligned = () => {
+  const { WMA_JSON, WMA_COOKIES, CASE_REVIEW_JSON, CASE_REVIEW_COOKIES } =
+    localStorageKeys;
+
+  return (
+    localStorage[WMA_COOKIES] !== localStorage[CASE_REVIEW_COOKIES] ||
+    localStorage[WMA_JSON] !== localStorage[CASE_REVIEW_JSON]
+  );
 };

@@ -1,10 +1,10 @@
 import { Config } from "cps-global-configuration";
-import { findContext } from "./helpers/context/find-context";
+import { findContext } from "../../../config/context/find-context";
 import { shouldShowLink } from "./helpers/should-show-link";
 import { mapLinkConfig } from "./helpers/map-link-config";
 import { GroupedLink, groupLinksByLevel } from "./helpers/group-links-by-level";
 import { getDomTags } from "./helpers/dom/tags";
-import { isOutSystemsApp } from "../../../helpers/is-outsystems-app";
+import { isOutSystemsApp } from "../../../utils/is-outsystems-app";
 import { createOutboundUrl } from "cps-global-os-handover";
 
 export type MenuConfigResult = {

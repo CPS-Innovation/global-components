@@ -1,6 +1,6 @@
 {
   "ENVIRONMENT": "test.override",
-  "AD_TENANT_ID": "00dd0d1d-d7e6-4338-ac51-565339c7088c",
+  "AD_TENANT_AUTHORITY": "https://login.microsoftonline.com/00dd0d1d-d7e6-4338-ac51-565339c7088c",
   "AD_CLIENT_ID": "8d6133af-9593-47c6-94d0-5c65e9e310f1",
   "APP_INSIGHTS_KEY": "e572c03c-8d38-4771-b193-962f13da1b1a",
   "SURVEY_LINK": "https://forms.office.com/e/Cxmsq5xTWx",
@@ -12,49 +12,58 @@
   "CONTEXTS": [
     {
       "paths": ["https://sacpsglobalcomponents.z33.web.core.windows.net/home"],
-      "contexts": "home"
+      "contexts": "home",
+      "msalRedirectUrl": "https://sacpsglobalcomponents.z33.web.core.windows.net/home/auth-redirect.html"
     },
     {
       "paths": [
         "https://polaris-qa-notprod.cps.gov.uk/polaris-ui/case-details/(?<urn>[^/]+)/(?<caseId>\\d+)"
       ],
-      "contexts": "case materials"
+      "contexts": "case materials",
+      "msalRedirectUrl": "https://polaris-qa-notprod.cps.gov.uk/polaris-ui/build-version.txt"
     },
     {
       "paths": ["https://polaris"],
-      "contexts": "cases"
+      "contexts": "cases",
+      "msalRedirectUrl": "https://polaris-qa-notprod.cps.gov.uk/polaris-ui/build-version.txt"
     },
     {
       "paths": [
         "https://cps-tst.outsystemsenterprise.com/CaseReview/LandingPage\\?CMSCaseId=(?<caseId>\\d+)&URN=(?<urn>[^&]+)"
       ],
-      "contexts": "case review"
+      "contexts": "case review",
+      "msalRedirectUrl": "https://cps-tst.outsystemsenterprise.com/Casework_Patterns/auth-handover-test.html"
     },
     {
       "paths": ["https://cps-tst.outsystemsenterprise.com/CaseReview/"],
-      "contexts": "cases"
+      "contexts": "cases",
+      "msalRedirectUrl": "https://cps-tst.outsystemsenterprise.com/Casework_Patterns/auth-handover-test.html"
     },
     {
       "paths": [
         "https://cps-tst.outsystemsenterprise.com/WorkManagementApp/CaseOverview\\?CaseId=(?<caseId>\\d+)&URN=(?<urn>[^&]+)"
       ],
-      "contexts": "case details"
+      "contexts": "case details",
+      "msalRedirectUrl": "https://cps-tst.outsystemsenterprise.com/Casework_Patterns/auth-handover-test.html"
     },
     {
       "paths": [
         "https://cps-tst.outsystemsenterprise.com/WorkManagementApp/Cases"
       ],
-      "contexts": "cases"
+      "contexts": "cases",
+      "msalRedirectUrl": "https://cps-tst.outsystemsenterprise.com/Casework_Patterns/auth-handover-test.html"
     },
     {
       "paths": [
         "https://cps-tst.outsystemsenterprise.com/WorkManagementApp/TaskList"
       ],
-      "contexts": "tasks"
+      "contexts": "tasks",
+      "msalRedirectUrl": "https://cps-tst.outsystemsenterprise.com/Casework_Patterns/auth-handover-test.html"
     },
     {
       "paths": ["https://housekeeping"],
       "contexts": "case materials",
+      "msalRedirectUrl": "https://housekeeping-staging.int.cps.gov.uk/pdf.worker.mjs",
       "domTags": [
         {
           "cssSelector": "a[href*='/polaris-ui/case-details/']",

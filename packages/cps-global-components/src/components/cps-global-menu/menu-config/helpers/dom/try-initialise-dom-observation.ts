@@ -1,11 +1,11 @@
 import { Config } from "cps-global-configuration";
-import { findContext } from "../context/find-context";
+import { findContext } from "../../../../../config/context/find-context";
 import { setupMutationObserver } from "./mutations";
 import { resetDomTags } from "./tags";
 
 const cache: { observer?: ReturnType<typeof setupMutationObserver>; contextIndex?: number } = {};
 
-export const initialiseDomObservation = ({ CONTEXTS }: Config, window: Window, callback: () => void) => {
+export const tryInitialiseDomObservation = ({ CONTEXTS }: Config, window: Window, callback: () => void) => {
   const resetDomObservation = () => {
     const { domTags, contextIndex } = findContext(CONTEXTS, window);
 

@@ -1,21 +1,29 @@
-//import { msal } from "./auth/msal";
-import { initialiseConfig } from "./config/config-async";
 import { detectOverrideMode } from "./override-mode/detect-override-mode";
-import { trySetupOutSystemsShim } from "./override-mode/outsystems-shim/try-setup-outsystems-shim";
-import { tryHandleOverrideSetMode } from "./override-mode/try-handle-override-set-mode";
-import { trySetupOverrideMode } from "./override-mode/try-setup-override-mode";
-
+import { setupOutSystemsShim } from "./override-mode/outsystems-shim/setup-outsystems-shim";
+import { handleOverrideSetMode } from "./override-mode/handle-override-set-mode";
+import { setupOverrideMode } from "./override-mode/setup-override-mode";
+import { isOSAuthMisaligned, createOutboundUrl } from "cps-global-os-handover";
+import { isOutSystemsApp } from "./utils/is-outsystems-app";
+import { initialiseMsal, msal } from "./auth/msal";
+import { CONFIG, initialiseConfig } from "./config/config-async";
 export default async () => {
-  tryHandleOverrideSetMode();
+  handleOverrideSetMode();
 
   const isOverrideMode = detectOverrideMode(window);
-  /*const configPromise = */ initialiseConfig(isOverrideMode); // no need to await, we're just optimising by kicking this off asap
+  initialiseConfig(isOverrideMode);
+
   if (isOverrideMode) {
-    trySetupOutSystemsShim(window);
-    trySetupOverrideMode(window);
-    // const { AD_TENANT_ID, AD_CLIENT_ID } = await configPromise;
-    // if (AD_TENANT_ID && AD_CLIENT_ID) {
-    //   await msal(AD_TENANT_ID, AD_CLIENT_ID);
-    // }
+    setupOutSystemsShim(window);
+    setupOverrideMode(window);
+
+    const config = await CONFIG();
+    initialiseMsal(window, config);
+    msal().then(({ isAuthed, username, error }) => console.log({ isAuthed, username, error }));
+    // Temporary code
+    const isAuthRealignmentRequired = isOutSystemsApp(window.location.href) && isOSAuthMisaligned();
+    if (isAuthRealignmentRequired) {
+      const redirectUrl = createOutboundUrl({ handoverUrl: config.OS_HANDOVER_URL, targetUrl: window.location.href });
+      console.log(`OS auths not aligned: navigate to ${redirectUrl}`);
+    }
   }
 };
