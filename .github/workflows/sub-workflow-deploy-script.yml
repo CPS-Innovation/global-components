@@ -39,12 +39,12 @@ jobs:
           artifact-ids: ${{ inputs.artifact-id }}
 
       - run: |
-          cp ./configuration/config.${{ inputs.environment }}.json ${{ steps.download.outputs.download-path }}/${{env.BUILD_ARTIFACT_NAME}}/config.json
+          cp ./configuration/config.${{ inputs.environment }}.json ${{ steps.download.outputs.download-path }}/config.json
           if [ -f "./configuration/config.${{ inputs.environment }}.override.json" ]; then
-            cp ./configuration/config.${{ inputs.environment }}.override.json ${{ steps.download.outputs.download-path }}/${{env.BUILD_ARTIFACT_NAME}}/config.override.json
+            cp ./configuration/config.${{ inputs.environment }}.override.json ${{ steps.download.outputs.download-path }}/config.override.json
 
-            cp ./configuration/config.${{ inputs.environment }}.override.json ${{ steps.download.outputs.download-path }}/${{env.BUILD_ARTIFACT_NAME}}/config.override.js
-            sed -i '1s/^/cps_global_components_config_jsonp_callback(/; $s/$/);/' ${{ steps.download.outputs.download-path }}/${{env.BUILD_ARTIFACT_NAME}}/config.override.js
+            cp ./configuration/config.${{ inputs.environment }}.override.json ${{ steps.download.outputs.download-path }}/config.override.js
+            sed -i '1s/^/cps_global_components_config_jsonp_callback(/; $s/$/);/' ${{ steps.download.outputs.download-path }}/config.override.js
           fi
 
           # Read config values for the environment
@@ -55,8 +55,8 @@ jobs:
           # Prepend the window variables to the auth-handover.js file
           echo "window.cps_global_components_cookie_handover_url = '$COOKIE_HANDOVER_URL';" > ./prepared-auth-handover.js
           echo "window.cps_global_components_token_handover_url = '$TOKEN_HANDOVER_URL';" >> ./prepared-auth-handover.js
-          cat "${{ steps.download.outputs.download-path }}/${{env.BUILD_ARTIFACT_NAME}}/auth-handover.js" >> ./prepared-auth-handover.js
-          mv -f ./prepared-auth-handover.js "${{ steps.download.outputs.download-path }}/${{env.BUILD_ARTIFACT_NAME}}/auth-handover.js"
+          cat "${{ steps.download.outputs.download-path }}/auth-handover.js" >> ./prepared-auth-handover.js
+          mv -f ./prepared-auth-handover.js "${{ steps.download.outputs.download-path }}/auth-handover.js"
 
       - uses: azure/cli@v2
         with:
