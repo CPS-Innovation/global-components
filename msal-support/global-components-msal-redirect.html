@@ -1,0 +1,14 @@
+<html>
+
+<!-- 
+  This file is part of an experimental feature. The file exists so that silent MSAL flows 
+  initiated by global components have an appropriate and predictable URL to terminate at.  
+  
+  When the global header is present in an app, the header will initiate a silent MSAL flow to
+  attempt to obtain the logged-in user's account information.
+
+  It is important that the termination point is within the same origin as the point where the
+  flow was initiated - hence the existence of this file within this folder.
+-->
+
+</html>
