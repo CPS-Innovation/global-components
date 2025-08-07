@@ -74,7 +74,7 @@ export const initialiseMsal = async (window: Window & typeof globalThis, { AD_TE
 
   if (!(authority && clientId && redirectUri)) {
     // todo: feedback or logging
-    cachedPromise = Promise.resolve({ isAuthed: false, error: new Error(`Missing one or more of ${{ authority, clientId, redirectUri }}`) });
+    cachedPromise = Promise.resolve({ isAuthed: false, error: new Error(`Missing one or more of ${JSON.stringify({ authority, clientId, redirectUri })}`) });
     return;
   }
 
