@@ -63,7 +63,7 @@
     {
       "paths": ["https://housekeeping"],
       "contexts": "case materials",
-      "msalRedirectUrl": "",
+      "msalRedirectUrl": "https://housekeeping-staging.int.cps.gov.uk/pdf.worker.mjs",
       "domTags": [
         {
           "cssSelector": "a[href*='/polaris-ui/case-details/']",
