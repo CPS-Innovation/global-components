@@ -18,6 +18,7 @@ type Result =
       username?: never;
       name?: undefined;
       getToken?: undefined;
+      groups?: undefined;
       error?: any;
     }
   | {
@@ -25,6 +26,7 @@ type Result =
       username: string;
       name: string;
       getToken: () => Promise<string>;
+      groups: string[];
       error?: undefined;
     };
 
@@ -51,7 +53,7 @@ const internal = async ({ authority, clientId, redirectUri }: InternalParams): P
       return { isAuthed: false };
     }
     instance.setActiveAccount(accounts[0]);
-    const { username, name } = instance.getActiveAccount();
+    const { username, name, idTokenClaims } = instance.getActiveAccount();
 
     return {
       isAuthed: true,
@@ -63,6 +65,7 @@ const internal = async ({ authority, clientId, redirectUri }: InternalParams): P
         });
         return accessToken;
       },
+      groups: (idTokenClaims["groups"] as string[]) || [],
     };
   } catch (error) {
     return { isAuthed: false, error };
