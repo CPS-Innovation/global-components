@@ -18,7 +18,16 @@ export default async () => {
 
     const config = await CONFIG();
     initialiseMsal(window, config);
-    msal().then(async ({ isAuthed, username, error, groups }) => console.log({ isAuthed, username, error, groups }));
+    msal()
+      .then(async ({ isAuthed, username, error, groups }) => {
+        console.log({ isAuthed, username, error, groups });
+        if (!isOutSystemsApp(window.location.href)) {
+          return;
+        }
+        const overrideFlag = isOutSystemsApp(window.location.href) && groups.includes("12377eca-b463-4a6c-80ea-95f678f09591");
+        localStorage["$OS_Users$WorkManagementApp$ClientVars$SetGlobalNavOverride"] = localStorage["$OS_Users$CaseReview$ClientVars$SetGlobalNavOverride"] = overrideFlag;
+      })
+      .catch(err => console.error(err));
 
     // Temporary code
     const isAuthRealignmentRequired = isOutSystemsApp(window.location.href) && isOSAuthMisaligned();
