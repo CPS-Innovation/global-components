@@ -11,7 +11,9 @@
   "TOKEN_HANDOVER_URL": "https://polaris-qa-notprod.cps.gov.uk/auth-refresh-cms-modern-token",
   "CONTEXTS": [
     {
-      "paths": ["https://sacpsglobalcomponents.z33.web.core.windows.net/home"],
+      "paths": [
+        "https://cps-dev.outsystemsenterprise.com/Casework_Blocks/home"
+      ],
       "contexts": "home",
       "msalRedirectUrl": ""
     },
@@ -76,7 +78,7 @@
     {
       "label": "Home",
       "level": 0,
-      "href": "https://sacpsglobalcomponents.z33.web.core.windows.net/home/",
+      "href": "https://cps-dev.outsystemsenterprise.com/Casework_Blocks/home",
       "activeContexts": "home"
     },
     {
