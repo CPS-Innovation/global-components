@@ -72,6 +72,11 @@
           "regex": "/polaris-ui/case-details/(?<urn>[^/]+)/(?<caseId>\\d+)"
         }
       ]
+    },
+    {
+      "paths": ["https://cps-dev.outsystemsenterprise.com/"],
+      "contexts": "stef-lee-testing",
+      "msalRedirectUrl": "https://cps-dev.outsystemsenterprise.com/Casework_Patterns/auth-handover-dev.html"
     }
   ],
   "LINKS": [
