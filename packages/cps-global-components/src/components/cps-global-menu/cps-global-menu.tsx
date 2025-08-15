@@ -1,12 +1,9 @@
 import { Component, Prop, h, State, Fragment } from "@stencil/core";
-import { CONFIG } from "../../config/config-async";
-
-import { Config } from "cps-global-configuration";
 import { menuConfig, MenuConfigResult } from "./menu-config/menu-config";
 import { renderError } from "../common/render-error";
-import { initiateTracking } from "../../analytics/initiate-tracking";
 import "./menu-config/helpers/dom/try-initialise-dom-observation";
 import { tryInitialiseDomObservation } from "./menu-config/helpers/dom/try-initialise-dom-observation";
+import { state } from "../../store/store";
 
 @Component({
   tag: "cps-global-menu",
@@ -15,23 +12,19 @@ import { tryInitialiseDomObservation } from "./menu-config/helpers/dom/try-initi
 })
 export class CpsGlobalMenu {
   @Prop() name: string = "Please wait...";
-  @State() CONFIG: Config;
 
   // We have address as State so that we get a rerender triggered whenever it updates
   @State() address: string;
   @State() mutationFlag: number;
 
   async componentWillLoad() {
-    initiateTracking();
     window.navigation.addEventListener("navigate", event => {
       this.address = event.destination.url;
     });
 
-    this.CONFIG = await CONFIG();
-
     // For host apps where we can not find caseId, urn etc tags in the address, we can observe the dom
     //  for these values.
-    tryInitialiseDomObservation(this.CONFIG, window, () => {
+    tryInitialiseDomObservation(state.config, window, () => {
       // If the dom changes and tags have been found, this subscribing function sets some
       //  arbitrary State to ensure a rerender.
       this.mutationFlag = +new Date();
@@ -39,9 +32,7 @@ export class CpsGlobalMenu {
   }
 
   renderOk = ([level1Links, level2Links]: MenuConfigResult["links"]) => {
-    const { SURVEY_LINK } = this.CONFIG;
-
-    const classes = this.CONFIG.SHOW_GOVUK_REBRAND
+    const classes = state.config.SHOW_GOVUK_REBRAND
       ? { flag: "govuk-template--rebranded", level1Background: "background-light-blue", divider: "background-divider-blue" }
       : { flag: "", level1Background: "background-grey", divider: "background-divider" };
     return (
@@ -51,7 +42,7 @@ export class CpsGlobalMenu {
             {level1Links?.map(link => (
               <nav-link {...link}></nav-link>
             ))}
-            {SURVEY_LINK && <nav-link openInNewTab class="survey-link" label="Give feedback" href={SURVEY_LINK}></nav-link>}
+            {state.config.SURVEY_LINK && <nav-link openInNewTab class="survey-link" label="Give feedback" href={state.config.SURVEY_LINK}></nav-link>}
           </ul>
         </nav>
 
@@ -74,13 +65,12 @@ export class CpsGlobalMenu {
   };
 
   render() {
-    const { _CONFIG_ERROR } = this.CONFIG;
-    const { found, links } = menuConfig(this.CONFIG, window);
+    const { found, links } = menuConfig(state.config, window);
 
-    if (_CONFIG_ERROR) {
-      return renderError(_CONFIG_ERROR);
+    if (state.status === "broken") {
+      return renderError(state.error);
     } else if (!found) {
-      renderError(`No menu config found for ${window.location.href}`);
+      renderError(new Error(`No menu config found for ${window.location.href}`));
     } else {
       return this.renderOk(links);
     }

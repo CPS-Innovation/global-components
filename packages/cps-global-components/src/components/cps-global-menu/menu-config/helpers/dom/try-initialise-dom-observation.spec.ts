@@ -3,7 +3,7 @@ jest.mock("./mutations");
 jest.mock("./tags");
 
 import { tryInitialiseDomObservation } from "./try-initialise-dom-observation";
-import { findContext } from "../../../../../config/context/find-context";
+import { findContext } from "../../../../../services/config/context/find-context";
 import { setupMutationObserver } from "./mutations";
 import { resetDomTags } from "./tags";
 import { Config } from "cps-global-configuration";

@@ -6,7 +6,7 @@ jest.mock("./helpers/dom/tags");
 
 import { menuConfig } from "./menu-config";
 import { Config } from "cps-global-configuration";
-import { findContext } from "../../../config/context/find-context";
+import { findContext } from "../../../services/config/context/find-context";
 import { shouldShowLink } from "./helpers/should-show-link";
 import { mapLinkConfig } from "./helpers/map-link-config";
 import { groupLinksByLevel } from "./helpers/group-links-by-level";
@@ -35,7 +35,6 @@ describe("menuConfig", () => {
   const mockConfig: Config = {
     ENVIRONMENT: "test",
     SURVEY_LINK: "https://example.com/survey",
-    SHOW_BANNER: true,
     SHOW_MENU: true,
     OS_HANDOVER_URL: "",
     COOKIE_HANDOVER_URL: "",

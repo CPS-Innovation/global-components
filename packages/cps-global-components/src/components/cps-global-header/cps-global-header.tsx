@@ -1,8 +1,6 @@
-import { Component, h, State } from "@stencil/core";
-import { CONFIG } from "../../config/config-async";
-import { Config } from "cps-global-configuration";
+import { Component, h } from "@stencil/core";
 import { renderError } from "../common/render-error";
-import { initiateTracking } from "../../analytics/initiate-tracking";
+import { state } from "../../store/store";
 
 @Component({
   tag: "cps-global-header",
@@ -10,20 +8,14 @@ import { initiateTracking } from "../../analytics/initiate-tracking";
   styleUrl: "cps-global-header.scss",
 })
 export class CpsGlobalHeader {
-  @State() CONFIG: Config;
-
-  async componentWillLoad() {
-    initiateTracking();
-    this.CONFIG = await CONFIG();
-  }
-
   render() {
-    const { _CONFIG_ERROR, SHOW_BANNER, SHOW_MENU } = this.CONFIG;
+    const { status, error } = state;
+
     return (
       <div>
-        {!!_CONFIG_ERROR && renderError(_CONFIG_ERROR)}
-        {SHOW_BANNER && <cps-global-banner></cps-global-banner>}
-        {SHOW_MENU && <cps-global-menu></cps-global-menu>}
+        <cps-global-banner></cps-global-banner>
+        {status === "broken" && renderError(error)}
+        {status === "auth-known" && <cps-global-menu></cps-global-menu>}
       </div>
     );
   }

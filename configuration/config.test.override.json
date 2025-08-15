@@ -4,7 +4,6 @@
   "AD_CLIENT_ID": "8d6133af-9593-47c6-94d0-5c65e9e310f1",
   "APP_INSIGHTS_KEY": "e572c03c-8d38-4771-b193-962f13da1b1a",
   "SURVEY_LINK": "https://forms.office.com/e/Cxmsq5xTWx",
-  "SHOW_BANNER": true,
   "SHOW_MENU": true,
   "OS_HANDOVER_URL": "https://cps-tst.outsystemsenterprise.com/Casework_Patterns/auth-handover-test.html",
   "COOKIE_HANDOVER_URL": "https://polaris-qa-notprod.cps.gov.uk/polaris",

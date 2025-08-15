@@ -1,7 +1,5 @@
-import { Component, h, State, Fragment } from "@stencil/core";
-import { detectOverrideMode } from "../../override-mode/detect-override-mode";
-import { CONFIG } from "../../config/config-async";
-import { Config } from "cps-global-configuration";
+import { Component, h, Fragment } from "@stencil/core";
+import { state } from "../../store/store";
 
 @Component({
   tag: "cps-global-banner",
@@ -9,14 +7,8 @@ import { Config } from "cps-global-configuration";
   shadow: true,
 })
 export class CpsGlobalBanner {
-  @State() CONFIG: Config;
-
-  async componentWillLoad() {
-    this.CONFIG = await CONFIG();
-  }
-
   private handleTitleClick = () => {
-    if (!detectOverrideMode(window)) {
+    if (!state.isOverrideMode) {
       return;
     }
     const currentBg = window.document.body.style.backgroundColor;
@@ -24,12 +16,13 @@ export class CpsGlobalBanner {
   };
 
   render() {
+    const showRebrand = state.config?.SHOW_GOVUK_REBRAND;
     return (
-      <div class={this.CONFIG.SHOW_GOVUK_REBRAND ? "govuk-template--rebranded" : ""}>
+      <div class={showRebrand ? "govuk-template--rebranded" : ""}>
         <a href="#main-content" class="govuk-skip-link skip-link" data-module="govuk-skip-link">
           Skip to main content
         </a>
-        {this.CONFIG.SHOW_GOVUK_REBRAND ? (
+        {showRebrand ? (
           <header class="govuk-header background-blue" data-module="govuk-header">
             <div class="govuk-header__container">
               <div class="govuk-header__logo">

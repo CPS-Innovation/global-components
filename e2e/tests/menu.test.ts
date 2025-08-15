@@ -4,7 +4,6 @@ describe("Global menu", () => {
   it("should follow config to only show one top-level nav link", async () => {
     // Arrange
     await arrange({
-      SHOW_BANNER: true,
       SHOW_MENU: true,
       CONTEXTS: [{ contexts: "e2e", paths: [".*"], msalRedirectUrl: "foo" }],
       LINKS: [

@@ -56,7 +56,6 @@ export const ConfigSchema = z.object({
   AD_CLIENT_ID: z.string().optional(),
   APP_INSIGHTS_KEY: z.string().optional(),
   SURVEY_LINK: z.string().optional(),
-  SHOW_BANNER: z.boolean().optional(),
   SHOW_MENU: z.boolean().optional(),
   SHOW_GOVUK_REBRAND: z.boolean().optional(),
   CONTEXTS: z.array(ContextSchema).optional(),
@@ -64,7 +63,6 @@ export const ConfigSchema = z.object({
   OS_HANDOVER_URL: z.string().optional(),
   COOKIE_HANDOVER_URL: z.string().optional(),
   TOKEN_HANDOVER_URL: z.string().optional(),
-  _CONFIG_ERROR: z.string().optional(),
 });
 
 export type Config = z.infer<typeof ConfigSchema>;
