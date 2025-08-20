@@ -1,4 +1,3 @@
-import { GLOBAL_EVENT_NAME } from "cps-global-core";
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 
@@ -10,7 +9,7 @@ export const useGlobalNavigation = () => {
   useEffect(() => {
     const handler = (event: GlobalNavigationEvent) => navigate(event.detail!);
 
-    window.addEventListener(GLOBAL_EVENT_NAME, handler);
-    return () => window.removeEventListener(GLOBAL_EVENT_NAME, handler);
+    window.addEventListener("cps-global-header-event", handler);
+    return () => window.removeEventListener("cps-global-header-event", handler);
   }, []);
 };

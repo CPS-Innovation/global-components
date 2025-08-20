@@ -63,6 +63,7 @@ export const ConfigSchema = z.object({
   OS_HANDOVER_URL: z.string().optional(),
   COOKIE_HANDOVER_URL: z.string().optional(),
   TOKEN_HANDOVER_URL: z.string().optional(),
+  FEATURE_FLAG_ENABLE_MENU_GROUP: z.string().optional(),
 });
 
 export type Config = z.infer<typeof ConfigSchema>;

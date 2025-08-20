@@ -1,5 +1,4 @@
 import { DomTags } from "cps-global-configuration/dist/schema";
-import { cacheDomTags } from "./tags";
 
 const extractTagsFromElement = (element: Element, domTags: DomTags[]) => {
   let tags: Record<string, string> = {};
@@ -11,7 +10,6 @@ const extractTagsFromElement = (element: Element, domTags: DomTags[]) => {
       tags = { ...tags, ...match?.groups };
     }
   }
-
   return tags;
 };
 
@@ -19,35 +17,32 @@ const processMutations = (mutations: MutationRecord[], domTags: DomTags[]) => {
   let tags: Record<string, string> = {};
 
   for (const mutation of mutations) {
-    if (mutation.type !== "childList") continue;
-    for (const node of mutation.addedNodes) {
-      if (!node || node.nodeType !== Node.ELEMENT_NODE) continue;
-      tags = { ...tags, ...extractTagsFromElement(node as Element, domTags) };
-    }
+    const node = mutation.type === "characterData" ? mutation.target.parentElement : (mutation.target as Element);
+    tags = { ...tags, ...extractTagsFromElement(node, domTags) };
   }
 
   return tags;
 };
 
-export const setupMutationObserver = (rootElement: Element, domTags: DomTags[], callback: () => void) => {
+export const setupMutationObserver = (rootElement: Element, domTags: DomTags[], callback: (tags: Record<string, string>) => void) => {
   const observer = new MutationObserver(mutations => {
     const newTags = processMutations(mutations, domTags);
     if (Object.keys(newTags).length) {
-      cacheDomTags(newTags);
-      callback();
+      callback(newTags);
     }
   });
 
   observer.observe(rootElement, {
+    attributes: true,
     childList: true,
     subtree: true,
+    characterData: true,
   });
 
   // Process initial DOM state
   const tags = extractTagsFromElement(rootElement, domTags);
   if (Object.keys(tags).length) {
-    cacheDomTags(tags);
-    // No need for the callback on first call
+    callback(tags);
   }
 
   return observer;

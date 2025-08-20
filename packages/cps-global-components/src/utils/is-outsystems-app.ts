@@ -1,5 +1,6 @@
-export const isOutSystemsApp = (url: string) => {
+export const isOutSystemsApp = ({ location: { href } }: { location: { href: string } }) => {
   try {
+    const url = href;
     if (!url) {
       return false;
     }

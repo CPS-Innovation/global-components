@@ -1,19 +1,19 @@
-import { ConfigSchema, type Config } from "./schema";
+import { ConfigSchema, Config } from "./schema";
 
 export type ValidationResult =
   | {
       success: true;
-      data: Config;
+      config: Config;
     }
   | {
       success: false;
-      error: string;
+      errorMsg: string;
     };
 
-export function validateConfig(
+export const validateConfig = (
   jsonData: unknown,
   filename?: string
-): ValidationResult {
+): ValidationResult => {
   try {
     const result = ConfigSchema.safeParse(jsonData);
 
@@ -24,32 +24,27 @@ export function validateConfig(
         if (match) {
           const expectedEnvironment = match[1];
           if (result.data.ENVIRONMENT !== expectedEnvironment) {
-            return {
-              success: false,
-              error: `ENVIRONMENT field value "${result.data.ENVIRONMENT}" does not match filename environment "${expectedEnvironment}"`,
-            };
+            throw new Error(
+              `ENVIRONMENT field value "${result.data.ENVIRONMENT}" does not match filename environment "${expectedEnvironment}"`
+            );
           }
         }
       }
 
       return {
         success: true,
-        data: result.data,
+        config: result.data,
       };
     } else {
-      return {
-        success: false,
-        error: result.error.message,
-      };
+      throw new Error(result.error.message);
     }
-  } catch (error) {
+  } catch (err) {
     return {
       success: false,
-      error:
-        error instanceof Error ? error.message : "Unknown validation error",
+      errorMsg: err instanceof Error ? err.message : "Unknown validation error",
     };
   }
-}
+};
 
 export function validateConfigStrict(
   jsonData: unknown,

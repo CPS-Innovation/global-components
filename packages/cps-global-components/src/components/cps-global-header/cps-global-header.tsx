@@ -9,13 +9,10 @@ import { state } from "../../store/store";
 })
 export class CpsGlobalHeader {
   render() {
-    const { status, error } = state;
-
     return (
       <div>
         <cps-global-banner></cps-global-banner>
-        {status === "broken" && renderError(error)}
-        {status === "auth-known" && <cps-global-menu></cps-global-menu>}
+        {state.fatalInitialisationError ? renderError(state.fatalInitialisationError) : <cps-global-menu></cps-global-menu>}
       </div>
     );
   }

@@ -8,7 +8,7 @@ import { state } from "../../store/store";
 })
 export class CpsGlobalBanner {
   private handleTitleClick = () => {
-    if (!state.isOverrideMode) {
+    if (!state.flags.isOverrideMode) {
       return;
     }
     const currentBg = window.document.body.style.backgroundColor;

@@ -38,9 +38,17 @@
     <cps-global-header></cps-global-header>
   </div>
 
-  <!-- <a href="/polaris-ui/case-details/foo/123/789"></a>
-  <button onclick="window.history.pushState('page2', 'Title', `http://localhost:3333/${Date.now()}`)">Navigate</button>
-  <div></div> -->
+  <a id="myLink" href="/polaris-ui/case-details/foo/123/789">Go to Case</a>
+  <button onclick="changeLink()">Change link</button>
+
+  <script>
+    function changeLink() {
+      // Example: change link to another case
+      document.getElementById("myLink").href = "/polaris-ui/case-details/bar/456/999";
+    }
+  </script>
+  <div></div>
+
 
 </body>
 

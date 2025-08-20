@@ -1,7 +1,7 @@
 import { Context } from "cps-global-configuration/dist/schema";
 import { buildSanitizedAddress } from "./build-sanitized-address";
 
-type ReturnType =
+export type FoundContext =
   | (Context & {
       found: true;
       tags: {
@@ -12,7 +12,7 @@ type ReturnType =
     })
   | { found: false; domTags?: undefined; contextIndex?: undefined; msalRedirectUrl?: undefined };
 
-export const findContext = (contextArr: Context[], window: Window): ReturnType => {
+export const findContext = (contextArr: Context[], window: Window): FoundContext => {
   const address = buildSanitizedAddress(window.location);
 
   for (let contextIndex = 0; contextIndex < contextArr.length; contextIndex++) {

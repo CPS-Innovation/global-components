@@ -8,6 +8,7 @@
   "OS_HANDOVER_URL": "https://cps.outsystemsenterprise.com/Casework_Patterns/auth-handover-prod.html",
   "COOKIE_HANDOVER_URL": "https://polaris.cps.gov.uk/polaris",
   "TOKEN_HANDOVER_URL": "https://polaris.cps.gov.uk/auth-refresh-cms-modern-token",
+  "FEATURE_FLAG_ENABLE_MENU_GROUP": "12377eca-b463-4a6c-80ea-95f678f09591",
   "CONTEXTS": [],
   "LINKS": []
 }

@@ -1,6 +1,5 @@
 import { Config } from "@stencil/core";
 import { sass } from "@stencil/sass";
-import { readFileSync } from "fs";
 
 const esModules = [
   "cps-global-os-handover",

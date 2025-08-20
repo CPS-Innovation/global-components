@@ -1,43 +1,43 @@
 #!/usr/bin/env node
 
-import * as fs from 'fs';
-import * as path from 'path';
-import { validateConfig } from '../validator';
+import * as fs from "fs";
+import * as path from "path";
+import { validateConfig } from "../validator";
 
 function findConfigFiles(folderPath: string): string[] {
   const files = fs.readdirSync(folderPath);
-  return files.filter(file => file.match(/^config\..*\.json$/));
+  return files.filter((file) => file.match(/^config\..*\.json$/));
 }
 
 function validateFile(filePath: string): boolean {
   try {
-    const fileContent = fs.readFileSync(filePath, 'utf-8');
+    const fileContent = fs.readFileSync(filePath, "utf-8");
     const jsonData = JSON.parse(fileContent);
     const filename = path.basename(filePath);
-    
+
     const result = validateConfig(jsonData, filename);
-    
+
     if (result.success) {
       console.log(`✅ ${filename} is valid`);
       return true;
     } else {
       console.error(`❌ ${filename} is invalid:`);
-      console.error(result.error);
+      console.error(result.errorMsg);
       return false;
     }
   } catch (error) {
     console.error(`❌ Error reading or parsing ${path.basename(filePath)}:`);
-    console.error(error instanceof Error ? error.message : 'Unknown error');
+    console.error(error instanceof Error ? error.message : "Unknown error");
     return false;
   }
 }
 
 function main() {
   const args = process.argv.slice(2);
-  
+
   if (args.length === 0) {
-    console.error('Usage: node validate.js <folder-path>');
-    console.error('Example: node validate.js ../../configuration');
+    console.error("Usage: node validate.js <folder-path>");
+    console.error("Example: node validate.js ../../configuration");
     process.exit(1);
   }
 
@@ -56,14 +56,14 @@ function main() {
 
   try {
     const configFiles = findConfigFiles(resolvedPath);
-    
+
     if (configFiles.length === 0) {
       console.log(`No config.*.json files found in ${folderPath}`);
       process.exit(0);
     }
 
     console.log(`Found ${configFiles.length} config file(s) in ${folderPath}`);
-    
+
     let allValid = true;
     for (const file of configFiles) {
       const filePath = path.join(resolvedPath, file);
@@ -82,7 +82,7 @@ function main() {
     }
   } catch (error) {
     console.error(`❌ Error processing folder ${folderPath}:`);
-    console.error(error instanceof Error ? error.message : 'Unknown error');
+    console.error(error instanceof Error ? error.message : "Unknown error");
     process.exit(1);
   }
 }

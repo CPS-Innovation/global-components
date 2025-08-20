@@ -1,5 +1,6 @@
+//@ts-ignore
 const log = (...msgs: (string | HTMLElement)[]) => {
-  console.debug(...msgs);
+  //console.debug(...msgs);
 };
 
 const hideOSHeader = () => {
@@ -84,14 +85,14 @@ const handleMutations = (mutations: MutationRecord[]) => {
   });
 };
 
-export const setupOutSystemsShim = () => {
+export const setupOutSystemsShim = ({ window }: { window: Window }) => {
   log("[Header Hider Extension] Running mutation observer");
 
   hideOSHeader();
   ensureGlobalHeader();
 
   const observer = new MutationObserver(handleMutations);
-  observer.observe(document.body, {
+  observer.observe(window.document.body, {
     childList: true,
     subtree: true,
   });

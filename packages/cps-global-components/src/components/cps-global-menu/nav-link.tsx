@@ -1,7 +1,6 @@
 import { Component, Prop, h, Event, EventEmitter } from "@stencil/core";
-import * as core from "cps-global-core";
 
-window.addEventListener(core.GLOBAL_EVENT_NAME, (event: Event & { detail: string }) => console.debug("A navigation event has been fired: ", event));
+window.addEventListener("cps-global-header-event", (event: Event & { detail: string }) => console.debug("A navigation event has been fired: ", event));
 
 type LinkMode = "standard" | "new-tab" | "emit-event" | "disabled";
 

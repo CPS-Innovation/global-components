@@ -1,36 +1,30 @@
-import { createStore } from "@stencil/store";
 import { Config } from "cps-global-configuration";
 import { AuthResult } from "../services/auth/initialise-auth";
+import { FoundContext } from "../services/context/find-context";
+import { createCustomStore } from "./custom-subscription";
 
-type Store = {
-  status: "uninitialised" | "config-known" | "auth-known" | "broken";
-  isOverrideMode?: boolean;
-  isOutSystemsApp?: boolean;
+export type Flags = { isOverrideMode: boolean; isOutSystems: boolean };
+export type Tags = Record<string, string>;
+
+export type Register = typeof register;
+
+export type Store = {
+  flags?: Flags;
   config?: Config;
   auth?: AuthResult;
-  error?: Error;
+  context?: FoundContext;
+  tags?: Tags;
+  fatalInitialisationError?: Error;
 };
 
-const store = createStore<Store>({ status: "uninitialised" });
+export const store = createCustomStore<Store>(
+  () => ({}),
+  (newValue, oldValue) => JSON.stringify(newValue) !== JSON.stringify(oldValue),
+);
 
-export const registerFlags = ({ isOverrideMode, isOutSystems }: { isOverrideMode: boolean; isOutSystems: boolean }) => {
-  store.set("isOverrideMode", isOverrideMode);
-  store.set("isOutSystemsApp", isOutSystems);
+export const register = (arg: Partial<Store>) => {
+  //console.log(arg);
+  (Object.keys(arg) as (keyof Store)[]).forEach(key => store.set(key, arg[key]));
 };
 
-export const registerConfig = (config: Config) => {
-  store.set("config", config);
-  store.set("status", "config-known");
-};
-
-export const registerAuth = (auth: AuthResult) => {
-  store.set("auth", auth);
-  store.set("status", "auth-known");
-};
-
-export const registerBroken = (error: Error) => {
-  store.set("status", "broken");
-  store.set("error", error);
-};
-
-export const { state } = store;
+export const { state, onChange } = store;

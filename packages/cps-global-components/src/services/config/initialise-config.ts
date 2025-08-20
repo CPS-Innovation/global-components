@@ -1,4 +1,4 @@
-import { Config, validateConfig } from "cps-global-configuration";
+import { Config, validateConfig, ValidationResult } from "cps-global-configuration";
 import { ConfigFetch } from "./ConfigFetch";
 import { getArtifactUrl } from "../../utils/get-artifact-url";
 import { fetchOverrideConfig } from "../../services/override-mode/fetch-override-config";
@@ -23,7 +23,7 @@ const tryConfigSources = async ([source, ...rest]: ConfigFetch[], configUrl: str
   return tryConfigSources(rest, configUrl);
 };
 
-export const initialiseConfig = async ({ isOverrideMode, isOutSystems }: { isOverrideMode: boolean; isOutSystems: boolean }): Promise<Config> => {
+export const initialiseConfig = async ({ flags: { isOverrideMode, isOutSystems } }: { flags: { isOverrideMode: boolean; isOutSystems: boolean } }): Promise<Config> => {
   const configUrl = getArtifactUrl("config.json");
 
   const fetchConfig: ConfigFetch = async (configUrl: string) => await fetch(configUrl);
@@ -38,9 +38,10 @@ export const initialiseConfig = async ({ isOverrideMode, isOutSystems }: { isOve
   }
 
   const configObject = await tryConfigSources(configSources, configUrl);
-  const { success, data, error } = validateConfig(configObject);
-  if (!success) {
-    throw new Error(`Config validation error: ${error}`);
+  const configResult: ValidationResult = validateConfig(configObject);
+  if (configResult.success === true) {
+    return configResult.config;
+  } else {
+    throw new Error(`Config validation error: ${configResult.errorMsg}`);
   }
-  return data;
 };

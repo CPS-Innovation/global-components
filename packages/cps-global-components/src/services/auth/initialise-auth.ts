@@ -1,6 +1,17 @@
-import { PublicClientApplication } from "@azure/msal-browser";
+import { InteractionRequiredAuthError, PublicClientApplication } from "@azure/msal-browser";
 import { Config } from "cps-global-configuration";
-import { findContext } from "../config/context/find-context";
+import { FoundContext } from "../context/find-context";
+
+const MSAL_ERROR_CODES = {
+  ConditionalAccessRule: "AADSTS53003",
+  MultipleIdentities: "AADSTS16000",
+};
+
+type Props = {
+  window: Window;
+  config: Config;
+  context: FoundContext;
+};
 
 export type Auth = {
   isAuthed: true;
@@ -11,6 +22,7 @@ export type Auth = {
 
 export type FailedAuth = {
   isAuthed: false;
+  knownErrorType: "ConfigurationIncomplete" | "RedirectLocationIsApp" | "NoAccountFound" | "ConditionalAccessRule" | "MultipleIdentities" | "Unknown";
   reason: string;
 };
 
@@ -18,13 +30,18 @@ export type AuthResult = Auth | FailedAuth;
 
 const scopes = ["User.Read"];
 
-export const initialiseAuth = async (window: Window & typeof globalThis, { AD_TENANT_AUTHORITY: authority, AD_CLIENT_ID: clientId, CONTEXTS }: Config): Promise<AuthResult> => {
-  const { msalRedirectUrl: redirectUri } = findContext(CONTEXTS, window);
+export const initialiseAuth = async ({
+  window,
+  config: { AD_TENANT_AUTHORITY: authority, AD_CLIENT_ID: clientId },
+  context: { msalRedirectUrl: redirectUri },
+}: Props): Promise<AuthResult> => {
+  await new Promise(resolve => setTimeout(resolve, 3000));
 
   if (!(authority && clientId && redirectUri)) {
     // todo: feedback or logging
     return {
       isAuthed: false,
+      knownErrorType: "ConfigurationIncomplete",
       reason: `Missing one or more of ${JSON.stringify({ authority, clientId, redirectUri })}`,
     };
   }
@@ -37,6 +54,7 @@ export const initialiseAuth = async (window: Window & typeof globalThis, { AD_TE
     // todo: feedback or logging
     return {
       isAuthed: false,
+      knownErrorType: "RedirectLocationIsApp",
       reason: "We think we are the MSAL AD redirectUri loading and hence not a real application",
     };
   }
@@ -49,26 +67,47 @@ export const initialiseAuth = async (window: Window & typeof globalThis, { AD_TE
     },
   });
 
-  await instance.initialize();
-  await instance.ssoSilent({
-    scopes,
-  });
+  try {
+    await instance.initialize();
+    await instance.ssoSilent({
+      scopes,
+    });
 
-  const accounts = instance.getAllAccounts();
+    const accounts = instance.getAllAccounts();
 
-  if (!accounts.length) {
+    if (!accounts.length) {
+      return {
+        isAuthed: false,
+        knownErrorType: "NoAccountFound",
+        reason: "No AD accounts found",
+      };
+    }
+    instance.setActiveAccount(accounts[0]);
+    const { username, name, idTokenClaims } = instance.getActiveAccount();
+
+    return {
+      isAuthed: true,
+      username: username?.toLowerCase(),
+      name,
+      groups: (idTokenClaims["groups"] as string[]) || [],
+    };
+  } catch (error) {
+    if (error instanceof InteractionRequiredAuthError) {
+      return {
+        isAuthed: false,
+        knownErrorType: error.message.includes(MSAL_ERROR_CODES.ConditionalAccessRule)
+          ? "ConditionalAccessRule"
+          : error.message.includes(MSAL_ERROR_CODES.MultipleIdentities)
+          ? "MultipleIdentities"
+          : "Unknown",
+        reason: `${error}`,
+      };
+    }
+
     return {
       isAuthed: false,
-      reason: "No AD accounts found",
+      knownErrorType: "Unknown",
+      reason: `${error}`,
     };
   }
-  instance.setActiveAccount(accounts[0]);
-  const { username, name, idTokenClaims } = instance.getActiveAccount();
-
-  return {
-    isAuthed: true,
-    username: username?.toLowerCase(),
-    name,
-    groups: (idTokenClaims["groups"] as string[]) || [],
-  };
 };

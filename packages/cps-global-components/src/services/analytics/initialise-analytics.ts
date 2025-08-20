@@ -4,6 +4,7 @@ import { AuthResult } from "../auth/initialise-auth";
 
 const STORAGE_PREFIX = "cps_global_components";
 
+type Props = { window: Window; config: Config; auth: AuthResult };
 declare global {
   interface Window {
     cps_global_components_build?: // title case properties as we put these values straight
@@ -12,9 +13,9 @@ declare global {
   }
 }
 
-export const initialiseAnalytics = ({ APP_INSIGHTS_KEY, ENVIRONMENT }: Config, authResult: AuthResult) => {
+export const initialiseAnalytics = ({ window, config: { APP_INSIGHTS_KEY, ENVIRONMENT }, auth }: Props) => {
   if (!APP_INSIGHTS_KEY) {
-    return { appInsights: null, ENVIRONMENT };
+    return { trackPageView: () => {}, trackException: () => {} };
   }
 
   const connectionString = [
@@ -38,15 +39,18 @@ export const initialiseAnalytics = ({ APP_INSIGHTS_KEY, ENVIRONMENT }: Config, a
 
   appInsights.loadAppInsights();
 
-  let authValues = { IsAuthed: authResult.isAuthed } as Record<string, any>;
-  if (authResult.isAuthed) {
-    authValues = { Username: authResult.username, ...authValues };
+  let authValues = { IsAuthed: auth.isAuthed } as Record<string, string | boolean>;
+  if (auth.isAuthed) {
+    authValues = { Username: auth.username, ...authValues };
   }
 
   const trackPageView = () => {
     appInsights.trackPageView({ properties: { Environment: ENVIRONMENT, ...authValues, ...window.cps_global_components_build } });
   };
 
-  window.navigation.addEventListener("navigate", trackPageView);
-  trackPageView();
+  const trackException = (exception: Error) => {
+    appInsights.trackException({ exception }, { properties: { Environment: ENVIRONMENT, ...authValues, ...window.cps_global_components_build } });
+  };
+
+  return { trackPageView, trackException };
 };
