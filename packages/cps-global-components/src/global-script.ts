@@ -1,5 +1,5 @@
 import { detectOverrideMode } from "./override-mode/detect-override-mode";
-import { setupOutSystemsShim } from "./override-mode/outsystems-shim/setup-outsystems-shim";
+// import { setupOutSystemsShim } from "./override-mode/outsystems-shim/setup-outsystems-shim";
 import { handleOverrideSetMode } from "./override-mode/handle-override-set-mode";
 import { setupOverrideMode } from "./override-mode/setup-override-mode";
 import { isOSAuthMisaligned, createOutboundUrl } from "cps-global-os-handover";
@@ -13,7 +13,7 @@ export default async () => {
   initialiseConfig(isOverrideMode);
 
   if (isOverrideMode) {
-    setupOutSystemsShim(window);
+    //setupOutSystemsShim(window);
     setupOverrideMode(window);
 
     const config = await CONFIG();
