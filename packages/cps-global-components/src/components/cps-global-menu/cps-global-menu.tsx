@@ -1,8 +1,7 @@
 import { Component, h, Fragment } from "@stencil/core";
 import { menuConfig } from "./menu-config/menu-config";
 import { renderError } from "../common/render-error";
-import { state } from "../../store/store";
-import { TrackRender } from "../../store/custom-subscription";
+import { store } from "../../store/store";
 import { renderWait } from "../common/render-wait";
 
 @Component({
@@ -11,9 +10,10 @@ import { renderWait } from "../common/render-wait";
   shadow: true,
 })
 export class CpsGlobalMenu {
-  @TrackRender()
   render() {
-    if (!state.context.found) {
+    const { state } = store;
+
+    if (!state.context?.found) {
       return renderError(new Error(`No menu config found for ${window.location.href}`));
     }
 
@@ -21,7 +21,7 @@ export class CpsGlobalMenu {
       return renderWait("Hold up!!");
     }
 
-    const classes = state.config.SHOW_GOVUK_REBRAND
+    const classes = state.config?.SHOW_GOVUK_REBRAND
       ? { flag: "govuk-template--rebranded", level1Background: "background-light-blue", divider: "background-divider-blue" }
       : { flag: "", level1Background: "background-grey", divider: "background-divider" };
 

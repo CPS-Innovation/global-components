@@ -1,7 +1,6 @@
 import { Component, h } from "@stencil/core";
 import { renderError } from "../common/render-error";
-import { state } from "../../store/store";
-
+import { store } from "../../store/store";
 @Component({
   tag: "cps-global-header",
   shadow: true,
@@ -9,6 +8,7 @@ import { state } from "../../store/store";
 })
 export class CpsGlobalHeader {
   render() {
+    const { state } = store;
     return (
       <div>
         <cps-global-banner></cps-global-banner>

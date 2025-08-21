@@ -1,6 +1,8 @@
+import { _console } from "../../../logging/_console";
+
 //@ts-ignore
 const log = (...msgs: (string | HTMLElement)[]) => {
-  //console.debug(...msgs);
+  _console.debug(...msgs);
 };
 
 const hideOSHeader = () => {

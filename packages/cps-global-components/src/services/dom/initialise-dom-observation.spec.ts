@@ -1,193 +1,216 @@
-// jest.mock("../../../../../config/context/find-context");
-// jest.mock("./mutations");
-// jest.mock("./tags");
+jest.mock("./mutations");
 
-// import { initialiseDomObservation } from "./initialise-dom-observation";
-// import { findContext } from "../../../../../services/context/find-context";
-// import { setupMutationObserver } from "./mutations";
-// import { resetDomTags } from "./tags";
-// import { Config } from "cps-global-configuration";
-// import { DomTags } from "cps-global-configuration/dist/schema";
+import { initialiseDomObservation } from "./initialise-dom-observation";
+import { setupMutationObserver } from "./mutations";
+import { FoundContext } from "../context/find-context";
+import { Register } from "../../store/store";
+import { DomTags } from "cps-global-configuration/dist/schema";
 
-// const mockFindContext = findContext as jest.MockedFunction<typeof findContext>;
-// const mockSetupMutationObserver = setupMutationObserver as jest.MockedFunction<typeof setupMutationObserver>;
-// const mockResetDomTags = resetDomTags as jest.MockedFunction<typeof resetDomTags>;
+const mockSetupMutationObserver = setupMutationObserver as jest.MockedFunction<typeof setupMutationObserver>;
 
-// describe("initialise-dom-observation", () => {
-//   let mockConfig: Config;
-//   let mockWindow: Window;
-//   let mockCallback: jest.Mock;
-//   let mockObserver: MutationObserver;
-//   let navigateListeners: EventListener[] = [];
+describe("initialise-dom-observation", () => {
+  let mockWindow: Window;
+  let mockRegister: Register;
+  let mockObserver: MutationObserver;
+  let resetDomObservation: ReturnType<typeof initialiseDomObservation>;
 
-//   beforeEach(() => {
-//     jest.clearAllMocks();
-//     navigateListeners = [];
+  beforeEach(() => {
+    jest.clearAllMocks();
 
-//     mockConfig = {
-//       CONTEXTS: [],
-//     } as Config;
+    mockObserver = {
+      observe: jest.fn(),
+      disconnect: jest.fn(),
+      takeRecords: jest.fn(),
+    } as any;
 
-//     mockObserver = {
-//       observe: jest.fn(),
-//       disconnect: jest.fn(),
-//       takeRecords: jest.fn(),
-//     } as any;
+    mockWindow = {
+      document: {
+        body: document.createElement("div"),
+      },
+    } as any;
 
-//     mockWindow = {
-//       document: {
-//         body: document.createElement("div"),
-//       },
-//       navigation: {
-//         addEventListener: jest.fn((event, listener) => {
-//           if (event === "navigate") {
-//             navigateListeners.push(listener);
-//           }
-//         }),
-//       },
-//     } as any;
+    mockRegister = jest.fn();
+    
+    mockSetupMutationObserver.mockReturnValue(mockObserver);
+  });
 
-//     mockCallback = jest.fn();
-//   });
+  describe("initialiseDomObservation", () => {
+    it("should return a resetDomObservation function", () => {
+      resetDomObservation = initialiseDomObservation({ window: mockWindow, register: mockRegister });
 
-//   describe("initialiseDomObservation", () => {
-//     it("should add navigation event listener", () => {
-//       mockFindContext.mockReturnValue({ found: false });
+      expect(typeof resetDomObservation).toBe("function");
+    });
 
-//       initialiseDomObservation(mockConfig, mockWindow, mockCallback);
+    describe("when no domTags are found", () => {
+      it("should not setup mutation observer", () => {
+        const context: FoundContext = { found: false };
+        resetDomObservation = initialiseDomObservation({ window: mockWindow, register: mockRegister });
+        
+        resetDomObservation({ context });
 
-//       expect(mockWindow.navigation.addEventListener).toHaveBeenCalledWith("navigate", expect.any(Function));
-//     });
+        expect(mockSetupMutationObserver).not.toHaveBeenCalled();
+        expect(mockRegister).toHaveBeenCalledWith({ tags: {} });
+      });
 
-//     it("should immediately call findContext and resetDomTags on initialisation", () => {
-//       mockFindContext.mockReturnValue({ found: false });
+      it("should not setup mutation observer for empty domTags array", () => {
+        const context: FoundContext = {
+          found: true,
+          domTags: [],
+          contextIndex: 0,
+          paths: ["test"],
+          contexts: "test",
+          tags: {},
+          msalRedirectUrl: "foo",
+        };
+        resetDomObservation = initialiseDomObservation({ window: mockWindow, register: mockRegister });
+        
+        resetDomObservation({ context });
 
-//       initialiseDomObservation(mockConfig, mockWindow, mockCallback);
+        expect(mockSetupMutationObserver).not.toHaveBeenCalled();
+        expect(mockRegister).toHaveBeenCalledWith({ tags: {} });
+      });
+    });
 
-//       expect(mockFindContext).toHaveBeenCalledWith(mockConfig.CONTEXTS, mockWindow);
-//       expect(mockResetDomTags).toHaveBeenCalled();
-//     });
+    describe("when domTags are found", () => {
+      const mockDomTags: DomTags[] = [
+        {
+          cssSelector: "[data-test]",
+          regex: 'data-test="(?<test>\\w+)"',
+        },
+      ];
 
-//     describe("when no domTags are found", () => {
-//       it("should not setup mutation observer", () => {
-//         mockFindContext.mockReturnValue({ found: false });
+      it("should setup mutation observer", () => {
+        const context: FoundContext = {
+          found: true,
+          domTags: mockDomTags,
+          contextIndex: 0,
+          paths: ["test"],
+          contexts: "test",
+          tags: {},
+          msalRedirectUrl: "foo",
+        };
+        resetDomObservation = initialiseDomObservation({ window: mockWindow, register: mockRegister });
+        
+        resetDomObservation({ context });
 
-//         initialiseDomObservation(mockConfig, mockWindow, mockCallback);
+        expect(mockSetupMutationObserver).toHaveBeenCalledWith(
+          mockWindow.document.body, 
+          mockDomTags, 
+          expect.any(Function)
+        );
+      });
 
-//         expect(mockSetupMutationObserver).not.toHaveBeenCalled();
-//       });
+      it("should cache the context index and skip setup for same context", () => {
+        const context: FoundContext = {
+          found: true,
+          domTags: mockDomTags,
+          contextIndex: 5,
+          paths: ["test"],
+          contexts: "test",
+          tags: {},
+          msalRedirectUrl: "foo",
+        };
+        resetDomObservation = initialiseDomObservation({ window: mockWindow, register: mockRegister });
+        
+        // First call
+        resetDomObservation({ context });
+        expect(mockSetupMutationObserver).toHaveBeenCalledTimes(1);
+        
+        // Second call with same context index
+        resetDomObservation({ context });
+        expect(mockSetupMutationObserver).toHaveBeenCalledTimes(1); // Still only called once
+        expect(mockRegister).toHaveBeenCalledTimes(1); // Only reset tags once
+      });
+    });
 
-//       it("should not setup mutation observer for empty domTags array", () => {
-//         mockFindContext.mockReturnValue({
-//           found: true,
-//           domTags: [],
-//           contextIndex: 0,
-//           paths: ["test"],
-//           contexts: "test",
-//           tags: {},
-//           msalRedirectUrl: "foo",
-//         });
+    describe("context changes", () => {
+      it("should disconnect existing observer when context changes", () => {
+        const context1: FoundContext = {
+          found: true,
+          domTags: [{ cssSelector: "[data-test]", regex: "test" }],
+          contextIndex: 1,
+          paths: ["test1"],
+          contexts: "test1",
+          tags: {},
+          msalRedirectUrl: "foo",
+        };
+        
+        const context2: FoundContext = {
+          found: true,
+          domTags: [{ cssSelector: "[data-new]", regex: "new" }],
+          contextIndex: 2,
+          paths: ["test2"],
+          contexts: "test2",
+          tags: {},
+          msalRedirectUrl: "bar",
+        };
+        
+        resetDomObservation = initialiseDomObservation({ window: mockWindow, register: mockRegister });
+        
+        // Setup first context
+        resetDomObservation({ context: context1 });
+        expect(mockObserver.disconnect).not.toHaveBeenCalled();
+        
+        // Change to different context
+        resetDomObservation({ context: context2 });
+        expect(mockObserver.disconnect).toHaveBeenCalled();
+        expect(mockSetupMutationObserver).toHaveBeenCalledTimes(2);
+      });
 
-//         initialiseDomObservation(mockConfig, mockWindow, mockCallback);
-
-//         expect(mockSetupMutationObserver).not.toHaveBeenCalled();
-//       });
-//     });
-
-//     describe("when domTags are found", () => {
-//       const mockDomTags: DomTags[] = [
-//         {
-//           cssSelector: "[data-test]",
-//           regex: 'data-test="(?<test>\\w+)"',
-//         },
-//       ];
-
-//       it("should setup mutation observer", () => {
-//         mockFindContext.mockReturnValue({
-//           found: true,
-//           domTags: mockDomTags,
-//           contextIndex: 0,
-//           paths: ["test"],
-//           contexts: "test",
-//           tags: {},
-//           msalRedirectUrl: "foo",
-//         });
-//         mockSetupMutationObserver.mockReturnValue(mockObserver);
-
-//         initialiseDomObservation(mockConfig, mockWindow, mockCallback);
-
-//         expect(mockSetupMutationObserver).toHaveBeenCalledWith(mockWindow.document.body, mockDomTags, mockCallback);
-//       });
-
-//       it("should cache the context index and skip setup for same context", () => {
-//         mockFindContext.mockReturnValue({
-//           found: true,
-//           domTags: mockDomTags,
-//           contextIndex: 5,
-//           paths: ["test"],
-//           contexts: "test",
-//           tags: {},
-//           msalRedirectUrl: "foo",
-//         });
-//         mockSetupMutationObserver.mockReturnValue(mockObserver);
-
-//         initialiseDomObservation(mockConfig, mockWindow, mockCallback);
-
-//         // Trigger navigation event with same context
-//         navigateListeners[0]({} as Event);
-
-//         expect(mockSetupMutationObserver).toHaveBeenCalledTimes(1); // Only called once
-//         expect(mockResetDomTags).toHaveBeenCalledTimes(1); // Only called once
-//       });
-//     });
-
-//     describe("navigation event handling", () => {
-//       it("should call findContext on navigation events", () => {
-//         mockFindContext.mockReturnValue({ found: false });
-
-//         initialiseDomObservation(mockConfig, mockWindow, mockCallback);
-//         expect(mockFindContext).toHaveBeenCalledTimes(1);
-
-//         // Trigger navigation event
-//         navigateListeners[0]({} as Event);
-
-//         expect(mockFindContext).toHaveBeenCalledTimes(2);
-//       });
-
-//       it("should call resetDomTags on navigation events", () => {
-//         mockFindContext.mockReturnValue({ found: false });
-
-//         initialiseDomObservation(mockConfig, mockWindow, mockCallback);
-//         expect(mockResetDomTags).toHaveBeenCalledTimes(1);
-
-//         // Trigger navigation event
-//         navigateListeners[0]({} as Event);
-
-//         expect(mockResetDomTags).toHaveBeenCalledTimes(2);
-//       });
-
-//       it("should setup new observer when moving from no domTags to having domTags", () => {
-//         mockFindContext.mockReturnValue({ found: false });
-
-//         initialiseDomObservation(mockConfig, mockWindow, mockCallback);
-//         expect(mockSetupMutationObserver).not.toHaveBeenCalled();
-
-//         // Navigate to context with domTags
-//         const mockDomTags: DomTags[] = [{ cssSelector: "[data-new]", regex: "new" }];
-//         mockFindContext.mockReturnValue({
-//           found: true,
-//           domTags: mockDomTags,
-//           contextIndex: 3,
-//           paths: ["test"],
-//           contexts: "test",
-//           tags: {},
-//           msalRedirectUrl: "foo",
-//         });
-//         mockSetupMutationObserver.mockReturnValue(mockObserver);
-//         navigateListeners[0]({} as Event);
-
-//         expect(mockSetupMutationObserver).toHaveBeenCalledWith(mockWindow.document.body, mockDomTags, mockCallback);
-//       });
-//     });
-//   });
-// });
+      it("should setup new observer when moving from no domTags to having domTags", () => {
+        const contextWithoutTags: FoundContext = { found: false };
+        const contextWithTags: FoundContext = {
+          found: true,
+          domTags: [{ cssSelector: "[data-new]", regex: "new" }],
+          contextIndex: 3,
+          paths: ["test"],
+          contexts: "test",
+          tags: {},
+          msalRedirectUrl: "foo",
+        };
+        
+        resetDomObservation = initialiseDomObservation({ window: mockWindow, register: mockRegister });
+        
+        // First call without domTags
+        resetDomObservation({ context: contextWithoutTags });
+        expect(mockSetupMutationObserver).not.toHaveBeenCalled();
+        
+        // Navigate to context with domTags
+        resetDomObservation({ context: contextWithTags });
+        expect(mockSetupMutationObserver).toHaveBeenCalledWith(
+          mockWindow.document.body, 
+          contextWithTags.domTags, 
+          expect.any(Function)
+        );
+      });
+      
+      it("should call register callback when mutation observer detects tags", () => {
+        const context: FoundContext = {
+          found: true,
+          domTags: [{ cssSelector: "[data-test]", regex: 'data-test="(?<test>\\w+)"' }],
+          contextIndex: 0,
+          paths: ["test"],
+          contexts: "test",
+          tags: {},
+          msalRedirectUrl: "foo",
+        };
+        
+        // Capture the callback passed to setupMutationObserver
+        let capturedCallback: ((tags: Record<string, string>) => void) | undefined;
+        mockSetupMutationObserver.mockImplementation((_element, _domTags, callback) => {
+          capturedCallback = callback;
+          return mockObserver;
+        });
+        
+        resetDomObservation = initialiseDomObservation({ window: mockWindow, register: mockRegister });
+        resetDomObservation({ context });
+        
+        // Simulate mutation observer detecting tags
+        const detectedTags = { test: "value123" };
+        capturedCallback!(detectedTags);
+        
+        expect(mockRegister).toHaveBeenCalledWith({ tags: detectedTags });
+      });
+    });
+  });
+});

@@ -8,16 +8,11 @@ const esModules = [
 
 export const config: Config = {
   namespace: "cps-global-components",
+  sourceMap: true,
   outputTargets: [
     {
       type: "dist",
       esmLoaderPath: "../loader",
-    },
-    {
-      type: "dist-custom-elements",
-      externalRuntime: false,
-      generateTypeDeclarations: true,
-      includeGlobalScripts: true,
     },
     {
       type: "docs-readme",

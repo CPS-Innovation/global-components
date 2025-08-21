@@ -1,5 +1,6 @@
 import { forceUpdate, getRenderingRef as brokenGetRenderingRef } from "@stencil/core";
 import { createObservableMap, createStore, Subscription } from "@stencil/store";
+import { _console } from "../logging/_console";
 
 // In our use case the stencil store does trigger rerenders in the normal way
 //  see https://github.com/stenciljs/core/issues/4135
@@ -30,7 +31,7 @@ export function TrackRender() {
     descriptor.value = function (...args: any[]) {
       currentlyRenderingComponent = this;
       try {
-        console.debug("Rendering", targetPrototype.constructor.name, key);
+        _console.debug("Rendering", targetPrototype.constructor.name, key);
         return originalMethod.apply(this, args);
       } finally {
         currentlyRenderingComponent = null;
@@ -76,18 +77,13 @@ export const customSubscription = <T>(): Subscription<T> => {
     dispose: () => elmsToUpdate.clear(),
     get: propName => {
       const elm = getRenderingRef();
-
-      console.log(brokenGetRenderingRef(), elm);
-
-      // if (elm && brokenGetRenderingRef()) {
-      //   throw new Error("Time to rip out this patch implementation!");
-      // }
+      _console.debug(brokenGetRenderingRef(), elm);
       if (elm) {
         appendToMap(elmsToUpdate, propName as string, elm);
       }
     },
     set: propName => {
-      console.debug("State setting", propName);
+      _console.debug("State setting", propName);
       const elements = elmsToUpdate.get(propName as string);
       if (elements) {
         elmsToUpdate.set(propName as string, elements.filter(forceUpdate));

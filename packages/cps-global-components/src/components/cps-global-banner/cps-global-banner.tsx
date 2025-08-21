@@ -1,5 +1,5 @@
 import { Component, h, Fragment } from "@stencil/core";
-import { state } from "../../store/store";
+import { store } from "../../store/store";
 
 @Component({
   tag: "cps-global-banner",
@@ -8,6 +8,7 @@ import { state } from "../../store/store";
 })
 export class CpsGlobalBanner {
   private handleTitleClick = () => {
+    const { state } = store;
     if (!state.flags.isOverrideMode) {
       return;
     }
@@ -16,6 +17,7 @@ export class CpsGlobalBanner {
   };
 
   render() {
+    const { state } = store;
     const showRebrand = state.config?.SHOW_GOVUK_REBRAND;
     return (
       <div class={showRebrand ? "govuk-template--rebranded" : ""}>

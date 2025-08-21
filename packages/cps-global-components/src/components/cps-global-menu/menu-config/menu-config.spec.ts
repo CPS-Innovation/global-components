@@ -1,190 +1,177 @@
-// jest.mock("../../../config/context/find-context");
-// jest.mock("./helpers/should-show-link");
-// jest.mock("./helpers/map-link-config");
-// jest.mock("./helpers/group-links-by-level");
-// jest.mock("./helpers/dom/tags");
+jest.mock("./helpers/should-show-link");
+jest.mock("./helpers/map-link-config");
+jest.mock("./helpers/group-links-by-level");
 
-// import { menuConfig } from "./menu-config";
-// import { Config } from "cps-global-configuration";
-// import { findContext } from "../../../services/context/find-context";
-// import { shouldShowLink } from "./helpers/should-show-link";
-// import { mapLinkConfig } from "./helpers/map-link-config";
-// import { groupLinksByLevel } from "./helpers/group-links-by-level";
-// import { getDomTags } from "./helpers/dom/tags";
+import { menuConfig } from "./menu-config";
+import { Config } from "cps-global-configuration";
+import { FoundContext } from "../../../services/context/find-context";
+import { shouldShowLink } from "./helpers/should-show-link";
+import { mapLinkConfig } from "./helpers/map-link-config";
+import { groupLinksByLevel } from "./helpers/group-links-by-level";
+import { Flags, Tags } from "../../../store/store";
 
-// // Type the mocked functions
-// const mockFindContext = findContext as jest.MockedFunction<typeof findContext>;
-// const mockShouldShowLink = shouldShowLink as jest.MockedFunction<typeof shouldShowLink>;
-// const mockMapLinkConfig = mapLinkConfig as jest.MockedFunction<typeof mapLinkConfig>;
-// const mockGroupLinksByLevel = groupLinksByLevel as jest.MockedFunction<typeof groupLinksByLevel>;
-// const mockGetDomTags = getDomTags as jest.MockedFunction<typeof getDomTags>;
+// Type the mocked functions
+const mockShouldShowLink = shouldShowLink as jest.MockedFunction<typeof shouldShowLink>;
+const mockMapLinkConfig = mapLinkConfig as jest.MockedFunction<typeof mapLinkConfig>;
+const mockGroupLinksByLevel = groupLinksByLevel as jest.MockedFunction<typeof groupLinksByLevel>;
 
-// describe("menuConfig", () => {
-//   // Test data
-//   const mockLocation = {
-//     origin: "https://example.com",
-//     pathname: "/test",
-//     search: "?param=value",
-//     hash: "#section",
-//   } as Location;
+describe("menuConfig", () => {
+  // Test data
+  const mockConfig: Config = {
+    ENVIRONMENT: "test",
+    SURVEY_LINK: "https://example.com/survey",
+    SHOW_MENU: true,
+    OS_HANDOVER_URL: "",
+    COOKIE_HANDOVER_URL: "",
+    TOKEN_HANDOVER_URL: "",
+    LINKS: [
+      {
+        label: "Link 1",
+        href: "/link1",
+        level: 0,
+        visibleContexts: "context1",
+        activeContexts: "active1",
+        openInNewTab: false,
+        preferEventNavigationContexts: "event1",
+      },
+      {
+        label: "Link 2",
+        href: "/link2",
+        level: 1,
+        visibleContexts: "context2",
+        activeContexts: "active2",
+        openInNewTab: true,
+        preferEventNavigationContexts: "event2",
+      },
+      {
+        label: "Link 3",
+        href: "/link3",
+        level: 0,
+        visibleContexts: "context3",
+        activeContexts: "active3",
+        openInNewTab: false,
+        preferEventNavigationContexts: "event3",
+      },
+    ],
+    CONTEXTS: [
+      {
+        paths: ["https://example.com/test"],
+        contexts: "test-context",
+        msalRedirectUrl: "foo",
+      },
+    ],
+  } as Config;
 
-//   const mockWindow = {
-//     location: mockLocation,
-//   } as Window;
+  const mockFlags: Flags = {
+    isOverrideMode: false,
+    isOutSystems: false,
+  };
 
-//   const mockConfig: Config = {
-//     ENVIRONMENT: "test",
-//     SURVEY_LINK: "https://example.com/survey",
-//     SHOW_MENU: true,
-//     OS_HANDOVER_URL: "",
-//     COOKIE_HANDOVER_URL: "",
-//     TOKEN_HANDOVER_URL: "",
-//     LINKS: [
-//       {
-//         label: "Link 1",
-//         href: "/link1",
-//         level: 0,
-//         visibleContexts: "context1",
-//         activeContexts: "active1",
-//         openInNewTab: false,
-//         preferEventNavigationContexts: "event1",
-//       },
-//       {
-//         label: "Link 2",
-//         href: "/link2",
-//         level: 1,
-//         visibleContexts: "context2",
-//         activeContexts: "active2",
-//         openInNewTab: true,
-//         preferEventNavigationContexts: "event2",
-//       },
-//       {
-//         label: "Link 3",
-//         href: "/link3",
-//         level: 0,
-//         visibleContexts: "context3",
-//         activeContexts: "active3",
-//         openInNewTab: false,
-//         preferEventNavigationContexts: "event3",
-//       },
-//     ],
-//     CONTEXTS: [
-//       {
-//         paths: ["https://example.com/test"],
-//         contexts: "test-context",
-//         msalRedirectUrl: "foo",
-//       },
-//     ],
-//   };
+  const mockTags: Tags = {};
 
-//   beforeEach(() => {
-//     jest.clearAllMocks();
-//     mockGetDomTags.mockReturnValue(undefined);
-//   });
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
 
-//   it("should return not found when context is not found", () => {
-//     mockFindContext.mockReturnValue({
-//       found: false,
-//       domTags: undefined,
-//       contextIndex: undefined,
-//     });
+  it("should return undefined links when context is not found", () => {
+    const foundContext: FoundContext = {
+      found: false,
+      domTags: undefined,
+      contextIndex: undefined,
+    };
 
-//     const result = menuConfig(mockConfig, mockWindow);
+    const result = menuConfig(foundContext, mockConfig, mockFlags, mockTags);
 
-//     expect(result).toEqual({
-//       found: false,
-//       links: undefined,
-//     });
+    expect(result).toEqual({
+      links: undefined,
+    });
 
-//     expect(mockFindContext).toHaveBeenCalledWith(mockConfig.CONTEXTS, mockWindow);
-//     expect(mockShouldShowLink).not.toHaveBeenCalled();
-//     expect(mockMapLinkConfig).not.toHaveBeenCalled();
-//     expect(mockGroupLinksByLevel).not.toHaveBeenCalled();
-//   });
+    expect(mockShouldShowLink).not.toHaveBeenCalled();
+    expect(mockMapLinkConfig).not.toHaveBeenCalled();
+    expect(mockGroupLinksByLevel).not.toHaveBeenCalled();
+  });
 
-//   it("should process links when context is found", () => {
-//     const foundContexts = "test-context";
-//     const foundTags = { tag1: "value1", tag2: "value2" };
+  it("should process links when context is found", () => {
+    const foundContexts = "test-context";
+    const foundTags = { tag1: "value1", tag2: "value2" };
 
-//     mockFindContext.mockReturnValue({
-//       found: true,
-//       paths: ["https://example.com/test"],
-//       contexts: foundContexts,
-//       domTags: undefined,
-//       tags: foundTags,
-//       contextIndex: 0,
-//       msalRedirectUrl: "foo",
-//     });
+    const foundContext: FoundContext = {
+      found: true,
+      paths: ["https://example.com/test"],
+      contexts: foundContexts,
+      domTags: undefined,
+      tags: foundTags,
+      contextIndex: 0,
+      msalRedirectUrl: "foo",
+    };
 
-//     // Mock shouldShowLink to filter out the second link
-//     const mockFilterFunction = jest
-//       .fn()
-//       .mockReturnValueOnce(true) // Link 1 passes
-//       .mockReturnValueOnce(false) // Link 2 filtered out
-//       .mockReturnValueOnce(true); // Link 3 passes
-//     mockShouldShowLink.mockReturnValue(mockFilterFunction);
+    // Mock shouldShowLink to filter out the second link
+    const mockFilterFunction = jest
+      .fn()
+      .mockReturnValueOnce(true) // Link 1 passes
+      .mockReturnValueOnce(false) // Link 2 filtered out
+      .mockReturnValueOnce(true); // Link 3 passes
+    mockShouldShowLink.mockReturnValue(mockFilterFunction);
 
-//     // Mock mapLinkConfig to transform the links
-//     const mockMapFunction = jest
-//       .fn()
-//       .mockReturnValueOnce({
-//         label: "Mapped Link 1",
-//         href: "/mapped1",
-//         level: 0,
-//         selected: true,
-//         openInNewTab: false,
-//         preferEventNavigation: false,
-//       })
-//       .mockReturnValueOnce({
-//         label: "Mapped Link 3",
-//         href: "/mapped3",
-//         level: 0,
-//         selected: false,
-//         openInNewTab: false,
-//         preferEventNavigation: true,
-//       });
-//     mockMapLinkConfig.mockReturnValue(mockMapFunction);
+    // Mock mapLinkConfig to transform the links
+    const mockMapFunction = jest
+      .fn()
+      .mockReturnValueOnce({
+        label: "Mapped Link 1",
+        href: "/mapped1",
+        level: 0,
+        selected: true,
+        openInNewTab: false,
+        preferEventNavigation: false,
+      })
+      .mockReturnValueOnce({
+        label: "Mapped Link 3",
+        href: "/mapped3",
+        level: 0,
+        selected: false,
+        openInNewTab: false,
+        preferEventNavigation: true,
+      });
+    mockMapLinkConfig.mockReturnValue(mockMapFunction);
 
-//     // Mock groupLinksByLevel
-//     const groupedLinks = [
-//       [
-//         { label: "Mapped Link 1", href: "/mapped1", selected: true, openInNewTab: false, preferEventNavigation: false, ariaSelected: true as true },
-//         { label: "Mapped Link 3", href: "/mapped3", selected: false, openInNewTab: false, preferEventNavigation: true },
-//       ],
-//     ];
-//     mockGroupLinksByLevel.mockReturnValue(groupedLinks);
+    // Mock groupLinksByLevel
+    const groupedLinks = [
+      [
+        { label: "Mapped Link 1", href: "/mapped1", selected: true, openInNewTab: false, preferEventNavigation: false, ariaSelected: true as true },
+        { label: "Mapped Link 3", href: "/mapped3", selected: false, openInNewTab: false, preferEventNavigation: true },
+      ],
+    ];
+    mockGroupLinksByLevel.mockReturnValue(groupedLinks);
 
-//     const result = menuConfig(mockConfig, mockWindow);
+    const result = menuConfig(foundContext, mockConfig, mockFlags, mockTags);
 
-//     expect(result).toEqual({
-//       found: true,
-//       links: groupedLinks,
-//     });
+    expect(result).toEqual({
+      links: groupedLinks,
+    });
 
-//     expect(mockFindContext).toHaveBeenCalledWith(mockConfig.CONTEXTS, mockWindow);
-//     expect(mockShouldShowLink).toHaveBeenCalledWith(foundContexts);
-//     expect(mockFilterFunction).toHaveBeenCalledTimes(3);
-//     expect(mockMapLinkConfig).toHaveBeenCalledWith({ contexts: foundContexts, tags: foundTags, handoverAdapter: expect.any(Function) });
-//     expect(mockMapFunction).toHaveBeenCalledTimes(2); // Only called for filtered links
-//     expect(mockGroupLinksByLevel).toHaveBeenCalledWith([
-//       {
-//         label: "Mapped Link 1",
-//         href: "/mapped1",
-//         level: 0,
-//         selected: true,
-//         openInNewTab: false,
-//         preferEventNavigation: false,
-//       },
-//       {
-//         label: "Mapped Link 3",
-//         href: "/mapped3",
-//         level: 0,
-//         selected: false,
-//         openInNewTab: false,
-//         preferEventNavigation: true,
-//       },
-//     ]);
-//   });
+    expect(mockShouldShowLink).toHaveBeenCalledWith(foundContexts);
+    expect(mockFilterFunction).toHaveBeenCalledTimes(3);
+    expect(mockMapLinkConfig).toHaveBeenCalledWith({ contexts: foundContexts, tags: foundTags, handoverAdapter: expect.any(Function) });
+    expect(mockMapFunction).toHaveBeenCalledTimes(2); // Only called for filtered links
+    expect(mockGroupLinksByLevel).toHaveBeenCalledWith([
+      {
+        label: "Mapped Link 1",
+        href: "/mapped1",
+        level: 0,
+        selected: true,
+        openInNewTab: false,
+        preferEventNavigation: false,
+      },
+      {
+        label: "Mapped Link 3",
+        href: "/mapped3",
+        level: 0,
+        selected: false,
+        openInNewTab: false,
+        preferEventNavigation: true,
+      },
+    ]);
+  });
 
 //   it("should handle empty LINKS array", () => {
 //     const emptyConfig: Config = {
@@ -361,86 +348,4 @@
 //     expect(mockMapFunction).toHaveBeenCalledTimes(3);
 //   });
 
-//   it("should handle empty contexts array", () => {
-//     const configWithNoContexts: Config = {
-//       ...mockConfig,
-//       CONTEXTS: [],
-//     };
-
-//     mockFindContext.mockReturnValue({
-//       found: false,
-//       domTags: undefined,
-//       contextIndex: undefined,
-//     });
-
-//     const result = menuConfig(configWithNoContexts, mockWindow);
-
-//     expect(result).toEqual({
-//       found: false,
-//       links: undefined,
-//     });
-
-//     expect(mockFindContext).toHaveBeenCalledWith([], mockWindow);
-//   });
-
-//   it("should merge tags from DOM when getDomTags returns tagsCalled", () => {
-//     const contextTags = {
-//       contextTag1: "value1",
-//       contextTag2: "value2",
-//     };
-
-//     const domTags = {
-//       domTag1: "domValue1",
-//       domTag2: "domValue2",
-//       tagsCalled: "true",
-//     };
-
-//     mockGetDomTags.mockReturnValue(domTags);
-
-//     mockFindContext.mockReturnValue({
-//       found: true,
-//       paths: ["https://example.com/test"],
-//       contexts: "test-context",
-//       domTags: undefined,
-//       tags: contextTags,
-//       contextIndex: 0,
-//       msalRedirectUrl: "foo",
-//     });
-
-//     mockShouldShowLink.mockReturnValue(jest.fn().mockReturnValue(true));
-
-//     const mockMapFunction = jest.fn().mockReturnValue({
-//       label: "Test",
-//       href: "/test",
-//       level: 0,
-//       selected: false,
-//       openInNewTab: false,
-//       preferEventNavigation: false,
-//     });
-//     mockMapLinkConfig.mockReturnValue(mockMapFunction);
-
-//     mockGroupLinksByLevel.mockReturnValue([[]]);
-
-//     menuConfig(mockConfig, mockWindow);
-
-//     // Verify that mapLinkConfig was called with merged tags
-//     expect(mockMapLinkConfig).toHaveBeenCalledWith({
-//       contexts: "test-context",
-//       tags: {
-//         ...contextTags,
-//         ...domTags,
-//       },
-//       handoverAdapter: expect.any(Function),
-//     });
-
-//     // Verify that the merged tags include both context and DOM tags
-//     const mergedTags = mockMapLinkConfig.mock.calls[0][0].tags;
-//     expect(mergedTags).toEqual({
-//       contextTag1: "value1",
-//       contextTag2: "value2",
-//       domTag1: "domValue1",
-//       domTag2: "domValue2",
-//       tagsCalled: "true",
-//     });
-//   });
-// });
+});
