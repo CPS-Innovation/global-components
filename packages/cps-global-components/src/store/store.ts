@@ -19,11 +19,14 @@ export type Store = {
 
 export let store: ReturnType<typeof createStore<Store>> = undefined;
 
+export let state: (typeof store)["state"];
+
 export const initialiseStore = () => {
   store = createStore<Store>(
     () => ({}),
     (newValue, oldValue) => JSON.stringify(newValue) !== JSON.stringify(oldValue),
   );
+  state = store.state;
 };
 
 export const register = (arg: Partial<Store>) => {
