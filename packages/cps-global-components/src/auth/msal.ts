@@ -1,4 +1,4 @@
-import { PublicClientApplication } from "@azure/msal-browser";
+import { InteractionRequiredAuthError, PublicClientApplication } from "@azure/msal-browser";
 import { Config } from "cps-global-configuration";
 import { findContext } from "../config/context/find-context";
 
@@ -41,11 +41,21 @@ const internal = async ({ authority, clientId, redirectUri }: InternalParams): P
     },
   });
 
+  await instance.initialize();
   try {
-    await instance.initialize();
-    await instance.ssoSilent({
-      scopes,
-    });
+    try {
+      await instance.ssoSilent({
+        scopes,
+      });
+    } catch (error) {
+      if (error instanceof InteractionRequiredAuthError && error.message.includes("AADSTS16000")) {
+        await instance.loginPopup({
+          scopes,
+        });
+      } else {
+        throw error;
+      }
+    }
 
     const accounts = instance.getAllAccounts();
 
