@@ -1,5 +1,5 @@
 import { detectOverrideMode } from "./services/override-mode/detect-override-mode";
-import { setupOutSystemsShim } from "./services/override-mode/outsystems-shim/setup-outsystems-shim";
+// import { setupOutSystemsShim } from "./services/override-mode/outsystems-shim/setup-outsystems-shim";
 import { handleOverrideSetMode } from "./services/override-mode/handle-override-set-mode";
 import { initialiseAuth } from "./services/auth/initialise-auth";
 import { initialiseStore, register } from "./store/store";
@@ -18,7 +18,7 @@ export const globalInitialisation = () => {
     try {
       initialiseStore();
       handleOverrideSetMode({ window });
-      setupOutSystemsShim({ window });
+      //setupOutSystemsShim({ window });
 
       const flags = { isOverrideMode: detectOverrideMode(window), isOutSystems: isOutSystemsApp(window) };
       register({ flags });
