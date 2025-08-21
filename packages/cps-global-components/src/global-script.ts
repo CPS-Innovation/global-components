@@ -13,7 +13,7 @@ export default async () => {
   initialiseConfig(isOverrideMode);
 
   if (isOverrideMode) {
-    //setupOutSystemsShim(window);
+    //setupOutSystemsShim(window)
     setupOverrideMode(window);
 
     const config = await CONFIG();
