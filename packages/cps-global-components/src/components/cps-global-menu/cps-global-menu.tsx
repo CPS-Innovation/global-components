@@ -1,7 +1,7 @@
 import { Component, h, Fragment } from "@stencil/core";
 import { menuConfig } from "./menu-config/menu-config";
 import { renderError } from "../common/render-error";
-import { store } from "../../store/store";
+import { state } from "../../store/store";
 import { renderWait } from "../common/render-wait";
 
 @Component({
@@ -11,14 +11,12 @@ import { renderWait } from "../common/render-wait";
 })
 export class CpsGlobalMenu {
   render() {
-    const { state } = store;
+    if (!state.auth || !state.config || !state.flags || !state.tags) {
+      return renderWait("Hold up!!");
+    }
 
     if (!state.context?.found) {
       return renderError(new Error(`No menu config found for ${window.location.href}`));
-    }
-
-    if (!state.auth) {
-      return renderWait("Hold up!!");
     }
 
     const classes = state.config?.SHOW_GOVUK_REBRAND

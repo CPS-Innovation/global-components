@@ -13,12 +13,18 @@ export type MenuConfigResult = {
 
 export const menuConfig = (foundContext: FoundContext, { LINKS, OS_HANDOVER_URL }: Config, { isOutSystems }: Flags, tagsFromDom: Tags): MenuConfigResult => {
   if (!foundContext.found) {
-    return { links: undefined };
+    return { links: [] };
   }
   const { contexts, tags } = foundContext;
-  const handoverAdapter =
-    !isOutSystems && ((targetUrl: string) => (isOutSystemsApp({ location: { href: targetUrl } }) ? createOutboundUrl({ handoverUrl: OS_HANDOVER_URL, targetUrl }) : targetUrl));
 
+  const handoverAdapter = isOutSystems
+    ? undefined
+    : // If we are outside of OutSystems and a link is pointing to OutSystems then we need to go
+      //  via the auth handover endpoint to ensure OS has CMS auth
+      (targetUrl: string) => {
+        const shouldGoViaAuthHandover = isOutSystemsApp({ location: { href: targetUrl } }) && OS_HANDOVER_URL;
+        return shouldGoViaAuthHandover ? createOutboundUrl({ handoverUrl: OS_HANDOVER_URL, targetUrl }) : targetUrl;
+      };
   const links = LINKS.filter(shouldShowLink(contexts)).map(mapLinkConfig({ contexts, tags: { ...tags, ...tagsFromDom }, handoverAdapter }));
   return { links: groupLinksByLevel(links) };
 };

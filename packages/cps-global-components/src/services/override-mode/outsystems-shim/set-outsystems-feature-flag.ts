@@ -1,8 +1,19 @@
 import { Config } from "cps-global-configuration";
 import { AuthResult } from "../../auth/initialise-auth";
+import { Flags } from "../../../store/store";
 
-export const setOutSystemsFeatureFlag = ({ window: { localStorage }, auth, config: { FEATURE_FLAG_ENABLE_MENU_GROUP } }: { window: Window; auth: AuthResult; config: Config }) => {
-  if (!(auth.isAuthed && FEATURE_FLAG_ENABLE_MENU_GROUP)) {
+export const setOutSystemsFeatureFlag = ({
+  window: { localStorage },
+  flags: { isOutSystems },
+  auth,
+  config: { FEATURE_FLAG_ENABLE_MENU_GROUP },
+}: {
+  window: Window;
+  flags: Flags;
+  auth: AuthResult;
+  config: Config;
+}) => {
+  if (!(auth.isAuthed && FEATURE_FLAG_ENABLE_MENU_GROUP && isOutSystems)) {
     return;
   }
   const overrideFlag = auth.groups.includes(FEATURE_FLAG_ENABLE_MENU_GROUP);

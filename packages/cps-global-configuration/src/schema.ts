@@ -52,14 +52,14 @@ const ContextSchema: z.ZodType<Context> = z.lazy(() =>
 
 export const ConfigSchema = z.object({
   ENVIRONMENT: z.string(),
+  CONTEXTS: z.array(ContextSchema),
+  LINKS: z.array(LinkSchema),
   AD_TENANT_AUTHORITY: z.string().optional(),
   AD_CLIENT_ID: z.string().optional(),
   APP_INSIGHTS_KEY: z.string().optional(),
   SURVEY_LINK: z.string().optional(),
   SHOW_MENU: z.boolean().optional(),
   SHOW_GOVUK_REBRAND: z.boolean().optional(),
-  CONTEXTS: z.array(ContextSchema).optional(),
-  LINKS: z.array(LinkSchema).optional(),
   OS_HANDOVER_URL: z.string().optional(),
   COOKIE_HANDOVER_URL: z.string().optional(),
   TOKEN_HANDOVER_URL: z.string().optional(),

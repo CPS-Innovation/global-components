@@ -17,15 +17,12 @@ export type Store = {
   fatalInitialisationError?: Error;
 };
 
-export let store: ReturnType<typeof createStore<Store>> = undefined;
+let store: ReturnType<typeof createStore<Store>>;
 
 export let state: (typeof store)["state"];
 
 export const initialiseStore = () => {
-  store = createStore<Store>(
-    () => ({}),
-    (newValue, oldValue) => JSON.stringify(newValue) !== JSON.stringify(oldValue),
-  );
+  store = createStore<Store>({}, (newValue, oldValue) => JSON.stringify(newValue) !== JSON.stringify(oldValue));
   state = store.state;
 };
 

@@ -66,7 +66,8 @@ const isConnected = (maybeElement: any) => !("isConnected" in maybeElement) || m
 
 const cleanupElements = debounce((map: Map<string, any[]>) => {
   for (let key of map.keys()) {
-    map.set(key, map.get(key).filter(isConnected));
+    var els = map.get(key) || [];
+    map.set(key, els.filter(isConnected));
   }
 }, 2_000);
 

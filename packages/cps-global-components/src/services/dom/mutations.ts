@@ -18,7 +18,9 @@ const processMutations = (mutations: MutationRecord[], domTags: DomTags[]) => {
 
   for (const mutation of mutations) {
     const node = mutation.type === "characterData" ? mutation.target.parentElement : (mutation.target as Element);
-    tags = { ...tags, ...extractTagsFromElement(node, domTags) };
+    if (node) {
+      tags = { ...tags, ...extractTagsFromElement(node, domTags) };
+    }
   }
 
   return tags;

@@ -16,7 +16,7 @@ type Props = {
 export type Auth = {
   isAuthed: true;
   username: string;
-  name: string;
+  name: string | undefined;
   groups: string[];
 };
 
@@ -83,13 +83,14 @@ export const initialiseAuth = async ({
       };
     }
     instance.setActiveAccount(accounts[0]);
-    const { username, name, idTokenClaims } = instance.getActiveAccount();
+
+    const { username, name, idTokenClaims } = accounts[0];
 
     return {
       isAuthed: true,
-      username: username?.toLowerCase(),
+      username: username.toLowerCase(),
       name,
-      groups: (idTokenClaims["groups"] as string[]) || [],
+      groups: (idTokenClaims && (idTokenClaims["groups"] as string[])) || [],
     };
   } catch (error) {
     if (error instanceof InteractionRequiredAuthError) {
