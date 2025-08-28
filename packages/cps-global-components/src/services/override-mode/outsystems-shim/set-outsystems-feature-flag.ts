@@ -1,6 +1,6 @@
 import { Config } from "cps-global-configuration";
 import { AuthResult } from "../../auth/initialise-auth";
-import { Flags } from "../../../store/store";
+import { ApplicationFlags } from "../../application-flags/ApplicationFlags";
 
 export const setOutSystemsFeatureFlag = ({
   window: { localStorage },
@@ -9,7 +9,7 @@ export const setOutSystemsFeatureFlag = ({
   config: { FEATURE_FLAG_ENABLE_MENU_GROUP },
 }: {
   window: Window;
-  flags: Flags;
+  flags: ApplicationFlags;
   auth: AuthResult;
   config: Config;
 }) => {

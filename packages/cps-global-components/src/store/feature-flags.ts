@@ -1,59 +1,66 @@
-// import { state } from "./store";
+// import { InternalState } from "./internal-state";
 
+// // Define the input structure type
+// export type FeatureFlagDefinition<TReturn> = {
+//   dependencies: (keyof InternalState)[];
+//   updater: (params: InternalState) => TReturn;
+// };
+
+// // Define the FeatureFlag type
 // export type FeatureFlag<T> =
 //   | {
-//       wait: true;
-//       ready: undefined;
-//       broken: undefined;
+//       status: "wait";
 //     }
 //   | {
-//       wait: undefined;
-//       ready: true;
-//       broken: undefined;
-//       result: T;
-//     }
-//   | {
-//       wait: undefined;
-//       ready: undefined;
-//       broken: true;
-//       error: Error;
+//       status: "ready";
+//       value: T;
 //     };
 
-// const notReady = { wait: true } as FeatureFlag<T>;
-
-// const result = <T>(result: T):FeatureFlag<T> => ({ ready: true, result });
-
-// const readyCheck = (...keys: (keyof typeof state)[]) => {
-//   let allReady = true;
-//   // It is important that we check all keys and not just so a
-//   //  e.g. keys.every(...).  The stencil framework needs to see us
-//   //  read every
-//   keys.forEach(key => (allReady = allReady && !!key));
-//   return allReady ? notReady : undefined;
+// // Create a mapped type that transforms before to after
+// type TransformToFeatureFlags<T> = {
+//   [K in keyof T]: T[K] extends { updater: (...args: any[]) => infer R } ? FeatureFlag<R> : never;
 // };
+// export type FeatureFlags = typeof initialFeatureFlags;
 
-// export const showRebrand = () => {
-//   const check = readyCheck("config");
-//   if (check) {
-//     return check;
-//   }
-//   return result(!!state.config.SHOW_GOVUK_REBRAND);
-// };
+// // Helper function to initialize all feature flags
+// export const initializeFeatureFlags = <T extends Record<string, FeatureFlagDefinition<any>>>(config: T): TransformToFeatureFlags<T> => {
+//   const result: any = {};
 
-// const r = showRebrand();
-
-// if (r.ready === true) {
-//   console.log(r.result)
-// }
-
-// export const showMenu = () => {
-//   const check = readyCheck("config", "context", "auth");
-//   if (check) {
-//     return check;
+//   for (const key in config) {
+//     result[key] = {
+//       status: "wait",
+//     };
 //   }
 
-//   const {
-//     config: { SHOW_GOVUK_REBRAND },
-//     context: { found },
-//   } = state;
+//   return result;
 // };
+
+// const isExperimentalAccessibilityMode: FeatureFlagDefinition<boolean> = {
+//   dependencies: ["flags"],
+//   updater: ({ flags }: InternalState) => flags.isOverrideMode,
+// };
+
+// const shouldShowGovUkRebrand: FeatureFlagDefinition<boolean> = {
+//   dependencies: ["config"],
+//   updater: ({ config }: InternalState) => !!config.SHOW_GOVUK_REBRAND,
+// };
+
+// const shouldShowMenu: FeatureFlagDefinition<boolean> = {
+//   dependencies: ["flags", "config", "tags", "auth"],
+//   updater: ({ config: { SHOW_MENU, FEATURE_FLAG_ENABLE_MENU_GROUP }, auth }: InternalState) =>
+//     !!SHOW_MENU && !!FEATURE_FLAG_ENABLE_MENU_GROUP && auth.isAuthed && auth.groups.includes(FEATURE_FLAG_ENABLE_MENU_GROUP),
+// };
+
+// const surveyLink: FeatureFlagDefinition<string | false> = {
+//   dependencies: ["config"],
+//   updater: ({ config }: InternalState) => config.SURVEY_LINK || false,
+// };
+
+// export const featureFlags = {
+//   isExperimentalAccessibilityMode,
+//   shouldShowGovUkRebrand,
+//   shouldShowMenu,
+//   surveyLink,
+// };
+
+// export const initialFeatureFlags = initializeFeatureFlags(featureFlags);

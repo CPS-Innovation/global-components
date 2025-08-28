@@ -1,5 +1,6 @@
 import { Component, Prop, h, Event, EventEmitter } from "@stencil/core";
 import { _console } from "../../logging/_console";
+import { WithLogging } from "../../logging/WithLogging";
 
 window.addEventListener("cps-global-header-event", (event: Event & { detail: string }) => _console.debug("A navigation event has been fired: ", event));
 
@@ -30,6 +31,7 @@ export class NavLink {
 
   launchNewTab = (link: string) => window.open(link, "_blank", "noopener,noreferrer");
 
+  @WithLogging
   render() {
     const mode: LinkMode = this.disabled || !this.href ? "disabled" : this.openInNewTab ? "new-tab" : this.preferEventNavigation ? "emit-event" : "standard";
 

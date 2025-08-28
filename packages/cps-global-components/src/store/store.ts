@@ -1,31 +1,64 @@
-import { Config } from "cps-global-configuration";
-import { AuthResult } from "../services/auth/initialise-auth";
-import { FoundContext } from "../services/context/find-context";
 import { createStore } from "@stencil/store";
-
-export type Flags = { isOverrideMode: boolean; isOutSystems: boolean };
-export type Tags = Record<string, string>;
+import { _console } from "../logging/_console";
+import { initialInternalState, State } from "./internal-state";
 
 export type Register = typeof register;
 
-export type Store = {
-  flags?: Flags;
-  config?: Config;
-  auth?: AuthResult;
-  context?: FoundContext;
-  tags?: Tags;
-  fatalInitialisationError?: Error;
-};
+let store: ReturnType<typeof createStore<State>>;
 
-let store: ReturnType<typeof createStore<Store>>;
-
-export let state: (typeof store)["state"];
+let stateCache: State;
 
 export const initialiseStore = () => {
-  store = createStore<Store>({}, (newValue, oldValue) => JSON.stringify(newValue) !== JSON.stringify(oldValue));
-  state = store.state;
+  store = createStore<State>(
+    () => ({
+      ...initialInternalState,
+    }),
+    (newValue, oldValue) => JSON.stringify(newValue) !== JSON.stringify(oldValue),
+  );
+  stateCache = store.state;
+
+  store.use({
+    set: (key, newValue) => _console.debug("Store", `Setting ${key}`, newValue),
+    reset: () => {
+      throw new Error("We do not support resetting state - the initiation of state is done only in the startup of the app");
+    },
+  });
 };
 
-export const register = (arg: Partial<Store>) => {
-  (Object.keys(arg) as (keyof Store)[]).forEach(key => store.set(key, arg[key]));
+export const register = (arg: Partial<State>) => {
+  (Object.keys(arg) as (keyof State)[]).forEach(key => store.set(key, arg[key]));
 };
+
+// Helper types
+type NonUndefined<T> = T extends undefined ? never : T;
+
+// Use a tuple to prevent distribution
+type PickDefined<K extends keyof State> = Pick<State, K> & {
+  [P in K]: NonUndefined<State[P]>;
+};
+
+type AllDefined = {
+  [K in keyof State]: NonUndefined<State[K]>;
+};
+
+// Wrap K in a tuple [K] to prevent distribution
+type PickIfReadyReturn<K extends readonly (keyof State)[]> = K extends readonly [] ? AllDefined | false : PickDefined<K[number]> | false;
+
+export const readyState = <K extends readonly (keyof State)[] = readonly []>(...keys: K): PickIfReadyReturn<K> => {
+  const keysToCheck = keys.length === 0 ? (Object.keys(stateCache) as (keyof State)[]) : keys;
+
+  for (const key of keysToCheck) {
+    if (stateCache[key] === undefined) {
+      return false as PickIfReadyReturn<K>;
+    }
+  }
+
+  const result: any = {};
+  for (const key of keysToCheck) {
+    result[key] = stateCache[key];
+  }
+
+  return result as PickIfReadyReturn<K>;
+};
+
+export const rawState = () => stateCache;

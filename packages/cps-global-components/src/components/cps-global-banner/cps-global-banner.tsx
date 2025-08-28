@@ -1,5 +1,7 @@
 import { Component, h, Fragment } from "@stencil/core";
-import { state } from "../../store/store";
+import { readyState } from "../../store/store";
+import { FLAGS } from "../../feature-flags/feature-flags";
+import { WithLogging } from "../../logging/WithLogging";
 
 @Component({
   tag: "cps-global-banner",
@@ -8,25 +10,30 @@ import { state } from "../../store/store";
 })
 export class CpsGlobalBanner {
   private handleTitleClick = () => {
-    if (!state.flags?.isOverrideMode) {
-      return;
-    }
     const currentBg = window.document.body.style.backgroundColor;
     window.document.body.style.backgroundColor = currentBg === "lightgrey" ? "" : "lightgrey";
   };
 
+  @WithLogging
   render() {
-    const showRebrand = state.config?.SHOW_GOVUK_REBRAND;
+    const state = readyState("flags", "config");
+    if (!state) {
+      return <></>;
+    }
+
+    const isAccessibilityMode = FLAGS.shouldEnableAccessibilityMode(state);
+    const showGovUkRebrand = FLAGS.shouldShowGovUkRebrand(state);
+
     return (
-      <div class={showRebrand ? "govuk-template--rebranded" : ""}>
+      <div class={showGovUkRebrand ? "govuk-template--rebranded" : ""}>
         <a href="#main-content" class="govuk-skip-link skip-link" data-module="govuk-skip-link">
           Skip to main content
         </a>
-        {showRebrand ? (
+        {showGovUkRebrand ? (
           <header class="govuk-header background-blue" data-module="govuk-header">
             <div class="govuk-header__container">
               <div class="govuk-header__logo">
-                <a href="#" class="govuk-header__link govuk-header__link--homepage" onClick={this.handleTitleClick}>
+                <a href="#" class="govuk-header__link govuk-header__link--homepage" onClick={isAccessibilityMode ? this.handleTitleClick : undefined}>
                   <svg
                     focusable="false"
                     role="img"
@@ -64,7 +71,7 @@ export class CpsGlobalBanner {
               <div class="govuk-header__container">
                 <div class="govuk-header__logo">
                   <span class="govuk-header__link govuk-header__link--homepage">
-                    <span class="header-title" onClick={this.handleTitleClick}>
+                    <span class="header-title" onClick={isAccessibilityMode ? this.handleTitleClick : undefined}>
                       CPS
                     </span>{" "}
                     <span class="header-sub-title"></span>

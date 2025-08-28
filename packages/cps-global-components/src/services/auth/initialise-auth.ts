@@ -1,6 +1,7 @@
 import { InteractionRequiredAuthError, PublicClientApplication } from "@azure/msal-browser";
 import { Config } from "cps-global-configuration";
 import { FoundContext } from "../context/find-context";
+import { withLogging } from "../../logging/with-logging";
 
 const MSAL_ERROR_CODES = {
   ConditionalAccessRule: "AADSTS53003",
@@ -30,13 +31,11 @@ export type AuthResult = Auth | FailedAuth;
 
 const scopes = ["User.Read"];
 
-export const initialiseAuth = async ({
+const initialise = async ({
   window,
   config: { AD_TENANT_AUTHORITY: authority, AD_CLIENT_ID: clientId },
   context: { msalRedirectUrl: redirectUri },
 }: Props): Promise<AuthResult> => {
-  await new Promise(resolve => setTimeout(resolve, 3000));
-
   if (!(authority && clientId && redirectUri)) {
     // todo: feedback or logging
     return {
@@ -69,9 +68,19 @@ export const initialiseAuth = async ({
 
   try {
     await instance.initialize();
-    await instance.ssoSilent({
-      scopes,
-    });
+    try {
+      await instance.ssoSilent({
+        scopes,
+      });
+    } catch (error) {
+      if (error instanceof InteractionRequiredAuthError && error.message.includes(MSAL_ERROR_CODES.MultipleIdentities)) {
+        await instance.loginPopup({
+          scopes,
+        });
+      } else {
+        throw error;
+      }
+    }
 
     const accounts = instance.getAllAccounts();
 
@@ -112,3 +121,5 @@ export const initialiseAuth = async ({
     };
   }
 };
+
+export const initialiseAuth = withLogging(initialise);

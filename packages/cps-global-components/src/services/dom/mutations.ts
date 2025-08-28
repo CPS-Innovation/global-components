@@ -1,5 +1,7 @@
 import { DomTags } from "cps-global-configuration/dist/schema";
 
+export type Tags = Record<string, string>;
+
 const extractTagsFromElement = (element: Element, domTags: DomTags[]) => {
   let tags: Record<string, string> = {};
 

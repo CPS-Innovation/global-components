@@ -4,8 +4,8 @@ describe("isOutSystemsApp", () => {
   const createMockWindow = (href: string): Window => {
     return {
       location: {
-        href
-      }
+        href,
+      },
     } as Window;
   };
 
