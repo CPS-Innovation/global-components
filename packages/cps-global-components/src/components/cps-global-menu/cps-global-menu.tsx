@@ -15,28 +15,29 @@ export class CpsGlobalMenu {
   render() {
     const state = readyState("config", "auth", "tags", "flags", "context");
     if (!state) {
+      return null; // don't show menu until we are ready
+    }
+
+    if (!FLAGS.shouldShowMenu(state)) {
       return null;
     }
 
-    const shouldShowMenu = FLAGS.shouldShowMenu(state);
-    if (!shouldShowMenu) {
-      return null;
-    }
-
-    const showGovUkRebrand = FLAGS.shouldShowGovUkRebrand(state);
-    const surveyLink = FLAGS.surveyLink(state);
-
-    const classes = showGovUkRebrand
+    const classes = FLAGS.shouldShowGovUkRebrand(state)
       ? { flag: "govuk-template--rebranded", level1Background: "background-light-blue", divider: "background-divider-blue" }
       : { flag: "", level1Background: "background-grey", divider: "background-divider" };
 
-    const config = menuConfig(state);
-    if (config.status === "error") {
-      return renderError(config.error);
+    const menu = menuConfig(state);
+
+    if (menu.status === "error") {
+      return renderError(menu.error);
     }
+
     const {
       links: [level1Links, level2Links],
-    } = config;
+    } = menu;
+
+    const surveyLink = FLAGS.surveyLink(state);
+
     return (
       <div class={classes.flag}>
         <nav class={`level level-1 ${classes.level1Background}`} aria-label="Menu" data-testid="menu-level-1">

@@ -3,8 +3,8 @@ import { mapLinkConfig } from "./helpers/map-link-config";
 import { GroupedLink, groupLinksByLevel } from "./helpers/group-links-by-level";
 import { isOutSystemsApp } from "../../../services/application-flags/is-outsystems-app";
 import { createOutboundUrl } from "cps-global-os-handover";
-import { KnownState } from "../../../store/internal-state";
 import { withLogging } from "../../../logging/with-logging";
+import { KnownState } from "../../../store/store";
 
 export type MenuConfigResult =
   | {

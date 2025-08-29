@@ -12,10 +12,10 @@ import { mapLinkConfig } from "./helpers/map-link-config";
 import { groupLinksByLevel } from "./helpers/group-links-by-level";
 import { ApplicationFlags } from "../../../services/application-flags/ApplicationFlags";
 import { Tags } from "@microsoft/applicationinsights-web";
-import { KnownState } from "../../../store/internal-state";
 import { AuthResult } from "../../../services/auth/initialise-auth";
 import { isOutSystemsApp } from "../../../services/application-flags/is-outsystems-app";
 import { createOutboundUrl } from "cps-global-os-handover";
+import { KnownState } from "../../../store/store";
 
 // Type the mocked functions
 const mockShouldShowLink = shouldShowLink as jest.MockedFunction<typeof shouldShowLink>;
@@ -182,10 +182,10 @@ describe("menuConfig", () => {
     expect(mockShouldShowLink).toHaveBeenCalledWith(foundContexts);
     expect(mockFilterFunction).toHaveBeenCalledTimes(3);
     // The handoverAdapter should be a function when not in OutSystems (even with empty OS_HANDOVER_URL)
-    expect(mockMapLinkConfig).toHaveBeenCalledWith({ 
-      contexts: foundContexts, 
-      tags: { ...foundTags, ...domTags }, 
-      handoverAdapter: expect.any(Function) 
+    expect(mockMapLinkConfig).toHaveBeenCalledWith({
+      contexts: foundContexts,
+      tags: { ...foundTags, ...domTags },
+      handoverAdapter: expect.any(Function),
     });
     expect(mockMapFunction).toHaveBeenCalledTimes(2); // Only called for filtered links
     expect(mockGroupLinksByLevel).toHaveBeenCalledWith([
@@ -357,7 +357,7 @@ describe("menuConfig", () => {
 
     // Capture the handoverAdapter function
     let capturedHandoverAdapter: ((targetUrl: string) => string) | undefined;
-    mockMapLinkConfig.mockImplementation((args) => {
+    mockMapLinkConfig.mockImplementation(args => {
       capturedHandoverAdapter = args.handoverAdapter;
       return jest.fn();
     });
@@ -373,7 +373,7 @@ describe("menuConfig", () => {
     // Even if it's an OutSystems URL, without OS_HANDOVER_URL it should return unchanged
     mockIsOutSystemsApp.mockReturnValue(true);
     expect(capturedHandoverAdapter!("https://os-app.com/page")).toBe("https://os-app.com/page");
-    
+
     expect(mockIsOutSystemsApp).toHaveBeenCalledWith({ location: { href: "https://os-app.com/page" } });
     expect(mockCreateOutboundUrl).not.toHaveBeenCalled();
   });
@@ -413,7 +413,7 @@ describe("menuConfig", () => {
 
     // Capture the handoverAdapter function
     let capturedHandoverAdapter: ((targetUrl: string) => string) | undefined;
-    mockMapLinkConfig.mockImplementation((args) => {
+    mockMapLinkConfig.mockImplementation(args => {
       capturedHandoverAdapter = args.handoverAdapter;
       return jest.fn();
     });
@@ -433,9 +433,9 @@ describe("menuConfig", () => {
     // Test case 2: OutSystems URL should go through handover
     mockIsOutSystemsApp.mockReturnValue(true);
     mockCreateOutboundUrl.mockReturnValue("https://handover.example.com?target=https://os-app.com/page");
-    
+
     const result = capturedHandoverAdapter!("https://os-app.com/page");
-    
+
     expect(mockIsOutSystemsApp).toHaveBeenCalledWith({ location: { href: "https://os-app.com/page" } });
     expect(mockCreateOutboundUrl).toHaveBeenCalledWith({
       handoverUrl: "https://handover.example.com",

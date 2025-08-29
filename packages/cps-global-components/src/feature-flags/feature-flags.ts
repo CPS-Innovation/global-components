@@ -1,5 +1,5 @@
 import { withLogging } from "../logging/with-logging";
-import { KnownState } from "../store/internal-state";
+import { KnownState } from "../store/store";
 
 const shouldEnableAccessibilityMode = ({ flags }: Pick<KnownState, "flags">) => flags.isOverrideMode;
 
@@ -16,15 +16,3 @@ export const FLAGS = {
   shouldShowMenu: withLogging(shouldShowMenu),
   surveyLink: withLogging(surveyLink),
 };
-
-class Utils {
-  static prefix = ">";
-
-  // Arrow function captures the class as 'this'
-  static log = (msg: string) => {
-    console.log(`${Utils.prefix} ${msg}`);
-  };
-}
-
-const { log } = Utils;
-log("Works!"); // "> Works!"

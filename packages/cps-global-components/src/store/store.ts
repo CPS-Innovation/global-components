@@ -1,8 +1,27 @@
 import { createStore } from "@stencil/store";
 import { _console } from "../logging/_console";
-import { initialInternalState, State } from "./internal-state";
+import { Config } from "cps-global-configuration";
+import { AuthResult } from "../services/auth/initialise-auth";
+import { FoundContext } from "../services/context/find-context";
+import { Tags } from "@microsoft/applicationinsights-web";
+import { ApplicationFlags } from "../services/application-flags/ApplicationFlags";
 
-export type Register = typeof register;
+export type KnownState = { fatalInitialisationError: Error; flags: ApplicationFlags; config: Config; context: FoundContext; auth: AuthResult; tags: Tags };
+
+export type State = {
+  [K in keyof KnownState]: KnownState[K] | undefined;
+};
+
+export const initialInternalState: State = {
+  flags: undefined,
+  config: undefined,
+  auth: undefined,
+  context: undefined,
+  tags: undefined,
+  fatalInitialisationError: undefined,
+};
+
+export type Register = typeof registerToStore;
 
 let store: ReturnType<typeof createStore<State>>;
 
@@ -25,7 +44,7 @@ export const initialiseStore = () => {
   });
 };
 
-export const register = (arg: Partial<State>) => {
+export const registerToStore = (arg: Partial<State>) => {
   (Object.keys(arg) as (keyof State)[]).forEach(key => store.set(key, arg[key]));
 };
 

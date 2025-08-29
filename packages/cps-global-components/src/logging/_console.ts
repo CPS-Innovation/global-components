@@ -1,11 +1,17 @@
+const isJest = typeof jest !== "undefined";
+
+const makeMethod =
+  (method: "debug" | "error", colour: string) =>
+  (...data: any[]) => {
+    if (isJest) {
+      return;
+    }
+    const style = `background-color: ${colour}; color: white;`;
+    console[method](`%c[CPS-GLOBAL-COMPONENTS]`, style, ...data);
+  };
+
 export const _console = {
   ...console,
-  debug: (...data: any[]) => {
-    const style = "background-color: lightsteelblue; color: white;";
-    console.debug(`%c[CPS-GLOBAL-COMPONENTS]`, style, ...data);
-  },
-  error: (...data: any[]) => {
-    const style = "background-color: firebrick; color: white;";
-    console.error(`%c[CPS-GLOBAL-COMPONENTS]`, style, ...data);
-  },
+  debug: makeMethod("debug", "lightsteelblue"),
+  error: makeMethod("error", "firebrick"),
 };
