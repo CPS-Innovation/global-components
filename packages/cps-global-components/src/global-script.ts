@@ -1,14 +1,15 @@
-import { detectOverrideMode } from "./services/application-flags/detect-override-mode";
 import { handleOverrideSetMode } from "./services/override-mode/handle-override-set-mode";
 import { initialiseAuth } from "./services/auth/initialise-auth";
 import { initialiseStore, registerToStore } from "./store/store";
 import { setOutSystemsFeatureFlag } from "./services/override-mode/outsystems-shim/set-outsystems-feature-flag";
 import { initialiseAnalytics } from "./services/analytics/initialise-analytics";
 import { initialiseConfig } from "./services/config/initialise-config";
-import { isOutSystemsApp } from "./services/application-flags/is-outsystems-app";
 import { initialiseContext } from "./services/context/initialise-context";
 import { findContext } from "./services/context/find-context";
 import { initialiseDomObservation } from "./services/dom/initialise-dom-observation";
+import { getApplicationFlags } from "./services/application-flags/get-application-flags";
+import { initialiseMockAuth } from "./services/auth/initialise-mock-auth";
+import { initialiseMockAnalytics } from "./services/analytics/initialise-mock-analytics";
 
 // Don't return a promise otherwise stencil will wait for all of this to be complete
 //  before rendering.  Using the register* functions means we can render immediately
@@ -23,7 +24,7 @@ export default /* do not make this async */ () => {
       initialiseStore();
       handleOverrideSetMode({ window });
 
-      const flags = { isOverrideMode: detectOverrideMode(window), isOutSystems: isOutSystemsApp(window) };
+      const flags = getApplicationFlags({ window });
       registerToStore({ flags });
 
       const config = await initialiseConfig({ flags });
@@ -35,10 +36,10 @@ export default /* do not make this async */ () => {
       const reinitialiseDomObservation = initialiseDomObservation({ window, registerToStore });
       reinitialiseDomObservation({ context });
 
-      const auth = await initialiseAuth({ window, config, context });
+      const auth = flags.isE2eTestMode ? await initialiseMockAuth({ window }) : await initialiseAuth({ window, config, context });
       registerToStore({ auth });
 
-      const { trackPageView, trackException } = initialiseAnalytics({ window, config, auth });
+      const { trackPageView, trackException } = flags.isE2eTestMode ? initialiseMockAnalytics() : initialiseAnalytics({ window, config, auth });
       trackPageView();
       errorLogger = trackException;
 

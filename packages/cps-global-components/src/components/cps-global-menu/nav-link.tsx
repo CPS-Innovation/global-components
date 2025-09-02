@@ -31,7 +31,7 @@ export class NavLink {
 
   launchNewTab = (link: string) => window.open(link, "_blank", "noopener,noreferrer");
 
-  @WithLogging
+  @WithLogging("NavLink")
   render() {
     const mode: LinkMode = this.disabled || !this.href ? "disabled" : this.openInNewTab ? "new-tab" : this.preferEventNavigation ? "emit-event" : "standard";
 

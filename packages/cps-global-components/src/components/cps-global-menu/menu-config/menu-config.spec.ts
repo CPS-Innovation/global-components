@@ -74,6 +74,7 @@ describe("menuConfig", () => {
   const mockFlags: ApplicationFlags = {
     isOverrideMode: false,
     isOutSystems: false,
+    isE2eTestMode: false,
   };
 
   const mockTags: Tags = {};
@@ -96,6 +97,7 @@ describe("menuConfig", () => {
       tags: mockTags,
       auth: {} as AuthResult,
       fatalInitialisationError: undefined as any,
+      initialisationStatus: "ready",
     };
 
     const result = menuConfig(mockState);
@@ -132,6 +134,7 @@ describe("menuConfig", () => {
       tags: domTags,
       auth: {} as AuthResult,
       fatalInitialisationError: undefined as any,
+      initialisationStatus: "ready",
     };
 
     // Mock shouldShowLink to filter out the second link
@@ -235,6 +238,7 @@ describe("menuConfig", () => {
       tags: mockTags,
       auth: {} as AuthResult,
       fatalInitialisationError: undefined as any,
+      initialisationStatus: "ready",
     };
 
     // Mock shouldShowLink to pass all links
@@ -292,6 +296,7 @@ describe("menuConfig", () => {
       tags: mockTags,
       auth: {} as AuthResult,
       fatalInitialisationError: undefined as any,
+      initialisationStatus: "ready",
     };
 
     // Mock shouldShowLink to pass all links
@@ -349,6 +354,7 @@ describe("menuConfig", () => {
       tags: mockTags,
       auth: {} as AuthResult,
       fatalInitialisationError: undefined as any,
+      initialisationStatus: "ready",
     };
 
     // Mock shouldShowLink to pass all links
@@ -405,6 +411,7 @@ describe("menuConfig", () => {
       tags: mockTags,
       auth: {} as AuthResult,
       fatalInitialisationError: undefined as any,
+      initialisationStatus: "ready",
     };
 
     // Mock shouldShowLink to pass all links

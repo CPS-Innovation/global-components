@@ -8,10 +8,10 @@ import { WithLogging } from "../../logging/WithLogging";
 @Component({
   tag: "cps-global-menu",
   styleUrl: "cps-global-menu.scss",
-  shadow: true,
+  shadow: false,
 })
 export class CpsGlobalMenu {
-  @WithLogging
+  @WithLogging("CpsGlobalMenu")
   render() {
     const state = readyState("config", "auth", "tags", "flags", "context");
     if (!state) {
@@ -21,10 +21,6 @@ export class CpsGlobalMenu {
     if (!FLAGS.shouldShowMenu(state)) {
       return null;
     }
-
-    const classes = FLAGS.shouldShowGovUkRebrand(state)
-      ? { flag: "govuk-template--rebranded", level1Background: "background-light-blue", divider: "background-divider-blue" }
-      : { flag: "", level1Background: "background-grey", divider: "background-divider" };
 
     const menu = menuConfig(state);
 
@@ -36,7 +32,17 @@ export class CpsGlobalMenu {
       links: [level1Links, level2Links],
     } = menu;
 
+    // Design decision: if there are no links (we only need to check for top-level links)
+    //  then we will take this as an address where the menu should not be shown
+    if (!level1Links.length) {
+      return null;
+    }
+
     const surveyLink = FLAGS.surveyLink(state);
+
+    const classes = FLAGS.shouldShowGovUkRebrand(state)
+      ? { flag: "govuk-template--rebranded", level1Background: "background-light-blue", divider: "background-divider-blue" }
+      : { flag: "", level1Background: "background-grey", divider: "background-divider" };
 
     return (
       <div class={classes.flag}>

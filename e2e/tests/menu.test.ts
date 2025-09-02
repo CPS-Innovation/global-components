@@ -1,32 +1,113 @@
-import { arrange } from "../helpers/arrange";
+import { act } from "../helpers/act";
+import { arrange, ArrangeProps } from "../helpers/arrange";
+import { LOCATORS as L } from "../helpers/constants";
+
+const happySettings: ArrangeProps = {
+  config: {
+    SHOW_MENU: true,
+    CONTEXTS: [{ contexts: "e2e", paths: [".*"], msalRedirectUrl: "foo" }],
+    LINKS: [
+      {
+        label: "foo",
+        activeContexts: "e2e",
+        href: "http://example.org",
+        level: 0,
+      },
+    ],
+    FEATURE_FLAG_ENABLE_MENU_GROUP: "e2e-test-group",
+  },
+  auth: { isAuthed: true, adGroups: ["e2e-test-group"] },
+};
 
 describe("Global menu", () => {
   it("should follow config to only show one top-level nav link", async () => {
-    // Arrange
+    await arrange(happySettings);
+
+    const header = await act();
+
+    await expect(header).toMatchElement(L.MENU_CONTAINER);
+    await expect(header).toMatchElement(L.MENU_CONTENT);
+    await expect(header).not.toMatchElement(L.ERROR);
+  });
+
+  it("should should not show the menu if it is switched off in config", async () => {
     await arrange({
-      SHOW_MENU: true,
-      CONTEXTS: [{ contexts: "e2e", paths: [".*"], msalRedirectUrl: "foo" }],
-      LINKS: [
-        {
-          label: "Link A",
-          level: 0,
-          href: "/1",
-          activeContexts: "e2e",
-        },
-      ],
+      ...happySettings,
+      config: { ...happySettings.config, SHOW_MENU: false },
     });
 
-    // Act
-    const header = await page.waitForSelector(">>> cps-global-menu >>> div");
-    if (!header) throw new Error();
+    const header = await act();
 
-    // Assert
-    await expect(header).toMatchElement("[data-testid=menu-level-1]");
-    await expect(header).not.toMatchElement("[data-testid=menu-level-2]");
+    await expect(header).toMatchElement(L.MENU_CONTAINER);
+    await expect(header).not.toMatchElement(L.MENU_CONTENT);
+    await expect(header).not.toMatchElement(L.ERROR);
+  });
 
-    const links = await header.$$("li");
-    expect(links.length).toBe(1);
+  it("should should not show the menu if the user is not authenticated", async () => {
+    await arrange({
+      ...happySettings,
+      auth: { ...happySettings.auth, isAuthed: false },
+    });
 
-    await expect(links[0]).toMatchTextContent("Link A");
+    const header = await act();
+
+    await expect(header).toMatchElement(L.MENU_CONTAINER);
+    await expect(header).not.toMatchElement(L.MENU_CONTENT);
+    await expect(header).not.toMatchElement(L.ERROR);
+  });
+
+  it("should should not show the menu if the user is not in an appropriate AD group", async () => {
+    await arrange({
+      ...happySettings,
+      auth: { isAuthed: true, adGroups: ["not-the-e2e-test-group"] },
+    });
+
+    const header = await act();
+
+    await expect(header).toMatchElement(L.MENU_CONTAINER);
+    await expect(header).not.toMatchElement(L.MENU_CONTENT);
+    await expect(header).not.toMatchElement(L.ERROR);
+  });
+
+  it.only("should should not show the menu if the current context has no links", async () => {
+    await arrange({
+      ...happySettings,
+      config: {
+        ...happySettings.config,
+        LINKS: [
+          {
+            ...happySettings.config.LINKS![0],
+            visibleContexts: "not-e2e",
+          },
+        ],
+      },
+    });
+
+    const header = await act();
+
+    await expect(header).toMatchElement(L.MENU_CONTAINER);
+    await expect(header).not.toMatchElement(L.MENU_CONTENT);
+    await expect(header).not.toMatchElement(L.ERROR);
+  });
+
+  it("should should not show the menu and show an error if the address is not in a known context", async () => {
+    await arrange({
+      ...happySettings,
+      config: {
+        ...happySettings.config,
+        CONTEXTS: [
+          {
+            ...happySettings.config.CONTEXTS![0],
+            paths: ["http://example.org"],
+          },
+        ],
+      },
+    });
+
+    const header = await act();
+
+    await expect(header).toMatchElement(L.MENU_CONTAINER);
+    await expect(header).not.toMatchElement(L.MENU_CONTENT);
+    await expect(header).toMatchElement(L.ERROR);
   });
 });

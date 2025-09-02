@@ -39,4 +39,4 @@ const menuConfigInternal = ({
   return { status: "ok", links: groupLinksByLevel(links) };
 };
 
-export const menuConfig = withLogging(menuConfigInternal);
+export const menuConfig = withLogging("menuConfig", menuConfigInternal);

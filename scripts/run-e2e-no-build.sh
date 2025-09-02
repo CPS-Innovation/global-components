@@ -1,0 +1,1 @@
+pnpm --filter e2e test

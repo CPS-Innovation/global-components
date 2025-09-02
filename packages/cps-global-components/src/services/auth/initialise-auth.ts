@@ -38,10 +38,15 @@ const initialise = async ({
 }: Props): Promise<AuthResult> => {
   if (!(authority && clientId && redirectUri)) {
     // todo: feedback or logging
+    const missingValues = Object.entries({ authority, clientId, redirectUri })
+      .filter(([, value]) => !value)
+      .map(([key]) => key)
+      .join(",");
+
     return {
       isAuthed: false,
       knownErrorType: "ConfigurationIncomplete",
-      reason: `Missing one or more of ${JSON.stringify({ authority, clientId, redirectUri })}`,
+      reason: `Configuration is missing the following values: ${missingValues}`,
     };
   }
 
@@ -122,4 +127,4 @@ const initialise = async ({
   }
 };
 
-export const initialiseAuth = withLogging(initialise);
+export const initialiseAuth = withLogging("initialise", initialise);
