@@ -64,6 +64,7 @@ export const ConfigSchema = z.object({
   COOKIE_HANDOVER_URL: z.string().optional(),
   TOKEN_HANDOVER_URL: z.string().optional(),
   FEATURE_FLAG_ENABLE_MENU_GROUP: z.string().optional(),
+  FEATURE_FLAG_ENABLE_INTRUSIVE_AD_LOGIN: z.boolean().optional(),
 });
 
 export type Config = z.infer<typeof ConfigSchema>;
