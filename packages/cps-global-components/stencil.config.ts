@@ -1,6 +1,5 @@
 import { Config } from "@stencil/core";
 import { sass } from "@stencil/sass";
-import { readFileSync } from "fs";
 
 const esModules = [
   "cps-global-os-handover",
@@ -9,16 +8,11 @@ const esModules = [
 
 export const config: Config = {
   namespace: "cps-global-components",
+  sourceMap: true,
   outputTargets: [
     {
       type: "dist",
       esmLoaderPath: "../loader",
-    },
-    {
-      type: "dist-custom-elements",
-      externalRuntime: false,
-      generateTypeDeclarations: true,
-      includeGlobalScripts: true,
     },
     {
       type: "docs-readme",

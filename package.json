@@ -14,6 +14,7 @@
   "scripts": {
     "preinstall": "npx only-allow pnpm",
     "run-e2e": "./scripts/run-e2e.sh",
+    "run-e2e-no-build": "./scripts/run-e2e-no-build.sh",
     "run-html-harness": "./scripts/run-html-harness.sh",
     "run-spa-harness": "./scripts/run-spa-harness.sh"
   },

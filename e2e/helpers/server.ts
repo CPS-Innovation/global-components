@@ -6,8 +6,12 @@ import { decode } from "./encoding";
 const server = createServer((request, response) => {
   const parsedUrl = new URL(request.url!, `http://${request.headers.host}`);
 
-  // // Check if the request is for config.json
   if (parsedUrl.pathname.endsWith("/config.json")) {
+    if (!request.headers["x-config"]) {
+      response.writeHead(500);
+      response.end();
+      return;
+    }
     const config = decode(request.headers["x-config"] as string);
     response.writeHead(200, { "Content-Type": "application/json" });
     response.end(config);

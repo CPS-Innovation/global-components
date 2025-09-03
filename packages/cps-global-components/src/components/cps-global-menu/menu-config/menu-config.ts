@@ -1,28 +1,42 @@
-import { Config } from "cps-global-configuration";
-import { findContext } from "../../../config/context/find-context";
 import { shouldShowLink } from "./helpers/should-show-link";
 import { mapLinkConfig } from "./helpers/map-link-config";
 import { GroupedLink, groupLinksByLevel } from "./helpers/group-links-by-level";
-import { getDomTags } from "./helpers/dom/tags";
-import { isOutSystemsApp } from "../../../utils/is-outsystems-app";
+import { isOutSystemsApp } from "../../../services/application-flags/is-outsystems-app";
 import { createOutboundUrl } from "cps-global-os-handover";
+import { withLogging } from "../../../logging/with-logging";
+import { KnownState } from "../../../store/store";
 
-export type MenuConfigResult = {
-  found: boolean;
-  links: GroupedLink[][];
-};
+export type MenuConfigResult =
+  | {
+      status: "ok";
+      links: GroupedLink[][];
+    }
+  | {
+      status: "error";
+      error: Error;
+    };
 
-export const menuConfig = ({ LINKS, CONTEXTS, OS_HANDOVER_URL }: Config, window: Window): MenuConfigResult => {
-  const foundContext = findContext(CONTEXTS, window);
-  if (!foundContext.found) {
-    return { found: false, links: undefined };
+const menuConfigInternal = ({
+  context,
+  flags: { isOutSystems },
+  config: { OS_HANDOVER_URL, LINKS },
+  tags: tagsFromDom,
+}: Pick<KnownState, "context" | "config" | "tags" | "flags">): MenuConfigResult => {
+  if (!context?.found) {
+    return { status: "error", error: new Error("No context found for this URL.") };
   }
-  const { found, contexts, tags } = foundContext;
+  const { contexts, tags } = context;
 
-  const tagsFromDom = getDomTags();
-  const handoverAdapter =
-    !isOutSystemsApp(window.location.origin) && ((targetUrl: string) => (isOutSystemsApp(targetUrl) ? createOutboundUrl({ handoverUrl: OS_HANDOVER_URL, targetUrl }) : targetUrl));
-
+  const handoverAdapter = isOutSystems
+    ? undefined
+    : // If we are outside of OutSystems and a link is pointing to OutSystems then we need to go
+      //  via the auth handover endpoint to ensure OS has CMS auth
+      (targetUrl: string) => {
+        const shouldGoViaAuthHandover = isOutSystemsApp({ location: { href: targetUrl } }) && OS_HANDOVER_URL;
+        return shouldGoViaAuthHandover ? createOutboundUrl({ handoverUrl: OS_HANDOVER_URL, targetUrl }) : targetUrl;
+      };
   const links = LINKS.filter(shouldShowLink(contexts)).map(mapLinkConfig({ contexts, tags: { ...tags, ...tagsFromDom }, handoverAdapter }));
-  return { found, links: groupLinksByLevel(links) };
+  return { status: "ok", links: groupLinksByLevel(links) };
 };
+
+export const menuConfig = withLogging("menuConfig", menuConfigInternal);
