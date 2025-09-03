@@ -10,7 +10,7 @@ const shouldShowMenu = ({ config: { SHOW_MENU, FEATURE_FLAG_ENABLE_MENU_GROUP },
 
 const surveyLink = ({ config }: Pick<KnownState, "config">) => ({ showLink: !!config.SURVEY_LINK, url: config.SURVEY_LINK });
 
-export const FLAGS = {
+export const FEATURE_FLAGS = {
   shouldEnableAccessibilityMode: withLogging("shouldEnableAccessibilityMode", shouldEnableAccessibilityMode),
   shouldShowGovUkRebrand: withLogging("shouldShowGovUkRebrand", shouldShowGovUkRebrand),
   shouldShowMenu: withLogging("shouldShowMenu", shouldShowMenu),

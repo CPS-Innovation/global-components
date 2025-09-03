@@ -1,7 +1,7 @@
 import { Component, h, Fragment } from "@stencil/core";
 import { menuConfig } from "./menu-config/menu-config";
 import { readyState } from "../../store/store";
-import { FLAGS } from "../../feature-flags/feature-flags";
+import { FEATURE_FLAGS } from "../../feature-flags/feature-flags";
 import { renderError } from "../common/render-error";
 import { _console } from "../../logging/_console";
 import { WithLogging } from "../../logging/WithLogging";
@@ -18,7 +18,7 @@ export class CpsGlobalMenu {
       return null; // don't show menu until we are ready
     }
 
-    if (!FLAGS.shouldShowMenu(state)) {
+    if (!FEATURE_FLAGS.shouldShowMenu(state)) {
       return null;
     }
 
@@ -38,9 +38,9 @@ export class CpsGlobalMenu {
       return null;
     }
 
-    const surveyLink = FLAGS.surveyLink(state);
+    const surveyLink = FEATURE_FLAGS.surveyLink(state);
 
-    const classes = FLAGS.shouldShowGovUkRebrand(state)
+    const classes = FEATURE_FLAGS.shouldShowGovUkRebrand(state)
       ? { flag: "govuk-template--rebranded", level1Background: "background-light-blue", divider: "background-divider-blue" }
       : { flag: "", level1Background: "background-grey", divider: "background-divider" };
 

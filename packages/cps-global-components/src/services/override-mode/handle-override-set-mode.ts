@@ -1,7 +1,7 @@
 import { OVERRIDE_KEY, OVERRIDE_VALUE, REDIRECT_KEY } from "./constants";
 
-export const handleOverrideSetMode = ({ window }: { window: Window & typeof globalThis }) => {
-  const { searchParams } = new URL(window.location.href);
+export const handleOverrideSetMode = ({ window: { location } }: { window: Window & typeof globalThis }) => {
+  const { searchParams } = new URL(location.href);
   const setFlag = searchParams.get(OVERRIDE_KEY);
   if (!setFlag) {
     return;
@@ -21,6 +21,6 @@ export const handleOverrideSetMode = ({ window }: { window: Window & typeof glob
   const url = new URL(nextUrl);
   url.searchParams.set(OVERRIDE_KEY, setFlag);
   remainingUrls.forEach(remainingUrl => url.searchParams.append(REDIRECT_KEY, remainingUrl));
-  window.location.href = url.toString();
+  location.href = url.toString();
   return;
 };

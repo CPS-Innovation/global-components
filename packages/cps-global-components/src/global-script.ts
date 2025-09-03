@@ -12,7 +12,7 @@ import { initialiseMockAuth } from "./services/auth/initialise-mock-auth";
 import { initialiseMockAnalytics } from "./services/analytics/initialise-mock-analytics";
 
 // Don't return a promise otherwise stencil will wait for all of this to be complete
-//  before rendering.  Using the register* functions means we can render immediately
+//  before rendering.  Using the registerToStore function means we can render immediately
 //  and the components themselves will know when the minimum setup that they need is
 //  ready.  This means that a long-running auth process will not stop components that
 //  do not need auth from rendering.

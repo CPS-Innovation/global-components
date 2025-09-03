@@ -1,6 +1,6 @@
 import { Component, h, Fragment } from "@stencil/core";
 import { rawState, readyState } from "../../store/store";
-import { FLAGS } from "../../feature-flags/feature-flags";
+import { FEATURE_FLAGS } from "../../feature-flags/feature-flags";
 import { WithLogging } from "../../logging/WithLogging";
 
 @Component({
@@ -29,8 +29,8 @@ export class CpsGlobalBanner {
         return undefined;
       } else {
         // Out state is ready
-        const isAccessibilityMode = FLAGS.shouldEnableAccessibilityMode(state);
-        const showGovUkRebrand = FLAGS.shouldShowGovUkRebrand(state);
+        const isAccessibilityMode = FEATURE_FLAGS.shouldEnableAccessibilityMode(state);
+        const showGovUkRebrand = FEATURE_FLAGS.shouldShowGovUkRebrand(state);
         return { isAccessibilityMode, showGovUkRebrand };
       }
     };

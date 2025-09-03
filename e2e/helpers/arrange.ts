@@ -23,7 +23,6 @@ export const arrange = async ({ config, auth }: Partial<ArrangeProps>) => {
   });
 
   page.evaluateOnNewDocument((auth) => {
-    (window as any).__E2E_TEST_MODE_IS_AUTHED__ = auth.isAuthed;
-    (window as any).__E2E_TEST_MODE_AD_GROUPS__ = auth.adGroups;
+    (window as any).__E2E_TEST_MODE__ = auth;
   }, auth);
 };

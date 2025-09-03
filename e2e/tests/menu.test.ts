@@ -1,6 +1,6 @@
 import { act } from "../helpers/act";
 import { arrange, ArrangeProps } from "../helpers/arrange";
-import { LOCATORS as L } from "../helpers/constants";
+import { locators as L } from "../helpers/constants";
 
 const happySettings: ArrangeProps = {
   config: {

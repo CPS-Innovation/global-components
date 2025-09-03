@@ -4,7 +4,6 @@ import { URL } from "url";
 import { decode } from "./encoding";
 
 const server = createServer((request, response) => {
-  console.log(request);
   const parsedUrl = new URL(request.url!, `http://${request.headers.host}`);
 
   if (parsedUrl.pathname.endsWith("/config.json")) {

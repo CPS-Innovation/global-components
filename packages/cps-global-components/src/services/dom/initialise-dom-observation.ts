@@ -6,7 +6,7 @@ type Props = { window: Window; registerToStore: Register };
 
 const cache: { observer?: ReturnType<typeof setupMutationObserver>; contextIndex?: number } = {};
 
-export const initialiseDomObservation = ({ window, registerToStore }: Props) => {
+export const initialiseDomObservation = ({ window: { document }, registerToStore }: Props) => {
   const resetDomObservation = ({ context: { domTags, contextIndex } }: { context: FoundContext }) => {
     if (contextIndex != undefined && contextIndex === cache.contextIndex) {
       // Our address has changed but we are still in the same context. We should already be set up with an observer.
@@ -24,7 +24,7 @@ export const initialiseDomObservation = ({ window, registerToStore }: Props) => 
     }
 
     cache.contextIndex = contextIndex;
-    cache.observer = setupMutationObserver(window.document.body, domTags, tags => registerToStore({ tags }));
+    cache.observer = setupMutationObserver(document.body, domTags, tags => registerToStore({ tags }));
   };
   return resetDomObservation;
 };

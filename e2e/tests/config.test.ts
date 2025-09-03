@@ -1,6 +1,6 @@
 import { act } from "../helpers/act";
 import { arrange } from "../helpers/arrange";
-import { LOCATORS as L } from "../helpers/constants";
+import { locators as L } from "../helpers/constants";
 
 describe("Config", () => {
   it("shows an error when config breaks", async () => {

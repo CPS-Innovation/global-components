@@ -32,7 +32,7 @@ export type AuthResult = Auth | FailedAuth;
 const scopes = ["User.Read"];
 
 const initialise = async ({
-  window,
+  window: { location },
   config: { AD_TENANT_AUTHORITY: authority, AD_CLIENT_ID: clientId },
   context: { msalRedirectUrl: redirectUri },
 }: Props): Promise<AuthResult> => {
@@ -54,7 +54,7 @@ const initialise = async ({
   //  AD auth callback redirectUrl then we are spinning up inside an iframe or popup.  The intention
   //  is not to spin up an app really - it is just somewhere for AD to land. Whatever we do,
   //  don't launch MSAL if it is the redirectUrl that we are launching
-  if (window.location.href.toLowerCase().startsWith(redirectUri.toLowerCase())) {
+  if (location.href.toLowerCase().startsWith(redirectUri.toLowerCase())) {
     // todo: feedback or logging
     return {
       isAuthed: false,

@@ -1,5 +1,5 @@
 import { ElementHandle } from "puppeteer";
-import { LOCATORS as L } from "./constants";
+import { locators as L, constants as C } from "./constants";
 
 /** Ideally we would use
  * `page.waitForSelector("cps-global-header >>>> div[data-internal-root][data-initialisation-status]")`
@@ -13,13 +13,13 @@ const waitForHeaderReady = async () =>
         .querySelector(C.HEADER_CONTAINER)
         ?.shadowRoot?.querySelector(C.HEADER_CONTENT_READY),
     {
-      timeout: 1000,
+      timeout: 5000,
       polling: 100,
     },
     L
   )) as ElementHandle<HTMLDivElement>;
 
 export const act = async () => {
-  await page.goto(L.LAUNCH_PAGE_URL);
+  await page.goto(C.LAUNCH_PAGE_URL);
   return await waitForHeaderReady();
 };
