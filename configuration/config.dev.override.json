@@ -85,18 +85,21 @@
       "label": "Home",
       "level": 0,
       "href": "https://cps-dev.outsystemsenterprise.com/Casework_Blocks/home",
+      "visibleContexts": "tasks cases case",
       "activeContexts": "home"
     },
     {
       "label": "Tasks",
       "level": 0,
       "href": "https://cps-dev.outsystemsenterprise.com/WorkManagementApp/TaskList",
+      "visibleContexts": "tasks cases case",
       "activeContexts": "tasks"
     },
     {
       "label": "Cases",
       "level": 0,
       "href": "https://cps-dev.outsystemsenterprise.com/WorkManagementApp/Cases?IsCasesNavigation=true",
+      "visibleContexts": "tasks cases case",
       "activeContexts": "cases case"
     },
     {

@@ -5,7 +5,7 @@ export type Link = {
   href: string;
   activeContexts: string;
   openInNewTab?: boolean;
-  visibleContexts?: string;
+  visibleContexts: string;
   preferEventNavigationContexts?: string;
   level: number;
 };
@@ -16,7 +16,7 @@ const LinkSchema: z.ZodType<Link> = z.lazy(() =>
     href: z.string(),
     activeContexts: z.string(),
     openInNewTab: z.boolean().optional(),
-    visibleContexts: z.string().optional(),
+    visibleContexts: z.string(),
     preferEventNavigationContexts: z.string().optional(),
     level: z.number(),
   })
