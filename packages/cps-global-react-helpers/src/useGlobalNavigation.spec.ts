@@ -1,7 +1,6 @@
 import { renderHook } from "@testing-library/react";
 import { useNavigate } from "react-router-dom";
 import { useGlobalNavigation } from "./useGlobalNavigation";
-import { GLOBAL_EVENT_NAME } from "cps-global-core";
 
 jest.mock("react-router-dom", () => ({
   useNavigate: jest.fn(),
@@ -28,7 +27,7 @@ describe("useGlobalNavigation", () => {
     renderHook(() => useGlobalNavigation());
 
     expect(addEventListenerSpy).toHaveBeenCalledWith(
-      GLOBAL_EVENT_NAME,
+      "cps-global-header-event",
       expect.any(Function)
     );
   });
@@ -36,7 +35,7 @@ describe("useGlobalNavigation", () => {
   it("should navigate when event is dispatched", () => {
     renderHook(() => useGlobalNavigation());
 
-    const event = new CustomEvent(GLOBAL_EVENT_NAME, {
+    const event = new CustomEvent("cps-global-header-event", {
       detail: "/test-route",
     });
     window.dispatchEvent(event);
@@ -49,7 +48,7 @@ describe("useGlobalNavigation", () => {
 
     const routes = ["/route1", "/route2", "/route3"];
     routes.forEach((route) => {
-      const event = new CustomEvent(GLOBAL_EVENT_NAME, {
+      const event = new CustomEvent("cps-global-header-event", {
         detail: route,
       });
       window.dispatchEvent(event);
@@ -67,7 +66,7 @@ describe("useGlobalNavigation", () => {
     unmount();
 
     expect(removeEventListenerSpy).toHaveBeenCalledWith(
-      GLOBAL_EVENT_NAME,
+      "cps-global-header-event",
       expect.any(Function)
     );
   });
@@ -77,7 +76,7 @@ describe("useGlobalNavigation", () => {
 
     unmount();
 
-    const event = new CustomEvent(GLOBAL_EVENT_NAME, {
+    const event = new CustomEvent("cps-global-header-event", {
       detail: "/test-route",
     });
     window.dispatchEvent(event);

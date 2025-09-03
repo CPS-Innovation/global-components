@@ -4,7 +4,7 @@ import { replaceTagsInString } from "./replace-tags-in-string";
 
 export type MapLinkConfigResult = ReturnType<ReturnType<typeof mapLinkConfig>>;
 
-type MapLinkConfigParams = { contexts: string; tags: Record<string, string>; handoverAdapter?: ((targetUrl: string) => string) | false };
+type MapLinkConfigParams = { contexts: string; tags: Record<string, string>; handoverAdapter?: ((targetUrl: string) => string) | undefined };
 
 export const mapLinkConfig =
   ({ contexts, tags, handoverAdapter }: MapLinkConfigParams) =>

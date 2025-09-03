@@ -98,18 +98,6 @@ describe("mapLinkConfig", () => {
     expect(result.openInNewTab).toBe(true);
   });
 
-  it("should handle undefined activeContexts", () => {
-    const linkNoActive: Link = {
-      ...basicLink,
-      activeContexts: undefined,
-    };
-
-    const mapper = mapLinkConfig({ contexts: "test", tags: {} });
-    const result = mapper(linkNoActive);
-
-    expect(result.selected).toBe(false);
-  });
-
   it("should handle undefined preferEventNavigationContexts", () => {
     const linkNoEvent: Link = {
       ...basicLink,

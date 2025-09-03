@@ -1,39 +1,60 @@
-import { detectOverrideMode } from "./override-mode/detect-override-mode";
-// import { setupOutSystemsShim } from "./override-mode/outsystems-shim/setup-outsystems-shim";
-import { handleOverrideSetMode } from "./override-mode/handle-override-set-mode";
-import { setupOverrideMode } from "./override-mode/setup-override-mode";
-import { isOSAuthMisaligned, createOutboundUrl } from "cps-global-os-handover";
-import { isOutSystemsApp } from "./utils/is-outsystems-app";
-import { initialiseMsal, msal } from "./auth/msal";
-import { CONFIG, initialiseConfig } from "./config/config-async";
-export default async () => {
-  handleOverrideSetMode();
+import { handleOverrideSetMode } from "./services/override-mode/handle-override-set-mode";
+import { initialiseAuth } from "./services/auth/initialise-auth";
+import { initialiseStore, registerToStore } from "./store/store";
+import { setOutSystemsFeatureFlag } from "./services/override-mode/outsystems-shim/set-outsystems-feature-flag";
+import { initialiseAnalytics } from "./services/analytics/initialise-analytics";
+import { initialiseConfig } from "./services/config/initialise-config";
+import { initialiseContext } from "./services/context/initialise-context";
+import { findContext } from "./services/context/find-context";
+import { initialiseDomObservation } from "./services/dom/initialise-dom-observation";
+import { getApplicationFlags } from "./services/application-flags/get-application-flags";
+import { initialiseMockAuth } from "./services/auth/initialise-mock-auth";
+import { initialiseMockAnalytics } from "./services/analytics/initialise-mock-analytics";
 
-  const isOverrideMode = detectOverrideMode(window);
-  initialiseConfig(isOverrideMode);
+// Don't return a promise otherwise stencil will wait for all of this to be complete
+//  before rendering.  Using the registerToStore function means we can render immediately
+//  and the components themselves will know when the minimum setup that they need is
+//  ready.  This means that a long-running auth process will not stop components that
+//  do not need auth from rendering.
+export default /* do not make this async */ () => {
+  const internal = async () => {
+    let errorLogger: ReturnType<typeof initialiseAnalytics>["trackException"] | undefined;
 
-  if (isOverrideMode) {
-    //setupOutSystemsShim(window)
-    setupOverrideMode(window);
+    try {
+      initialiseStore();
+      handleOverrideSetMode({ window });
 
-    const config = await CONFIG();
-    initialiseMsal(window, config);
-    msal()
-      .then(async ({ isAuthed, username, error, groups }) => {
-        console.log({ isAuthed, username, error, groups });
-        if (!isOutSystemsApp(window.location.href)) {
-          return;
-        }
-        const overrideFlag = isOutSystemsApp(window.location.href) && groups.includes("12377eca-b463-4a6c-80ea-95f678f09591");
-        localStorage["$OS_Users$WorkManagementApp$ClientVars$SetGlobalNavOverride"] = localStorage["$OS_Users$CaseReview$ClientVars$SetGlobalNavOverride"] = overrideFlag;
-      })
-      .catch(err => console.error(err));
+      const flags = getApplicationFlags({ window });
+      registerToStore({ flags });
 
-    // Temporary code
-    const isAuthRealignmentRequired = isOutSystemsApp(window.location.href) && isOSAuthMisaligned();
-    if (isAuthRealignmentRequired) {
-      const redirectUrl = createOutboundUrl({ handoverUrl: config.OS_HANDOVER_URL, targetUrl: window.location.href });
-      console.log(`OS auths not aligned: navigate to ${redirectUrl}`);
+      const config = await initialiseConfig({ flags });
+      registerToStore({ config });
+
+      const context = initialiseContext({ window, config });
+      registerToStore({ context });
+
+      const reinitialiseDomObservation = initialiseDomObservation({ window, registerToStore });
+      reinitialiseDomObservation({ context });
+
+      const auth = flags.isE2eTestMode ? await initialiseMockAuth({ window }) : await initialiseAuth({ window, config, context });
+      registerToStore({ auth });
+
+      const { trackPageView, trackException } = flags.isE2eTestMode ? initialiseMockAnalytics() : initialiseAnalytics({ window, config, auth });
+      trackPageView();
+      errorLogger = trackException;
+
+      setOutSystemsFeatureFlag({ window, flags, config, auth });
+
+      window.navigation?.addEventListener("navigate", () => {
+        const context = findContext(config.CONTEXTS, window);
+        registerToStore({ context });
+        trackPageView();
+        reinitialiseDomObservation({ context });
+      });
+    } catch (error) {
+      registerToStore({ fatalInitialisationError: error });
+      errorLogger && errorLogger(error);
     }
-  }
+  };
+  internal();
 };

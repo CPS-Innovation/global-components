@@ -1,51 +1,37 @@
+import { act } from "../helpers/act";
 import { arrange } from "../helpers/arrange";
+import { locators as L } from "../helpers/constants";
 
-describe("Global header", () => {
-  it("should follow config to only show banner", async () => {
-    // Arrange
-    await arrange({ SHOW_BANNER: true });
+describe("Config", () => {
+  it("shows an error when config breaks", async () => {
+    // we do not set config via arrange so it breaks
 
-    // Act
-    const header = await page.waitForSelector("cps-global-header >>> div");
+    const header = await act();
 
-    // Assert
-    await expect(header).toMatchElement("cps-global-banner");
-    await expect(header).not.toMatchElement("cps-global-menu");
+    await expect(header).toMatchElement(L.BANNER);
+    await expect(header).toMatchElement(L.ERROR);
   });
 
-  it("should follow config to only show menu", async () => {
-    // Arrange
-    await arrange({ SHOW_MENU: true });
+  // Design decision here: let's say not having a context is ok. We will leave
+  //  it to deeper components that may or may not appear in a given use case
+  //  to check context and only throw if they are not happy
+  it("does NOT show an error if there is no matching context", async () => {
+    await arrange({ config: { CONTEXTS: [] } });
 
-    // Act
-    const header = await page.waitForSelector("cps-global-header >>> div");
+    const header = await act();
 
-    // Assert
-    await expect(header).not.toMatchElement("cps-global-banner");
-    await expect(header).toMatchElement("cps-global-menu");
+    await expect(header).toMatchElement(L.BANNER);
+    await expect(header).not.toMatchElement(L.ERROR);
   });
 
-  it("should follow config to show both banner and menu", async () => {
-    // Arrange
-    await arrange({ SHOW_BANNER: true, SHOW_MENU: true });
+  // Design decision here: let's say auth is not directly mandatory. If a deeper
+  //  component needs it the it is up to it to throw or not render or whatever
+  it("does NOT show an error if the user is not authenticated", async () => {
+    await arrange({ auth: { isAuthed: false, adGroups: [] } });
 
-    // Act
-    const header = await page.waitForSelector("cps-global-header >>> div");
+    const header = await act();
 
-    // Assert
-    await expect(header).toMatchElement("cps-global-banner");
-    await expect(header).toMatchElement("cps-global-menu");
-  });
-
-  it("should follow config to neither banner nor menu", async () => {
-    // Arrange
-    await arrange({ SHOW_BANNER: false, SHOW_MENU: false });
-
-    // Act
-    const header = await page.waitForSelector("cps-global-header >>> div");
-
-    // Assert
-    await expect(header).not.toMatchElement("cps-global-banner");
-    await expect(header).not.toMatchElement("cps-global-menu");
+    await expect(header).toMatchElement(L.BANNER);
+    await expect(header).not.toMatchElement(L.ERROR);
   });
 });

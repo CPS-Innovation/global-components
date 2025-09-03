@@ -21,17 +21,23 @@ export default function (eleventyConfig) {
     },
     {
       transform: function () {
-        return replace("url(/assets/", `url(${process.env.BASE_PATH}/assets/`);
+        return replace(
+          "url(/assets/",
+          `url(${process.env.BASE_PATH || ""}/assets/`
+        );
       },
     }
   );
 
   eleventyConfig.addPassthroughCopy({
     "src/assets/cps-global-components.js": "assets/cps-global-components.js",
+    "src/assets/cps-global-components.js.map":
+      "assets/cps-global-components.js.map",
     "src/assets/config.json": "assets/config.json",
+    "src/assets/config.override.json": "assets/config.override.json",
   });
 
-  eleventyConfig.setServerOptions({ port: 3335 });
+  eleventyConfig.setServerOptions({ port: 3333 });
   eleventyConfig.addPlugin(HtmlBasePlugin);
 
   return {

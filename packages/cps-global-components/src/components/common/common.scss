@@ -1,5 +1,7 @@
 @import "node_modules/govuk-frontend/dist/govuk/index";
 
+$level-height: 3rem;
+
 @mixin background($color) {
   box-shadow: 0 0 0 100vmax $color;
   clip-path: inset(0 -100vmax);
@@ -51,6 +53,17 @@
 }
 
 .error {
+  height: $level-height;
+  @include govuk-font($size: 19);
+  color: $govuk-error-colour;
+  font-weight: bold;
+  display: flex;
+  align-items: center;
+  padding-left: 0.5rem;
+}
+
+.wait {
+  height: $level-height;
   @include govuk-font($size: 19);
   color: $govuk-secondary-text-colour;
   font-weight: bold;
