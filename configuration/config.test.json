@@ -77,18 +77,21 @@
       "label": "Home",
       "level": 0,
       "href": "https://sacpsglobalcomponents.z33.web.core.windows.net/home/",
+      "visibleContexts": "tasks cases case",
       "activeContexts": "home"
     },
     {
       "label": "Tasks",
       "level": 0,
       "href": "https://cps-tst.outsystemsenterprise.com/WorkManagementApp/TaskList",
+      "visibleContexts": "tasks cases case",
       "activeContexts": "tasks"
     },
     {
       "label": "Cases",
       "level": 0,
       "href": "https://cps-tst.outsystemsenterprise.com/WorkManagementApp/Cases?IsCasesNavigation=true",
+      "visibleContexts": "tasks cases case",
       "activeContexts": "cases case"
     },
     {

@@ -51,12 +51,14 @@
       "label": "Tasks",
       "level": 0,
       "href": "/unstable/static/",
-      "activeContexts": "tasks"
+      "visibleContexts": "tasks case",
+      "activeContexts": "tasks cases case"
     },
     {
       "label": "Cases",
       "level": 0,
       "href": "/unstable/static/cases",
+      "visibleContexts": "tasks cases case",
       "activeContexts": "cases case"
     },
     {

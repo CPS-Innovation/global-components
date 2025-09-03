@@ -34,7 +34,7 @@ export class CpsGlobalMenu {
 
     // Design decision: if there are no links (we only need to check for top-level links)
     //  then we will take this as an address where the menu should not be shown
-    if (!level1Links.length) {
+    if (!level1Links?.length) {
       return null;
     }
 
