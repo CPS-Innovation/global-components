@@ -33,7 +33,7 @@ const scopes = ["User.Read"];
 
 const initialise = async ({
   window: { location },
-  config: { AD_TENANT_AUTHORITY: authority, AD_CLIENT_ID: clientId },
+  config: { AD_TENANT_AUTHORITY: authority, AD_CLIENT_ID: clientId, FEATURE_FLAG_ENABLE_INTRUSIVE_AD_LOGIN },
   context: { msalRedirectUrl: redirectUri },
 }: Props): Promise<AuthResult> => {
   if (!(authority && clientId && redirectUri)) {
@@ -78,7 +78,7 @@ const initialise = async ({
         scopes,
       });
     } catch (error) {
-      if (error instanceof InteractionRequiredAuthError && error.message.includes(MSAL_ERROR_CODES.MultipleIdentities)) {
+      if (FEATURE_FLAG_ENABLE_INTRUSIVE_AD_LOGIN && error instanceof InteractionRequiredAuthError && error.message.includes(MSAL_ERROR_CODES.MultipleIdentities)) {
         await instance.loginPopup({
           scopes,
         });
