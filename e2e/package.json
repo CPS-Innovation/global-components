@@ -4,8 +4,8 @@
   "type": "module",
   "description": "E2E tests using Jest and Puppeteer",
   "scripts": {
-    "test": "jest --no-cache --runInBand",
-    "test:watch": "jest --watch --no-cache --runInBand",
+    "test": "jest",
+    "test:watch": "jest --watch",
     "postinstall": "npx puppeteer browsers install"
   },
   "devDependencies": {

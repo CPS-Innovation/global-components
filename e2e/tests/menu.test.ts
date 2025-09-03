@@ -69,7 +69,7 @@ describe("Global menu", () => {
     await expect(header).not.toMatchElement(L.ERROR);
   });
 
-  it.only("should should not show the menu if the current context has no links", async () => {
+  it("should should not show the menu if the current context has no links", async () => {
     await arrange({
       ...happySettings,
       config: {

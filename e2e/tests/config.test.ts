@@ -24,14 +24,14 @@ describe("Config", () => {
     await expect(header).not.toMatchElement(L.ERROR);
   });
 
-  // // Design decision here: let's say auth is not directly mandatory. If a deeper
-  // //  component needs it the it is up to it to throw or not render or whatever
-  // it("does NOT show an error if the user is not authenticated", async () => {
-  //   await arrange({ auth: { isAuthed: false, adGroups: [] } });
+  // Design decision here: let's say auth is not directly mandatory. If a deeper
+  //  component needs it the it is up to it to throw or not render or whatever
+  it("does NOT show an error if the user is not authenticated", async () => {
+    await arrange({ auth: { isAuthed: false, adGroups: [] } });
 
-  //   const header = await act();
+    const header = await act();
 
-  //   await expect(header).toMatchElement(L.BANNER);
-  //   await expect(header).not.toMatchElement(L.ERROR);
-  // });
+    await expect(header).toMatchElement(L.BANNER);
+    await expect(header).not.toMatchElement(L.ERROR);
+  });
 });
