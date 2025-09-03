@@ -1,30 +1,24 @@
-import { Component, h, State } from "@stencil/core";
-import { CONFIG } from "../../config/config-async";
-import { Config } from "cps-global-configuration";
+import { Component, h, Host } from "@stencil/core";
 import { renderError } from "../common/render-error";
-import { initiateTracking } from "../../analytics/initiate-tracking";
-
+import { rawState } from "../../store/store";
+import { WithLogging } from "../../logging/WithLogging";
+import { _console } from "../../logging/_console";
 @Component({
   tag: "cps-global-header",
-  shadow: true,
+  shadow: true, // must be true as this is our published entry point!
   styleUrl: "cps-global-header.scss",
 })
 export class CpsGlobalHeader {
-  @State() CONFIG: Config;
-
-  async componentWillLoad() {
-    initiateTracking();
-    this.CONFIG = await CONFIG();
-  }
-
+  @WithLogging("CpsGlobalHeader")
   render() {
-    const { _CONFIG_ERROR, SHOW_BANNER, SHOW_MENU } = this.CONFIG;
+    const { fatalInitialisationError, initialisationStatus } = rawState();
     return (
-      <div>
-        {!!_CONFIG_ERROR && renderError(_CONFIG_ERROR)}
-        {SHOW_BANNER && <cps-global-banner></cps-global-banner>}
-        {SHOW_MENU && <cps-global-menu></cps-global-menu>}
-      </div>
+      <Host>
+        <div data-internal-root data-initialisation-status={initialisationStatus}>
+          <cps-global-banner></cps-global-banner>
+          {fatalInitialisationError ? renderError(fatalInitialisationError) : <cps-global-menu></cps-global-menu>}
+        </div>
+      </Host>
     );
   }
 }

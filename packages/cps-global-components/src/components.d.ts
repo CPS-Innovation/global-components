@@ -13,10 +13,6 @@ export namespace Components {
     interface CpsGlobalHeader {
     }
     interface CpsGlobalMenu {
-        /**
-          * @default "Please wait..."
-         */
-        "name": string;
     }
     interface NavLink {
         "ariaSelected"?: boolean;
@@ -90,10 +86,6 @@ declare namespace LocalJSX {
     interface CpsGlobalHeader {
     }
     interface CpsGlobalMenu {
-        /**
-          * @default "Please wait..."
-         */
-        "name"?: string;
     }
     interface NavLink {
         "ariaSelected"?: boolean;

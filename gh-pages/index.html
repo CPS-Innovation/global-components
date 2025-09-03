@@ -286,7 +286,6 @@
                         <thead class="govuk-table__head">
                             <tr class="govuk-table__row">
                                 <th scope="col" class="govuk-table__header">ENVIRONMENT</th>
-                                <th scope="col" class="govuk-table__header">SHOW_BANNER</th>
                                 <th scope="col" class="govuk-table__header">SHOW_MENU</th>
                             </tr>
                         </thead>
@@ -299,13 +298,11 @@
             const config = await response.json();
 
             const environment = file.replace('config.', '').replace('.json', '');
-            const showBanner = config.SHOW_BANNER !== undefined ? config.SHOW_BANNER : 'N/A';
             const showMenu = config.SHOW_MENU !== undefined ? config.SHOW_MENU : 'N/A';
 
             tableHTML += `
                             <tr class="govuk-table__row">
                                 <td class="govuk-table__cell">${environment}</td>
-                                <td class="govuk-table__cell">${showBanner}</td>
                                 <td class="govuk-table__cell">${showMenu}</td>
                             </tr>
                         `;

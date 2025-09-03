@@ -1,49 +1,49 @@
-import { Component, Prop, h, State, Fragment } from "@stencil/core";
-import { CONFIG } from "../../config/config-async";
-
-import { Config } from "cps-global-configuration";
-import { menuConfig, MenuConfigResult } from "./menu-config/menu-config";
+import { Component, h, Fragment } from "@stencil/core";
+import { menuConfig } from "./menu-config/menu-config";
+import { readyState } from "../../store/store";
+import { FEATURE_FLAGS } from "../../feature-flags/feature-flags";
 import { renderError } from "../common/render-error";
-import { initiateTracking } from "../../analytics/initiate-tracking";
-import "./menu-config/helpers/dom/try-initialise-dom-observation";
-import { tryInitialiseDomObservation } from "./menu-config/helpers/dom/try-initialise-dom-observation";
-
+import { _console } from "../../logging/_console";
+import { WithLogging } from "../../logging/WithLogging";
 @Component({
   tag: "cps-global-menu",
   styleUrl: "cps-global-menu.scss",
-  shadow: true,
+  shadow: false,
 })
 export class CpsGlobalMenu {
-  @Prop() name: string = "Please wait...";
-  @State() CONFIG: Config;
+  @WithLogging("CpsGlobalMenu")
+  render() {
+    const state = readyState("config", "auth", "tags", "flags", "context");
+    if (!state) {
+      return null; // don't show menu until we are ready
+    }
 
-  // We have address as State so that we get a rerender triggered whenever it updates
-  @State() address: string;
-  @State() mutationFlag: number;
+    if (!FEATURE_FLAGS.shouldShowMenu(state)) {
+      return null;
+    }
 
-  async componentWillLoad() {
-    initiateTracking();
-    window.navigation.addEventListener("navigate", event => {
-      this.address = event.destination.url;
-    });
+    const menu = menuConfig(state);
 
-    this.CONFIG = await CONFIG();
+    if (menu.status === "error") {
+      return renderError(menu.error);
+    }
 
-    // For host apps where we can not find caseId, urn etc tags in the address, we can observe the dom
-    //  for these values.
-    tryInitialiseDomObservation(this.CONFIG, window, () => {
-      // If the dom changes and tags have been found, this subscribing function sets some
-      //  arbitrary State to ensure a rerender.
-      this.mutationFlag = +new Date();
-    });
-  }
+    const {
+      links: [level1Links, level2Links],
+    } = menu;
 
-  renderOk = ([level1Links, level2Links]: MenuConfigResult["links"]) => {
-    const { SURVEY_LINK } = this.CONFIG;
+    // Design decision: if there are no links (we only need to check for top-level links)
+    //  then we will take this as an address where the menu should not be shown
+    if (!level1Links.length) {
+      return null;
+    }
 
-    const classes = this.CONFIG.SHOW_GOVUK_REBRAND
+    const surveyLink = FEATURE_FLAGS.surveyLink(state);
+
+    const classes = FEATURE_FLAGS.shouldShowGovUkRebrand(state)
       ? { flag: "govuk-template--rebranded", level1Background: "background-light-blue", divider: "background-divider-blue" }
       : { flag: "", level1Background: "background-grey", divider: "background-divider" };
+
     return (
       <div class={classes.flag}>
         <nav class={`level level-1 ${classes.level1Background}`} aria-label="Menu" data-testid="menu-level-1">
@@ -51,7 +51,7 @@ export class CpsGlobalMenu {
             {level1Links?.map(link => (
               <nav-link {...link}></nav-link>
             ))}
-            {SURVEY_LINK && <nav-link openInNewTab class="survey-link" label="Give feedback" href={SURVEY_LINK}></nav-link>}
+            {surveyLink.showLink && <nav-link openInNewTab class="survey-link" label="Give feedback" href={surveyLink.url}></nav-link>}
           </ul>
         </nav>
 
@@ -71,18 +71,5 @@ export class CpsGlobalMenu {
         )}
       </div>
     );
-  };
-
-  render() {
-    const { _CONFIG_ERROR } = this.CONFIG;
-    const { found, links } = menuConfig(this.CONFIG, window);
-
-    if (_CONFIG_ERROR) {
-      return renderError(_CONFIG_ERROR);
-    } else if (!found) {
-      renderError(`No menu config found for ${window.location.href}`);
-    } else {
-      return this.renderOk(links);
-    }
   }
 }
