@@ -58,7 +58,7 @@ jobs:
           cat "${{ steps.download.outputs.download-path }}/auth-handover.js" >> ./prepared-auth-handover.js
           mv -f ./prepared-auth-handover.js "${{ steps.download.outputs.download-path }}/auth-handover.js"
 
-      - uses: azure/cli@v2
+      - uses: azure/cli@v2.0.0 # pinned to minor version whilst MS fix https://github.com/azure/azure-cli/issues/32039
         with:
           azcliversion: latest
           inlineScript: |
