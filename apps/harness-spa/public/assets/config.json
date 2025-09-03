@@ -26,11 +26,18 @@
     { "paths": ["http://localhost:3334/spa-app/#/"], "contexts": "tasks" }
   ],
   "LINKS": [
-    { "label": "Tasks", "level": 0, "href": "#/", "activeContexts": "tasks" },
+    {
+      "label": "Tasks",
+      "level": 0,
+      "href": "#/",
+      "visibleContexts": "tasks cases case",
+      "activeContexts": "tasks"
+    },
     {
       "label": "Cases",
       "level": 0,
       "href": "#/cases",
+      "visibleContexts": "tasks cases case",
       "activeContexts": "cases case"
     },
     {
