@@ -10,6 +10,8 @@ import { initialiseDomObservation } from "./services/dom/initialise-dom-observat
 import { getApplicationFlags } from "./services/application-flags/get-application-flags";
 import { initialiseMockAuth } from "./services/auth/initialise-mock-auth";
 import { initialiseMockAnalytics } from "./services/analytics/initialise-mock-analytics";
+import { _console } from "./logging/_console";
+import { getCaseDetailsSubscription } from "./services/data/subscription";
 
 // Don't return a promise otherwise stencil will wait for all of this to be complete
 //  before rendering.  Using the registerToStore function means we can render immediately
@@ -21,7 +23,9 @@ export default /* do not make this async */ () => {
     let errorLogger: ReturnType<typeof initialiseAnalytics>["trackException"] | undefined;
 
     try {
-      initialiseStore();
+      const dataSubscription = getCaseDetailsSubscription(registerToStore);
+
+      initialiseStore(dataSubscription);
       handleOverrideSetMode({ window });
 
       const flags = getApplicationFlags({ window });
@@ -52,6 +56,7 @@ export default /* do not make this async */ () => {
         reinitialiseDomObservation({ context });
       });
     } catch (error) {
+      _console.error(error);
       registerToStore({ fatalInitialisationError: error });
       errorLogger && errorLogger(error);
     }

@@ -1,75 +1,62 @@
-import { createStore } from "@stencil/store";
+import { createStore, Subscription } from "@stencil/store";
 import { _console } from "../logging/_console";
 import { Config } from "cps-global-configuration";
 import { AuthResult } from "../services/auth/initialise-auth";
 import { FoundContext } from "../services/context/find-context";
-import { Tags } from "@microsoft/applicationinsights-web";
 import { ApplicationFlags } from "../services/application-flags/ApplicationFlags";
+import { initialisationStatusSubscription } from "./subscriptions/initialisation-status-subscription";
+import { Tags } from "../services/dom/mutations";
+import { caseIdentifiersSubscription } from "./subscriptions/case-identifiers-subscription";
+import { CaseIdentifiers } from "../services/context/CaseIdentifiers";
+import { loggingSubscription } from "./subscriptions/logging-subscription";
+import { resetPreventionSubscription } from "./subscriptions/reset-prevention-subscription";
+import { CaseDetails } from "../services/data/types";
 
-export type KnownState = {
-  fatalInitialisationError: Error;
-  flags: ApplicationFlags;
-  config: Config;
-  context: FoundContext;
-  auth: AuthResult;
-  tags: Tags;
-  initialisationStatus: "ready" | "broken";
-};
+// This state is expected to be set up once on startup
+type StartupState = { flags: ApplicationFlags; config: Config; auth: AuthResult };
+const initialStartupState = { flags: undefined, config: undefined, auth: undefined };
+
+// This state could change (e.g. history-based non-full-refresh navigation or dom tags changing)
+type ContextState = { context: FoundContext; tags: Tags; caseIdentifiers: CaseIdentifiers; caseDetails: CaseDetails };
+const initialContextState = { context: undefined, tags: undefined, caseIdentifiers: undefined, caseDetails: undefined };
+
+// This state is general
+type SummaryState = { fatalInitialisationError: Error; initialisationStatus: "ready" | "broken" };
+const initialSummaryState = { fatalInitialisationError: undefined, initialisationStatus: undefined };
+
+export type KnownState = StartupState & ContextState & SummaryState;
 
 export type State = {
   [K in keyof KnownState]: KnownState[K] | undefined;
 };
 
 export const initialInternalState: State = {
-  flags: undefined,
-  config: undefined,
-  auth: undefined,
-  context: undefined,
-  tags: undefined,
-  fatalInitialisationError: undefined,
-  initialisationStatus: undefined,
+  ...initialStartupState,
+  ...initialContextState,
+  ...initialSummaryState,
 };
 
 export type Register = typeof registerToStore;
 
-let store: ReturnType<typeof createStore<State>>;
+export type SubscriptionFactory = (store: typeof storeCache) => Subscription<State>;
 
-export const initialiseStore = () => {
-  store = createStore<State>(
+let storeCache: ReturnType<typeof createStore<State>>;
+
+export const initialiseStore = (...externalSubscriptions: SubscriptionFactory[]) => {
+  storeCache = createStore<State>(
     () => ({
       ...initialInternalState,
     }),
     (newValue, oldValue) => JSON.stringify(newValue) !== JSON.stringify(oldValue),
   );
 
-  store.use({
-    set: (key, newValue) => {
-      _console.debug("Store", `Setting ${key}`, newValue?.toString());
-      if (key === "initialisationStatus") {
-        return;
-      }
-
-      if (key === "fatalInitialisationError" && !!newValue) {
-        store.state.initialisationStatus = "broken";
-        return;
-      }
-
-      const allStateKnown = Object.keys(store.state)
-        .filter((key: keyof State) => key !== "initialisationStatus" && key != "fatalInitialisationError")
-        .every(key => !!store.state[key]);
-      const noError = !store.state.fatalInitialisationError;
-      if (allStateKnown && noError) {
-        store.state.initialisationStatus = "ready";
-      }
-    },
-    reset: () => {
-      throw new Error("We do not support resetting state - the initiation of state is done only in the startup of the app");
-    },
-  });
+  storeCache.use(
+    ...[resetPreventionSubscription, loggingSubscription, initialisationStatusSubscription, caseIdentifiersSubscription, ...externalSubscriptions].map(sub => sub(storeCache)),
+  );
 };
 
 export const registerToStore = (arg: Partial<State>) => {
-  (Object.keys(arg) as (keyof State)[]).forEach(key => store.set(key, arg[key]));
+  (Object.keys(arg) as (keyof State)[]).forEach(key => storeCache.set(key, arg[key]));
 };
 
 // Helper types
@@ -88,20 +75,20 @@ type AllDefined = {
 type PickIfReadyReturn<K extends readonly (keyof State)[]> = K extends readonly [] ? AllDefined | false : PickDefined<K[number]> | false;
 
 export const readyState = <K extends readonly (keyof State)[] = readonly []>(...keys: K): PickIfReadyReturn<K> => {
-  const keysToCheck = keys.length === 0 ? (Object.keys(store.state) as (keyof State)[]) : keys;
+  const keysToCheck = keys.length === 0 ? (Object.keys(storeCache.state) as (keyof State)[]) : keys;
 
   for (const key of keysToCheck) {
-    if (store.state[key] === undefined) {
+    if (storeCache.state[key] === undefined) {
       return false as PickIfReadyReturn<K>;
     }
   }
 
   const result: any = {};
   for (const key of keysToCheck) {
-    result[key] = store.state[key];
+    result[key] = storeCache.state[key];
   }
 
   return result as PickIfReadyReturn<K>;
 };
 
-export const rawState = () => store.state;
+export const rawState = () => storeCache.state;

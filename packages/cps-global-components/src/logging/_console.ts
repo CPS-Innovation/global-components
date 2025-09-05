@@ -1,7 +1,7 @@
 const isJest = typeof jest !== "undefined";
 
 const makeMethod =
-  (method: "debug" | "error", colour: string) =>
+  (method: "debug" | "error" | "log", colour: string) =>
   (...data: any[]) => {
     if (isJest) {
       return;
@@ -13,5 +13,6 @@ const makeMethod =
 export const _console = {
   ...console,
   debug: makeMethod("debug", "lightsteelblue"),
+  log: makeMethod("log", "lightgreen"),
   error: makeMethod("error", "firebrick"),
 };
