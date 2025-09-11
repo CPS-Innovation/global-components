@@ -1,17 +1,14 @@
 import { State, SubscriptionFactory } from "../store";
-import { _console } from "../../logging/_console";
 import { isCaseContext } from "../../services/context/is-case-context";
 
-export const initialisationStatusSubscription: SubscriptionFactory = store => ({
+export const initialisationStatusSubscription: SubscriptionFactory = ({ store, registerToStore }) => ({
   set: (key, newValue) => {
-    _console.debug("Store", `Setting ${key}`, newValue?.toString());
-
     if (key === "initialisationStatus") {
       return;
     }
 
     if (key === "fatalInitialisationError" && !!newValue) {
-      store.state.initialisationStatus = "broken";
+      registerToStore({ initialisationStatus: "broken" });
       return;
     }
 
@@ -33,7 +30,7 @@ export const initialisationStatusSubscription: SubscriptionFactory = store => ({
     const noError = !store.state.fatalInitialisationError;
 
     if (enoughStateKnown && noError) {
-      store.state.initialisationStatus = "ready";
+      registerToStore({ initialisationStatus: "ready" });
     }
   },
 });

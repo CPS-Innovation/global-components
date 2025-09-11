@@ -38,25 +38,27 @@ export const initialInternalState: State = {
 
 export type Register = typeof registerToStore;
 
-export type SubscriptionFactory = (store: typeof storeCache) => Subscription<State>;
+export type SubscriptionFactory = (arg: { store: typeof store; registerToStore: Register }) => Subscription<State>;
 
-let storeCache: ReturnType<typeof createStore<State>>;
+let store: ReturnType<typeof createStore<State>>;
 
 export const initialiseStore = (...externalSubscriptions: SubscriptionFactory[]) => {
-  storeCache = createStore<State>(
+  store = createStore<State>(
     () => ({
       ...initialInternalState,
     }),
     (newValue, oldValue) => JSON.stringify(newValue) !== JSON.stringify(oldValue),
   );
 
-  storeCache.use(
-    ...[resetPreventionSubscription, loggingSubscription, initialisationStatusSubscription, caseIdentifiersSubscription, ...externalSubscriptions].map(sub => sub(storeCache)),
+  store.use(
+    ...[resetPreventionSubscription, loggingSubscription, initialisationStatusSubscription, caseIdentifiersSubscription, ...externalSubscriptions].map(subscription =>
+      subscription({ store, registerToStore }),
+    ),
   );
 };
 
 export const registerToStore = (arg: Partial<State>) => {
-  (Object.keys(arg) as (keyof State)[]).forEach(key => storeCache.set(key, arg[key]));
+  (Object.keys(arg) as (keyof State)[]).forEach(key => store.set(key, arg[key]));
 };
 
 // Helper types
@@ -75,20 +77,20 @@ type AllDefined = {
 type PickIfReadyReturn<K extends readonly (keyof State)[]> = K extends readonly [] ? AllDefined | false : PickDefined<K[number]> | false;
 
 export const readyState = <K extends readonly (keyof State)[] = readonly []>(...keys: K): PickIfReadyReturn<K> => {
-  const keysToCheck = keys.length === 0 ? (Object.keys(storeCache.state) as (keyof State)[]) : keys;
+  const keysToCheck = keys.length === 0 ? (Object.keys(store.state) as (keyof State)[]) : keys;
 
   for (const key of keysToCheck) {
-    if (storeCache.state[key] === undefined) {
+    if (store.state[key] === undefined) {
       return false as PickIfReadyReturn<K>;
     }
   }
 
   const result: any = {};
   for (const key of keysToCheck) {
-    result[key] = storeCache.state[key];
+    result[key] = store.state[key];
   }
 
   return result as PickIfReadyReturn<K>;
 };
 
-export const rawState = () => storeCache.state;
+export const rawState = () => store.state;

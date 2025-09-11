@@ -23,9 +23,7 @@ export default /* do not make this async */ () => {
     let errorLogger: ReturnType<typeof initialiseAnalytics>["trackException"] | undefined;
 
     try {
-      const dataSubscription = getCaseDetailsSubscription(registerToStore);
-
-      initialiseStore(dataSubscription);
+      initialiseStore(getCaseDetailsSubscription);
       handleOverrideSetMode({ window });
 
       const flags = getApplicationFlags({ window });

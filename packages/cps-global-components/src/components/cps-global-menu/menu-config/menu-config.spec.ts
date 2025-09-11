@@ -16,6 +16,8 @@ import { AuthResult } from "../../../services/auth/initialise-auth";
 import { isOutSystemsApp } from "../../../services/application-flags/is-outsystems-app";
 import { createOutboundUrl } from "cps-global-os-handover";
 import { KnownState } from "../../../store/store";
+import { CaseDetails } from "../../../services/data/types";
+import { CaseIdentifiers } from "../../../services/context/CaseIdentifiers";
 
 // Type the mocked functions
 const mockShouldShowLink = shouldShowLink as jest.MockedFunction<typeof shouldShowLink>;
@@ -79,6 +81,10 @@ describe("menuConfig", () => {
 
   const mockTags: Tags = {};
 
+  const mockCaseDetails: CaseDetails = { urn: "foo", caseId: 1, isDcf: false };
+
+  const mockCaseIdentifiers: CaseIdentifiers = { caseId: "1" };
+
   beforeEach(() => {
     jest.clearAllMocks();
   });
@@ -92,6 +98,8 @@ describe("menuConfig", () => {
 
     const mockState: KnownState = {
       context: foundContext,
+      caseIdentifiers: mockCaseIdentifiers,
+      caseDetails: mockCaseDetails,
       config: mockConfig,
       flags: mockFlags,
       tags: mockTags,
@@ -129,6 +137,8 @@ describe("menuConfig", () => {
 
     const mockState: KnownState = {
       context: foundContext,
+      caseIdentifiers: mockCaseIdentifiers,
+      caseDetails: mockCaseDetails,
       config: mockConfig,
       flags: mockFlags,
       tags: domTags,
@@ -227,6 +237,8 @@ describe("menuConfig", () => {
 
     const mockState: KnownState = {
       context: foundContext,
+      caseIdentifiers: mockCaseIdentifiers,
+      caseDetails: mockCaseDetails,
       config: {
         ...mockConfig,
         OS_HANDOVER_URL: "https://handover.example.com",
@@ -285,6 +297,8 @@ describe("menuConfig", () => {
 
     const mockState: KnownState = {
       context: foundContext,
+      caseIdentifiers: mockCaseIdentifiers,
+      caseDetails: mockCaseDetails,
       config: {
         ...mockConfig,
         OS_HANDOVER_URL: "https://handover.example.com",
@@ -343,6 +357,8 @@ describe("menuConfig", () => {
 
     const mockState: KnownState = {
       context: foundContext,
+      caseIdentifiers: mockCaseIdentifiers,
+      caseDetails: mockCaseDetails,
       config: {
         ...mockConfig,
         OS_HANDOVER_URL: "", // Empty OS_HANDOVER_URL
@@ -400,6 +416,8 @@ describe("menuConfig", () => {
 
     const mockState: KnownState = {
       context: foundContext,
+      caseIdentifiers: mockCaseIdentifiers,
+      caseDetails: mockCaseDetails,
       config: {
         ...mockConfig,
         OS_HANDOVER_URL: "https://handover.example.com",
