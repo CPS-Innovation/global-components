@@ -30,13 +30,13 @@ export type State = {
   [K in keyof KnownState]: KnownState[K] | undefined;
 };
 
+export type Register = (arg: Partial<State>) => void;
+
 export const initialInternalState: State = {
   ...initialStartupState,
   ...initialContextState,
   ...initialSummaryState,
 };
-
-export type Register = typeof registerToStore;
 
 export type SubscriptionFactory = (arg: { store: typeof store; registerToStore: Register }) => Subscription<State>;
 
@@ -50,15 +50,17 @@ export const initialiseStore = (...externalSubscriptions: SubscriptionFactory[])
     (newValue, oldValue) => JSON.stringify(newValue) !== JSON.stringify(oldValue),
   );
 
+  const registerToStore = (arg: Partial<State>) => {
+    (Object.keys(arg) as (keyof State)[]).forEach(key => store.set(key, arg[key]));
+  };
+
   store.use(
     ...[resetPreventionSubscription, loggingSubscription, initialisationStatusSubscription, caseIdentifiersSubscription, ...externalSubscriptions].map(subscription =>
       subscription({ store, registerToStore }),
     ),
   );
-};
 
-export const registerToStore = (arg: Partial<State>) => {
-  (Object.keys(arg) as (keyof State)[]).forEach(key => store.set(key, arg[key]));
+  return { registerToStore };
 };
 
 // Helper types

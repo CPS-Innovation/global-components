@@ -1,7 +1,6 @@
 import { handleOverrideSetMode } from "./services/override-mode/handle-override-set-mode";
 import { initialiseAuth } from "./services/auth/initialise-auth";
-import { initialiseStore, registerToStore } from "./store/store";
-import { setOutSystemsFeatureFlag } from "./services/override-mode/outsystems-shim/set-outsystems-feature-flag";
+import { initialiseStore } from "./store/store";
 import { initialiseAnalytics } from "./services/analytics/initialise-analytics";
 import { initialiseConfig } from "./services/config/initialise-config";
 import { initialiseContext } from "./services/context/initialise-context";
@@ -19,11 +18,10 @@ import { getCaseDetailsSubscription } from "./services/data/subscription";
 //  ready.  This means that a long-running auth process will not stop components that
 //  do not need auth from rendering.
 export default /* do not make this async */ () => {
-  const internal = async () => {
-    let errorLogger: ReturnType<typeof initialiseAnalytics>["trackException"] | undefined;
+  (async () => {
+    const { registerToStore } = initialiseStore(getCaseDetailsSubscription);
 
     try {
-      initialiseStore(getCaseDetailsSubscription);
       handleOverrideSetMode({ window });
 
       const flags = getApplicationFlags({ window });
@@ -41,11 +39,8 @@ export default /* do not make this async */ () => {
       const auth = flags.isE2eTestMode ? await initialiseMockAuth({ window }) : await initialiseAuth({ window, config, context });
       registerToStore({ auth });
 
-      const { trackPageView, trackException } = flags.isE2eTestMode ? initialiseMockAnalytics() : initialiseAnalytics({ window, config, auth });
+      const { trackPageView } = flags.isE2eTestMode ? initialiseMockAnalytics() : initialiseAnalytics({ window, config, auth });
       trackPageView();
-      errorLogger = trackException;
-
-      setOutSystemsFeatureFlag({ window, flags, config, auth });
 
       window.navigation?.addEventListener("navigate", () => {
         const context = findContext(config.CONTEXTS, window);
@@ -56,8 +51,6 @@ export default /* do not make this async */ () => {
     } catch (error) {
       _console.error(error);
       registerToStore({ fatalInitialisationError: error });
-      errorLogger && errorLogger(error);
     }
-  };
-  internal();
+  })();
 };

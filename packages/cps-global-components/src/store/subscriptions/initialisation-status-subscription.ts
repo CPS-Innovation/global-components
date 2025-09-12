@@ -1,5 +1,6 @@
 import { State, SubscriptionFactory } from "../store";
-import { isCaseContext } from "../../services/context/is-case-context";
+import { _console } from "../../logging/_console";
+import { getContextType } from "../../services/context/get-context-type";
 
 export const initialisationStatusSubscription: SubscriptionFactory = ({ store, registerToStore }) => ({
   set: (key, newValue) => {
@@ -14,23 +15,28 @@ export const initialisationStatusSubscription: SubscriptionFactory = ({ store, r
 
     // todo: state machine or whatever to make our state transitions clear
     const context = store.state.context;
-    if (!context?.found) {
+    if (!context) {
       return;
     }
 
     // We want to check all the necessary keys to see if we are "ready" or not
-    const keysToIgnore: (keyof State)[] = isCaseContext(context)
-      ? ["initialisationStatus", "fatalInitialisationError", "caseDetails", "caseIdentifiers"]
-      : ["initialisationStatus", "fatalInitialisationError", "caseDetails"];
+    const keysToIgnore: (keyof State)[] =
+      getContextType(context) === "case-details"
+        ? // if we are in a case, then these are the keys to ignore ...
+          ["initialisationStatus", "fatalInitialisationError", "caseDetails"]
+        : // ... otherwise we can also ignore caseIdentifiers as they will not be present
+          ["initialisationStatus", "fatalInitialisationError", "caseDetails", "caseIdentifiers"];
 
-    const enoughStateKnown = Object.keys(store.state)
+    const keysNotYetSet = Object.keys(store.state)
       .filter((key: keyof State) => !keysToIgnore.includes(key))
-      .every(key => store.state[key] != undefined);
+      .filter(key => store.state[key] === undefined);
 
-    const noError = !store.state.fatalInitialisationError;
+    const error = store.state.fatalInitialisationError;
 
-    if (enoughStateKnown && noError) {
+    if (!keysNotYetSet.length && !error) {
       registerToStore({ initialisationStatus: "ready" });
+    } else {
+      _console.debug("Store status not yet ready", { keysNotYetSet, error });
     }
   },
 });
