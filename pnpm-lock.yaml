@@ -177,13 +177,13 @@ importers:
         version: 2.1.5(rollup@4.46.2)
       '@stencil/core':
         specifier: ^4.36.2
-        version: 4.36.2
+        version: 4.37.0
       '@stencil/sass':
         specifier: ^3.0.12
-        version: 3.2.2(@stencil/core@4.36.2)
+        version: 3.2.2(@stencil/core@4.37.0)
       '@stencil/store':
         specifier: ^2.2.0
-        version: 2.2.0(@stencil/core@4.36.2)
+        version: 2.2.0(@stencil/core@4.37.0)
       '@types/jest':
         specifier: ^29.5.6
         version: 29.5.14
@@ -521,8 +521,8 @@ packages:
     resolution: {integrity: sha512-vbavdySgbTTrmFE+EsiqUTzlOr5bzlnJtUv9PynGCAKvfQqjIXbvFdumPM/GxMDfyuGMJaJAU6TO4zc1Jf1i8Q==}
     engines: {node: '>=6.9.0'}
 
-  '@babel/runtime@7.28.2':
-    resolution: {integrity: sha512-KHp2IflsnGywDjBWDkR9iEqiWSpc8GIi0lgTT3mOElT0PP1tG26P4tmFI2YvAdzgq9RGyoHZQEIEdZy6Ec5xCA==}
+  '@babel/runtime@7.28.4':
+    resolution: {integrity: sha512-Q/N6JNWvIvPnLDvjlE1OUBLPQHH6l3CltCEsHIujp45zQUSSh8K+gHnaEX45yAT1nyngnINhvWtzN+Nb9D8RAQ==}
     engines: {node: '>=6.9.0'}
 
   '@babel/template@7.27.2':
@@ -1573,8 +1573,8 @@ packages:
   '@sinonjs/fake-timers@13.0.5':
     resolution: {integrity: sha512-36/hTbH2uaWuGVERyC6da9YwGWnzUZXuPro/F2LfsdOsLnCojz/iSH8MxUt/FD2S5XBSVPhmArFUXcpCQ2Hkiw==}
 
-  '@stencil/core@4.36.2':
-    resolution: {integrity: sha512-PRFSpxNzX9Oi0Wfh02asztN9Sgev/MacfZwmd+VVyE6ZxW+a/kEpAYZhzGAmE+/aKVOGYuug7R9SulanYGxiDQ==}
+  '@stencil/core@4.37.0':
+    resolution: {integrity: sha512-dSSTrRp9jFp2oIWoDgUco/ZhXodxxK2fgk/C+l0orfkg2/R/cPK77s7R+oeCiPvEpmYuoptK8jaehATdhminjA==}
     engines: {node: '>=16.0.0', npm: '>=7.10.0'}
     hasBin: true
 
@@ -5158,7 +5158,7 @@ snapshots:
 
   '@babel/runtime@7.27.6': {}
 
-  '@babel/runtime@7.28.2': {}
+  '@babel/runtime@7.28.4': {}
 
   '@babel/template@7.27.2':
     dependencies:
@@ -6135,7 +6135,7 @@ snapshots:
     dependencies:
       '@sinonjs/commons': 3.0.1
 
-  '@stencil/core@4.36.2':
+  '@stencil/core@4.37.0':
     optionalDependencies:
       '@rollup/rollup-darwin-arm64': 4.34.9
       '@rollup/rollup-darwin-x64': 4.34.9
@@ -6146,19 +6146,19 @@ snapshots:
       '@rollup/rollup-win32-arm64-msvc': 4.34.9
       '@rollup/rollup-win32-x64-msvc': 4.34.9
 
-  '@stencil/sass@3.2.2(@stencil/core@4.36.2)':
+  '@stencil/sass@3.2.2(@stencil/core@4.37.0)':
     dependencies:
-      '@stencil/core': 4.36.2
+      '@stencil/core': 4.37.0
       sass-embedded: 1.89.2
 
-  '@stencil/store@2.2.0(@stencil/core@4.36.2)':
+  '@stencil/store@2.2.0(@stencil/core@4.37.0)':
     dependencies:
-      '@stencil/core': 4.36.2
+      '@stencil/core': 4.37.0
 
   '@testing-library/dom@10.4.0':
     dependencies:
       '@babel/code-frame': 7.27.1
-      '@babel/runtime': 7.28.2
+      '@babel/runtime': 7.28.4
       '@types/aria-query': 5.0.4
       aria-query: 5.3.0
       chalk: 4.1.2
