@@ -1,7 +1,6 @@
 import { handleOverrideSetMode } from "./services/override-mode/handle-override-set-mode";
 import { initialiseAuth } from "./services/auth/initialise-auth";
-import { initialiseStore, registerToStore } from "./store/store";
-import { setOutSystemsFeatureFlag } from "./services/override-mode/outsystems-shim/set-outsystems-feature-flag";
+import { initialiseStore } from "./store/store";
 import { initialiseAnalytics } from "./services/analytics/initialise-analytics";
 import { initialiseConfig } from "./services/config/initialise-config";
 import { initialiseContext } from "./services/context/initialise-context";
@@ -10,6 +9,8 @@ import { initialiseDomObservation } from "./services/dom/initialise-dom-observat
 import { getApplicationFlags } from "./services/application-flags/get-application-flags";
 import { initialiseMockAuth } from "./services/auth/initialise-mock-auth";
 import { initialiseMockAnalytics } from "./services/analytics/initialise-mock-analytics";
+import { _console } from "./logging/_console";
+import { getCaseDetailsSubscription } from "./services/data/subscription";
 
 // Don't return a promise otherwise stencil will wait for all of this to be complete
 //  before rendering.  Using the registerToStore function means we can render immediately
@@ -17,11 +18,10 @@ import { initialiseMockAnalytics } from "./services/analytics/initialise-mock-an
 //  ready.  This means that a long-running auth process will not stop components that
 //  do not need auth from rendering.
 export default /* do not make this async */ () => {
-  const internal = async () => {
-    let errorLogger: ReturnType<typeof initialiseAnalytics>["trackException"] | undefined;
+  (async () => {
+    const { registerToStore } = initialiseStore(getCaseDetailsSubscription);
 
     try {
-      initialiseStore();
       handleOverrideSetMode({ window });
 
       const flags = getApplicationFlags({ window });
@@ -39,11 +39,8 @@ export default /* do not make this async */ () => {
       const auth = flags.isE2eTestMode ? await initialiseMockAuth({ window }) : await initialiseAuth({ window, config, context });
       registerToStore({ auth });
 
-      const { trackPageView, trackException } = flags.isE2eTestMode ? initialiseMockAnalytics() : initialiseAnalytics({ window, config, auth });
+      const { trackPageView } = flags.isE2eTestMode ? initialiseMockAnalytics() : initialiseAnalytics({ window, config, auth });
       trackPageView();
-      errorLogger = trackException;
-
-      setOutSystemsFeatureFlag({ window, flags, config, auth });
 
       window.navigation?.addEventListener("navigate", () => {
         const context = findContext(config.CONTEXTS, window);
@@ -52,9 +49,8 @@ export default /* do not make this async */ () => {
         reinitialiseDomObservation({ context });
       });
     } catch (error) {
+      _console.error(error);
       registerToStore({ fatalInitialisationError: error });
-      errorLogger && errorLogger(error);
     }
-  };
-  internal();
+  })();
 };
