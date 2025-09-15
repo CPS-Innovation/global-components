@@ -5,7 +5,7 @@ export type Link = {
   href: string;
   activeContexts: string;
   openInNewTab?: boolean;
-  visibleContexts?: string;
+  visibleContexts: string;
   preferEventNavigationContexts?: string;
   level: number;
 };
@@ -16,7 +16,7 @@ const LinkSchema: z.ZodType<Link> = z.lazy(() =>
     href: z.string(),
     activeContexts: z.string(),
     openInNewTab: z.boolean().optional(),
-    visibleContexts: z.string().optional(),
+    visibleContexts: z.string(),
     preferEventNavigationContexts: z.string().optional(),
     level: z.number(),
   })
@@ -64,6 +64,7 @@ export const ConfigSchema = z.object({
   COOKIE_HANDOVER_URL: z.string().optional(),
   TOKEN_HANDOVER_URL: z.string().optional(),
   FEATURE_FLAG_ENABLE_MENU_GROUP: z.string().optional(),
+  FEATURE_FLAG_ENABLE_INTRUSIVE_AD_LOGIN: z.boolean().optional(),
 });
 
 export type Config = z.infer<typeof ConfigSchema>;

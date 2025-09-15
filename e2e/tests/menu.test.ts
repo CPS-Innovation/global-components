@@ -9,6 +9,7 @@ const happySettings: ArrangeProps = {
     LINKS: [
       {
         label: "foo",
+        visibleContexts: "e2e",
         activeContexts: "e2e",
         href: "http://example.org",
         level: 0,

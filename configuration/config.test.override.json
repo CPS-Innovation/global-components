@@ -9,6 +9,7 @@
   "COOKIE_HANDOVER_URL": "https://polaris-qa-notprod.cps.gov.uk/polaris",
   "TOKEN_HANDOVER_URL": "https://polaris-qa-notprod.cps.gov.uk/auth-refresh-cms-modern-token",
   "FEATURE_FLAG_ENABLE_MENU_GROUP": "12377eca-b463-4a6c-80ea-95f678f09591",
+  "FEATURE_FLAG_ENABLE_INTRUSIVE_AD_LOGIN": true,
   "CONTEXTS": [
     {
       "paths": [
@@ -65,7 +66,7 @@
     {
       "paths": ["https://housekeeping"],
       "contexts": "case materials",
-      "msalRedirectUrl": "https://housekeeping-staging.int.cps.gov.uk/pdf.worker.mjs",
+      "msalRedirectUrl": "https://housekeeping-staging.int.cps.gov.uk/global-components-msal-redirect.html",
       "domTags": [
         {
           "cssSelector": "a[href*='/polaris-ui/case-details/']",
@@ -79,18 +80,21 @@
       "label": "Home",
       "level": 0,
       "href": "https://cps-tst.outsystemsenterprise.com/Casework_Blocks/home",
+      "visibleContexts": "tasks cases case",
       "activeContexts": "home"
     },
     {
       "label": "Tasks",
       "level": 0,
       "href": "https://cps-tst.outsystemsenterprise.com/WorkManagementApp/TaskList",
+      "visibleContexts": "tasks cases case",
       "activeContexts": "tasks"
     },
     {
       "label": "Cases",
       "level": 0,
       "href": "https://cps-tst.outsystemsenterprise.com/WorkManagementApp/Cases?IsCasesNavigation=true",
+      "visibleContexts": "tasks cases case",
       "activeContexts": "cases case"
     },
     {
