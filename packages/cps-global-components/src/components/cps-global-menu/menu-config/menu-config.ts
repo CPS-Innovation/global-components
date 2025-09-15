@@ -35,7 +35,7 @@ const menuConfigInternal = ({
         const shouldGoViaAuthHandover = isOutSystemsApp({ location: { href: targetUrl } }) && OS_HANDOVER_URL;
         return shouldGoViaAuthHandover ? createOutboundUrl({ handoverUrl: OS_HANDOVER_URL, targetUrl }) : targetUrl;
       };
-  const links = LINKS.filter(shouldShowLink(contexts)).map(mapLinkConfig({ contexts, tags: { ...tags, ...tagsFromDom }, handoverAdapter }));
+  const links = LINKS.filter(shouldShowLink(contexts)).map(mapLinkConfig({ contexts, tags: { ...tagsFromDom, ...tags }, handoverAdapter }));
   return { status: "ok", links: groupLinksByLevel(links) };
 };
 

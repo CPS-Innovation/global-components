@@ -1,8 +1,9 @@
+import { Tags } from "@microsoft/applicationinsights-web";
 import { FoundContext } from "../context/find-context";
-import { Register } from "../../store/store";
+
 import { setupMutationObserver } from "./mutations";
 
-type Props = { window: Window; registerToStore: Register };
+type Props = { window: Window; registerToStore: (args: { tags: Tags }) => void };
 
 const cache: { observer?: ReturnType<typeof setupMutationObserver>; contextIndex?: number } = {};
 
