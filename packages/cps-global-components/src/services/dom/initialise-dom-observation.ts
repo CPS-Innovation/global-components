@@ -1,7 +1,6 @@
-import { Tags } from "@microsoft/applicationinsights-web";
 import { FoundContext } from "../context/find-context";
 
-import { setupMutationObserver } from "./mutations";
+import { setupMutationObserver, Tags } from "./mutations";
 
 type Props = { window: Window; registerToStore: (args: { tags: Tags }) => void };
 

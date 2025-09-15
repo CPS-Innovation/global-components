@@ -11,6 +11,7 @@ import { initialiseMockAuth } from "./services/auth/initialise-mock-auth";
 import { initialiseMockAnalytics } from "./services/analytics/initialise-mock-analytics";
 import { _console } from "./logging/_console";
 import { getCaseDetailsSubscription } from "./services/data/subscription";
+import { initialise } from "./services/dom/initialise";
 
 // Don't return a promise otherwise stencil will wait for all of this to be complete
 //  before rendering.  Using the registerToStore function means we can render immediately
@@ -36,6 +37,9 @@ export default /* do not make this async */ () => {
       const reinitialiseDomObservation = initialiseDomObservation({ window, registerToStore });
       reinitialiseDomObservation({ context });
 
+      const { initialiseDomForContext } = initialise({ window });
+      initialiseDomForContext({ context });
+
       const auth = flags.isE2eTestMode ? await initialiseMockAuth({ window }) : await initialiseAuth({ window, config, context });
       registerToStore({ auth });
 
@@ -47,6 +51,7 @@ export default /* do not make this async */ () => {
         registerToStore({ context });
         trackPageView();
         reinitialiseDomObservation({ context });
+        initialiseDomForContext({ context });
       });
     } catch (error) {
       _console.error(error);
