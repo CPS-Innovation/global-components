@@ -144,7 +144,7 @@ importers:
     dependencies:
       '@azure/msal-browser':
         specifier: ^4.0.0
-        version: 4.22.0
+        version: 4.23.0
       '@dotenvx/dotenvx':
         specifier: ^1.41.0
         version: 1.49.0
@@ -344,8 +344,8 @@ packages:
   '@asamuzakjp/css-color@3.2.0':
     resolution: {integrity: sha512-K1A6z8tS3XsmCMM86xoWdn7Fkdn9m6RSVtocUrJYIwZnFVkng/PvkEoWtOWmP+Scc6saYWHWZYbndEEXxl24jw==}
 
-  '@azure/msal-browser@4.22.0':
-    resolution: {integrity: sha512-JLWHzAW1aZ/L190Th56jN+2t3T1dMvXOs1obXYLEr3ZWi81vVmBCt0di3mPvTTOiWoE0Cf/4hVQ/LINilqjObA==}
+  '@azure/msal-browser@4.23.0':
+    resolution: {integrity: sha512-uHnfRwGAEHaYVXzpCtYsruy6PQxL2v76+MJ3+n/c/3PaTiTIa5ch7VofTUNoA39nHyjJbdiqTwFZK40OOTOkjw==}
     engines: {node: '>=0.8.0'}
 
   '@azure/msal-common@15.12.0':
@@ -4654,7 +4654,7 @@ snapshots:
       '@csstools/css-tokenizer': 3.0.4
       lru-cache: 10.4.3
 
-  '@azure/msal-browser@4.22.0':
+  '@azure/msal-browser@4.23.0':
     dependencies:
       '@azure/msal-common': 15.12.0
 
