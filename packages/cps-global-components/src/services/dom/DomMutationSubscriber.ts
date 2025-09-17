@@ -5,5 +5,6 @@ export type DomMutationObserver = ({ context }: { context: FoundContext }) => {
   subscriptions: {
     cssSelector: string;
     handler: (element: Element) => void;
+    unbind?: () => void;
   }[];
 };

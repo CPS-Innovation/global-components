@@ -39,6 +39,7 @@ export type Context = {
   contexts: string;
   msalRedirectUrl: string;
   domTags?: DomTags[];
+  applyOutSystemsShim?: boolean;
 };
 
 const ContextSchema: z.ZodType<Context> = z.lazy(() =>
@@ -47,6 +48,7 @@ const ContextSchema: z.ZodType<Context> = z.lazy(() =>
     contexts: z.string(),
     msalRedirectUrl: z.string(),
     domTags: z.array(DomTagsSchema).optional(),
+    applyOutSystemsShim: z.boolean().optional(),
   })
 );
 
