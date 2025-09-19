@@ -1,31 +1,19 @@
-import { Tags } from "@microsoft/applicationinsights-web";
 import { FoundContext } from "../context/find-context";
+import { DomMutationObserver } from "./DomMutationSubscriber";
+import "arrive";
 
-import { setupMutationObserver } from "./mutations";
-
-type Props = { window: Window; registerToStore: (args: { tags: Tags }) => void };
-
-const cache: { observer?: ReturnType<typeof setupMutationObserver>; contextIndex?: number } = {};
-
-export const initialiseDomObservation = ({ window: { document }, registerToStore }: Props) => {
-  const resetDomObservation = ({ context: { domTags, contextIndex } }: { context: FoundContext }) => {
-    if (contextIndex != undefined && contextIndex === cache.contextIndex) {
-      // Our address has changed but we are still in the same context. We should already be set up with an observer.
-      return;
-    }
-
-    // At this point, whatever has been setup prior is defunct and needs to be cleared
-    cache.observer?.disconnect();
-    cache.contextIndex = undefined;
-    registerToStore({ tags: {} });
-
-    if (!domTags?.length) {
-      // Our address has changed and the context does not require examining the dom
-      return;
-    }
-
-    cache.contextIndex = contextIndex;
-    cache.observer = setupMutationObserver(document.body, domTags, tags => registerToStore({ tags }));
-  };
-  return resetDomObservation;
-};
+export const initialiseDomObservation = ({ window: { document } }: { window: Window }, ...subscribers: DomMutationObserver[]) => ({
+  initialiseDomForContext: ({ context }: { context: FoundContext }) => {
+    subscribers.forEach(subscriber => {
+      const { isActiveForContext, subscriptions } = subscriber({ context });
+      subscriptions.forEach(({ cssSelector, handler, unbind }) => {
+        if (isActiveForContext) {
+          document.arrive(cssSelector, handler);
+        } else {
+          document.unbindArrive(cssSelector);
+          unbind?.();
+        }
+      });
+    });
+  },
+});
