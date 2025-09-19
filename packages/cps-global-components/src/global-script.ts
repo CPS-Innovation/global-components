@@ -5,12 +5,14 @@ import { initialiseAnalytics } from "./services/analytics/initialise-analytics";
 import { initialiseConfig } from "./services/config/initialise-config";
 import { initialiseContext } from "./services/context/initialise-context";
 import { findContext } from "./services/context/find-context";
-import { initialiseDomObservation } from "./services/dom/initialise-dom-observation";
 import { getApplicationFlags } from "./services/application-flags/get-application-flags";
 import { initialiseMockAuth } from "./services/auth/initialise-mock-auth";
 import { initialiseMockAnalytics } from "./services/analytics/initialise-mock-analytics";
 import { _console } from "./logging/_console";
 import { getCaseDetailsSubscription } from "./services/data/subscription";
+import { initialiseDomObservation } from "./services/dom/initialise-dom-observation";
+import { domTagMutationSubscriber } from "./services/dom/dom-tag-mutation-subscriber";
+import { outSystemsShimSubscriber } from "./services/override-mode/outsystems-shim/outsystems-shim-subscriber";
 
 // Don't return a promise otherwise stencil will wait for all of this to be complete
 //  before rendering.  Using the registerToStore function means we can render immediately
@@ -33,8 +35,9 @@ export default /* do not make this async */ () => {
       const context = initialiseContext({ window, config });
       registerToStore({ context });
 
-      const reinitialiseDomObservation = initialiseDomObservation({ window, registerToStore });
-      reinitialiseDomObservation({ context });
+      const { initialiseDomForContext } = initialiseDomObservation({ window }, domTagMutationSubscriber({ registerToStore }), outSystemsShimSubscriber({ window }));
+
+      initialiseDomForContext({ context });
 
       const auth = flags.isE2eTestMode ? await initialiseMockAuth({ window }) : await initialiseAuth({ window, config, context });
       registerToStore({ auth });
@@ -46,7 +49,7 @@ export default /* do not make this async */ () => {
         const context = findContext(config.CONTEXTS, window);
         registerToStore({ context });
         trackPageView();
-        reinitialiseDomObservation({ context });
+        initialiseDomForContext({ context });
       });
     } catch (error) {
       _console.error(error);

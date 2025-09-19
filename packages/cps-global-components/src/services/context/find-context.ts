@@ -1,12 +1,11 @@
 import { Context } from "cps-global-configuration/dist/schema";
 import { buildSanitizedAddress } from "./build-sanitized-address";
+import { Tags } from "./Tags";
 
 export type FoundContext =
   | (Context & {
       found: true;
-      tags: {
-        [key: string]: string;
-      };
+      tags: Tags;
       contextIndex: number;
       msalRedirectUrl: string;
     })
