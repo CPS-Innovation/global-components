@@ -10,7 +10,7 @@ import { initialiseMockAuth } from "./services/auth/initialise-mock-auth";
 import { initialiseMockAnalytics } from "./services/analytics/initialise-mock-analytics";
 import { _console } from "./logging/_console";
 import { getCaseDetailsSubscription } from "./services/data/subscription";
-import { initialise } from "./services/dom/initialise";
+import { initialiseDomObservation } from "./services/dom/initialise-dom-observation";
 import { domTagMutationSubscriber } from "./services/dom/dom-tag-mutation-subscriber";
 import { outSystemsShimSubscriber } from "./services/override-mode/outsystems-shim/outsystems-shim-subscriber";
 
@@ -35,7 +35,7 @@ export default /* do not make this async */ () => {
       const context = initialiseContext({ window, config });
       registerToStore({ context });
 
-      const { initialiseDomForContext } = initialise({ window }, domTagMutationSubscriber({ registerToStore }), outSystemsShimSubscriber({ window }));
+      const { initialiseDomForContext } = initialiseDomObservation({ window }, domTagMutationSubscriber({ registerToStore }), outSystemsShimSubscriber({ window }));
 
       initialiseDomForContext({ context });
 

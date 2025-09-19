@@ -1,3 +1,4 @@
+import { _console } from "../../../logging/_console";
 import { DomMutationObserver } from "../../dom/DomMutationSubscriber";
 
 export const outSystemsShimSubscriber =
@@ -13,6 +14,7 @@ export const outSystemsShimSubscriber =
           "b1-PlaceholderNavigation",
         ].join(","),
         handler: (element: HTMLElement) => {
+          _console.debug("OutSystems shim", "hiding", element);
           if (element && element.style.display !== "none") {
             element.style.display = "none";
           }
@@ -24,7 +26,7 @@ export const outSystemsShimSubscriber =
           const cpsHeader: HTMLCpsGlobalHeaderElement = document.createElement("cps-global-header");
           (cpsHeader as HTMLElement).style.cssText = "top: -50px; position: relative; margin-bottom: 20px;";
           element.insertBefore(cpsHeader as HTMLElement, element.firstChild);
-
+          _console.debug("OutSystems shim", "inserting our header");
           // Check all ancestors and remove position: sticky
           let ancestor = cpsHeader.parentElement;
           while (ancestor) {
