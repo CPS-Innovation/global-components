@@ -16,7 +16,8 @@
         "https://cps-tst.outsystemsenterprise.com/Casework_Blocks/home"
       ],
       "contexts": "home",
-      "msalRedirectUrl": "https://cps-tst.outsystemsenterprise.com/Casework_Patterns/auth-handover-test.html"
+      "msalRedirectUrl": "https://cps-tst.outsystemsenterprise.com/Casework_Patterns/auth-handover-test.html",
+      "forceCmsAuthRefresh": true
     },
     {
       "paths": [

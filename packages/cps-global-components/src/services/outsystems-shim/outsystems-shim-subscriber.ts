@@ -1,5 +1,5 @@
-import { _console } from "../../../logging/_console";
-import { DomMutationObserver } from "../../dom/DomMutationSubscriber";
+import { _console } from "../../logging/_console";
+import { DomMutationObserver } from "../dom/DomMutationSubscriber";
 
 export const outSystemsShimSubscriber =
   ({ window: { document } }: { window: Window }): DomMutationObserver =>

@@ -40,6 +40,7 @@ export type Context = {
   msalRedirectUrl: string;
   domTags?: DomTags[];
   applyOutSystemsShim?: boolean;
+  forceCmsAuthRefresh?: boolean;
 };
 
 const ContextSchema: z.ZodType<Context> = z.lazy(() =>

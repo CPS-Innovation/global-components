@@ -127,4 +127,4 @@ const initialise = async ({
   }
 };
 
-export const initialiseAuth = withLogging("initialise", initialise);
+export const initialiseAuth = withLogging("initialiseAuth", initialise);

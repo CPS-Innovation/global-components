@@ -4,7 +4,6 @@ import { initialiseStore } from "./store/store";
 import { initialiseAnalytics } from "./services/analytics/initialise-analytics";
 import { initialiseConfig } from "./services/config/initialise-config";
 import { initialiseContext } from "./services/context/initialise-context";
-import { findContext } from "./services/context/find-context";
 import { getApplicationFlags } from "./services/application-flags/get-application-flags";
 import { initialiseMockAuth } from "./services/auth/initialise-mock-auth";
 import { initialiseMockAnalytics } from "./services/analytics/initialise-mock-analytics";
@@ -12,7 +11,8 @@ import { _console } from "./logging/_console";
 import { getCaseDetailsSubscription } from "./services/data/subscription";
 import { initialiseDomObservation } from "./services/dom/initialise-dom-observation";
 import { domTagMutationSubscriber } from "./services/dom/dom-tag-mutation-subscriber";
-import { outSystemsShimSubscriber } from "./services/override-mode/outsystems-shim/outsystems-shim-subscriber";
+import { outSystemsShimSubscriber } from "./services/outsystems-shim/outsystems-shim-subscriber";
+import { handleOutSystemsForcedAuth } from "./services/outsystems-shim/handle-outsystems-force-auth";
 
 // Don't return a promise otherwise stencil will wait for all of this to be complete
 //  before rendering.  Using the registerToStore function means we can render immediately
@@ -25,6 +25,7 @@ export default /* do not make this async */ () => {
 
     try {
       handleOverrideSetMode({ window });
+      const { initialiseDomForContext } = initialiseDomObservation({ window }, domTagMutationSubscriber({ registerToStore }), outSystemsShimSubscriber({ window }));
 
       const flags = getApplicationFlags({ window });
       registerToStore({ flags });
@@ -32,12 +33,17 @@ export default /* do not make this async */ () => {
       const config = await initialiseConfig({ flags });
       registerToStore({ config });
 
-      const context = initialiseContext({ window, config });
-      registerToStore({ context });
+      // The following logic is used here and every time we do a SPA navigation,
+      //  so let's encapsulate it in a local function.
+      const reinitialiseContext = () => {
+        const context = initialiseContext({ window, config });
+        registerToStore({ context });
+        initialiseDomForContext({ context });
+        handleOutSystemsForcedAuth({ window, config, context });
+        return context;
+      };
 
-      const { initialiseDomForContext } = initialiseDomObservation({ window }, domTagMutationSubscriber({ registerToStore }), outSystemsShimSubscriber({ window }));
-
-      initialiseDomForContext({ context });
+      const context = reinitialiseContext();
 
       const auth = flags.isE2eTestMode ? await initialiseMockAuth({ window }) : await initialiseAuth({ window, config, context });
       registerToStore({ auth });
@@ -46,10 +52,8 @@ export default /* do not make this async */ () => {
       trackPageView();
 
       window.navigation?.addEventListener("navigate", () => {
-        const context = findContext(config.CONTEXTS, window);
-        registerToStore({ context });
+        reinitialiseContext();
         trackPageView();
-        initialiseDomForContext({ context });
       });
     } catch (error) {
       _console.error(error);
