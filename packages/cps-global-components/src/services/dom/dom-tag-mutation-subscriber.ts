@@ -4,7 +4,7 @@ import { DomMutationObserver } from "./DomMutationSubscriber";
 
 export const domTagMutationSubscriber = ({ registerToStore }: { registerToStore: Register }): DomMutationObserver => {
   // With our approach of waiting until all required store items are ready, important to initialise this to
-  //  at least an empty object.
+  //  at least an empty object - otherwise any observer of the store waiting for tags may never be ready.
   registerToStore({ tags: {} });
   return ({ context }) => ({
     isActiveForContext: !!context.domTags?.length,
