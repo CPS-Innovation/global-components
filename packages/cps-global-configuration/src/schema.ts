@@ -50,6 +50,7 @@ const ContextSchema: z.ZodType<Context> = z.lazy(() =>
     msalRedirectUrl: z.string(),
     domTags: z.array(DomTagsSchema).optional(),
     applyOutSystemsShim: z.boolean().optional(),
+    forceCmsAuthRefresh: z.boolean().optional(),
   })
 );
 
