@@ -37,16 +37,11 @@ export default /* do not make this async */ () => {
         const context = initialiseContext({ window, config });
         registerToStore({ context });
         initialiseDomForContext({ context });
+        handleOutSystemsForcedAuth({ window, config, context });
         return context;
       };
 
       const context = reinitialiseContext();
-
-      _here: needs to go up to reinitialiseContext
-      const shouldQuitExecution = handleOutSystemsForcedAuth({ window, config, context });
-      if (shouldQuitExecution) {
-        return;
-      }
 
       const auth = flags.isE2eTestMode ? await initialiseMockAuth({ window }) : await initialiseAuth({ window, config, context });
       registerToStore({ auth });
