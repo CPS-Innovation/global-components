@@ -33,6 +33,8 @@ export default /* do not make this async */ () => {
       const config = await initialiseConfig({ flags });
       registerToStore({ config });
 
+      // The following logic is used here and every time we do a SPA navigation,
+      //  so let's encapsulate it in a local function.
       const reinitialiseContext = () => {
         const context = initialiseContext({ window, config });
         registerToStore({ context });

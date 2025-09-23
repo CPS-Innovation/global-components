@@ -1,10 +1,10 @@
 import { describe, test, expect, beforeEach } from "@jest/globals";
-import { handleRedirect } from "./handle-redirect";
+import { handleOsRedirectInternal } from "./handle-os-redirect";
 
-describe("handleRedirect", () => {
+describe("handleOsRedirectInternal", () => {
   describe("os-outbound stage", () => {
     test("redirects to cookie handover URL with correct parameters", () => {
-      const result = handleRedirect({
+      const result = handleOsRedirectInternal({
         currentUrl:
           "https://cps-dev.outsystemsenterprise.com/AuthHandover/index.html?r=https://example.com/target&stage=os-outbound",
         cookieHandoverUrl: "https://cin3.cps.gov.uk/polaris",
@@ -23,7 +23,7 @@ describe("handleRedirect", () => {
     });
 
     test("preserves additional parameters in return URL", () => {
-      const result = handleRedirect({
+      const result = handleOsRedirectInternal({
         currentUrl:
           "https://cps-dev.outsystemsenterprise.com/AuthHandover/index.html?r=https://example.com/target&stage=os-outbound&extra=value",
         cookieHandoverUrl: "https://cin3.cps.gov.uk/polaris",
@@ -58,7 +58,7 @@ describe("handleRedirect", () => {
       localStorage["$OS_Users$CaseReview$ClientVars$Cookies"] =
         "different-cookies";
 
-      const result = handleRedirect({
+      const result = handleOsRedirectInternal({
         currentUrl:
           "https://cps-dev.outsystemsenterprise.com/AuthHandover/index.html?r=https://example.com/target&stage=os-cookie-return&cc=test-cookies",
         cookieHandoverUrl: "https://cin3.cps.gov.uk/polaris",
@@ -88,7 +88,7 @@ describe("handleRedirect", () => {
       localStorage["$OS_Users$CaseReview$ClientVars$Cookies"] =
         "test-cookies";
 
-      const result = handleRedirect({
+      const result = handleOsRedirectInternal({
         currentUrl:
           "https://cps-dev.outsystemsenterprise.com/AuthHandover/index.html?r=https://example.com/target&stage=os-cookie-return&cc=test-cookies",
         cookieHandoverUrl: "https://cin3.cps.gov.uk/polaris",
@@ -106,7 +106,7 @@ describe("handleRedirect", () => {
       localStorage["$OS_Users$CaseReview$ClientVars$Cookies"] =
         "a=1; c=3; b=2";
 
-      const result = handleRedirect({
+      const result = handleOsRedirectInternal({
         currentUrl:
           "https://cps-dev.outsystemsenterprise.com/AuthHandover/index.html?r=https://example.com/target&stage=os-cookie-return&cc=c=3; b=2; a=1",
         cookieHandoverUrl: "https://cin3.cps.gov.uk/polaris",
@@ -124,7 +124,7 @@ describe("handleRedirect", () => {
       localStorage["$OS_Users$CaseReview$ClientVars$Cookies"] =
         undefined;
 
-      const result = handleRedirect({
+      const result = handleOsRedirectInternal({
         currentUrl:
           "https://cps-dev.outsystemsenterprise.com/AuthHandover/index.html?r=https://example.com/target&stage=os-cookie-return&cc=test-cookies",
         cookieHandoverUrl: "https://cin3.cps.gov.uk/polaris",
@@ -145,7 +145,7 @@ describe("handleRedirect", () => {
       localStorage["$OS_Users$CaseReview$ClientVars$Cookies"] =
         "different-cookies";
 
-      const result = handleRedirect({
+      const result = handleOsRedirectInternal({
         currentUrl:
           "https://cps-dev.outsystemsenterprise.com/AuthHandover/index.html?r=https://example.com/target&stage=os-cookie-return&cc=test-cookies",
         cookieHandoverUrl: "https://cin3.cps.gov.uk/polaris",
@@ -166,7 +166,7 @@ describe("handleRedirect", () => {
         "different-cookies";
 
       const targetWithQuery = "https://example.com/target?foo=bar&baz=qux";
-      const result = handleRedirect({
+      const result = handleOsRedirectInternal({
         currentUrl:
           `https://cps-dev.outsystemsenterprise.com/AuthHandover/index.html?r=${encodeURIComponent(targetWithQuery)}&stage=os-cookie-return&cc=test-cookies`,
         cookieHandoverUrl: "https://cin3.cps.gov.uk/polaris",
@@ -197,7 +197,7 @@ describe("handleRedirect", () => {
       const mockDate = new Date("2024-01-15T10:00:00.000Z");
       jest.spyOn(global, "Date").mockImplementation(() => mockDate);
 
-      const result = handleRedirect({
+      const result = handleOsRedirectInternal({
         currentUrl:
           "https://cps-dev.outsystemsenterprise.com/AuthHandover/index.html?r=https://example.com/target&stage=os-token-return&cc=test-cookies&cms-modern-token=test-token",
         cookieHandoverUrl: "https://cin3.cps.gov.uk/polaris",
@@ -222,7 +222,7 @@ describe("handleRedirect", () => {
 
     test("handles target URL with query parameters", () => {
       const targetWithQuery = "https://example.com/target?foo=bar&baz=qux#section";
-      const result = handleRedirect({
+      const result = handleOsRedirectInternal({
         currentUrl:
           `https://cps-dev.outsystemsenterprise.com/AuthHandover/index.html?r=${encodeURIComponent(targetWithQuery)}&stage=os-token-return&cc=test-cookies&cms-modern-token=test-token`,
         cookieHandoverUrl: "https://cin3.cps.gov.uk/polaris",
@@ -234,7 +234,7 @@ describe("handleRedirect", () => {
     });
 
     test("handles empty token value", () => {
-      const result = handleRedirect({
+      const result = handleOsRedirectInternal({
         currentUrl:
           "https://cps-dev.outsystemsenterprise.com/AuthHandover/index.html?r=https://example.com/target&stage=os-token-return&cc=test-cookies&cms-modern-token=",
         cookieHandoverUrl: "https://cin3.cps.gov.uk/polaris",
@@ -253,7 +253,7 @@ describe("handleRedirect", () => {
   describe("unknown stage", () => {
     test("throws error for unknown stage", () => {
       expect(() => {
-        handleRedirect({
+        handleOsRedirectInternal({
           currentUrl:
             "https://cps-dev.outsystemsenterprise.com/AuthHandover/index.html?r=https://example.com/target&stage=unknown",
           cookieHandoverUrl: "https://cin3.cps.gov.uk/polaris",
@@ -265,7 +265,7 @@ describe("handleRedirect", () => {
 
     test("throws error for missing stage", () => {
       expect(() => {
-        handleRedirect({
+        handleOsRedirectInternal({
           currentUrl:
             "https://cps-dev.outsystemsenterprise.com/AuthHandover/index.html?r=https://example.com/target",
           cookieHandoverUrl: "https://cin3.cps.gov.uk/polaris",
@@ -277,7 +277,7 @@ describe("handleRedirect", () => {
 
     test("throws error for empty stage value", () => {
       expect(() => {
-        handleRedirect({
+        handleOsRedirectInternal({
           currentUrl:
             "https://cps-dev.outsystemsenterprise.com/AuthHandover/index.html?r=https://example.com/target&stage=",
           cookieHandoverUrl: "https://cin3.cps.gov.uk/polaris",
