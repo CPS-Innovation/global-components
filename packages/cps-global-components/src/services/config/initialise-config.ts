@@ -2,7 +2,7 @@ import { Config, validateConfig, ValidationResult } from "cps-global-configurati
 import { ConfigFetch } from "./ConfigFetch";
 import { getArtifactUrl } from "../../utils/get-artifact-url";
 import { fetchOverrideConfig } from "../../services/override-mode/fetch-override-config";
-import { fetchOverrideConfigAsJsonP } from "../../services/override-mode/outsystems-shim/fetch-override-config-as-jsonp";
+import { fetchOverrideConfigAsJsonP } from "../../services/outsystems-shim/fetch-override-config-as-jsonp";
 
 const tryConfigSources = async ([source, ...rest]: ConfigFetch[], configUrl: string): Promise<any> => {
   try {

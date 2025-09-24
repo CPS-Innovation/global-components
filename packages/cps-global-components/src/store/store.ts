@@ -5,12 +5,12 @@ import { AuthResult } from "../services/auth/initialise-auth";
 import { FoundContext } from "../services/context/find-context";
 import { ApplicationFlags } from "../services/application-flags/ApplicationFlags";
 import { initialisationStatusSubscription } from "./subscriptions/initialisation-status-subscription";
-import { Tags } from "../services/dom/mutations";
 import { caseIdentifiersSubscription } from "./subscriptions/case-identifiers-subscription";
 import { CaseIdentifiers } from "../services/context/CaseIdentifiers";
 import { loggingSubscription } from "./subscriptions/logging-subscription";
 import { resetPreventionSubscription } from "./subscriptions/reset-prevention-subscription";
 import { CaseDetails } from "../services/data/types";
+import { Tags } from "../services/context/Tags";
 
 // This state is expected to be set up once on startup
 type StartupState = { flags: ApplicationFlags; config: Config; auth: AuthResult };
