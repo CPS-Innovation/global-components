@@ -1,4 +1,4 @@
-import { ConfigSchema, Config } from "./schema";
+import { configSchema, Config } from "./schema";
 
 export type ValidationResult =
   | {
@@ -15,7 +15,7 @@ export const validateConfig = (
   filename?: string
 ): ValidationResult => {
   try {
-    const result = ConfigSchema.safeParse(jsonData);
+    const result = configSchema.safeParse(jsonData);
 
     if (result.success) {
       // If filename is provided, validate that ENVIRONMENT matches
@@ -50,7 +50,7 @@ export function validateConfigStrict(
   jsonData: unknown,
   filename?: string
 ): Config {
-  const parsed = ConfigSchema.parse(jsonData);
+  const parsed = configSchema.parse(jsonData);
 
   // If filename is provided, validate that ENVIRONMENT matches
   if (filename) {

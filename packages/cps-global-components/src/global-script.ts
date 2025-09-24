@@ -13,6 +13,7 @@ import { initialiseDomObservation } from "./services/dom/initialise-dom-observat
 import { domTagMutationSubscriber } from "./services/dom/dom-tag-mutation-subscriber";
 import { outSystemsShimSubscriber } from "./services/outsystems-shim/outsystems-shim-subscriber";
 import { handleOutSystemsForcedAuth } from "./services/outsystems-shim/handle-outsystems-force-auth";
+import { handleContextAuthorisation } from "./services/authorisation/handle-context-authorisation";
 
 // Don't return a promise otherwise stencil will wait for all of this to be complete
 //  before rendering.  Using the registerToStore function means we can render immediately
@@ -48,11 +49,14 @@ export default /* do not make this async */ () => {
       const auth = flags.isE2eTestMode ? await initialiseMockAuth({ window }) : await initialiseAuth({ window, config, context });
       registerToStore({ auth });
 
+      handleContextAuthorisation({ window, context, auth });
+
       const { trackPageView } = flags.isE2eTestMode ? initialiseMockAnalytics() : initialiseAnalytics({ window, config, auth });
       trackPageView();
 
       window.navigation?.addEventListener("navigate", () => {
-        reinitialiseContext();
+        const context = reinitialiseContext();
+        handleContextAuthorisation({ window, context, auth });
         trackPageView();
       });
     } catch (error) {
