@@ -13,7 +13,7 @@ export const handleForcedRedirect = ({
   if (stage === stages.OS_FORCED_AUTH_RETURN) {
     stripParams(url, paramKeys.STAGE);
     window.history.replaceState({}, "", url);
-    return false;
+    return { isRedirecting: false };
   } else {
     setParams(url, { [paramKeys.STAGE]: stages.OS_FORCED_AUTH_RETURN });
     const nextUrl = createUrlWithParams(handoverUrl, {
@@ -21,6 +21,6 @@ export const handleForcedRedirect = ({
       [paramKeys.R]: url.toString(),
     });
     window.location.replace(nextUrl);
-    return true;
+    return { isRedirecting: true };
   }
 };
