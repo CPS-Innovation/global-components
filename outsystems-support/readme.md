@@ -14,12 +14,14 @@ Add the `<cps-global-header></cps-global-header>` HTML tag to the appropriate bl
 
 ## Content Security Policy directives
 
-| Directive type | Path                                                          | Reason                                    |
-| -------------- | ------------------------------------------------------------- | ----------------------------------------- |
-| script-src     | `sacpsglobalcomponents.blob.core.windows.net`                 | Retrieve global components script         |
-| connect-src    | `sacpsglobalcomponents.blob.core.windows.net`                 | Retrieve environment-specific config file |
-| connect-src    | `https://js.monitor.azure.com/scripts/b/ai.config.1.cfg.json` | App Insights analytics                    |
-| connect-src    | `https://uksouth-1.in.applicationinsights.azure.com/v2/track` | App Insights analytics                    |
+| Directive type       | Path                                                          | Reason                                    |
+| -------------------- | ------------------------------------------------------------- | ----------------------------------------- |
+| script-src/child-src | `sacpsglobalcomponents.blob.core.windows.net`                 | Retrieve global components script         |
+| connect-src          | `sacpsglobalcomponents.blob.core.windows.net`                 | Retrieve environment-specific config file |
+| script-src/child-src | `login.microsoftonline.com`                                   | Entra/AD/MSAL auth                        |
+| connect-src          | `login.microsoftonline.com`                                   | Entra/AD/MSAL auth                        |
+| connect-src          | `https://js.monitor.azure.com/scripts/b/ai.config.1.cfg.json` | App Insights analytics                    |
+| connect-src          | `https://uksouth-1.in.applicationinsights.azure.com/v2/track` | App Insights analytics                    |
 
 ## Auth handover
 
