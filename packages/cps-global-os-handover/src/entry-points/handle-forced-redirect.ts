@@ -21,6 +21,6 @@ export const handleForcedRedirect = ({
       [paramKeys.R]: url.toString(),
     });
     window.location.replace(nextUrl);
-    return { isRedirecting: false };
+    return { isRedirecting: true };
   }
 };
