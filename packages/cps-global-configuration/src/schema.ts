@@ -45,7 +45,7 @@ export type Context = {
   contexts: string;
   msalRedirectUrl: string;
   domTags?: DomTags[];
-  applyOutSystemsShim?: boolean;
+  applyOutSystemsShim?: boolean | "hide-existing" | "insert-new";
   forceCmsAuthRefresh?: boolean;
   authorisation?: Authorisation;
 };
@@ -55,7 +55,9 @@ const contextSchema: z.ZodType<Context> = z.object({
   contexts: z.string(),
   msalRedirectUrl: z.string(),
   domTags: z.array(domTagsSchema).optional(),
-  applyOutSystemsShim: z.boolean().optional(),
+  applyOutSystemsShim: z
+    .union([z.boolean(), z.literal("hide-existing"), z.literal("insert-new")])
+    .optional(),
   forceCmsAuthRefresh: z.boolean().optional(),
   authorisation: authorisationSchema.optional(),
 });

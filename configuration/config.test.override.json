@@ -48,21 +48,24 @@
         "https://cps-tst.outsystemsenterprise.com/WorkManagementApp/CaseOverview\\?CaseId=(?<caseId>\\d+)&URN=(?<urn>[^&]+)"
       ],
       "contexts": "case details",
-      "msalRedirectUrl": "https://cps-tst.outsystemsenterprise.com/Casework_Patterns/auth-handover-test.html"
+      "msalRedirectUrl": "https://cps-tst.outsystemsenterprise.com/Casework_Patterns/auth-handover-test.html",
+      "applyOutSystemsShim": "hide-existing"
     },
     {
       "paths": [
         "https://cps-tst.outsystemsenterprise.com/WorkManagementApp/Cases"
       ],
       "contexts": "cases",
-      "msalRedirectUrl": "https://cps-tst.outsystemsenterprise.com/Casework_Patterns/auth-handover-test.html"
+      "msalRedirectUrl": "https://cps-tst.outsystemsenterprise.com/Casework_Patterns/auth-handover-test.html",
+      "applyOutSystemsShim": "hide-existing"
     },
     {
       "paths": [
         "https://cps-tst.outsystemsenterprise.com/WorkManagementApp/TaskList"
       ],
       "contexts": "tasks",
-      "msalRedirectUrl": "https://cps-tst.outsystemsenterprise.com/Casework_Patterns/auth-handover-test.html"
+      "msalRedirectUrl": "https://cps-tst.outsystemsenterprise.com/Casework_Patterns/auth-handover-test.html",
+      "applyOutSystemsShim": "hide-existing"
     },
     {
       "paths": ["https://housekeeping"],
