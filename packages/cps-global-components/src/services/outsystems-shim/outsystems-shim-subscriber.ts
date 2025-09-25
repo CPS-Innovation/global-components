@@ -17,11 +17,7 @@ export const outSystemsShimSubscriber =
     isActiveForContext: context.found && !!context.applyOutSystemsShim,
     subscriptions: [
       {
-        cssSelector: "header:not(cps-global-header header):not([class*='tabs'])",
-        handler: (element: HTMLElement) => applyStyles({ display: "none" }, element),
-      },
-      {
-        cssSelector: ".b1-BlueLine",
+        cssSelector: "header:not(cps-global-header header):not([class*='tabs']), #b1-BlueLine",
         handler: (element: HTMLElement) => applyStyles({ display: "none" }, element),
       },
       {
@@ -37,7 +33,7 @@ export const outSystemsShimSubscriberPreviousGeneration =
     isActiveForContext: context.found && !!context.applyOutSystemsShim,
     subscriptions: [
       {
-        cssSelector: ["header:not(cps-global-header header):not([class*='tabs'])", ".b1-BlueLine", ".b1-PlaceholderNavigation"].join(","),
+        cssSelector: ["header:not(cps-global-header header):not([class*='tabs'])", "#b1-BlueLine", ".b1-PlaceholderNavigation"].join(","),
         handler: (element: HTMLElement) => applyStyles({ display: "none" }, element),
       },
       {
