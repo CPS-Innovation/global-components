@@ -3,7 +3,7 @@ import { DomMutationObserver } from "../dom/DomMutationSubscriber";
 
 type Styles = { [K in keyof CSSStyleDeclaration]?: string };
 
-const applyStyles = (styles: Styles, element: HTMLElement) =>
+const applyStyles = (styles: Styles) => (element: HTMLElement) =>
   Object.entries(styles).forEach(([key, val]) => {
     if (element[key] !== val) {
       _console.debug("OutSystems shim", `Applying ${key}=${val} to`, element);
@@ -18,11 +18,11 @@ export const outSystemsShimSubscriber =
     subscriptions: [
       {
         cssSelector: "header:not(cps-global-header header):not([class*='tabs']), #b1-BlueLine",
-        handler: (element: HTMLElement) => applyStyles({ display: "none" }, element),
+        handler: applyStyles({ display: "none" }),
       },
       {
         cssSelector: ".main-content.ThemeGrid_Container.blue-line",
-        handler: (element: HTMLElement) => applyStyles({ top: "0", flex: "0" }, element),
+        handler: applyStyles({ top: "0", flex: "0" }),
       },
     ],
   });
@@ -34,13 +34,13 @@ export const outSystemsShimSubscriberPreviousGeneration =
     subscriptions: [
       {
         cssSelector: ["header:not(cps-global-header header):not([class*='tabs'])", "#b1-BlueLine", ".b1-PlaceholderNavigation"].join(","),
-        handler: (element: HTMLElement) => applyStyles({ display: "none" }, element),
+        handler: applyStyles({ display: "none" }),
       },
       {
         cssSelector: "div[role='main']:not(:has(cps-global-header))",
         handler: (element: HTMLElement) => {
           const cpsHeader: HTMLCpsGlobalHeaderElement = document.createElement("cps-global-header");
-          applyStyles({ top: "-50px", position: "relative", marginBottom: "20px" }, cpsHeader);
+          applyStyles({ top: "-50px", position: "relative", marginBottom: "20px" })(cpsHeader);
 
           element.insertBefore(cpsHeader, element.firstChild);
 
@@ -50,7 +50,7 @@ export const outSystemsShimSubscriberPreviousGeneration =
           while (ancestor) {
             const computedStyle = window.getComputedStyle(ancestor);
             if (computedStyle.position === "sticky") {
-              applyStyles({ position: "relative" }, ancestor);
+              applyStyles({ position: "relative" })(ancestor);
             }
             ancestor = ancestor.parentElement;
           }
