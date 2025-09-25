@@ -49,7 +49,7 @@
       ],
       "contexts": "case details",
       "msalRedirectUrl": "https://cps-tst.outsystemsenterprise.com/Casework_Patterns/auth-handover-test.html",
-      "applyOutSystemsShim": "hide-existing"
+      "applyOutSystemsShim": true
     },
     {
       "paths": [
@@ -57,7 +57,7 @@
       ],
       "contexts": "cases",
       "msalRedirectUrl": "https://cps-tst.outsystemsenterprise.com/Casework_Patterns/auth-handover-test.html",
-      "applyOutSystemsShim": "hide-existing"
+      "applyOutSystemsShim": true
     },
     {
       "paths": [
@@ -65,7 +65,7 @@
       ],
       "contexts": "tasks",
       "msalRedirectUrl": "https://cps-tst.outsystemsenterprise.com/Casework_Patterns/auth-handover-test.html",
-      "applyOutSystemsShim": "hide-existing"
+      "applyOutSystemsShim": true
     },
     {
       "paths": ["https://housekeeping"],
