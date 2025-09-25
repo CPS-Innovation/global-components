@@ -47,24 +47,21 @@
         "https://cps-dev.outsystemsenterprise.com/WorkManagementApp/CaseOverview\\?CaseId=(?<caseId>\\d+)&URN=(?<urn>[^&]+)"
       ],
       "contexts": "case details",
-      "msalRedirectUrl": "https://cps-dev.outsystemsenterprise.com/Casework_Patterns/auth-handover-dev.html",
-      "applyOutSystemsShim": "hide-existing"
+      "msalRedirectUrl": "https://cps-dev.outsystemsenterprise.com/Casework_Patterns/auth-handover-dev.html"
     },
     {
       "paths": [
         "https://cps-dev.outsystemsenterprise.com/WorkManagementApp/Cases"
       ],
       "contexts": "cases",
-      "msalRedirectUrl": "https://cps-dev.outsystemsenterprise.com/Casework_Patterns/auth-handover-dev.html",
-      "applyOutSystemsShim": "hide-existing"
+      "msalRedirectUrl": "https://cps-dev.outsystemsenterprise.com/Casework_Patterns/auth-handover-dev.html"
     },
     {
       "paths": [
         "https://cps-dev.outsystemsenterprise.com/WorkManagementApp/TaskList"
       ],
       "contexts": "tasks",
-      "msalRedirectUrl": "https://cps-dev.outsystemsenterprise.com/Casework_Patterns/auth-handover-dev.html",
-      "applyOutSystemsShim": "hide-existing"
+      "msalRedirectUrl": "https://cps-dev.outsystemsenterprise.com/Casework_Patterns/auth-handover-dev.html"
     },
     {
       "paths": ["https://housekeeping"],
