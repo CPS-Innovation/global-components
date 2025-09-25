@@ -7,7 +7,7 @@ const applyStyles = (styles: Styles, element: HTMLElement) =>
   Object.entries(styles).forEach(([key, val]) => {
     if (element[key] !== val) {
       _console.debug("OutSystems shim", `Applying ${key}=${val} to`, element);
-      element[key] = val;
+      element.style[key] = val;
     }
   });
 
