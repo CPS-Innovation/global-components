@@ -54,7 +54,7 @@ export default /* do not make this async */ () => {
       const { trackPageView } = flags.isE2eTestMode ? initialiseMockAnalytics() : initialiseAnalytics({ window, config, auth });
       trackPageView();
 
-      window.navigation?.addEventListener("navigate", event => {
+      window.navigation?.addEventListener("navigatesuccess", event => {
         _console.debug("Global script", "navigation", event);
         const context = reinitialiseContext();
         handleContextAuthorisation({ window, context, auth });
