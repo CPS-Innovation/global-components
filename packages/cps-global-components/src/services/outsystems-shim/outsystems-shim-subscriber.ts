@@ -3,17 +3,20 @@ import { DomMutationObserver } from "../dom/DomMutationSubscriber";
 
 type Styles = { [K in keyof CSSStyleDeclaration]?: string };
 
-const applyStyles = (styles: Styles) => (element: HTMLElement) =>
-  Object.entries(styles).forEach(([key, val]) => {
-    if (element[key] !== val) {
-      _console.debug("OutSystems shim", `Applying ${key}=${val} to`, element);
-      element.style[key] = val;
-    }
-  });
+const applyStylesFactory =
+  ({ window }: { window: Window }) =>
+  (styles: Styles) =>
+  (element: HTMLElement) =>
+    Object.entries(styles).forEach(([key, val]) => {
+      if (window.getComputedStyle(element)[key] !== val) {
+        _console.debug("OutSystems shim", `Applying ${key}=${val} to`, element);
+        element.style[key] = val;
+      }
+    });
 
-export const outSystemsShimSubscriber =
-  (): DomMutationObserver =>
-  ({ context }) => ({
+export const outSystemsShimSubscriber = ({ window }: { window: Window }): DomMutationObserver => {
+  const applyStyles = applyStylesFactory(window);
+  return ({ context }) => ({
     isActiveForContext: context.found && !!context.applyOutSystemsShim,
     subscriptions: [
       {
@@ -22,14 +25,15 @@ export const outSystemsShimSubscriber =
       },
       {
         cssSelector: ".main-content.ThemeGrid_Container.blue-line",
-        handler: applyStyles({ top: "0", flex: "0" }),
+        handler: applyStyles({ top: "0", flex: "0", position: "relative" }),
       },
     ],
   });
+};
 
-export const outSystemsShimSubscriberPreviousGeneration =
-  ({ window: { document } }: { window: Window }): DomMutationObserver =>
-  ({ context }) => ({
+export const outSystemsShimSubscriberPreviousGeneration = ({ window }: { window: Window }): DomMutationObserver => {
+  const applyStyles = applyStylesFactory(window);
+  return ({ context }) => ({
     isActiveForContext: context.found && !!context.applyOutSystemsShim,
     subscriptions: [
       {
@@ -39,7 +43,7 @@ export const outSystemsShimSubscriberPreviousGeneration =
       {
         cssSelector: "div[role='main']:not(:has(cps-global-header))",
         handler: (element: HTMLElement) => {
-          const cpsHeader: HTMLCpsGlobalHeaderElement = document.createElement("cps-global-header");
+          const cpsHeader: HTMLCpsGlobalHeaderElement = window.document.createElement("cps-global-header");
           applyStyles({ top: "-50px", position: "relative", marginBottom: "20px" })(cpsHeader);
 
           element.insertBefore(cpsHeader, element.firstChild);
@@ -58,3 +62,4 @@ export const outSystemsShimSubscriberPreviousGeneration =
       },
     ],
   });
+};
