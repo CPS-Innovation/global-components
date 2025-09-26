@@ -26,7 +26,7 @@ export default /* do not make this async */ () => {
 
     try {
       handleOverrideSetMode({ window });
-      const { initialiseDomForContext } = initialiseDomObservation({ window }, domTagMutationSubscriber({ registerToStore }), outSystemsShimSubscriber());
+      const { initialiseDomForContext } = initialiseDomObservation({ window }, domTagMutationSubscriber({ registerToStore }), outSystemsShimSubscriber({ window }));
 
       const flags = getApplicationFlags({ window });
       registerToStore({ flags });
