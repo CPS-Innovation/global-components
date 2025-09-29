@@ -43,7 +43,7 @@ export const config: Config = {
       //  In particular, I couldn't get @use working (instead of deprecated @import)
       //  although I don't know enough in this area to know if it is possible.
       quietDeps: true,
-      silenceDeprecations: ["mixed-decls", "slash-div", "import"],
+      silenceDeprecations: ["slash-div", "import"],
     }),
   ],
   devServer: {

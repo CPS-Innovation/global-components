@@ -10,50 +10,60 @@ export type Link = {
   level: number;
 };
 
-const LinkSchema: z.ZodType<Link> = z.lazy(() =>
-  z.object({
-    label: z.string(),
-    href: z.string(),
-    activeContexts: z.string(),
-    openInNewTab: z.boolean().optional(),
-    visibleContexts: z.string(),
-    preferEventNavigationContexts: z.string().optional(),
-    level: z.number(),
-  })
-);
+const linkSchema: z.ZodType<Link> = z.object({
+  label: z.string(),
+  href: z.string(),
+  activeContexts: z.string(),
+  openInNewTab: z.boolean().optional(),
+  visibleContexts: z.string(),
+  preferEventNavigationContexts: z.string().optional(),
+  level: z.number(),
+});
 
 export type DomTags = {
   cssSelector: string;
   regex: string;
 };
 
-const DomTagsSchema: z.ZodType<DomTags> = z.lazy(() =>
-  z.object({
-    cssSelector: z.string(),
-    regex: z.string(),
-  })
-);
+const domTagsSchema: z.ZodType<DomTags> = z.object({
+  cssSelector: z.string(),
+  regex: z.string(),
+});
+
+export type Authorisation = {
+  adGroup: string;
+  unAuthedRedirectUrl: string;
+};
+
+const authorisationSchema: z.ZodType<Authorisation> = z.object({
+  adGroup: z.string(),
+  unAuthedRedirectUrl: z.string(),
+});
 
 export type Context = {
   paths: string[];
   contexts: string;
   msalRedirectUrl: string;
   domTags?: DomTags[];
+  applyOutSystemsShim?: boolean;
+  forceCmsAuthRefresh?: boolean;
+  authorisation?: Authorisation;
 };
 
-const ContextSchema: z.ZodType<Context> = z.lazy(() =>
-  z.object({
-    paths: z.array(z.string()),
-    contexts: z.string(),
-    msalRedirectUrl: z.string(),
-    domTags: z.array(DomTagsSchema).optional(),
-  })
-);
+const contextSchema: z.ZodType<Context> = z.object({
+  paths: z.array(z.string()),
+  contexts: z.string(),
+  msalRedirectUrl: z.string(),
+  domTags: z.array(domTagsSchema).optional(),
+  applyOutSystemsShim: z.boolean().optional(),
+  forceCmsAuthRefresh: z.boolean().optional(),
+  authorisation: authorisationSchema.optional(),
+});
 
-export const ConfigSchema = z.object({
+export const configSchema = z.object({
   ENVIRONMENT: z.string(),
-  CONTEXTS: z.array(ContextSchema),
-  LINKS: z.array(LinkSchema),
+  CONTEXTS: z.array(contextSchema),
+  LINKS: z.array(linkSchema),
   AD_TENANT_AUTHORITY: z.string().optional(),
   AD_CLIENT_ID: z.string().optional(),
   APP_INSIGHTS_KEY: z.string().optional(),
@@ -67,4 +77,4 @@ export const ConfigSchema = z.object({
   FEATURE_FLAG_ENABLE_INTRUSIVE_AD_LOGIN: z.boolean().optional(),
 });
 
-export type Config = z.infer<typeof ConfigSchema>;
+export type Config = z.infer<typeof configSchema>;

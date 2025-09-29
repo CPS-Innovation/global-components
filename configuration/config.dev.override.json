@@ -47,21 +47,24 @@
         "https://cps-dev.outsystemsenterprise.com/WorkManagementApp/CaseOverview\\?CaseId=(?<caseId>\\d+)&URN=(?<urn>[^&]+)"
       ],
       "contexts": "case details",
-      "msalRedirectUrl": "https://cps-dev.outsystemsenterprise.com/Casework_Patterns/auth-handover-dev.html"
+      "msalRedirectUrl": "https://cps-dev.outsystemsenterprise.com/Casework_Patterns/auth-handover-dev.html",
+      "applyOutSystemsShim": true
     },
     {
       "paths": [
         "https://cps-dev.outsystemsenterprise.com/WorkManagementApp/Cases"
       ],
       "contexts": "cases",
-      "msalRedirectUrl": "https://cps-dev.outsystemsenterprise.com/Casework_Patterns/auth-handover-dev.html"
+      "msalRedirectUrl": "https://cps-dev.outsystemsenterprise.com/Casework_Patterns/auth-handover-dev.html",
+      "applyOutSystemsShim": true
     },
     {
       "paths": [
         "https://cps-dev.outsystemsenterprise.com/WorkManagementApp/TaskList"
       ],
       "contexts": "tasks",
-      "msalRedirectUrl": "https://cps-dev.outsystemsenterprise.com/Casework_Patterns/auth-handover-dev.html"
+      "msalRedirectUrl": "https://cps-dev.outsystemsenterprise.com/Casework_Patterns/auth-handover-dev.html",
+      "applyOutSystemsShim": true
     },
     {
       "paths": ["https://housekeeping"],
@@ -85,21 +88,21 @@
       "label": "Home",
       "level": 0,
       "href": "https://cps-dev.outsystemsenterprise.com/Casework_Blocks/home",
-      "visibleContexts": "tasks cases case",
+      "visibleContexts": "home tasks cases case",
       "activeContexts": "home"
     },
     {
       "label": "Tasks",
       "level": 0,
       "href": "https://cps-dev.outsystemsenterprise.com/WorkManagementApp/TaskList",
-      "visibleContexts": "tasks cases case",
+      "visibleContexts": "home tasks cases case",
       "activeContexts": "tasks"
     },
     {
       "label": "Cases",
       "level": 0,
       "href": "https://cps-dev.outsystemsenterprise.com/WorkManagementApp/Cases?IsCasesNavigation=true",
-      "visibleContexts": "tasks cases case",
+      "visibleContexts": "home tasks cases case",
       "activeContexts": "cases case"
     },
     {
