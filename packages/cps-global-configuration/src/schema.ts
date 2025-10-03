@@ -64,6 +64,7 @@ export const configSchema = z.object({
   ENVIRONMENT: z.string(),
   CONTEXTS: z.array(contextSchema),
   LINKS: z.array(linkSchema),
+  BANNER_TITLE_HREF: z.string(),
   AD_TENANT_AUTHORITY: z.string().optional(),
   AD_CLIENT_ID: z.string().optional(),
   APP_INSIGHTS_KEY: z.string().optional(),

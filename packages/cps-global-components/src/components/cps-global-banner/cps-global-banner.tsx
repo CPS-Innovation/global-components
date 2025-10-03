@@ -16,9 +16,10 @@ export class CpsGlobalBanner {
 
   @WithLogging("CpsGlobalBanner")
   render() {
-    const getFlags = () => {
-      const { fatalInitialisationError } = rawState();
-      const state = readyState("flags", "config");
+    const { fatalInitialisationError } = rawState();
+    const state = readyState("flags", "config");
+
+    const resolveFlags = () => {
       if (fatalInitialisationError) {
         // If there is an error we still want to show our branding.
         //  Use suitable fallback values
@@ -35,8 +36,8 @@ export class CpsGlobalBanner {
       }
     };
 
-    const flags = getFlags();
-    if (!flags) {
+    const flags = resolveFlags();
+    if (!(flags && state)) {
       return <></>;
     }
 
@@ -50,7 +51,11 @@ export class CpsGlobalBanner {
             <header class="govuk-header background-blue" data-module="govuk-header">
               <div class="govuk-header__container">
                 <div class="govuk-header__logo">
-                  <a href="#" class="govuk-header__link govuk-header__link--homepage" onClick={flags.isAccessibilityMode ? this.handleTitleClick : undefined}>
+                  <a
+                    href={state.config.BANNER_TITLE_HREF}
+                    class="govuk-header__link govuk-header__link--homepage"
+                    onContextMenu={flags.isAccessibilityMode ? this.handleTitleClick : undefined}
+                  >
                     <svg
                       focusable="false"
                       role="img"
@@ -87,12 +92,15 @@ export class CpsGlobalBanner {
               <header class="govuk-header background-black">
                 <div class="govuk-header__container">
                   <div class="govuk-header__logo">
-                    <span class="govuk-header__link govuk-header__link--homepage">
-                      <span class="header-title" onClick={flags.isAccessibilityMode ? this.handleTitleClick : undefined}>
-                        CPS
-                      </span>{" "}
-                      <span class="header-sub-title"></span>
-                    </span>
+                    <a
+                      class="govuk-header__link govuk-header__link--homepage"
+                      href={state.config.BANNER_TITLE_HREF}
+                      onContextMenu={flags.isAccessibilityMode ? this.handleTitleClick : undefined}
+                    >
+                      <span class="govuk-header__logotype">
+                        <span class="govuk-header__logotype-text">CPS</span>
+                      </span>
+                    </a>
                   </div>
                 </div>
               </header>
