@@ -33,11 +33,13 @@
         "https://cps-tst.outsystemsenterprise.com/CaseReview/LandingPage\\?CMSCaseId=(?<caseId>\\d+)&URN=(?<urn>[^&]+)"
       ],
       "contexts": "case review",
+      "headerCustomCssClasses": "header",
       "msalRedirectUrl": ""
     },
     {
       "paths": ["https://cps-tst.outsystemsenterprise.com/CaseReview/"],
       "contexts": "cases",
+      "headerCustomCssClasses": "header",
       "msalRedirectUrl": ""
     },
     {
@@ -45,6 +47,7 @@
         "https://cps-tst.outsystemsenterprise.com/WorkManagementApp/CaseOverview\\?CaseId=(?<caseId>\\d+)&URN=(?<urn>[^&]+)"
       ],
       "contexts": "case details",
+      "headerCustomCssClasses": "header",
       "msalRedirectUrl": ""
     },
     {
@@ -52,6 +55,7 @@
         "https://cps-tst.outsystemsenterprise.com/WorkManagementApp/Cases"
       ],
       "contexts": "cases",
+      "headerCustomCssClasses": "header",
       "msalRedirectUrl": ""
     },
     {
@@ -59,6 +63,7 @@
         "https://cps-tst.outsystemsenterprise.com/WorkManagementApp/TaskList"
       ],
       "contexts": "tasks",
+      "headerCustomCssClasses": "header",
       "msalRedirectUrl": ""
     },
     {
