@@ -1,5 +1,6 @@
 {
   "ENVIRONMENT": "staging",
+  "BANNER_TITLE_HREF": "",
   "APP_INSIGHTS_KEY": "e572c03c-8d38-4771-b193-962f13da1b1a",
   "SURVEY_LINK": "https://forms.office.com/e/Cxmsq5xTWx",
   "SHOW_MENU": false,

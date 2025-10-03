@@ -14,6 +14,7 @@ export const arrange = async ({ config, auth }: Partial<ArrangeProps>) => {
     ENVIRONMENT: "e2e",
     CONTEXTS: [{ contexts: "e2e", paths: [".*"], msalRedirectUrl: "not-used" }],
     LINKS: [],
+    BANNER_TITLE_HREF: "/",
     ...config,
   };
   auth = { isAuthed: true, adGroups: ["e2e-test-group"], ...auth };
