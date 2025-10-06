@@ -25,21 +25,27 @@ export const outSystemsShimSubscriber = ({ window }: { window: Window }): DomMut
     isActiveForContext: context.found && !!context.applyOutSystemsShim,
     subscriptions: [
       {
-        cssSelector: "header:not(cps-global-header header):not([class*='tabs']), #b1-BlueLine, #b1-PlaceholderNavigation",
+        cssSelector:
+          // work management
+          "header:not(cps-global-header header):not([class*='tabs']), #b1-BlueLine, #b1-PlaceholderNavigation" +
+          // case review
+          ", #$b3 #b3-header2",
         handler: applyStyles({ display: "none" }),
       },
       {
-        cssSelector: "div.main-content.ThemeGrid_Container.blue-line[role='main']",
+        cssSelector:
+          // work management
+          "div.main-content.ThemeGrid_Container.blue-line[role='main']",
         handler: applyStyles({ top: "0", flex: "0", position: "relative" }),
       },
       {
-        cssSelector: "div.main-content.ThemeGrid_Container.blue-line[role='main']:not(:has(cps-global-header))",
+        cssSelector:
+          // work management
+          "div.main-content.ThemeGrid_Container.blue-line[role='main']:not(:has(cps-global-header))",
         handler: (element: HTMLElement) => {
           const cpsHeader: HTMLCpsGlobalHeaderElement = window.document.createElement("cps-global-header");
           applyStyles({ marginBottom: "20px" })(cpsHeader);
-
           element.insertBefore(cpsHeader, element.firstChild);
-
           _console.debug("OutSystems shim", "inserting our header");
 
           let ancestor = cpsHeader.parentElement;
@@ -50,6 +56,17 @@ export const outSystemsShimSubscriber = ({ window }: { window: Window }): DomMut
             }
             ancestor = ancestor.parentElement;
           }
+        },
+      },
+      {
+        cssSelector:
+          // case review
+          "#$b3:not(cps-global-header header)",
+        handler: (element: HTMLElement) => {
+          const cpsHeader: HTMLCpsGlobalHeaderElement = window.document.createElement("cps-global-header");
+          applyStyles({ maxWidth: "1280px" })(cpsHeader);
+          element.insertBefore(cpsHeader, element.firstChild);
+          _console.debug("OutSystems shim", "inserting our header");
         },
       },
     ],
