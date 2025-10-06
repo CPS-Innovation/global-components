@@ -55,7 +55,7 @@ $level-height: 3rem;
 .error {
   height: $level-height;
   @include govuk-font($size: 19);
-  color: $govuk-error-colour;
+
   font-weight: bold;
   display: flex;
   align-items: center;
