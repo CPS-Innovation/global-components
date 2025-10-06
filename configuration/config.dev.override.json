@@ -17,6 +17,7 @@
         "https://cps-dev.outsystemsenterprise.com/Casework_Blocks/home"
       ],
       "contexts": "home",
+      "headerCustomCssClasses": "header",
       "msalRedirectUrl": "https://cps-dev.outsystemsenterprise.com/Casework_Patterns/auth-handover-dev.html"
     },
     {
@@ -36,11 +37,13 @@
         "https://cps-dev.outsystemsenterprise.com/CaseReview/LandingPage\\?CMSCaseId=(?<caseId>\\d+)&URN=(?<urn>[^&]+)"
       ],
       "contexts": "case review",
+      "headerCustomCssClasses": "header",
       "msalRedirectUrl": "https://cps-dev.outsystemsenterprise.com/Casework_Patterns/auth-handover-dev.html"
     },
     {
       "paths": ["https://cps-dev.outsystemsenterprise.com/CaseReview/"],
       "contexts": "cases",
+      "headerCustomCssClasses": "header",
       "msalRedirectUrl": "https://cps-dev.outsystemsenterprise.com/Casework_Patterns/auth-handover-dev.html"
     },
     {
@@ -48,6 +51,7 @@
         "https://cps-dev.outsystemsenterprise.com/WorkManagementApp/CaseOverview\\?CaseId=(?<caseId>\\d+)&URN=(?<urn>[^&]+)"
       ],
       "contexts": "case details",
+      "headerCustomCssClasses": "header",
       "msalRedirectUrl": "https://cps-dev.outsystemsenterprise.com/Casework_Patterns/auth-handover-dev.html",
       "applyOutSystemsShim": true
     },
@@ -56,6 +60,7 @@
         "https://cps-dev.outsystemsenterprise.com/WorkManagementApp/Cases"
       ],
       "contexts": "cases",
+      "headerCustomCssClasses": "header",
       "msalRedirectUrl": "https://cps-dev.outsystemsenterprise.com/Casework_Patterns/auth-handover-dev.html",
       "applyOutSystemsShim": true
     },
@@ -64,6 +69,7 @@
         "https://cps-dev.outsystemsenterprise.com/WorkManagementApp/TaskList"
       ],
       "contexts": "tasks",
+      "headerCustomCssClasses": "header",
       "msalRedirectUrl": "https://cps-dev.outsystemsenterprise.com/Casework_Patterns/auth-handover-dev.html",
       "applyOutSystemsShim": true
     },

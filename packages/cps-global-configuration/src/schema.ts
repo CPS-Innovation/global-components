@@ -48,6 +48,7 @@ export type Context = {
   applyOutSystemsShim?: boolean;
   forceCmsAuthRefresh?: boolean;
   authorisation?: Authorisation;
+  headerCustomCssClasses?: string;
 };
 
 const contextSchema: z.ZodType<Context> = z.object({
@@ -58,6 +59,7 @@ const contextSchema: z.ZodType<Context> = z.object({
   applyOutSystemsShim: z.boolean().optional(),
   forceCmsAuthRefresh: z.boolean().optional(),
   authorisation: authorisationSchema.optional(),
+  headerCustomCssClasses: z.string().optional(),
 });
 
 export const configSchema = z.object({
