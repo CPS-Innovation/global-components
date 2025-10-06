@@ -37,7 +37,7 @@ export const outSystemsShimSubscriberPreviousGeneration = ({ window }: { window:
     isActiveForContext: context.found && !!context.applyOutSystemsShim,
     subscriptions: [
       {
-        cssSelector: ["header:not(cps-global-header header):not([class*='tabs'])", "#b1-BlueLine", ".b1-PlaceholderNavigation"].join(","),
+        cssSelector: ["header:not(cps-global-header header):not([class*='tabs'])", "#b1-BlueLine", "#b1-PlaceholderNavigation"].join(","),
         handler: applyStyles({ display: "none" }),
       },
       {
