@@ -1,5 +1,5 @@
 import { Component, h, Fragment } from "@stencil/core";
-import { rawState, readyState } from "../../store/store";
+import { readyState } from "../../store/store";
 import { FEATURE_FLAGS } from "../../feature-flags/feature-flags";
 import { WithLogging } from "../../logging/WithLogging";
 
@@ -16,8 +16,7 @@ export class CpsGlobalBanner {
 
   @WithLogging("CpsGlobalBanner")
   render() {
-    const { fatalInitialisationError } = rawState();
-    const state = readyState("flags", "config");
+    const { state, fatalInitialisationError } = readyState("flags", "config");
 
     const resolveFlags = () => {
       if (fatalInitialisationError) {

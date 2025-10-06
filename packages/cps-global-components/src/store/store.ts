@@ -21,7 +21,7 @@ type ContextState = { context: FoundContext; tags: Tags; caseIdentifiers: CaseId
 const initialContextState = { context: undefined, tags: undefined, caseIdentifiers: undefined, caseDetails: undefined };
 
 // This state is general
-type SummaryState = { fatalInitialisationError: Error; initialisationStatus: "ready" | "broken" };
+type SummaryState = { fatalInitialisationError: Error | undefined; initialisationStatus: undefined | "ready" | "broken" };
 const initialSummaryState = { fatalInitialisationError: undefined, initialisationStatus: undefined };
 
 export type KnownState = StartupState & ContextState & SummaryState;
@@ -76,14 +76,19 @@ type AllDefined = {
 };
 
 // Wrap K in a tuple [K] to prevent distribution
-type PickIfReadyReturn<K extends readonly (keyof State)[]> = K extends readonly [] ? AllDefined | false : PickDefined<K[number]> | false;
+type PickIfReadyReturn<K extends readonly (keyof State)[]> = K extends readonly [] ? AllDefined | undefined : PickDefined<K[number]> | undefined;
 
-export const readyState = <K extends readonly (keyof State)[] = readonly []>(...keys: K): PickIfReadyReturn<K> => {
+export const readyState = <K extends readonly (keyof State)[] = readonly []>(...keys: K): { state: PickIfReadyReturn<K> } & SummaryState => {
   const keysToCheck = keys.length === 0 ? (Object.keys(store.state) as (keyof State)[]) : keys;
+
+  const summaryState = { fatalInitialisationError: store.state.fatalInitialisationError, initialisationStatus: store.state.initialisationStatus };
 
   for (const key of keysToCheck) {
     if (store.state[key] === undefined) {
-      return false as PickIfReadyReturn<K>;
+      return {
+        state: undefined as PickIfReadyReturn<K>,
+        ...summaryState,
+      };
     }
   }
 
@@ -92,7 +97,5 @@ export const readyState = <K extends readonly (keyof State)[] = readonly []>(...
     result[key] = store.state[key];
   }
 
-  return result as PickIfReadyReturn<K>;
+  return { state: result as PickIfReadyReturn<K>, ...summaryState };
 };
-
-export const rawState = () => store.state;
