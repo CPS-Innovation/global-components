@@ -32,26 +32,26 @@ export const outSystemsShimSubscriber = ({ window }: { window: Window }): DomMut
         cssSelector: ".main-content.ThemeGrid_Container.blue-line",
         handler: applyStyles({ top: "0", flex: "0", position: "relative" }),
       },
-      {
-        cssSelector: "div[role='main']:not(:has(cps-global-header))",
-        handler: (element: HTMLElement) => {
-          const cpsHeader: HTMLCpsGlobalHeaderElement = window.document.createElement("cps-global-header");
-          applyStyles({ top: "-50px", position: "relative", marginBottom: "20px" })(cpsHeader);
+      // {
+      //   cssSelector: "div[role='main']:not(:has(cps-global-header))",
+      //   handler: (element: HTMLElement) => {
+      //     const cpsHeader: HTMLCpsGlobalHeaderElement = window.document.createElement("cps-global-header");
+      //     applyStyles({ top: "-50px", position: "relative", marginBottom: "20px" })(cpsHeader);
 
-          element.insertBefore(cpsHeader, element.firstChild);
+      //     element.insertBefore(cpsHeader, element.firstChild);
 
-          _console.debug("OutSystems shim", "inserting our header");
+      //     _console.debug("OutSystems shim", "inserting our header");
 
-          let ancestor = cpsHeader.parentElement;
-          while (ancestor) {
-            const computedStyle = window.getComputedStyle(ancestor);
-            if (computedStyle.position === "sticky") {
-              applyStyles({ position: "relative" })(ancestor);
-            }
-            ancestor = ancestor.parentElement;
-          }
-        },
-      },
+      //     let ancestor = cpsHeader.parentElement;
+      //     while (ancestor) {
+      //       const computedStyle = window.getComputedStyle(ancestor);
+      //       if (computedStyle.position === "sticky") {
+      //         applyStyles({ position: "relative" })(ancestor);
+      //       }
+      //       ancestor = ancestor.parentElement;
+      //     }
+      //   },
+      // },
     ],
   });
 };
