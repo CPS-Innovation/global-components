@@ -38,13 +38,15 @@
       ],
       "contexts": "case review",
       "headerCustomCssClasses": "header",
-      "msalRedirectUrl": "https://cps-dev.outsystemsenterprise.com/Casework_Patterns/auth-handover-dev.html"
+      "msalRedirectUrl": "https://cps-dev.outsystemsenterprise.com/Casework_Patterns/auth-handover-dev.html",
+      "applyOutSystemsShim": true
     },
     {
       "paths": ["https://cps-dev.outsystemsenterprise.com/CaseReview/"],
       "contexts": "cases",
       "headerCustomCssClasses": "header",
-      "msalRedirectUrl": "https://cps-dev.outsystemsenterprise.com/Casework_Patterns/auth-handover-dev.html"
+      "msalRedirectUrl": "https://cps-dev.outsystemsenterprise.com/Casework_Patterns/auth-handover-dev.html",
+      "applyOutSystemsShim": true
     },
     {
       "paths": [
