@@ -36,6 +36,8 @@ export const outSystemsShimSubscriber = ({ window }: { window: Window }): DomMut
         cssSelector: "div.main-content.ThemeGrid_Container.blue-line[role='main']:not(:has(cps-global-header))",
         handler: (element: HTMLElement) => {
           const cpsHeader: HTMLCpsGlobalHeaderElement = window.document.createElement("cps-global-header");
+          applyStyles({ marginBottom: "20px" })(cpsHeader);
+
           element.insertBefore(cpsHeader, element.firstChild);
 
           _console.debug("OutSystems shim", "inserting our header");
