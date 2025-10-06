@@ -15,6 +15,11 @@ const applyStylesFactory =
     });
 
 export const outSystemsShimSubscriber = ({ window }: { window: Window }): DomMutationObserver => {
+  // Beware: if this logic is ever changed then be sure to check that everything works when navigating around
+  //  the apps via the menu.  The OS UI behaviour is different between when using the OS-specific login pages and
+  //  when navigating around the apps with the menu.  Just because the shim does what is expected after logging-in
+  //  via the specific login pages doesn't mean it works when OS apps are arrived at when navigating around an
+  //  environment.
   const applyStyles = applyStylesFactory(window);
   return ({ context }) => ({
     isActiveForContext: context.found && !!context.applyOutSystemsShim,
@@ -26,19 +31,6 @@ export const outSystemsShimSubscriber = ({ window }: { window: Window }): DomMut
       {
         cssSelector: ".main-content.ThemeGrid_Container.blue-line",
         handler: applyStyles({ top: "0", flex: "0", position: "relative" }),
-      },
-    ],
-  });
-};
-
-export const outSystemsShimSubscriberPreviousGeneration = ({ window }: { window: Window }): DomMutationObserver => {
-  const applyStyles = applyStylesFactory(window);
-  return ({ context }) => ({
-    isActiveForContext: context.found && !!context.applyOutSystemsShim,
-    subscriptions: [
-      {
-        cssSelector: ["header:not(cps-global-header header):not([class*='tabs'])", "#b1-BlueLine", "#b1-PlaceholderNavigation"].join(","),
-        handler: applyStyles({ display: "none" }),
       },
       {
         cssSelector: "div[role='main']:not(:has(cps-global-header))",
