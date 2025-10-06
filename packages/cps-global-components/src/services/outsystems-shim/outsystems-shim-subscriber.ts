@@ -20,7 +20,7 @@ export const outSystemsShimSubscriber = ({ window }: { window: Window }): DomMut
     isActiveForContext: context.found && !!context.applyOutSystemsShim,
     subscriptions: [
       {
-        cssSelector: "header:not(cps-global-header header):not([class*='tabs']), #b1-BlueLine", "#b1-PlaceholderNavigation",
+        cssSelector: "header:not(cps-global-header header):not([class*='tabs']), #b1-BlueLine, #b1-PlaceholderNavigation",
         handler: applyStyles({ display: "none" }),
       },
       {
