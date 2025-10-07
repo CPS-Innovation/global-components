@@ -61,7 +61,7 @@ export const outSystemsShimSubscriber = ({ window }: { window: Window }): DomMut
       {
         cssSelector:
           // case review
-          "#$b3:not(cps-global-header header)",
+          "#\\$b3:not(cps-global-header header)",
         handler: (element: HTMLElement) => {
           const cpsHeader: HTMLCpsGlobalHeaderElement = window.document.createElement("cps-global-header");
           applyStyles({ maxWidth: "1280px" })(cpsHeader);
