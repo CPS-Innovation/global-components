@@ -30,8 +30,12 @@ export const outSystemsShimSubscribers = ({ window }: { window: Window }): DomMu
     ({ context }) => ({
       isActiveForContext: isActiveForApp(context, "/WorkManagementApp/"),
       subscriptions: [
+        // {
+        //   cssSelector: "header:not(cps-global-header header):not([class*='tabs']), #b1-BlueLine, #b1-PlaceholderNavigation",
+        //   handler: applyStyles({ display: "none" }),
+        // },
         {
-          cssSelector: "header:not(cps-global-header header):not([class*='tabs']), #b1-BlueLine, #b1-PlaceholderNavigation",
+          cssSelector: "header.header, #b1-BlueLine",
           handler: applyStyles({ display: "none" }),
         },
         {
@@ -39,23 +43,45 @@ export const outSystemsShimSubscribers = ({ window }: { window: Window }): DomMu
           handler: applyStyles({ top: "0", flex: "0", position: "relative" }),
         },
         {
-          cssSelector: "div.main-content.ThemeGrid_Container.blue-line[role='main']:not(:has(cps-global-header))",
+          cssSelector: "cps-global-header",
           handler: (element: HTMLElement) => {
-            const cpsHeader: HTMLCpsGlobalHeaderElement = window.document.createElement("cps-global-header");
-            applyStyles({ marginBottom: "20px" })(cpsHeader);
-            element.insertBefore(cpsHeader, element.firstChild);
-            _console.debug("OutSystems shim", "inserting our header");
+            applyStyles({ marginBottom: "20px" })(element);
 
-            let ancestor = cpsHeader.parentElement;
-            while (ancestor) {
-              const computedStyle = window.getComputedStyle(ancestor);
+            while (element) {
+              const computedStyle = window.getComputedStyle(element);
               if (computedStyle.position === "sticky") {
-                applyStyles({ position: "relative" })(ancestor);
+                applyStyles({ position: "relative" })(element);
               }
-              ancestor = ancestor.parentElement;
+
+              if (!element.parentElement) {
+                break;
+              }
+              element = element.parentElement;
             }
           },
         },
+        {
+          cssSelector: ".alerts-container",
+          handler: applyStyles({ display: "none" }),
+        },
+        // {
+        //   cssSelector: "div.main-content.ThemeGrid_Container.blue-line[role='main']:not(:has(cps-global-header))",
+        //   handler: (element: HTMLElement) => {
+        //     const cpsHeader: HTMLCpsGlobalHeaderElement = window.document.createElement("cps-global-header");
+        //     applyStyles({ marginBottom: "20px" })(cpsHeader);
+        //     element.insertBefore(cpsHeader, element.firstChild);
+        //     _console.debug("OutSystems shim", "inserting our header");
+
+        //     let ancestor = cpsHeader.parentElement;
+        //     while (ancestor) {
+        //       const computedStyle = window.getComputedStyle(ancestor);
+        //       if (computedStyle.position === "sticky") {
+        //         applyStyles({ position: "relative" })(ancestor);
+        //       }
+        //       ancestor = ancestor.parentElement;
+        //     }
+        //   },
+        // },
       ],
     }),
     ({ context }) => ({
@@ -73,6 +99,10 @@ export const outSystemsShimSubscribers = ({ window }: { window: Window }): DomMu
             element.insertBefore(cpsHeader, element.firstChild);
             _console.debug("OutSystems shim", "inserting our header");
           },
+        },
+        {
+          cssSelector: ".feedback-message-error",
+          handler: applyStyles({ display: "none" }),
         },
       ],
     }),
