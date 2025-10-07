@@ -11,7 +11,7 @@ import { _console } from "./logging/_console";
 import { getCaseDetailsSubscription } from "./services/data/subscription";
 import { initialiseDomObservation } from "./services/dom/initialise-dom-observation";
 import { domTagMutationSubscriber } from "./services/dom/dom-tag-mutation-subscriber";
-import { outSystemsShimSubscriber } from "./services/outsystems-shim/outsystems-shim-subscriber";
+import { outSystemsShimSubscribers } from "./services/outsystems-shim/outsystems-shim-subscriber";
 import { handleOutSystemsForcedAuth } from "./services/outsystems-shim/handle-outsystems-force-auth";
 import { handleContextAuthorisation } from "./services/authorisation/handle-context-authorisation";
 import { cachedResult } from "./utils/cached-result";
@@ -42,7 +42,7 @@ const initialise = async () => {
     //  We use `cachedResult` give us the ability to rerun this function many times while ensuring that the one-time-only
     //  operations are only executed once (alternative would be lots of if statements or similar)
     const { initialiseDomForContext } = cachedResult(() =>
-      initialiseDomObservation({ window }, domTagMutationSubscriber({ registerToStore }), outSystemsShimSubscriber({ window })),
+      initialiseDomObservation({ window }, domTagMutationSubscriber({ registerToStore }), ...outSystemsShimSubscribers({ window })),
     );
 
     const flags = cachedResult(() => getApplicationFlags({ window }));
