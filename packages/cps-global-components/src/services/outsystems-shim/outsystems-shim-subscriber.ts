@@ -29,7 +29,9 @@ export const outSystemsShimSubscriber = ({ window }: { window: Window }): DomMut
           // work management
           "header:not(cps-global-header header):not([class*='tabs']), #b1-BlueLine, #b1-PlaceholderNavigation" +
           // case review
-          ", #\\$b3 #b3-header2",
+          ", #\\$b3 #b3-header2" +
+          // home page
+          ", .feedback-message-error",
         handler: applyStyles({ display: "none" }),
       },
       {
