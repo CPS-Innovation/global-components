@@ -6,7 +6,7 @@ import { locators as L, constants as C } from "./constants";
  * syntax but at the time of writing that is being really flaky. This function
  * - is not flaky
  * - encapsulates our "wait for config to be ready" logic */
-const waitForHeaderReady = async () =>
+export const waitForHeaderReady = async () =>
   (await page.waitForFunction(
     (C) =>
       document
