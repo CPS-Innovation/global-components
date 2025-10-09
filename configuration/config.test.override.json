@@ -18,8 +18,7 @@
       ],
       "contexts": "home",
       "headerCustomCssClasses": "header",
-      "msalRedirectUrl": "https://cps-tst.outsystemsenterprise.com/Casework_Patterns/auth-handover-test.html",
-      "applyOutSystemsShim": true
+      "msalRedirectUrl": "https://cps-tst.outsystemsenterprise.com/Casework_Patterns/auth-handover-test.html"
     },
     {
       "paths": [
@@ -39,15 +38,13 @@
       ],
       "contexts": "case review",
       "headerCustomCssClasses": "header",
-      "msalRedirectUrl": "https://cps-tst.outsystemsenterprise.com/Casework_Patterns/auth-handover-test.html",
-      "applyOutSystemsShim": true
+      "msalRedirectUrl": "https://cps-tst.outsystemsenterprise.com/Casework_Patterns/auth-handover-test.html"
     },
     {
       "paths": ["https://cps-tst.outsystemsenterprise.com/CaseReview/"],
       "contexts": "cases",
       "headerCustomCssClasses": "header",
-      "msalRedirectUrl": "https://cps-tst.outsystemsenterprise.com/Casework_Patterns/auth-handover-test.html",
-      "applyOutSystemsShim": true
+      "msalRedirectUrl": "https://cps-tst.outsystemsenterprise.com/Casework_Patterns/auth-handover-test.html"
     },
     {
       "paths": [
@@ -56,7 +53,7 @@
       "contexts": "case details",
       "headerCustomCssClasses": "header",
       "msalRedirectUrl": "https://cps-tst.outsystemsenterprise.com/Casework_Patterns/auth-handover-test.html",
-      "applyOutSystemsShim": true
+      "alwaysShowMenu": true
     },
     {
       "paths": [
@@ -65,7 +62,7 @@
       "contexts": "cases",
       "headerCustomCssClasses": "header",
       "msalRedirectUrl": "https://cps-tst.outsystemsenterprise.com/Casework_Patterns/auth-handover-test.html",
-      "applyOutSystemsShim": true
+      "alwaysShowMenu": true
     },
     {
       "paths": [
@@ -74,7 +71,7 @@
       "contexts": "tasks",
       "headerCustomCssClasses": "header",
       "msalRedirectUrl": "https://cps-tst.outsystemsenterprise.com/Casework_Patterns/auth-handover-test.html",
-      "applyOutSystemsShim": true
+      "alwaysShowMenu": true
     },
     {
       "paths": ["https://housekeeping"],
