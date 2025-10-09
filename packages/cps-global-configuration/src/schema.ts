@@ -49,6 +49,7 @@ export type Context = {
   forceCmsAuthRefresh?: boolean;
   authorisation?: Authorisation;
   headerCustomCssClasses?: string;
+  alwaysShowMenu?: boolean;
 };
 
 const contextSchema: z.ZodType<Context> = z.object({
@@ -60,6 +61,7 @@ const contextSchema: z.ZodType<Context> = z.object({
   forceCmsAuthRefresh: z.boolean().optional(),
   authorisation: authorisationSchema.optional(),
   headerCustomCssClasses: z.string().optional(),
+  alwaysShowMenu: z.boolean().optional(),
 });
 
 export const configSchema = z.object({

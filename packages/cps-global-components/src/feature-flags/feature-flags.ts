@@ -5,8 +5,11 @@ const shouldEnableAccessibilityMode = ({ flags }: Pick<KnownState, "flags">) => 
 
 const shouldShowGovUkRebrand = ({ config }: Pick<KnownState, "config">) => !!config.SHOW_GOVUK_REBRAND;
 
-const shouldShowMenu = ({ config: { SHOW_MENU, FEATURE_FLAG_ENABLE_MENU_GROUP }, auth }: Pick<KnownState, "config" | "auth">) =>
-  !!SHOW_MENU && !!FEATURE_FLAG_ENABLE_MENU_GROUP && auth.isAuthed && auth.groups.includes(FEATURE_FLAG_ENABLE_MENU_GROUP);
+const shouldShowMenu = ({ config: { SHOW_MENU, FEATURE_FLAG_ENABLE_MENU_GROUP }, auth, context }: Pick<KnownState, "config" | "auth" | "context">) =>
+  // Work management always need the menu
+  (context.found && context.alwaysShowMenu) ||
+  // standard feature flag
+  (!!SHOW_MENU && !!FEATURE_FLAG_ENABLE_MENU_GROUP && auth.isAuthed && auth.groups.includes(FEATURE_FLAG_ENABLE_MENU_GROUP));
 
 const surveyLink = ({ config }: Pick<KnownState, "config">) => ({ showLink: !!config.SURVEY_LINK, url: config.SURVEY_LINK });
 
