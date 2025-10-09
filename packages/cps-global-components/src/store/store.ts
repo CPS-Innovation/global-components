@@ -90,23 +90,18 @@ export const readyState = <K extends readonly (keyof State)[] = readonly []>(...
   //  by having read that property.
   // In the code below we must ensure that we visit every property listed in `keysToCheck` otherwise we may miss registering
   //  to observe a property.
-
-  let shouldReturn = false;
-  for (const key of keysToCheck) {
-    if (store.state[key] === undefined) {
-      // return {
-      //   state: undefined as PickIfReadyReturn<K>,
-      //   ...summaryState,
-      // };
-      shouldReturn = true;
-    }
-  }
-  if (shouldReturn) {
+  if (
+    keysToCheck
+      .map((key: keyof KnownState) => {
+        store.state[key]; // just make sure we "get" every prop we are interested so we register with the store
+        return key;
+      })
+      .some(key => store.state[key] === undefined)
+  )
     return {
       state: undefined as PickIfReadyReturn<K>,
       ...summaryState,
     };
-  }
 
   const result: any = {};
   for (const key of keysToCheck) {
