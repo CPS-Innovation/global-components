@@ -83,14 +83,25 @@ export const readyState = <K extends readonly (keyof State)[] = readonly []>(...
 
   const summaryState = { fatalInitialisationError: store.state.fatalInitialisationError, initialisationStatus: store.state.initialisationStatus };
 
-  for (const key of keysToCheck) {
-    if (store.state[key] === undefined) {
-      return {
-        state: undefined as PickIfReadyReturn<K>,
-        ...summaryState,
-      };
-    }
-  }
+  // When a render function access a store the internals of the library are setting up observers see
+  //  https://github.com/stenciljs/store/blob/4579ad531211d1777798fa994d779fefdec5c814/src/subscriptions/stencil.ts#L36
+  //  This is done so that the store knows which components are interested in which top-level properties of the store. Whenever
+  //  a property changes the store can trigger a rerendering of the components that have enlisted as observers at any point
+  //  by having read that property.
+  // In the code below we must ensure that we visit every property listed in `keysToCheck` otherwise we may miss registering
+  //  to observe a property.
+  if (
+    keysToCheck
+      .map((key: keyof KnownState) => {
+        store.state[key]; // just make sure we "get" every prop we are interested so we register with the store
+        return key;
+      })
+      .some(key => store.state[key] === undefined)
+  )
+    return {
+      state: undefined as PickIfReadyReturn<K>,
+      ...summaryState,
+    };
 
   const result: any = {};
   for (const key of keysToCheck) {

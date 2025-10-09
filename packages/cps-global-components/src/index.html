@@ -40,11 +40,16 @@
 
   <a id="myLink" href="/polaris-ui/case-details/foo/123/789">Go to Case</a>
   <button onclick="changeLink()">Change link</button>
+  <button onclick="navigate()">Navigate</button>
 
   <script>
     function changeLink() {
       // Example: change link to another case
       document.getElementById("myLink").href = "/polaris-ui/case-details/bar/456/999";
+    }
+
+    function navigate() {
+      history.pushState({}, "", "/cases/1");
     }
   </script>
   <div></div>

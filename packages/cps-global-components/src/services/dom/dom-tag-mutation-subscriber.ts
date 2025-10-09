@@ -1,6 +1,7 @@
 import { DomTags } from "cps-global-configuration/dist/schema";
 import { Register } from "../../store/store";
 import { DomMutationObserver } from "./DomMutationSubscriber";
+import { _console } from "../../logging/_console";
 
 export const domTagMutationSubscriber = ({ registerToStore }: { registerToStore: Register }): DomMutationObserver => {
   // With our approach of waiting until all required store items are ready, important to initialise this to
@@ -11,6 +12,7 @@ export const domTagMutationSubscriber = ({ registerToStore }: { registerToStore:
     subscriptions: (context.domTags || []).map(({ cssSelector }) => ({
       cssSelector,
       handler: element => {
+        _console.debug("Dom observation handler firing for", element);
         const tags = extractTagsFromElement(element, context.domTags!);
         if (Object.keys(tags).length) {
           registerToStore({ tags });

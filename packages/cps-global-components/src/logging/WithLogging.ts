@@ -10,7 +10,9 @@ export function WithLogging(className: string) {
       _console.debug(...coreArgs.concat(args.length ? args : []));
 
       try {
-        return originalMethod.apply(this, args);
+        const result = originalMethod.apply(this, args);
+        _console.debug(`Completed ${propertyKey} on ${className}`);
+        return result;
       } catch (err) {
         _console.error(...coreArgs.concat(["threw", err]));
         throw err;

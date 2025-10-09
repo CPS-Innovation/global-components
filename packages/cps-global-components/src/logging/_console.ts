@@ -7,7 +7,7 @@ const makeMethod =
       return;
     }
     const style = `background-color: ${colour}; color: white;`;
-    console[method](`%c[CPS-GLOBAL-COMPONENTS]`, style, ...data);
+    console[method](`%c[CPS-GLOBAL-COMPONENTS]`, style, Date.now(), ...data);
   };
 
 export const _console = {

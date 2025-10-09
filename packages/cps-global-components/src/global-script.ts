@@ -36,19 +36,19 @@ export default /* do not make this async */ () => {
 };
 
 const initialise = async () => {
-  const { registerToStore } = cachedResult(() => initialiseStore(getCaseDetailsSubscription));
+  const { registerToStore } = cachedResult("store", () => initialiseStore(getCaseDetailsSubscription));
   try {
     // Several of the operations below need only be run when we first spin up and not on any potential SPA navigation.
     //  We use `cachedResult` give us the ability to rerun this function many times while ensuring that the one-time-only
     //  operations are only executed once (alternative would be lots of if statements or similar)
-    const { initialiseDomForContext } = cachedResult(() =>
+    const { initialiseDomForContext } = cachedResult("dom", () =>
       initialiseDomObservation({ window }, domTagMutationSubscriber({ registerToStore }), ...outSystemsShimSubscribers({ window })),
     );
 
-    const flags = cachedResult(() => getApplicationFlags({ window }));
+    const flags = cachedResult("flags", () => getApplicationFlags({ window }));
     registerToStore({ flags });
 
-    const config = await cachedResult(() => initialiseConfig({ flags }));
+    const config = await cachedResult("config", () => initialiseConfig({ flags }));
     registerToStore({ config });
 
     const context = initialiseContext({ window, config });
@@ -56,11 +56,11 @@ const initialise = async () => {
     initialiseDomForContext({ context });
     handleOutSystemsForcedAuth({ window, config, context });
 
-    const auth = await cachedResult(() => (flags.isE2eTestMode ? initialiseMockAuth({ window }) : initialiseAuth({ window, config, context })));
+    const auth = await cachedResult("auth", () => (flags.isE2eTestMode ? initialiseMockAuth({ window }) : initialiseAuth({ window, config, context })));
     registerToStore({ auth });
     handleContextAuthorisation({ window, context, auth });
 
-    const { trackPageView } = cachedResult(() => (flags.isE2eTestMode ? initialiseMockAnalytics() : initialiseAnalytics({ window, config, auth })));
+    const { trackPageView } = cachedResult("analytics", () => (flags.isE2eTestMode ? initialiseMockAnalytics() : initialiseAnalytics({ window, config, auth })));
     trackPageView();
   } catch (error) {
     _console.error(error);
