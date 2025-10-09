@@ -19,7 +19,6 @@
       "contexts": "home",
       "headerCustomCssClasses": "header",
       "msalRedirectUrl": "https://cps-tst.outsystemsenterprise.com/Casework_Patterns/auth-handover-test.html",
-      "forceCmsAuthRefresh": false,
       "applyOutSystemsShim": true
     },
     {
