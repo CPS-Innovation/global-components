@@ -14,7 +14,7 @@
   "CONTEXTS": [
     {
       "paths": [
-        "https://cps-tst.outsystemsenterprise.com/Casework_Blocks/home"
+        "https://cps-tst.outsystemsenterprise.com/casework_blocks/home"
       ],
       "contexts": "home",
       "headerCustomCssClasses": "header",
