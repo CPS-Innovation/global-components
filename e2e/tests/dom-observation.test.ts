@@ -1,6 +1,7 @@
 import { waitForHeaderReady } from "../helpers/act";
 import { arrange } from "../helpers/arrange";
 import { constants as C } from "../helpers/constants";
+import { waitForWithinHeader } from "../helpers/wait-for-within-header";
 
 describe("DOM observation", () => {
   it("should observe changes to DOM elements in order to find context variables and change contexts", async () => {
@@ -12,12 +13,12 @@ describe("DOM observation", () => {
             contexts: "e2e",
             paths: [".*"],
             msalRedirectUrl: "foo",
-            // domTags: [
-            //   {
-            //     cssSelector: "a[href*='/polaris-ui/case-details/']",
-            //     regex: "/polaris-ui/case-details/(?<urn>[^/]+)/(?<caseId>\\d+)",
-            //   },
-            // ],
+            domTags: [
+              {
+                cssSelector: "a[href*='/polaris-ui/case-details/']",
+                regex: "/polaris-ui/case-details/(?<urn>[^/]+)/(?<caseId>\\d+)",
+              },
+            ],
           },
         ],
         LINKS: [
@@ -25,7 +26,7 @@ describe("DOM observation", () => {
             label: "foo",
             visibleContexts: "e2e",
             activeContexts: "e2e",
-            href: "http://example.org/", //"http://example.org/{urn}/{caseId}",
+            href: "http://example.org/{urn}/{caseId}",
             level: 0,
           },
         ],
@@ -34,23 +35,47 @@ describe("DOM observation", () => {
       auth: { isAuthed: true, adGroups: ["e2e-test-group"] },
     });
 
+    page.on("console", (msg) => {
+      const message = msg.text();
+      if (!(message.includes("tags") || message.includes("render"))) {
+        return;
+      }
+      console.log("Browser:", message);
+    });
+
     await page.goto(C.LAUNCH_PAGE_URL);
 
-    // await page.evaluate(() => {
-    //   let a = document.createElement("a");
-    //   a.href = a.innerText = "/polaris-ui/case-details/foo/123";
-    //   document.body.insertBefore(a, document.body.firstChild);
-    // });
+    const tagSourceElementHandle = await page.evaluateHandle(() => {
+      let el = document.createElement("a");
+      el.href = el.innerText = "/polaris-ui/case-details/foo/123";
+      el.id = "link1";
+      document.body.appendChild(el);
+      return el;
+    });
 
     const header = await waitForHeaderReady();
-    const href = await page.$eval("a[role=link]", (el) =>
-      el.getAttribute("href")
+
+    await expect(header).toMatchElement(
+      "a[role=link][href='http://example.org/foo/123']"
+    );
+    console.log("Resetting tags");
+    await tagSourceElementHandle.evaluate(
+      (el) => (el.href = el.innerText = "/polaris-ui/case-details/bar/456")
     );
 
-    console.log(href);
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+    console.log(
+      await page.evaluate(() => document.querySelector("#link1")?.outerHTML)
+    );
+    console.log(
+      await page.evaluate(
+        () => document.querySelector("cps-global-header")?.shadowRoot?.innerHTML
+      )
+    );
 
-    // expect(href).toBe("http://example.org/foo/123");
-
-    await expect(header).toMatchElement("a[role=link]");
+    // this is a bit redundant given the wait above
+    await expect(header).toMatchElement(
+      "a[role=link][href='http://example.org/bar/456']"
+    );
   });
 });
