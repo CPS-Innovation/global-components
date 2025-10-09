@@ -10,6 +10,16 @@
   "COOKIE_HANDOVER_URL": "https://polaris-qa-notprod.cps.gov.uk/polaris",
   "TOKEN_HANDOVER_URL": "https://polaris-qa-notprod.cps.gov.uk/auth-refresh-cms-modern-token",
   "FEATURE_FLAG_ENABLE_MENU_GROUP": "12377eca-b463-4a6c-80ea-95f678f09591",
-  "CONTEXTS": [],
+  "CONTEXTS": [
+    {
+      "paths": [
+        "https://cps-dev.outsystemsenterprise.com/Casework_Blocks/home"
+      ],
+      "contexts": "home",
+      "headerCustomCssClasses": "header",
+      "msalRedirectUrl": "https://cps-dev.outsystemsenterprise.com/Casework_Patterns/auth-handover-dev.html",
+      "applyOutSystemsShim": false
+    }
+  ],
   "LINKS": []
 }
