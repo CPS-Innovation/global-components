@@ -90,5 +90,48 @@
       "msalRedirectUrl": "https://cps-dev.outsystemsenterprise.com/Casework_Patterns/auth-handover-dev.html"
     }
   ],
-  "LINKS": []
+  "LINKS": [
+    {
+      "label": "Home",
+      "level": 0,
+      "href": "https://cps-dev.outsystemsenterprise.com/Casework_Blocks/home",
+      "visibleContexts": "home tasks cases case",
+      "activeContexts": "home"
+    },
+    {
+      "label": "Tasks",
+      "level": 0,
+      "href": "https://cps-dev.outsystemsenterprise.com/WorkManagementApp/TaskList",
+      "visibleContexts": "home tasks cases case",
+      "activeContexts": "tasks"
+    },
+    {
+      "label": "Cases",
+      "level": 0,
+      "href": "https://cps-dev.outsystemsenterprise.com/WorkManagementApp/Cases?IsCasesNavigation=true",
+      "visibleContexts": "home tasks cases case",
+      "activeContexts": "cases case"
+    },
+    {
+      "label": "Details",
+      "level": 1,
+      "href": "https://cps-dev.outsystemsenterprise.com/WorkManagementApp/CaseOverview?CaseId={caseId}&URN={urn}",
+      "visibleContexts": "case",
+      "activeContexts": "details"
+    },
+    {
+      "label": "Materials",
+      "level": 1,
+      "href": "https://polaris-qa-notprod.cps.gov.uk/polaris-ui/case-details/{urn}/{caseId}",
+      "visibleContexts": "case",
+      "activeContexts": "materials"
+    },
+    {
+      "label": "Review",
+      "level": 1,
+      "href": "https://cps-dev.outsystemsenterprise.com/CaseReview/LandingPage?CMSCaseId={caseId}&URN={urn}",
+      "visibleContexts": "case",
+      "activeContexts": "review"
+    }
+  ]
 }
