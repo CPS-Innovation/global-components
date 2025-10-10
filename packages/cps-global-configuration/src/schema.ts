@@ -1,16 +1,6 @@
 import { z } from "zod";
 
-export type Link = {
-  label: string;
-  href: string;
-  activeContexts: string;
-  openInNewTab?: boolean;
-  visibleContexts: string;
-  preferEventNavigationContexts?: string;
-  level: number;
-};
-
-const linkSchema: z.ZodType<Link> = z.object({
+const linkSchema = z.object({
   label: z.string(),
   href: z.string(),
   activeContexts: z.string(),
@@ -20,39 +10,23 @@ const linkSchema: z.ZodType<Link> = z.object({
   level: z.number(),
 });
 
-export type DomTags = {
-  cssSelector: string;
-  regex: string;
-};
+export type Link = z.infer<typeof linkSchema>;
 
-const domTagsSchema: z.ZodType<DomTags> = z.object({
+const domTagsSchema = z.object({
   cssSelector: z.string(),
   regex: z.string(),
 });
 
-export type Authorisation = {
-  adGroup: string;
-  unAuthedRedirectUrl: string;
-};
+export type DomTags = z.infer<typeof domTagsSchema>;
 
-const authorisationSchema: z.ZodType<Authorisation> = z.object({
+const authorisationSchema = z.object({
   adGroup: z.string(),
   unAuthedRedirectUrl: z.string(),
 });
 
-export type Context = {
-  paths: string[];
-  contexts: string;
-  msalRedirectUrl: string;
-  domTags?: DomTags[];
-  applyOutSystemsShim?: boolean;
-  forceCmsAuthRefresh?: boolean;
-  authorisation?: Authorisation;
-  headerCustomCssClasses?: string;
-  alwaysShowMenu?: boolean;
-};
+export type Authorisation = z.infer<typeof authorisationSchema>;
 
-const contextSchema: z.ZodType<Context> = z.object({
+const contextSchema = z.object({
   paths: z.array(z.string()),
   contexts: z.string(),
   msalRedirectUrl: z.string(),
@@ -61,8 +35,12 @@ const contextSchema: z.ZodType<Context> = z.object({
   forceCmsAuthRefresh: z.boolean().optional(),
   authorisation: authorisationSchema.optional(),
   headerCustomCssClasses: z.string().optional(),
-  alwaysShowMenu: z.boolean().optional(),
+  showMenuOverride: z
+    .union([z.literal("always-show-menu"), z.literal("never-show-menu")])
+    .optional(),
 });
+
+export type Context = z.infer<typeof contextSchema>;
 
 export const configSchema = z.object({
   ENVIRONMENT: z.string(),

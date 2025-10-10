@@ -52,7 +52,8 @@
       ],
       "contexts": "case details",
       "headerCustomCssClasses": "header",
-      "msalRedirectUrl": "https://cps-dev.outsystemsenterprise.com/Casework_Patterns/auth-handover-dev.html"
+      "msalRedirectUrl": "https://cps-dev.outsystemsenterprise.com/Casework_Patterns/auth-handover-dev.html",
+      "showMenuOverride": "never-show-menu"
     },
     {
       "paths": [
@@ -61,7 +62,7 @@
       "contexts": "cases",
       "headerCustomCssClasses": "header",
       "msalRedirectUrl": "https://cps-dev.outsystemsenterprise.com/Casework_Patterns/auth-handover-dev.html",
-      "alwaysShowMenu": true
+      "showMenuOverride": "always-show-menu"
     },
     {
       "paths": [
@@ -70,7 +71,7 @@
       "contexts": "tasks",
       "headerCustomCssClasses": "header",
       "msalRedirectUrl": "https://cps-dev.outsystemsenterprise.com/Casework_Patterns/auth-handover-dev.html",
-      "alwaysShowMenu": true
+      "showMenuOverride": "always-show-menu"
     },
     {
       "paths": ["https://housekeeping"],
