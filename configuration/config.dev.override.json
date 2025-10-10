@@ -52,8 +52,7 @@
       ],
       "contexts": "case details",
       "headerCustomCssClasses": "header",
-      "msalRedirectUrl": "https://cps-dev.outsystemsenterprise.com/Casework_Patterns/auth-handover-dev.html",
-      "alwaysShowMenu": true
+      "msalRedirectUrl": "https://cps-dev.outsystemsenterprise.com/Casework_Patterns/auth-handover-dev.html"
     },
     {
       "paths": [
