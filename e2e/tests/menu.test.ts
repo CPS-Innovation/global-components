@@ -15,7 +15,7 @@ const happySettings: ArrangeProps = {
         level: 0,
       },
     ],
-    FEATURE_FLAG_ENABLE_MENU_GROUP: "e2e-test-group",
+    FEATURE_FLAG_MENU_USERS: "e2e-test-group",
   },
   auth: { isAuthed: true, adGroups: ["e2e-test-group"] },
 };

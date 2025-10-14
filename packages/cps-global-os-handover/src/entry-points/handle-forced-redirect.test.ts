@@ -26,7 +26,7 @@ describe("handleForcedRedirect", () => {
         handoverUrl: "https://handover.example.com/auth",
       });
 
-      expect(result).toBe(false);
+      expect(result).toEqual({ isRedirecting: false });
       expect(mockWindow.history.replaceState).toHaveBeenCalledWith(
         {},
         "",
@@ -47,7 +47,7 @@ describe("handleForcedRedirect", () => {
         handoverUrl: "https://handover.example.com/auth",
       });
 
-      expect(result).toBe(false);
+      expect(result).toEqual({ isRedirecting: false });
 
       const replacedUrl = mockWindow.history.replaceState.mock.calls[0][2];
       expect(replacedUrl.searchParams.get("param1")).toBe("value1");
@@ -65,7 +65,7 @@ describe("handleForcedRedirect", () => {
         handoverUrl: "https://handover.example.com/auth",
       });
 
-      expect(result).toBe(true);
+      expect(result).toEqual({ isRedirecting: true });
       expect(mockWindow.history.replaceState).not.toHaveBeenCalled();
       expect(mockWindow.location.replace).toHaveBeenCalledTimes(1);
 
@@ -87,7 +87,7 @@ describe("handleForcedRedirect", () => {
         handoverUrl: "https://handover.example.com/auth",
       });
 
-      expect(result).toBe(true);
+      expect(result).toEqual({ isRedirecting: true });
 
       const redirectUrl = new URL(mockWindow.location.replace.mock.calls[0][0]);
       const returnUrl = new URL(redirectUrl.searchParams.get(paramKeys.R)!);
@@ -105,7 +105,7 @@ describe("handleForcedRedirect", () => {
         handoverUrl: "https://handover.example.com/auth",
       });
 
-      expect(result).toBe(true);
+      expect(result).toEqual({ isRedirecting: true });
 
       const redirectUrl = new URL(mockWindow.location.replace.mock.calls[0][0]);
       expect(redirectUrl.searchParams.get(paramKeys.STAGE)).toBe(stages.OS_OUTBOUND);
@@ -123,7 +123,7 @@ describe("handleForcedRedirect", () => {
         handoverUrl: "https://handover.example.com/auth",
       });
 
-      expect(result).toBe(true);
+      expect(result).toEqual({ isRedirecting: true });
       expect(mockWindow.location.replace).toHaveBeenCalled();
 
       const redirectUrl = new URL(mockWindow.location.replace.mock.calls[0][0]);
@@ -139,7 +139,7 @@ describe("handleForcedRedirect", () => {
         handoverUrl: "https://handover.example.com/auth?existing=param",
       });
 
-      expect(result).toBe(true);
+      expect(result).toEqual({ isRedirecting: true });
 
       const redirectUrl = new URL(mockWindow.location.replace.mock.calls[0][0]);
       expect(redirectUrl.searchParams.get("existing")).toBe("param");
@@ -157,7 +157,7 @@ describe("handleForcedRedirect", () => {
         handoverUrl: "https://handover.example.com/auth",
       });
 
-      expect(result).toBe(true);
+      expect(result).toEqual({ isRedirecting: true });
 
       const redirectUrl = new URL(mockWindow.location.replace.mock.calls[0][0]);
       const returnUrl = new URL(redirectUrl.searchParams.get(paramKeys.R)!);
@@ -172,7 +172,7 @@ describe("handleForcedRedirect", () => {
         handoverUrl: "https://handover.example.com/auth",
       });
 
-      expect(result).toBe(true);
+      expect(result).toEqual({ isRedirecting: true });
 
       const redirectUrl = new URL(mockWindow.location.replace.mock.calls[0][0]);
       const returnUrl = new URL(redirectUrl.searchParams.get(paramKeys.R)!);

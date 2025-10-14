@@ -52,21 +52,21 @@ describe("FEATURE_FLAGS", () => {
   });
 
   describe("shouldShowMenu", () => {
-    it("should return true when context is not found but standard conditions are met", () => {
+    it("should return false when context is not found", () => {
       const state: Pick<KnownState, "config" | "auth" | "context"> = {
-        config: { SHOW_MENU: true, FEATURE_FLAG_ENABLE_MENU_GROUP: "admin-group" } as any,
-        auth: { isAuthed: true, groups: ["admin-group"] } as any,
+        config: { SHOW_MENU: true, FEATURE_FLAG_MENU_USERS: { adGroupIds: ["admin-group"] } } as any,
+        auth: { isAuthed: true, groups: ["admin-group"], username: "testuser" } as any,
         context: { found: false },
       };
 
       const result = FEATURE_FLAGS.shouldShowMenu(state);
-      expect(result).toBe(true);
+      expect(result).toBe(false);
     });
 
     it("should return false when showMenuOverride is 'never-show-menu'", () => {
       const state: Pick<KnownState, "config" | "auth" | "context"> = {
-        config: { SHOW_MENU: true, FEATURE_FLAG_ENABLE_MENU_GROUP: "admin-group" } as any,
-        auth: { isAuthed: true, groups: ["admin-group"] } as any,
+        config: { SHOW_MENU: true, FEATURE_FLAG_MENU_USERS: { adGroupIds: ["admin-group"] } } as any,
+        auth: { isAuthed: true, groups: ["admin-group"], username: "testuser" } as any,
         context: { found: true, showMenuOverride: "never-show-menu" } as any,
       };
 
@@ -76,8 +76,8 @@ describe("FEATURE_FLAGS", () => {
 
     it("should return true when showMenuOverride is 'always-show-menu'", () => {
       const state: Pick<KnownState, "config" | "auth" | "context"> = {
-        config: { SHOW_MENU: false, FEATURE_FLAG_ENABLE_MENU_GROUP: "" } as any,
-        auth: { isAuthed: false, groups: [] } as any,
+        config: { SHOW_MENU: false, FEATURE_FLAG_MENU_USERS: { adGroupIds: [] } } as any,
+        auth: { isAuthed: false, groups: [], username: "testuser" } as any,
         context: { found: true, showMenuOverride: "always-show-menu" } as any,
       };
 
@@ -87,8 +87,8 @@ describe("FEATURE_FLAGS", () => {
 
     it("should return true when all standard conditions are met", () => {
       const state: Pick<KnownState, "config" | "auth" | "context"> = {
-        config: { SHOW_MENU: true, FEATURE_FLAG_ENABLE_MENU_GROUP: "admin-group" } as any,
-        auth: { isAuthed: true, groups: ["admin-group", "other-group"] } as any,
+        config: { SHOW_MENU: true, FEATURE_FLAG_MENU_USERS: { adGroupIds: ["admin-group"] } } as any,
+        auth: { isAuthed: true, groups: ["admin-group", "other-group"], username: "testuser" } as any,
         context: { found: true } as any,
       };
 
@@ -98,8 +98,8 @@ describe("FEATURE_FLAGS", () => {
 
     it("should return false when SHOW_MENU is false", () => {
       const state: Pick<KnownState, "config" | "auth" | "context"> = {
-        config: { SHOW_MENU: false, FEATURE_FLAG_ENABLE_MENU_GROUP: "admin-group" } as any,
-        auth: { isAuthed: true, groups: ["admin-group"] } as any,
+        config: { SHOW_MENU: false, FEATURE_FLAG_MENU_USERS: { adGroupIds: ["admin-group"] } } as any,
+        auth: { isAuthed: true, groups: ["admin-group"], username: "testuser" } as any,
         context: { found: true } as any,
       };
 
@@ -107,10 +107,10 @@ describe("FEATURE_FLAGS", () => {
       expect(result).toBe(false);
     });
 
-    it("should return false when FEATURE_FLAG_ENABLE_MENU_GROUP is not set", () => {
+    it("should return false when FEATURE_FLAG_MENU_USERS is not set", () => {
       const state: Pick<KnownState, "config" | "auth" | "context"> = {
-        config: { SHOW_MENU: true, FEATURE_FLAG_ENABLE_MENU_GROUP: "" } as any,
-        auth: { isAuthed: true, groups: ["admin-group"] } as any,
+        config: { SHOW_MENU: true } as any,
+        auth: { isAuthed: true, groups: ["admin-group"], username: "testuser" } as any,
         context: { found: true } as any,
       };
 
@@ -120,8 +120,8 @@ describe("FEATURE_FLAGS", () => {
 
     it("should return false when user is not authenticated", () => {
       const state: Pick<KnownState, "config" | "auth" | "context"> = {
-        config: { SHOW_MENU: true, FEATURE_FLAG_ENABLE_MENU_GROUP: "admin-group" } as any,
-        auth: { isAuthed: false, groups: ["admin-group"] } as any,
+        config: { SHOW_MENU: true, FEATURE_FLAG_MENU_USERS: { adGroupIds: ["admin-group"] } } as any,
+        auth: { isAuthed: false, groups: ["admin-group"], username: "testuser" } as any,
         context: { found: true } as any,
       };
 
@@ -131,8 +131,8 @@ describe("FEATURE_FLAGS", () => {
 
     it("should return false when user is not in the required group", () => {
       const state: Pick<KnownState, "config" | "auth" | "context"> = {
-        config: { SHOW_MENU: true, FEATURE_FLAG_ENABLE_MENU_GROUP: "admin-group" } as any,
-        auth: { isAuthed: true, groups: ["other-group", "another-group"] } as any,
+        config: { SHOW_MENU: true, FEATURE_FLAG_MENU_USERS: { adGroupIds: ["admin-group"] } } as any,
+        auth: { isAuthed: true, groups: ["other-group", "another-group"], username: "testuser" } as any,
         context: { found: true } as any,
       };
 
@@ -142,8 +142,8 @@ describe("FEATURE_FLAGS", () => {
 
     it("should return false when user has no groups", () => {
       const state: Pick<KnownState, "config" | "auth" | "context"> = {
-        config: { SHOW_MENU: true, FEATURE_FLAG_ENABLE_MENU_GROUP: "admin-group" } as any,
-        auth: { isAuthed: true, groups: [] } as any,
+        config: { SHOW_MENU: true, FEATURE_FLAG_MENU_USERS: { adGroupIds: ["admin-group"] } } as any,
+        auth: { isAuthed: true, groups: [], username: "testuser" } as any,
         context: { found: true } as any,
       };
 
@@ -153,8 +153,8 @@ describe("FEATURE_FLAGS", () => {
 
     it("should return true when user is in one of multiple groups including the required group", () => {
       const state: Pick<KnownState, "config" | "auth" | "context"> = {
-        config: { SHOW_MENU: true, FEATURE_FLAG_ENABLE_MENU_GROUP: "admin-group" } as any,
-        auth: { isAuthed: true, groups: ["user-group", "admin-group", "editor-group"] } as any,
+        config: { SHOW_MENU: true, FEATURE_FLAG_MENU_USERS: { adGroupIds: ["admin-group"] } } as any,
+        auth: { isAuthed: true, groups: ["user-group", "admin-group", "editor-group"], username: "testuser" } as any,
         context: { found: true } as any,
       };
 
@@ -164,8 +164,8 @@ describe("FEATURE_FLAGS", () => {
 
     it("should prioritize 'never-show-menu' override over 'always-show-menu' when testing order", () => {
       const state: Pick<KnownState, "config" | "auth" | "context"> = {
-        config: { SHOW_MENU: true, FEATURE_FLAG_ENABLE_MENU_GROUP: "admin-group" } as any,
-        auth: { isAuthed: true, groups: ["admin-group"] } as any,
+        config: { SHOW_MENU: true, FEATURE_FLAG_MENU_USERS: { adGroupIds: ["admin-group"] } } as any,
+        auth: { isAuthed: true, groups: ["admin-group"], username: "testuser" } as any,
         context: { found: true, showMenuOverride: "never-show-menu" } as any,
       };
 
@@ -175,13 +175,46 @@ describe("FEATURE_FLAGS", () => {
 
     it("should return true with 'always-show-menu' override even when standard conditions are not met", () => {
       const state: Pick<KnownState, "config" | "auth" | "context"> = {
-        config: { SHOW_MENU: false, FEATURE_FLAG_ENABLE_MENU_GROUP: "" } as any,
-        auth: { isAuthed: false, groups: [] } as any,
+        config: { SHOW_MENU: false, FEATURE_FLAG_MENU_USERS: { adGroupIds: [] } } as any,
+        auth: { isAuthed: false, groups: [], username: "testuser" } as any,
         context: { found: true, showMenuOverride: "always-show-menu" } as any,
       };
 
       const result = FEATURE_FLAGS.shouldShowMenu(state);
       expect(result).toBe(true);
+    });
+
+    it("should return true when user is in adHocUsers list", () => {
+      const state: Pick<KnownState, "config" | "auth" | "context"> = {
+        config: { SHOW_MENU: true, FEATURE_FLAG_MENU_USERS: { adHocUsers: ["testuser"] } } as any,
+        auth: { isAuthed: true, groups: [], username: "testuser" } as any,
+        context: { found: true } as any,
+      };
+
+      const result = FEATURE_FLAGS.shouldShowMenu(state);
+      expect(result).toBe(true);
+    });
+
+    it("should return true when user is either in adHocUsers or in adGroupIds", () => {
+      const state: Pick<KnownState, "config" | "auth" | "context"> = {
+        config: { SHOW_MENU: true, FEATURE_FLAG_MENU_USERS: { adGroupIds: ["admin-group"], adHocUsers: ["specialuser"] } } as any,
+        auth: { isAuthed: true, groups: [], username: "specialuser" } as any,
+        context: { found: true } as any,
+      };
+
+      const result = FEATURE_FLAGS.shouldShowMenu(state);
+      expect(result).toBe(true);
+    });
+
+    it("should return false when FEATURE_FLAG_MENU_USERS has empty arrays", () => {
+      const state: Pick<KnownState, "config" | "auth" | "context"> = {
+        config: { SHOW_MENU: true, FEATURE_FLAG_MENU_USERS: { adGroupIds: [], adHocUsers: [] } } as any,
+        auth: { isAuthed: true, groups: ["admin-group"], username: "testuser" } as any,
+        context: { found: true } as any,
+      };
+
+      const result = FEATURE_FLAGS.shouldShowMenu(state);
+      expect(result).toBe(false);
     });
   });
 

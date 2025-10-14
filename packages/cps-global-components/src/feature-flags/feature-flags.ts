@@ -1,24 +1,30 @@
 import { withLogging } from "../logging/with-logging";
 import { KnownState } from "../store/store";
+import { isUserInFeatureGroup } from "./is-user-in-feature-group";
 
 const shouldEnableAccessibilityMode = ({ flags }: Pick<KnownState, "flags">) => flags.isOverrideMode;
 
 const shouldShowGovUkRebrand = ({ config }: Pick<KnownState, "config">) => !!config.SHOW_GOVUK_REBRAND;
 
 const shouldShowMenu = ({ config, auth, context }: Pick<KnownState, "config" | "auth" | "context">) => {
-  if (context.found && context.showMenuOverride === "never-show-menu") {
+  if (!context.found) {
+    // We have no context so do not have the information to make this determination
+    return false;
+  }
+
+  if (context.showMenuOverride === "never-show-menu") {
     // Work management always need the menu to never appear on some pages
     return false;
   }
 
-  if (context.found && context.showMenuOverride === "always-show-menu") {
+  if (context.showMenuOverride === "always-show-menu") {
     // Work management always need the menu on some pages
     return true;
   }
 
   return (
     // standard feature flag
-    !!config.SHOW_MENU && !!config.FEATURE_FLAG_ENABLE_MENU_GROUP && auth.isAuthed && auth.groups.includes(config.FEATURE_FLAG_ENABLE_MENU_GROUP)
+    !!config.SHOW_MENU && isUserInFeatureGroup({ auth, config }, "FEATURE_FLAG_MENU_USERS")
   );
 };
 

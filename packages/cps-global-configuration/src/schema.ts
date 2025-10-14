@@ -26,6 +26,13 @@ const authorisationSchema = z.object({
 
 export type Authorisation = z.infer<typeof authorisationSchema>;
 
+const featureFlagUsersSchema = z.object({
+  adGroupIds: z.array(z.string()).optional(),
+  adHocUsers: z.array(z.string()).optional(),
+});
+
+export type FeatureFlagUsers = z.infer<typeof featureFlagUsersSchema>;
+
 const contextSchema = z.object({
   paths: z.array(z.string()),
   contexts: z.string(),
@@ -56,7 +63,7 @@ export const configSchema = z.object({
   OS_HANDOVER_URL: z.string().optional(),
   COOKIE_HANDOVER_URL: z.string().optional(),
   TOKEN_HANDOVER_URL: z.string().optional(),
-  FEATURE_FLAG_ENABLE_MENU_GROUP: z.string().optional(),
+  FEATURE_FLAG_MENU_USERS: featureFlagUsersSchema.optional(),
   FEATURE_FLAG_ENABLE_INTRUSIVE_AD_LOGIN: z.boolean().optional(),
 });
 
