@@ -26,6 +26,7 @@ describe("handleContextAuthorisation", () => {
         isAuthed: true,
         username: "testuser",
         name: "Test User",
+        objectId: "1",
         groups: ["group1"],
       };
 
@@ -53,6 +54,7 @@ describe("handleContextAuthorisation", () => {
         isAuthed: true,
         username: "testuser",
         name: "Test User",
+        objectId: "1",
         groups: ["group1"],
       };
 
@@ -110,6 +112,7 @@ describe("handleContextAuthorisation", () => {
           isAuthed: true,
           username: "testuser",
           name: "Test User",
+          objectId: "1",
           groups: ["other-group", "required-group", "another-group"],
         };
 
@@ -130,6 +133,7 @@ describe("handleContextAuthorisation", () => {
           isAuthed: true,
           username: "testuser",
           name: "Test User",
+          objectId: "1",
           groups: ["other-group", "another-group"],
         };
 
@@ -148,6 +152,7 @@ describe("handleContextAuthorisation", () => {
           isAuthed: true,
           username: "testuser",
           name: "Test User",
+          objectId: "1",
           groups: [],
         };
 
@@ -220,6 +225,7 @@ describe("handleContextAuthorisation", () => {
         isAuthed: true,
         username: "testuser",
         name: "Test User",
+        objectId: "1",
         groups: ["group-with-special-chars@domain.com"],
       };
 
@@ -249,6 +255,7 @@ describe("handleContextAuthorisation", () => {
         isAuthed: true,
         username: "testuser",
         name: "Test User",
+        objectId: "1",
         groups: ["required-group"],
       };
 
@@ -278,6 +285,7 @@ describe("handleContextAuthorisation", () => {
         isAuthed: true,
         username: "testuser",
         name: undefined,
+        objectId: "1",
         groups: ["required-group"],
       };
 

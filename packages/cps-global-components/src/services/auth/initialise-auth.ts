@@ -19,6 +19,7 @@ export type Auth = {
   username: string;
   name: string | undefined;
   groups: string[];
+  objectId: string;
 };
 
 export type FailedAuth = {
@@ -98,12 +99,13 @@ const initialise = async ({
     }
     instance.setActiveAccount(accounts[0]);
 
-    const { username, name, idTokenClaims } = accounts[0];
+    const { username, name, idTokenClaims, localAccountId } = accounts[0];
 
     return {
       isAuthed: true,
       username: username.toLowerCase(),
       name,
+      objectId: localAccountId,
       groups: (idTokenClaims && (idTokenClaims["groups"] as string[])) || [],
     };
   } catch (error) {

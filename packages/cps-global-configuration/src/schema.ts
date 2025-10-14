@@ -28,7 +28,10 @@ export type Authorisation = z.infer<typeof authorisationSchema>;
 
 const featureFlagUsersSchema = z.object({
   adGroupIds: z.array(z.string()).optional(),
-  adHocUsers: z.array(z.string()).optional(),
+  // Lets use AD accounts UUID ObjectID rather than email address for ad-hoc user enrolment
+  //  into the feature flag.  At the time of writing we check config in to source
+  //  control, object ids do not convey personal data.
+  adHocUserObjectIds: z.array(z.string()).optional(),
 });
 
 export type FeatureFlagUsers = z.infer<typeof featureFlagUsersSchema>;

@@ -6,7 +6,7 @@ describe("isUserInFeatureGroup", () => {
     it("should return false when featureFlagUsers is undefined", () => {
       const state: Pick<KnownState, "config" | "auth"> = {
         config: {} as any,
-        auth: { isAuthed: true, groups: ["admin-group"], username: "testuser" } as any,
+        auth: { isAuthed: true, groups: ["admin-group"], username: "testuser", objectId: "test-object-id" } as any,
       };
 
       const result = isUserInFeatureGroup(state, "FEATURE_FLAG_MENU_USERS");
@@ -16,7 +16,7 @@ describe("isUserInFeatureGroup", () => {
     it("should return false when featureFlagUsers is null", () => {
       const state: Pick<KnownState, "config" | "auth"> = {
         config: { FEATURE_FLAG_MENU_USERS: null } as any,
-        auth: { isAuthed: true, groups: ["admin-group"], username: "testuser" } as any,
+        auth: { isAuthed: true, groups: ["admin-group"], username: "testuser", objectId: "test-object-id" } as any,
       };
 
       const result = isUserInFeatureGroup(state, "FEATURE_FLAG_MENU_USERS");
@@ -32,7 +32,7 @@ describe("isUserInFeatureGroup", () => {
             adGroupIds: ["admin-group"],
           },
         } as any,
-        auth: { isAuthed: false, groups: ["admin-group"], username: "testuser" } as any,
+        auth: { isAuthed: false, groups: ["admin-group"], username: "testuser", objectId: "test-object-id" } as any,
       };
 
       const result = isUserInFeatureGroup(state, "FEATURE_FLAG_MENU_USERS");
@@ -43,10 +43,10 @@ describe("isUserInFeatureGroup", () => {
       const state: Pick<KnownState, "config" | "auth"> = {
         config: {
           FEATURE_FLAG_MENU_USERS: {
-            adHocUsers: ["testuser"],
+            adHocUserObjectIds: ["test-object-id"],
           },
         } as any,
-        auth: { isAuthed: false, groups: [], username: "testuser" } as any,
+        auth: { isAuthed: false, groups: [], username: "testuser", objectId: "test-object-id" } as any,
       };
 
       const result = isUserInFeatureGroup(state, "FEATURE_FLAG_MENU_USERS");
@@ -62,7 +62,7 @@ describe("isUserInFeatureGroup", () => {
             adGroupIds: ["admin-group", "editor-group"],
           },
         } as any,
-        auth: { isAuthed: true, groups: ["admin-group"], username: "testuser" } as any,
+        auth: { isAuthed: true, groups: ["admin-group"], username: "testuser", objectId: "test-object-id" } as any,
       };
 
       const result = isUserInFeatureGroup(state, "FEATURE_FLAG_MENU_USERS");
@@ -76,7 +76,7 @@ describe("isUserInFeatureGroup", () => {
             adGroupIds: ["admin-group", "editor-group", "viewer-group"],
           },
         } as any,
-        auth: { isAuthed: true, groups: ["user-group", "editor-group", "other-group"], username: "testuser" } as any,
+        auth: { isAuthed: true, groups: ["user-group", "editor-group", "other-group"], username: "testuser", objectId: "test-object-id" } as any,
       };
 
       const result = isUserInFeatureGroup(state, "FEATURE_FLAG_MENU_USERS");
@@ -90,7 +90,7 @@ describe("isUserInFeatureGroup", () => {
             adGroupIds: ["admin-group", "editor-group"],
           },
         } as any,
-        auth: { isAuthed: true, groups: ["user-group", "viewer-group"], username: "testuser" } as any,
+        auth: { isAuthed: true, groups: ["user-group", "viewer-group"], username: "testuser", objectId: "test-object-id" } as any,
       };
 
       const result = isUserInFeatureGroup(state, "FEATURE_FLAG_MENU_USERS");
@@ -104,7 +104,7 @@ describe("isUserInFeatureGroup", () => {
             adGroupIds: ["admin-group"],
           },
         } as any,
-        auth: { isAuthed: true, groups: [], username: "testuser" } as any,
+        auth: { isAuthed: true, groups: [], username: "testuser", objectId: "test-object-id" } as any,
       };
 
       const result = isUserInFeatureGroup(state, "FEATURE_FLAG_MENU_USERS");
@@ -118,7 +118,7 @@ describe("isUserInFeatureGroup", () => {
             adGroupIds: [],
           },
         } as any,
-        auth: { isAuthed: true, groups: ["admin-group"], username: "testuser" } as any,
+        auth: { isAuthed: true, groups: ["admin-group"], username: "testuser", objectId: "test-object-id" } as any,
       };
 
       const result = isUserInFeatureGroup(state, "FEATURE_FLAG_MENU_USERS");
@@ -129,10 +129,10 @@ describe("isUserInFeatureGroup", () => {
       const state: Pick<KnownState, "config" | "auth"> = {
         config: {
           FEATURE_FLAG_MENU_USERS: {
-            adHocUsers: [],
+            adHocUserObjectIds: [],
           },
         } as any,
-        auth: { isAuthed: true, groups: ["admin-group"], username: "testuser" } as any,
+        auth: { isAuthed: true, groups: ["admin-group"], username: "testuser", objectId: "test-object-id" } as any,
       };
 
       const result = isUserInFeatureGroup(state, "FEATURE_FLAG_MENU_USERS");
@@ -145,10 +145,10 @@ describe("isUserInFeatureGroup", () => {
       const state: Pick<KnownState, "config" | "auth"> = {
         config: {
           FEATURE_FLAG_MENU_USERS: {
-            adHocUsers: ["testuser", "anotheruser"],
+            adHocUserObjectIds: ["test-object-id", "another-object-id"],
           },
         } as any,
-        auth: { isAuthed: true, groups: [], username: "testuser" } as any,
+        auth: { isAuthed: true, groups: [], username: "testuser", objectId: "test-object-id" } as any,
       };
 
       const result = isUserInFeatureGroup(state, "FEATURE_FLAG_MENU_USERS");
@@ -159,10 +159,10 @@ describe("isUserInFeatureGroup", () => {
       const state: Pick<KnownState, "config" | "auth"> = {
         config: {
           FEATURE_FLAG_MENU_USERS: {
-            adHocUsers: ["differentuser", "anotheruser"],
+            adHocUserObjectIds: ["different-object-id", "another-object-id"],
           },
         } as any,
-        auth: { isAuthed: true, groups: [], username: "testuser" } as any,
+        auth: { isAuthed: true, groups: [], username: "testuser", objectId: "test-object-id" } as any,
       };
 
       const result = isUserInFeatureGroup(state, "FEATURE_FLAG_MENU_USERS");
@@ -173,10 +173,10 @@ describe("isUserInFeatureGroup", () => {
       const state: Pick<KnownState, "config" | "auth"> = {
         config: {
           FEATURE_FLAG_MENU_USERS: {
-            adHocUsers: [],
+            adHocUserObjectIds: [],
           },
         } as any,
-        auth: { isAuthed: true, groups: [], username: "testuser" } as any,
+        auth: { isAuthed: true, groups: [], username: "testuser", objectId: "test-object-id" } as any,
       };
 
       const result = isUserInFeatureGroup(state, "FEATURE_FLAG_MENU_USERS");
@@ -190,7 +190,7 @@ describe("isUserInFeatureGroup", () => {
             adGroupIds: [],
           },
         } as any,
-        auth: { isAuthed: true, groups: [], username: "testuser" } as any,
+        auth: { isAuthed: true, groups: [], username: "testuser", objectId: "test-object-id" } as any,
       };
 
       const result = isUserInFeatureGroup(state, "FEATURE_FLAG_MENU_USERS");
@@ -204,10 +204,10 @@ describe("isUserInFeatureGroup", () => {
         config: {
           FEATURE_FLAG_MENU_USERS: {
             adGroupIds: ["admin-group"],
-            adHocUsers: ["differentuser"],
+            adHocUserObjectIds: ["different-object-id"],
           },
         } as any,
-        auth: { isAuthed: true, groups: ["admin-group"], username: "testuser" } as any,
+        auth: { isAuthed: true, groups: ["admin-group"], username: "testuser", objectId: "test-object-id" } as any,
       };
 
       const result = isUserInFeatureGroup(state, "FEATURE_FLAG_MENU_USERS");
@@ -219,10 +219,10 @@ describe("isUserInFeatureGroup", () => {
         config: {
           FEATURE_FLAG_MENU_USERS: {
             adGroupIds: ["admin-group"],
-            adHocUsers: ["testuser"],
+            adHocUserObjectIds: ["test-object-id"],
           },
         } as any,
-        auth: { isAuthed: true, groups: ["user-group"], username: "testuser" } as any,
+        auth: { isAuthed: true, groups: ["user-group"], username: "testuser", objectId: "test-object-id" } as any,
       };
 
       const result = isUserInFeatureGroup(state, "FEATURE_FLAG_MENU_USERS");
@@ -234,10 +234,10 @@ describe("isUserInFeatureGroup", () => {
         config: {
           FEATURE_FLAG_MENU_USERS: {
             adGroupIds: ["admin-group"],
-            adHocUsers: ["testuser"],
+            adHocUserObjectIds: ["test-object-id"],
           },
         } as any,
-        auth: { isAuthed: true, groups: ["admin-group"], username: "testuser" } as any,
+        auth: { isAuthed: true, groups: ["admin-group"], username: "testuser", objectId: "test-object-id" } as any,
       };
 
       const result = isUserInFeatureGroup(state, "FEATURE_FLAG_MENU_USERS");
@@ -249,10 +249,10 @@ describe("isUserInFeatureGroup", () => {
         config: {
           FEATURE_FLAG_MENU_USERS: {
             adGroupIds: ["admin-group"],
-            adHocUsers: ["differentuser"],
+            adHocUserObjectIds: ["different-object-id"],
           },
         } as any,
-        auth: { isAuthed: true, groups: ["user-group"], username: "testuser" } as any,
+        auth: { isAuthed: true, groups: ["user-group"], username: "testuser", objectId: "test-object-id" } as any,
       };
 
       const result = isUserInFeatureGroup(state, "FEATURE_FLAG_MENU_USERS");
@@ -264,10 +264,10 @@ describe("isUserInFeatureGroup", () => {
         config: {
           FEATURE_FLAG_MENU_USERS: {
             adGroupIds: [],
-            adHocUsers: [],
+            adHocUserObjectIds: [],
           },
         } as any,
-        auth: { isAuthed: true, groups: ["admin-group"], username: "testuser" } as any,
+        auth: { isAuthed: true, groups: ["admin-group"], username: "testuser", objectId: "test-object-id" } as any,
       };
 
       const result = isUserInFeatureGroup(state, "FEATURE_FLAG_MENU_USERS");
@@ -276,14 +276,14 @@ describe("isUserInFeatureGroup", () => {
   });
 
   describe("edge cases", () => {
-    it("should handle case-sensitive username matching", () => {
+    it("should handle case-sensitive objectId matching", () => {
       const state: Pick<KnownState, "config" | "auth"> = {
         config: {
           FEATURE_FLAG_MENU_USERS: {
-            adHocUsers: ["TestUser"],
+            adHocUserObjectIds: ["TestObjectId"],
           },
         } as any,
-        auth: { isAuthed: true, groups: [], username: "testuser" } as any,
+        auth: { isAuthed: true, groups: [], username: "testuser", objectId: "testobjectid" } as any,
       };
 
       const result = isUserInFeatureGroup(state, "FEATURE_FLAG_MENU_USERS");
@@ -297,21 +297,21 @@ describe("isUserInFeatureGroup", () => {
             adGroupIds: ["Admin-Group"],
           },
         } as any,
-        auth: { isAuthed: true, groups: ["admin-group"], username: "testuser" } as any,
+        auth: { isAuthed: true, groups: ["admin-group"], username: "testuser", objectId: "test-object-id" } as any,
       };
 
       const result = isUserInFeatureGroup(state, "FEATURE_FLAG_MENU_USERS");
       expect(result).toBe(false);
     });
 
-    it("should handle username with special characters", () => {
+    it("should handle objectId with special characters", () => {
       const state: Pick<KnownState, "config" | "auth"> = {
         config: {
           FEATURE_FLAG_MENU_USERS: {
-            adHocUsers: ["test.user@example.com"],
+            adHocUserObjectIds: ["object-id-123-abc"],
           },
         } as any,
-        auth: { isAuthed: true, groups: [], username: "test.user@example.com" } as any,
+        auth: { isAuthed: true, groups: [], username: "test.user@example.com", objectId: "object-id-123-abc" } as any,
       };
 
       const result = isUserInFeatureGroup(state, "FEATURE_FLAG_MENU_USERS");
@@ -325,7 +325,7 @@ describe("isUserInFeatureGroup", () => {
             adGroupIds: ["admin-group-2024"],
           },
         } as any,
-        auth: { isAuthed: true, groups: ["admin-group-2024", "user-group"], username: "testuser" } as any,
+        auth: { isAuthed: true, groups: ["admin-group-2024", "user-group"], username: "testuser", objectId: "test-object-id" } as any,
       };
 
       const result = isUserInFeatureGroup(state, "FEATURE_FLAG_MENU_USERS");

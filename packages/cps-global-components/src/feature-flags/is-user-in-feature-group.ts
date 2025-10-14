@@ -27,7 +27,7 @@ export const isUserInFeatureGroup = ({ auth, config }: Pick<KnownState, "config"
     (
       (featureFlagUsers.adGroupIds && featureFlagUsers.adGroupIds.some(featureGroup => auth.groups.includes(featureGroup))) ||
       // the user is listed as an ad-hoc user
-      (featureFlagUsers.adHocUsers && featureFlagUsers.adHocUsers.includes(auth.username))
+      (featureFlagUsers.adHocUserObjectIds && featureFlagUsers.adHocUserObjectIds.includes(auth.objectId))
     )
   );
 };
