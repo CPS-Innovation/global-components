@@ -36,7 +36,7 @@
     },
     {
       "paths": [
-        "https://cps-tst.outsystemsenterprise.com/CaseReview/LandingPage\\?CMSCaseId=(?<caseId>\\d+)&URN=(?<urn>[^&]+)"
+        "https://cps-tst.outsystemsenterprise.com/CaseReview/LandingPage.*?[&?]CMSCaseId=(?<caseId>\\d+)&URN=(?<urn>[^&]+)"
       ],
       "contexts": "case review",
       "headerCustomCssClasses": "header",
@@ -50,12 +50,12 @@
     },
     {
       "paths": [
-        "https://cps-tst.outsystemsenterprise.com/WorkManagementApp/CaseOverview\\?CaseId=(?<caseId>\\d+)&URN=(?<urn>[^&]+)"
+        "https://cps-tst.outsystemsenterprise.com/WorkManagementApp/CaseOverview.*?[&?]CaseId=(?<caseId>\\d+)&URN=(?<urn>[^&]+)"
       ],
       "contexts": "case details",
       "headerCustomCssClasses": "header",
       "msalRedirectUrl": "https://cps-tst.outsystemsenterprise.com/Casework_Patterns/auth-handover-test.html",
-      "alwaysShowMenu": true
+      "showMenuOverride": "never-show-menu"
     },
     {
       "paths": [
@@ -63,8 +63,7 @@
       ],
       "contexts": "cases",
       "headerCustomCssClasses": "header",
-      "msalRedirectUrl": "https://cps-tst.outsystemsenterprise.com/Casework_Patterns/auth-handover-test.html",
-      "alwaysShowMenu": true
+      "msalRedirectUrl": "https://cps-tst.outsystemsenterprise.com/Casework_Patterns/auth-handover-test.html"
     },
     {
       "paths": [
@@ -72,8 +71,7 @@
       ],
       "contexts": "tasks",
       "headerCustomCssClasses": "header",
-      "msalRedirectUrl": "https://cps-tst.outsystemsenterprise.com/Casework_Patterns/auth-handover-test.html",
-      "alwaysShowMenu": true
+      "msalRedirectUrl": "https://cps-tst.outsystemsenterprise.com/Casework_Patterns/auth-handover-test.html"
     },
     {
       "paths": ["https://housekeeping"],
