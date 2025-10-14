@@ -375,4 +375,298 @@ describe("findContext", () => {
       msalRedirectUrl: "foo",
     });
   });
+
+  describe("case-insensitive matching", () => {
+    it("should match URLs with different case in path", () => {
+      const contexts: Context[] = [
+        {
+          paths: ["https://example.com/MyPage"],
+          contexts: "page-context",
+          msalRedirectUrl: "foo",
+        },
+      ];
+      const mockWindow = createMockWindow("https://example.com/mypage");
+
+      const result = findContext(contexts, mockWindow);
+      expect(result).toEqual({
+        contextIndex: 0,
+        found: true,
+        paths: ["https://example.com/MyPage"],
+        contexts: "page-context",
+        domTags: undefined,
+        tags: {},
+        msalRedirectUrl: "foo",
+      });
+    });
+
+    it("should match URLs with different case in domain", () => {
+      const contexts: Context[] = [
+        {
+          paths: ["https://EXAMPLE.COM/page"],
+          contexts: "page-context",
+          msalRedirectUrl: "foo",
+        },
+      ];
+      const mockWindow = createMockWindow("https://example.com/page");
+
+      const result = findContext(contexts, mockWindow);
+      expect(result).toEqual({
+        contextIndex: 0,
+        found: true,
+        paths: ["https://EXAMPLE.COM/page"],
+        contexts: "page-context",
+        domTags: undefined,
+        tags: {},
+        msalRedirectUrl: "foo",
+      });
+    });
+
+    it("should match URLs with different case in protocol", () => {
+      const contexts: Context[] = [
+        {
+          paths: ["HTTPS://example.com/page"],
+          contexts: "page-context",
+          msalRedirectUrl: "foo",
+        },
+      ];
+      const mockWindow = createMockWindow("https://example.com/page");
+
+      const result = findContext(contexts, mockWindow);
+      expect(result).toEqual({
+        contextIndex: 0,
+        found: true,
+        paths: ["HTTPS://example.com/page"],
+        contexts: "page-context",
+        domTags: undefined,
+        tags: {},
+        msalRedirectUrl: "foo",
+      });
+    });
+
+    it("should match regex patterns case-insensitively", () => {
+      const contexts: Context[] = [
+        {
+          paths: ["https://example.com/Users/\\d+"],
+          contexts: "user-context",
+          msalRedirectUrl: "foo",
+        },
+      ];
+      const mockWindow = createMockWindow("https://example.com/users/123");
+
+      const result = findContext(contexts, mockWindow);
+      expect(result).toEqual({
+        contextIndex: 0,
+        found: true,
+        paths: ["https://example.com/Users/\\d+"],
+        contexts: "user-context",
+        domTags: undefined,
+        tags: {},
+        msalRedirectUrl: "foo",
+      });
+    });
+
+    it("should extract named groups with case-insensitive matching", () => {
+      const contexts: Context[] = [
+        {
+          paths: ["https://example.com/Products/(?<productId>\\d+)"],
+          contexts: "product-context",
+          msalRedirectUrl: "foo",
+        },
+      ];
+      const mockWindow = createMockWindow("https://example.com/products/789");
+
+      const result = findContext(contexts, mockWindow);
+      expect(result).toEqual({
+        contextIndex: 0,
+        found: true,
+        paths: ["https://example.com/Products/(?<productId>\\d+)"],
+        contexts: "product-context",
+        domTags: undefined,
+        tags: {
+          productId: "789",
+        },
+        msalRedirectUrl: "foo",
+      });
+    });
+
+    it("should match query parameters case-insensitively", () => {
+      const contexts: Context[] = [
+        {
+          paths: ["https://example.com/search\\?BAR=2&FOO=1"],
+          contexts: "search-context",
+          msalRedirectUrl: "foo",
+        },
+      ];
+      const mockWindow = createMockWindow("https://example.com/search?bar=2&foo=1");
+
+      const result = findContext(contexts, mockWindow);
+      expect(result).toEqual({
+        contextIndex: 0,
+        found: true,
+        paths: ["https://example.com/search\\?BAR=2&FOO=1"],
+        contexts: "search-context",
+        domTags: undefined,
+        tags: {},
+        msalRedirectUrl: "foo",
+      });
+    });
+
+    it("should match hash fragment case-insensitively", () => {
+      const contexts: Context[] = [
+        {
+          paths: ["https://example.com/page#Section"],
+          contexts: "section-context",
+          msalRedirectUrl: "foo",
+        },
+      ];
+      const mockWindow = createMockWindow("https://example.com/page#section");
+
+      const result = findContext(contexts, mockWindow);
+      expect(result).toEqual({
+        contextIndex: 0,
+        found: true,
+        paths: ["https://example.com/page#Section"],
+        contexts: "section-context",
+        domTags: undefined,
+        tags: {},
+        msalRedirectUrl: "foo",
+      });
+    });
+
+    it("should match complex URLs with mixed case throughout", () => {
+      const contexts: Context[] = [
+        {
+          paths: ["HTTPS://EXAMPLE.COM/API/V(?<version>\\d+)/(?<resource>\\w+)(?:\\?.*)?"],
+          contexts: "api-context",
+          msalRedirectUrl: "foo",
+        },
+      ];
+      const mockWindow = createMockWindow("https://example.com/api/v2/users?page=1");
+
+      const result = findContext(contexts, mockWindow);
+      expect(result).toEqual({
+        contextIndex: 0,
+        found: true,
+        paths: ["HTTPS://EXAMPLE.COM/API/V(?<version>\\d+)/(?<resource>\\w+)(?:\\?.*)?"],
+        contexts: "api-context",
+        domTags: undefined,
+        tags: {
+          version: "2",
+          resource: "users",
+        },
+        msalRedirectUrl: "foo",
+      });
+    });
+
+    it("should match real-world OutSystems URL with query parameters and named groups", () => {
+      const contexts: Context[] = [
+        {
+          paths: ["https://cps-tst.outsystemsenterprise.com/WorkManagementApp/CaseOverview.*?[&?]CaseId=(?<caseId>\\d+)&URN=(?<urn>[^&]+)"],
+          contexts: "case-overview-context",
+          msalRedirectUrl: "foo",
+        },
+      ];
+      const mockWindow = createMockWindow(
+        "https://cps-tst.outsystemsenterprise.com/WorkManagementApp/CaseOverview?CaseId=12345&URN=ABC123DEF"
+      );
+
+      const result = findContext(contexts, mockWindow);
+      expect(result).toEqual({
+        contextIndex: 0,
+        found: true,
+        paths: ["https://cps-tst.outsystemsenterprise.com/WorkManagementApp/CaseOverview.*?[&?]CaseId=(?<caseId>\\d+)&URN=(?<urn>[^&]+)"],
+        contexts: "case-overview-context",
+        domTags: undefined,
+        tags: {
+          caseId: "12345",
+          urn: "ABC123DEF",
+        },
+        msalRedirectUrl: "foo",
+      });
+    });
+
+    it("should match real-world OutSystems URL with case variations", () => {
+      const contexts: Context[] = [
+        {
+          paths: ["https://cps-tst.outsystemsenterprise.com/WorkManagementApp/CaseOverview.*?[&?]CaseId=(?<caseId>\\d+)&URN=(?<urn>[^&]+)"],
+          contexts: "case-overview-context",
+          msalRedirectUrl: "foo",
+        },
+      ];
+      const mockWindow = createMockWindow(
+        "https://cps-tst.outsystemsenterprise.com/workmanagementapp/caseoverview?caseid=67890&urn=XYZ789GHI"
+      );
+
+      const result = findContext(contexts, mockWindow);
+      expect(result).toEqual({
+        contextIndex: 0,
+        found: true,
+        paths: ["https://cps-tst.outsystemsenterprise.com/WorkManagementApp/CaseOverview.*?[&?]CaseId=(?<caseId>\\d+)&URN=(?<urn>[^&]+)"],
+        contexts: "case-overview-context",
+        domTags: undefined,
+        tags: {
+          caseId: "67890",
+          urn: "XYZ789GHI",
+        },
+        msalRedirectUrl: "foo",
+      });
+    });
+
+    it("should match real-world OutSystems URL with parameters in different order (after sorting)", () => {
+      const contexts: Context[] = [
+        {
+          paths: ["https://cps-tst.outsystemsenterprise.com/WorkManagementApp/CaseOverview.*?[&?]CaseId=(?<caseId>\\d+)&URN=(?<urn>[^&]+)"],
+          contexts: "case-overview-context",
+          msalRedirectUrl: "foo",
+        },
+      ];
+      // Note: buildSanitizedAddress sorts params alphabetically (case-insensitive)
+      // CaseId, URN are already in the correct sorted order
+      const mockWindow = createMockWindow(
+        "https://cps-tst.outsystemsenterprise.com/WorkManagementApp/CaseOverview?URN=ABC123&CaseId=54321"
+      );
+
+      const result = findContext(contexts, mockWindow);
+      expect(result).toEqual({
+        contextIndex: 0,
+        found: true,
+        paths: ["https://cps-tst.outsystemsenterprise.com/WorkManagementApp/CaseOverview.*?[&?]CaseId=(?<caseId>\\d+)&URN=(?<urn>[^&]+)"],
+        contexts: "case-overview-context",
+        domTags: undefined,
+        tags: {
+          caseId: "54321",
+          urn: "ABC123",
+        },
+        msalRedirectUrl: "foo",
+      });
+    });
+
+    it("should match real-world OutSystems URL when additional parameters sort after URN", () => {
+      const contexts: Context[] = [
+        {
+          paths: ["https://cps-tst.outsystemsenterprise.com/WorkManagementApp/CaseOverview.*?[&?]CaseId=(?<caseId>\\d+)&URN=(?<urn>[^&]+)"],
+          contexts: "case-overview-context",
+          msalRedirectUrl: "foo",
+        },
+      ];
+      // Note: 'z' sorts after 'URN' (case-insensitive: C < U < z)
+      const mockWindow = createMockWindow(
+        "https://cps-tst.outsystemsenterprise.com/WorkManagementApp/CaseOverview?CaseId=99999&URN=TEST123&zextra=value"
+      );
+
+      const result = findContext(contexts, mockWindow);
+      expect(result).toEqual({
+        contextIndex: 0,
+        found: true,
+        paths: ["https://cps-tst.outsystemsenterprise.com/WorkManagementApp/CaseOverview.*?[&?]CaseId=(?<caseId>\\d+)&URN=(?<urn>[^&]+)"],
+        contexts: "case-overview-context",
+        domTags: undefined,
+        tags: {
+          caseId: "99999",
+          urn: "TEST123",
+        },
+        msalRedirectUrl: "foo",
+      });
+    });
+  });
 });

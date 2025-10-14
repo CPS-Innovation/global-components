@@ -17,7 +17,7 @@ export const findContext = (contextArr: Context[], window: Window): FoundContext
   for (let contextIndex = 0; contextIndex < contextArr.length; contextIndex++) {
     const context = contextArr[contextIndex];
     for (const path of context.paths) {
-      const match = address.match(path);
+      const match = address.match(new RegExp(path, "i"));
       if (match) {
         // Remember that our config file has the rules written from most-specific to least-specific
         //  so returning the first match found is what we want.
