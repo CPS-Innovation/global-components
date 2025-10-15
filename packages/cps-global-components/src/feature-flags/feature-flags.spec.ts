@@ -52,7 +52,7 @@ describe("FEATURE_FLAGS", () => {
   });
 
   describe("shouldShowMenu", () => {
-    it("should return false when context is not found", () => {
+    it("should return true when context is not found but user meets feature flag criteria", () => {
       const state: Pick<KnownState, "config" | "auth" | "context"> = {
         config: { SHOW_MENU: true, FEATURE_FLAG_MENU_USERS: { adGroupIds: ["admin-group"] } } as any,
         auth: { isAuthed: true, groups: ["admin-group"], username: "testuser", objectId: "test-object-id" } as any,
@@ -60,7 +60,7 @@ describe("FEATURE_FLAGS", () => {
       };
 
       const result = FEATURE_FLAGS.shouldShowMenu(state);
-      expect(result).toBe(false);
+      expect(result).toBe(true);
     });
 
     it("should return false when showMenuOverride is 'never-show-menu'", () => {

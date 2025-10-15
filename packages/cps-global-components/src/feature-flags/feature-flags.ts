@@ -7,20 +7,21 @@ const shouldEnableAccessibilityMode = ({ flags }: Pick<KnownState, "flags">) => 
 const shouldShowGovUkRebrand = ({ config }: Pick<KnownState, "config">) => !!config.SHOW_GOVUK_REBRAND;
 
 const shouldShowMenu = ({ config, auth, context }: Pick<KnownState, "config" | "auth" | "context">) => {
-  if (!context.found) {
-    // We have no context so do not have the information to make this determination
-    return false;
+  if (context.found) {
+    if (context.showMenuOverride === "never-show-menu") {
+      // Work management always need the menu to never appear on some pages
+      return false;
+    }
+
+    if (context.showMenuOverride === "always-show-menu") {
+      // Work management always need the menu on some pages
+      return true;
+    }
   }
 
-  if (context.showMenuOverride === "never-show-menu") {
-    // Work management always need the menu to never appear on some pages
-    return false;
-  }
-
-  if (context.showMenuOverride === "always-show-menu") {
-    // Work management always need the menu on some pages
-    return true;
-  }
+  // Note: at this point we are saying it is acceptable to be executing this code without
+  //  a context i.e. context.found === false. This is subject to being reassessed because
+  //  the menuConfig code is a related concern and a refactor may be warranted.
 
   return (
     // standard feature flag
