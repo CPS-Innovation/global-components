@@ -1,4 +1,6 @@
-export const isOutSystemsApp = ({ location: { href } }: { location: { href: string } }) => {
+import { withLogging } from "../../logging/with-logging";
+
+export const isOutSystemsAppInternal = ({ location: { href } }: { location: { href: string } }) => {
   try {
     const url = href;
     if (!url) {
@@ -10,3 +12,5 @@ export const isOutSystemsApp = ({ location: { href } }: { location: { href: stri
     return false;
   }
 };
+
+export const isOutSystemsApp = withLogging("isOutSystemsApp", isOutSystemsAppInternal);
