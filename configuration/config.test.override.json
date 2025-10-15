@@ -52,8 +52,7 @@
       ],
       "contexts": "case details",
       "headerCustomCssClasses": "header",
-      "msalRedirectUrl": "https://cps-tst.outsystemsenterprise.com/Casework_Patterns/auth-handover-test.html",
-      "showMenuOverride": "never-show-menu"
+      "msalRedirectUrl": "https://cps-tst.outsystemsenterprise.com/Casework_Patterns/auth-handover-test.html"
     },
     {
       "paths": [
