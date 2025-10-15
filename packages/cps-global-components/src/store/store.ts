@@ -21,7 +21,7 @@ type ContextState = { context: FoundContext; tags: Tags; caseIdentifiers: CaseId
 const initialContextState = { context: undefined, tags: undefined, caseIdentifiers: undefined, caseDetails: undefined };
 
 // This state is general
-type SummaryState = { fatalInitialisationError: Error; initialisationStatus: "ready" | "broken" };
+type SummaryState = { fatalInitialisationError: Error | undefined; initialisationStatus: undefined | "ready" | "broken" };
 const initialSummaryState = { fatalInitialisationError: undefined, initialisationStatus: undefined };
 
 export type KnownState = StartupState & ContextState & SummaryState;
@@ -76,23 +76,37 @@ type AllDefined = {
 };
 
 // Wrap K in a tuple [K] to prevent distribution
-type PickIfReadyReturn<K extends readonly (keyof State)[]> = K extends readonly [] ? AllDefined | false : PickDefined<K[number]> | false;
+type PickIfReadyReturn<K extends readonly (keyof State)[]> = K extends readonly [] ? AllDefined | undefined : PickDefined<K[number]> | undefined;
 
-export const readyState = <K extends readonly (keyof State)[] = readonly []>(...keys: K): PickIfReadyReturn<K> => {
+export const readyState = <K extends readonly (keyof State)[] = readonly []>(...keys: K): { state: PickIfReadyReturn<K> } & SummaryState => {
   const keysToCheck = keys.length === 0 ? (Object.keys(store.state) as (keyof State)[]) : keys;
 
-  for (const key of keysToCheck) {
-    if (store.state[key] === undefined) {
-      return false as PickIfReadyReturn<K>;
-    }
-  }
+  const summaryState = { fatalInitialisationError: store.state.fatalInitialisationError, initialisationStatus: store.state.initialisationStatus };
+
+  // When a render function access a store the internals of the library are setting up observers see
+  //  https://github.com/stenciljs/store/blob/4579ad531211d1777798fa994d779fefdec5c814/src/subscriptions/stencil.ts#L36
+  //  This is done so that the store knows which components are interested in which top-level properties of the store. Whenever
+  //  a property changes the store can trigger a rerendering of the components that have enlisted as observers at any point
+  //  by having read that property.
+  // In the code below we must ensure that we visit every property listed in `keysToCheck` otherwise we may miss registering
+  //  to observe a property.
+  if (
+    keysToCheck
+      .map((key: keyof KnownState) => {
+        store.state[key]; // just make sure we "get" every prop we are interested so we register with the store
+        return key;
+      })
+      .some(key => store.state[key] === undefined)
+  )
+    return {
+      state: undefined as PickIfReadyReturn<K>,
+      ...summaryState,
+    };
 
   const result: any = {};
   for (const key of keysToCheck) {
     result[key] = store.state[key];
   }
 
-  return result as PickIfReadyReturn<K>;
+  return { state: result as PickIfReadyReturn<K>, ...summaryState };
 };
-
-export const rawState = () => store.state;

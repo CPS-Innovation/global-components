@@ -1,63 +1,52 @@
 import { z } from "zod";
 
-export type Link = {
-  label: string;
-  href: string;
-  activeContexts: string;
-  openInNewTab?: boolean;
-  visibleContexts: string;
-  preferEventNavigationContexts?: string;
-  level: number;
-};
+const linkSchema = z.object({
+  label: z.string(),
+  href: z.string(),
+  activeContexts: z.string(),
+  openInNewTab: z.boolean().optional(),
+  visibleContexts: z.string(),
+  preferEventNavigationContexts: z.string().optional(),
+  level: z.number(),
+});
 
-const LinkSchema: z.ZodType<Link> = z.lazy(() =>
-  z.object({
-    label: z.string(),
-    href: z.string(),
-    activeContexts: z.string(),
-    openInNewTab: z.boolean().optional(),
-    visibleContexts: z.string(),
-    preferEventNavigationContexts: z.string().optional(),
-    level: z.number(),
-  })
-);
+export type Link = z.infer<typeof linkSchema>;
 
-export type DomTags = {
-  cssSelector: string;
-  regex: string;
-};
+const domTagsSchema = z.object({
+  cssSelector: z.string(),
+  regex: z.string(),
+});
 
-const DomTagsSchema: z.ZodType<DomTags> = z.lazy(() =>
-  z.object({
-    cssSelector: z.string(),
-    regex: z.string(),
-  })
-);
+export type DomTags = z.infer<typeof domTagsSchema>;
 
-export type Context = {
-  paths: string[];
-  contexts: string;
-  msalRedirectUrl: string;
-  domTags?: DomTags[];
-  applyOutSystemsShim?: boolean;
-  forceCmsAuthRefresh?: boolean;
-};
+const authorisationSchema = z.object({
+  adGroup: z.string(),
+  unAuthedRedirectUrl: z.string(),
+});
 
-const ContextSchema: z.ZodType<Context> = z.lazy(() =>
-  z.object({
-    paths: z.array(z.string()),
-    contexts: z.string(),
-    msalRedirectUrl: z.string(),
-    domTags: z.array(DomTagsSchema).optional(),
-    applyOutSystemsShim: z.boolean().optional(),
-    forceCmsAuthRefresh: z.boolean().optional(),
-  })
-);
+export type Authorisation = z.infer<typeof authorisationSchema>;
 
-export const ConfigSchema = z.object({
+const contextSchema = z.object({
+  paths: z.array(z.string()),
+  contexts: z.string(),
+  msalRedirectUrl: z.string(),
+  domTags: z.array(domTagsSchema).optional(),
+  applyOutSystemsShim: z.boolean().optional(),
+  forceCmsAuthRefresh: z.boolean().optional(),
+  authorisation: authorisationSchema.optional(),
+  headerCustomCssClasses: z.string().optional(),
+  showMenuOverride: z
+    .union([z.literal("always-show-menu"), z.literal("never-show-menu")])
+    .optional(),
+});
+
+export type Context = z.infer<typeof contextSchema>;
+
+export const configSchema = z.object({
   ENVIRONMENT: z.string(),
-  CONTEXTS: z.array(ContextSchema),
-  LINKS: z.array(LinkSchema),
+  CONTEXTS: z.array(contextSchema),
+  LINKS: z.array(linkSchema),
+  BANNER_TITLE_HREF: z.string(),
   AD_TENANT_AUTHORITY: z.string().optional(),
   AD_CLIENT_ID: z.string().optional(),
   APP_INSIGHTS_KEY: z.string().optional(),
@@ -71,4 +60,4 @@ export const ConfigSchema = z.object({
   FEATURE_FLAG_ENABLE_INTRUSIVE_AD_LOGIN: z.boolean().optional(),
 });
 
-export type Config = z.infer<typeof ConfigSchema>;
+export type Config = z.infer<typeof configSchema>;

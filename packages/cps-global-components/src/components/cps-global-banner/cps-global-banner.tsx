@@ -1,5 +1,5 @@
 import { Component, h, Fragment } from "@stencil/core";
-import { rawState, readyState } from "../../store/store";
+import { readyState } from "../../store/store";
 import { FEATURE_FLAGS } from "../../feature-flags/feature-flags";
 import { WithLogging } from "../../logging/WithLogging";
 
@@ -16,13 +16,13 @@ export class CpsGlobalBanner {
 
   @WithLogging("CpsGlobalBanner")
   render() {
-    const getFlags = () => {
-      const { fatalInitialisationError } = rawState();
-      const state = readyState("flags", "config");
+    const { state, fatalInitialisationError } = readyState("flags", "config");
+
+    const resolveValues = () => {
       if (fatalInitialisationError) {
         // If there is an error we still want to show our branding.
         //  Use suitable fallback values
-        return { isAccessibilityMode: false, showGovUkRebrand: false };
+        return { isAccessibilityMode: false, showGovUkRebrand: false, href: "" };
       } else if (!state) {
         // Otherwise, we are not ready to show anything until our required state is ready
         //  so that we avoid e.g. flashes of incorrect styling
@@ -31,26 +31,26 @@ export class CpsGlobalBanner {
         // Out state is ready
         const isAccessibilityMode = FEATURE_FLAGS.shouldEnableAccessibilityMode(state);
         const showGovUkRebrand = FEATURE_FLAGS.shouldShowGovUkRebrand(state);
-        return { isAccessibilityMode, showGovUkRebrand };
+        return { isAccessibilityMode, showGovUkRebrand, href: state.config.BANNER_TITLE_HREF };
       }
     };
 
-    const flags = getFlags();
-    if (!flags) {
+    const values = resolveValues();
+    if (!values) {
       return <></>;
     }
 
     return (
       <>
-        <div class={flags.showGovUkRebrand ? "govuk-template--rebranded" : ""}>
+        <div class={values.showGovUkRebrand ? "govuk-template--rebranded" : ""}>
           <a href="#main-content" class="govuk-skip-link skip-link" data-module="govuk-skip-link">
             Skip to main content
           </a>
-          {flags.showGovUkRebrand ? (
+          {values.showGovUkRebrand ? (
             <header class="govuk-header background-blue" data-module="govuk-header">
               <div class="govuk-header__container">
                 <div class="govuk-header__logo">
-                  <a href="#" class="govuk-header__link govuk-header__link--homepage" onClick={flags.isAccessibilityMode ? this.handleTitleClick : undefined}>
+                  <a href={values.href} class="govuk-header__link govuk-header__link--homepage" onContextMenu={values.isAccessibilityMode ? this.handleTitleClick : undefined}>
                     <svg
                       focusable="false"
                       role="img"
@@ -87,12 +87,11 @@ export class CpsGlobalBanner {
               <header class="govuk-header background-black">
                 <div class="govuk-header__container">
                   <div class="govuk-header__logo">
-                    <span class="govuk-header__link govuk-header__link--homepage">
-                      <span class="header-title" onClick={flags.isAccessibilityMode ? this.handleTitleClick : undefined}>
-                        CPS
-                      </span>{" "}
-                      <span class="header-sub-title"></span>
-                    </span>
+                    <a class="govuk-header__link govuk-header__link--homepage" href={values.href} onContextMenu={values.isAccessibilityMode ? this.handleTitleClick : undefined}>
+                      <span class="govuk-header__logotype">
+                        <span class="govuk-header__logotype-text">CPS</span>
+                      </span>
+                    </a>
                   </div>
                 </div>
               </header>

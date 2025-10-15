@@ -1,5 +1,6 @@
 {
   "ENVIRONMENT": "dev.override",
+  "BANNER_TITLE_HREF": "https://cps-dev.outsystemsenterprise.com/Casework_Blocks/home",
   "AD_TENANT_AUTHORITY": "https://login.microsoftonline.com/00dd0d1d-d7e6-4338-ac51-565339c7088c",
   "AD_CLIENT_ID": "8d6133af-9593-47c6-94d0-5c65e9e310f1",
   "APP_INSIGHTS_KEY": "e572c03c-8d38-4771-b193-962f13da1b1a",
@@ -16,6 +17,7 @@
         "https://cps-dev.outsystemsenterprise.com/Casework_Blocks/home"
       ],
       "contexts": "home",
+      "headerCustomCssClasses": "header",
       "msalRedirectUrl": "https://cps-dev.outsystemsenterprise.com/Casework_Patterns/auth-handover-dev.html"
     },
     {
@@ -23,50 +25,58 @@
         "https://polaris-qa-notprod.cps.gov.uk/polaris-ui/case-details/(?<urn>[^/]+)/(?<caseId>\\d+)"
       ],
       "contexts": "case materials",
-      "msalRedirectUrl": ""
+      "msalRedirectUrl": "https://polaris-qa-notprod.cps.gov.uk/polaris-ui/build-version.txt"
     },
     {
       "paths": ["https://polaris"],
       "contexts": "cases",
-      "msalRedirectUrl": ""
+      "msalRedirectUrl": "https://polaris-qa-notprod.cps.gov.uk/polaris-ui/build-version.txt"
     },
     {
       "paths": [
-        "https://cps-dev.outsystemsenterprise.com/CaseReview/LandingPage\\?CMSCaseId=(?<caseId>\\d+)&URN=(?<urn>[^&]+)"
+        "https://cps-dev.outsystemsenterprise.com/CaseReview/LandingPage.*?[&?]CMSCaseId=(?<caseId>\\d+)&URN=(?<urn>[^&]+)"
       ],
       "contexts": "case review",
+      "headerCustomCssClasses": "header",
       "msalRedirectUrl": "https://cps-dev.outsystemsenterprise.com/Casework_Patterns/auth-handover-dev.html"
     },
     {
       "paths": ["https://cps-dev.outsystemsenterprise.com/CaseReview/"],
       "contexts": "cases",
+      "headerCustomCssClasses": "header",
       "msalRedirectUrl": "https://cps-dev.outsystemsenterprise.com/Casework_Patterns/auth-handover-dev.html"
     },
     {
       "paths": [
-        "https://cps-dev.outsystemsenterprise.com/WorkManagementApp/CaseOverview\\?CaseId=(?<caseId>\\d+)&URN=(?<urn>[^&]+)"
+        "https://cps-dev.outsystemsenterprise.com/WorkManagementApp/CaseOverview.*?[&?]CaseId=(?<caseId>\\d+)&URN=(?<urn>[^&]+)"
       ],
       "contexts": "case details",
-      "msalRedirectUrl": "https://cps-dev.outsystemsenterprise.com/Casework_Patterns/auth-handover-dev.html"
+      "headerCustomCssClasses": "header",
+      "msalRedirectUrl": "https://cps-dev.outsystemsenterprise.com/Casework_Patterns/auth-handover-dev.html",
+      "showMenuOverride": "never-show-menu"
     },
     {
       "paths": [
         "https://cps-dev.outsystemsenterprise.com/WorkManagementApp/Cases"
       ],
       "contexts": "cases",
-      "msalRedirectUrl": "https://cps-dev.outsystemsenterprise.com/Casework_Patterns/auth-handover-dev.html"
+      "headerCustomCssClasses": "header",
+      "msalRedirectUrl": "https://cps-dev.outsystemsenterprise.com/Casework_Patterns/auth-handover-dev.html",
+      "showMenuOverride": "always-show-menu"
     },
     {
       "paths": [
         "https://cps-dev.outsystemsenterprise.com/WorkManagementApp/TaskList"
       ],
       "contexts": "tasks",
-      "msalRedirectUrl": "https://cps-dev.outsystemsenterprise.com/Casework_Patterns/auth-handover-dev.html"
+      "headerCustomCssClasses": "header",
+      "msalRedirectUrl": "https://cps-dev.outsystemsenterprise.com/Casework_Patterns/auth-handover-dev.html",
+      "showMenuOverride": "always-show-menu"
     },
     {
       "paths": ["https://housekeeping"],
       "contexts": "case materials",
-      "msalRedirectUrl": "",
+      "msalRedirectUrl": "https://housekeeping-staging.int.cps.gov.uk/global-components-msal-redirect.html",
       "domTags": [
         {
           "cssSelector": "a[href*='/polaris-ui/case-details/']",
