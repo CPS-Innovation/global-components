@@ -28,7 +28,9 @@ const menuConfigInternal = ({
   const { contexts, tags } = context;
 
   const handoverAdapter = isOutSystems
-    ? undefined
+    ? // If we are inside the OutSystems world then we assume we have adequate CMS auth.
+      //  This is an assumption which could be challenged.
+      undefined
     : // If we are outside of OutSystems and a link is pointing to OutSystems then we need to go
       //  via the auth handover endpoint to ensure OS has CMS auth
       (targetUrl: string) => {
