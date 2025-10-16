@@ -6,8 +6,7 @@
   "types": "dist/index.d.ts",
   "scripts": {
     "build": "tsc && tsc -p tsconfig-cjs.json",
-    "validate": "npm run build && node dist/cjs/scripts/validate.js ../../configuration",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "validate": "npm run build && node dist/cjs/scripts/validate.js ../../configuration"
   },
   "keywords": [
     "typescript",

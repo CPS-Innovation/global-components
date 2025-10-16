@@ -7,7 +7,9 @@
   "OS_HANDOVER_URL": "",
   "COOKIE_HANDOVER_URL": "",
   "TOKEN_HANDOVER_URL": "",
-  "FEATURE_FLAG_ENABLE_MENU_GROUP": "12377eca-b463-4a6c-80ea-95f678f09591",
+  "FEATURE_FLAG_MENU_USERS": {
+    "adGroupIds": ["12377eca-b463-4a6c-80ea-95f678f09591"]
+  },
   "CONTEXTS": [],
   "LINKS": []
 }

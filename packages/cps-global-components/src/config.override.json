@@ -9,7 +9,7 @@
   "OS_HANDOVER_URL": "https://cps-dev.outsystemsenterprise.com/AuthHandover/auth-handover.html",
   "COOKIE_HANDOVER_URL": "https://polaris-qa-notprod.cps.gov.uk/polaris",
   "TOKEN_HANDOVER_URL": "https://polaris-qa-notprod.cps.gov.uk/auth-refresh-cms-modern-token",
-  "FEATURE_FLAG_ENABLE_MENU_GROUP": "12377eca-b463-4a6c-80ea-95f678f09591",
+  "FEATURE_FLAG_MENU_USERS": { "adGroupIds": ["12377eca-b463-4a6c-80ea-95f678f09591"] },
   "FEATURE_FLAG_ENABLE_INTRUSIVE_AD_LOGIN": true,
   "CONTEXTS": [
     { "paths": ["http://localhost:3333/cases/(?<caseId>\\d+)/materials"], "contexts": "case materials", "msalRedirectUrl": "http://localhost:3333/auth" },
