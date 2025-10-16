@@ -34,11 +34,17 @@
     },
     {
       "paths": [
-        "https://cps-dev.outsystemsenterprise.com/CaseReview/LandingPage.*?[&?]CMSCaseId=(?<caseId>\\d+)&URN=(?<urn>[^&]+)"
+        "https://cps-dev.outsystemsenterprise.com/CaseReview/LandingPage.*?[&?]CMSCaseId=(?<caseId>\\d+)"
       ],
       "contexts": "case review",
       "headerCustomCssClasses": "header",
-      "msalRedirectUrl": "https://cps-dev.outsystemsenterprise.com/Casework_Patterns/auth-handover-dev.html"
+      "msalRedirectUrl": "https://cps-dev.outsystemsenterprise.com/Casework_Patterns/auth-handover-dev.html",
+      "domTags": [
+        {
+          "cssSelector": "div#URN_Container",
+          "regex": "<span[^>]*>(?<urn>.*?)</span>"
+        }
+      ]
     },
     {
       "paths": ["https://cps-dev.outsystemsenterprise.com/CaseReview/"],
