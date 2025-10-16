@@ -28,13 +28,14 @@ export const initialiseConfig = async ({ flags: { isOverrideMode, isOutSystems }
 
   const fetchConfig: ConfigFetch = async (configUrl: string) => await fetch(configUrl);
 
-  const configSources = [fetchConfig];
-  if (isOverrideMode) {
-    configSources.unshift(fetchOverrideConfig);
-  }
+  let configSources: ConfigFetch[];
   if (isOverrideMode && isOutSystems) {
     // remove fetchOverrideConfigAsJsonP when outsystems have embedded us properly
-    configSources.unshift(fetchOverrideConfigAsJsonP);
+    configSources = [fetchOverrideConfig, fetchOverrideConfigAsJsonP, fetchConfig];
+  } else if (isOverrideMode) {
+    configSources = [fetchOverrideConfig, fetchConfig];
+  } else {
+    configSources = [fetchConfig];
   }
 
   const configObject = await tryConfigSources(configSources, configUrl);
