@@ -20,11 +20,16 @@ const initialStartupState = { flags: undefined, config: undefined, auth: undefin
 type ContextState = { context: FoundContext; tags: Tags; caseIdentifiers: CaseIdentifiers; caseDetails: CaseDetails };
 const initialContextState = { context: undefined, tags: undefined, caseIdentifiers: undefined, caseDetails: undefined };
 
+type PropState = { props: Tags };
+const initialPropState = { props: undefined };
+
 // This state is general
 type SummaryState = { fatalInitialisationError: Error | undefined; initialisationStatus: undefined | "ready" | "broken" };
 const initialSummaryState = { fatalInitialisationError: undefined, initialisationStatus: undefined };
 
-export type KnownState = StartupState & ContextState & SummaryState;
+type DerivedState = { readonly combinedTags: Tags };
+
+export type KnownState = StartupState & ContextState & SummaryState & PropState & DerivedState;
 
 export type State = {
   [K in keyof KnownState]: KnownState[K] | undefined;
@@ -32,10 +37,15 @@ export type State = {
 
 export type Register = (arg: Partial<State>) => void;
 
-export const initialInternalState: State = {
+const initialInternalState: State = {
   ...initialStartupState,
   ...initialContextState,
+  ...initialPropState,
   ...initialSummaryState,
+  get combinedTags() {
+    const { tags, context, props } = this as Omit<State, keyof DerivedState>;
+    return { ...tags, ...(context?.found ? context.tags : undefined), ...props };
+  },
 };
 
 export type SubscriptionFactory = (arg: { store: typeof store; registerToStore: Register }) => Subscription<State>;

@@ -23,6 +23,11 @@ export const caseIdentifiersSubscription: SubscriptionFactory = ({ store }) => (
       if (context?.found) {
         transposeIdentifiers(store, context.tags);
       }
+    } else if (key === "props") {
+      const props = newValue as State["props"];
+      if (props) {
+        transposeIdentifiers(store, props);
+      }
     }
   },
 });

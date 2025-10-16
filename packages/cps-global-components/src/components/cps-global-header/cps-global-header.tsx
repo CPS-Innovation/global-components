@@ -1,14 +1,21 @@
-import { Component, h, Host } from "@stencil/core";
+import { Component, h, Host, Prop, Watch } from "@stencil/core";
 import { renderError } from "../common/render-error";
 import { readyState } from "../../store/store";
 import { WithLogging } from "../../logging/WithLogging";
 import { _console } from "../../logging/_console";
+import { registerToStore } from "../../global-script";
 @Component({
   tag: "cps-global-header",
   shadow: true, // must be true as this is our published entry point!
   styleUrl: "cps-global-header.scss",
 })
 export class CpsGlobalHeader {
+  @Prop() isDcf: boolean = false;
+  @Watch("isDcf")
+  onIsDcfChange(newValue: boolean) {
+    registerToStore({ props: { isDcf: String(newValue) } });
+  }
+
   @WithLogging("CpsGlobalHeader")
   render() {
     const { state, fatalInitialisationError, initialisationStatus } = readyState("context");

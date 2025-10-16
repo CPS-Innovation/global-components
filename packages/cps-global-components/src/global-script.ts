@@ -1,6 +1,6 @@
 import { handleSetOverrideMode } from "./services/override-mode/handle-set-override-mode";
 import { initialiseAuth } from "./services/auth/initialise-auth";
-import { initialiseStore } from "./store/store";
+import { initialiseStore, State } from "./store/store";
 import { initialiseAnalytics } from "./services/analytics/initialise-analytics";
 import { initialiseConfig } from "./services/config/initialise-config";
 import { initialiseContext } from "./services/context/initialise-context";
@@ -36,7 +36,9 @@ export default /* do not make this async */ () => {
 };
 
 const initialise = async () => {
-  const { registerToStore } = cachedResult("store", () => initialiseStore(getCaseDetailsSubscription));
+  const { registerToStore: r } = cachedResult("store", () => initialiseStore(getCaseDetailsSubscription));
+  let registerToStore = r;
+
   try {
     // Several of the operations below need only be run when we first spin up and not on any potential SPA navigation.
     //  We use `cachedResult` give us the ability to rerun this function many times while ensuring that the one-time-only
@@ -67,3 +69,5 @@ const initialise = async () => {
     registerToStore({ fatalInitialisationError: error });
   }
 };
+
+export let registerToStore: (arg: Partial<State>) => void = () => {};
