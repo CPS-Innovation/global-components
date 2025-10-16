@@ -77,6 +77,12 @@
       "msalRedirectUrl": "https://cps-tst.outsystemsenterprise.com/Casework_Patterns/auth-handover-test.html"
     },
     {
+      "paths": ["https://cps-tst.outsystemsenterprise.com/WorkManagementApp"],
+      "contexts": "unknown-wma",
+      "headerCustomCssClasses": "header",
+      "msalRedirectUrl": "https://cps-tst.outsystemsenterprise.com/Casework_Patterns/auth-handover-test.html"
+    },
+    {
       "paths": ["https://housekeeping"],
       "contexts": "case materials",
       "msalRedirectUrl": "https://housekeeping-staging.int.cps.gov.uk/global-components-msal-redirect.html",
@@ -93,21 +99,21 @@
       "label": "Home",
       "level": 0,
       "href": "https://cps-tst.outsystemsenterprise.com/Casework_Blocks/home",
-      "visibleContexts": "home tasks cases case",
+      "visibleContexts": "home tasks cases case unknown-wma",
       "activeContexts": "home"
     },
     {
       "label": "Tasks",
       "level": 0,
       "href": "https://cps-tst.outsystemsenterprise.com/WorkManagementApp/TaskList",
-      "visibleContexts": "home tasks cases case",
+      "visibleContexts": "home tasks cases case unknown-wma",
       "activeContexts": "tasks"
     },
     {
       "label": "Cases",
       "level": 0,
       "href": "https://cps-tst.outsystemsenterprise.com/WorkManagementApp/Cases?IsCasesNavigation=true",
-      "visibleContexts": "home tasks cases case",
+      "visibleContexts": "home tasks cases case unknown-wma",
       "activeContexts": "cases case"
     },
     {
