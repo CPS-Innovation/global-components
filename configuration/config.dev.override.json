@@ -36,11 +36,17 @@
     },
     {
       "paths": [
-        "https://cps-dev.outsystemsenterprise.com/CaseReview/LandingPage.*?[&?]CMSCaseId=(?<caseId>\\d+)&URN=(?<urn>[^&]+)"
+        "https://cps-dev.outsystemsenterprise.com/CaseReview/LandingPage.*?[&?]CMSCaseId=(?<caseId>\\d+)"
       ],
       "contexts": "case review",
       "headerCustomCssClasses": "header",
-      "msalRedirectUrl": "https://cps-dev.outsystemsenterprise.com/Casework_Patterns/auth-handover-dev.html"
+      "msalRedirectUrl": "https://cps-dev.outsystemsenterprise.com/Casework_Patterns/auth-handover-dev.html",
+      "domTags": [
+        {
+          "cssSelector": "div#URN_Container",
+          "regex": "<span[^>]*>(?<urn>.*?)</span>"
+        }
+      ]
     },
     {
       "paths": ["https://cps-dev.outsystemsenterprise.com/CaseReview/"],
@@ -54,8 +60,7 @@
       ],
       "contexts": "case details",
       "headerCustomCssClasses": "header",
-      "msalRedirectUrl": "https://cps-dev.outsystemsenterprise.com/Casework_Patterns/auth-handover-dev.html",
-      "showMenuOverride": "never-show-menu"
+      "msalRedirectUrl": "https://cps-dev.outsystemsenterprise.com/Casework_Patterns/auth-handover-dev.html"
     },
     {
       "paths": [
@@ -76,6 +81,20 @@
       "showMenuOverride": "always-show-menu"
     },
     {
+      "paths": [
+        "https://cps-dev.outsystemsenterprise.com/WorkManagementApp/SearchCase"
+      ],
+      "contexts": "cases",
+      "headerCustomCssClasses": "header",
+      "msalRedirectUrl": "https://cps-dev.outsystemsenterprise.com/Casework_Patterns/auth-handover-dev.html"
+    },
+    {
+      "paths": ["https://cps-dev.outsystemsenterprise.com/WorkManagementApp"],
+      "contexts": "unknown-wma",
+      "headerCustomCssClasses": "header",
+      "msalRedirectUrl": "https://cps-dev.outsystemsenterprise.com/Casework_Patterns/auth-handover-dev.html"
+    },
+    {
       "paths": ["https://housekeeping"],
       "contexts": "case materials",
       "msalRedirectUrl": "https://housekeeping-staging.int.cps.gov.uk/global-components-msal-redirect.html",
@@ -85,11 +104,6 @@
           "regex": "/polaris-ui/case-details/(?<urn>[^/]+)/(?<caseId>\\d+)"
         }
       ]
-    },
-    {
-      "paths": ["https://cps-dev.outsystemsenterprise.com/"],
-      "contexts": "stef-lee-testing",
-      "msalRedirectUrl": "https://cps-dev.outsystemsenterprise.com/Casework_Patterns/auth-handover-dev.html"
     }
   ],
   "LINKS": [
@@ -131,7 +145,7 @@
     {
       "label": "Review",
       "level": 1,
-      "href": "https://cps-dev.outsystemsenterprise.com/CaseReview/LandingPage?CMSCaseId={caseId}&URN={urn}",
+      "href": "https://cps-dev.outsystemsenterprise.com/CaseReview/LandingPage?CMSCaseId={caseId}",
       "visibleContexts": "case",
       "activeContexts": "review"
     }
