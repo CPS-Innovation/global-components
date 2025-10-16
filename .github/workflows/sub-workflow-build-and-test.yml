@@ -6,7 +6,7 @@ on:
       branch:
         required: false
         type: string
-        default: ''
+        default: ""
     outputs:
       artifact-id:
         description: "The ID of the uploaded artifact"
@@ -49,17 +49,17 @@ jobs:
         env:
           CI: true
 
-      - run: pnpm --filter "./packages/*" build
+      - run: pnpm -w build
 
       # - run: pnpm run lint
       #   continue-on-error: false
 
-      - run: pnpm --filter cps-global-components test
+      - run: pnpm -w test
 
       # - run: pnpm run test:coverage
       #   continue-on-error: true
 
-      - run: pnpm --filter cps-global-configuration validate
+      - run: pnpm -w validate
 
       - name: Build with metadata
         run: |

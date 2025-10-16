@@ -13,6 +13,9 @@
   },
   "scripts": {
     "preinstall": "npx only-allow pnpm",
+    "build": "pnpm -r --filter \"./packages/*\" run build",
+    "validate": "pnpm -r --filter \"./packages/*\" run validate",
+    "test": "pnpm -r --filter \"./packages/*\" run test",
     "run-e2e": "./scripts/run-e2e.sh",
     "run-e2e-no-build": "./scripts/run-e2e-no-build.sh",
     "run-html-harness": "./scripts/run-html-harness.sh",
