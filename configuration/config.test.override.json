@@ -77,6 +77,15 @@
       "msalRedirectUrl": "https://cps-tst.outsystemsenterprise.com/Casework_Patterns/auth-handover-test.html"
     },
     {
+      "paths": [
+        "https://cps-tst.outsystemsenterprise.com/WorkManagementApp/SearchCase"
+      ],
+      "contexts": "cases",
+      "headerCustomCssClasses": "header",
+      "msalRedirectUrl": "https://cps-tst.outsystemsenterprise.com/Casework_Patterns/auth-handover-test.html"
+    },
+
+    {
       "paths": ["https://cps-tst.outsystemsenterprise.com/WorkManagementApp"],
       "contexts": "unknown-wma",
       "headerCustomCssClasses": "header",
