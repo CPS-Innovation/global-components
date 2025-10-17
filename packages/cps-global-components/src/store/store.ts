@@ -30,9 +30,11 @@ export type State = {
 
 export type Register = (arg: Partial<State>) => void;
 
-export type UpdateTags = (arg: Pick<State, "tags">) => void;
+type TagSource = "path" | "dom" | "props";
 
-const initialInternalState: State = {
+export type UpdateTags = (arg: Pick<State, "tags"> & { source: TagSource }) => void;
+
+const initialState: State = {
   ...initialStartupState,
   ...initialContextState,
   ...initialSummaryState,
@@ -43,19 +45,34 @@ export type SubscriptionFactory = (arg: { store: typeof store; registerToStore: 
 let store: ReturnType<typeof createStore<State>>;
 
 export const initialiseStore = (...externalSubscriptions: SubscriptionFactory[]) => {
+  // Yuck.  When clearing tags on SPA navigation, we still want to retain any tags tht have been supplied via
+  //  properties passed to the web component.  There is probably a more elegant way to do this, but for the
+  //  time being we just keep a record if how each tag has been added so we can retain those that are props.
+  let internalState = { tagSources: {} as Record<string, TagSource> };
+
   store = createStore<State>(
     () => ({
-      ...initialInternalState,
+      ...initialState,
     }),
     (newValue, oldValue) => JSON.stringify(newValue) !== JSON.stringify(oldValue),
   );
 
-  const register = (arg: Partial<State>) => {
-    (Object.keys(arg) as (keyof State)[]).forEach(key => store.set(key, arg[key]));
+  const register = (arg: Partial<State>) => (Object.keys(arg) as (keyof State)[]).forEach(key => store.set(key, arg[key]));
+
+  const updateTags: UpdateTags = ({ tags, source }) => {
+    store.set("tags", { ...store.get("tags"), ...tags });
+    internalState.tagSources = { ...internalState.tagSources, ...Object.keys(tags || {}).reduce((acc, key) => ({ ...acc, [key]: source }), {}) };
   };
 
-  const updateTags = (arg: Pick<State, "tags">) => {
-    store.set("tags", { ...store.get("tags"), ...arg.tags });
+  const resetTags = () => {
+    _console.debug("Store", "Resetting tags", { tagSources: internalState.tagSources, tags: store.state.tags });
+    const entriesToKeep = Object.entries(store.get("tags") || {}).filter(([key]) => internalState.tagSources[key] === "props");
+    store.set(
+      "tags",
+      entriesToKeep.reduce((acc, [key, value]) => ({ ...acc, [key]: value }), {}),
+    );
+    internalState.tagSources = entriesToKeep.reduce((acc, [key]) => ({ ...acc, [key]: internalState.tagSources[key] }), {});
+    _console.debug("Store", "Reset tags", { tagSources: internalState.tagSources, tags: store.state.tags });
   };
 
   store.use(
@@ -64,7 +81,7 @@ export const initialiseStore = (...externalSubscriptions: SubscriptionFactory[])
     ),
   );
 
-  return { register, updateTags };
+  return { register, updateTags, resetTags };
 };
 
 // Helper types

@@ -11,7 +11,7 @@ export const domTagMutationSubscriber = ({ updateTags }: { updateTags: UpdateTag
       handler: element => {
         _console.debug("Dom observation handler firing for", element);
         const tags = extractTagsFromElement(element, context.domTags!);
-        updateTags({ tags });
+        updateTags({ tags, source: "dom" });
       },
     })),
   });

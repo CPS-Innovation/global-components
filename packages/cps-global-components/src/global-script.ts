@@ -36,10 +36,10 @@ export default /* do not make this async */ () => {
 };
 
 const initialise = async () => {
-  const { register, updateTags: u } = cachedResult("store", () => initialiseStore(getCaseDetailsSubscription));
+  const { register, updateTags: u, resetTags } = cachedResult("store", () => initialiseStore(getCaseDetailsSubscription));
   updateTags = u;
   // We reset the tags to empty as we could be being called after a navigate in a SPA
-  register({ tags: {} });
+  resetTags();
 
   try {
     // Several of the operations below need only be run when we first spin up and not on any potential SPA navigation.
@@ -57,7 +57,7 @@ const initialise = async () => {
 
     const context = initialiseContext({ window, config });
     register({ context });
-    updateTags({ tags: context.pathTags });
+    updateTags({ tags: context.pathTags, source: "path" });
 
     initialiseDomForContext({ context });
     handleOutSystemsForcedAuth({ window, config, context });

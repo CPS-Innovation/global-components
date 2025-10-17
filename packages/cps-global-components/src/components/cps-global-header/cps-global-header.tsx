@@ -14,7 +14,7 @@ export class CpsGlobalHeader {
   @Watch("isDcf")
   onIsDcfChange(newValue: boolean) {
     _console.debug({ newValue });
-    updateTags({ tags: { isDcf: String(newValue) } });
+    updateTags({ tags: { isDcf: String(newValue) }, source: "props" });
   }
 
   componentWillLoad() {
