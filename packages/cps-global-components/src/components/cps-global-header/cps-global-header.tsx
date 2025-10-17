@@ -3,7 +3,7 @@ import { renderError } from "../common/render-error";
 import { readyState } from "../../store/store";
 import { WithLogging } from "../../logging/WithLogging";
 import { _console } from "../../logging/_console";
-import { registerToStore } from "../../global-script";
+import { updateTags } from "../../global-script";
 @Component({
   tag: "cps-global-header",
   shadow: true, // must be true as this is our published entry point!
@@ -13,7 +13,7 @@ export class CpsGlobalHeader {
   @Prop() isDcf: boolean = false;
   @Watch("isDcf")
   onIsDcfChange(newValue: boolean) {
-    registerToStore({ props: { isDcf: String(newValue) } });
+    updateTags({ tags: { isDcf: String(newValue) } });
   }
 
   @WithLogging("CpsGlobalHeader")

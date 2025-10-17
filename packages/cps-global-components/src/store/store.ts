@@ -2,11 +2,9 @@ import { createStore, Subscription } from "@stencil/store";
 import { _console } from "../logging/_console";
 import { Config } from "cps-global-configuration";
 import { AuthResult } from "../services/auth/initialise-auth";
-import { FoundContext } from "../services/context/find-context";
+import { FoundContext } from "../services/context/FoundContext";
 import { ApplicationFlags } from "../services/application-flags/ApplicationFlags";
 import { initialisationStatusSubscription } from "./subscriptions/initialisation-status-subscription";
-import { caseIdentifiersSubscription } from "./subscriptions/case-identifiers-subscription";
-import { CaseIdentifiers } from "../services/context/CaseIdentifiers";
 import { loggingSubscription } from "./subscriptions/logging-subscription";
 import { resetPreventionSubscription } from "./subscriptions/reset-prevention-subscription";
 import { CaseDetails } from "../services/data/types";
@@ -17,19 +15,14 @@ type StartupState = { flags: ApplicationFlags; config: Config; auth: AuthResult 
 const initialStartupState = { flags: undefined, config: undefined, auth: undefined };
 
 // This state could change (e.g. history-based non-full-refresh navigation or dom tags changing)
-type ContextState = { context: FoundContext; tags: Tags; caseIdentifiers: CaseIdentifiers; caseDetails: CaseDetails };
-const initialContextState = { context: undefined, tags: undefined, caseIdentifiers: undefined, caseDetails: undefined };
-
-type PropState = { props: Tags };
-const initialPropState = { props: undefined };
+type ContextState = { context: FoundContext; tags: Tags; caseDetails: CaseDetails };
+const initialContextState = { context: undefined, tags: {}, caseDetails: undefined };
 
 // This state is general
 type SummaryState = { fatalInitialisationError: Error | undefined; initialisationStatus: undefined | "ready" | "broken" };
 const initialSummaryState = { fatalInitialisationError: undefined, initialisationStatus: undefined };
 
-type DerivedState = { readonly combinedTags: Tags };
-
-export type KnownState = StartupState & ContextState & SummaryState & PropState & DerivedState;
+export type KnownState = StartupState & ContextState & SummaryState;
 
 export type State = {
   [K in keyof KnownState]: KnownState[K] | undefined;
@@ -37,15 +30,12 @@ export type State = {
 
 export type Register = (arg: Partial<State>) => void;
 
+export type UpdateTags = (arg: Pick<State, "tags">) => void;
+
 const initialInternalState: State = {
   ...initialStartupState,
   ...initialContextState,
-  ...initialPropState,
   ...initialSummaryState,
-  get combinedTags() {
-    const { tags, context, props } = this as Omit<State, keyof DerivedState>;
-    return { ...tags, ...(context?.found ? context.tags : undefined), ...props };
-  },
 };
 
 export type SubscriptionFactory = (arg: { store: typeof store; registerToStore: Register }) => Subscription<State>;
@@ -60,17 +50,21 @@ export const initialiseStore = (...externalSubscriptions: SubscriptionFactory[])
     (newValue, oldValue) => JSON.stringify(newValue) !== JSON.stringify(oldValue),
   );
 
-  const registerToStore = (arg: Partial<State>) => {
+  const register = (arg: Partial<State>) => {
     (Object.keys(arg) as (keyof State)[]).forEach(key => store.set(key, arg[key]));
   };
 
+  const updateTags = (arg: Pick<State, "tags">) => {
+    store.set("tags", { ...store["tags"], ...arg.tags });
+  };
+
   store.use(
-    ...[resetPreventionSubscription, loggingSubscription, initialisationStatusSubscription, caseIdentifiersSubscription, ...externalSubscriptions].map(subscription =>
-      subscription({ store, registerToStore }),
+    ...[resetPreventionSubscription, loggingSubscription, initialisationStatusSubscription, ...externalSubscriptions].map(subscription =>
+      subscription({ store, registerToStore: register }),
     ),
   );
 
-  return { registerToStore };
+  return { register, updateTags };
 };
 
 // Helper types

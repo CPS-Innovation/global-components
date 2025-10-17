@@ -1,6 +1,6 @@
 import { handleContextAuthorisation } from "./handle-context-authorisation";
 import { AuthResult, FailedAuth } from "../auth/initialise-auth";
-import { FoundContext } from "../context/find-context";
+import { FoundContext } from "../context/FoundContext";
 
 describe("handleContextAuthorisation", () => {
   let mockReplace: jest.Mock;
@@ -45,7 +45,7 @@ describe("handleContextAuthorisation", () => {
     it("should not redirect for authenticated user", () => {
       const context: FoundContext = {
         found: true,
-        tags: {},
+        pathTags: {},
         contextIndex: 0,
         msalRedirectUrl: "https://example.com",
         paths: ["/test"],
@@ -71,7 +71,7 @@ describe("handleContextAuthorisation", () => {
     it("should not redirect for unauthenticated user", () => {
       const context: FoundContext = {
         found: true,
-        tags: {},
+        pathTags: {},
         contextIndex: 0,
         msalRedirectUrl: "https://example.com",
         paths: ["/test"],
@@ -96,7 +96,7 @@ describe("handleContextAuthorisation", () => {
   describe("when context has authorisation rule", () => {
     const authorisedContext: FoundContext = {
       found: true,
-      tags: {},
+      pathTags: {},
       contextIndex: 0,
       msalRedirectUrl: "https://example.com",
       paths: ["/test"],
@@ -212,7 +212,7 @@ describe("handleContextAuthorisation", () => {
     it("should handle context with multiple AD groups correctly", () => {
       const context: FoundContext = {
         found: true,
-        tags: {},
+        pathTags: {},
         contextIndex: 0,
         msalRedirectUrl: "https://example.com",
         paths: ["/test"],
@@ -242,7 +242,7 @@ describe("handleContextAuthorisation", () => {
     it("should handle case-sensitive AD group matching", () => {
       const context: FoundContext = {
         found: true,
-        tags: {},
+        pathTags: {},
         contextIndex: 0,
         msalRedirectUrl: "https://example.com",
         paths: ["/test"],
@@ -272,7 +272,7 @@ describe("handleContextAuthorisation", () => {
     it("should handle auth with undefined name", () => {
       const context: FoundContext = {
         found: true,
-        tags: {},
+        pathTags: {},
         contextIndex: 0,
         msalRedirectUrl: "https://example.com",
         paths: ["/test"],

@@ -1,6 +1,6 @@
 import { InteractionRequiredAuthError, PublicClientApplication } from "@azure/msal-browser";
 import { Config } from "cps-global-configuration";
-import { FoundContext } from "../context/find-context";
+import { FoundContext } from "../context/FoundContext";
 import { withLogging } from "../../logging/with-logging";
 
 const MSAL_ERROR_CODES = {
@@ -35,14 +35,14 @@ const scopes = ["User.Read"];
 const initialise = async ({
   window: { location },
   config: { AD_TENANT_AUTHORITY: authority, AD_CLIENT_ID: clientId, FEATURE_FLAG_ENABLE_INTRUSIVE_AD_LOGIN },
-  context: { msalRedirectUrl: redirectUri },
+  context: { found: contextFound, msalRedirectUrl: redirectUri },
 }: Props): Promise<AuthResult> => {
   if (!(authority && clientId && redirectUri)) {
     // todo: feedback or logging
-    const missingValues = Object.entries({ authority, clientId, redirectUri })
+    const missingValues = Object.entries({ authority, clientId, contextFound, redirectUri })
       .filter(([, value]) => !value)
       .map(([key]) => key)
-      .join(",");
+      .join(", ");
 
     return {
       isAuthed: false,

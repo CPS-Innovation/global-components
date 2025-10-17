@@ -1,5 +1,5 @@
-import { findContext } from "./find-context";
 import { Context } from "cps-global-configuration/dist/schema";
+import { initialiseContext } from "./initialise-context";
 
 const createMockWindow = (url: string): Window => {
   const urlObj = new URL(url);
@@ -13,12 +13,12 @@ const createMockWindow = (url: string): Window => {
   } as Window;
 };
 
-describe("findContext", () => {
+describe("initialiseContext", () => {
   it("should return not found when context array is empty", () => {
     const contexts: Context[] = [];
     const mockWindow = createMockWindow("https://example.com/page");
 
-    const result = findContext(contexts, mockWindow);
+    const result = initialiseContext({ window: mockWindow, config: { CONTEXTS: contexts } });
     expect(result).toEqual({
       found: false,
     });
@@ -34,7 +34,7 @@ describe("findContext", () => {
     ];
     const mockWindow = createMockWindow("https://example.com/page");
 
-    const result = findContext(contexts, mockWindow);
+    const result = initialiseContext({ window: mockWindow, config: { CONTEXTS: contexts } });
     expect(result).toEqual({
       contextIndex: 0,
       found: true,
@@ -56,7 +56,7 @@ describe("findContext", () => {
     ];
     const mockWindow = createMockWindow("https://example.com/users/123");
 
-    const result = findContext(contexts, mockWindow);
+    const result = initialiseContext({ window: mockWindow, config: { CONTEXTS: contexts } });
     expect(result).toEqual({
       contextIndex: 0,
       found: true,
@@ -78,7 +78,7 @@ describe("findContext", () => {
     ];
     const mockWindow = createMockWindow("https://example.com/users/123/posts/456");
 
-    const result = findContext(contexts, mockWindow);
+    const result = initialiseContext({ window: mockWindow, config: { CONTEXTS: contexts } });
     expect(result).toEqual({
       contextIndex: 0,
       found: true,
@@ -108,7 +108,7 @@ describe("findContext", () => {
     ];
     const mockWindow = createMockWindow("https://example.com/specific");
 
-    const result = findContext(contexts, mockWindow);
+    const result = initialiseContext({ window: mockWindow, config: { CONTEXTS: contexts } });
     expect(result).toEqual({
       contextIndex: 0,
       found: true,
@@ -130,7 +130,7 @@ describe("findContext", () => {
     ];
     const mockWindow = createMockWindow("https://example.com/dashboard");
 
-    const result = findContext(contexts, mockWindow);
+    const result = initialiseContext({ window: mockWindow, config: { CONTEXTS: contexts } });
     expect(result).toEqual({
       contextIndex: 0,
       found: true,
@@ -152,7 +152,7 @@ describe("findContext", () => {
     ];
     const mockWindow = createMockWindow("https://example.com/api/v2/users?page=1&limit=10");
 
-    const result = findContext(contexts, mockWindow);
+    const result = initialiseContext({ window: mockWindow, config: { CONTEXTS: contexts } });
     expect(result).toEqual({
       contextIndex: 0,
       found: true,
@@ -182,7 +182,7 @@ describe("findContext", () => {
     ];
     const mockWindow = createMockWindow("https://example.com/page3");
 
-    const result = findContext(contexts, mockWindow);
+    const result = initialiseContext({ window: mockWindow, config: { CONTEXTS: contexts } });
     expect(result).toEqual({
       found: false,
     });
@@ -198,7 +198,7 @@ describe("findContext", () => {
     ];
     const mockWindow = createMockWindow("https://example.com/page/subpage");
 
-    const result = findContext(contexts, mockWindow);
+    const result = initialiseContext({ window: mockWindow, config: { CONTEXTS: contexts } });
     expect(result).toEqual({
       found: false,
     });
@@ -219,7 +219,7 @@ describe("findContext", () => {
     ];
     const mockWindow = createMockWindow("https://example.com/about");
 
-    const result = findContext(contexts, mockWindow);
+    const result = initialiseContext({ window: mockWindow, config: { CONTEXTS: contexts } });
     expect(result).toEqual({
       contextIndex: 0,
       found: true,
@@ -253,7 +253,7 @@ describe("findContext", () => {
     ];
     const mockWindow = createMockWindow("https://example.com/with-dom-tags");
 
-    const result = findContext(contexts, mockWindow);
+    const result = initialiseContext({ window: mockWindow, config: { CONTEXTS: contexts } });
     expect(result).toEqual({
       contextIndex: 0,
       found: true,
@@ -284,7 +284,7 @@ describe("findContext", () => {
     ];
     const mockWindow = createMockWindow("https://example.com/no-dom-tags");
 
-    const result = findContext(contexts, mockWindow);
+    const result = initialiseContext({ window: mockWindow, config: { CONTEXTS: contexts } });
     expect(result).toEqual({
       contextIndex: 0,
       found: true,
@@ -312,7 +312,7 @@ describe("findContext", () => {
     ];
     const mockWindow = createMockWindow("https://example.com/products/123");
 
-    const result = findContext(contexts, mockWindow);
+    const result = initialiseContext({ window: mockWindow, config: { CONTEXTS: contexts } });
     expect(result).toEqual({
       contextIndex: 0,
       found: true,
@@ -342,7 +342,7 @@ describe("findContext", () => {
     // URL with parameters in different order should still match after sorting
     const mockWindow = createMockWindow("https://example.com/search?foo=1&bar=2");
 
-    const result = findContext(contexts, mockWindow);
+    const result = initialiseContext({ window: mockWindow, config: { CONTEXTS: contexts } });
     expect(result).toEqual({
       contextIndex: 0,
       found: true,
@@ -364,7 +364,7 @@ describe("findContext", () => {
     ];
     const mockWindow = createMockWindow("https://example.com/page#section");
 
-    const result = findContext(contexts, mockWindow);
+    const result = initialiseContext({ window: mockWindow, config: { CONTEXTS: contexts } });
     expect(result).toEqual({
       contextIndex: 0,
       found: true,
@@ -387,7 +387,7 @@ describe("findContext", () => {
       ];
       const mockWindow = createMockWindow("https://example.com/mypage");
 
-      const result = findContext(contexts, mockWindow);
+      const result = initialiseContext({ window: mockWindow, config: { CONTEXTS: contexts } });
       expect(result).toEqual({
         contextIndex: 0,
         found: true,
@@ -409,7 +409,7 @@ describe("findContext", () => {
       ];
       const mockWindow = createMockWindow("https://example.com/page");
 
-      const result = findContext(contexts, mockWindow);
+      const result = initialiseContext({ window: mockWindow, config: { CONTEXTS: contexts } });
       expect(result).toEqual({
         contextIndex: 0,
         found: true,
@@ -431,7 +431,7 @@ describe("findContext", () => {
       ];
       const mockWindow = createMockWindow("https://example.com/page");
 
-      const result = findContext(contexts, mockWindow);
+      const result = initialiseContext({ window: mockWindow, config: { CONTEXTS: contexts } });
       expect(result).toEqual({
         contextIndex: 0,
         found: true,
@@ -453,7 +453,7 @@ describe("findContext", () => {
       ];
       const mockWindow = createMockWindow("https://example.com/users/123");
 
-      const result = findContext(contexts, mockWindow);
+      const result = initialiseContext({ window: mockWindow, config: { CONTEXTS: contexts } });
       expect(result).toEqual({
         contextIndex: 0,
         found: true,
@@ -475,7 +475,7 @@ describe("findContext", () => {
       ];
       const mockWindow = createMockWindow("https://example.com/products/789");
 
-      const result = findContext(contexts, mockWindow);
+      const result = initialiseContext({ window: mockWindow, config: { CONTEXTS: contexts } });
       expect(result).toEqual({
         contextIndex: 0,
         found: true,
@@ -499,7 +499,7 @@ describe("findContext", () => {
       ];
       const mockWindow = createMockWindow("https://example.com/search?bar=2&foo=1");
 
-      const result = findContext(contexts, mockWindow);
+      const result = initialiseContext({ window: mockWindow, config: { CONTEXTS: contexts } });
       expect(result).toEqual({
         contextIndex: 0,
         found: true,
@@ -521,7 +521,7 @@ describe("findContext", () => {
       ];
       const mockWindow = createMockWindow("https://example.com/page#section");
 
-      const result = findContext(contexts, mockWindow);
+      const result = initialiseContext({ window: mockWindow, config: { CONTEXTS: contexts } });
       expect(result).toEqual({
         contextIndex: 0,
         found: true,
@@ -543,7 +543,7 @@ describe("findContext", () => {
       ];
       const mockWindow = createMockWindow("https://example.com/api/v2/users?page=1");
 
-      const result = findContext(contexts, mockWindow);
+      const result = initialiseContext({ window: mockWindow, config: { CONTEXTS: contexts } });
       expect(result).toEqual({
         contextIndex: 0,
         found: true,
@@ -566,11 +566,9 @@ describe("findContext", () => {
           msalRedirectUrl: "foo",
         },
       ];
-      const mockWindow = createMockWindow(
-        "https://cps-tst.outsystemsenterprise.com/WorkManagementApp/CaseOverview?CaseId=12345&URN=ABC123DEF"
-      );
+      const mockWindow = createMockWindow("https://cps-tst.outsystemsenterprise.com/WorkManagementApp/CaseOverview?CaseId=12345&URN=ABC123DEF");
 
-      const result = findContext(contexts, mockWindow);
+      const result = initialiseContext({ window: mockWindow, config: { CONTEXTS: contexts } });
       expect(result).toEqual({
         contextIndex: 0,
         found: true,
@@ -593,11 +591,9 @@ describe("findContext", () => {
           msalRedirectUrl: "foo",
         },
       ];
-      const mockWindow = createMockWindow(
-        "https://cps-tst.outsystemsenterprise.com/workmanagementapp/caseoverview?caseid=67890&urn=XYZ789GHI"
-      );
+      const mockWindow = createMockWindow("https://cps-tst.outsystemsenterprise.com/workmanagementapp/caseoverview?caseid=67890&urn=XYZ789GHI");
 
-      const result = findContext(contexts, mockWindow);
+      const result = initialiseContext({ window: mockWindow, config: { CONTEXTS: contexts } });
       expect(result).toEqual({
         contextIndex: 0,
         found: true,
@@ -622,11 +618,9 @@ describe("findContext", () => {
       ];
       // Note: buildSanitizedAddress sorts params alphabetically (case-insensitive)
       // CaseId, URN are already in the correct sorted order
-      const mockWindow = createMockWindow(
-        "https://cps-tst.outsystemsenterprise.com/WorkManagementApp/CaseOverview?URN=ABC123&CaseId=54321"
-      );
+      const mockWindow = createMockWindow("https://cps-tst.outsystemsenterprise.com/WorkManagementApp/CaseOverview?URN=ABC123&CaseId=54321");
 
-      const result = findContext(contexts, mockWindow);
+      const result = initialiseContext({ window: mockWindow, config: { CONTEXTS: contexts } });
       expect(result).toEqual({
         contextIndex: 0,
         found: true,
@@ -650,11 +644,9 @@ describe("findContext", () => {
         },
       ];
       // Note: 'z' sorts after 'URN' (case-insensitive: C < U < z)
-      const mockWindow = createMockWindow(
-        "https://cps-tst.outsystemsenterprise.com/WorkManagementApp/CaseOverview?CaseId=99999&URN=TEST123&zextra=value"
-      );
+      const mockWindow = createMockWindow("https://cps-tst.outsystemsenterprise.com/WorkManagementApp/CaseOverview?CaseId=99999&URN=TEST123&zextra=value");
 
-      const result = findContext(contexts, mockWindow);
+      const result = initialiseContext({ window: mockWindow, config: { CONTEXTS: contexts } });
       expect(result).toEqual({
         contextIndex: 0,
         found: true,

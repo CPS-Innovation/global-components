@@ -1,5 +1,5 @@
 import { _console } from "../../logging/_console";
-import { FoundContext } from "../context/find-context";
+import { FoundContext } from "../context/FoundContext";
 import { DomMutationObserver } from "./DomMutationSubscriber";
 import "arrive";
 
