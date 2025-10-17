@@ -13,7 +13,13 @@ export class CpsGlobalHeader {
   @Prop() isDcf: boolean = false;
   @Watch("isDcf")
   onIsDcfChange(newValue: boolean) {
+    _console.debug({ newValue });
     updateTags({ tags: { isDcf: String(newValue) } });
+  }
+
+  componentWillLoad() {
+    // Manually call the handler for initial setup
+    this.onIsDcfChange(this.isDcf);
   }
 
   @WithLogging("CpsGlobalHeader")

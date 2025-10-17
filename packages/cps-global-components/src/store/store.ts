@@ -55,7 +55,7 @@ export const initialiseStore = (...externalSubscriptions: SubscriptionFactory[])
   };
 
   const updateTags = (arg: Pick<State, "tags">) => {
-    store.set("tags", { ...store["tags"], ...arg.tags });
+    store.set("tags", { ...store.get("tags"), ...arg.tags });
   };
 
   store.use(

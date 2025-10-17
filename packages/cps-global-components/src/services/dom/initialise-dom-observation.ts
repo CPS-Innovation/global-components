@@ -10,10 +10,10 @@ export const initialiseDomObservation = ({ window: { document } }: { window: Win
       subscriptions.forEach(({ cssSelector, handler, unbind }) => {
         if (isActiveForContext) {
           _console.debug("Dom observation", `Activating for ${cssSelector}`);
-          // Look for any pre-existing elements that match our criteria...
-          document.querySelectorAll(cssSelector).forEach(element => handler(element));
+          // // Look for any pre-existing elements that match our criteria...
+          // document.querySelectorAll(cssSelector).forEach(element => handler(element));
           // ... then set up our mutation observation
-          document.arrive(cssSelector, handler);
+          document.arrive(cssSelector, { fireOnAttributesModification: true, existing: true }, handler);
           _console.debug("Dom observation", `Activated for ${cssSelector}`);
         } else {
           document.unbindArrive(cssSelector);

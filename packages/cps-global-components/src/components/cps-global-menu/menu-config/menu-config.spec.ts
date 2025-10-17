@@ -119,14 +119,13 @@ describe("menuConfig", () => {
   it("should process links when context is found", () => {
     const foundContexts = "test-context";
     const foundTags = { tag1: "value1", tag2: "value2" };
-    const domTags = { domTag1: "domValue1" };
 
     const foundContext: FoundContext = {
       found: true,
       paths: ["https://example.com/test"],
       contexts: foundContexts,
       domTags: undefined,
-      pathTags: foundTags,
+      pathTags: {},
       contextIndex: 0,
       msalRedirectUrl: "foo",
     };
@@ -136,7 +135,7 @@ describe("menuConfig", () => {
       caseDetails: mockCaseDetails,
       config: mockConfig,
       flags: mockFlags,
-      tags: domTags,
+      tags: foundTags,
       auth: {} as AuthResult,
       fatalInitialisationError: undefined as any,
       initialisationStatus: "ready",
@@ -192,7 +191,7 @@ describe("menuConfig", () => {
     // The handoverAdapter should be a function when not in OutSystems (even with empty OS_HANDOVER_URL)
     expect(mockMapLinkConfig).toHaveBeenCalledWith({
       contexts: foundContexts,
-      tags: { ...foundTags, ...domTags },
+      tags: foundTags,
       handoverAdapter: expect.any(Function),
     });
     expect(mockMapFunction).toHaveBeenCalledTimes(2); // Only called for filtered links
@@ -225,7 +224,7 @@ describe("menuConfig", () => {
       paths: ["https://example.com/test"],
       contexts: foundContexts,
       domTags: undefined,
-      pathTags: foundTags,
+      pathTags: {},
       contextIndex: 0,
       msalRedirectUrl: "foo",
     };
@@ -241,7 +240,7 @@ describe("menuConfig", () => {
         ...mockFlags,
         isOutSystems: true, // In OutSystems
       },
-      tags: mockTags,
+      tags: foundTags,
       auth: {} as AuthResult,
       fatalInitialisationError: undefined as any,
       initialisationStatus: "ready",
@@ -284,7 +283,7 @@ describe("menuConfig", () => {
       paths: ["https://example.com/test"],
       contexts: foundContexts,
       domTags: undefined,
-      pathTags: foundTags,
+      pathTags: {},
       contextIndex: 0,
       msalRedirectUrl: "foo",
     };
@@ -300,7 +299,7 @@ describe("menuConfig", () => {
         ...mockFlags,
         isOutSystems: false,
       },
-      tags: mockTags,
+      tags: foundTags,
       auth: {} as AuthResult,
       fatalInitialisationError: undefined as any,
       initialisationStatus: "ready",
