@@ -127,7 +127,7 @@ const initialise = async ({
       groups: (idTokenClaims && (idTokenClaims["groups"] as string[])) || [],
     };
   } catch (error) {
-    _console.error(error);
+    _console.error({ authority, clientId, redirectUri, error });
     if (error instanceof InteractionRequiredAuthError) {
       return {
         isAuthed: false,
