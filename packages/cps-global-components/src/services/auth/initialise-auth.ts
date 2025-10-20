@@ -70,11 +70,15 @@ const initialise = async ({
       authority,
       clientId,
       redirectUri,
+      // navigateToLoginRequestUrl: false,
     },
     cache: {
       cacheLocation: "localStorage",
+      storeAuthStateInCookie: true,
     },
     system: {
+      iframeHashTimeout: 6000, // Reduce timeout to fail faster
+      loadFrameTimeout: 6000,
       allowPlatformBroker: false,
       loggerOptions: {
         loggerCallback: (level, message, containsPii) => {
