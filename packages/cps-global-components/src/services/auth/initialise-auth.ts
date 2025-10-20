@@ -1,7 +1,8 @@
-import { InteractionRequiredAuthError, PublicClientApplication } from "@azure/msal-browser";
+import { InteractionRequiredAuthError, LogLevel, PublicClientApplication } from "@azure/msal-browser";
 import { Config } from "cps-global-configuration";
 import { FoundContext } from "../context/find-context";
 import { withLogging } from "../../logging/with-logging";
+import { _console } from "../../logging/_console";
 
 const MSAL_ERROR_CODES = {
   ConditionalAccessRule: "AADSTS53003",
@@ -70,6 +71,18 @@ const initialise = async ({
       clientId,
       redirectUri,
     },
+    cache: {
+      cacheLocation: "localStorage",
+    },
+    system: {
+      allowPlatformBroker: false,
+      loggerOptions: {
+        loggerCallback: (level, message, containsPii) => {
+          _console.debug("initialiseAuth", "MSAL logging", level, message, containsPii);
+        },
+        logLevel: LogLevel.Verbose,
+      },
+    },
   });
 
   try {
@@ -77,6 +90,7 @@ const initialise = async ({
     try {
       await instance.ssoSilent({
         scopes,
+        prompt: "none",
       });
     } catch (error) {
       if (FEATURE_FLAG_ENABLE_INTRUSIVE_AD_LOGIN && error instanceof InteractionRequiredAuthError && error.message.includes(MSAL_ERROR_CODES.MultipleIdentities)) {
@@ -109,6 +123,7 @@ const initialise = async ({
       groups: (idTokenClaims && (idTokenClaims["groups"] as string[])) || [],
     };
   } catch (error) {
+    _console.error(error);
     if (error instanceof InteractionRequiredAuthError) {
       return {
         isAuthed: false,
