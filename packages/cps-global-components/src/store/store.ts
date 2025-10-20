@@ -10,69 +10,69 @@ import { resetPreventionSubscription } from "./subscriptions/reset-prevention-su
 import { CaseDetails } from "../services/data/types";
 import { Tags } from "../services/context/Tags";
 
+type MakeUndefinable<T> = {
+  [K in keyof T]: T[K] | undefined;
+};
+
 // This state is expected to be set up once on startup
 type StartupState = { flags: ApplicationFlags; config: Config; auth: AuthResult };
 const initialStartupState = { flags: undefined, config: undefined, auth: undefined };
 
 // This state could change (e.g. history-based non-full-refresh navigation or dom tags changing)
-type ContextState = { context: FoundContext; domTags: Tags; caseDetails: CaseDetails };
-const initialContextState = { context: undefined, domTags: {}, caseDetails: undefined };
+type TransientState = { context: FoundContext; propTags: Tags; pathTags: Tags; domTags: Tags; caseDetails: CaseDetails };
+const initialTransientState = { context: undefined, propTags: undefined, pathTags: undefined, domTags: undefined, caseDetails: undefined };
 
 // This state is general
 type SummaryState = { fatalInitialisationError: Error | undefined; initialisationStatus: undefined | "ready" | "broken" };
 const initialSummaryState = { fatalInitialisationError: undefined, initialisationStatus: undefined };
+type DerivedState = { readonly tags: Tags };
 
-export type KnownState = StartupState & ContextState & SummaryState;
+export type KnownState = StartupState & TransientState & SummaryState & DerivedState;
 
-export type State = {
-  [K in keyof KnownState]: KnownState[K] | undefined;
-};
+export type State = MakeUndefinable<KnownState>;
 
 export type Register = (arg: Partial<State>) => void;
 
-type TagSource = "path" | "dom" | "props";
-
-export type UpdateTags = (arg: Pick<State, "domTags"> & { source: TagSource }) => void;
-
-const initialState: State = {
+const initialState: MakeUndefinable<StartupState & TransientState & SummaryState> = {
   ...initialStartupState,
-  ...initialContextState,
+  ...initialTransientState,
   ...initialSummaryState,
 };
 
 export type SubscriptionFactory = (arg: { store: typeof store; registerToStore: Register }) => Subscription<State>;
 
-let store: ReturnType<typeof createStore<State>>;
+let store: ReturnType<typeof createStore<State & MakeUndefinable<DerivedState>>>;
 
 export const initialiseStore = (...externalSubscriptions: SubscriptionFactory[]) => {
-  // Yuck.  When clearing tags on SPA navigation, we still want to retain any tags tht have been supplied via
-  //  properties passed to the web component.  There is probably a more elegant way to do this, but for the
-  //  time being we just keep a record if how each tag has been added so we can retain those that are props.
-  let internalState = { tagSources: {} as Record<string, TagSource> };
-
-  store = createStore<State>(
+  const internalStore = createStore<MakeUndefinable<StartupState & TransientState & SummaryState>>(
     () => ({
       ...initialState,
     }),
     (newValue, oldValue) => JSON.stringify(newValue) !== JSON.stringify(oldValue),
   );
 
+  // Add a readonly property
+  Object.defineProperty(internalStore.state, "tags", {
+    get() {
+      const state = this as State;
+      _console.debug("This", this);
+      return { ...state.domTags, ...state.pathTags, ...state.propTags };
+    },
+    enumerable: true,
+    configurable: false,
+  });
+
+  store = internalStore as any;
+
   const register = (arg: Partial<State>) => (Object.keys(arg) as (keyof State)[]).forEach(key => store.set(key, arg[key]));
 
-  const updateTags: UpdateTags = ({ domTags: tags, source }) => {
-    store.set("domTags", { ...store.get("domTags"), ...tags });
-    internalState.tagSources = { ...internalState.tagSources, ...Object.keys(tags || {}).reduce((acc, key) => ({ ...acc, [key]: source }), {}) };
-  };
-
-  const resetTags = () => {
-    _console.debug("Store", "Resetting tags", { tagSources: internalState.tagSources, tags: store.state.domTags });
-    const entriesToKeep = Object.entries(store.get("domTags") || {}).filter(([key]) => internalState.tagSources[key] === "props");
-    store.set(
-      "domTags",
-      entriesToKeep.reduce((acc, [key, value]) => ({ ...acc, [key]: value }), {}),
-    );
-    internalState.tagSources = entriesToKeep.reduce((acc, [key]) => ({ ...acc, [key]: internalState.tagSources[key] }), {});
-    _console.debug("Store", "Reset tags", { tagSources: internalState.tagSources, tags: store.state.domTags });
+  const resetContextSpecificTags = () => {
+    // Note: tags obtained from props passed from the host apps should not be cleared on context change.
+    //  They are subject to being updated via @Watch so all good there, but we definitely do not want
+    //  the tags from one context (e.g. caseId = 123) hanging around for the next context in an SPA
+    //  navigation (e.g. caseId = 456).
+    store.set("pathTags", {});
+    store.set("domTags", {});
   };
 
   store.use(
@@ -81,7 +81,7 @@ export const initialiseStore = (...externalSubscriptions: SubscriptionFactory[])
     ),
   );
 
-  return { register, updateTags, resetTags };
+  return { register, resetContextSpecificTags };
 };
 
 // Helper types
@@ -111,6 +111,7 @@ export const readyState = <K extends readonly (keyof State)[] = readonly []>(...
   //  by having read that property.
   // In the code below we must ensure that we visit every property listed in `keysToCheck` otherwise we may miss registering
   //  to observe a property.
+  debugger;
   if (
     keysToCheck
       .map((key: keyof KnownState) => {

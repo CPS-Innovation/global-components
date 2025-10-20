@@ -1,6 +1,6 @@
 import { handleSetOverrideMode } from "./services/override-mode/handle-set-override-mode";
 import { initialiseAuth } from "./services/auth/initialise-auth";
-import { initialiseStore, UpdateTags } from "./store/store";
+import { initialiseStore, Register } from "./store/store";
 import { initialiseAnalytics } from "./services/analytics/initialise-analytics";
 import { initialiseConfig } from "./services/config/initialise-config";
 import { initialiseContext } from "./services/context/initialise-context";
@@ -36,17 +36,17 @@ export default /* do not make this async */ () => {
 };
 
 const initialise = async () => {
-  const { register, updateTags: u, resetTags } = cachedResult("store", () => initialiseStore(getCaseDetailsSubscription));
-  updateTags = u;
+  const { register: r, resetContextSpecificTags } = cachedResult("store", () => initialiseStore(getCaseDetailsSubscription));
+  register = r;
   // We reset the tags to empty as we could be being called after a navigate in a SPA
-  resetTags();
+  resetContextSpecificTags();
 
   try {
     // Several of the operations below need only be run when we first spin up and not on any potential SPA navigation.
     //  We use `cachedResult` give us the ability to rerun this function many times while ensuring that the one-time-only
     //  operations are only executed once (alternative would be lots of if statements or similar)
     const { initialiseDomForContext } = cachedResult("dom", () =>
-      initialiseDomObservation({ window }, domTagMutationSubscriber({ updateTags }), ...outSystemsShimSubscribers({ window })),
+      initialiseDomObservation({ window }, domTagMutationSubscriber({ register }), ...outSystemsShimSubscribers({ window })),
     );
 
     const flags = cachedResult("flags", () => getApplicationFlags({ window }));
@@ -57,12 +57,13 @@ const initialise = async () => {
 
     const context = initialiseContext({ window, config });
     register({ context });
-    updateTags({ domTags: context.pathTags, source: "path" });
+    const { pathTags } = context;
+    register({ pathTags });
 
     initialiseDomForContext({ context });
     handleOutSystemsForcedAuth({ window, config, context });
 
-    const auth = await cachedResult("auth", () => (flags.isE2eTestMode ? initialiseMockAuth({ window }) : initialiseAuth({ window, config, context })));
+    const auth = await cachedResult("auth", () => (flags.isE2eTestMode ? initialiseMockAuth({ window }) : initialiseAuth({ window, config, context, pathTags })));
     register({ auth });
     handleContextAuthorisation({ window, context, auth });
 
@@ -74,4 +75,4 @@ const initialise = async () => {
   }
 };
 
-export let updateTags: UpdateTags;
+export let register: Register;

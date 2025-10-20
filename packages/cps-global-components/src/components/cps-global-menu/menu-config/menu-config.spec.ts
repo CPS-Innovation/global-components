@@ -98,7 +98,10 @@ describe("menuConfig", () => {
       caseDetails: mockCaseDetails,
       config: mockConfig,
       flags: mockFlags,
+      propTags: {},
+      pathTags: {},
       domTags: mockTags,
+      tags: {},
       auth: {} as AuthResult,
       fatalInitialisationError: undefined as any,
       initialisationStatus: "ready",
@@ -135,7 +138,10 @@ describe("menuConfig", () => {
       caseDetails: mockCaseDetails,
       config: mockConfig,
       flags: mockFlags,
+      propTags: {},
+      pathTags: {},
       domTags: foundTags,
+      tags: {},
       auth: {} as AuthResult,
       fatalInitialisationError: undefined as any,
       initialisationStatus: "ready",
@@ -191,7 +197,7 @@ describe("menuConfig", () => {
     // The handoverAdapter should be a function when not in OutSystems (even with empty OS_HANDOVER_URL)
     expect(mockMapLinkConfig).toHaveBeenCalledWith({
       contexts: foundContexts,
-      tags: foundTags,
+      tags: {},
       handoverAdapter: expect.any(Function),
     });
     expect(mockMapFunction).toHaveBeenCalledTimes(2); // Only called for filtered links
@@ -240,7 +246,10 @@ describe("menuConfig", () => {
         ...mockFlags,
         isOutSystems: true, // In OutSystems
       },
+      propTags: {},
+      pathTags: {},
       domTags: foundTags,
+      tags: {},
       auth: {} as AuthResult,
       fatalInitialisationError: undefined as any,
       initialisationStatus: "ready",
@@ -269,7 +278,7 @@ describe("menuConfig", () => {
     // Verify handoverAdapter is undefined when in OutSystems
     expect(mockMapLinkConfig).toHaveBeenCalledWith({
       contexts: foundContexts,
-      tags: { ...foundTags, ...mockTags },
+      tags: {},
       handoverAdapter: undefined,
     });
   });
@@ -299,7 +308,10 @@ describe("menuConfig", () => {
         ...mockFlags,
         isOutSystems: false,
       },
+      propTags: {},
+      pathTags: {},
       domTags: foundTags,
+      tags: {},
       auth: {} as AuthResult,
       fatalInitialisationError: undefined as any,
       initialisationStatus: "ready",
@@ -328,7 +340,7 @@ describe("menuConfig", () => {
     // Verify handoverAdapter is passed as a function (not undefined)
     expect(mockMapLinkConfig).toHaveBeenCalledWith({
       contexts: foundContexts,
-      tags: { ...foundTags, ...mockTags },
+      tags: {},
       handoverAdapter: expect.any(Function),
     });
   });
@@ -358,7 +370,10 @@ describe("menuConfig", () => {
         ...mockFlags,
         isOutSystems: false,
       },
+      propTags: {},
+      pathTags: {},
       domTags: mockTags,
+      tags: {},
       auth: {} as AuthResult,
       fatalInitialisationError: undefined as any,
       initialisationStatus: "ready",
@@ -416,7 +431,10 @@ describe("menuConfig", () => {
         ...mockFlags,
         isOutSystems: false,
       },
+      propTags: {},
+      pathTags: {},
       domTags: mockTags,
+      tags: {},
       auth: {} as AuthResult,
       fatalInitialisationError: undefined as any,
       initialisationStatus: "ready",

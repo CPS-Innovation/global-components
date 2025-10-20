@@ -2,6 +2,8 @@ import { InteractionRequiredAuthError, PublicClientApplication } from "@azure/ms
 import { Config } from "cps-global-configuration";
 import { FoundContext } from "../context/FoundContext";
 import { withLogging } from "../../logging/with-logging";
+import { Tags } from "@microsoft/applicationinsights-web";
+import { replaceTagsInString } from "../../components/cps-global-menu/menu-config/helpers/replace-tags-in-string";
 
 const MSAL_ERROR_CODES = {
   ConditionalAccessRule: "AADSTS53003",
@@ -12,6 +14,7 @@ type Props = {
   window: Window;
   config: Config;
   context: FoundContext;
+  pathTags: Tags | undefined;
 };
 
 export type Auth = {
@@ -36,6 +39,7 @@ const initialise = async ({
   window: { location },
   config: { AD_TENANT_AUTHORITY: authority, AD_CLIENT_ID: clientId, FEATURE_FLAG_ENABLE_INTRUSIVE_AD_LOGIN },
   context: { found: contextFound, msalRedirectUrl: redirectUri },
+  pathTags,
 }: Props): Promise<AuthResult> => {
   if (!(authority && clientId && redirectUri)) {
     // todo: feedback or logging
@@ -50,6 +54,8 @@ const initialise = async ({
       reason: `Configuration is missing the following values: ${missingValues}`,
     };
   }
+
+  redirectUri = replaceTagsInString(redirectUri, pathTags || {});
 
   // For development (possibly other instances) if we detect we are being launched on an
   //  AD auth callback redirectUrl then we are spinning up inside an iframe or popup.  The intention

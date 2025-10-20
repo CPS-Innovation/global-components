@@ -3,7 +3,7 @@ import { renderError } from "../common/render-error";
 import { readyState } from "../../store/store";
 import { WithLogging } from "../../logging/WithLogging";
 import { _console } from "../../logging/_console";
-import { updateTags } from "../../global-script";
+import { register } from "../../global-script";
 @Component({
   tag: "cps-global-header",
   shadow: true, // must be true as this is our published entry point!
@@ -14,7 +14,7 @@ export class CpsGlobalHeader {
   @Watch("isDcf")
   onIsDcfChange(newValue: boolean) {
     _console.debug({ newValue });
-    updateTags({ domTags: { isDcf: String(newValue) }, source: "props" });
+    register({ propTags: { isDcf: String(newValue) } });
   }
 
   componentWillLoad() {
