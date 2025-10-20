@@ -146,8 +146,7 @@
       "level": 1,
       "href": "https://cps-tst.outsystemsenterprise.com/CaseReview/LandingPage?CMSCaseId={caseId}",
       "visibleContexts": "case",
-      "activeContexts": "review",
-      "preferEventNavigationContexts": "details tasks cases home"
+      "activeContexts": "review"
     }
   ]
 }
