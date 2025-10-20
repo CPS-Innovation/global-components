@@ -15,8 +15,8 @@ type StartupState = { flags: ApplicationFlags; config: Config; auth: AuthResult 
 const initialStartupState = { flags: undefined, config: undefined, auth: undefined };
 
 // This state could change (e.g. history-based non-full-refresh navigation or dom tags changing)
-type ContextState = { context: FoundContext; tags: Tags; caseDetails: CaseDetails };
-const initialContextState = { context: undefined, tags: {}, caseDetails: undefined };
+type ContextState = { context: FoundContext; domTags: Tags; caseDetails: CaseDetails };
+const initialContextState = { context: undefined, domTags: {}, caseDetails: undefined };
 
 // This state is general
 type SummaryState = { fatalInitialisationError: Error | undefined; initialisationStatus: undefined | "ready" | "broken" };
@@ -32,7 +32,7 @@ export type Register = (arg: Partial<State>) => void;
 
 type TagSource = "path" | "dom" | "props";
 
-export type UpdateTags = (arg: Pick<State, "tags"> & { source: TagSource }) => void;
+export type UpdateTags = (arg: Pick<State, "domTags"> & { source: TagSource }) => void;
 
 const initialState: State = {
   ...initialStartupState,
@@ -59,20 +59,20 @@ export const initialiseStore = (...externalSubscriptions: SubscriptionFactory[])
 
   const register = (arg: Partial<State>) => (Object.keys(arg) as (keyof State)[]).forEach(key => store.set(key, arg[key]));
 
-  const updateTags: UpdateTags = ({ tags, source }) => {
-    store.set("tags", { ...store.get("tags"), ...tags });
+  const updateTags: UpdateTags = ({ domTags: tags, source }) => {
+    store.set("domTags", { ...store.get("domTags"), ...tags });
     internalState.tagSources = { ...internalState.tagSources, ...Object.keys(tags || {}).reduce((acc, key) => ({ ...acc, [key]: source }), {}) };
   };
 
   const resetTags = () => {
-    _console.debug("Store", "Resetting tags", { tagSources: internalState.tagSources, tags: store.state.tags });
-    const entriesToKeep = Object.entries(store.get("tags") || {}).filter(([key]) => internalState.tagSources[key] === "props");
+    _console.debug("Store", "Resetting tags", { tagSources: internalState.tagSources, tags: store.state.domTags });
+    const entriesToKeep = Object.entries(store.get("domTags") || {}).filter(([key]) => internalState.tagSources[key] === "props");
     store.set(
-      "tags",
+      "domTags",
       entriesToKeep.reduce((acc, [key, value]) => ({ ...acc, [key]: value }), {}),
     );
     internalState.tagSources = entriesToKeep.reduce((acc, [key]) => ({ ...acc, [key]: internalState.tagSources[key] }), {});
-    _console.debug("Store", "Reset tags", { tagSources: internalState.tagSources, tags: store.state.tags });
+    _console.debug("Store", "Reset tags", { tagSources: internalState.tagSources, tags: store.state.domTags });
   };
 
   store.use(

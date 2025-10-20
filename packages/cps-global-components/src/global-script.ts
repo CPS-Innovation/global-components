@@ -57,7 +57,7 @@ const initialise = async () => {
 
     const context = initialiseContext({ window, config });
     register({ context });
-    updateTags({ tags: context.pathTags, source: "path" });
+    updateTags({ domTags: context.pathTags, source: "path" });
 
     initialiseDomForContext({ context });
     handleOutSystemsForcedAuth({ window, config, context });

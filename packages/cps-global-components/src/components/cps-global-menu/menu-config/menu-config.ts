@@ -20,8 +20,8 @@ const menuConfigInternal = ({
   context,
   flags: { isOutSystems },
   config: { OS_HANDOVER_URL, LINKS },
-  tags,
-}: Pick<KnownState, "context" | "config" | "tags" | "flags">): MenuConfigResult => {
+  domTags: tags,
+}: Pick<KnownState, "context" | "config" | "domTags" | "flags">): MenuConfigResult => {
   if (!context?.found) {
     return { status: "error", error: new Error("No context found for this URL.") };
   }

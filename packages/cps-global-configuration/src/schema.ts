@@ -12,12 +12,12 @@ const linkSchema = z.object({
 
 export type Link = z.infer<typeof linkSchema>;
 
-const domTagsSchema = z.object({
+const domTagDefinitionsSchema = z.object({
   cssSelector: z.string(),
   regex: z.string(),
 });
 
-export type DomTags = z.infer<typeof domTagsSchema>;
+export type domTagDefinitions = z.infer<typeof domTagDefinitionsSchema>;
 
 const authorisationSchema = z.object({
   adGroup: z.string(),
@@ -40,7 +40,7 @@ const contextSchema = z.object({
   paths: z.array(z.string()),
   contexts: z.string(),
   msalRedirectUrl: z.string(),
-  domTags: z.array(domTagsSchema).optional(),
+  domTagDefinitions: z.array(domTagDefinitionsSchema).optional(),
   applyOutSystemsShim: z.boolean().optional(),
   forceCmsAuthRefresh: z.boolean().optional(),
   authorisation: authorisationSchema.optional(),

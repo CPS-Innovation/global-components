@@ -41,7 +41,7 @@ describe("initialiseContext", () => {
       found: true,
       paths: ["https://example.com/page"],
       contexts: "page-context",
-      domTags: undefined,
+      domTagDefinitions: undefined,
       pathTags: {},
       msalRedirectUrl: "foo",
     } as FoundContext);
@@ -63,7 +63,7 @@ describe("initialiseContext", () => {
       found: true,
       paths: ["https://example.com/users/\\d+"],
       contexts: "user-context",
-      domTags: undefined,
+      domTagDefinitions: undefined,
       pathTags: {},
       msalRedirectUrl: "foo",
     } as FoundContext);
@@ -85,7 +85,7 @@ describe("initialiseContext", () => {
       found: true,
       paths: ["https://example.com/users/(?<userId>\\d+)/posts/(?<postId>\\d+)"],
       contexts: "post-context",
-      domTags: undefined,
+      domTagDefinitions: undefined,
       pathTags: {
         userId: "123",
         postId: "456",
@@ -115,7 +115,7 @@ describe("initialiseContext", () => {
       found: true,
       paths: ["https://example.com/.*"],
       contexts: "general-context",
-      domTags: undefined,
+      domTagDefinitions: undefined,
       pathTags: {},
       msalRedirectUrl: "foo",
     } as FoundContext);
@@ -137,7 +137,7 @@ describe("initialiseContext", () => {
       found: true,
       paths: ["https://example.com/admin", "https://example.com/dashboard"],
       contexts: "admin-context",
-      domTags: undefined,
+      domTagDefinitions: undefined,
       pathTags: {},
       msalRedirectUrl: "foo",
     } as FoundContext);
@@ -159,7 +159,7 @@ describe("initialiseContext", () => {
       found: true,
       paths: ["https://example.com/api/v(?<version>\\d+)/(?<resource>\\w+)(?:\\?.*)?"],
       contexts: "api-context",
-      domTags: undefined,
+      domTagDefinitions: undefined,
       pathTags: {
         version: "2",
         resource: "users",
@@ -226,7 +226,7 @@ describe("initialiseContext", () => {
       found: true,
       paths: ["https://example.com/(?<section>\\w+)"],
       contexts: "section-context-1",
-      domTags: undefined,
+      domTagDefinitions: undefined,
       pathTags: {
         section: "about",
       },
@@ -234,13 +234,13 @@ describe("initialiseContext", () => {
     } as FoundContext);
   });
 
-  it("should return domTags when context has domTags property", () => {
+  it("should return domTagDefinitions when context has domTagDefinitions property", () => {
     const contexts: Context[] = [
       {
         paths: ["https://example.com/with-dom-tags"],
         contexts: "dom-tags-context",
         msalRedirectUrl: "foo",
-        domTags: [
+        domTagDefinitions: [
           {
             cssSelector: ".header",
             regex: "^Header.*",
@@ -260,7 +260,7 @@ describe("initialiseContext", () => {
       found: true,
       paths: ["https://example.com/with-dom-tags"],
       contexts: "dom-tags-context",
-      domTags: [
+      domTagDefinitions: [
         {
           cssSelector: ".header",
           regex: "^Header.*",
@@ -275,7 +275,7 @@ describe("initialiseContext", () => {
     } as FoundContext);
   });
 
-  it("should handle context without domTags (undefined)", () => {
+  it("should handle context without domTagDefinitions (undefined)", () => {
     const contexts: Context[] = [
       {
         paths: ["https://example.com/no-dom-tags"],
@@ -291,19 +291,19 @@ describe("initialiseContext", () => {
       found: true,
       paths: ["https://example.com/no-dom-tags"],
       contexts: "no-dom-tags-context",
-      domTags: undefined,
+      domTagDefinitions: undefined,
       pathTags: {},
       msalRedirectUrl: "foo",
     } as FoundContext);
   });
 
-  it("should return domTags with regex match and named groups", () => {
+  it("should return domTagDefinitions with regex match and named groups", () => {
     const contexts: Context[] = [
       {
         paths: ["https://example.com/products/(?<productId>\\d+)"],
         contexts: "product-context",
         msalRedirectUrl: "foo",
-        domTags: [
+        domTagDefinitions: [
           {
             cssSelector: "[data-product-id]",
             regex: "product-\\d+",
@@ -319,7 +319,7 @@ describe("initialiseContext", () => {
       found: true,
       paths: ["https://example.com/products/(?<productId>\\d+)"],
       contexts: "product-context",
-      domTags: [
+      domTagDefinitions: [
         {
           cssSelector: "[data-product-id]",
           regex: "product-\\d+",
@@ -349,7 +349,7 @@ describe("initialiseContext", () => {
       found: true,
       paths: ["https://example.com/search\\?bar=2&foo=1"],
       contexts: "search-context",
-      domTags: undefined,
+      domTagDefinitions: undefined,
       pathTags: {},
       msalRedirectUrl: "foo",
     } as FoundContext);
@@ -371,7 +371,7 @@ describe("initialiseContext", () => {
       found: true,
       paths: ["https://example.com/page#section"],
       contexts: "page-with-hash",
-      domTags: undefined,
+      domTagDefinitions: undefined,
       pathTags: {},
       msalRedirectUrl: "foo",
     } as FoundContext);
@@ -394,7 +394,7 @@ describe("initialiseContext", () => {
         found: true,
         paths: ["https://example.com/MyPage"],
         contexts: "page-context",
-        domTags: undefined,
+        domTagDefinitions: undefined,
         pathTags: {},
         msalRedirectUrl: "foo",
       } as FoundContext);
@@ -416,7 +416,7 @@ describe("initialiseContext", () => {
         found: true,
         paths: ["https://EXAMPLE.COM/page"],
         contexts: "page-context",
-        domTags: undefined,
+        domTagDefinitions: undefined,
         pathTags: {},
         msalRedirectUrl: "foo",
       } as FoundContext);
@@ -438,7 +438,7 @@ describe("initialiseContext", () => {
         found: true,
         paths: ["HTTPS://example.com/page"],
         contexts: "page-context",
-        domTags: undefined,
+        domTagDefinitions: undefined,
         pathTags: {},
         msalRedirectUrl: "foo",
       } as FoundContext);
@@ -460,7 +460,7 @@ describe("initialiseContext", () => {
         found: true,
         paths: ["https://example.com/Users/\\d+"],
         contexts: "user-context",
-        domTags: undefined,
+        domTagDefinitions: undefined,
         pathTags: {},
         msalRedirectUrl: "foo",
       } as FoundContext);
@@ -482,7 +482,7 @@ describe("initialiseContext", () => {
         found: true,
         paths: ["https://example.com/Products/(?<productId>\\d+)"],
         contexts: "product-context",
-        domTags: undefined,
+        domTagDefinitions: undefined,
         pathTags: {
           productId: "789",
         },
@@ -506,7 +506,7 @@ describe("initialiseContext", () => {
         found: true,
         paths: ["https://example.com/search\\?BAR=2&FOO=1"],
         contexts: "search-context",
-        domTags: undefined,
+        domTagDefinitions: undefined,
         pathTags: {},
         msalRedirectUrl: "foo",
       } as FoundContext);
@@ -528,7 +528,7 @@ describe("initialiseContext", () => {
         found: true,
         paths: ["https://example.com/page#Section"],
         contexts: "section-context",
-        domTags: undefined,
+        domTagDefinitions: undefined,
         pathTags: {},
         msalRedirectUrl: "foo",
       } as FoundContext);
@@ -550,7 +550,7 @@ describe("initialiseContext", () => {
         found: true,
         paths: ["HTTPS://EXAMPLE.COM/API/V(?<version>\\d+)/(?<resource>\\w+)(?:\\?.*)?"],
         contexts: "api-context",
-        domTags: undefined,
+        domTagDefinitions: undefined,
         pathTags: {
           version: "2",
           resource: "users",
@@ -575,7 +575,7 @@ describe("initialiseContext", () => {
         found: true,
         paths: ["https://cps-tst.outsystemsenterprise.com/WorkManagementApp/CaseOverview.*?[&?]CaseId=(?<caseId>\\d+)&URN=(?<urn>[^&]+)"],
         contexts: "case-overview-context",
-        domTags: undefined,
+        domTagDefinitions: undefined,
         pathTags: {
           caseId: "12345",
           urn: "ABC123DEF",
@@ -600,7 +600,7 @@ describe("initialiseContext", () => {
         found: true,
         paths: ["https://cps-tst.outsystemsenterprise.com/WorkManagementApp/CaseOverview.*?[&?]CaseId=(?<caseId>\\d+)&URN=(?<urn>[^&]+)"],
         contexts: "case-overview-context",
-        domTags: undefined,
+        domTagDefinitions: undefined,
         pathTags: {
           caseId: "67890",
           urn: "XYZ789GHI",
@@ -627,7 +627,7 @@ describe("initialiseContext", () => {
         found: true,
         paths: ["https://cps-tst.outsystemsenterprise.com/WorkManagementApp/CaseOverview.*?[&?]CaseId=(?<caseId>\\d+)&URN=(?<urn>[^&]+)"],
         contexts: "case-overview-context",
-        domTags: undefined,
+        domTagDefinitions: undefined,
         pathTags: {
           caseId: "54321",
           urn: "ABC123",
@@ -653,7 +653,7 @@ describe("initialiseContext", () => {
         found: true,
         paths: ["https://cps-tst.outsystemsenterprise.com/WorkManagementApp/CaseOverview.*?[&?]CaseId=(?<caseId>\\d+)&URN=(?<urn>[^&]+)"],
         contexts: "case-overview-context",
-        domTags: undefined,
+        domTagDefinitions: undefined,
         pathTags: {
           caseId: "99999",
           urn: "TEST123",

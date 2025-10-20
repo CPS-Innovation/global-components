@@ -16,7 +16,7 @@ cps_global_components_config_jsonp_callback({
       paths: ["http://localhost:3333/"],
       contexts: "tasks",
       msalRedirectUrl: "",
-      domTags: [
+      domTagDefinitions: [
         {
           cssSelector: "a[href*='/polaris-ui/case-details/']",
           regex: "/polaris-ui/case-details/(?<urn>[^/]+)/(?<caseId>\\d+)",

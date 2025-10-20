@@ -8,7 +8,7 @@ let cachedCaseIdentifier: CaseIdentifiers | undefined = undefined;
 
 export const getCaseDetailsSubscription: SubscriptionFactory = ({ registerToStore }) => ({
   set: (key, newValue) => {
-    if (key === "tags") {
+    if (key === "domTags") {
       const freshCaseIdentifiers = extractCaseIdentifiersIfChanged(cachedCaseIdentifier, newValue as Tags);
       if (freshCaseIdentifiers) {
         cachedCaseIdentifier = freshCaseIdentifiers;
