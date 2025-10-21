@@ -15,6 +15,7 @@ import { outSystemsShimSubscribers } from "./services/outsystems-shim/outsystems
 import { handleOutSystemsForcedAuth } from "./services/outsystems-shim/handle-outsystems-force-auth";
 import { handleContextAuthorisation } from "./services/authorisation/handle-context-authorisation";
 import { cachedResult } from "./utils/cached-result";
+import { synchroniseOsAuth } from "cps-global-os-handover";
 
 // Don't return a promise otherwise stencil will wait for all of this to be complete
 //  before rendering.  Using the registerToStore function means we can render immediately
@@ -24,6 +25,7 @@ import { cachedResult } from "./utils/cached-result";
 export default /* do not make this async */ () => {
   (async () => {
     handleSetOverrideMode({ window });
+    synchroniseOsAuth({ window });
     initialise();
 
     // Every time we detect a SPA navigation (i.e. not a full page reload), lets rerun our initialisation
