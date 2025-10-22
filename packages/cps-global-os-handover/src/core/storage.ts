@@ -31,3 +31,41 @@ export const isStoredAuthCurrent = (cookies: string) =>
     localStorage[localStorageKeys.CASE_REVIEW_COOKIES],
     localStorage[localStorageKeys.HOME_COOKIES]
   );
+
+export const syncOsAuth = (currentUrl: string) => {
+  const app = new URLPattern({ pathname: "/:app/" }).exec(currentUrl)?.pathname
+    .groups["app"];
+
+  const copyToOtherApps = (
+    jsonKey: keyof Pick<
+      typeof localStorageKeys,
+      "WMA_JSON" | "CASE_REVIEW_JSON" | "HOME_JSON"
+    >,
+    cookiesKey: keyof Pick<
+      typeof localStorageKeys,
+      "WMA_COOKIES" | "CASE_REVIEW_COOKIES" | "HOME_COOKIES"
+    >
+  ) => {
+    localStorage[localStorageKeys.WMA_JSON] =
+      localStorage[localStorageKeys.CASE_REVIEW_JSON] =
+      localStorage[localStorageKeys.HOME_JSON] =
+        localStorage[jsonKey];
+
+    localStorage[localStorageKeys.WMA_COOKIES] =
+      localStorage[localStorageKeys.CASE_REVIEW_COOKIES] =
+      localStorage[localStorageKeys.HOME_COOKIES] =
+        localStorage[cookiesKey];
+  };
+
+  switch (app) {
+    case "WorkManagementApp":
+      copyToOtherApps("WMA_JSON", "WMA_COOKIES");
+      break;
+    case "CaseReview":
+      copyToOtherApps("CASE_REVIEW_JSON", "CASE_REVIEW_COOKIES");
+      break;
+    case "Casework_Blocks":
+      copyToOtherApps("HOME_JSON", "HOME_COOKIES");
+      break;
+  }
+};
