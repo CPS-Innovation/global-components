@@ -1,5 +1,5 @@
 import { handleContextAuthorisation } from "./handle-context-authorisation";
-import { AuthResult, FailedAuth } from "../auth/initialise-auth";
+import { AuthResult, FailedAuth } from "../auth/AuthResult";
 import { FoundContext } from "../context/FoundContext";
 
 describe("handleContextAuthorisation", () => {
