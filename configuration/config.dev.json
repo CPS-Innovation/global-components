@@ -23,6 +23,12 @@
       "msalRedirectUrl": "https://cps-dev.outsystemsenterprise.com/Casework_Patterns/auth-handover-dev.html"
     },
     {
+      "paths": ["https://cps-dev.outsystemsenterprise.com/casework_blocks"],
+      "contexts": "unknown-home",
+      "headerCustomCssClasses": "header",
+      "msalRedirectUrl": "https://cps-dev.outsystemsenterprise.com/Casework_Patterns/auth-handover-dev.html"
+    },
+    {
       "paths": [
         "https://polaris-qa-notprod.cps.gov.uk/polaris-ui/case-details/(?<urn>[^/]+)/(?<caseId>\\d+)"
       ],
