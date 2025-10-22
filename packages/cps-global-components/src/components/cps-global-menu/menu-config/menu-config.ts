@@ -4,7 +4,7 @@ import { GroupedLink, groupLinksByLevel } from "./helpers/group-links-by-level";
 import { isOutSystemsApp } from "../../../services/application-flags/is-outsystems-app";
 import { createOutboundUrl } from "cps-global-os-handover";
 import { withLogging } from "../../../logging/with-logging";
-import { KnownState } from "../../../store/store";
+import { State } from "../../../store/store";
 
 export type MenuConfigResult =
   | {
@@ -21,7 +21,7 @@ const menuConfigInternal = ({
   flags: { isOutSystems },
   config: { OS_HANDOVER_URL, LINKS },
   tags,
-}: Pick<KnownState, "context" | "config" | "tags" | "flags">): MenuConfigResult => {
+}: Pick<State, "context" | "config" | "tags" | "flags">): MenuConfigResult => {
   if (!context?.found) {
     return { status: "error", error: new Error("No context found for this URL.") };
   }

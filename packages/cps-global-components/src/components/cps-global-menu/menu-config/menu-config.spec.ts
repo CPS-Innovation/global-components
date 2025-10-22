@@ -15,7 +15,7 @@ import { Tags } from "@microsoft/applicationinsights-web";
 import { AuthResult } from "../../../services/auth/AuthResult";
 import { isOutSystemsApp } from "../../../services/application-flags/is-outsystems-app";
 import { createOutboundUrl } from "cps-global-os-handover";
-import { KnownState } from "../../../store/store";
+import { State } from "../../../store/store";
 import { CaseDetails } from "../../../services/data/types";
 
 // Type the mocked functions
@@ -93,7 +93,7 @@ describe("menuConfig", () => {
       contextIndex: undefined,
     };
 
-    const mockState: KnownState = {
+    const mockState: State = {
       context: foundContext,
       caseDetails: mockCaseDetails,
       config: mockConfig,
@@ -133,7 +133,7 @@ describe("menuConfig", () => {
       msalRedirectUrl: "foo",
     };
 
-    const mockState: KnownState = {
+    const mockState: State = {
       context: foundContext,
       caseDetails: mockCaseDetails,
       config: mockConfig,
@@ -235,7 +235,7 @@ describe("menuConfig", () => {
       msalRedirectUrl: "foo",
     };
 
-    const mockState: KnownState = {
+    const mockState: State = {
       context: foundContext,
       caseDetails: mockCaseDetails,
       config: {
@@ -297,7 +297,7 @@ describe("menuConfig", () => {
       msalRedirectUrl: "foo",
     };
 
-    const mockState: KnownState = {
+    const mockState: State = {
       context: foundContext,
       caseDetails: mockCaseDetails,
       config: {
@@ -359,7 +359,7 @@ describe("menuConfig", () => {
       msalRedirectUrl: "foo",
     };
 
-    const mockState: KnownState = {
+    const mockState: State = {
       context: foundContext,
       caseDetails: mockCaseDetails,
       config: {
@@ -420,7 +420,7 @@ describe("menuConfig", () => {
       msalRedirectUrl: "foo",
     };
 
-    const mockState: KnownState = {
+    const mockState: State = {
       context: foundContext,
       caseDetails: mockCaseDetails,
       config: {

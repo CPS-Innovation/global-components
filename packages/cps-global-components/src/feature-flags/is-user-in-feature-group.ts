@@ -1,6 +1,6 @@
 import { Config } from "cps-global-configuration";
 import { FeatureFlagUsers } from "cps-global-configuration/dist/schema";
-import { KnownState } from "../store/store";
+import { State } from "../store/store";
 
 type KeysOfType<T, U> = {
   [K in keyof T]: T[K] extends U | undefined ? K : never;
@@ -9,7 +9,7 @@ type KeysOfType<T, U> = {
 
 type FeatureFlagUsersKeys = KeysOfType<Config, FeatureFlagUsers>;
 
-export const isUserInFeatureGroup = ({ auth, config }: Pick<KnownState, "config" | "auth">, featureFlagKey: FeatureFlagUsersKeys) => {
+export const isUserInFeatureGroup = ({ auth, config }: Pick<State, "config" | "auth">, featureFlagKey: FeatureFlagUsersKeys) => {
   const featureFlagUsers = config[featureFlagKey];
 
   if (!featureFlagUsers) {
