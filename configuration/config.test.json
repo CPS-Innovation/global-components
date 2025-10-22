@@ -23,6 +23,12 @@
       "msalRedirectUrl": "https://cps-tst.outsystemsenterprise.com/Casework_Patterns/auth-handover-test.html"
     },
     {
+      "paths": ["https://cps-tst.outsystemsenterprise.com/casework_blocks"],
+      "contexts": "unknown-home",
+      "headerCustomCssClasses": "header",
+      "msalRedirectUrl": "https://cps-tst.outsystemsenterprise.com/Casework_Patterns/auth-handover-test.html"
+    },
+    {
       "paths": [
         "https://polaris-qa-notprod.cps.gov.uk/polaris-ui/case-details/(?<urn>[^/]+)/(?<caseId>\\d+)"
       ],
@@ -33,20 +39,6 @@
       "paths": ["https://polaris"],
       "contexts": "cases",
       "msalRedirectUrl": "https://polaris-qa-notprod.cps.gov.uk/polaris-ui/build-version.txt"
-    },
-    {
-      "paths": [
-        "https://cps-tst.outsystemsenterprise.com/CaseReview/LandingPage.*?[&?]CMSCaseId=(?<caseId>\\d+)&URN=(?<urn>[^&]+)"
-      ],
-      "contexts": "case review",
-      "headerCustomCssClasses": "header",
-      "msalRedirectUrl": "https://cps-tst.outsystemsenterprise.com/Casework_Patterns/auth-handover-test.html"
-    },
-    {
-      "paths": ["https://cps-tst.outsystemsenterprise.com/CaseReview/"],
-      "contexts": "cases",
-      "headerCustomCssClasses": "header",
-      "msalRedirectUrl": "https://cps-tst.outsystemsenterprise.com/Casework_Patterns/auth-handover-test.html"
     },
     {
       "paths": [
@@ -61,6 +53,20 @@
           "regex": "<span[^>]*>(?<urn>.*?)</span>"
         }
       ]
+    },
+    {
+      "paths": ["https://cps-tst.outsystemsenterprise.com/CaseReview/"],
+      "contexts": "cases",
+      "headerCustomCssClasses": "header",
+      "msalRedirectUrl": "https://cps-tst.outsystemsenterprise.com/Casework_Patterns/auth-handover-test.html"
+    },
+    {
+      "paths": [
+        "https://cps-tst.outsystemsenterprise.com/WorkManagementApp/CaseOverview.*?[&?]CaseId=(?<caseId>\\d+)&URN=(?<urn>[^&]+)"
+      ],
+      "contexts": "case details",
+      "headerCustomCssClasses": "header",
+      "msalRedirectUrl": "https://cps-tst.outsystemsenterprise.com/Casework_Patterns/auth-handover-test.html"
     },
     {
       "paths": [
@@ -109,21 +115,21 @@
       "label": "Home",
       "level": 0,
       "href": "https://cps-tst.outsystemsenterprise.com/Casework_Blocks/home",
-      "visibleContexts": "home tasks cases case",
+      "visibleContexts": "home tasks cases case unknown-wma",
       "activeContexts": "home"
     },
     {
       "label": "Tasks",
       "level": 0,
       "href": "https://cps-tst.outsystemsenterprise.com/WorkManagementApp/TaskList",
-      "visibleContexts": "home tasks cases case",
+      "visibleContexts": "home tasks cases case unknown-wma",
       "activeContexts": "tasks"
     },
     {
       "label": "Cases",
       "level": 0,
       "href": "https://cps-tst.outsystemsenterprise.com/WorkManagementApp/Cases?IsCasesNavigation=true",
-      "visibleContexts": "home tasks cases case",
+      "visibleContexts": "home tasks cases case unknown-wma",
       "activeContexts": "cases case"
     },
     {
