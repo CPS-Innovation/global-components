@@ -1,7 +1,6 @@
 import { State, SubscriptionFactory } from "../store";
 import { _console } from "../../logging/_console";
 
-// todo: Could this be better implemented as a readonly property on the store?
 export const initialisationStatusSubscription: SubscriptionFactory = ({ store, registerToStore }) => ({
   set: (key, newValue) => {
     if (key === "initialisationStatus") {

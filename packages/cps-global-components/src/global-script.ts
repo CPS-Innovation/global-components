@@ -63,7 +63,7 @@ const initialise = async () => {
     initialiseDomForContext({ context });
     handleOutSystemsForcedAuth({ window, config, context });
 
-    const auth = await cachedResult("auth", () => (flags.isE2eTestMode ? initialiseMockAuth({ window }) : initialiseAuth({ window, config, context, pathTags })));
+    const auth = await cachedResult("auth", () => (flags.isE2eTestMode ? initialiseMockAuth({ window }) : initialiseAuth({ window, config, context })));
     register({ auth });
     handleContextAuthorisation({ window, context, auth });
 

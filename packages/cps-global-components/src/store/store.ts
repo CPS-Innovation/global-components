@@ -25,15 +25,14 @@ const initialTransientState = { context: undefined, propTags: undefined, pathTag
 // This state is general
 type SummaryState = { fatalInitialisationError: Error | undefined; initialisationStatus: undefined | "ready" | "broken" };
 const initialSummaryState = { fatalInitialisationError: undefined, initialisationStatus: undefined };
-type DerivedState = { readonly tags: Tags };
 
-export type KnownState = StartupState & TransientState & SummaryState & DerivedState;
+export type KnownState = StartupState & TransientState & SummaryState;
 
 export type State = MakeUndefinable<KnownState>;
 
 export type Register = (arg: Partial<State>) => void;
 
-const initialState: MakeUndefinable<StartupState & TransientState & SummaryState> = {
+const initialState: State = {
   ...initialStartupState,
   ...initialTransientState,
   ...initialSummaryState,
@@ -41,10 +40,10 @@ const initialState: MakeUndefinable<StartupState & TransientState & SummaryState
 
 export type SubscriptionFactory = (arg: { store: typeof store; registerToStore: Register }) => Subscription<State>;
 
-let store: ReturnType<typeof createStore<State & MakeUndefinable<DerivedState>>>;
+let store: ReturnType<typeof createStore<State>>;
 
 export const initialiseStore = (...externalSubscriptions: SubscriptionFactory[]) => {
-  const internalStore = createStore<MakeUndefinable<StartupState & TransientState & SummaryState>>(
+  const internalStore = createStore<State>(
     () => ({
       ...initialState,
     }),

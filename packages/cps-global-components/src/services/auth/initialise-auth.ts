@@ -5,14 +5,11 @@ import { _console } from "../../logging/_console";
 import { AuthResult, FailedAuth, KnowErrorType } from "./AuthResult";
 import { getAdUserAccount } from "./get-ad-user-account";
 import { getErrorType } from "./get-error-type";
-import { Tags } from "@microsoft/applicationinsights-web";
-import { replaceTagsInString } from "../../components/cps-global-menu/menu-config/helpers/replace-tags-in-string";
 
 type Props = {
   window: Window;
   config: Config;
   context: FoundContext;
-  pathTags: Tags | undefined;
 };
 
 const failedAuth = (knownErrorType: KnowErrorType, reason: string): FailedAuth => ({
@@ -25,13 +22,10 @@ const initialiseAuthInternal = async ({
   window: { location },
   config: { AD_TENANT_AUTHORITY: authority, AD_CLIENT_ID: clientId, FEATURE_FLAG_ENABLE_INTRUSIVE_AD_LOGIN },
   context: { msalRedirectUrl: redirectUri },
-  pathTags,
 }: Props): Promise<AuthResult> => {
   if (!(authority && clientId && redirectUri)) {
     return failedAuth("ConfigurationIncomplete", `Found configuration is: ${{ authority, clientId, redirectUri }}`);
   }
-
-  redirectUri = replaceTagsInString(redirectUri, pathTags || {});
 
   // For development (possibly other instances) if we detect we are being launched on an
   //  AD auth callback redirectUrl then we are spinning up inside an iframe or popup.  The intention
@@ -43,7 +37,6 @@ const initialiseAuthInternal = async ({
 
   try {
     const account = await getAdUserAccount({ authority, clientId, redirectUri, config: { FEATURE_FLAG_ENABLE_INTRUSIVE_AD_LOGIN } });
-    _console.debug("initialiseAuth", "Found account", account);
 
     return account
       ? {
