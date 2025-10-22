@@ -10,3 +10,4 @@ not-tracked
 .act-secrets
 .claude
 CLAUDE.md
+.env

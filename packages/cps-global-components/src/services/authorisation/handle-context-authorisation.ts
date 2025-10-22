@@ -1,4 +1,4 @@
-import { AuthResult } from "../auth/initialise-auth";
+import { AuthResult } from "../auth/AuthResult";
 import { FoundContext } from "../context/find-context";
 
 export const handleContextAuthorisation = ({ window: { location }, context, auth }: { window: Window; context: FoundContext; auth: AuthResult }) => {
