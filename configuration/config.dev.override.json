@@ -23,6 +23,12 @@
       "msalRedirectUrl": "https://cps-dev.outsystemsenterprise.com/Casework_Patterns/auth-handover-dev.html"
     },
     {
+      "paths": ["https://cps-dev.outsystemsenterprise.com/casework_blocks"],
+      "contexts": "unknown-home",
+      "headerCustomCssClasses": "header",
+      "msalRedirectUrl": "https://cps-dev.outsystemsenterprise.com/Casework_Patterns/auth-handover-dev.html"
+    },
+    {
       "paths": [
         "https://polaris-qa-notprod.cps.gov.uk/polaris-ui/case-details/(?<urn>[^/]+)/(?<caseId>\\d+)"
       ],
@@ -111,21 +117,21 @@
       "label": "Home",
       "level": 0,
       "href": "https://cps-dev.outsystemsenterprise.com/Casework_Blocks/home",
-      "visibleContexts": "home tasks cases case",
+      "visibleContexts": "home tasks cases case unknown-wma",
       "activeContexts": "home"
     },
     {
       "label": "Tasks",
       "level": 0,
       "href": "https://cps-dev.outsystemsenterprise.com/WorkManagementApp/TaskList",
-      "visibleContexts": "home tasks cases case",
+      "visibleContexts": "home tasks cases case unknown-wma",
       "activeContexts": "tasks"
     },
     {
       "label": "Cases",
       "level": 0,
       "href": "https://cps-dev.outsystemsenterprise.com/WorkManagementApp/Cases?IsCasesNavigation=true",
-      "visibleContexts": "home tasks cases case",
+      "visibleContexts": "home tasks cases case unknown-wma",
       "activeContexts": "cases case"
     },
     {
