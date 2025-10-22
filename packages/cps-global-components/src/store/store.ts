@@ -1,7 +1,7 @@
 import { createStore, Subscription } from "@stencil/store";
 import { _console } from "../logging/_console";
 import { Config } from "cps-global-configuration";
-import { AuthResult } from "../services/auth/initialise-auth";
+import { AuthResult } from "../services/auth/AuthResult";
 import { FoundContext } from "../services/context/find-context";
 import { ApplicationFlags } from "../services/application-flags/ApplicationFlags";
 import { initialisationStatusSubscription } from "./subscriptions/initialisation-status-subscription";

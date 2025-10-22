@@ -1,4 +1,4 @@
-import { AuthResult } from "./initialise-auth";
+import { AuthResult } from "./AuthResult";
 
 export const initialiseMockAuth = async ({ window }: { window: Window }): Promise<AuthResult> =>
   window.__E2E_TEST_MODE__?.isAuthed

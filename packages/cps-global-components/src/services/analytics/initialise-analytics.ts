@@ -1,6 +1,6 @@
 import { ApplicationInsights } from "@microsoft/applicationinsights-web";
 import { Config } from "cps-global-configuration";
-import { AuthResult } from "../auth/initialise-auth";
+import { AuthResult } from "../auth/AuthResult";
 
 const STORAGE_PREFIX = "cps_global_components";
 
