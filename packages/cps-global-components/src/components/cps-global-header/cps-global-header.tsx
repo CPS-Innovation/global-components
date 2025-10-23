@@ -24,13 +24,13 @@ export class CpsGlobalHeader {
 
   @WithLogging("CpsGlobalHeader")
   render() {
-    const { state, fatalInitialisationError, initialisationStatus } = readyState("context");
+    const { isReady, state } = readyState("context");
 
     return (
-      <Host class={state && state?.context.found ? state.context.headerCustomCssClasses : ""}>
-        <div data-internal-root data-initialisation-status={initialisationStatus}>
+      <Host class={isReady && state?.context.found ? state.context.headerCustomCssClasses : ""}>
+        <div data-internal-root data-initialisation-status={state.initialisationStatus}>
           <cps-global-banner></cps-global-banner>
-          {fatalInitialisationError ? renderError(fatalInitialisationError) : <cps-global-menu></cps-global-menu>}
+          {state.fatalInitialisationError ? renderError(state.fatalInitialisationError) : <cps-global-menu></cps-global-menu>}
         </div>
       </Host>
     );

@@ -19,7 +19,7 @@ cps_global_components_config_jsonp_callback({
       domTagDefinitions: [
         {
           cssSelector: "a[href*='/polaris-ui/case-details/']",
-          regex: "/polaris-ui/case-details/(?<urn>[^/]+)/(?<caseId>\\d+)",
+          regex: '/polaris-ui/case-details/(?<urn>.+)/(?<caseId>\\d+)"',
         },
       ],
     },

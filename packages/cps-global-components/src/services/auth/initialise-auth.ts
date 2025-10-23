@@ -24,7 +24,7 @@ const initialiseAuthInternal = async ({
   context: { msalRedirectUrl: redirectUri },
 }: Props): Promise<AuthResult> => {
   if (!(authority && clientId && redirectUri)) {
-    return failedAuth("ConfigurationIncomplete", `Found configuration is: ${{ authority, clientId, redirectUri }}`);
+    return failedAuth("ConfigurationIncomplete", `Found configuration is: ${JSON.stringify({ authority, clientId, redirectUri })}`);
   }
 
   // For development (possibly other instances) if we detect we are being launched on an
