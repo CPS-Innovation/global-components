@@ -12,13 +12,18 @@ import { resetPreventionSubscription } from "./subscriptions/reset-prevention-su
 import { CaseDetails } from "../services/data/types";
 import { Tags } from "../services/context/Tags";
 
+type KeysOfType<T, U> = {
+  [K in keyof T]: T[K] extends U | undefined ? K : never;
+}[keyof T] &
+  string;
+
 // This state is expected to be set up once on startup
 type StartupState = { flags: ApplicationFlags; config: Config; auth: AuthResult };
 const initialStartupState = { flags: undefined, config: undefined, auth: undefined };
 
 // This state could change (e.g. history-based non-full-refresh navigation or dom tags changing)
 type ContextState = { context: FoundContext; tags: Tags; caseIdentifiers: CaseIdentifiers; caseDetails: CaseDetails };
-const initialContextState = { context: undefined, tags: undefined, caseIdentifiers: undefined, caseDetails: undefined };
+const initialContextState = { context: undefined, tags: {}, caseIdentifiers: undefined, caseDetails: undefined };
 
 // This state is general
 type SummaryState = { fatalInitialisationError: Error | undefined; initialisationStatus: undefined | "ready" | "broken" };
@@ -31,6 +36,9 @@ export type State = {
 };
 
 export type Register = (arg: Partial<State>) => void;
+
+type TagProperties = Partial<Pick<State, KeysOfType<State, Tags>>>;
+export type UpdateTags = (arg: TagProperties) => void;
 
 export const initialInternalState: State = {
   ...initialStartupState,
@@ -54,13 +62,17 @@ export const initialiseStore = (...externalSubscriptions: SubscriptionFactory[])
     (Object.keys(arg) as (keyof State)[]).forEach(key => store.set(key, arg[key]));
   };
 
+  const updateTags: UpdateTags = arg => {
+    (Object.entries(arg) as [keyof TagProperties, Tags][]).forEach(([key, val]) => store.set(key, { ...store.get(key), ...val }));
+  };
+
   store.use(
     ...[resetPreventionSubscription, loggingSubscription, initialisationStatusSubscription, caseIdentifiersSubscription, ...externalSubscriptions].map(subscription =>
       subscription({ store, registerToStore }),
     ),
   );
 
-  return { registerToStore };
+  return { registerToStore, updateTags };
 };
 
 // Helper types

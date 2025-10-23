@@ -1,12 +1,11 @@
 import { DomTags } from "cps-global-configuration/dist/schema";
-import { Register } from "../../store/store";
+import { UpdateTags } from "../../store/store";
 import { DomMutationObserver } from "./DomMutationSubscriber";
 import { _console } from "../../logging/_console";
 
-export const domTagMutationSubscriber = ({ registerToStore }: { registerToStore: Register }): DomMutationObserver => {
+export const domTagMutationSubscriber = ({ updateTags }: { updateTags: UpdateTags }): DomMutationObserver => {
   // With our approach of waiting until all required store items are ready, important to initialise this to
   //  at least an empty object - otherwise any observer of the store waiting for tags may never be ready.
-  registerToStore({ tags: {} });
   return ({ context }) => ({
     isActiveForContext: !!context.domTags?.length,
     subscriptions: (context.domTags || []).map(({ cssSelector }) => ({
@@ -15,10 +14,9 @@ export const domTagMutationSubscriber = ({ registerToStore }: { registerToStore:
         _console.debug("Dom observation handler firing for", element);
         const tags = extractTagsFromElement(element, context.domTags!);
         if (Object.keys(tags).length) {
-          registerToStore({ tags });
+          updateTags({ tags });
         }
       },
-      unbind: () => registerToStore({ tags: {} }),
     })),
   });
 };

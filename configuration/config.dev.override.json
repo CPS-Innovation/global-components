@@ -23,11 +23,23 @@
       "msalRedirectUrl": "https://cps-dev.outsystemsenterprise.com/Casework_Patterns/auth-handover-dev.html"
     },
     {
+      "paths": ["https://cps-dev.outsystemsenterprise.com/casework_blocks"],
+      "contexts": "unknown-home",
+      "headerCustomCssClasses": "header",
+      "msalRedirectUrl": "https://cps-dev.outsystemsenterprise.com/Casework_Patterns/auth-handover-dev.html"
+    },
+    {
       "paths": [
-        "https://polaris-qa-notprod.cps.gov.uk/polaris-ui/case-details/(?<urn>[^/]+)/(?<caseId>\\d+)"
+        "https://polaris-qa-notprod.cps.gov.uk/polaris-ui/case-details/[^/]+/(?<caseId>\\d+)"
       ],
       "contexts": "case materials",
-      "msalRedirectUrl": "https://polaris-qa-notprod.cps.gov.uk/polaris-ui/build-version.txt"
+      "msalRedirectUrl": "https://polaris-qa-notprod.cps.gov.uk/polaris-ui/build-version.txt",
+      "domTags": [
+        {
+          "cssSelector": "h2[data-testid=txt-case-urn]",
+          "regex": ">(?<urn>.*?)</h2>"
+        }
+      ]
     },
     {
       "paths": ["https://polaris"],
@@ -101,7 +113,11 @@
       "domTags": [
         {
           "cssSelector": "a[href*='/polaris-ui/case-details/']",
-          "regex": "/polaris-ui/case-details/(?<urn>[^/]+)/(?<caseId>\\d+)"
+          "regex": "/polaris-ui/case-details/(.+)/(?<caseId>\\d+)\""
+        },
+        {
+          "cssSelector": "div.case-info-details p",
+          "regex": ">(?<urn>[^<]+)"
         }
       ]
     }
@@ -111,21 +127,21 @@
       "label": "Home",
       "level": 0,
       "href": "https://cps-dev.outsystemsenterprise.com/Casework_Blocks/home",
-      "visibleContexts": "home tasks cases case",
+      "visibleContexts": "home tasks cases case unknown-wma",
       "activeContexts": "home"
     },
     {
       "label": "Tasks",
       "level": 0,
       "href": "https://cps-dev.outsystemsenterprise.com/WorkManagementApp/TaskList",
-      "visibleContexts": "home tasks cases case",
+      "visibleContexts": "home tasks cases case unknown-wma",
       "activeContexts": "tasks"
     },
     {
       "label": "Cases",
       "level": 0,
       "href": "https://cps-dev.outsystemsenterprise.com/WorkManagementApp/Cases?IsCasesNavigation=true",
-      "visibleContexts": "home tasks cases case",
+      "visibleContexts": "home tasks cases case unknown-wma",
       "activeContexts": "cases case"
     },
     {
@@ -138,7 +154,7 @@
     {
       "label": "Materials",
       "level": 1,
-      "href": "https://polaris-qa-notprod.cps.gov.uk/polaris-ui/case-details/{urn}/{caseId}",
+      "href": "https://polaris-qa-notprod.cps.gov.uk/polaris?q=%7B%22caseId%22%3A{caseId}%7D",
       "visibleContexts": "case",
       "activeContexts": "materials"
     },
