@@ -24,7 +24,7 @@ const createInstance = ({ authority, clientId, redirectUri }: InternalProps) =>
     system: {
       loggerOptions: {
         loggerCallback: (level, message, containsPii) => {
-          const logFn = [LogLevel.Error, LogLevel.Warning].includes(level) ? _console.error : _console.debug;
+          const logFn = level === LogLevel.Error ? _console.error : level === LogLevel.Warning ? _console.warn : _console.debug;
           logFn("initialiseAuth", "MSAL logging", level, message, containsPii);
         },
         logLevel: LogLevel.Verbose,
@@ -36,11 +36,17 @@ export const internalGetAdUserAccount = async ({ authority, clientId, redirectUr
   const instance = createInstance({ authority, clientId, redirectUri });
   await instance.initialize();
 
-  const tryGetAccountFromCache = async () => instance.getActiveAccount();
+  const tryGetAccountFromCache = async () => {
+    const account = instance.getActiveAccount();
+    _console.debug("initialiseAuth", "tryGetAccountFromCache", account);
+    return account;
+  };
 
   const tryGetAccountSilently = async () => {
     try {
-      return (await instance.ssoSilent(loginRequest)).account;
+      const { account } = await instance.ssoSilent(loginRequest);
+      _console.debug("initialiseAuth", "tryGetAccountSilently", account);
+      return account;
     } catch (error) {
       if (FEATURE_FLAG_ENABLE_INTRUSIVE_AD_LOGIN && getErrorType(error) === "MultipleIdentities") {
         // If the user has multiple accounts in the browser then we stifle the error and let our logic roll on
@@ -51,9 +57,15 @@ export const internalGetAdUserAccount = async ({ authority, clientId, redirectUr
     }
   };
 
-  const tryGetAccountViaPopup = async () => (await instance.loginPopup(loginRequest)).account;
+  const tryGetAccountViaPopup = async () => {
+    const { account } = await instance.loginPopup(loginRequest);
+    _console.debug("initialiseAuth", "tryGetAccountViaPopup", account);
+    return account;
+  };
 
-  return (await tryGetAccountFromCache()) || (await tryGetAccountSilently()) || (await tryGetAccountViaPopup());
+  const account = (await tryGetAccountFromCache()) || (await tryGetAccountSilently()) || (await tryGetAccountViaPopup());
+  instance.setActiveAccount(account);
+  return account;
 };
 
 export const getAdUserAccount = withLogging("internalGetUserAccount", internalGetAdUserAccount);
