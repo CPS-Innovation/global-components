@@ -16,13 +16,17 @@
     { "paths": ["http://localhost:3333/cases/(?<caseId>\\d+)"], "contexts": "case details", "msalRedirectUrl": "http://localhost:3333/auth" },
     { "paths": ["http://localhost:3333/cases"], "contexts": "cases", "msalRedirectUrl": "http://localhost:3333/auth" },
     {
-      "paths": ["http://localhost:3333/"],
+      "paths": ["http://localhost:3333"],
       "contexts": "tasks",
       "msalRedirectUrl": "http://localhost:3333/auth",
       "domTags": [
         {
           "cssSelector": "a[href*='/polaris-ui/case-details/']",
-          "regex": "/polaris-ui/case-details/(?<urn>[^/]+)/(?<caseId>\\d+)"
+          "regex": "/polaris-ui/case-details/(.+)/(?<caseId>\\d+)\""
+        },
+        {
+          "cssSelector": "div.case-info-details p",
+          "regex": ">(?<urn>[^<]+)"
         }
       ]
     }

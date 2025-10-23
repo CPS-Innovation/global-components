@@ -13,7 +13,7 @@ export const initialiseDomObservation = ({ window: { document } }: { window: Win
           // Look for any pre-existing elements that match our criteria...
           document.querySelectorAll(cssSelector).forEach(element => handler(element));
           // ... then set up our mutation observation
-          document.arrive(cssSelector, handler);
+          document.arrive(cssSelector, { fireOnAttributesModification: true }, handler);
           _console.debug("Dom observation", `Activated for ${cssSelector}`);
         } else {
           document.unbindArrive(cssSelector);

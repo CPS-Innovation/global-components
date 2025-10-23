@@ -36,13 +36,13 @@ export default /* do not make this async */ () => {
 };
 
 const initialise = async () => {
-  const { registerToStore } = cachedResult("store", () => initialiseStore(getCaseDetailsSubscription));
+  const { registerToStore, updateTags } = cachedResult("store", () => initialiseStore(getCaseDetailsSubscription));
   try {
     // Several of the operations below need only be run when we first spin up and not on any potential SPA navigation.
     //  We use `cachedResult` give us the ability to rerun this function many times while ensuring that the one-time-only
     //  operations are only executed once (alternative would be lots of if statements or similar)
     const { initialiseDomForContext } = cachedResult("dom", () =>
-      initialiseDomObservation({ window }, domTagMutationSubscriber({ registerToStore }), ...outSystemsShimSubscribers({ window })),
+      initialiseDomObservation({ window }, domTagMutationSubscriber({ updateTags }), ...outSystemsShimSubscribers({ window })),
     );
 
     const flags = cachedResult("flags", () => getApplicationFlags({ window }));
