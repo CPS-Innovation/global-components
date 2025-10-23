@@ -62,7 +62,7 @@ export const initialiseStore = (...externalSubscriptions: SubscriptionFactory[])
     (Object.keys(arg) as (keyof State)[]).forEach(key => store.set(key, arg[key]));
   };
 
-  const updateTags: UpdateTags = (arg: TagProperties) => {
+  const updateTags: UpdateTags = arg => {
     (Object.entries(arg) as [keyof TagProperties, Tags][]).forEach(([key, val]) => store.set(key, { ...store.get(key), ...val }));
   };
 

@@ -16,9 +16,9 @@
     { "paths": ["http://localhost:3333/cases/(?<caseId>\\d+)"], "contexts": "case details", "msalRedirectUrl": "http://localhost:3333/auth" },
     { "paths": ["http://localhost:3333/cases"], "contexts": "cases", "msalRedirectUrl": "http://localhost:3333/auth" },
     {
-      "paths": ["http://localhost:3337"],
+      "paths": ["http://localhost:3333"],
       "contexts": "tasks",
-      "msalRedirectUrl": "http://localhost:3337/auth",
+      "msalRedirectUrl": "http://localhost:3333/auth",
       "domTags": [
         {
           "cssSelector": "a[href*='/polaris-ui/case-details/']",
