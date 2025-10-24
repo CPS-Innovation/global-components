@@ -37,7 +37,6 @@ const initialiseAuthInternal = async ({
 
   try {
     const account = await getAdUserAccount({ authority, clientId, redirectUri, config: { FEATURE_FLAG_ENABLE_INTRUSIVE_AD_LOGIN } });
-    _console.debug("initialiseAuth", "Found account", account);
 
     return account
       ? {

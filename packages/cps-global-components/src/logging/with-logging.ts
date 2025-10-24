@@ -4,28 +4,27 @@ export const withLogging = <T extends (...args: any[]) => any>(fnName: string, f
   return ((...args: Parameters<T>) => {
     const name = fnName || fn.name || "anonymous";
 
-    const coreArgs = [`Calling ${name}`].concat(args.length ? args : []);
-
     try {
+      _console.debug(name, "Calling", args);
       const result = fn(...args);
 
       if (result instanceof Promise) {
         return result.then(
           value => {
-            _console.debug(...coreArgs.concat("resolved", value));
+            _console.debug(name, "Resolved", value);
             return value;
           },
           error => {
-            _console.debug(...coreArgs.concat("rejected with", error));
+            _console.debug(name, "Rejected", error);
             throw error;
           },
         );
       }
 
-      _console.debug(...coreArgs.concat("returned", result));
+      _console.debug(name, "Returned", result);
       return result;
     } catch (err) {
-      _console.error(...coreArgs.concat("threw", err));
+      _console.error(name, "threw", err);
       throw err;
     }
   }) as T;
