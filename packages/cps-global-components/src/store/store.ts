@@ -2,96 +2,99 @@ import { createStore, Subscription } from "@stencil/store";
 import { _console } from "../logging/_console";
 import { Config } from "cps-global-configuration";
 import { AuthResult } from "../services/auth/AuthResult";
-import { FoundContext } from "../services/context/find-context";
+import { FoundContext } from "../services/context/FoundContext";
 import { ApplicationFlags } from "../services/application-flags/ApplicationFlags";
 import { initialisationStatusSubscription } from "./subscriptions/initialisation-status-subscription";
-import { caseIdentifiersSubscription } from "./subscriptions/case-identifiers-subscription";
-import { CaseIdentifiers } from "../services/context/CaseIdentifiers";
 import { loggingSubscription } from "./subscriptions/logging-subscription";
 import { resetPreventionSubscription } from "./subscriptions/reset-prevention-subscription";
 import { CaseDetails } from "../services/data/types";
 import { Tags } from "../services/context/Tags";
 
-type KeysOfType<T, U> = {
-  [K in keyof T]: T[K] extends U | undefined ? K : never;
-}[keyof T] &
-  string;
+type MakeUndefinable<T> = {
+  [K in keyof T]: T[K] | undefined;
+};
 
 // This state is expected to be set up once on startup
 type StartupState = { flags: ApplicationFlags; config: Config; auth: AuthResult };
 const initialStartupState = { flags: undefined, config: undefined, auth: undefined };
 
 // This state could change (e.g. history-based non-full-refresh navigation or dom tags changing)
-type ContextState = { context: FoundContext; tags: Tags; caseIdentifiers: CaseIdentifiers; caseDetails: CaseDetails };
-const initialContextState = { context: undefined, tags: {}, caseIdentifiers: undefined, caseDetails: undefined };
+type TransientState = { context: FoundContext; propTags: Tags; pathTags: Tags; domTags: Tags; caseDetails: CaseDetails };
+const initialTransientState = { context: undefined, propTags: undefined, pathTags: undefined, domTags: undefined, caseDetails: undefined };
 
 // This state is general
 type SummaryState = { fatalInitialisationError: Error | undefined; initialisationStatus: undefined | "ready" | "broken" };
 const initialSummaryState = { fatalInitialisationError: undefined, initialisationStatus: undefined };
 
-export type KnownState = StartupState & ContextState & SummaryState;
+type CoreKnownState = StartupState & TransientState & SummaryState;
 
-export type State = {
-  [K in keyof KnownState]: KnownState[K] | undefined;
-};
+type CoreState = MakeUndefinable<CoreKnownState>;
 
-export type Register = (arg: Partial<State>) => void;
+export type Register = (arg: Partial<CoreState>) => void;
 
-type TagProperties = Partial<Pick<State, KeysOfType<State, Tags>>>;
-export type UpdateTags = (arg: TagProperties) => void;
-
-export const initialInternalState: State = {
+const initialState: CoreState = {
   ...initialStartupState,
-  ...initialContextState,
+  ...initialTransientState,
   ...initialSummaryState,
 };
 
-export type SubscriptionFactory = (arg: { store: typeof store; registerToStore: Register }) => Subscription<State>;
+export type SubscriptionFactory = (arg: { store: typeof store; registerToStore: Register }) => Subscription<CoreState>;
 
-let store: ReturnType<typeof createStore<State>>;
+let store: ReturnType<typeof createStore<CoreState>>;
 
 export const initialiseStore = (...externalSubscriptions: SubscriptionFactory[]) => {
-  store = createStore<State>(
+  store = createStore<CoreState>(
     () => ({
-      ...initialInternalState,
+      ...initialState,
     }),
     (newValue, oldValue) => JSON.stringify(newValue) !== JSON.stringify(oldValue),
   );
 
-  const registerToStore = (arg: Partial<State>) => {
-    (Object.keys(arg) as (keyof State)[]).forEach(key => store.set(key, arg[key]));
-  };
+  const register = (arg: Partial<CoreState>) => (Object.keys(arg) as (keyof CoreState)[]).forEach(key => store.set(key, arg[key]));
 
-  const updateTags: UpdateTags = arg => {
-    (Object.entries(arg) as [keyof TagProperties, Tags][]).forEach(([key, val]) => store.set(key, { ...store.get(key), ...val }));
+  const resetContextSpecificTags = () => {
+    // Note: tags obtained from props passed from the host apps should not be cleared on context change.
+    //  They are subject to being updated via @Watch so all good there, but we definitely do not want
+    //  the tags from one context (e.g. caseId = 123) hanging around for the next context in an SPA
+    //  navigation (e.g. caseId = 456).
+    store.set("pathTags", {});
+    store.set("domTags", {});
   };
 
   store.use(
-    ...[resetPreventionSubscription, loggingSubscription, initialisationStatusSubscription, caseIdentifiersSubscription, ...externalSubscriptions].map(subscription =>
-      subscription({ store, registerToStore }),
+    ...[resetPreventionSubscription, loggingSubscription, initialisationStatusSubscription, ...externalSubscriptions].map(subscription =>
+      subscription({ store, registerToStore: register }),
     ),
   );
 
-  return { registerToStore, updateTags };
+  return { register, resetContextSpecificTags };
 };
 
-// Helper types
+// This state is computed from
+type DerivedState = { tags: Tags };
+
+export type State = CoreKnownState & DerivedState;
+
+type StateWithoutPrivateTags = Omit<State, "pathTags" | "propTags" | "domTags">;
+
 type NonUndefined<T> = T extends undefined ? never : T;
 
 // Use a tuple to prevent distribution
-type PickDefined<K extends keyof State> = Pick<State, K> & {
-  [P in K]: NonUndefined<State[P]>;
+type PickDefined<K extends keyof StateWithoutPrivateTags> = Pick<StateWithoutPrivateTags, K> & {
+  [P in K]: NonUndefined<StateWithoutPrivateTags[P]>;
 };
 
 type AllDefined = {
-  [K in keyof State]: NonUndefined<State[K]>;
+  [K in keyof StateWithoutPrivateTags]: NonUndefined<StateWithoutPrivateTags[K]>;
 };
 
 // Wrap K in a tuple [K] to prevent distribution
-type PickIfReadyReturn<K extends readonly (keyof State)[]> = K extends readonly [] ? AllDefined | undefined : PickDefined<K[number]> | undefined;
+type PickIfReadyReturn<K extends readonly (keyof StateWithoutPrivateTags)[]> = K extends readonly [] ? AllDefined | undefined : PickDefined<K[number]> | undefined;
 
-export const readyState = <K extends readonly (keyof State)[] = readonly []>(...keys: K): { state: PickIfReadyReturn<K> } & SummaryState => {
-  const keysToCheck = keys.length === 0 ? (Object.keys(store.state) as (keyof State)[]) : keys;
+export const readyState = <K extends readonly (keyof StateWithoutPrivateTags)[] = readonly []>(
+  ...keys: K
+): { isReady: true; state: PickIfReadyReturn<K> & SummaryState } | { isReady: false; state: SummaryState } => {
+  const keysToCheck = keys.length === 0 ? (Object.keys(store.state) as (keyof CoreState)[]) : keys;
 
   const summaryState = { fatalInitialisationError: store.state.fatalInitialisationError, initialisationStatus: store.state.initialisationStatus };
 
@@ -104,21 +107,33 @@ export const readyState = <K extends readonly (keyof State)[] = readonly []>(...
   //  to observe a property.
   if (
     keysToCheck
-      .map((key: keyof KnownState) => {
+      .filter(key => key !== ("tags" as keyof State))
+      .map((key: keyof CoreState) => {
         store.state[key]; // just make sure we "get" every prop we are interested so we register with the store
         return key;
       })
       .some(key => store.state[key] === undefined)
   )
     return {
-      state: undefined as PickIfReadyReturn<K>,
-      ...summaryState,
+      isReady: false,
+      state: { ...summaryState },
     };
 
   const result: any = {};
   for (const key of keysToCheck) {
-    result[key] = store.state[key];
+    result[key] =
+      key === "tags"
+        ? ({
+            // Order is important here. Our logic is: if a tag is found in domTags then it
+            //  overrides a tag found in the path (domTags would generally arrive later than pathTags)
+            //  and we use domTags to get better information than available in the path.
+            //  Prop tags should override everything as they are actively supplied by the host.
+            ...store.state.pathTags,
+            ...store.state.domTags,
+            ...store.state.propTags,
+          } as Tags)
+        : store.state[key];
   }
 
-  return { state: result as PickIfReadyReturn<K>, ...summaryState };
+  return { isReady: true, state: { ...(result as PickIfReadyReturn<K>), ...summaryState } };
 };
