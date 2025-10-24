@@ -1,4 +1,4 @@
-import { LogLevel, PublicClientApplication } from "@azure/msal-browser";
+import { AccountInfo, LogLevel, PublicClientApplication } from "@azure/msal-browser";
 import { _console } from "../../logging/_console";
 import { getErrorType } from "./get-error-type";
 import { withLogging } from "../../logging/with-logging";
@@ -6,6 +6,10 @@ import { withLogging } from "../../logging/with-logging";
 type InternalProps = { authority: string; clientId: string; redirectUri: string };
 
 type Props = InternalProps & { config: { FEATURE_FLAG_ENABLE_INTRUSIVE_AD_LOGIN: boolean | undefined } };
+
+type AccountSource = "cache" | "silent" | "popup" | "failed";
+
+type AccountRetrievalResult = Promise<{ source: AccountSource; account: AccountInfo } | null>;
 
 const loginRequest = { scopes: ["User.Read"] };
 
@@ -36,17 +40,15 @@ export const internalGetAdUserAccount = async ({ authority, clientId, redirectUr
   const instance = createInstance({ authority, clientId, redirectUri });
   await instance.initialize();
 
-  const tryGetAccountFromCache = async () => {
+  const tryGetAccountFromCache = async (): AccountRetrievalResult => {
     const account = instance.getActiveAccount();
-    _console.debug("initialiseAuth", "tryGetAccountFromCache", account);
-    return account;
+    return account ? { source: "cache", account } : null;
   };
 
-  const tryGetAccountSilently = async () => {
+  const tryGetAccountSilently = async (): AccountRetrievalResult => {
     try {
       const { account } = await instance.ssoSilent(loginRequest);
-      _console.debug("initialiseAuth", "tryGetAccountSilently", account);
-      return account;
+      return account ? { source: "silent", account } : null;
     } catch (error) {
       if (FEATURE_FLAG_ENABLE_INTRUSIVE_AD_LOGIN && getErrorType(error) === "MultipleIdentities") {
         // If the user has multiple accounts in the browser then we stifle the error and let our logic roll on
@@ -57,14 +59,14 @@ export const internalGetAdUserAccount = async ({ authority, clientId, redirectUr
     }
   };
 
-  const tryGetAccountViaPopup = async () => {
+  const tryGetAccountViaPopup = async (): AccountRetrievalResult => {
     const { account } = await instance.loginPopup(loginRequest);
-    _console.debug("initialiseAuth", "tryGetAccountViaPopup", account);
-    return account;
+    return account ? { source: "popup", account } : null;
   };
 
-  const account = (await tryGetAccountFromCache()) || (await tryGetAccountSilently()) || (await tryGetAccountViaPopup());
+  const { account, source } = (await tryGetAccountFromCache()) || (await tryGetAccountSilently()) || (await tryGetAccountViaPopup()) || { source: "failed", account: null };
   instance.setActiveAccount(account);
+  _console.debug("initialiseAuth", "Source", source);
   return account;
 };
 
