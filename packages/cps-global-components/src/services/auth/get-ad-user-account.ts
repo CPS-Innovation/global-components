@@ -29,7 +29,7 @@ const createInstance = ({ authority, clientId, redirectUri }: InternalProps) =>
       loggerOptions: {
         loggerCallback: (level, message, containsPii) => {
           const logFn = level === LogLevel.Error ? _console.error : level === LogLevel.Warning ? _console.warn : _console.debug;
-          logFn("initialiseAuth", "MSAL logging", level, message, containsPii);
+          logFn("getAdUserAccount", "MSAL logging", level, message, containsPii);
         },
         logLevel: LogLevel.Verbose,
       },
@@ -66,8 +66,8 @@ export const internalGetAdUserAccount = async ({ authority, clientId, redirectUr
 
   const { account, source } = (await tryGetAccountFromCache()) || (await tryGetAccountSilently()) || (await tryGetAccountViaPopup()) || { source: "failed", account: null };
   instance.setActiveAccount(account);
-  _console.debug("initialiseAuth", "Source", source);
+  _console.debug("getAdUserAccount", "Source", source);
   return account;
 };
 
-export const getAdUserAccount = withLogging("internalGetUserAccount", internalGetAdUserAccount);
+export const getAdUserAccount = withLogging("getAdUserAccount", internalGetAdUserAccount);
