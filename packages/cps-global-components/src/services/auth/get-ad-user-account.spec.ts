@@ -101,11 +101,11 @@ describe("get-ad-user-account", () => {
 
       // Test Error level (LogLevel.Error = 0)
       loggerCallback(0, "Error message", false);
-      expect(_console.error).toHaveBeenCalledWith("initialiseAuth", "MSAL logging", 0, "Error message", false);
+      expect(_console.error).toHaveBeenCalledWith("getAdUserAccount", "MSAL logging", 0, "Error message", false);
 
       // Test Warning level (LogLevel.Warning = 1)
       loggerCallback(1, "Warning message", false);
-      expect(_console.warn).toHaveBeenCalledWith("initialiseAuth", "MSAL logging", 1, "Warning message", false);
+      expect(_console.warn).toHaveBeenCalledWith("getAdUserAccount", "MSAL logging", 1, "Warning message", false);
     });
 
     it("should use _console.debug for Info and Verbose log levels", async () => {
@@ -121,11 +121,11 @@ describe("get-ad-user-account", () => {
 
       // Test Info level (LogLevel.Info = 2)
       loggerCallback(2, "Info message", false);
-      expect(_console.debug).toHaveBeenCalledWith("initialiseAuth", "MSAL logging", 2, "Info message", false);
+      expect(_console.debug).toHaveBeenCalledWith("getAdUserAccount", "MSAL logging", 2, "Info message", false);
 
       // Test Verbose level (LogLevel.Verbose = 3)
       loggerCallback(3, "Verbose message", false);
-      expect(_console.debug).toHaveBeenCalledWith("initialiseAuth", "MSAL logging", 3, "Verbose message", false);
+      expect(_console.debug).toHaveBeenCalledWith("getAdUserAccount", "MSAL logging", 3, "Verbose message", false);
     });
 
     it("should return account from cache if available", async () => {
@@ -137,7 +137,7 @@ describe("get-ad-user-account", () => {
       expect(result).toBe(mockAccount);
       expect(mockInstance.getActiveAccount).toHaveBeenCalledTimes(1);
       expect(mockInstance.setActiveAccount).toHaveBeenCalledWith(mockAccount);
-      expect(_console.debug).toHaveBeenCalledWith("initialiseAuth", "Source", "cache");
+      expect(_console.debug).toHaveBeenCalledWith("getAdUserAccount", "Source", "cache");
       expect(mockInstance.ssoSilent).not.toHaveBeenCalled();
       expect(mockInstance.loginPopup).not.toHaveBeenCalled();
     });
@@ -152,7 +152,7 @@ describe("get-ad-user-account", () => {
       expect(result).toBe(mockAccount);
       expect(mockInstance.getActiveAccount).toHaveBeenCalledTimes(1);
       expect(mockInstance.setActiveAccount).toHaveBeenCalledWith(mockAccount);
-      expect(_console.debug).toHaveBeenCalledWith("initialiseAuth", "Source", "silent");
+      expect(_console.debug).toHaveBeenCalledWith("getAdUserAccount", "Source", "silent");
       expect(mockInstance.ssoSilent).toHaveBeenCalledWith({ scopes: ["User.Read"] });
       expect(mockInstance.loginPopup).not.toHaveBeenCalled();
     });
@@ -186,7 +186,7 @@ describe("get-ad-user-account", () => {
 
       expect(result).toBe(mockAccount);
       expect(mockInstance.setActiveAccount).toHaveBeenCalledWith(mockAccount);
-      expect(_console.debug).toHaveBeenCalledWith("initialiseAuth", "Source", "popup");
+      expect(_console.debug).toHaveBeenCalledWith("getAdUserAccount", "Source", "popup");
       expect(getErrorType).toHaveBeenCalledWith(multipleIdentitiesError);
       expect(mockInstance.loginPopup).toHaveBeenCalledWith({ scopes: ["User.Read"] });
     });
@@ -238,7 +238,7 @@ describe("get-ad-user-account", () => {
 
       expect(result).toBe(mockAccount);
       expect(mockInstance.setActiveAccount).toHaveBeenCalledWith(mockAccount);
-      expect(_console.debug).toHaveBeenCalledWith("initialiseAuth", "Source", "popup");
+      expect(_console.debug).toHaveBeenCalledWith("getAdUserAccount", "Source", "popup");
       expect(mockInstance.ssoSilent).toHaveBeenCalledWith({ scopes: ["User.Read"] });
       expect(mockInstance.loginPopup).toHaveBeenCalledWith({ scopes: ["User.Read"] });
     });
@@ -290,7 +290,7 @@ describe("get-ad-user-account", () => {
       await internalGetAdUserAccount(props);
 
       expect(mockInstance.setActiveAccount).toHaveBeenCalledWith(mockAccount);
-      expect(_console.debug).toHaveBeenCalledWith("initialiseAuth", "Source", "popup");
+      expect(_console.debug).toHaveBeenCalledWith("getAdUserAccount", "Source", "popup");
       expect(mockInstance.ssoSilent).toHaveBeenCalledWith({ scopes: ["User.Read"] });
       expect(mockInstance.loginPopup).toHaveBeenCalledWith({ scopes: ["User.Read"] });
     });
@@ -314,7 +314,7 @@ describe("get-ad-user-account", () => {
       expect(mockInstance.ssoSilent).toHaveBeenCalledTimes(1);
       expect(mockInstance.loginPopup).toHaveBeenCalledTimes(1);
       expect(mockInstance.setActiveAccount).toHaveBeenCalledWith(mockAccount);
-      expect(_console.debug).toHaveBeenCalledWith("initialiseAuth", "Source", "popup");
+      expect(_console.debug).toHaveBeenCalledWith("getAdUserAccount", "Source", "popup");
       expect(result).toBe(mockAccount);
     });
   });

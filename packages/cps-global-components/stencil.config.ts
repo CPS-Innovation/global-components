@@ -25,6 +25,7 @@ export const config: Config = {
         { src: "config.json", dest: "./build/config.json", warn: false },
         { src: "config.override.json", dest: "./build/config.override.json", warn: false },
         { src: "config.override.js", dest: "./build/config.override.js", warn: false },
+        { src: "config.development.json", dest: "./build/config.development.json", warn: false },
       ],
     },
   ],
