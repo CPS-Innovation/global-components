@@ -2,8 +2,9 @@ import { Config } from "cps-global-configuration";
 import { buildSanitizedAddress } from "./build-sanitized-address";
 import { FoundContext } from "./FoundContext";
 import { replaceTagsInString } from "../../components/cps-global-menu/menu-config/helpers/replace-tags-in-string";
+import { withLogging } from "../../logging/with-logging";
 
-export const initialiseContext = ({ window, config: { CONTEXTS } }: { window: Window; config: Pick<Config, "CONTEXTS"> }): FoundContext => {
+const initialiseContextInternal = ({ window, config: { CONTEXTS } }: { window: Window; config: Pick<Config, "CONTEXTS"> }): FoundContext => {
   const address = buildSanitizedAddress(window.location);
 
   for (let contextIndex = 0; contextIndex < CONTEXTS.length; contextIndex++) {
@@ -30,3 +31,5 @@ export const initialiseContext = ({ window, config: { CONTEXTS } }: { window: Wi
   }
   return { found: false };
 };
+
+export const initialiseContext = withLogging("initialiseContext", initialiseContextInternal);

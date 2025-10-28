@@ -5,6 +5,7 @@
   "description": "E2E tests using Jest and Puppeteer",
   "scripts": {
     "test": "jest",
+    "test:log": "LOG=true jest --runInBand",
     "test:watch": "jest --watch",
     "postinstall": "npx puppeteer browsers install"
   },

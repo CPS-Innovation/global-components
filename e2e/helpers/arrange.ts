@@ -1,9 +1,6 @@
 import { Config } from "cps-global-configuration";
 import { encode } from "./encoding";
 
-export const arrangeEnableConsoleLogging = async () =>
-  page.on("console", (msg) => console.log("PAGE LOG:", msg.text()));
-
 export type ArrangeProps = {
   config: Partial<Config>;
   auth: { isAuthed: boolean; adGroups: string[] };
