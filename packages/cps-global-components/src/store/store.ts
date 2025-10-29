@@ -9,6 +9,7 @@ import { loggingSubscription } from "./subscriptions/logging-subscription";
 import { resetPreventionSubscription } from "./subscriptions/reset-prevention-subscription";
 import { CaseDetails } from "../services/data/types";
 import { Tags } from "../services/context/Tags";
+import { withLogging } from "../logging/with-logging";
 
 type MakeUndefinable<T> = {
   [K in keyof T]: T[K] | undefined;
@@ -26,31 +27,31 @@ const initialTransientState = { context: undefined, propTags: undefined, pathTag
 type SummaryState = { fatalInitialisationError: Error | undefined; initialisationStatus: undefined | "ready" | "broken" };
 const initialSummaryState = { fatalInitialisationError: undefined, initialisationStatus: undefined };
 
-type CoreKnownState = StartupState & TransientState & SummaryState;
+type DefinedStoredState = StartupState & TransientState & SummaryState;
 
-type CoreState = MakeUndefinable<CoreKnownState>;
+type StoredState = MakeUndefinable<DefinedStoredState>;
 
-export type Register = (arg: Partial<CoreState>) => void;
+export type Register = (arg: Partial<StoredState>) => void;
 
-const initialState: CoreState = {
+const initialState: StoredState = {
   ...initialStartupState,
   ...initialTransientState,
   ...initialSummaryState,
 };
 
-export type SubscriptionFactory = (arg: { store: typeof store; registerToStore: Register }) => Subscription<CoreState>;
+export type SubscriptionFactory = (arg: { store: typeof store; registerToStore: Register }) => Subscription<StoredState>;
 
-let store: ReturnType<typeof createStore<CoreState>>;
+let store: ReturnType<typeof createStore<StoredState>>;
 
 export const initialiseStore = (...externalSubscriptions: SubscriptionFactory[]) => {
-  store = createStore<CoreState>(
+  store = createStore<StoredState>(
     () => ({
       ...initialState,
     }),
     (newValue, oldValue) => JSON.stringify(newValue) !== JSON.stringify(oldValue),
   );
 
-  const register = (arg: Partial<CoreState>) => (Object.keys(arg) as (keyof CoreState)[]).forEach(key => store.set(key, arg[key]));
+  const register = (arg: Partial<StoredState>) => (Object.keys(arg) as (keyof StoredState)[]).forEach(key => store.set(key, arg[key]));
 
   const resetContextSpecificTags = () => {
     // Note: tags obtained from props passed from the host apps should not be cleared on context change.
@@ -70,10 +71,10 @@ export const initialiseStore = (...externalSubscriptions: SubscriptionFactory[])
   return { register, resetContextSpecificTags };
 };
 
-// This state is computed from
+// This state is computed from the stored state
 type DerivedState = { tags: Tags };
 
-export type State = CoreKnownState & DerivedState;
+export type State = DefinedStoredState & DerivedState;
 
 type StateWithoutPrivateTags = Omit<State, "pathTags" | "propTags" | "domTags">;
 
@@ -91,11 +92,9 @@ type AllDefined = {
 // Wrap K in a tuple [K] to prevent distribution
 type PickIfReadyReturn<K extends readonly (keyof StateWithoutPrivateTags)[]> = K extends readonly [] ? AllDefined | undefined : PickDefined<K[number]> | undefined;
 
-export const readyState = <K extends readonly (keyof StateWithoutPrivateTags)[] = readonly []>(
+const readyStateInternal = <K extends readonly (keyof StateWithoutPrivateTags)[] = readonly []>(
   ...keys: K
 ): { isReady: true; state: PickIfReadyReturn<K> & SummaryState } | { isReady: false; state: SummaryState } => {
-  const keysToCheck = keys.length === 0 ? (Object.keys(store.state) as (keyof CoreState)[]) : keys;
-
   const summaryState = { fatalInitialisationError: store.state.fatalInitialisationError, initialisationStatus: store.state.initialisationStatus };
 
   // When a render function access a store the internals of the library are setting up observers see
@@ -105,10 +104,12 @@ export const readyState = <K extends readonly (keyof StateWithoutPrivateTags)[] 
   //  by having read that property.
   // In the code below we must ensure that we visit every property listed in `keysToCheck` otherwise we may miss registering
   //  to observe a property.
+  const keysToTouch: (keyof StoredState)[] = keys.includes("tags") ? keys.filter(key => key != "tags").concat(["pathTags"]) : keys;
+
   if (
-    keysToCheck
+    keysToTouch
       .filter(key => key !== ("tags" as keyof State))
-      .map((key: keyof CoreState) => {
+      .map((key: keyof StoredState) => {
         store.state[key]; // just make sure we "get" every prop we are interested so we register with the store
         return key;
       })
@@ -120,7 +121,7 @@ export const readyState = <K extends readonly (keyof StateWithoutPrivateTags)[] 
     };
 
   const result: any = {};
-  for (const key of keysToCheck) {
+  for (const key of keysToTouch) {
     result[key] =
       key === "tags"
         ? ({
@@ -137,3 +138,5 @@ export const readyState = <K extends readonly (keyof StateWithoutPrivateTags)[] 
 
   return { isReady: true, state: { ...(result as PickIfReadyReturn<K>), ...summaryState } };
 };
+
+export const readyState = withLogging("readyState", readyStateInternal);
