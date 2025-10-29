@@ -4,7 +4,6 @@ import { Config } from "cps-global-configuration";
 import { AuthResult } from "../services/auth/AuthResult";
 import { FoundContext } from "../services/context/FoundContext";
 import { ApplicationFlags } from "../services/application-flags/ApplicationFlags";
-import { initialisationStatusSubscription } from "./subscriptions/initialisation-status-subscription";
 import { loggingSubscription } from "./subscriptions/logging-subscription";
 import { resetPreventionSubscription } from "./subscriptions/reset-prevention-subscription";
 import { CaseDetails } from "../services/data/types";
@@ -24,8 +23,8 @@ type TransientState = { context: FoundContext; propTags: Tags; pathTags: Tags; d
 const initialTransientState = { context: undefined, propTags: undefined, pathTags: undefined, domTags: undefined, caseDetails: undefined };
 
 // This state is general
-type SummaryState = { fatalInitialisationError: Error | undefined; initialisationStatus: undefined | "ready" | "broken" };
-const initialSummaryState = { fatalInitialisationError: undefined, initialisationStatus: undefined };
+type SummaryState = { fatalInitialisationError: Error | undefined };
+const initialSummaryState = { fatalInitialisationError: undefined };
 
 type DefinedStoredState = StartupState & TransientState & SummaryState;
 
@@ -62,17 +61,45 @@ export const initialiseStore = (...externalSubscriptions: SubscriptionFactory[])
     store.set("domTags", {});
   };
 
-  store.use(
-    ...[resetPreventionSubscription, loggingSubscription, initialisationStatusSubscription, ...externalSubscriptions].map(subscription =>
-      subscription({ store, registerToStore: register }),
-    ),
-  );
+  store.use(...[resetPreventionSubscription, loggingSubscription, ...externalSubscriptions].map(subscription => subscription({ store, registerToStore: register })));
 
   return { register, resetContextSpecificTags };
 };
 
 // This state is computed from the stored state
-type DerivedState = { tags: Tags };
+type DerivedState = { tags: Tags; initialisationStatus: undefined | "ready" | "broken" };
+
+const getTags = (): Tags => ({
+  // Note 1: Order is important here. Our logic is: if a tag is found in domTags then it
+  //  overrides a tag found in the path (domTags would generally arrive later than pathTags)
+  //  and we use domTags to get better information than available in the path.
+  //  Prop tags should override everything as they are actively supplied by the host.
+  // Note 2: a design decision. Lets say that "tags" is never undefined.  DomTags for instance
+  //  may come in at any time post-initialisation as the DOM changes, so there is always
+  //  going to be an element of laziness to tags.  The calling code should work with the fact
+  //  that tags will be defined from the start is expected to be populated at any time from
+  //  initialisation onwards.
+  ...store.state.pathTags,
+  ...store.state.domTags,
+  ...store.state.propTags,
+});
+
+const getInitialisationStatus = (): DerivedState["initialisationStatus"] => {
+  if (store.state.fatalInitialisationError) {
+    return "broken";
+  }
+  const keysToIgnore: (keyof StoredState)[] = ["fatalInitialisationError", "caseDetails", "pathTags", "propTags", "domTags"];
+
+  const storeIsNotComplete = Object.keys(store.state)
+    .filter((key: keyof StoredState) => !keysToIgnore.includes(key))
+    .some(key => store.state[key] === undefined);
+
+  if (storeIsNotComplete || !getTags()) {
+    return undefined;
+  }
+
+  return "ready";
+};
 
 export type State = DefinedStoredState & DerivedState;
 
@@ -94,8 +121,10 @@ type PickIfReadyReturn<K extends readonly (keyof StateWithoutPrivateTags)[]> = K
 
 const readyStateInternal = <K extends readonly (keyof StateWithoutPrivateTags)[] = readonly []>(
   ...keys: K
-): { isReady: true; state: PickIfReadyReturn<K> & SummaryState } | { isReady: false; state: SummaryState } => {
-  const summaryState = { fatalInitialisationError: store.state.fatalInitialisationError, initialisationStatus: store.state.initialisationStatus };
+):
+  | { isReady: true; state: PickIfReadyReturn<K> & Pick<StateWithoutPrivateTags, "initialisationStatus" | "fatalInitialisationError"> }
+  | { isReady: false; state: Pick<StateWithoutPrivateTags, "initialisationStatus" | "fatalInitialisationError"> } => {
+  const alwaysReturnedState = { fatalInitialisationError: store.state.fatalInitialisationError, initialisationStatus: getInitialisationStatus() };
 
   // When a render function access a store the internals of the library are setting up observers see
   //  https://github.com/stenciljs/store/blob/4579ad531211d1777798fa994d779fefdec5c814/src/subscriptions/stencil.ts#L36
@@ -104,39 +133,26 @@ const readyStateInternal = <K extends readonly (keyof StateWithoutPrivateTags)[]
   //  by having read that property.
   // In the code below we must ensure that we visit every property listed in `keysToCheck` otherwise we may miss registering
   //  to observe a property.
-  const keysToTouch: (keyof StoredState)[] = keys.includes("tags") ? keys.filter(key => key != "tags").concat(["pathTags"]) : keys;
+  for (const key of keys) {
+    if (key === "tags") {
+      getTags();
+    } else {
+      store.state[key];
+    }
+  }
 
-  if (
-    keysToTouch
-      .filter(key => key !== ("tags" as keyof State))
-      .map((key: keyof StoredState) => {
-        store.state[key]; // just make sure we "get" every prop we are interested so we register with the store
-        return key;
-      })
-      .some(key => store.state[key] === undefined)
-  )
+  if (keys.filter(key => key != "tags").some(key => store.state[key] === undefined))
     return {
       isReady: false,
-      state: { ...summaryState },
+      state: { ...alwaysReturnedState },
     };
 
   const result: any = {};
-  for (const key of keysToTouch) {
-    result[key] =
-      key === "tags"
-        ? ({
-            // Order is important here. Our logic is: if a tag is found in domTags then it
-            //  overrides a tag found in the path (domTags would generally arrive later than pathTags)
-            //  and we use domTags to get better information than available in the path.
-            //  Prop tags should override everything as they are actively supplied by the host.
-            ...store.state.pathTags,
-            ...store.state.domTags,
-            ...store.state.propTags,
-          } as Tags)
-        : store.state[key];
+  for (const key of keys) {
+    result[key] = key === "tags" ? getTags() : store.state[key];
   }
 
-  return { isReady: true, state: { ...(result as PickIfReadyReturn<K>), ...summaryState } };
+  return { isReady: true, state: { ...(result as PickIfReadyReturn<K>), ...alwaysReturnedState } };
 };
 
 export const readyState = withLogging("readyState", readyStateInternal);
