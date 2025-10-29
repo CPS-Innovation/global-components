@@ -4,6 +4,7 @@ import { AccountInfo, AuthenticationResult, InteractionRequiredAuthError } from 
 const mockInstance = {
   initialize: jest.fn(),
   getActiveAccount: jest.fn(),
+  setActiveAccount: jest.fn(),
   ssoSilent: jest.fn(),
   loginPopup: jest.fn(),
 };
@@ -26,6 +27,7 @@ jest.mock("../../logging/_console", () => ({
   _console: {
     debug: jest.fn(),
     error: jest.fn(),
+    warn: jest.fn(),
   },
 }));
 
@@ -51,6 +53,7 @@ describe("get-ad-user-account", () => {
 
     mockInstance.initialize.mockResolvedValue(undefined);
     mockInstance.getActiveAccount.mockReturnValue(null);
+    mockInstance.setActiveAccount.mockReset();
     mockInstance.ssoSilent.mockReset();
     mockInstance.loginPopup.mockReset();
   });
@@ -85,7 +88,7 @@ describe("get-ad-user-account", () => {
       expect(mockInstance.initialize).toHaveBeenCalledTimes(1);
     });
 
-    it("should use _console.error for Error and Warning log levels", async () => {
+    it("should use _console.error for Error level and _console.warn for Warning level", async () => {
       const { _console } = require("../../logging/_console");
       mockInstance.getActiveAccount.mockReturnValue(mockAccount);
 
@@ -98,11 +101,11 @@ describe("get-ad-user-account", () => {
 
       // Test Error level (LogLevel.Error = 0)
       loggerCallback(0, "Error message", false);
-      expect(_console.error).toHaveBeenCalledWith("initialiseAuth", "MSAL logging", 0, "Error message", false);
+      expect(_console.error).toHaveBeenCalledWith("getAdUserAccount", "MSAL logging", 0, "Error message", false);
 
       // Test Warning level (LogLevel.Warning = 1)
       loggerCallback(1, "Warning message", false);
-      expect(_console.error).toHaveBeenCalledWith("initialiseAuth", "MSAL logging", 1, "Warning message", false);
+      expect(_console.warn).toHaveBeenCalledWith("getAdUserAccount", "MSAL logging", 1, "Warning message", false);
     });
 
     it("should use _console.debug for Info and Verbose log levels", async () => {
@@ -118,25 +121,29 @@ describe("get-ad-user-account", () => {
 
       // Test Info level (LogLevel.Info = 2)
       loggerCallback(2, "Info message", false);
-      expect(_console.debug).toHaveBeenCalledWith("initialiseAuth", "MSAL logging", 2, "Info message", false);
+      expect(_console.debug).toHaveBeenCalledWith("getAdUserAccount", "MSAL logging", 2, "Info message", false);
 
       // Test Verbose level (LogLevel.Verbose = 3)
       loggerCallback(3, "Verbose message", false);
-      expect(_console.debug).toHaveBeenCalledWith("initialiseAuth", "MSAL logging", 3, "Verbose message", false);
+      expect(_console.debug).toHaveBeenCalledWith("getAdUserAccount", "MSAL logging", 3, "Verbose message", false);
     });
 
     it("should return account from cache if available", async () => {
+      const { _console } = require("../../logging/_console");
       mockInstance.getActiveAccount.mockReturnValue(mockAccount);
 
       const result = await internalGetAdUserAccount(defaultProps);
 
       expect(result).toBe(mockAccount);
       expect(mockInstance.getActiveAccount).toHaveBeenCalledTimes(1);
+      expect(mockInstance.setActiveAccount).toHaveBeenCalledWith(mockAccount);
+      expect(_console.debug).toHaveBeenCalledWith("getAdUserAccount", "Source", "cache");
       expect(mockInstance.ssoSilent).not.toHaveBeenCalled();
       expect(mockInstance.loginPopup).not.toHaveBeenCalled();
     });
 
     it("should try ssoSilent if no account in cache", async () => {
+      const { _console } = require("../../logging/_console");
       mockInstance.getActiveAccount.mockReturnValue(null);
       mockInstance.ssoSilent.mockResolvedValue({ account: mockAccount } as AuthenticationResult);
 
@@ -144,6 +151,8 @@ describe("get-ad-user-account", () => {
 
       expect(result).toBe(mockAccount);
       expect(mockInstance.getActiveAccount).toHaveBeenCalledTimes(1);
+      expect(mockInstance.setActiveAccount).toHaveBeenCalledWith(mockAccount);
+      expect(_console.debug).toHaveBeenCalledWith("getAdUserAccount", "Source", "silent");
       expect(mockInstance.ssoSilent).toHaveBeenCalledWith({ scopes: ["User.Read"] });
       expect(mockInstance.loginPopup).not.toHaveBeenCalled();
     });
@@ -161,6 +170,7 @@ describe("get-ad-user-account", () => {
     });
 
     it("should handle MultipleIdentities error when FEATURE_FLAG_ENABLE_INTRUSIVE_AD_LOGIN is enabled", async () => {
+      const { _console } = require("../../logging/_console");
       const multipleIdentitiesError = new InteractionRequiredAuthError("AADSTS16000");
       mockInstance.getActiveAccount.mockReturnValue(null);
       mockInstance.ssoSilent.mockRejectedValue(multipleIdentitiesError);
@@ -175,6 +185,8 @@ describe("get-ad-user-account", () => {
       const result = await internalGetAdUserAccount(props);
 
       expect(result).toBe(mockAccount);
+      expect(mockInstance.setActiveAccount).toHaveBeenCalledWith(mockAccount);
+      expect(_console.debug).toHaveBeenCalledWith("getAdUserAccount", "Source", "popup");
       expect(getErrorType).toHaveBeenCalledWith(multipleIdentitiesError);
       expect(mockInstance.loginPopup).toHaveBeenCalledWith({ scopes: ["User.Read"] });
     });
@@ -210,6 +222,7 @@ describe("get-ad-user-account", () => {
     });
 
     it("should return null from ssoSilent when MultipleIdentities error occurs with feature flag enabled", async () => {
+      const { _console } = require("../../logging/_console");
       const multipleIdentitiesError = new InteractionRequiredAuthError("AADSTS16000");
       mockInstance.getActiveAccount.mockReturnValue(null);
       mockInstance.ssoSilent.mockRejectedValue(multipleIdentitiesError);
@@ -224,6 +237,8 @@ describe("get-ad-user-account", () => {
       const result = await internalGetAdUserAccount(props);
 
       expect(result).toBe(mockAccount);
+      expect(mockInstance.setActiveAccount).toHaveBeenCalledWith(mockAccount);
+      expect(_console.debug).toHaveBeenCalledWith("getAdUserAccount", "Source", "popup");
       expect(mockInstance.ssoSilent).toHaveBeenCalledWith({ scopes: ["User.Read"] });
       expect(mockInstance.loginPopup).toHaveBeenCalledWith({ scopes: ["User.Read"] });
     });
@@ -260,6 +275,7 @@ describe("get-ad-user-account", () => {
     });
 
     it("should call ssoSilent and loginPopup with correct login request when MultipleIdentities error occurs", async () => {
+      const { _console } = require("../../logging/_console");
       const multipleIdentitiesError = new InteractionRequiredAuthError("AADSTS16000");
       mockInstance.getActiveAccount.mockReturnValue(null);
       mockInstance.ssoSilent.mockRejectedValue(multipleIdentitiesError);
@@ -273,11 +289,14 @@ describe("get-ad-user-account", () => {
 
       await internalGetAdUserAccount(props);
 
+      expect(mockInstance.setActiveAccount).toHaveBeenCalledWith(mockAccount);
+      expect(_console.debug).toHaveBeenCalledWith("getAdUserAccount", "Source", "popup");
       expect(mockInstance.ssoSilent).toHaveBeenCalledWith({ scopes: ["User.Read"] });
       expect(mockInstance.loginPopup).toHaveBeenCalledWith({ scopes: ["User.Read"] });
     });
 
     it("should follow complete fallback chain: cache -> ssoSilent -> loginPopup", async () => {
+      const { _console } = require("../../logging/_console");
       const multipleIdentitiesError = new InteractionRequiredAuthError("AADSTS16000");
       mockInstance.getActiveAccount.mockReturnValue(null);
       mockInstance.ssoSilent.mockRejectedValue(multipleIdentitiesError);
@@ -294,6 +313,8 @@ describe("get-ad-user-account", () => {
       expect(mockInstance.getActiveAccount).toHaveBeenCalledTimes(1);
       expect(mockInstance.ssoSilent).toHaveBeenCalledTimes(1);
       expect(mockInstance.loginPopup).toHaveBeenCalledTimes(1);
+      expect(mockInstance.setActiveAccount).toHaveBeenCalledWith(mockAccount);
+      expect(_console.debug).toHaveBeenCalledWith("getAdUserAccount", "Source", "popup");
       expect(result).toBe(mockAccount);
     });
   });

@@ -77,6 +77,7 @@ describe("menuConfig", () => {
     isOverrideMode: false,
     isOutSystems: false,
     isE2eTestMode: false,
+    isLocalDevelopment: false,
   };
 
   const mockTags: Tags = {};
