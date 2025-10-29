@@ -5,7 +5,7 @@ export const loggingSubscription: SubscriptionFactory = () => ({
   set: (key, newValue) => {
     _console.debug("Store", `Setting ${key}`, newValue);
   },
-  // get: key => {
-  //   _console.debug("Store", `Getting ${key}`);
-  // },
+  get: key => {
+    _console.debug("Store", `Getting ${key}`);
+  },
 });

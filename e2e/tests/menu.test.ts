@@ -20,7 +20,7 @@ const happySettings: ArrangeProps = {
   auth: { isAuthed: true, adGroups: ["e2e-test-group"] },
 };
 
-describe.skip("Global menu", () => {
+describe("Global menu", () => {
   it("should follow config to only show one top-level nav link", async () => {
     await arrange(happySettings);
 
