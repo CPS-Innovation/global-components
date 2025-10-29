@@ -48,8 +48,9 @@ const initialiseAuthInternal = async ({
         }
       : failedAuth("NoAccountFound", "No AD account found");
   } catch (error) {
-    _console.error({ authority, clientId, redirectUri, error });
-    return failedAuth(getErrorType(error), `${error}`);
+    const errorType = getErrorType(error);
+    _console.error({ errorType, authority, clientId, redirectUri, error });
+    return failedAuth(errorType, `${error}`);
   }
 };
 

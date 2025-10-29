@@ -3,6 +3,7 @@ import { ConfigFetch } from "./ConfigFetch";
 import { getArtifactUrl } from "../../utils/get-artifact-url";
 import { fetchOverrideConfig } from "../../services/override-mode/fetch-override-config";
 import { fetchOverrideConfigAsJsonP } from "../../services/outsystems-shim/fetch-override-config-as-jsonp";
+import { fetchDevelopmentConfig } from "../override-mode/fetch-development-config";
 
 const tryConfigSources = async ([source, ...rest]: ConfigFetch[], configUrl: string): Promise<any> => {
   try {
@@ -23,20 +24,21 @@ const tryConfigSources = async ([source, ...rest]: ConfigFetch[], configUrl: str
   return tryConfigSources(rest, configUrl);
 };
 
-export const initialiseConfig = async ({ flags: { isOverrideMode, isOutSystems } }: { flags: { isOverrideMode: boolean; isOutSystems: boolean } }): Promise<Config> => {
+export const initialiseConfig = async ({
+  flags: { isOverrideMode, isOutSystems, isLocalDevelopment },
+}: {
+  flags: { isOverrideMode: boolean; isOutSystems: boolean; isLocalDevelopment: boolean };
+}): Promise<Config> => {
   const configUrl = getArtifactUrl("config.json");
 
   const fetchConfig: ConfigFetch = async (configUrl: string) => await fetch(configUrl);
 
-  let configSources: ConfigFetch[];
-  if (isOverrideMode && isOutSystems) {
-    // remove fetchOverrideConfigAsJsonP when outsystems have embedded us properly
-    configSources = [fetchOverrideConfig, fetchOverrideConfigAsJsonP, fetchConfig];
-  } else if (isOverrideMode) {
-    configSources = [fetchOverrideConfig, fetchConfig];
-  } else {
-    configSources = [fetchConfig];
-  }
+  let configSources = [
+    isLocalDevelopment ? fetchDevelopmentConfig : undefined,
+    isOverrideMode ? fetchOverrideConfig : undefined,
+    isOverrideMode && isOutSystems ? fetchOverrideConfigAsJsonP : undefined,
+    fetchConfig,
+  ].filter(config => !!config) as ConfigFetch[];
 
   const configObject = await tryConfigSources(configSources, configUrl);
   const configResult: ValidationResult = validateConfig(configObject);

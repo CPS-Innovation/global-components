@@ -1,4 +1,11 @@
-export type KnowErrorType = "ConfigurationIncomplete" | "RedirectLocationIsApp" | "NoAccountFound" | "ConditionalAccessRule" | "MultipleIdentities" | "Unknown";
+export type KnowErrorType =
+  | "ConfigurationIncomplete"
+  | "RedirectLocationIsApp"
+  | "NoAccountFound"
+  | "ConditionalAccessRule"
+  | "MultipleIdentities"
+  | "SilentFlowProblem"
+  | "Unknown";
 
 export type Auth = {
   isAuthed: true;
