@@ -27,3 +27,5 @@ Thumbs.db
 UserInterfaceState.xcuserstate
 .env
 publish/
+
+config.development.json
