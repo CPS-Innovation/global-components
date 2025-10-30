@@ -1,5 +1,6 @@
-import { findContext } from "./find-context";
 import { Context } from "cps-global-configuration/dist/schema";
+import { initialiseContext } from "./initialise-context";
+import { FoundContext } from "./FoundContext";
 
 const createMockWindow = (url: string): Window => {
   const urlObj = new URL(url);
@@ -13,12 +14,12 @@ const createMockWindow = (url: string): Window => {
   } as Window;
 };
 
-describe("findContext", () => {
+describe("initialiseContext", () => {
   it("should return not found when context array is empty", () => {
     const contexts: Context[] = [];
     const mockWindow = createMockWindow("https://example.com/page");
 
-    const result = findContext(contexts, mockWindow);
+    const result = initialiseContext({ window: mockWindow, config: { CONTEXTS: contexts } });
     expect(result).toEqual({
       found: false,
     });
@@ -34,16 +35,16 @@ describe("findContext", () => {
     ];
     const mockWindow = createMockWindow("https://example.com/page");
 
-    const result = findContext(contexts, mockWindow);
+    const result = initialiseContext({ window: mockWindow, config: { CONTEXTS: contexts } });
     expect(result).toEqual({
       contextIndex: 0,
       found: true,
       paths: ["https://example.com/page"],
       contexts: "page-context",
-      domTags: undefined,
-      tags: {},
+      domTagDefinitions: undefined,
+      pathTags: {},
       msalRedirectUrl: "foo",
-    });
+    } as FoundContext);
   });
 
   it("should find context with regex path match", () => {
@@ -56,16 +57,16 @@ describe("findContext", () => {
     ];
     const mockWindow = createMockWindow("https://example.com/users/123");
 
-    const result = findContext(contexts, mockWindow);
+    const result = initialiseContext({ window: mockWindow, config: { CONTEXTS: contexts } });
     expect(result).toEqual({
       contextIndex: 0,
       found: true,
       paths: ["https://example.com/users/\\d+"],
       contexts: "user-context",
-      domTags: undefined,
-      tags: {},
+      domTagDefinitions: undefined,
+      pathTags: {},
       msalRedirectUrl: "foo",
-    });
+    } as FoundContext);
   });
 
   it("should extract named groups from regex match", () => {
@@ -78,19 +79,19 @@ describe("findContext", () => {
     ];
     const mockWindow = createMockWindow("https://example.com/users/123/posts/456");
 
-    const result = findContext(contexts, mockWindow);
+    const result = initialiseContext({ window: mockWindow, config: { CONTEXTS: contexts } });
     expect(result).toEqual({
       contextIndex: 0,
       found: true,
       paths: ["https://example.com/users/(?<userId>\\d+)/posts/(?<postId>\\d+)"],
       contexts: "post-context",
-      domTags: undefined,
-      tags: {
+      domTagDefinitions: undefined,
+      pathTags: {
         userId: "123",
         postId: "456",
       },
       msalRedirectUrl: "foo",
-    });
+    } as FoundContext);
   });
 
   it("should return first matching context when multiple paths match", () => {
@@ -108,16 +109,16 @@ describe("findContext", () => {
     ];
     const mockWindow = createMockWindow("https://example.com/specific");
 
-    const result = findContext(contexts, mockWindow);
+    const result = initialiseContext({ window: mockWindow, config: { CONTEXTS: contexts } });
     expect(result).toEqual({
       contextIndex: 0,
       found: true,
       paths: ["https://example.com/.*"],
       contexts: "general-context",
-      domTags: undefined,
-      tags: {},
+      domTagDefinitions: undefined,
+      pathTags: {},
       msalRedirectUrl: "foo",
-    });
+    } as FoundContext);
   });
 
   it("should check all paths in a context before moving to next context", () => {
@@ -130,16 +131,16 @@ describe("findContext", () => {
     ];
     const mockWindow = createMockWindow("https://example.com/dashboard");
 
-    const result = findContext(contexts, mockWindow);
+    const result = initialiseContext({ window: mockWindow, config: { CONTEXTS: contexts } });
     expect(result).toEqual({
       contextIndex: 0,
       found: true,
       paths: ["https://example.com/admin", "https://example.com/dashboard"],
       contexts: "admin-context",
-      domTags: undefined,
-      tags: {},
+      domTagDefinitions: undefined,
+      pathTags: {},
       msalRedirectUrl: "foo",
-    });
+    } as FoundContext);
   });
 
   it("should handle complex regex patterns", () => {
@@ -152,19 +153,19 @@ describe("findContext", () => {
     ];
     const mockWindow = createMockWindow("https://example.com/api/v2/users?page=1&limit=10");
 
-    const result = findContext(contexts, mockWindow);
+    const result = initialiseContext({ window: mockWindow, config: { CONTEXTS: contexts } });
     expect(result).toEqual({
       contextIndex: 0,
       found: true,
       paths: ["https://example.com/api/v(?<version>\\d+)/(?<resource>\\w+)(?:\\?.*)?"],
       contexts: "api-context",
-      domTags: undefined,
-      tags: {
+      domTagDefinitions: undefined,
+      pathTags: {
         version: "2",
         resource: "users",
       },
       msalRedirectUrl: "foo",
-    });
+    } as FoundContext);
   });
 
   it("should return not found when no paths match", () => {
@@ -182,7 +183,7 @@ describe("findContext", () => {
     ];
     const mockWindow = createMockWindow("https://example.com/page3");
 
-    const result = findContext(contexts, mockWindow);
+    const result = initialiseContext({ window: mockWindow, config: { CONTEXTS: contexts } });
     expect(result).toEqual({
       found: false,
     });
@@ -198,7 +199,7 @@ describe("findContext", () => {
     ];
     const mockWindow = createMockWindow("https://example.com/page/subpage");
 
-    const result = findContext(contexts, mockWindow);
+    const result = initialiseContext({ window: mockWindow, config: { CONTEXTS: contexts } });
     expect(result).toEqual({
       found: false,
     });
@@ -219,27 +220,27 @@ describe("findContext", () => {
     ];
     const mockWindow = createMockWindow("https://example.com/about");
 
-    const result = findContext(contexts, mockWindow);
+    const result = initialiseContext({ window: mockWindow, config: { CONTEXTS: contexts } });
     expect(result).toEqual({
       contextIndex: 0,
       found: true,
       paths: ["https://example.com/(?<section>\\w+)"],
       contexts: "section-context-1",
-      domTags: undefined,
-      tags: {
+      domTagDefinitions: undefined,
+      pathTags: {
         section: "about",
       },
       msalRedirectUrl: "foo",
-    });
+    } as FoundContext);
   });
 
-  it("should return domTags when context has domTags property", () => {
+  it("should return domTagDefinitions when context has domTagDefinitions property", () => {
     const contexts: Context[] = [
       {
         paths: ["https://example.com/with-dom-tags"],
         contexts: "dom-tags-context",
         msalRedirectUrl: "foo",
-        domTags: [
+        domTagDefinitions: [
           {
             cssSelector: ".header",
             regex: "^Header.*",
@@ -253,13 +254,13 @@ describe("findContext", () => {
     ];
     const mockWindow = createMockWindow("https://example.com/with-dom-tags");
 
-    const result = findContext(contexts, mockWindow);
+    const result = initialiseContext({ window: mockWindow, config: { CONTEXTS: contexts } });
     expect(result).toEqual({
       contextIndex: 0,
       found: true,
       paths: ["https://example.com/with-dom-tags"],
       contexts: "dom-tags-context",
-      domTags: [
+      domTagDefinitions: [
         {
           cssSelector: ".header",
           regex: "^Header.*",
@@ -269,12 +270,12 @@ describe("findContext", () => {
           regex: ".*content.*",
         },
       ],
-      tags: {},
+      pathTags: {},
       msalRedirectUrl: "foo",
-    });
+    } as FoundContext);
   });
 
-  it("should handle context without domTags (undefined)", () => {
+  it("should handle context without domTagDefinitions (undefined)", () => {
     const contexts: Context[] = [
       {
         paths: ["https://example.com/no-dom-tags"],
@@ -284,25 +285,25 @@ describe("findContext", () => {
     ];
     const mockWindow = createMockWindow("https://example.com/no-dom-tags");
 
-    const result = findContext(contexts, mockWindow);
+    const result = initialiseContext({ window: mockWindow, config: { CONTEXTS: contexts } });
     expect(result).toEqual({
       contextIndex: 0,
       found: true,
       paths: ["https://example.com/no-dom-tags"],
       contexts: "no-dom-tags-context",
-      domTags: undefined,
-      tags: {},
+      domTagDefinitions: undefined,
+      pathTags: {},
       msalRedirectUrl: "foo",
-    });
+    } as FoundContext);
   });
 
-  it("should return domTags with regex match and named groups", () => {
+  it("should return domTagDefinitions with regex match and named groups", () => {
     const contexts: Context[] = [
       {
         paths: ["https://example.com/products/(?<productId>\\d+)"],
         contexts: "product-context",
         msalRedirectUrl: "foo",
-        domTags: [
+        domTagDefinitions: [
           {
             cssSelector: "[data-product-id]",
             regex: "product-\\d+",
@@ -312,23 +313,23 @@ describe("findContext", () => {
     ];
     const mockWindow = createMockWindow("https://example.com/products/123");
 
-    const result = findContext(contexts, mockWindow);
+    const result = initialiseContext({ window: mockWindow, config: { CONTEXTS: contexts } });
     expect(result).toEqual({
       contextIndex: 0,
       found: true,
       paths: ["https://example.com/products/(?<productId>\\d+)"],
       contexts: "product-context",
-      domTags: [
+      domTagDefinitions: [
         {
           cssSelector: "[data-product-id]",
           regex: "product-\\d+",
         },
       ],
-      tags: {
+      pathTags: {
         productId: "123",
       },
       msalRedirectUrl: "foo",
-    });
+    } as FoundContext);
   });
 
   it("should handle URLs with sorted query parameters", () => {
@@ -342,16 +343,16 @@ describe("findContext", () => {
     // URL with parameters in different order should still match after sorting
     const mockWindow = createMockWindow("https://example.com/search?foo=1&bar=2");
 
-    const result = findContext(contexts, mockWindow);
+    const result = initialiseContext({ window: mockWindow, config: { CONTEXTS: contexts } });
     expect(result).toEqual({
       contextIndex: 0,
       found: true,
       paths: ["https://example.com/search\\?bar=2&foo=1"],
       contexts: "search-context",
-      domTags: undefined,
-      tags: {},
+      domTagDefinitions: undefined,
+      pathTags: {},
       msalRedirectUrl: "foo",
-    });
+    } as FoundContext);
   });
 
   it("should preserve hash in URL matching", () => {
@@ -364,16 +365,16 @@ describe("findContext", () => {
     ];
     const mockWindow = createMockWindow("https://example.com/page#section");
 
-    const result = findContext(contexts, mockWindow);
+    const result = initialiseContext({ window: mockWindow, config: { CONTEXTS: contexts } });
     expect(result).toEqual({
       contextIndex: 0,
       found: true,
       paths: ["https://example.com/page#section"],
       contexts: "page-with-hash",
-      domTags: undefined,
-      tags: {},
+      domTagDefinitions: undefined,
+      pathTags: {},
       msalRedirectUrl: "foo",
-    });
+    } as FoundContext);
   });
 
   describe("case-insensitive matching", () => {
@@ -387,16 +388,16 @@ describe("findContext", () => {
       ];
       const mockWindow = createMockWindow("https://example.com/mypage");
 
-      const result = findContext(contexts, mockWindow);
+      const result = initialiseContext({ window: mockWindow, config: { CONTEXTS: contexts } });
       expect(result).toEqual({
         contextIndex: 0,
         found: true,
         paths: ["https://example.com/MyPage"],
         contexts: "page-context",
-        domTags: undefined,
-        tags: {},
+        domTagDefinitions: undefined,
+        pathTags: {},
         msalRedirectUrl: "foo",
-      });
+      } as FoundContext);
     });
 
     it("should match URLs with different case in domain", () => {
@@ -409,16 +410,16 @@ describe("findContext", () => {
       ];
       const mockWindow = createMockWindow("https://example.com/page");
 
-      const result = findContext(contexts, mockWindow);
+      const result = initialiseContext({ window: mockWindow, config: { CONTEXTS: contexts } });
       expect(result).toEqual({
         contextIndex: 0,
         found: true,
         paths: ["https://EXAMPLE.COM/page"],
         contexts: "page-context",
-        domTags: undefined,
-        tags: {},
+        domTagDefinitions: undefined,
+        pathTags: {},
         msalRedirectUrl: "foo",
-      });
+      } as FoundContext);
     });
 
     it("should match URLs with different case in protocol", () => {
@@ -431,16 +432,16 @@ describe("findContext", () => {
       ];
       const mockWindow = createMockWindow("https://example.com/page");
 
-      const result = findContext(contexts, mockWindow);
+      const result = initialiseContext({ window: mockWindow, config: { CONTEXTS: contexts } });
       expect(result).toEqual({
         contextIndex: 0,
         found: true,
         paths: ["HTTPS://example.com/page"],
         contexts: "page-context",
-        domTags: undefined,
-        tags: {},
+        domTagDefinitions: undefined,
+        pathTags: {},
         msalRedirectUrl: "foo",
-      });
+      } as FoundContext);
     });
 
     it("should match regex patterns case-insensitively", () => {
@@ -453,16 +454,16 @@ describe("findContext", () => {
       ];
       const mockWindow = createMockWindow("https://example.com/users/123");
 
-      const result = findContext(contexts, mockWindow);
+      const result = initialiseContext({ window: mockWindow, config: { CONTEXTS: contexts } });
       expect(result).toEqual({
         contextIndex: 0,
         found: true,
         paths: ["https://example.com/Users/\\d+"],
         contexts: "user-context",
-        domTags: undefined,
-        tags: {},
+        domTagDefinitions: undefined,
+        pathTags: {},
         msalRedirectUrl: "foo",
-      });
+      } as FoundContext);
     });
 
     it("should extract named groups with case-insensitive matching", () => {
@@ -475,18 +476,18 @@ describe("findContext", () => {
       ];
       const mockWindow = createMockWindow("https://example.com/products/789");
 
-      const result = findContext(contexts, mockWindow);
+      const result = initialiseContext({ window: mockWindow, config: { CONTEXTS: contexts } });
       expect(result).toEqual({
         contextIndex: 0,
         found: true,
         paths: ["https://example.com/Products/(?<productId>\\d+)"],
         contexts: "product-context",
-        domTags: undefined,
-        tags: {
+        domTagDefinitions: undefined,
+        pathTags: {
           productId: "789",
         },
         msalRedirectUrl: "foo",
-      });
+      } as FoundContext);
     });
 
     it("should match query parameters case-insensitively", () => {
@@ -499,16 +500,16 @@ describe("findContext", () => {
       ];
       const mockWindow = createMockWindow("https://example.com/search?bar=2&foo=1");
 
-      const result = findContext(contexts, mockWindow);
+      const result = initialiseContext({ window: mockWindow, config: { CONTEXTS: contexts } });
       expect(result).toEqual({
         contextIndex: 0,
         found: true,
         paths: ["https://example.com/search\\?BAR=2&FOO=1"],
         contexts: "search-context",
-        domTags: undefined,
-        tags: {},
+        domTagDefinitions: undefined,
+        pathTags: {},
         msalRedirectUrl: "foo",
-      });
+      } as FoundContext);
     });
 
     it("should match hash fragment case-insensitively", () => {
@@ -521,16 +522,16 @@ describe("findContext", () => {
       ];
       const mockWindow = createMockWindow("https://example.com/page#section");
 
-      const result = findContext(contexts, mockWindow);
+      const result = initialiseContext({ window: mockWindow, config: { CONTEXTS: contexts } });
       expect(result).toEqual({
         contextIndex: 0,
         found: true,
         paths: ["https://example.com/page#Section"],
         contexts: "section-context",
-        domTags: undefined,
-        tags: {},
+        domTagDefinitions: undefined,
+        pathTags: {},
         msalRedirectUrl: "foo",
-      });
+      } as FoundContext);
     });
 
     it("should match complex URLs with mixed case throughout", () => {
@@ -543,19 +544,19 @@ describe("findContext", () => {
       ];
       const mockWindow = createMockWindow("https://example.com/api/v2/users?page=1");
 
-      const result = findContext(contexts, mockWindow);
+      const result = initialiseContext({ window: mockWindow, config: { CONTEXTS: contexts } });
       expect(result).toEqual({
         contextIndex: 0,
         found: true,
         paths: ["HTTPS://EXAMPLE.COM/API/V(?<version>\\d+)/(?<resource>\\w+)(?:\\?.*)?"],
         contexts: "api-context",
-        domTags: undefined,
-        tags: {
+        domTagDefinitions: undefined,
+        pathTags: {
           version: "2",
           resource: "users",
         },
         msalRedirectUrl: "foo",
-      });
+      } as FoundContext);
     });
 
     it("should match real-world OutSystems URL with query parameters and named groups", () => {
@@ -566,23 +567,21 @@ describe("findContext", () => {
           msalRedirectUrl: "foo",
         },
       ];
-      const mockWindow = createMockWindow(
-        "https://cps-tst.outsystemsenterprise.com/WorkManagementApp/CaseOverview?CaseId=12345&URN=ABC123DEF"
-      );
+      const mockWindow = createMockWindow("https://cps-tst.outsystemsenterprise.com/WorkManagementApp/CaseOverview?CaseId=12345&URN=ABC123DEF");
 
-      const result = findContext(contexts, mockWindow);
+      const result = initialiseContext({ window: mockWindow, config: { CONTEXTS: contexts } });
       expect(result).toEqual({
         contextIndex: 0,
         found: true,
         paths: ["https://cps-tst.outsystemsenterprise.com/WorkManagementApp/CaseOverview.*?[&?]CaseId=(?<caseId>\\d+)&URN=(?<urn>[^&]+)"],
         contexts: "case-overview-context",
-        domTags: undefined,
-        tags: {
+        domTagDefinitions: undefined,
+        pathTags: {
           caseId: "12345",
           urn: "ABC123DEF",
         },
         msalRedirectUrl: "foo",
-      });
+      } as FoundContext);
     });
 
     it("should match real-world OutSystems URL with case variations", () => {
@@ -593,23 +592,21 @@ describe("findContext", () => {
           msalRedirectUrl: "foo",
         },
       ];
-      const mockWindow = createMockWindow(
-        "https://cps-tst.outsystemsenterprise.com/workmanagementapp/caseoverview?caseid=67890&urn=XYZ789GHI"
-      );
+      const mockWindow = createMockWindow("https://cps-tst.outsystemsenterprise.com/workmanagementapp/caseoverview?caseid=67890&urn=XYZ789GHI");
 
-      const result = findContext(contexts, mockWindow);
+      const result = initialiseContext({ window: mockWindow, config: { CONTEXTS: contexts } });
       expect(result).toEqual({
         contextIndex: 0,
         found: true,
         paths: ["https://cps-tst.outsystemsenterprise.com/WorkManagementApp/CaseOverview.*?[&?]CaseId=(?<caseId>\\d+)&URN=(?<urn>[^&]+)"],
         contexts: "case-overview-context",
-        domTags: undefined,
-        tags: {
+        domTagDefinitions: undefined,
+        pathTags: {
           caseId: "67890",
           urn: "XYZ789GHI",
         },
         msalRedirectUrl: "foo",
-      });
+      } as FoundContext);
     });
 
     it("should match real-world OutSystems URL with parameters in different order (after sorting)", () => {
@@ -622,23 +619,21 @@ describe("findContext", () => {
       ];
       // Note: buildSanitizedAddress sorts params alphabetically (case-insensitive)
       // CaseId, URN are already in the correct sorted order
-      const mockWindow = createMockWindow(
-        "https://cps-tst.outsystemsenterprise.com/WorkManagementApp/CaseOverview?URN=ABC123&CaseId=54321"
-      );
+      const mockWindow = createMockWindow("https://cps-tst.outsystemsenterprise.com/WorkManagementApp/CaseOverview?URN=ABC123&CaseId=54321");
 
-      const result = findContext(contexts, mockWindow);
+      const result = initialiseContext({ window: mockWindow, config: { CONTEXTS: contexts } });
       expect(result).toEqual({
         contextIndex: 0,
         found: true,
         paths: ["https://cps-tst.outsystemsenterprise.com/WorkManagementApp/CaseOverview.*?[&?]CaseId=(?<caseId>\\d+)&URN=(?<urn>[^&]+)"],
         contexts: "case-overview-context",
-        domTags: undefined,
-        tags: {
+        domTagDefinitions: undefined,
+        pathTags: {
           caseId: "54321",
           urn: "ABC123",
         },
         msalRedirectUrl: "foo",
-      });
+      } as FoundContext);
     });
 
     it("should match real-world OutSystems URL when additional parameters sort after URN", () => {
@@ -650,23 +645,21 @@ describe("findContext", () => {
         },
       ];
       // Note: 'z' sorts after 'URN' (case-insensitive: C < U < z)
-      const mockWindow = createMockWindow(
-        "https://cps-tst.outsystemsenterprise.com/WorkManagementApp/CaseOverview?CaseId=99999&URN=TEST123&zextra=value"
-      );
+      const mockWindow = createMockWindow("https://cps-tst.outsystemsenterprise.com/WorkManagementApp/CaseOverview?CaseId=99999&URN=TEST123&zextra=value");
 
-      const result = findContext(contexts, mockWindow);
+      const result = initialiseContext({ window: mockWindow, config: { CONTEXTS: contexts } });
       expect(result).toEqual({
         contextIndex: 0,
         found: true,
         paths: ["https://cps-tst.outsystemsenterprise.com/WorkManagementApp/CaseOverview.*?[&?]CaseId=(?<caseId>\\d+)&URN=(?<urn>[^&]+)"],
         contexts: "case-overview-context",
-        domTags: undefined,
-        tags: {
+        domTagDefinitions: undefined,
+        pathTags: {
           caseId: "99999",
           urn: "TEST123",
         },
         msalRedirectUrl: "foo",
-      });
+      } as FoundContext);
     });
   });
 });

@@ -1,5 +1,5 @@
 import { handleForcedRedirect } from "cps-global-os-handover";
-import { FoundContext } from "../context/find-context";
+import { FoundContext } from "../context/FoundContext";
 import { Config } from "cps-global-configuration";
 import { withLogging } from "../../logging/with-logging";
 

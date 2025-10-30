@@ -32,10 +32,28 @@ describe("stripParams", () => {
   test("handles mixed existing and non-existing parameters", () => {
     const url = new URL("https://example.com?foo=bar");
     const [foo, missing] = stripParams(url, "foo", "missing");
-    
+
     expect(foo).toBe("bar");
     expect(missing).toBe("");
     expect(url.search).toBe("");
+  });
+
+  test("returns first value when parameter is repeated", () => {
+    const url = new URL("https://example.com?foo=bar&foo=baz");
+    const [value] = stripParams(url, "foo");
+
+    expect(value).toBe("bar");
+    expect(url.searchParams.has("foo")).toBe(false);
+  });
+
+  test("removes all instances of repeated parameter", () => {
+    const url = new URL("https://example.com?foo=first&other=value&foo=second&foo=third");
+    const [value] = stripParams(url, "foo");
+
+    expect(value).toBe("first");
+    expect(url.searchParams.has("foo")).toBe(false);
+    expect(url.searchParams.get("other")).toBe("value");
+    expect(url.searchParams.getAll("foo")).toEqual([]);
   });
 });
 
@@ -65,9 +83,17 @@ describe("setParams", () => {
   test("preserves other parameters", () => {
     const url = new URL("https://example.com?existing=value");
     setParams(url, { foo: "bar" });
-    
+
     expect(url.searchParams.get("existing")).toBe("value");
     expect(url.searchParams.get("foo")).toBe("bar");
+  });
+
+  test("replaces all instances when parameter is repeated", () => {
+    const url = new URL("https://example.com?foo=first&foo=second&foo=third");
+    setParams(url, { foo: "new" });
+
+    expect(url.searchParams.get("foo")).toBe("new");
+    expect(url.searchParams.getAll("foo")).toEqual(["new"]);
   });
 });
 
@@ -107,8 +133,17 @@ describe("createUrlWithParams", () => {
       url: "https://other.com/path",
       special: "value with spaces",
     });
-    
+
     expect(url.searchParams.get("url")).toBe("https://other.com/path");
     expect(url.searchParams.get("special")).toBe("value with spaces");
+  });
+
+  test("replaces repeated parameters with single value", () => {
+    const url = createUrlWithParams("https://example.com?foo=first&foo=second", {
+      foo: "new",
+    });
+
+    expect(url.searchParams.get("foo")).toBe("new");
+    expect(url.searchParams.getAll("foo")).toEqual(["new"]);
   });
 });
