@@ -38,7 +38,7 @@ const initialState: StoredState = {
   ...initialSummaryState,
 };
 
-export type SubscriptionFactory = (arg: { store: typeof store; registerToStore: Register }) => Subscription<StoredState>;
+export type SubscriptionFactory = (arg: { store: typeof store; register: Register; getTags: typeof getTags }) => Subscription<StoredState>;
 
 let store: ReturnType<typeof createStore<StoredState>>;
 
@@ -57,17 +57,20 @@ export const initialiseStore = (...externalSubscriptions: SubscriptionFactory[])
     //  They are subject to being updated via @Watch so all good there, but we definitely do not want
     //  the tags from one context (e.g. caseId = 123) hanging around for the next context in an SPA
     //  navigation (e.g. caseId = 456).
-    store.set("pathTags", {});
-    store.set("domTags", {});
+    privateTagProperties.filter(key => key !== "propTags").forEach(key => store.set(key, {}));
   };
 
-  store.use(...[resetPreventionSubscription, loggingSubscription, ...externalSubscriptions].map(subscription => subscription({ store, registerToStore: register })));
+  store.use(...[resetPreventionSubscription, loggingSubscription, ...externalSubscriptions].map(subscription => subscription({ store, register, getTags })));
 
   return { register, resetContextSpecificTags };
 };
 
 // This state is computed from the stored state
 type DerivedState = { tags: Tags; initialisationStatus: undefined | "ready" | "broken" };
+
+const privateTagProperties = ["pathTags", "domTags", "propTags"] as const;
+type PrivateTagProperties = (typeof privateTagProperties)[number]; // gives us a union definition: "pathTags" | "domTags" | "propTags"
+export const isATagProperty = (key: keyof StoredState): key is PrivateTagProperties => privateTagProperties.includes(key as PrivateTagProperties);
 
 const getTags = (): Tags => ({
   // Note 1: Order is important here. Our logic is: if a tag is found in domTags then it
@@ -88,7 +91,7 @@ const getInitialisationStatus = (): DerivedState["initialisationStatus"] => {
   if (store.state.fatalInitialisationError) {
     return "broken";
   }
-  const keysToIgnore: (keyof StoredState)[] = ["fatalInitialisationError", "caseDetails", "pathTags", "propTags", "domTags"];
+  const keysToIgnore: (keyof StoredState)[] = ["fatalInitialisationError", "caseDetails", ...privateTagProperties];
 
   const storeIsNotComplete = Object.keys(store.state)
     .filter((key: keyof StoredState) => !keysToIgnore.includes(key))
@@ -102,8 +105,7 @@ const getInitialisationStatus = (): DerivedState["initialisationStatus"] => {
 };
 
 export type State = DefinedStoredState & DerivedState;
-
-type StateWithoutPrivateTags = Omit<State, "pathTags" | "propTags" | "domTags">;
+type StateWithoutPrivateTags = Omit<State, PrivateTagProperties>;
 
 type NonUndefined<T> = T extends undefined ? never : T;
 
