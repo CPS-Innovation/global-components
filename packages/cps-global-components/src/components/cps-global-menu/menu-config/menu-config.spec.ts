@@ -6,7 +6,7 @@ jest.mock("cps-global-os-handover");
 
 import { menuConfig } from "./menu-config";
 import { Config } from "cps-global-configuration";
-import { FoundContext } from "../../../services/context/find-context";
+import { FoundContext } from "../../../services/context/FoundContext";
 import { shouldShowLink } from "./helpers/should-show-link";
 import { mapLinkConfig } from "./helpers/map-link-config";
 import { groupLinksByLevel } from "./helpers/group-links-by-level";
@@ -15,9 +15,8 @@ import { Tags } from "@microsoft/applicationinsights-web";
 import { AuthResult } from "../../../services/auth/AuthResult";
 import { isOutSystemsApp } from "../../../services/application-flags/is-outsystems-app";
 import { createOutboundUrl } from "cps-global-os-handover";
-import { KnownState } from "../../../store/store";
+import { State } from "../../../store/store";
 import { CaseDetails } from "../../../services/data/types";
-import { CaseIdentifiers } from "../../../services/context/CaseIdentifiers";
 
 // Type the mocked functions
 const mockShouldShowLink = shouldShowLink as jest.MockedFunction<typeof shouldShowLink>;
@@ -84,8 +83,6 @@ describe("menuConfig", () => {
 
   const mockCaseDetails: CaseDetails = { urn: "foo", caseId: 1, isDcf: false };
 
-  const mockCaseIdentifiers: CaseIdentifiers = { caseId: "1" };
-
   beforeEach(() => {
     jest.clearAllMocks();
   });
@@ -93,17 +90,19 @@ describe("menuConfig", () => {
   it("should return error when context is not found", () => {
     const foundContext: FoundContext = {
       found: false,
-      domTags: undefined,
+      domTagDefinitions: undefined,
       contextIndex: undefined,
     };
 
-    const mockState: KnownState = {
+    const mockState: State = {
       context: foundContext,
-      caseIdentifiers: mockCaseIdentifiers,
       caseDetails: mockCaseDetails,
       config: mockConfig,
       flags: mockFlags,
-      tags: mockTags,
+      propTags: {},
+      pathTags: {},
+      domTags: mockTags,
+      tags: {},
       auth: {} as AuthResult,
       fatalInitialisationError: undefined as any,
       initialisationStatus: "ready",
@@ -124,25 +123,26 @@ describe("menuConfig", () => {
   it("should process links when context is found", () => {
     const foundContexts = "test-context";
     const foundTags = { tag1: "value1", tag2: "value2" };
-    const domTags = { domTag1: "domValue1" };
 
     const foundContext: FoundContext = {
       found: true,
       paths: ["https://example.com/test"],
       contexts: foundContexts,
-      domTags: undefined,
-      tags: foundTags,
+      domTagDefinitions: undefined,
+      pathTags: {},
       contextIndex: 0,
       msalRedirectUrl: "foo",
     };
 
-    const mockState: KnownState = {
+    const mockState: State = {
       context: foundContext,
-      caseIdentifiers: mockCaseIdentifiers,
       caseDetails: mockCaseDetails,
       config: mockConfig,
       flags: mockFlags,
-      tags: domTags,
+      propTags: {},
+      pathTags: {},
+      domTags: foundTags,
+      tags: {},
       auth: {} as AuthResult,
       fatalInitialisationError: undefined as any,
       initialisationStatus: "ready",
@@ -198,7 +198,7 @@ describe("menuConfig", () => {
     // The handoverAdapter should be a function when not in OutSystems (even with empty OS_HANDOVER_URL)
     expect(mockMapLinkConfig).toHaveBeenCalledWith({
       contexts: foundContexts,
-      tags: { ...foundTags, ...domTags },
+      tags: {},
       handoverAdapter: expect.any(Function),
     });
     expect(mockMapFunction).toHaveBeenCalledTimes(2); // Only called for filtered links
@@ -230,15 +230,14 @@ describe("menuConfig", () => {
       found: true,
       paths: ["https://example.com/test"],
       contexts: foundContexts,
-      domTags: undefined,
-      tags: foundTags,
+      domTagDefinitions: undefined,
+      pathTags: {},
       contextIndex: 0,
       msalRedirectUrl: "foo",
     };
 
-    const mockState: KnownState = {
+    const mockState: State = {
       context: foundContext,
-      caseIdentifiers: mockCaseIdentifiers,
       caseDetails: mockCaseDetails,
       config: {
         ...mockConfig,
@@ -248,7 +247,10 @@ describe("menuConfig", () => {
         ...mockFlags,
         isOutSystems: true, // In OutSystems
       },
-      tags: mockTags,
+      propTags: {},
+      pathTags: {},
+      domTags: foundTags,
+      tags: {},
       auth: {} as AuthResult,
       fatalInitialisationError: undefined as any,
       initialisationStatus: "ready",
@@ -277,7 +279,7 @@ describe("menuConfig", () => {
     // Verify handoverAdapter is undefined when in OutSystems
     expect(mockMapLinkConfig).toHaveBeenCalledWith({
       contexts: foundContexts,
-      tags: { ...foundTags, ...mockTags },
+      tags: {},
       handoverAdapter: undefined,
     });
   });
@@ -290,15 +292,14 @@ describe("menuConfig", () => {
       found: true,
       paths: ["https://example.com/test"],
       contexts: foundContexts,
-      domTags: undefined,
-      tags: foundTags,
+      domTagDefinitions: undefined,
+      pathTags: {},
       contextIndex: 0,
       msalRedirectUrl: "foo",
     };
 
-    const mockState: KnownState = {
+    const mockState: State = {
       context: foundContext,
-      caseIdentifiers: mockCaseIdentifiers,
       caseDetails: mockCaseDetails,
       config: {
         ...mockConfig,
@@ -308,7 +309,10 @@ describe("menuConfig", () => {
         ...mockFlags,
         isOutSystems: false,
       },
-      tags: mockTags,
+      propTags: {},
+      pathTags: {},
+      domTags: foundTags,
+      tags: {},
       auth: {} as AuthResult,
       fatalInitialisationError: undefined as any,
       initialisationStatus: "ready",
@@ -337,7 +341,7 @@ describe("menuConfig", () => {
     // Verify handoverAdapter is passed as a function (not undefined)
     expect(mockMapLinkConfig).toHaveBeenCalledWith({
       contexts: foundContexts,
-      tags: { ...foundTags, ...mockTags },
+      tags: {},
       handoverAdapter: expect.any(Function),
     });
   });
@@ -350,15 +354,14 @@ describe("menuConfig", () => {
       found: true,
       paths: ["https://example.com/test"],
       contexts: foundContexts,
-      domTags: undefined,
-      tags: foundTags,
+      domTagDefinitions: undefined,
+      pathTags: foundTags,
       contextIndex: 0,
       msalRedirectUrl: "foo",
     };
 
-    const mockState: KnownState = {
+    const mockState: State = {
       context: foundContext,
-      caseIdentifiers: mockCaseIdentifiers,
       caseDetails: mockCaseDetails,
       config: {
         ...mockConfig,
@@ -368,7 +371,10 @@ describe("menuConfig", () => {
         ...mockFlags,
         isOutSystems: false,
       },
-      tags: mockTags,
+      propTags: {},
+      pathTags: {},
+      domTags: mockTags,
+      tags: {},
       auth: {} as AuthResult,
       fatalInitialisationError: undefined as any,
       initialisationStatus: "ready",
@@ -409,15 +415,14 @@ describe("menuConfig", () => {
       found: true,
       paths: ["https://example.com/test"],
       contexts: foundContexts,
-      domTags: undefined,
-      tags: foundTags,
+      domTagDefinitions: undefined,
+      pathTags: foundTags,
       contextIndex: 0,
       msalRedirectUrl: "foo",
     };
 
-    const mockState: KnownState = {
+    const mockState: State = {
       context: foundContext,
-      caseIdentifiers: mockCaseIdentifiers,
       caseDetails: mockCaseDetails,
       config: {
         ...mockConfig,
@@ -427,7 +432,10 @@ describe("menuConfig", () => {
         ...mockFlags,
         isOutSystems: false,
       },
-      tags: mockTags,
+      propTags: {},
+      pathTags: {},
+      domTags: mockTags,
+      tags: {},
       auth: {} as AuthResult,
       fatalInitialisationError: undefined as any,
       initialisationStatus: "ready",
@@ -469,179 +477,4 @@ describe("menuConfig", () => {
     });
     expect(result).toBe("https://handover.example.com?target=https://os-app.com/page");
   });
-
-  //   it("should handle empty LINKS array", () => {
-  //     const emptyConfig: Config = {
-  //       ...mockConfig,
-  //       LINKS: [],
-  //     };
-
-  //     mockFindContext.mockReturnValue({
-  //       found: true,
-  //       paths: ["https://example.com/test"],
-  //       contexts: "test-context",
-  //       domTags: undefined,
-  //       tags: {},
-  //       contextIndex: 0,
-  //       msalRedirectUrl: "foo",
-  //     });
-  //     mockShouldShowLink.mockReturnValue(jest.fn());
-  //     mockMapLinkConfig.mockReturnValue(jest.fn());
-  //     mockGroupLinksByLevel.mockReturnValue([]);
-
-  //     const result = menuConfig(emptyConfig, mockWindow);
-
-  //     expect(result).toEqual({
-  //       found: true,
-  //       links: [],
-  //     });
-
-  //     expect(mockGroupLinksByLevel).toHaveBeenCalledWith([]);
-  //   });
-
-  //   it("should handle all links being filtered out", () => {
-  //     mockFindContext.mockReturnValue({
-  //       found: true,
-  //       paths: ["https://example.com/test"],
-  //       contexts: "test-context",
-  //       domTags: undefined,
-  //       tags: {},
-  //       contextIndex: 0,
-  //       msalRedirectUrl: "foo",
-  //     });
-
-  //     // Mock shouldShowLink to filter out all links
-  //     const mockFilterFunction = jest.fn().mockReturnValue(false);
-  //     mockShouldShowLink.mockReturnValue(mockFilterFunction);
-  //     mockMapLinkConfig.mockReturnValue(jest.fn());
-  //     mockGroupLinksByLevel.mockReturnValue([]);
-
-  //     const result = menuConfig(mockConfig, mockWindow);
-
-  //     expect(result).toEqual({
-  //       found: true,
-  //       links: [],
-  //     });
-
-  //     expect(mockFilterFunction).toHaveBeenCalledTimes(3);
-  //     expect(mockMapLinkConfig).toHaveBeenCalled();
-  //     expect(mockGroupLinksByLevel).toHaveBeenCalledWith([]);
-  //   });
-
-  //   it("should pass tags from findContext to mapLinkConfig", () => {
-  //     const complexTags = {
-  //       userId: "123",
-  //       sectionId: "456",
-  //       type: "advanced",
-  //     };
-
-  //     mockFindContext.mockReturnValue({
-  //       found: true,
-  //       paths: ["https://example.com/test"],
-  //       contexts: "user-context section-context",
-  //       domTags: undefined,
-  //       tags: complexTags,
-  //       contextIndex: 0,
-  //       msalRedirectUrl: "foo",
-  //     });
-
-  //     mockShouldShowLink.mockReturnValue(jest.fn().mockReturnValue(true));
-  //     mockMapLinkConfig.mockReturnValue(
-  //       jest.fn().mockReturnValue({
-  //         label: "Test",
-  //         href: "/test",
-  //         level: 0,
-  //         selected: false,
-  //         openInNewTab: false,
-  //         preferEventNavigation: false,
-  //       }),
-  //     );
-  //     mockGroupLinksByLevel.mockReturnValue([[]]);
-
-  //     menuConfig(mockConfig, mockWindow);
-
-  //     expect(mockMapLinkConfig).toHaveBeenCalledWith({ contexts: "user-context section-context", tags: complexTags, handoverAdapter: expect.any(Function) });
-  //   });
-
-  //   it("should handle different window locations", () => {
-  //     const differentLocation = {
-  //       origin: "https://app.example.com",
-  //       pathname: "/admin/users",
-  //       search: "?filter=active&sort=name",
-  //       hash: "#top",
-  //     } as Location;
-
-  //     const differentWindow = {
-  //       location: differentLocation,
-  //     } as Window;
-
-  //     mockFindContext.mockReturnValue({
-  //       found: true,
-  //       paths: ["https://app.example.com/admin/.*"],
-  //       contexts: "admin",
-  //       domTags: undefined,
-  //       tags: { section: "users" },
-  //       contextIndex: 0,
-  //       msalRedirectUrl: "foo",
-  //     });
-
-  //     mockShouldShowLink.mockReturnValue(jest.fn().mockReturnValue(true));
-  //     mockMapLinkConfig.mockReturnValue(
-  //       jest.fn().mockReturnValue({
-  //         label: "Test",
-  //         href: "/test",
-  //         level: 0,
-  //         selected: false,
-  //         openInNewTab: false,
-  //         preferEventNavigation: false,
-  //       }),
-  //     );
-  //     mockGroupLinksByLevel.mockReturnValue([[]]);
-
-  //     menuConfig(mockConfig, differentWindow);
-
-  //     expect(mockFindContext).toHaveBeenCalledWith(mockConfig.CONTEXTS, differentWindow);
-  //   });
-
-  //   it("should maintain link processing order", () => {
-  //     mockFindContext.mockReturnValue({
-  //       found: true,
-  //       paths: ["https://example.com/test"],
-  //       contexts: "test-context",
-  //       domTags: undefined,
-  //       tags: {},
-  //       contextIndex: 0,
-  //       msalRedirectUrl: "foo",
-  //     });
-
-  //     // All links pass the filter
-  //     mockShouldShowLink.mockReturnValue(jest.fn().mockReturnValue(true));
-
-  //     const mappedLinks: any[] = [];
-  //     const mockMapFunction = jest.fn().mockImplementation(link => {
-  //       const mapped = {
-  //         label: `Mapped ${link.label}`,
-  //         href: link.href,
-  //         level: link.level,
-  //         selected: false,
-  //         openInNewTab: link.openInNewTab,
-  //         preferEventNavigation: false,
-  //       };
-  //       mappedLinks.push(mapped);
-  //       return mapped;
-  //     });
-  //     mockMapLinkConfig.mockReturnValue(mockMapFunction);
-
-  //     mockGroupLinksByLevel.mockImplementation(links => {
-  //       // Verify the order is maintained
-  //       expect(links[0].label).toBe("Mapped Link 1");
-  //       expect(links[1].label).toBe("Mapped Link 2");
-  //       expect(links[2].label).toBe("Mapped Link 3");
-  //       return [links];
-  //     });
-
-  //     menuConfig(mockConfig, mockWindow);
-
-  //     expect(mockMapFunction).toHaveBeenCalledTimes(3);
-  //   });
 });

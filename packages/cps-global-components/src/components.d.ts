@@ -11,6 +11,10 @@ export namespace Components {
     interface CpsGlobalFooter {
     }
     interface CpsGlobalHeader {
+        /**
+          * @default false
+         */
+        "isDcf": boolean;
     }
     interface CpsGlobalMenu {
     }
@@ -84,6 +88,10 @@ declare namespace LocalJSX {
     interface CpsGlobalFooter {
     }
     interface CpsGlobalHeader {
+        /**
+          * @default false
+         */
+        "isDcf"?: boolean;
     }
     interface CpsGlobalMenu {
     }

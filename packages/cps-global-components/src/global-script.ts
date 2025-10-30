@@ -1,6 +1,6 @@
 import { handleSetOverrideMode } from "./services/override-mode/handle-set-override-mode";
 import { initialiseAuth } from "./services/auth/initialise-auth";
-import { initialiseStore } from "./store/store";
+import { initialiseStore, Register } from "./store/store";
 import { initialiseAnalytics } from "./services/analytics/initialise-analytics";
 import { initialiseConfig } from "./services/config/initialise-config";
 import { initialiseContext } from "./services/context/initialise-context";
@@ -36,34 +36,43 @@ export default /* do not make this async */ () => {
 };
 
 const initialise = async () => {
-  const { registerToStore, updateTags } = cachedResult("store", () => initialiseStore(getCaseDetailsSubscription));
+  const { register: r, resetContextSpecificTags } = cachedResult("store", () => initialiseStore(getCaseDetailsSubscription));
+  register = r;
+  // We reset the tags to empty as we could be being called after a navigate in a SPA
+  resetContextSpecificTags();
+
   try {
     // Several of the operations below need only be run when we first spin up and not on any potential SPA navigation.
     //  We use `cachedResult` give us the ability to rerun this function many times while ensuring that the one-time-only
     //  operations are only executed once (alternative would be lots of if statements or similar)
     const { initialiseDomForContext } = cachedResult("dom", () =>
-      initialiseDomObservation({ window }, domTagMutationSubscriber({ updateTags }), ...outSystemsShimSubscribers({ window })),
+      initialiseDomObservation({ window }, domTagMutationSubscriber({ register }), ...outSystemsShimSubscribers({ window })),
     );
 
     const flags = cachedResult("flags", () => getApplicationFlags({ window }));
-    registerToStore({ flags });
+    register({ flags });
 
     const config = await cachedResult("config", () => initialiseConfig({ flags }));
-    registerToStore({ config });
+    register({ config });
 
     const context = initialiseContext({ window, config });
-    registerToStore({ context });
+    register({ context });
+    const { pathTags } = context;
+    register({ pathTags });
+
     initialiseDomForContext({ context });
     handleOutSystemsForcedAuth({ window, config, context });
 
     const auth = await cachedResult("auth", () => (flags.isE2eTestMode ? initialiseMockAuth({ window }) : initialiseAuth({ window, config, context })));
-    registerToStore({ auth });
+    register({ auth });
     handleContextAuthorisation({ window, context, auth });
 
     const { trackPageView } = cachedResult("analytics", () => (flags.isE2eTestMode ? initialiseMockAnalytics() : initialiseAnalytics({ window, config, auth })));
     trackPageView();
   } catch (error) {
     _console.error(error);
-    registerToStore({ fatalInitialisationError: error });
+    register({ fatalInitialisationError: error });
   }
 };
+
+export let register: Register;

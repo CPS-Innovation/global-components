@@ -20,6 +20,7 @@ const createInstance = ({ authority, clientId, redirectUri }: InternalProps) =>
       clientId,
       redirectUri,
     },
+
     cache: {
       // Note: no strong reason for choosing localStorage other than we are in a world
       //  where we are skipping around different apps, and possibly different tabs.

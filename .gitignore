@@ -11,3 +11,4 @@ not-tracked
 .claude
 CLAUDE.md
 .env
+e2e.log
