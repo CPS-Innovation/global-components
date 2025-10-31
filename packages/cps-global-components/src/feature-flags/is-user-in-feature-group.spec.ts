@@ -275,6 +275,112 @@ describe("isUserInFeatureGroup", () => {
     });
   });
 
+  describe("when feature is generally available", () => {
+    it("should return true when generallyAvailable is true and user is authenticated", () => {
+      const state: Pick<State, "config" | "auth"> = {
+        config: {
+          FEATURE_FLAG_MENU_USERS: {
+            generallyAvailable: true,
+          },
+        } as any,
+        auth: { isAuthed: true, groups: [], username: "testuser", objectId: "test-object-id" } as any,
+      };
+
+      const result = isUserInFeatureGroup(state, "FEATURE_FLAG_MENU_USERS");
+      expect(result).toBe(true);
+    });
+
+    it("should return true when generallyAvailable is true and user is not authenticated", () => {
+      const state: Pick<State, "config" | "auth"> = {
+        config: {
+          FEATURE_FLAG_MENU_USERS: {
+            generallyAvailable: true,
+          },
+        } as any,
+        auth: { isAuthed: false, groups: [], username: "", objectId: "" } as any,
+      };
+
+      const result = isUserInFeatureGroup(state, "FEATURE_FLAG_MENU_USERS");
+      expect(result).toBe(true);
+    });
+
+    it("should return true when generallyAvailable is true even if user is not in AD groups", () => {
+      const state: Pick<State, "config" | "auth"> = {
+        config: {
+          FEATURE_FLAG_MENU_USERS: {
+            generallyAvailable: true,
+            adGroupIds: ["admin-group"],
+          },
+        } as any,
+        auth: { isAuthed: true, groups: ["user-group"], username: "testuser", objectId: "test-object-id" } as any,
+      };
+
+      const result = isUserInFeatureGroup(state, "FEATURE_FLAG_MENU_USERS");
+      expect(result).toBe(true);
+    });
+
+    it("should return true when generallyAvailable is true even if user is not in adHocUsers list", () => {
+      const state: Pick<State, "config" | "auth"> = {
+        config: {
+          FEATURE_FLAG_MENU_USERS: {
+            generallyAvailable: true,
+            adHocUserObjectIds: ["different-object-id"],
+          },
+        } as any,
+        auth: { isAuthed: true, groups: [], username: "testuser", objectId: "test-object-id" } as any,
+      };
+
+      const result = isUserInFeatureGroup(state, "FEATURE_FLAG_MENU_USERS");
+      expect(result).toBe(true);
+    });
+
+    it("should check other criteria when generallyAvailable is false", () => {
+      const state: Pick<State, "config" | "auth"> = {
+        config: {
+          FEATURE_FLAG_MENU_USERS: {
+            generallyAvailable: false,
+            adGroupIds: ["admin-group"],
+          },
+        } as any,
+        auth: { isAuthed: true, groups: ["admin-group"], username: "testuser", objectId: "test-object-id" } as any,
+      };
+
+      const result = isUserInFeatureGroup(state, "FEATURE_FLAG_MENU_USERS");
+      expect(result).toBe(true);
+    });
+
+    it("should return false when generallyAvailable is false and user does not meet other criteria", () => {
+      const state: Pick<State, "config" | "auth"> = {
+        config: {
+          FEATURE_FLAG_MENU_USERS: {
+            generallyAvailable: false,
+            adGroupIds: ["admin-group"],
+          },
+        } as any,
+        auth: { isAuthed: true, groups: ["user-group"], username: "testuser", objectId: "test-object-id" } as any,
+      };
+
+      const result = isUserInFeatureGroup(state, "FEATURE_FLAG_MENU_USERS");
+      expect(result).toBe(false);
+    });
+
+    it("should return true when generallyAvailable is true with both AD groups and adHocUsers configured", () => {
+      const state: Pick<State, "config" | "auth"> = {
+        config: {
+          FEATURE_FLAG_MENU_USERS: {
+            generallyAvailable: true,
+            adGroupIds: ["admin-group"],
+            adHocUserObjectIds: ["different-object-id"],
+          },
+        } as any,
+        auth: { isAuthed: true, groups: ["user-group"], username: "testuser", objectId: "test-object-id" } as any,
+      };
+
+      const result = isUserInFeatureGroup(state, "FEATURE_FLAG_MENU_USERS");
+      expect(result).toBe(true);
+    });
+  });
+
   describe("edge cases", () => {
     it("should handle case-sensitive objectId matching", () => {
       const state: Pick<State, "config" | "auth"> = {

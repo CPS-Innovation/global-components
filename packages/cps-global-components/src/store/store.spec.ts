@@ -1,0 +1,759 @@
+import { initialiseStore, readyState, isATagProperty, SubscriptionFactory } from "./store";
+
+describe("store", () => {
+  // Initialize a fresh store before each test to ensure isolation
+  beforeEach(() => {
+    initialiseStore();
+  });
+
+  describe("isATagProperty", () => {
+    it("should return true for pathTags", () => {
+      expect(isATagProperty("pathTags")).toBe(true);
+    });
+
+    it("should return true for domTags", () => {
+      expect(isATagProperty("domTags")).toBe(true);
+    });
+
+    it("should return true for propTags", () => {
+      expect(isATagProperty("propTags")).toBe(true);
+    });
+
+    it("should return false for non-tag properties", () => {
+      expect(isATagProperty("flags")).toBe(false);
+      expect(isATagProperty("config")).toBe(false);
+      expect(isATagProperty("auth")).toBe(false);
+      expect(isATagProperty("context")).toBe(false);
+      expect(isATagProperty("caseDetails")).toBe(false);
+      expect(isATagProperty("fatalInitialisationError")).toBe(false);
+    });
+  });
+
+  describe("initialiseStore", () => {
+    it("should return register and resetContextSpecificTags functions", () => {
+      const result = initialiseStore();
+
+      expect(result).toHaveProperty("register");
+      expect(result).toHaveProperty("resetContextSpecificTags");
+      expect(typeof result.register).toBe("function");
+      expect(typeof result.resetContextSpecificTags).toBe("function");
+    });
+
+    it("should accept external subscriptions", () => {
+      const mockSubscriptionFactory: SubscriptionFactory = jest.fn(() => ({
+        set: jest.fn(),
+      }));
+
+      initialiseStore(mockSubscriptionFactory);
+
+      expect(mockSubscriptionFactory).toHaveBeenCalledWith({
+        store: expect.any(Object),
+        register: expect.any(Function),
+        getTags: expect.any(Function),
+      });
+    });
+
+    describe("register function", () => {
+      it("should set single property in store", () => {
+        const { register } = initialiseStore();
+
+        register({ flags: { isDevelopment: true } as any });
+
+        const result = readyState("flags");
+        if (result.isReady) {
+          expect(result.state.flags).toEqual({ isDevelopment: true });
+        }
+      });
+
+      it("should set multiple properties in store", () => {
+        const { register } = initialiseStore();
+
+        register({
+          flags: { isDevelopment: true } as any,
+          config: { CONTEXTS: [] } as any,
+        });
+
+        const result = readyState("flags", "config");
+        if (result.isReady) {
+          expect(result.state.flags).toEqual({ isDevelopment: true });
+          expect(result.state.config).toEqual({ CONTEXTS: [] });
+        }
+      });
+
+      it("should handle partial state updates", () => {
+        const { register } = initialiseStore();
+
+        register({ auth: { isAuthed: true, groups: [], username: "test", objectId: "123" } as any });
+
+        const result = readyState("auth");
+        if (result.isReady) {
+          expect(result.state.auth.isAuthed).toBe(true);
+        }
+      });
+
+      it("should allow updating existing properties", () => {
+        const { register } = initialiseStore();
+
+        register({ flags: { isDevelopment: true } as any });
+        register({ flags: { isDevelopment: false } as any });
+
+        const result = readyState("flags");
+        if (result.isReady) {
+          expect(result.state.flags).toEqual({ isDevelopment: false });
+        }
+      });
+    });
+
+    describe("resetContextSpecificTags function", () => {
+      it("should reset pathTags and domTags but not propTags", () => {
+        const { register, resetContextSpecificTags } = initialiseStore();
+
+        // Set up tags
+        register({
+          propTags: { userId: "123" },
+          pathTags: { caseId: "456" },
+          domTags: { urn: "789" },
+        });
+
+        // Verify tags are set
+        let result = readyState("tags");
+        expect(result.isReady).toBe(true);
+        if (result.isReady) {
+          expect(result.state.tags).toEqual({
+            userId: "123",
+            caseId: "456",
+            urn: "789",
+          });
+        }
+
+        // Reset context specific tags
+        resetContextSpecificTags();
+
+        // Verify only propTags remain
+        result = readyState("tags");
+        if (result.isReady) {
+          expect(result.state.tags).toEqual({
+            userId: "123",
+          });
+        }
+      });
+
+      it("should set tag properties to empty objects", () => {
+        const { register, resetContextSpecificTags } = initialiseStore();
+
+        register({
+          pathTags: { caseId: "456" },
+          domTags: { urn: "789" },
+        });
+
+        resetContextSpecificTags();
+
+        const result = readyState("tags");
+        if (result.isReady) {
+          expect(result.state.tags).toEqual({});
+        }
+      });
+    });
+  });
+
+  describe("readyState", () => {
+    describe("with no keys specified", () => {
+      it("should return undefined initialisationStatus when required state is undefined", () => {
+        // Don't call initialiseStore() again - use the one from beforeEach
+        const result = readyState();
+
+        // When no keys are specified, isReady is always true (no specific keys to check)
+        // but initialisationStatus tells us if the store is actually ready
+        expect(result.isReady).toBe(true);
+        expect(result.state.initialisationStatus).toBeUndefined();
+      });
+
+      it("should return isReady true when all required state is defined", () => {
+        const { register } = initialiseStore();
+
+        register({
+          flags: { isDevelopment: true } as any,
+          config: { CONTEXTS: [] } as any,
+          auth: { isAuthed: true, groups: [], username: "test", objectId: "123" } as any,
+          context: { found: true } as any,
+          propTags: {},
+          pathTags: {},
+          domTags: {},
+        });
+
+        const result = readyState();
+
+        expect(result.isReady).toBe(true);
+        expect(result.state.initialisationStatus).toBe("ready");
+      });
+
+      it("should return undefined initialisationStatus when flags is undefined", () => {
+        const { register } = initialiseStore();
+
+        register({
+          config: { CONTEXTS: [] } as any,
+          auth: { isAuthed: true } as any,
+          context: { found: true } as any,
+        });
+
+        const result = readyState();
+
+        expect(result.isReady).toBe(true); // No specific keys requested
+        expect(result.state.initialisationStatus).toBeUndefined();
+      });
+
+      it("should return undefined initialisationStatus when config is undefined", () => {
+        const { register } = initialiseStore();
+
+        register({
+          flags: { isDevelopment: true } as any,
+          auth: { isAuthed: true } as any,
+          context: { found: true } as any,
+        });
+
+        const result = readyState();
+
+        expect(result.isReady).toBe(true); // No specific keys requested
+        expect(result.state.initialisationStatus).toBeUndefined();
+      });
+
+      it("should return undefined initialisationStatus when auth is undefined", () => {
+        const { register } = initialiseStore();
+
+        register({
+          flags: { isDevelopment: true } as any,
+          config: { CONTEXTS: [] } as any,
+          context: { found: true } as any,
+        });
+
+        const result = readyState();
+
+        expect(result.isReady).toBe(true); // No specific keys requested
+        expect(result.state.initialisationStatus).toBeUndefined();
+      });
+
+      it("should return undefined initialisationStatus when context is undefined", () => {
+        const { register } = initialiseStore();
+
+        register({
+          flags: { isDevelopment: true } as any,
+          config: { CONTEXTS: [] } as any,
+          auth: { isAuthed: true } as any,
+        });
+
+        const result = readyState();
+
+        expect(result.isReady).toBe(true); // No specific keys requested
+        expect(result.state.initialisationStatus).toBeUndefined();
+      });
+    });
+
+    describe("with specific keys requested", () => {
+      it("should return isReady true when requested keys are defined", () => {
+        const { register } = initialiseStore();
+
+        register({
+          flags: { isDevelopment: true } as any,
+          config: { CONTEXTS: [] } as any,
+        });
+
+        const result = readyState("flags", "config");
+
+        expect(result.isReady).toBe(true);
+        if (result.isReady) {
+          expect(result.state.flags).toEqual({ isDevelopment: true });
+          expect(result.state.config).toEqual({ CONTEXTS: [] });
+        }
+      });
+
+      it("should return isReady false when any requested key is undefined", () => {
+        const { register } = initialiseStore();
+
+        register({
+          flags: { isDevelopment: true } as any,
+        });
+
+        const result = readyState("flags", "config");
+
+        expect(result.isReady).toBe(false);
+      });
+
+      it("should return requested properties even when isReady is false", () => {
+        const { register } = initialiseStore();
+
+        register({
+          flags: { isDevelopment: true } as any,
+          // config is undefined
+        });
+
+        const result = readyState("flags", "config");
+
+        expect(result.isReady).toBe(false);
+        // Properties should still be accessible, but config will be undefined
+        expect(result.state.flags).toEqual({ isDevelopment: true });
+        expect(result.state.config).toBeUndefined();
+      });
+
+      it("should allow lazy access to properties when isReady is false", () => {
+        const { register } = initialiseStore();
+
+        register({
+          auth: { isAuthed: true, groups: [], username: "test", objectId: "123" } as any,
+          // config is undefined
+        });
+
+        const result = readyState("auth", "config");
+
+        expect(result.isReady).toBe(false);
+        // Caller can still access auth even though config is undefined
+        expect(result.state.auth).toBeDefined();
+        expect(result.state.auth?.isAuthed).toBe(true);
+        expect(result.state.config).toBeUndefined();
+      });
+
+      it("should handle single key request", () => {
+        const { register } = initialiseStore();
+
+        register({ auth: { isAuthed: true, groups: [], username: "test", objectId: "123" } as any });
+
+        const result = readyState("auth");
+
+        expect(result.isReady).toBe(true);
+        if (result.isReady) {
+          expect(result.state.auth.isAuthed).toBe(true);
+        }
+      });
+
+      it("should handle tags key correctly", () => {
+        const { register } = initialiseStore();
+
+        register({
+          pathTags: { caseId: "123" },
+          domTags: { urn: "456" },
+          propTags: { userId: "789" },
+        });
+
+        const result = readyState("tags");
+
+        expect(result.isReady).toBe(true);
+        if (result.isReady) {
+          expect(result.state.tags).toEqual({
+            caseId: "123",
+            urn: "456",
+            userId: "789",
+          });
+        }
+      });
+
+      it("should merge tags with correct precedence (propTags > domTags > pathTags)", () => {
+        const { register } = initialiseStore();
+
+        register({
+          pathTags: { caseId: "path-123", userId: "path-user", commonKey: "path" },
+          domTags: { caseId: "dom-456", commonKey: "dom" },
+          propTags: { userId: "prop-user", commonKey: "prop" },
+        });
+
+        const result = readyState("tags");
+
+        if (result.isReady) {
+          expect(result.state.tags).toEqual({
+            caseId: "dom-456", // domTags overrides pathTags
+            userId: "prop-user", // propTags overrides pathTags
+            commonKey: "prop", // propTags has highest precedence
+          });
+        }
+      });
+    });
+
+    describe("fatalInitialisationError handling", () => {
+      it("should return broken status when fatalInitialisationError is set", () => {
+        const { register } = initialiseStore();
+
+        const error = new Error("Fatal error");
+        register({
+          fatalInitialisationError: error,
+          flags: { isDevelopment: true } as any,
+          config: { CONTEXTS: [] } as any,
+          auth: { isAuthed: true } as any,
+          context: { found: true } as any,
+        });
+
+        const result = readyState();
+
+        expect(result.state.initialisationStatus).toBe("broken");
+        expect(result.state.fatalInitialisationError).toBe(error);
+      });
+
+      it("should include fatalInitialisationError in responses even when undefined", () => {
+        initialiseStore();
+
+        const result = readyState();
+
+        expect(result.state).toHaveProperty("fatalInitialisationError");
+        expect(result.state.fatalInitialisationError).toBeUndefined();
+      });
+
+      it("should prioritize broken status over ready status", () => {
+        const { register } = initialiseStore();
+
+        register({
+          fatalInitialisationError: new Error("Fatal"),
+          flags: { isDevelopment: true } as any,
+          config: { CONTEXTS: [] } as any,
+          auth: { isAuthed: true } as any,
+          context: { found: true } as any,
+          pathTags: {},
+          domTags: {},
+          propTags: {},
+        });
+
+        const result = readyState();
+
+        expect(result.state.initialisationStatus).toBe("broken");
+      });
+    });
+
+    describe("initialisationStatus computation", () => {
+      it("should be undefined when store is not complete", () => {
+        const { register } = initialiseStore();
+
+        register({
+          flags: { isDevelopment: true } as any,
+        });
+
+        const result = readyState();
+
+        expect(result.state.initialisationStatus).toBeUndefined();
+      });
+
+      it("should be ready when all required fields are set", () => {
+        const { register } = initialiseStore();
+
+        register({
+          flags: { isDevelopment: true } as any,
+          config: { CONTEXTS: [] } as any,
+          auth: { isAuthed: true } as any,
+          context: { found: true } as any,
+          pathTags: {},
+          domTags: {},
+          propTags: {},
+        });
+
+        const result = readyState();
+
+        expect(result.state.initialisationStatus).toBe("ready");
+      });
+
+      it("should be broken when fatalInitialisationError is set", () => {
+        const { register } = initialiseStore();
+
+        register({
+          fatalInitialisationError: new Error("Fatal"),
+        });
+
+        const result = readyState();
+
+        expect(result.state.initialisationStatus).toBe("broken");
+      });
+
+      it("should ignore caseDetails when computing ready status", () => {
+        const { register } = initialiseStore();
+
+        register({
+          flags: { isDevelopment: true } as any,
+          config: { CONTEXTS: [] } as any,
+          auth: { isAuthed: true } as any,
+          context: { found: true } as any,
+          pathTags: {},
+          domTags: {},
+          propTags: {},
+          // caseDetails is undefined, but should not affect ready status
+        });
+
+        const result = readyState();
+
+        expect(result.state.initialisationStatus).toBe("ready");
+      });
+
+      it("should be ready even when caseDetails is explicitly undefined", () => {
+        const { register } = initialiseStore();
+
+        register({
+          flags: { isDevelopment: true } as any,
+          config: { CONTEXTS: [] } as any,
+          auth: { isAuthed: true } as any,
+          context: { found: true } as any,
+          pathTags: {},
+          domTags: {},
+          propTags: {},
+          caseDetails: undefined,
+        });
+
+        const result = readyState();
+
+        expect(result.state.initialisationStatus).toBe("ready");
+      });
+    });
+
+    describe("edge cases", () => {
+      it("should handle empty tags objects", () => {
+        const { register } = initialiseStore();
+
+        register({
+          pathTags: {},
+          domTags: {},
+          propTags: {},
+        });
+
+        const result = readyState("tags");
+
+        if (result.isReady) {
+          expect(result.state.tags).toEqual({});
+        }
+      });
+
+      it("should handle tags with only pathTags defined", () => {
+        const { register } = initialiseStore();
+
+        register({
+          pathTags: { caseId: "123" },
+        });
+
+        const result = readyState("tags");
+
+        if (result.isReady) {
+          expect(result.state.tags).toEqual({ caseId: "123" });
+        }
+      });
+
+      it("should handle tags with only domTags defined", () => {
+        const { register } = initialiseStore();
+
+        register({
+          domTags: { urn: "456" },
+        });
+
+        const result = readyState("tags");
+
+        if (result.isReady) {
+          expect(result.state.tags).toEqual({ urn: "456" });
+        }
+      });
+
+      it("should handle tags with only propTags defined", () => {
+        const { register } = initialiseStore();
+
+        register({
+          propTags: { userId: "789" },
+        });
+
+        const result = readyState("tags");
+
+        if (result.isReady) {
+          expect(result.state.tags).toEqual({ userId: "789" });
+        }
+      });
+
+      it("should handle multiple tag sources with overlapping keys", () => {
+        const { register } = initialiseStore();
+
+        register({
+          pathTags: { key1: "path1", key2: "path2", key3: "path3" },
+          domTags: { key2: "dom2", key3: "dom3" },
+          propTags: { key3: "prop3" },
+        });
+
+        const result = readyState("tags");
+
+        if (result.isReady) {
+          expect(result.state.tags).toEqual({
+            key1: "path1",
+            key2: "dom2", // domTags overrides pathTags
+            key3: "prop3", // propTags overrides both
+          });
+        }
+      });
+
+      it("should handle complex nested objects in config", () => {
+        const { register } = initialiseStore();
+
+        const complexConfig = {
+          CONTEXTS: [
+            {
+              paths: ["path1", "path2"],
+              contexts: "context1",
+              domTagDefinitions: [{ cssSelector: ".test", regex: ".*" }],
+            },
+          ],
+        };
+
+        register({ config: complexConfig as any });
+
+        const result = readyState("config");
+
+        if (result.isReady) {
+          expect(result.state.config).toEqual(complexConfig);
+        }
+      });
+
+      it("should always include initialisationStatus in response", () => {
+        initialiseStore();
+
+        const result = readyState();
+
+        expect(result.state).toHaveProperty("initialisationStatus");
+      });
+
+      it("should always include fatalInitialisationError in response", () => {
+        initialiseStore();
+
+        const result = readyState();
+
+        expect(result.state).toHaveProperty("fatalInitialisationError");
+      });
+    });
+
+    describe("multiple calls to initialiseStore", () => {
+      it("should create a new independent store each time", () => {
+        const store1 = initialiseStore();
+        store1.register({ flags: { isDevelopment: true } as any });
+
+        const store2 = initialiseStore();
+        store2.register({ flags: { isDevelopment: false } as any });
+
+        // Each store should maintain its own state
+        // Note: readyState accesses the most recently created store
+        const result = readyState("flags");
+        if (result.isReady) {
+          expect(result.state.flags).toEqual({ isDevelopment: false });
+        }
+      });
+    });
+
+    describe("lazy access pattern", () => {
+      it("should allow caller to check and use properties individually when not ready", () => {
+        const { register } = initialiseStore();
+
+        register({
+          flags: { isLocalDevelopment: true } as any,
+          auth: { isAuthed: true, groups: ["admin"], username: "user1", objectId: "obj1" } as any,
+          // config and context are undefined
+        });
+
+        const result = readyState("flags", "auth", "config", "context");
+
+        expect(result.isReady).toBe(false);
+
+        expect(result.state.flags.isLocalDevelopment).toBe(true);
+
+        expect(result.state.auth.isAuthed).toBe(true);
+        expect(result.state.auth.isAuthed && result.state.auth.groups).toContain("admin");
+
+        // And handle the ones that aren't
+        expect(result.state.config).toBeUndefined();
+        expect(result.state.context).toBeUndefined();
+      });
+
+      it("should support progressive initialization pattern", () => {
+        const { register } = initialiseStore();
+
+        // First, only flags are available
+        register({ flags: { isDevelopment: true } as any });
+
+        const result1 = readyState("flags", "config", "auth");
+        expect(result1.isReady).toBe(false);
+        // When not ready, properties are still accessible but may be undefined
+        // The type system allows this, letting callers handle lazily
+        expect((result1.state as any).flags).toBeDefined();
+        expect((result1.state as any).config).toBeUndefined();
+        expect((result1.state as any).auth).toBeUndefined();
+
+        // Then config becomes available
+        register({ config: { CONTEXTS: [] } as any });
+
+        const result2 = readyState("flags", "config", "auth");
+        expect(result2.isReady).toBe(false);
+        expect((result2.state as any).flags).toBeDefined();
+        expect((result2.state as any).config).toBeDefined();
+        expect((result2.state as any).auth).toBeUndefined();
+
+        // Finally auth becomes available
+        register({ auth: { isAuthed: true, groups: [], username: "test", objectId: "123" } as any });
+
+        const result3 = readyState("flags", "config", "auth");
+        expect(result3.isReady).toBe(true);
+        if (result3.isReady) {
+          expect(result3.state.flags).toBeDefined();
+          expect(result3.state.config).toBeDefined();
+          expect(result3.state.auth).toBeDefined();
+        }
+      });
+
+      it("should return all properties when no keys specified and not ready", () => {
+        const { register } = initialiseStore();
+
+        register({
+          flags: { isDevelopment: true } as any,
+          auth: { isAuthed: true, groups: [], username: "test", objectId: "123" } as any,
+          // Other properties undefined
+        });
+
+        const result = readyState();
+
+        // isReady based on whether ALL properties are defined
+        expect(result.isReady).toBe(true); // No specific keys = always ready
+        expect(result.state.initialisationStatus).toBeUndefined(); // But status shows not all state is ready
+      });
+
+      it("should include all properties even when only some are requested", () => {
+        const { register } = initialiseStore();
+
+        register({
+          flags: { isDevelopment: true } as any,
+          config: { CONTEXTS: [] } as any,
+          auth: { isAuthed: true, groups: [], username: "test", objectId: "123" } as any,
+          // context is undefined
+        });
+
+        // Request only flags and config
+        const result = readyState("flags", "config");
+
+        expect(result.isReady).toBe(true);
+        if (result.isReady) {
+          // Requested properties are available and typed as non-undefined
+          expect(result.state.flags).toEqual({ isDevelopment: true });
+          expect(result.state.config).toEqual({ CONTEXTS: [] });
+
+          // Non-requested properties are also available (but may be undefined)
+          expect(result.state.auth).toBeDefined();
+          expect(result.state.context).toBeUndefined();
+        }
+      });
+
+      it("should allow accessing non-requested properties for lazy handling", () => {
+        const { register } = initialiseStore();
+
+        register({
+          config: { CONTEXTS: [] } as any,
+          context: { found: true } as any,
+          // auth is undefined
+        });
+
+        // Request only config and context, but code may want to check auth
+        const result = readyState("config", "context");
+
+        expect(result.isReady).toBe(true);
+        if (result.isReady) {
+          // Requested properties are guaranteed non-undefined
+          expect(result.state.config).toBeDefined();
+          expect(result.state.context).toBeDefined();
+
+          // Can check auth even though it wasn't requested
+          // This is useful for functions that take "config & { auth?: AuthResult }"
+          expect(result.state.auth).toBeUndefined();
+        }
+      });
+    });
+  });
+});
