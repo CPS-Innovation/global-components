@@ -6,7 +6,7 @@ const shouldEnableAccessibilityMode = ({ flags }: Pick<State, "flags">) => flags
 
 const shouldShowGovUkRebrand = ({ config }: Pick<State, "config">) => !!config.SHOW_GOVUK_REBRAND;
 
-const shouldShowMenu = ({ config, auth, context }: Pick<State, "config" | "auth" | "context">) => {
+const shouldShowMenu = ({ config, auth, context }: Pick<State, "config" | "context"> & { auth: State["auth"] | undefined }) => {
   if (context.found) {
     if (context.showMenuOverride === "never-show-menu") {
       // Work management always need the menu to never appear on some pages

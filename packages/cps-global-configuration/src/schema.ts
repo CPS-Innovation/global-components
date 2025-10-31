@@ -32,6 +32,7 @@ const featureFlagUsersSchema = z.object({
   //  into the feature flag.  At the time of writing we check config in to source
   //  control, object ids do not convey personal data.
   adHocUserObjectIds: z.array(z.string()).optional(),
+  generallyAvailable: z.boolean().optional(),
 });
 
 export type FeatureFlagUsers = z.infer<typeof featureFlagUsersSchema>;
