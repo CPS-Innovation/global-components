@@ -109,23 +109,24 @@ type StateWithoutPrivateTags = Omit<State, PrivateTagProperties>;
 
 type NonUndefined<T> = T extends undefined ? never : T;
 
-// Use a tuple to prevent distribution
-type PickDefined<K extends keyof StateWithoutPrivateTags> = Pick<StateWithoutPrivateTags, K> & {
-  [P in K]: NonUndefined<StateWithoutPrivateTags[P]>;
-};
-
 type AllDefined = {
   [K in keyof StateWithoutPrivateTags]: NonUndefined<StateWithoutPrivateTags[K]>;
 };
 
-// Wrap K in a tuple [K] to prevent distribution
-type PickIfReadyReturn<K extends readonly (keyof StateWithoutPrivateTags)[]> = K extends readonly [] ? AllDefined | undefined : PickDefined<K[number]> | undefined;
+// Helper type to override specific keys with non-undefined versions while keeping all other keys
+type OverrideKeys<T, K extends keyof T> = {
+  [P in keyof T]: P extends K ? NonUndefined<T[P]> : T[P];
+};
+
+// When ready: requested properties are guaranteed non-undefined, all other properties are accessible (potentially undefined)
+// When not ready: all properties are accessible and potentially undefined
+type PickIfReadyReturn<K extends readonly (keyof StateWithoutPrivateTags)[]> = K extends readonly [] ? AllDefined : OverrideKeys<StateWithoutPrivateTags, K[number]>;
 
 const readyStateInternal = <K extends readonly (keyof StateWithoutPrivateTags)[] = readonly []>(
   ...keys: K
 ):
   | { isReady: true; state: PickIfReadyReturn<K> & Pick<StateWithoutPrivateTags, "initialisationStatus" | "fatalInitialisationError"> }
-  | { isReady: false; state: Pick<StateWithoutPrivateTags, "initialisationStatus" | "fatalInitialisationError"> } => {
+  | { isReady: false; state: StateWithoutPrivateTags } => {
   const alwaysReturnedState = { fatalInitialisationError: store.state.fatalInitialisationError, initialisationStatus: getInitialisationStatus() };
 
   // When a render function access a store the internals of the library are setting up observers see
@@ -143,18 +144,20 @@ const readyStateInternal = <K extends readonly (keyof StateWithoutPrivateTags)[]
     }
   }
 
-  if (keys.filter(key => key != "tags").some(key => store.state[key] === undefined))
-    return {
-      isReady: false,
-      state: { ...alwaysReturnedState },
-    };
+  // Return ALL properties from the store (for lazy access)
+  const result: any = {
+    ...store.state,
+    tags: getTags(),
+  };
 
-  const result: any = {};
-  for (const key of keys) {
-    result[key] = key === "tags" ? getTags() : store.state[key];
+  // Check if all requested keys are defined
+  const isReady = !keys.filter(key => key != "tags").some(key => store.state[key] === undefined);
+
+  if (isReady) {
+    return { isReady: true, state: { ...(result as PickIfReadyReturn<K>), ...alwaysReturnedState } };
+  } else {
+    return { isReady: false, state: { ...(result as StateWithoutPrivateTags), ...alwaysReturnedState } };
   }
-
-  return { isReady: true, state: { ...(result as PickIfReadyReturn<K>), ...alwaysReturnedState } };
 };
 
 export const readyState = withLogging("readyState", readyStateInternal);
