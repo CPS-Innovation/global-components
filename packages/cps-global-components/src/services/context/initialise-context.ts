@@ -1,16 +1,14 @@
 import { Config } from "cps-global-configuration";
-import { buildSanitizedAddress } from "./build-sanitized-address";
 import { FoundContext } from "./FoundContext";
 import { replaceTagsInString } from "../../components/cps-global-menu/menu-config/helpers/replace-tags-in-string";
 import { withLogging } from "../../logging/with-logging";
+import { tryLocationMatch } from "./try-location-match";
 
-const initialiseContextInternal = ({ window, config: { CONTEXTS } }: { window: Window; config: Pick<Config, "CONTEXTS"> }): FoundContext => {
-  const address = buildSanitizedAddress(window.location);
-
+const initialiseContextInternal = ({ window: { location }, config: { CONTEXTS } }: { window: Window; config: Pick<Config, "CONTEXTS"> }): FoundContext => {
   for (let contextIndex = 0; contextIndex < CONTEXTS.length; contextIndex++) {
     const context = CONTEXTS[contextIndex];
     for (const path of context.paths) {
-      const match = address.match(new RegExp(path, "i"));
+      const match = tryLocationMatch(location, path);
       // Remember that our config file has the rules written from most-specific to least-specific
       //  so returning the first match found is what we want.
       if (match) {
