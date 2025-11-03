@@ -118,6 +118,11 @@
           "regex": ">(?<urn>[^<]+)"
         }
       ]
+    },
+    {
+      "paths": ["(?<scheme>https?)://localhost"],
+      "contexts": "fallback",
+      "msalRedirectUrl": "{scheme}://localhost"
     }
   ],
   "LINKS": [
