@@ -1,5 +1,5 @@
 /* Import GOV.UK Frontend styles */
-@import "node_modules/govuk-frontend/dist/govuk/index";
+@use "node_modules/govuk-frontend/dist/govuk/index";
 
 :root {
   --max-width: 1100px;
