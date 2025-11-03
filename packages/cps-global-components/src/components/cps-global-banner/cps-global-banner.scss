@@ -1,4 +1,4 @@
-@import "../common/common.scss";
+@use "../common/common.scss" as *;
 
 .skip-link {
   // ignore the container width so the skip link is aligned

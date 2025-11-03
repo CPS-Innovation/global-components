@@ -46,6 +46,7 @@ const contextSchema = z.object({
   forceCmsAuthRefresh: z.boolean().optional(),
   authorisation: authorisationSchema.optional(),
   headerCustomCssClasses: z.string().optional(),
+  headerCustomCssStyles: z.record(z.string(), z.string().optional()).optional(),
   showMenuOverride: z
     .union([z.literal("always-show-menu"), z.literal("never-show-menu")])
     .optional(),
