@@ -1,5 +1,5 @@
 import { Config } from "cps-global-configuration";
-import { FoundContext } from "../context/find-context";
+import { FoundContext } from "../context/FoundContext";
 import { withLogging } from "../../logging/with-logging";
 import { _console } from "../../logging/_console";
 import { AuthResult, FailedAuth, KnowErrorType } from "./AuthResult";
@@ -48,8 +48,9 @@ const initialiseAuthInternal = async ({
         }
       : failedAuth("NoAccountFound", "No AD account found");
   } catch (error) {
-    _console.error({ authority, clientId, redirectUri, error });
-    return failedAuth(getErrorType(error), `${error}`);
+    const errorType = getErrorType(error);
+    _console.error({ errorType, authority, clientId, redirectUri, error });
+    return failedAuth(errorType, `${error}`);
   }
 };
 

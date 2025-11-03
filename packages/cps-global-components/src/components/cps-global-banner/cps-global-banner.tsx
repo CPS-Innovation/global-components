@@ -16,14 +16,14 @@ export class CpsGlobalBanner {
 
   @WithLogging("CpsGlobalBanner")
   render() {
-    const { state, fatalInitialisationError } = readyState("flags", "config");
+    const { isReady, state } = readyState("flags", "config");
 
     const resolveValues = () => {
-      if (fatalInitialisationError) {
+      if (state.fatalInitialisationError) {
         // If there is an error we still want to show our branding.
         //  Use suitable fallback values
         return { isAccessibilityMode: false, showGovUkRebrand: false, href: "" };
-      } else if (!state) {
+      } else if (!isReady) {
         // Otherwise, we are not ready to show anything until our required state is ready
         //  so that we avoid e.g. flashes of incorrect styling
         return undefined;

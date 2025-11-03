@@ -1,11 +1,18 @@
-import { SubscriptionFactory } from "../../store/store";
+import { isATagProperty, SubscriptionFactory } from "../../store/store";
+import { extractCaseIdentifiersIfChanged } from "../context/extract-case-identifiers-if-changed";
 import { CaseIdentifiers } from "../context/CaseIdentifiers";
 import { getCaseDetails } from "./get-case-details";
 
-export const getCaseDetailsSubscription: SubscriptionFactory = ({ registerToStore }) => ({
-  set: (key, newValue) => {
-    if (key === "caseIdentifiers" && newValue) {
-      getCaseDetails(newValue as CaseIdentifiers).then(caseDetails => registerToStore({ caseDetails }));
+let cachedCaseIdentifier: CaseIdentifiers | undefined = undefined;
+
+export const getCaseDetailsSubscription: SubscriptionFactory = ({ register, getTags }) => ({
+  set: key => {
+    if (isATagProperty(key)) {
+      const freshCaseIdentifiers = extractCaseIdentifiersIfChanged(cachedCaseIdentifier, getTags());
+      if (freshCaseIdentifiers) {
+        cachedCaseIdentifier = freshCaseIdentifiers;
+        getCaseDetails(freshCaseIdentifiers).then(caseDetails => register({ caseDetails }));
+      }
     }
   },
 });

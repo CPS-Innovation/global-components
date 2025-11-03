@@ -1,4 +1,4 @@
-import { FoundContext } from "../context/find-context";
+import { FoundContext } from "../context/FoundContext";
 
 export type DomMutationObserver = ({ context }: { context: FoundContext }) => {
   isActiveForContext: boolean;

@@ -1,6 +1,6 @@
 import { Config } from "cps-global-configuration";
 import { FeatureFlagUsers } from "cps-global-configuration/dist/schema";
-import { KnownState } from "../store/store";
+import { State } from "../store/store";
 
 type KeysOfType<T, U> = {
   [K in keyof T]: T[K] extends U | undefined ? K : never;
@@ -9,7 +9,7 @@ type KeysOfType<T, U> = {
 
 type FeatureFlagUsersKeys = KeysOfType<Config, FeatureFlagUsers>;
 
-export const isUserInFeatureGroup = ({ auth, config }: Pick<KnownState, "config" | "auth">, featureFlagKey: FeatureFlagUsersKeys) => {
+export const isUserInFeatureGroup = ({ auth, config }: { config: State["config"]; auth: State["auth"] | undefined }, featureFlagKey: FeatureFlagUsersKeys) => {
   const featureFlagUsers = config[featureFlagKey];
 
   if (!featureFlagUsers) {
@@ -17,7 +17,12 @@ export const isUserInFeatureGroup = ({ auth, config }: Pick<KnownState, "config"
     return false;
   }
 
-  if (!auth.isAuthed) {
+  if (featureFlagUsers.generallyAvailable) {
+    // This feature is generally available in this environment
+    return true;
+  }
+
+  if (!auth || !auth.isAuthed) {
     // We do not know the user so cannot apply the check
     return false;
   }

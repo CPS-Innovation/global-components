@@ -10,7 +10,7 @@
   "COOKIE_HANDOVER_URL": "https://polaris-qa-notprod.cps.gov.uk/polaris",
   "TOKEN_HANDOVER_URL": "https://polaris-qa-notprod.cps.gov.uk/auth-refresh-cms-modern-token",
   "FEATURE_FLAG_MENU_USERS": {
-    "adGroupIds": ["12377eca-b463-4a6c-80ea-95f678f09591"]
+    "generallyAvailable": true
   },
   "FEATURE_FLAG_ENABLE_INTRUSIVE_AD_LOGIN": true,
   "CONTEXTS": [
@@ -53,7 +53,7 @@
       "contexts": "case review",
       "headerCustomCssClasses": "header",
       "msalRedirectUrl": "https://cps-dev.outsystemsenterprise.com/Casework_Patterns/auth-handover-dev.html",
-      "domTags": [
+      "domTagDefinitions": [
         {
           "cssSelector": "div#URN_Container",
           "regex": "<span[^>]*>(?<urn>.*?)</span>"
@@ -68,7 +68,7 @@
     },
     {
       "paths": [
-        "https://cps-dev.outsystemsenterprise.com/WorkManagementApp/CaseOverview.*?[&?]CaseId=(?<caseId>\\d+)&URN=(?<urn>[^&]+)"
+        "https://cps-dev.outsystemsenterprise.com/WorkManagementApp/CaseOverview(?=.*[&?]CaseId=(?<caseId>\\d+))(?=.*[&?]URN=(?<urn>[^&]+)).*"
       ],
       "contexts": "case details",
       "headerCustomCssClasses": "header",
@@ -110,7 +110,7 @@
       "paths": ["https://housekeeping"],
       "contexts": "case materials",
       "msalRedirectUrl": "https://housekeeping-staging.int.cps.gov.uk/global-components-msal-redirect.html",
-      "domTags": [
+      "domTagDefinitions": [
         {
           "cssSelector": "a[href*='/polaris-ui/case-details/']",
           "regex": "/polaris-ui/case-details/(.+)/(?<caseId>\\d+)\""
@@ -120,6 +120,11 @@
           "regex": ">(?<urn>[^<]+)"
         }
       ]
+    },
+    {
+      "paths": ["(?<scheme>https?)://localhost"],
+      "contexts": "fallback",
+      "msalRedirectUrl": "{scheme}://localhost"
     }
   ],
   "LINKS": [
