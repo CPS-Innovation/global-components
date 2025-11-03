@@ -20,12 +20,20 @@
       ],
       "contexts": "home",
       "headerCustomCssClasses": "header",
+      "headerCustomCssStyles": {
+        "background-color": "transparent",
+        "box-shadow": "none"
+      },
       "msalRedirectUrl": "https://cps-dev.outsystemsenterprise.com/Casework_Patterns/auth-handover-dev.html"
     },
     {
       "paths": ["https://cps-dev.outsystemsenterprise.com/casework_blocks"],
       "contexts": "unknown-home",
       "headerCustomCssClasses": "header",
+      "headerCustomCssStyles": {
+        "background-color": "transparent",
+        "box-shadow": "none"
+      },
       "msalRedirectUrl": "https://cps-dev.outsystemsenterprise.com/Casework_Patterns/auth-handover-dev.html"
     },
     {
@@ -46,6 +54,10 @@
       ],
       "contexts": "case review",
       "headerCustomCssClasses": "header",
+      "headerCustomCssStyles": {
+        "background-color": "transparent",
+        "box-shadow": "none"
+      },
       "msalRedirectUrl": "https://cps-dev.outsystemsenterprise.com/Casework_Patterns/auth-handover-dev.html",
       "domTagDefinitions": [
         {
@@ -58,6 +70,10 @@
       "paths": ["https://cps-dev.outsystemsenterprise.com/CaseReview/"],
       "contexts": "cases",
       "headerCustomCssClasses": "header",
+      "headerCustomCssStyles": {
+        "background-color": "transparent",
+        "box-shadow": "none"
+      },
       "msalRedirectUrl": "https://cps-dev.outsystemsenterprise.com/Casework_Patterns/auth-handover-dev.html"
     },
     {
@@ -66,6 +82,10 @@
       ],
       "contexts": "case details",
       "headerCustomCssClasses": "header",
+      "headerCustomCssStyles": {
+        "background-color": "transparent",
+        "box-shadow": "none"
+      },
       "msalRedirectUrl": "https://cps-dev.outsystemsenterprise.com/Casework_Patterns/auth-handover-dev.html"
     },
     {
@@ -74,6 +94,10 @@
       ],
       "contexts": "cases",
       "headerCustomCssClasses": "header",
+      "headerCustomCssStyles": {
+        "background-color": "transparent",
+        "box-shadow": "none"
+      },
       "msalRedirectUrl": "https://cps-dev.outsystemsenterprise.com/Casework_Patterns/auth-handover-dev.html",
       "showMenuOverride": "always-show-menu"
     },
@@ -83,6 +107,10 @@
       ],
       "contexts": "tasks",
       "headerCustomCssClasses": "header",
+      "headerCustomCssStyles": {
+        "background-color": "transparent",
+        "box-shadow": "none"
+      },
       "msalRedirectUrl": "https://cps-dev.outsystemsenterprise.com/Casework_Patterns/auth-handover-dev.html",
       "showMenuOverride": "always-show-menu"
     },
@@ -92,12 +120,20 @@
       ],
       "contexts": "cases",
       "headerCustomCssClasses": "header",
+      "headerCustomCssStyles": {
+        "background-color": "transparent",
+        "box-shadow": "none"
+      },
       "msalRedirectUrl": "https://cps-dev.outsystemsenterprise.com/Casework_Patterns/auth-handover-dev.html"
     },
     {
       "paths": ["https://cps-dev.outsystemsenterprise.com/WorkManagementApp"],
       "contexts": "unknown-wma",
       "headerCustomCssClasses": "header",
+      "headerCustomCssStyles": {
+        "background-color": "transparent",
+        "box-shadow": "none"
+      },
       "msalRedirectUrl": "https://cps-dev.outsystemsenterprise.com/Casework_Patterns/auth-handover-dev.html"
     },
     {
