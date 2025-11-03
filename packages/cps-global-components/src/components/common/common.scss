@@ -3,9 +3,18 @@
 $level-height: 3rem;
 
 @mixin background($color) {
-  box-shadow: 0 0 0 100vmax $color;
-  clip-path: inset(0 -100vmax);
+  // Implementation using clip-path: this works other than rendering behaviour
+  //  in Edge on Windows leads the divider looking thicker beneath the top
+  //  line of links than it does beneath the second line of links.
+  // box-shadow: 0 0 0 100vmax $color;
+  // clip-path: inset(0 -100vmax);
+  // background-color: $color;
+
   background-color: $color;
+  margin-left: -100vw;
+  margin-right: -100vw;
+  padding-left: 100vw;
+  padding-right: 100vw;
 }
 
 .header-divider {
@@ -36,15 +45,16 @@ $level-height: 3rem;
   @include background(rgb(244, 248, 251));
 }
 
-// .background-divider {
-//   height: 1px;
-//   box-shadow: 0 0 0 100vmax $govuk-border-colour;
-//   clip-path: inset(0 -100vmax);
-//   background-color: $govuk-border-colour;
-//   z-index: -1;
-// }
-
 .background-divider {
+  // Implementation using clip-path: this works other than rendering behaviour
+  //  in Edge on Windows leads the divider looking thicker within the container
+  //  than outside of the container.
+  //   height: 1px;
+  //   box-shadow: 0 0 0 100vmax $govuk-border-colour;
+  //   clip-path: inset(0 -100vmax);
+  //   background-color: $govuk-border-colour;
+  //   z-index: -1;
+
   height: 1px;
   background-color: $govuk-border-colour;
   margin-left: -100vw;
