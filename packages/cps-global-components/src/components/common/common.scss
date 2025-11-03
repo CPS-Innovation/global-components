@@ -55,7 +55,9 @@ $level-height: 3rem;
   //   background-color: $govuk-border-colour;
   //   z-index: -1;
 
-  height: 1px;
+  // 1.2px because on Edge if 1px then the second divider renders thicker than
+  //  the first (and if 0.9px the first one renders thicker!)
+  height: 1.2px;
   background-color: $govuk-border-colour;
   margin-left: -100vw;
   margin-right: -100vw;
