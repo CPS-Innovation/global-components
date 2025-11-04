@@ -36,6 +36,27 @@ describe("handleOsRedirectInternal", () => {
       expect(returnUrl.searchParams.get("extra")).toBe("value");
       expect(returnUrl.searchParams.get("stage")).toBe("os-cookie-return");
     });
+
+    test("strips cc parameter to prevent duplicate parameters (FCT2-10942)", () => {
+      const result = handleOsRedirectInternal({
+        currentUrl:
+          "https://cps-dev.outsystemsenterprise.com/AuthHandover/index.html?r=https://example.com/target&stage=os-outbound&cc=existing-cookies",
+        cookieHandoverUrl: "https://cin3.cps.gov.uk/polaris",
+        tokenHandoverUrl:
+          "https://polaris-qa-notprod.cps.gov.uk/auth-handover-cms-modern-token",
+      });
+
+      const url = new URL(result);
+      expect(url.origin + url.pathname).toBe("https://cin3.cps.gov.uk/polaris");
+
+      const returnUrl = new URL(url.searchParams.get("r")!);
+      expect(returnUrl.searchParams.get("stage")).toBe("os-cookie-return");
+      expect(returnUrl.searchParams.get("r")).toBe(
+        "https://example.com/target"
+      );
+      // The cc parameter should be stripped from the return URL
+      expect(returnUrl.searchParams.get("cc")).toBeNull();
+    });
   });
 
   describe("os-cookie-return stage", () => {
