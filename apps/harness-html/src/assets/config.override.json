@@ -8,7 +8,9 @@
   "OS_HANDOVER_URL": "https://cps-dev.outsystemsenterprise.com/AuthHandover/auth-handover.html",
   "COOKIE_HANDOVER_URL": "https://polaris-qa-notprod.cps.gov.uk/polaris",
   "TOKEN_HANDOVER_URL": "https://polaris-qa-notprod.cps.gov.uk/auth-refresh-cms-modern-token",
-  "FEATURE_FLAG_ENABLE_MENU_GROUP": "12377eca-b463-4a6c-80ea-95f678f09591",
+  "FEATURE_FLAG_MENU_USERS": {
+    "adGroupIds": ["12377eca-b463-4a6c-80ea-95f678f09591"]
+  },
   "CONTEXTS": [
     {
       "paths": ["http://localhost:3333/cases/(?<caseId>\\d+)/materials"],
@@ -34,7 +36,7 @@
       "paths": ["http://localhost:3333/"],
       "contexts": "tasks",
       "msalRedirectUrl": "http://localhost:3333/auth",
-      "domTags": [
+      "domTagDefinitions": [
         {
           "cssSelector": "a[href*='/polaris-ui/case-details/']",
           "regex": "/polaris-ui/case-details/(?<urn>[^/]+)/(?<caseId>\\d+)"

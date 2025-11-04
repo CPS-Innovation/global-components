@@ -1,5 +1,6 @@
 {
   "ENVIRONMENT": "unstable",
+  "BANNER_TITLE_HREF": "https://sacpsglobalcomponents.z33.web.core.windows.net/unstable/static",
   "AD_TENANT_AUTHORITY": "https://login.microsoftonline.com/00dd0d1d-d7e6-4338-ac51-565339c7088c",
   "AD_CLIENT_ID": "8d6133af-9593-47c6-94d0-5c65e9e310f1",
   "APP_INSIGHTS_KEY": "e572c03c-8d38-4771-b193-962f13da1b1a",
@@ -8,7 +9,9 @@
   "OS_HANDOVER_URL": "https://cps-dev.outsystemsenterprise.com/AuthHandover/auth-handover.html",
   "COOKIE_HANDOVER_URL": "https://cin3.cps.gov.uk/polaris",
   "TOKEN_HANDOVER_URL": "https://polaris-qa-notprod.cps.gov.uk/auth-refresh-cms-modern-token",
-  "FEATURE_FLAG_ENABLE_MENU_GROUP": "12377eca-b463-4a6c-80ea-95f678f09591",
+  "FEATURE_FLAG_MENU_USERS": {
+    "adGroupIds": ["12377eca-b463-4a6c-80ea-95f678f09591"]
+  },
   "CONTEXTS": [
     {
       "paths": [

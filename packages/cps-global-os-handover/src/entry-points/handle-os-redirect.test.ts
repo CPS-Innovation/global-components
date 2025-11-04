@@ -57,6 +57,8 @@ describe("handleOsRedirectInternal", () => {
         "different-cookies";
       localStorage["$OS_Users$CaseReview$ClientVars$Cookies"] =
         "different-cookies";
+      localStorage["$OS_Users$Casework_Blocks$ClientVars$Cookies"] =
+        "different-cookies";
 
       const result = handleOsRedirectInternal({
         currentUrl:
@@ -87,6 +89,8 @@ describe("handleOsRedirectInternal", () => {
         "test-cookies";
       localStorage["$OS_Users$CaseReview$ClientVars$Cookies"] =
         "test-cookies";
+      localStorage["$OS_Users$Casework_Blocks$ClientVars$Cookies"] =
+        "test-cookies";
 
       const result = handleOsRedirectInternal({
         currentUrl:
@@ -105,6 +109,8 @@ describe("handleOsRedirectInternal", () => {
         "b=2; a=1; c=3";
       localStorage["$OS_Users$CaseReview$ClientVars$Cookies"] =
         "a=1; c=3; b=2";
+      localStorage["$OS_Users$Casework_Blocks$ClientVars$Cookies"] =
+        "c=3; a=1; b=2";
 
       const result = handleOsRedirectInternal({
         currentUrl:
@@ -122,6 +128,8 @@ describe("handleOsRedirectInternal", () => {
       localStorage["$OS_Users$WorkManagementApp$ClientVars$Cookies"] =
         undefined;
       localStorage["$OS_Users$CaseReview$ClientVars$Cookies"] =
+        undefined;
+      localStorage["$OS_Users$Casework_Blocks$ClientVars$Cookies"] =
         undefined;
 
       const result = handleOsRedirectInternal({
@@ -144,6 +152,8 @@ describe("handleOsRedirectInternal", () => {
         "test-cookies";
       localStorage["$OS_Users$CaseReview$ClientVars$Cookies"] =
         "different-cookies";
+      localStorage["$OS_Users$Casework_Blocks$ClientVars$Cookies"] =
+        "test-cookies";
 
       const result = handleOsRedirectInternal({
         currentUrl:
@@ -163,6 +173,8 @@ describe("handleOsRedirectInternal", () => {
       localStorage["$OS_Users$WorkManagementApp$ClientVars$Cookies"] =
         "different-cookies";
       localStorage["$OS_Users$CaseReview$ClientVars$Cookies"] =
+        "different-cookies";
+      localStorage["$OS_Users$Casework_Blocks$ClientVars$Cookies"] =
         "different-cookies";
 
       const targetWithQuery = "https://example.com/target?foo=bar&baz=qux";
@@ -210,7 +222,8 @@ describe("handleOsRedirectInternal", () => {
       // Verify auth data was stored
       expect(localStorage["$OS_Users$WorkManagementApp$ClientVars$Cookies"]).toBe("test-cookies");
       expect(localStorage["$OS_Users$CaseReview$ClientVars$Cookies"]).toBe("test-cookies");
-      
+      expect(localStorage["$OS_Users$Casework_Blocks$ClientVars$Cookies"]).toBe("test-cookies");
+
       const expectedJson = JSON.stringify({
         Cookies: "test-cookies",
         Token: "test-token",
@@ -218,6 +231,7 @@ describe("handleOsRedirectInternal", () => {
       });
       expect(localStorage["$OS_Users$WorkManagementApp$ClientVars$JSONString"]).toBe(expectedJson);
       expect(localStorage["$OS_Users$CaseReview$ClientVars$CmsAuthValues"]).toBe(expectedJson);
+      expect(localStorage["$OS_Users$Casework_Blocks$ClientVars$JSONString"]).toBe(expectedJson);
     });
 
     test("handles target URL with query parameters", () => {

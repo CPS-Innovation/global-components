@@ -1,5 +1,6 @@
 cps_global_components_config_jsonp_callback({
   ENVIRONMENT: "local-development",
+  BANNER_TITLE_HREF: "http://localhost:3333/",
   APP_INSIGHTS_KEY: "e572c03c-8d38-4771-b193-962f13da1b1a",
   SURVEY_LINK: "https://forms.office.com/e/Cxmsq5xTWx",
   SHOW_MENU: true,
@@ -15,10 +16,10 @@ cps_global_components_config_jsonp_callback({
       paths: ["http://localhost:3333/"],
       contexts: "tasks",
       msalRedirectUrl: "",
-      domTags: [
+      domTagDefinitions: [
         {
           cssSelector: "a[href*='/polaris-ui/case-details/']",
-          regex: "/polaris-ui/case-details/(?<urn>[^/]+)/(?<caseId>\\d+)",
+          regex: '/polaris-ui/case-details/(?<urn>.+)/(?<caseId>\\d+)"',
         },
       ],
     },

@@ -1,5 +1,6 @@
 {
   "ENVIRONMENT": "test.override",
+  "BANNER_TITLE_HREF": "https://cps-tst.outsystemsenterprise.com/Casework_Blocks/home",
   "AD_TENANT_AUTHORITY": "https://login.microsoftonline.com/00dd0d1d-d7e6-4338-ac51-565339c7088c",
   "AD_CLIENT_ID": "8d6133af-9593-47c6-94d0-5c65e9e310f1",
   "APP_INSIGHTS_KEY": "e572c03c-8d38-4771-b193-962f13da1b1a",
@@ -8,16 +9,32 @@
   "OS_HANDOVER_URL": "https://cps-tst.outsystemsenterprise.com/Casework_Patterns/auth-handover-test.html",
   "COOKIE_HANDOVER_URL": "https://polaris-qa-notprod.cps.gov.uk/polaris",
   "TOKEN_HANDOVER_URL": "https://polaris-qa-notprod.cps.gov.uk/auth-refresh-cms-modern-token",
-  "FEATURE_FLAG_ENABLE_MENU_GROUP": "12377eca-b463-4a6c-80ea-95f678f09591",
+  "FEATURE_FLAG_MENU_USERS": {
+    "generallyAvailable": true
+  },
   "FEATURE_FLAG_ENABLE_INTRUSIVE_AD_LOGIN": true,
   "CONTEXTS": [
     {
       "paths": [
-        "https://cps-tst.outsystemsenterprise.com/Casework_Blocks/home"
+        "https://cps-tst.outsystemsenterprise.com/casework_blocks/home"
       ],
       "contexts": "home",
-      "msalRedirectUrl": "https://cps-tst.outsystemsenterprise.com/Casework_Patterns/auth-handover-test.html",
-      "forceCmsAuthRefresh": true
+      "headerCustomCssClasses": "header",
+      "headerCustomCssStyles": {
+        "background-color": "transparent",
+        "box-shadow": "none"
+      },
+      "msalRedirectUrl": "https://cps-tst.outsystemsenterprise.com/Casework_Patterns/auth-handover-test.html"
+    },
+    {
+      "paths": ["https://cps-tst.outsystemsenterprise.com/casework_blocks"],
+      "contexts": "unknown-home",
+      "headerCustomCssClasses": "header",
+      "headerCustomCssStyles": {
+        "background-color": "transparent",
+        "box-shadow": "none"
+      },
+      "msalRedirectUrl": "https://cps-tst.outsystemsenterprise.com/Casework_Patterns/auth-handover-test.html"
     },
     {
       "paths": [
@@ -33,50 +50,105 @@
     },
     {
       "paths": [
-        "https://cps-tst.outsystemsenterprise.com/CaseReview/LandingPage\\?CMSCaseId=(?<caseId>\\d+)&URN=(?<urn>[^&]+)"
+        "https://cps-tst.outsystemsenterprise.com/CaseReview/LandingPage.*?[&?]CMSCaseId=(?<caseId>\\d+)"
       ],
       "contexts": "case review",
-      "msalRedirectUrl": "https://cps-tst.outsystemsenterprise.com/Casework_Patterns/auth-handover-test.html"
+      "headerCustomCssClasses": "header",
+      "headerCustomCssStyles": {
+        "background-color": "transparent",
+        "box-shadow": "none"
+      },
+      "msalRedirectUrl": "https://cps-tst.outsystemsenterprise.com/Casework_Patterns/auth-handover-test.html",
+      "domTagDefinitions": [
+        {
+          "cssSelector": "div#URN_Container",
+          "regex": "<span[^>]*>(?<urn>.*?)</span>"
+        }
+      ]
     },
     {
       "paths": ["https://cps-tst.outsystemsenterprise.com/CaseReview/"],
       "contexts": "cases",
+      "headerCustomCssClasses": "header",
+      "headerCustomCssStyles": {
+        "background-color": "transparent",
+        "box-shadow": "none"
+      },
       "msalRedirectUrl": "https://cps-tst.outsystemsenterprise.com/Casework_Patterns/auth-handover-test.html"
     },
     {
       "paths": [
-        "https://cps-tst.outsystemsenterprise.com/WorkManagementApp/CaseOverview\\?CaseId=(?<caseId>\\d+)&URN=(?<urn>[^&]+)"
+        "https://cps-tst.outsystemsenterprise.com/WorkManagementApp/CaseOverview(?=.*[&?]CaseId=(?<caseId>\\d+))(?=.*[&?]URN=(?<urn>[^&]+)).*"
       ],
       "contexts": "case details",
-      "msalRedirectUrl": "https://cps-tst.outsystemsenterprise.com/Casework_Patterns/auth-handover-test.html",
-      "applyOutSystemsShim": true
+      "headerCustomCssClasses": "header",
+      "headerCustomCssStyles": {
+        "background-color": "transparent",
+        "box-shadow": "none"
+      },
+      "msalRedirectUrl": "https://cps-tst.outsystemsenterprise.com/Casework_Patterns/auth-handover-test.html"
     },
     {
       "paths": [
         "https://cps-tst.outsystemsenterprise.com/WorkManagementApp/Cases"
       ],
       "contexts": "cases",
-      "msalRedirectUrl": "https://cps-tst.outsystemsenterprise.com/Casework_Patterns/auth-handover-test.html",
-      "applyOutSystemsShim": true
+      "headerCustomCssClasses": "header",
+      "headerCustomCssStyles": {
+        "background-color": "transparent",
+        "box-shadow": "none"
+      },
+      "msalRedirectUrl": "https://cps-tst.outsystemsenterprise.com/Casework_Patterns/auth-handover-test.html"
     },
     {
       "paths": [
         "https://cps-tst.outsystemsenterprise.com/WorkManagementApp/TaskList"
       ],
       "contexts": "tasks",
-      "msalRedirectUrl": "https://cps-tst.outsystemsenterprise.com/Casework_Patterns/auth-handover-test.html",
-      "applyOutSystemsShim": true
+      "headerCustomCssClasses": "header",
+      "headerCustomCssStyles": {
+        "background-color": "transparent",
+        "box-shadow": "none"
+      },
+      "msalRedirectUrl": "https://cps-tst.outsystemsenterprise.com/Casework_Patterns/auth-handover-test.html"
+    },
+    {
+      "paths": [
+        "https://cps-tst.outsystemsenterprise.com/WorkManagementApp/SearchCase"
+      ],
+      "contexts": "cases",
+      "headerCustomCssClasses": "header",
+      "headerCustomCssStyles": {
+        "background-color": "transparent",
+        "box-shadow": "none"
+      },
+      "msalRedirectUrl": "https://cps-tst.outsystemsenterprise.com/Casework_Patterns/auth-handover-test.html"
+    },
+    {
+      "paths": ["https://cps-tst.outsystemsenterprise.com/WorkManagementApp"],
+      "contexts": "unknown-wma",
+      "headerCustomCssClasses": "header",
+      "headerCustomCssStyles": {
+        "background-color": "transparent",
+        "box-shadow": "none"
+      },
+      "msalRedirectUrl": "https://cps-tst.outsystemsenterprise.com/Casework_Patterns/auth-handover-test.html"
     },
     {
       "paths": ["https://housekeeping"],
       "contexts": "case materials",
       "msalRedirectUrl": "https://housekeeping-staging.int.cps.gov.uk/global-components-msal-redirect.html",
-      "domTags": [
+      "domTagDefinitions": [
         {
           "cssSelector": "a[href*='/polaris-ui/case-details/']",
-          "regex": "/polaris-ui/case-details/(?<urn>[^/]+)/(?<caseId>\\d+)"
+          "regex": "/polaris-ui/case-details/(?<urn>[^/]+)/(?<caseId>\\d+)\""
         }
       ]
+    },
+    {
+      "paths": ["(?<scheme>https?)://localhost"],
+      "contexts": "fallback",
+      "msalRedirectUrl": "{scheme}://localhost"
     }
   ],
   "LINKS": [
@@ -84,21 +156,21 @@
       "label": "Home",
       "level": 0,
       "href": "https://cps-tst.outsystemsenterprise.com/Casework_Blocks/home",
-      "visibleContexts": "home tasks cases case",
+      "visibleContexts": "home tasks cases case unknown-wma",
       "activeContexts": "home"
     },
     {
       "label": "Tasks",
       "level": 0,
       "href": "https://cps-tst.outsystemsenterprise.com/WorkManagementApp/TaskList",
-      "visibleContexts": "home tasks cases case",
+      "visibleContexts": "home tasks cases case unknown-wma",
       "activeContexts": "tasks"
     },
     {
       "label": "Cases",
       "level": 0,
       "href": "https://cps-tst.outsystemsenterprise.com/WorkManagementApp/Cases?IsCasesNavigation=true",
-      "visibleContexts": "home tasks cases case",
+      "visibleContexts": "home tasks cases case unknown-wma",
       "activeContexts": "cases case"
     },
     {
@@ -111,14 +183,14 @@
     {
       "label": "Materials",
       "level": 1,
-      "href": "https://polaris-qa-notprod.cps.gov.uk/polaris-ui/case-details/{urn}/{caseId}",
+      "href": "https://polaris-qa-notprod.cps.gov.uk/polaris?q=%7B%22caseId%22%3A{caseId}%7D",
       "visibleContexts": "case",
       "activeContexts": "materials"
     },
     {
       "label": "Review",
       "level": 1,
-      "href": "https://cps-tst.outsystemsenterprise.com/CaseReview/LandingPage?CMSCaseId={caseId}&URN={urn}",
+      "href": "https://cps-tst.outsystemsenterprise.com/CaseReview/LandingPage?CMSCaseId={caseId}",
       "visibleContexts": "case",
       "activeContexts": "review"
     }

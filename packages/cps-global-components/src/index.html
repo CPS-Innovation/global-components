@@ -35,16 +35,28 @@
     <div role="main"></div>
   </div> -->
   <div>
-    <cps-global-header></cps-global-header>
+    <cps-global-header is-dcf="true"></cps-global-header>
   </div>
 
-  <a id="myLink" href="/polaris-ui/case-details/foo/123/789">Go to Case</a>
+  <a id="myLink" href="/polaris-ui/case-details/45CV2911221/2/6789">Go to Case</a>
   <button onclick="changeLink()">Change link</button>
+  <button onclick="navigate()">Navigate</button>
+
+  <div class="case-info-details">
+    <div>
+      <p class="govuk-body">45CV2911222/3</p>
+    </div>
+
+  </div>
 
   <script>
     function changeLink() {
       // Example: change link to another case
       document.getElementById("myLink").href = "/polaris-ui/case-details/bar/456/999";
+    }
+
+    function navigate() {
+      history.pushState({}, "", "/cases/1");
     }
   </script>
   <div></div>

@@ -1,6 +1,6 @@
 import { handleContextAuthorisation } from "./handle-context-authorisation";
-import { AuthResult, FailedAuth } from "../auth/initialise-auth";
-import { FoundContext } from "../context/find-context";
+import { AuthResult, FailedAuth } from "../auth/AuthResult";
+import { FoundContext } from "../context/FoundContext";
 
 describe("handleContextAuthorisation", () => {
   let mockReplace: jest.Mock;
@@ -26,6 +26,7 @@ describe("handleContextAuthorisation", () => {
         isAuthed: true,
         username: "testuser",
         name: "Test User",
+        objectId: "1",
         groups: ["group1"],
       };
 
@@ -44,7 +45,7 @@ describe("handleContextAuthorisation", () => {
     it("should not redirect for authenticated user", () => {
       const context: FoundContext = {
         found: true,
-        tags: {},
+        pathTags: {},
         contextIndex: 0,
         msalRedirectUrl: "https://example.com",
         paths: ["/test"],
@@ -53,6 +54,7 @@ describe("handleContextAuthorisation", () => {
         isAuthed: true,
         username: "testuser",
         name: "Test User",
+        objectId: "1",
         groups: ["group1"],
       };
 
@@ -69,7 +71,7 @@ describe("handleContextAuthorisation", () => {
     it("should not redirect for unauthenticated user", () => {
       const context: FoundContext = {
         found: true,
-        tags: {},
+        pathTags: {},
         contextIndex: 0,
         msalRedirectUrl: "https://example.com",
         paths: ["/test"],
@@ -94,7 +96,7 @@ describe("handleContextAuthorisation", () => {
   describe("when context has authorisation rule", () => {
     const authorisedContext: FoundContext = {
       found: true,
-      tags: {},
+      pathTags: {},
       contextIndex: 0,
       msalRedirectUrl: "https://example.com",
       paths: ["/test"],
@@ -110,6 +112,7 @@ describe("handleContextAuthorisation", () => {
           isAuthed: true,
           username: "testuser",
           name: "Test User",
+          objectId: "1",
           groups: ["other-group", "required-group", "another-group"],
         };
 
@@ -130,6 +133,7 @@ describe("handleContextAuthorisation", () => {
           isAuthed: true,
           username: "testuser",
           name: "Test User",
+          objectId: "1",
           groups: ["other-group", "another-group"],
         };
 
@@ -148,6 +152,7 @@ describe("handleContextAuthorisation", () => {
           isAuthed: true,
           username: "testuser",
           name: "Test User",
+          objectId: "1",
           groups: [],
         };
 
@@ -207,7 +212,7 @@ describe("handleContextAuthorisation", () => {
     it("should handle context with multiple AD groups correctly", () => {
       const context: FoundContext = {
         found: true,
-        tags: {},
+        pathTags: {},
         contextIndex: 0,
         msalRedirectUrl: "https://example.com",
         paths: ["/test"],
@@ -220,6 +225,7 @@ describe("handleContextAuthorisation", () => {
         isAuthed: true,
         username: "testuser",
         name: "Test User",
+        objectId: "1",
         groups: ["group-with-special-chars@domain.com"],
       };
 
@@ -236,7 +242,7 @@ describe("handleContextAuthorisation", () => {
     it("should handle case-sensitive AD group matching", () => {
       const context: FoundContext = {
         found: true,
-        tags: {},
+        pathTags: {},
         contextIndex: 0,
         msalRedirectUrl: "https://example.com",
         paths: ["/test"],
@@ -249,6 +255,7 @@ describe("handleContextAuthorisation", () => {
         isAuthed: true,
         username: "testuser",
         name: "Test User",
+        objectId: "1",
         groups: ["required-group"],
       };
 
@@ -265,7 +272,7 @@ describe("handleContextAuthorisation", () => {
     it("should handle auth with undefined name", () => {
       const context: FoundContext = {
         found: true,
-        tags: {},
+        pathTags: {},
         contextIndex: 0,
         msalRedirectUrl: "https://example.com",
         paths: ["/test"],
@@ -278,6 +285,7 @@ describe("handleContextAuthorisation", () => {
         isAuthed: true,
         username: "testuser",
         name: undefined,
+        objectId: "1",
         groups: ["required-group"],
       };
 

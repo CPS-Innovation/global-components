@@ -10,3 +10,5 @@ not-tracked
 .act-secrets
 .claude
 CLAUDE.md
+.env
+e2e.log

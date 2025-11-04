@@ -1,16 +1,6 @@
 import { z } from "zod";
 
-export type Link = {
-  label: string;
-  href: string;
-  activeContexts: string;
-  openInNewTab?: boolean;
-  visibleContexts: string;
-  preferEventNavigationContexts?: string;
-  level: number;
-};
-
-const linkSchema: z.ZodType<Link> = z.object({
+const linkSchema = z.object({
   label: z.string(),
   href: z.string(),
   activeContexts: z.string(),
@@ -20,50 +10,55 @@ const linkSchema: z.ZodType<Link> = z.object({
   level: z.number(),
 });
 
-export type DomTags = {
-  cssSelector: string;
-  regex: string;
-};
+export type Link = z.infer<typeof linkSchema>;
 
-const domTagsSchema: z.ZodType<DomTags> = z.object({
+const domTagDefinitionsSchema = z.object({
   cssSelector: z.string(),
   regex: z.string(),
 });
 
-export type Authorisation = {
-  adGroup: string;
-  unAuthedRedirectUrl: string;
-};
+export type domTagDefinitions = z.infer<typeof domTagDefinitionsSchema>;
 
-const authorisationSchema: z.ZodType<Authorisation> = z.object({
+const authorisationSchema = z.object({
   adGroup: z.string(),
   unAuthedRedirectUrl: z.string(),
 });
 
-export type Context = {
-  paths: string[];
-  contexts: string;
-  msalRedirectUrl: string;
-  domTags?: DomTags[];
-  applyOutSystemsShim?: boolean;
-  forceCmsAuthRefresh?: boolean;
-  authorisation?: Authorisation;
-};
+export type Authorisation = z.infer<typeof authorisationSchema>;
 
-const contextSchema: z.ZodType<Context> = z.object({
+const featureFlagUsersSchema = z.object({
+  adGroupIds: z.array(z.string()).optional(),
+  // Lets use AD accounts UUID ObjectID rather than email address for ad-hoc user enrolment
+  //  into the feature flag.  At the time of writing we check config in to source
+  //  control, object ids do not convey personal data.
+  adHocUserObjectIds: z.array(z.string()).optional(),
+  generallyAvailable: z.boolean().optional(),
+});
+
+export type FeatureFlagUsers = z.infer<typeof featureFlagUsersSchema>;
+
+const contextSchema = z.object({
   paths: z.array(z.string()),
   contexts: z.string(),
   msalRedirectUrl: z.string(),
-  domTags: z.array(domTagsSchema).optional(),
+  domTagDefinitions: z.array(domTagDefinitionsSchema).optional(),
   applyOutSystemsShim: z.boolean().optional(),
   forceCmsAuthRefresh: z.boolean().optional(),
   authorisation: authorisationSchema.optional(),
+  headerCustomCssClasses: z.string().optional(),
+  headerCustomCssStyles: z.record(z.string(), z.string().optional()).optional(),
+  showMenuOverride: z
+    .union([z.literal("always-show-menu"), z.literal("never-show-menu")])
+    .optional(),
 });
+
+export type Context = z.infer<typeof contextSchema>;
 
 export const configSchema = z.object({
   ENVIRONMENT: z.string(),
   CONTEXTS: z.array(contextSchema),
   LINKS: z.array(linkSchema),
+  BANNER_TITLE_HREF: z.string(),
   AD_TENANT_AUTHORITY: z.string().optional(),
   AD_CLIENT_ID: z.string().optional(),
   APP_INSIGHTS_KEY: z.string().optional(),
@@ -73,7 +68,7 @@ export const configSchema = z.object({
   OS_HANDOVER_URL: z.string().optional(),
   COOKIE_HANDOVER_URL: z.string().optional(),
   TOKEN_HANDOVER_URL: z.string().optional(),
-  FEATURE_FLAG_ENABLE_MENU_GROUP: z.string().optional(),
+  FEATURE_FLAG_MENU_USERS: featureFlagUsersSchema.optional(),
   FEATURE_FLAG_ENABLE_INTRUSIVE_AD_LOGIN: z.boolean().optional(),
 });
 

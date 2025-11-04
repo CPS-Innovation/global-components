@@ -1,4 +1,4 @@
-@import "../common/common.scss";
+@use "../common/common.scss" as *;
 
 .skip-link {
   // ignore the container width so the skip link is aligned
@@ -10,13 +10,9 @@
 header {
   @include govuk-font($size: 19);
 
-  .header-title {
+  .govuk-header__logotype-text {
     font-weight: 700;
-  }
-
-  .govuk-header__link--homepage:hover {
-    text-decoration-line: none !important;
-    border-bottom: 0 !important;
+    display: inline-block;
   }
 
   border-bottom: none !important;
