@@ -54,6 +54,24 @@ export const handleOsRedirectInternal = ({
 
   switch (stage) {
     case stages.OS_OUTBOUND: {
+      // FCT2-10942: at the time of writing, in proxied CMS pre-prod environments
+      //  there is a slight misconfiguration.  We hit this stage when the C button
+      //  is pressed in CMS. In pre-prod the proxy is sending the request
+      //  via the /polaris endpoint on the way here.  This is not quite right as
+      //  that stage will have appended a cc parameter with cookies to the request
+      //  we are handling. Our logic in this stage is to redirect the URL as we find
+      //  it on to the /polaris endpoint in order for that next step to get our cookies
+      //  and to redirect us to the next stage below. This current configuration
+      //  results in two cc params being appended to the redirected URL, which then breaks
+      //  IIS in OutSystems because of query length restrictions.
+      //
+      // Really if the proxy wants to do it this way it should be sending the C button
+      // request via the cookie return stage below. However it is a) easier and quicker to
+      // fix here and b) a reasonably useful thing to do to always make sure we are not
+      // sending a cc parameter to the /polaris endpoint no matter the circumstances.
+      // So let's strip the cc param if we have one as it should appear in the next stage.
+      stripParams(url, paramKeys.COOKIES);
+
       setParams(url, { [paramKeys.STAGE]: stages.OS_COOKIE_RETURN });
 
       const nextUrl = createUrlWithParams(cookieHandoverUrl, {
