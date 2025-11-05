@@ -50,7 +50,7 @@
     },
     {
       "paths": [
-        "https://cps-dev.outsystemsenterprise.com/CaseReview/LandingPage.*?[&?]CMSCaseId=(?<caseId>\\d+)"
+        "https://cps-dev.outsystemsenterprise.com/CaseReview.*?[&?](?:CMS)?CaseId=(?<caseId>\\d+)"
       ],
       "contexts": "case review",
       "headerCustomCssClasses": "header",
