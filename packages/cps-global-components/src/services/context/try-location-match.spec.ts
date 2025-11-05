@@ -195,28 +195,61 @@ describe("tryLocationMatch", () => {
   });
 
   it.each([
-    "https://cps-dev.outsystemsenterprise.com/CaseReview?CMSCaseId=123",
-    "https://cps-dev.outsystemsenterprise.com/CaseReview?CaseId=123",
-    "https://cps-dev.outsystemsenterprise.com/CaseReview?foo=bar&CMSCaseId=123",
-    "https://cps-dev.outsystemsenterprise.com/CaseReview?foo=bar&CaseId=123",
-    "https://cps-dev.outsystemsenterprise.com/CaseReview?CMSCaseId=123",
-    "https://cps-dev.outsystemsenterprise.com/CaseReview?CaseId=123",
-    "https://cps-dev.outsystemsenterprise.com/CaseReview?CMSCaseId=123&foo=bar",
-    "https://cps-dev.outsystemsenterprise.com/CaseReview?CaseId=123&foo=bar",
-    "https://cps-dev.outsystemsenterprise.com/CaseReview?&foo=bar&CMSCaseId=123&baz=buz",
-    "https://cps-dev.outsystemsenterprise.com/CaseReview?&foo=bar&CaseId=123&baz=buz",
+    "https://cps-dev.outsystemsenterprise.com/some-app?CMSCaseId=123",
+    "https://cps-dev.outsystemsenterprise.com/some-app?CaseId=123",
+    "https://cps-dev.outsystemsenterprise.com/some-app?foo=bar&CMSCaseId=123",
+    "https://cps-dev.outsystemsenterprise.com/some-app?foo=bar&CaseId=123",
+    "https://cps-dev.outsystemsenterprise.com/some-app?CMSCaseId=123",
+    "https://cps-dev.outsystemsenterprise.com/some-app?CaseId=123",
+    "https://cps-dev.outsystemsenterprise.com/some-app?CMSCaseId=123&foo=bar",
+    "https://cps-dev.outsystemsenterprise.com/some-app?CaseId=123&foo=bar",
+    "https://cps-dev.outsystemsenterprise.com/some-app?&foo=bar&CMSCaseId=123&baz=buz",
+    "https://cps-dev.outsystemsenterprise.com/some-app?&foo=bar&CaseId=123&baz=buz",
 
-    "https://cps-dev.outsystemsenterprise.com/CaseReview/?&foo=bar&CMSCaseId=123&baz=buz",
-    "https://cps-dev.outsystemsenterprise.com/CaseReview/?&foo=bar&CaseId=123&baz=buz",
+    "https://cps-dev.outsystemsenterprise.com/some-app/?&foo=bar&CMSCaseId=123&baz=buz",
+    "https://cps-dev.outsystemsenterprise.com/some-app/?&foo=bar&CaseId=123&baz=buz",
 
-    "https://cps-dev.outsystemsenterprise.com/CaseReview/some-path?&foo=bar&CMSCaseId=123&baz=buz",
-    "https://cps-dev.outsystemsenterprise.com/CaseReview/some-path?&foo=bar&CaseId=123&baz=buz",
+    "https://cps-dev.outsystemsenterprise.com/some-app/some-path?&foo=bar&CMSCaseId=123&baz=buz",
+    "https://cps-dev.outsystemsenterprise.com/some-app/some-path?&foo=bar&CaseId=123&baz=buz",
 
-    "https://cps-dev.outsystemsenterprise.com/CaseReview/some-path?&foo=bar&CMSCaseId=123&CaseId=123&baz=buz",
-  ])("should match case review-style addresses based only on finding a CMSCaseId or CaseId parameter", address => {
-    const result = tryLocationMatch({ href: address } as Location, "https://cps-dev.outsystemsenterprise.com/CaseReview.*?[&?](?:CMS)?CaseId=(?<caseId>\\d+)");
+    "https://cps-dev.outsystemsenterprise.com/some-app/some-path?&foo=bar&CMSCaseId=123&CaseId=123&baz=buz",
+  ])("should match case review addresses based only on finding a CMSCaseId or CaseId parameter", address => {
+    const result = tryLocationMatch({ href: address } as Location, "https://cps-dev.outsystemsenterprise.com/some-app.*?[&?](?:CMS)?CaseId=(?<caseId>\\d+)");
     expect(result).toEqual({
       groups: { caseId: "123" },
+    });
+  });
+
+  it.each([
+    "https://cps-dev.outsystemsenterprise.com/some-app?CaseId=123&URN=abc",
+    "https://cps-dev.outsystemsenterprise.com/some-app?CaseId=123&CaseURN=abc",
+    "https://cps-dev.outsystemsenterprise.com/some-app?URN=abc&CaseId=123",
+    "https://cps-dev.outsystemsenterprise.com/some-app?CaseURN=abc&CaseId=123",
+
+    "https://cps-dev.outsystemsenterprise.com/some-app?foo=bar&CaseId=123&URN=abc",
+    "https://cps-dev.outsystemsenterprise.com/some-app?foo=bar&CaseId=123&CaseURN=abc",
+    "https://cps-dev.outsystemsenterprise.com/some-app?foo=bar&URN=abc&CaseId=123",
+    "https://cps-dev.outsystemsenterprise.com/some-app?foo=bar&CaseURN=abc&CaseId=123",
+
+    "https://cps-dev.outsystemsenterprise.com/some-app?CaseId=123&URN=abc&foo=bar",
+    "https://cps-dev.outsystemsenterprise.com/some-app?CaseId=123&CaseURN=abc&foo=bar",
+    "https://cps-dev.outsystemsenterprise.com/some-app?URN=abc&CaseId=123&foo=bar",
+    "https://cps-dev.outsystemsenterprise.com/some-app?CaseURN=abc&CaseId=123&foo=bar",
+
+    "https://cps-dev.outsystemsenterprise.com/some-app?foo=bar&CaseId=123&URN=abc&baz=buz",
+    "https://cps-dev.outsystemsenterprise.com/some-app?foo=bar&CaseId=123&CaseURN=abc&baz=buz",
+    "https://cps-dev.outsystemsenterprise.com/some-app?foo=bar&URN=abc&CaseId=123&baz=buz",
+    "https://cps-dev.outsystemsenterprise.com/some-app?foo=bar&CaseURN=abc&CaseId=123&baz=buz",
+
+    "https://cps-dev.outsystemsenterprise.com/some-app/?foo=bar&CaseURN=abc&CaseId=123&baz=buz",
+    "https://cps-dev.outsystemsenterprise.com/some-app/some-path?foo=bar&CaseURN=abc&CaseId=123&baz=buz",
+  ])("should match work management-style addresses based on finding a CaseId parameter or ", address => {
+    const result = tryLocationMatch(
+      { href: address } as Location,
+      "https://cps-dev.outsystemsenterprise.com/some-app.*?(?=.*[&?]CaseId=(?<caseId>\\d+))(?=.*[&?](?:Case)?URN=(?<urn>[^&]+))",
+    );
+    expect(result).toEqual({
+      groups: { caseId: "123", urn: "abc" },
     });
   });
 });
