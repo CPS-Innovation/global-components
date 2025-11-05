@@ -26,8 +26,11 @@ export class CpsGlobalHeader {
   render() {
     const { isReady, state } = readyState("context");
 
+    const { headerCustomCssClasses, headerCustomCssStyles } =
+      isReady && state?.context.found ? state.context : { headerCustomCssClasses: undefined, headerCustomCssStyles: undefined };
+
     return (
-      <Host class={isReady && state?.context.found ? state.context.headerCustomCssClasses : ""}>
+      <Host class={headerCustomCssClasses} style={headerCustomCssStyles}>
         <div data-internal-root data-initialisation-status={state.initialisationStatus}>
           <cps-global-banner></cps-global-banner>
           {state.fatalInitialisationError ? renderError(state.fatalInitialisationError) : <cps-global-menu></cps-global-menu>}
