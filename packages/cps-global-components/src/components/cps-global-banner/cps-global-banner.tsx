@@ -16,7 +16,7 @@ export class CpsGlobalBanner {
   };
 
   componentWillLoad() {
-    trackEvent({ name: "loaded", componentName: CpsGlobalBanner.name });
+    trackEvent({ name: "loaded", componentName: "cps-global-banner" });
   }
 
   @WithLogging("CpsGlobalBanner")
