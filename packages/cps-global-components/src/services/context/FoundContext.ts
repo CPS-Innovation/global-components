@@ -8,4 +8,10 @@ export type FoundContext =
       contextIndex: number;
       msalRedirectUrl: string;
     })
-  | { found: false; pathTags?: undefined; domTagDefinitions?: undefined; contextIndex?: undefined; msalRedirectUrl?: undefined };
+  | {
+      found: false;
+      pathTags?: undefined;
+      domTagDefinitions?: undefined;
+      contextIndex?: undefined;
+      msalRedirectUrl?: undefined;
+    };

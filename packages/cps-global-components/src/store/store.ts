@@ -9,6 +9,7 @@ import { resetPreventionSubscription } from "./subscriptions/reset-prevention-su
 import { CaseDetails } from "../services/data/types";
 import { Tags } from "../services/context/Tags";
 import { withLogging } from "../logging/with-logging";
+import { CorrelationIds } from "../services/correlation/CorrelationIds";
 
 type MakeUndefinable<T> = {
   [K in keyof T]: T[K] | undefined;
@@ -19,8 +20,8 @@ type StartupState = { flags: ApplicationFlags; config: Config; auth: AuthResult 
 const initialStartupState = { flags: undefined, config: undefined, auth: undefined };
 
 // This state could change (e.g. history-based non-full-refresh navigation or dom tags changing)
-type TransientState = { context: FoundContext; propTags: Tags; pathTags: Tags; domTags: Tags; caseDetails: CaseDetails };
-const initialTransientState = { context: undefined, propTags: undefined, pathTags: undefined, domTags: undefined, caseDetails: undefined };
+type TransientState = { context: FoundContext; propTags: Tags; pathTags: Tags; domTags: Tags; caseDetails: CaseDetails; correlationIds: CorrelationIds };
+const initialTransientState = { context: undefined, propTags: undefined, pathTags: undefined, domTags: undefined, caseDetails: undefined, correlationIds: undefined };
 
 // This state is general
 type SummaryState = { fatalInitialisationError: Error | undefined };

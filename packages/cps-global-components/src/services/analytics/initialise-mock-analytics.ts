@@ -1,1 +1,1 @@
-export const initialiseMockAnalytics = () => ({ trackPageView: () => {}, trackException: () => {} });
+export const initialiseMockAnalytics = () => ({ trackPageView: () => {}, trackException: () => {}, rebindTrackEvent: () => {} });
