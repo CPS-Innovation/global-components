@@ -1,3 +1,4 @@
+import { v4 as uuidv4 } from "uuid";
 import { handleSetOverrideMode } from "./services/override-mode/handle-set-override-mode";
 import { initialiseAuth } from "./services/auth/initialise-auth";
 import { initialiseStore, Register } from "./store/store";
@@ -15,6 +16,7 @@ import { outSystemsShimSubscribers } from "./services/outsystems-shim/outsystems
 import { handleOutSystemsForcedAuth } from "./services/outsystems-shim/handle-outsystems-force-auth";
 import { handleContextAuthorisation } from "./services/authorisation/handle-context-authorisation";
 import { cachedResult } from "./utils/cached-result";
+import { CorrelationIds } from "./services/correlation/CorrelationIds";
 
 // Don't return a promise otherwise stencil will wait for all of this to be complete
 //  before rendering.  Using the registerToStore function means we can render immediately
@@ -23,21 +25,24 @@ import { cachedResult } from "./utils/cached-result";
 //  do not need auth from rendering.
 export default /* do not make this async */ () => {
   (async () => {
+    const scriptLoadCorrelationId = uuidv4();
     handleSetOverrideMode({ window });
-    initialise();
+    // For first initialisation we want our two correlationIds to be the same
+    initialise({ scriptLoadCorrelationId, navigationCorrelationId: scriptLoadCorrelationId });
 
     // Every time we detect a SPA navigation (i.e. not a full page reload), lets rerun our initialisation
     //  logic as out context may have changed
     window.navigation?.addEventListener("navigatesuccess", async event => {
       _console.debug("Global script", "navigation", event);
-      initialise();
+      initialise({ scriptLoadCorrelationId, navigationCorrelationId: uuidv4() });
     });
   })();
 };
 
-const initialise = async () => {
+const initialise = async (correlationIds: CorrelationIds) => {
   const { register: r, resetContextSpecificTags } = cachedResult("store", () => initialiseStore(getCaseDetailsSubscription));
   register = r;
+  register({ correlationIds });
   // We reset the tags to empty as we could be being called after a navigate in a SPA
   resetContextSpecificTags();
 
@@ -68,7 +73,7 @@ const initialise = async () => {
     handleContextAuthorisation({ window, context, auth });
 
     const { trackPageView } = cachedResult("analytics", () => (flags.isE2eTestMode ? initialiseMockAnalytics() : initialiseAnalytics({ window, config, auth })));
-    trackPageView();
+    trackPageView({ context, correlationIds });
   } catch (error) {
     _console.error(error);
     register({ fatalInitialisationError: error });

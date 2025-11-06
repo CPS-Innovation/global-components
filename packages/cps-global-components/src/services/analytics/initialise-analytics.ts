@@ -1,6 +1,8 @@
 import { ApplicationInsights } from "@microsoft/applicationinsights-web";
 import { Config } from "cps-global-configuration";
 import { AuthResult } from "../auth/AuthResult";
+import { FoundContext } from "../context/FoundContext";
+import { CorrelationIds } from "../correlation/CorrelationIds";
 
 const STORAGE_PREFIX = "cps_global_components";
 
@@ -44,8 +46,8 @@ export const initialiseAnalytics = ({ window, config: { APP_INSIGHTS_KEY, ENVIRO
     authValues = { Username: auth.username, ...authValues };
   }
 
-  const trackPageView = () => {
-    appInsights.trackPageView({ properties: { Environment: ENVIRONMENT, ...authValues, ...window.cps_global_components_build } });
+  const trackPageView = ({ context: { found }, correlationIds }: { context: FoundContext; correlationIds: CorrelationIds }) => {
+    appInsights.trackPageView({ properties: { Environment: ENVIRONMENT, ...authValues, ...window.cps_global_components_build, context: { found }, correlationIds } });
   };
 
   const trackException = (exception: Error) => {
