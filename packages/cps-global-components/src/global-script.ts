@@ -62,6 +62,7 @@ const initialise = async (correlationIds: CorrelationIds) => {
 
     const context = initialiseContext({ window, config });
     register({ context });
+
     const { pathTags } = context;
     register({ pathTags });
 
@@ -70,9 +71,11 @@ const initialise = async (correlationIds: CorrelationIds) => {
 
     const auth = await cachedResult("auth", () => (flags.isE2eTestMode ? initialiseMockAuth({ window }) : initialiseAuth({ window, config, context })));
     register({ auth });
+
     handleContextAuthorisation({ window, context, auth });
 
-    const { trackPageView } = cachedResult("analytics", () => (flags.isE2eTestMode ? initialiseMockAnalytics() : initialiseAnalytics({ window, config, auth })));
+    const { trackPageView, rebindTrackEvent } = cachedResult("analytics", () => (flags.isE2eTestMode ? initialiseMockAnalytics() : initialiseAnalytics({ window, config, auth })));
+    rebindTrackEvent({ correlationIds });
     trackPageView({ context, correlationIds });
   } catch (error) {
     _console.error(error);
