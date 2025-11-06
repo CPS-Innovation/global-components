@@ -17,6 +17,7 @@ import { isOutSystemsApp } from "../../../services/application-flags/is-outsyste
 import { createOutboundUrl } from "cps-global-os-handover";
 import { State } from "../../../store/store";
 import { CaseDetails } from "../../../services/data/types";
+import { CorrelationIds } from "../../../services/correlation/CorrelationIds";
 
 // Type the mocked functions
 const mockShouldShowLink = shouldShowLink as jest.MockedFunction<typeof shouldShowLink>;
@@ -106,6 +107,7 @@ describe("menuConfig", () => {
       auth: {} as AuthResult,
       fatalInitialisationError: undefined as any,
       initialisationStatus: "ready",
+      correlationIds: {} as CorrelationIds,
     };
 
     const result = menuConfig(mockState);
@@ -146,6 +148,7 @@ describe("menuConfig", () => {
       auth: {} as AuthResult,
       fatalInitialisationError: undefined as any,
       initialisationStatus: "ready",
+      correlationIds: {} as CorrelationIds,
     };
 
     // Mock shouldShowLink to filter out the second link
@@ -254,6 +257,7 @@ describe("menuConfig", () => {
       auth: {} as AuthResult,
       fatalInitialisationError: undefined as any,
       initialisationStatus: "ready",
+      correlationIds: {} as CorrelationIds,
     };
 
     // Mock shouldShowLink to pass all links
@@ -316,6 +320,7 @@ describe("menuConfig", () => {
       auth: {} as AuthResult,
       fatalInitialisationError: undefined as any,
       initialisationStatus: "ready",
+      correlationIds: {} as CorrelationIds,
     };
 
     // Mock shouldShowLink to pass all links
@@ -378,6 +383,7 @@ describe("menuConfig", () => {
       auth: {} as AuthResult,
       fatalInitialisationError: undefined as any,
       initialisationStatus: "ready",
+      correlationIds: {} as CorrelationIds,
     };
 
     // Mock shouldShowLink to pass all links
@@ -439,6 +445,7 @@ describe("menuConfig", () => {
       auth: {} as AuthResult,
       fatalInitialisationError: undefined as any,
       initialisationStatus: "ready",
+      correlationIds: {} as CorrelationIds,
     };
 
     // Mock shouldShowLink to pass all links
