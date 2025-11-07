@@ -50,7 +50,7 @@
     },
     {
       "paths": [
-        "https://cps-tst.outsystemsenterprise.com/CaseReview/LandingPage.*?[&?]CMSCaseId=(?<caseId>\\d+)"
+        "https://cps-tst.outsystemsenterprise.com/CaseReview.*?[&?](?:CMS)?CaseId=(?<caseId>\\d+)"
       ],
       "contexts": "case review",
       "headerCustomCssClasses": "header",
@@ -78,7 +78,7 @@
     },
     {
       "paths": [
-        "https://cps-tst.outsystemsenterprise.com/WorkManagementApp/CaseOverview(?=.*[&?]CaseId=(?<caseId>\\d+))(?=.*[&?]URN=(?<urn>[^&]+)).*"
+        "https://cps-tst.outsystemsenterprise.com/WorkManagementApp.*?(?=.*[&?]CaseId=(?<caseId>\\d+))(?=.*[&?](?:Case)?URN=(?<urn>[^&]+))"
       ],
       "contexts": "case details",
       "headerCustomCssClasses": "header",

@@ -12,7 +12,7 @@
   "FEATURE_FLAG_MENU_USERS": {
     "generallyAvailable": true
   },
-  "FEATURE_FLAG_ENABLE_INTRUSIVE_AD_LOGIN": true,
+  "FEATURE_FLAG_ENABLE_INTRUSIVE_AD_LOGIN": false,
   "CONTEXTS": [
     {
       "paths": [
@@ -50,7 +50,7 @@
     },
     {
       "paths": [
-        "https://cps-tst.outsystemsenterprise.com/CaseReview/LandingPage.*?[&?]CMSCaseId=(?<caseId>\\d+)"
+        "https://cps-tst.outsystemsenterprise.com/CaseReview.*?[&?](?:CMS)?CaseId=(?<caseId>\\d+)"
       ],
       "contexts": "case review",
       "headerCustomCssClasses": "header",
@@ -78,7 +78,7 @@
     },
     {
       "paths": [
-        "https://cps-tst.outsystemsenterprise.com/WorkManagementApp/CaseOverview(?=.*[&?]CaseId=(?<caseId>\\d+))(?=.*[&?]URN=(?<urn>[^&]+)).*"
+        "https://cps-tst.outsystemsenterprise.com/WorkManagementApp.*?(?=.*[&?]CaseId=(?<caseId>\\d+))(?=.*[&?](?:Case)?URN=(?<urn>[^&]+))"
       ],
       "contexts": "case details",
       "headerCustomCssClasses": "header",

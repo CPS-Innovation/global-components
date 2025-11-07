@@ -1,3 +1,4 @@
+import { CorrelationIds } from "../services/correlation/CorrelationIds";
 import { initialiseStore, readyState, isATagProperty, SubscriptionFactory } from "./store";
 
 describe("store", () => {
@@ -179,6 +180,7 @@ describe("store", () => {
           propTags: {},
           pathTags: {},
           domTags: {},
+          correlationIds: {} as CorrelationIds,
         });
 
         const result = readyState();
@@ -438,6 +440,7 @@ describe("store", () => {
           pathTags: {},
           domTags: {},
           propTags: {},
+          correlationIds: {} as CorrelationIds,
         });
 
         const result = readyState();
@@ -468,7 +471,7 @@ describe("store", () => {
           pathTags: {},
           domTags: {},
           propTags: {},
-          // caseDetails is undefined, but should not affect ready status
+          correlationIds: {} as CorrelationIds,
         });
 
         const result = readyState();
@@ -487,6 +490,7 @@ describe("store", () => {
           pathTags: {},
           domTags: {},
           propTags: {},
+          correlationIds: {} as CorrelationIds,
           caseDetails: undefined,
         });
 
