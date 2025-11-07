@@ -68,11 +68,16 @@ export const initialiseStore = () => {
     privateTagProperties.filter(key => key !== "propTags").forEach(key => store.set(key, {}));
   };
 
-  const subscribe = (...subscriptionFactories: SubscriptionFactory[]) => subscriptionFactories.forEach(factory => store.use(factory({ set: store.set, get: store.get })));
+  const subscribe = (...subscriptionFactories: SubscriptionFactory[]) =>
+    subscriptionFactories.map(factory => {
+      const subscription = factory({ set: store.set, get: store.get });
+      store.use(subscription);
+      return subscription;
+    });
 
   subscribe(resetPreventionSubscriptionFactory, loggingSubscriptionFactory, tagsSubscriptionFactory);
 
-  return { register, resetContextSpecificTags, subscribe };
+  return { register, resetContextSpecificTags, subscribe, get: store.get };
 };
 
 // This state is computed from the stored state

@@ -40,7 +40,7 @@ export default /* do not make this async */ () => {
 };
 
 const initialise = async (correlationIds: CorrelationIds) => {
-  const { register: r, resetContextSpecificTags, subscribe } = cachedResult("store", () => initialiseStore());
+  const { register: r, resetContextSpecificTags, subscribe, get } = cachedResult("store", () => initialiseStore());
   register = r;
   register({ correlationIds });
   // We reset the tags to empty as we could be being called after a navigate in a SPA
@@ -76,7 +76,14 @@ const initialise = async (correlationIds: CorrelationIds) => {
 
     const { AD_GATEWAY_SCOPE, GATEWAY_URL } = config;
     if (AD_GATEWAY_SCOPE && GATEWAY_URL) {
-      subscribe(getCaseDetailsSubscriptionFactory({ register, getToken, config: { AD_GATEWAY_SCOPE, GATEWAY_URL }, correlationIds }));
+      const getCaseDetailsSubscription = getCaseDetailsSubscriptionFactory({ register, getToken, config: { AD_GATEWAY_SCOPE, GATEWAY_URL }, correlationIds });
+      const [listener] = subscribe(getCaseDetailsSubscription);
+      // Not only do we create the subscription, but we receive a reference to the subscription listener.
+      //  This lets us trigger the listener ourselves as we probably already have the required case
+      //  identifier tags in the store and hence will not get an "on change" in order to run
+      //  our logic. So lets call the listener manually to initialise and probably actually retrieve data
+      //   (if we are in a case context).
+      listener.set?.("tags", get("tags"), undefined);
     }
 
     const { trackPageView, rebindTrackEvent } = cachedResult("analytics", () => (flags.isE2eTestMode ? initialiseMockAnalytics() : initialiseAnalytics({ window, config, auth })));
