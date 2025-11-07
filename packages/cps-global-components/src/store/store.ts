@@ -1,15 +1,20 @@
-import { createStore, Subscription } from "@stencil/store";
+import { createStore } from "@stencil/store";
 import { _console } from "../logging/_console";
 import { Config } from "cps-global-configuration";
 import { AuthResult } from "../services/auth/AuthResult";
 import { FoundContext } from "../services/context/FoundContext";
 import { ApplicationFlags } from "../services/application-flags/ApplicationFlags";
-import { loggingSubscription } from "./subscriptions/logging-subscription";
-import { resetPreventionSubscription } from "./subscriptions/reset-prevention-subscription";
+import { loggingSubscriptionFactory } from "./subscriptions/logging-subscription-factory";
+import { resetPreventionSubscriptionFactory } from "./subscriptions/reset-prevention-subscription-factory";
 import { CaseDetails } from "../services/data/types";
 import { Tags } from "../services/context/Tags";
 import { withLogging } from "../logging/with-logging";
 import { CorrelationIds } from "../services/correlation/CorrelationIds";
+import { tagsSubscriptionFactory } from "./subscriptions/tags-subscription-factory";
+import { SubscriptionFactory } from "./subscriptions/SubscriptionFactory";
+
+export const privateTagProperties = ["pathTags", "domTags", "propTags"] as const;
+export type PrivateTagProperties = (typeof privateTagProperties)[number]; // gives us a union definition: "pathTags" | "domTags" | "propTags"
 
 type MakeUndefinable<T> = {
   [K in keyof T]: T[K] | undefined;
@@ -23,27 +28,29 @@ const initialStartupState = { flags: undefined, config: undefined, auth: undefin
 type TransientState = { context: FoundContext; propTags: Tags; pathTags: Tags; domTags: Tags; caseDetails: CaseDetails; correlationIds: CorrelationIds };
 const initialTransientState = { context: undefined, propTags: undefined, pathTags: undefined, domTags: undefined, caseDetails: undefined, correlationIds: undefined };
 
+type AggregateState = { tags: Tags };
+const initialAggregateState = { tags: undefined };
+
 // This state is general
 type SummaryState = { fatalInitialisationError: Error | undefined };
 const initialSummaryState = { fatalInitialisationError: undefined };
 
-type DefinedStoredState = StartupState & TransientState & SummaryState;
+type DefinedStoredState = StartupState & TransientState & AggregateState & SummaryState;
 
-type StoredState = MakeUndefinable<DefinedStoredState>;
+export type StoredState = MakeUndefinable<DefinedStoredState>;
 
 export type Register = (arg: Partial<StoredState>) => void;
 
 const initialState: StoredState = {
   ...initialStartupState,
   ...initialTransientState,
+  ...initialAggregateState,
   ...initialSummaryState,
 };
 
-export type SubscriptionFactory = (arg: { store: typeof store; register: Register; getTags: typeof getTags }) => Subscription<StoredState>;
-
 let store: ReturnType<typeof createStore<StoredState>>;
 
-export const initialiseStore = (...externalSubscriptions: SubscriptionFactory[]) => {
+export const initialiseStore = () => {
   store = createStore<StoredState>(
     () => ({
       ...initialState,
@@ -61,32 +68,17 @@ export const initialiseStore = (...externalSubscriptions: SubscriptionFactory[])
     privateTagProperties.filter(key => key !== "propTags").forEach(key => store.set(key, {}));
   };
 
-  store.use(...[resetPreventionSubscription, loggingSubscription, ...externalSubscriptions].map(subscription => subscription({ store, register, getTags })));
+  const subscribe = (...subscriptionFactories: SubscriptionFactory[]) => subscriptionFactories.forEach(factory => store.use(factory({ set: store.set, get: store.get })));
 
-  return { register, resetContextSpecificTags };
+  subscribe(resetPreventionSubscriptionFactory, loggingSubscriptionFactory, tagsSubscriptionFactory);
+
+  return { register, resetContextSpecificTags, subscribe };
 };
 
 // This state is computed from the stored state
-type DerivedState = { tags: Tags; initialisationStatus: undefined | "ready" | "broken" };
+type DerivedState = { initialisationStatus: undefined | "ready" | "broken" };
 
-const privateTagProperties = ["pathTags", "domTags", "propTags"] as const;
-type PrivateTagProperties = (typeof privateTagProperties)[number]; // gives us a union definition: "pathTags" | "domTags" | "propTags"
 export const isATagProperty = (key: keyof StoredState): key is PrivateTagProperties => privateTagProperties.includes(key as PrivateTagProperties);
-
-const getTags = (): Tags => ({
-  // Note 1: Order is important here. Our logic is: if a tag is found in domTags then it
-  //  overrides a tag found in the path (domTags would generally arrive later than pathTags)
-  //  and we use domTags to get better information than available in the path.
-  //  Prop tags should override everything as they are actively supplied by the host.
-  // Note 2: a design decision. Lets say that "tags" is never undefined.  DomTags for instance
-  //  may come in at any time post-initialisation as the DOM changes, so there is always
-  //  going to be an element of laziness to tags.  The calling code should work with the fact
-  //  that tags will be defined from the start is expected to be populated at any time from
-  //  initialisation onwards.
-  ...store.state.pathTags,
-  ...store.state.domTags,
-  ...store.state.propTags,
-});
 
 const getInitialisationStatus = (): DerivedState["initialisationStatus"] => {
   if (store.state.fatalInitialisationError) {
@@ -98,7 +90,7 @@ const getInitialisationStatus = (): DerivedState["initialisationStatus"] => {
     .filter((key: keyof StoredState) => !keysToIgnore.includes(key))
     .some(key => store.state[key] === undefined);
 
-  if (storeIsNotComplete || !getTags()) {
+  if (storeIsNotComplete) {
     return undefined;
   }
 
@@ -138,17 +130,12 @@ const readyStateInternal = <K extends readonly (keyof StateWithoutPrivateTags)[]
   // In the code below we must ensure that we visit every property listed in `keysToCheck` otherwise we may miss registering
   //  to observe a property.
   for (const key of keys) {
-    if (key === "tags") {
-      getTags();
-    } else {
-      store.state[key];
-    }
+    store.state[key];
   }
 
   // Return ALL properties from the store (for lazy access)
   const result: any = {
     ...store.state,
-    tags: getTags(),
   };
 
   // Check if all requested keys are defined

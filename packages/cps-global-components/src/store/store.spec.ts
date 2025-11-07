@@ -1,5 +1,5 @@
 import { CorrelationIds } from "../services/correlation/CorrelationIds";
-import { initialiseStore, readyState, isATagProperty, SubscriptionFactory } from "./store";
+import { initialiseStore, readyState, isATagProperty } from "./store";
 
 describe("store", () => {
   // Initialize a fresh store before each test to ensure isolation
@@ -38,20 +38,6 @@ describe("store", () => {
       expect(result).toHaveProperty("resetContextSpecificTags");
       expect(typeof result.register).toBe("function");
       expect(typeof result.resetContextSpecificTags).toBe("function");
-    });
-
-    it("should accept external subscriptions", () => {
-      const mockSubscriptionFactory: SubscriptionFactory = jest.fn(() => ({
-        set: jest.fn(),
-      }));
-
-      initialiseStore(mockSubscriptionFactory);
-
-      expect(mockSubscriptionFactory).toHaveBeenCalledWith({
-        store: expect.any(Object),
-        register: expect.any(Function),
-        getTags: expect.any(Function),
-      });
     });
 
     describe("register function", () => {
