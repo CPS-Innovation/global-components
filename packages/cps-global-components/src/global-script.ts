@@ -79,10 +79,10 @@ const initialise = async (correlationIds: CorrelationIds) => {
       const getCaseDetailsSubscription = getCaseDetailsSubscriptionFactory({ register, getToken, config: { AD_GATEWAY_SCOPE, GATEWAY_URL }, correlationIds });
       const [listener] = subscribe(getCaseDetailsSubscription);
       // Not only do we create the subscription, but we receive a reference to the subscription listener.
-      //  This lets us trigger the listener ourselves as we probably already have the required case
-      //  identifier tags in the store and hence will not get an "on change" in order to run
-      //  our logic. So lets call the listener manually to initialise and probably actually retrieve data
-      //   (if we are in a case context).
+      //  This lets us trigger the listener ourselves as we are not guaranteed to still have tags
+      //  left unregistered that will subsequently trigger an change event. In practice, dom tags and
+      //  prop tags DO come in later than this, but there is no logical guarantee.  So lets just trigger
+      //  manually with what we have, any later meaningful changes to tags will obviously retrigger.
       listener.set?.("tags", get("tags"), undefined);
     }
 

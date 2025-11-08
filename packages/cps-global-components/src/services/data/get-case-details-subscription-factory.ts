@@ -6,6 +6,7 @@ import { SubscriptionFactory } from "../../store/subscriptions/SubscriptionFacto
 import { Tags } from "@microsoft/applicationinsights-web";
 import { GetToken } from "../auth/GetToken";
 import { CorrelationIds } from "../correlation/CorrelationIds";
+import { _console } from "../../logging/_console";
 
 let cachedCaseIdentifier: CaseIdentifiers | undefined = undefined;
 
@@ -25,6 +26,7 @@ export const getCaseDetailsSubscriptionFactory =
     set: (key, newValue) => {
       if (key === "tags") {
         const caseIdentifiers = extractCaseIdentifiersIfChanged(cachedCaseIdentifier, newValue as Tags);
+        _console.debug("getCaseDetailsSubscription", "caseIdentifiers", caseIdentifiers);
         if (caseIdentifiers) {
           cachedCaseIdentifier = caseIdentifiers;
           getCaseDetails({ caseIdentifiers, getToken, config, correlationIds }).then(caseDetails => register({ caseDetails }));

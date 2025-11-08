@@ -68,12 +68,14 @@ export const initialiseStore = () => {
     privateTagProperties.filter(key => key !== "propTags").forEach(key => store.set(key, {}));
   };
 
-  const subscribe = (...subscriptionFactories: SubscriptionFactory[]) =>
-    subscriptionFactories.map(factory => {
+  const subscribe = (...subscriptionFactories: SubscriptionFactory[]) => {
+    _console.debug("store", "subscribe", subscriptionFactories);
+    return subscriptionFactories.map(factory => {
       const subscription = factory({ set: store.set, get: store.get });
       store.use(subscription);
       return subscription;
     });
+  };
 
   subscribe(resetPreventionSubscriptionFactory, loggingSubscriptionFactory, tagsSubscriptionFactory);
 
