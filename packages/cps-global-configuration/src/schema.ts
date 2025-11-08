@@ -61,6 +61,8 @@ export const configSchema = z.object({
   BANNER_TITLE_HREF: z.string(),
   AD_TENANT_AUTHORITY: z.string().optional(),
   AD_CLIENT_ID: z.string().optional(),
+  AD_GATEWAY_SCOPE: z.string().optional(),
+  GATEWAY_URL: z.string().optional(),
   APP_INSIGHTS_KEY: z.string().optional(),
   SURVEY_LINK: z.string().optional(),
   SHOW_MENU: z.boolean().optional(),

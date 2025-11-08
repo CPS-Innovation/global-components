@@ -9,7 +9,6 @@ import { getApplicationFlags } from "./services/application-flags/get-applicatio
 import { initialiseMockAuth } from "./services/auth/initialise-mock-auth";
 import { initialiseMockAnalytics } from "./services/analytics/initialise-mock-analytics";
 import { _console } from "./logging/_console";
-import { getCaseDetailsSubscription } from "./services/data/subscription";
 import { initialiseDomObservation } from "./services/dom/initialise-dom-observation";
 import { domTagMutationSubscriber } from "./services/dom/dom-tag-mutation-subscriber";
 import { outSystemsShimSubscribers } from "./services/outsystems-shim/outsystems-shim-subscriber";
@@ -17,6 +16,7 @@ import { handleOutSystemsForcedAuth } from "./services/outsystems-shim/handle-ou
 import { handleContextAuthorisation } from "./services/authorisation/handle-context-authorisation";
 import { cachedResult } from "./utils/cached-result";
 import { CorrelationIds } from "./services/correlation/CorrelationIds";
+import { getCaseDetailsSubscriptionFactory } from "./services/data/get-case-details-subscription-factory";
 
 // Don't return a promise otherwise stencil will wait for all of this to be complete
 //  before rendering.  Using the registerToStore function means we can render immediately
@@ -40,7 +40,7 @@ export default /* do not make this async */ () => {
 };
 
 const initialise = async (correlationIds: CorrelationIds) => {
-  const { register: r, resetContextSpecificTags } = cachedResult("store", () => initialiseStore(getCaseDetailsSubscription));
+  const { register: r, resetContextSpecificTags, subscribe, get } = cachedResult("store", () => initialiseStore());
   register = r;
   register({ correlationIds });
   // We reset the tags to empty as we could be being called after a navigate in a SPA
@@ -69,10 +69,22 @@ const initialise = async (correlationIds: CorrelationIds) => {
     initialiseDomForContext({ context });
     handleOutSystemsForcedAuth({ window, config, context });
 
-    const auth = await cachedResult("auth", () => (flags.isE2eTestMode ? initialiseMockAuth({ window }) : initialiseAuth({ window, config, context })));
+    const { auth, getToken } = await cachedResult("auth", () => (flags.isE2eTestMode ? initialiseMockAuth({ window }) : initialiseAuth({ window, config, context })));
     register({ auth });
 
     handleContextAuthorisation({ window, context, auth });
+
+    const { AD_GATEWAY_SCOPE, GATEWAY_URL } = config;
+    if (AD_GATEWAY_SCOPE && GATEWAY_URL) {
+      const getCaseDetailsSubscription = getCaseDetailsSubscriptionFactory({ register, getToken, config: { AD_GATEWAY_SCOPE, GATEWAY_URL }, correlationIds });
+      const [listener] = subscribe(getCaseDetailsSubscription);
+      // Not only do we create the subscription, but we receive a reference to the subscription listener.
+      //  This lets us trigger the listener ourselves as we are not guaranteed to still have tags
+      //  left unregistered that will subsequently trigger an change event. In practice, dom tags and
+      //  prop tags DO come in later than this, but there is no logical guarantee.  So lets just trigger
+      //  manually with what we have, any later meaningful changes to tags will obviously retrigger.
+      listener.set?.("tags", get("tags"), undefined);
+    }
 
     const { trackPageView, rebindTrackEvent } = cachedResult("analytics", () => (flags.isE2eTestMode ? initialiseMockAnalytics() : initialiseAnalytics({ window, config, auth })));
     rebindTrackEvent({ correlationIds });

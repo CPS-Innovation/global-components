@@ -1,7 +1,7 @@
 import { _console } from "../../logging/_console";
-import { SubscriptionFactory } from "../store";
+import { SubscriptionFactory } from "./SubscriptionFactory";
 
-export const resetPreventionSubscription: SubscriptionFactory = () => ({
+export const resetPreventionSubscriptionFactory: SubscriptionFactory = () => ({
   reset: () => {
     throw new Error("We do not support resetting state - the initiation of state is done only in the startup of the app");
   },
