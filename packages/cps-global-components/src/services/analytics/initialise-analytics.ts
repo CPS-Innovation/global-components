@@ -9,13 +9,6 @@ import { _console } from "../../logging/_console";
 const STORAGE_PREFIX = "cps_global_components";
 
 type Props = { window: Window; config: Config; auth: AuthResult };
-declare global {
-  interface Window {
-    cps_global_components_build?: // title case properties as we put these values straight
-    // into analytics and that is the convention there
-    { Branch: string; Sha: string; RunId: number; Timestamp: string };
-  }
-}
 
 export const initialiseAnalytics = ({ window, config: { APP_INSIGHTS_KEY, ENVIRONMENT }, auth }: Props) => {
   if (!APP_INSIGHTS_KEY) {

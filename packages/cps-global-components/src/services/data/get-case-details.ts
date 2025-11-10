@@ -27,7 +27,11 @@ const getCaseDetailsInternal = async ({
   if (!(AD_GATEWAY_SCOPE && GATEWAY_URL)) {
     return;
   }
-  let headers: HeadersInit = { "Authorization": `Bearer ${await getToken({ config: { AD_GATEWAY_SCOPE } })}`, "Correlation-Id": navigationCorrelationId };
+  let headers: HeadersInit = {
+    "Authorization": `Bearer ${await getToken({ config: { AD_GATEWAY_SCOPE } })}`,
+    "Correlation-Id": navigationCorrelationId,
+    "X-Application": `cps-global-components/${window.cps_global_components_build?.Sha}`,
+  };
 
   if (cmsAuthFromStorageKey) {
     headers = { ...headers, "Cms-Auth-Values": sessionStorage.getItem(cmsAuthFromStorageKey) || localStorage.getItem(cmsAuthFromStorageKey) || "" };
