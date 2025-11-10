@@ -1,33 +1,10 @@
 import { CorrelationIds } from "../services/correlation/CorrelationIds";
-import { initialiseStore, readyState, isATagProperty } from "./store";
+import { initialiseStore, readyState } from "./store";
 
 describe("store", () => {
   // Initialize a fresh store before each test to ensure isolation
   beforeEach(() => {
     initialiseStore();
-  });
-
-  describe("isATagProperty", () => {
-    it("should return true for pathTags", () => {
-      expect(isATagProperty("pathTags")).toBe(true);
-    });
-
-    it("should return true for domTags", () => {
-      expect(isATagProperty("domTags")).toBe(true);
-    });
-
-    it("should return true for propTags", () => {
-      expect(isATagProperty("propTags")).toBe(true);
-    });
-
-    it("should return false for non-tag properties", () => {
-      expect(isATagProperty("flags")).toBe(false);
-      expect(isATagProperty("config")).toBe(false);
-      expect(isATagProperty("auth")).toBe(false);
-      expect(isATagProperty("context")).toBe(false);
-      expect(isATagProperty("caseDetails")).toBe(false);
-      expect(isATagProperty("fatalInitialisationError")).toBe(false);
-    });
   });
 
   describe("initialiseStore", () => {

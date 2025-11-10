@@ -134,6 +134,7 @@ describe("menuConfig", () => {
       pathTags: {},
       contextIndex: 0,
       msalRedirectUrl: "foo",
+      cmsAuthFromStorageKey: undefined,
     };
 
     const mockState: State = {
@@ -237,6 +238,7 @@ describe("menuConfig", () => {
       pathTags: {},
       contextIndex: 0,
       msalRedirectUrl: "foo",
+      cmsAuthFromStorageKey: undefined,
     };
 
     const mockState: State = {
@@ -300,6 +302,7 @@ describe("menuConfig", () => {
       pathTags: {},
       contextIndex: 0,
       msalRedirectUrl: "foo",
+      cmsAuthFromStorageKey: undefined,
     };
 
     const mockState: State = {
@@ -363,6 +366,7 @@ describe("menuConfig", () => {
       pathTags: foundTags,
       contextIndex: 0,
       msalRedirectUrl: "foo",
+      cmsAuthFromStorageKey: undefined,
     };
 
     const mockState: State = {
@@ -425,6 +429,7 @@ describe("menuConfig", () => {
       pathTags: foundTags,
       contextIndex: 0,
       msalRedirectUrl: "foo",
+      cmsAuthFromStorageKey: undefined,
     };
 
     const mockState: State = {

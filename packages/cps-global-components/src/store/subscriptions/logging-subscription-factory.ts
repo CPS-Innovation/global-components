@@ -2,10 +2,12 @@ import { _console } from "../../logging/_console";
 import { SubscriptionFactory } from "./SubscriptionFactory";
 
 export const loggingSubscriptionFactory: SubscriptionFactory = () => ({
-  set: (key, newValue) => {
-    _console.debug("Store", `Setting ${key}`, newValue);
+  subscription: {
+    set: (key, newValue) => {
+      _console.debug("Store", `Setting ${key}`, newValue);
+    },
+    // get: key => {
+    //   _console.debug("Store", `Getting ${key}`);
+    // },
   },
-  // get: key => {
-  //   _console.debug("Store", `Getting ${key}`);
-  // },
 });
