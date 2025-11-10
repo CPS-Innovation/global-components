@@ -24,7 +24,7 @@ const getCaseDetailsInternal = async ({
   correlationIds: { navigationCorrelationId },
   window: { sessionStorage, localStorage },
 }: GetCaseDetailsProps) => {
-  if (!AD_GATEWAY_SCOPE && GATEWAY_URL) {
+  if (!(AD_GATEWAY_SCOPE && GATEWAY_URL)) {
     return;
   }
   let headers: HeadersInit = { "Authorization": `Bearer ${await getToken({ config: { AD_GATEWAY_SCOPE } })}`, "Correlation-Id": navigationCorrelationId };
