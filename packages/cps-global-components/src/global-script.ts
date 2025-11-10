@@ -23,20 +23,18 @@ import { getCaseDetailsSubscriptionFactory } from "./services/data/get-case-deta
 //  and the components themselves will know when the minimum setup that they need is
 //  ready.  This means that a long-running auth process will not stop components that
 //  do not need auth from rendering.
-export default /* do not make this async */ () => {
-  (async () => {
-    const scriptLoadCorrelationId = uuidv4();
-    handleSetOverrideMode({ window });
-    // For first initialisation we want our two correlationIds to be the same
-    initialise({ scriptLoadCorrelationId, navigationCorrelationId: scriptLoadCorrelationId });
+export default /* do not await this */ () => {
+  const scriptLoadCorrelationId = uuidv4();
+  handleSetOverrideMode({ window });
+  // For first initialisation we want our two correlationIds to be the same
+  initialise({ scriptLoadCorrelationId, navigationCorrelationId: scriptLoadCorrelationId });
 
-    // Every time we detect a SPA navigation (i.e. not a full page reload), lets rerun our initialisation
-    //  logic as out context may have changed
-    window.navigation?.addEventListener("navigatesuccess", async event => {
-      _console.debug("Global script", "navigation", event);
-      initialise({ scriptLoadCorrelationId, navigationCorrelationId: uuidv4() });
-    });
-  })();
+  // Every time we detect a SPA navigation (i.e. not a full page reload), lets rerun our initialisation
+  //  logic as out context may have changed
+  window.navigation?.addEventListener("navigatesuccess", async event => {
+    _console.debug("Global script", "navigation", event);
+    initialise({ scriptLoadCorrelationId, navigationCorrelationId: uuidv4() });
+  });
 };
 
 const initialise = async (correlationIds: CorrelationIds) => {
@@ -74,8 +72,11 @@ const initialise = async (correlationIds: CorrelationIds) => {
 
     handleContextAuthorisation({ window, context, auth });
 
-    // todo: REsubscribe as this will be called on repeated navigations
-    subscribe(getCaseDetailsSubscriptionFactory({ window, config, context, getToken, correlationIds, register }));
+    // Our context may change as SPA navigations occur, so lets just dispose of our subscriber every time
+    //  and create a new one
+    getCaseDetailsUnSubscriber();
+    const [unSubscriber] = subscribe(getCaseDetailsSubscriptionFactory({ window, config, context, getToken, correlationIds, register }));
+    getCaseDetailsUnSubscriber = unSubscriber;
 
     const { trackPageView, rebindTrackEvent } = cachedResult("analytics", () => (flags.isE2eTestMode ? initialiseMockAnalytics() : initialiseAnalytics({ window, config, auth })));
     rebindTrackEvent({ window, correlationIds });
@@ -85,6 +86,8 @@ const initialise = async (correlationIds: CorrelationIds) => {
     register({ fatalInitialisationError: error });
   }
 };
+
+let getCaseDetailsUnSubscriber: () => void = () => {};
 
 // todo: as using register is fire and forget, we could use an event
 export let register: Register;

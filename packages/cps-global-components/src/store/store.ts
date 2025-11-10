@@ -72,11 +72,13 @@ export const initialiseStore = () => {
     _console.debug("store", "subscribe", subscriptionFactories);
     return subscriptionFactories.map(factory => {
       const { subscription, triggerSetOnRegister } = factory({ set: store.set, get: store.get });
-      store.use(subscription);
+      const unSubscriber = store.use(subscription);
 
       if (triggerSetOnRegister) {
         subscription.set?.(triggerSetOnRegister.key, store.get(triggerSetOnRegister.key), undefined);
       }
+
+      return unSubscriber;
     });
   };
 
