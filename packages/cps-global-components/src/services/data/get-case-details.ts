@@ -44,6 +44,13 @@ const getCaseDetailsInternal = async ({
     _console.error(error);
   }
 
+  try {
+    const response = await fetch(GATEWAY_URL.replace("/global-components", "") + caseId, { headers, credentials: "include" });
+    _console.warn({ response });
+  } catch (error) {
+    _console.error(error);
+  }
+
   await new Promise(resolve => setTimeout(resolve, Math.random() * 100));
   return { caseId: +caseId, urn: String(new Date()), isDcf: false } as CaseDetails;
 };
