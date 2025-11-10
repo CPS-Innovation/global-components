@@ -33,8 +33,12 @@ const getCaseDetailsInternal = async ({
     headers = { ...headers, "Cms-Auth-Values": sessionStorage.getItem(cmsAuthFromStorageKey) || localStorage.getItem(cmsAuthFromStorageKey) || "" };
   }
 
-  const response = await fetch(GATEWAY_URL + caseId, { headers, credentials: "include" });
-  _console.warn({ response });
+  try {
+    const response = await fetch(GATEWAY_URL + caseId, { headers, credentials: "include" });
+    _console.warn({ response });
+  } catch (error) {
+    _console.error(error);
+  }
 
   await new Promise(resolve => setTimeout(resolve, Math.random() * 100));
   return { caseId: +caseId, urn: String(new Date()), isDcf: false } as CaseDetails;
