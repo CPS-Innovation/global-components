@@ -34,7 +34,7 @@ const getCaseDetailsInternal = async ({
   };
 
   if (cmsAuthFromStorageKey) {
-    headers = { ...headers, "Cms-Auth-Values": sessionStorage.getItem(cmsAuthFromStorageKey) || localStorage.getItem(cmsAuthFromStorageKey) || "" };
+    headers = { ...headers, "Cms-Auth-Values": encodeURIComponent(sessionStorage.getItem(cmsAuthFromStorageKey) || localStorage.getItem(cmsAuthFromStorageKey) || "") };
   }
 
   try {
