@@ -23,24 +23,22 @@ import { getCaseDetailsSubscriptionFactory } from "./services/data/get-case-deta
 //  and the components themselves will know when the minimum setup that they need is
 //  ready.  This means that a long-running auth process will not stop components that
 //  do not need auth from rendering.
-export default /* do not make this async */ () => {
-  (async () => {
-    const scriptLoadCorrelationId = uuidv4();
-    handleSetOverrideMode({ window });
-    // For first initialisation we want our two correlationIds to be the same
-    initialise({ scriptLoadCorrelationId, navigationCorrelationId: scriptLoadCorrelationId });
+export default /* do not await this */ () => {
+  const scriptLoadCorrelationId = uuidv4();
+  handleSetOverrideMode({ window });
+  // For first initialisation we want our two correlationIds to be the same
+  initialise({ scriptLoadCorrelationId, navigationCorrelationId: scriptLoadCorrelationId });
 
-    // Every time we detect a SPA navigation (i.e. not a full page reload), lets rerun our initialisation
-    //  logic as out context may have changed
-    window.navigation?.addEventListener("navigatesuccess", async event => {
-      _console.debug("Global script", "navigation", event);
-      initialise({ scriptLoadCorrelationId, navigationCorrelationId: uuidv4() });
-    });
-  })();
+  // Every time we detect a SPA navigation (i.e. not a full page reload), lets rerun our initialisation
+  //  logic as out context may have changed
+  window.navigation?.addEventListener("navigatesuccess", async event => {
+    _console.debug("Global script", "navigation", event);
+    initialise({ scriptLoadCorrelationId, navigationCorrelationId: uuidv4() });
+  });
 };
 
 const initialise = async (correlationIds: CorrelationIds) => {
-  const { register: r, resetContextSpecificTags, subscribe, get } = cachedResult("store", () => initialiseStore());
+  const { register: r, resetContextSpecificTags, subscribe } = cachedResult("store", () => initialiseStore());
   register = r;
   register({ correlationIds });
   // We reset the tags to empty as we could be being called after a navigate in a SPA
@@ -74,20 +72,14 @@ const initialise = async (correlationIds: CorrelationIds) => {
 
     handleContextAuthorisation({ window, context, auth });
 
-    const { AD_GATEWAY_SCOPE, GATEWAY_URL } = config;
-    if (AD_GATEWAY_SCOPE && GATEWAY_URL) {
-      const getCaseDetailsSubscription = getCaseDetailsSubscriptionFactory({ register, getToken, config: { AD_GATEWAY_SCOPE, GATEWAY_URL }, correlationIds });
-      const [listener] = subscribe(getCaseDetailsSubscription);
-      // Not only do we create the subscription, but we receive a reference to the subscription listener.
-      //  This lets us trigger the listener ourselves as we are not guaranteed to still have tags
-      //  left unregistered that will subsequently trigger an change event. In practice, dom tags and
-      //  prop tags DO come in later than this, but there is no logical guarantee.  So lets just trigger
-      //  manually with what we have, any later meaningful changes to tags will obviously retrigger.
-      listener.set?.("tags", get("tags"), undefined);
-    }
+    // Our context may change as SPA navigations occur, so lets just dispose of our subscriber every time
+    //  and create a new one
+    getCaseDetailsUnSubscriber();
+    const [unSubscriber] = subscribe(getCaseDetailsSubscriptionFactory({ window, config, context, getToken, correlationIds, register }));
+    getCaseDetailsUnSubscriber = unSubscriber;
 
     const { trackPageView, rebindTrackEvent } = cachedResult("analytics", () => (flags.isE2eTestMode ? initialiseMockAnalytics() : initialiseAnalytics({ window, config, auth })));
-    rebindTrackEvent({ correlationIds });
+    rebindTrackEvent({ window, correlationIds });
     trackPageView({ context, correlationIds });
   } catch (error) {
     _console.error(error);
@@ -95,4 +87,7 @@ const initialise = async (correlationIds: CorrelationIds) => {
   }
 };
 
+let getCaseDetailsUnSubscriber: () => void = () => {};
+
+// todo: as using register is fire and forget, we could use an event
 export let register: Register;

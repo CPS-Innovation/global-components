@@ -50,6 +50,7 @@ const contextSchema = z.object({
   showMenuOverride: z
     .union([z.literal("always-show-menu"), z.literal("never-show-menu")])
     .optional(),
+  cmsAuthFromStorageKey: z.string().optional(),
 });
 
 export type Context = z.infer<typeof contextSchema>;

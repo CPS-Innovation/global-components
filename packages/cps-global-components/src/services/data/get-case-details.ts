@@ -5,25 +5,33 @@ import { GetToken } from "../auth/GetToken";
 import { CaseIdentifiers } from "../context/CaseIdentifiers";
 import { CaseDetails } from "./types";
 import { CorrelationIds } from "../correlation/CorrelationIds";
-
-type RequiredDefined<T> = {
-  [K in keyof T]-?: Exclude<T[K], undefined>;
-};
+import { FoundContext } from "../context/FoundContext";
 
 export type GetCaseDetailsProps = {
   caseIdentifiers: CaseIdentifiers;
   getToken: GetToken;
-  config: RequiredDefined<Pick<Config, "AD_GATEWAY_SCOPE" | "GATEWAY_URL">>;
+  config: Pick<Config, "AD_GATEWAY_SCOPE" | "GATEWAY_URL">;
+  context: FoundContext;
   correlationIds: CorrelationIds;
+  window: { sessionStorage: Storage; localStorage: Storage };
 };
 
 const getCaseDetailsInternal = async ({
   caseIdentifiers: { caseId },
   config: { AD_GATEWAY_SCOPE, GATEWAY_URL },
   getToken,
+  context: { cmsAuthFromStorageKey },
   correlationIds: { navigationCorrelationId },
+  window: { sessionStorage, localStorage },
 }: GetCaseDetailsProps) => {
-  const headers = { "Authorization": `Bearer ${await getToken({ config: { AD_GATEWAY_SCOPE } })}`, "Correlation-Id": navigationCorrelationId };
+  if (!(AD_GATEWAY_SCOPE && GATEWAY_URL)) {
+    return;
+  }
+  let headers: HeadersInit = { "Authorization": `Bearer ${await getToken({ config: { AD_GATEWAY_SCOPE } })}`, "Correlation-Id": navigationCorrelationId };
+
+  if (cmsAuthFromStorageKey) {
+    headers = { ...headers, "Cms-Auth-Values": sessionStorage.getItem(cmsAuthFromStorageKey) || localStorage.getItem(cmsAuthFromStorageKey) || "" };
+  }
 
   const response = await fetch(GATEWAY_URL + caseId, { headers });
   _console.warn({ response });

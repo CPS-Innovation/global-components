@@ -60,7 +60,7 @@ export const initialiseAnalytics = ({ window, config: { APP_INSIGHTS_KEY, ENVIRO
 
   let listenerRef: EventListenerOrEventListenerObject = () => {};
 
-  const rebindTrackEvent = ({ correlationIds }: { correlationIds: CorrelationIds }) => {
+  const rebindTrackEvent = ({ window, correlationIds }: { window: Window; correlationIds: CorrelationIds }) => {
     _console.debug("initialiseAnalytics", "rebindTrackEvent", correlationIds);
 
     window.removeEventListener(AnalyticsEvent.type, listenerRef);

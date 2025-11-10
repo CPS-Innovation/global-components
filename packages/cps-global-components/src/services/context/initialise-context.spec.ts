@@ -282,6 +282,7 @@ describe("initialiseContext", () => {
           postId: "456",
         },
         msalRedirectUrl: "foo",
+        cmsAuthFromStorageKey: undefined,
       } as FoundContext);
     });
 
