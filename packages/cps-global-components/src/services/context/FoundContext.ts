@@ -6,7 +6,8 @@ export type FoundContext =
       found: true;
       pathTags: Tags;
       contextIndex: number;
-      msalRedirectUrl: string;
+      msalRedirectUrl: Context["msalRedirectUrl"];
+      cmsAuthFromStorageKey: Context["cmsAuthFromStorageKey"];
     })
   | {
       found: false;
@@ -14,4 +15,5 @@ export type FoundContext =
       domTagDefinitions?: undefined;
       contextIndex?: undefined;
       msalRedirectUrl?: undefined;
+      cmsAuthFromStorageKey?: undefined;
     };

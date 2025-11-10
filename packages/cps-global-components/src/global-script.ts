@@ -40,7 +40,7 @@ export default /* do not make this async */ () => {
 };
 
 const initialise = async (correlationIds: CorrelationIds) => {
-  const { register: r, resetContextSpecificTags, subscribe, get } = cachedResult("store", () => initialiseStore());
+  const { register: r, resetContextSpecificTags, subscribe } = cachedResult("store", () => initialiseStore());
   register = r;
   register({ correlationIds });
   // We reset the tags to empty as we could be being called after a navigate in a SPA
@@ -74,20 +74,11 @@ const initialise = async (correlationIds: CorrelationIds) => {
 
     handleContextAuthorisation({ window, context, auth });
 
-    const { AD_GATEWAY_SCOPE, GATEWAY_URL } = config;
-    if (AD_GATEWAY_SCOPE && GATEWAY_URL) {
-      const getCaseDetailsSubscription = getCaseDetailsSubscriptionFactory({ register, getToken, config: { AD_GATEWAY_SCOPE, GATEWAY_URL }, correlationIds });
-      const [listener] = subscribe(getCaseDetailsSubscription);
-      // Not only do we create the subscription, but we receive a reference to the subscription listener.
-      //  This lets us trigger the listener ourselves as we are not guaranteed to still have tags
-      //  left unregistered that will subsequently trigger an change event. In practice, dom tags and
-      //  prop tags DO come in later than this, but there is no logical guarantee.  So lets just trigger
-      //  manually with what we have, any later meaningful changes to tags will obviously retrigger.
-      listener.set?.("tags", get("tags"), undefined);
-    }
+    // todo: REsubscribe as this will be called on repeated navigations
+    subscribe(getCaseDetailsSubscriptionFactory({ window, config, context, getToken, correlationIds, register }));
 
     const { trackPageView, rebindTrackEvent } = cachedResult("analytics", () => (flags.isE2eTestMode ? initialiseMockAnalytics() : initialiseAnalytics({ window, config, auth })));
-    rebindTrackEvent({ correlationIds });
+    rebindTrackEvent({ window, correlationIds });
     trackPageView({ context, correlationIds });
   } catch (error) {
     _console.error(error);
@@ -95,4 +86,5 @@ const initialise = async (correlationIds: CorrelationIds) => {
   }
 };
 
+// todo: as using register is fire and forget, we could use an event
 export let register: Register;

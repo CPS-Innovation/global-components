@@ -71,22 +71,25 @@ export const initialiseStore = () => {
   const subscribe = (...subscriptionFactories: SubscriptionFactory[]) => {
     _console.debug("store", "subscribe", subscriptionFactories);
     return subscriptionFactories.map(factory => {
-      const subscription = factory({ set: store.set, get: store.get });
+      const { subscription, triggerSetOnRegister } = factory({ set: store.set, get: store.get });
       store.use(subscription);
-      return subscription;
+
+      if (triggerSetOnRegister) {
+        subscription.set?.(triggerSetOnRegister.key, store.get(triggerSetOnRegister.key), undefined);
+      }
     });
   };
 
   subscribe(resetPreventionSubscriptionFactory, loggingSubscriptionFactory, tagsSubscriptionFactory);
 
-  return { register, resetContextSpecificTags, subscribe, get: store.get };
+  return { register, resetContextSpecificTags, subscribe };
 };
 
 // This state is computed from the stored state
 type DerivedState = { initialisationStatus: undefined | "ready" | "broken" };
 
-export const isATagProperty = (key: keyof StoredState): key is PrivateTagProperties => privateTagProperties.includes(key as PrivateTagProperties);
-
+// todo: rethink if we need this - so far it is only used to let e2e tests know they
+//  are ready to run
 const getInitialisationStatus = (): DerivedState["initialisationStatus"] => {
   if (store.state.fatalInitialisationError) {
     return "broken";

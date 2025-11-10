@@ -26,7 +26,8 @@
         "background-color": "transparent",
         "box-shadow": "none"
       },
-      "msalRedirectUrl": "https://cps-tst.outsystemsenterprise.com/Casework_Patterns/auth-handover-test.html"
+      "msalRedirectUrl": "https://cps-tst.outsystemsenterprise.com/Casework_Patterns/auth-handover-test.html",
+      "cmsAuthFromStorageKey": "$OS_Users$Casework_Blocks$ClientVars$JSONString"
     },
     {
       "paths": ["https://cps-tst.outsystemsenterprise.com/casework_blocks"],
@@ -36,7 +37,8 @@
         "background-color": "transparent",
         "box-shadow": "none"
       },
-      "msalRedirectUrl": "https://cps-tst.outsystemsenterprise.com/Casework_Patterns/auth-handover-test.html"
+      "msalRedirectUrl": "https://cps-tst.outsystemsenterprise.com/Casework_Patterns/auth-handover-test.html",
+      "cmsAuthFromStorageKey": "$OS_Users$Casework_Blocks$ClientVars$JSONString"
     },
     {
       "paths": [
@@ -61,6 +63,7 @@
         "box-shadow": "none"
       },
       "msalRedirectUrl": "https://cps-tst.outsystemsenterprise.com/Casework_Patterns/auth-handover-test.html",
+      "cmsAuthFromStorageKey": "$OS_Users$CaseReview$ClientVars$CmsAuthValues",
       "domTagDefinitions": [
         {
           "cssSelector": "div#URN_Container",
@@ -76,7 +79,8 @@
         "background-color": "transparent",
         "box-shadow": "none"
       },
-      "msalRedirectUrl": "https://cps-tst.outsystemsenterprise.com/Casework_Patterns/auth-handover-test.html"
+      "msalRedirectUrl": "https://cps-tst.outsystemsenterprise.com/Casework_Patterns/auth-handover-test.html",
+      "cmsAuthFromStorageKey": "$OS_Users$CaseReview$ClientVars$CmsAuthValues"
     },
     {
       "paths": [
@@ -88,7 +92,8 @@
         "background-color": "transparent",
         "box-shadow": "none"
       },
-      "msalRedirectUrl": "https://cps-tst.outsystemsenterprise.com/Casework_Patterns/auth-handover-test.html"
+      "msalRedirectUrl": "https://cps-tst.outsystemsenterprise.com/Casework_Patterns/auth-handover-test.html",
+      "cmsAuthFromStorageKey": "$OS_Users$WorkManagementApp$ClientVars$JSONString"
     },
     {
       "paths": [
@@ -100,7 +105,8 @@
         "background-color": "transparent",
         "box-shadow": "none"
       },
-      "msalRedirectUrl": "https://cps-tst.outsystemsenterprise.com/Casework_Patterns/auth-handover-test.html"
+      "msalRedirectUrl": "https://cps-tst.outsystemsenterprise.com/Casework_Patterns/auth-handover-test.html",
+      "cmsAuthFromStorageKey": "$OS_Users$WorkManagementApp$ClientVars$JSONString"
     },
     {
       "paths": [
@@ -112,7 +118,8 @@
         "background-color": "transparent",
         "box-shadow": "none"
       },
-      "msalRedirectUrl": "https://cps-tst.outsystemsenterprise.com/Casework_Patterns/auth-handover-test.html"
+      "msalRedirectUrl": "https://cps-tst.outsystemsenterprise.com/Casework_Patterns/auth-handover-test.html",
+      "cmsAuthFromStorageKey": "$OS_Users$WorkManagementApp$ClientVars$JSONString"
     },
     {
       "paths": [
@@ -124,7 +131,8 @@
         "background-color": "transparent",
         "box-shadow": "none"
       },
-      "msalRedirectUrl": "https://cps-tst.outsystemsenterprise.com/Casework_Patterns/auth-handover-test.html"
+      "msalRedirectUrl": "https://cps-tst.outsystemsenterprise.com/Casework_Patterns/auth-handover-test.html",
+      "cmsAuthFromStorageKey": "$OS_Users$WorkManagementApp$ClientVars$JSONString"
     },
     {
       "paths": ["https://cps-tst.outsystemsenterprise.com/WorkManagementApp"],
@@ -134,7 +142,8 @@
         "background-color": "transparent",
         "box-shadow": "none"
       },
-      "msalRedirectUrl": "https://cps-tst.outsystemsenterprise.com/Casework_Patterns/auth-handover-test.html"
+      "msalRedirectUrl": "https://cps-tst.outsystemsenterprise.com/Casework_Patterns/auth-handover-test.html",
+      "cmsAuthFromStorageKey": "$OS_Users$WorkManagementApp$ClientVars$JSONString"
     },
     {
       "paths": ["https://housekeeping"],
