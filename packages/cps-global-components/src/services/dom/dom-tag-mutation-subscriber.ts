@@ -1,9 +1,9 @@
 import { domTagDefinitions } from "cps-global-configuration/dist/schema";
-import { Register } from "../../store/store";
+import { MergeTags } from "../../store/store";
 import { DomMutationObserver } from "./DomMutationSubscriber";
 import { _console } from "../../logging/_console";
 
-export const domTagMutationSubscriber = ({ register }: { register: Register }): DomMutationObserver => {
+export const domTagMutationSubscriber = ({ mergeTags }: { mergeTags: MergeTags }): DomMutationObserver => {
   return ({ context }) => ({
     isActiveForContext: !!context.domTagDefinitions?.length,
     subscriptions: (context.domTagDefinitions || []).map(({ cssSelector }) => ({
@@ -11,7 +11,7 @@ export const domTagMutationSubscriber = ({ register }: { register: Register }): 
       handler: element => {
         _console.debug("Dom observation handler firing for", element);
         const domTags = extractTagsFromElement(element, context.domTagDefinitions!);
-        register({ domTags });
+        mergeTags({ domTags });
       },
     })),
   });
