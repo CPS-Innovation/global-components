@@ -153,7 +153,11 @@
       "domTagDefinitions": [
         {
           "cssSelector": "a[href*='/polaris-ui/case-details/']",
-          "regex": "/polaris-ui/case-details/(?<urn>[^/]+)/(?<caseId>\\d+)\""
+          "regex": "/polaris-ui/case-details/.*/(?<caseId>\\d+)\""
+        },
+        {
+          "cssSelector": "div.case-info-details p",
+          "regex": ">(?<urn>[^<]+)"
         }
       ]
     },
