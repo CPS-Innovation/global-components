@@ -8,12 +8,14 @@ describe("store", () => {
   });
 
   describe("initialiseStore", () => {
-    it("should return register and resetContextSpecificTags functions", () => {
+    it("should return register, mergeTags and resetContextSpecificTags functions", () => {
       const result = initialiseStore();
 
       expect(result).toHaveProperty("register");
+      expect(result).toHaveProperty("mergeTags");
       expect(result).toHaveProperty("resetContextSpecificTags");
       expect(typeof result.register).toBe("function");
+      expect(typeof result.mergeTags).toBe("function");
       expect(typeof result.resetContextSpecificTags).toBe("function");
     });
 
@@ -64,6 +66,141 @@ describe("store", () => {
         const result = readyState("flags");
         if (result.isReady) {
           expect(result.state.flags).toEqual({ isDevelopment: false });
+        }
+      });
+    });
+
+    describe("mergeTags function", () => {
+      it("should merge new tags with existing pathTags", () => {
+        const { register, mergeTags } = initialiseStore();
+
+        register({ pathTags: { caseId: "123", userId: "456" } });
+        mergeTags({ pathTags: { caseId: "789", newKey: "abc" } });
+
+        const result = readyState("tags");
+        if (result.isReady) {
+          expect(result.state.tags).toEqual({
+            caseId: "789", // Updated value
+            userId: "456", // Preserved value
+            newKey: "abc", // New value
+          });
+        }
+      });
+
+      it("should merge new tags with existing domTags", () => {
+        const { register, mergeTags } = initialiseStore();
+
+        register({ domTags: { urn: "original", key1: "value1" } });
+        mergeTags({ domTags: { urn: "updated", key2: "value2" } });
+
+        const result = readyState("tags");
+        if (result.isReady) {
+          expect(result.state.tags).toEqual({
+            urn: "updated",
+            key1: "value1",
+            key2: "value2",
+          });
+        }
+      });
+
+      it("should merge new tags with existing propTags", () => {
+        const { register, mergeTags } = initialiseStore();
+
+        register({ propTags: { userId: "user1", role: "admin" } });
+        mergeTags({ propTags: { userId: "user2", department: "IT" } });
+
+        const result = readyState("tags");
+        if (result.isReady) {
+          expect(result.state.tags).toEqual({
+            userId: "user2",
+            role: "admin",
+            department: "IT",
+          });
+        }
+      });
+
+      it("should merge tags across multiple tag types", () => {
+        const { register, mergeTags } = initialiseStore();
+
+        register({
+          pathTags: { caseId: "123" },
+          domTags: { urn: "456" },
+          propTags: { userId: "789" },
+        });
+
+        mergeTags({
+          pathTags: { status: "active" },
+          domTags: { urn: "updated-urn" },
+        });
+
+        const result = readyState("tags");
+        if (result.isReady) {
+          expect(result.state.tags).toEqual({
+            caseId: "123", // Preserved from pathTags
+            status: "active", // New in pathTags
+            urn: "updated-urn", // Updated in domTags (overrides pathTags)
+            userId: "789", // Preserved from propTags (overrides both)
+          });
+        }
+      });
+
+      it("should handle merging when tag type was not previously set", () => {
+        const { mergeTags } = initialiseStore();
+
+        mergeTags({ pathTags: { caseId: "123" } });
+
+        const result = readyState("tags");
+        if (result.isReady) {
+          expect(result.state.tags).toEqual({
+            caseId: "123",
+          });
+        }
+      });
+
+      it("should not affect other tag types when merging one type", () => {
+        const { register, mergeTags } = initialiseStore();
+
+        register({
+          pathTags: { caseId: "123" },
+          domTags: { urn: "456" },
+          propTags: { userId: "789" },
+        });
+
+        mergeTags({ pathTags: { newKey: "newValue" } });
+
+        const result = readyState("tags");
+        if (result.isReady) {
+          expect(result.state.tags).toEqual({
+            caseId: "123",
+            newKey: "newValue",
+            urn: "456", // Unchanged
+            userId: "789", // Unchanged
+          });
+        }
+      });
+
+      it("should maintain tag precedence (propTags > domTags > pathTags) after merging", () => {
+        const { register, mergeTags } = initialiseStore();
+
+        register({
+          pathTags: { key: "path-value", pathOnly: "path" },
+          domTags: { key: "dom-value", domOnly: "dom" },
+          propTags: { key: "prop-value", propOnly: "prop" },
+        });
+
+        mergeTags({
+          pathTags: { key: "new-path-value" },
+          domTags: { key: "new-dom-value" },
+        });
+
+        const result = readyState("tags");
+        if (result.isReady) {
+          expect(result.state.tags).toEqual({
+            key: "prop-value", // propTags still wins
+            pathOnly: "path",
+            domOnly: "dom",
+            propOnly: "prop",
+          });
         }
       });
     });
