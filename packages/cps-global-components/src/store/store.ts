@@ -13,6 +13,10 @@ import { CorrelationIds } from "../services/correlation/CorrelationIds";
 import { tagsSubscriptionFactory } from "./subscriptions/tags-subscription-factory";
 import { SubscriptionFactory } from "./subscriptions/SubscriptionFactory";
 
+type PickOfType<T, U> = {
+  [K in keyof T as T[K] extends U ? K : never]: T[K];
+};
+
 export const privateTagProperties = ["pathTags", "domTags", "propTags"] as const;
 export type PrivateTagProperties = (typeof privateTagProperties)[number]; // gives us a union definition: "pathTags" | "domTags" | "propTags"
 
@@ -41,6 +45,8 @@ export type StoredState = MakeUndefinable<DefinedStoredState>;
 
 export type Register = (arg: Partial<StoredState>) => void;
 
+export type MergeTags = (arg: Partial<PickOfType<DefinedStoredState, Tags>>) => void;
+
 const initialState: StoredState = {
   ...initialStartupState,
   ...initialTransientState,
@@ -58,7 +64,9 @@ export const initialiseStore = () => {
     (newValue, oldValue) => JSON.stringify(newValue) !== JSON.stringify(oldValue),
   );
 
-  const register = (arg: Partial<StoredState>) => (Object.keys(arg) as (keyof StoredState)[]).forEach(key => store.set(key, arg[key]));
+  const register = (arg: Partial<StoredState>) => Object.keys(arg).forEach((key: keyof StoredState) => store.set(key, arg[key]));
+
+  const mergeTags: MergeTags = arg => Object.keys(arg).forEach((key: keyof PickOfType<DefinedStoredState, Tags>) => store.set(key, { ...store.get(key), ...arg[key] }));
 
   const resetContextSpecificTags = () => {
     // Note: tags obtained from props passed from the host apps should not be cleared on context change.
@@ -84,7 +92,7 @@ export const initialiseStore = () => {
 
   subscribe(resetPreventionSubscriptionFactory, loggingSubscriptionFactory, tagsSubscriptionFactory);
 
-  return { register, resetContextSpecificTags, subscribe };
+  return { register, mergeTags, resetContextSpecificTags, subscribe };
 };
 
 // This state is computed from the stored state

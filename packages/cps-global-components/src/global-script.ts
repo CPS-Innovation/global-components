@@ -38,7 +38,7 @@ export default /* do not await this */ () => {
 };
 
 const initialise = async (correlationIds: CorrelationIds) => {
-  const { register: r, resetContextSpecificTags, subscribe } = cachedResult("store", () => initialiseStore());
+  const { register: r, resetContextSpecificTags, subscribe, mergeTags } = cachedResult("store", () => initialiseStore());
   register = r;
   register({ correlationIds });
   // We reset the tags to empty as we could be being called after a navigate in a SPA
@@ -49,7 +49,7 @@ const initialise = async (correlationIds: CorrelationIds) => {
     //  We use `cachedResult` give us the ability to rerun this function many times while ensuring that the one-time-only
     //  operations are only executed once (alternative would be lots of if statements or similar)
     const { initialiseDomForContext } = cachedResult("dom", () =>
-      initialiseDomObservation({ window }, domTagMutationSubscriber({ register }), ...outSystemsShimSubscribers({ window })),
+      initialiseDomObservation({ window }, domTagMutationSubscriber({ mergeTags }), ...outSystemsShimSubscribers({ window })),
     );
 
     const flags = cachedResult("flags", () => getApplicationFlags({ window }));
