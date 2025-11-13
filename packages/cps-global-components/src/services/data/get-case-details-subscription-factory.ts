@@ -56,8 +56,8 @@ export const getCaseDetailsSubscriptionFactory =
             caseDetailsCache
               .fetch(lastKnownCaseIdentifier.caseId, () => getCaseDetails({ window, caseIdentifiers, getToken, config, context, correlationIds }))
               .then(caseDetails => {
-                register({ caseDetails });
                 mergeTags({ caseDetailsTags: extractTagsFromCaseDetails(caseDetails) });
+                register({ caseDetails });
               });
           }
         },
