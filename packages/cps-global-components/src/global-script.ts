@@ -17,6 +17,7 @@ import { handleContextAuthorisation } from "./services/authorisation/handle-cont
 import { cachedResult } from "./utils/cached-result";
 import { CorrelationIds } from "./services/correlation/CorrelationIds";
 import { getCaseDetailsSubscriptionFactory } from "./services/data/get-case-details-subscription-factory";
+import { createCache } from "./services/cache/create-cache";
 
 // Don't return a promise otherwise stencil will wait for all of this to be complete
 //  before rendering.  Using the registerToStore function means we can render immediately
@@ -67,6 +68,8 @@ const initialise = async (correlationIds: CorrelationIds) => {
     initialiseDomForContext({ context });
     handleOutSystemsForcedAuth({ window, config, context });
 
+    const cache = createCache("cps-global-components");
+    _console.debug("global-script", cache.getStats());
     const { auth, getToken } = await cachedResult("auth", () => (flags.isE2eTestMode ? initialiseMockAuth({ window }) : initialiseAuth({ window, config, context })));
     register({ auth });
 
@@ -75,7 +78,7 @@ const initialise = async (correlationIds: CorrelationIds) => {
     // Our context may change as SPA navigations occur, so lets just dispose of our subscriber every time
     //  and create a new one
     getCaseDetailsUnSubscriber();
-    const [unSubscriber] = subscribe(getCaseDetailsSubscriptionFactory({ window, config, context, getToken, correlationIds, register }));
+    const [unSubscriber] = subscribe(getCaseDetailsSubscriptionFactory({ window, config, context, getToken, correlationIds, register, mergeTags, cache }));
     getCaseDetailsUnSubscriber = unSubscriber;
 
     const { trackPageView, rebindTrackEvent } = cachedResult("analytics", () => (flags.isE2eTestMode ? initialiseMockAnalytics() : initialiseAnalytics({ window, config, auth })));

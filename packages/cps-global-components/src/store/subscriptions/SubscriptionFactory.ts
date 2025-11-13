@@ -5,4 +5,4 @@ type TriggerArgs = {
   key: keyof StoredState;
 };
 
-export type SubscriptionFactory = (arg: { get: Getter<StoredState>; set: Setter<StoredState> }) => { triggerSetOnRegister?: TriggerArgs; subscription: Subscription<StoredState> };
+export type SubscriptionFactory = (arg: { get: Getter<StoredState>; set: Setter<StoredState> }) => { triggerSetOnCreation?: TriggerArgs; subscription: Subscription<StoredState> };

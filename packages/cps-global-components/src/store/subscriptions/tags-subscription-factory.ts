@@ -12,6 +12,7 @@ export const tagsSubscriptionFactory: SubscriptionFactory = ({ get, set }) => ({
         set("tags", {
           ...get("pathTags"),
           ...get("domTags"),
+          ...get("caseDetailsTags"),
           ...get("propTags"),
         });
       }

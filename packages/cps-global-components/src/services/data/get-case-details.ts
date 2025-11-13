@@ -3,14 +3,14 @@ import { _console } from "../../logging/_console";
 import { withLogging } from "../../logging/with-logging";
 import { GetToken } from "../auth/GetToken";
 import { CaseIdentifiers } from "../context/CaseIdentifiers";
-import { CaseDetails } from "./types";
 import { CorrelationIds } from "../correlation/CorrelationIds";
 import { FoundContext } from "../context/FoundContext";
+import { CaseDetails } from "./CaseDetails";
 
 export type GetCaseDetailsProps = {
   caseIdentifiers: CaseIdentifiers;
   getToken: GetToken;
-  config: Pick<Config, "AD_GATEWAY_SCOPE" | "GATEWAY_URL">;
+  config: Pick<Config, "AD_GATEWAY_SCOPE" | "GATEWAY_URL" | "CACHE_CONFIG">;
   context: FoundContext;
   correlationIds: CorrelationIds;
   window: { sessionStorage: Storage; localStorage: Storage };
@@ -44,7 +44,6 @@ const getCaseDetailsInternal = async ({
     _console.error(error);
   }
 
-  await new Promise(resolve => setTimeout(resolve, Math.random() * 100));
   return { caseId: +caseId, urn: String(new Date()), isDcf: false } as CaseDetails;
 };
 

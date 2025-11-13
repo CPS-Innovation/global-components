@@ -1,5 +1,5 @@
-import { caseIdentifierKeys, CaseIdentifiers } from "./CaseIdentifiers";
-import { Tags } from "./Tags";
+import { caseIdentifierKeys, CaseIdentifiers } from "../context/CaseIdentifiers";
+import { Tags } from "../context/Tags";
 
 const isCaseIdentifiers = (tags: Tags): tags is CaseIdentifiers => "caseId" in tags && typeof tags.caseId === "string";
 

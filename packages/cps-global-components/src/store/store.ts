@@ -6,12 +6,12 @@ import { FoundContext } from "../services/context/FoundContext";
 import { ApplicationFlags } from "../services/application-flags/ApplicationFlags";
 import { loggingSubscriptionFactory } from "./subscriptions/logging-subscription-factory";
 import { resetPreventionSubscriptionFactory } from "./subscriptions/reset-prevention-subscription-factory";
-import { CaseDetails } from "../services/data/types";
 import { Tags } from "../services/context/Tags";
 import { withLogging } from "../logging/with-logging";
 import { CorrelationIds } from "../services/correlation/CorrelationIds";
 import { tagsSubscriptionFactory } from "./subscriptions/tags-subscription-factory";
 import { SubscriptionFactory } from "./subscriptions/SubscriptionFactory";
+import { CaseDetails } from "../services/data/CaseDetails";
 
 type PickOfType<T, U> = {
   [K in keyof T as T[K] extends U ? K : never]: T[K];
@@ -29,8 +29,16 @@ type StartupState = { flags: ApplicationFlags; config: Config; auth: AuthResult 
 const initialStartupState = { flags: undefined, config: undefined, auth: undefined };
 
 // This state could change (e.g. history-based non-full-refresh navigation or dom tags changing)
-type TransientState = { context: FoundContext; propTags: Tags; pathTags: Tags; domTags: Tags; caseDetails: CaseDetails; correlationIds: CorrelationIds };
-const initialTransientState = { context: undefined, propTags: undefined, pathTags: undefined, domTags: undefined, caseDetails: undefined, correlationIds: undefined };
+type TransientState = { context: FoundContext; propTags: Tags; pathTags: Tags; domTags: Tags; caseDetailsTags: Tags; caseDetails: CaseDetails; correlationIds: CorrelationIds };
+const initialTransientState = {
+  context: undefined,
+  propTags: undefined,
+  pathTags: undefined,
+  domTags: undefined,
+  caseDetailsTags: undefined,
+  caseDetails: undefined,
+  correlationIds: undefined,
+};
 
 type AggregateState = { tags: Tags };
 const initialAggregateState = { tags: undefined };
@@ -79,7 +87,7 @@ export const initialiseStore = () => {
   const subscribe = (...subscriptionFactories: SubscriptionFactory[]) => {
     _console.debug("store", "subscribe", subscriptionFactories);
     return subscriptionFactories.map(factory => {
-      const { subscription, triggerSetOnRegister } = factory({ set: store.set, get: store.get });
+      const { subscription, triggerSetOnCreation: triggerSetOnRegister } = factory({ set: store.set, get: store.get });
       const unSubscriber = store.use(subscription);
 
       if (triggerSetOnRegister) {

@@ -16,8 +16,8 @@ import { AuthResult } from "../../../services/auth/AuthResult";
 import { isOutSystemsApp } from "../../../services/application-flags/is-outsystems-app";
 import { createOutboundUrl } from "cps-global-os-handover";
 import { State } from "../../../store/store";
-import { CaseDetails } from "../../../services/data/types";
 import { CorrelationIds } from "../../../services/correlation/CorrelationIds";
+import { CaseDetails } from "../../../services/data/CaseDetails";
 
 // Type the mocked functions
 const mockShouldShowLink = shouldShowLink as jest.MockedFunction<typeof shouldShowLink>;
@@ -103,6 +103,7 @@ describe("menuConfig", () => {
       propTags: {},
       pathTags: {},
       domTags: mockTags,
+      caseDetailsTags: {},
       tags: {},
       auth: {} as AuthResult,
       fatalInitialisationError: undefined as any,
@@ -145,6 +146,7 @@ describe("menuConfig", () => {
       propTags: {},
       pathTags: {},
       domTags: foundTags,
+      caseDetailsTags: {},
       tags: {},
       auth: {} as AuthResult,
       fatalInitialisationError: undefined as any,
@@ -255,6 +257,7 @@ describe("menuConfig", () => {
       propTags: {},
       pathTags: {},
       domTags: foundTags,
+      caseDetailsTags: {},
       tags: {},
       auth: {} as AuthResult,
       fatalInitialisationError: undefined as any,
@@ -319,6 +322,7 @@ describe("menuConfig", () => {
       propTags: {},
       pathTags: {},
       domTags: foundTags,
+      caseDetailsTags: {},
       tags: {},
       auth: {} as AuthResult,
       fatalInitialisationError: undefined as any,
@@ -383,6 +387,7 @@ describe("menuConfig", () => {
       propTags: {},
       pathTags: {},
       domTags: mockTags,
+      caseDetailsTags: {},
       tags: {},
       auth: {} as AuthResult,
       fatalInitialisationError: undefined as any,
@@ -446,6 +451,7 @@ describe("menuConfig", () => {
       propTags: {},
       pathTags: {},
       domTags: mockTags,
+      caseDetailsTags: {},
       tags: {},
       auth: {} as AuthResult,
       fatalInitialisationError: undefined as any,
