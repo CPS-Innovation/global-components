@@ -20,10 +20,10 @@ export const domTagMutationSubscriber = ({ mergeTags }: { mergeTags: MergeTags }
 const extractTagsFromElement = (element: Element, domTagDefinitions: domTagDefinitions[]) => {
   let tags: Record<string, string> = {};
 
-  for (const domTag of domTagDefinitions) {
-    const foundElements = element.matches(domTag.cssSelector) ? [element] : [...element.querySelectorAll(domTag.cssSelector)];
+  for (const { cssSelector, regex } of domTagDefinitions) {
+    const foundElements = element.matches(cssSelector) ? [element] : [...element.querySelectorAll(cssSelector)];
     for (const foundElement of foundElements) {
-      const match = foundElement.outerHTML.match(domTag.regex);
+      const match = foundElement.outerHTML.match(regex);
       tags = { ...tags, ...match?.groups };
     }
   }
