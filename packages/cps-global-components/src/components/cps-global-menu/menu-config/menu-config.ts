@@ -18,7 +18,7 @@ export type MenuConfigResult =
 
 const menuConfigInternal = ({
   context,
-  flags: { isOutSystems, isOverrideMode },
+  flags: { isOutSystems },
   config: { OS_HANDOVER_URL, LINKS, COOKIE_HANDOVER_URL },
   tags,
 }: Pick<State, "context" | "config" | "tags" | "flags">): MenuConfigResult => {
