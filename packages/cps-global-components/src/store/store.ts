@@ -13,9 +13,14 @@ import { CorrelationIds } from "../services/correlation/CorrelationIds";
 import { tagsSubscriptionFactory } from "./subscriptions/tags-subscription-factory";
 import { SubscriptionFactory } from "./subscriptions/SubscriptionFactory";
 
-type PickOfType<T, U> = {
-  [K in keyof T as T[K] extends U ? K : never]: T[K];
-};
+// Helper type to extract keys of a specific type
+type KeysOfType<T, U> = {
+  [K in keyof T]: T[K] extends U ? K : never;
+}[keyof T];
+
+type SinglePropertyOf<T, PropType> = {
+  [K in KeysOfType<T, PropType>]: Pick<T, K>;
+}[KeysOfType<T, PropType>];
 
 export const privateTagProperties = ["pathTags", "domTags", "propTags"] as const;
 export type PrivateTagProperties = (typeof privateTagProperties)[number]; // gives us a union definition: "pathTags" | "domTags" | "propTags"
@@ -45,7 +50,7 @@ export type StoredState = MakeUndefinable<DefinedStoredState>;
 
 export type Register = (arg: Partial<StoredState>) => void;
 
-export type MergeTags = (arg: Partial<PickOfType<DefinedStoredState, Tags>>) => void;
+export type MergeTags = (arg: SinglePropertyOf<TransientState, Tags>) => Tags;
 
 const initialState: StoredState = {
   ...initialStartupState,
@@ -66,7 +71,13 @@ export const initialiseStore = () => {
 
   const register = (arg: Partial<StoredState>) => Object.keys(arg).forEach((key: keyof StoredState) => store.set(key, arg[key]));
 
-  const mergeTags: MergeTags = arg => Object.keys(arg).forEach((key: keyof PickOfType<DefinedStoredState, Tags>) => store.set(key, { ...store.get(key), ...arg[key] }));
+  const mergeTags: MergeTags = arg => {
+    const key = Object.keys(arg)[0] as KeysOfType<TransientState, Tags>;
+    const nextValue = { ...store.get(key), ...arg[key] } as Tags;
+    store.set(key, nextValue);
+    // Let's let the caller know the full condition of the tags post-merge
+    return nextValue;
+  };
 
   const resetContextSpecificTags = () => {
     // Note: tags obtained from props passed from the host apps should not be cleared on context change.

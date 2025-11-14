@@ -17,6 +17,7 @@ import { handleContextAuthorisation } from "./services/authorisation/handle-cont
 import { cachedResult } from "./utils/cached-result";
 import { CorrelationIds } from "./services/correlation/CorrelationIds";
 import { getCaseDetailsSubscriptionFactory } from "./services/data/get-case-details-subscription-factory";
+import { mainContentIdSubscriber } from "./services/dom/main-content-id-subscriber";
 
 // Don't return a promise otherwise stencil will wait for all of this to be complete
 //  before rendering.  Using the registerToStore function means we can render immediately
@@ -49,7 +50,7 @@ const initialise = async (correlationIds: CorrelationIds) => {
     //  We use `cachedResult` give us the ability to rerun this function many times while ensuring that the one-time-only
     //  operations are only executed once (alternative would be lots of if statements or similar)
     const { initialiseDomForContext } = cachedResult("dom", () =>
-      initialiseDomObservation({ window }, domTagMutationSubscriber({ mergeTags }), ...outSystemsShimSubscribers({ window })),
+      initialiseDomObservation({ window, register, mergeTags }, domTagMutationSubscriber, mainContentIdSubscriber, ...outSystemsShimSubscribers),
     );
 
     const flags = cachedResult("flags", () => getApplicationFlags({ window }));
