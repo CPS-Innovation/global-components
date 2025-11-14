@@ -19,7 +19,7 @@ type KeysOfType<T, U> = {
 }[keyof T];
 
 type SinglePropertyOf<T, PropType> = {
-  [K in KeysOfType<T, PropType>]: Pick<T, K>;
+  [K in KeysOfType<T, PropType>]: Record<K, T[K]> & Partial<Record<Exclude<KeysOfType<T, PropType>, K>, never>>;
 }[KeysOfType<T, PropType>];
 
 export const privateTagProperties = ["pathTags", "domTags", "propTags"] as const;

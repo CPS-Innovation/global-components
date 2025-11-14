@@ -119,31 +119,6 @@ describe("store", () => {
         }
       });
 
-      it("should merge tags across multiple tag types", () => {
-        const { register, mergeTags } = initialiseStore();
-
-        register({
-          pathTags: { caseId: "123" },
-          domTags: { urn: "456" },
-          propTags: { userId: "789" },
-        });
-
-        mergeTags({
-          pathTags: { status: "active" },
-          domTags: { urn: "updated-urn" },
-        });
-
-        const result = readyState("tags");
-        if (result.isReady) {
-          expect(result.state.tags).toEqual({
-            caseId: "123", // Preserved from pathTags
-            status: "active", // New in pathTags
-            urn: "updated-urn", // Updated in domTags (overrides pathTags)
-            userId: "789", // Preserved from propTags (overrides both)
-          });
-        }
-      });
-
       it("should handle merging when tag type was not previously set", () => {
         const { mergeTags } = initialiseStore();
 
@@ -175,31 +150,6 @@ describe("store", () => {
             newKey: "newValue",
             urn: "456", // Unchanged
             userId: "789", // Unchanged
-          });
-        }
-      });
-
-      it("should maintain tag precedence (propTags > domTags > pathTags) after merging", () => {
-        const { register, mergeTags } = initialiseStore();
-
-        register({
-          pathTags: { key: "path-value", pathOnly: "path" },
-          domTags: { key: "dom-value", domOnly: "dom" },
-          propTags: { key: "prop-value", propOnly: "prop" },
-        });
-
-        mergeTags({
-          pathTags: { key: "new-path-value" },
-          domTags: { key: "new-dom-value" },
-        });
-
-        const result = readyState("tags");
-        if (result.isReady) {
-          expect(result.state.tags).toEqual({
-            key: "prop-value", // propTags still wins
-            pathOnly: "path",
-            domOnly: "dom",
-            propOnly: "prop",
           });
         }
       });
