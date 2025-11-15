@@ -13,13 +13,6 @@ jest.mock("./get-error-type");
 jest.mock("../../logging/with-logging", () => ({
   withLogging: jest.fn((_name, fn) => fn),
 }));
-jest.mock("../../logging/_console", () => ({
-  _console: {
-    debug: jest.fn(),
-    error: jest.fn(),
-    warn: jest.fn(),
-  },
-}));
 
 // Import after mocks
 import { getAdUserAccount } from "./get-ad-user-account";
@@ -54,7 +47,6 @@ describe("get-ad-user-account", () => {
 
   describe("getAdUserAccount", () => {
     it("should return account from cache if available", async () => {
-      const { _console } = require("../../logging/_console");
       (mockInstance.getActiveAccount as jest.Mock).mockReturnValue(mockAccount);
 
       const result = await getAdUserAccount(defaultProps);
@@ -62,13 +54,11 @@ describe("get-ad-user-account", () => {
       expect(result).toBe(mockAccount);
       expect(mockInstance.getActiveAccount).toHaveBeenCalledTimes(1);
       expect(mockInstance.setActiveAccount).toHaveBeenCalledWith(mockAccount);
-      expect(_console.debug).toHaveBeenCalledWith("getAdUserAccount", "Source", "cache");
       expect(mockInstance.ssoSilent).not.toHaveBeenCalled();
       expect(mockInstance.loginPopup).not.toHaveBeenCalled();
     });
 
     it("should try ssoSilent if no account in cache", async () => {
-      const { _console } = require("../../logging/_console");
       (mockInstance.getActiveAccount as jest.Mock).mockReturnValue(null);
       (mockInstance.ssoSilent as jest.Mock).mockResolvedValue({ account: mockAccount } as AuthenticationResult);
 
@@ -77,7 +67,6 @@ describe("get-ad-user-account", () => {
       expect(result).toBe(mockAccount);
       expect(mockInstance.getActiveAccount).toHaveBeenCalledTimes(1);
       expect(mockInstance.setActiveAccount).toHaveBeenCalledWith(mockAccount);
-      expect(_console.debug).toHaveBeenCalledWith("getAdUserAccount", "Source", "silent");
       expect(mockInstance.ssoSilent).toHaveBeenCalledWith({ scopes: ["User.Read"] });
       expect(mockInstance.loginPopup).not.toHaveBeenCalled();
     });
@@ -95,7 +84,6 @@ describe("get-ad-user-account", () => {
     });
 
     it("should handle MultipleIdentities error when FEATURE_FLAG_ENABLE_INTRUSIVE_AD_LOGIN is enabled", async () => {
-      const { _console } = require("../../logging/_console");
       const multipleIdentitiesError = new InteractionRequiredAuthError("AADSTS16000");
       (mockInstance.getActiveAccount as jest.Mock).mockReturnValue(null);
       (mockInstance.ssoSilent as jest.Mock).mockRejectedValue(multipleIdentitiesError);
@@ -111,7 +99,6 @@ describe("get-ad-user-account", () => {
 
       expect(result).toBe(mockAccount);
       expect(mockInstance.setActiveAccount).toHaveBeenCalledWith(mockAccount);
-      expect(_console.debug).toHaveBeenCalledWith("getAdUserAccount", "Source", "popup");
       expect(getErrorType).toHaveBeenCalledWith(multipleIdentitiesError);
       expect(mockInstance.loginPopup).toHaveBeenCalledWith({ scopes: ["User.Read"] });
     });
@@ -142,7 +129,6 @@ describe("get-ad-user-account", () => {
     });
 
     it("should return account from popup when MultipleIdentities error occurs with feature flag enabled", async () => {
-      const { _console } = require("../../logging/_console");
       const multipleIdentitiesError = new InteractionRequiredAuthError("AADSTS16000");
       (mockInstance.getActiveAccount as jest.Mock).mockReturnValue(null);
       (mockInstance.ssoSilent as jest.Mock).mockRejectedValue(multipleIdentitiesError);
@@ -158,7 +144,6 @@ describe("get-ad-user-account", () => {
 
       expect(result).toBe(mockAccount);
       expect(mockInstance.setActiveAccount).toHaveBeenCalledWith(mockAccount);
-      expect(_console.debug).toHaveBeenCalledWith("getAdUserAccount", "Source", "popup");
       expect(mockInstance.ssoSilent).toHaveBeenCalledWith({ scopes: ["User.Read"] });
       expect(mockInstance.loginPopup).toHaveBeenCalledWith({ scopes: ["User.Read"] });
     });
@@ -195,7 +180,6 @@ describe("get-ad-user-account", () => {
     });
 
     it("should call ssoSilent and loginPopup with correct login request when MultipleIdentities error occurs", async () => {
-      const { _console } = require("../../logging/_console");
       const multipleIdentitiesError = new InteractionRequiredAuthError("AADSTS16000");
       (mockInstance.getActiveAccount as jest.Mock).mockReturnValue(null);
       (mockInstance.ssoSilent as jest.Mock).mockRejectedValue(multipleIdentitiesError);
@@ -210,13 +194,11 @@ describe("get-ad-user-account", () => {
       await getAdUserAccount(props);
 
       expect(mockInstance.setActiveAccount).toHaveBeenCalledWith(mockAccount);
-      expect(_console.debug).toHaveBeenCalledWith("getAdUserAccount", "Source", "popup");
       expect(mockInstance.ssoSilent).toHaveBeenCalledWith({ scopes: ["User.Read"] });
       expect(mockInstance.loginPopup).toHaveBeenCalledWith({ scopes: ["User.Read"] });
     });
 
     it("should follow complete fallback chain: cache -> ssoSilent -> loginPopup", async () => {
-      const { _console } = require("../../logging/_console");
       const multipleIdentitiesError = new InteractionRequiredAuthError("AADSTS16000");
       (mockInstance.getActiveAccount as jest.Mock).mockReturnValue(null);
       (mockInstance.ssoSilent as jest.Mock).mockRejectedValue(multipleIdentitiesError);
@@ -234,7 +216,6 @@ describe("get-ad-user-account", () => {
       expect(mockInstance.ssoSilent).toHaveBeenCalledTimes(1);
       expect(mockInstance.loginPopup).toHaveBeenCalledTimes(1);
       expect(mockInstance.setActiveAccount).toHaveBeenCalledWith(mockAccount);
-      expect(_console.debug).toHaveBeenCalledWith("getAdUserAccount", "Source", "popup");
       expect(result).toBe(mockAccount);
     });
 

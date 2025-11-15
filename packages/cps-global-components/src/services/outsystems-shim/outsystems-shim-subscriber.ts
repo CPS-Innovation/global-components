@@ -1,8 +1,10 @@
-import { _console } from "../../logging/_console";
+import { makeConsole } from "../../logging/makeConsole";
 import { FoundContext } from "../context/FoundContext";
 import { DomMutationObserver } from "../dom/DomMutationSubscriber";
 
 type Styles = { [K in keyof CSSStyleDeclaration]?: string };
+
+const { _debug } = makeConsole("outSystemsShimSubscribers");
 
 const applyStylesFactory =
   ({ window }: { window: Window }) =>
@@ -10,7 +12,7 @@ const applyStylesFactory =
   (element: HTMLElement) =>
     Object.entries(styles).forEach(([key, val]) => {
       if (window.getComputedStyle(element)[key] !== val) {
-        _console.debug("OutSystems shim", `Applying ${key}=${val} to`, element);
+        _debug(`Applying ${key}=${val} to`, element);
         element.style[key] = val;
       }
     });
@@ -69,7 +71,7 @@ export const outSystemsShimSubscribers: DomMutationObserver[] = [
         //     const cpsHeader: HTMLCpsGlobalHeaderElement = window.document.createElement("cps-global-header");
         //     applyStyles({ marginBottom: "20px" })(cpsHeader);
         //     element.insertBefore(cpsHeader, element.firstChild);
-        //     _console.debug("OutSystems shim", "inserting our header");
+        //     _debug("inserting our header");
 
         //     let ancestor = cpsHeader.parentElement;
         //     while (ancestor) {
@@ -99,7 +101,7 @@ export const outSystemsShimSubscribers: DomMutationObserver[] = [
             const cpsHeader: HTMLCpsGlobalHeaderElement = window.document.createElement("cps-global-header");
             applyStyles({ maxWidth: "1280px" })(cpsHeader);
             element.insertBefore(cpsHeader, element.firstChild);
-            _console.debug("OutSystems shim", "inserting our header");
+            _debug("inserting our header");
           },
         },
         {

@@ -3,7 +3,7 @@ import { menuConfig } from "./menu-config/menu-config";
 import { readyState } from "../../store/store";
 import { FEATURE_FLAGS } from "../../feature-flags/feature-flags";
 import { renderError } from "../common/render-error";
-import { _console } from "../../logging/_console";
+
 import { WithLogging } from "../../logging/WithLogging";
 @Component({
   tag: "cps-global-menu",

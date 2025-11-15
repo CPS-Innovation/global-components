@@ -1,6 +1,6 @@
-import { _console } from "./_console";
+import { makeConsole } from "./makeConsole";
 
-const expandErrors = (obj: any) => {
+const expandErrors = (obj: any, _error: (...data: any[]) => void) => {
   try {
     if (obj === undefined) return "undefined";
 
@@ -19,38 +19,39 @@ const expandErrors = (obj: any) => {
         return value;
       }),
     );
-  } catch (error) {
-    _console.error("Tried and failed to expand object", obj);
+  } catch (err) {
+    _error("Tried and failed to expand object", obj, err);
     return obj;
   }
 };
 
-export const withLogging = <T extends (...args: any[]) => any>(fnName: string, fn: T): T => {
-  return ((...args: Parameters<T>) => {
+export const withLogging = <T extends (...args: any[]) => any>(fnName: string, fn: T): T =>
+  ((...args: Parameters<T>) => {
     const name = fnName || fn.name || "anonymous";
 
+    const { _debug, _error } = makeConsole(name);
+
     try {
-      _console.debug(name, "Calling", args);
+      _debug(name, "Calling", args);
       const result = fn(...args);
 
       if (result instanceof Promise) {
         return result.then(
           value => {
-            _console.debug(name, "Resolved", expandErrors(value));
+            _debug(name, "Resolved", expandErrors(value, _error));
             return value;
           },
-          error => {
-            _console.debug(name, "Rejected", expandErrors(error));
-            throw error;
+          err => {
+            _debug(name, "Rejected", expandErrors(err, _error));
+            throw err;
           },
         );
       }
 
-      _console.debug(name, "Returned", expandErrors(result));
+      _debug(name, "Returned", expandErrors(result, _error));
       return result;
     } catch (err) {
-      _console.error(name, "threw", expandErrors(err));
+      _error(name, "threw", expandErrors(err, _error));
       throw err;
     }
   }) as T;
-};

@@ -1,5 +1,5 @@
 import { createStore } from "@stencil/store";
-import { _console } from "../logging/_console";
+import { makeConsole } from "../logging/makeConsole";
 import { Config } from "cps-global-configuration";
 import { AuthResult } from "../services/auth/AuthResult";
 import { FoundContext } from "../services/context/FoundContext";
@@ -12,6 +12,8 @@ import { withLogging } from "../logging/with-logging";
 import { CorrelationIds } from "../services/correlation/CorrelationIds";
 import { tagsSubscriptionFactory } from "./subscriptions/tags-subscription-factory";
 import { SubscriptionFactory } from "./subscriptions/SubscriptionFactory";
+
+const { _debug } = makeConsole("store");
 
 // Helper type to extract keys of a specific type
 type KeysOfType<T, U> = {
@@ -88,7 +90,7 @@ export const initialiseStore = () => {
   };
 
   const subscribe = (...subscriptionFactories: SubscriptionFactory[]) => {
-    _console.debug("store", "subscribe", subscriptionFactories);
+    _debug("store", "subscribe", subscriptionFactories);
     return subscriptionFactories.map(factory => {
       const { subscription, triggerSetOnRegister } = factory({ set: store.set, get: store.get });
       const unSubscriber = store.use(subscription);

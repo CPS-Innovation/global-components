@@ -8,7 +8,7 @@ import { initialiseContext } from "./services/context/initialise-context";
 import { getApplicationFlags } from "./services/application-flags/get-application-flags";
 import { initialiseMockAuth } from "./services/auth/initialise-mock-auth";
 import { initialiseMockAnalytics } from "./services/analytics/initialise-mock-analytics";
-import { _console } from "./logging/_console";
+import { makeConsole } from "./logging/makeConsole";
 import { initialiseDomObservation } from "./services/dom/initialise-dom-observation";
 import { domTagMutationSubscriber } from "./services/dom/dom-tag-mutation-subscriber";
 import { outSystemsShimSubscribers } from "./services/outsystems-shim/outsystems-shim-subscriber";
@@ -18,6 +18,8 @@ import { cachedResult } from "./utils/cached-result";
 import { CorrelationIds } from "./services/correlation/CorrelationIds";
 import { getCaseDetailsSubscriptionFactory } from "./services/data/get-case-details-subscription-factory";
 import { mainContentIdSubscriber } from "./services/dom/main-content-id-subscriber";
+
+const { _debug, _error } = makeConsole("global-script");
 
 // Don't return a promise otherwise stencil will wait for all of this to be complete
 //  before rendering.  Using the registerToStore function means we can render immediately
@@ -33,7 +35,7 @@ export default /* do not await this */ () => {
   // Every time we detect a SPA navigation (i.e. not a full page reload), lets rerun our initialisation
   //  logic as out context may have changed
   window.navigation?.addEventListener("navigatesuccess", async event => {
-    _console.debug("Global script", "navigation", event);
+    _debug("navigation", event);
     initialise({ scriptLoadCorrelationId, navigationCorrelationId: uuidv4() });
   });
 };
@@ -82,9 +84,9 @@ const initialise = async (correlationIds: CorrelationIds) => {
     const { trackPageView, rebindTrackEvent } = cachedResult("analytics", () => (flags.isE2eTestMode ? initialiseMockAnalytics() : initialiseAnalytics({ window, config, auth })));
     rebindTrackEvent({ window, correlationIds });
     trackPageView({ context, correlationIds });
-  } catch (error) {
-    _console.error(error);
-    register({ fatalInitialisationError: error });
+  } catch (err) {
+    _error(err);
+    register({ fatalInitialisationError: err });
   }
 };
 

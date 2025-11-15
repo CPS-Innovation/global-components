@@ -1,11 +1,13 @@
 import { Config } from "cps-global-configuration";
-import { _console } from "../../logging/_console";
+import { makeConsole } from "../../logging/makeConsole";
 import { withLogging } from "../../logging/with-logging";
 import { GetToken } from "../auth/GetToken";
 import { CaseIdentifiers } from "../context/CaseIdentifiers";
 import { CaseDetails } from "./types";
 import { CorrelationIds } from "../correlation/CorrelationIds";
 import { FoundContext } from "../context/FoundContext";
+
+const { _warn, _error } = makeConsole("getCaseDetails");
 
 export type GetCaseDetailsProps = {
   caseIdentifiers: CaseIdentifiers;
@@ -39,9 +41,9 @@ const getCaseDetailsInternal = async ({
 
   try {
     const response = await fetch(GATEWAY_URL + caseId, { headers, credentials: "include" });
-    _console.warn({ response });
+    _warn({ response });
   } catch (error) {
-    _console.error(error);
+    _error(error);
   }
 
   await new Promise(resolve => setTimeout(resolve, Math.random() * 100));

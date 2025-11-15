@@ -1,7 +1,9 @@
 import { PublicClientApplication, SilentRequest } from "@azure/msal-browser";
 import { withLogging } from "../../logging/with-logging";
-import { _console } from "../../logging/_console";
+import { makeConsole } from "../../logging/makeConsole";
 import { GetToken } from "./GetToken";
+
+const { _error } = makeConsole("getTokenFactory");
 
 const getTokenFactoryInternal =
   ({ instance }: { instance: PublicClientApplication }): GetToken =>
@@ -14,7 +16,7 @@ const getTokenFactoryInternal =
       const { accessToken } = await instance.acquireTokenSilent(request);
       return accessToken;
     } catch (error) {
-      _console.error(error);
+      _error(error);
       return null;
     }
   };
