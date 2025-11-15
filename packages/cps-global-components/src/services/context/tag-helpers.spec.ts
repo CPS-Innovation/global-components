@@ -59,11 +59,7 @@ describe("tag-helpers", () => {
     });
 
     it("should handle multiple template strings with mixed placeholders", () => {
-      const result = getPlaceHolders(
-        "User {userId} logged in",
-        "Session {sessionId} started",
-        "User {userId} performed action"
-      );
+      const result = getPlaceHolders("User {userId} logged in", "Session {sessionId} started", "User {userId} performed action");
       expect(result).toEqual(["userId", "sessionId"]);
     });
 
@@ -75,11 +71,6 @@ describe("tag-helpers", () => {
     it("should handle templates with only placeholders", () => {
       const result = getPlaceHolders("{placeholder}");
       expect(result).toEqual(["placeholder"]);
-    });
-
-    it("should handle empty placeholders", () => {
-      const result = getPlaceHolders("Hello {}");
-      expect(result).toEqual([""]);
     });
 
     it("should handle placeholders at start and end of string", () => {

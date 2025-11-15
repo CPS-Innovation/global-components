@@ -153,6 +153,39 @@ describe("store", () => {
           });
         }
       });
+
+      it("should return the merged tags after merging", () => {
+        const { register, mergeTags } = initialiseStore();
+
+        register({ pathTags: { caseId: "123", userId: "456" } });
+        const result = mergeTags({ pathTags: { caseId: "789", newKey: "abc" } });
+
+        expect(result).toEqual({
+          caseId: "789", // Updated value
+          userId: "456", // Preserved value
+          newKey: "abc", // New value
+        });
+      });
+
+      it("should return the merged tags when merging into undefined tags", () => {
+        const { mergeTags } = initialiseStore();
+
+        const result = mergeTags({ domTags: { urn: "123", key: "value" } });
+
+        expect(result).toEqual({
+          urn: "123",
+          key: "value",
+        });
+      });
+
+      it("should return empty object when merging empty tags", () => {
+        const { register, mergeTags } = initialiseStore();
+
+        register({ pathTags: {} });
+        const result = mergeTags({ pathTags: {} });
+
+        expect(result).toEqual({});
+      });
     });
 
     describe("resetContextSpecificTags function", () => {
