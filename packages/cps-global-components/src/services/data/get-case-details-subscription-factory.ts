@@ -6,10 +6,12 @@ import { SubscriptionFactory } from "../../store/subscriptions/SubscriptionFacto
 import { Tags } from "@microsoft/applicationinsights-web";
 import { GetToken } from "../auth/GetToken";
 import { CorrelationIds } from "../correlation/CorrelationIds";
-import { _console } from "../../logging/_console";
+import { makeConsole } from "../../logging/makeConsole";
 import { FoundContext } from "../context/FoundContext";
 
 let cachedCaseIdentifier: CaseIdentifiers | undefined = undefined;
+
+const { _debug } = makeConsole("getCaseDetailsSubscriptionFactory");
 
 export const getCaseDetailsSubscriptionFactory =
   ({
@@ -35,7 +37,7 @@ export const getCaseDetailsSubscriptionFactory =
       set: (key, newValue) => {
         if (key === "tags") {
           const caseIdentifiers = extractCaseIdentifiersIfChanged(cachedCaseIdentifier, newValue as Tags);
-          _console.debug("getCaseDetailsSubscription", "caseIdentifiers", caseIdentifiers);
+          _debug("getCaseDetailsSubscription", "caseIdentifiers", caseIdentifiers);
           if (caseIdentifiers) {
             cachedCaseIdentifier = caseIdentifiers;
             getCaseDetails({ window, caseIdentifiers, getToken, config, context, correlationIds }).then(caseDetails => register({ caseDetails }));

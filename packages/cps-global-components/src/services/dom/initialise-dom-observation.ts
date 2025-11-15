@@ -1,10 +1,12 @@
-import { _console } from "../../logging/_console";
+import { makeConsole } from "../../logging/makeConsole";
 import { MergeTags, Register } from "../../store/store";
 import { FoundContext } from "../context/FoundContext";
 import { DomMutationObserver } from "./DomMutationSubscriber";
 import "arrive";
 
 type Subscription = ReturnType<DomMutationObserver>["subscriptions"][number];
+
+const { _debug } = makeConsole("initialiseDomObservation");
 
 export const initialiseDomObservation = (
   { window: { document }, register, mergeTags }: { window: Window; register: Register; mergeTags: MergeTags },
@@ -14,8 +16,8 @@ export const initialiseDomObservation = (
     let activeSubscriptions: Subscription[] = [];
 
     const log = (msg: string) => {
-      _console.debug("Dom observation", msg);
-      _console.debug("Dom observation", `There are ${activeSubscriptions.length} active DOM handlers: ${activeSubscriptions.map(h => h.cssSelector).join(", ")}.`);
+      _debug("Dom observation", msg);
+      _debug("Dom observation", `There are ${activeSubscriptions.length} active DOM handlers: ${activeSubscriptions.map(h => h.cssSelector).join(", ")}.`);
     };
 
     const bindHandler = (subscription: Subscription) => {
