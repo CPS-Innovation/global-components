@@ -14,7 +14,11 @@ export const mainContentIdSubscriber: DomMutationObserver = ({ mergeTags }) => (
         while (!element.id && element.parentElement && element.parentElement !== document.documentElement) {
           element = element.parentElement;
         }
-        mergeTags({ domTags: { mainContentId: element.id } });
+
+        if (element.id) {
+          mergeTags({ domTags: { mainContentId: element.id } });
+        }
+
         return true;
       },
     },
