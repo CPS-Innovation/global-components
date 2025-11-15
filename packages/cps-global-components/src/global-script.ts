@@ -1,7 +1,7 @@
 import { v4 as uuidv4 } from "uuid";
 import { handleSetOverrideMode } from "./services/override-mode/handle-set-override-mode";
 import { initialiseAuth } from "./services/auth/initialise-auth";
-import { initialiseStore, Register } from "./store/store";
+import { initialiseStore } from "./store/store";
 import { initialiseAnalytics } from "./services/analytics/initialise-analytics";
 import { initialiseConfig } from "./services/config/initialise-config";
 import { initialiseContext } from "./services/context/initialise-context";
@@ -26,11 +26,11 @@ const { _debug, _error } = makeConsole("global-script");
 //  and the components themselves will know when the minimum setup that they need is
 //  ready.  This means that a long-running auth process will not stop components that
 //  do not need auth from rendering.
-export default /* do not await this */ () => {
+export default () => {
   const scriptLoadCorrelationId = uuidv4();
   handleSetOverrideMode({ window });
   // For first initialisation we want our two correlationIds to be the same
-  initialise({ scriptLoadCorrelationId, navigationCorrelationId: scriptLoadCorrelationId });
+  /* do not await this */ initialise({ scriptLoadCorrelationId, navigationCorrelationId: scriptLoadCorrelationId });
 
   // Every time we detect a SPA navigation (i.e. not a full page reload), lets rerun our initialisation
   //  logic as out context may have changed
@@ -40,9 +40,10 @@ export default /* do not await this */ () => {
   });
 };
 
+let getCaseDetailsUnSubscriber: () => void = () => {};
+
 const initialise = async (correlationIds: CorrelationIds) => {
-  const { register: r, resetContextSpecificTags, subscribe, mergeTags } = cachedResult("store", () => initialiseStore());
-  register = r;
+  const { register, resetContextSpecificTags, subscribe, mergeTags } = cachedResult("store", initialiseStore);
   register({ correlationIds });
   // We reset the tags to empty as we could be being called after a navigate in a SPA
   resetContextSpecificTags();
@@ -89,8 +90,3 @@ const initialise = async (correlationIds: CorrelationIds) => {
     register({ fatalInitialisationError: err });
   }
 };
-
-let getCaseDetailsUnSubscriber: () => void = () => {};
-
-// todo: as using register is fire and forget, we could use an event
-export let register: Register;

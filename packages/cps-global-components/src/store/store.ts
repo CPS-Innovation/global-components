@@ -15,6 +15,8 @@ import { SubscriptionFactory } from "./subscriptions/SubscriptionFactory";
 
 const { _debug } = makeConsole("store");
 
+const registerEventName = "cps-global-components-register";
+
 // Helper type to extract keys of a specific type
 type KeysOfType<T, U> = {
   [K in keyof T]: T[K] extends U ? K : never;
@@ -51,6 +53,7 @@ type DefinedStoredState = StartupState & TransientState & AggregateState & Summa
 export type StoredState = MakeUndefinable<DefinedStoredState>;
 
 export type Register = (arg: Partial<StoredState>) => void;
+class RegisterEvent extends CustomEvent<Parameters<Register>[0]> {}
 
 export type MergeTags = (arg: SinglePropertyOf<TransientState, Tags>) => Tags;
 
@@ -105,8 +108,22 @@ export const initialiseStore = () => {
 
   subscribe(resetPreventionSubscriptionFactory, loggingSubscriptionFactory, tagsSubscriptionFactory);
 
+  document.addEventListener(
+    registerEventName,
+    withLogging(registerEventName, (event: RegisterEvent) => register(event.detail)),
+  );
+
   return { register, mergeTags, resetContextSpecificTags, subscribe };
 };
+
+export const register: Register = detail =>
+  document.dispatchEvent(
+    new RegisterEvent(registerEventName, {
+      detail,
+      bubbles: true,
+      cancelable: true,
+    }),
+  );
 
 // This state is computed from the stored state
 type DerivedState = { initialisationStatus: undefined | "ready" | "broken" };
