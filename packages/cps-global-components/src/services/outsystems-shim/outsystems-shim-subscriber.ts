@@ -18,16 +18,15 @@ const applyStylesFactory =
 const isActiveForApp = (context: FoundContext, appPath: string) =>
   context.found && !!context.applyOutSystemsShim && context.paths.some(path => new URL(path).pathname.includes(appPath));
 
-export const outSystemsShimSubscribers = ({ window }: { window: Window }): DomMutationObserver[] => {
-  // Beware: if this logic is ever changed then be sure to check that everything works when navigating around
-  //  the apps via the menu.  The OS UI behaviour is different between when using the OS-specific login pages and
-  //  when navigating around the apps with the menu.  Just because the shim does what is expected after logging-in
-  //  via the specific login pages doesn't mean it works when OS apps are arrived at when navigating around an
-  //  environment.
-  const applyStyles = applyStylesFactory(window);
-
-  return [
-    ({ context }) => ({
+// Beware: if this logic is ever changed then be sure to check that everything works when navigating around
+//  the apps via the menu.  The OS UI behaviour is different between when using the OS-specific login pages and
+//  when navigating around the apps with the menu.  Just because the shim does what is expected after logging-in
+//  via the specific login pages doesn't mean it works when OS apps are arrived at when navigating around an
+//  environment.
+export const outSystemsShimSubscribers: DomMutationObserver[] = [
+  ({ context, window }) => {
+    const applyStyles = applyStylesFactory(window);
+    return {
       isActiveForContext: isActiveForApp(context, "/WorkManagementApp/"),
       subscriptions: [
         // {
@@ -83,8 +82,11 @@ export const outSystemsShimSubscribers = ({ window }: { window: Window }): DomMu
         //   },
         // },
       ],
-    }),
-    ({ context }) => ({
+    };
+  },
+  ({ context }) => {
+    const applyStyles = applyStylesFactory(window);
+    return {
       isActiveForContext: isActiveForApp(context, "/CaseReview/"),
       subscriptions: [
         {
@@ -105,8 +107,11 @@ export const outSystemsShimSubscribers = ({ window }: { window: Window }): DomMu
           handler: applyStyles({ display: "none" }),
         },
       ],
-    }),
-    ({ context }) => ({
+    };
+  },
+  ({ context }) => {
+    const applyStyles = applyStylesFactory(window);
+    return {
       isActiveForContext: isActiveForApp(context, "/Casework_Blocks/"),
       subscriptions: [
         {
@@ -114,6 +119,6 @@ export const outSystemsShimSubscribers = ({ window }: { window: Window }): DomMu
           handler: applyStyles({ display: "none" }),
         },
       ],
-    }),
-  ];
-};
+    };
+  },
+];

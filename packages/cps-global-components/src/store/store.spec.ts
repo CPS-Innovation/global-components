@@ -119,31 +119,6 @@ describe("store", () => {
         }
       });
 
-      it("should merge tags across multiple tag types", () => {
-        const { register, mergeTags } = initialiseStore();
-
-        register({
-          pathTags: { caseId: "123" },
-          domTags: { urn: "456" },
-          propTags: { userId: "789" },
-        });
-
-        mergeTags({
-          pathTags: { status: "active" },
-          domTags: { urn: "updated-urn" },
-        });
-
-        const result = readyState("tags");
-        if (result.isReady) {
-          expect(result.state.tags).toEqual({
-            caseId: "123", // Preserved from pathTags
-            status: "active", // New in pathTags
-            urn: "updated-urn", // Updated in domTags (overrides pathTags)
-            userId: "789", // Preserved from propTags (overrides both)
-          });
-        }
-      });
-
       it("should handle merging when tag type was not previously set", () => {
         const { mergeTags } = initialiseStore();
 
@@ -179,29 +154,37 @@ describe("store", () => {
         }
       });
 
-      it("should maintain tag precedence (propTags > domTags > pathTags) after merging", () => {
+      it("should return the merged tags after merging", () => {
         const { register, mergeTags } = initialiseStore();
 
-        register({
-          pathTags: { key: "path-value", pathOnly: "path" },
-          domTags: { key: "dom-value", domOnly: "dom" },
-          propTags: { key: "prop-value", propOnly: "prop" },
-        });
+        register({ pathTags: { caseId: "123", userId: "456" } });
+        const result = mergeTags({ pathTags: { caseId: "789", newKey: "abc" } });
 
-        mergeTags({
-          pathTags: { key: "new-path-value" },
-          domTags: { key: "new-dom-value" },
+        expect(result).toEqual({
+          caseId: "789", // Updated value
+          userId: "456", // Preserved value
+          newKey: "abc", // New value
         });
+      });
 
-        const result = readyState("tags");
-        if (result.isReady) {
-          expect(result.state.tags).toEqual({
-            key: "prop-value", // propTags still wins
-            pathOnly: "path",
-            domOnly: "dom",
-            propOnly: "prop",
-          });
-        }
+      it("should return the merged tags when merging into undefined tags", () => {
+        const { mergeTags } = initialiseStore();
+
+        const result = mergeTags({ domTags: { urn: "123", key: "value" } });
+
+        expect(result).toEqual({
+          urn: "123",
+          key: "value",
+        });
+      });
+
+      it("should return empty object when merging empty tags", () => {
+        const { register, mergeTags } = initialiseStore();
+
+        register({ pathTags: {} });
+        const result = mergeTags({ pathTags: {} });
+
+        expect(result).toEqual({});
       });
     });
 

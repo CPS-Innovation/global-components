@@ -17,7 +17,7 @@ const domTagDefinitionsSchema = z.object({
   regex: z.string(),
 });
 
-export type domTagDefinitions = z.infer<typeof domTagDefinitionsSchema>;
+export type DomTagDefinitions = z.infer<typeof domTagDefinitionsSchema>;
 
 const authorisationSchema = z.object({
   adGroup: z.string(),

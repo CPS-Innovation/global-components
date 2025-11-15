@@ -3,6 +3,7 @@ import { readyState } from "../../store/store";
 import { FEATURE_FLAGS } from "../../feature-flags/feature-flags";
 import { WithLogging } from "../../logging/WithLogging";
 import { trackEvent } from "../../services/analytics/analytics-event";
+import { mainContentId } from "../../services/dom/constants";
 
 @Component({
   tag: "cps-global-banner",
@@ -21,7 +22,7 @@ export class CpsGlobalBanner {
 
   @WithLogging("CpsGlobalBanner")
   render() {
-    const { isReady, state } = readyState("flags", "config");
+    const { isReady, state } = readyState("flags", "config", "tags");
 
     const resolveValues = () => {
       if (state.fatalInitialisationError) {
@@ -45,10 +46,15 @@ export class CpsGlobalBanner {
       return <></>;
     }
 
+    // #FCT2-11717 - if a page context does not have an element with id=main-content
+    //  then we do our best by finding a <main> element and using its id, or it's
+    //  closest ancestor which does have an id.
+    const skipLinkTargetId = state.tags["mainContentId"] || mainContentId;
+
     return (
       <>
         <div class={values.showGovUkRebrand ? "govuk-template--rebranded" : ""}>
-          <a href="#main-content" class="govuk-skip-link skip-link" data-module="govuk-skip-link">
+          <a href={`#${skipLinkTargetId}`} class="govuk-skip-link skip-link" data-module="govuk-skip-link">
             Skip to main content
           </a>
           {values.showGovUkRebrand ? (
