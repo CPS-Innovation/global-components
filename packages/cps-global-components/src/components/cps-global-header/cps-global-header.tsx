@@ -2,8 +2,11 @@ import { Component, h, Host, Prop, Watch } from "@stencil/core";
 import { renderError } from "../common/render-error";
 import { readyState } from "../../store/store";
 import { WithLogging } from "../../logging/WithLogging";
-import { _console } from "../../logging/_console";
+import { makeConsole } from "../../logging/makeConsole";
 import { register } from "../../global-script";
+
+const { _debug } = makeConsole("CpsGlobalHeader");
+
 @Component({
   tag: "cps-global-header",
   shadow: true, // must be true as this is our published entry point!
@@ -13,7 +16,7 @@ export class CpsGlobalHeader {
   @Prop() isDcf: boolean = false;
   @Watch("isDcf")
   onIsDcfChange(newValue: boolean) {
-    _console.debug({ newValue });
+    _debug({ newValue });
     register({ propTags: { isDcf: String(newValue) } });
   }
 

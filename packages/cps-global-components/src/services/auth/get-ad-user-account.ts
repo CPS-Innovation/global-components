@@ -1,5 +1,5 @@
 import { AccountInfo, PublicClientApplication } from "@azure/msal-browser";
-import { _console } from "../../logging/_console";
+import { makeConsole } from "../../logging/makeConsole";
 import { getErrorType } from "./get-error-type";
 import { withLogging } from "../../logging/with-logging";
 
@@ -10,6 +10,8 @@ type AccountSource = "cache" | "silent" | "popup" | "failed";
 type AccountRetrievalResult = Promise<{ source: AccountSource; account: AccountInfo } | null>;
 
 const loginRequest = { scopes: ["User.Read"] };
+
+const { _debug } = makeConsole("getAdUserAccount");
 
 const internalGetAdUserAccount = async ({ instance, config: { FEATURE_FLAG_ENABLE_INTRUSIVE_AD_LOGIN } }: Props) => {
   const tryGetAccountFromCache = async (): AccountRetrievalResult => {
@@ -38,7 +40,7 @@ const internalGetAdUserAccount = async ({ instance, config: { FEATURE_FLAG_ENABL
 
   const { account, source } = (await tryGetAccountFromCache()) || (await tryGetAccountSilently()) || (await tryGetAccountViaPopup()) || { source: "failed", account: null };
   instance.setActiveAccount(account);
-  _console.debug("getAdUserAccount", "Source", source);
+  _debug("Source", source);
   return account;
 };
 

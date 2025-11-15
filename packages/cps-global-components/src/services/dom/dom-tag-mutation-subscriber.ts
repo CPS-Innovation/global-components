@@ -1,7 +1,9 @@
 import { DomTagDefinitions } from "cps-global-configuration/dist/schema";
 import { DomMutationObserver } from "./DomMutationSubscriber";
-import { _console } from "../../logging/_console";
+import { makeConsole } from "../../logging/makeConsole";
 import { areAllTagsFound } from "../context/tag-helpers";
+
+const { _debug } = makeConsole("domTagMutationSubscriber");
 
 export const domTagMutationSubscriber: DomMutationObserver = ({ context, mergeTags }) => ({
   isActiveForContext: !!context.domTagDefinitions?.length,
@@ -9,7 +11,7 @@ export const domTagMutationSubscriber: DomMutationObserver = ({ context, mergeTa
     cssSelector,
     handler: element => {
       const domTags = extractTagsFromElement(element, { cssSelector, regex });
-      _console.debug("Dom observation handler firing for", element, " found ", domTags);
+      _debug("Dom observation handler firing for", element, " found ", domTags);
       const allDomTags = mergeTags({ domTags });
 
       // Let's say that if we have found all of our tags then lets stop, might
