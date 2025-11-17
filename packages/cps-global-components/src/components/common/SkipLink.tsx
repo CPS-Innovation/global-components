@@ -17,6 +17,8 @@ export const SkipLink: FunctionalComponent<InertLinkProps> = ({ skipToMainConten
       _debug("Scrolling in to view to ", skipToMainContentCustomSelector);
       target.scrollIntoView({ behavior: "instant" });
       target.focus();
+      // Important to lose focus so GDS css hides the yellow bar
+      (e.currentTarget as HTMLAnchorElement).blur();
     }
   };
 
