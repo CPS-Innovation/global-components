@@ -49,7 +49,7 @@ export class CpsGlobalBanner {
     return (
       <>
         <div class={values.showGovUkRebrand ? "govuk-template--rebranded" : ""}>
-          <SkipLink href="#mainContentId" class="govuk-skip-link skip-link" data-module="govuk-skip-link" {...state.context}>
+          <SkipLink href="#main-content" class="govuk-skip-link skip-link" data-module="govuk-skip-link" {...state.context}>
             Skip to main content
           </SkipLink>
 
