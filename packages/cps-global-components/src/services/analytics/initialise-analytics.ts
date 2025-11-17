@@ -4,11 +4,13 @@ import { AuthResult } from "../auth/AuthResult";
 import { FoundContext } from "../context/FoundContext";
 import { CorrelationIds } from "../correlation/CorrelationIds";
 import { AnalyticsEvent } from "./analytics-event";
-import { _console } from "../../logging/_console";
+import { makeConsole } from "../../logging/makeConsole";
 
 const STORAGE_PREFIX = "cps_global_components";
 
 type Props = { window: Window; config: Config; auth: AuthResult };
+
+const { _debug } = makeConsole("initialiseAnalytics");
 
 export const initialiseAnalytics = ({ window, config: { APP_INSIGHTS_KEY, ENVIRONMENT }, auth }: Props) => {
   if (!APP_INSIGHTS_KEY) {
@@ -43,7 +45,7 @@ export const initialiseAnalytics = ({ window, config: { APP_INSIGHTS_KEY, ENVIRO
 
   const trackPageView = ({ context: { found }, correlationIds }: { context: FoundContext; correlationIds: CorrelationIds }) => {
     const arg = { properties: { Environment: ENVIRONMENT, ...authValues, ...window.cps_global_components_build, context: { found }, correlationIds } };
-    _console.debug("initialiseAnalytics", "trackPageView", arg);
+    _debug("trackPageView", arg);
     appInsights.trackPageView(arg);
   };
 
@@ -54,13 +56,13 @@ export const initialiseAnalytics = ({ window, config: { APP_INSIGHTS_KEY, ENVIRO
   let listenerRef: EventListenerOrEventListenerObject = () => {};
 
   const rebindTrackEvent = ({ window, correlationIds }: { window: Window; correlationIds: CorrelationIds }) => {
-    _console.debug("initialiseAnalytics", "rebindTrackEvent", correlationIds);
+    _debug("rebindTrackEvent", correlationIds);
 
     window.removeEventListener(AnalyticsEvent.type, listenerRef);
     window.addEventListener(
       AnalyticsEvent.type,
       (listenerRef = (ev: AnalyticsEvent) => {
-        _console.debug("initialiseAnalytics", "trackEvent", ev);
+        _debug("trackEvent", ev);
         const { name, ...rest } = ev.detail;
         appInsights.trackEvent({ name: ev.type, properties: { ...rest, correlationIds } });
       }),

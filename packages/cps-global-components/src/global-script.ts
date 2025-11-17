@@ -1,14 +1,14 @@
 import { v4 as uuidv4 } from "uuid";
 import { handleSetOverrideMode } from "./services/override-mode/handle-set-override-mode";
 import { initialiseAuth } from "./services/auth/initialise-auth";
-import { initialiseStore, Register } from "./store/store";
+import { initialiseStore } from "./store/store";
 import { initialiseAnalytics } from "./services/analytics/initialise-analytics";
 import { initialiseConfig } from "./services/config/initialise-config";
 import { initialiseContext } from "./services/context/initialise-context";
 import { getApplicationFlags } from "./services/application-flags/get-application-flags";
 import { initialiseMockAuth } from "./services/auth/initialise-mock-auth";
 import { initialiseMockAnalytics } from "./services/analytics/initialise-mock-analytics";
-import { _console } from "./logging/_console";
+import { makeConsole } from "./logging/makeConsole";
 import { initialiseDomObservation } from "./services/dom/initialise-dom-observation";
 import { domTagMutationSubscriber } from "./services/dom/dom-tag-mutation-subscriber";
 import { outSystemsShimSubscribers } from "./services/outsystems-shim/outsystems-shim-subscriber";
@@ -19,28 +19,31 @@ import { CorrelationIds } from "./services/correlation/CorrelationIds";
 import { getCaseDetailsSubscriptionFactory } from "./services/data/get-case-details-subscription-factory";
 import { mainContentIdSubscriber } from "./services/dom/main-content-id-subscriber";
 
+const { _debug, _error } = makeConsole("global-script");
+
 // Don't return a promise otherwise stencil will wait for all of this to be complete
 //  before rendering.  Using the registerToStore function means we can render immediately
 //  and the components themselves will know when the minimum setup that they need is
 //  ready.  This means that a long-running auth process will not stop components that
 //  do not need auth from rendering.
-export default /* do not await this */ () => {
+export default () => {
   const scriptLoadCorrelationId = uuidv4();
   handleSetOverrideMode({ window });
   // For first initialisation we want our two correlationIds to be the same
-  initialise({ scriptLoadCorrelationId, navigationCorrelationId: scriptLoadCorrelationId });
+  /* do not await this */ initialise({ scriptLoadCorrelationId, navigationCorrelationId: scriptLoadCorrelationId });
 
   // Every time we detect a SPA navigation (i.e. not a full page reload), lets rerun our initialisation
   //  logic as out context may have changed
   window.navigation?.addEventListener("navigatesuccess", async event => {
-    _console.debug("Global script", "navigation", event);
+    _debug("navigation", event);
     initialise({ scriptLoadCorrelationId, navigationCorrelationId: uuidv4() });
   });
 };
 
+let getCaseDetailsUnSubscriber: () => void = () => {};
+
 const initialise = async (correlationIds: CorrelationIds) => {
-  const { register: r, resetContextSpecificTags, subscribe, mergeTags } = cachedResult("store", () => initialiseStore());
-  register = r;
+  const { register, resetContextSpecificTags, subscribe, mergeTags } = cachedResult("store", initialiseStore);
   register({ correlationIds });
   // We reset the tags to empty as we could be being called after a navigate in a SPA
   resetContextSpecificTags();
@@ -82,13 +85,8 @@ const initialise = async (correlationIds: CorrelationIds) => {
     const { trackPageView, rebindTrackEvent } = cachedResult("analytics", () => (flags.isE2eTestMode ? initialiseMockAnalytics() : initialiseAnalytics({ window, config, auth })));
     rebindTrackEvent({ window, correlationIds });
     trackPageView({ context, correlationIds });
-  } catch (error) {
-    _console.error(error);
-    register({ fatalInitialisationError: error });
+  } catch (err) {
+    _error(err);
+    register({ fatalInitialisationError: err });
   }
 };
-
-let getCaseDetailsUnSubscriber: () => void = () => {};
-
-// todo: as using register is fire and forget, we could use an event
-export let register: Register;

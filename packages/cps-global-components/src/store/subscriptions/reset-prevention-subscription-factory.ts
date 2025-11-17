@@ -1,4 +1,3 @@
-import { _console } from "../../logging/_console";
 import { SubscriptionFactory } from "./SubscriptionFactory";
 
 export const resetPreventionSubscriptionFactory: SubscriptionFactory = () => ({

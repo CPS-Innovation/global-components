@@ -1,5 +1,5 @@
 import { createStore } from "@stencil/store";
-import { _console } from "../logging/_console";
+import { makeConsole } from "../logging/makeConsole";
 import { Config } from "cps-global-configuration";
 import { AuthResult } from "../services/auth/AuthResult";
 import { FoundContext } from "../services/context/FoundContext";
@@ -12,6 +12,10 @@ import { withLogging } from "../logging/with-logging";
 import { CorrelationIds } from "../services/correlation/CorrelationIds";
 import { tagsSubscriptionFactory } from "./subscriptions/tags-subscription-factory";
 import { SubscriptionFactory } from "./subscriptions/SubscriptionFactory";
+
+const { _debug } = makeConsole("store");
+
+const registerEventName = "cps-global-components-register";
 
 // Helper type to extract keys of a specific type
 type KeysOfType<T, U> = {
@@ -49,6 +53,7 @@ type DefinedStoredState = StartupState & TransientState & AggregateState & Summa
 export type StoredState = MakeUndefinable<DefinedStoredState>;
 
 export type Register = (arg: Partial<StoredState>) => void;
+class RegisterEvent extends CustomEvent<Parameters<Register>[0]> {}
 
 export type MergeTags = (arg: SinglePropertyOf<TransientState, Tags>) => Tags;
 
@@ -88,7 +93,7 @@ export const initialiseStore = () => {
   };
 
   const subscribe = (...subscriptionFactories: SubscriptionFactory[]) => {
-    _console.debug("store", "subscribe", subscriptionFactories);
+    _debug("store", "subscribe", subscriptionFactories);
     return subscriptionFactories.map(factory => {
       const { subscription, triggerSetOnRegister } = factory({ set: store.set, get: store.get });
       const unSubscriber = store.use(subscription);
@@ -103,8 +108,22 @@ export const initialiseStore = () => {
 
   subscribe(resetPreventionSubscriptionFactory, loggingSubscriptionFactory, tagsSubscriptionFactory);
 
+  document.addEventListener(
+    registerEventName,
+    withLogging(registerEventName, (event: RegisterEvent) => register(event.detail)),
+  );
+
   return { register, mergeTags, resetContextSpecificTags, subscribe };
 };
+
+export const register: Register = detail =>
+  document.dispatchEvent(
+    new RegisterEvent(registerEventName, {
+      detail,
+      bubbles: true,
+      cancelable: true,
+    }),
+  );
 
 // This state is computed from the stored state
 type DerivedState = { initialisationStatus: undefined | "ready" | "broken" };
