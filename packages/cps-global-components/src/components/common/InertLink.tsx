@@ -1,13 +1,18 @@
 import { FunctionalComponent, h } from "@stencil/core";
+import { makeConsole } from "../../logging/makeConsole";
+
+const { _debug } = makeConsole("InertLink");
 
 export const InertLink: FunctionalComponent<{ href: string; class?: string }> = (props, children) => {
   const stopAll = (e: Event) => {
+    _debug("stopAll");
     e.stopPropagation();
     e.stopImmediatePropagation();
   };
 
   const stopIfActivation = (e: KeyboardEvent) => {
     if (e.key === "Enter" || e.key === " ") {
+      _debug("stopIfActivation");
       e.stopPropagation();
       e.stopImmediatePropagation();
     }
