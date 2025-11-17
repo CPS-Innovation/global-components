@@ -4,6 +4,7 @@ import { FEATURE_FLAGS } from "../../feature-flags/feature-flags";
 import { WithLogging } from "../../logging/WithLogging";
 import { trackEvent } from "../../services/analytics/analytics-event";
 import { mainContentId } from "../../services/dom/constants";
+import { InertLink } from "../common/InertLink";
 
 @Component({
   tag: "cps-global-banner",
@@ -54,9 +55,11 @@ export class CpsGlobalBanner {
     return (
       <>
         <div class={values.showGovUkRebrand ? "govuk-template--rebranded" : ""}>
-          <a href={`#${skipLinkTargetId}`} class="govuk-skip-link skip-link" data-module="govuk-skip-link">
+          {/* Use an InertLink to prevent OutSystems listening to our click and doing stuff with it beyond the native 
+          page scroll we expect */}
+          <InertLink href={`#${skipLinkTargetId}`} class="govuk-skip-link skip-link" data-module="govuk-skip-link">
             Skip to main content
-          </a>
+          </InertLink>
           {values.showGovUkRebrand ? (
             <header class="govuk-header background-blue" data-module="govuk-header">
               <div class="govuk-header__container">
