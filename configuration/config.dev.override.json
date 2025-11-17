@@ -152,7 +152,8 @@
         "box-shadow": "none"
       },
       "msalRedirectUrl": "https://cps-dev.outsystemsenterprise.com/Casework_Patterns/auth-handover-dev.html",
-      "cmsAuthFromStorageKey": "$OS_Users$WorkManagementApp$ClientVars$JSONString"
+      "cmsAuthFromStorageKey": "$OS_Users$WorkManagementApp$ClientVars$JSONString",
+      "skipToMainContentCustomSelector": "main"
     },
     {
       "paths": ["https://housekeeping"],
