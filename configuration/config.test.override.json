@@ -27,7 +27,8 @@
         "box-shadow": "none"
       },
       "msalRedirectUrl": "https://cps-tst.outsystemsenterprise.com/Casework_Patterns/auth-handover-test.html",
-      "cmsAuthFromStorageKey": "$OS_Users$Casework_Blocks$ClientVars$JSONString"
+      "cmsAuthFromStorageKey": "$OS_Users$Casework_Blocks$ClientVars$JSONString",
+      "skipToMainContentCustomSelector": "main"
     },
     {
       "paths": ["https://cps-tst.outsystemsenterprise.com/casework_blocks"],
