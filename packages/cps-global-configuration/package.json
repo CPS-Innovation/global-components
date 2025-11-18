@@ -6,7 +6,11 @@
   "types": "dist/index.d.ts",
   "scripts": {
     "build": "tsc && tsc -p tsconfig-cjs.json",
-    "validate": "npm run build && node dist/cjs/scripts/validate.js ../../configuration"
+    "validate": "npm run build && node dist/cjs/scripts/validate.js ../../configuration",
+    "validate2": "npm run build && node dist/cjs/scripts/validate2.js ../../configuration2",
+    "test-denormalize": "npm run build && node dist/cjs/scripts/test-denormalize.js",
+    "compare-configs": "npm run build && node dist/cjs/scripts/compare-configs.js",
+    "compare-configs2": "npm run build && node dist/cjs/scripts/compare-configs2.js"
   },
   "keywords": [
     "typescript",

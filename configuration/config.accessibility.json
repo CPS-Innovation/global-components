@@ -13,7 +13,13 @@
   "CONTEXTS": [
     {
       "paths": [
-        "https://sacpsglobalcomponents.z33.web.core.windows.net/accessibility/static/cases/urns/(?<urn>[^/]+)/cases/(?<caseId>\\d+)/materials",
+        "https://sacpsglobalcomponents.z33.web.core.windows.net/accessibility/static/cases/urns/(?<urn>[^/]+)/cases/(?<caseId>\\d+)/materials"
+      ],
+      "contexts": "case materials",
+      "msalRedirectUrl": ""
+    },
+    {
+      "paths": [
         "http://localhost:3335/accessibility/static/cases/urns/(?<urn>[^/]+)/cases/(?<caseId>\\d+)/materials"
       ],
       "contexts": "case materials",
@@ -21,7 +27,13 @@
     },
     {
       "paths": [
-        "https://sacpsglobalcomponents.z33.web.core.windows.net/accessibility/static/cases/urns/(?<urn>[^/]+)/cases/(?<caseId>\\d+)/review",
+        "https://sacpsglobalcomponents.z33.web.core.windows.net/accessibility/static/cases/urns/(?<urn>[^/]+)/cases/(?<caseId>\\d+)/review"
+      ],
+      "contexts": "case review",
+      "msalRedirectUrl": ""
+    },
+    {
+      "paths": [
         "http://localhost:3335/accessibility/static/cases/urns/(?<urn>[^/]+)/cases/(?<caseId>\\d+)/review"
       ],
       "contexts": "case review",
@@ -29,7 +41,13 @@
     },
     {
       "paths": [
-        "https://sacpsglobalcomponents.z33.web.core.windows.net/accessibility/static/cases/urns/(?<urn>[^/]+)/cases/(?<caseId>\\d+)",
+        "https://sacpsglobalcomponents.z33.web.core.windows.net/accessibility/static/cases/urns/(?<urn>[^/]+)/cases/(?<caseId>\\d+)"
+      ],
+      "contexts": "case details",
+      "msalRedirectUrl": ""
+    },
+    {
+      "paths": [
         "http://localhost:3335/accessibility/static/cases/urns/(?<urn>[^/]+)/cases/(?<caseId>\\d+)"
       ],
       "contexts": "case details",
@@ -37,7 +55,13 @@
     },
     {
       "paths": [
-        "https://sacpsglobalcomponents.z33.web.core.windows.net/accessibility/static/cases",
+        "https://sacpsglobalcomponents.z33.web.core.windows.net/accessibility/static/cases"
+      ],
+      "contexts": "cases",
+      "msalRedirectUrl": ""
+    },
+    {
+      "paths": [
         "http://localhost:3335/accessibility/static/cases"
       ],
       "contexts": "cases",
@@ -45,7 +69,13 @@
     },
     {
       "paths": [
-        "https://sacpsglobalcomponents.z33.web.core.windows.net/accessibility/static",
+        "https://sacpsglobalcomponents.z33.web.core.windows.net/accessibility/static"
+      ],
+      "contexts": "tasks",
+      "msalRedirectUrl": ""
+    },
+    {
+      "paths": [
         "http://localhost:3335/accessibility/static"
       ],
       "contexts": "tasks",

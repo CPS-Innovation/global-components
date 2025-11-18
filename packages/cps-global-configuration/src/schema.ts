@@ -4,8 +4,8 @@ const linkSchema = z.object({
   label: z.string(),
   href: z.string(),
   activeContexts: z.string(),
-  openInNewTab: z.boolean().optional(),
   visibleContexts: z.string(),
+  openInNewTab: z.boolean().optional(),
   preferEventNavigationContexts: z.string().optional(),
   level: z.number(),
 });

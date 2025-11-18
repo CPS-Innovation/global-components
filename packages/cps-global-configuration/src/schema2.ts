@@ -3,8 +3,8 @@ import { z } from "zod";
 const linkSchema = z.object({
   label: z.string(),
   href: z.string(),
-  activeContexts: z.array(z.string()), // To array
-  visibleContexts: z.array(z.string()), // To array
+  activeContexts: z.string(),
+  visibleContexts: z.string(),
   openInNewTab: z.boolean().optional(),
   preferEventNavigationContexts: z.string().optional(),
   level: z.number(),
@@ -37,33 +37,50 @@ const featureFlagUsersSchema = z.object({
 
 export type FeatureFlagUsers = z.infer<typeof featureFlagUsersSchema>;
 
-const contextBase = z.object({
-  msalRedirectUrl: z.string().optional(), // OK
-  domTagDefinitions: z.array(domTagDefinitionsSchema).optional(), // OK
-  applyOutSystemsShim: z.boolean().optional(), // OK
-  forceCmsAuthRefresh: z.boolean().optional(), // OK
-  authorisation: authorisationSchema.optional(), // OK
-  headerCustomCssClasses: z.string().optional(), // OK
-  headerCustomCssStyles: z.record(z.string(), z.string().optional()).optional(), // OK
+const contextPathsSchema = z.strictObject({
+  path: z.string(),
+  contextIds: z.string(),
+});
+
+export type ContextPathsSchema = z.infer<typeof contextPathsSchema>;
+
+// First, define the TypeScript type for the recursive structure
+export type ContextsSchemaType = {
+  msalRedirectUrl?: string;
+  domTagDefinitions?: Array<{ cssSelector: string; regex: string }>;
+  applyOutSystemsShim?: boolean;
+  forceCmsAuthRefresh?: boolean;
+  authorisation?: { adGroup: string; unAuthedRedirectUrl: string };
+  headerCustomCssClasses?: string;
+  headerCustomCssStyles?: Record<string, string | undefined>;
+  showMenuOverride?: "always-show-menu" | "never-show-menu";
+  cmsAuthFromStorageKey?: string;
+  skipToMainContentCustomSelector?: string;
+  contexts: (ContextsSchemaType | ContextPathsSchema)[];
+};
+
+// Then define the schema with proper typing
+const contextsSchema: z.ZodType<ContextsSchemaType> = z.strictObject({
+  msalRedirectUrl: z.string().optional(),
+  domTagDefinitions: z.array(domTagDefinitionsSchema).optional(),
+  applyOutSystemsShim: z.boolean().optional(),
+  forceCmsAuthRefresh: z.boolean().optional(),
+  authorisation: authorisationSchema.optional(),
+  headerCustomCssClasses: z.string().optional(),
+  headerCustomCssStyles: z.record(z.string(), z.string().optional()).optional(),
   showMenuOverride: z
     .union([z.literal("always-show-menu"), z.literal("never-show-menu")])
-    .optional(), // OK
-  cmsAuthFromStorageKey: z.string().optional(), // OK
-});
-
-const context = contextBase.extend({
-  paths: z.array(z.string()),
-});
-
-const contextGroup = contextBase.extend({
-  get contexts() {
-    return z.record(z.string(), z.union([context, contextGroup]));
-  },
+    .optional(),
+  cmsAuthFromStorageKey: z.string().optional(),
+  skipToMainContentCustomSelector: z.string().optional(),
+  contexts: z.lazy(() =>
+    z.array(z.union([contextsSchema, contextPathsSchema]))
+  ),
 });
 
 export const configSchema2 = z.object({
   ENVIRONMENT: z.string(),
-  CONTEXTS: z.record(z.string(), contextGroup),
+  CONTEXTS: z.union([z.array(contextsSchema), z.array(contextPathsSchema)]),
   LINKS: z.array(linkSchema),
   BANNER_TITLE_HREF: z.string(),
   AD_TENANT_AUTHORITY: z.string().optional(),
