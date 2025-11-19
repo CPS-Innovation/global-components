@@ -41,6 +41,8 @@ export default () => {
 
 let getCaseDetailsUnSubscriber: () => void = () => {};
 
+let trackException: (err: Error) => void = () => {};
+
 const initialise = async (correlationIds: CorrelationIds) => {
   const { register, resetContextSpecificTags, subscribe, mergeTags } = cachedResult("store", initialiseStore);
   register({ correlationIds });
@@ -64,27 +66,34 @@ const initialise = async (correlationIds: CorrelationIds) => {
     const context = initialiseContext({ window, config });
     register({ context });
 
+    const { auth, getToken } = await cachedResult("auth", () => (flags.isE2eTestMode ? initialiseMockAuth({ window }) : initialiseAuth({ window, config, context })));
+    register({ auth });
+
+    const {
+      trackPageView,
+      rebindTrackEvent,
+      trackException: t,
+    } = cachedResult("analytics", () => (flags.isE2eTestMode ? initialiseMockAnalytics() : initialiseAnalytics({ window, config, auth })));
+    trackException = t;
+
+    rebindTrackEvent({ window, correlationIds });
+    trackPageView({ context, correlationIds });
+
+    handleContextAuthorisation({ window, context, auth });
+
     const { pathTags } = context;
     register({ pathTags });
 
     initialiseDomForContext({ context });
     handleOutSystemsForcedAuth({ window, config, context });
 
-    const { auth, getToken } = await cachedResult("auth", () => (flags.isE2eTestMode ? initialiseMockAuth({ window }) : initialiseAuth({ window, config, context })));
-    register({ auth });
-
-    handleContextAuthorisation({ window, context, auth });
-
     // Our context may change as SPA navigations occur, so lets just dispose of our subscriber every time
     //  and create a new one
     getCaseDetailsUnSubscriber();
     const [unSubscriber] = subscribe(getCaseDetailsSubscriptionFactory({ window, config, context, getToken, correlationIds, register }));
     getCaseDetailsUnSubscriber = unSubscriber;
-
-    const { trackPageView, rebindTrackEvent } = cachedResult("analytics", () => (flags.isE2eTestMode ? initialiseMockAnalytics() : initialiseAnalytics({ window, config, auth })));
-    rebindTrackEvent({ window, correlationIds });
-    trackPageView({ context, correlationIds });
   } catch (err) {
+    trackException?.(err);
     _error(err);
     register({ fatalInitialisationError: err });
   }
