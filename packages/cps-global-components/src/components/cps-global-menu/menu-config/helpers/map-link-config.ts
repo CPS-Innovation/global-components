@@ -5,10 +5,10 @@ import { withLogging } from "../../../../logging/with-logging";
 
 export type MapLinkConfigResult = ReturnType<ReturnType<typeof mapLinkConfig>>;
 
-type MapLinkConfigParams = { contexts: string; tags: Record<string, string>; handoverAdapter?: ((targetUrl: string) => string) | undefined };
+export type MapLinkConfigParams = { contextIds: string; tags: Record<string, string>; handoverAdapter?: ((targetUrl: string) => string) | undefined };
 
 export const mapLinkConfigInternal =
-  ({ contexts, tags, handoverAdapter }: MapLinkConfigParams) =>
+  ({ contextIds, tags, handoverAdapter }: MapLinkConfigParams) =>
   ({ label, href, level, activeContexts, openInNewTab, preferEventNavigationContexts }: Link) => {
     const processedHref = replaceTagsInString(href, tags);
 
@@ -17,8 +17,8 @@ export const mapLinkConfigInternal =
       level,
       openInNewTab,
       href: handoverAdapter ? handoverAdapter(processedHref) : processedHref,
-      selected: isContextMatch(contexts, activeContexts),
-      preferEventNavigation: isContextMatch(contexts, preferEventNavigationContexts),
+      selected: isContextMatch(contextIds, activeContexts),
+      preferEventNavigation: isContextMatch(contextIds, preferEventNavigationContexts),
     };
   };
 

@@ -4,7 +4,7 @@ export default {
     port: 3000,
   },
   launch: {
-    headless: true,
+    headless: false,
     args: ["--no-sandbox", "--disable-setuid-sandbox"],
     // executablePath:
     //   process.env.PUPPETEER_EXEC_PATH ||

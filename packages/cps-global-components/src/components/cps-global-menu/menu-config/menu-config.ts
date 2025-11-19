@@ -25,7 +25,7 @@ const menuConfigInternal = ({
   if (!context?.found) {
     return { status: "error", error: new Error("No context found for this URL.") };
   }
-  const { contexts } = context;
+  const { contextIds } = context;
 
   const handoverAdapter = isOutSystems
     ? // If we are inside the OutSystems world then we assume we have adequate CMS auth.
@@ -37,7 +37,7 @@ const menuConfigInternal = ({
         const shouldGoViaAuthHandover = isOutSystemsApp({ location: { href: targetUrl } }) && OS_HANDOVER_URL && COOKIE_HANDOVER_URL;
         return shouldGoViaAuthHandover ? createOutboundUrlDirect({ cookieHandoverUrl: COOKIE_HANDOVER_URL, handoverUrl: OS_HANDOVER_URL, targetUrl }) : targetUrl;
       };
-  const links = LINKS.filter(shouldShowLink(contexts)).map(mapLinkConfig({ contexts, tags, handoverAdapter }));
+  const links = LINKS.filter(shouldShowLink(contextIds)).map(mapLinkConfig({ contextIds, tags, handoverAdapter }));
   return { status: "ok", links: groupLinksByLevel(links) };
 };
 

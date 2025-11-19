@@ -8,7 +8,7 @@ import { menuConfig } from "./menu-config";
 import { Config } from "cps-global-configuration";
 import { FoundContext } from "../../../services/context/FoundContext";
 import { shouldShowLink } from "./helpers/should-show-link";
-import { mapLinkConfig } from "./helpers/map-link-config";
+import { mapLinkConfig, MapLinkConfigParams } from "./helpers/map-link-config";
 import { groupLinksByLevel } from "./helpers/group-links-by-level";
 import { ApplicationFlags } from "../../../services/application-flags/ApplicationFlags";
 import { Tags } from "@microsoft/applicationinsights-web";
@@ -66,8 +66,8 @@ describe("menuConfig", () => {
     ],
     CONTEXTS: [
       {
-        paths: ["https://example.com/test"],
-        contexts: "test-context",
+        path: "https://example.com/test",
+        contextIds: "test-context",
         msalRedirectUrl: "foo",
       },
     ],
@@ -128,8 +128,8 @@ describe("menuConfig", () => {
 
     const foundContext: FoundContext = {
       found: true,
-      paths: ["https://example.com/test"],
-      contexts: foundContexts,
+      path: "https://example.com/test",
+      contextIds: foundContexts,
       domTagDefinitions: undefined,
       pathTags: {},
       contextIndex: 0,
@@ -201,10 +201,10 @@ describe("menuConfig", () => {
     expect(mockFilterFunction).toHaveBeenCalledTimes(3);
     // The handoverAdapter should be a function when not in OutSystems (even with empty OS_HANDOVER_URL)
     expect(mockMapLinkConfig).toHaveBeenCalledWith({
-      contexts: foundContexts,
+      contextIds: foundContexts,
       tags: {},
       handoverAdapter: expect.any(Function),
-    });
+    } as MapLinkConfigParams);
     expect(mockMapFunction).toHaveBeenCalledTimes(2); // Only called for filtered links
     expect(mockGroupLinksByLevel).toHaveBeenCalledWith([
       {
@@ -232,8 +232,8 @@ describe("menuConfig", () => {
 
     const foundContext: FoundContext = {
       found: true,
-      paths: ["https://example.com/test"],
-      contexts: foundContexts,
+      path: "https://example.com/test",
+      contextIds: foundContexts,
       domTagDefinitions: undefined,
       pathTags: {},
       contextIndex: 0,
@@ -284,10 +284,10 @@ describe("menuConfig", () => {
 
     // Verify handoverAdapter is undefined when in OutSystems
     expect(mockMapLinkConfig).toHaveBeenCalledWith({
-      contexts: foundContexts,
+      contextIds: foundContexts,
       tags: {},
       handoverAdapter: undefined,
-    });
+    } as MapLinkConfigParams);
   });
 
   it("should create handoverAdapter when not in OutSystems and OS_HANDOVER_URL is provided", () => {
@@ -296,8 +296,8 @@ describe("menuConfig", () => {
 
     const foundContext: FoundContext = {
       found: true,
-      paths: ["https://example.com/test"],
-      contexts: foundContexts,
+      path: "https://example.com/test",
+      contextIds: foundContexts,
       domTagDefinitions: undefined,
       pathTags: {},
       contextIndex: 0,
@@ -348,10 +348,10 @@ describe("menuConfig", () => {
 
     // Verify handoverAdapter is passed as a function (not undefined)
     expect(mockMapLinkConfig).toHaveBeenCalledWith({
-      contexts: foundContexts,
+      contextIds: foundContexts,
       tags: {},
       handoverAdapter: expect.any(Function),
-    });
+    } as MapLinkConfigParams);
   });
 
   it("should test handoverAdapter returns URL unchanged when OS_HANDOVER_URL or COOKIE_HANDOVER_URL is empty", () => {
@@ -360,8 +360,8 @@ describe("menuConfig", () => {
 
     const foundContext: FoundContext = {
       found: true,
-      paths: ["https://example.com/test"],
-      contexts: foundContexts,
+      path: "https://example.com/test",
+      contextIds: foundContexts,
       domTagDefinitions: undefined,
       pathTags: foundTags,
       contextIndex: 0,
@@ -424,8 +424,8 @@ describe("menuConfig", () => {
 
     const foundContext: FoundContext = {
       found: true,
-      paths: ["https://example.com/test"],
-      contexts: foundContexts,
+      path: "https://example.com/test",
+      contextIds: foundContexts,
       domTagDefinitions: undefined,
       pathTags: foundTags,
       contextIndex: 0,
@@ -492,5 +492,4 @@ describe("menuConfig", () => {
     });
     expect(result).toBe("https://cookie.example.com?r=https://handover.example.com?stage=os-cookie-return&r=https://os-app.com/page");
   });
-
 });
