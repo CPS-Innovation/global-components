@@ -4,7 +4,6 @@ import { getArtifactUrl } from "../../utils/get-artifact-url";
 import { fetchOverrideConfig } from "../../services/override-mode/fetch-override-config";
 import { fetchOverrideConfigAsJsonP } from "../../services/outsystems-shim/fetch-override-config-as-jsonp";
 import { fetchDevelopmentConfig } from "../override-mode/fetch-development-config";
-import { ApplicationFlags } from "../application-flags/ApplicationFlags";
 
 const tryConfigSources = async ([source, ...rest]: ConfigFetch[], configUrl: string): Promise<any> => {
   try {
@@ -25,13 +24,17 @@ const tryConfigSources = async ([source, ...rest]: ConfigFetch[], configUrl: str
   return tryConfigSources(rest, configUrl);
 };
 
-export const initialiseConfig = async ({ flags: { isOverrideMode, isOutSystems, isLocalDevelopment, isE2eTestMode } }: { flags: ApplicationFlags }): Promise<Config> => {
+export const initialiseConfig = async ({
+  flags: { isOverrideMode, isOutSystems, isLocalDevelopment },
+}: {
+  flags: { isOverrideMode: boolean; isOutSystems: boolean; isLocalDevelopment: boolean };
+}): Promise<Config> => {
   const configUrl = getArtifactUrl("config.json");
 
   const fetchConfig: ConfigFetch = async (configUrl: string) => await fetch(configUrl);
 
   let configSources = [
-    isLocalDevelopment && !isE2eTestMode ? fetchDevelopmentConfig : undefined,
+    isLocalDevelopment ? fetchDevelopmentConfig : undefined,
     isOverrideMode ? fetchOverrideConfig : undefined,
     isOverrideMode && isOutSystems ? fetchOverrideConfigAsJsonP : undefined,
     fetchConfig,

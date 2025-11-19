@@ -2,6 +2,7 @@ import { Component, h, Fragment } from "@stencil/core";
 import { readyState } from "../../store/store";
 import { FEATURE_FLAGS } from "../../feature-flags/feature-flags";
 import { WithLogging } from "../../logging/WithLogging";
+import { trackEvent } from "../../services/analytics/analytics-event";
 import { SkipLink } from "../common/SkipLink";
 
 @Component({
@@ -14,6 +15,10 @@ export class CpsGlobalBanner {
     const currentBg = window.document.body.style.backgroundColor;
     window.document.body.style.backgroundColor = currentBg === "lightgrey" ? "" : "lightgrey";
   };
+
+  componentWillLoad() {
+    trackEvent({ name: "loaded", componentName: "cps-global-banner" });
+  }
 
   @WithLogging("CpsGlobalBanner")
   render() {
