@@ -87,7 +87,7 @@ export const initialiseAnalytics = ({ window, config: { APP_INSIGHTS_KEY, ENVIRO
     authValues = { Username: auth.username, ...authValues };
   }
 
-  const trackPageView = ({ context: { found, contextIds }, correlationIds }: { context: FoundContext; correlationIds: CorrelationIds }) => {
+  const trackPageView = ({ context: { found, contexts: contextIds }, correlationIds }: { context: FoundContext; correlationIds: CorrelationIds }) => {
     const arg = { properties: { Environment: ENVIRONMENT, ...authValues, ...window.cps_global_components_build, context: { found, contextIds }, correlationIds } };
     _debug("trackPageView", arg);
     appInsights.trackPageView(arg);
