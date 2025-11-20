@@ -1,8 +1,10 @@
-import { _console } from "../../logging/_console";
+import { makeConsole } from "../../logging/makeConsole";
 import { FoundContext } from "../context/FoundContext";
 import { DomMutationObserver } from "../dom/DomMutationSubscriber";
 
 type Styles = { [K in keyof CSSStyleDeclaration]?: string };
+
+const { _debug } = makeConsole("outSystemsShimSubscribers");
 
 const applyStylesFactory =
   ({ window }: { window: Window }) =>
@@ -10,24 +12,22 @@ const applyStylesFactory =
   (element: HTMLElement) =>
     Object.entries(styles).forEach(([key, val]) => {
       if (window.getComputedStyle(element)[key] !== val) {
-        _console.debug("OutSystems shim", `Applying ${key}=${val} to`, element);
+        _debug(`Applying ${key}=${val} to`, element);
         element.style[key] = val;
       }
     });
 
-const isActiveForApp = (context: FoundContext, appPath: string) =>
-  context.found && !!context.applyOutSystemsShim && context.paths.some(path => new URL(path).pathname.includes(appPath));
+const isActiveForApp = (context: FoundContext, appPath: string) => context.found && !!context.applyOutSystemsShim && new URL(context.path).pathname.includes(appPath);
 
-export const outSystemsShimSubscribers = ({ window }: { window: Window }): DomMutationObserver[] => {
-  // Beware: if this logic is ever changed then be sure to check that everything works when navigating around
-  //  the apps via the menu.  The OS UI behaviour is different between when using the OS-specific login pages and
-  //  when navigating around the apps with the menu.  Just because the shim does what is expected after logging-in
-  //  via the specific login pages doesn't mean it works when OS apps are arrived at when navigating around an
-  //  environment.
-  const applyStyles = applyStylesFactory(window);
-
-  return [
-    ({ context }) => ({
+// Beware: if this logic is ever changed then be sure to check that everything works when navigating around
+//  the apps via the menu.  The OS UI behaviour is different between when using the OS-specific login pages and
+//  when navigating around the apps with the menu.  Just because the shim does what is expected after logging-in
+//  via the specific login pages doesn't mean it works when OS apps are arrived at when navigating around an
+//  environment.
+export const outSystemsShimSubscribers: DomMutationObserver[] = [
+  ({ context, window }) => {
+    const applyStyles = applyStylesFactory(window);
+    return {
       isActiveForContext: isActiveForApp(context, "/WorkManagementApp/"),
       subscriptions: [
         // {
@@ -70,7 +70,7 @@ export const outSystemsShimSubscribers = ({ window }: { window: Window }): DomMu
         //     const cpsHeader: HTMLCpsGlobalHeaderElement = window.document.createElement("cps-global-header");
         //     applyStyles({ marginBottom: "20px" })(cpsHeader);
         //     element.insertBefore(cpsHeader, element.firstChild);
-        //     _console.debug("OutSystems shim", "inserting our header");
+        //     _debug("inserting our header");
 
         //     let ancestor = cpsHeader.parentElement;
         //     while (ancestor) {
@@ -83,8 +83,11 @@ export const outSystemsShimSubscribers = ({ window }: { window: Window }): DomMu
         //   },
         // },
       ],
-    }),
-    ({ context }) => ({
+    };
+  },
+  ({ context }) => {
+    const applyStyles = applyStylesFactory(window);
+    return {
       isActiveForContext: isActiveForApp(context, "/CaseReview/"),
       subscriptions: [
         {
@@ -97,7 +100,7 @@ export const outSystemsShimSubscribers = ({ window }: { window: Window }): DomMu
             const cpsHeader: HTMLCpsGlobalHeaderElement = window.document.createElement("cps-global-header");
             applyStyles({ maxWidth: "1280px" })(cpsHeader);
             element.insertBefore(cpsHeader, element.firstChild);
-            _console.debug("OutSystems shim", "inserting our header");
+            _debug("inserting our header");
           },
         },
         {
@@ -105,8 +108,11 @@ export const outSystemsShimSubscribers = ({ window }: { window: Window }): DomMu
           handler: applyStyles({ display: "none" }),
         },
       ],
-    }),
-    ({ context }) => ({
+    };
+  },
+  ({ context }) => {
+    const applyStyles = applyStylesFactory(window);
+    return {
       isActiveForContext: isActiveForApp(context, "/Casework_Blocks/"),
       subscriptions: [
         {
@@ -114,6 +120,6 @@ export const outSystemsShimSubscribers = ({ window }: { window: Window }): DomMu
           handler: applyStyles({ display: "none" }),
         },
       ],
-    }),
-  ];
-};
+    };
+  },
+];

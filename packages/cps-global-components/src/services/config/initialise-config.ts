@@ -1,9 +1,10 @@
-import { Config, validateConfig, ValidationResult } from "cps-global-configuration";
+import { Config, transformAndValidateConfig, ValidationResult } from "cps-global-configuration";
 import { ConfigFetch } from "./ConfigFetch";
 import { getArtifactUrl } from "../../utils/get-artifact-url";
 import { fetchOverrideConfig } from "../../services/override-mode/fetch-override-config";
 import { fetchOverrideConfigAsJsonP } from "../../services/outsystems-shim/fetch-override-config-as-jsonp";
 import { fetchDevelopmentConfig } from "../override-mode/fetch-development-config";
+import { ApplicationFlags } from "../application-flags/ApplicationFlags";
 
 const tryConfigSources = async ([source, ...rest]: ConfigFetch[], configUrl: string): Promise<any> => {
   try {
@@ -24,24 +25,20 @@ const tryConfigSources = async ([source, ...rest]: ConfigFetch[], configUrl: str
   return tryConfigSources(rest, configUrl);
 };
 
-export const initialiseConfig = async ({
-  flags: { isOverrideMode, isOutSystems, isLocalDevelopment },
-}: {
-  flags: { isOverrideMode: boolean; isOutSystems: boolean; isLocalDevelopment: boolean };
-}): Promise<Config> => {
+export const initialiseConfig = async ({ flags: { isOverrideMode, isOutSystems, isLocalDevelopment, isE2eTestMode } }: { flags: ApplicationFlags }): Promise<Config> => {
   const configUrl = getArtifactUrl("config.json");
 
   const fetchConfig: ConfigFetch = async (configUrl: string) => await fetch(configUrl);
 
   let configSources = [
-    isLocalDevelopment ? fetchDevelopmentConfig : undefined,
+    isLocalDevelopment && !isE2eTestMode ? fetchDevelopmentConfig : undefined,
     isOverrideMode ? fetchOverrideConfig : undefined,
     isOverrideMode && isOutSystems ? fetchOverrideConfigAsJsonP : undefined,
     fetchConfig,
   ].filter(config => !!config) as ConfigFetch[];
 
   const configObject = await tryConfigSources(configSources, configUrl);
-  const configResult: ValidationResult = validateConfig(configObject);
+  const configResult: ValidationResult = transformAndValidateConfig(configObject);
   if (configResult.success === true) {
     return configResult.config;
   } else {

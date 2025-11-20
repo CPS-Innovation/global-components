@@ -4,8 +4,8 @@ const linkSchema = z.object({
   label: z.string(),
   href: z.string(),
   activeContexts: z.string(),
-  openInNewTab: z.boolean().optional(),
   visibleContexts: z.string(),
+  openInNewTab: z.boolean().optional(),
   preferEventNavigationContexts: z.string().optional(),
   level: z.number(),
 });
@@ -17,7 +17,7 @@ const domTagDefinitionsSchema = z.object({
   regex: z.string(),
 });
 
-export type domTagDefinitions = z.infer<typeof domTagDefinitionsSchema>;
+export type DomTagDefinitions = z.infer<typeof domTagDefinitionsSchema>;
 
 const authorisationSchema = z.object({
   adGroup: z.string(),
@@ -37,10 +37,15 @@ const featureFlagUsersSchema = z.object({
 
 export type FeatureFlagUsers = z.infer<typeof featureFlagUsersSchema>;
 
-const contextSchema = z.object({
-  paths: z.array(z.string()),
-  contexts: z.string(),
-  msalRedirectUrl: z.string(),
+const contextPathsSchema = z.object({
+  path: z.string(),
+  contextIds: z.string(),
+});
+
+export type ContextPathsSchema = z.infer<typeof contextPathsSchema>;
+
+const contextsBaseSchema = z.object({
+  msalRedirectUrl: z.string().optional(),
   domTagDefinitions: z.array(domTagDefinitionsSchema).optional(),
   applyOutSystemsShim: z.boolean().optional(),
   forceCmsAuthRefresh: z.boolean().optional(),
@@ -51,6 +56,25 @@ const contextSchema = z.object({
     .union([z.literal("always-show-menu"), z.literal("never-show-menu")])
     .optional(),
   cmsAuthFromStorageKey: z.string().optional(),
+  skipToMainContentCustomSelector: z.string().optional(),
+});
+
+const contextStorageSchema: z.ZodType<ContextStorageSchema> =
+  contextsBaseSchema.extend({
+    contexts: z.lazy(() =>
+      z.array(z.union([contextStorageSchema, contextPathsSchema]))
+    ),
+  });
+
+// Because of the recursion we define the type before the schema
+export type ContextStorageSchema = z.infer<typeof contextsBaseSchema> & {
+  contexts: (ContextStorageSchema | ContextPathsSchema)[];
+};
+
+const contextSchema = contextsBaseSchema.extend({
+  path: z.string(),
+  contextIds: z.string(),
+  msalRedirectUrl: z.string(), // redefine as required, not optional in app config
 });
 
 export type Context = z.infer<typeof contextSchema>;
@@ -62,16 +86,15 @@ const cacheConfigSchema = z.object({
 
 export type CacheConfig = z.infer<typeof cacheConfigSchema>;
 
-export const configSchema = z.object({
+export const configBaseSchema = z.object({
   ENVIRONMENT: z.string(),
-  CONTEXTS: z.array(contextSchema),
   LINKS: z.array(linkSchema),
   BANNER_TITLE_HREF: z.string(),
   AD_TENANT_AUTHORITY: z.string().optional(),
   AD_CLIENT_ID: z.string().optional(),
   AD_GATEWAY_SCOPE: z.string().optional(),
   GATEWAY_URL: z.string().optional(),
-  APP_INSIGHTS_KEY: z.string().optional(),
+  APP_INSIGHTS_CONNECTION_STRING: z.string().optional(),
   SURVEY_LINK: z.string().optional(),
   SHOW_MENU: z.boolean().optional(),
   SHOW_GOVUK_REBRAND: z.boolean().optional(),
@@ -81,6 +104,16 @@ export const configSchema = z.object({
   FEATURE_FLAG_MENU_USERS: featureFlagUsersSchema.optional(),
   FEATURE_FLAG_ENABLE_INTRUSIVE_AD_LOGIN: z.boolean().optional(),
   CACHE_CONFIG: cacheConfigSchema.optional(),
+});
+
+export const configStorageSchema = configBaseSchema.extend({
+  CONTEXTS: z.array(contextStorageSchema),
+});
+
+export type ConfigStorage = z.infer<typeof configStorageSchema>;
+
+export const configSchema = configBaseSchema.extend({
+  CONTEXTS: z.array(contextSchema),
 });
 
 export type Config = z.infer<typeof configSchema>;

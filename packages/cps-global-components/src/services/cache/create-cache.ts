@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { _console } from "../../logging/_console";
+import { makeConsole } from "../../logging/makeConsole";
 
 type CacheEntry<T = any> = {
   data: T;
@@ -19,6 +19,8 @@ type EntityConfig<T> = {
 
 export type LocalStorageCache = ReturnType<typeof createCache>;
 
+const { _warn } = makeConsole("createCache");
+
 export function createCache(storageKey: string) {
   const CACHE_VERSION = 2;
 
@@ -33,7 +35,7 @@ export function createCache(storageKey: string) {
           return cache;
         } else {
           // Version mismatch - clear old cache
-          _console.warn(`Cache version mismatch (found ${cache.version}, expected ${CACHE_VERSION}). Clearing cache.`);
+          _warn(`Cache version mismatch (found ${cache.version}, expected ${CACHE_VERSION}). Clearing cache.`);
           localStorage.removeItem(storageKey);
         }
       }

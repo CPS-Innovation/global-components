@@ -1,7 +1,7 @@
 import { Config } from "cps-global-configuration";
 import { FoundContext } from "../context/FoundContext";
 import { withLogging } from "../../logging/with-logging";
-import { _console } from "../../logging/_console";
+import { makeConsole } from "../../logging/makeConsole";
 import { AuthResult, FailedAuth, KnowErrorType } from "./AuthResult";
 import { getAdUserAccount } from "./get-ad-user-account";
 import { getErrorType } from "./get-error-type";
@@ -23,6 +23,8 @@ const failedAuth = (knownErrorType: KnowErrorType, reason: string): { auth: Fail
   },
   getToken: () => Promise.resolve(null),
 });
+
+const { _error } = makeConsole("initialiseAuth");
 
 const initialiseAuthInternal = async ({
   window: { location },
@@ -60,7 +62,7 @@ const initialiseAuthInternal = async ({
     };
   } catch (error) {
     const errorType = getErrorType(error);
-    _console.error({ errorType, authority, clientId, redirectUri, error });
+    _error({ errorType, authority, clientId, redirectUri, error });
     return failedAuth(errorType, `${error}`);
   }
 };
