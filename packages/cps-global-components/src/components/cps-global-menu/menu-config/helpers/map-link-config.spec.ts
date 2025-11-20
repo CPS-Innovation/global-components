@@ -13,7 +13,7 @@ describe("mapLinkConfig", () => {
   };
 
   it("should map basic link properties", () => {
-    const mapper = mapLinkConfig({ contexts: "test", tags: {} });
+    const mapper = mapLinkConfig({ contextIds: "test", tags: {} });
     const result = mapper(basicLink);
 
     expect(result).toEqual({
@@ -27,16 +27,16 @@ describe("mapLinkConfig", () => {
   });
 
   it("should determine selected based on context match", () => {
-    const mapper1 = mapLinkConfig({ contexts: "test admin", tags: {} });
-    const mapper2 = mapLinkConfig({ contexts: "user guest", tags: {} });
+    const mapper1 = mapLinkConfig({ contextIds: "test admin", tags: {} });
+    const mapper2 = mapLinkConfig({ contextIds: "user guest", tags: {} });
 
     expect(mapper1(basicLink).selected).toBe(true);
     expect(mapper2(basicLink).selected).toBe(false);
   });
 
   it("should determine preferEventNavigation based on context match", () => {
-    const mapper1 = mapLinkConfig({ contexts: "event user", tags: {} });
-    const mapper2 = mapLinkConfig({ contexts: "admin test", tags: {} });
+    const mapper1 = mapLinkConfig({ contextIds: "event user", tags: {} });
+    const mapper2 = mapLinkConfig({ contextIds: "admin test", tags: {} });
 
     expect(mapper1(basicLink).preferEventNavigation).toBe(true);
     expect(mapper2(basicLink).preferEventNavigation).toBe(false);
@@ -48,7 +48,7 @@ describe("mapLinkConfig", () => {
       href: "/users/{userId}/posts/{postId}",
     };
 
-    const mapper = mapLinkConfig({ contexts: "test", tags: { userId: "123", postId: "456" } });
+    const mapper = mapLinkConfig({ contextIds: "test", tags: { userId: "123", postId: "456" } });
     const result = mapper(linkWithTags);
 
     expect(result.href).toBe("/users/123/posts/456");
@@ -61,7 +61,7 @@ describe("mapLinkConfig", () => {
     };
 
     const mapper = mapLinkConfig({
-      contexts: "test",
+      contextIds: "test",
       tags: {
         section: "admin",
         subsection: "users",
@@ -80,7 +80,7 @@ describe("mapLinkConfig", () => {
       href: "/users/{userId}/posts/{postId}",
     };
 
-    const mapper = mapLinkConfig({ contexts: "test", tags: { userId: "123" } });
+    const mapper = mapLinkConfig({ contextIds: "test", tags: { userId: "123" } });
     const result = mapper(linkWithTags);
 
     expect(result.href).toBe("/users/123/posts/{postId}");
@@ -92,7 +92,7 @@ describe("mapLinkConfig", () => {
       openInNewTab: true,
     };
 
-    const mapper = mapLinkConfig({ contexts: "test", tags: {} });
+    const mapper = mapLinkConfig({ contextIds: "test", tags: {} });
     const result = mapper(linkNewTab);
 
     expect(result.openInNewTab).toBe(true);
@@ -104,7 +104,7 @@ describe("mapLinkConfig", () => {
       preferEventNavigationContexts: undefined,
     };
 
-    const mapper = mapLinkConfig({ contexts: "event", tags: {} });
+    const mapper = mapLinkConfig({ contextIds: "event", tags: {} });
     const result = mapper(linkNoEvent);
 
     expect(result.preferEventNavigation).toBe(false);
@@ -117,12 +117,12 @@ describe("mapLinkConfig", () => {
       preferEventNavigationContexts: "event-admin event-user",
     };
 
-    const mapper1 = mapLinkConfig({ contexts: "user guest", tags: {} });
+    const mapper1 = mapLinkConfig({ contextIds: "user guest", tags: {} });
     const result1 = mapper1(complexLink);
     expect(result1.selected).toBe(true);
     expect(result1.preferEventNavigation).toBe(false);
 
-    const mapper2 = mapLinkConfig({ contexts: "event-admin test", tags: {} });
+    const mapper2 = mapLinkConfig({ contextIds: "event-admin test", tags: {} });
     const result2 = mapper2(complexLink);
     expect(result2.selected).toBe(false);
     expect(result2.preferEventNavigation).toBe(true);
@@ -134,7 +134,7 @@ describe("mapLinkConfig", () => {
       label: "  Special Label with Spaces  ",
     };
 
-    const mapper = mapLinkConfig({ contexts: "test", tags: {} });
+    const mapper = mapLinkConfig({ contextIds: "test", tags: {} });
     const result = mapper(linkWithSpecialLabel);
 
     expect(result.label).toBe("  Special Label with Spaces  ");
@@ -146,7 +146,7 @@ describe("mapLinkConfig", () => {
       href: "/test/{tag1}/{tag2}",
     };
 
-    const mapper = mapLinkConfig({ contexts: "test", tags: {} });
+    const mapper = mapLinkConfig({ contextIds: "test", tags: {} });
     const result = mapper(linkWithTags);
 
     expect(result.href).toBe("/test/{tag1}/{tag2}");
@@ -158,7 +158,7 @@ describe("mapLinkConfig", () => {
       href: "/{id}/edit/{id}/confirm/{id}",
     };
 
-    const mapper = mapLinkConfig({ contexts: "test", tags: { id: "999" } });
+    const mapper = mapLinkConfig({ contextIds: "test", tags: { id: "999" } });
     const result = mapper(linkWithRepeatedTags);
 
     expect(result.href).toBe("/999/edit/999/confirm/999");
@@ -175,7 +175,7 @@ describe("mapLinkConfig", () => {
       preferEventNavigationContexts: "app-event section-event",
     };
 
-    const mapper = mapLinkConfig({ contexts: "app-section app-event", tags: { appId: "myapp", sectionId: "mysection" } });
+    const mapper = mapLinkConfig({ contextIds: "app-section app-event", tags: { appId: "myapp", sectionId: "mysection" } });
     const result = mapper(fullLink);
 
     expect(result).toEqual({

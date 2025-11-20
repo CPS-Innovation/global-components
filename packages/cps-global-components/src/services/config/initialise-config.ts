@@ -1,4 +1,4 @@
-import { Config, validateConfig, ValidationResult } from "cps-global-configuration";
+import { Config, transformAndValidateConfig, ValidationResult } from "cps-global-configuration";
 import { ConfigFetch } from "./ConfigFetch";
 import { getArtifactUrl } from "../../utils/get-artifact-url";
 import { fetchOverrideConfig } from "../../services/override-mode/fetch-override-config";
@@ -38,7 +38,7 @@ export const initialiseConfig = async ({ flags: { isOverrideMode, isOutSystems, 
   ].filter(config => !!config) as ConfigFetch[];
 
   const configObject = await tryConfigSources(configSources, configUrl);
-  const configResult: ValidationResult = validateConfig(configObject);
+  const configResult: ValidationResult = transformAndValidateConfig(configObject);
   if (configResult.success === true) {
     return configResult.config;
   } else {
