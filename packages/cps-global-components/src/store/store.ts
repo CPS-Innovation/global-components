@@ -17,6 +17,7 @@ import { ReadyState, readyStateFactory } from "./ready-state-factory";
 const { _debug } = makeConsole("store");
 
 const registerEventName = "cps-global-components-register";
+const mergeTagsEventName = "cps-global-components-merge-tags";
 
 // Helper type to extract keys of a specific type
 type KeysOfType<T, U> = {
@@ -96,6 +97,8 @@ export type Register = (arg: Partial<StoredState>) => void;
 class RegisterEvent extends CustomEvent<Parameters<Register>[0]> {}
 
 export type MergeTags = (arg: SinglePropertyOf<TransientState, Tags>) => Tags;
+export type MergeTagFireAndForget = (arg: SinglePropertyOf<TransientState, Tags>) => void;
+class MergeTagFireAndForgetEvent extends CustomEvent<Parameters<MergeTagFireAndForget>[0]> {}
 
 export type Store = ReturnType<typeof createStore<StoredState>>;
 
@@ -158,9 +161,9 @@ export const initialiseStore = () => {
   return { register, mergeTags, resetContextSpecificTags, subscribe };
 };
 
-export const register: Register = detail =>
+export const mergeTags: MergeTagFireAndForget = detail =>
   document.dispatchEvent(
-    new RegisterEvent(registerEventName, {
+    new MergeTagFireAndForgetEvent(mergeTagsEventName, {
       detail,
       bubbles: true,
       cancelable: true,
