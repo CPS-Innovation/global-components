@@ -1,7 +1,7 @@
 {
   "ENVIRONMENT": "staging",
   "BANNER_TITLE_HREF": "",
-  "APP_INSIGHTS_CONNECTION_STRING": "InstrumentationKey=e572c03c-8d38-4771-b193-962f13da1b1a;IngestionEndpoint=https://uksouth-1.in.applicationinsights.azure.com/",
+  "APP_INSIGHTS_CONNECTION_STRING": "",
   "SURVEY_LINK": "https://forms.office.com/e/8KM9A7aS0e",
   "SHOW_MENU": false,
   "OS_HANDOVER_URL": "",
