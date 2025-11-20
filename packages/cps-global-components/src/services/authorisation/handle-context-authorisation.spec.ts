@@ -48,7 +48,7 @@ describe("handleContextAuthorisation", () => {
         pathTags: {},
         contextIndex: 0,
         msalRedirectUrl: "https://example.com",
-        paths: ["/test"],
+        path: "/test",
       } as FoundContext;
       const auth: AuthResult = {
         isAuthed: true,
@@ -74,7 +74,7 @@ describe("handleContextAuthorisation", () => {
         pathTags: {},
         contextIndex: 0,
         msalRedirectUrl: "https://example.com",
-        paths: ["/test"],
+        path: "/test",
       } as FoundContext;
       const auth: AuthResult = {
         isAuthed: false,
@@ -99,7 +99,7 @@ describe("handleContextAuthorisation", () => {
       pathTags: {},
       contextIndex: 0,
       msalRedirectUrl: "https://example.com",
-      paths: ["/test"],
+      path: "/test",
       authorisation: {
         adGroup: "required-group",
         unAuthedRedirectUrl: "https://unauthorized.example.com",
@@ -215,7 +215,7 @@ describe("handleContextAuthorisation", () => {
         pathTags: {},
         contextIndex: 0,
         msalRedirectUrl: "https://example.com",
-        paths: ["/test"],
+        path: "/test",
         authorisation: {
           adGroup: "group-with-special-chars@domain.com",
           unAuthedRedirectUrl: "https://unauthorized.example.com",
@@ -245,7 +245,7 @@ describe("handleContextAuthorisation", () => {
         pathTags: {},
         contextIndex: 0,
         msalRedirectUrl: "https://example.com",
-        paths: ["/test"],
+        path: "/test",
         authorisation: {
           adGroup: "Required-Group",
           unAuthedRedirectUrl: "https://unauthorized.example.com",
@@ -275,7 +275,7 @@ describe("handleContextAuthorisation", () => {
         pathTags: {},
         contextIndex: 0,
         msalRedirectUrl: "https://example.com",
-        paths: ["/test"],
+        path: "/test",
         authorisation: {
           adGroup: "required-group",
           unAuthedRedirectUrl: "https://unauthorized.example.com",

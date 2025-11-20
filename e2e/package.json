@@ -21,6 +21,7 @@
   "dependencies": {
     "@types/serve-handler": "^6.1.4",
     "cps-global-configuration": "workspace:*",
+    "deepmerge-ts": "^7.1.5",
     "expect-puppeteer": "^11.0.0",
     "puppeteer": "^24.10.0",
     "serve-handler": "^6.1.6",

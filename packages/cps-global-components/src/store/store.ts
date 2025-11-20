@@ -34,19 +34,49 @@ type MakeUndefinable<T> = {
 };
 
 // This state is expected to be set up once on startup
-type StartupState = { flags: ApplicationFlags; config: Config; auth: AuthResult };
-const initialStartupState = { flags: undefined, config: undefined, auth: undefined };
+type StartupState = {
+  flags: ApplicationFlags;
+  config: Config;
+  auth: AuthResult;
+};
+const initialStartupState = {
+  flags: undefined,
+  config: undefined,
+  auth: undefined,
+};
 
 // This state could change (e.g. history-based non-full-refresh navigation or dom tags changing)
-type TransientState = { context: FoundContext; propTags: Tags; pathTags: Tags; domTags: Tags; caseDetails: CaseDetails; correlationIds: CorrelationIds };
-const initialTransientState = { context: undefined, propTags: undefined, pathTags: undefined, domTags: undefined, caseDetails: undefined, correlationIds: undefined };
+type TransientState = {
+  context: FoundContext;
+  propTags: Tags;
+  pathTags: Tags;
+  domTags: Tags;
+  caseDetails: CaseDetails;
+  correlationIds: CorrelationIds;
+};
+const initialTransientState = {
+  context: undefined,
+  propTags: undefined,
+  pathTags: undefined,
+  domTags: undefined,
+  caseDetails: undefined,
+  correlationIds: undefined,
+};
 
-type AggregateState = { tags: Tags };
-const initialAggregateState = { tags: undefined };
+type AggregateState = {
+  tags: Tags;
+};
+const initialAggregateState = {
+  tags: undefined,
+};
 
 // This state is general
-type SummaryState = { fatalInitialisationError: Error | undefined };
-const initialSummaryState = { fatalInitialisationError: undefined };
+type SummaryState = {
+  fatalInitialisationError: Error | undefined;
+};
+const initialSummaryState = {
+  fatalInitialisationError: undefined,
+};
 
 type DefinedStoredState = StartupState & TransientState & AggregateState & SummaryState;
 
@@ -191,11 +221,9 @@ const readyStateInternal = <K extends readonly (keyof StateWithoutPrivateTags)[]
   // Check if all requested keys are defined
   const isReady = !keys.filter(key => key != "tags").some(key => store.state[key] === undefined);
 
-  if (isReady) {
-    return { isReady: true, state: { ...(result as PickIfReadyReturn<K>), ...alwaysReturnedState } };
-  } else {
-    return { isReady: false, state: { ...(result as StateWithoutPrivateTags), ...alwaysReturnedState } };
-  }
+  return isReady
+    ? { isReady: true, state: { ...(result as PickIfReadyReturn<K>), ...alwaysReturnedState } }
+    : { isReady: false, state: { ...(result as StateWithoutPrivateTags), ...alwaysReturnedState } };
 };
 
 export const readyState = withLogging("readyState", readyStateInternal);
