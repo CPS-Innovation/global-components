@@ -153,7 +153,7 @@ importers:
         version: 1.49.0
       '@microsoft/applicationinsights-web':
         specifier: ^3.3.6
-        version: 3.3.9(tslib@2.8.1)
+        version: 3.3.10(tslib@2.8.1)
       '@types/arrive':
         specifier: ^2.4.4
         version: 2.4.4
@@ -177,14 +177,14 @@ importers:
         version: 14.1.1
       rollup-plugin-sourcemaps:
         specifier: ^0.6.3
-        version: 0.6.3(@types/node@24.5.2)(rollup@4.50.1)
+        version: 0.6.3(@types/node@24.5.2)(rollup@4.53.3)
       uuid:
         specifier: ^11.1.0
         version: 11.1.0
     devDependencies:
       '@rollup/plugin-dynamic-import-vars':
         specifier: ^2.1.5
-        version: 2.1.5(rollup@4.50.1)
+        version: 2.1.5(rollup@4.53.3)
       '@stencil/core':
         specifier: ^4.36.2
         version: 4.37.1
@@ -214,7 +214,7 @@ importers:
         version: 24.22.3(typescript@5.9.2)
       rollup:
         specifier: ^4.40.0
-        version: 4.50.1
+        version: 4.53.3
 
   packages/cps-global-configuration:
     dependencies:
@@ -248,10 +248,10 @@ importers:
         version: 30.1.2
       '@rollup/plugin-node-resolve':
         specifier: ^16.0.1
-        version: 16.0.1(rollup@4.50.1)
+        version: 16.0.1(rollup@4.53.3)
       '@rollup/plugin-typescript':
         specifier: ^12.1.4
-        version: 12.1.4(rollup@4.50.1)(tslib@2.8.1)(typescript@5.9.2)
+        version: 12.1.4(rollup@4.53.3)(tslib@2.8.1)(typescript@5.9.2)
       '@testing-library/jest-dom':
         specifier: ^6.6.3
         version: 6.8.0
@@ -269,7 +269,7 @@ importers:
         version: 26.1.0
       rollup:
         specifier: ^4.44.1
-        version: 4.50.1
+        version: 4.53.3
       ts-jest:
         specifier: ^29.4.0
         version: 29.4.1(@babel/core@7.28.4)(@jest/transform@30.2.0)(@jest/types@30.2.0)(babel-jest@30.2.0(@babel/core@7.28.4))(jest-util@30.2.0)(jest@29.7.0)(typescript@5.9.2)
@@ -1012,46 +1012,46 @@ packages:
   '@jridgewell/trace-mapping@0.3.9':
     resolution: {integrity: sha512-3Belt6tdc8bPgAtbcmdtNJlirVoTmEb5e2gC94PnkwEW9jI6CAHUeoG85tjWP5WquqfavoMtMwiG4P926ZKKuQ==}
 
-  '@microsoft/applicationinsights-analytics-js@3.3.9':
-    resolution: {integrity: sha512-HJ7W4L4RYt7ozbwIsxjllJTk48ER0mbUOGrCSIIf7j3z3R/Kn/eTEBMNE073oV970nPEMzajvMZa2tDcsLLGzw==}
+  '@microsoft/applicationinsights-analytics-js@3.3.10':
+    resolution: {integrity: sha512-hr4ATKap4aLZ9X4/Rt6KT/l31vHeTrPIMrfl6P/GfMZ+gzh2EhYjjmEB1gtgLYor/D/huiMaUkakRQRGp0V/1Q==}
     peerDependencies:
       tslib: '>= 1.0.0'
 
-  '@microsoft/applicationinsights-cfgsync-js@3.3.9':
-    resolution: {integrity: sha512-/7HpyjvKnKp4UGZ6U3pNXjpdPWRXcDyxlAkE3D3/TtgLbiTLfraLQuQAi/zTnJPFqkb3/TcS3wmDtnVea83w2Q==}
+  '@microsoft/applicationinsights-cfgsync-js@3.3.10':
+    resolution: {integrity: sha512-YROIPKDgRTxZyAJ3v2fu56qaI+o1D/XgTIVuGP91AilGGWu3sUDL+/3KBNBGTtZlgW1e/psUhEjfHWxVS7degA==}
     peerDependencies:
       tslib: '>= 1.0.0'
 
-  '@microsoft/applicationinsights-channel-js@3.3.9':
-    resolution: {integrity: sha512-/yEgSe6vT2ycQJkXu6VF04TB5XBurk46ECV7uo6KkNhWyDEctAk1VDWB7EqXYdwLhKMbNOYX1pvz7fj43fGNqg==}
+  '@microsoft/applicationinsights-channel-js@3.3.10':
+    resolution: {integrity: sha512-iolFLz1ocWAzIQqHIEjjov3gNTPkgFQ4ArHnBcJEYoffOGWlJt6copaevS5YPI5rHzmbySsengZ8cLJJBBrXzQ==}
     peerDependencies:
       tslib: '>= 1.0.0'
 
-  '@microsoft/applicationinsights-common@3.3.9':
-    resolution: {integrity: sha512-IgruOuDBxmBK9jYo7SqLJG7Z9OwmAmlvHET49srpN6pqQlEjRpjD1nfA3Ps4RSEbF89a/ad2phQaBp8jvm122g==}
+  '@microsoft/applicationinsights-common@3.3.10':
+    resolution: {integrity: sha512-RVIenPIvNgZCbjJdALvLM4rNHgAFuHI7faFzHCgnI6S2WCUNGHeXlQTs9EUUrL+n2TPp9/cd0KKMILU5VVyYiA==}
     peerDependencies:
       tslib: '>= 1.0.0'
 
-  '@microsoft/applicationinsights-core-js@3.3.9':
-    resolution: {integrity: sha512-xliiE9H09xCycndlua4QjajN8q5k/ET6VCv+e0Jjodxr9+cmoOP/6QY9dun9ptokuwR8TK0qOaIJ8z4fgslVSA==}
+  '@microsoft/applicationinsights-core-js@3.3.10':
+    resolution: {integrity: sha512-5yKeyassZTq2l+SAO4npu6LPnbS++UD+M+Ghjm9uRzoBwD8tumFx0/F8AkSVqbniSREd+ztH/2q2foewa2RZyg==}
     peerDependencies:
       tslib: '>= 1.0.0'
 
-  '@microsoft/applicationinsights-dependencies-js@3.3.9':
-    resolution: {integrity: sha512-I8MiU0S2EB0H+Pz2X5PaV1BcqLHmWRSJDVhvxATvLGshwCRNSoXPSNf4Ami2mjVBKNH9GrSj01s6vrSUrSBsoQ==}
+  '@microsoft/applicationinsights-dependencies-js@3.3.10':
+    resolution: {integrity: sha512-KtYz18c0O5VJmsztyLgnNISQ3gfZh3XaBvDrSQ8QdBzvoE6QkfQx1lLkKFvshXvWkz2aL8BxgV2B43WcX9niLg==}
     peerDependencies:
       tslib: '>= 1.0.0'
 
-  '@microsoft/applicationinsights-properties-js@3.3.9':
-    resolution: {integrity: sha512-8CPrqLgFCrFMaUWQoHEXMGSG6Ykn9wxfDxBeEHI6yUSvnkeolnP0Mwg+6NRdHcVbiNnO4itGBJC+Icu0Eq7Xeg==}
+  '@microsoft/applicationinsights-properties-js@3.3.10':
+    resolution: {integrity: sha512-1pt1CCgT9MfG3YthRBhhzIStksgCMea3ctLfWDGA5414kGEMzp3xB986sC52XNzE/B6/PY8nTxATBxNEITeDVA==}
     peerDependencies:
       tslib: '>= 1.0.0'
 
   '@microsoft/applicationinsights-shims@3.0.1':
     resolution: {integrity: sha512-DKwboF47H1nb33rSUfjqI6ryX29v+2QWcTrRvcQDA32AZr5Ilkr7whOOSsD1aBzwqX0RJEIP1Z81jfE3NBm/Lg==}
 
-  '@microsoft/applicationinsights-web@3.3.9':
-    resolution: {integrity: sha512-sphOpJwjq0AVcUCxaoZYeB9nsMcxRgpZ6Jt8raqMIn0WdvgcSi51yFW4BE2gk8G8z4E8umnkEvYIb8SmEpkm1A==}
+  '@microsoft/applicationinsights-web@3.3.10':
+    resolution: {integrity: sha512-okQ2BPYlEnlAjSK80vXdpDB37Yl+LR/TULiLffqUEFAyr5YvnsOViEOus+uS9stOz+YhaU7sWNFAjFO31k2cBg==}
     peerDependencies:
       tslib: '>= 1.0.0'
 
@@ -1240,8 +1240,18 @@ packages:
     cpu: [arm]
     os: [android]
 
+  '@rollup/rollup-android-arm-eabi@4.53.3':
+    resolution: {integrity: sha512-mRSi+4cBjrRLoaal2PnqH82Wqyb+d3HsPUN/W+WslCXsZsyHa9ZeQQX/pQsZaVIWDkPcpV6jJ+3KLbTbgnwv8w==}
+    cpu: [arm]
+    os: [android]
+
   '@rollup/rollup-android-arm64@4.50.1':
     resolution: {integrity: sha512-PZlsJVcjHfcH53mOImyt3bc97Ep3FJDXRpk9sMdGX0qgLmY0EIWxCag6EigerGhLVuL8lDVYNnSo8qnTElO4xw==}
+    cpu: [arm64]
+    os: [android]
+
+  '@rollup/rollup-android-arm64@4.53.3':
+    resolution: {integrity: sha512-CbDGaMpdE9sh7sCmTrTUyllhrg65t6SwhjlMJsLr+J8YjFuPmCEjbBSx4Z/e4SmDyH3aB5hGaJUP2ltV/vcs4w==}
     cpu: [arm64]
     os: [android]
 
@@ -1255,6 +1265,11 @@ packages:
     cpu: [arm64]
     os: [darwin]
 
+  '@rollup/rollup-darwin-arm64@4.53.3':
+    resolution: {integrity: sha512-Nr7SlQeqIBpOV6BHHGZgYBuSdanCXuw09hon14MGOLGmXAFYjx1wNvquVPmpZnl0tLjg25dEdr4IQ6GgyToCUA==}
+    cpu: [arm64]
+    os: [darwin]
+
   '@rollup/rollup-darwin-x64@4.34.9':
     resolution: {integrity: sha512-eOojSEAi/acnsJVYRxnMkPFqcxSMFfrw7r2iD9Q32SGkb/Q9FpUY1UlAu1DH9T7j++gZ0lHjnm4OyH2vCI7l7Q==}
     cpu: [x64]
@@ -1265,8 +1280,18 @@ packages:
     cpu: [x64]
     os: [darwin]
 
+  '@rollup/rollup-darwin-x64@4.53.3':
+    resolution: {integrity: sha512-DZ8N4CSNfl965CmPktJ8oBnfYr3F8dTTNBQkRlffnUarJ2ohudQD17sZBa097J8xhQ26AwhHJ5mvUyQW8ddTsQ==}
+    cpu: [x64]
+    os: [darwin]
+
   '@rollup/rollup-freebsd-arm64@4.50.1':
     resolution: {integrity: sha512-wOsE6H2u6PxsHY/BeFHA4VGQN3KUJFZp7QJBmDYI983fgxq5Th8FDkVuERb2l9vDMs1D5XhOrhBrnqcEY6l8ZA==}
+    cpu: [arm64]
+    os: [freebsd]
+
+  '@rollup/rollup-freebsd-arm64@4.53.3':
+    resolution: {integrity: sha512-yMTrCrK92aGyi7GuDNtGn2sNW+Gdb4vErx4t3Gv/Tr+1zRb8ax4z8GWVRfr3Jw8zJWvpGHNpss3vVlbF58DZ4w==}
     cpu: [arm64]
     os: [freebsd]
 
@@ -1275,13 +1300,28 @@ packages:
     cpu: [x64]
     os: [freebsd]
 
+  '@rollup/rollup-freebsd-x64@4.53.3':
+    resolution: {integrity: sha512-lMfF8X7QhdQzseM6XaX0vbno2m3hlyZFhwcndRMw8fbAGUGL3WFMBdK0hbUBIUYcEcMhVLr1SIamDeuLBnXS+Q==}
+    cpu: [x64]
+    os: [freebsd]
+
   '@rollup/rollup-linux-arm-gnueabihf@4.50.1':
     resolution: {integrity: sha512-54v4okehwl5TaSIkpp97rAHGp7t3ghinRd/vyC1iXqXMfjYUTm7TfYmCzXDoHUPTTf36L8pr0E7YsD3CfB3ZDg==}
     cpu: [arm]
     os: [linux]
 
+  '@rollup/rollup-linux-arm-gnueabihf@4.53.3':
+    resolution: {integrity: sha512-k9oD15soC/Ln6d2Wv/JOFPzZXIAIFLp6B+i14KhxAfnq76ajt0EhYc5YPeX6W1xJkAdItcVT+JhKl1QZh44/qw==}
+    cpu: [arm]
+    os: [linux]
+
   '@rollup/rollup-linux-arm-musleabihf@4.50.1':
     resolution: {integrity: sha512-p/LaFyajPN/0PUHjv8TNyxLiA7RwmDoVY3flXHPSzqrGcIp/c2FjwPPP5++u87DGHtw+5kSH5bCJz0mvXngYxw==}
+    cpu: [arm]
+    os: [linux]
+
+  '@rollup/rollup-linux-arm-musleabihf@4.53.3':
+    resolution: {integrity: sha512-vTNlKq+N6CK/8UktsrFuc+/7NlEYVxgaEgRXVUVK258Z5ymho29skzW1sutgYjqNnquGwVUObAaxae8rZ6YMhg==}
     cpu: [arm]
     os: [linux]
 
@@ -1295,6 +1335,11 @@ packages:
     cpu: [arm64]
     os: [linux]
 
+  '@rollup/rollup-linux-arm64-gnu@4.53.3':
+    resolution: {integrity: sha512-RGrFLWgMhSxRs/EWJMIFM1O5Mzuz3Xy3/mnxJp/5cVhZ2XoCAxJnmNsEyeMJtpK+wu0FJFWz+QF4mjCA7AUQ3w==}
+    cpu: [arm64]
+    os: [linux]
+
   '@rollup/rollup-linux-arm64-musl@4.34.9':
     resolution: {integrity: sha512-LD2fytxZJZ6xzOKnMbIpgzFOuIKlxVOpiMAXawsAZ2mHBPEYOnLRK5TTEsID6z4eM23DuO88X0Tq1mErHMVq0A==}
     cpu: [arm64]
@@ -1303,6 +1348,16 @@ packages:
   '@rollup/rollup-linux-arm64-musl@4.50.1':
     resolution: {integrity: sha512-Cgef+5aZwuvesQNw9eX7g19FfKX5/pQRIyhoXLCiBOrWopjo7ycfB292TX9MDcDijiuIJlx1IzJz3IoCPfqs9w==}
     cpu: [arm64]
+    os: [linux]
+
+  '@rollup/rollup-linux-arm64-musl@4.53.3':
+    resolution: {integrity: sha512-kASyvfBEWYPEwe0Qv4nfu6pNkITLTb32p4yTgzFCocHnJLAHs+9LjUu9ONIhvfT/5lv4YS5muBHyuV84epBo/A==}
+    cpu: [arm64]
+    os: [linux]
+
+  '@rollup/rollup-linux-loong64-gnu@4.53.3':
+    resolution: {integrity: sha512-JiuKcp2teLJwQ7vkJ95EwESWkNRFJD7TQgYmCnrPtlu50b4XvT5MOmurWNrCj3IFdyjBQ5p9vnrX4JM6I8OE7g==}
+    cpu: [loong64]
     os: [linux]
 
   '@rollup/rollup-linux-loongarch64-gnu@4.50.1':
@@ -1315,8 +1370,18 @@ packages:
     cpu: [ppc64]
     os: [linux]
 
+  '@rollup/rollup-linux-ppc64-gnu@4.53.3':
+    resolution: {integrity: sha512-EoGSa8nd6d3T7zLuqdojxC20oBfNT8nexBbB/rkxgKj5T5vhpAQKKnD+h3UkoMuTyXkP5jTjK/ccNRmQrPNDuw==}
+    cpu: [ppc64]
+    os: [linux]
+
   '@rollup/rollup-linux-riscv64-gnu@4.50.1':
     resolution: {integrity: sha512-S208ojx8a4ciIPrLgazF6AgdcNJzQE4+S9rsmOmDJkusvctii+ZvEuIC4v/xFqzbuP8yDjn73oBlNDgF6YGSXQ==}
+    cpu: [riscv64]
+    os: [linux]
+
+  '@rollup/rollup-linux-riscv64-gnu@4.53.3':
+    resolution: {integrity: sha512-4s+Wped2IHXHPnAEbIB0YWBv7SDohqxobiiPA1FIWZpX+w9o2i4LezzH/NkFUl8LRci/8udci6cLq+jJQlh+0g==}
     cpu: [riscv64]
     os: [linux]
 
@@ -1325,8 +1390,18 @@ packages:
     cpu: [riscv64]
     os: [linux]
 
+  '@rollup/rollup-linux-riscv64-musl@4.53.3':
+    resolution: {integrity: sha512-68k2g7+0vs2u9CxDt5ktXTngsxOQkSEV/xBbwlqYcUrAVh6P9EgMZvFsnHy4SEiUl46Xf0IObWVbMvPrr2gw8A==}
+    cpu: [riscv64]
+    os: [linux]
+
   '@rollup/rollup-linux-s390x-gnu@4.50.1':
     resolution: {integrity: sha512-t9YrKfaxCYe7l7ldFERE1BRg/4TATxIg+YieHQ966jwvo7ddHJxPj9cNFWLAzhkVsbBvNA4qTbPVNsZKBO4NSg==}
+    cpu: [s390x]
+    os: [linux]
+
+  '@rollup/rollup-linux-s390x-gnu@4.53.3':
+    resolution: {integrity: sha512-VYsFMpULAz87ZW6BVYw3I6sWesGpsP9OPcyKe8ofdg9LHxSbRMd7zrVrr5xi/3kMZtpWL/wC+UIJWJYVX5uTKg==}
     cpu: [s390x]
     os: [linux]
 
@@ -1340,6 +1415,11 @@ packages:
     cpu: [x64]
     os: [linux]
 
+  '@rollup/rollup-linux-x64-gnu@4.53.3':
+    resolution: {integrity: sha512-3EhFi1FU6YL8HTUJZ51imGJWEX//ajQPfqWLI3BQq4TlvHy4X0MOr5q3D2Zof/ka0d5FNdPwZXm3Yyib/UEd+w==}
+    cpu: [x64]
+    os: [linux]
+
   '@rollup/rollup-linux-x64-musl@4.34.9':
     resolution: {integrity: sha512-cYRpV4650z2I3/s6+5/LONkjIz8MBeqrk+vPXV10ORBnshpn8S32bPqQ2Utv39jCiDcO2eJTuSlPXpnvmaIgRA==}
     cpu: [x64]
@@ -1350,8 +1430,18 @@ packages:
     cpu: [x64]
     os: [linux]
 
+  '@rollup/rollup-linux-x64-musl@4.53.3':
+    resolution: {integrity: sha512-eoROhjcc6HbZCJr+tvVT8X4fW3/5g/WkGvvmwz/88sDtSJzO7r/blvoBDgISDiCjDRZmHpwud7h+6Q9JxFwq1Q==}
+    cpu: [x64]
+    os: [linux]
+
   '@rollup/rollup-openharmony-arm64@4.50.1':
     resolution: {integrity: sha512-RDsLm+phmT3MJd9SNxA9MNuEAO/J2fhW8GXk62G/B4G7sLVumNFbRwDL6v5NrESb48k+QMqdGbHgEtfU0LCpbA==}
+    cpu: [arm64]
+    os: [openharmony]
+
+  '@rollup/rollup-openharmony-arm64@4.53.3':
+    resolution: {integrity: sha512-OueLAWgrNSPGAdUdIjSWXw+u/02BRTcnfw9PN41D2vq/JSEPnJnVuBgw18VkN8wcd4fjUs+jFHVM4t9+kBSNLw==}
     cpu: [arm64]
     os: [openharmony]
 
@@ -1365,9 +1455,24 @@ packages:
     cpu: [arm64]
     os: [win32]
 
+  '@rollup/rollup-win32-arm64-msvc@4.53.3':
+    resolution: {integrity: sha512-GOFuKpsxR/whszbF/bzydebLiXIHSgsEUp6M0JI8dWvi+fFa1TD6YQa4aSZHtpmh2/uAlj/Dy+nmby3TJ3pkTw==}
+    cpu: [arm64]
+    os: [win32]
+
   '@rollup/rollup-win32-ia32-msvc@4.50.1':
     resolution: {integrity: sha512-SXjv8JlbzKM0fTJidX4eVsH+Wmnp0/WcD8gJxIZyR6Gay5Qcsmdbi9zVtnbkGPG8v2vMR1AD06lGWy5FLMcG7A==}
     cpu: [ia32]
+    os: [win32]
+
+  '@rollup/rollup-win32-ia32-msvc@4.53.3':
+    resolution: {integrity: sha512-iah+THLcBJdpfZ1TstDFbKNznlzoxa8fmnFYK4V67HvmuNYkVdAywJSoteUszvBQ9/HqN2+9AZghbajMsFT+oA==}
+    cpu: [ia32]
+    os: [win32]
+
+  '@rollup/rollup-win32-x64-gnu@4.53.3':
+    resolution: {integrity: sha512-J9QDiOIZlZLdcot5NXEepDkstocktoVjkaKUtqzgzpt2yWjGlbYiKyp05rWwk4nypbYUNoFAztEgixoLaSETkg==}
+    cpu: [x64]
     os: [win32]
 
   '@rollup/rollup-win32-x64-msvc@4.34.9':
@@ -1377,6 +1482,11 @@ packages:
 
   '@rollup/rollup-win32-x64-msvc@4.50.1':
     resolution: {integrity: sha512-StxAO/8ts62KZVRAm4JZYq9+NqNsV7RvimNK+YM7ry//zebEH6meuugqW/P5OFUCjyQgui+9fUxT6d5NShvMvA==}
+    cpu: [x64]
+    os: [win32]
+
+  '@rollup/rollup-win32-x64-msvc@4.53.3':
+    resolution: {integrity: sha512-UhTd8u31dXadv0MopwGgNOBpUVROFKWVQgAg5N1ESyCz8AuBcMqm4AuTjrwgQKGDfoFuz02EuMRHQIw/frmYKQ==}
     cpu: [x64]
     os: [win32]
 
@@ -4188,6 +4298,11 @@ packages:
     engines: {node: '>=18.0.0', npm: '>=8.0.0'}
     hasBin: true
 
+  rollup@4.53.3:
+    resolution: {integrity: sha512-w8GmOxZfBmKknvdXU1sdM9NHcoQejwF/4mNgj2JuEEdRaHwwF12K7e9eXn1nLZ07ad+du76mkVsyeb2rKGllsA==}
+    engines: {node: '>=18.0.0', npm: '>=8.0.0'}
+    hasBin: true
+
   rrweb-cssom@0.8.0:
     resolution: {integrity: sha512-guoltQEx+9aMf2gDZ0s62EcV8lsXR+0w8915TC3ITdn2YueuNjdAYh/levpU9nFaoChh9RUS5ZdQMrKfVEN9tw==}
 
@@ -5967,44 +6082,44 @@ snapshots:
       '@jridgewell/resolve-uri': 3.1.2
       '@jridgewell/sourcemap-codec': 1.5.5
 
-  '@microsoft/applicationinsights-analytics-js@3.3.9(tslib@2.8.1)':
+  '@microsoft/applicationinsights-analytics-js@3.3.10(tslib@2.8.1)':
     dependencies:
-      '@microsoft/applicationinsights-common': 3.3.9(tslib@2.8.1)
-      '@microsoft/applicationinsights-core-js': 3.3.9(tslib@2.8.1)
+      '@microsoft/applicationinsights-common': 3.3.10(tslib@2.8.1)
+      '@microsoft/applicationinsights-core-js': 3.3.10(tslib@2.8.1)
       '@microsoft/applicationinsights-shims': 3.0.1
       '@microsoft/dynamicproto-js': 2.0.3
       '@nevware21/ts-utils': 0.12.5
       tslib: 2.8.1
 
-  '@microsoft/applicationinsights-cfgsync-js@3.3.9(tslib@2.8.1)':
+  '@microsoft/applicationinsights-cfgsync-js@3.3.10(tslib@2.8.1)':
     dependencies:
-      '@microsoft/applicationinsights-common': 3.3.9(tslib@2.8.1)
-      '@microsoft/applicationinsights-core-js': 3.3.9(tslib@2.8.1)
-      '@microsoft/applicationinsights-shims': 3.0.1
-      '@microsoft/dynamicproto-js': 2.0.3
-      '@nevware21/ts-async': 0.5.4
-      '@nevware21/ts-utils': 0.12.5
-      tslib: 2.8.1
-
-  '@microsoft/applicationinsights-channel-js@3.3.9(tslib@2.8.1)':
-    dependencies:
-      '@microsoft/applicationinsights-common': 3.3.9(tslib@2.8.1)
-      '@microsoft/applicationinsights-core-js': 3.3.9(tslib@2.8.1)
+      '@microsoft/applicationinsights-common': 3.3.10(tslib@2.8.1)
+      '@microsoft/applicationinsights-core-js': 3.3.10(tslib@2.8.1)
       '@microsoft/applicationinsights-shims': 3.0.1
       '@microsoft/dynamicproto-js': 2.0.3
       '@nevware21/ts-async': 0.5.4
       '@nevware21/ts-utils': 0.12.5
       tslib: 2.8.1
 
-  '@microsoft/applicationinsights-common@3.3.9(tslib@2.8.1)':
+  '@microsoft/applicationinsights-channel-js@3.3.10(tslib@2.8.1)':
     dependencies:
-      '@microsoft/applicationinsights-core-js': 3.3.9(tslib@2.8.1)
+      '@microsoft/applicationinsights-common': 3.3.10(tslib@2.8.1)
+      '@microsoft/applicationinsights-core-js': 3.3.10(tslib@2.8.1)
+      '@microsoft/applicationinsights-shims': 3.0.1
+      '@microsoft/dynamicproto-js': 2.0.3
+      '@nevware21/ts-async': 0.5.4
+      '@nevware21/ts-utils': 0.12.5
+      tslib: 2.8.1
+
+  '@microsoft/applicationinsights-common@3.3.10(tslib@2.8.1)':
+    dependencies:
+      '@microsoft/applicationinsights-core-js': 3.3.10(tslib@2.8.1)
       '@microsoft/applicationinsights-shims': 3.0.1
       '@microsoft/dynamicproto-js': 2.0.3
       '@nevware21/ts-utils': 0.12.5
       tslib: 2.8.1
 
-  '@microsoft/applicationinsights-core-js@3.3.9(tslib@2.8.1)':
+  '@microsoft/applicationinsights-core-js@3.3.10(tslib@2.8.1)':
     dependencies:
       '@microsoft/applicationinsights-shims': 3.0.1
       '@microsoft/dynamicproto-js': 2.0.3
@@ -6012,20 +6127,20 @@ snapshots:
       '@nevware21/ts-utils': 0.12.5
       tslib: 2.8.1
 
-  '@microsoft/applicationinsights-dependencies-js@3.3.9(tslib@2.8.1)':
+  '@microsoft/applicationinsights-dependencies-js@3.3.10(tslib@2.8.1)':
     dependencies:
-      '@microsoft/applicationinsights-common': 3.3.9(tslib@2.8.1)
-      '@microsoft/applicationinsights-core-js': 3.3.9(tslib@2.8.1)
+      '@microsoft/applicationinsights-common': 3.3.10(tslib@2.8.1)
+      '@microsoft/applicationinsights-core-js': 3.3.10(tslib@2.8.1)
       '@microsoft/applicationinsights-shims': 3.0.1
       '@microsoft/dynamicproto-js': 2.0.3
       '@nevware21/ts-async': 0.5.4
       '@nevware21/ts-utils': 0.12.5
       tslib: 2.8.1
 
-  '@microsoft/applicationinsights-properties-js@3.3.9(tslib@2.8.1)':
+  '@microsoft/applicationinsights-properties-js@3.3.10(tslib@2.8.1)':
     dependencies:
-      '@microsoft/applicationinsights-common': 3.3.9(tslib@2.8.1)
-      '@microsoft/applicationinsights-core-js': 3.3.9(tslib@2.8.1)
+      '@microsoft/applicationinsights-common': 3.3.10(tslib@2.8.1)
+      '@microsoft/applicationinsights-core-js': 3.3.10(tslib@2.8.1)
       '@microsoft/applicationinsights-shims': 3.0.1
       '@microsoft/dynamicproto-js': 2.0.3
       '@nevware21/ts-utils': 0.12.5
@@ -6035,15 +6150,15 @@ snapshots:
     dependencies:
       '@nevware21/ts-utils': 0.12.5
 
-  '@microsoft/applicationinsights-web@3.3.9(tslib@2.8.1)':
+  '@microsoft/applicationinsights-web@3.3.10(tslib@2.8.1)':
     dependencies:
-      '@microsoft/applicationinsights-analytics-js': 3.3.9(tslib@2.8.1)
-      '@microsoft/applicationinsights-cfgsync-js': 3.3.9(tslib@2.8.1)
-      '@microsoft/applicationinsights-channel-js': 3.3.9(tslib@2.8.1)
-      '@microsoft/applicationinsights-common': 3.3.9(tslib@2.8.1)
-      '@microsoft/applicationinsights-core-js': 3.3.9(tslib@2.8.1)
-      '@microsoft/applicationinsights-dependencies-js': 3.3.9(tslib@2.8.1)
-      '@microsoft/applicationinsights-properties-js': 3.3.9(tslib@2.8.1)
+      '@microsoft/applicationinsights-analytics-js': 3.3.10(tslib@2.8.1)
+      '@microsoft/applicationinsights-cfgsync-js': 3.3.10(tslib@2.8.1)
+      '@microsoft/applicationinsights-channel-js': 3.3.10(tslib@2.8.1)
+      '@microsoft/applicationinsights-common': 3.3.10(tslib@2.8.1)
+      '@microsoft/applicationinsights-core-js': 3.3.10(tslib@2.8.1)
+      '@microsoft/applicationinsights-dependencies-js': 3.3.10(tslib@2.8.1)
+      '@microsoft/applicationinsights-properties-js': 3.3.10(tslib@2.8.1)
       '@microsoft/applicationinsights-shims': 3.0.1
       '@microsoft/dynamicproto-js': 2.0.3
       '@nevware21/ts-async': 0.5.4
@@ -6169,54 +6284,60 @@ snapshots:
 
   '@rolldown/pluginutils@1.0.0-beta.27': {}
 
-  '@rollup/plugin-dynamic-import-vars@2.1.5(rollup@4.50.1)':
+  '@rollup/plugin-dynamic-import-vars@2.1.5(rollup@4.53.3)':
     dependencies:
-      '@rollup/pluginutils': 5.3.0(rollup@4.50.1)
+      '@rollup/pluginutils': 5.3.0(rollup@4.53.3)
       astring: 1.9.0
       estree-walker: 2.0.2
       fast-glob: 3.3.3
       magic-string: 0.30.19
     optionalDependencies:
-      rollup: 4.50.1
+      rollup: 4.53.3
 
-  '@rollup/plugin-node-resolve@16.0.1(rollup@4.50.1)':
+  '@rollup/plugin-node-resolve@16.0.1(rollup@4.53.3)':
     dependencies:
-      '@rollup/pluginutils': 5.3.0(rollup@4.50.1)
+      '@rollup/pluginutils': 5.3.0(rollup@4.53.3)
       '@types/resolve': 1.20.2
       deepmerge: 4.3.1
       is-module: 1.0.0
       resolve: 1.22.10
     optionalDependencies:
-      rollup: 4.50.1
+      rollup: 4.53.3
 
-  '@rollup/plugin-typescript@12.1.4(rollup@4.50.1)(tslib@2.8.1)(typescript@5.9.2)':
+  '@rollup/plugin-typescript@12.1.4(rollup@4.53.3)(tslib@2.8.1)(typescript@5.9.2)':
     dependencies:
-      '@rollup/pluginutils': 5.3.0(rollup@4.50.1)
+      '@rollup/pluginutils': 5.3.0(rollup@4.53.3)
       resolve: 1.22.10
       typescript: 5.9.2
     optionalDependencies:
-      rollup: 4.50.1
+      rollup: 4.53.3
       tslib: 2.8.1
 
-  '@rollup/pluginutils@3.1.0(rollup@4.50.1)':
+  '@rollup/pluginutils@3.1.0(rollup@4.53.3)':
     dependencies:
       '@types/estree': 0.0.39
       estree-walker: 1.0.1
       picomatch: 2.3.1
-      rollup: 4.50.1
+      rollup: 4.53.3
 
-  '@rollup/pluginutils@5.3.0(rollup@4.50.1)':
+  '@rollup/pluginutils@5.3.0(rollup@4.53.3)':
     dependencies:
       '@types/estree': 1.0.8
       estree-walker: 2.0.2
       picomatch: 4.0.3
     optionalDependencies:
-      rollup: 4.50.1
+      rollup: 4.53.3
 
   '@rollup/rollup-android-arm-eabi@4.50.1':
     optional: true
 
+  '@rollup/rollup-android-arm-eabi@4.53.3':
+    optional: true
+
   '@rollup/rollup-android-arm64@4.50.1':
+    optional: true
+
+  '@rollup/rollup-android-arm64@4.53.3':
     optional: true
 
   '@rollup/rollup-darwin-arm64@4.34.9':
@@ -6225,22 +6346,40 @@ snapshots:
   '@rollup/rollup-darwin-arm64@4.50.1':
     optional: true
 
+  '@rollup/rollup-darwin-arm64@4.53.3':
+    optional: true
+
   '@rollup/rollup-darwin-x64@4.34.9':
     optional: true
 
   '@rollup/rollup-darwin-x64@4.50.1':
     optional: true
 
+  '@rollup/rollup-darwin-x64@4.53.3':
+    optional: true
+
   '@rollup/rollup-freebsd-arm64@4.50.1':
+    optional: true
+
+  '@rollup/rollup-freebsd-arm64@4.53.3':
     optional: true
 
   '@rollup/rollup-freebsd-x64@4.50.1':
     optional: true
 
+  '@rollup/rollup-freebsd-x64@4.53.3':
+    optional: true
+
   '@rollup/rollup-linux-arm-gnueabihf@4.50.1':
     optional: true
 
+  '@rollup/rollup-linux-arm-gnueabihf@4.53.3':
+    optional: true
+
   '@rollup/rollup-linux-arm-musleabihf@4.50.1':
+    optional: true
+
+  '@rollup/rollup-linux-arm-musleabihf@4.53.3':
     optional: true
 
   '@rollup/rollup-linux-arm64-gnu@4.34.9':
@@ -6249,10 +6388,19 @@ snapshots:
   '@rollup/rollup-linux-arm64-gnu@4.50.1':
     optional: true
 
+  '@rollup/rollup-linux-arm64-gnu@4.53.3':
+    optional: true
+
   '@rollup/rollup-linux-arm64-musl@4.34.9':
     optional: true
 
   '@rollup/rollup-linux-arm64-musl@4.50.1':
+    optional: true
+
+  '@rollup/rollup-linux-arm64-musl@4.53.3':
+    optional: true
+
+  '@rollup/rollup-linux-loong64-gnu@4.53.3':
     optional: true
 
   '@rollup/rollup-linux-loongarch64-gnu@4.50.1':
@@ -6261,13 +6409,25 @@ snapshots:
   '@rollup/rollup-linux-ppc64-gnu@4.50.1':
     optional: true
 
+  '@rollup/rollup-linux-ppc64-gnu@4.53.3':
+    optional: true
+
   '@rollup/rollup-linux-riscv64-gnu@4.50.1':
+    optional: true
+
+  '@rollup/rollup-linux-riscv64-gnu@4.53.3':
     optional: true
 
   '@rollup/rollup-linux-riscv64-musl@4.50.1':
     optional: true
 
+  '@rollup/rollup-linux-riscv64-musl@4.53.3':
+    optional: true
+
   '@rollup/rollup-linux-s390x-gnu@4.50.1':
+    optional: true
+
+  '@rollup/rollup-linux-s390x-gnu@4.53.3':
     optional: true
 
   '@rollup/rollup-linux-x64-gnu@4.34.9':
@@ -6276,13 +6436,22 @@ snapshots:
   '@rollup/rollup-linux-x64-gnu@4.50.1':
     optional: true
 
+  '@rollup/rollup-linux-x64-gnu@4.53.3':
+    optional: true
+
   '@rollup/rollup-linux-x64-musl@4.34.9':
     optional: true
 
   '@rollup/rollup-linux-x64-musl@4.50.1':
     optional: true
 
+  '@rollup/rollup-linux-x64-musl@4.53.3':
+    optional: true
+
   '@rollup/rollup-openharmony-arm64@4.50.1':
+    optional: true
+
+  '@rollup/rollup-openharmony-arm64@4.53.3':
     optional: true
 
   '@rollup/rollup-win32-arm64-msvc@4.34.9':
@@ -6291,13 +6460,25 @@ snapshots:
   '@rollup/rollup-win32-arm64-msvc@4.50.1':
     optional: true
 
+  '@rollup/rollup-win32-arm64-msvc@4.53.3':
+    optional: true
+
   '@rollup/rollup-win32-ia32-msvc@4.50.1':
+    optional: true
+
+  '@rollup/rollup-win32-ia32-msvc@4.53.3':
+    optional: true
+
+  '@rollup/rollup-win32-x64-gnu@4.53.3':
     optional: true
 
   '@rollup/rollup-win32-x64-msvc@4.34.9':
     optional: true
 
   '@rollup/rollup-win32-x64-msvc@4.50.1':
+    optional: true
+
+  '@rollup/rollup-win32-x64-msvc@4.53.3':
     optional: true
 
   '@sideway/address@4.1.5':
@@ -9766,10 +9947,10 @@ snapshots:
     dependencies:
       glob: 7.2.3
 
-  rollup-plugin-sourcemaps@0.6.3(@types/node@24.5.2)(rollup@4.50.1):
+  rollup-plugin-sourcemaps@0.6.3(@types/node@24.5.2)(rollup@4.53.3):
     dependencies:
-      '@rollup/pluginutils': 3.1.0(rollup@4.50.1)
-      rollup: 4.50.1
+      '@rollup/pluginutils': 3.1.0(rollup@4.53.3)
+      rollup: 4.53.3
       source-map-resolve: 0.6.0
     optionalDependencies:
       '@types/node': 24.5.2
@@ -9799,6 +9980,34 @@ snapshots:
       '@rollup/rollup-win32-arm64-msvc': 4.50.1
       '@rollup/rollup-win32-ia32-msvc': 4.50.1
       '@rollup/rollup-win32-x64-msvc': 4.50.1
+      fsevents: 2.3.3
+
+  rollup@4.53.3:
+    dependencies:
+      '@types/estree': 1.0.8
+    optionalDependencies:
+      '@rollup/rollup-android-arm-eabi': 4.53.3
+      '@rollup/rollup-android-arm64': 4.53.3
+      '@rollup/rollup-darwin-arm64': 4.53.3
+      '@rollup/rollup-darwin-x64': 4.53.3
+      '@rollup/rollup-freebsd-arm64': 4.53.3
+      '@rollup/rollup-freebsd-x64': 4.53.3
+      '@rollup/rollup-linux-arm-gnueabihf': 4.53.3
+      '@rollup/rollup-linux-arm-musleabihf': 4.53.3
+      '@rollup/rollup-linux-arm64-gnu': 4.53.3
+      '@rollup/rollup-linux-arm64-musl': 4.53.3
+      '@rollup/rollup-linux-loong64-gnu': 4.53.3
+      '@rollup/rollup-linux-ppc64-gnu': 4.53.3
+      '@rollup/rollup-linux-riscv64-gnu': 4.53.3
+      '@rollup/rollup-linux-riscv64-musl': 4.53.3
+      '@rollup/rollup-linux-s390x-gnu': 4.53.3
+      '@rollup/rollup-linux-x64-gnu': 4.53.3
+      '@rollup/rollup-linux-x64-musl': 4.53.3
+      '@rollup/rollup-openharmony-arm64': 4.53.3
+      '@rollup/rollup-win32-arm64-msvc': 4.53.3
+      '@rollup/rollup-win32-ia32-msvc': 4.53.3
+      '@rollup/rollup-win32-x64-gnu': 4.53.3
+      '@rollup/rollup-win32-x64-msvc': 4.53.3
       fsevents: 2.3.3
 
   rrweb-cssom@0.8.0: {}
