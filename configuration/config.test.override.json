@@ -14,7 +14,7 @@
   "FEATURE_FLAG_MENU_USERS": {
     "generallyAvailable": true
   },
-  "FEATURE_FLAG_ENABLE_INTRUSIVE_AD_LOGIN": true,
+  "FEATURE_FLAG_ENABLE_INTRUSIVE_AD_LOGIN": false,
   "CONTEXTS": [
     {
       "headerCustomCssClasses": "header",
