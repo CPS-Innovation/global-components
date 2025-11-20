@@ -106,7 +106,7 @@ describe("menuConfig", () => {
       tags: {},
       auth: {} as AuthResult,
       fatalInitialisationError: undefined as any,
-      initialisationStatus: "ready",
+      initialisationStatus: "complete",
       correlationIds: {} as CorrelationIds,
     };
 
@@ -148,7 +148,7 @@ describe("menuConfig", () => {
       tags: {},
       auth: {} as AuthResult,
       fatalInitialisationError: undefined as any,
-      initialisationStatus: "ready",
+      initialisationStatus: "complete",
       correlationIds: {} as CorrelationIds,
     };
 
@@ -258,7 +258,7 @@ describe("menuConfig", () => {
       tags: {},
       auth: {} as AuthResult,
       fatalInitialisationError: undefined as any,
-      initialisationStatus: "ready",
+      initialisationStatus: "complete",
       correlationIds: {} as CorrelationIds,
     };
 
@@ -322,7 +322,7 @@ describe("menuConfig", () => {
       tags: {},
       auth: {} as AuthResult,
       fatalInitialisationError: undefined as any,
-      initialisationStatus: "ready",
+      initialisationStatus: "complete",
       correlationIds: {} as CorrelationIds,
     };
 
@@ -387,7 +387,7 @@ describe("menuConfig", () => {
       tags: {},
       auth: {} as AuthResult,
       fatalInitialisationError: undefined as any,
-      initialisationStatus: "ready",
+      initialisationStatus: "complete",
       correlationIds: {} as CorrelationIds,
     };
 
@@ -451,7 +451,7 @@ describe("menuConfig", () => {
       tags: {},
       auth: {} as AuthResult,
       fatalInitialisationError: undefined as any,
-      initialisationStatus: "ready",
+      initialisationStatus: "complete",
       correlationIds: {} as CorrelationIds,
     };
 
