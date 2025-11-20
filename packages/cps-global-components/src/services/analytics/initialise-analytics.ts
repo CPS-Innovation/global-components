@@ -12,21 +12,14 @@ type Props = { window: Window; config: Config; auth: AuthResult };
 
 const { _debug } = makeConsole("initialiseAnalytics");
 
-export const initialiseAnalytics = ({ window, config: { APP_INSIGHTS_KEY, ENVIRONMENT }, auth }: Props) => {
-  if (!APP_INSIGHTS_KEY) {
+export const initialiseAnalytics = ({ window, config: { APP_INSIGHTS_CONNECTION_STRING, ENVIRONMENT }, auth }: Props) => {
+  if (!APP_INSIGHTS_CONNECTION_STRING) {
     return { trackPageView: () => {}, trackException: () => {}, rebindTrackEvent: () => {} };
   }
 
-  const connectionString = [
-    `InstrumentationKey=${APP_INSIGHTS_KEY}`,
-    "IngestionEndpoint=https://uksouth-1.in.applicationinsights.azure.com/",
-    "LiveEndpoint=https://uksouth.livediagnostics.monitor.azure.com/",
-    "ApplicationId=3dafc37d-8c9c-4480-90fc-532ac2b8bba2",
-  ].join(";");
-
   const appInsights = new ApplicationInsights({
     config: {
-      connectionString,
+      connectionString: APP_INSIGHTS_CONNECTION_STRING,
       // Make sure the names of the session storage buffers do not clash with the host
       //  app's own use of app insights
       namePrefix: STORAGE_PREFIX,
