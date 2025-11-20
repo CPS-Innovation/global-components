@@ -13,11 +13,11 @@ export const createMsalInstance = async ({ authority, clientId, redirectUri }: P
       redirectUri,
     },
 
-    cache: {
-      // Note: no strong reason for choosing localStorage other than we are in a world
-      //  where we are skipping around different apps, and possibly different tabs.
-      cacheLocation: "localStorage",
-    },
+    // cache: {
+    //   // Note: no strong reason for choosing localStorage other than we are in a world
+    //   //  where we are skipping around different apps, and possibly different tabs.
+    //   cacheLocation: "",
+    // },
     system: {
       loggerOptions: {
         loggerCallback: (level, message, containsPii) => {
