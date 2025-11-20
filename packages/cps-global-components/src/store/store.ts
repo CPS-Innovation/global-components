@@ -12,6 +12,7 @@ import { withLogging } from "../logging/with-logging";
 import { CorrelationIds } from "../services/correlation/CorrelationIds";
 import { tagsSubscriptionFactory } from "./subscriptions/tags-subscription-factory";
 import { SubscriptionFactory } from "./subscriptions/SubscriptionFactory";
+import { ReadyState, readyStateFactory } from "./ready-state-factory";
 
 const { _debug } = makeConsole("store");
 
@@ -22,13 +23,17 @@ type KeysOfType<T, U> = {
   [K in keyof T]: T[K] extends U ? K : never;
 }[keyof T];
 
+// Given a type Foo = {a: number, b: number} then SinglePropertyOf<Foo, number> would be
+//  {a: 1} or {b: 1} but not {a: 1, b: 1}
 type SinglePropertyOf<T, PropType> = {
   [K in KeysOfType<T, PropType>]: Record<K, T[K]> & Partial<Record<Exclude<KeysOfType<T, PropType>, K>, never>>;
 }[KeysOfType<T, PropType>];
 
+// With tags we want the world to use "tags" rather than the constituent sub-tag objects
 export const privateTagProperties = ["pathTags", "domTags", "propTags"] as const;
 export type PrivateTagProperties = (typeof privateTagProperties)[number]; // gives us a union definition: "pathTags" | "domTags" | "propTags"
 
+// Transform a type Foo = {a: number, b: string} to FooUndefinable = {a: number | undefined, b: string | undefined}
 type MakeUndefinable<T> = {
   [K in keyof T]: T[K] | undefined;
 };
@@ -73,19 +78,24 @@ const initialAggregateState = {
 // This state is general
 type SummaryState = {
   fatalInitialisationError: Error | undefined;
+  initialisationStatus: undefined | "complete" | "broken";
 };
+
 const initialSummaryState = {
   fatalInitialisationError: undefined,
+  initialisationStatus: undefined,
 };
 
-type DefinedStoredState = StartupState & TransientState & AggregateState & SummaryState;
+export type State = StartupState & TransientState & AggregateState & SummaryState;
 
-export type StoredState = MakeUndefinable<DefinedStoredState>;
+export type StoredState = MakeUndefinable<State>;
 
 export type Register = (arg: Partial<StoredState>) => void;
 class RegisterEvent extends CustomEvent<Parameters<Register>[0]> {}
 
 export type MergeTags = (arg: SinglePropertyOf<TransientState, Tags>) => Tags;
+
+export type Store = ReturnType<typeof createStore<StoredState>>;
 
 const initialState: StoredState = {
   ...initialStartupState,
@@ -94,15 +104,15 @@ const initialState: StoredState = {
   ...initialSummaryState,
 };
 
-let store: ReturnType<typeof createStore<StoredState>>;
-
 export const initialiseStore = () => {
-  store = createStore<StoredState>(
+  const store: Store = createStore<StoredState>(
     () => ({
       ...initialState,
     }),
     (newValue, oldValue) => JSON.stringify(newValue) !== JSON.stringify(oldValue),
   );
+
+  readyState = readyStateFactory(store);
 
   const register = (arg: Partial<StoredState>) => Object.keys(arg).forEach((key: keyof StoredState) => store.set(key, arg[key]));
 
@@ -155,75 +165,4 @@ export const register: Register = detail =>
     }),
   );
 
-// This state is computed from the stored state
-type DerivedState = { initialisationStatus: undefined | "ready" | "broken" };
-
-// todo: rethink if we need this - so far it is only used to let e2e tests know they
-//  are ready to run
-const getInitialisationStatus = (): DerivedState["initialisationStatus"] => {
-  if (store.state.fatalInitialisationError) {
-    return "broken";
-  }
-  const keysToIgnore: (keyof StoredState)[] = ["fatalInitialisationError", "caseDetails", ...privateTagProperties];
-
-  const storeIsNotComplete = Object.keys(store.state)
-    .filter((key: keyof StoredState) => !keysToIgnore.includes(key))
-    .some(key => store.state[key] === undefined);
-
-  if (storeIsNotComplete) {
-    return undefined;
-  }
-
-  return "ready";
-};
-
-export type State = DefinedStoredState & DerivedState;
-type StateWithoutPrivateTags = Omit<State, PrivateTagProperties>;
-
-type NonUndefined<T> = T extends undefined ? never : T;
-
-type AllDefined = {
-  [K in keyof StateWithoutPrivateTags]: NonUndefined<StateWithoutPrivateTags[K]>;
-};
-
-// Helper type to override specific keys with non-undefined versions while keeping all other keys
-type OverrideKeys<T, K extends keyof T> = {
-  [P in keyof T]: P extends K ? NonUndefined<T[P]> : T[P];
-};
-
-// When ready: requested properties are guaranteed non-undefined, all other properties are accessible (potentially undefined)
-// When not ready: all properties are accessible and potentially undefined
-type PickIfReadyReturn<K extends readonly (keyof StateWithoutPrivateTags)[]> = K extends readonly [] ? AllDefined : OverrideKeys<StateWithoutPrivateTags, K[number]>;
-
-const readyStateInternal = <K extends readonly (keyof StateWithoutPrivateTags)[] = readonly []>(
-  ...keys: K
-):
-  | { isReady: true; state: PickIfReadyReturn<K> & Pick<StateWithoutPrivateTags, "initialisationStatus" | "fatalInitialisationError"> }
-  | { isReady: false; state: StateWithoutPrivateTags } => {
-  const alwaysReturnedState = { fatalInitialisationError: store.state.fatalInitialisationError, initialisationStatus: getInitialisationStatus() };
-
-  // When a render function access a store the internals of the library are setting up observers see
-  //  https://github.com/stenciljs/store/blob/4579ad531211d1777798fa994d779fefdec5c814/src/subscriptions/stencil.ts#L36
-  //  This is done so that the store knows which components are interested in which top-level properties of the store. Whenever
-  //  a property changes the store can trigger a rerendering of the components that have enlisted as observers at any point
-  //  by having read that property.
-  // In the code below we must ensure that we visit every property listed in `keysToCheck` otherwise we may miss registering
-  //  to observe a property.
-  for (const key of keys) {
-    store.state[key];
-  }
-
-  // Return ALL properties from the store (for lazy access)
-  const result: any = {
-    ...store.state,
-  };
-
-  // Check if all requested keys are defined
-  const isReady = !keys.filter(key => key != "tags").some(key => store.state[key] === undefined);
-
-  return isReady
-    ? { isReady: true, state: { ...(result as PickIfReadyReturn<K>), ...alwaysReturnedState } }
-    : { isReady: false, state: { ...(result as StateWithoutPrivateTags), ...alwaysReturnedState } };
-};
-
-export const readyState = withLogging("readyState", readyStateInternal);
+export let readyState: ReadyState;

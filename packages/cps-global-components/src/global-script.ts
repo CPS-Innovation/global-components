@@ -66,6 +66,9 @@ const initialise = async (correlationIds: CorrelationIds) => {
     const context = initialiseContext({ window, config });
     register({ context });
 
+    const { pathTags } = context;
+    register({ pathTags });
+
     const { auth, getToken } = await cachedResult("auth", () => (flags.isE2eTestMode ? initialiseMockAuth({ window }) : initialiseAuth({ window, config, context })));
     register({ auth });
 
@@ -81,9 +84,6 @@ const initialise = async (correlationIds: CorrelationIds) => {
 
     handleContextAuthorisation({ window, context, auth });
 
-    const { pathTags } = context;
-    register({ pathTags });
-
     initialiseDomForContext({ context });
     handleOutSystemsForcedAuth({ window, config, context });
 
@@ -92,9 +92,11 @@ const initialise = async (correlationIds: CorrelationIds) => {
     getCaseDetailsUnSubscriber();
     const [unSubscriber] = subscribe(getCaseDetailsSubscriptionFactory({ window, config, context, getToken, correlationIds, register }));
     getCaseDetailsUnSubscriber = unSubscriber;
+
+    register({ initialisationStatus: "complete" });
   } catch (err) {
     trackException?.(err);
     _error(err);
-    register({ fatalInitialisationError: err });
+    register({ fatalInitialisationError: err, initialisationStatus: "broken" });
   }
 };
