@@ -4,8 +4,8 @@ const linkSchema = z.object({
   label: z.string(),
   href: z.string(),
   activeContexts: z.string(),
-  openInNewTab: z.boolean().optional(),
   visibleContexts: z.string(),
+  openInNewTab: z.boolean().optional(),
   preferEventNavigationContexts: z.string().optional(),
   level: z.number(),
 });
@@ -37,10 +37,15 @@ const featureFlagUsersSchema = z.object({
 
 export type FeatureFlagUsers = z.infer<typeof featureFlagUsersSchema>;
 
-const contextSchema = z.object({
-  paths: z.array(z.string()),
-  contexts: z.string(),
-  msalRedirectUrl: z.string(),
+const contextPathsSchema = z.object({
+  path: z.string(),
+  contextIds: z.string(),
+});
+
+export type ContextPathsSchema = z.infer<typeof contextPathsSchema>;
+
+const contextsBaseSchema = z.object({
+  msalRedirectUrl: z.string().optional(),
   domTagDefinitions: z.array(domTagDefinitionsSchema).optional(),
   applyOutSystemsShim: z.boolean().optional(),
   forceCmsAuthRefresh: z.boolean().optional(),
@@ -54,11 +59,28 @@ const contextSchema = z.object({
   skipToMainContentCustomSelector: z.string().optional(),
 });
 
+const contextStorageSchema: z.ZodType<ContextStorageSchema> =
+  contextsBaseSchema.extend({
+    contexts: z.lazy(() =>
+      z.array(z.union([contextStorageSchema, contextPathsSchema]))
+    ),
+  });
+
+// Because of the recursion we define the type before the schema
+export type ContextStorageSchema = z.infer<typeof contextsBaseSchema> & {
+  contexts: (ContextStorageSchema | ContextPathsSchema)[];
+};
+
+const contextSchema = contextsBaseSchema.extend({
+  path: z.string(),
+  contextIds: z.string(),
+  msalRedirectUrl: z.string(), // redefine as required, not optional in app config
+});
+
 export type Context = z.infer<typeof contextSchema>;
 
-export const configSchema = z.object({
+const configBaseSchema = z.object({
   ENVIRONMENT: z.string(),
-  CONTEXTS: z.array(contextSchema),
   LINKS: z.array(linkSchema),
   BANNER_TITLE_HREF: z.string(),
   AD_TENANT_AUTHORITY: z.string().optional(),
@@ -74,6 +96,16 @@ export const configSchema = z.object({
   TOKEN_HANDOVER_URL: z.string().optional(),
   FEATURE_FLAG_MENU_USERS: featureFlagUsersSchema.optional(),
   FEATURE_FLAG_ENABLE_INTRUSIVE_AD_LOGIN: z.boolean().optional(),
+});
+
+export const configStorageSchema = configBaseSchema.extend({
+  CONTEXTS: z.array(contextStorageSchema),
+});
+
+export type ConfigStorage = z.infer<typeof configStorageSchema>;
+
+export const configSchema = configBaseSchema.extend({
+  CONTEXTS: z.array(contextSchema),
 });
 
 export type Config = z.infer<typeof configSchema>;

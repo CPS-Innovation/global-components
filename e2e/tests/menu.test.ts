@@ -1,11 +1,14 @@
 import { act } from "../helpers/act";
 import { arrange, ArrangeProps } from "../helpers/arrange";
 import { locators as L } from "../helpers/constants";
+import { DeepPartial, typedDeepMerge } from "../helpers/utils";
 
-const happySettings: ArrangeProps = {
+const happySettings: DeepPartial<ArrangeProps> = {
   config: {
     SHOW_MENU: true,
-    CONTEXTS: [{ contexts: "e2e", paths: [".*"], msalRedirectUrl: "foo" }],
+    CONTEXTS: [
+      { msalRedirectUrl: "foo", contexts: [{ contextIds: "e2e", path: ".*" }] },
+    ],
     LINKS: [
       {
         label: "foo",
@@ -32,10 +35,9 @@ describe("Global menu", () => {
   });
 
   it("should should not show the menu if it is switched off in config", async () => {
-    await arrange({
-      ...happySettings,
-      config: { ...happySettings.config, SHOW_MENU: false },
-    });
+    await arrange(
+      typedDeepMerge(happySettings, { config: { SHOW_MENU: false } })
+    );
 
     const header = await act();
 
@@ -45,10 +47,7 @@ describe("Global menu", () => {
   });
 
   it("should should not show the menu if the user is not authenticated", async () => {
-    await arrange({
-      ...happySettings,
-      auth: { ...happySettings.auth, isAuthed: false },
-    });
+    await arrange(typedDeepMerge(happySettings, { auth: { isAuthed: false } }));
 
     const header = await act();
 
@@ -58,10 +57,11 @@ describe("Global menu", () => {
   });
 
   it("should should not show the menu if the user is not in an appropriate AD group", async () => {
-    await arrange({
-      ...happySettings,
-      auth: { isAuthed: true, adGroups: ["not-the-e2e-test-group"] },
-    });
+    await arrange(
+      typedDeepMerge(happySettings, {
+        auth: { isAuthed: true, adGroups: ["not-the-e2e-test-group"] },
+      })
+    );
 
     const header = await act();
 
@@ -71,39 +71,30 @@ describe("Global menu", () => {
   });
 
   it("should should not show the menu if the current context has no links", async () => {
-    await arrange({
-      ...happySettings,
-      config: {
-        ...happySettings.config,
-        LINKS: [
-          {
-            ...happySettings.config.LINKS![0],
-            visibleContexts: "not-e2e",
-          },
-        ],
-      },
-    });
+    await arrange(
+      typedDeepMerge(happySettings, {
+        config: {
+          LINKS: [
+            {
+              visibleContexts: "not-e2e",
+            },
+          ],
+        },
+      })
+    );
 
     const header = await act();
-
     await expect(header).toMatchElement(L.MENU_CONTAINER);
     await expect(header).not.toMatchElement(L.MENU_CONTENT);
     await expect(header).not.toMatchElement(L.ERROR);
   });
 
   it("should should not show the menu and show an error if the address is not in a known context", async () => {
-    await arrange({
-      ...happySettings,
-      config: {
-        ...happySettings.config,
-        CONTEXTS: [
-          {
-            ...happySettings.config.CONTEXTS![0],
-            paths: ["http://example.org"],
-          },
-        ],
-      },
-    });
+    await arrange(
+      typedDeepMerge(happySettings, {
+        config: { CONTEXTS: [{ contexts: [{ path: "http://example.org" }] }] },
+      })
+    );
 
     const header = await act();
 

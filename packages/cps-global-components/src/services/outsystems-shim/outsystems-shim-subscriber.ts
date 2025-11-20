@@ -17,8 +17,7 @@ const applyStylesFactory =
       }
     });
 
-const isActiveForApp = (context: FoundContext, appPath: string) =>
-  context.found && !!context.applyOutSystemsShim && context.paths.some(path => new URL(path).pathname.includes(appPath));
+const isActiveForApp = (context: FoundContext, appPath: string) => context.found && !!context.applyOutSystemsShim && new URL(context.path).pathname.includes(appPath);
 
 // Beware: if this logic is ever changed then be sure to check that everything works when navigating around
 //  the apps via the menu.  The OS UI behaviour is different between when using the OS-specific login pages and

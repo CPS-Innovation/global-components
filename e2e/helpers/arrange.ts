@@ -1,20 +1,30 @@
-import { Config } from "cps-global-configuration";
+import { ConfigStorage } from "cps-global-configuration";
 import { encode } from "./encoding";
+import { DeepPartial, typedDeepMerge } from "./utils";
 
 export type ArrangeProps = {
-  config: Partial<Config>;
-  auth: { isAuthed: boolean; adGroups: string[] };
+  config: DeepPartial<ConfigStorage>;
+  auth: DeepPartial<{ isAuthed: boolean; adGroups: string[] }>;
 };
 
-export const arrange = async ({ config, auth }: Partial<ArrangeProps>) => {
-  config = {
+const baseProps: ArrangeProps = {
+  config: {
     ENVIRONMENT: "e2e",
-    CONTEXTS: [{ contexts: "e2e", paths: [".*"], msalRedirectUrl: "not-used" }],
+    CONTEXTS: [
+      {
+        msalRedirectUrl: "not-used",
+        contexts: [{ contextIds: "e2e", path: ".*" }],
+      },
+    ],
     LINKS: [],
     BANNER_TITLE_HREF: "/",
-    ...config,
-  };
-  auth = { isAuthed: true, adGroups: ["e2e-test-group"], ...auth };
+  },
+  auth: { isAuthed: true, adGroups: ["e2e-test-group"] },
+};
+
+export const arrange = async ({ config, auth }: DeepPartial<ArrangeProps>) => {
+  config = typedDeepMerge(baseProps.config, config);
+  auth = typedDeepMerge(baseProps.auth, auth);
 
   await page.setExtraHTTPHeaders({
     "x-config": encode(JSON.stringify(config)),

@@ -1,6 +1,7 @@
-export { configSchema, type Config, type Link } from "./schema";
 export {
-  validateConfig,
-  validateConfigStrict,
-  type ValidationResult,
-} from "./validator";
+  configSchema,
+  type Config,
+  type ConfigStorage,
+  type Link,
+} from "./schema";
+export { transformAndValidateConfig, type ValidationResult } from "./validator";

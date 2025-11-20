@@ -8,18 +8,38 @@ cps_global_components_config_jsonp_callback({
   COOKIE_HANDOVER_URL: "https://cin3.cps.gov.uk/polaris",
   TOKEN_HANDOVER_URL: "https://polaris-qa-notprod.cps.gov.uk/auth-refresh-cms-modern-token",
   CONTEXTS: [
-    { paths: ["http://localhost:3333/cases/(?<caseId>\\d+)/materials"], contexts: "case materials", msalRedirectUrl: "" },
-    { paths: ["http://localhost:3333/cases/(?<caseId>\\d+)/review"], contexts: "case review", msalRedirectUrl: "" },
-    { paths: ["http://localhost:3333/cases/(?<caseId>\\d+)"], contexts: "case details", msalRedirectUrl: "" },
-    { paths: ["http://localhost:3333/cases"], contexts: "cases", msalRedirectUrl: "" },
     {
-      paths: ["http://localhost:3333/"],
-      contexts: "tasks",
       msalRedirectUrl: "",
-      domTagDefinitions: [
+      contexts: [
         {
-          cssSelector: "a[href*='/polaris-ui/case-details/']",
-          regex: '/polaris-ui/case-details/(?<urn>.+)/(?<caseId>\\d+)"',
+          path: "http://localhost:3333/cases/(?<caseId>\\d+)/materials",
+          contextIds: "case materials",
+        },
+        {
+          path: "http://localhost:3333/cases/(?<caseId>\\d+)/review",
+          contextIds: "case review",
+        },
+        {
+          path: "http://localhost:3333/cases/(?<caseId>\\d+)",
+          contextIds: "case details",
+        },
+        {
+          path: "http://localhost:3333/cases",
+          contextIds: "cases",
+        },
+        {
+          domTagDefinitions: [
+            {
+              cssSelector: "a[href*='/polaris-ui/case-details/']",
+              regex: '/polaris-ui/case-details/(?<urn>.+)/(?<caseId>\\d+)"',
+            },
+          ],
+          contexts: [
+            {
+              path: "http://localhost:3333/",
+              contextIds: "tasks",
+            },
+          ],
         },
       ],
     },
