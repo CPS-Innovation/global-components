@@ -3,7 +3,7 @@ import { z } from "zod";
 export const CaseDetailsSchema = z.object({
   caseId: z.number(),
   urn: z.string(),
-  isDcf: z.boolean(),
+  isDcfCase: z.boolean(),
 });
 
 export type CaseDetails = z.infer<typeof CaseDetailsSchema>;

@@ -12,7 +12,10 @@ import { CorrelationIds } from "../services/correlation/CorrelationIds";
 import { tagsSubscriptionFactory } from "./subscriptions/tags-subscription-factory";
 import { SubscriptionFactory } from "./subscriptions/SubscriptionFactory";
 import { CaseDetails } from "../services/data/CaseDetails";
-import { ReadyState, readyStateFactory } from "./ready-state-factory";
+import { ReadyStateHelper, readyStateFactory } from "./ready-state-factory";
+import { CaseIdentifiers } from "../services/context/CaseIdentifiers";
+import { caseIdentifiersSubscriptionFactory } from "./subscriptions/case-identifiers-subscription-factory";
+export { type ReadyStateHelper };
 
 const { _debug } = makeConsole("store");
 
@@ -26,7 +29,7 @@ type KeysOfType<T, U> = {
 
 // Given a type Foo = {a: number, b: number} then SinglePropertyOf<Foo, number> would be
 //  {a: 1} or {b: 1} but not {a: 1, b: 1}
-type SinglePropertyOf<T, PropType> = {
+type SingleKnownTypePropertyOf<T, PropType> = {
   [K in KeysOfType<T, PropType>]: Record<K, T[K]> & Partial<Record<Exclude<KeysOfType<T, PropType>, K>, never>>;
 }[KeysOfType<T, PropType>];
 
@@ -57,18 +60,20 @@ type TransientState = {
   propTags: Tags;
   pathTags: Tags;
   domTags: Tags;
-  caseDetailsTags: Tags;
-  caseDetails: CaseDetails;
   correlationIds: CorrelationIds;
+  caseDetailsTags: Tags;
+  caseIdentifiers: CaseIdentifiers;
+  caseDetails: CaseDetails;
 };
 const initialTransientState = {
   context: undefined,
   propTags: undefined,
   pathTags: undefined,
   domTags: undefined,
-  caseDetailsTags: undefined,
-  caseDetails: undefined,
   correlationIds: undefined,
+  caseDetailsTags: undefined,
+  caseIdentifiers: undefined,
+  caseDetails: undefined,
 };
 
 type AggregateState = {
@@ -94,10 +99,11 @@ export type State = StartupState & TransientState & AggregateState & SummaryStat
 export type StoredState = MakeUndefinable<State>;
 
 export type Register = (arg: Partial<StoredState>) => void;
+export type RegisterOnce = (arg: Partial<StoredState>) => void;
 class RegisterEvent extends CustomEvent<Parameters<Register>[0]> {}
 
-export type MergeTags = (arg: SinglePropertyOf<TransientState, Tags>) => Tags;
-export type MergeTagFireAndForget = (arg: SinglePropertyOf<TransientState, Tags>) => void;
+export type MergeTags = (arg: SingleKnownTypePropertyOf<TransientState, Tags>) => Tags;
+export type MergeTagFireAndForget = (arg: SingleKnownTypePropertyOf<TransientState, Tags>) => void;
 class MergeTagFireAndForgetEvent extends CustomEvent<Parameters<MergeTagFireAndForget>[0]> {}
 
 export type Store = ReturnType<typeof createStore<StoredState>>;
@@ -140,25 +146,33 @@ export const initialiseStore = () => {
   const subscribe = (...subscriptionFactories: SubscriptionFactory[]) => {
     _debug("store", "subscribe", subscriptionFactories);
     return subscriptionFactories.map(factory => {
-      const { subscription, triggerSetOnCreation: triggerSetOnRegister } = factory({ set: store.set, get: store.get });
-      const unSubscriber = store.use(subscription);
+      const { type, handler } = factory({ register, mergeTags, get: store.get });
+      if (type === "subscription") {
+        store.use(handler);
+      } else {
+        type TypedHandler<T, K extends keyof T> = {
+          propName: K;
+          handler: (value: T[K]) => void;
+        };
 
-      if (triggerSetOnRegister) {
-        subscription.set?.(triggerSetOnRegister.key, store.get(triggerSetOnRegister.key), undefined);
+        const applyHandler = <K extends keyof StoredState>(handler: TypedHandler<StoredState, K>) => {
+          store.onChange(handler.propName, handler.handler);
+          const val = store.get(handler.propName);
+          handler.handler(val);
+        };
+        applyHandler(handler);
       }
-
-      return unSubscriber;
     });
   };
 
-  subscribe(resetPreventionSubscriptionFactory, loggingSubscriptionFactory, tagsSubscriptionFactory);
+  subscribe(resetPreventionSubscriptionFactory, loggingSubscriptionFactory, tagsSubscriptionFactory, caseIdentifiersSubscriptionFactory);
 
   document.addEventListener(
     registerEventName,
     withLogging(registerEventName, (event: RegisterEvent) => register(event.detail)),
   );
 
-  return { register, mergeTags, resetContextSpecificTags, subscribe };
+  return { readyState, register, mergeTags, resetContextSpecificTags, subscribe };
 };
 
 export const mergeTags: MergeTagFireAndForget = detail =>
@@ -170,4 +184,4 @@ export const mergeTags: MergeTagFireAndForget = detail =>
     }),
   );
 
-export let readyState: ReadyState;
+export let readyState: ReadyStateHelper;

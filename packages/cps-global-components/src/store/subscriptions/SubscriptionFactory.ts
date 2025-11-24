@@ -1,8 +1,20 @@
-import { Getter, Setter, Subscription } from "@stencil/store/dist/types";
-import { StoredState } from "../store";
+import { Getter, Subscription } from "@stencil/store/dist/types";
+import { MergeTags, Register, StoredState } from "../store";
 
-type TriggerArgs = {
-  key: keyof StoredState;
+type StoreHandlerDef<T> = {
+  [K in keyof T]: {
+    propName: K;
+    handler: (newValue: T[K]) => void;
+  };
+}[keyof T];
+
+type TypedHandler<T, K extends keyof T> = {
+  propName: K;
+  handler: (value: T[K]) => void;
 };
 
-export type SubscriptionFactory = (arg: { get: Getter<StoredState>; set: Setter<StoredState> }) => { triggerSetOnCreation?: TriggerArgs; subscription: Subscription<StoredState> };
+export type SubscriptionFactory = (arg: {
+  get: Getter<StoredState>;
+  register: Register;
+  mergeTags: MergeTags;
+}) => { triggerSetOnCreation?: keyof StoredState } & ({ type: "subscription"; handler: Subscription<StoredState> } | { type: "onChange"; handler: StoreHandlerDef<StoredState> });

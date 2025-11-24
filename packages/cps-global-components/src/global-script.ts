@@ -16,8 +16,9 @@ import { handleOutSystemsForcedAuth } from "./services/outsystems-shim/handle-ou
 import { handleContextAuthorisation } from "./services/authorisation/handle-context-authorisation";
 import { cachedResult } from "./utils/cached-result";
 import { CorrelationIds } from "./services/correlation/CorrelationIds";
-import { getCaseDetailsSubscriptionFactory } from "./services/data/get-case-details-subscription-factory";
 import { createCache } from "./services/cache/create-cache";
+import { fetchWithAuthFactory } from "./services/api/fetchWithAuthFactory";
+import { caseDetailsSubscriptionFactory } from "./services/data/case-details-subscription-factory";
 
 const { _debug, _error } = makeConsole("global-script");
 
@@ -40,12 +41,10 @@ export default () => {
   });
 };
 
-let getCaseDetailsUnSubscriber: () => void = () => {};
-
 let trackException: (err: Error) => void = () => {};
 
 const initialise = async (correlationIds: CorrelationIds) => {
-  const { register, resetContextSpecificTags, subscribe, mergeTags } = cachedResult("store", initialiseStore);
+  const { register, readyState, resetContextSpecificTags, subscribe, mergeTags } = cachedResult("store", initialiseStore);
   register({ correlationIds });
   // We reset the tags to empty as we could be being called after a navigate in a SPA
   resetContextSpecificTags();
@@ -73,29 +72,22 @@ const initialise = async (correlationIds: CorrelationIds) => {
     const { auth, getToken } = await cachedResult("auth", () => (flags.isE2eTestMode ? initialiseMockAuth({ window }) : initialiseAuth({ window, config, context })));
     register({ auth });
 
-    const {
-      trackPageView,
-      rebindTrackEvent,
-      trackException: t,
-    } = cachedResult("analytics", () => (flags.isE2eTestMode ? initialiseMockAnalytics() : initialiseAnalytics({ window, config, auth })));
+    const { trackPageView, trackException: t } = cachedResult("analytics", () =>
+      flags.isE2eTestMode ? initialiseMockAnalytics() : initialiseAnalytics({ window, config, auth, readyState }),
+    );
     trackException = t;
 
-    rebindTrackEvent({ window, correlationIds });
     trackPageView({ context, correlationIds });
 
     handleContextAuthorisation({ window, context, auth });
-
     initialiseDomForContext({ context });
     handleOutSystemsForcedAuth({ window, config, context });
 
     const cache = createCache("cps-global-components");
     _debug(cache.getStats());
 
-    // Our context may change as SPA navigations occur, so lets just dispose of our subscriber every time
-    //  and create a new one
-    getCaseDetailsUnSubscriber();
-    const [unSubscriber] = subscribe(getCaseDetailsSubscriptionFactory({ window, config, context, getToken, correlationIds, register, mergeTags, cache }));
-    getCaseDetailsUnSubscriber = unSubscriber;
+    const fetch = fetchWithAuthFactory({ getToken, readyState });
+    cachedResult("case-details", () => subscribe(caseDetailsSubscriptionFactory({ config, cache, fetch })));
 
     register({ initialisationStatus: "complete" });
   } catch (err) {

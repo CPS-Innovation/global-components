@@ -5,14 +5,15 @@ import { FoundContext } from "../context/FoundContext";
 import { CorrelationIds } from "../correlation/CorrelationIds";
 import { AnalyticsEvent } from "./analytics-event";
 import { makeConsole } from "../../logging/makeConsole";
+import { ReadyStateHelper } from "../../store/store";
 
 const STORAGE_PREFIX = "cps_global_components";
 
-type Props = { window: Window; config: Config; auth: AuthResult };
+type Props = { window: Window; config: Config; auth: AuthResult; readyState: ReadyStateHelper };
 
 const { _debug } = makeConsole("initialiseAnalytics");
 
-export const initialiseAnalytics = ({ window, config: { APP_INSIGHTS_CONNECTION_STRING, ENVIRONMENT }, auth }: Props) => {
+export const initialiseAnalytics = ({ window, config: { APP_INSIGHTS_CONNECTION_STRING, ENVIRONMENT }, auth, readyState }: Props) => {
   if (!APP_INSIGHTS_CONNECTION_STRING) {
     return { trackPageView: () => {}, trackException: () => {}, rebindTrackEvent: () => {} };
   }
@@ -90,21 +91,14 @@ export const initialiseAnalytics = ({ window, config: { APP_INSIGHTS_CONNECTION_
     appInsights.trackException({ exception }, { source: STORAGE_PREFIX, properties: { Environment: ENVIRONMENT, ...authValues, ...window.cps_global_components_build } });
   };
 
-  let listenerRef: EventListenerOrEventListenerObject = () => {};
+  window.addEventListener(AnalyticsEvent.type, (ev: AnalyticsEvent) => {
+    _debug("trackEvent", ev);
+    const { name, ...rest } = ev.detail;
+    const state = readyState("correlationIds");
+    const correlationIds = state.isReady ? state.state.correlationIds : {};
 
-  const rebindTrackEvent = ({ window, correlationIds }: { window: Window; correlationIds: CorrelationIds }) => {
-    _debug("rebindTrackEvent", correlationIds);
+    appInsights.trackEvent({ name: ev.type, properties: { ...rest, ...correlationIds } });
+  });
 
-    window.removeEventListener(AnalyticsEvent.type, listenerRef);
-    window.addEventListener(
-      AnalyticsEvent.type,
-      (listenerRef = (ev: AnalyticsEvent) => {
-        _debug("trackEvent", ev);
-        const { name, ...rest } = ev.detail;
-        appInsights.trackEvent({ name: ev.type, properties: { ...rest, correlationIds } });
-      }),
-    );
-  };
-
-  return { trackPageView, trackException, rebindTrackEvent };
+  return { trackPageView, trackException };
 };

@@ -8,6 +8,7 @@ type MakeUndefinable<T> = {
 type FoundContextFound = Context & {
   pathTags: Tags;
   contextIndex: number;
+  cmsAuth: string;
 };
 
 export type FoundContext =

@@ -16,6 +16,9 @@ const initialiseContextInternal = ({ window: { location }, config: { CONTEXTS } 
     }
 
     const pathTags = match.groups || {};
+
+    const cmsAuth = (context.cmsAuthFromStorageKey && (sessionStorage.getItem(context.cmsAuthFromStorageKey) || localStorage.getItem(context.cmsAuthFromStorageKey))) || "";
+
     return {
       ...context,
       // Special case: in development especially we can be running with an unknown port number. Our auth redirect endpoint
@@ -25,6 +28,7 @@ const initialiseContextInternal = ({ window: { location }, config: { CONTEXTS } 
       found: true,
       pathTags,
       contextIndex,
+      cmsAuth,
     };
   }
   return { found: false };
