@@ -1,5 +1,4 @@
 import { createStore } from "@stencil/store";
-import { makeConsole } from "../logging/makeConsole";
 import { Config } from "cps-global-configuration";
 import { AuthResult } from "../services/auth/AuthResult";
 import { FoundContext } from "../services/context/FoundContext";
@@ -10,14 +9,12 @@ import { Tags } from "../services/context/Tags";
 import { withLogging } from "../logging/with-logging";
 import { CorrelationIds } from "../services/correlation/CorrelationIds";
 import { tagsSubscriptionFactory } from "./subscriptions/tags-subscription-factory";
-import { SubscriptionFactory } from "./subscriptions/SubscriptionFactory";
+import { applyOnChangeHandler, SubscriptionFactory } from "./subscriptions/SubscriptionFactory";
 import { CaseDetails } from "../services/data/CaseDetails";
 import { ReadyStateHelper, readyStateFactory } from "./ready-state-factory";
 import { CaseIdentifiers } from "../services/context/CaseIdentifiers";
 import { caseIdentifiersSubscriptionFactory } from "./subscriptions/case-identifiers-subscription-factory";
 export { type ReadyStateHelper };
-
-const { _debug } = makeConsole("store");
 
 const registerEventName = "cps-global-components-register";
 const mergeTagsEventName = "cps-global-components-merge-tags";
@@ -143,27 +140,15 @@ export const initialiseStore = () => {
     privateTagProperties.filter(key => key !== "propTags").forEach(key => store.set(key, {}));
   };
 
-  const subscribe = (...subscriptionFactories: SubscriptionFactory[]) => {
-    _debug("store", "subscribe", subscriptionFactories);
-    return subscriptionFactories.map(factory => {
+  const subscribe = (...subscriptionFactories: SubscriptionFactory[]) =>
+    subscriptionFactories.map(factory => {
       const { type, handler } = factory({ register, mergeTags, get: store.get });
       if (type === "subscription") {
         store.use(handler);
       } else {
-        type TypedHandler<T, K extends keyof T> = {
-          propName: K;
-          handler: (value: T[K]) => void;
-        };
-
-        const applyHandler = <K extends keyof StoredState>(handler: TypedHandler<StoredState, K>) => {
-          store.onChange(handler.propName, handler.handler);
-          const val = store.get(handler.propName);
-          handler.handler(val);
-        };
-        applyHandler(handler);
+        applyOnChangeHandler(store, handler);
       }
     });
-  };
 
   subscribe(resetPreventionSubscriptionFactory, loggingSubscriptionFactory, tagsSubscriptionFactory, caseIdentifiersSubscriptionFactory);
 

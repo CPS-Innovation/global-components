@@ -1,6 +1,5 @@
 import { Tags } from "../context/Tags";
-import { CaseDetails } from "./CaseDetails";
+import { CaseDetails, caseDetailsSafeToCacheFields } from "./CaseDetails";
 
-const caseDetailsTags: (keyof CaseDetails)[] = ["urn", "isDcfCase"];
-
-export const extractTagsFromCaseDetails = (caseDetails: Partial<CaseDetails>): Tags => caseDetailsTags.reduce((acc, curr) => ({ ...acc, [curr]: caseDetails[curr] }), {});
+export const extractTagsFromCaseDetails = (caseDetails: Partial<CaseDetails>): Tags =>
+  caseDetailsSafeToCacheFields.reduce((acc, curr) => ({ ...acc, [curr]: caseDetails[curr] }), {});

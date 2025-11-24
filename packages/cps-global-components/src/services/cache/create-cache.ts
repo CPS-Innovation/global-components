@@ -19,7 +19,7 @@ type EntityConfig<T> = {
 
 export type LocalStorageCache = ReturnType<typeof createCache>;
 
-const { _warn } = makeConsole("createCache");
+const { _warn, _debug } = makeConsole("createCache");
 
 export function createCache(storageKey: string) {
   const CACHE_VERSION = 2;
@@ -234,6 +234,7 @@ export function createCache(storageKey: string) {
     };
   };
 
+  _debug({ stats: getStats() });
   return {
     createEntityCache,
     clearAll,

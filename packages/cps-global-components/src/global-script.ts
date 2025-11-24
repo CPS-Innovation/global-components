@@ -83,11 +83,12 @@ const initialise = async (correlationIds: CorrelationIds) => {
     initialiseDomForContext({ context });
     handleOutSystemsForcedAuth({ window, config, context });
 
-    const cache = createCache("cps-global-components");
-    _debug(cache.getStats());
+    const cache = cachedResult("cache", () => createCache("cps-global-components"));
+    const fetch = cachedResult("fetch", () => fetchWithAuthFactory({ getToken, readyState }));
 
-    const fetch = fetchWithAuthFactory({ getToken, readyState });
-    cachedResult("case-details", () => subscribe(caseDetailsSubscriptionFactory({ config, cache, fetch })));
+    cachedResult("case-details", () => {
+      subscribe(caseDetailsSubscriptionFactory({ config, cache, fetch }));
+    });
 
     register({ initialisationStatus: "complete" });
   } catch (err) {

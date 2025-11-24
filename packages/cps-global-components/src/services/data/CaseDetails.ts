@@ -8,4 +8,4 @@ export const CaseDetailsSchema = z.object({
 
 export type CaseDetails = z.infer<typeof CaseDetailsSchema>;
 
-export const caseDetailsSafeToCacheFields = ["urn", "isDcf"] as (keyof CaseDetails)[];
+export const caseDetailsSafeToCacheFields: (keyof CaseDetails)[] = ["urn", "isDcfCase"];

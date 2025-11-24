@@ -109,6 +109,7 @@ describe("menuConfig", () => {
       fatalInitialisationError: undefined as any,
       initialisationStatus: "complete",
       correlationIds: {} as CorrelationIds,
+      caseIdentifiers: { caseId: "1" },
     };
 
     const result = menuConfig(mockState);
@@ -136,6 +137,7 @@ describe("menuConfig", () => {
       contextIndex: 0,
       msalRedirectUrl: "foo",
       cmsAuthFromStorageKey: undefined,
+      cmsAuth: "",
     };
 
     const mockState: State = {
@@ -152,6 +154,7 @@ describe("menuConfig", () => {
       fatalInitialisationError: undefined as any,
       initialisationStatus: "complete",
       correlationIds: {} as CorrelationIds,
+      caseIdentifiers: { caseId: "1" },
     };
 
     // Mock shouldShowLink to filter out the second link
@@ -241,6 +244,7 @@ describe("menuConfig", () => {
       contextIndex: 0,
       msalRedirectUrl: "foo",
       cmsAuthFromStorageKey: undefined,
+      cmsAuth: "",
     };
 
     const mockState: State = {
@@ -263,6 +267,7 @@ describe("menuConfig", () => {
       fatalInitialisationError: undefined as any,
       initialisationStatus: "complete",
       correlationIds: {} as CorrelationIds,
+      caseIdentifiers: { caseId: "1" },
     };
 
     // Mock shouldShowLink to pass all links
@@ -306,6 +311,7 @@ describe("menuConfig", () => {
       contextIndex: 0,
       msalRedirectUrl: "foo",
       cmsAuthFromStorageKey: undefined,
+      cmsAuth: "",
     };
 
     const mockState: State = {
@@ -328,6 +334,7 @@ describe("menuConfig", () => {
       fatalInitialisationError: undefined as any,
       initialisationStatus: "complete",
       correlationIds: {} as CorrelationIds,
+      caseIdentifiers: { caseId: "1" },
     };
 
     // Mock shouldShowLink to pass all links
@@ -371,6 +378,7 @@ describe("menuConfig", () => {
       contextIndex: 0,
       msalRedirectUrl: "foo",
       cmsAuthFromStorageKey: undefined,
+      cmsAuth: "",
     };
 
     const mockState: State = {
@@ -394,6 +402,7 @@ describe("menuConfig", () => {
       fatalInitialisationError: undefined as any,
       initialisationStatus: "complete",
       correlationIds: {} as CorrelationIds,
+      caseIdentifiers: { caseId: "1" },
     };
 
     // Mock shouldShowLink to pass all links
@@ -436,6 +445,7 @@ describe("menuConfig", () => {
       contextIndex: 0,
       msalRedirectUrl: "foo",
       cmsAuthFromStorageKey: undefined,
+      cmsAuth: "",
     };
 
     const mockState: State = {
@@ -459,6 +469,7 @@ describe("menuConfig", () => {
       fatalInitialisationError: undefined as any,
       initialisationStatus: "complete",
       correlationIds: {} as CorrelationIds,
+      caseIdentifiers: { caseId: "1" },
     };
 
     // Mock shouldShowLink to pass all links

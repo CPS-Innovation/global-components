@@ -1,3 +1,3 @@
 import { validateCaseDetailsResponse } from "./validate-case-details-response";
 
-export const getCaseDetails = async (caseId: string, fetchFn: typeof fetch) => fetchFn(`/cases/${caseId}/summary`).then(validateCaseDetailsResponse);
+export const getCaseDetailsFactory = (fetchFn: typeof fetch) => (caseId: string) => fetchFn(`/cases/${caseId}/summary`).then(validateCaseDetailsResponse);
