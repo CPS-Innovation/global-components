@@ -16,6 +16,7 @@ export const fetchWithAuthFactory = ({ getToken, readyState }: FetchWithAuthProp
   if (!state.isReady) {
     throw new Error("fetchWithAuthFactory called when not ready");
   }
+
   const {
     state: {
       config: { AD_GATEWAY_SCOPE, GATEWAY_URL },
@@ -36,8 +37,11 @@ export const fetchWithAuthFactory = ({ getToken, readyState }: FetchWithAuthProp
       credentials: "include",
     };
 
-    const request = args[0] instanceof Request ? { ...args[0], url: new URL(args[0].url, GATEWAY_URL).toString() } : new URL(args[0], GATEWAY_URL);
+    // Lets append our GatewayURL to the request urls...
+    const request = fullyQualifyRequest(args[0], GATEWAY_URL);
+    // ... and allow the caller to pass further RequestInit values (but always override with ours)
     const requestInit = args[1] === undefined ? baseRequestInit : (typedDeepMerge(baseRequestInit, args[1]) as RequestInit);
+
     try {
       const response = await fetch(request, requestInit);
       _warn({ response });
@@ -47,4 +51,10 @@ export const fetchWithAuthFactory = ({ getToken, readyState }: FetchWithAuthProp
       throw error;
     }
   };
+};
+
+const fullyQualifyRequest = (request: Parameters<typeof fetch>[0], baseUrl: string = "") => {
+  const resolveUrl = (url: string | URL) => (URL.canParse(baseUrl) ? new URL(url, baseUrl).toString() : baseUrl + url.toString());
+
+  return request instanceof Request ? { ...request, url: resolveUrl(request.url) } : resolveUrl(request);
 };

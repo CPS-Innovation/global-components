@@ -44,11 +44,14 @@ type StartupState = {
   flags: ApplicationFlags;
   config: Config;
   auth: AuthResult;
+  build: Build;
 };
+
 const initialStartupState = {
   flags: undefined,
   config: undefined,
   auth: undefined,
+  build: undefined,
 };
 
 // This state could change (e.g. history-based non-full-refresh navigation or dom tags changing)
@@ -104,6 +107,8 @@ export type MergeTagFireAndForget = (arg: SingleKnownTypePropertyOf<TransientSta
 class MergeTagFireAndForgetEvent extends CustomEvent<Parameters<MergeTagFireAndForget>[0]> {}
 
 export type Store = ReturnType<typeof createStore<StoredState>>;
+
+export type Build = typeof window.cps_global_components_build;
 
 const initialState: StoredState = {
   ...initialStartupState,

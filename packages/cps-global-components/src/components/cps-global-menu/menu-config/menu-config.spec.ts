@@ -15,7 +15,7 @@ import { Tags } from "@microsoft/applicationinsights-web";
 import { AuthResult } from "../../../services/auth/AuthResult";
 import { isOutSystemsApp } from "../../../services/application-flags/is-outsystems-app";
 import { createOutboundUrlDirect } from "cps-global-os-handover";
-import { State } from "../../../store/store";
+import { Build, State } from "../../../store/store";
 import { CorrelationIds } from "../../../services/correlation/CorrelationIds";
 import { CaseDetails } from "../../../services/data/CaseDetails";
 
@@ -76,7 +76,7 @@ describe("menuConfig", () => {
   const mockFlags: ApplicationFlags = {
     isOverrideMode: false,
     isOutSystems: false,
-    isE2eTestMode: false,
+    e2eTestMode: { isE2eTestMode: false },
     isLocalDevelopment: false,
   };
 
@@ -110,6 +110,7 @@ describe("menuConfig", () => {
       initialisationStatus: "complete",
       correlationIds: {} as CorrelationIds,
       caseIdentifiers: { caseId: "1" },
+      build: {} as Build,
     };
 
     const result = menuConfig(mockState);
@@ -138,6 +139,7 @@ describe("menuConfig", () => {
       msalRedirectUrl: "foo",
       cmsAuthFromStorageKey: undefined,
       cmsAuth: "",
+      currentHref: "https://foo",
     };
 
     const mockState: State = {
@@ -155,6 +157,7 @@ describe("menuConfig", () => {
       initialisationStatus: "complete",
       correlationIds: {} as CorrelationIds,
       caseIdentifiers: { caseId: "1" },
+      build: {} as Build,
     };
 
     // Mock shouldShowLink to filter out the second link
@@ -245,6 +248,7 @@ describe("menuConfig", () => {
       msalRedirectUrl: "foo",
       cmsAuthFromStorageKey: undefined,
       cmsAuth: "",
+      currentHref: "https://foo",
     };
 
     const mockState: State = {
@@ -268,6 +272,7 @@ describe("menuConfig", () => {
       initialisationStatus: "complete",
       correlationIds: {} as CorrelationIds,
       caseIdentifiers: { caseId: "1" },
+      build: {} as Build,
     };
 
     // Mock shouldShowLink to pass all links
@@ -312,6 +317,7 @@ describe("menuConfig", () => {
       msalRedirectUrl: "foo",
       cmsAuthFromStorageKey: undefined,
       cmsAuth: "",
+      currentHref: "https://foo",
     };
 
     const mockState: State = {
@@ -335,6 +341,7 @@ describe("menuConfig", () => {
       initialisationStatus: "complete",
       correlationIds: {} as CorrelationIds,
       caseIdentifiers: { caseId: "1" },
+      build: {} as Build,
     };
 
     // Mock shouldShowLink to pass all links
@@ -379,6 +386,7 @@ describe("menuConfig", () => {
       msalRedirectUrl: "foo",
       cmsAuthFromStorageKey: undefined,
       cmsAuth: "",
+      currentHref: "https://foo",
     };
 
     const mockState: State = {
@@ -403,6 +411,7 @@ describe("menuConfig", () => {
       initialisationStatus: "complete",
       correlationIds: {} as CorrelationIds,
       caseIdentifiers: { caseId: "1" },
+      build: {} as Build,
     };
 
     // Mock shouldShowLink to pass all links
@@ -446,6 +455,7 @@ describe("menuConfig", () => {
       msalRedirectUrl: "foo",
       cmsAuthFromStorageKey: undefined,
       cmsAuth: "",
+      currentHref: "https://foo",
     };
 
     const mockState: State = {
@@ -470,6 +480,7 @@ describe("menuConfig", () => {
       initialisationStatus: "complete",
       correlationIds: {} as CorrelationIds,
       caseIdentifiers: { caseId: "1" },
+      build: {} as Build,
     };
 
     // Mock shouldShowLink to pass all links

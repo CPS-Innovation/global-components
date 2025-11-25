@@ -31,23 +31,26 @@ export default () => {
   const scriptLoadCorrelationId = uuidv4();
   handleSetOverrideMode({ window });
   // For first initialisation we want our two correlationIds to be the same
-  /* do not await this */ initialise({ scriptLoadCorrelationId, navigationCorrelationId: scriptLoadCorrelationId });
+  /* do not await this */ initialise({ scriptLoadCorrelationId, navigationCorrelationId: scriptLoadCorrelationId }, window);
 
   // Every time we detect a SPA navigation (i.e. not a full page reload), lets rerun our initialisation
   //  logic as out context may have changed
   window.navigation?.addEventListener("navigatesuccess", async event => {
     _debug("navigation", event);
-    initialise({ scriptLoadCorrelationId, navigationCorrelationId: uuidv4() });
+    initialise({ scriptLoadCorrelationId, navigationCorrelationId: uuidv4() }, window);
   });
 };
 
 let trackException: (err: Error) => void = () => {};
 
-const initialise = async (correlationIds: CorrelationIds) => {
+const initialise = async (correlationIds: CorrelationIds, window: Window) => {
   const { register, readyState, resetContextSpecificTags, subscribe, mergeTags } = cachedResult("store", initialiseStore);
   register({ correlationIds });
   // We reset the tags to empty as we could be being called after a navigate in a SPA
   resetContextSpecificTags();
+
+  const build = window.cps_global_components_build;
+  register({ build: window.cps_global_components_build });
 
   try {
     // Several of the operations below need only be run when we first spin up and not on any potential SPA navigation.
@@ -69,11 +72,11 @@ const initialise = async (correlationIds: CorrelationIds) => {
     const { pathTags } = context;
     register({ pathTags });
 
-    const { auth, getToken } = await cachedResult("auth", () => (flags.isE2eTestMode ? initialiseMockAuth({ window }) : initialiseAuth({ window, config, context })));
+    const { auth, getToken } = await cachedResult("auth", () => (flags.e2eTestMode.isE2eTestMode ? initialiseMockAuth({ flags }) : initialiseAuth({ config, context })));
     register({ auth });
 
     const { trackPageView, trackException: t } = cachedResult("analytics", () =>
-      flags.isE2eTestMode ? initialiseMockAnalytics() : initialiseAnalytics({ window, config, auth, readyState }),
+      flags.e2eTestMode.isE2eTestMode ? initialiseMockAnalytics() : initialiseAnalytics({ window, config, auth, readyState, build }),
     );
     trackException = t;
 
@@ -83,12 +86,15 @@ const initialise = async (correlationIds: CorrelationIds) => {
     initialiseDomForContext({ context });
     handleOutSystemsForcedAuth({ window, config, context });
 
-    const cache = cachedResult("cache", () => createCache("cps-global-components"));
-    const fetch = cachedResult("fetch", () => fetchWithAuthFactory({ getToken, readyState }));
+    const isDataAccessEnabled = !!config.GATEWAY_URL;
+    if (isDataAccessEnabled) {
+      const cache = cachedResult("cache", () => createCache("cps-global-components"));
+      const fetch = cachedResult("fetch", () => fetchWithAuthFactory({ getToken, readyState }));
 
-    cachedResult("case-details", () => {
-      subscribe(caseDetailsSubscriptionFactory({ config, cache, fetch }));
-    });
+      cachedResult("case-details", () => {
+        subscribe(caseDetailsSubscriptionFactory({ config, cache, fetch }));
+      });
+    }
 
     register({ initialisationStatus: "complete" });
   } catch (err) {

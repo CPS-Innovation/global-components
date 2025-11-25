@@ -9,6 +9,7 @@ type FoundContextFound = Context & {
   pathTags: Tags;
   contextIndex: number;
   cmsAuth: string;
+  currentHref: string;
 };
 
 export type FoundContext =

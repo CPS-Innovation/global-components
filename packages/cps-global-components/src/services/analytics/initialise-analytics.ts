@@ -5,15 +5,15 @@ import { FoundContext } from "../context/FoundContext";
 import { CorrelationIds } from "../correlation/CorrelationIds";
 import { AnalyticsEvent } from "./analytics-event";
 import { makeConsole } from "../../logging/makeConsole";
-import { ReadyStateHelper } from "../../store/store";
+import { Build, ReadyStateHelper } from "../../store/store";
 
 const STORAGE_PREFIX = "cps_global_components";
 
-type Props = { window: Window; config: Config; auth: AuthResult; readyState: ReadyStateHelper };
+type Props = { window: Window; config: Config; auth: AuthResult; readyState: ReadyStateHelper; build: Build };
 
 const { _debug } = makeConsole("initialiseAnalytics");
 
-export const initialiseAnalytics = ({ window, config: { APP_INSIGHTS_CONNECTION_STRING, ENVIRONMENT }, auth, readyState }: Props) => {
+export const initialiseAnalytics = ({ window, config: { APP_INSIGHTS_CONNECTION_STRING, ENVIRONMENT }, auth, readyState, build }: Props) => {
   if (!APP_INSIGHTS_CONNECTION_STRING) {
     return { trackPageView: () => {}, trackException: () => {}, rebindTrackEvent: () => {} };
   }
@@ -82,13 +82,13 @@ export const initialiseAnalytics = ({ window, config: { APP_INSIGHTS_CONNECTION_
   }
 
   const trackPageView = ({ context: { found, contextIds }, correlationIds }: { context: FoundContext; correlationIds: CorrelationIds }) => {
-    const arg = { properties: { Environment: ENVIRONMENT, ...authValues, ...window.cps_global_components_build, context: { found, contextIds }, correlationIds } };
+    const arg = { properties: { Environment: ENVIRONMENT, ...authValues, ...build, context: { found, contextIds }, correlationIds } };
     _debug("trackPageView", arg);
     appInsights.trackPageView(arg);
   };
 
   const trackException = (exception: Error) => {
-    appInsights.trackException({ exception }, { source: STORAGE_PREFIX, properties: { Environment: ENVIRONMENT, ...authValues, ...window.cps_global_components_build } });
+    appInsights.trackException({ exception }, { source: STORAGE_PREFIX, properties: { Environment: ENVIRONMENT, ...authValues, ...build } });
   };
 
   window.addEventListener(AnalyticsEvent.type, (ev: AnalyticsEvent) => {
