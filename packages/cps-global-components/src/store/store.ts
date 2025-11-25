@@ -63,7 +63,7 @@ type TransientState = {
   correlationIds: CorrelationIds;
   caseDetailsTags: Tags;
   caseIdentifiers: CaseIdentifiers;
-  caseDetails: CaseDetails;
+  caseDetails: Partial<CaseDetails>;
 };
 const initialTransientState = {
   context: undefined,

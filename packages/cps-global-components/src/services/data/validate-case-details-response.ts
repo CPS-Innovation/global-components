@@ -1,7 +1,7 @@
 import { CaseDetails, CaseDetailsSchema } from "./CaseDetails";
 
 export const validateCaseDetailsResponse = async (response: Response) => {
-  if (response.ok) {
+  if (!response.ok) {
     throw new Error("case details returned non-ok status code");
   }
 

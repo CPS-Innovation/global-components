@@ -1,7 +1,7 @@
 import { v4 as uuidv4 } from "uuid";
 import { handleSetOverrideMode } from "./services/override-mode/handle-set-override-mode";
 import { initialiseAuth } from "./services/auth/initialise-auth";
-import { initialiseStore } from "./store/store";
+import { initialiseStore, Register } from "./store/store";
 import { initialiseAnalytics } from "./services/analytics/initialise-analytics";
 import { initialiseConfig } from "./services/config/initialise-config";
 import { initialiseContext } from "./services/context/initialise-context";
@@ -41,18 +41,19 @@ export default () => {
   });
 };
 
-let trackException: (err: Error) => void = () => {};
+let trackException: (err: Error) => void;
+let register: Register;
 
 const initialise = async (correlationIds: CorrelationIds, window: Window) => {
-  const { register, readyState, resetContextSpecificTags, subscribe, mergeTags } = cachedResult("store", initialiseStore);
-  register({ correlationIds });
-  // We reset the tags to empty as we could be being called after a navigate in a SPA
-  resetContextSpecificTags();
-
-  const build = window.cps_global_components_build;
-  register({ build: window.cps_global_components_build });
-
   try {
+    const { register: r, readyState, resetContextSpecificTags, subscribe, mergeTags } = cachedResult("store", initialiseStore);
+    register = r;
+    register({ correlationIds });
+    // We reset the tags to empty as we could be being called after a navigate in a SPA
+    resetContextSpecificTags();
+
+    const build = window.cps_global_components_build;
+    register({ build });
     // Several of the operations below need only be run when we first spin up and not on any potential SPA navigation.
     //  We use `cachedResult` give us the ability to rerun this function many times while ensuring that the one-time-only
     //  operations are only executed once (alternative would be lots of if statements or similar)
@@ -68,6 +69,7 @@ const initialise = async (correlationIds: CorrelationIds, window: Window) => {
 
     const context = initialiseContext({ window, config });
     register({ context });
+    initialiseDomForContext({ context });
 
     const { pathTags } = context;
     register({ pathTags });
@@ -83,23 +85,20 @@ const initialise = async (correlationIds: CorrelationIds, window: Window) => {
     trackPageView({ context, correlationIds });
 
     handleContextAuthorisation({ window, context, auth });
-    initialiseDomForContext({ context });
     handleOutSystemsForcedAuth({ window, config, context });
 
     const isDataAccessEnabled = !!config.GATEWAY_URL;
     if (isDataAccessEnabled) {
       const cache = cachedResult("cache", () => createCache("cps-global-components"));
-      const fetch = cachedResult("fetch", () => fetchWithAuthFactory({ getToken, readyState }));
+      const fetch = cachedResult("fetch", () => fetchWithAuthFactory({ config, context, getToken, readyState }));
 
-      cachedResult("case-details", () => {
-        subscribe(caseDetailsSubscriptionFactory({ config, cache, fetch }));
-      });
+      cachedResult("case-details", () => subscribe(caseDetailsSubscriptionFactory({ config, cache, fetch })));
     }
 
     register({ initialisationStatus: "complete" });
   } catch (err) {
     trackException?.(err);
     _error(err);
-    register({ fatalInitialisationError: err, initialisationStatus: "broken" });
+    register?.({ fatalInitialisationError: err, initialisationStatus: "broken" });
   }
 };

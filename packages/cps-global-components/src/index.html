@@ -5,7 +5,19 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=5.0" />
   <title>CPS Global Nav development</title>
-  <script type="module" src="/build/cps-global-components.esm.js"></script>
+  <script type="module">
+
+    if (location.hostname === 'localhost') {
+      const { worker } = await import('/mock-api/browser.js');
+      await worker.start({
+        onUnhandledRequest: 'bypass',
+      });
+
+    }
+
+    await import('/build/cps-global-components.esm.js');
+  </script>
+
 
   <style>
     body {

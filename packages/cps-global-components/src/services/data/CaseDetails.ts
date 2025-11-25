@@ -9,3 +9,5 @@ export const CaseDetailsSchema = z.object({
 export type CaseDetails = z.infer<typeof CaseDetailsSchema>;
 
 export const caseDetailsSafeToCacheFields: (keyof CaseDetails)[] = ["urn", "isDcfCase"];
+
+export const caseDetailsTagFields: (keyof CaseDetails)[] = ["urn", "isDcfCase"];

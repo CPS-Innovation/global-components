@@ -10,7 +10,7 @@ const initialiseContextInternal = ({
   },
   config: { CONTEXTS },
 }: {
-  window: { location: Location };
+  window: { location: { href: string }; sessionStorage: Storage; localStorage: Storage };
   config: Pick<Config, "CONTEXTS">;
 }): FoundContext => {
   for (let contextIndex = 0; contextIndex < CONTEXTS.length; contextIndex++) {

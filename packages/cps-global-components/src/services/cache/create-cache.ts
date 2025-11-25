@@ -118,9 +118,9 @@ export function createCache(storageKey: string) {
     }
 
     // Overloaded get function for retrieving cached data
-    function get(id: string): Partial<T> {
+    function get(id: string): Partial<T> | undefined {
       const entry = cache.entities[entityType]?.[id];
-      return entry?.data || {};
+      return entry?.data || undefined;
     }
 
     // Overloaded fetch function for precise return types
@@ -144,6 +144,7 @@ export function createCache(storageKey: string) {
           const canServeFromCache = requestedFields.every(field => cachedFields.includes(field));
 
           if (canServeFromCache) {
+            _debug(entityType, id, "was served from cache", fields, entry.data);
             return selectFields(entry.data as T, fields as K[]);
           }
         }
@@ -151,6 +152,7 @@ export function createCache(storageKey: string) {
 
       // Fetch fresh data
       const rawData = await fetcher(id);
+      _debug(entityType, id, "was fetched");
       const validatedData = schema.parse(rawData);
 
       // Store only cacheable fields

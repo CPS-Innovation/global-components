@@ -24,12 +24,16 @@ export const caseDetailsSubscriptionFactory = ({ config, cache, fetch }: Props):
           return;
         }
 
-        mergeTags({ caseDetailsTags: extractTagsFromCaseDetails(caseDetailsCache.get(caseIdentifiers.caseId)) });
+        const alreadyCachedCaseDetails = caseDetailsCache.get(caseIdentifiers.caseId);
+        if (alreadyCachedCaseDetails) {
+          const { tags } = extractTagsFromCaseDetails(alreadyCachedCaseDetails);
+          mergeTags({ caseDetailsTags: tags });
+        }
 
         caseDetailsCache
-          .fetch(caseIdentifiers.caseId, id => getCaseDetails(id))
+          .fetch(caseIdentifiers.caseId, id => getCaseDetails(id), { fields: ["urn", "isDcfCase"] })
           .then(caseDetails => {
-            mergeTags({ caseDetailsTags: extractTagsFromCaseDetails(caseDetails) });
+            mergeTags({ caseDetailsTags: extractTagsFromCaseDetails(caseDetails).tags });
             register({ caseDetails });
           });
       },
