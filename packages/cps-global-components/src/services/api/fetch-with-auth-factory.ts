@@ -6,6 +6,7 @@ import { GetToken } from "../auth/GetToken";
 import { emptyCorrelationIds } from "../correlation/CorrelationIds";
 import { FoundContext } from "../context/FoundContext";
 import { withLogging } from "../../logging/with-logging";
+import { fullyQualifyRequest } from "./fully-qualify-request";
 
 const { _error } = makeConsole("fetchWithAuthFactory");
 
@@ -44,9 +45,3 @@ export const fetchWithAuthFactory =
         throw error;
       }
     });
-
-const fullyQualifyRequest = (request: Parameters<typeof fetch>[0], baseUrl: string = "") => {
-  const resolveUrl = (url: string | URL) => (URL.canParse(baseUrl) ? new URL(url, baseUrl).toString() : baseUrl + url.toString());
-
-  return request instanceof Request ? { ...request, url: resolveUrl(request.url) } : resolveUrl(request);
-};
