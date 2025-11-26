@@ -17,7 +17,7 @@ type OverrideKeys<T, K extends keyof T> = {
 // When not ready: all properties are accessible and potentially undefined
 type PickIfReadyReturn<K extends readonly (keyof StateWithoutPrivateTags)[]> = K extends readonly [] ? AllDefined : OverrideKeys<StateWithoutPrivateTags, K[number]>;
 
-export type ReadyState = ReturnType<typeof readyStateFactory>;
+export type ReadyStateHelper = ReturnType<typeof readyStateFactory>;
 
 export const readyStateFactory =
   (store: Store) =>

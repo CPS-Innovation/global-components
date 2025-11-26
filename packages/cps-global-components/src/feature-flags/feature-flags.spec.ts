@@ -5,7 +5,7 @@ describe("FEATURE_FLAGS", () => {
   describe("shouldEnableAccessibilityMode", () => {
     it("should return true when isOverrideMode is true", () => {
       const state: Pick<State, "flags"> = {
-        flags: { isOverrideMode: true, isOutSystems: false, isE2eTestMode: false, isLocalDevelopment: false },
+        flags: { isOverrideMode: true, isOutSystems: false, e2eTestMode: { isE2eTestMode: false }, isLocalDevelopment: false },
       };
 
       const result = FEATURE_FLAGS.shouldEnableAccessibilityMode(state);
@@ -14,7 +14,7 @@ describe("FEATURE_FLAGS", () => {
 
     it("should return false when isOverrideMode is false", () => {
       const state: Pick<State, "flags"> = {
-        flags: { isOverrideMode: false, isOutSystems: false, isE2eTestMode: false, isLocalDevelopment: false },
+        flags: { isOverrideMode: false, isOutSystems: false, e2eTestMode: { isE2eTestMode: false }, isLocalDevelopment: false },
       };
 
       const result = FEATURE_FLAGS.shouldEnableAccessibilityMode(state);

@@ -10,7 +10,6 @@ import { getTokenFactory } from "./get-token-factory";
 import { GetToken } from "./GetToken";
 
 type Props = {
-  window: Window;
   config: Config;
   context: FoundContext;
 };
@@ -27,9 +26,8 @@ const failedAuth = (knownErrorType: KnowErrorType, reason: string): { auth: Fail
 const { _error } = makeConsole("initialiseAuth");
 
 const initialiseAuthInternal = async ({
-  window: { location },
   config: { AD_TENANT_AUTHORITY: authority, AD_CLIENT_ID: clientId, FEATURE_FLAG_ENABLE_INTRUSIVE_AD_LOGIN },
-  context: { msalRedirectUrl: redirectUri },
+  context: { msalRedirectUrl: redirectUri, currentHref },
 }: Props): Promise<{ auth: AuthResult; getToken: GetToken }> => {
   if (!(authority && clientId && redirectUri)) {
     return failedAuth("ConfigurationIncomplete", `Found configuration is: ${JSON.stringify({ authority, clientId, redirectUri })}`);
@@ -39,7 +37,7 @@ const initialiseAuthInternal = async ({
   //  AD auth callback redirectUrl then we are spinning up inside an iframe or popup.  The intention
   //  is not to spin up an app really - it is just somewhere for AD to land. Whatever we do,
   //  don't launch MSAL if it is the redirectUrl that we are launching
-  if (location.href.toLowerCase().startsWith(redirectUri.toLowerCase())) {
+  if (currentHref.startsWith(redirectUri.toLowerCase())) {
     return failedAuth("RedirectLocationIsApp", "We think we are the MSAL AD redirectUri loading and hence not a real application");
   }
 

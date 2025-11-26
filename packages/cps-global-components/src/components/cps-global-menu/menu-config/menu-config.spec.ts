@@ -15,9 +15,9 @@ import { Tags } from "@microsoft/applicationinsights-web";
 import { AuthResult } from "../../../services/auth/AuthResult";
 import { isOutSystemsApp } from "../../../services/application-flags/is-outsystems-app";
 import { createOutboundUrlDirect } from "cps-global-os-handover";
-import { State } from "../../../store/store";
-import { CaseDetails } from "../../../services/data/types";
+import { Build, State } from "../../../store/store";
 import { CorrelationIds } from "../../../services/correlation/CorrelationIds";
+import { CaseDetails } from "../../../services/data/CaseDetails";
 
 // Type the mocked functions
 const mockShouldShowLink = shouldShowLink as jest.MockedFunction<typeof shouldShowLink>;
@@ -76,13 +76,13 @@ describe("menuConfig", () => {
   const mockFlags: ApplicationFlags = {
     isOverrideMode: false,
     isOutSystems: false,
-    isE2eTestMode: false,
+    e2eTestMode: { isE2eTestMode: false },
     isLocalDevelopment: false,
   };
 
   const mockTags: Tags = {};
 
-  const mockCaseDetails: CaseDetails = { urn: "foo", caseId: 1, isDcf: false };
+  const mockCaseDetails: CaseDetails = { urn: "foo", caseId: 1, isDcfCase: false };
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -103,11 +103,14 @@ describe("menuConfig", () => {
       propTags: {},
       pathTags: {},
       domTags: mockTags,
+      caseDetailsTags: {},
       tags: {},
       auth: {} as AuthResult,
       fatalInitialisationError: undefined as any,
       initialisationStatus: "complete",
       correlationIds: {} as CorrelationIds,
+      caseIdentifiers: { caseId: "1" },
+      build: {} as Build,
     };
 
     const result = menuConfig(mockState);
@@ -135,6 +138,8 @@ describe("menuConfig", () => {
       contextIndex: 0,
       msalRedirectUrl: "foo",
       cmsAuthFromStorageKey: undefined,
+      cmsAuth: "",
+      currentHref: "https://foo",
     };
 
     const mockState: State = {
@@ -145,11 +150,14 @@ describe("menuConfig", () => {
       propTags: {},
       pathTags: {},
       domTags: foundTags,
+      caseDetailsTags: {},
       tags: {},
       auth: {} as AuthResult,
       fatalInitialisationError: undefined as any,
       initialisationStatus: "complete",
       correlationIds: {} as CorrelationIds,
+      caseIdentifiers: { caseId: "1" },
+      build: {} as Build,
     };
 
     // Mock shouldShowLink to filter out the second link
@@ -239,6 +247,8 @@ describe("menuConfig", () => {
       contextIndex: 0,
       msalRedirectUrl: "foo",
       cmsAuthFromStorageKey: undefined,
+      cmsAuth: "",
+      currentHref: "https://foo",
     };
 
     const mockState: State = {
@@ -255,11 +265,14 @@ describe("menuConfig", () => {
       propTags: {},
       pathTags: {},
       domTags: foundTags,
+      caseDetailsTags: {},
       tags: {},
       auth: {} as AuthResult,
       fatalInitialisationError: undefined as any,
       initialisationStatus: "complete",
       correlationIds: {} as CorrelationIds,
+      caseIdentifiers: { caseId: "1" },
+      build: {} as Build,
     };
 
     // Mock shouldShowLink to pass all links
@@ -303,6 +316,8 @@ describe("menuConfig", () => {
       contextIndex: 0,
       msalRedirectUrl: "foo",
       cmsAuthFromStorageKey: undefined,
+      cmsAuth: "",
+      currentHref: "https://foo",
     };
 
     const mockState: State = {
@@ -319,11 +334,14 @@ describe("menuConfig", () => {
       propTags: {},
       pathTags: {},
       domTags: foundTags,
+      caseDetailsTags: {},
       tags: {},
       auth: {} as AuthResult,
       fatalInitialisationError: undefined as any,
       initialisationStatus: "complete",
       correlationIds: {} as CorrelationIds,
+      caseIdentifiers: { caseId: "1" },
+      build: {} as Build,
     };
 
     // Mock shouldShowLink to pass all links
@@ -367,6 +385,8 @@ describe("menuConfig", () => {
       contextIndex: 0,
       msalRedirectUrl: "foo",
       cmsAuthFromStorageKey: undefined,
+      cmsAuth: "",
+      currentHref: "https://foo",
     };
 
     const mockState: State = {
@@ -384,11 +404,14 @@ describe("menuConfig", () => {
       propTags: {},
       pathTags: {},
       domTags: mockTags,
+      caseDetailsTags: {},
       tags: {},
       auth: {} as AuthResult,
       fatalInitialisationError: undefined as any,
       initialisationStatus: "complete",
       correlationIds: {} as CorrelationIds,
+      caseIdentifiers: { caseId: "1" },
+      build: {} as Build,
     };
 
     // Mock shouldShowLink to pass all links
@@ -431,6 +454,8 @@ describe("menuConfig", () => {
       contextIndex: 0,
       msalRedirectUrl: "foo",
       cmsAuthFromStorageKey: undefined,
+      cmsAuth: "",
+      currentHref: "https://foo",
     };
 
     const mockState: State = {
@@ -448,11 +473,14 @@ describe("menuConfig", () => {
       propTags: {},
       pathTags: {},
       domTags: mockTags,
+      caseDetailsTags: {},
       tags: {},
       auth: {} as AuthResult,
       fatalInitialisationError: undefined as any,
       initialisationStatus: "complete",
       correlationIds: {} as CorrelationIds,
+      caseIdentifiers: { caseId: "1" },
+      build: {} as Build,
     };
 
     // Mock shouldShowLink to pass all links

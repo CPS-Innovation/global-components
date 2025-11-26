@@ -7,15 +7,17 @@ describe("store", () => {
   });
 
   describe("initialiseStore", () => {
-    it("should return register, mergeTags and resetContextSpecificTags functions", () => {
+    it("should return register, mergeTags, resetContextSpecificTags and subscribe functions", () => {
       const result = initialiseStore();
 
       expect(result).toHaveProperty("register");
       expect(result).toHaveProperty("mergeTags");
       expect(result).toHaveProperty("resetContextSpecificTags");
+      expect(result).toHaveProperty("subscribe");
       expect(typeof result.register).toBe("function");
       expect(typeof result.mergeTags).toBe("function");
       expect(typeof result.resetContextSpecificTags).toBe("function");
+      expect(typeof result.subscribe).toBe("function");
     });
 
     describe("register function", () => {
@@ -369,22 +371,27 @@ describe("store", () => {
         }
       });
 
-      it("should merge tags with correct precedence (propTags > domTags > pathTags)", () => {
+      it("should merge tags with correct precedence (propTags > caseDetailsTags > domTags > pathTags)", () => {
         const { register } = initialiseStore();
 
         register({
-          pathTags: { caseId: "path-123", userId: "path-user", commonKey: "path" },
-          domTags: { caseId: "dom-456", commonKey: "dom" },
-          propTags: { userId: "prop-user", commonKey: "prop" },
+          pathTags: { caseId: "path-123", userId: "path-user", commonKey: "path", pathOnly: "path-value" },
+          domTags: { caseId: "dom-456", commonKey: "dom", domOnly: "dom-value" },
+          caseDetailsTags: { caseId: "caseDetails-789", commonKey: "caseDetails", caseDetailsOnly: "caseDetails-value" },
+          propTags: { userId: "prop-user", commonKey: "prop", propOnly: "prop-value" },
         });
 
         const result = readyState("tags");
 
         if (result.isReady) {
           expect(result.state.tags).toEqual({
-            caseId: "dom-456", // domTags overrides pathTags
+            caseId: "caseDetails-789", // caseDetailsTags overrides domTags
             userId: "prop-user", // propTags overrides pathTags
             commonKey: "prop", // propTags has highest precedence
+            pathOnly: "path-value", // unique to pathTags
+            domOnly: "dom-value", // unique to domTags
+            caseDetailsOnly: "caseDetails-value", // unique to caseDetailsTags
+            propOnly: "prop-value", // unique to propTags
           });
         }
       });
@@ -476,9 +483,10 @@ describe("store", () => {
         const { register } = initialiseStore();
 
         register({
-          pathTags: { key1: "path1", key2: "path2", key3: "path3" },
-          domTags: { key2: "dom2", key3: "dom3" },
-          propTags: { key3: "prop3" },
+          pathTags: { key1: "path1", key2: "path2", key3: "path3", key4: "path4" },
+          domTags: { key2: "dom2", key3: "dom3", key4: "dom4" },
+          caseDetailsTags: { key3: "caseDetails3", key4: "caseDetails4" },
+          propTags: { key4: "prop4" },
         });
 
         const result = readyState("tags");
@@ -487,7 +495,8 @@ describe("store", () => {
           expect(result.state.tags).toEqual({
             key1: "path1",
             key2: "dom2", // domTags overrides pathTags
-            key3: "prop3", // propTags overrides both
+            key3: "caseDetails3", // caseDetailsTags overrides domTags
+            key4: "prop4", // propTags overrides all
           });
         }
       });
@@ -669,6 +678,159 @@ describe("store", () => {
           // Can check auth even though it wasn't requested
           // This is useful for functions that take "config & { auth?: AuthResult }"
           expect(result.state.auth).toBeUndefined();
+        }
+      });
+    });
+
+    describe("caseDetailsTags handling", () => {
+      it("should include caseDetailsTags in merged tags", () => {
+        const { register } = initialiseStore();
+
+        register({
+          caseDetailsTags: { defendantName: "John Doe", prosecutionReference: "PR-123" },
+        });
+
+        const result = readyState("tags");
+
+        if (result.isReady) {
+          expect(result.state.tags).toEqual({
+            defendantName: "John Doe",
+            prosecutionReference: "PR-123",
+          });
+        }
+      });
+
+      it("should merge caseDetailsTags with other tag sources", () => {
+        const { register } = initialiseStore();
+
+        register({
+          pathTags: { caseId: "123" },
+          domTags: { urn: "urn:456" },
+          caseDetailsTags: { defendantName: "John Doe" },
+          propTags: { userId: "user-789" },
+        });
+
+        const result = readyState("tags");
+
+        if (result.isReady) {
+          expect(result.state.tags).toEqual({
+            caseId: "123",
+            urn: "urn:456",
+            defendantName: "John Doe",
+            userId: "user-789",
+          });
+        }
+      });
+
+      it("should allow caseDetailsTags to override domTags but not propTags", () => {
+        const { register } = initialiseStore();
+
+        register({
+          domTags: { sharedKey: "dom-value" },
+          caseDetailsTags: { sharedKey: "caseDetails-value" },
+        });
+
+        let result = readyState("tags");
+        if (result.isReady) {
+          expect(result.state.tags.sharedKey).toBe("caseDetails-value");
+        }
+
+        // Now add propTags which should override
+        register({
+          propTags: { sharedKey: "prop-value" },
+        });
+
+        result = readyState("tags");
+        if (result.isReady) {
+          expect(result.state.tags.sharedKey).toBe("prop-value");
+        }
+      });
+    });
+
+    describe("caseDetails handling", () => {
+      it("should register caseDetails", () => {
+        const { register } = initialiseStore();
+
+        register({
+          caseDetails: { urn: "URN-123" },
+        });
+
+        const result = readyState("caseDetails");
+
+        if (result.isReady) {
+          expect(result.state.caseDetails).toEqual({ urn: "URN-123" });
+        }
+      });
+
+      it("should allow partial caseDetails updates", () => {
+        const { register } = initialiseStore();
+
+        register({
+          caseDetails: { urn: "URN-123" },
+        });
+
+        register({
+          caseDetails: { isDcfCase: true },
+        });
+
+        const result = readyState("caseDetails");
+
+        if (result.isReady) {
+          // Note: register replaces, doesn't merge at property level
+          expect(result.state.caseDetails).toEqual({ isDcfCase: true });
+        }
+      });
+    });
+
+    describe("caseIdentifiers handling", () => {
+      it("should handle caseIdentifiers registration", () => {
+        const { register } = initialiseStore();
+
+        register({
+          caseIdentifiers: { caseId: "123" },
+        });
+
+        const result = readyState("caseIdentifiers");
+
+        if (result.isReady) {
+          expect(result.state.caseIdentifiers).toEqual({ caseId: "123" });
+        }
+      });
+    });
+
+    describe("build handling", () => {
+      it("should register build information", () => {
+        const { register } = initialiseStore();
+
+        const buildInfo = {
+          version: "1.0.0",
+          buildDate: "2024-01-01",
+        };
+
+        register({
+          build: buildInfo as any,
+        });
+
+        const result = readyState("build");
+
+        if (result.isReady) {
+          expect(result.state.build).toEqual(buildInfo);
+        }
+      });
+    });
+
+    describe("correlationIds handling", () => {
+      it("should register correlationIds", () => {
+        const { register } = initialiseStore();
+
+        register({
+          correlationIds: { correlationId: "corr-123", sessionId: "sess-456" } as any,
+        });
+
+        const result = readyState("correlationIds");
+
+        if (result.isReady) {
+          expect(result.state.correlationIds).toEqual({ correlationId: "corr-123", sessionId: "sess-456" });
         }
       });
     });

@@ -1,6 +1,6 @@
 import { Component, h, Host, Prop, Watch } from "@stencil/core";
 import { renderError } from "../common/render-error";
-import { readyState, register } from "../../store/store";
+import { readyState, mergeTags } from "../../store/store";
 import { WithLogging } from "../../logging/WithLogging";
 import { makeConsole } from "../../logging/makeConsole";
 
@@ -16,7 +16,7 @@ export class CpsGlobalHeader {
   @Watch("isDcf")
   onIsDcfChange(newValue: boolean) {
     _debug({ newValue });
-    register({ propTags: { isDcf: String(newValue) } });
+    mergeTags({ propTags: { isDcf: String(newValue) } });
   }
 
   componentWillLoad() {

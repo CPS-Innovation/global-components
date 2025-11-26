@@ -1,7 +1,7 @@
 import { v4 as uuidv4 } from "uuid";
 import { handleSetOverrideMode } from "./services/override-mode/handle-set-override-mode";
 import { initialiseAuth } from "./services/auth/initialise-auth";
-import { initialiseStore } from "./store/store";
+import { initialiseStore, Register } from "./store/store";
 import { initialiseAnalytics } from "./services/analytics/initialise-analytics";
 import { initialiseConfig } from "./services/config/initialise-config";
 import { initialiseContext } from "./services/context/initialise-context";
@@ -16,7 +16,11 @@ import { handleOutSystemsForcedAuth } from "./services/outsystems-shim/handle-ou
 import { handleContextAuthorisation } from "./services/authorisation/handle-context-authorisation";
 import { cachedResult } from "./utils/cached-result";
 import { CorrelationIds } from "./services/correlation/CorrelationIds";
-import { getCaseDetailsSubscriptionFactory } from "./services/data/get-case-details-subscription-factory";
+import { createCache } from "./services/cache/create-cache";
+import { fetchWithAuthFactory } from "./services/api/fetch-with-auth-factory";
+import { caseDetailsSubscriptionFactory } from "./services/data/case-details-subscription-factory";
+import { fetchWithCircuitBreaker } from "./services/api/fetch-with-circuit-breaker";
+import { pipe } from "./utils/pipe";
 
 const { _debug, _error } = makeConsole("global-script");
 
@@ -29,27 +33,29 @@ export default () => {
   const scriptLoadCorrelationId = uuidv4();
   handleSetOverrideMode({ window });
   // For first initialisation we want our two correlationIds to be the same
-  /* do not await this */ initialise({ scriptLoadCorrelationId, navigationCorrelationId: scriptLoadCorrelationId });
+  /* do not await this */ initialise({ scriptLoadCorrelationId, navigationCorrelationId: scriptLoadCorrelationId }, window);
 
   // Every time we detect a SPA navigation (i.e. not a full page reload), lets rerun our initialisation
   //  logic as out context may have changed
   window.navigation?.addEventListener("navigatesuccess", async event => {
     _debug("navigation", event);
-    initialise({ scriptLoadCorrelationId, navigationCorrelationId: uuidv4() });
+    initialise({ scriptLoadCorrelationId, navigationCorrelationId: uuidv4() }, window);
   });
 };
 
-let getCaseDetailsUnSubscriber: () => void = () => {};
+let trackException: (err: Error) => void;
+let register: Register;
 
-let trackException: (err: Error) => void = () => {};
-
-const initialise = async (correlationIds: CorrelationIds) => {
-  const { register, resetContextSpecificTags, subscribe, mergeTags } = cachedResult("store", initialiseStore);
-  register({ correlationIds });
-  // We reset the tags to empty as we could be being called after a navigate in a SPA
-  resetContextSpecificTags();
-
+const initialise = async (correlationIds: CorrelationIds, window: Window) => {
   try {
+    const { register: r, readyState, resetContextSpecificTags, subscribe, mergeTags } = cachedResult("store", initialiseStore);
+    register = r;
+    register({ correlationIds });
+    // We reset the tags to empty as we could be being called after a navigate in a SPA
+    resetContextSpecificTags();
+
+    const build = window.cps_global_components_build;
+    register({ build });
     // Several of the operations below need only be run when we first spin up and not on any potential SPA navigation.
     //  We use `cachedResult` give us the ability to rerun this function many times while ensuring that the one-time-only
     //  operations are only executed once (alternative would be lots of if statements or similar)
@@ -65,38 +71,40 @@ const initialise = async (correlationIds: CorrelationIds) => {
 
     const context = initialiseContext({ window, config });
     register({ context });
+    initialiseDomForContext({ context });
 
     const { pathTags } = context;
     register({ pathTags });
 
-    const { auth, getToken } = await cachedResult("auth", () => (flags.isE2eTestMode ? initialiseMockAuth({ window }) : initialiseAuth({ window, config, context })));
+    const { auth, getToken } = await cachedResult("auth", () => (flags.e2eTestMode.isE2eTestMode ? initialiseMockAuth({ flags }) : initialiseAuth({ config, context })));
     register({ auth });
 
     const {
       trackPageView,
-      rebindTrackEvent,
+      trackEvent,
       trackException: t,
-    } = cachedResult("analytics", () => (flags.isE2eTestMode ? initialiseMockAnalytics() : initialiseAnalytics({ window, config, auth })));
+    } = cachedResult("analytics", () => (flags.e2eTestMode.isE2eTestMode ? initialiseMockAnalytics() : initialiseAnalytics({ window, config, auth, readyState, build })));
     trackException = t;
 
-    rebindTrackEvent({ window, correlationIds });
     trackPageView({ context, correlationIds });
 
     handleContextAuthorisation({ window, context, auth });
-
-    initialiseDomForContext({ context });
     handleOutSystemsForcedAuth({ window, config, context });
 
-    // Our context may change as SPA navigations occur, so lets just dispose of our subscriber every time
-    //  and create a new one
-    getCaseDetailsUnSubscriber();
-    const [unSubscriber] = subscribe(getCaseDetailsSubscriptionFactory({ window, config, context, getToken, correlationIds, register }));
-    getCaseDetailsUnSubscriber = unSubscriber;
+    const isDataAccessEnabled = !!config.GATEWAY_URL;
+    if (isDataAccessEnabled) {
+      const cache = cachedResult("cache", () => createCache("cps-global-components-cache"));
+      const augmentedFetch = cachedResult("fetch", () =>
+        pipe(fetch, fetchWithCircuitBreaker({ config, trackEvent }), fetchWithAuthFactory({ config, context, getToken, readyState })),
+      );
+
+      cachedResult("case-details", () => subscribe(caseDetailsSubscriptionFactory({ config, cache, fetch: augmentedFetch })));
+    }
 
     register({ initialisationStatus: "complete" });
   } catch (err) {
     trackException?.(err);
     _error(err);
-    register({ fatalInitialisationError: err, initialisationStatus: "broken" });
+    register?.({ fatalInitialisationError: err, initialisationStatus: "broken" });
   }
 };
