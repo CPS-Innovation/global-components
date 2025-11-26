@@ -11,10 +11,7 @@ describe("typedDeepMerge", () => {
     it("should merge simple objects", () => {
       const base = { a: 1, b: 2 };
       const override = { b: 3, c: 4 };
-      const result = typedDeepMerge<{ a: number; b: number; c: number }>(
-        base,
-        override
-      );
+      const result = typedDeepMerge<{ a: number; b: number; c: number }>(base, override);
       expect(result).toEqual({ a: 1, b: 3, c: 4 });
     });
 
@@ -222,14 +219,11 @@ describe("typedDeepMerge", () => {
 
     it("should merge when only some items are objects", () => {
       // If source has at least one object, treat as object array
-      const base = { arr: [{ id: 1 }, { id: 2 }] };
+      const base = { arr: [{ id: 1 }, { id: 2 }] } as { arr: { id: number; name?: string }[] };
       const override = { arr: [{ name: "a" }] };
       const result = typedDeepMerge(base, override);
       expect(result).toEqual({
-        arr: [
-          { id: 1, name: "a" },
-          { id: 2 },
-        ],
+        arr: [{ id: 1, name: "a" }, { id: 2 }],
       });
     });
   });
@@ -250,7 +244,7 @@ describe("typedDeepMerge", () => {
     });
 
     it("should handle null values in objects", () => {
-      const base = { a: 1, b: null };
+      const base = { a: 1, b: null } as { a?: number; b: null | number; c?: null };
       const override = { b: 2, c: null };
       const result = typedDeepMerge(base, override);
       expect(result).toEqual({ a: 1, b: 2, c: null });
@@ -264,7 +258,7 @@ describe("typedDeepMerge", () => {
     });
 
     it("should not mutate the original objects", () => {
-      const base = { a: 1, nested: { b: 2 } };
+      const base = { a: 1, nested: { b: 2 } } as { a?: number; nested: { b?: number; c?: number } };
       const override = { nested: { c: 3 } };
       const baseCopy = JSON.parse(JSON.stringify(base));
       const overrideCopy = JSON.parse(JSON.stringify(override));
@@ -316,10 +310,10 @@ describe("typedDeepMerge", () => {
     });
 
     it("should handle multiple override layers", () => {
-      const base = { a: 1, b: 2, c: 3 };
-      const layer1 = { b: 20 };
-      const layer2 = { c: 30 };
-      const layer3 = { a: 10 };
+      const base = { a: 1, b: 2, c: 3 } as { a?: number; b?: number; c?: number };
+      const layer1 = { b: 20 } as { a?: number; b?: number; c?: number };
+      const layer2 = { c: 30 } as { a?: number; b?: number; c?: number };
+      const layer3 = { a: 10 } as { a?: number; b?: number; c?: number };
 
       const result = typedDeepMerge(base, layer1, layer2, layer3);
       expect(result).toEqual({ a: 10, b: 20, c: 30 });
@@ -351,17 +345,11 @@ describe("typedDeepMerge", () => {
     });
 
     it("should handle mixed undefined in override chain", () => {
-      const base = { a: 1, b: 2 };
-      const override1 = { a: 10 };
-      const override2 = { b: 20 };
+      const base = { a: 1, b: 2 } as { a?: number; b?: number };
+      const override1 = { a: 10 } as { a?: number; b?: number };
+      const override2 = { b: 20 } as { a?: number; b?: number };
 
-      const result = typedDeepMerge(
-        base,
-        override1,
-        undefined,
-        override2,
-        undefined
-      );
+      const result = typedDeepMerge(base, override1, undefined, override2, undefined);
       expect(result).toEqual({ a: 10, b: 20 });
     });
   });
