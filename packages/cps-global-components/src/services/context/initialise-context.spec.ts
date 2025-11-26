@@ -42,8 +42,8 @@ describe("initialiseContext", () => {
 
     const contexts: Context[] = [
       {
-        paths: ["https://example.com/page"],
-        contexts: "page-context",
+        path: "https://example.com/page",
+        contextIds: "page-context",
         msalRedirectUrl: "foo",
       },
     ];
@@ -53,64 +53,13 @@ describe("initialiseContext", () => {
     expect(result).toEqual({
       contextIndex: 0,
       found: true,
-      paths: ["https://example.com/page"],
-      contexts: "page-context",
+      path: "https://example.com/page",
+      contextIds: "page-context",
       domTagDefinitions: undefined,
       pathTags: {},
       msalRedirectUrl: "foo",
-    } as FoundContext);
-  });
-
-  it("should return first matching context when multiple contexts match", () => {
-    tryLocationMatchSpy.mockReturnValueOnce({ groups: {} }).mockReturnValueOnce({ groups: {} });
-
-    const contexts: Context[] = [
-      {
-        paths: ["https://example.com/specific"],
-        contexts: "first-context",
-        msalRedirectUrl: "foo",
-      },
-      {
-        paths: ["https://example.com/specific"],
-        contexts: "second-context",
-        msalRedirectUrl: "bar",
-      },
-    ];
-    const mockWindow = createMockWindow("https://example.com/specific");
-
-    const result = initialiseContext({ window: mockWindow, config: { CONTEXTS: contexts } });
-    expect(result).toEqual({
-      contextIndex: 0,
-      found: true,
-      paths: ["https://example.com/specific"],
-      contexts: "first-context",
-      domTagDefinitions: undefined,
-      pathTags: {},
-      msalRedirectUrl: "foo",
-    } as FoundContext);
-  });
-
-  it("should check all paths in a context before moving to next context", () => {
-    tryLocationMatchSpy.mockReturnValueOnce(null).mockReturnValueOnce({ groups: {} });
-
-    const contexts: Context[] = [
-      {
-        paths: ["https://example.com/admin", "https://example.com/dashboard"],
-        contexts: "admin-context",
-        msalRedirectUrl: "foo",
-      },
-    ];
-    const mockWindow = createMockWindow("https://example.com/dashboard");
-
-    const result = initialiseContext({ window: mockWindow, config: { CONTEXTS: contexts } });
-    expect(result).toEqual({
-      contextIndex: 0,
-      found: true,
-      paths: ["https://example.com/admin", "https://example.com/dashboard"],
-      contexts: "admin-context",
-      domTagDefinitions: undefined,
-      pathTags: {},
-      msalRedirectUrl: "foo",
+      cmsAuth: "",
+      currentHref: "https://example.com/page",
     } as FoundContext);
   });
 
@@ -119,13 +68,13 @@ describe("initialiseContext", () => {
 
     const contexts: Context[] = [
       {
-        paths: ["https://example.com/page1"],
-        contexts: "page1-context",
+        path: "https://example.com/page1",
+        contextIds: "page1-context",
         msalRedirectUrl: "foo",
       },
       {
-        paths: ["https://example.com/page2"],
-        contexts: "page2-context",
+        path: "https://example.com/page2",
+        contextIds: "page2-context",
         msalRedirectUrl: "foo",
       },
     ];
@@ -142,8 +91,8 @@ describe("initialiseContext", () => {
 
     const contexts: Context[] = [
       {
-        paths: ["https://example.com/with-dom-tags"],
-        contexts: "dom-tags-context",
+        path: "https://example.com/with-dom-tags",
+        contextIds: "dom-tags-context",
         msalRedirectUrl: "foo",
         domTagDefinitions: [
           {
@@ -163,8 +112,8 @@ describe("initialiseContext", () => {
     expect(result).toEqual({
       contextIndex: 0,
       found: true,
-      paths: ["https://example.com/with-dom-tags"],
-      contexts: "dom-tags-context",
+      path: "https://example.com/with-dom-tags",
+      contextIds: "dom-tags-context",
       domTagDefinitions: [
         {
           cssSelector: ".header",
@@ -177,6 +126,8 @@ describe("initialiseContext", () => {
       ],
       pathTags: {},
       msalRedirectUrl: "foo",
+      cmsAuth: "",
+      currentHref: "https://example.com/with-dom-tags",
     } as FoundContext);
   });
 
@@ -185,8 +136,8 @@ describe("initialiseContext", () => {
 
     const contexts: Context[] = [
       {
-        paths: ["https://example.com/no-dom-tags"],
-        contexts: "no-dom-tags-context",
+        path: "https://example.com/no-dom-tags",
+        contextIds: "no-dom-tags-context",
         msalRedirectUrl: "foo",
       },
     ];
@@ -196,11 +147,13 @@ describe("initialiseContext", () => {
     expect(result).toEqual({
       contextIndex: 0,
       found: true,
-      paths: ["https://example.com/no-dom-tags"],
-      contexts: "no-dom-tags-context",
+      path: "https://example.com/no-dom-tags",
+      contextIds: "no-dom-tags-context",
       domTagDefinitions: undefined,
       pathTags: {},
       msalRedirectUrl: "foo",
+      cmsAuth: "",
+      currentHref: "https://example.com/no-dom-tags",
     } as FoundContext);
   });
 
@@ -209,8 +162,8 @@ describe("initialiseContext", () => {
 
     const contexts: Context[] = [
       {
-        paths: ["https://example.com/page#section"],
-        contexts: "page-with-hash",
+        path: "https://example.com/page#section",
+        contextIds: "page-with-hash",
         msalRedirectUrl: "foo",
       },
     ];
@@ -220,11 +173,13 @@ describe("initialiseContext", () => {
     expect(result).toEqual({
       contextIndex: 0,
       found: true,
-      paths: ["https://example.com/page#section"],
-      contexts: "page-with-hash",
+      path: "https://example.com/page#section",
+      contextIds: "page-with-hash",
       domTagDefinitions: undefined,
       pathTags: {},
       msalRedirectUrl: "foo",
+      cmsAuth: "",
+      currentHref: "https://example.com/page#section",
     } as FoundContext);
   });
 
@@ -234,8 +189,8 @@ describe("initialiseContext", () => {
 
       const contexts: Context[] = [
         {
-          paths: ["https://example.com/MyPage"],
-          contexts: "page-context",
+          path: "https://example.com/MyPage",
+          contextIds: "page-context",
           msalRedirectUrl: "foo",
         },
       ];
@@ -245,11 +200,13 @@ describe("initialiseContext", () => {
       expect(result).toEqual({
         contextIndex: 0,
         found: true,
-        paths: ["https://example.com/MyPage"],
-        contexts: "page-context",
+        path: "https://example.com/MyPage",
+        contextIds: "page-context",
         domTagDefinitions: undefined,
         pathTags: {},
         msalRedirectUrl: "foo",
+        cmsAuth: "",
+        currentHref: "https://example.com/mypage",
       } as FoundContext);
     });
 
@@ -263,8 +220,8 @@ describe("initialiseContext", () => {
 
       const contexts: Context[] = [
         {
-          paths: ["https://example.com/users/(?<userId>\\d+)/posts/(?<postId>\\d+)"],
-          contexts: "post-context",
+          path: "https://example.com/users/(?<userId>\\d+)/posts/(?<postId>\\d+)",
+          contextIds: "post-context",
           msalRedirectUrl: "foo",
         },
       ];
@@ -274,14 +231,17 @@ describe("initialiseContext", () => {
       expect(result).toEqual({
         contextIndex: 0,
         found: true,
-        paths: ["https://example.com/users/(?<userId>\\d+)/posts/(?<postId>\\d+)"],
-        contexts: "post-context",
+        path: "https://example.com/users/(?<userId>\\d+)/posts/(?<postId>\\d+)",
+        contextIds: "post-context",
         domTagDefinitions: undefined,
         pathTags: {
           userId: "123",
           postId: "456",
         },
         msalRedirectUrl: "foo",
+        cmsAuthFromStorageKey: undefined,
+        cmsAuth: "",
+        currentHref: "https://example.com/users/123/posts/456",
       } as FoundContext);
     });
 
@@ -294,8 +254,8 @@ describe("initialiseContext", () => {
 
       const contexts: Context[] = [
         {
-          paths: ["https://example.com:(?<port>\\d+)/page"],
-          contexts: "page-context",
+          path: "https://example.com:(?<port>\\d+)/page",
+          contextIds: "page-context",
           msalRedirectUrl: "https://redirect.com:{port}/callback",
         },
       ];

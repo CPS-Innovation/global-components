@@ -1,4 +1,8 @@
-export const constants = { LAUNCH_PAGE_URL: "http://localhost:3000" };
+export const constants = {
+  LAUNCH_PAGE_URL: "http://localhost:3000",
+  URN_PREFIX: "URN",
+  GATEWAY_URL: "/api",
+};
 
 export const locators = {
   ERROR: "div.error",

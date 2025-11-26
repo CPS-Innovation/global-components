@@ -8,22 +8,23 @@ import { menuConfig } from "./menu-config";
 import { Config } from "cps-global-configuration";
 import { FoundContext } from "../../../services/context/FoundContext";
 import { shouldShowLink } from "./helpers/should-show-link";
-import { mapLinkConfig } from "./helpers/map-link-config";
+import { mapLinkConfig, MapLinkConfigParams } from "./helpers/map-link-config";
 import { groupLinksByLevel } from "./helpers/group-links-by-level";
 import { ApplicationFlags } from "../../../services/application-flags/ApplicationFlags";
 import { Tags } from "@microsoft/applicationinsights-web";
 import { AuthResult } from "../../../services/auth/AuthResult";
 import { isOutSystemsApp } from "../../../services/application-flags/is-outsystems-app";
-import { createOutboundUrl } from "cps-global-os-handover";
-import { State } from "../../../store/store";
-import { CaseDetails } from "../../../services/data/types";
+import { createOutboundUrlDirect } from "cps-global-os-handover";
+import { Build, State } from "../../../store/store";
+import { CorrelationIds } from "../../../services/correlation/CorrelationIds";
+import { CaseDetails } from "../../../services/data/CaseDetails";
 
 // Type the mocked functions
 const mockShouldShowLink = shouldShowLink as jest.MockedFunction<typeof shouldShowLink>;
 const mockMapLinkConfig = mapLinkConfig as jest.MockedFunction<typeof mapLinkConfig>;
 const mockGroupLinksByLevel = groupLinksByLevel as jest.MockedFunction<typeof groupLinksByLevel>;
 const mockIsOutSystemsApp = isOutSystemsApp as jest.MockedFunction<typeof isOutSystemsApp>;
-const mockCreateOutboundUrl = createOutboundUrl as jest.MockedFunction<typeof createOutboundUrl>;
+const mockCreateOutboundUrlDirect = createOutboundUrlDirect as jest.MockedFunction<typeof createOutboundUrlDirect>;
 
 describe("menuConfig", () => {
   // Test data
@@ -65,8 +66,8 @@ describe("menuConfig", () => {
     ],
     CONTEXTS: [
       {
-        paths: ["https://example.com/test"],
-        contexts: "test-context",
+        path: "https://example.com/test",
+        contextIds: "test-context",
         msalRedirectUrl: "foo",
       },
     ],
@@ -75,13 +76,13 @@ describe("menuConfig", () => {
   const mockFlags: ApplicationFlags = {
     isOverrideMode: false,
     isOutSystems: false,
-    isE2eTestMode: false,
+    e2eTestMode: { isE2eTestMode: false },
     isLocalDevelopment: false,
   };
 
   const mockTags: Tags = {};
 
-  const mockCaseDetails: CaseDetails = { urn: "foo", caseId: 1, isDcf: false };
+  const mockCaseDetails: CaseDetails = { urn: "foo", caseId: 1, isDcfCase: false };
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -102,10 +103,14 @@ describe("menuConfig", () => {
       propTags: {},
       pathTags: {},
       domTags: mockTags,
+      caseDetailsTags: {},
       tags: {},
       auth: {} as AuthResult,
       fatalInitialisationError: undefined as any,
-      initialisationStatus: "ready",
+      initialisationStatus: "complete",
+      correlationIds: {} as CorrelationIds,
+      caseIdentifiers: { caseId: "1" },
+      build: {} as Build,
     };
 
     const result = menuConfig(mockState);
@@ -126,12 +131,15 @@ describe("menuConfig", () => {
 
     const foundContext: FoundContext = {
       found: true,
-      paths: ["https://example.com/test"],
-      contexts: foundContexts,
+      path: "https://example.com/test",
+      contextIds: foundContexts,
       domTagDefinitions: undefined,
       pathTags: {},
       contextIndex: 0,
       msalRedirectUrl: "foo",
+      cmsAuthFromStorageKey: undefined,
+      cmsAuth: "",
+      currentHref: "https://foo",
     };
 
     const mockState: State = {
@@ -142,10 +150,14 @@ describe("menuConfig", () => {
       propTags: {},
       pathTags: {},
       domTags: foundTags,
+      caseDetailsTags: {},
       tags: {},
       auth: {} as AuthResult,
       fatalInitialisationError: undefined as any,
-      initialisationStatus: "ready",
+      initialisationStatus: "complete",
+      correlationIds: {} as CorrelationIds,
+      caseIdentifiers: { caseId: "1" },
+      build: {} as Build,
     };
 
     // Mock shouldShowLink to filter out the second link
@@ -197,10 +209,10 @@ describe("menuConfig", () => {
     expect(mockFilterFunction).toHaveBeenCalledTimes(3);
     // The handoverAdapter should be a function when not in OutSystems (even with empty OS_HANDOVER_URL)
     expect(mockMapLinkConfig).toHaveBeenCalledWith({
-      contexts: foundContexts,
+      contextIds: foundContexts,
       tags: {},
       handoverAdapter: expect.any(Function),
-    });
+    } as MapLinkConfigParams);
     expect(mockMapFunction).toHaveBeenCalledTimes(2); // Only called for filtered links
     expect(mockGroupLinksByLevel).toHaveBeenCalledWith([
       {
@@ -228,12 +240,15 @@ describe("menuConfig", () => {
 
     const foundContext: FoundContext = {
       found: true,
-      paths: ["https://example.com/test"],
-      contexts: foundContexts,
+      path: "https://example.com/test",
+      contextIds: foundContexts,
       domTagDefinitions: undefined,
       pathTags: {},
       contextIndex: 0,
       msalRedirectUrl: "foo",
+      cmsAuthFromStorageKey: undefined,
+      cmsAuth: "",
+      currentHref: "https://foo",
     };
 
     const mockState: State = {
@@ -250,10 +265,14 @@ describe("menuConfig", () => {
       propTags: {},
       pathTags: {},
       domTags: foundTags,
+      caseDetailsTags: {},
       tags: {},
       auth: {} as AuthResult,
       fatalInitialisationError: undefined as any,
-      initialisationStatus: "ready",
+      initialisationStatus: "complete",
+      correlationIds: {} as CorrelationIds,
+      caseIdentifiers: { caseId: "1" },
+      build: {} as Build,
     };
 
     // Mock shouldShowLink to pass all links
@@ -278,10 +297,10 @@ describe("menuConfig", () => {
 
     // Verify handoverAdapter is undefined when in OutSystems
     expect(mockMapLinkConfig).toHaveBeenCalledWith({
-      contexts: foundContexts,
+      contextIds: foundContexts,
       tags: {},
       handoverAdapter: undefined,
-    });
+    } as MapLinkConfigParams);
   });
 
   it("should create handoverAdapter when not in OutSystems and OS_HANDOVER_URL is provided", () => {
@@ -290,12 +309,15 @@ describe("menuConfig", () => {
 
     const foundContext: FoundContext = {
       found: true,
-      paths: ["https://example.com/test"],
-      contexts: foundContexts,
+      path: "https://example.com/test",
+      contextIds: foundContexts,
       domTagDefinitions: undefined,
       pathTags: {},
       contextIndex: 0,
       msalRedirectUrl: "foo",
+      cmsAuthFromStorageKey: undefined,
+      cmsAuth: "",
+      currentHref: "https://foo",
     };
 
     const mockState: State = {
@@ -312,10 +334,14 @@ describe("menuConfig", () => {
       propTags: {},
       pathTags: {},
       domTags: foundTags,
+      caseDetailsTags: {},
       tags: {},
       auth: {} as AuthResult,
       fatalInitialisationError: undefined as any,
-      initialisationStatus: "ready",
+      initialisationStatus: "complete",
+      correlationIds: {} as CorrelationIds,
+      caseIdentifiers: { caseId: "1" },
+      build: {} as Build,
     };
 
     // Mock shouldShowLink to pass all links
@@ -340,24 +366,27 @@ describe("menuConfig", () => {
 
     // Verify handoverAdapter is passed as a function (not undefined)
     expect(mockMapLinkConfig).toHaveBeenCalledWith({
-      contexts: foundContexts,
+      contextIds: foundContexts,
       tags: {},
       handoverAdapter: expect.any(Function),
-    });
+    } as MapLinkConfigParams);
   });
 
-  it("should test handoverAdapter returns URL unchanged when OS_HANDOVER_URL is empty", () => {
+  it("should test handoverAdapter returns URL unchanged when OS_HANDOVER_URL or COOKIE_HANDOVER_URL is empty", () => {
     const foundContexts = "test-context";
     const foundTags = { tag1: "value1" };
 
     const foundContext: FoundContext = {
       found: true,
-      paths: ["https://example.com/test"],
-      contexts: foundContexts,
+      path: "https://example.com/test",
+      contextIds: foundContexts,
       domTagDefinitions: undefined,
       pathTags: foundTags,
       contextIndex: 0,
       msalRedirectUrl: "foo",
+      cmsAuthFromStorageKey: undefined,
+      cmsAuth: "",
+      currentHref: "https://foo",
     };
 
     const mockState: State = {
@@ -366,6 +395,7 @@ describe("menuConfig", () => {
       config: {
         ...mockConfig,
         OS_HANDOVER_URL: "", // Empty OS_HANDOVER_URL
+        COOKIE_HANDOVER_URL: "", // Empty COOKIE_HANDOVER_URL
       },
       flags: {
         ...mockFlags,
@@ -374,10 +404,14 @@ describe("menuConfig", () => {
       propTags: {},
       pathTags: {},
       domTags: mockTags,
+      caseDetailsTags: {},
       tags: {},
       auth: {} as AuthResult,
       fatalInitialisationError: undefined as any,
-      initialisationStatus: "ready",
+      initialisationStatus: "complete",
+      correlationIds: {} as CorrelationIds,
+      caseIdentifiers: { caseId: "1" },
+      build: {} as Build,
     };
 
     // Mock shouldShowLink to pass all links
@@ -399,26 +433,29 @@ describe("menuConfig", () => {
     // Test the handoverAdapter function
     expect(capturedHandoverAdapter).toBeDefined();
 
-    // Even if it's an OutSystems URL, without OS_HANDOVER_URL it should return unchanged
+    // Even if it's an OutSystems URL, without OS_HANDOVER_URL and COOKIE_HANDOVER_URL it should return unchanged
     mockIsOutSystemsApp.mockReturnValue(true);
     expect(capturedHandoverAdapter!("https://os-app.com/page")).toBe("https://os-app.com/page");
 
     expect(mockIsOutSystemsApp).toHaveBeenCalledWith({ location: { href: "https://os-app.com/page" } });
-    expect(mockCreateOutboundUrl).not.toHaveBeenCalled();
+    expect(mockCreateOutboundUrlDirect).not.toHaveBeenCalled();
   });
 
-  it("should test handoverAdapter function behavior", () => {
+  it("should test handoverAdapter function behavior with handover URLs", () => {
     const foundContexts = "test-context";
     const foundTags = { tag1: "value1" };
 
     const foundContext: FoundContext = {
       found: true,
-      paths: ["https://example.com/test"],
-      contexts: foundContexts,
+      path: "https://example.com/test",
+      contextIds: foundContexts,
       domTagDefinitions: undefined,
       pathTags: foundTags,
       contextIndex: 0,
       msalRedirectUrl: "foo",
+      cmsAuthFromStorageKey: undefined,
+      cmsAuth: "",
+      currentHref: "https://foo",
     };
 
     const mockState: State = {
@@ -427,6 +464,7 @@ describe("menuConfig", () => {
       config: {
         ...mockConfig,
         OS_HANDOVER_URL: "https://handover.example.com",
+        COOKIE_HANDOVER_URL: "https://cookie.example.com",
       },
       flags: {
         ...mockFlags,
@@ -435,10 +473,14 @@ describe("menuConfig", () => {
       propTags: {},
       pathTags: {},
       domTags: mockTags,
+      caseDetailsTags: {},
       tags: {},
       auth: {} as AuthResult,
       fatalInitialisationError: undefined as any,
-      initialisationStatus: "ready",
+      initialisationStatus: "complete",
+      correlationIds: {} as CorrelationIds,
+      caseIdentifiers: { caseId: "1" },
+      build: {} as Build,
     };
 
     // Mock shouldShowLink to pass all links
@@ -464,17 +506,18 @@ describe("menuConfig", () => {
     mockIsOutSystemsApp.mockReturnValue(false);
     expect(capturedHandoverAdapter!("https://regular-app.com/page")).toBe("https://regular-app.com/page");
 
-    // Test case 2: OutSystems URL should go through handover
+    // Test case 2: OutSystems URL should go through direct handover
     mockIsOutSystemsApp.mockReturnValue(true);
-    mockCreateOutboundUrl.mockReturnValue("https://handover.example.com?target=https://os-app.com/page");
+    mockCreateOutboundUrlDirect.mockReturnValue("https://cookie.example.com?r=https://handover.example.com?stage=os-cookie-return&r=https://os-app.com/page");
 
     const result = capturedHandoverAdapter!("https://os-app.com/page");
 
     expect(mockIsOutSystemsApp).toHaveBeenCalledWith({ location: { href: "https://os-app.com/page" } });
-    expect(mockCreateOutboundUrl).toHaveBeenCalledWith({
+    expect(mockCreateOutboundUrlDirect).toHaveBeenCalledWith({
+      cookieHandoverUrl: "https://cookie.example.com",
       handoverUrl: "https://handover.example.com",
       targetUrl: "https://os-app.com/page",
     });
-    expect(result).toBe("https://handover.example.com?target=https://os-app.com/page");
+    expect(result).toBe("https://cookie.example.com?r=https://handover.example.com?stage=os-cookie-return&r=https://os-app.com/page");
   });
 });

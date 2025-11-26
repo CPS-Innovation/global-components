@@ -2,6 +2,7 @@ import { Component, h, Fragment } from "@stencil/core";
 import { readyState } from "../../store/store";
 import { FEATURE_FLAGS } from "../../feature-flags/feature-flags";
 import { WithLogging } from "../../logging/WithLogging";
+import { SkipLink } from "../common/SkipLink";
 
 @Component({
   tag: "cps-global-banner",
@@ -16,7 +17,7 @@ export class CpsGlobalBanner {
 
   @WithLogging("CpsGlobalBanner")
   render() {
-    const { isReady, state } = readyState("flags", "config");
+    const { isReady, state } = readyState("flags", "config", "tags", "context");
 
     const resolveValues = () => {
       if (state.fatalInitialisationError) {
@@ -43,9 +44,10 @@ export class CpsGlobalBanner {
     return (
       <>
         <div class={values.showGovUkRebrand ? "govuk-template--rebranded" : ""}>
-          <a href="#main-content" class="govuk-skip-link skip-link" data-module="govuk-skip-link">
+          <SkipLink href="#main-content" class="govuk-skip-link skip-link" data-module="govuk-skip-link" {...state.context}>
             Skip to main content
-          </a>
+          </SkipLink>
+
           {values.showGovUkRebrand ? (
             <header class="govuk-header background-blue" data-module="govuk-header">
               <div class="govuk-header__container">

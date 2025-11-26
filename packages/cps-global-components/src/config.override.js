@@ -2,24 +2,44 @@ cps_global_components_config_jsonp_callback({
   ENVIRONMENT: "local-development",
   BANNER_TITLE_HREF: "http://localhost:3333/",
   APP_INSIGHTS_KEY: "e572c03c-8d38-4771-b193-962f13da1b1a",
-  SURVEY_LINK: "https://forms.office.com/e/Cxmsq5xTWx",
+  SURVEY_LINK: "https://forms.office.com/e/8KM9A7aS0e",
   SHOW_MENU: true,
   OS_HANDOVER_URL: "https://cps-dev.outsystemsenterprise.com/AuthHandover/index.html",
   COOKIE_HANDOVER_URL: "https://cin3.cps.gov.uk/polaris",
   TOKEN_HANDOVER_URL: "https://polaris-qa-notprod.cps.gov.uk/auth-refresh-cms-modern-token",
   CONTEXTS: [
-    { paths: ["http://localhost:3333/cases/(?<caseId>\\d+)/materials"], contexts: "case materials", msalRedirectUrl: "" },
-    { paths: ["http://localhost:3333/cases/(?<caseId>\\d+)/review"], contexts: "case review", msalRedirectUrl: "" },
-    { paths: ["http://localhost:3333/cases/(?<caseId>\\d+)"], contexts: "case details", msalRedirectUrl: "" },
-    { paths: ["http://localhost:3333/cases"], contexts: "cases", msalRedirectUrl: "" },
     {
-      paths: ["http://localhost:3333/"],
-      contexts: "tasks",
       msalRedirectUrl: "",
-      domTagDefinitions: [
+      contexts: [
         {
-          cssSelector: "a[href*='/polaris-ui/case-details/']",
-          regex: '/polaris-ui/case-details/(?<urn>.+)/(?<caseId>\\d+)"',
+          path: "http://localhost:3333/cases/(?<caseId>\\d+)/materials",
+          contextIds: "case materials",
+        },
+        {
+          path: "http://localhost:3333/cases/(?<caseId>\\d+)/review",
+          contextIds: "case review",
+        },
+        {
+          path: "http://localhost:3333/cases/(?<caseId>\\d+)",
+          contextIds: "case details",
+        },
+        {
+          path: "http://localhost:3333/cases",
+          contextIds: "cases",
+        },
+        {
+          domTagDefinitions: [
+            {
+              cssSelector: "a[href*='/polaris-ui/case-details/']",
+              regex: '/polaris-ui/case-details/(?<urn>.+)/(?<caseId>\\d+)"',
+            },
+          ],
+          contexts: [
+            {
+              path: "http://localhost:3333/",
+              contextIds: "tasks",
+            },
+          ],
         },
       ],
     },

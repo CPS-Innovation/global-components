@@ -1,4 +1,4 @@
-import { initialiseStore, readyState, isATagProperty, SubscriptionFactory } from "./store";
+import { initialiseStore, readyState } from "./store";
 
 describe("store", () => {
   // Initialize a fresh store before each test to ensure isolation
@@ -6,51 +6,18 @@ describe("store", () => {
     initialiseStore();
   });
 
-  describe("isATagProperty", () => {
-    it("should return true for pathTags", () => {
-      expect(isATagProperty("pathTags")).toBe(true);
-    });
-
-    it("should return true for domTags", () => {
-      expect(isATagProperty("domTags")).toBe(true);
-    });
-
-    it("should return true for propTags", () => {
-      expect(isATagProperty("propTags")).toBe(true);
-    });
-
-    it("should return false for non-tag properties", () => {
-      expect(isATagProperty("flags")).toBe(false);
-      expect(isATagProperty("config")).toBe(false);
-      expect(isATagProperty("auth")).toBe(false);
-      expect(isATagProperty("context")).toBe(false);
-      expect(isATagProperty("caseDetails")).toBe(false);
-      expect(isATagProperty("fatalInitialisationError")).toBe(false);
-    });
-  });
-
   describe("initialiseStore", () => {
-    it("should return register and resetContextSpecificTags functions", () => {
+    it("should return register, mergeTags, resetContextSpecificTags and subscribe functions", () => {
       const result = initialiseStore();
 
       expect(result).toHaveProperty("register");
+      expect(result).toHaveProperty("mergeTags");
       expect(result).toHaveProperty("resetContextSpecificTags");
+      expect(result).toHaveProperty("subscribe");
       expect(typeof result.register).toBe("function");
+      expect(typeof result.mergeTags).toBe("function");
       expect(typeof result.resetContextSpecificTags).toBe("function");
-    });
-
-    it("should accept external subscriptions", () => {
-      const mockSubscriptionFactory: SubscriptionFactory = jest.fn(() => ({
-        set: jest.fn(),
-      }));
-
-      initialiseStore(mockSubscriptionFactory);
-
-      expect(mockSubscriptionFactory).toHaveBeenCalledWith({
-        store: expect.any(Object),
-        register: expect.any(Function),
-        getTags: expect.any(Function),
-      });
+      expect(typeof result.subscribe).toBe("function");
     });
 
     describe("register function", () => {
@@ -101,6 +68,124 @@ describe("store", () => {
         if (result.isReady) {
           expect(result.state.flags).toEqual({ isDevelopment: false });
         }
+      });
+    });
+
+    describe("mergeTags function", () => {
+      it("should merge new tags with existing pathTags", () => {
+        const { register, mergeTags } = initialiseStore();
+
+        register({ pathTags: { caseId: "123", userId: "456" } });
+        mergeTags({ pathTags: { caseId: "789", newKey: "abc" } });
+
+        const result = readyState("tags");
+        if (result.isReady) {
+          expect(result.state.tags).toEqual({
+            caseId: "789", // Updated value
+            userId: "456", // Preserved value
+            newKey: "abc", // New value
+          });
+        }
+      });
+
+      it("should merge new tags with existing domTags", () => {
+        const { register, mergeTags } = initialiseStore();
+
+        register({ domTags: { urn: "original", key1: "value1" } });
+        mergeTags({ domTags: { urn: "updated", key2: "value2" } });
+
+        const result = readyState("tags");
+        if (result.isReady) {
+          expect(result.state.tags).toEqual({
+            urn: "updated",
+            key1: "value1",
+            key2: "value2",
+          });
+        }
+      });
+
+      it("should merge new tags with existing propTags", () => {
+        const { register, mergeTags } = initialiseStore();
+
+        register({ propTags: { userId: "user1", role: "admin" } });
+        mergeTags({ propTags: { userId: "user2", department: "IT" } });
+
+        const result = readyState("tags");
+        if (result.isReady) {
+          expect(result.state.tags).toEqual({
+            userId: "user2",
+            role: "admin",
+            department: "IT",
+          });
+        }
+      });
+
+      it("should handle merging when tag type was not previously set", () => {
+        const { mergeTags } = initialiseStore();
+
+        mergeTags({ pathTags: { caseId: "123" } });
+
+        const result = readyState("tags");
+        if (result.isReady) {
+          expect(result.state.tags).toEqual({
+            caseId: "123",
+          });
+        }
+      });
+
+      it("should not affect other tag types when merging one type", () => {
+        const { register, mergeTags } = initialiseStore();
+
+        register({
+          pathTags: { caseId: "123" },
+          domTags: { urn: "456" },
+          propTags: { userId: "789" },
+        });
+
+        mergeTags({ pathTags: { newKey: "newValue" } });
+
+        const result = readyState("tags");
+        if (result.isReady) {
+          expect(result.state.tags).toEqual({
+            caseId: "123",
+            newKey: "newValue",
+            urn: "456", // Unchanged
+            userId: "789", // Unchanged
+          });
+        }
+      });
+
+      it("should return the merged tags after merging", () => {
+        const { register, mergeTags } = initialiseStore();
+
+        register({ pathTags: { caseId: "123", userId: "456" } });
+        const result = mergeTags({ pathTags: { caseId: "789", newKey: "abc" } });
+
+        expect(result).toEqual({
+          caseId: "789", // Updated value
+          userId: "456", // Preserved value
+          newKey: "abc", // New value
+        });
+      });
+
+      it("should return the merged tags when merging into undefined tags", () => {
+        const { mergeTags } = initialiseStore();
+
+        const result = mergeTags({ domTags: { urn: "123", key: "value" } });
+
+        expect(result).toEqual({
+          urn: "123",
+          key: "value",
+        });
+      });
+
+      it("should return empty object when merging empty tags", () => {
+        const { register, mergeTags } = initialiseStore();
+
+        register({ pathTags: {} });
+        const result = mergeTags({ pathTags: {} });
+
+        expect(result).toEqual({});
       });
     });
 
@@ -172,75 +257,16 @@ describe("store", () => {
         const { register } = initialiseStore();
 
         register({
-          flags: { isDevelopment: true } as any,
-          config: { CONTEXTS: [] } as any,
-          auth: { isAuthed: true, groups: [], username: "test", objectId: "123" } as any,
-          context: { found: true } as any,
-          propTags: {},
-          pathTags: {},
-          domTags: {},
+          initialisationStatus: "complete",
         });
 
         const result = readyState();
 
         expect(result.isReady).toBe(true);
-        expect(result.state.initialisationStatus).toBe("ready");
+        expect(result.state.initialisationStatus).toBe("complete");
       });
 
       it("should return undefined initialisationStatus when flags is undefined", () => {
-        const { register } = initialiseStore();
-
-        register({
-          config: { CONTEXTS: [] } as any,
-          auth: { isAuthed: true } as any,
-          context: { found: true } as any,
-        });
-
-        const result = readyState();
-
-        expect(result.isReady).toBe(true); // No specific keys requested
-        expect(result.state.initialisationStatus).toBeUndefined();
-      });
-
-      it("should return undefined initialisationStatus when config is undefined", () => {
-        const { register } = initialiseStore();
-
-        register({
-          flags: { isDevelopment: true } as any,
-          auth: { isAuthed: true } as any,
-          context: { found: true } as any,
-        });
-
-        const result = readyState();
-
-        expect(result.isReady).toBe(true); // No specific keys requested
-        expect(result.state.initialisationStatus).toBeUndefined();
-      });
-
-      it("should return undefined initialisationStatus when auth is undefined", () => {
-        const { register } = initialiseStore();
-
-        register({
-          flags: { isDevelopment: true } as any,
-          config: { CONTEXTS: [] } as any,
-          context: { found: true } as any,
-        });
-
-        const result = readyState();
-
-        expect(result.isReady).toBe(true); // No specific keys requested
-        expect(result.state.initialisationStatus).toBeUndefined();
-      });
-
-      it("should return undefined initialisationStatus when context is undefined", () => {
-        const { register } = initialiseStore();
-
-        register({
-          flags: { isDevelopment: true } as any,
-          config: { CONTEXTS: [] } as any,
-          auth: { isAuthed: true } as any,
-        });
-
         const result = readyState();
 
         expect(result.isReady).toBe(true); // No specific keys requested
@@ -345,44 +371,43 @@ describe("store", () => {
         }
       });
 
-      it("should merge tags with correct precedence (propTags > domTags > pathTags)", () => {
+      it("should merge tags with correct precedence (propTags > caseDetailsTags > domTags > pathTags)", () => {
         const { register } = initialiseStore();
 
         register({
-          pathTags: { caseId: "path-123", userId: "path-user", commonKey: "path" },
-          domTags: { caseId: "dom-456", commonKey: "dom" },
-          propTags: { userId: "prop-user", commonKey: "prop" },
+          pathTags: { caseId: "path-123", userId: "path-user", commonKey: "path", pathOnly: "path-value" },
+          domTags: { caseId: "dom-456", commonKey: "dom", domOnly: "dom-value" },
+          caseDetailsTags: { caseId: "caseDetails-789", commonKey: "caseDetails", caseDetailsOnly: "caseDetails-value" },
+          propTags: { userId: "prop-user", commonKey: "prop", propOnly: "prop-value" },
         });
 
         const result = readyState("tags");
 
         if (result.isReady) {
           expect(result.state.tags).toEqual({
-            caseId: "dom-456", // domTags overrides pathTags
+            caseId: "caseDetails-789", // caseDetailsTags overrides domTags
             userId: "prop-user", // propTags overrides pathTags
             commonKey: "prop", // propTags has highest precedence
+            pathOnly: "path-value", // unique to pathTags
+            domOnly: "dom-value", // unique to domTags
+            caseDetailsOnly: "caseDetails-value", // unique to caseDetailsTags
+            propOnly: "prop-value", // unique to propTags
           });
         }
       });
     });
 
     describe("fatalInitialisationError handling", () => {
-      it("should return broken status when fatalInitialisationError is set", () => {
+      it("should return broken status when broken", () => {
         const { register } = initialiseStore();
 
-        const error = new Error("Fatal error");
         register({
-          fatalInitialisationError: error,
-          flags: { isDevelopment: true } as any,
-          config: { CONTEXTS: [] } as any,
-          auth: { isAuthed: true } as any,
-          context: { found: true } as any,
+          initialisationStatus: "broken",
         });
 
         const result = readyState();
 
         expect(result.state.initialisationStatus).toBe("broken");
-        expect(result.state.fatalInitialisationError).toBe(error);
       });
 
       it("should include fatalInitialisationError in responses even when undefined", () => {
@@ -392,107 +417,6 @@ describe("store", () => {
 
         expect(result.state).toHaveProperty("fatalInitialisationError");
         expect(result.state.fatalInitialisationError).toBeUndefined();
-      });
-
-      it("should prioritize broken status over ready status", () => {
-        const { register } = initialiseStore();
-
-        register({
-          fatalInitialisationError: new Error("Fatal"),
-          flags: { isDevelopment: true } as any,
-          config: { CONTEXTS: [] } as any,
-          auth: { isAuthed: true } as any,
-          context: { found: true } as any,
-          pathTags: {},
-          domTags: {},
-          propTags: {},
-        });
-
-        const result = readyState();
-
-        expect(result.state.initialisationStatus).toBe("broken");
-      });
-    });
-
-    describe("initialisationStatus computation", () => {
-      it("should be undefined when store is not complete", () => {
-        const { register } = initialiseStore();
-
-        register({
-          flags: { isDevelopment: true } as any,
-        });
-
-        const result = readyState();
-
-        expect(result.state.initialisationStatus).toBeUndefined();
-      });
-
-      it("should be ready when all required fields are set", () => {
-        const { register } = initialiseStore();
-
-        register({
-          flags: { isDevelopment: true } as any,
-          config: { CONTEXTS: [] } as any,
-          auth: { isAuthed: true } as any,
-          context: { found: true } as any,
-          pathTags: {},
-          domTags: {},
-          propTags: {},
-        });
-
-        const result = readyState();
-
-        expect(result.state.initialisationStatus).toBe("ready");
-      });
-
-      it("should be broken when fatalInitialisationError is set", () => {
-        const { register } = initialiseStore();
-
-        register({
-          fatalInitialisationError: new Error("Fatal"),
-        });
-
-        const result = readyState();
-
-        expect(result.state.initialisationStatus).toBe("broken");
-      });
-
-      it("should ignore caseDetails when computing ready status", () => {
-        const { register } = initialiseStore();
-
-        register({
-          flags: { isDevelopment: true } as any,
-          config: { CONTEXTS: [] } as any,
-          auth: { isAuthed: true } as any,
-          context: { found: true } as any,
-          pathTags: {},
-          domTags: {},
-          propTags: {},
-          // caseDetails is undefined, but should not affect ready status
-        });
-
-        const result = readyState();
-
-        expect(result.state.initialisationStatus).toBe("ready");
-      });
-
-      it("should be ready even when caseDetails is explicitly undefined", () => {
-        const { register } = initialiseStore();
-
-        register({
-          flags: { isDevelopment: true } as any,
-          config: { CONTEXTS: [] } as any,
-          auth: { isAuthed: true } as any,
-          context: { found: true } as any,
-          pathTags: {},
-          domTags: {},
-          propTags: {},
-          caseDetails: undefined,
-        });
-
-        const result = readyState();
-
-        expect(result.state.initialisationStatus).toBe("ready");
       });
     });
 
@@ -559,9 +483,10 @@ describe("store", () => {
         const { register } = initialiseStore();
 
         register({
-          pathTags: { key1: "path1", key2: "path2", key3: "path3" },
-          domTags: { key2: "dom2", key3: "dom3" },
-          propTags: { key3: "prop3" },
+          pathTags: { key1: "path1", key2: "path2", key3: "path3", key4: "path4" },
+          domTags: { key2: "dom2", key3: "dom3", key4: "dom4" },
+          caseDetailsTags: { key3: "caseDetails3", key4: "caseDetails4" },
+          propTags: { key4: "prop4" },
         });
 
         const result = readyState("tags");
@@ -570,7 +495,8 @@ describe("store", () => {
           expect(result.state.tags).toEqual({
             key1: "path1",
             key2: "dom2", // domTags overrides pathTags
-            key3: "prop3", // propTags overrides both
+            key3: "caseDetails3", // caseDetailsTags overrides domTags
+            key4: "prop4", // propTags overrides all
           });
         }
       });
@@ -752,6 +678,159 @@ describe("store", () => {
           // Can check auth even though it wasn't requested
           // This is useful for functions that take "config & { auth?: AuthResult }"
           expect(result.state.auth).toBeUndefined();
+        }
+      });
+    });
+
+    describe("caseDetailsTags handling", () => {
+      it("should include caseDetailsTags in merged tags", () => {
+        const { register } = initialiseStore();
+
+        register({
+          caseDetailsTags: { defendantName: "John Doe", prosecutionReference: "PR-123" },
+        });
+
+        const result = readyState("tags");
+
+        if (result.isReady) {
+          expect(result.state.tags).toEqual({
+            defendantName: "John Doe",
+            prosecutionReference: "PR-123",
+          });
+        }
+      });
+
+      it("should merge caseDetailsTags with other tag sources", () => {
+        const { register } = initialiseStore();
+
+        register({
+          pathTags: { caseId: "123" },
+          domTags: { urn: "urn:456" },
+          caseDetailsTags: { defendantName: "John Doe" },
+          propTags: { userId: "user-789" },
+        });
+
+        const result = readyState("tags");
+
+        if (result.isReady) {
+          expect(result.state.tags).toEqual({
+            caseId: "123",
+            urn: "urn:456",
+            defendantName: "John Doe",
+            userId: "user-789",
+          });
+        }
+      });
+
+      it("should allow caseDetailsTags to override domTags but not propTags", () => {
+        const { register } = initialiseStore();
+
+        register({
+          domTags: { sharedKey: "dom-value" },
+          caseDetailsTags: { sharedKey: "caseDetails-value" },
+        });
+
+        let result = readyState("tags");
+        if (result.isReady) {
+          expect(result.state.tags.sharedKey).toBe("caseDetails-value");
+        }
+
+        // Now add propTags which should override
+        register({
+          propTags: { sharedKey: "prop-value" },
+        });
+
+        result = readyState("tags");
+        if (result.isReady) {
+          expect(result.state.tags.sharedKey).toBe("prop-value");
+        }
+      });
+    });
+
+    describe("caseDetails handling", () => {
+      it("should register caseDetails", () => {
+        const { register } = initialiseStore();
+
+        register({
+          caseDetails: { urn: "URN-123" },
+        });
+
+        const result = readyState("caseDetails");
+
+        if (result.isReady) {
+          expect(result.state.caseDetails).toEqual({ urn: "URN-123" });
+        }
+      });
+
+      it("should allow partial caseDetails updates", () => {
+        const { register } = initialiseStore();
+
+        register({
+          caseDetails: { urn: "URN-123" },
+        });
+
+        register({
+          caseDetails: { isDcfCase: true },
+        });
+
+        const result = readyState("caseDetails");
+
+        if (result.isReady) {
+          // Note: register replaces, doesn't merge at property level
+          expect(result.state.caseDetails).toEqual({ isDcfCase: true });
+        }
+      });
+    });
+
+    describe("caseIdentifiers handling", () => {
+      it("should handle caseIdentifiers registration", () => {
+        const { register } = initialiseStore();
+
+        register({
+          caseIdentifiers: { caseId: "123" },
+        });
+
+        const result = readyState("caseIdentifiers");
+
+        if (result.isReady) {
+          expect(result.state.caseIdentifiers).toEqual({ caseId: "123" });
+        }
+      });
+    });
+
+    describe("build handling", () => {
+      it("should register build information", () => {
+        const { register } = initialiseStore();
+
+        const buildInfo = {
+          version: "1.0.0",
+          buildDate: "2024-01-01",
+        };
+
+        register({
+          build: buildInfo as any,
+        });
+
+        const result = readyState("build");
+
+        if (result.isReady) {
+          expect(result.state.build).toEqual(buildInfo);
+        }
+      });
+    });
+
+    describe("correlationIds handling", () => {
+      it("should register correlationIds", () => {
+        const { register } = initialiseStore();
+
+        register({
+          correlationIds: { correlationId: "corr-123", sessionId: "sess-456" } as any,
+        });
+
+        const result = readyState("correlationIds");
+
+        if (result.isReady) {
+          expect(result.state.correlationIds).toEqual({ correlationId: "corr-123", sessionId: "sess-456" });
         }
       });
     });

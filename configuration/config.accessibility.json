@@ -1,8 +1,8 @@
 {
   "ENVIRONMENT": "accessibility",
   "BANNER_TITLE_HREF": "http://localhost:3335/accessibility/static",
-  "APP_INSIGHTS_KEY": "e572c03c-8d38-4771-b193-962f13da1b1a",
-  "SURVEY_LINK": "https://forms.office.com/e/Cxmsq5xTWx",
+  "APP_INSIGHTS_CONNECTION_STRING": "InstrumentationKey=e572c03c-8d38-4771-b193-962f13da1b1a;IngestionEndpoint=https://uksouth-1.in.applicationinsights.azure.com/",
+  "SURVEY_LINK": "https://forms.office.com/e/8KM9A7aS0e",
   "SHOW_MENU": true,
   "OS_HANDOVER_URL": "",
   "COOKIE_HANDOVER_URL": "",
@@ -12,44 +12,49 @@
   },
   "CONTEXTS": [
     {
-      "paths": [
-        "https://sacpsglobalcomponents.z33.web.core.windows.net/accessibility/static/cases/urns/(?<urn>[^/]+)/cases/(?<caseId>\\d+)/materials",
-        "http://localhost:3335/accessibility/static/cases/urns/(?<urn>[^/]+)/cases/(?<caseId>\\d+)/materials"
-      ],
-      "contexts": "case materials",
-      "msalRedirectUrl": ""
-    },
-    {
-      "paths": [
-        "https://sacpsglobalcomponents.z33.web.core.windows.net/accessibility/static/cases/urns/(?<urn>[^/]+)/cases/(?<caseId>\\d+)/review",
-        "http://localhost:3335/accessibility/static/cases/urns/(?<urn>[^/]+)/cases/(?<caseId>\\d+)/review"
-      ],
-      "contexts": "case review",
-      "msalRedirectUrl": ""
-    },
-    {
-      "paths": [
-        "https://sacpsglobalcomponents.z33.web.core.windows.net/accessibility/static/cases/urns/(?<urn>[^/]+)/cases/(?<caseId>\\d+)",
-        "http://localhost:3335/accessibility/static/cases/urns/(?<urn>[^/]+)/cases/(?<caseId>\\d+)"
-      ],
-      "contexts": "case details",
-      "msalRedirectUrl": ""
-    },
-    {
-      "paths": [
-        "https://sacpsglobalcomponents.z33.web.core.windows.net/accessibility/static/cases",
-        "http://localhost:3335/accessibility/static/cases"
-      ],
-      "contexts": "cases",
-      "msalRedirectUrl": ""
-    },
-    {
-      "paths": [
-        "https://sacpsglobalcomponents.z33.web.core.windows.net/accessibility/static",
-        "http://localhost:3335/accessibility/static"
-      ],
-      "contexts": "tasks",
-      "msalRedirectUrl": ""
+      "msalRedirectUrl": "",
+      "contexts": [
+        {
+          "path": "https://sacpsglobalcomponents.z33.web.core.windows.net/accessibility/static/cases/urns/(?<urn>[^/]+)/cases/(?<caseId>\\d+)/materials",
+          "contextIds": "case materials"
+        },
+        {
+          "path": "http://localhost:3335/accessibility/static/cases/urns/(?<urn>[^/]+)/cases/(?<caseId>\\d+)/materials",
+          "contextIds": "case materials"
+        },
+        {
+          "path": "https://sacpsglobalcomponents.z33.web.core.windows.net/accessibility/static/cases/urns/(?<urn>[^/]+)/cases/(?<caseId>\\d+)/review",
+          "contextIds": "case review"
+        },
+        {
+          "path": "http://localhost:3335/accessibility/static/cases/urns/(?<urn>[^/]+)/cases/(?<caseId>\\d+)/review",
+          "contextIds": "case review"
+        },
+        {
+          "path": "https://sacpsglobalcomponents.z33.web.core.windows.net/accessibility/static/cases/urns/(?<urn>[^/]+)/cases/(?<caseId>\\d+)",
+          "contextIds": "case details"
+        },
+        {
+          "path": "http://localhost:3335/accessibility/static/cases/urns/(?<urn>[^/]+)/cases/(?<caseId>\\d+)",
+          "contextIds": "case details"
+        },
+        {
+          "path": "https://sacpsglobalcomponents.z33.web.core.windows.net/accessibility/static/cases",
+          "contextIds": "cases"
+        },
+        {
+          "path": "http://localhost:3335/accessibility/static/cases",
+          "contextIds": "cases"
+        },
+        {
+          "path": "https://sacpsglobalcomponents.z33.web.core.windows.net/accessibility/static",
+          "contextIds": "tasks"
+        },
+        {
+          "path": "http://localhost:3335/accessibility/static",
+          "contextIds": "tasks"
+        }
+      ]
     }
   ],
   "LINKS": [

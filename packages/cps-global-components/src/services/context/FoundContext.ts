@@ -1,11 +1,21 @@
 import { Context } from "cps-global-configuration/dist/schema";
 import { Tags } from "./Tags";
 
+type MakeUndefinable<T> = {
+  [K in keyof T]?: undefined;
+};
+
+type FoundContextFound = Context & {
+  pathTags: Tags;
+  contextIndex: number;
+  cmsAuth: string;
+  currentHref: string;
+};
+
 export type FoundContext =
-  | (Context & {
+  | ({
       found: true;
-      pathTags: Tags;
-      contextIndex: number;
-      msalRedirectUrl: string;
-    })
-  | { found: false; pathTags?: undefined; domTagDefinitions?: undefined; contextIndex?: undefined; msalRedirectUrl?: undefined };
+    } & FoundContextFound)
+  | ({
+      found: false;
+    } & MakeUndefinable<FoundContextFound>);

@@ -2,7 +2,7 @@
 
 import * as fs from "fs";
 import * as path from "path";
-import { validateConfig } from "../validator";
+import { transformAndValidateConfig } from "../validator";
 
 function findConfigFiles(folderPath: string): string[] {
   const files = fs.readdirSync(folderPath);
@@ -15,7 +15,7 @@ function validateFile(filePath: string): boolean {
     const jsonData = JSON.parse(fileContent);
     const filename = path.basename(filePath);
 
-    const result = validateConfig(jsonData, filename);
+    const result = transformAndValidateConfig(jsonData, filename);
 
     if (result.success) {
       console.log(`✅ ${filename} is valid`);

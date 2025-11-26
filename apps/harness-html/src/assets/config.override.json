@@ -1,9 +1,9 @@
 {
   "ENVIRONMENT": "local-development",
-  "APP_INSIGHTS_KEY": "e572c03c-8d38-4771-b193-962f13da1b1a",
+  "APP_INSIGHTS_CONNECTION_STRING": "InstrumentationKey=e572c03c-8d38-4771-b193-962f13da1b1a;IngestionEndpoint=https://uksouth-1.in.applicationinsights.azure.com/",
   "AD_TENANT_AUTHORITY": "https://login.microsoftonline.com/00dd0d1d-d7e6-4338-ac51-565339c7088c",
   "AD_CLIENT_ID": "8d6133af-9593-47c6-94d0-5c65e9e310f1",
-  "SURVEY_LINK": "https://forms.office.com/e/Cxmsq5xTWx",
+  "SURVEY_LINK": "https://forms.office.com/e/8KM9A7aS0e",
   "SHOW_MENU": true,
   "OS_HANDOVER_URL": "https://cps-dev.outsystemsenterprise.com/AuthHandover/auth-handover.html",
   "COOKIE_HANDOVER_URL": "https://polaris-qa-notprod.cps.gov.uk/polaris",
