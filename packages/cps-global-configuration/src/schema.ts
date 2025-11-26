@@ -79,7 +79,23 @@ const contextSchema = contextsBaseSchema.extend({
 
 export type Context = z.infer<typeof contextSchema>;
 
-const configBaseSchema = z.object({
+const cacheConfigSchema = z.object({
+  maxAge: z.number(),
+  maxItems: z.number(),
+});
+
+export type CacheConfig = z.infer<typeof cacheConfigSchema>;
+
+const fetchCircuitBreakerConfigSchema = z.object({
+  maxPerInterval: z.number(),
+  intervalMs: z.number(),
+});
+
+export type FetchCircuitBreakerConfig = z.infer<
+  typeof fetchCircuitBreakerConfigSchema
+>;
+
+export const configBaseSchema = z.object({
   ENVIRONMENT: z.string(),
   LINKS: z.array(linkSchema),
   BANNER_TITLE_HREF: z.string(),
@@ -96,6 +112,8 @@ const configBaseSchema = z.object({
   TOKEN_HANDOVER_URL: z.string().optional(),
   FEATURE_FLAG_MENU_USERS: featureFlagUsersSchema.optional(),
   FEATURE_FLAG_ENABLE_INTRUSIVE_AD_LOGIN: z.boolean().optional(),
+  CACHE_CONFIG: cacheConfigSchema.optional(),
+  FETCH_CIRCUIT_BREAKER_CONFIG: fetchCircuitBreakerConfigSchema.optional(),
 });
 
 export const configStorageSchema = configBaseSchema.extend({

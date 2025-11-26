@@ -1,4 +1,4 @@
-export const tryLocationMatch = ({ href }: Location, pathToMatch: string) => {
-  const match = href.match(new RegExp(pathToMatch, "i"));
+export const tryLocationMatch = (url: string, pathToMatch: string) => {
+  const match = url.match(new RegExp(pathToMatch, "i"));
   return match && { groups: match.groups || {} };
 };

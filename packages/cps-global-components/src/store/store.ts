@@ -1,22 +1,23 @@
 import { createStore } from "@stencil/store";
-import { makeConsole } from "../logging/makeConsole";
 import { Config } from "cps-global-configuration";
 import { AuthResult } from "../services/auth/AuthResult";
 import { FoundContext } from "../services/context/FoundContext";
 import { ApplicationFlags } from "../services/application-flags/ApplicationFlags";
 import { loggingSubscriptionFactory } from "./subscriptions/logging-subscription-factory";
 import { resetPreventionSubscriptionFactory } from "./subscriptions/reset-prevention-subscription-factory";
-import { CaseDetails } from "../services/data/types";
 import { Tags } from "../services/context/Tags";
 import { withLogging } from "../logging/with-logging";
 import { CorrelationIds } from "../services/correlation/CorrelationIds";
 import { tagsSubscriptionFactory } from "./subscriptions/tags-subscription-factory";
-import { SubscriptionFactory } from "./subscriptions/SubscriptionFactory";
-import { ReadyState, readyStateFactory } from "./ready-state-factory";
-
-const { _debug } = makeConsole("store");
+import { applyOnChangeHandler, SubscriptionFactory } from "./subscriptions/SubscriptionFactory";
+import { CaseDetails } from "../services/data/CaseDetails";
+import { ReadyStateHelper, readyStateFactory } from "./ready-state-factory";
+import { CaseIdentifiers } from "../services/context/CaseIdentifiers";
+import { caseIdentifiersSubscriptionFactory } from "./subscriptions/case-identifiers-subscription-factory";
+export { type ReadyStateHelper };
 
 const registerEventName = "cps-global-components-register";
+const mergeTagsEventName = "cps-global-components-merge-tags";
 
 // Helper type to extract keys of a specific type
 type KeysOfType<T, U> = {
@@ -25,12 +26,12 @@ type KeysOfType<T, U> = {
 
 // Given a type Foo = {a: number, b: number} then SinglePropertyOf<Foo, number> would be
 //  {a: 1} or {b: 1} but not {a: 1, b: 1}
-type SinglePropertyOf<T, PropType> = {
+type SingleKnownTypePropertyOf<T, PropType> = {
   [K in KeysOfType<T, PropType>]: Record<K, T[K]> & Partial<Record<Exclude<KeysOfType<T, PropType>, K>, never>>;
 }[KeysOfType<T, PropType>];
 
 // With tags we want the world to use "tags" rather than the constituent sub-tag objects
-export const privateTagProperties = ["pathTags", "domTags", "propTags"] as const;
+export const privateTagProperties = ["pathTags", "domTags", "propTags", "caseDetailsTags"] as const;
 export type PrivateTagProperties = (typeof privateTagProperties)[number]; // gives us a union definition: "pathTags" | "domTags" | "propTags"
 
 // Transform a type Foo = {a: number, b: string} to FooUndefinable = {a: number | undefined, b: string | undefined}
@@ -43,11 +44,14 @@ type StartupState = {
   flags: ApplicationFlags;
   config: Config;
   auth: AuthResult;
+  build: Build;
 };
+
 const initialStartupState = {
   flags: undefined,
   config: undefined,
   auth: undefined,
+  build: undefined,
 };
 
 // This state could change (e.g. history-based non-full-refresh navigation or dom tags changing)
@@ -56,16 +60,20 @@ type TransientState = {
   propTags: Tags;
   pathTags: Tags;
   domTags: Tags;
-  caseDetails: CaseDetails;
   correlationIds: CorrelationIds;
+  caseDetailsTags: Tags;
+  caseIdentifiers: CaseIdentifiers;
+  caseDetails: Partial<CaseDetails>;
 };
 const initialTransientState = {
   context: undefined,
   propTags: undefined,
   pathTags: undefined,
   domTags: undefined,
-  caseDetails: undefined,
   correlationIds: undefined,
+  caseDetailsTags: undefined,
+  caseIdentifiers: undefined,
+  caseDetails: undefined,
 };
 
 type AggregateState = {
@@ -91,11 +99,16 @@ export type State = StartupState & TransientState & AggregateState & SummaryStat
 export type StoredState = MakeUndefinable<State>;
 
 export type Register = (arg: Partial<StoredState>) => void;
+export type RegisterOnce = (arg: Partial<StoredState>) => void;
 class RegisterEvent extends CustomEvent<Parameters<Register>[0]> {}
 
-export type MergeTags = (arg: SinglePropertyOf<TransientState, Tags>) => Tags;
+export type MergeTags = (arg: SingleKnownTypePropertyOf<TransientState, Tags>) => Tags;
+export type MergeTagFireAndForget = (arg: SingleKnownTypePropertyOf<TransientState, Tags>) => void;
+class MergeTagFireAndForgetEvent extends CustomEvent<Parameters<MergeTagFireAndForget>[0]> {}
 
 export type Store = ReturnType<typeof createStore<StoredState>>;
+
+export type Build = typeof window.cps_global_components_build;
 
 const initialState: StoredState = {
   ...initialStartupState,
@@ -132,37 +145,33 @@ export const initialiseStore = () => {
     privateTagProperties.filter(key => key !== "propTags").forEach(key => store.set(key, {}));
   };
 
-  const subscribe = (...subscriptionFactories: SubscriptionFactory[]) => {
-    _debug("store", "subscribe", subscriptionFactories);
-    return subscriptionFactories.map(factory => {
-      const { subscription, triggerSetOnRegister } = factory({ set: store.set, get: store.get });
-      const unSubscriber = store.use(subscription);
-
-      if (triggerSetOnRegister) {
-        subscription.set?.(triggerSetOnRegister.key, store.get(triggerSetOnRegister.key), undefined);
+  const subscribe = (...subscriptionFactories: SubscriptionFactory[]) =>
+    subscriptionFactories.map(factory => {
+      const { type, handler } = factory({ register, mergeTags, get: store.get });
+      if (type === "subscription") {
+        store.use(handler);
+      } else {
+        applyOnChangeHandler(store, handler);
       }
-
-      return unSubscriber;
     });
-  };
 
-  subscribe(resetPreventionSubscriptionFactory, loggingSubscriptionFactory, tagsSubscriptionFactory);
+  subscribe(resetPreventionSubscriptionFactory, loggingSubscriptionFactory, tagsSubscriptionFactory, caseIdentifiersSubscriptionFactory);
 
   document.addEventListener(
     registerEventName,
     withLogging(registerEventName, (event: RegisterEvent) => register(event.detail)),
   );
 
-  return { register, mergeTags, resetContextSpecificTags, subscribe };
+  return { readyState, register, mergeTags, resetContextSpecificTags, subscribe };
 };
 
-export const register: Register = detail =>
+export const mergeTags: MergeTagFireAndForget = detail =>
   document.dispatchEvent(
-    new RegisterEvent(registerEventName, {
+    new MergeTagFireAndForgetEvent(mergeTagsEventName, {
       detail,
       bubbles: true,
       cancelable: true,
     }),
   );
 
-export let readyState: ReadyState;
+export let readyState: ReadyStateHelper;

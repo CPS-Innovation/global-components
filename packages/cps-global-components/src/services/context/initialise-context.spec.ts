@@ -58,6 +58,8 @@ describe("initialiseContext", () => {
       domTagDefinitions: undefined,
       pathTags: {},
       msalRedirectUrl: "foo",
+      cmsAuth: "",
+      currentHref: "https://example.com/page",
     } as FoundContext);
   });
 
@@ -124,6 +126,8 @@ describe("initialiseContext", () => {
       ],
       pathTags: {},
       msalRedirectUrl: "foo",
+      cmsAuth: "",
+      currentHref: "https://example.com/with-dom-tags",
     } as FoundContext);
   });
 
@@ -148,6 +152,8 @@ describe("initialiseContext", () => {
       domTagDefinitions: undefined,
       pathTags: {},
       msalRedirectUrl: "foo",
+      cmsAuth: "",
+      currentHref: "https://example.com/no-dom-tags",
     } as FoundContext);
   });
 
@@ -172,6 +178,8 @@ describe("initialiseContext", () => {
       domTagDefinitions: undefined,
       pathTags: {},
       msalRedirectUrl: "foo",
+      cmsAuth: "",
+      currentHref: "https://example.com/page#section",
     } as FoundContext);
   });
 
@@ -197,6 +205,8 @@ describe("initialiseContext", () => {
         domTagDefinitions: undefined,
         pathTags: {},
         msalRedirectUrl: "foo",
+        cmsAuth: "",
+        currentHref: "https://example.com/mypage",
       } as FoundContext);
     });
 
@@ -230,6 +240,8 @@ describe("initialiseContext", () => {
         },
         msalRedirectUrl: "foo",
         cmsAuthFromStorageKey: undefined,
+        cmsAuth: "",
+        currentHref: "https://example.com/users/123/posts/456",
       } as FoundContext);
     });
 
