@@ -60,6 +60,7 @@
     "@dotenvx/dotenvx": "^1.41.0",
     "@microsoft/applicationinsights-web": "^3.3.6",
     "@types/arrive": "^2.4.4",
+    "@types/proper-url-join": "^2.1.5",
     "arrive": "^2.5.2",
     "cps-global-configuration": "workspace:*",
     "cps-global-os-handover": "workspace:*",

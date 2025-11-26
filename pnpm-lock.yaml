@@ -157,6 +157,9 @@ importers:
       '@types/arrive':
         specifier: ^2.4.4
         version: 2.4.4
+      '@types/proper-url-join':
+        specifier: ^2.1.5
+        version: 2.1.5
       arrive:
         specifier: ^2.5.2
         version: 2.5.2
@@ -1863,6 +1866,9 @@ packages:
 
   '@types/node@24.5.2':
     resolution: {integrity: sha512-FYxk1I7wPv3K2XBaoyH2cTnocQEu8AOZ60hPbsyukMPLv5/5qr7V1i8PLHdl6Zf87I+xZXFvPCXYjiTFq+YSDQ==}
+
+  '@types/proper-url-join@2.1.5':
+    resolution: {integrity: sha512-jPPpj0tQFl5mL6BVwlUCqJXXTjel5zig+AQgIYjERwm2rdS04y6cxQsVndmWPaz1Cv+DDGtxtYzvhSLmp/eYEw==}
 
   '@types/react-dom@19.1.9':
     resolution: {integrity: sha512-qXRuZaOsAdXKFyOhRBg6Lqqc0yay13vN7KrIg4L7N4aaHN68ma9OK3NE1BoDFgFOTfM7zg+3/8+2n8rLUH3OKQ==}
@@ -7062,6 +7068,10 @@ snapshots:
   '@types/node@24.5.2':
     dependencies:
       undici-types: 7.12.0
+
+  '@types/proper-url-join@2.1.5':
+    dependencies:
+      query-string: 7.1.3
 
   '@types/react-dom@19.1.9(@types/react@19.2.6)':
     dependencies:
