@@ -31,7 +31,7 @@ type SingleKnownTypePropertyOf<T, PropType> = {
 }[KeysOfType<T, PropType>];
 
 // With tags we want the world to use "tags" rather than the constituent sub-tag objects
-export const privateTagProperties = ["pathTags", "domTags", "propTags"] as const;
+export const privateTagProperties = ["pathTags", "domTags", "propTags", "caseDetailsTags"] as const;
 export type PrivateTagProperties = (typeof privateTagProperties)[number]; // gives us a union definition: "pathTags" | "domTags" | "propTags"
 
 // Transform a type Foo = {a: number, b: string} to FooUndefinable = {a: number | undefined, b: string | undefined}

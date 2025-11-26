@@ -86,6 +86,15 @@ const cacheConfigSchema = z.object({
 
 export type CacheConfig = z.infer<typeof cacheConfigSchema>;
 
+const fetchCircuitBreakerConfigSchema = z.object({
+  maxPerInterval: z.number(),
+  intervalMs: z.number(),
+});
+
+export type FetchCircuitBreakerConfig = z.infer<
+  typeof fetchCircuitBreakerConfigSchema
+>;
+
 export const configBaseSchema = z.object({
   ENVIRONMENT: z.string(),
   LINKS: z.array(linkSchema),
@@ -104,6 +113,7 @@ export const configBaseSchema = z.object({
   FEATURE_FLAG_MENU_USERS: featureFlagUsersSchema.optional(),
   FEATURE_FLAG_ENABLE_INTRUSIVE_AD_LOGIN: z.boolean().optional(),
   CACHE_CONFIG: cacheConfigSchema.optional(),
+  FETCH_CIRCUIT_BREAKER_CONFIG: fetchCircuitBreakerConfigSchema.optional(),
 });
 
 export const configStorageSchema = configBaseSchema.extend({

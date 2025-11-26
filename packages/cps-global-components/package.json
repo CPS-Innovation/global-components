@@ -31,7 +31,7 @@
     "preinstall": "npx only-allow pnpm",
     "build": "stencil build",
     "rollup": "rollup --config",
-    "predev": "esbuild mock-api/worker.ts --bundle --outfile=www/mock-api/browser.js --format=esm",
+    "predev": "esbuild mock-api/worker.ts --bundle --outfile=www/mock-api/browser.js --format=esm --log-level=error",
     "dev": "stencil build --dev --watch --serve",
     "test": "stencil test --spec",
     "test:watch": "stencil test --spec --watchAll",

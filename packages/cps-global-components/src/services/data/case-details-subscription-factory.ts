@@ -24,12 +24,6 @@ export const caseDetailsSubscriptionFactory = ({ config, cache, fetch }: Props):
           return;
         }
 
-        const alreadyCachedCaseDetails = caseDetailsCache.get(caseIdentifiers.caseId);
-        if (alreadyCachedCaseDetails) {
-          const { tags } = extractTagsFromCaseDetails(alreadyCachedCaseDetails);
-          mergeTags({ caseDetailsTags: tags });
-        }
-
         caseDetailsCache
           .fetch(caseIdentifiers.caseId, id => getCaseDetails(id), { fields: ["urn", "isDcfCase"] })
           .then(caseDetails => {

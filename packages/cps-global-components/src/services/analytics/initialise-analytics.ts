@@ -3,7 +3,7 @@ import { Config } from "cps-global-configuration";
 import { AuthResult } from "../auth/AuthResult";
 import { FoundContext } from "../context/FoundContext";
 import { CorrelationIds } from "../correlation/CorrelationIds";
-import { AnalyticsEvent } from "./analytics-event";
+import { AnalyticsEvent, AnalyticsEventData, trackEvent } from "./analytics-event";
 import { makeConsole } from "../../logging/makeConsole";
 import { Build, ReadyStateHelper } from "../../store/store";
 
@@ -11,11 +11,13 @@ const STORAGE_PREFIX = "cps_global_components";
 
 type Props = { window: Window; config: Config; auth: AuthResult; readyState: ReadyStateHelper; build: Build };
 
+export type Analytics = ReturnType<typeof initialiseAnalytics>;
+
 const { _debug } = makeConsole("initialiseAnalytics");
 
 export const initialiseAnalytics = ({ window, config: { APP_INSIGHTS_CONNECTION_STRING, ENVIRONMENT }, auth, readyState, build }: Props) => {
   if (!APP_INSIGHTS_CONNECTION_STRING) {
-    return { trackPageView: () => {}, trackException: () => {}, rebindTrackEvent: () => {} };
+    return { trackPageView: () => {}, trackException: () => {}, rebindTrackEvent: () => {}, trackEvent: (_: AnalyticsEventData) => {} };
   }
 
   const appInsights = new ApplicationInsights({
@@ -100,5 +102,5 @@ export const initialiseAnalytics = ({ window, config: { APP_INSIGHTS_CONNECTION_
     appInsights.trackEvent({ name: ev.type, properties: { ...rest, ...correlationIds } });
   });
 
-  return { trackPageView, trackException };
+  return { trackPageView, trackException, trackEvent };
 };

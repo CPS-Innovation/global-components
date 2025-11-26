@@ -17,8 +17,10 @@ import { handleContextAuthorisation } from "./services/authorisation/handle-cont
 import { cachedResult } from "./utils/cached-result";
 import { CorrelationIds } from "./services/correlation/CorrelationIds";
 import { createCache } from "./services/cache/create-cache";
-import { fetchWithAuthFactory } from "./services/api/fetchWithAuthFactory";
+import { fetchWithAuthFactory } from "./services/api/fetch-with-auth-factory";
 import { caseDetailsSubscriptionFactory } from "./services/data/case-details-subscription-factory";
+import { fetchWithCircuitBreaker } from "./services/api/fetch-with-circuit-breaker";
+import { pipe } from "./utils/pipe";
 
 const { _debug, _error } = makeConsole("global-script");
 
@@ -77,9 +79,11 @@ const initialise = async (correlationIds: CorrelationIds, window: Window) => {
     const { auth, getToken } = await cachedResult("auth", () => (flags.e2eTestMode.isE2eTestMode ? initialiseMockAuth({ flags }) : initialiseAuth({ config, context })));
     register({ auth });
 
-    const { trackPageView, trackException: t } = cachedResult("analytics", () =>
-      flags.e2eTestMode.isE2eTestMode ? initialiseMockAnalytics() : initialiseAnalytics({ window, config, auth, readyState, build }),
-    );
+    const {
+      trackPageView,
+      trackEvent,
+      trackException: t,
+    } = cachedResult("analytics", () => (flags.e2eTestMode.isE2eTestMode ? initialiseMockAnalytics() : initialiseAnalytics({ window, config, auth, readyState, build })));
     trackException = t;
 
     trackPageView({ context, correlationIds });
@@ -89,10 +93,12 @@ const initialise = async (correlationIds: CorrelationIds, window: Window) => {
 
     const isDataAccessEnabled = !!config.GATEWAY_URL;
     if (isDataAccessEnabled) {
-      const cache = cachedResult("cache", () => createCache("cps-global-components"));
-      const fetch = cachedResult("fetch", () => fetchWithAuthFactory({ config, context, getToken, readyState }));
+      const cache = cachedResult("cache", () => createCache("cps-global-components-cache"));
+      const augmentedFetch = cachedResult("fetch", () =>
+        pipe(fetch, fetchWithCircuitBreaker({ config, trackEvent }), fetchWithAuthFactory({ config, context, getToken, readyState })),
+      );
 
-      cachedResult("case-details", () => subscribe(caseDetailsSubscriptionFactory({ config, cache, fetch })));
+      cachedResult("case-details", () => subscribe(caseDetailsSubscriptionFactory({ config, cache, fetch: augmentedFetch })));
     }
 
     register({ initialisationStatus: "complete" });

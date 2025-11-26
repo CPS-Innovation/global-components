@@ -19,6 +19,7 @@ export type SubscriptionFactory = (arg: {
   mergeTags: MergeTags;
 }) => { type: "subscription"; handler: Subscription<StoredState> } | { type: "onChange"; handler: StoreHandlerDef<StoredState> };
 
+// A helper method to keep typing happy when the store loads onChange subscriptions.
 export const applyOnChangeHandler = <K extends keyof StoredState>(store: Store, handler: TypedHandler<StoredState, K>) => {
   store.onChange(handler.propName, handler.handler);
   const val = store.get(handler.propName);
