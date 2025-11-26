@@ -82,7 +82,7 @@ describe("menuConfig", () => {
 
   const mockTags: Tags = {};
 
-  const mockCaseDetails: CaseDetails = { urn: "foo", caseId: 1, isDcfCase: false };
+  const mockCaseDetails: CaseDetails = { urn: "foo", isDcfCase: false };
 
   beforeEach(() => {
     jest.clearAllMocks();
