@@ -28,7 +28,7 @@ export const fetchWithAuthFactory =
         headers: {
           "Authorization": `Bearer ${await getToken({ config: { AD_GATEWAY_SCOPE } })}`,
           "Correlation-Id": navigationCorrelationId,
-          ...(cmsAuth ? { "Cms-Auth-Values": encodeURIComponent(cmsAuth) } : undefined),
+          ...(cmsAuth ? { "Cms-Auth-Values": cmsAuth } : undefined),
         },
         credentials: "include",
       };
