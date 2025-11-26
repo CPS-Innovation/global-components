@@ -19,7 +19,7 @@ const waitForHeaderReady = async () =>
     L
   )) as ElementHandle<HTMLDivElement>;
 
-export const act = async () => {
-  await page.goto(C.LAUNCH_PAGE_URL);
+export const act = async (path: string = "") => {
+  await page.goto(C.LAUNCH_PAGE_URL + path);
   return await waitForHeaderReady();
 };
