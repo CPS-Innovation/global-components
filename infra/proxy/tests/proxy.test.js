@@ -297,6 +297,73 @@ async function testHealthCheck() {
 }
 
 // =============================================================================
+// Cookie Route Tests
+// =============================================================================
+
+async function testCookieRoute() {
+  console.log('\nCookie Route Tests:');
+
+  const COOKIE_ENDPOINT = `${PROXY_BASE}/api/global-components/cookie`;
+
+  await test('GET returns cookies sent in request', async () => {
+    const response = await fetch(COOKIE_ENDPOINT, {
+      headers: { 'Cookie': 'session=abc123; user=testuser' }
+    });
+    const text = await response.text();
+    assertEqual(response.status, 200, 'Should return 200');
+    assert(text.includes('session=abc123'), 'Should echo back session cookie');
+    assert(text.includes('user=testuser'), 'Should echo back user cookie');
+  });
+
+  await test('GET returns "(no cookies)" when no cookies sent', async () => {
+    const response = await fetch(COOKIE_ENDPOINT);
+    const text = await response.text();
+    assertEqual(response.status, 200, 'Should return 200');
+    assertEqual(text, '(no cookies)', 'Should return "(no cookies)" message');
+  });
+
+  await test('POST sets cps-global-components-state cookie', async () => {
+    const response = await fetch(COOKIE_ENDPOINT, { method: 'POST' });
+    const setCookie = response.headers.get('set-cookie');
+    assertEqual(response.status, 200, 'Should return 200');
+    assert(setCookie !== null, 'Should have Set-Cookie header');
+    assert(setCookie.includes('cps-global-components-state='),
+      'Should set cps-global-components-state cookie');
+    assert(setCookie.includes('Path=/'), 'Cookie should have Path=/');
+    assert(setCookie.includes('Expires='), 'Cookie should have Expires attribute');
+  });
+
+  await test('POST cookie value is ISO timestamp', async () => {
+    const response = await fetch(COOKIE_ENDPOINT, { method: 'POST' });
+    const setCookie = response.headers.get('set-cookie');
+    // Extract cookie value: cps-global-components-state=2024-01-01T12:00:00.000Z; Path=/; ...
+    const match = setCookie.match(/cps-global-components-state=([^;]+)/);
+    assert(match !== null, 'Should be able to extract cookie value');
+    const cookieValue = match[1];
+    // ISO timestamp pattern: 2024-01-01T12:00:00.000Z
+    assert(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/.test(cookieValue),
+      `Cookie value should be ISO timestamp, got: ${cookieValue}`);
+  });
+
+  await test('POST returns cookies sent in request', async () => {
+    const response = await fetch(COOKIE_ENDPOINT, {
+      method: 'POST',
+      headers: { 'Cookie': 'existing=cookie' }
+    });
+    const text = await response.text();
+    assertEqual(response.status, 200, 'Should return 200');
+    assert(text.includes('existing=cookie'), 'Should echo back existing cookies');
+  });
+
+  await test('returns Content-Type text/plain', async () => {
+    const response = await fetch(COOKIE_ENDPOINT);
+    const contentType = response.headers.get('content-type');
+    assert(contentType !== null && contentType.includes('text/plain'),
+      'Content-Type should be text/plain');
+  });
+}
+
+// =============================================================================
 // Main
 // =============================================================================
 
@@ -313,6 +380,7 @@ async function main() {
     await testHealthCheck();
     await testCmsAuthValuesHeader();
     await testCmsAuthValuesCookie();
+    await testCookieRoute();
     await testFunctionsKey();
     await testCors();
     await testAuthorizationStripping();

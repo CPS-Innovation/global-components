@@ -101,6 +101,13 @@ const initialise = async (correlationIds: CorrelationIds, window: Window) => {
       cachedResult("case-details", () => subscribe(caseDetailsSubscriptionFactory({ config, cache, fetch: augmentedFetch })));
     }
 
+    if (flags.isOverrideMode) {
+      fetch(config.GATEWAY_URL + "cookie", { method: "POST" })
+        .then(response => response.text())
+        .then(content => _debug("Experimental fetch", content))
+        .catch(reason => _debug("Experimental fetch error", reason));
+    }
+
     register({ initialisationStatus: "complete" });
   } catch (err) {
     trackException?.(err);
