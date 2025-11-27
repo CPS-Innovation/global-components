@@ -55,9 +55,19 @@ function handleCookieRoute(r) {
   if (r.method === "POST") {
     let now = new Date();
     let expires = new Date(now.getTime() + 24 * 60 * 60 * 1000);
-    let cookieValue = now.toISOString();
+    let origin = r.headersIn['Origin'] || r.headersIn['Referer'] || 'unknown';
+    let newEntry = origin + ":" + now.toISOString();
 
-    r.headersOut["Set-Cookie"] = `cps-global-components-state=${cookieValue}; Path=/; Expires=${expires.toUTCString()}`;
+    // Get existing cookie value and append
+    let existingValue = "";
+    let cookieMatch = cookies.match(/cps-global-components-state=([^;]+)/);
+    if (cookieMatch) {
+      existingValue = cookieMatch[1];
+    }
+
+    let cookieValue = existingValue ? existingValue + "|" + newEntry : newEntry;
+
+    r.headersOut["Set-Cookie"] = `cps-global-components-state=${cookieValue}; Path=/; Expires=${expires.toUTCString()}; Secure; SameSite=None`;
   }
 
   r.headersOut["Content-Type"] = "text/plain";
