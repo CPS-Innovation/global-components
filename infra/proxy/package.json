@@ -1,0 +1,7 @@
+{
+  "name": "@cps/proxy",
+  "private": true,
+  "scripts": {
+    "test": "./run-tests.sh"
+  }
+}
