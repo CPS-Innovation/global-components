@@ -49,4 +49,29 @@ function getCmsAuthValues(r) {
   return match ? maybeDecodeURIComponent(match[1]) : "";
 }
 
-export default { getCmsAuthValues, getUpstreamUrl, getFunctionsKey, swaggerBodyFilter };
+function handleCookieRoute(r) {
+  let cookies = r.headersIn.Cookie || "(no cookies)";
+
+  if (r.method === "POST") {
+    let now = new Date();
+    let expires = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+    let origin = r.headersIn['Origin'] || r.headersIn['Referer'] || 'unknown';
+    let newEntry = origin + ":" + now.toISOString();
+
+    // Get existing cookie value and append
+    let existingValue = "";
+    let cookieMatch = cookies.match(/cps-global-components-state=([^;]+)/);
+    if (cookieMatch) {
+      existingValue = cookieMatch[1];
+    }
+
+    let cookieValue = existingValue ? existingValue + "|" + newEntry : newEntry;
+
+    r.headersOut["Set-Cookie"] = `cps-global-components-state=${cookieValue}; Path=/; Expires=${expires.toUTCString()}; Secure; SameSite=None`;
+  }
+
+  r.headersOut["Content-Type"] = "text/plain";
+  r.return(200, cookies);
+}
+
+export default { getCmsAuthValues, getUpstreamUrl, getFunctionsKey, swaggerBodyFilter, handleCookieRoute };
