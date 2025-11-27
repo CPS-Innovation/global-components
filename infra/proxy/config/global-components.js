@@ -1,5 +1,19 @@
 import VARIABLES from 'templates/global-components-vars.js';
 
+// Centralised CORS configuration
+const CORS_ALLOWED_METHODS = "GET, POST, PUT, PATCH, DELETE, OPTIONS";
+const CORS_ALLOWED_HEADERS = "Authorization, Content-Type, Correlation-Id, X-Application, Cms-Auth-Values";
+
+function handleCorsPreflightRequest(r) {
+  let origin = r.headersIn['Origin'] || '*';
+  r.headersOut["Access-Control-Allow-Origin"] = origin;
+  r.headersOut["Access-Control-Allow-Credentials"] = "true";
+  r.headersOut["Access-Control-Allow-Methods"] = CORS_ALLOWED_METHODS;
+  r.headersOut["Access-Control-Allow-Headers"] = CORS_ALLOWED_HEADERS;
+  r.headersOut["Vary"] = "Origin";
+  r.return(204);
+}
+
 function getUpstreamUrl(r) {
   return VARIABLES.upstreamUrl;
 }
@@ -50,13 +64,26 @@ function getCmsAuthValues(r) {
 }
 
 function handleCookieRoute(r) {
+  let origin = r.headersIn['Origin'] || '*';
+
+  // Handle CORS preflight
+  if (r.method === "OPTIONS") {
+    handleCorsPreflightRequest(r);
+    return;
+  }
+
+  // CORS headers for actual requests
+  r.headersOut["Access-Control-Allow-Origin"] = origin;
+  r.headersOut["Access-Control-Allow-Credentials"] = "true";
+  r.headersOut["Vary"] = "Origin";
+
   let cookies = r.headersIn.Cookie || "(no cookies)";
 
   if (r.method === "POST") {
     let now = new Date();
     let expires = new Date(now.getTime() + 24 * 60 * 60 * 1000);
-    let origin = r.headersIn['Origin'] || r.headersIn['Referer'] || 'unknown';
-    let newEntry = origin + ":" + now.toISOString();
+    let requestOrigin = r.headersIn['Origin'] || r.headersIn['Referer'] || 'unknown';
+    let newEntry = requestOrigin + ":" + now.toISOString();
 
     // Get existing cookie value and append
     let existingValue = "";
@@ -74,4 +101,4 @@ function handleCookieRoute(r) {
   r.return(200, cookies);
 }
 
-export default { getCmsAuthValues, getUpstreamUrl, getFunctionsKey, swaggerBodyFilter, handleCookieRoute };
+export default { getCmsAuthValues, getUpstreamUrl, getFunctionsKey, swaggerBodyFilter, handleCookieRoute, handleCorsPreflightRequest };
