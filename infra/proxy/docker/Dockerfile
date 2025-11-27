@@ -10,7 +10,8 @@ RUN mkdir -p /etc/nginx/templates
 COPY docker/nginx.conf /etc/nginx/nginx.conf
 COPY config/global-components.conf /etc/nginx/templates/global-components.conf
 COPY config/global-components.js /etc/nginx/templates/global-components.js
-COPY config/global-components-vars.js /etc/nginx/templates/global-components-vars.js
+# Use mock vars for build (real vars mounted at runtime via docker-compose)
+COPY docker/global-components-vars.mock.js /etc/nginx/templates/global-components-vars.js
 
 # Configure nginx to run as non-root
 RUN chown -R nginx:nginx /var/cache/nginx /var/log/nginx /etc/nginx \
