@@ -102,7 +102,7 @@ const initialise = async (correlationIds: CorrelationIds, window: Window) => {
     }
 
     if (flags.isOverrideMode) {
-      fetch(config.GATEWAY_URL + "cookie", { method: "POST" })
+      fetch(config.GATEWAY_URL + "cookie", { method: "POST", credentials: "include" })
         .then(response => response.text())
         .then(content => _debug("Experimental fetch", content))
         .catch(reason => _debug("Experimental fetch error", reason));
