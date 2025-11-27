@@ -10,7 +10,7 @@ services:
       - ../config/global-components.conf:/etc/nginx/templates/global-components.conf:ro
       - ../config/global-components.js:/etc/nginx/templates/global-components.js:ro
       # Use test vars that point to mock-upstream
-      - ./global-components-vars.test.js:/etc/nginx/templates/global-components-vars.js:ro
+      - ./global-components-vars.mock.js:/etc/nginx/templates/global-components-vars.js:ro
     depends_on:
       - mock-upstream
 
