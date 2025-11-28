@@ -143,6 +143,12 @@ importers:
         specifier: ^5.3.3
         version: 5.9.2
 
+  infra/proxy:
+    devDependencies:
+      esbuild:
+        specifier: ^0.27.0
+        version: 0.27.0
+
   packages/cps-global-components:
     dependencies:
       '@azure/msal-browser':
