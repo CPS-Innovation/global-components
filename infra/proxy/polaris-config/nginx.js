@@ -1,8 +1,5 @@
 import qs from "querystring"
 
-const IS_PROXY_SESSION_PARAM_NAME = "is-proxy-session"
-const SESSION_HINT_COOKIE_NAME = "cms-session-hint"
-
 function _argsShim(args) {
   if (args["r"]) {
     return args
@@ -16,9 +13,8 @@ function _argsShim(args) {
 
   const serializedArgs = qs.stringify(args)
   const clonedArgsToMutate = qs.parse(serializedArgs)
-  delete clonedArgsToMutate[IS_PROXY_SESSION_PARAM_NAME]
-  // Do not serialize cookie into our manufactured r param because cookie will be attached as the cc param later on
   delete clonedArgsToMutate["cookie"]
+  // do not serialize cookie into our manufactured r param because cookie will be attached as the cc param later on
   const queryStringWithoutCookie = qs.stringify(clonedArgsToMutate)
 
   const clonedArgs = qs.parse(serializedArgs)
@@ -43,21 +39,7 @@ function _redirectToAbsoluteUrl(r, redirectUrl) {
   )
 }
 
-function setSessionHintCookie(r) {
-  // If is-proxy is present it is because we've come via our simulated /polaris endpoint hosted elsewhere in this proxy.
-  const isProxySession = r.args[IS_PROXY_SESSION_PARAM_NAME] === "true"
-  const cmsDomains =
-    r.args["cookie"].match(/(?:[a-z0-9-]+\.)+cps\.co\.uk_POOL/gi) || []
-  let expires = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000)
-  r.headersOut["Set-Cookie"] = `${SESSION_HINT_COOKIE_NAME}=${JSON.stringify({
-    cmsDomains,
-    isProxySession,
-  })}; Path=/; Expires=${expires.toUTCString()}; Secure; SameSite=None`
-}
-
 function appAuthRedirect(r) {
-  setSessionHintCookie(r)
-
   const args = _argsShim(r.args)
 
   const whitelistedUrls = process.env.AUTH_HANDOVER_WHITELIST ?? ""
@@ -92,7 +74,6 @@ function polarisAuthRedirect(r) {
   const clonedArgs = qs.parse(serializedArgs)
   clonedArgs.cookie = r.headersIn.Cookie
   clonedArgs.referer = r.headersIn.Referer
-  clonedArgs[IS_PROXY_SESSION_PARAM_NAME] = "true"
 
   const querystring = qs.stringify(clonedArgs)
   _redirectToAbsoluteUrl(r, `/init?${querystring}`)
