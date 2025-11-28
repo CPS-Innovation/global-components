@@ -14,6 +14,8 @@ location = /api/global-components/cookie {
 }
 
 location = /api/global-components/upstream-handover-health-check {
+  resolver ${WEBSITE_DNS_SERVER} ipv6=off valid=30s;
+  js_fetch_verify off;
   js_content gloco.handleHealthCheck;
 }
 
