@@ -304,10 +304,11 @@ async function testCookieRoute() {
   console.log('\nCookie Route Tests:');
 
   const COOKIE_ENDPOINT = `${PROXY_BASE}/api/global-components/cookie`;
+  const ALLOWED_ORIGIN = 'https://example.com';
 
   await test('GET returns cookies sent in request', async () => {
     const response = await fetch(COOKIE_ENDPOINT, {
-      headers: { 'Cookie': 'session=abc123; user=testuser' }
+      headers: { 'Cookie': 'session=abc123; user=testuser', 'Origin': ALLOWED_ORIGIN }
     });
     const text = await response.text();
     assertEqual(response.status, 200, 'Should return 200');
@@ -316,16 +317,25 @@ async function testCookieRoute() {
   });
 
   await test('GET returns "(no cookies)" when no cookies sent', async () => {
-    const response = await fetch(COOKIE_ENDPOINT);
+    const response = await fetch(COOKIE_ENDPOINT, {
+      headers: { 'Origin': ALLOWED_ORIGIN }
+    });
     const text = await response.text();
     assertEqual(response.status, 200, 'Should return 200');
     assertEqual(text, '(no cookies)', 'Should return "(no cookies)" message');
   });
 
+  await test('GET returns 403 for disallowed origin', async () => {
+    const response = await fetch(COOKIE_ENDPOINT, {
+      headers: { 'Origin': 'https://evil.com' }
+    });
+    assertEqual(response.status, 403, 'Should return 403 for disallowed origin');
+  });
+
   await test('POST sets cps-global-components-state cookie with correct attributes', async () => {
     const response = await fetch(COOKIE_ENDPOINT, {
       method: 'POST',
-      headers: { 'Origin': 'https://example.com' }
+      headers: { 'Origin': ALLOWED_ORIGIN }
     });
     const setCookie = response.headers.get('set-cookie');
     assertEqual(response.status, 200, 'Should return 200');
@@ -339,28 +349,26 @@ async function testCookieRoute() {
   });
 
   await test('POST cookie value contains origin and timestamp', async () => {
-    const testOrigin = 'https://test-domain.com';
     const response = await fetch(COOKIE_ENDPOINT, {
       method: 'POST',
-      headers: { 'Origin': testOrigin }
+      headers: { 'Origin': ALLOWED_ORIGIN }
     });
     const setCookie = response.headers.get('set-cookie');
     const match = setCookie.match(/cps-global-components-state=([^;]+)/);
     assert(match !== null, 'Should be able to extract cookie value');
     const cookieValue = match[1];
-    // Format: origin:timestamp (e.g., https://test-domain.com:2024-01-01T12:00:00.000Z)
-    assert(cookieValue.includes(testOrigin), `Cookie value should contain origin, got: ${cookieValue}`);
+    // Format: origin:timestamp (e.g., https://example.com:2024-01-01T12:00:00.000Z)
+    assert(cookieValue.includes(ALLOWED_ORIGIN), `Cookie value should contain origin, got: ${cookieValue}`);
     assert(/\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z/.test(cookieValue),
       `Cookie value should contain ISO timestamp, got: ${cookieValue}`);
   });
 
   await test('POST appends to existing cookie value', async () => {
-    const existingValue = 'https://first-domain.com:2024-01-01T10:00:00.000Z';
-    const testOrigin = 'https://second-domain.com';
+    const existingValue = 'https://example.com:2024-01-01T10:00:00.000Z';
     const response = await fetch(COOKIE_ENDPOINT, {
       method: 'POST',
       headers: {
-        'Origin': testOrigin,
+        'Origin': ALLOWED_ORIGIN,
         'Cookie': `cps-global-components-state=${existingValue}`
       }
     });
@@ -368,34 +376,18 @@ async function testCookieRoute() {
     const match = setCookie.match(/cps-global-components-state=([^;]+)/);
     assert(match !== null, 'Should be able to extract cookie value');
     const cookieValue = match[1];
-    // Should contain both the existing value and the new entry
-    assert(cookieValue.includes('https://first-domain.com'),
-      `Cookie should contain first domain, got: ${cookieValue}`);
-    assert(cookieValue.includes('https://second-domain.com'),
-      `Cookie should contain second domain, got: ${cookieValue}`);
-    // Should be separated by pipe
+    // Should contain both entries separated by pipe
     assert(cookieValue.includes('|'),
       `Cookie entries should be separated by pipe, got: ${cookieValue}`);
-  });
-
-  await test('POST uses Referer as fallback when Origin is missing', async () => {
-    const testReferer = 'https://referer-domain.com/page';
-    const response = await fetch(COOKIE_ENDPOINT, {
-      method: 'POST',
-      headers: { 'Referer': testReferer }
-    });
-    const setCookie = response.headers.get('set-cookie');
-    const match = setCookie.match(/cps-global-components-state=([^;]+)/);
-    assert(match !== null, 'Should be able to extract cookie value');
-    const cookieValue = match[1];
-    assert(cookieValue.includes(testReferer),
-      `Cookie value should contain referer, got: ${cookieValue}`);
+    // Should have two timestamps (one from existing, one new)
+    const timestamps = cookieValue.match(/\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z/g);
+    assertEqual(timestamps.length, 2, `Should have 2 timestamps, got: ${cookieValue}`);
   });
 
   await test('POST returns cookies sent in request', async () => {
     const response = await fetch(COOKIE_ENDPOINT, {
       method: 'POST',
-      headers: { 'Cookie': 'existing=cookie' }
+      headers: { 'Cookie': 'existing=cookie', 'Origin': ALLOWED_ORIGIN }
     });
     const text = await response.text();
     assertEqual(response.status, 200, 'Should return 200');
@@ -403,10 +395,54 @@ async function testCookieRoute() {
   });
 
   await test('returns Content-Type text/plain', async () => {
-    const response = await fetch(COOKIE_ENDPOINT);
+    const response = await fetch(COOKIE_ENDPOINT, {
+      headers: { 'Origin': ALLOWED_ORIGIN }
+    });
     const contentType = response.headers.get('content-type');
     assert(contentType !== null && contentType.includes('text/plain'),
       'Content-Type should be text/plain');
+  });
+}
+
+// =============================================================================
+// Upstream Handover Health Check Tests
+// =============================================================================
+
+async function testUpstreamHealthCheck() {
+  console.log('\nUpstream Handover Health Check Tests:');
+
+  const HEALTH_CHECK_ENDPOINT = `${PROXY_BASE}/api/global-components/upstream-handover-health-check`;
+
+  await test('returns 400 when url parameter is missing', async () => {
+    const response = await fetch(HEALTH_CHECK_ENDPOINT);
+    const json = await response.json();
+    assertEqual(response.status, 400, 'Should return 400');
+    assertEqual(json.error, 'url parameter required', 'Should have correct error message');
+  });
+
+  await test('returns 403 when url is not in whitelist', async () => {
+    const response = await fetch(`${HEALTH_CHECK_ENDPOINT}?url=http://evil.com`);
+    const json = await response.json();
+    assertEqual(response.status, 403, 'Should return 403');
+    assertEqual(json.error, 'url not in whitelist', 'Should have correct error message');
+    assertEqual(json.url, 'http://evil.com', 'Should include the rejected url');
+  });
+
+  await test('returns health check result for whitelisted url', async () => {
+    const whitelistedUrl = 'http://mock-upstream:3000/api/health';
+    const response = await fetch(`${HEALTH_CHECK_ENDPOINT}?url=${encodeURIComponent(whitelistedUrl)}`);
+    const json = await response.json();
+    assertEqual(response.status, 200, 'Should return 200');
+    assertEqual(json.url, whitelistedUrl, 'Should include the checked url');
+    assert(typeof json.status === 'number', 'Should include numeric status');
+    assert(typeof json.healthy === 'boolean', 'Should include boolean healthy flag');
+  });
+
+  await test('returns Content-Type application/json', async () => {
+    const response = await fetch(HEALTH_CHECK_ENDPOINT);
+    const contentType = response.headers.get('content-type');
+    assert(contentType !== null && contentType.includes('application/json'),
+      'Content-Type should be application/json');
   });
 }
 
@@ -428,6 +464,7 @@ async function main() {
     await testCmsAuthValuesHeader();
     await testCmsAuthValuesCookie();
     await testCookieRoute();
+    await testUpstreamHealthCheck();
     await testFunctionsKey();
     await testCors();
     await testAuthorizationStripping();
