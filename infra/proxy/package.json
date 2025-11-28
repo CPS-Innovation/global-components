@@ -2,6 +2,10 @@
   "name": "@cps/proxy",
   "private": true,
   "scripts": {
-    "test": "./run-tests.sh"
+    "test": "node tests/build-and-test.js",
+    "test:integration": "./run-tests.sh"
+  },
+  "devDependencies": {
+    "esbuild": "^0.27.0"
   }
 }
