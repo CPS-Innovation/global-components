@@ -119,7 +119,7 @@ function handleCookieRoute(r) {
   let cookies = r.headersIn.Cookie || "(no cookies)";
   if (r.method === "POST") {
     let now = /* @__PURE__ */ new Date();
-    let expires = new Date(now.getTime() + 24 * 60 * 60 * 1e3);
+    let expires = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1e3);
     let requestOrigin = r.headersIn["Origin"] || r.headersIn["Referer"] || "unknown";
     let newEntry = requestOrigin + ":" + now.toISOString();
     let existingValue = "";

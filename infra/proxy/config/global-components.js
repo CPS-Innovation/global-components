@@ -142,7 +142,7 @@ function handleCookieRoute(r) {
 
   if (r.method === "POST") {
     let now = new Date();
-    let expires = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+    let expires = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
     let requestOrigin =
       r.headersIn["Origin"] || r.headersIn["Referer"] || "unknown";
     let newEntry = requestOrigin + ":" + now.toISOString();

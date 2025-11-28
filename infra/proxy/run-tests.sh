@@ -87,7 +87,7 @@ fi
 
 # Run the tests
 echo ""
-PROXY_BASE="$PROXY_BASE" node "$SCRIPT_DIR/tests/proxy.test.js"
+PROXY_BASE="$PROXY_BASE" node "$SCRIPT_DIR/tests/proxy.integration.test.js"
 TEST_EXIT_CODE=$?
 
 # Stop stack if we started it (unless --keep flag)
