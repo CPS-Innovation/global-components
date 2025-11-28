@@ -332,7 +332,7 @@ async function testCookieRoute() {
     assert(setCookie !== null, 'Should have Set-Cookie header');
     assert(setCookie.includes('cps-global-components-state='),
       'Should set cps-global-components-state cookie');
-    assert(setCookie.includes('Path=/'), 'Cookie should have Path=/');
+    assert(setCookie.includes('Path=/api/global-components/cookie'), 'Cookie should have Path=/api/global-components/cookie');
     assert(setCookie.includes('Expires='), 'Cookie should have Expires attribute');
     assert(setCookie.includes('Secure'), 'Cookie should have Secure attribute');
     assert(setCookie.includes('SameSite=None'), 'Cookie should have SameSite=None attribute');

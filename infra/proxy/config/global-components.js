@@ -94,7 +94,7 @@ function handleCookieRoute(r) {
 
     let cookieValue = existingValue ? existingValue + "|" + newEntry : newEntry;
 
-    r.headersOut["Set-Cookie"] = `cps-global-components-state=${cookieValue}; Path=/; Expires=${expires.toUTCString()}; Secure; SameSite=None`;
+    r.headersOut["Set-Cookie"] = `cps-global-components-state=${cookieValue}; Path=${r.uri}; Expires=${expires.toUTCString()}; Secure; SameSite=None`;
   }
 
   r.headersOut["Content-Type"] = "text/plain";
