@@ -46,15 +46,19 @@ function _redirectToAbsoluteUrl(r, redirectUrl) {
 }
 
 function setSessionHintCookie(r) {
-  // If is-proxy is present it is because we've come via our simulated /polaris endpoint hosted elsewhere in this proxy.
-  const isProxySession = r.args[IS_PROXY_SESSION_PARAM_NAME] === "true"
-  const cmsDomains =
-    r.args["cookie"].match(/(?:[a-z0-9-]+\.)+cps\.co\.uk_POOL/gi) || []
-  let expires = new Date(new Date().getTime() + 30 * 24 * 60 * 60 * 1000)
-  r.headersOut["Set-Cookie"] = `${SESSION_HINT_COOKIE_NAME}=${JSON.stringify({
-    cmsDomains,
-    isProxySession,
-  })}; Path=/; Expires=${expires.toUTCString()}; Secure; SameSite=None`
+  const cookieValue = JSON.stringify({
+    cmsDomains:
+      r.args["cookie"].match(/(?:[a-z0-9-]+\.)+cps\.co\.uk_POOL/gi) || [],
+    isProxySession: r.args[IS_PROXY_SESSION_PARAM_NAME] === "true",
+  })
+
+  const expires = new Date(new Date().getTime() + 30 * 24 * 60 * 60 * 1000)
+
+  r.headersOut[
+    "Set-Cookie"
+  ] = `${SESSION_HINT_COOKIE_NAME}=${encodeURIComponent(
+    cookieValue
+  )}; Path=/; Expires=${expires.toUTCString()}; Secure; SameSite=None`
 }
 
 function appAuthRedirect(r) {
