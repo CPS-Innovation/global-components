@@ -85,7 +85,7 @@ async function runTests() {
   function parseSessionHintCookie(setCookieHeader) {
     const match = setCookieHeader.match(/cms-session-hint=([^;]+)/);
     if (!match) return null;
-    return JSON.parse(match[1]);
+    return JSON.parse(decodeURIComponent(match[1]));
   }
 
   function assertDeepEqual(actual, expected, message) {

@@ -10,6 +10,8 @@ var mock_vars_default = {
 // config/global-components.js
 var CORS_ALLOWED_METHODS = "GET, POST, PUT, PATCH, DELETE, OPTIONS";
 var CORS_ALLOWED_HEADERS = "Authorization, Content-Type, Correlation-Id, X-Application, Cms-Auth-Values";
+var SESSION_HINT_COOKIE_NAME = "cms-session-hint";
+var CMS_AUTH_VALUES_COOKIE_NAME = "Cms-Auth-Values";
 function getCorsAllowedOrigin(requestOrigin) {
   const allowedOrigins = mock_vars_default.corsAllowedOrigins || [];
   if (allowedOrigins.includes(requestOrigin)) {
@@ -56,19 +58,23 @@ function maybeDecodeURIComponent(value) {
     try {
       return decodeURIComponent(value);
     } catch (e) {
-      return value;
     }
   }
   return value;
 }
-function getCmsAuthValues(r) {
-  let headerValue = r.headersIn["Cms-Auth-Values"] || "";
-  if (headerValue) {
-    return maybeDecodeURIComponent(headerValue);
-  }
+function getCookieValue(r, cookieName) {
   let cookies = r.headersIn.Cookie || "";
-  let match = cookies.match(/Cms-Auth-Values=([^;]+)/);
-  return match ? maybeDecodeURIComponent(match[1]) : "";
+  let match = cookies.match(new RegExp(`(?:^|;\\s*)${cookieName}=([^;]*)`));
+  return match ? match[1] : "";
+}
+function getCmsAuthValues(r) {
+  return maybeDecodeURIComponent(
+    r.args[CMS_AUTH_VALUES_COOKIE_NAME] || getCookieValue(r, CMS_AUTH_VALUES_COOKIE_NAME)
+  );
+}
+function handleSessionHint(r) {
+  const hintValue = getCookieValue(r, SESSION_HINT_COOKIE_NAME);
+  r.return(200, hintValue ? maybeDecodeURIComponent(hintValue) : "null");
 }
 async function handleHealthCheck(r) {
   r.headersOut["Content-Type"] = "application/json";
@@ -79,10 +85,7 @@ async function handleHealthCheck(r) {
   }
   const allowedUrls = mock_vars_default.healthCheckAllowedUrls || [];
   if (!allowedUrls.includes(url)) {
-    r.return(
-      403,
-      JSON.stringify({ error: "url not in whitelist", url })
-    );
+    r.return(403, JSON.stringify({ error: "url not in whitelist", url }));
     return;
   }
   try {
@@ -103,43 +106,14 @@ async function handleHealthCheck(r) {
     );
   }
 }
-function handleCookieRoute(r) {
-  if (r.method === "OPTIONS") {
-    handleCorsPreflightRequest(r);
-    return;
-  }
-  const origin = getCorsAllowedOrigin(r.headersIn["Origin"]);
-  if (!origin) {
-    r.return(403);
-    return;
-  }
-  r.headersOut["Access-Control-Allow-Origin"] = origin;
-  r.headersOut["Access-Control-Allow-Credentials"] = "true";
-  r.headersOut["Vary"] = "Origin";
-  let cookies = r.headersIn.Cookie || "(no cookies)";
-  if (r.method === "POST") {
-    let now = /* @__PURE__ */ new Date();
-    let expires = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1e3);
-    let requestOrigin = r.headersIn["Origin"] || r.headersIn["Referer"] || "unknown";
-    let newEntry = requestOrigin + ":" + now.toISOString();
-    let existingValue = "";
-    let cookieMatch = cookies.match(/cps-global-components-state=([^;]+)/);
-    if (cookieMatch) {
-      existingValue = cookieMatch[1];
-    }
-    let cookieValue = existingValue ? existingValue + "|" + newEntry : newEntry;
-    r.headersOut["Set-Cookie"] = `cps-global-components-state=${cookieValue}; Path=${r.uri}; Expires=${expires.toUTCString()}; Secure; SameSite=None`;
-  }
-  r.headersOut["Content-Type"] = "text/plain";
-  r.return(200, cookies);
-}
 var global_components_default = {
   getCmsAuthValues,
   getUpstreamUrl,
   getFunctionsKey,
   getCorsOrigin,
   swaggerBodyFilter,
-  handleCookieRoute,
+  //handleCookieRoute,
+  handleSessionHint,
   handleCorsPreflightRequest,
   handleHealthCheck
 };

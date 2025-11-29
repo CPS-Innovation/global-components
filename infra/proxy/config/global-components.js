@@ -5,6 +5,7 @@ const CORS_ALLOWED_METHODS = "GET, POST, PUT, PATCH, DELETE, OPTIONS";
 const CORS_ALLOWED_HEADERS =
   "Authorization, Content-Type, Correlation-Id, X-Application, Cms-Auth-Values";
 const SESSION_HINT_COOKIE_NAME = "cms-session-hint";
+const CMS_AUTH_VALUES_COOKIE_NAME = "Cms-Auth-Values";
 
 function getCorsAllowedOrigin(requestOrigin) {
   const allowedOrigins = VARIABLES.corsAllowedOrigins || [];
@@ -63,10 +64,7 @@ function maybeDecodeURIComponent(value) {
   if (/%[0-9A-Fa-f]{2}/.test(value)) {
     try {
       return decodeURIComponent(value);
-    } catch (e) {
-      // If decoding fails (malformed encoding), return original
-      return value;
-    }
+    } catch (e) {}
   }
   return value;
 }
@@ -79,7 +77,8 @@ function getCookieValue(r, cookieName) {
 
 function getCmsAuthValues(r) {
   return maybeDecodeURIComponent(
-    r.args["Cms-Auth-Values"] || getCookieValue(r, "Cms-Auth-Values")
+    r.args[CMS_AUTH_VALUES_COOKIE_NAME] ||
+      getCookieValue(r, CMS_AUTH_VALUES_COOKIE_NAME)
   );
 }
 
