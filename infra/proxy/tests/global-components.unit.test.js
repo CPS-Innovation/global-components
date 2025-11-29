@@ -124,33 +124,35 @@ async function runTests() {
   // --- getCmsAuthValues tests ---
   console.log("\ngetCmsAuthValues:");
 
-  await test("returns query param value if present", async () => {
+  await test("returns header value if present", async () => {
     const r = createMockRequest({
-      args: { "Cms-Auth-Values": "userId=123" },
+      headersIn: { "Cms-Auth-Values": "userId=123" },
     });
-    assertEqual(gloco.getCmsAuthValues(r), "userId=123", "Should return query param value");
+    assertEqual(gloco.getCmsAuthValues(r), "userId=123", "Should return header value");
   });
 
-  await test("decodes encoded query param value", async () => {
+  await test("decodes encoded header value", async () => {
     const r = createMockRequest({
-      args: { "Cms-Auth-Values": "userId%3D123" },
+      headersIn: { "Cms-Auth-Values": "userId%3D123" },
     });
-    assertEqual(gloco.getCmsAuthValues(r), "userId=123", "Should decode query param value");
+    assertEqual(gloco.getCmsAuthValues(r), "userId=123", "Should decode header value");
   });
 
-  await test("falls back to cookie if query param missing", async () => {
+  await test("falls back to cookie if header missing", async () => {
     const r = createMockRequest({
       headersIn: { Cookie: "Cms-Auth-Values=fromCookie" },
     });
     assertEqual(gloco.getCmsAuthValues(r), "fromCookie", "Should return cookie value");
   });
 
-  await test("query param takes precedence over cookie", async () => {
+  await test("header takes precedence over cookie", async () => {
     const r = createMockRequest({
-      args: { "Cms-Auth-Values": "fromQueryParam" },
-      headersIn: { Cookie: "Cms-Auth-Values=fromCookie" },
+      headersIn: {
+        "Cms-Auth-Values": "fromHeader",
+        Cookie: "Cms-Auth-Values=fromCookie",
+      },
     });
-    assertEqual(gloco.getCmsAuthValues(r), "fromQueryParam", "Should prefer query param");
+    assertEqual(gloco.getCmsAuthValues(r), "fromHeader", "Should prefer header");
   });
 
   await test("returns empty string if neither present", async () => {

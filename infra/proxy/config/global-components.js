@@ -69,15 +69,20 @@ function maybeDecodeURIComponent(value) {
   return value;
 }
 
+function getHeaderValue(r, headerName) {
+  let headerValue = r.headersIn[headerName] || "";
+  return headerValue || "";
+}
+
 function getCookieValue(r, cookieName) {
-  let cookies = r.headersIn.Cookie || "";
+  let cookies = getHeaderValue(r, "Cookie");
   let match = cookies.match(new RegExp(`(?:^|;\\s*)${cookieName}=([^;]*)`));
   return match ? match[1] : "";
 }
 
 function getCmsAuthValues(r) {
   return maybeDecodeURIComponent(
-    r.args[CMS_AUTH_VALUES_COOKIE_NAME] ||
+    getHeaderValue(r, CMS_AUTH_VALUES_COOKIE_NAME) ||
       getCookieValue(r, CMS_AUTH_VALUES_COOKIE_NAME)
   );
 }
