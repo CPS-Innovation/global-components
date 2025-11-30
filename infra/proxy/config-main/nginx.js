@@ -48,7 +48,7 @@ function _redirectToAbsoluteUrl(r, redirectUrl) {
 function setSessionHintCookie(r) {
   const cookieValue = JSON.stringify({
     cmsDomains:
-      r.args["cookie"].match(/(?:[a-z0-9-]+\.)+cps\.co\.uk_POOL/gi) || [],
+      r.args["cookie"].match(/(?:[a-z0-9-]+\.)+cps\.gov\.uk_POOL/gi) || [],
     isProxySession: r.args[IS_PROXY_SESSION_PARAM_NAME] === "true",
   })
 

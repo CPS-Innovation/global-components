@@ -5,8 +5,7 @@ js_set $cms_auth_values gloco.getCmsAuthValues;
 js_set $cors_origin gloco.getCorsOrigin;
 
 location = /api/global-components {
-  add_header Content-Type text/plain;
-  return 200 'Global components is online';
+  js_content gloco.handleStatus;
 }
 
 location = /api/global-components/session-hint {

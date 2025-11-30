@@ -288,11 +288,14 @@ async function testAuthorizationStripping() {
 async function testHealthCheck() {
   console.log('\nHealth Check Tests:');
 
-  await test('base endpoint returns health message', async () => {
+  await test('base endpoint returns JSON with status and version', async () => {
     const response = await fetch(`${PROXY_BASE}/api/global-components`);
-    const text = await response.text();
     assertEqual(response.status, 200, 'Health endpoint should return 200');
-    assert(text.includes('online'), 'Should indicate service is online');
+    const contentType = response.headers.get('content-type');
+    assert(contentType.includes('application/json'), 'Should return JSON');
+    const body = await response.json();
+    assertEqual(body.status, 'online', 'Should have status online');
+    assert(typeof body.version === 'number', 'Should have numeric version');
   });
 }
 
