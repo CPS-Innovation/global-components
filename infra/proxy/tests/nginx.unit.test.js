@@ -276,7 +276,11 @@ async function runTests() {
     const hint = parseSessionHintCookie(r.headersOut["Set-Cookie"]);
     assertDeepEqual(
       hint,
-      { cmsDomains: ["test.cps.gov.uk"], isProxySession: true },
+      {
+        cmsDomains: ["test.cps.gov.uk"],
+        isProxySession: true,
+        handoverEndpoint: "https://proxy.example.com/polaris",
+      },
       "Session hint should have correct structure"
     );
   });
