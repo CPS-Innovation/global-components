@@ -9,6 +9,7 @@ var VARIABLES = {
     "https://example.com",
     "https://app.example.com",
   ],
+  deployVersion: 0,
 };
 
 export default VARIABLES;

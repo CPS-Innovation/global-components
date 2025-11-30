@@ -288,11 +288,14 @@ async function testAuthorizationStripping() {
 async function testHealthCheck() {
   console.log('\nHealth Check Tests:');
 
-  await test('base endpoint returns health message', async () => {
+  await test('base endpoint returns JSON with status and version', async () => {
     const response = await fetch(`${PROXY_BASE}/api/global-components`);
-    const text = await response.text();
     assertEqual(response.status, 200, 'Health endpoint should return 200');
-    assert(text.includes('online'), 'Should indicate service is online');
+    const contentType = response.headers.get('content-type');
+    assert(contentType.includes('application/json'), 'Should return JSON');
+    const body = await response.json();
+    assertEqual(body.status, 'online', 'Should have status online');
+    assert(typeof body.version === 'number', 'Should have numeric version');
   });
 }
 
@@ -490,7 +493,7 @@ async function testAuthRedirect() {
 
   await test('sets cms-session-hint cookie with correct attributes', async () => {
     const response = await fetch(
-      `${INIT_ENDPOINT}?r=/auth-refresh-inbound&cookie=foo.cps.co.uk_POOL%3Dvalue`,
+      `${INIT_ENDPOINT}?r=/auth-refresh-inbound&cookie=PREFIX-foo.cps.gov.uk_POOL%3Dvalue`,
       {
         redirect: 'manual',
         headers: {
@@ -510,7 +513,7 @@ async function testAuthRedirect() {
 
   await test('session hint cookie contains valid JSON with cmsDomains array', async () => {
     const response = await fetch(
-      `${INIT_ENDPOINT}?r=/auth-refresh-inbound&cookie=foo.bar.cps.co.uk_POOL%3Dx%3Bother.cps.co.uk_POOL%3Dy`,
+      `${INIT_ENDPOINT}?r=/auth-refresh-inbound&cookie=PREFIX-foo.bar.cps.gov.uk_POOL%3Dx%3BPREFIX-other.cps.gov.uk_POOL%3Dy`,
       {
         redirect: 'manual',
         headers: {
@@ -524,13 +527,13 @@ async function testAuthRedirect() {
     assert(match !== null, 'Should be able to extract cookie value');
     const hint = JSON.parse(decodeURIComponent(match[1]));
     assert(Array.isArray(hint.cmsDomains), 'cmsDomains should be an array');
-    assert(hint.cmsDomains.includes('foo.bar.cps.co.uk_POOL'), `Should include first CMS domain, got: ${JSON.stringify(hint.cmsDomains)}`);
-    assert(hint.cmsDomains.includes('other.cps.co.uk_POOL'), `Should include second CMS domain, got: ${JSON.stringify(hint.cmsDomains)}`);
+    assert(hint.cmsDomains.includes('foo.bar.cps.gov.uk'), `Should include first CMS domain, got: ${JSON.stringify(hint.cmsDomains)}`);
+    assert(hint.cmsDomains.includes('other.cps.gov.uk'), `Should include second CMS domain, got: ${JSON.stringify(hint.cmsDomains)}`);
   });
 
   await test('session hint cookie has isProxySession false by default', async () => {
     const response = await fetch(
-      `${INIT_ENDPOINT}?r=/auth-refresh-inbound&cookie=foo.cps.co.uk_POOL%3Dvalue`,
+      `${INIT_ENDPOINT}?r=/auth-refresh-inbound&cookie=PREFIX-foo.cps.gov.uk_POOL%3Dvalue`,
       {
         redirect: 'manual',
         headers: {
@@ -547,7 +550,7 @@ async function testAuthRedirect() {
 
   await test('session hint cookie has isProxySession true when param set', async () => {
     const response = await fetch(
-      `${INIT_ENDPOINT}?r=/auth-refresh-inbound&cookie=foo.cps.co.uk_POOL%3Dvalue&is-proxy-session=true`,
+      `${INIT_ENDPOINT}?r=/auth-refresh-inbound&cookie=PREFIX-foo.cps.gov.uk_POOL%3Dvalue&is-proxy-session=true`,
       {
         redirect: 'manual',
         headers: {
@@ -560,6 +563,57 @@ async function testAuthRedirect() {
     const match = setCookie.match(/cms-session-hint=([^;]+)/);
     const hint = JSON.parse(decodeURIComponent(match[1]));
     assertEqual(hint.isProxySession, true, 'isProxySession should be true when param set');
+  });
+
+  await test('session hint has handoverEndpoint using host when isProxySession true', async () => {
+    const response = await fetch(
+      `${INIT_ENDPOINT}?r=/auth-refresh-inbound&cookie=PREFIX-foo.cps.gov.uk_POOL%3Dvalue&is-proxy-session=true`,
+      {
+        redirect: 'manual',
+        headers: {
+          'X-Forwarded-Proto': 'https',
+          'Host': 'localhost:8080'
+        }
+      }
+    );
+    const setCookie = response.headers.get('set-cookie');
+    const match = setCookie.match(/cms-session-hint=([^;]+)/);
+    const hint = JSON.parse(decodeURIComponent(match[1]));
+    assertEqual(hint.handoverEndpoint, 'https://localhost:8080/polaris', 'handoverEndpoint should use request host when isProxySession');
+  });
+
+  await test('session hint has handoverEndpoint using first cmsDomain when not proxy session', async () => {
+    const response = await fetch(
+      `${INIT_ENDPOINT}?r=/auth-refresh-inbound&cookie=PREFIX-foo.cps.gov.uk_POOL%3Dvalue`,
+      {
+        redirect: 'manual',
+        headers: {
+          'X-Forwarded-Proto': 'https',
+          'Host': 'localhost:8080'
+        }
+      }
+    );
+    const setCookie = response.headers.get('set-cookie');
+    const match = setCookie.match(/cms-session-hint=([^;]+)/);
+    const hint = JSON.parse(decodeURIComponent(match[1]));
+    assertEqual(hint.handoverEndpoint, 'https://foo.cps.gov.uk/polaris', 'handoverEndpoint should use first cmsDomain when not proxy session');
+  });
+
+  await test('session hint has null handoverEndpoint when no CMS cookies', async () => {
+    const response = await fetch(
+      `${INIT_ENDPOINT}?r=/auth-refresh-inbound&cookie=regular%3Dcookie`,
+      {
+        redirect: 'manual',
+        headers: {
+          'X-Forwarded-Proto': 'https',
+          'Host': 'localhost:8080'
+        }
+      }
+    );
+    const setCookie = response.headers.get('set-cookie');
+    const match = setCookie.match(/cms-session-hint=([^;]+)/);
+    const hint = JSON.parse(decodeURIComponent(match[1]));
+    assertEqual(hint.handoverEndpoint, null, 'handoverEndpoint should be null when no CMS cookies');
   });
 
   await test('session hint cookie has empty cmsDomains when no CMS cookies', async () => {

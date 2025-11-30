@@ -92,6 +92,14 @@ function handleSessionHint(r) {
   r.return(200, hintValue ? maybeDecodeURIComponent(hintValue) : "null");
 }
 
+function handleStatus(r) {
+  r.headersOut["Content-Type"] = "application/json";
+  r.return(
+    200,
+    JSON.stringify({ status: "online", version: VARIABLES.deployVersion || 0 })
+  );
+}
+
 async function handleHealthCheck(r) {
   r.headersOut["Content-Type"] = "application/json";
 
@@ -181,6 +189,7 @@ export default {
   getCorsOrigin,
   swaggerBodyFilter,
   //handleCookieRoute,
+  handleStatus,
   handleSessionHint,
   handleCorsPreflightRequest,
   handleHealthCheck,

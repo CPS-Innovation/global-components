@@ -102,18 +102,23 @@ const initialise = async (correlationIds: CorrelationIds, window: Window) => {
     }
 
     if (flags.isOverrideMode) {
-      [
-        "https://polaris-qa-notprod.cps.gov.uk/polaris",
-        "https://cin2.cps.gov.uk/polaris",
-        "https://cin3.cps.gov.uk/polaris",
-        "https://cin4.cps.gov.uk/polaris",
-        "https://cin5.cps.gov.uk/polaris",
-      ].map(endpoint =>
-        fetch(config.GATEWAY_URL + "upstream-handover-health-check?url=" + encodeURIComponent(endpoint))
-          .then(response => (response.ok ? response.json() : Promise.resolve({ ...response })))
-          .then(obj => _debug("Experimental endpoint health check", obj))
-          .catch(reason => _debug("Experimental endpoint health error", reason)),
-      );
+      fetch(config.GATEWAY_URL + "/session-hint", { credentials: "include" })
+        .then(response => response.json())
+        .then(content => _debug("Experimental fetch session-hint", content))
+        .catch(reason => _debug("Experimental fetch session-hint error", reason));
+
+      // [
+      //   "https://polaris-qa-notprod.cps.gov.uk/polaris",
+      //   "https://cin2.cps.gov.uk/polaris",
+      //   "https://cin3.cps.gov.uk/polaris",
+      //   "https://cin4.cps.gov.uk/polaris",
+      //   "https://cin5.cps.gov.uk/polaris",
+      // ].map(endpoint =>
+      //   fetch(config.GATEWAY_URL + "upstream-handover-health-check?url=" + encodeURIComponent(endpoint))
+      //     .then(response => (response.ok ? response.json() : Promise.resolve({ ...response })))
+      //     .then(obj => _debug("Experimental endpoint health check", obj))
+      //     .catch(reason => _debug("Experimental endpoint health error", reason)),
+      // );
 
       // fetch(config.GATEWAY_URL + "cookie", { method: "POST", credentials: "include" })
       //   .then(response => response.text())
