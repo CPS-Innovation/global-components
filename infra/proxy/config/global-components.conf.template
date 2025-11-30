@@ -9,11 +9,17 @@ location = /api/global-components {
   return 200 'Global components is online';
 }
 
-location = /api/global-components/cookie {
-  js_content gloco.handleCookieRoute;
+location = /api/global-components/session-hint {
+  js_content gloco.handleSessionHint;
 }
 
+# location = /api/global-components/cookie {
+#   js_content gloco.handleCookieRoute;
+# }
+
 location = /api/global-components/upstream-handover-health-check {
+  resolver ${WEBSITE_DNS_SERVER} ipv6=off valid=30s;
+  js_fetch_verify off;
   js_content gloco.handleHealthCheck;
 }
 

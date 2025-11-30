@@ -6,7 +6,7 @@
  *
  * Prerequisites:
  *   - Docker compose stack running (nginx proxy + mock-server)
- *   - Run with: node infra/proxy/tests/proxy.test.js
+ *   - Run with: node infra/proxy/tests/proxy.integration.test.js
  *
  * The mock server echoes back headers it receives, allowing us to verify
  * what the proxy sends upstream.
@@ -299,110 +299,111 @@ async function testHealthCheck() {
 // =============================================================================
 // Cookie Route Tests
 // =============================================================================
+// Note: handleCookieRoute is currently commented out in global-components.js
 
-async function testCookieRoute() {
-  console.log('\nCookie Route Tests:');
+// async function testCookieRoute() {
+//   console.log('\nCookie Route Tests:');
 
-  const COOKIE_ENDPOINT = `${PROXY_BASE}/api/global-components/cookie`;
-  const ALLOWED_ORIGIN = 'https://example.com';
+//   const COOKIE_ENDPOINT = `${PROXY_BASE}/api/global-components/cookie`;
+//   const ALLOWED_ORIGIN = 'https://example.com';
 
-  await test('GET returns cookies sent in request', async () => {
-    const response = await fetch(COOKIE_ENDPOINT, {
-      headers: { 'Cookie': 'session=abc123; user=testuser', 'Origin': ALLOWED_ORIGIN }
-    });
-    const text = await response.text();
-    assertEqual(response.status, 200, 'Should return 200');
-    assert(text.includes('session=abc123'), 'Should echo back session cookie');
-    assert(text.includes('user=testuser'), 'Should echo back user cookie');
-  });
+//   await test('GET returns cookies sent in request', async () => {
+//     const response = await fetch(COOKIE_ENDPOINT, {
+//       headers: { 'Cookie': 'session=abc123; user=testuser', 'Origin': ALLOWED_ORIGIN }
+//     });
+//     const text = await response.text();
+//     assertEqual(response.status, 200, 'Should return 200');
+//     assert(text.includes('session=abc123'), 'Should echo back session cookie');
+//     assert(text.includes('user=testuser'), 'Should echo back user cookie');
+//   });
 
-  await test('GET returns "(no cookies)" when no cookies sent', async () => {
-    const response = await fetch(COOKIE_ENDPOINT, {
-      headers: { 'Origin': ALLOWED_ORIGIN }
-    });
-    const text = await response.text();
-    assertEqual(response.status, 200, 'Should return 200');
-    assertEqual(text, '(no cookies)', 'Should return "(no cookies)" message');
-  });
+//   await test('GET returns "(no cookies)" when no cookies sent', async () => {
+//     const response = await fetch(COOKIE_ENDPOINT, {
+//       headers: { 'Origin': ALLOWED_ORIGIN }
+//     });
+//     const text = await response.text();
+//     assertEqual(response.status, 200, 'Should return 200');
+//     assertEqual(text, '(no cookies)', 'Should return "(no cookies)" message');
+//   });
 
-  await test('GET returns 403 for disallowed origin', async () => {
-    const response = await fetch(COOKIE_ENDPOINT, {
-      headers: { 'Origin': 'https://evil.com' }
-    });
-    assertEqual(response.status, 403, 'Should return 403 for disallowed origin');
-  });
+//   await test('GET returns 403 for disallowed origin', async () => {
+//     const response = await fetch(COOKIE_ENDPOINT, {
+//       headers: { 'Origin': 'https://evil.com' }
+//     });
+//     assertEqual(response.status, 403, 'Should return 403 for disallowed origin');
+//   });
 
-  await test('POST sets cps-global-components-state cookie with correct attributes', async () => {
-    const response = await fetch(COOKIE_ENDPOINT, {
-      method: 'POST',
-      headers: { 'Origin': ALLOWED_ORIGIN }
-    });
-    const setCookie = response.headers.get('set-cookie');
-    assertEqual(response.status, 200, 'Should return 200');
-    assert(setCookie !== null, 'Should have Set-Cookie header');
-    assert(setCookie.includes('cps-global-components-state='),
-      'Should set cps-global-components-state cookie');
-    assert(setCookie.includes('Path=/api/global-components/cookie'), 'Cookie should have Path=/api/global-components/cookie');
-    assert(setCookie.includes('Expires='), 'Cookie should have Expires attribute');
-    assert(setCookie.includes('Secure'), 'Cookie should have Secure attribute');
-    assert(setCookie.includes('SameSite=None'), 'Cookie should have SameSite=None attribute');
-  });
+//   await test('POST sets cps-global-components-state cookie with correct attributes', async () => {
+//     const response = await fetch(COOKIE_ENDPOINT, {
+//       method: 'POST',
+//       headers: { 'Origin': ALLOWED_ORIGIN }
+//     });
+//     const setCookie = response.headers.get('set-cookie');
+//     assertEqual(response.status, 200, 'Should return 200');
+//     assert(setCookie !== null, 'Should have Set-Cookie header');
+//     assert(setCookie.includes('cps-global-components-state='),
+//       'Should set cps-global-components-state cookie');
+//     assert(setCookie.includes('Path=/api/global-components/cookie'), 'Cookie should have Path=/api/global-components/cookie');
+//     assert(setCookie.includes('Expires='), 'Cookie should have Expires attribute');
+//     assert(setCookie.includes('Secure'), 'Cookie should have Secure attribute');
+//     assert(setCookie.includes('SameSite=None'), 'Cookie should have SameSite=None attribute');
+//   });
 
-  await test('POST cookie value contains origin and timestamp', async () => {
-    const response = await fetch(COOKIE_ENDPOINT, {
-      method: 'POST',
-      headers: { 'Origin': ALLOWED_ORIGIN }
-    });
-    const setCookie = response.headers.get('set-cookie');
-    const match = setCookie.match(/cps-global-components-state=([^;]+)/);
-    assert(match !== null, 'Should be able to extract cookie value');
-    const cookieValue = match[1];
-    // Format: origin:timestamp (e.g., https://example.com:2024-01-01T12:00:00.000Z)
-    assert(cookieValue.includes(ALLOWED_ORIGIN), `Cookie value should contain origin, got: ${cookieValue}`);
-    assert(/\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z/.test(cookieValue),
-      `Cookie value should contain ISO timestamp, got: ${cookieValue}`);
-  });
+//   await test('POST cookie value contains origin and timestamp', async () => {
+//     const response = await fetch(COOKIE_ENDPOINT, {
+//       method: 'POST',
+//       headers: { 'Origin': ALLOWED_ORIGIN }
+//     });
+//     const setCookie = response.headers.get('set-cookie');
+//     const match = setCookie.match(/cps-global-components-state=([^;]+)/);
+//     assert(match !== null, 'Should be able to extract cookie value');
+//     const cookieValue = match[1];
+//     // Format: origin:timestamp (e.g., https://example.com:2024-01-01T12:00:00.000Z)
+//     assert(cookieValue.includes(ALLOWED_ORIGIN), `Cookie value should contain origin, got: ${cookieValue}`);
+//     assert(/\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z/.test(cookieValue),
+//       `Cookie value should contain ISO timestamp, got: ${cookieValue}`);
+//   });
 
-  await test('POST appends to existing cookie value', async () => {
-    const existingValue = 'https://example.com:2024-01-01T10:00:00.000Z';
-    const response = await fetch(COOKIE_ENDPOINT, {
-      method: 'POST',
-      headers: {
-        'Origin': ALLOWED_ORIGIN,
-        'Cookie': `cps-global-components-state=${existingValue}`
-      }
-    });
-    const setCookie = response.headers.get('set-cookie');
-    const match = setCookie.match(/cps-global-components-state=([^;]+)/);
-    assert(match !== null, 'Should be able to extract cookie value');
-    const cookieValue = match[1];
-    // Should contain both entries separated by pipe
-    assert(cookieValue.includes('|'),
-      `Cookie entries should be separated by pipe, got: ${cookieValue}`);
-    // Should have two timestamps (one from existing, one new)
-    const timestamps = cookieValue.match(/\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z/g);
-    assertEqual(timestamps.length, 2, `Should have 2 timestamps, got: ${cookieValue}`);
-  });
+//   await test('POST appends to existing cookie value', async () => {
+//     const existingValue = 'https://example.com:2024-01-01T10:00:00.000Z';
+//     const response = await fetch(COOKIE_ENDPOINT, {
+//       method: 'POST',
+//       headers: {
+//         'Origin': ALLOWED_ORIGIN,
+//         'Cookie': `cps-global-components-state=${existingValue}`
+//       }
+//     });
+//     const setCookie = response.headers.get('set-cookie');
+//     const match = setCookie.match(/cps-global-components-state=([^;]+)/);
+//     assert(match !== null, 'Should be able to extract cookie value');
+//     const cookieValue = match[1];
+//     // Should contain both entries separated by pipe
+//     assert(cookieValue.includes('|'),
+//       `Cookie entries should be separated by pipe, got: ${cookieValue}`);
+//     // Should have two timestamps (one from existing, one new)
+//     const timestamps = cookieValue.match(/\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z/g);
+//     assertEqual(timestamps.length, 2, `Should have 2 timestamps, got: ${cookieValue}`);
+//   });
 
-  await test('POST returns cookies sent in request', async () => {
-    const response = await fetch(COOKIE_ENDPOINT, {
-      method: 'POST',
-      headers: { 'Cookie': 'existing=cookie', 'Origin': ALLOWED_ORIGIN }
-    });
-    const text = await response.text();
-    assertEqual(response.status, 200, 'Should return 200');
-    assert(text.includes('existing=cookie'), 'Should echo back existing cookies');
-  });
+//   await test('POST returns cookies sent in request', async () => {
+//     const response = await fetch(COOKIE_ENDPOINT, {
+//       method: 'POST',
+//       headers: { 'Cookie': 'existing=cookie', 'Origin': ALLOWED_ORIGIN }
+//     });
+//     const text = await response.text();
+//     assertEqual(response.status, 200, 'Should return 200');
+//     assert(text.includes('existing=cookie'), 'Should echo back existing cookies');
+//   });
 
-  await test('returns Content-Type text/plain', async () => {
-    const response = await fetch(COOKIE_ENDPOINT, {
-      headers: { 'Origin': ALLOWED_ORIGIN }
-    });
-    const contentType = response.headers.get('content-type');
-    assert(contentType !== null && contentType.includes('text/plain'),
-      'Content-Type should be text/plain');
-  });
-}
+//   await test('returns Content-Type text/plain', async () => {
+//     const response = await fetch(COOKIE_ENDPOINT, {
+//       headers: { 'Origin': ALLOWED_ORIGIN }
+//     });
+//     const contentType = response.headers.get('content-type');
+//     assert(contentType !== null && contentType.includes('text/plain'),
+//       'Content-Type should be text/plain');
+//   });
+// }
 
 // =============================================================================
 // Upstream Handover Health Check Tests
@@ -447,6 +448,188 @@ async function testUpstreamHealthCheck() {
 }
 
 // =============================================================================
+// Auth Redirect Tests (/init endpoint)
+// =============================================================================
+
+async function testAuthRedirect() {
+  console.log('\nAuth Redirect Tests (/init endpoint):');
+
+  const INIT_ENDPOINT = `${PROXY_BASE}/init`;
+
+  await test('redirects to whitelisted URL with cookie appended', async () => {
+    const response = await fetch(
+      `${INIT_ENDPOINT}?r=/auth-refresh-inbound&cookie=session%3Dabc123`,
+      {
+        redirect: 'manual',
+        headers: {
+          'X-Forwarded-Proto': 'https',
+          'Host': 'localhost:8080'
+        }
+      }
+    );
+    assertEqual(response.status, 302, 'Should return 302 redirect');
+    const location = response.headers.get('location');
+    assert(location !== null, 'Should have Location header');
+    assert(location.includes('/auth-refresh-inbound'), `Should redirect to auth-refresh-inbound, got: ${location}`);
+    assert(location.includes('cc='), `Should include cc param, got: ${location}`);
+  });
+
+  await test('returns 403 for non-whitelisted URL', async () => {
+    const response = await fetch(
+      `${INIT_ENDPOINT}?r=http://evil.com/callback&cookie=session%3Dabc`,
+      {
+        redirect: 'manual',
+        headers: {
+          'X-Forwarded-Proto': 'https',
+          'Host': 'localhost:8080'
+        }
+      }
+    );
+    assertEqual(response.status, 403, 'Should return 403 for non-whitelisted URL');
+  });
+
+  await test('sets cms-session-hint cookie with correct attributes', async () => {
+    const response = await fetch(
+      `${INIT_ENDPOINT}?r=/auth-refresh-inbound&cookie=foo.cps.co.uk_POOL%3Dvalue`,
+      {
+        redirect: 'manual',
+        headers: {
+          'X-Forwarded-Proto': 'https',
+          'Host': 'localhost:8080'
+        }
+      }
+    );
+    const setCookie = response.headers.get('set-cookie');
+    assert(setCookie !== null, 'Should have Set-Cookie header');
+    assert(setCookie.includes('cms-session-hint='), 'Should set cms-session-hint cookie');
+    assert(setCookie.includes('Path=/'), 'Should have Path=/');
+    assert(setCookie.includes('Secure'), 'Should have Secure attribute');
+    assert(setCookie.includes('SameSite=None'), 'Should have SameSite=None');
+    assert(setCookie.includes('Expires='), 'Should have Expires attribute');
+  });
+
+  await test('session hint cookie contains valid JSON with cmsDomains array', async () => {
+    const response = await fetch(
+      `${INIT_ENDPOINT}?r=/auth-refresh-inbound&cookie=foo.bar.cps.co.uk_POOL%3Dx%3Bother.cps.co.uk_POOL%3Dy`,
+      {
+        redirect: 'manual',
+        headers: {
+          'X-Forwarded-Proto': 'https',
+          'Host': 'localhost:8080'
+        }
+      }
+    );
+    const setCookie = response.headers.get('set-cookie');
+    const match = setCookie.match(/cms-session-hint=([^;]+)/);
+    assert(match !== null, 'Should be able to extract cookie value');
+    const hint = JSON.parse(decodeURIComponent(match[1]));
+    assert(Array.isArray(hint.cmsDomains), 'cmsDomains should be an array');
+    assert(hint.cmsDomains.includes('foo.bar.cps.co.uk_POOL'), `Should include first CMS domain, got: ${JSON.stringify(hint.cmsDomains)}`);
+    assert(hint.cmsDomains.includes('other.cps.co.uk_POOL'), `Should include second CMS domain, got: ${JSON.stringify(hint.cmsDomains)}`);
+  });
+
+  await test('session hint cookie has isProxySession false by default', async () => {
+    const response = await fetch(
+      `${INIT_ENDPOINT}?r=/auth-refresh-inbound&cookie=foo.cps.co.uk_POOL%3Dvalue`,
+      {
+        redirect: 'manual',
+        headers: {
+          'X-Forwarded-Proto': 'https',
+          'Host': 'localhost:8080'
+        }
+      }
+    );
+    const setCookie = response.headers.get('set-cookie');
+    const match = setCookie.match(/cms-session-hint=([^;]+)/);
+    const hint = JSON.parse(decodeURIComponent(match[1]));
+    assertEqual(hint.isProxySession, false, 'isProxySession should be false by default');
+  });
+
+  await test('session hint cookie has isProxySession true when param set', async () => {
+    const response = await fetch(
+      `${INIT_ENDPOINT}?r=/auth-refresh-inbound&cookie=foo.cps.co.uk_POOL%3Dvalue&is-proxy-session=true`,
+      {
+        redirect: 'manual',
+        headers: {
+          'X-Forwarded-Proto': 'https',
+          'Host': 'localhost:8080'
+        }
+      }
+    );
+    const setCookie = response.headers.get('set-cookie');
+    const match = setCookie.match(/cms-session-hint=([^;]+)/);
+    const hint = JSON.parse(decodeURIComponent(match[1]));
+    assertEqual(hint.isProxySession, true, 'isProxySession should be true when param set');
+  });
+
+  await test('session hint cookie has empty cmsDomains when no CMS cookies', async () => {
+    const response = await fetch(
+      `${INIT_ENDPOINT}?r=/auth-refresh-inbound&cookie=regular%3Dcookie`,
+      {
+        redirect: 'manual',
+        headers: {
+          'X-Forwarded-Proto': 'https',
+          'Host': 'localhost:8080'
+        }
+      }
+    );
+    const setCookie = response.headers.get('set-cookie');
+    const match = setCookie.match(/cms-session-hint=([^;]+)/);
+    const hint = JSON.parse(decodeURIComponent(match[1]));
+    assertEqual(hint.cmsDomains.length, 0, 'cmsDomains should be empty array when no CMS cookies');
+  });
+}
+
+// =============================================================================
+// Polaris Auth Redirect Tests (/polaris endpoint)
+// =============================================================================
+
+async function testPolarisRedirect() {
+  console.log('\nPolaris Auth Redirect Tests (/polaris endpoint):');
+
+  const POLARIS_ENDPOINT = `${PROXY_BASE}/polaris`;
+
+  await test('redirects to /init with query params and cookies', async () => {
+    const response = await fetch(
+      `${POLARIS_ENDPOINT}?q=12345`,
+      {
+        redirect: 'manual',
+        headers: {
+          'X-Forwarded-Proto': 'https',
+          'Host': 'localhost:8080',
+          'Cookie': 'session=abc123',
+          'Referer': 'http://cms.example.org/page'
+        }
+      }
+    );
+    assertEqual(response.status, 302, 'Should return 302 redirect');
+    const location = response.headers.get('location');
+    assert(location !== null, 'Should have Location header');
+    assert(location.includes('/init?'), `Should redirect to /init, got: ${location}`);
+    assert(location.includes('q=12345'), `Should include original q param, got: ${location}`);
+    assert(location.includes('cookie='), `Should include cookie param, got: ${location}`);
+    assert(location.includes('is-proxy-session=true'), `Should include is-proxy-session=true, got: ${location}`);
+  });
+
+  await test('includes referer in redirect URL', async () => {
+    const response = await fetch(
+      `${POLARIS_ENDPOINT}`,
+      {
+        redirect: 'manual',
+        headers: {
+          'X-Forwarded-Proto': 'https',
+          'Host': 'localhost:8080',
+          'Cookie': 'session=abc',
+          'Referer': 'http://cms.example.org/somepage'
+        }
+      }
+    );
+    const location = response.headers.get('location');
+    assert(location.includes('referer='), `Should include referer param, got: ${location}`);
+  });
+}
+
+// =============================================================================
 // Main
 // =============================================================================
 
@@ -463,8 +646,10 @@ async function main() {
     await testHealthCheck();
     await testCmsAuthValuesHeader();
     await testCmsAuthValuesCookie();
-    await testCookieRoute();
+    // testCookieRoute is commented out - handleCookieRoute is disabled
     await testUpstreamHealthCheck();
+    await testAuthRedirect();
+    await testPolarisRedirect();
     await testFunctionsKey();
     await testCors();
     await testAuthorizationStripping();
