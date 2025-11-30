@@ -202,7 +202,7 @@ async function runTests() {
     const hint = parseSessionHintCookie(r.headersOut["Set-Cookie"]);
     assertDeepEqual(
       hint.cmsDomains,
-      ["foo.bar.cps.gov.uk_POOL", "something.cps.gov.uk_POOL"],
+      ["foo.bar.cps.gov.uk", "something.cps.gov.uk"],
       "Should extract CMS domains into array"
     );
   });
@@ -276,7 +276,7 @@ async function runTests() {
     const hint = parseSessionHintCookie(r.headersOut["Set-Cookie"]);
     assertDeepEqual(
       hint,
-      { cmsDomains: ["test.cps.gov.uk_POOL"], isProxySession: true },
+      { cmsDomains: ["test.cps.gov.uk"], isProxySession: true },
       "Session hint should have correct structure"
     );
   });
