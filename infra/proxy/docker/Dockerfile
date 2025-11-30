@@ -1,4 +1,5 @@
-FROM nginx:1.25-alpine
+#FROM nginx:1.25-alpine
+FROM nginx:1.27.1-alpine
 
 # Install njs module and curl for healthcheck
 RUN apk add --no-cache nginx-mod-http-js curl
