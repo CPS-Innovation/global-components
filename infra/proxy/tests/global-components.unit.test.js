@@ -306,92 +306,93 @@ async function runTests() {
   });
 
   // --- handleCookieRoute tests ---
-  console.log("\nhandleCookieRoute:");
+  // Note: handleCookieRoute is currently commented out in global-components.js
+  // console.log("\nhandleCookieRoute:");
 
-  await test("returns 403 for disallowed origin", async () => {
-    const r = createMockRequest({
-      headersIn: { Origin: "https://evil.com" },
-    });
-    gloco.handleCookieRoute(r);
-    assertEqual(r.returnCode, 403, "Should return 403");
-  });
+  // await test("returns 403 for disallowed origin", async () => {
+  //   const r = createMockRequest({
+  //     headersIn: { Origin: "https://evil.com" },
+  //   });
+  //   gloco.handleCookieRoute(r);
+  //   assertEqual(r.returnCode, 403, "Should return 403");
+  // });
 
-  await test("handles OPTIONS by delegating to CORS handler", async () => {
-    const r = createMockRequest({
-      method: "OPTIONS",
-      headersIn: { Origin: "https://example.com" },
-    });
-    gloco.handleCookieRoute(r);
-    assertEqual(r.returnCode, 204, "Should return 204 for OPTIONS");
-  });
+  // await test("handles OPTIONS by delegating to CORS handler", async () => {
+  //   const r = createMockRequest({
+  //     method: "OPTIONS",
+  //     headersIn: { Origin: "https://example.com" },
+  //   });
+  //   gloco.handleCookieRoute(r);
+  //   assertEqual(r.returnCode, 204, "Should return 204 for OPTIONS");
+  // });
 
-  await test("GET returns cookies from request", async () => {
-    const r = createMockRequest({
-      method: "GET",
-      headersIn: {
-        Origin: "https://example.com",
-        Cookie: "session=abc123",
-      },
-    });
-    gloco.handleCookieRoute(r);
-    assertEqual(r.returnCode, 200, "Should return 200");
-    assert(r.returnBody.includes("session=abc123"), "Should echo cookies");
-  });
+  // await test("GET returns cookies from request", async () => {
+  //   const r = createMockRequest({
+  //     method: "GET",
+  //     headersIn: {
+  //       Origin: "https://example.com",
+  //       Cookie: "session=abc123",
+  //     },
+  //   });
+  //   gloco.handleCookieRoute(r);
+  //   assertEqual(r.returnCode, 200, "Should return 200");
+  //   assert(r.returnBody.includes("session=abc123"), "Should echo cookies");
+  // });
 
-  await test("GET returns '(no cookies)' when none sent", async () => {
-    const r = createMockRequest({
-      method: "GET",
-      headersIn: { Origin: "https://example.com" },
-    });
-    gloco.handleCookieRoute(r);
-    assertEqual(r.returnBody, "(no cookies)", "Should return no cookies message");
-  });
+  // await test("GET returns '(no cookies)' when none sent", async () => {
+  //   const r = createMockRequest({
+  //     method: "GET",
+  //     headersIn: { Origin: "https://example.com" },
+  //   });
+  //   gloco.handleCookieRoute(r);
+  //   assertEqual(r.returnBody, "(no cookies)", "Should return no cookies message");
+  // });
 
-  await test("POST sets cookie with origin and timestamp", async () => {
-    const r = createMockRequest({
-      method: "POST",
-      uri: "/api/global-components/cookie",
-      headersIn: { Origin: "https://example.com" },
-    });
-    gloco.handleCookieRoute(r);
-    assertEqual(r.returnCode, 200, "Should return 200");
-    const setCookie = r.headersOut["Set-Cookie"];
-    assert(setCookie.includes("cps-global-components-state="), "Should set cookie");
-    assert(setCookie.includes("https://example.com:"), "Should include origin");
-    assert(setCookie.includes("Path=/api/global-components/cookie"), "Should have correct path");
-    assert(setCookie.includes("Secure"), "Should have Secure");
-    assert(setCookie.includes("SameSite=None"), "Should have SameSite=None");
-  });
+  // await test("POST sets cookie with origin and timestamp", async () => {
+  //   const r = createMockRequest({
+  //     method: "POST",
+  //     uri: "/api/global-components/cookie",
+  //     headersIn: { Origin: "https://example.com" },
+  //   });
+  //   gloco.handleCookieRoute(r);
+  //   assertEqual(r.returnCode, 200, "Should return 200");
+  //   const setCookie = r.headersOut["Set-Cookie"];
+  //   assert(setCookie.includes("cps-global-components-state="), "Should set cookie");
+  //   assert(setCookie.includes("https://example.com:"), "Should include origin");
+  //   assert(setCookie.includes("Path=/api/global-components/cookie"), "Should have correct path");
+  //   assert(setCookie.includes("Secure"), "Should have Secure");
+  //   assert(setCookie.includes("SameSite=None"), "Should have SameSite=None");
+  // });
 
-  await test("POST appends to existing cookie value", async () => {
-    const existingValue = "https://example.com:2024-01-01T10:00:00.000Z";
-    const r = createMockRequest({
-      method: "POST",
-      uri: "/api/global-components/cookie",
-      headersIn: {
-        Origin: "https://example.com",
-        Cookie: `cps-global-components-state=${existingValue}`,
-      },
-    });
-    gloco.handleCookieRoute(r);
-    const setCookie = r.headersOut["Set-Cookie"];
-    assert(setCookie.includes("|"), "Should have pipe separator");
-    assert(setCookie.includes(existingValue), "Should include existing value");
-  });
+  // await test("POST appends to existing cookie value", async () => {
+  //   const existingValue = "https://example.com:2024-01-01T10:00:00.000Z";
+  //   const r = createMockRequest({
+  //     method: "POST",
+  //     uri: "/api/global-components/cookie",
+  //     headersIn: {
+  //       Origin: "https://example.com",
+  //       Cookie: `cps-global-components-state=${existingValue}`,
+  //     },
+  //   });
+  //   gloco.handleCookieRoute(r);
+  //   const setCookie = r.headersOut["Set-Cookie"];
+  //   assert(setCookie.includes("|"), "Should have pipe separator");
+  //   assert(setCookie.includes(existingValue), "Should include existing value");
+  // });
 
-  await test("sets CORS headers on response", async () => {
-    const r = createMockRequest({
-      method: "GET",
-      headersIn: { Origin: "https://example.com" },
-    });
-    gloco.handleCookieRoute(r);
-    assertEqual(
-      r.headersOut["Access-Control-Allow-Origin"],
-      "https://example.com",
-      "Should set Allow-Origin"
-    );
-    assertEqual(r.headersOut["Access-Control-Allow-Credentials"], "true", "Should set Allow-Credentials");
-  });
+  // await test("sets CORS headers on response", async () => {
+  //   const r = createMockRequest({
+  //     method: "GET",
+  //     headersIn: { Origin: "https://example.com" },
+  //   });
+  //   gloco.handleCookieRoute(r);
+  //   assertEqual(
+  //     r.headersOut["Access-Control-Allow-Origin"],
+  //     "https://example.com",
+  //     "Should set Allow-Origin"
+  //   );
+  //   assertEqual(r.headersOut["Access-Control-Allow-Credentials"], "true", "Should set Allow-Credentials");
+  // });
 
   // Summary
   console.log("\n" + "=".repeat(60));

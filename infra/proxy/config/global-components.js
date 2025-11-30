@@ -4,6 +4,8 @@ import VARIABLES from "templates/global-components-vars.js";
 const CORS_ALLOWED_METHODS = "GET, POST, PUT, PATCH, DELETE, OPTIONS";
 const CORS_ALLOWED_HEADERS =
   "Authorization, Content-Type, Correlation-Id, X-Application, Cms-Auth-Values";
+const SESSION_HINT_COOKIE_NAME = "cms-session-hint";
+const CMS_AUTH_VALUES_COOKIE_NAME = "Cms-Auth-Values";
 
 function getCorsAllowedOrigin(requestOrigin) {
   const allowedOrigins = VARIABLES.corsAllowedOrigins || [];
@@ -62,24 +64,32 @@ function maybeDecodeURIComponent(value) {
   if (/%[0-9A-Fa-f]{2}/.test(value)) {
     try {
       return decodeURIComponent(value);
-    } catch (e) {
-      // If decoding fails (malformed encoding), return original
-      return value;
-    }
+    } catch (e) {}
   }
   return value;
 }
 
-function getCmsAuthValues(r) {
-  // Prefer header, fall back to cookie
-  let headerValue = r.headersIn["Cms-Auth-Values"] || "";
-  if (headerValue) {
-    return maybeDecodeURIComponent(headerValue);
-  }
+function getHeaderValue(r, headerName) {
+  let headerValue = r.headersIn[headerName] || "";
+  return headerValue || "";
+}
 
-  let cookies = r.headersIn.Cookie || "";
-  let match = cookies.match(/Cms-Auth-Values=([^;]+)/);
-  return match ? maybeDecodeURIComponent(match[1]) : "";
+function getCookieValue(r, cookieName) {
+  let cookies = getHeaderValue(r, "Cookie");
+  let match = cookies.match(new RegExp(`(?:^|;\\s*)${cookieName}=([^;]*)`));
+  return match ? match[1] : "";
+}
+
+function getCmsAuthValues(r) {
+  return maybeDecodeURIComponent(
+    getHeaderValue(r, CMS_AUTH_VALUES_COOKIE_NAME) ||
+      getCookieValue(r, CMS_AUTH_VALUES_COOKIE_NAME)
+  );
+}
+
+function handleSessionHint(r) {
+  const hintValue = getCookieValue(r, SESSION_HINT_COOKIE_NAME);
+  r.return(200, hintValue ? maybeDecodeURIComponent(hintValue) : "null");
 }
 
 async function handleHealthCheck(r) {
@@ -95,10 +105,7 @@ async function handleHealthCheck(r) {
   // Whitelist check
   const allowedUrls = VARIABLES.healthCheckAllowedUrls || [];
   if (!allowedUrls.includes(url)) {
-    r.return(
-      403,
-      JSON.stringify({ error: "url not in whitelist", url })
-    );
+    r.return(403, JSON.stringify({ error: "url not in whitelist", url }));
     return;
   }
 
@@ -121,51 +128,51 @@ async function handleHealthCheck(r) {
   }
 }
 
-function handleCookieRoute(r) {
-  // Handle CORS preflight
-  if (r.method === "OPTIONS") {
-    handleCorsPreflightRequest(r);
-    return;
-  }
+// function handleCookieRoute(r) {
+//   // Handle CORS preflight
+//   if (r.method === "OPTIONS") {
+//     handleCorsPreflightRequest(r);
+//     return;
+//   }
 
-  // CORS headers for actual requests
-  const origin = getCorsAllowedOrigin(r.headersIn["Origin"]);
-  if (!origin) {
-    r.return(403);
-    return;
-  }
-  r.headersOut["Access-Control-Allow-Origin"] = origin;
-  r.headersOut["Access-Control-Allow-Credentials"] = "true";
-  r.headersOut["Vary"] = "Origin";
+//   // CORS headers for actual requests
+//   const origin = getCorsAllowedOrigin(r.headersIn["Origin"]);
+//   if (!origin) {
+//     r.return(403);
+//     return;
+//   }
+//   r.headersOut["Access-Control-Allow-Origin"] = origin;
+//   r.headersOut["Access-Control-Allow-Credentials"] = "true";
+//   r.headersOut["Vary"] = "Origin";
 
-  let cookies = r.headersIn.Cookie || "(no cookies)";
+//   let cookies = r.headersIn.Cookie || "(no cookies)";
 
-  if (r.method === "POST") {
-    let now = new Date();
-    let expires = new Date(now.getTime() + 24 * 60 * 60 * 1000);
-    let requestOrigin =
-      r.headersIn["Origin"] || r.headersIn["Referer"] || "unknown";
-    let newEntry = requestOrigin + ":" + now.toISOString();
+//   if (r.method === "POST") {
+//     let now = new Date();
+//     let expires = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+//     let requestOrigin =
+//       r.headersIn["Origin"] || r.headersIn["Referer"] || "unknown";
+//     let newEntry = requestOrigin + ":" + now.toISOString();
 
-    // Get existing cookie value and append
-    let existingValue = "";
-    let cookieMatch = cookies.match(/cps-global-components-state=([^;]+)/);
-    if (cookieMatch) {
-      existingValue = cookieMatch[1];
-    }
+//     // Get existing cookie value and append
+//     let existingValue = "";
+//     let cookieMatch = cookies.match(/cps-global-components-state=([^;]+)/);
+//     if (cookieMatch) {
+//       existingValue = cookieMatch[1];
+//     }
 
-    let cookieValue = existingValue ? existingValue + "|" + newEntry : newEntry;
+//     let cookieValue = existingValue ? existingValue + "|" + newEntry : newEntry;
 
-    r.headersOut[
-      "Set-Cookie"
-    ] = `cps-global-components-state=${cookieValue}; Path=${
-      r.uri
-    }; Expires=${expires.toUTCString()}; Secure; SameSite=None`;
-  }
+//     r.headersOut[
+//       "Set-Cookie"
+//     ] = `cps-global-components-state=${cookieValue}; Path=${
+//       r.uri
+//     }; Expires=${expires.toUTCString()}; Secure; SameSite=None`;
+//   }
 
-  r.headersOut["Content-Type"] = "text/plain";
-  r.return(200, cookies);
-}
+//   r.headersOut["Content-Type"] = "text/plain";
+//   r.return(200, cookies);
+// }
 
 export default {
   getCmsAuthValues,
@@ -173,7 +180,8 @@ export default {
   getFunctionsKey,
   getCorsOrigin,
   swaggerBodyFilter,
-  handleCookieRoute,
+  //handleCookieRoute,
+  handleSessionHint,
   handleCorsPreflightRequest,
   handleHealthCheck,
 };

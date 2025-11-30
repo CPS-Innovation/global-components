@@ -8,7 +8,8 @@ RUN mkdir -p /etc/nginx/templates
 
 # Copy nginx config (context is parent directory)
 COPY docker/nginx.conf /etc/nginx/nginx.conf
-COPY config/global-components.conf /etc/nginx/templates/global-components.conf
+COPY docker/nginx.js /etc/nginx/nginx.js
+COPY config/global-components.conf.template /etc/nginx/templates/global-components.conf.template
 COPY config/global-components.js /etc/nginx/templates/global-components.js
 # Use mock vars for build (real vars mounted at runtime via docker-compose)
 COPY docker/global-components-vars.mock.js /etc/nginx/templates/global-components-vars.js

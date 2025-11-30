@@ -44,10 +44,11 @@ wait_for_proxy() {
   return 1
 }
 
-# Start the stack
+# Start the stack (always rebuild to ensure latest code)
 start_stack() {
-  echo -e "${YELLOW}Starting docker compose stack...${NC}"
+  echo -e "${YELLOW}Rebuilding and starting docker compose stack...${NC}"
   cd "$DOCKER_DIR"
+  docker compose down -t 2 2>/dev/null || true
   docker compose up -d --build
 }
 
@@ -61,17 +62,16 @@ stop_stack() {
 # Main logic
 STARTED_STACK=false
 
-if check_stack_running; then
-  echo -e "${GREEN}Docker compose stack is already running${NC}"
-else
-  echo -e "${YELLOW}Docker compose stack is not running${NC}"
-
-  # Check for --no-start flag
-  if [[ "$*" == *"--no-start"* ]]; then
+# Check for --no-start flag
+if [[ "$*" == *"--no-start"* ]]; then
+  if check_stack_running; then
+    echo -e "${GREEN}Docker compose stack is already running${NC}"
+  else
     echo -e "${RED}Error: Stack not running and --no-start flag specified${NC}"
     exit 1
   fi
-
+else
+  # Always rebuild to ensure we're testing latest code
   start_stack
   STARTED_STACK=true
 fi
@@ -87,7 +87,7 @@ fi
 
 # Run the tests
 echo ""
-PROXY_BASE="$PROXY_BASE" node "$SCRIPT_DIR/tests/proxy.test.js"
+PROXY_BASE="$PROXY_BASE" node "$SCRIPT_DIR/tests/proxy.integration.test.js"
 TEST_EXIT_CODE=$?
 
 # Stop stack if we started it (unless --keep flag)
