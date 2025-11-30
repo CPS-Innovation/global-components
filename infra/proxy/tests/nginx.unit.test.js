@@ -10,7 +10,7 @@ const esbuild = require("esbuild");
 const path = require("path");
 const fs = require("fs");
 
-const DOCKER_DIR = path.join(__dirname, "..", "docker");
+const CONFIG_MAIN_DIR = path.join(__dirname, "..", "config-main");
 const TEST_DIR = __dirname;
 const DIST_DIR = path.join(TEST_DIR, ".dist");
 
@@ -22,7 +22,7 @@ if (!fs.existsSync(DIST_DIR)) {
 // Bundle the module
 async function build() {
   await esbuild.build({
-    entryPoints: [path.join(DOCKER_DIR, "nginx.js")],
+    entryPoints: [path.join(CONFIG_MAIN_DIR, "nginx.js")],
     bundle: true,
     outfile: path.join(DIST_DIR, "nginx.bundle.js"),
     format: "esm",
