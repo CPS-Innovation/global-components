@@ -27,6 +27,7 @@ export default {
   healthCheckAllowedUrls: ["http://allowed-url.com/health"],
   healthCheckTimeoutMs: 2000,
   corsAllowedOrigins: ["https://example.com", "https://allowed-origin.com"],
+  deployVersion: 42,
 };
 `;
 
@@ -303,6 +304,19 @@ async function runTests() {
     assertEqual(body.status, 0, "Should have status 0");
     assertEqual(body.error, "Connection refused", "Should have error message");
     mockFetchError = null;
+  });
+
+  // --- handleStatus tests ---
+  console.log("\nhandleStatus:");
+
+  await test("returns JSON with status and version", async () => {
+    const r = createMockRequest({});
+    gloco.handleStatus(r);
+    assertEqual(r.returnCode, 200, "Should return 200");
+    assertEqual(r.headersOut["Content-Type"], "application/json", "Should be JSON");
+    const body = JSON.parse(r.returnBody);
+    assertEqual(body.status, "online", "Should have status online");
+    assertEqual(body.version, 42, "Should have version from VARIABLES");
   });
 
   // --- handleCookieRoute tests ---
