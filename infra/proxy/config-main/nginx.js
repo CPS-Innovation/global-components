@@ -46,9 +46,11 @@ function _redirectToAbsoluteUrl(r, redirectUrl) {
 }
 
 function setSessionHintCookie(r) {
+  // Match lowercase subdomain(s) followed by .cps.gov.uk_POOL
+  // This avoids matching uppercase prefixes like CPSACP-LTM-CM-WAN-CIN3-
   const cookieValue = JSON.stringify({
     cmsDomains:
-      r.args["cookie"].match(/(?:[a-z0-9-]+\.)+cps\.gov\.uk_POOL/gi) || [],
+      r.args["cookie"].match(/[a-z][a-z0-9]*(?:\.[a-z][a-z0-9]*)*\.cps\.gov\.uk_POOL/g) || [],
     isProxySession: r.args[IS_PROXY_SESSION_PARAM_NAME] === "true",
   })
 

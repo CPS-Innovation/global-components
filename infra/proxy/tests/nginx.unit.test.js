@@ -154,7 +154,7 @@ async function runTests() {
     const r = createMockRequest({
       args: {
         r: "/auth-refresh-inbound",
-        cookie: "foo.bar.cps.co.uk_POOL=value;baz.cps.co.uk_POOL=other",
+        cookie: "foo.bar.cps.gov.uk_POOL=value;baz.cps.gov.uk_POOL=other",
       },
       headersIn: {
         "X-Forwarded-Proto": "https",
@@ -191,7 +191,7 @@ async function runTests() {
     const r = createMockRequest({
       args: {
         r: "/auth-refresh-inbound",
-        cookie: "foo.bar.cps.co.uk_POOL=value;something.cps.co.uk_POOL=other",
+        cookie: "PREFIX-foo.bar.cps.gov.uk_POOL=value;PREFIX-something.cps.gov.uk_POOL=other",
       },
       headersIn: {
         "X-Forwarded-Proto": "https",
@@ -202,7 +202,7 @@ async function runTests() {
     const hint = parseSessionHintCookie(r.headersOut["Set-Cookie"]);
     assertDeepEqual(
       hint.cmsDomains,
-      ["foo.bar.cps.co.uk_POOL", "something.cps.co.uk_POOL"],
+      ["foo.bar.cps.gov.uk_POOL", "something.cps.gov.uk_POOL"],
       "Should extract CMS domains into array"
     );
   });
@@ -212,7 +212,7 @@ async function runTests() {
     const r = createMockRequest({
       args: {
         r: "/auth-refresh-inbound",
-        cookie: "foo.cps.co.uk_POOL=value",
+        cookie: "PREFIX-foo.cps.gov.uk_POOL=value",
       },
       headersIn: {
         "X-Forwarded-Proto": "https",
@@ -229,7 +229,7 @@ async function runTests() {
     const r = createMockRequest({
       args: {
         r: "/auth-refresh-inbound",
-        cookie: "foo.cps.co.uk_POOL=value",
+        cookie: "PREFIX-foo.cps.gov.uk_POOL=value",
         "is-proxy-session": "true",
       },
       headersIn: {
@@ -264,7 +264,7 @@ async function runTests() {
     const r = createMockRequest({
       args: {
         r: "/auth-refresh-inbound",
-        cookie: "test.cps.co.uk_POOL=x",
+        cookie: "PREFIX-test.cps.gov.uk_POOL=x",
         "is-proxy-session": "true",
       },
       headersIn: {
@@ -276,7 +276,7 @@ async function runTests() {
     const hint = parseSessionHintCookie(r.headersOut["Set-Cookie"]);
     assertDeepEqual(
       hint,
-      { cmsDomains: ["test.cps.co.uk_POOL"], isProxySession: true },
+      { cmsDomains: ["test.cps.gov.uk_POOL"], isProxySession: true },
       "Session hint should have correct structure"
     );
   });
