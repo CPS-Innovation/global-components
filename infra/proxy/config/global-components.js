@@ -29,6 +29,43 @@ function _maybeDecodeURIComponent(value) {
   return value
 }
 
+function _base64UrlDecode(str) {
+  // Replace base64url chars with base64 chars
+  str = str.replace(/-/g, "+").replace(/_/g, "/")
+  // Pad if necessary
+  while (str.length % 4) {
+    str += "="
+  }
+  return atob(str)
+}
+
+function _extractAndValidateClaims(r) {
+  var authHeader = r.headersIn["Authorization"]
+
+  if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    return { claimsAreValid: false, claims: {} }
+  }
+
+  var token = authHeader.substring(7)
+  var parts = token.split(".")
+
+  if (parts.length !== 3) {
+    return { claimsAreValid: false, claims: {} }
+  }
+
+  try {
+    var payload = _base64UrlDecode(parts[1])
+    const claims = JSON.parse(payload)
+    const claimsAreValid =
+      claims &&
+      claims.tid === VARIABLES.tenantId &&
+      claims.appid === VARIABLES.applicationId
+    return { claimsAreValid, claims }
+  } catch (e) {
+    return { claimsAreValid: false, claims: {} }
+  }
+}
+
 function readUpstreamUrl(r) {
   return VARIABLES.upstreamUrl
 }
@@ -77,8 +114,9 @@ function handleSessionHint(r) {
 }
 
 function handleTokenCheckSuccess(r) {
-  r.headersOut["Content-Type"] = "text/plain"
-  r.return(200, "OK")
+  var result = _extractAndValidateClaims(r)
+  r.headersOut["Content-Type"] = "application/json"
+  r.return(result.claimsAreValid ? 200 : 401, JSON.stringify(result))
 }
 
 async function handleHealthCheck(r) {
