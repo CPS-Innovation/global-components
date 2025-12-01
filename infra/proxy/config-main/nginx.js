@@ -46,33 +46,35 @@ function _redirectToAbsoluteUrl(r, redirectUrl) {
 }
 
 function setSessionHintCookie(r) {
-  const isProxySession = r.args[IS_PROXY_SESSION_PARAM_NAME] === "true"
-  // Match lowercase subdomain(s) followed by .cps.gov.uk (terminated by _POOL)
-  // This avoids matching uppercase prefixes like CPSACP-LTM-CM-WAN-CIN3-
-  const cmsDomains =
-    r.args["cookie"].match(
-      /[a-z][a-z0-9]*(?:\.[a-z][a-z0-9]*)*\.cps\.gov\.uk(?=_POOL)/g
-    ) || []
+  try {
+    const isProxySession = r.args[IS_PROXY_SESSION_PARAM_NAME] === "true"
+    // Match lowercase subdomain(s) followed by .cps.gov.uk (terminated by _POOL)
+    // This avoids matching uppercase prefixes like CPSACP-LTM-CM-WAN-CIN3-
+    const cmsDomains =
+      r.args["cookie"].match(
+        /[a-z][a-z0-9]*(?:\.[a-z][a-z0-9]*)*\.cps\.gov\.uk(?=_POOL)/g
+      ) || []
 
-  const handoverEndpoint = isProxySession
-    ? `https://${r.headersIn["Host"]}/polaris`
-    : cmsDomains.length
-    ? `https://${cmsDomains[0]}/polaris`
-    : null
+    const handoverEndpoint = isProxySession
+      ? `https://${r.headersIn["Host"]}/polaris`
+      : cmsDomains.length
+      ? `https://${cmsDomains[0]}/polaris`
+      : null
 
-  const cookieValue = JSON.stringify({
-    cmsDomains,
-    isProxySession,
-    handoverEndpoint,
-  })
+    const cookieValue = JSON.stringify({
+      cmsDomains,
+      isProxySession,
+      handoverEndpoint,
+    })
 
-  const expires = new Date(new Date().getTime() + 30 * 24 * 60 * 60 * 1000)
+    const expires = new Date(new Date().getTime() + 30 * 24 * 60 * 60 * 1000)
 
-  r.headersOut[
-    "Set-Cookie"
-  ] = `${SESSION_HINT_COOKIE_NAME}=${encodeURIComponent(
-    cookieValue
-  )}; Path=/; Expires=${expires.toUTCString()}; Secure; SameSite=None`
+    r.headersOut[
+      "Set-Cookie"
+    ] = `${SESSION_HINT_COOKIE_NAME}=${encodeURIComponent(
+      cookieValue
+    )}; Path=/; Expires=${expires.toUTCString()}; Secure; SameSite=None`
+  } catch (err) {}
 }
 
 function appAuthRedirect(r) {

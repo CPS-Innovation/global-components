@@ -6,16 +6,17 @@ import { CorrelationIds } from "../correlation/CorrelationIds";
 import { AnalyticsEvent, AnalyticsEventData, trackEvent } from "./analytics-event";
 import { makeConsole } from "../../logging/makeConsole";
 import { Build, ReadyStateHelper } from "../../store/store";
+import { CmsSessionHintResult } from "../cms-session/CmsSessionHint";
 
 const STORAGE_PREFIX = "cps_global_components";
 
-type Props = { window: Window; config: Config; auth: AuthResult; readyState: ReadyStateHelper; build: Build };
+type Props = { window: Window; config: Config; auth: AuthResult; readyState: ReadyStateHelper; build: Build; cmsSessionHint: CmsSessionHintResult };
 
 export type Analytics = ReturnType<typeof initialiseAnalytics>;
 
 const { _debug } = makeConsole("initialiseAnalytics");
 
-export const initialiseAnalytics = ({ window, config: { APP_INSIGHTS_CONNECTION_STRING, ENVIRONMENT }, auth, readyState, build }: Props) => {
+export const initialiseAnalytics = ({ window, config: { APP_INSIGHTS_CONNECTION_STRING, ENVIRONMENT }, auth, readyState, build, cmsSessionHint: { hint } }: Props) => {
   if (!APP_INSIGHTS_CONNECTION_STRING) {
     return { trackPageView: () => {}, trackException: () => {}, rebindTrackEvent: () => {}, trackEvent: (_: AnalyticsEventData) => {} };
   }
@@ -84,7 +85,7 @@ export const initialiseAnalytics = ({ window, config: { APP_INSIGHTS_CONNECTION_
   }
 
   const trackPageView = ({ context: { found, contextIds }, correlationIds }: { context: FoundContext; correlationIds: CorrelationIds }) => {
-    const arg = { properties: { Environment: ENVIRONMENT, ...authValues, ...build, context: { found, contextIds }, correlationIds } };
+    const arg = { properties: { Environment: ENVIRONMENT, ...authValues, ...build, context: { found, contextIds }, correlationIds, hint } };
     _debug("trackPageView", arg);
     appInsights.trackPageView(arg);
   };

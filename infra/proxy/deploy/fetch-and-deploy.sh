@@ -13,7 +13,7 @@ echo "========================================"
 echo "Fetch and Deploy"
 echo "========================================"
 
-# Load secrets for SSH config
+# Load secrets
 if [ ! -f "$SCRIPT_DIR/secrets.env" ]; then
   echo -e "${RED}Error: secrets.env not found${NC}"
   echo "Copy secrets.env.example to secrets.env and fill in the values"
@@ -21,36 +21,48 @@ if [ ! -f "$SCRIPT_DIR/secrets.env" ]; then
 fi
 source "$SCRIPT_DIR/secrets.env"
 
-# Validate SSH variables
-if [ -z "$SSH_HOST" ] || [ -z "$SSH_SOURCE_PATH" ]; then
-  echo -e "${RED}Error: SSH_HOST and SSH_SOURCE_PATH must be set in secrets.env${NC}"
-  exit 1
-fi
+# GitHub configuration
+GITHUB_REPO="${GITHUB_REPO:-CPS-Innovation/global-components}"
+GITHUB_BRANCH="${GITHUB_BRANCH:-main}"
+GITHUB_BASE_URL="https://raw.githubusercontent.com/${GITHUB_REPO}/refs/heads/${GITHUB_BRANCH}/infra/proxy"
 
-SSH_OPTS=""
-if [ -n "$SSH_KEY_PATH" ]; then
-  SSH_OPTS="-i $SSH_KEY_PATH"
-fi
+echo -e "\n${YELLOW}Fetching files from GitHub (${GITHUB_REPO}@${GITHUB_BRANCH})...${NC}"
 
-echo -e "\n${YELLOW}Fetching files from $SSH_HOST...${NC}"
+# Function to fetch a file from GitHub
+fetch_file() {
+  local remote_path="$1"
+  local local_path="$2"
+  local url="${GITHUB_BASE_URL}/${remote_path}"
 
-# Fetch deploy scripts
-echo "  Fetching deploy scripts..."
-scp $SSH_OPTS "$SSH_HOST:$SSH_SOURCE_PATH/deploy/deploy.sh" "$SCRIPT_DIR/"
-scp $SSH_OPTS "$SSH_HOST:$SSH_SOURCE_PATH/deploy/rollback.sh" "$SCRIPT_DIR/"
+  echo "  Fetching ${remote_path}..."
+  if ! curl -fsSL "$url" -o "$local_path"; then
+    echo -e "${RED}Error: Failed to fetch ${url}${NC}"
+    exit 1
+  fi
+}
 
-# Fetch secrets.env (in case it was updated)
-scp $SSH_OPTS "$SSH_HOST:$SSH_SOURCE_PATH/deploy/secrets.env" "$SCRIPT_DIR/" 2>/dev/null || true
-
-# Fetch config files
-echo "  Fetching config files..."
+# Create directories
 mkdir -p "$SCRIPT_DIR/config"
 mkdir -p "$SCRIPT_DIR/config-main"
 
-scp $SSH_OPTS "$SSH_HOST:$SSH_SOURCE_PATH/config/global-components.js" "$SCRIPT_DIR/config/"
-scp $SSH_OPTS "$SSH_HOST:$SSH_SOURCE_PATH/config/global-components.conf.template" "$SCRIPT_DIR/config/"
-scp $SSH_OPTS "$SSH_HOST:$SSH_SOURCE_PATH/config/global-components-vars.js" "$SCRIPT_DIR/config/"
-scp $SSH_OPTS "$SSH_HOST:$SSH_SOURCE_PATH/config-main/nginx.js" "$SCRIPT_DIR/config-main/"
+# Fetch deploy scripts
+echo "Fetching deploy scripts..."
+fetch_file "deploy/deploy.sh" "$SCRIPT_DIR/deploy.sh"
+fetch_file "deploy/rollback.sh" "$SCRIPT_DIR/rollback.sh"
+
+# Fetch config files (except global-components-vars.js which contains secrets)
+echo "Fetching config files..."
+fetch_file "config/global-components.js" "$SCRIPT_DIR/config/global-components.js"
+fetch_file "config/global-components.conf.template" "$SCRIPT_DIR/config/global-components.conf.template"
+fetch_file "config-main/nginx.js" "$SCRIPT_DIR/config-main/nginx.js"
+
+# Verify global-components-vars.js exists locally (it contains secrets and is not in git)
+if [ ! -f "$SCRIPT_DIR/config/global-components-vars.js" ]; then
+  echo -e "${RED}Error: config/global-components-vars.js not found${NC}"
+  echo "This file contains secrets and must be created manually."
+  echo "See config/global-components-vars.example.js for the template."
+  exit 1
+fi
 
 echo -e "${GREEN}Files fetched successfully${NC}"
 

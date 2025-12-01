@@ -20,8 +20,9 @@ const menuConfigInternal = ({
   context,
   flags: { isOutSystems },
   config: { OS_HANDOVER_URL, LINKS, COOKIE_HANDOVER_URL },
+  cmsSessionHint,
   tags,
-}: Pick<State, "context" | "config" | "tags" | "flags">): MenuConfigResult => {
+}: Pick<State, "context" | "config" | "tags" | "flags" | "cmsSessionHint">): MenuConfigResult => {
   if (!context?.found) {
     return { status: "error", error: new Error("No context found for this URL.") };
   }
@@ -35,7 +36,12 @@ const menuConfigInternal = ({
       //  via the auth handover endpoint to ensure OS has CMS auth
       (targetUrl: string) => {
         const shouldGoViaAuthHandover = isOutSystemsApp({ location: { href: targetUrl } }) && OS_HANDOVER_URL && COOKIE_HANDOVER_URL;
-        return shouldGoViaAuthHandover ? createOutboundUrlDirect({ cookieHandoverUrl: COOKIE_HANDOVER_URL, handoverUrl: OS_HANDOVER_URL, targetUrl }) : targetUrl;
+        if (shouldGoViaAuthHandover) {
+          const cookieHandoverUrl = (cmsSessionHint.found && cmsSessionHint.hint.handoverEndpoint) || COOKIE_HANDOVER_URL;
+          return createOutboundUrlDirect({ cookieHandoverUrl, handoverUrl: OS_HANDOVER_URL, targetUrl });
+        } else {
+          return targetUrl;
+        }
       };
   const links = LINKS.filter(shouldShowLink(contextIds)).map(mapLinkConfig({ contextIds, tags, handoverAdapter }));
   return { status: "ok", links: groupLinksByLevel(links) };

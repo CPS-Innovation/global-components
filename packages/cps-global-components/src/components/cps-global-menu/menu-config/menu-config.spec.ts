@@ -18,6 +18,7 @@ import { createOutboundUrlDirect } from "cps-global-os-handover";
 import { Build, State } from "../../../store/store";
 import { CorrelationIds } from "../../../services/correlation/CorrelationIds";
 import { CaseDetails } from "../../../services/data/CaseDetails";
+import { CmsSessionHintResult } from "../../../services/cms-session/CmsSessionHint";
 
 // Type the mocked functions
 const mockShouldShowLink = shouldShowLink as jest.MockedFunction<typeof shouldShowLink>;
@@ -84,6 +85,11 @@ describe("menuConfig", () => {
 
   const mockCaseDetails: CaseDetails = { urn: "foo", isDcfCase: false };
 
+  const mockCmsSessionHint: CmsSessionHintResult = {
+    found: false,
+    error: undefined,
+  };
+
   beforeEach(() => {
     jest.clearAllMocks();
   });
@@ -111,6 +117,7 @@ describe("menuConfig", () => {
       correlationIds: {} as CorrelationIds,
       caseIdentifiers: { caseId: "1" },
       build: {} as Build,
+      cmsSessionHint: mockCmsSessionHint,
     };
 
     const result = menuConfig(mockState);
@@ -158,6 +165,7 @@ describe("menuConfig", () => {
       correlationIds: {} as CorrelationIds,
       caseIdentifiers: { caseId: "1" },
       build: {} as Build,
+      cmsSessionHint: mockCmsSessionHint,
     };
 
     // Mock shouldShowLink to filter out the second link
@@ -273,6 +281,7 @@ describe("menuConfig", () => {
       correlationIds: {} as CorrelationIds,
       caseIdentifiers: { caseId: "1" },
       build: {} as Build,
+      cmsSessionHint: mockCmsSessionHint,
     };
 
     // Mock shouldShowLink to pass all links
@@ -342,6 +351,7 @@ describe("menuConfig", () => {
       correlationIds: {} as CorrelationIds,
       caseIdentifiers: { caseId: "1" },
       build: {} as Build,
+      cmsSessionHint: mockCmsSessionHint,
     };
 
     // Mock shouldShowLink to pass all links
@@ -412,6 +422,7 @@ describe("menuConfig", () => {
       correlationIds: {} as CorrelationIds,
       caseIdentifiers: { caseId: "1" },
       build: {} as Build,
+      cmsSessionHint: mockCmsSessionHint,
     };
 
     // Mock shouldShowLink to pass all links
@@ -481,6 +492,7 @@ describe("menuConfig", () => {
       correlationIds: {} as CorrelationIds,
       caseIdentifiers: { caseId: "1" },
       build: {} as Build,
+      cmsSessionHint: mockCmsSessionHint,
     };
 
     // Mock shouldShowLink to pass all links
@@ -519,5 +531,91 @@ describe("menuConfig", () => {
       targetUrl: "https://os-app.com/page",
     });
     expect(result).toBe("https://cookie.example.com?r=https://handover.example.com?stage=os-cookie-return&r=https://os-app.com/page");
+  });
+
+  it("should use cmsSessionHint.handoverEndpoint when available for cookieHandoverUrl", () => {
+    const foundContexts = "test-context";
+    const foundTags = { tag1: "value1" };
+
+    const foundContext: FoundContext = {
+      found: true,
+      path: "https://example.com/test",
+      contextIds: foundContexts,
+      domTagDefinitions: undefined,
+      pathTags: foundTags,
+      contextIndex: 0,
+      msalRedirectUrl: "foo",
+      cmsAuthFromStorageKey: undefined,
+      cmsAuth: "",
+      currentHref: "https://foo",
+    };
+
+    const cmsSessionHintWithEndpoint: CmsSessionHintResult = {
+      found: true,
+      hint: {
+        cmsDomains: ["example.com"],
+        isProxySession: true,
+        handoverEndpoint: "https://proxy-cookie.example.com",
+      },
+    };
+
+    const mockState: State = {
+      context: foundContext,
+      caseDetails: mockCaseDetails,
+      config: {
+        ...mockConfig,
+        OS_HANDOVER_URL: "https://handover.example.com",
+        COOKIE_HANDOVER_URL: "https://cookie.example.com",
+      },
+      flags: {
+        ...mockFlags,
+        isOutSystems: false,
+      },
+      propTags: {},
+      pathTags: {},
+      domTags: mockTags,
+      caseDetailsTags: {},
+      tags: {},
+      auth: {} as AuthResult,
+      fatalInitialisationError: undefined as any,
+      initialisationStatus: "complete",
+      correlationIds: {} as CorrelationIds,
+      caseIdentifiers: { caseId: "1" },
+      build: {} as Build,
+      cmsSessionHint: cmsSessionHintWithEndpoint,
+    };
+
+    // Mock shouldShowLink to pass all links
+    const mockFilterFunction = jest.fn().mockReturnValue(true);
+    mockShouldShowLink.mockReturnValue(mockFilterFunction);
+
+    // Capture the handoverAdapter function
+    let capturedHandoverAdapter: ((targetUrl: string) => string) | undefined;
+    mockMapLinkConfig.mockImplementation(args => {
+      capturedHandoverAdapter = args.handoverAdapter;
+      return jest.fn();
+    });
+
+    // Mock groupLinksByLevel
+    mockGroupLinksByLevel.mockReturnValue([[]]);
+
+    menuConfig(mockState);
+
+    // Test the handoverAdapter function
+    expect(capturedHandoverAdapter).toBeDefined();
+
+    // OutSystems URL should use the cmsSessionHint.hint.handoverEndpoint as cookieHandoverUrl
+    mockIsOutSystemsApp.mockReturnValue(true);
+    mockCreateOutboundUrlDirect.mockReturnValue("https://proxy-cookie.example.com?r=https://handover.example.com?stage=os-cookie-return&r=https://os-app.com/page");
+
+    const result = capturedHandoverAdapter!("https://os-app.com/page");
+
+    expect(mockIsOutSystemsApp).toHaveBeenCalledWith({ location: { href: "https://os-app.com/page" } });
+    expect(mockCreateOutboundUrlDirect).toHaveBeenCalledWith({
+      cookieHandoverUrl: "https://proxy-cookie.example.com", // Uses cmsSessionHint.hint.handoverEndpoint
+      handoverUrl: "https://handover.example.com",
+      targetUrl: "https://os-app.com/page",
+    });
+    expect(result).toBe("https://proxy-cookie.example.com?r=https://handover.example.com?stage=os-cookie-return&r=https://os-app.com/page");
   });
 });
