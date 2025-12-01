@@ -70,6 +70,9 @@ const initialise = async (correlationIds: CorrelationIds, window: Window) => {
     const config = await cachedResult("config", () => initialiseConfig({ flags }));
     register({ config });
 
+    const cmsSessionHint = await cachedResult("cmsSessionHint", () => initialiseCmsSessionHint({ config, flags }));
+    register({ cmsSessionHint });
+
     const context = initialiseContext({ window, config });
     register({ context });
     initialiseDomForContext({ context });
@@ -84,7 +87,9 @@ const initialise = async (correlationIds: CorrelationIds, window: Window) => {
       trackPageView,
       trackEvent,
       trackException: t,
-    } = cachedResult("analytics", () => (flags.e2eTestMode.isE2eTestMode ? initialiseMockAnalytics() : initialiseAnalytics({ window, config, auth, readyState, build })));
+    } = cachedResult("analytics", () =>
+      flags.e2eTestMode.isE2eTestMode ? initialiseMockAnalytics() : initialiseAnalytics({ window, config, auth, readyState, build, cmsSessionHint }),
+    );
     trackException = t;
 
     trackPageView({ context, correlationIds });
@@ -94,9 +99,6 @@ const initialise = async (correlationIds: CorrelationIds, window: Window) => {
 
     const isDataAccessEnabled = !!config.GATEWAY_URL;
     if (isDataAccessEnabled) {
-      const cmsSessionHint = await cachedResult("cmsSessionHint", () => initialiseCmsSessionHint({ config, flags }));
-      register({ cmsSessionHint });
-
       const cache = cachedResult("cache", () => createCache("cps-global-components-cache"));
       const augmentedFetch = cachedResult("fetch", () =>
         pipe(fetch, fetchWithCircuitBreaker({ config, trackEvent }), fetchWithAuthFactory({ config, context, getToken, readyState })),

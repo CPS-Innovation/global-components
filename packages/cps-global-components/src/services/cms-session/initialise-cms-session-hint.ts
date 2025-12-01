@@ -13,6 +13,9 @@ export const initialiseCmsSessionHint = async ({
   if (!isOverrideMode) {
     return { found: false, error: new Error("Not enabled") };
   }
+  if (!GATEWAY_URL) {
+    return { found: false, error: new Error("No GATEWAY_URL") };
+  }
   try {
     const response = await fetch(fullyQualifyRequest("/session-hint", GATEWAY_URL));
     if (!response.ok) {
