@@ -372,6 +372,21 @@ async function runTests() {
     assertEqual(r.returnBody, hintValue, "Should extract correct cookie")
   })
 
+  // --- handleTokenCheckSuccess tests ---
+  console.log("\nhandleTokenCheckSuccess:")
+
+  await test('returns 200 with "OK" body', async () => {
+    const r = createMockRequest({})
+    gloco.handleTokenCheckSuccess(r)
+    assertEqual(r.returnCode, 200, "Should return 200")
+    assertEqual(r.returnBody, "OK", 'Should return "OK"')
+    assertEqual(
+      r.headersOut["Content-Type"],
+      "text/plain",
+      "Should set Content-Type to text/plain"
+    )
+  })
+
   // --- handleCookieRoute tests ---
   // Note: handleCookieRoute is currently commented out in global-components.js
   // console.log("\nhandleCookieRoute:");
