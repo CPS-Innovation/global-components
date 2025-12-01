@@ -409,6 +409,81 @@ async function testHealthCheck() {
 // }
 
 // =============================================================================
+// Session Hint Tests
+// =============================================================================
+
+async function testSessionHint() {
+  console.log('\nSession Hint Tests (/api/global-components/session-hint):');
+
+  const SESSION_HINT_ENDPOINT = `${PROXY_BASE}/api/global-components/session-hint`;
+
+  await test('returns "null" when no cms-session-hint cookie is present', async () => {
+    const response = await fetch(SESSION_HINT_ENDPOINT);
+    const text = await response.text();
+    assertEqual(response.status, 200, 'Should return 200');
+    assertEqual(text, 'null', 'Should return "null" when no cookie present');
+  });
+
+  await test('returns cookie value when cms-session-hint cookie is present', async () => {
+    const hintValue = JSON.stringify({ cmsDomains: ['foo.cps.gov.uk'], isProxySession: false, handoverEndpoint: null });
+    const response = await fetch(SESSION_HINT_ENDPOINT, {
+      headers: { 'Cookie': `cms-session-hint=${encodeURIComponent(hintValue)}` }
+    });
+    const text = await response.text();
+    assertEqual(response.status, 200, 'Should return 200');
+    assertEqual(text, hintValue, 'Should return decoded cookie value');
+  });
+
+  await test('decodes URL-encoded cookie value', async () => {
+    const hintValue = JSON.stringify({ cmsDomains: ['test.cps.gov.uk'], isProxySession: true, handoverEndpoint: 'https://test.cps.gov.uk/polaris' });
+    const encodedValue = encodeURIComponent(hintValue);
+    const response = await fetch(SESSION_HINT_ENDPOINT, {
+      headers: { 'Cookie': `cms-session-hint=${encodedValue}` }
+    });
+    const text = await response.text();
+    assertEqual(response.status, 200, 'Should return 200');
+    // The value should be decoded
+    const parsed = JSON.parse(text);
+    assert(Array.isArray(parsed.cmsDomains), 'Should have cmsDomains array');
+    assertEqual(parsed.isProxySession, true, 'Should have isProxySession true');
+    assertEqual(parsed.handoverEndpoint, 'https://test.cps.gov.uk/polaris', 'Should have correct handoverEndpoint');
+  });
+
+  await test('handles cookie among other cookies', async () => {
+    const hintValue = JSON.stringify({ cmsDomains: [], isProxySession: false, handoverEndpoint: null });
+    const response = await fetch(SESSION_HINT_ENDPOINT, {
+      headers: { 'Cookie': `other=value; cms-session-hint=${encodeURIComponent(hintValue)}; another=cookie` }
+    });
+    const text = await response.text();
+    assertEqual(response.status, 200, 'Should return 200');
+    assertEqual(text, hintValue, 'Should extract correct cookie from multiple cookies');
+  });
+
+  await test('handles OPTIONS preflight request', async () => {
+    const response = await fetch(SESSION_HINT_ENDPOINT, {
+      method: 'OPTIONS',
+      headers: {
+        'Origin': 'https://example.com',
+        'Access-Control-Request-Method': 'GET'
+      }
+    });
+    assertEqual(response.status, 204, 'OPTIONS should return 204');
+    const allowMethods = response.headers.get('access-control-allow-methods');
+    assert(allowMethods !== null, 'Should have Access-Control-Allow-Methods header');
+  });
+
+  await test('returns CORS headers on regular requests', async () => {
+    const response = await fetch(SESSION_HINT_ENDPOINT, {
+      headers: { 'Origin': 'https://example.com' }
+    });
+    const corsHeader = response.headers.get('access-control-allow-origin');
+    assert(corsHeader !== null, 'Should have Access-Control-Allow-Origin header');
+    const credentialsHeader = response.headers.get('access-control-allow-credentials');
+    assertEqual(credentialsHeader, 'true', 'Should have Access-Control-Allow-Credentials: true');
+  });
+}
+
+// =============================================================================
 // Upstream Handover Health Check Tests
 // =============================================================================
 
@@ -701,6 +776,7 @@ async function main() {
     await testCmsAuthValuesHeader();
     await testCmsAuthValuesCookie();
     // testCookieRoute is commented out - handleCookieRoute is disabled
+    await testSessionHint();
     await testUpstreamHealthCheck();
     await testAuthRedirect();
     await testPolarisRedirect();
