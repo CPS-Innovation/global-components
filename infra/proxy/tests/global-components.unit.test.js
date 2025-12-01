@@ -28,6 +28,8 @@ export default {
   healthCheckTimeoutMs: 2000,
   corsAllowedOrigins: ["https://example.com", "https://allowed-origin.com"],
   deployVersion: 42,
+  tenantId: "test-tenant-id",
+  applicationId: "test-app-id",
 };
 `
 
@@ -375,16 +377,68 @@ async function runTests() {
   // --- handleTokenCheckSuccess tests ---
   console.log("\nhandleTokenCheckSuccess:")
 
-  await test('returns 200 with "OK" body', async () => {
+  // Helper to create a mock JWT (header.payload.signature)
+  function createMockJwt(payload) {
+    const header = btoa(JSON.stringify({ alg: "RS256", typ: "JWT" }))
+    const payloadB64 = btoa(JSON.stringify(payload))
+    const signature = "mock-signature"
+    return `${header}.${payloadB64}.${signature}`
+  }
+
+  await test("returns 401 with claimsAreValid: false when no Authorization header", async () => {
     const r = createMockRequest({})
     gloco.handleTokenCheckSuccess(r)
-    assertEqual(r.returnCode, 200, "Should return 200")
-    assertEqual(r.returnBody, "OK", 'Should return "OK"')
+    assertEqual(r.returnCode, 401, "Should return 401")
     assertEqual(
       r.headersOut["Content-Type"],
-      "text/plain",
-      "Should set Content-Type to text/plain"
+      "application/json",
+      "Should set Content-Type to application/json"
     )
+    const body = JSON.parse(r.returnBody)
+    assertEqual(body.claimsAreValid, false, "Should have claimsAreValid false")
+  })
+
+  await test("returns 401 with claimsAreValid: false for invalid Bearer token format", async () => {
+    const r = createMockRequest({
+      headersIn: { Authorization: "Bearer not-a-jwt" },
+    })
+    gloco.handleTokenCheckSuccess(r)
+    assertEqual(r.returnCode, 401, "Should return 401")
+    const body = JSON.parse(r.returnBody)
+    assertEqual(body.claimsAreValid, false, "Should have claimsAreValid false")
+  })
+
+  await test("returns 401 with claimsAreValid: false when claims don't match", async () => {
+    const token = createMockJwt({
+      tid: "wrong-tenant-id",
+      appid: "wrong-app-id",
+    })
+    const r = createMockRequest({
+      headersIn: { Authorization: `Bearer ${token}` },
+    })
+    gloco.handleTokenCheckSuccess(r)
+    assertEqual(r.returnCode, 401, "Should return 401")
+    const body = JSON.parse(r.returnBody)
+    assertEqual(body.claimsAreValid, false, "Should have claimsAreValid false")
+    assertEqual(body.claims.tid, "wrong-tenant-id", "Should include claims")
+  })
+
+  await test("returns 200 with claimsAreValid: true when claims match", async () => {
+    const token = createMockJwt({
+      tid: "test-tenant-id",
+      appid: "test-app-id",
+      sub: "user-123",
+    })
+    const r = createMockRequest({
+      headersIn: { Authorization: `Bearer ${token}` },
+    })
+    gloco.handleTokenCheckSuccess(r)
+    assertEqual(r.returnCode, 200, "Should return 200")
+    const body = JSON.parse(r.returnBody)
+    assertEqual(body.claimsAreValid, true, "Should have claimsAreValid true")
+    assertEqual(body.claims.tid, "test-tenant-id", "Should include tenant id")
+    assertEqual(body.claims.appid, "test-app-id", "Should include app id")
+    assertEqual(body.claims.sub, "user-123", "Should include other claims")
   })
 
   // --- handleCookieRoute tests ---
