@@ -14,6 +14,7 @@ import { CaseDetails } from "../services/data/CaseDetails";
 import { ReadyStateHelper, readyStateFactory } from "./ready-state-factory";
 import { CaseIdentifiers } from "../services/context/CaseIdentifiers";
 import { caseIdentifiersSubscriptionFactory } from "./subscriptions/case-identifiers-subscription-factory";
+import { CmsSessionHintResult } from "../services/cms-session/CmsSessionHint";
 export { type ReadyStateHelper };
 
 const registerEventName = "cps-global-components-register";
@@ -45,6 +46,7 @@ type StartupState = {
   config: Config;
   auth: AuthResult;
   build: Build;
+  cmsSessionHint: CmsSessionHintResult;
 };
 
 const initialStartupState = {
@@ -52,6 +54,7 @@ const initialStartupState = {
   config: undefined,
   auth: undefined,
   build: undefined,
+  cmsSessionHint: undefined,
 };
 
 // This state could change (e.g. history-based non-full-refresh navigation or dom tags changing)

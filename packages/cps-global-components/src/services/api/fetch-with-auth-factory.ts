@@ -6,7 +6,7 @@ import { GetToken } from "../auth/GetToken";
 import { emptyCorrelationIds } from "../correlation/CorrelationIds";
 import { FoundContext } from "../context/FoundContext";
 import { withLogging } from "../../logging/with-logging";
-import { fullyQualifyRequest } from "./fully-qualify-request";
+import { fullyQualifyRequest } from "../../utils/fully-qualify-request";
 
 const { _error } = makeConsole("fetchWithAuthFactory");
 
