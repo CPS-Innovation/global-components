@@ -80,8 +80,14 @@ location @gloco_preflight {
 }
 
 location = /api/global-components/experimental-token-check {
-    auth_request /api/global-components/validate-token;
+    error_page 418 = @gloco_preflight;
+    if ($request_method = OPTIONS) {
+      return 418;
+    }
+    add_header Access-Control-Allow-Origin $cors_origin always;
+    add_header Access-Control-Allow-Credentials true always;
 
+    auth_request /api/global-components/validate-token;
     js_content gloco.handleTokenCheckSuccess;
 }
 
