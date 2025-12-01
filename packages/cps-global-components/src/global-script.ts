@@ -109,8 +109,8 @@ const initialise = async (correlationIds: CorrelationIds, window: Window) => {
       if (flags.isOverrideMode) {
         augmentedFetch("experimental-token-check")
           .then(response => response.statusText)
-          .then(content => _debug("Experimental fetch session-hint", content))
-          .catch(reason => _debug("Experimental fetch session-hint error", reason));
+          .then(content => _debug("Experimental fetch token-check", content))
+          .catch(reason => _debug("Experimental fetch token-check error", reason));
         //   fetch(config.GATEWAY_URL + "session-hint", { credentials: "include" })
         //     .then(response => response.json())
         //     .then(content => _debug("Experimental fetch session-hint", content))

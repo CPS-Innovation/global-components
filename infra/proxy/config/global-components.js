@@ -76,6 +76,11 @@ function handleSessionHint(r) {
   r.return(200, hintValue ? _maybeDecodeURIComponent(hintValue) : "null")
 }
 
+function handleTokenCheckSuccess(r) {
+  r.headersOut["Content-Type"] = "text/plain"
+  r.return(200, "OK")
+}
+
 async function handleHealthCheck(r) {
   r.headersOut["Content-Type"] = "application/json"
 
@@ -162,5 +167,6 @@ export default {
   //handleCookieRoute,
   handleStatus,
   handleSessionHint,
+  handleTokenCheckSuccess,
   handleHealthCheck,
 }

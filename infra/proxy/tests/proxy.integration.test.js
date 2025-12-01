@@ -484,6 +484,44 @@ async function testSessionHint() {
 }
 
 // =============================================================================
+// Experimental Token Check Tests
+// =============================================================================
+// Note: This endpoint validates tokens against Microsoft Graph API.
+// We can only test error scenarios since we don't have valid tokens in tests.
+
+async function testExperimentalTokenCheck() {
+  console.log('\nExperimental Token Check Tests (/api/global-components/experimental-token-check):');
+
+  const TOKEN_CHECK_ENDPOINT = `${PROXY_BASE}/api/global-components/experimental-token-check`;
+
+  await test('returns 401 when no Authorization header is provided', async () => {
+    const response = await fetch(TOKEN_CHECK_ENDPOINT);
+    // nginx auth_request returns 401 when the subrequest fails with 401
+    assertEqual(response.status, 401, 'Should return 401 without Authorization header');
+  });
+
+  await test('returns 401 when invalid Authorization header is provided', async () => {
+    const response = await fetch(TOKEN_CHECK_ENDPOINT, {
+      headers: { 'Authorization': 'Bearer invalid-token-12345' }
+    });
+    // Microsoft Graph API returns 401 for invalid tokens
+    assertEqual(response.status, 401, 'Should return 401 for invalid token');
+  });
+
+  await test('returns 401 when malformed Authorization header is provided', async () => {
+    const response = await fetch(TOKEN_CHECK_ENDPOINT, {
+      headers: { 'Authorization': 'not-a-bearer-token' }
+    });
+    // Microsoft Graph API returns 401 for malformed auth headers
+    assertEqual(response.status, 401, 'Should return 401 for malformed Authorization header');
+  });
+
+  // Note: We cannot test the success case (returning "OK") without a valid
+  // Microsoft Graph API token. In production, a valid token would result in
+  // a 200 response with body "OK".
+}
+
+// =============================================================================
 // Upstream Handover Health Check Tests
 // =============================================================================
 
@@ -777,6 +815,7 @@ async function main() {
     await testCmsAuthValuesCookie();
     // testCookieRoute is commented out - handleCookieRoute is disabled
     await testSessionHint();
+    await testExperimentalTokenCheck();
     await testUpstreamHealthCheck();
     await testAuthRedirect();
     await testPolarisRedirect();
