@@ -79,6 +79,22 @@ location @gloco_preflight {
   return 204;
 }
 
+location = /api/global-components/validate-token {
+    internal;
+    proxy_pass https://graph.microsoft.com/v1.0/me;
+    proxy_pass_request_body off;
+    proxy_set_header Content-Length "";
+    proxy_set_header Host graph.microsoft.com;
+    proxy_set_header Authorization $http_authorization;
+    proxy_ssl_server_name on;
+}
+
+location /api/global-components/experimental-token-check {
+    auth_request /api/global-components/validate-token;
+
+    add_header Content-Type text/plain;
+    return 200 'OK';
+}
 
 # location = /api/global-components/cookie {
 #   js_content gloco.handleCookieRoute;
