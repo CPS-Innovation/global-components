@@ -374,71 +374,66 @@ async function runTests() {
     assertEqual(r.returnBody, hintValue, "Should extract correct cookie")
   })
 
-  // --- handleTokenCheckSuccess tests ---
-  console.log("\nhandleTokenCheckSuccess:")
+  // --- handleState tests ---
+  console.log("\nhandleState:")
 
-  // Helper to create a mock JWT (header.payload.signature)
-  function createMockJwt(payload) {
-    const header = btoa(JSON.stringify({ alg: "RS256", typ: "JWT" }))
-    const payloadB64 = btoa(JSON.stringify(payload))
-    const signature = "mock-signature"
-    return `${header}.${payloadB64}.${signature}`
-  }
-
-  await test("returns 401 with claimsAreValid: false when no Authorization header", async () => {
-    const r = createMockRequest({})
-    gloco.handleTokenCheckSuccess(r)
-    assertEqual(r.returnCode, 401, "Should return 401")
+  await test("GET returns null when no cookie present", async () => {
+    const r = createMockRequest({
+      method: "GET",
+      uri: "/api/global-components/state/my-key",
+    })
+    gloco.handleState(r)
+    assertEqual(r.returnCode, 200, "Should return 200")
+    assertEqual(r.returnBody, "null", "Should return null")
     assertEqual(
       r.headersOut["Content-Type"],
       "application/json",
-      "Should set Content-Type to application/json"
+      "Should set Content-Type"
     )
-    const body = JSON.parse(r.returnBody)
-    assertEqual(body.claimsAreValid, false, "Should have claimsAreValid false")
   })
 
-  await test("returns 401 with claimsAreValid: false for invalid Bearer token format", async () => {
+  await test("GET returns cookie value when present", async () => {
+    const stateValue = JSON.stringify({ foo: "bar" })
     const r = createMockRequest({
-      headersIn: { Authorization: "Bearer not-a-jwt" },
+      method: "GET",
+      uri: "/api/global-components/state/my-key",
+      headersIn: {
+        Cookie: `cps-global-components-state=${encodeURIComponent(stateValue)}`,
+      },
     })
-    gloco.handleTokenCheckSuccess(r)
-    assertEqual(r.returnCode, 401, "Should return 401")
-    const body = JSON.parse(r.returnBody)
-    assertEqual(body.claimsAreValid, false, "Should have claimsAreValid false")
+    gloco.handleState(r)
+    assertEqual(r.returnCode, 200, "Should return 200")
+    assertEqual(r.returnBody, stateValue, "Should return cookie value")
   })
 
-  await test("returns 401 with claimsAreValid: false when claims don't match", async () => {
-    const token = createMockJwt({
-      tid: "wrong-tenant-id",
-      appid: "wrong-app-id",
-    })
+  await test("PUT sets cookie with body content", async () => {
+    const stateValue = JSON.stringify({ count: 42 })
     const r = createMockRequest({
-      headersIn: { Authorization: `Bearer ${token}` },
+      method: "PUT",
+      uri: "/api/global-components/state/my-key",
     })
-    gloco.handleTokenCheckSuccess(r)
-    assertEqual(r.returnCode, 401, "Should return 401")
-    const body = JSON.parse(r.returnBody)
-    assertEqual(body.claimsAreValid, false, "Should have claimsAreValid false")
-    assertEqual(body.claims.tid, "wrong-tenant-id", "Should include claims")
-  })
-
-  await test("returns 200 with claimsAreValid: true when claims match", async () => {
-    const token = createMockJwt({
-      tid: "test-tenant-id",
-      appid: "test-app-id",
-      sub: "user-123",
-    })
-    const r = createMockRequest({
-      headersIn: { Authorization: `Bearer ${token}` },
-    })
-    gloco.handleTokenCheckSuccess(r)
+    r.requestText = stateValue
+    gloco.handleState(r)
     assertEqual(r.returnCode, 200, "Should return 200")
     const body = JSON.parse(r.returnBody)
-    assertEqual(body.claimsAreValid, true, "Should have claimsAreValid true")
-    assertEqual(body.claims.tid, "test-tenant-id", "Should include tenant id")
-    assertEqual(body.claims.appid, "test-app-id", "Should include app id")
-    assertEqual(body.claims.sub, "user-123", "Should include other claims")
+    assertEqual(body.success, true, "Should have success true")
+    assertEqual(body.path, "/api/global-components/state/my-key", "Should include path")
+    const setCookie = r.headersOut["Set-Cookie"]
+    assert(setCookie.includes("cps-global-components-state="), "Should set cookie")
+    assert(setCookie.includes("Path=/api/global-components/state/my-key"), "Should set path")
+    assert(setCookie.includes("Secure"), "Should have Secure flag")
+    assert(setCookie.includes("SameSite=None"), "Should have SameSite=None")
+  })
+
+  await test("returns 405 for unsupported methods", async () => {
+    const r = createMockRequest({
+      method: "DELETE",
+      uri: "/api/global-components/state/my-key",
+    })
+    gloco.handleState(r)
+    assertEqual(r.returnCode, 405, "Should return 405")
+    const body = JSON.parse(r.returnBody)
+    assertEqual(body.error, "Method not allowed", "Should have error message")
   })
 
   // --- handleCookieRoute tests ---

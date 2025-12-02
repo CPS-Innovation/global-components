@@ -3,15 +3,15 @@ import VARIABLES from "templates/global-components-vars.js"
 // Centralised CORS configuration
 const SESSION_HINT_COOKIE_NAME = "cms-session-hint"
 const CMS_AUTH_VALUES_COOKIE_NAME = "Cms-Auth-Values"
+const STATE_COOKIE_NAME = "cps-global-components-state"
 
 function _getHeaderValue(r, headerName) {
-  let headerValue = r.headersIn[headerName] || ""
-  return headerValue || ""
+  return r.headersIn[headerName] || ""
 }
 
 function _getCookieValue(r, cookieName) {
-  let cookies = _getHeaderValue(r, "Cookie")
-  let match = cookies.match(new RegExp(`(?:^|;\\s*)${cookieName}=([^;]*)`))
+  const cookies = _getHeaderValue(r, "Cookie")
+  const match = cookies.match(new RegExp(`(?:^|;\\s*)${cookieName}=([^;]*)`))
   return match ? match[1] : ""
 }
 
@@ -40,21 +40,21 @@ function _base64UrlDecode(str) {
 }
 
 function _extractAndValidateClaims(r) {
-  var authHeader = r.headersIn["Authorization"]
+  const authHeader = r.headersIn["Authorization"]
 
   if (!authHeader || !authHeader.startsWith("Bearer ")) {
     return { claimsAreValid: false, claims: {} }
   }
 
-  var token = authHeader.substring(7)
-  var parts = token.split(".")
+  const token = authHeader.substring(7)
+  const parts = token.split(".")
 
   if (parts.length !== 3) {
     return { claimsAreValid: false, claims: {} }
   }
 
   try {
-    var payload = _base64UrlDecode(parts[1])
+    const payload = _base64UrlDecode(parts[1])
     const claims = JSON.parse(payload)
     const claimsAreValid =
       claims &&
@@ -90,12 +90,13 @@ function readCorsOrigin(r) {
 
 function filterSwaggerBody(r, data, flags) {
   // Replace upstream URL with proxy URL and fix API paths
-  var host = r.headersIn["Host"] || r.variables.host
-  var proxyBase = "https://" + host + "/api/global-components"
+  const host = r.headersIn["Host"] || r.variables.host
+  const proxyBase = "https://" + host + "/api/global-components"
 
-  var pattern = new RegExp(_escapeRegExp(VARIABLES.upstreamUrl), "g")
-  var result = data.replace(pattern, proxyBase)
-  result = result.replace(/\"\/api\//g, '"/api/global-components/')
+  const pattern = new RegExp(_escapeRegExp(VARIABLES.upstreamUrl), "g")
+  const result = data
+    .replace(pattern, proxyBase)
+    .replace(/\"\/api\//g, '"/api/global-components/')
 
   r.sendBuffer(result, flags)
 }
@@ -113,10 +114,43 @@ function handleSessionHint(r) {
   r.return(200, hintValue ? _maybeDecodeURIComponent(hintValue) : "null")
 }
 
-function handleTokenCheckSuccess(r) {
-  var result = _extractAndValidateClaims(r)
+function handleState(r) {
+  const claimValidationResult = _extractAndValidateClaims(r)
+  if (!claimValidationResult) {
+    r.return(401, "Failed AD validation")
+    return
+  }
+
   r.headersOut["Content-Type"] = "application/json"
-  r.return(result.claimsAreValid ? 200 : 401, JSON.stringify(result))
+
+  if (r.method === "GET") {
+    // Read the cookie and return its value as JSON
+    const cookieValue = _getCookieValue(r, STATE_COOKIE_NAME)
+    r.return(200, cookieValue ? _maybeDecodeURIComponent(cookieValue) : "null")
+    return
+  }
+
+  if (r.method === "PUT") {
+    // Read body and set as cookie on this exact path
+    const body = r.requestText || ""
+    const expires = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000) // 1 year
+
+    r.headersOut["Set-Cookie"] =
+      STATE_COOKIE_NAME +
+      "=" +
+      encodeURIComponent(body) +
+      "; Path=" +
+      r.uri +
+      "; Expires=" +
+      expires.toUTCString() +
+      "; Secure; SameSite=None"
+
+    r.return(200, JSON.stringify({ success: true, path: r.uri }))
+    return
+  }
+
+  // Method not allowed
+  r.return(405, JSON.stringify({ error: "Method not allowed" }))
 }
 
 async function handleHealthCheck(r) {
@@ -155,56 +189,16 @@ async function handleHealthCheck(r) {
   }
 }
 
-// function handleCookieRoute(r) {
-
-//   // CORS headers for actual requests
-//   const origin = getCorsAllowedOrigin(r.headersIn["Origin"]);
-//   if (!origin) {
-//     r.return(403);
-//     return;
-//   }
-//   r.headersOut["Access-Control-Allow-Origin"] = origin;
-//   r.headersOut["Access-Control-Allow-Credentials"] = "true";
-//   r.headersOut["Vary"] = "Origin";
-
-//   let cookies = r.headersIn.Cookie || "(no cookies)";
-
-//   if (r.method === "POST") {
-//     let now = new Date();
-//     let expires = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
-//     let requestOrigin =
-//       r.headersIn["Origin"] || r.headersIn["Referer"] || "unknown";
-//     let newEntry = requestOrigin + ":" + now.toISOString();
-
-//     // Get existing cookie value and append
-//     let existingValue = "";
-//     let cookieMatch = cookies.match(/cps-global-components-state=([^;]+)/);
-//     if (cookieMatch) {
-//       existingValue = cookieMatch[1];
-//     }
-
-//     let cookieValue = existingValue ? existingValue + "|" + newEntry : newEntry;
-
-//     r.headersOut[
-//       "Set-Cookie"
-//     ] = `cps-global-components-state=${cookieValue}; Path=${
-//       r.uri
-//     }; Expires=${expires.toUTCString()}; Secure; SameSite=None`;
-//   }
-
-//   r.headersOut["Content-Type"] = "text/plain";
-//   r.return(200, cookies);
-// }
-
 export default {
   readCmsAuthValues,
   readUpstreamUrl,
   readFunctionsKey,
   readCorsOrigin,
+
   filterSwaggerBody,
-  //handleCookieRoute,
+
   handleStatus,
   handleSessionHint,
-  handleTokenCheckSuccess,
+  handleState,
   handleHealthCheck,
 }
