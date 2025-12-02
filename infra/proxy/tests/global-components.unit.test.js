@@ -30,6 +30,7 @@ export default {
   deployVersion: 42,
   tenantId: "test-tenant-id",
   applicationId: "test-app-id",
+  previewHtmlBlobUrl: "http://mock-blob/preview/index.html",
 };
 `
 
