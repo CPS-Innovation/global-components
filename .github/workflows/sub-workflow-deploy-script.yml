@@ -39,6 +39,10 @@ jobs:
           artifact-ids: ${{ inputs.artifact-id }}
 
       - run: |
+          # Copy preview app to the deployment folder
+          mkdir -p ${{ steps.download.outputs.download-path }}/preview
+          cp ./apps/preview/index.html ${{ steps.download.outputs.download-path }}/preview/
+
           cp ./configuration/config.${{ inputs.environment }}.json ${{ steps.download.outputs.download-path }}/config.json
           if [ -f "./configuration/config.${{ inputs.environment }}.override.json" ]; then
             cp ./configuration/config.${{ inputs.environment }}.override.json ${{ steps.download.outputs.download-path }}/config.override.json

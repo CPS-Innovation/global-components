@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en" class="govuk-template">
+
+<head>
+  <title>Preview Settings - CPS Global Components</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <link rel="stylesheet" href="https://sacpsglobalcomponents.blob.core.windows.net/test/home/govuk-frontend-5.10.0.min.css">
+  <style>
+    .preview-container {
+      max-width: 640px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+    .preview-status {
+      padding: 15px;
+      margin-bottom: 20px;
+      border-left: 5px solid #1d70b8;
+      background-color: #f3f2f1;
+    }
+    .preview-status--error {
+      border-left-color: #d4351c;
+    }
+    .preview-status--success {
+      border-left-color: #00703c;
+    }
+  </style>
+</head>
+
+<body class="govuk-template__body">
+  <script>document.body.className += ' js-enabled' + ('noModule' in HTMLScriptElement.prototype ? ' govuk-frontend-supported' : '');</script>
+
+  <a href="#main-content" class="govuk-skip-link">Skip to main content</a>
+
+  <header class="govuk-header" role="banner" data-module="govuk-header">
+    <div class="govuk-header__container govuk-width-container">
+      <div class="govuk-header__content">
+        <a href="/" class="govuk-header__link govuk-header__service-name">
+          CPS Global Components
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <div class="govuk-width-container">
+    <main class="govuk-main-wrapper" id="main-content" role="main">
+      <div class="preview-container">
+        <h1 class="govuk-heading-l">Preview Settings</h1>
+
+        <div id="status-message" class="preview-status" style="display: none;"></div>
+
+        <form id="preview-form">
+          <div class="govuk-form-group">
+            <fieldset class="govuk-fieldset">
+              <legend class="govuk-fieldset__legend govuk-fieldset__legend--m">
+                <h2 class="govuk-fieldset__heading">Preview mode</h2>
+              </legend>
+              <div class="govuk-checkboxes" data-module="govuk-checkboxes">
+                <div class="govuk-checkboxes__item">
+                  <input class="govuk-checkboxes__input" id="enabled" name="enabled" type="checkbox" value="enabled">
+                  <label class="govuk-label govuk-checkboxes__label" for="enabled">
+                    Enable preview
+                  </label>
+                </div>
+              </div>
+            </fieldset>
+          </div>
+
+          <div class="govuk-form-group">
+            <fieldset class="govuk-fieldset">
+              <legend class="govuk-fieldset__legend govuk-fieldset__legend--m">
+                <h2 class="govuk-fieldset__heading">Features</h2>
+              </legend>
+              <div class="govuk-checkboxes" data-module="govuk-checkboxes">
+                <div class="govuk-checkboxes__item">
+                  <input class="govuk-checkboxes__input" id="case-markers" name="features" type="checkbox" value="case-markers">
+                  <label class="govuk-label govuk-checkboxes__label" for="case-markers">
+                    Case markers
+                  </label>
+                </div>
+                <div class="govuk-checkboxes__item">
+                  <input class="govuk-checkboxes__input" id="case-search" name="features" type="checkbox" value="case-search">
+                  <label class="govuk-label govuk-checkboxes__label" for="case-search">
+                    Case search
+                  </label>
+                </div>
+                <div class="govuk-checkboxes__item">
+                  <input class="govuk-checkboxes__input" id="my-recent-cases" name="features" type="checkbox" value="my-recent-cases">
+                  <label class="govuk-label govuk-checkboxes__label" for="my-recent-cases">
+                    My recent cases
+                  </label>
+                </div>
+                <div class="govuk-checkboxes__item">
+                  <input class="govuk-checkboxes__input" id="new-header" name="features" type="checkbox" value="new-header">
+                  <label class="govuk-label govuk-checkboxes__label" for="new-header">
+                    New header
+                  </label>
+                </div>
+                <div class="govuk-checkboxes__item">
+                  <input class="govuk-checkboxes__input" id="accessibility" name="features" type="checkbox" value="accessibility">
+                  <label class="govuk-label govuk-checkboxes__label" for="accessibility">
+                    Accessibility
+                  </label>
+                </div>
+              </div>
+            </fieldset>
+          </div>
+        </form>
+      </div>
+    </main>
+  </div>
+
+  <footer class="govuk-footer" role="contentinfo">
+    <div class="govuk-width-container">
+      <div class="govuk-footer__meta">
+        <div class="govuk-footer__meta-item govuk-footer__meta-item--grow">
+          <span class="govuk-footer__licence-description">
+            CPS Global Components Preview Settings
+          </span>
+        </div>
+      </div>
+    </div>
+  </footer>
+
+  <script>
+    const STATE_ENDPOINT = '/api/global-components/state/preview';
+    const statusEl = document.getElementById('status-message');
+    const enabledCheckbox = document.getElementById('enabled');
+    const featureCheckboxes = document.querySelectorAll('input[name="features"]');
+
+    function showStatus(message, type) {
+      statusEl.textContent = message;
+      statusEl.className = 'preview-status' + (type ? ' preview-status--' + type : '');
+      statusEl.style.display = 'block';
+      setTimeout(() => { statusEl.style.display = 'none'; }, 3000);
+    }
+
+    function getState() {
+      const features = [];
+      featureCheckboxes.forEach(cb => {
+        if (cb.checked) features.push(cb.value);
+      });
+      return {
+        enabled: enabledCheckbox.checked,
+        features: features
+      };
+    }
+
+    function setState(state) {
+      if (!state) return;
+      enabledCheckbox.checked = state.enabled || false;
+      featureCheckboxes.forEach(cb => {
+        cb.checked = (state.features || []).includes(cb.value);
+      });
+    }
+
+    async function loadState() {
+      try {
+        const response = await fetch(STATE_ENDPOINT, {
+          credentials: 'include'
+        });
+        if (!response.ok) {
+          if (response.status === 401) {
+            showStatus('Please sign in to access preview settings', 'error');
+            return;
+          }
+          throw new Error('Failed to load state');
+        }
+        const state = await response.json();
+        setState(state);
+      } catch (err) {
+        showStatus('Failed to load settings: ' + err.message, 'error');
+      }
+    }
+
+    async function saveState() {
+      try {
+        const response = await fetch(STATE_ENDPOINT, {
+          method: 'PUT',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(getState())
+        });
+        if (!response.ok) {
+          if (response.status === 401) {
+            showStatus('Please sign in to save preview settings', 'error');
+            return;
+          }
+          throw new Error('Failed to save state');
+        }
+        showStatus('Settings saved', 'success');
+      } catch (err) {
+        showStatus('Failed to save settings: ' + err.message, 'error');
+      }
+    }
+
+    // Load state on page load
+    loadState();
+
+    // Save on any checkbox change
+    enabledCheckbox.addEventListener('change', saveState);
+    featureCheckboxes.forEach(cb => cb.addEventListener('change', saveState));
+  </script>
+</body>
+
+</html>
