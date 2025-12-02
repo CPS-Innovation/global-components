@@ -4,7 +4,12 @@
 <head>
   <title>Preview Settings - CPS Global Components</title>
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <link rel="stylesheet" href="https://sacpsglobalcomponents.blob.core.windows.net/test/home/govuk-frontend-5.10.0.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/govuk-frontend@5.10.0/dist/govuk/govuk-frontend.min.css">
+  <script type="module" src="https://sacpsglobalcomponents.blob.core.windows.net/test/cps-global-components.js"></script>
+  <script type="text/javascript"
+    src="https://alcdn.msauth.net/browser/2.35.0/js/msal-browser.min.js"
+    integrity="sha384-PARf28kmic36Ve+O3DnUerRXFtOQ7ZDqRDGpLcbljly5/N39T2OV3kt3QsWOKeAX"
+    crossorigin="anonymous"></script>
   <style>
     .preview-container {
       max-width: 640px;
@@ -23,6 +28,36 @@
     .preview-status--success {
       border-left-color: #00703c;
     }
+    .preview-auth {
+      padding: 20px;
+      text-align: center;
+      background-color: #f3f2f1;
+      margin-bottom: 20px;
+    }
+    .govuk-button {
+      font-weight: 400;
+      font-size: 19px;
+      line-height: 1;
+      box-sizing: border-box;
+      display: inline-block;
+      position: relative;
+      width: 100%;
+      margin-top: 0;
+      margin-bottom: 22px;
+      padding: 8px 10px 7px;
+      border: 2px solid transparent;
+      border-radius: 0;
+      color: #fff;
+      background-color: #00703c;
+      box-shadow: 0 2px 0 #002d18;
+      text-align: center;
+      vertical-align: top;
+      cursor: pointer;
+    }
+    .govuk-button:hover { background-color: #005a30; }
+    @media (min-width: 40.0625em) { .govuk-button { width: auto; } }
+    #auth-section { display: none; }
+    #main-form { display: none; }
   </style>
 </head>
 
@@ -31,24 +66,21 @@
 
   <a href="#main-content" class="govuk-skip-link">Skip to main content</a>
 
-  <header class="govuk-header" role="banner" data-module="govuk-header">
-    <div class="govuk-header__container govuk-width-container">
-      <div class="govuk-header__content">
-        <a href="/" class="govuk-header__link govuk-header__service-name">
-          CPS Global Components
-        </a>
-      </div>
-    </div>
-  </header>
-
   <div class="govuk-width-container">
+    <cps-global-header></cps-global-header>
+
     <main class="govuk-main-wrapper" id="main-content" role="main">
       <div class="preview-container">
         <h1 class="govuk-heading-l">Preview Settings</h1>
 
         <div id="status-message" class="preview-status" style="display: none;"></div>
 
-        <form id="preview-form">
+        <div id="auth-section" class="preview-auth">
+          <p class="govuk-body">Please sign in to access preview settings.</p>
+          <button id="login-button" class="govuk-button">Sign in with Microsoft</button>
+        </div>
+
+        <form id="main-form">
           <div class="govuk-form-group">
             <fieldset class="govuk-fieldset">
               <legend class="govuk-fieldset__legend govuk-fieldset__legend--m">
@@ -107,31 +139,53 @@
         </form>
       </div>
     </main>
+
+    <cps-global-footer></cps-global-footer>
   </div>
 
-  <footer class="govuk-footer" role="contentinfo">
-    <div class="govuk-width-container">
-      <div class="govuk-footer__meta">
-        <div class="govuk-footer__meta-item govuk-footer__meta-item--grow">
-          <span class="govuk-footer__licence-description">
-            CPS Global Components Preview Settings
-          </span>
-        </div>
-      </div>
-    </div>
-  </footer>
-
   <script>
+    // MSAL Configuration - test environment
+    const msalConfig = {
+      auth: {
+        clientId: '8d6133af-9593-47c6-94d0-5c65e9e310f1',
+        authority: 'https://login.microsoftonline.com/00dd0d1d-d7e6-4338-ac51-565339c7088c',
+        redirectUri: window.location.origin + '/api/global-components/preview'
+      },
+      cache: {
+        cacheLocation: 'localStorage'
+      }
+    };
+
+    const tokenRequest = { scopes: ['User.Read'] };
+
     const STATE_ENDPOINT = '/api/global-components/state/preview';
     const statusEl = document.getElementById('status-message');
+    const authSection = document.getElementById('auth-section');
+    const mainForm = document.getElementById('main-form');
+    const loginButton = document.getElementById('login-button');
     const enabledCheckbox = document.getElementById('enabled');
     const featureCheckboxes = document.querySelectorAll('input[name="features"]');
+
+    let msalInstance = null;
+    let accessToken = null;
 
     function showStatus(message, type) {
       statusEl.textContent = message;
       statusEl.className = 'preview-status' + (type ? ' preview-status--' + type : '');
       statusEl.style.display = 'block';
-      setTimeout(() => { statusEl.style.display = 'none'; }, 3000);
+      if (type !== 'error') {
+        setTimeout(() => { statusEl.style.display = 'none'; }, 3000);
+      }
+    }
+
+    function showAuthSection() {
+      authSection.style.display = 'block';
+      mainForm.style.display = 'none';
+    }
+
+    function showMainForm() {
+      authSection.style.display = 'none';
+      mainForm.style.display = 'block';
     }
 
     function getState() {
@@ -153,16 +207,34 @@
       });
     }
 
+    async function getToken() {
+      const accounts = msalInstance.getAllAccounts();
+      if (accounts.length === 0) {
+        return null;
+      }
+      try {
+        const response = await msalInstance.acquireTokenSilent({
+          ...tokenRequest,
+          account: accounts[0]
+        });
+        return response.accessToken;
+      } catch (err) {
+        console.log('Silent token acquisition failed:', err);
+        return null;
+      }
+    }
+
     async function loadState() {
+      if (!accessToken) {
+        showStatus('Please sign in to access preview settings', 'error');
+        return;
+      }
       try {
         const response = await fetch(STATE_ENDPOINT, {
-          credentials: 'include'
+          credentials: 'include',
+          headers: { 'Authorization': 'Bearer ' + accessToken }
         });
         if (!response.ok) {
-          if (response.status === 401) {
-            showStatus('Please sign in to access preview settings', 'error');
-            return;
-          }
           throw new Error('Failed to load state');
         }
         const state = await response.json();
@@ -173,18 +245,21 @@
     }
 
     async function saveState() {
+      if (!accessToken) {
+        showStatus('Please sign in to save preview settings', 'error');
+        return;
+      }
       try {
         const response = await fetch(STATE_ENDPOINT, {
           method: 'PUT',
           credentials: 'include',
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ' + accessToken
+          },
           body: JSON.stringify(getState())
         });
         if (!response.ok) {
-          if (response.status === 401) {
-            showStatus('Please sign in to save preview settings', 'error');
-            return;
-          }
           throw new Error('Failed to save state');
         }
         showStatus('Settings saved', 'success');
@@ -193,12 +268,46 @@
       }
     }
 
-    // Load state on page load
-    loadState();
+    async function handleLogin() {
+      try {
+        const response = await msalInstance.loginPopup(tokenRequest);
+        accessToken = response.accessToken;
+        showMainForm();
+        await loadState();
+      } catch (err) {
+        console.error('Login failed:', err);
+        showStatus('Login failed: ' + err.message, 'error');
+      }
+    }
 
-    // Save on any checkbox change
+    async function init() {
+      msalInstance = new msal.PublicClientApplication(msalConfig);
+      await msalInstance.initialize();
+
+      // Handle redirect response if coming back from login
+      const response = await msalInstance.handleRedirectPromise();
+      if (response) {
+        accessToken = response.accessToken;
+      } else {
+        // Try silent token acquisition
+        accessToken = await getToken();
+      }
+
+      if (accessToken) {
+        showMainForm();
+        await loadState();
+      } else {
+        showAuthSection();
+      }
+    }
+
+    // Event listeners
+    loginButton.addEventListener('click', handleLogin);
     enabledCheckbox.addEventListener('change', saveState);
     featureCheckboxes.forEach(cb => cb.addEventListener('change', saveState));
+
+    // Initialize MSAL and load state
+    init();
   </script>
 </body>
 
