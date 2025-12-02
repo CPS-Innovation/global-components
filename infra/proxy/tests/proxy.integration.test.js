@@ -56,133 +56,46 @@ async function fetchJson(url, options = {}) {
 }
 
 // =============================================================================
-// Cms-Auth-Values Header Tests
+// Upstream Proxy Authentication Tests
 // =============================================================================
+// Note: The catch-all route now requires token validation via auth_request.
+// These tests verify that unauthenticated requests are rejected.
+// The actual Cms-Auth-Values header/cookie processing is tested in unit tests.
 
-async function testCmsAuthValuesHeader() {
-  console.log('\nCms-Auth-Values Header Tests:');
+async function testUpstreamProxyAuth() {
+  console.log('\nUpstream Proxy Authentication Tests:');
 
-  await test('passes through non-encoded header value', async () => {
-    const testValue = 'userId=123&orgId=456';
-    const response = await fetchJson(TEST_ENDPOINT, {
-      headers: { 'Cms-Auth-Values': testValue }
-    });
-    assertEqual(response.headers['cms-auth-values'], testValue,
-      'Non-encoded value should pass through unchanged');
+  await test('returns 401 when no Authorization header is provided', async () => {
+    const response = await fetch(TEST_ENDPOINT);
+    assertEqual(response.status, 401, 'Should return 401 without Authorization header');
   });
 
-  await test('decodes URL-encoded header value', async () => {
-    const encodedValue = 'userId%3D123%26orgId%3D456';
-    const expectedDecoded = 'userId=123&orgId=456';
-    const response = await fetchJson(TEST_ENDPOINT, {
-      headers: { 'Cms-Auth-Values': encodedValue }
+  await test('returns 401 when invalid Authorization header is provided', async () => {
+    const response = await fetch(TEST_ENDPOINT, {
+      headers: { 'Authorization': 'Bearer invalid-token' }
     });
-    assertEqual(response.headers['cms-auth-values'], expectedDecoded,
-      'URL-encoded value should be decoded');
+    assertEqual(response.status, 401, 'Should return 401 for invalid token');
   });
 
-  await test('handles double-encoded value (decodes once)', async () => {
-    // Double encoded: userId%253D123 -> userId%3D123 -> userId=123
-    const doubleEncoded = 'userId%253D123';
-    const expectedOneDecode = 'userId%3D123';
-    const response = await fetchJson(TEST_ENDPOINT, {
-      headers: { 'Cms-Auth-Values': doubleEncoded }
+  await test('returns 401 even with Cms-Auth-Values header', async () => {
+    const response = await fetch(TEST_ENDPOINT, {
+      headers: { 'Cms-Auth-Values': 'userId=123' }
     });
-    assertEqual(response.headers['cms-auth-values'], expectedOneDecode,
-      'Double-encoded value should only be decoded once');
+    assertEqual(response.status, 401, 'Should return 401 - auth required before proxy');
   });
 
-  await test('handles value with literal percent sign', async () => {
-    // "100% complete" contains % but not valid encoding
-    const valueWithPercent = '100% complete';
-    const response = await fetchJson(TEST_ENDPOINT, {
-      headers: { 'Cms-Auth-Values': valueWithPercent }
+  await test('returns 401 even with Cms-Auth-Values cookie', async () => {
+    const response = await fetch(TEST_ENDPOINT, {
+      headers: { 'Cookie': 'Cms-Auth-Values=userId=123' }
     });
-    assertEqual(response.headers['cms-auth-values'], valueWithPercent,
-      'Value with literal % should pass through unchanged');
+    assertEqual(response.status, 401, 'Should return 401 - auth required before proxy');
   });
 
-  await test('handles empty header value', async () => {
-    const response = await fetchJson(TEST_ENDPOINT, {
-      headers: { 'Cms-Auth-Values': '' }
-    });
-    // Empty header might not be sent at all, or sent as empty
-    assert(
-      response.headers['cms-auth-values'] === '' ||
-      response.headers['cms-auth-values'] === null,
-      'Empty header should result in empty or null value'
-    );
-  });
-
-  await test('handles complex encoded JSON-like value', async () => {
-    const original = '{"user":"test","roles":["admin","user"]}';
-    const encoded = encodeURIComponent(original);
-    const response = await fetchJson(TEST_ENDPOINT, {
-      headers: { 'Cms-Auth-Values': encoded }
-    });
-    assertEqual(response.headers['cms-auth-values'], original,
-      'Encoded JSON should be decoded correctly');
-  });
-}
-
-// =============================================================================
-// Cms-Auth-Values Cookie Tests
-// =============================================================================
-
-async function testCmsAuthValuesCookie() {
-  console.log('\nCms-Auth-Values Cookie Tests:');
-
-  await test('passes through non-encoded cookie value', async () => {
-    const testValue = 'userId=123&orgId=456';
-    const response = await fetchJson(TEST_ENDPOINT, {
-      headers: { 'Cookie': `Cms-Auth-Values=${testValue}` }
-    });
-    assertEqual(response.headers['cms-auth-values'], testValue,
-      'Non-encoded cookie value should pass through unchanged');
-  });
-
-  await test('decodes URL-encoded cookie value', async () => {
-    const encodedValue = 'userId%3D123%26orgId%3D456';
-    const expectedDecoded = 'userId=123&orgId=456';
-    const response = await fetchJson(TEST_ENDPOINT, {
-      headers: { 'Cookie': `Cms-Auth-Values=${encodedValue}` }
-    });
-    assertEqual(response.headers['cms-auth-values'], expectedDecoded,
-      'URL-encoded cookie value should be decoded');
-  });
-
-  await test('header takes precedence over cookie', async () => {
-    const headerValue = 'from-header';
-    const cookieValue = 'from-cookie';
-    const response = await fetchJson(TEST_ENDPOINT, {
-      headers: {
-        'Cms-Auth-Values': headerValue,
-        'Cookie': `Cms-Auth-Values=${cookieValue}`
-      }
-    });
-    assertEqual(response.headers['cms-auth-values'], headerValue,
-      'Header should take precedence over cookie');
-  });
-
-  await test('falls back to cookie when header is missing', async () => {
-    const cookieValue = 'from-cookie-only';
-    const response = await fetchJson(TEST_ENDPOINT, {
-      headers: { 'Cookie': `Cms-Auth-Values=${cookieValue}` }
-    });
-    assertEqual(response.headers['cms-auth-values'], cookieValue,
-      'Should use cookie when header is not present');
-  });
-
-  await test('handles cookie among other cookies', async () => {
-    const testValue = 'myAuthValue';
-    const response = await fetchJson(TEST_ENDPOINT, {
-      headers: {
-        'Cookie': `session=abc123; Cms-Auth-Values=${testValue}; other=xyz`
-      }
-    });
-    assertEqual(response.headers['cms-auth-values'], testValue,
-      'Should extract correct cookie from multiple cookies');
-  });
+  // Note: Successful proxy requests require a valid Microsoft Graph token.
+  // When authenticated, the proxy will:
+  // - Pass through Cms-Auth-Values header/cookie (decoded) to upstream
+  // - Add x-functions-key header
+  // - Strip Authorization header from upstream request
 }
 
 // =============================================================================
@@ -221,16 +134,9 @@ async function testSwaggerRewriting() {
 // =============================================================================
 // x-functions-key Header Tests
 // =============================================================================
-
-async function testFunctionsKey() {
-  console.log('\nx-functions-key Header Tests:');
-
-  await test('adds x-functions-key header to upstream requests', async () => {
-    const response = await fetchJson(TEST_ENDPOINT);
-    assert(response.headers['x-functions-key'] !== null,
-      'x-functions-key should be present in upstream request');
-  });
-}
+// Note: These tests require a valid Microsoft Graph token to reach upstream.
+// The header injection is verified via unit tests in global-components.unit.test.js.
+// When auth is working, the proxy adds x-functions-key to upstream requests.
 
 // =============================================================================
 // CORS Tests
@@ -265,21 +171,9 @@ async function testCors() {
 // =============================================================================
 // Authorization Header Stripping Tests
 // =============================================================================
-
-async function testAuthorizationStripping() {
-  console.log('\nAuthorization Header Stripping Tests:');
-
-  await test('strips Authorization header from upstream requests', async () => {
-    const response = await fetchJson(TEST_ENDPOINT, {
-      headers: { 'Authorization': 'Bearer secret-token' }
-    });
-    // The mock server would echo back the Authorization header if it received one
-    assert(
-      !response.headers['authorization'] || response.headers['authorization'] === '',
-      'Authorization header should be stripped'
-    );
-  });
-}
+// Note: These tests require a valid Microsoft Graph token to reach upstream.
+// The Authorization stripping is verified via nginx config inspection.
+// When auth is working, the proxy strips Authorization before proxying upstream.
 
 // =============================================================================
 // Health Check Tests
@@ -484,41 +378,75 @@ async function testSessionHint() {
 }
 
 // =============================================================================
-// Experimental Token Check Tests
+// State Endpoint Tests
 // =============================================================================
-// Note: This endpoint validates tokens against Microsoft Graph API.
-// We can only test error scenarios since we don't have valid tokens in tests.
+// Note: This endpoint requires token validation via auth_request.
+// We can only test auth rejection and CORS since we don't have valid tokens.
 
-async function testExperimentalTokenCheck() {
-  console.log('\nExperimental Token Check Tests (/api/global-components/experimental-token-check):');
+async function testStateEndpoint() {
+  console.log('\nState Endpoint Tests (/api/global-components/state/*):');
 
-  const TOKEN_CHECK_ENDPOINT = `${PROXY_BASE}/api/global-components/experimental-token-check`;
+  const STATE_ENDPOINT = `${PROXY_BASE}/api/global-components/state/test-key`;
 
-  await test('returns 401 when no Authorization header is provided', async () => {
-    const response = await fetch(TOKEN_CHECK_ENDPOINT);
-    // nginx auth_request returns 401 when the subrequest fails with 401
+  await test('GET returns 401 when no Authorization header is provided', async () => {
+    const response = await fetch(STATE_ENDPOINT);
     assertEqual(response.status, 401, 'Should return 401 without Authorization header');
   });
 
-  await test('returns 401 when invalid Authorization header is provided', async () => {
-    const response = await fetch(TOKEN_CHECK_ENDPOINT, {
+  await test('PUT returns 401 when no Authorization header is provided', async () => {
+    const response = await fetch(STATE_ENDPOINT, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ test: 'data' })
+    });
+    assertEqual(response.status, 401, 'Should return 401 without Authorization header');
+  });
+
+  await test('GET returns 401 when invalid Authorization header is provided', async () => {
+    const response = await fetch(STATE_ENDPOINT, {
       headers: { 'Authorization': 'Bearer invalid-token-12345' }
     });
-    // Microsoft Graph API returns 401 for invalid tokens
     assertEqual(response.status, 401, 'Should return 401 for invalid token');
   });
 
-  await test('returns 401 when malformed Authorization header is provided', async () => {
-    const response = await fetch(TOKEN_CHECK_ENDPOINT, {
-      headers: { 'Authorization': 'not-a-bearer-token' }
+  await test('PUT returns 401 when invalid Authorization header is provided', async () => {
+    const response = await fetch(STATE_ENDPOINT, {
+      method: 'PUT',
+      headers: {
+        'Authorization': 'Bearer invalid-token-12345',
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ test: 'data' })
     });
-    // Microsoft Graph API returns 401 for malformed auth headers
-    assertEqual(response.status, 401, 'Should return 401 for malformed Authorization header');
+    assertEqual(response.status, 401, 'Should return 401 for invalid token');
   });
 
-  // Note: We cannot test the success case (returning "OK") without a valid
-  // Microsoft Graph API token. In production, a valid token would result in
-  // a 200 response with body "OK".
+  await test('handles OPTIONS preflight request', async () => {
+    const response = await fetch(STATE_ENDPOINT, {
+      method: 'OPTIONS',
+      headers: {
+        'Origin': 'https://example.com',
+        'Access-Control-Request-Method': 'PUT'
+      }
+    });
+    assertEqual(response.status, 204, 'OPTIONS should return 204');
+    const allowMethods = response.headers.get('access-control-allow-methods');
+    assert(allowMethods !== null, 'Should have Access-Control-Allow-Methods header');
+    assert(allowMethods.includes('PUT'), 'Should allow PUT method');
+  });
+
+  await test('handles different state keys in path', async () => {
+    const response1 = await fetch(`${PROXY_BASE}/api/global-components/state/key-one`);
+    assertEqual(response1.status, 401, 'Should return 401 for key-one');
+
+    const response2 = await fetch(`${PROXY_BASE}/api/global-components/state/nested/key/path`);
+    assertEqual(response2.status, 401, 'Should return 401 for nested path');
+  });
+
+  // Note: We cannot test successful GET/PUT operations without a valid
+  // Microsoft Graph API token. In production:
+  // - GET returns the cookie value as JSON or "null"
+  // - PUT stores the body in a cookie and returns { success: true, path: "..." }
 }
 
 // =============================================================================
@@ -811,17 +739,14 @@ async function main() {
 
   try {
     await testHealthCheck();
-    await testCmsAuthValuesHeader();
-    await testCmsAuthValuesCookie();
+    await testUpstreamProxyAuth();
     // testCookieRoute is commented out - handleCookieRoute is disabled
     await testSessionHint();
-    await testExperimentalTokenCheck();
+    await testStateEndpoint();
     await testUpstreamHealthCheck();
     await testAuthRedirect();
     await testPolarisRedirect();
-    await testFunctionsKey();
     await testCors();
-    await testAuthorizationStripping();
     await testSwaggerRewriting();
   } catch (err) {
     console.error('\nTest suite error:', err.message);
