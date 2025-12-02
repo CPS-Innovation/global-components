@@ -107,9 +107,12 @@ const initialise = async (correlationIds: CorrelationIds, window: Window) => {
       cachedResult("case-details", () => subscribe(caseDetailsSubscriptionFactory({ config, cache, fetch: augmentedFetch })));
 
       if (flags.isOverrideMode) {
-        augmentedFetch("experimental-token-check")
+        const timestamp = +new Date();
+        augmentedFetch("state/experimental-state", { method: "PUT", body: JSON.stringify({ foo: "bar", timestamp }) })
           .then(response => response.statusText)
-          .then(content => _debug("Experimental fetch token-check", content))
+          .then(() => augmentedFetch("state/experimental-state"))
+          .then(response => response.json())
+          .then(response => _debug("Experimental state check, expected", timestamp, response))
           .catch(reason => _debug("Experimental fetch token-check error", reason));
         //   fetch(config.GATEWAY_URL + "session-hint", { credentials: "include" })
         //     .then(response => response.json())
