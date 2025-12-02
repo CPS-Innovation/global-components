@@ -66,6 +66,7 @@ location = /api/global-components/preview {
 }
 
 # State management endpoint - must come before the catch-all regex
+# Auth is handled in njs: GET is public, PUT requires valid token
 location ~ ^/api/global-components/state/(.*)$ {
   error_page 418 = @gloco_preflight;
   if ($request_method = OPTIONS) {
@@ -74,7 +75,8 @@ location ~ ^/api/global-components/state/(.*)$ {
   add_header Access-Control-Allow-Origin $cors_origin always;
   add_header Access-Control-Allow-Credentials true always;
 
-  auth_request /api/global-components/validate-token;
+  resolver ${WEBSITE_DNS_SERVER} ipv6=off valid=30s;
+  js_fetch_verify off;
 
   js_content gloco.handleState;
 }
@@ -99,13 +101,8 @@ location ~ ^/api/global-components/(.*)$ {
 location = /api/global-components/validate-token {
     internal;
     resolver ${WEBSITE_DNS_SERVER} ipv6=off valid=30s;
-    set $graph_api_url "https://graph.microsoft.com/v1.0/me";
-    proxy_pass $graph_api_url;
-    proxy_pass_request_body off;
-    proxy_set_header Content-Length "";
-    proxy_set_header Host graph.microsoft.com;
-    proxy_set_header Authorization $http_authorization;
-    proxy_ssl_server_name on;
+    js_fetch_verify off;
+    js_content gloco.handleValidateToken;
 }
 
 location @gloco_preflight {

@@ -114,7 +114,7 @@ async function runTests() {
   }
 
   // Mock ngx.fetch globally
-  let mockFetchResponse = { status: 200 }
+  let mockFetchResponse = { status: 200, ok: true }
   let mockFetchError = null
   globalThis.ngx = {
     fetch: async (url, options) => {
@@ -367,7 +367,9 @@ async function runTests() {
     const hintValue = '{"cmsDomains":[],"isProxySession":false}'
     const r = createMockRequest({
       headersIn: {
-        Cookie: `other=value; cms-session-hint=${encodeURIComponent(hintValue)}; another=cookie`,
+        Cookie: `other=value; cms-session-hint=${encodeURIComponent(
+          hintValue
+        )}; another=cookie`,
       },
     })
     gloco.handleSessionHint(r)
@@ -378,12 +380,12 @@ async function runTests() {
   // --- handleState tests ---
   console.log("\nhandleState:")
 
-  await test("GET returns null when no cookie present", async () => {
+  await test("GET on whitelisted key (preview) returns null without auth", async () => {
     const r = createMockRequest({
       method: "GET",
-      uri: "/api/global-components/state/my-key",
+      uri: "/api/global-components/state/preview",
     })
-    gloco.handleState(r)
+    await gloco.handleState(r)
     assertEqual(r.returnCode, 200, "Should return 200")
     assertEqual(r.returnBody, "null", "Should return null")
     assertEqual(
@@ -393,35 +395,95 @@ async function runTests() {
     )
   })
 
-  await test("GET returns cookie value when present", async () => {
+  await test("GET on whitelisted key returns cookie value without auth", async () => {
     const stateValue = JSON.stringify({ foo: "bar" })
     const r = createMockRequest({
       method: "GET",
-      uri: "/api/global-components/state/my-key",
+      uri: "/api/global-components/state/preview",
       headersIn: {
         Cookie: `cps-global-components-state=${encodeURIComponent(stateValue)}`,
       },
     })
-    gloco.handleState(r)
+    await gloco.handleState(r)
     assertEqual(r.returnCode, 200, "Should return 200")
     assertEqual(r.returnBody, stateValue, "Should return cookie value")
   })
 
-  await test("PUT sets cookie with body content", async () => {
-    const stateValue = JSON.stringify({ count: 42 })
+  await test("GET on non-whitelisted key returns 401 without auth", async () => {
+    const r = createMockRequest({
+      method: "GET",
+      uri: "/api/global-components/state/other-key",
+    })
+    await gloco.handleState(r)
+    assertEqual(r.returnCode, 401, "Should return 401")
+  })
+
+  await test("PUT returns 401 without Authorization header", async () => {
     const r = createMockRequest({
       method: "PUT",
       uri: "/api/global-components/state/my-key",
     })
+    r.requestText = JSON.stringify({ count: 42 })
+    await gloco.handleState(r)
+    assertEqual(r.returnCode, 401, "Should return 401")
+    const body = JSON.parse(r.returnBody)
+    assertEqual(body.error, "Unauthorized", "Should have error message")
+  })
+
+  await test("PUT returns 401 when token validation fails", async () => {
+    mockFetchResponse = { status: 401, ok: false }
+    const r = createMockRequest({
+      method: "PUT",
+      uri: "/api/global-components/state/my-key",
+      headersIn: {
+        Authorization: "Bearer invalid-token",
+      },
+    })
+    r.requestText = JSON.stringify({ count: 42 })
+    await gloco.handleState(r)
+    assertEqual(r.returnCode, 401, "Should return 401")
+    mockFetchResponse = { status: 200, ok: true } // Reset
+  })
+
+  await test("PUT sets cookie with body content when authenticated", async () => {
+    mockFetchResponse = { status: 200, ok: true }
+    // Create mock JWT with valid claims (tid and appid matching VARIABLES)
+    const header = btoa(JSON.stringify({ alg: "RS256", typ: "JWT" })).replace(
+      /=/g,
+      ""
+    )
+    const payload = btoa(
+      JSON.stringify({ tid: "test-tenant-id", appid: "test-app-id" })
+    ).replace(/=/g, "")
+    const mockJwt = `${header}.${payload}.mock-signature`
+
+    const stateValue = JSON.stringify({ count: 42 })
+    const r = createMockRequest({
+      method: "PUT",
+      uri: "/api/global-components/state/my-key",
+      headersIn: {
+        Authorization: `Bearer ${mockJwt}`,
+      },
+    })
     r.requestText = stateValue
-    gloco.handleState(r)
+    await gloco.handleState(r)
     assertEqual(r.returnCode, 200, "Should return 200")
     const body = JSON.parse(r.returnBody)
     assertEqual(body.success, true, "Should have success true")
-    assertEqual(body.path, "/api/global-components/state/my-key", "Should include path")
+    assertEqual(
+      body.path,
+      "/api/global-components/state/my-key",
+      "Should include path"
+    )
     const setCookie = r.headersOut["Set-Cookie"]
-    assert(setCookie.includes("cps-global-components-state="), "Should set cookie")
-    assert(setCookie.includes("Path=/api/global-components/state/my-key"), "Should set path")
+    assert(
+      setCookie.includes("cps-global-components-state="),
+      "Should set cookie"
+    )
+    assert(
+      setCookie.includes("Path=/api/global-components/state/my-key"),
+      "Should set path"
+    )
     assert(setCookie.includes("Secure"), "Should have Secure flag")
     assert(setCookie.includes("SameSite=None"), "Should have SameSite=None")
   })
@@ -431,100 +493,11 @@ async function runTests() {
       method: "DELETE",
       uri: "/api/global-components/state/my-key",
     })
-    gloco.handleState(r)
+    await gloco.handleState(r)
     assertEqual(r.returnCode, 405, "Should return 405")
     const body = JSON.parse(r.returnBody)
     assertEqual(body.error, "Method not allowed", "Should have error message")
   })
-
-  // --- handleCookieRoute tests ---
-  // Note: handleCookieRoute is currently commented out in global-components.js
-  // console.log("\nhandleCookieRoute:");
-
-  // await test("returns 403 for disallowed origin", async () => {
-  //   const r = createMockRequest({
-  //     headersIn: { Origin: "https://evil.com" },
-  //   });
-  //   gloco.handleCookieRoute(r);
-  //   assertEqual(r.returnCode, 403, "Should return 403");
-  // });
-
-  // await test("handles OPTIONS by delegating to CORS handler", async () => {
-  //   const r = createMockRequest({
-  //     method: "OPTIONS",
-  //     headersIn: { Origin: "https://example.com" },
-  //   });
-  //   gloco.handleCookieRoute(r);
-  //   assertEqual(r.returnCode, 204, "Should return 204 for OPTIONS");
-  // });
-
-  // await test("GET returns cookies from request", async () => {
-  //   const r = createMockRequest({
-  //     method: "GET",
-  //     headersIn: {
-  //       Origin: "https://example.com",
-  //       Cookie: "session=abc123",
-  //     },
-  //   });
-  //   gloco.handleCookieRoute(r);
-  //   assertEqual(r.returnCode, 200, "Should return 200");
-  //   assert(r.returnBody.includes("session=abc123"), "Should echo cookies");
-  // });
-
-  // await test("GET returns '(no cookies)' when none sent", async () => {
-  //   const r = createMockRequest({
-  //     method: "GET",
-  //     headersIn: { Origin: "https://example.com" },
-  //   });
-  //   gloco.handleCookieRoute(r);
-  //   assertEqual(r.returnBody, "(no cookies)", "Should return no cookies message");
-  // });
-
-  // await test("POST sets cookie with origin and timestamp", async () => {
-  //   const r = createMockRequest({
-  //     method: "POST",
-  //     uri: "/api/global-components/cookie",
-  //     headersIn: { Origin: "https://example.com" },
-  //   });
-  //   gloco.handleCookieRoute(r);
-  //   assertEqual(r.returnCode, 200, "Should return 200");
-  //   const setCookie = r.headersOut["Set-Cookie"];
-  //   assert(setCookie.includes("cps-global-components-state="), "Should set cookie");
-  //   assert(setCookie.includes("https://example.com:"), "Should include origin");
-  //   assert(setCookie.includes("Path=/api/global-components/cookie"), "Should have correct path");
-  //   assert(setCookie.includes("Secure"), "Should have Secure");
-  //   assert(setCookie.includes("SameSite=None"), "Should have SameSite=None");
-  // });
-
-  // await test("POST appends to existing cookie value", async () => {
-  //   const existingValue = "https://example.com:2024-01-01T10:00:00.000Z";
-  //   const r = createMockRequest({
-  //     method: "POST",
-  //     uri: "/api/global-components/cookie",
-  //     headersIn: {
-  //       Origin: "https://example.com",
-  //       Cookie: `cps-global-components-state=${existingValue}`,
-  //     },
-  //   });
-  //   gloco.handleCookieRoute(r);
-  //   const setCookie = r.headersOut["Set-Cookie"];
-  //   assert(setCookie.includes("|"), "Should have pipe separator");
-  //   assert(setCookie.includes(existingValue), "Should include existing value");
-  // });
-
-  // await test("sets CORS headers on response", async () => {
-  //   const r = createMockRequest({
-  //     method: "GET",
-  //     headersIn: { Origin: "https://example.com" },
-  //   });
-  //   gloco.handleCookieRoute(r);
-  //   assertEqual(
-  //     r.headersOut["Access-Control-Allow-Origin"],
-  //     "https://example.com",
-  //     "Should set Allow-Origin"
-  //   );
-  //   assertEqual(r.headersOut["Access-Control-Allow-Credentials"], "true", "Should set Allow-Credentials");
-  // });
 
   // Summary
   console.log("\n" + "=".repeat(60))

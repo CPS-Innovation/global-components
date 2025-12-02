@@ -6,10 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/govuk-frontend@5.10.0/dist/govuk/govuk-frontend.min.css">
   <script type="module" src="https://sacpsglobalcomponents.blob.core.windows.net/test/cps-global-components.js"></script>
-  <script type="text/javascript"
-    src="https://alcdn.msauth.net/browser/2.35.0/js/msal-browser.min.js"
-    integrity="sha384-PARf28kmic36Ve+O3DnUerRXFtOQ7ZDqRDGpLcbljly5/N39T2OV3kt3QsWOKeAX"
-    crossorigin="anonymous"></script>
+  <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/@azure/msal-browser@2.35.0/lib/msal-browser.min.js"></script>
   <style>
     .preview-container {
       max-width: 640px;
@@ -53,7 +50,7 @@
               </legend>
               <div class="govuk-checkboxes" data-module="govuk-checkboxes">
                 <div class="govuk-checkboxes__item">
-                  <input class="govuk-checkboxes__input" id="enabled" name="enabled" type="checkbox" value="enabled">
+                  <input class="govuk-checkboxes__input" id="enabled" name="enabled" type="checkbox" value="enabled" disabled>
                   <label class="govuk-label govuk-checkboxes__label" for="enabled">
                     Enable preview
                   </label>
@@ -69,31 +66,31 @@
               </legend>
               <div class="govuk-checkboxes" data-module="govuk-checkboxes">
                 <div class="govuk-checkboxes__item">
-                  <input class="govuk-checkboxes__input" id="case-markers" name="features" type="checkbox" value="case-markers">
+                  <input class="govuk-checkboxes__input" id="case-markers" name="features" type="checkbox" value="case-markers" disabled>
                   <label class="govuk-label govuk-checkboxes__label" for="case-markers">
                     Case markers
                   </label>
                 </div>
                 <div class="govuk-checkboxes__item">
-                  <input class="govuk-checkboxes__input" id="case-search" name="features" type="checkbox" value="case-search">
+                  <input class="govuk-checkboxes__input" id="case-search" name="features" type="checkbox" value="case-search" disabled>
                   <label class="govuk-label govuk-checkboxes__label" for="case-search">
                     Case search
                   </label>
                 </div>
                 <div class="govuk-checkboxes__item">
-                  <input class="govuk-checkboxes__input" id="my-recent-cases" name="features" type="checkbox" value="my-recent-cases">
+                  <input class="govuk-checkboxes__input" id="my-recent-cases" name="features" type="checkbox" value="my-recent-cases" disabled>
                   <label class="govuk-label govuk-checkboxes__label" for="my-recent-cases">
                     My recent cases
                   </label>
                 </div>
                 <div class="govuk-checkboxes__item">
-                  <input class="govuk-checkboxes__input" id="new-header" name="features" type="checkbox" value="new-header">
+                  <input class="govuk-checkboxes__input" id="new-header" name="features" type="checkbox" value="new-header" disabled>
                   <label class="govuk-label govuk-checkboxes__label" for="new-header">
                     New header
                   </label>
                 </div>
                 <div class="govuk-checkboxes__item">
-                  <input class="govuk-checkboxes__input" id="accessibility" name="features" type="checkbox" value="accessibility">
+                  <input class="govuk-checkboxes__input" id="accessibility" name="features" type="checkbox" value="accessibility" disabled>
                   <label class="govuk-label govuk-checkboxes__label" for="accessibility">
                     Accessibility
                   </label>
@@ -159,6 +156,11 @@
       });
     }
 
+    function enableForm() {
+      enabledCheckbox.disabled = false;
+      featureCheckboxes.forEach(cb => cb.disabled = false);
+    }
+
     async function getToken() {
       try {
         // Try SSO silent first - uses existing session cookies
@@ -191,6 +193,7 @@
         }
         const state = await response.json();
         setState(state);
+        enableForm();
       } catch (err) {
         showStatus('Failed to load settings: ' + err.message, 'error');
       }
