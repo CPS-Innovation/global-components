@@ -62,15 +62,6 @@ jobs:
           cat "${{ steps.download.outputs.download-path }}/auth-handover.js" >> ./prepared-auth-handover.js
           mv -f ./prepared-auth-handover.js "${{ steps.download.outputs.download-path }}/auth-handover.js"
 
-          # Prepend preview_override_url to cps-global-components.js (if PREVIEW_SETTINGS_URL is configured)
-          PREVIEW_SETTINGS_URL=$(jq -r '.PREVIEW_SETTINGS_URL // empty' "$CONFIG_FILE")
-          if [ -n "$PREVIEW_SETTINGS_URL" ]; then
-            echo "window.cps_global_components_build = window.cps_global_components_build || {};" > ./prepared-components.js
-            echo "window.cps_global_components_build.preview_override_url = '${PREVIEW_SETTINGS_URL}';" >> ./prepared-components.js
-            cat "${{ steps.download.outputs.download-path }}/cps-global-components.js" >> ./prepared-components.js
-            mv -f ./prepared-components.js "${{ steps.download.outputs.download-path }}/cps-global-components.js"
-          fi
-
       - uses: azure/cli@v2.0.0 # pinned to minor version whilst MS fix https://github.com/azure/azure-cli/issues/32039
         with:
           azcliversion: latest
