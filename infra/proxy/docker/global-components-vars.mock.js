@@ -10,6 +10,9 @@ var VARIABLES = {
     "https://allowed-origin.com",
   ],
   deployVersion: 0,
+  tenantId: "test-tenant-id",
+  applicationId: "test-app-id",
+  previewHtmlBlobUrl: "http://mock-upstream:3000/preview/index.html",
 };
 
 export default VARIABLES;

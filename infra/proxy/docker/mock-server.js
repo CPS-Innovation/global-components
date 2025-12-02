@@ -27,6 +27,14 @@ function checkCors(req, res) {
 }
 
 const routes = {
+  'preview/index.html': {
+    contentType: 'text/html',
+    body: `<!DOCTYPE html>
+<html><head><title>Preview Settings</title></head>
+<body><h1>Preview Settings</h1><p>Mock preview page</p></body>
+</html>`,
+    skipApiPrefix: true
+  },
   'swagger.json': {
     contentType: 'application/json',
     body: JSON.stringify({
@@ -58,8 +66,8 @@ const server = http.createServer((req, res) => {
   console.log(`[${new Date().toISOString()}] ${req.method} ${req.url}`);
   console.log('Headers:', JSON.stringify(req.headers, null, 2));
 
-  // Strip /api/ prefix if present
-  const path = req.url.replace(/^\/api\//, '').replace(/\?.*$/, '');
+  // Strip /api/ prefix if present, and leading slash
+  const path = req.url.replace(/^\/api\//, '').replace(/^\//, '').replace(/\?.*$/, '');
 
   // Check for required headers
   const functionsKey = req.headers['x-functions-key'];

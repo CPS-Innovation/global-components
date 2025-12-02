@@ -378,6 +378,43 @@ async function testSessionHint() {
 }
 
 // =============================================================================
+// Preview Page Tests
+// =============================================================================
+
+async function testPreviewPage() {
+  console.log('\nPreview Page Tests (/api/global-components/preview):');
+
+  const PREVIEW_ENDPOINT = `${PROXY_BASE}/api/global-components/preview`;
+
+  await test('returns HTML content', async () => {
+    const response = await fetch(PREVIEW_ENDPOINT);
+    assertEqual(response.status, 200, 'Should return 200');
+    const text = await response.text();
+    assert(text.includes('<!DOCTYPE html>') || text.includes('<html'), 'Should return HTML content');
+  });
+
+  await test('returns Content-Type text/html', async () => {
+    const response = await fetch(PREVIEW_ENDPOINT);
+    const contentType = response.headers.get('content-type');
+    assert(contentType !== null && contentType.includes('text/html'),
+      `Content-Type should be text/html, got: ${contentType}`);
+  });
+
+  await test('handles OPTIONS preflight request', async () => {
+    const response = await fetch(PREVIEW_ENDPOINT, {
+      method: 'OPTIONS',
+      headers: {
+        'Origin': 'https://example.com',
+        'Access-Control-Request-Method': 'GET'
+      }
+    });
+    assertEqual(response.status, 204, 'OPTIONS should return 204');
+    const allowMethods = response.headers.get('access-control-allow-methods');
+    assert(allowMethods !== null, 'Should have Access-Control-Allow-Methods header');
+  });
+}
+
+// =============================================================================
 // State Endpoint Tests
 // =============================================================================
 // Note: This endpoint requires token validation via auth_request.
@@ -742,6 +779,7 @@ async function main() {
     await testUpstreamProxyAuth();
     // testCookieRoute is commented out - handleCookieRoute is disabled
     await testSessionHint();
+    await testPreviewPage();
     await testStateEndpoint();
     await testUpstreamHealthCheck();
     await testAuthRedirect();

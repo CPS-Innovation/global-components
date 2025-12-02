@@ -189,6 +189,28 @@ async function handleHealthCheck(r) {
   }
 }
 
+async function handlePreview(r) {
+  const blobUrl = VARIABLES.previewHtmlBlobUrl
+
+  if (!blobUrl) {
+    r.return(500, "Preview not configured")
+    return
+  }
+
+  try {
+    const response = await ngx.fetch(blobUrl, { method: "GET" })
+    if (!response.ok) {
+      r.return(502, "Failed to fetch preview page")
+      return
+    }
+    const html = await response.text()
+    r.headersOut["Content-Type"] = "text/html; charset=utf-8"
+    r.return(200, html)
+  } catch (e) {
+    r.return(502, "Error fetching preview page: " + e.message)
+  }
+}
+
 export default {
   readCmsAuthValues,
   readUpstreamUrl,
@@ -201,4 +223,5 @@ export default {
   handleSessionHint,
   handleState,
   handleHealthCheck,
+  handlePreview,
 }
