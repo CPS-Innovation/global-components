@@ -28,36 +28,6 @@
     .preview-status--success {
       border-left-color: #00703c;
     }
-    .preview-auth {
-      padding: 20px;
-      text-align: center;
-      background-color: #f3f2f1;
-      margin-bottom: 20px;
-    }
-    .govuk-button {
-      font-weight: 400;
-      font-size: 19px;
-      line-height: 1;
-      box-sizing: border-box;
-      display: inline-block;
-      position: relative;
-      width: 100%;
-      margin-top: 0;
-      margin-bottom: 22px;
-      padding: 8px 10px 7px;
-      border: 2px solid transparent;
-      border-radius: 0;
-      color: #fff;
-      background-color: #00703c;
-      box-shadow: 0 2px 0 #002d18;
-      text-align: center;
-      vertical-align: top;
-      cursor: pointer;
-    }
-    .govuk-button:hover { background-color: #005a30; }
-    @media (min-width: 40.0625em) { .govuk-button { width: auto; } }
-    #auth-section { display: none; }
-    #main-form { display: none; }
   </style>
 </head>
 
@@ -74,11 +44,6 @@
         <h1 class="govuk-heading-l">Preview Settings</h1>
 
         <div id="status-message" class="preview-status" style="display: none;"></div>
-
-        <div id="auth-section" class="preview-auth">
-          <p class="govuk-body">Please sign in to access preview settings.</p>
-          <button id="login-button" class="govuk-button">Sign in with Microsoft</button>
-        </div>
 
         <form id="main-form">
           <div class="govuk-form-group">
@@ -160,9 +125,6 @@
 
     const STATE_ENDPOINT = '/api/global-components/state/preview';
     const statusEl = document.getElementById('status-message');
-    const authSection = document.getElementById('auth-section');
-    const mainForm = document.getElementById('main-form');
-    const loginButton = document.getElementById('login-button');
     const enabledCheckbox = document.getElementById('enabled');
     const featureCheckboxes = document.querySelectorAll('input[name="features"]');
 
@@ -176,16 +138,6 @@
       if (type !== 'error') {
         setTimeout(() => { statusEl.style.display = 'none'; }, 3000);
       }
-    }
-
-    function showAuthSection() {
-      authSection.style.display = 'block';
-      mainForm.style.display = 'none';
-    }
-
-    function showMainForm() {
-      authSection.style.display = 'none';
-      mainForm.style.display = 'block';
     }
 
     function getState() {
@@ -208,18 +160,18 @@
     }
 
     async function getToken() {
-      const accounts = msalInstance.getAllAccounts();
-      if (accounts.length === 0) {
-        return null;
-      }
       try {
+        // Try SSO silent first - uses existing session cookies
+        const { account } = await msalInstance.ssoSilent(tokenRequest);
+
+        // Now get the access token for this account
         const response = await msalInstance.acquireTokenSilent({
           ...tokenRequest,
-          account: accounts[0]
+          account
         });
         return response.accessToken;
       } catch (err) {
-        console.log('Silent token acquisition failed:', err);
+        console.log('Silent auth failed:', err);
         return null;
       }
     }
@@ -268,41 +220,21 @@
       }
     }
 
-    async function handleLogin() {
-      try {
-        const response = await msalInstance.loginPopup(tokenRequest);
-        accessToken = response.accessToken;
-        showMainForm();
-        await loadState();
-      } catch (err) {
-        console.error('Login failed:', err);
-        showStatus('Login failed: ' + err.message, 'error');
-      }
-    }
-
     async function init() {
       msalInstance = new msal.PublicClientApplication(msalConfig);
       await msalInstance.initialize();
 
-      // Handle redirect response if coming back from login
-      const response = await msalInstance.handleRedirectPromise();
-      if (response) {
-        accessToken = response.accessToken;
-      } else {
-        // Try silent token acquisition
-        accessToken = await getToken();
-      }
+      // Try silent token acquisition
+      accessToken = await getToken();
 
       if (accessToken) {
-        showMainForm();
         await loadState();
       } else {
-        showAuthSection();
+        showStatus('Not signed in - silent auth failed', 'error');
       }
     }
 
     // Event listeners
-    loginButton.addEventListener('click', handleLogin);
     enabledCheckbox.addEventListener('change', saveState);
     featureCheckboxes.forEach(cb => cb.addEventListener('change', saveState));
 
