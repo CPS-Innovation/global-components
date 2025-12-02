@@ -52,15 +52,13 @@ describe("fetchWithCircuitBreaker", () => {
         trackEvent: mockTrackEvent,
       })(mockFetch);
 
-      // Make 5 successful requests
-      for (let i = 0; i < 5; i++) {
+      // Make 10 successful requests
+      for (let i = 0; i < 10; i++) {
         await wrappedFetch("https://example.com");
       }
 
       // 6th request should fail
-      await expect(wrappedFetch("https://example.com")).rejects.toThrow(
-        "Circuit breaker tripped - too many requests"
-      );
+      await expect(wrappedFetch("https://example.com")).rejects.toThrow("Circuit breaker tripped - too many requests");
     });
 
     it("should track event when circuit breaker trips", async () => {
@@ -69,7 +67,7 @@ describe("fetchWithCircuitBreaker", () => {
         trackEvent: mockTrackEvent,
       })(mockFetch);
 
-      for (let i = 0; i < 5; i++) {
+      for (let i = 0; i < 10; i++) {
         await wrappedFetch("https://example.com");
       }
 
@@ -77,7 +75,7 @@ describe("fetchWithCircuitBreaker", () => {
 
       expect(mockTrackEvent).toHaveBeenCalledWith({
         name: "fetch",
-        error: "Circuit breaker tripped: 5 calls/3000 milliseconds exceeded",
+        error: "Circuit breaker tripped: 10 calls/3000 milliseconds exceeded",
       });
     });
 
@@ -87,7 +85,7 @@ describe("fetchWithCircuitBreaker", () => {
         trackEvent: mockTrackEvent,
       })(mockFetch);
 
-      for (let i = 0; i < 5; i++) {
+      for (let i = 0; i < 10; i++) {
         await wrappedFetch("https://example.com");
       }
 
@@ -95,12 +93,8 @@ describe("fetchWithCircuitBreaker", () => {
       await expect(wrappedFetch("https://example.com")).rejects.toThrow();
 
       // Subsequent requests should also fail
-      await expect(wrappedFetch("https://example.com")).rejects.toThrow(
-        "Circuit breaker tripped - too many requests"
-      );
-      await expect(wrappedFetch("https://example.com")).rejects.toThrow(
-        "Circuit breaker tripped - too many requests"
-      );
+      await expect(wrappedFetch("https://example.com")).rejects.toThrow("Circuit breaker tripped - too many requests");
+      await expect(wrappedFetch("https://example.com")).rejects.toThrow("Circuit breaker tripped - too many requests");
 
       // trackEvent should only be called once (on first trip)
       expect(mockTrackEvent).toHaveBeenCalledTimes(1);
@@ -124,9 +118,7 @@ describe("fetchWithCircuitBreaker", () => {
       await wrappedFetch("https://example.com");
       await wrappedFetch("https://example.com");
 
-      await expect(wrappedFetch("https://example.com")).rejects.toThrow(
-        "Circuit breaker tripped - too many requests"
-      );
+      await expect(wrappedFetch("https://example.com")).rejects.toThrow("Circuit breaker tripped - too many requests");
 
       expect(mockFetch).toHaveBeenCalledTimes(2);
     });
