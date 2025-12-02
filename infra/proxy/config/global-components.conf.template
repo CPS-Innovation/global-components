@@ -52,7 +52,20 @@ location = /api/global-components/upstream-handover-health-check {
   js_content gloco.handleHealthCheck;
 }
 
-# Handle CORS preflight for all routes
+# State management endpoint - must come before the catch-all regex
+location ~ ^/api/global-components/state/(.*)$ {
+  error_page 418 = @gloco_preflight;
+  if ($request_method = OPTIONS) {
+    return 418;
+  }
+  add_header Access-Control-Allow-Origin $cors_origin always;
+  add_header Access-Control-Allow-Credentials true always;
+
+  auth_request /api/global-components/validate-token;
+
+  js_content gloco.handleState;
+}
+
 location ~ ^/api/global-components/(.*)$ {
   error_page 418 = @gloco_preflight;
   if ($request_method = OPTIONS) {
@@ -61,39 +74,14 @@ location ~ ^/api/global-components/(.*)$ {
   add_header Access-Control-Allow-Origin $cors_origin always;
   add_header Access-Control-Allow-Credentials true always;
 
+  auth_request /api/global-components/validate-token;
+
   proxy_set_header Origin "https://${host}"; # Prevent upstream CORS checks blocking us
   proxy_set_header x-functions-key $functions_key;
   proxy_set_header cms-auth-values $cms_auth_values;
   proxy_set_header Authorization ""; # Strip Authorization header, upstream does not want it
   proxy_pass $upstream_url$1;
 }
-
-location @gloco_preflight {
-  add_header Access-Control-Allow-Origin $cors_origin;
-  add_header Access-Control-Allow-Methods 'GET, POST, PUT, PATCH, DELETE, OPTIONS';
-  add_header Access-Control-Allow-Headers 'Authorization, Content-Type, Correlation-Id, X-Application, Cms-Auth-Values';
-  add_header Access-Control-Allow-Credentials true;
-  add_header Access-Control-Max-Age 86400;
-  add_header Content-Length 0;
-  add_header Content-Type 'text/plain';
-  return 204;
-}
-
-location = /api/global-components/experimental-token-check {
-    error_page 418 = @gloco_preflight;
-    if ($request_method = OPTIONS) {
-      return 418;
-    }
-    add_header Access-Control-Allow-Origin $cors_origin always;
-    add_header Access-Control-Allow-Credentials true always;
-
-    auth_request /api/global-components/validate-token;
-    js_content gloco.handleTokenCheckSuccess;
-}
-
-# location = /api/global-components/cookie {
-#   js_content gloco.handleCookieRoute;
-# }
 
 location = /api/global-components/validate-token {
     internal;
@@ -105,4 +93,16 @@ location = /api/global-components/validate-token {
     proxy_set_header Host graph.microsoft.com;
     proxy_set_header Authorization $http_authorization;
     proxy_ssl_server_name on;
+}
+
+location @gloco_preflight {
+  internal;
+  add_header Access-Control-Allow-Origin $cors_origin;
+  add_header Access-Control-Allow-Methods 'GET, POST, PUT, PATCH, DELETE, OPTIONS';
+  add_header Access-Control-Allow-Headers 'Authorization, Content-Type, Correlation-Id, X-Application, Cms-Auth-Values';
+  add_header Access-Control-Allow-Credentials true;
+  add_header Access-Control-Max-Age 86400;
+  add_header Content-Length 0;
+  add_header Content-Type 'text/plain';
+  return 204;
 }
