@@ -1,9 +1,11 @@
 import VARIABLES from "templates/global-components-vars.js"
 
-// Centralised CORS configuration
 const SESSION_HINT_COOKIE_NAME = "cms-session-hint"
 const CMS_AUTH_VALUES_COOKIE_NAME = "Cms-Auth-Values"
 const STATE_COOKIE_NAME = "cps-global-components-state"
+const STATE_KEYS_NO_AUTH_ON_GET = ["preview"]
+const STATE_COOKIE_LIFESPAN_MS = 365 * 24 * 60 * 60 * 1000
+const AD_AUTH_ENDPOINT = "https://graph.microsoft.com/v1.0/me"
 
 function _getHeaderValue(r, headerName) {
   return r.headersIn[headerName] || ""
@@ -114,17 +116,55 @@ function handleSessionHint(r) {
   r.return(200, hintValue ? _maybeDecodeURIComponent(hintValue) : "null")
 }
 
-function handleState(r) {
-  const claimValidationResult = _extractAndValidateClaims(r)
-  if (!claimValidationResult) {
-    r.return(401, "Failed AD validation")
+async function _validateToken(r) {
+  // First: validate claims locally (tenant ID and app ID)
+  const result = _extractAndValidateClaims(r)
+  if (!result.claimsAreValid) {
+    return false
+  }
+
+  // Second: validate token with Graph API (checks signature, expiry, revocation)
+  const authHeader = r.headersIn["Authorization"]
+  try {
+    const response = await ngx.fetch(AD_AUTH_ENDPOINT, {
+      method: "GET",
+      headers: {
+        Authorization: authHeader,
+        Host: "graph.microsoft.com",
+      },
+    })
+    return response.ok
+  } catch (e) {
+    return false
+  }
+}
+
+async function handleState(r) {
+  if (!["GET", "PUT"].includes(r.method)) {
+    // Method not allowed
+    r.return(405, JSON.stringify({ error: "Method not allowed" }))
     return
   }
 
   r.headersOut["Content-Type"] = "application/json"
 
+  // Extract state key from URI: /api/global-components/state/{key}
+  const stateKey = r.uri
+    .replace(/^\/api\/global-components\/state\//, "")
+    .split("/")[0]
+  const isPublicKey = STATE_KEYS_NO_AUTH_ON_GET.includes(stateKey)
+  // Only allow unauthenticated GET for keys in the whitelist
+  const shouldSkipAuth = isPublicKey && r.method === "GET"
+
+  if (!shouldSkipAuth) {
+    const isValid = await _validateToken(r)
+    if (!isValid) {
+      r.return(401, JSON.stringify({ error: "Unauthorized" }))
+      return
+    }
+  }
+
   if (r.method === "GET") {
-    // Read the cookie and return its value as JSON
     const cookieValue = _getCookieValue(r, STATE_COOKIE_NAME)
     r.return(200, cookieValue ? _maybeDecodeURIComponent(cookieValue) : "null")
     return
@@ -133,7 +173,7 @@ function handleState(r) {
   if (r.method === "PUT") {
     // Read body and set as cookie on this exact path
     const body = r.requestText || ""
-    const expires = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000) // 1 year
+    const expires = new Date(Date.now() + STATE_COOKIE_LIFESPAN_MS) // 1 year
 
     r.headersOut["Set-Cookie"] =
       STATE_COOKIE_NAME +
@@ -148,9 +188,6 @@ function handleState(r) {
     r.return(200, JSON.stringify({ success: true, path: r.uri }))
     return
   }
-
-  // Method not allowed
-  r.return(405, JSON.stringify({ error: "Method not allowed" }))
 }
 
 async function handleHealthCheck(r) {
@@ -211,6 +248,12 @@ async function handlePreview(r) {
   }
 }
 
+async function handleValidateToken(r) {
+  // Used by auth_request - returns 200 if valid, 401 if not
+  const isValid = await _validateToken(r)
+  r.return(isValid ? 200 : 401, "")
+}
+
 export default {
   readCmsAuthValues,
   readUpstreamUrl,
@@ -224,4 +267,5 @@ export default {
   handleState,
   handleHealthCheck,
   handlePreview,
+  handleValidateToken,
 }
