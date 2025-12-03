@@ -123,7 +123,7 @@ async function testSwaggerRewriting() {
 
   await test("rewrites upstream URL in swagger.json", async () => {
     const response = await fetch(
-      `${PROXY_BASE}/api/global-components/swagger.json`
+      `${PROXY_BASE}/global-components/swagger.json`
     )
     const text = await response.text()
 
@@ -135,23 +135,23 @@ async function testSwaggerRewriting() {
 
     // Should contain the proxy URL
     assert(
-      text.includes("/api/global-components"),
+      text.includes("/global-components"),
       "Should contain proxy path prefix"
     )
   })
 
   await test("rewrites API paths in swagger.json", async () => {
     const response = await fetch(
-      `${PROXY_BASE}/api/global-components/swagger.json`
+      `${PROXY_BASE}/global-components/swagger.json`
     )
     const json = await response.json()
 
-    // Paths should be prefixed with /api/global-components
+    // Paths should be prefixed with /global-components
     const paths = Object.keys(json.paths || {})
     for (const path of paths) {
       assert(
-        path.startsWith("/api/global-components"),
-        `Path ${path} should start with /api/global-components`
+        path.startsWith("/global-components"),
+        `Path ${path} should start with /global-components`
       )
     }
   })
@@ -215,7 +215,7 @@ async function testHealthCheck() {
   console.log("\nHealth Check Tests:")
 
   await test("base endpoint returns JSON with status and version", async () => {
-    const response = await fetch(`${PROXY_BASE}/api/global-components`)
+    const response = await fetch(`${PROXY_BASE}/global-components`)
     assertEqual(response.status, 200, "Health endpoint should return 200")
     const contentType = response.headers.get("content-type")
     assert(contentType.includes("application/json"), "Should return JSON")
@@ -230,9 +230,9 @@ async function testHealthCheck() {
 // =============================================================================
 
 async function testSessionHint() {
-  console.log("\nSession Hint Tests (/api/global-components/session-hint):")
+  console.log("\nSession Hint Tests (/global-components/session-hint):")
 
-  const SESSION_HINT_ENDPOINT = `${PROXY_BASE}/api/global-components/session-hint`
+  const SESSION_HINT_ENDPOINT = `${PROXY_BASE}/global-components/session-hint`
 
   await test('returns "null" when no cms-session-hint cookie is present', async () => {
     const response = await fetch(SESSION_HINT_ENDPOINT)
@@ -341,9 +341,9 @@ async function testSessionHint() {
 // =============================================================================
 
 async function testPreviewPage() {
-  console.log("\nPreview Page Tests (/api/global-components/preview):")
+  console.log("\nPreview Page Tests (/global-components/preview):")
 
-  const PREVIEW_ENDPOINT = `${PROXY_BASE}/api/global-components/preview`
+  const PREVIEW_ENDPOINT = `${PROXY_BASE}/global-components/preview`
 
   await test("returns HTML content", async () => {
     const response = await fetch(PREVIEW_ENDPOINT)
@@ -387,10 +387,10 @@ async function testPreviewPage() {
 // GET is public only for whitelisted keys (e.g. "preview"), PUT always requires auth.
 
 async function testStateEndpoint() {
-  console.log("\nState Endpoint Tests (/api/global-components/state/*):")
+  console.log("\nState Endpoint Tests (/global-components/state/*):")
 
-  const PREVIEW_ENDPOINT = `${PROXY_BASE}/api/global-components/state/preview`
-  const OTHER_ENDPOINT = `${PROXY_BASE}/api/global-components/state/other-key`
+  const PREVIEW_ENDPOINT = `${PROXY_BASE}/global-components/state/preview`
+  const OTHER_ENDPOINT = `${PROXY_BASE}/global-components/state/other-key`
 
   await test("GET on whitelisted key (preview) returns 200 without auth", async () => {
     const response = await fetch(PREVIEW_ENDPOINT)
@@ -473,7 +473,7 @@ async function testStateEndpoint() {
 async function testUpstreamHealthCheck() {
   console.log("\nUpstream Handover Health Check Tests:")
 
-  const HEALTH_CHECK_ENDPOINT = `${PROXY_BASE}/api/global-components/upstream-handover-health-check`
+  const HEALTH_CHECK_ENDPOINT = `${PROXY_BASE}/global-components/upstream-handover-health-check`
 
   await test("returns 400 when url parameter is missing", async () => {
     const response = await fetch(HEALTH_CHECK_ENDPOINT)

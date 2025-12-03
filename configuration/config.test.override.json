@@ -4,7 +4,7 @@
   "AD_TENANT_AUTHORITY": "https://login.microsoftonline.com/00dd0d1d-d7e6-4338-ac51-565339c7088c",
   "AD_CLIENT_ID": "8d6133af-9593-47c6-94d0-5c65e9e310f1",
   "AD_GATEWAY_SCOPE": "User.Read",
-  "GATEWAY_URL": "https://polaris-qa-notprod.cps.gov.uk/api/global-components/",
+  "GATEWAY_URL": "https://polaris-qa-notprod.cps.gov.uk/api/global-components/api/",
   "APP_INSIGHTS_CONNECTION_STRING": "InstrumentationKey=e572c03c-8d38-4771-b193-962f13da1b1a;IngestionEndpoint=https://uksouth-1.in.applicationinsights.azure.com/;LiveEndpoint=https://uksouth.livediagnostics.monitor.azure.com/;ApplicationId=3dafc37d-8c9c-4480-90fc-532ac2b8bba2",
   "SURVEY_LINK": "https://forms.office.com/e/8KM9A7aS0e",
   "SHOW_MENU": true,

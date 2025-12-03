@@ -93,7 +93,7 @@ async function runTests() {
   function createMockRequest(options = {}) {
     return {
       method: options.method || "GET",
-      uri: options.uri || "/api/global-components/test",
+      uri: options.uri || "/global-components/test",
       args: options.args || {},
       headersIn: options.headersIn || {},
       headersOut: {},
@@ -237,7 +237,7 @@ async function runTests() {
     const data = '{"server": "http://mock-upstream:3000/api/"}'
     gloco.filterSwaggerBody(r, data, {})
     assert(
-      r.sentBuffer.includes("https://proxy.example.com/api/global-components"),
+      r.sentBuffer.includes("https://proxy.example.com/global-components"),
       `Should replace upstream URL, got: ${r.sentBuffer}`
     )
   })
@@ -249,7 +249,7 @@ async function runTests() {
     const data = '{"path": "/api/users"}'
     gloco.filterSwaggerBody(r, data, {})
     assert(
-      r.sentBuffer.includes('"/api/global-components/users"'),
+      r.sentBuffer.includes('"/global-components/users"'),
       `Should rewrite API path, got: ${r.sentBuffer}`
     )
   })
@@ -383,7 +383,7 @@ async function runTests() {
   await test("GET on whitelisted key (preview) returns null without auth", async () => {
     const r = createMockRequest({
       method: "GET",
-      uri: "/api/global-components/state/preview",
+      uri: "/global-components/state/preview",
     })
     await gloco.handleState(r)
     assertEqual(r.returnCode, 200, "Should return 200")
@@ -399,7 +399,7 @@ async function runTests() {
     const stateValue = JSON.stringify({ foo: "bar" })
     const r = createMockRequest({
       method: "GET",
-      uri: "/api/global-components/state/preview",
+      uri: "/global-components/state/preview",
       headersIn: {
         Cookie: `cps-global-components-state=${encodeURIComponent(stateValue)}`,
       },
@@ -412,7 +412,7 @@ async function runTests() {
   await test("GET on non-whitelisted key returns 401 without auth", async () => {
     const r = createMockRequest({
       method: "GET",
-      uri: "/api/global-components/state/other-key",
+      uri: "/global-components/state/other-key",
     })
     await gloco.handleState(r)
     assertEqual(r.returnCode, 401, "Should return 401")
@@ -421,7 +421,7 @@ async function runTests() {
   await test("PUT returns 401 without Authorization header", async () => {
     const r = createMockRequest({
       method: "PUT",
-      uri: "/api/global-components/state/my-key",
+      uri: "/global-components/state/my-key",
     })
     r.requestText = JSON.stringify({ count: 42 })
     await gloco.handleState(r)
@@ -434,7 +434,7 @@ async function runTests() {
     mockFetchResponse = { status: 401, ok: false }
     const r = createMockRequest({
       method: "PUT",
-      uri: "/api/global-components/state/my-key",
+      uri: "/global-components/state/my-key",
       headersIn: {
         Authorization: "Bearer invalid-token",
       },
@@ -460,7 +460,7 @@ async function runTests() {
     const stateValue = JSON.stringify({ count: 42 })
     const r = createMockRequest({
       method: "PUT",
-      uri: "/api/global-components/state/my-key",
+      uri: "/global-components/state/my-key",
       headersIn: {
         Authorization: `Bearer ${mockJwt}`,
       },
@@ -472,7 +472,7 @@ async function runTests() {
     assertEqual(body.success, true, "Should have success true")
     assertEqual(
       body.path,
-      "/api/global-components/state/my-key",
+      "/global-components/state/my-key",
       "Should include path"
     )
     const setCookie = r.headersOut["Set-Cookie"]
@@ -481,7 +481,7 @@ async function runTests() {
       "Should set cookie"
     )
     assert(
-      setCookie.includes("Path=/api/global-components/state/my-key"),
+      setCookie.includes("Path=/global-components/state/my-key"),
       "Should set path"
     )
     assert(setCookie.includes("Secure"), "Should have Secure flag")
@@ -491,7 +491,7 @@ async function runTests() {
   await test("returns 405 for unsupported methods", async () => {
     const r = createMockRequest({
       method: "DELETE",
-      uri: "/api/global-components/state/my-key",
+      uri: "/global-components/state/my-key",
     })
     await gloco.handleState(r)
     assertEqual(r.returnCode, 405, "Should return 405")

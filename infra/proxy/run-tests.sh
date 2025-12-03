@@ -31,7 +31,7 @@ wait_for_proxy() {
 
   echo -n "Waiting for proxy to be ready..."
   while [ $attempt -le $max_attempts ]; do
-    if curl -sk "$PROXY_BASE/api/global-components" >/dev/null 2>&1; then
+    if curl -sk "$PROXY_BASE/global-components" >/dev/null 2>&1; then
       echo -e " ${GREEN}ready${NC}"
       return 0
     fi

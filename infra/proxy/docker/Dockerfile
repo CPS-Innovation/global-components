@@ -12,8 +12,11 @@ COPY config-main/nginx.conf /etc/nginx/nginx.conf
 COPY config-main/nginx.js /etc/nginx/nginx.js
 COPY config/global-components.conf.template /etc/nginx/templates/global-components.conf.template
 COPY config/global-components.js /etc/nginx/templates/global-components.js
+COPY config/vnext/global-components.vnext.conf.template /etc/nginx/templates/vnext/global-components.vnext.conf.template
+COPY config/vnext/global-components.vnext.js /etc/nginx/templates/vnext/global-components.vnext.js
 # Use mock vars for build (real vars mounted at runtime via docker-compose)
 COPY docker/global-components-vars.mock.js /etc/nginx/templates/global-components-vars.js
+COPY docker/vnext/global-components-vars.vnext.mock.js /etc/nginx/templates/vnext/global-components-vars.vnext.js
 
 # Configure nginx to run as non-root
 RUN chown -R nginx:nginx /var/cache/nginx /var/log/nginx /etc/nginx \
@@ -25,6 +28,6 @@ USER nginx
 EXPOSE 8080
 
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-  CMD curl -f http://localhost:8080/api/global-components || exit 1
+  CMD curl -f http://localhost:8080/global-components || exit 1
 
 CMD ["nginx", "-g", "daemon off;"]
