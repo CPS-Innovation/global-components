@@ -1,0 +1,27 @@
+name: Reusable Proxy Tests
+
+on:
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  proxy-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: latest
+          run_install: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: ".nvmrc"
+          cache: "pnpm"
+
+      - run: pnpm install --frozen-lockfile
+
+      - run: pnpm test:proxy

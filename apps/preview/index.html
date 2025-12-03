@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="en" class="govuk-template">
+
+<head>
+  <title>Preview Settings - CPS Global Components</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/govuk-frontend@5.10.0/dist/govuk/govuk-frontend.min.css">
+  <script type="module" src="https://sacpsglobalcomponents.blob.core.windows.net/test/cps-global-components.js"></script>
+  <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/@azure/msal-browser@2.35.0/lib/msal-browser.min.js"></script>
+  <style>
+    .preview-container {
+      max-width: 640px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+    .preview-status {
+      padding: 15px;
+      margin-bottom: 20px;
+      border-left: 5px solid #1d70b8;
+      background-color: #f3f2f1;
+    }
+    .preview-status--error {
+      border-left-color: #d4351c;
+    }
+    .preview-status--success {
+      border-left-color: #00703c;
+    }
+  </style>
+</head>
+
+<body class="govuk-template__body">
+  <script>document.body.className += ' js-enabled' + ('noModule' in HTMLScriptElement.prototype ? ' govuk-frontend-supported' : '');</script>
+
+  <a href="#main-content" class="govuk-skip-link">Skip to main content</a>
+
+  <div class="govuk-width-container">
+    <cps-global-header></cps-global-header>
+
+    <main class="govuk-main-wrapper" id="main-content" role="main">
+      <div class="preview-container">
+        <h1 class="govuk-heading-l">Preview Settings</h1>
+
+        <div id="status-message" class="preview-status" style="display: none;"></div>
+
+        <form id="main-form">
+          <div class="govuk-form-group">
+            <fieldset class="govuk-fieldset">
+              <legend class="govuk-fieldset__legend govuk-fieldset__legend--m">
+                <h2 class="govuk-fieldset__heading">Preview mode</h2>
+              </legend>
+              <div class="govuk-checkboxes" data-module="govuk-checkboxes">
+                <div class="govuk-checkboxes__item">
+                  <input class="govuk-checkboxes__input" id="enabled" name="enabled" type="checkbox" value="enabled" disabled>
+                  <label class="govuk-label govuk-checkboxes__label" for="enabled">
+                    Enable preview
+                  </label>
+                </div>
+              </div>
+            </fieldset>
+          </div>
+
+          <div class="govuk-form-group">
+            <fieldset class="govuk-fieldset">
+              <legend class="govuk-fieldset__legend govuk-fieldset__legend--m">
+                <h2 class="govuk-fieldset__heading">Features</h2>
+              </legend>
+              <div class="govuk-checkboxes" data-module="govuk-checkboxes">
+                <div class="govuk-checkboxes__item">
+                  <input class="govuk-checkboxes__input" id="case-markers" name="features" type="checkbox" value="case-markers" disabled>
+                  <label class="govuk-label govuk-checkboxes__label" for="case-markers">
+                    Case markers
+                  </label>
+                </div>
+                <div class="govuk-checkboxes__item">
+                  <input class="govuk-checkboxes__input" id="case-search" name="features" type="checkbox" value="case-search" disabled>
+                  <label class="govuk-label govuk-checkboxes__label" for="case-search">
+                    Case search
+                  </label>
+                </div>
+                <div class="govuk-checkboxes__item">
+                  <input class="govuk-checkboxes__input" id="my-recent-cases" name="features" type="checkbox" value="my-recent-cases" disabled>
+                  <label class="govuk-label govuk-checkboxes__label" for="my-recent-cases">
+                    My recent cases
+                  </label>
+                </div>
+                <div class="govuk-checkboxes__item">
+                  <input class="govuk-checkboxes__input" id="new-header" name="features" type="checkbox" value="new-header" disabled>
+                  <label class="govuk-label govuk-checkboxes__label" for="new-header">
+                    New header
+                  </label>
+                </div>
+                <div class="govuk-checkboxes__item">
+                  <input class="govuk-checkboxes__input" id="accessibility" name="features" type="checkbox" value="accessibility" disabled>
+                  <label class="govuk-label govuk-checkboxes__label" for="accessibility">
+                    Accessibility
+                  </label>
+                </div>
+              </div>
+            </fieldset>
+          </div>
+        </form>
+      </div>
+    </main>
+
+    <cps-global-footer></cps-global-footer>
+  </div>
+
+  <script>
+    // MSAL Configuration - test environment
+    const msalConfig = {
+      auth: {
+        clientId: '8d6133af-9593-47c6-94d0-5c65e9e310f1',
+        authority: 'https://login.microsoftonline.com/00dd0d1d-d7e6-4338-ac51-565339c7088c',
+        redirectUri: window.location.origin + '/api/global-components/preview'
+      },
+      cache: {
+        cacheLocation: 'localStorage'
+      }
+    };
+
+    const tokenRequest = { scopes: ['User.Read'] };
+
+    const STATE_ENDPOINT = '/api/global-components/state/preview';
+    const statusEl = document.getElementById('status-message');
+    const enabledCheckbox = document.getElementById('enabled');
+    const featureCheckboxes = document.querySelectorAll('input[name="features"]');
+
+    let msalInstance = null;
+    let accessToken = null;
+
+    function showStatus(message, type) {
+      statusEl.textContent = message;
+      statusEl.className = 'preview-status' + (type ? ' preview-status--' + type : '');
+      statusEl.style.display = 'block';
+      if (type !== 'error') {
+        setTimeout(() => { statusEl.style.display = 'none'; }, 3000);
+      }
+    }
+
+    function getState() {
+      const features = [];
+      featureCheckboxes.forEach(cb => {
+        if (cb.checked) features.push(cb.value);
+      });
+      return {
+        enabled: enabledCheckbox.checked,
+        features: features
+      };
+    }
+
+    function setState(state) {
+      if (!state) return;
+      enabledCheckbox.checked = state.enabled || false;
+      featureCheckboxes.forEach(cb => {
+        cb.checked = (state.features || []).includes(cb.value);
+      });
+    }
+
+    function enableForm() {
+      enabledCheckbox.disabled = false;
+      featureCheckboxes.forEach(cb => cb.disabled = false);
+    }
+
+    async function getToken() {
+      try {
+        // Try SSO silent first - uses existing session cookies
+        const { account } = await msalInstance.ssoSilent(tokenRequest);
+
+        // Now get the access token for this account
+        const response = await msalInstance.acquireTokenSilent({
+          ...tokenRequest,
+          account
+        });
+        return response.accessToken;
+      } catch (err) {
+        console.log('Silent auth failed:', err);
+        return null;
+      }
+    }
+
+    async function loadState() {
+      if (!accessToken) {
+        showStatus('Please sign in to access preview settings', 'error');
+        return;
+      }
+      try {
+        const response = await fetch(STATE_ENDPOINT, {
+          credentials: 'include',
+          headers: { 'Authorization': 'Bearer ' + accessToken }
+        });
+        if (!response.ok) {
+          throw new Error('Failed to load state');
+        }
+        const state = await response.json();
+        setState(state);
+        enableForm();
+      } catch (err) {
+        showStatus('Failed to load settings: ' + err.message, 'error');
+      }
+    }
+
+    async function saveState() {
+      if (!accessToken) {
+        showStatus('Please sign in to save preview settings', 'error');
+        return;
+      }
+      try {
+        const response = await fetch(STATE_ENDPOINT, {
+          method: 'PUT',
+          credentials: 'include',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ' + accessToken
+          },
+          body: JSON.stringify(getState())
+        });
+        if (!response.ok) {
+          throw new Error('Failed to save state');
+        }
+        showStatus('Settings saved', 'success');
+      } catch (err) {
+        showStatus('Failed to save settings: ' + err.message, 'error');
+      }
+    }
+
+    async function init() {
+      msalInstance = new msal.PublicClientApplication(msalConfig);
+      await msalInstance.initialize();
+
+      // Try silent token acquisition
+      accessToken = await getToken();
+
+      if (accessToken) {
+        await loadState();
+      } else {
+        showStatus('Not signed in - silent auth failed', 'error');
+      }
+    }
+
+    // Event listeners
+    enabledCheckbox.addEventListener('change', saveState);
+    featureCheckboxes.forEach(cb => cb.addEventListener('change', saveState));
+
+    // Initialize MSAL and load state
+    init();
+  </script>
+</body>
+
+</html>

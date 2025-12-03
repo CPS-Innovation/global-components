@@ -30,7 +30,6 @@ describe("extractTagsFromCaseDetails", () => {
 
     it("should include all tag fields even when extra fields are present", () => {
       const caseDetails: CaseDetails = {
-        caseId: 123,
         urn: "12AB3456789",
         isDcfCase: true,
       };
@@ -46,7 +45,6 @@ describe("extractTagsFromCaseDetails", () => {
 
     it("should not include caseId in tags", () => {
       const caseDetails: CaseDetails = {
-        caseId: 456,
         urn: "99ZZ1234567",
         isDcfCase: false,
       };
@@ -110,16 +108,6 @@ describe("extractTagsFromCaseDetails", () => {
         urn: undefined,
         isDcfCase: undefined,
       });
-    });
-
-    it("should return allTagsArePresent as false when only caseId is present", () => {
-      const caseDetails: Partial<CaseDetails> = {
-        caseId: 789,
-      };
-
-      const result = extractTagsFromCaseDetails(caseDetails);
-
-      expect(result.allTagsArePresent).toBe(false);
     });
   });
 

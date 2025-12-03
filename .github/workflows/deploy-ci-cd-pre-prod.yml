@@ -8,34 +8,7 @@ permissions:
   contents: read
 
 jobs:
-  check-pr-merge:
-    runs-on: ubuntu-latest
-    outputs:
-      is_from_pr: ${{ steps.check-pr.outputs.is_from_pr }}
-    steps:
-      - name: Check if commit is from PR merge
-        id: check-pr
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const { data: prs } = await github.rest.repos.listPullRequestsAssociatedWithCommit({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              commit_sha: context.sha
-            });
-
-            const isFromPR = prs.length > 0;
-            core.setOutput('is_from_pr', isFromPR);
-
-            if (isFromPR) {
-              console.log(`Commit ${context.sha} is associated with PR(s):`, prs.map(pr => pr.number));
-            } else {
-              console.log(`Commit ${context.sha} is not associated with any PR`);
-            }
-
   deploy-non-prod:
-    needs: check-pr-merge
-    if: needs.check-pr-merge.outputs.is_from_pr == 'true'
     uses: ./.github/workflows/sub-workflow-core-deploy.yml
     with:
       environments: '["unstable", "accessibility", "dev", "test", "staging"]'

@@ -10,7 +10,7 @@ const ERROR_MEG = `Circuit breaker tripped - too many requests`;
 
 export const fetchWithCircuitBreaker = ({ config, trackEvent }: Props) => {
   const baseConfig = {
-    maxPerInterval: 5,
+    maxPerInterval: 10,
     intervalMs: 3_000,
   };
 

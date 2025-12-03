@@ -1,0 +1,118 @@
+js_import gloco from templates/global-components.js;
+js_set $upstream_url gloco.readUpstreamUrl;
+js_set $functions_key gloco.readFunctionsKey;
+js_set $cms_auth_values gloco.readCmsAuthValues;
+js_set $cors_origin gloco.readCorsOrigin;
+
+# Handle swagger.json specifically
+location ~ ^/api/global-components/(.*swagger(\.json|/ui).*)$ {
+    error_page 418 = @gloco_preflight;
+  if ($request_method = OPTIONS) {
+    return 418;
+  }
+  add_header Access-Control-Allow-Origin $cors_origin always;
+  add_header Access-Control-Allow-Credentials true always;
+
+  proxy_set_header x-functions-key $functions_key;
+  proxy_set_header Accept-Encoding "";  # Disable compression for body filter
+  proxy_pass $upstream_url$1;
+
+  js_body_filter gloco.filterSwaggerBody buffer_type=string;
+}
+
+location = /api/global-components {
+  js_content gloco.handleStatus;
+}
+
+location = /api/global-components/session-hint {
+  error_page 418 = @gloco_preflight;
+  if ($request_method = OPTIONS) {
+    return 418;
+  }
+  add_header Access-Control-Allow-Origin $cors_origin always;
+  add_header Access-Control-Allow-Credentials true always;
+  
+  js_content gloco.handleSessionHint;
+}
+
+location = /api/global-components/upstream-handover-health-check {
+  error_page 418 = @gloco_preflight;
+  if ($request_method = OPTIONS) {
+    return 418;
+  }
+  add_header Access-Control-Allow-Origin $cors_origin always;
+  add_header Access-Control-Allow-Credentials true always;
+  
+  # When using njs fetch, DNS resolution is extremely slow or even
+  #  times out. 
+  resolver ${WEBSITE_DNS_SERVER} ipv6=off valid=30s;
+  # Internal certificates upset fetch
+  js_fetch_verify off;
+
+  js_content gloco.handleHealthCheck;
+}
+
+# Preview page - serves HTML from blob storage
+location = /api/global-components/preview {
+  error_page 418 = @gloco_preflight;
+  if ($request_method = OPTIONS) {
+    return 418;
+  }
+
+  resolver ${WEBSITE_DNS_SERVER} ipv6=off valid=30s;
+  js_fetch_verify off;
+
+  js_content gloco.handlePreview;
+}
+
+# State management endpoint - must come before the catch-all regex
+# Auth is handled in njs: GET is public, PUT requires valid token
+location ~ ^/api/global-components/state/(.*)$ {
+  error_page 418 = @gloco_preflight;
+  if ($request_method = OPTIONS) {
+    return 418;
+  }
+  add_header Access-Control-Allow-Origin $cors_origin always;
+  add_header Access-Control-Allow-Credentials true always;
+
+  resolver ${WEBSITE_DNS_SERVER} ipv6=off valid=30s;
+  js_fetch_verify off;
+
+  js_content gloco.handleState;
+}
+
+location ~ ^/api/global-components/(.*)$ {
+  error_page 418 = @gloco_preflight;
+  if ($request_method = OPTIONS) {
+    return 418;
+  }
+  add_header Access-Control-Allow-Origin $cors_origin always;
+  add_header Access-Control-Allow-Credentials true always;
+
+  auth_request /api/global-components/validate-token;
+
+  proxy_set_header Origin "https://${host}"; # Prevent upstream CORS checks blocking us
+  proxy_set_header x-functions-key $functions_key;
+  proxy_set_header cms-auth-values $cms_auth_values;
+  proxy_set_header Authorization ""; # Strip Authorization header, upstream does not want it
+  proxy_pass $upstream_url$1;
+}
+
+location = /api/global-components/validate-token {
+    internal;
+    resolver ${WEBSITE_DNS_SERVER} ipv6=off valid=30s;
+    js_fetch_verify off;
+    js_content gloco.handleValidateToken;
+}
+
+location @gloco_preflight {
+  internal;
+  add_header Access-Control-Allow-Origin $cors_origin;
+  add_header Access-Control-Allow-Methods 'GET, POST, PUT, PATCH, DELETE, OPTIONS';
+  add_header Access-Control-Allow-Headers 'Authorization, Content-Type, Correlation-Id, X-Application, Cms-Auth-Values';
+  add_header Access-Control-Allow-Credentials true;
+  add_header Access-Control-Max-Age 86400;
+  add_header Content-Length 0;
+  add_header Content-Type 'text/plain';
+  return 204;
+}

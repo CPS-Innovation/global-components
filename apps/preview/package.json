@@ -1,0 +1,16 @@
+{
+  "name": "preview",
+  "version": "1.0.0",
+  "description": "Preview settings page for CPS Global Components",
+  "scripts": {
+    "preinstall": "npx only-allow pnpm",
+    "dev": "vite",
+    "build": "echo 'No build needed - static HTML'",
+    "preview": "vite preview"
+  },
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "vite": "^6.0.0"
+  }
+}

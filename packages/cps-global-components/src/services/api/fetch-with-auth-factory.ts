@@ -6,7 +6,7 @@ import { GetToken } from "../auth/GetToken";
 import { emptyCorrelationIds } from "../correlation/CorrelationIds";
 import { FoundContext } from "../context/FoundContext";
 import { withLogging } from "../../logging/with-logging";
-import { fullyQualifyRequest } from "./fully-qualify-request";
+import { fullyQualifyRequest } from "../../utils/fully-qualify-request";
 
 const { _error } = makeConsole("fetchWithAuthFactory");
 
@@ -28,7 +28,7 @@ export const fetchWithAuthFactory =
         headers: {
           "Authorization": `Bearer ${await getToken({ config: { AD_GATEWAY_SCOPE } })}`,
           "Correlation-Id": navigationCorrelationId,
-          "Cms-Auth-Values": encodeURIComponent(cmsAuth || ""),
+          ...(cmsAuth ? { "Cms-Auth-Values": cmsAuth } : undefined),
         },
         credentials: "include",
       };

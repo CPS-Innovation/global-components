@@ -1,7 +1,6 @@
 import { z } from "zod";
 
 export const CaseDetailsSchema = z.object({
-  caseId: z.number(),
   urn: z.string(),
   isDcfCase: z.boolean(),
 });

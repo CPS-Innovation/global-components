@@ -1,0 +1,6 @@
+# Test build artifacts
+tests/.dist/
+
+# Deployment secrets and backups
+deploy/secrets.env
+deploy/backups/

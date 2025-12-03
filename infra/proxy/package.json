@@ -1,0 +1,11 @@
+{
+  "name": "@cps/proxy",
+  "private": true,
+  "scripts": {
+    "test": "node tests/global-components.unit.test.js && node tests/nginx.unit.test.js",
+    "test:integration": "./run-tests.sh"
+  },
+  "devDependencies": {
+    "esbuild": "^0.27.0"
+  }
+}
