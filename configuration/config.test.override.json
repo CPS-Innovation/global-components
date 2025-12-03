@@ -164,7 +164,8 @@
       "level": 1,
       "href": "https://polaris-qa-notprod.cps.gov.uk/polaris?q=%7B%22caseId%22%3A{caseId}%7D",
       "visibleContexts": "case",
-      "activeContexts": "materials"
+      "activeContexts": "materials",
+      "preferEventNavigationContexts": "details"
     },
     {
       "label": "Review",
