@@ -2,7 +2,7 @@
   "name": "@cps/proxy",
   "private": true,
   "scripts": {
-    "test": "node tests/global-components.unit.test.js && node tests/nginx.unit.test.js",
+    "test": "node config/global-components/tests/global-components.unit.test.js && node config/global-components.vnext/tests/global-components.vnext.unit.test.js && node config/main/tests/nginx.unit.test.js",
     "test:integration": "./run-tests.sh"
   },
   "devDependencies": {

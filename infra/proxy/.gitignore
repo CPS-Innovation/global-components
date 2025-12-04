@@ -1,6 +1,10 @@
 # Test build artifacts
-tests/.dist/
+.dist/
 
 # Deployment secrets and backups
 deploy/secrets.env
 deploy/backups/
+
+# Environment config files (contain secrets)
+config/global-components/.env
+config/global-components.vnext/.env

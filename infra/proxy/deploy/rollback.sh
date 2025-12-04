@@ -75,10 +75,13 @@ mkdir -p "$PRE_ROLLBACK_DIR"
 echo -e "\n${YELLOW}Backing up current state before rollback...${NC}"
 
 FILES_TO_BACKUP=(
-  "global-components.js"
-  "global-components.conf.template"
+  "nginx.conf.template"
   "nginx.js"
-  "global-components-vars.js"
+  "global-components.conf.template"
+  "global-components.js"
+  "global-components.vnext.conf.template"
+  "global-components.vnext.js"
+  "global-components-deployment.json"
 )
 
 for file in "${FILES_TO_BACKUP[@]}"; do
@@ -116,8 +119,8 @@ az webapp restart \
   --name "$AZURE_WEBAPP_NAME" \
   --resource-group "$AZURE_RESOURCE_GROUP"
 
-# Get expected version from backup vars file
-EXPECTED_VERSION=$(grep -o 'deployVersion:[[:space:]]*[0-9]*' "$SELECTED_BACKUP/global-components-vars.js" 2>/dev/null | grep -o '[0-9]*' || echo "unknown")
+# Get expected version from backup deployment.json
+EXPECTED_VERSION=$(grep -o '"version":[0-9]*' "$SELECTED_BACKUP/global-components-deployment.json" 2>/dev/null | grep -o '[0-9]*' || echo "unknown")
 
 # Poll for version change
 echo -e "\n${YELLOW}Waiting for rollback to complete...${NC}"

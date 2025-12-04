@@ -1,0 +1,64 @@
+js_import glocovnext from templates/global-components.vnext.js;
+
+# Environment variables passed to njs
+js_var $global_components_application_id ${GLOBAL_COMPONENTS_APPLICATION_ID};
+
+# Lets caller know if a given cin environment's /polaris endpoint exists/is healthy
+location = /global-components/upstream-handover-health-check {
+  error_page 418 = @gloco_preflight;
+  if ($request_method = OPTIONS) {
+    return 418;
+  }
+  add_header Access-Control-Allow-Origin $cors_origin always;
+  add_header Access-Control-Allow-Credentials true always;
+
+  # When using njs fetch, DNS resolution is extremely slow or even
+  #  times out.
+  resolver ${WEBSITE_DNS_SERVER} ipv6=off valid=30s;
+  # Internal certificates upset fetch
+  js_fetch_verify off;
+
+  js_content glocovnext.handleHealthCheck;
+}
+
+# Proxy static assets from blob storage (dev/test/prod environments)
+# e.g. /global-components/dev/cps-global-components.js -> blob storage
+location ~ ^/global-components/(dev|test|prod)/(.*)$ {
+  error_page 418 = @gloco_preflight;
+  if ($request_method = OPTIONS) {
+    return 418;
+  }
+  add_header Access-Control-Allow-Origin $cors_origin always;
+  add_header Access-Control-Allow-Credentials true always;
+
+  resolver ${WEBSITE_DNS_SERVER} ipv6=off valid=30s;
+  proxy_ssl_server_name on;
+  proxy_pass_request_headers off;
+  proxy_set_header Host sacpsglobalcomponents.blob.core.windows.net;
+  proxy_pass ${GLOBAL_COMPONENTS_BLOB_STORAGE_URL}/$1/$2;
+}
+
+# State management endpoint
+# Auth is handled in njs: GET is public, PUT requires valid token
+location ~ ^/global-components/state/(.*)$ {
+  error_page 418 = @gloco_preflight;
+  if ($request_method = OPTIONS) {
+    return 418;
+  }
+  add_header Access-Control-Allow-Origin $cors_origin always;
+  add_header Access-Control-Allow-Credentials true always;
+
+  resolver ${WEBSITE_DNS_SERVER} ipv6=off valid=30s;
+  js_fetch_verify off;
+
+  js_content glocovnext.handleState;
+}
+
+# Allows other calls to validate Bearer token. Doesn't support
+#  audience/scopes beyond standard MS ones
+location = /global-components/validate-token {
+    internal;
+    resolver ${WEBSITE_DNS_SERVER} ipv6=off valid=30s;
+    js_fetch_verify off;
+    js_content glocovnext.handleValidateToken;
+}
