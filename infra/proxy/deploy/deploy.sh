@@ -115,7 +115,7 @@ if az storage blob download \
     --file "$BACKUP_DIR/$DEPLOYMENT_JSON" \
     --auth-mode login \
     2>/dev/null; then
-  CURRENT_VERSION=$(grep -o '"version":[0-9]*' "$BACKUP_DIR/$DEPLOYMENT_JSON" | grep -o '[0-9]*' || echo "0")
+  CURRENT_VERSION=$(grep -o '"version":[ ]*[0-9]*' "$BACKUP_DIR/$DEPLOYMENT_JSON" | grep -o '[0-9]*' || echo "0")
 fi
 echo -e "${GREEN}Backup complete${NC}"
 
@@ -178,20 +178,25 @@ echo -e "${GREEN}Restart initiated${NC}"
 
 # Poll for new version
 echo -e "\n${YELLOW}Waiting for new version to be live...${NC}"
+echo "Polling: $STATUS_ENDPOINT"
 echo "Expecting version: $NEW_VERSION"
 MAX_ATTEMPTS=60
 ATTEMPT=1
 while [ $ATTEMPT -le $MAX_ATTEMPTS ]; do
-  RESPONSE=$(curl -s "$STATUS_ENDPOINT" 2>/dev/null || echo "{}")
-  LIVE_VERSION=$(echo "$RESPONSE" | grep -o '"version":[0-9]*' | grep -o '[0-9]*' || echo "0")
+  HTTP_CODE=$(curl -s -o /tmp/poll_response.txt -w "%{http_code}" "$STATUS_ENDPOINT" 2>/dev/null || echo "000")
+  RESPONSE=$(cat /tmp/poll_response.txt 2>/dev/null || echo "{}")
+  LIVE_VERSION=$(echo "$RESPONSE" | grep -o '"version":[ ]*[0-9]*' | grep -o '[0-9]*' || echo "0")
+  echo ""
+  echo "  [$ATTEMPT] HTTP $HTTP_CODE - $RESPONSE"
   if [ "$LIVE_VERSION" = "$NEW_VERSION" ]; then
     echo -e "\n${GREEN}Deployment successful! Version $NEW_VERSION is now live.${NC}"
+    rm -f /tmp/poll_response.txt
     exit 0
   fi
-  echo -n "."
   sleep 2
   ((ATTEMPT++))
 done
+rm -f /tmp/poll_response.txt
 
 echo -e "\n${RED}Timeout waiting for version $NEW_VERSION. Current version: $LIVE_VERSION${NC}"
 echo "The deployment may still be in progress, or there may be an issue."
