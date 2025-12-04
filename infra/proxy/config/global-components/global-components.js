@@ -77,21 +77,24 @@ function handleStatus(r) {
   r.headersOut["Content-Type"] = "application/json"
 
   let version = 0
+  let error = null
   try {
     const data = fs.readFileSync(DEPLOYMENT_JSON_PATH, "utf8")
     const json = JSON.parse(data)
     version = json.version || 0
   } catch (e) {
-    // File doesn't exist or is invalid - return version 0
+    error = e.message || String(e)
   }
 
-  r.return(
-    200,
-    JSON.stringify({
-      status: "online",
-      version: version,
-    })
-  )
+  const response = {
+    status: "online",
+    version: version,
+  }
+  if (error) {
+    response.error = error
+  }
+
+  r.return(200, JSON.stringify(response))
 }
 
 function handleSessionHint(r) {
