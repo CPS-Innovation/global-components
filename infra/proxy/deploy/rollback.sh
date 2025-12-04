@@ -84,7 +84,7 @@ az account set --subscription "$AZURE_SUBSCRIPTION_ID"
 echo -e "${GREEN}Using subscription: $AZURE_SUBSCRIPTION_ID${NC}"
 
 # Get current version for new backup
-CURRENT_VERSION=$(curl -s "$STATUS_ENDPOINT" | grep -o '"version":[0-9]*' | grep -o '[0-9]*' || echo "0")
+CURRENT_VERSION=$(curl -s "$STATUS_ENDPOINT" | grep -o '"version":[ ]*[0-9]*' | grep -o '[0-9]*' || echo "0")
 
 # Create a backup of current state before rollback
 PRE_ROLLBACK_DIR="$BACKUPS_DIR/$(date +%Y%m%d_%H%M%S)_pre-rollback_v${CURRENT_VERSION}"
@@ -136,7 +136,7 @@ az webapp restart \
 echo -e "${GREEN}Restart initiated${NC}"
 
 # Get expected version from backup deployment.json
-EXPECTED_VERSION=$(grep -o '"version":[0-9]*' "$SELECTED_BACKUP/global-components-deployment.json" 2>/dev/null | grep -o '[0-9]*' || echo "unknown")
+EXPECTED_VERSION=$(grep -o '"version":[ ]*[0-9]*' "$SELECTED_BACKUP/global-components-deployment.json" 2>/dev/null | grep -o '[0-9]*' || echo "unknown")
 
 # Poll for version change
 echo -e "\n${YELLOW}Waiting for rollback to complete...${NC}"
@@ -144,7 +144,7 @@ echo "Expected version: $EXPECTED_VERSION"
 MAX_ATTEMPTS=60
 ATTEMPT=1
 while [ $ATTEMPT -le $MAX_ATTEMPTS ]; do
-  LIVE_VERSION=$(curl -s "$STATUS_ENDPOINT" 2>/dev/null | grep -o '"version":[0-9]*' | grep -o '[0-9]*' || echo "0")
+  LIVE_VERSION=$(curl -s "$STATUS_ENDPOINT" 2>/dev/null | grep -o '"version":[ ]*[0-9]*' | grep -o '[0-9]*' || echo "0")
   if [ "$LIVE_VERSION" != "$CURRENT_VERSION" ]; then
     echo -e "\n${GREEN}Rollback complete! Version is now: $LIVE_VERSION${NC}"
     exit 0
