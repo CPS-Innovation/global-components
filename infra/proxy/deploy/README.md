@@ -29,7 +29,8 @@ curl -sSL https://raw.githubusercontent.com/CPS-Innovation/global-components/mai
 
 To deploy from a different branch:
 ```bash
-GITHUB_BRANCH=feature/my-branch curl -sSL https://raw.githubusercontent.com/CPS-Innovation/global-components/main/infra/proxy/deploy/deploy.sh | bash
+export GITHUB_BRANCH=feature/my-branch
+curl -sSL "https://raw.githubusercontent.com/CPS-Innovation/global-components/$GITHUB_BRANCH/infra/proxy/deploy/deploy.sh" | bash
 ```
 
 This will:

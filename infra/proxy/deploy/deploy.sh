@@ -65,7 +65,10 @@ APP_SETTINGS_VARS="GLOBAL_COMPONENTS_MDS_URL GLOBAL_COMPONENTS_MDS_FUNCTION_KEY"
 DEPLOYMENT_JSON="global-components-deployment.json"
 
 # Fetch files from GitHub
-echo -e "\n${YELLOW}Fetching files from GitHub (${GITHUB_REPO}@${GITHUB_BRANCH})...${NC}"
+echo -e "\n${YELLOW}Fetching files from GitHub...${NC}"
+echo "  Repo: $GITHUB_REPO"
+echo "  Branch: $GITHUB_BRANCH"
+echo "  Base URL: $GITHUB_BASE_URL"
 mkdir -p "$CONTENT_DIR"
 
 for file in "${FILES_TO_DEPLOY[@]}"; do
