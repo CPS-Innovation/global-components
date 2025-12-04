@@ -1,7 +1,7 @@
 import fs from "fs"
 
 const SESSION_HINT_COOKIE_NAME = "cms-session-hint"
-const DEPLOYMENT_JSON_PATH = "/etc/nginx/global-components-deployment.json"
+const DEPLOYMENT_JSON_PATH = "/etc/nginx/templates/global-components-deployment.json"
 const CMS_AUTH_VALUES_COOKIE_NAME = "Cms-Auth-Values"
 const CORS_ALLOWED_ORIGINS = [
   "https://polaris.cps.gov.uk",

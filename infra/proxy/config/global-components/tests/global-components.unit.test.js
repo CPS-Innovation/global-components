@@ -220,7 +220,7 @@ async function runTests() {
     // Mock fs.readFileSync to return deployment JSON
     const originalReadFileSync = fs.readFileSync
     fs.readFileSync = (path, encoding) => {
-      if (path === "/etc/nginx/global-components-deployment.json") {
+      if (path === "/etc/nginx/templates/global-components-deployment.json") {
         return JSON.stringify({ version: 42 })
       }
       return originalReadFileSync(path, encoding)
@@ -246,7 +246,7 @@ async function runTests() {
     // Mock fs.readFileSync to throw (file not found)
     const originalReadFileSync = fs.readFileSync
     fs.readFileSync = (path, encoding) => {
-      if (path === "/etc/nginx/global-components-deployment.json") {
+      if (path === "/etc/nginx/templates/global-components-deployment.json") {
         throw new Error("ENOENT: no such file or directory")
       }
       return originalReadFileSync(path, encoding)
