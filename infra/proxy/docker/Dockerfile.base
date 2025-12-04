@@ -1,0 +1,26 @@
+FROM nginx:1.27.1-alpine
+
+# Install njs module and curl for healthcheck
+RUN apk add --no-cache nginx-mod-http-js curl
+
+# Create templates directory
+RUN mkdir -p /etc/nginx/templates
+
+# Copy only main nginx config (context is parent directory)
+# Additional configs are mounted via docker-compose overrides
+COPY config/main/nginx.conf.template /etc/nginx/templates/nginx.conf.template
+COPY config/main/nginx.js /etc/nginx/nginx.js
+
+# Configure nginx to run as non-root
+RUN chown -R nginx:nginx /var/cache/nginx /var/log/nginx /etc/nginx \
+    && touch /var/run/nginx.pid \
+    && chown -R nginx:nginx /var/run/nginx.pid
+
+USER nginx
+
+EXPOSE 8080
+
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+  CMD curl -f http://localhost:8080/health || exit 1
+
+CMD ["nginx", "-g", "daemon off;"]

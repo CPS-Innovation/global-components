@@ -10,9 +10,8 @@ const esbuild = require("esbuild");
 const path = require("path");
 const fs = require("fs");
 
-const CONFIG_MAIN_DIR = path.join(__dirname, "..", "config-main");
-const TEST_DIR = __dirname;
-const DIST_DIR = path.join(TEST_DIR, ".dist");
+const CONFIG_MAIN_DIR = path.join(__dirname, "..");
+const DIST_DIR = path.join(__dirname, "..", "..", "..", ".dist");
 
 // Ensure dist directory exists
 if (!fs.existsSync(DIST_DIR)) {

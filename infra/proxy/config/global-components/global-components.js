@@ -1,7 +1,21 @@
-import VARIABLES from "templates/global-components-vars.js"
+import fs from "fs"
 
 const SESSION_HINT_COOKIE_NAME = "cms-session-hint"
+const DEPLOYMENT_JSON_PATH = "/etc/nginx/global-components-deployment.json"
 const CMS_AUTH_VALUES_COOKIE_NAME = "Cms-Auth-Values"
+const CORS_ALLOWED_ORIGINS = [
+  "https://polaris.cps.gov.uk",
+  "https://polaris-qa-notprod.cps.gov.uk",
+  "https://polaris-dev-notprod.cps.gov.uk",
+  "https://cps.outsystemsenterprise.com",
+  "https://cps-tst.outsystemsenterprise.com",
+  "https://cps-dev.outsystemsenterprise.com",
+  "http://localhost",
+  "https://localhost",
+  "http://127.0.0.1",
+  "https://127.0.0.1",
+  // see later for check for localhost with port
+]
 
 function _getHeaderValue(r, headerName) {
   return r.headersIn[headerName] || ""
@@ -27,14 +41,6 @@ function _maybeDecodeURIComponent(value) {
   return value
 }
 
-function readUpstreamUrl(r) {
-  return VARIABLES.upstreamUrl
-}
-
-function readFunctionsKey(r) {
-  return VARIABLES.functionsKey
-}
-
 function readCmsAuthValues(r) {
   return _maybeDecodeURIComponent(
     _getHeaderValue(r, CMS_AUTH_VALUES_COOKIE_NAME) ||
@@ -44,8 +50,13 @@ function readCmsAuthValues(r) {
 
 // For nginx js_set - returns origin if allowed, empty string otherwise
 function readCorsOrigin(r) {
-  return (VARIABLES.corsAllowedOrigins || []).includes(r.headersIn["Origin"])
-    ? r.headersIn["Origin"]
+  const origin = r.headersIn["Origin"]
+  return CORS_ALLOWED_ORIGINS.includes(origin) ||
+    origin.startsWith("http://localhost:") ||
+    origin.startsWith("https://localhost:") ||
+    origin.startsWith("http://127.0.0.1:") ||
+    origin.startsWith("https://127.0.0.1:")
+    ? origin
     : ""
 }
 
@@ -54,7 +65,7 @@ function filterSwaggerBody(r, data, flags) {
   const host = r.headersIn["Host"] || r.variables.host
   const proxyBase = "https://" + host + "/global-components"
 
-  const pattern = new RegExp(_escapeRegExp(VARIABLES.upstreamUrl), "g")
+  const pattern = new RegExp(_escapeRegExp(r.variables.global_components_mds_url), "g")
   const result = data
     .replace(pattern, proxyBase)
     .replace(/\"\/api\//g, '"/global-components/')
@@ -64,9 +75,22 @@ function filterSwaggerBody(r, data, flags) {
 
 function handleStatus(r) {
   r.headersOut["Content-Type"] = "application/json"
+
+  let version = 0
+  try {
+    const data = fs.readFileSync(DEPLOYMENT_JSON_PATH, "utf8")
+    const json = JSON.parse(data)
+    version = json.version || 0
+  } catch (e) {
+    // File doesn't exist or is invalid - return version 0
+  }
+
   r.return(
     200,
-    JSON.stringify({ status: "online", version: VARIABLES.deployVersion || 0 })
+    JSON.stringify({
+      status: "online",
+      version: version,
+    })
   )
 }
 
@@ -77,8 +101,6 @@ function handleSessionHint(r) {
 
 export default {
   readCmsAuthValues,
-  readUpstreamUrl,
-  readFunctionsKey,
   readCorsOrigin,
 
   filterSwaggerBody,

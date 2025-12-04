@@ -1,6 +1,9 @@
 js_import gloco from templates/global-components.js;
-js_set $upstream_url gloco.readUpstreamUrl;
-js_set $functions_key gloco.readFunctionsKey;
+
+# Environment variables passed to njs (for functions that need them)
+js_var $global_components_mds_url ${GLOBAL_COMPONENTS_MDS_URL};
+
+# Dynamic values from request headers/cookies (set by njs)
 js_set $cms_auth_values gloco.readCmsAuthValues;
 js_set $cors_origin gloco.readCorsOrigin;
 
@@ -13,17 +16,19 @@ location ~ ^/global-components/(.*swagger(\.json|/ui).*)$ {
   add_header Access-Control-Allow-Origin $cors_origin always;
   add_header Access-Control-Allow-Credentials true always;
 
-  proxy_set_header x-functions-key $functions_key;
+  proxy_set_header x-functions-key "${GLOBAL_COMPONENTS_MDS_FUNCTION_KEY}";
   proxy_set_header Accept-Encoding "";  # Disable compression for body filter
-  proxy_pass $upstream_url$1;
+  proxy_pass ${GLOBAL_COMPONENTS_MDS_URL}$1;
 
   js_body_filter gloco.filterSwaggerBody buffer_type=string;
 }
 
-location = /global-components {
+# Utility to let us know if we are healthy or not
+location = /global-components/status {
   js_content gloco.handleStatus;
 }
 
+# Return which cin/cms environment we are connected to, and whether proxied 
 location = /global-components/session-hint {
   error_page 418 = @gloco_preflight;
   if ($request_method = OPTIONS) {
@@ -35,8 +40,8 @@ location = /global-components/session-hint {
   js_content gloco.handleSessionHint;
 }
 
-# Actual proxy route - matches /global-components/api/* and proxies to upstream
-location ~ ^/global-components/api/(.*)$ {
+# Data interaction with MDS - only allow case summary endpoint
+location ~ ^/global-components/api/(cases/\d+/summary)$ {
   error_page 418 = @gloco_preflight;
   if ($request_method = OPTIONS) {
     return 418;
@@ -44,13 +49,14 @@ location ~ ^/global-components/api/(.*)$ {
   add_header Access-Control-Allow-Origin $cors_origin always;
   add_header Access-Control-Allow-Credentials true always;
 
-  auth_request /global-components/validate-token;
+  # Check AD token against MS graphql if required 
+  #auth_request /global-components/validate-token;
 
   proxy_set_header Origin "https://${host}"; # Prevent upstream CORS checks blocking us
-  proxy_set_header x-functions-key $functions_key;
+  proxy_set_header x-functions-key "${GLOBAL_COMPONENTS_MDS_FUNCTION_KEY}";
   proxy_set_header cms-auth-values $cms_auth_values;
   proxy_set_header Authorization ""; # Strip Authorization header, upstream does not want it
-  proxy_pass $upstream_url$1;
+  proxy_pass ${GLOBAL_COMPONENTS_MDS_URL}$1;
 }
 
 # Legacy route for clients with cookies on /api/ path - rewrites to /global-components/api/*
