@@ -1,7 +1,8 @@
 import qs from "querystring"
 
 const IS_PROXY_SESSION_PARAM_NAME = "is-proxy-session"
-const SESSION_HINT_COOKIE_NAME = "cms-session-hint"
+const SESSION_HINT_COOKIE_NAME = "Cms-Session-Hint"
+const SESSION_HINT_COOKIE_LIFESPAN_MS = 30 * 24 * 60 * 60 * 1000
 
 function _argsShim(args) {
   if (args["r"]) {
@@ -46,6 +47,7 @@ function _redirectToAbsoluteUrl(r, redirectUrl) {
 }
 
 function setSessionHintCookie(r) {
+  let cookieValue
   try {
     const isProxySession = r.args[IS_PROXY_SESSION_PARAM_NAME] === "true"
     // Match lowercase subdomain(s) followed by .cps.gov.uk (terminated by _POOL)
@@ -58,23 +60,29 @@ function setSessionHintCookie(r) {
     const handoverEndpoint = isProxySession
       ? `https://${r.headersIn["Host"]}/polaris`
       : cmsDomains.length
-      ? `https://${cmsDomains[0]}/polaris`
+      ? // If there is more than one domain string found let's take the first
+        // one. Analytics in global nav will tell us if there are ever multiple
+        // domains found.
+        `https://${cmsDomains[0]}/polaris`
       : null
 
-    const cookieValue = JSON.stringify({
+    cookieValue = {
       cmsDomains,
       isProxySession,
       handoverEndpoint,
-    })
-
-    const expires = new Date(new Date().getTime() + 30 * 24 * 60 * 60 * 1000)
-
+    }
+  } catch (error) {
+    cookieValue = {
+      error,
+    }
+  } finally {
+    const expires = new Date(Date.now() + SESSION_HINT_COOKIE_LIFESPAN_MS)
     r.headersOut[
       "Set-Cookie"
     ] = `${SESSION_HINT_COOKIE_NAME}=${encodeURIComponent(
-      cookieValue
+      JSON.stringify(cookieValue)
     )}; Path=/; Expires=${expires.toUTCString()}; Secure; SameSite=None`
-  } catch (err) {}
+  }
 }
 
 function appAuthRedirect(r) {

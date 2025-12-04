@@ -9,6 +9,7 @@
 const esbuild = require("esbuild")
 const path = require("path")
 const fs = require("fs")
+const originalReadFileSync = fs.readFileSync
 
 const CONFIG_DIR = path.join(__dirname, "..", "..")
 const DIST_DIR = path.join(__dirname, "..", "..", "..", ".dist")
@@ -45,6 +46,7 @@ async function build() {
     outfile: path.join(DIST_DIR, "global-components.vnext.bundle.js"),
     format: "esm",
     platform: "node",
+    external: ["fs"], // Keep fs external so we can mock it
     alias: {
       "templates/global-components.js": path.join(
         DIST_DIR,
@@ -96,6 +98,7 @@ async function runTests() {
   // Note: tenant_id is now hardcoded in the js file as TENANT_ID constant
   const defaultVariables = {
     global_components_application_id: "test-app-id",
+    wm_mds_base_url: "http://mock-upstream:3000/api/",
   }
 
   // Hardcoded tenant ID (must match the constant in global-components.vnext.js)
@@ -112,9 +115,15 @@ async function runTests() {
       returnCode: null,
       returnBody: null,
       requestText: options.requestText || "",
+      sentBuffer: null,
+      sentFlags: null,
       return(code, body) {
         this.returnCode = code
         this.returnBody = body
+      },
+      sendBuffer(buffer, flags) {
+        this.sentBuffer = buffer
+        this.sentFlags = flags
       },
     }
   }
@@ -136,67 +145,6 @@ async function runTests() {
   console.log("=".repeat(60))
   console.log("global-components.vnext.js Unit Tests")
   console.log("=".repeat(60))
-
-  // --- handleHealthCheck tests ---
-  console.log("\nhandleHealthCheck:")
-
-  await test("returns 400 if url parameter missing", async () => {
-    const r = createMockRequest({ args: {} })
-    await glocovnext.handleHealthCheck(r)
-    assertEqual(r.returnCode, 400, "Should return 400")
-    assert(
-      r.returnBody.includes("url parameter required"),
-      "Should have error message"
-    )
-  })
-
-  await test("returns 403 if url not in whitelist", async () => {
-    const r = createMockRequest({ args: { url: "http://evil.com" } })
-    await glocovnext.handleHealthCheck(r)
-    assertEqual(r.returnCode, 403, "Should return 403")
-    assert(
-      r.returnBody.includes("url not in whitelist"),
-      "Should have error message"
-    )
-  })
-
-  await test("returns healthy true for 2xx response", async () => {
-    mockFetchResponse = { status: 200 }
-    mockFetchError = null
-    const r = createMockRequest({
-      args: { url: "https://polaris.cps.gov.uk/polaris" },
-    })
-    await glocovnext.handleHealthCheck(r)
-    assertEqual(r.returnCode, 200, "Should return 200")
-    const body = JSON.parse(r.returnBody)
-    assertEqual(body.healthy, true, "Should be healthy")
-    assertEqual(body.status, 200, "Should have status 200")
-  })
-
-  await test("returns healthy false for 5xx response", async () => {
-    mockFetchResponse = { status: 500 }
-    mockFetchError = null
-    const r = createMockRequest({
-      args: { url: "https://polaris.cps.gov.uk/polaris" },
-    })
-    await glocovnext.handleHealthCheck(r)
-    const body = JSON.parse(r.returnBody)
-    assertEqual(body.healthy, false, "Should not be healthy")
-    assertEqual(body.status, 500, "Should have status 500")
-  })
-
-  await test("returns healthy false on fetch error", async () => {
-    mockFetchError = new Error("Connection refused")
-    const r = createMockRequest({
-      args: { url: "https://polaris.cps.gov.uk/polaris" },
-    })
-    await glocovnext.handleHealthCheck(r)
-    const body = JSON.parse(r.returnBody)
-    assertEqual(body.healthy, false, "Should not be healthy")
-    assertEqual(body.status, 0, "Should have status 0")
-    assertEqual(body.error, "Connection refused", "Should have error message")
-    mockFetchError = null
-  })
 
   // --- handleState tests ---
   console.log("\nhandleState:")
@@ -359,6 +307,81 @@ async function runTests() {
     })
     await glocovnext.handleValidateToken(r)
     assertEqual(r.returnCode, 200, "Should return 200")
+  })
+
+  // --- handleStatus tests ---
+  console.log("\nhandleStatus:")
+
+  await test("returns JSON with status and version from deployment file", async () => {
+    // Mock fs.readFileSync to return deployment JSON
+    fs.readFileSync = (path, encoding) => {
+      if (path === "/etc/nginx/templates/global-components-deployment.json") {
+        return JSON.stringify({ version: 42 })
+      }
+      return originalReadFileSync(path, encoding)
+    }
+
+    const r = createMockRequest({})
+    glocovnext.handleStatus(r)
+
+    fs.readFileSync = originalReadFileSync // Restore
+
+    assertEqual(r.returnCode, 200, "Should return 200")
+    assertEqual(
+      r.headersOut["Content-Type"],
+      "application/json",
+      "Should be JSON"
+    )
+    const body = JSON.parse(r.returnBody)
+    assertEqual(body.status, "online", "Should have status online")
+    assertEqual(body.version, 42, "Should have version from deployment file")
+  })
+
+  await test("returns version 0 when deployment file does not exist", async () => {
+    // Mock fs.readFileSync to throw (file not found)
+    fs.readFileSync = (path, encoding) => {
+      if (path === "/etc/nginx/templates/global-components-deployment.json") {
+        throw new Error("ENOENT: no such file or directory")
+      }
+      return originalReadFileSync(path, encoding)
+    }
+
+    const r = createMockRequest({})
+    glocovnext.handleStatus(r)
+
+    fs.readFileSync = originalReadFileSync // Restore
+
+    assertEqual(r.returnCode, 200, "Should return 200")
+    const body = JSON.parse(r.returnBody)
+    assertEqual(body.status, "online", "Should have status online")
+    assertEqual(body.version, 0, "Should return version 0 when file missing")
+  })
+
+  // --- filterSwaggerBody tests ---
+  console.log("\nfilterSwaggerBody:")
+
+  await test("replaces upstream URL with proxy URL", async () => {
+    const r = createMockRequest({
+      headersIn: { Host: "proxy.example.com" },
+    })
+    const data = '{"server": "http://mock-upstream:3000/api/"}'
+    glocovnext.filterSwaggerBody(r, data, {})
+    assert(
+      r.sentBuffer.includes("https://proxy.example.com/global-components"),
+      `Should replace upstream URL, got: ${r.sentBuffer}`
+    )
+  })
+
+  await test("rewrites API paths", async () => {
+    const r = createMockRequest({
+      headersIn: { Host: "proxy.example.com" },
+    })
+    const data = '{"path": "/api/users"}'
+    glocovnext.filterSwaggerBody(r, data, {})
+    assert(
+      r.sentBuffer.includes('"/global-components/users"'),
+      `Should rewrite API path, got: ${r.sentBuffer}`
+    )
   })
 
   // Summary

@@ -2,7 +2,8 @@
 /**
  * Integration tests for global-components.vnext.conf.template
  *
- * Tests the vnext functionality: blob storage proxy, state endpoint, and upstream health check.
+ * Tests the vnext functionality: blob storage proxy, state endpoint,
+ * status endpoint, and swagger URL rewriting.
  */
 
 const {
@@ -145,59 +146,63 @@ async function testStateEndpoint() {
 }
 
 // =============================================================================
-// Upstream Handover Health Check Tests
+// Status Endpoint Tests
 // =============================================================================
 
-async function testUpstreamHealthCheck() {
-  console.log("\nUpstream Handover Health Check Tests:")
+async function testStatusEndpoint() {
+  console.log("\nStatus Endpoint Tests (/global-components/status):")
 
-  const HEALTH_CHECK_ENDPOINT = `${PROXY_BASE}/global-components/upstream-handover-health-check`
-
-  await test("returns 400 when url parameter is missing", async () => {
-    const response = await fetch(HEALTH_CHECK_ENDPOINT)
-    const json = await response.json()
-    assertEqual(response.status, 400, "Should return 400")
-    assertEqual(
-      json.error,
-      "url parameter required",
-      "Should have correct error message"
-    )
-  })
-
-  await test("returns 403 when url is not in whitelist", async () => {
-    const response = await fetch(`${HEALTH_CHECK_ENDPOINT}?url=http://evil.com`)
-    const json = await response.json()
-    assertEqual(response.status, 403, "Should return 403")
-    assertEqual(
-      json.error,
-      "url not in whitelist",
-      "Should have correct error message"
-    )
-    assertEqual(json.url, "http://evil.com", "Should include the rejected url")
-  })
-
-  await test("returns health check result for whitelisted url", async () => {
-    const whitelistedUrl = "http://mock-upstream:3000/api/health"
-    const response = await fetch(
-      `${HEALTH_CHECK_ENDPOINT}?url=${encodeURIComponent(whitelistedUrl)}`
-    )
-    const json = await response.json()
-    assertEqual(response.status, 200, "Should return 200")
-    assertEqual(json.url, whitelistedUrl, "Should include the checked url")
-    assert(typeof json.status === "number", "Should include numeric status")
-    assert(
-      typeof json.healthy === "boolean",
-      "Should include boolean healthy flag"
-    )
-  })
-
-  await test("returns Content-Type application/json", async () => {
-    const response = await fetch(HEALTH_CHECK_ENDPOINT)
+  await test("status endpoint returns JSON with status and version", async () => {
+    const response = await fetch(`${PROXY_BASE}/global-components/status`)
+    assertEqual(response.status, 200, "Health endpoint should return 200")
     const contentType = response.headers.get("content-type")
-    assert(
-      contentType !== null && contentType.includes("application/json"),
-      "Content-Type should be application/json"
+    assert(contentType.includes("application/json"), "Should return JSON")
+    const body = await response.json()
+    assertEqual(body.status, "online", "Should have status online")
+    assert(typeof body.version === "number", "Should have numeric version")
+  })
+}
+
+// =============================================================================
+// Swagger URL Rewriting Tests
+// =============================================================================
+
+async function testSwaggerRewriting() {
+  console.log("\nSwagger URL Rewriting Tests:")
+
+  await test("rewrites upstream URL in swagger.json", async () => {
+    const response = await fetch(
+      `${PROXY_BASE}/global-components/swagger.json`
     )
+    const text = await response.text()
+
+    // Should NOT contain the upstream URL
+    assert(
+      !text.includes("mock-upstream:3000"),
+      "Should not contain upstream URL"
+    )
+
+    // Should contain the proxy URL
+    assert(
+      text.includes("/global-components"),
+      "Should contain proxy path prefix"
+    )
+  })
+
+  await test("rewrites API paths in swagger.json", async () => {
+    const response = await fetch(
+      `${PROXY_BASE}/global-components/swagger.json`
+    )
+    const json = await response.json()
+
+    // Paths should be prefixed with /global-components
+    const paths = Object.keys(json.paths || {})
+    for (const path of paths) {
+      assert(
+        path.startsWith("/global-components"),
+        `Path ${path} should start with /global-components`
+      )
+    }
   })
 }
 
@@ -209,9 +214,10 @@ async function main() {
   // Disable TLS verification for self-signed certs
   process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0"
 
+  await testStatusEndpoint()
+  await testSwaggerRewriting()
   await testBlobStorageProxy()
   await testStateEndpoint()
-  await testUpstreamHealthCheck()
 }
 
 module.exports = main

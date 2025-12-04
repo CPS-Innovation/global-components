@@ -17,7 +17,7 @@ export const initialiseCmsSessionHint = async ({
     return { found: false, error: new Error("No GATEWAY_URL") };
   }
   try {
-    const response = await fetch(fullyQualifyRequest("/session-hint", GATEWAY_URL), { credentials: "include" });
+    const response = await fetch(fullyQualifyRequest("/cms-session-hint", GATEWAY_URL), { credentials: "include" });
     if (!response.ok) {
       throw new Error(`Response status: ${response.status} ${response.statusText}`);
     }

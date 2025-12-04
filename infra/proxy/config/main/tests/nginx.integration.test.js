@@ -66,7 +66,7 @@ async function testAuthRedirect() {
     )
   })
 
-  await test("sets cms-session-hint cookie with correct attributes", async () => {
+  await test("sets Cms-Session-Hint cookie with correct attributes", async () => {
     const response = await fetch(
       `${INIT_ENDPOINT}?r=/auth-refresh-inbound&cookie=PREFIX-foo.cps.gov.uk_POOL%3Dvalue`,
       {
@@ -80,8 +80,8 @@ async function testAuthRedirect() {
     const setCookie = response.headers.get("set-cookie")
     assert(setCookie !== null, "Should have Set-Cookie header")
     assert(
-      setCookie.includes("cms-session-hint="),
-      "Should set cms-session-hint cookie"
+      setCookie.includes("Cms-Session-Hint="),
+      "Should set Cms-Session-Hint cookie"
     )
     assert(setCookie.includes("Path=/"), "Should have Path=/")
     assert(setCookie.includes("Secure"), "Should have Secure attribute")
@@ -101,7 +101,7 @@ async function testAuthRedirect() {
       }
     )
     const setCookie = response.headers.get("set-cookie")
-    const match = setCookie.match(/cms-session-hint=([^;]+)/)
+    const match = setCookie.match(/Cms-Session-Hint=([^;]+)/)
     assert(match !== null, "Should be able to extract cookie value")
     const hint = JSON.parse(decodeURIComponent(match[1]))
     assert(Array.isArray(hint.cmsDomains), "cmsDomains should be an array")
@@ -129,7 +129,7 @@ async function testAuthRedirect() {
       }
     )
     const setCookie = response.headers.get("set-cookie")
-    const match = setCookie.match(/cms-session-hint=([^;]+)/)
+    const match = setCookie.match(/Cms-Session-Hint=([^;]+)/)
     const hint = JSON.parse(decodeURIComponent(match[1]))
     assertEqual(
       hint.isProxySession,
@@ -150,7 +150,7 @@ async function testAuthRedirect() {
       }
     )
     const setCookie = response.headers.get("set-cookie")
-    const match = setCookie.match(/cms-session-hint=([^;]+)/)
+    const match = setCookie.match(/Cms-Session-Hint=([^;]+)/)
     const hint = JSON.parse(decodeURIComponent(match[1]))
     assertEqual(
       hint.isProxySession,
@@ -171,7 +171,7 @@ async function testAuthRedirect() {
       }
     )
     const setCookie = response.headers.get("set-cookie")
-    const match = setCookie.match(/cms-session-hint=([^;]+)/)
+    const match = setCookie.match(/Cms-Session-Hint=([^;]+)/)
     const hint = JSON.parse(decodeURIComponent(match[1]))
     assertEqual(
       hint.handoverEndpoint,
@@ -192,7 +192,7 @@ async function testAuthRedirect() {
       }
     )
     const setCookie = response.headers.get("set-cookie")
-    const match = setCookie.match(/cms-session-hint=([^;]+)/)
+    const match = setCookie.match(/Cms-Session-Hint=([^;]+)/)
     const hint = JSON.parse(decodeURIComponent(match[1]))
     assertEqual(
       hint.handoverEndpoint,
@@ -213,7 +213,7 @@ async function testAuthRedirect() {
       }
     )
     const setCookie = response.headers.get("set-cookie")
-    const match = setCookie.match(/cms-session-hint=([^;]+)/)
+    const match = setCookie.match(/Cms-Session-Hint=([^;]+)/)
     const hint = JSON.parse(decodeURIComponent(match[1]))
     assertEqual(
       hint.handoverEndpoint,
@@ -234,7 +234,7 @@ async function testAuthRedirect() {
       }
     )
     const setCookie = response.headers.get("set-cookie")
-    const match = setCookie.match(/cms-session-hint=([^;]+)/)
+    const match = setCookie.match(/Cms-Session-Hint=([^;]+)/)
     const hint = JSON.parse(decodeURIComponent(match[1]))
     assertEqual(
       hint.cmsDomains.length,
