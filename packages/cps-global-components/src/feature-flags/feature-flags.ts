@@ -6,7 +6,15 @@ const shouldEnableAccessibilityMode = ({ flags }: Pick<State, "flags">) => flags
 
 const shouldShowGovUkRebrand = ({ config }: Pick<State, "config">) => !!config.SHOW_GOVUK_REBRAND;
 
-const shouldShowMenu = ({ config, auth, context }: Pick<State, "config" | "context"> & { auth: State["auth"] | undefined }) => {
+const shouldShowMenu = ({ config, auth, context, cmsSessionHint }: Pick<State, "config" | "context" | "cmsSessionHint"> & { auth: State["auth"] | undefined }) => {
+  if (cmsSessionHint.found && !cmsSessionHint.hint.isProxySession) {
+    // Currently we only want the menu shown if we are connected to proxied CMS.
+    // Design decision: if cmsSessionHint was not obtained then we continue to further
+    //  logic i.e. fail-open. So if we are having problems with the hint then we will
+    //  be optimistic and show the menu.
+    return false;
+  }
+
   if (context.found) {
     if (context.showMenuOverride === "never-show-menu") {
       // Work management always need the menu to never appear on some pages
