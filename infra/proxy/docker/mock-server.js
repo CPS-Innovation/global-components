@@ -27,14 +27,6 @@ function checkCors(req, res) {
 }
 
 const routes = {
-  'preview/index.html': {
-    contentType: 'text/html',
-    body: `<!DOCTYPE html>
-<html><head><title>Preview Settings</title></head>
-<body><h1>Preview Settings</h1><p>Mock preview page</p></body>
-</html>`,
-    skipApiPrefix: true
-  },
   'swagger.json': {
     contentType: 'application/json',
     body: JSON.stringify({
@@ -79,6 +71,43 @@ const server = http.createServer((req, res) => {
 
   // Check CORS before processing
   if (!checkCors(req, res)) {
+    return;
+  }
+
+  // Handle blob storage requests (dev/test/prod environments)
+  const blobMatch = path.match(/^blob\/(dev|test|prod)\/(.+)$/);
+  if (blobMatch) {
+    const [, env, file] = blobMatch;
+    console.log(`  -> Blob storage: env=${env}, file=${file}`);
+    const contentType = file.endsWith('.js') ? 'application/javascript' : 'text/plain';
+    res.writeHead(200, {
+      'Content-Type': contentType,
+      'X-Mock-Blob-Env': env,
+      'X-Mock-Blob-File': file
+    });
+    res.end(`// Mock blob file: ${env}/${file}\nconsole.log("Hello from ${env}");`);
+    return;
+  }
+
+  // Handle case summary requests
+  const caseMatch = path.match(/^cases\/(\d+)\/summary$/);
+  if (caseMatch) {
+    const caseId = caseMatch[1];
+    console.log(`  -> Case summary: caseId=${caseId}`);
+    res.writeHead(200, {
+      'Content-Type': 'application/json',
+      'X-Functions-Key-Received': functionsKey || 'none'
+    });
+    res.end(JSON.stringify({
+      mock: true,
+      caseId: parseInt(caseId),
+      summary: 'Mock case summary',
+      headers: {
+        'x-functions-key': functionsKey || null,
+        'cms-auth-values': cmsAuthValues || null,
+        'authorization': req.headers.authorization || null
+      }
+    }));
     return;
   }
 

@@ -17,4 +17,4 @@ cd docker
 docker-compose up --build
 ```
 
-Test routes at `http://localhost:8080/api/global-components/`.
+Test routes at `http://localhost:8080/global-components/`.

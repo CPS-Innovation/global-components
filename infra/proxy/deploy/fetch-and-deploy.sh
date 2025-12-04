@@ -35,6 +35,7 @@ fetch_file() {
   local url="${GITHUB_BASE_URL}/${remote_path}"
 
   echo "  Fetching ${remote_path}..."
+  mkdir -p "$(dirname "$local_path")"
   if ! curl -fsSL "$url" -o "$local_path"; then
     echo -e "${RED}Error: Failed to fetch ${url}${NC}"
     exit 1
@@ -42,27 +43,47 @@ fetch_file() {
 }
 
 # Create directories
-mkdir -p "$SCRIPT_DIR/config"
-mkdir -p "$SCRIPT_DIR/config-main"
+mkdir -p "$SCRIPT_DIR/config/main"
+mkdir -p "$SCRIPT_DIR/config/global-components"
+mkdir -p "$SCRIPT_DIR/config/global-components.vnext"
 
 # Fetch deploy scripts
 echo "Fetching deploy scripts..."
 fetch_file "deploy/deploy.sh" "$SCRIPT_DIR/deploy.sh"
 fetch_file "deploy/rollback.sh" "$SCRIPT_DIR/rollback.sh"
 
-# Fetch config files (except global-components-vars.js which contains secrets)
-echo "Fetching config files..."
-fetch_file "config/global-components.js" "$SCRIPT_DIR/config/global-components.js"
-fetch_file "config/global-components.conf.template" "$SCRIPT_DIR/config/global-components.conf.template"
-fetch_file "config-main/nginx.js" "$SCRIPT_DIR/config-main/nginx.js"
+# Fetch main nginx config
+echo "Fetching main config..."
+fetch_file "config/main/nginx.conf.template" "$SCRIPT_DIR/config/main/nginx.conf.template"
+fetch_file "config/main/nginx.js" "$SCRIPT_DIR/config/main/nginx.js"
 
-# Verify global-components-vars.js exists locally (it contains secrets and is not in git)
-if [ ! -f "$SCRIPT_DIR/config/global-components-vars.js" ]; then
-  echo -e "${RED}Error: config/global-components-vars.js not found${NC}"
+# Fetch global-components config (not .env - that stays local with secrets)
+echo "Fetching global-components config..."
+fetch_file "config/global-components/global-components.conf.template" "$SCRIPT_DIR/config/global-components/global-components.conf.template"
+fetch_file "config/global-components/global-components.js" "$SCRIPT_DIR/config/global-components/global-components.js"
+
+# Fetch global-components.vnext config (not .env - that stays local with secrets)
+echo "Fetching global-components.vnext config..."
+fetch_file "config/global-components.vnext/global-components.vnext.conf.template" "$SCRIPT_DIR/config/global-components.vnext/global-components.vnext.conf.template"
+fetch_file "config/global-components.vnext/global-components.vnext.js" "$SCRIPT_DIR/config/global-components.vnext/global-components.vnext.js"
+
+# Verify .env files exist locally (they contain secrets and are not in git)
+echo -e "\n${YELLOW}Checking local .env files...${NC}"
+if [ ! -f "$SCRIPT_DIR/config/global-components/.env" ]; then
+  echo -e "${RED}Error: config/global-components/.env not found${NC}"
   echo "This file contains secrets and must be created manually."
-  echo "See config/global-components-vars.example.js for the template."
+  echo "See .env.example in the repo for the template."
   exit 1
 fi
+echo "  ✓ config/global-components/.env"
+
+if [ ! -f "$SCRIPT_DIR/config/global-components.vnext/.env" ]; then
+  echo -e "${RED}Error: config/global-components.vnext/.env not found${NC}"
+  echo "This file contains secrets and must be created manually."
+  echo "See .env.example in the repo for the template."
+  exit 1
+fi
+echo "  ✓ config/global-components.vnext/.env"
 
 echo -e "${GREEN}Files fetched successfully${NC}"
 
