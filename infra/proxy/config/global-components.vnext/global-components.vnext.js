@@ -1,7 +1,8 @@
 import fs from "fs"
 import gloco from "templates/global-components.js"
 
-const DEPLOYMENT_JSON_PATH = "/etc/nginx/templates/global-components-deployment.json"
+const DEPLOYMENT_JSON_PATH =
+  "/etc/nginx/templates/global-components-deployment.json"
 const TENANT_ID = "00dd0d1d-d7e6-6338-ac51-565339c7088c"
 const STATE_COOKIE_NAME = "cps-global-components-state"
 const STATE_KEYS_NO_AUTH_ON_GET = ["preview"]
@@ -160,7 +161,7 @@ function handleStatus(r) {
 function filterSwaggerBody(r, data, flags) {
   // Replace upstream URL with proxy URL and fix API paths
   const host = r.headersIn["Host"] || r.variables.host
-  const proxyBase = "https://" + host + "/global-components"
+  const proxyBase = "https://" + host + "/global-components/"
 
   const pattern = new RegExp(_escapeRegExp(r.variables.wm_mds_base_url), "g")
   const result = data
