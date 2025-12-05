@@ -22,6 +22,7 @@ import { caseDetailsSubscriptionFactory } from "./services/data/case-details-sub
 import { fetchWithCircuitBreaker } from "./services/api/fetch-with-circuit-breaker";
 import { pipe } from "./utils/pipe";
 import { initialiseCmsSessionHint } from "./services/cms-session/initialise-cms-session-hint";
+import { initialiseHandover } from "./services/handover/intialise-handover";
 
 const { _debug, _error } = makeConsole("global-script");
 
@@ -73,6 +74,9 @@ const initialise = async (correlationIds: CorrelationIds, window: Window) => {
     const cmsSessionHint = await cachedResult("cmsSessionHint", () => initialiseCmsSessionHint({ config, flags }));
     register({ cmsSessionHint });
 
+    const handover = await cachedResult("handover", () => initialiseHandover({ config, flags }));
+    register({ handover });
+
     const context = initialiseContext({ window, config });
     register({ context });
     initialiseDomForContext({ context });
@@ -104,7 +108,7 @@ const initialise = async (correlationIds: CorrelationIds, window: Window) => {
         pipe(fetch, fetchWithCircuitBreaker({ config, trackEvent }), fetchWithAuthFactory({ config, context, getToken, readyState })),
       );
 
-      cachedResult("case-details", () => subscribe(caseDetailsSubscriptionFactory({ config, cache, fetch: augmentedFetch })));
+      cachedResult("case-details", () => subscribe(caseDetailsSubscriptionFactory({ config, cache, handover, fetch: augmentedFetch })));
 
       // if (flags.isOverrideMode) {
       //   const timestamp = +new Date();
