@@ -68,11 +68,6 @@ async function runTests() {
     }
   }
 
-  // Default mock environment variables (simulating js_var from nginx config)
-  const defaultVariables = {
-    global_components_mds_url: "http://mock-upstream:3000/api/",
-  }
-
   function createMockRequest(options = {}) {
     return {
       method: options.method || "GET",
@@ -80,7 +75,7 @@ async function runTests() {
       args: options.args || {},
       headersIn: options.headersIn || {},
       headersOut: {},
-      variables: { ...defaultVariables, ...options.variables },
+      variables: options.variables || {},
       returnCode: null,
       returnBody: null,
       sentBuffer: null,
@@ -186,119 +181,42 @@ async function runTests() {
     assertEqual(gloco.readCorsOrigin(r), "", "Should return empty string")
   })
 
-  // --- swaggerBodyFilter tests ---
-  console.log("\nswaggerBodyFilter:")
-
-  await test("replaces upstream URL with proxy URL", async () => {
-    const r = createMockRequest({
-      headersIn: { Host: "proxy.example.com" },
-    })
-    const data = '{"server": "http://mock-upstream:3000/api/"}'
-    gloco.filterSwaggerBody(r, data, {})
-    assert(
-      r.sentBuffer.includes("https://proxy.example.com/global-components"),
-      `Should replace upstream URL, got: ${r.sentBuffer}`
-    )
-  })
-
-  await test("rewrites API paths", async () => {
-    const r = createMockRequest({
-      headersIn: { Host: "proxy.example.com" },
-    })
-    const data = '{"path": "/api/users"}'
-    gloco.filterSwaggerBody(r, data, {})
-    assert(
-      r.sentBuffer.includes('"/global-components/users"'),
-      `Should rewrite API path, got: ${r.sentBuffer}`
-    )
-  })
-
-  // --- handleStatus tests ---
-  console.log("\nhandleStatus:")
-
-  await test("returns JSON with status and version from deployment file", async () => {
-    // Mock fs.readFileSync to return deployment JSON
-    const originalReadFileSync = fs.readFileSync
-    fs.readFileSync = (path, encoding) => {
-      if (path === "/etc/nginx/templates/global-components-deployment.json") {
-        return JSON.stringify({ version: 42 })
-      }
-      return originalReadFileSync(path, encoding)
-    }
-
-    const r = createMockRequest({})
-    gloco.handleStatus(r)
-
-    fs.readFileSync = originalReadFileSync // Restore
-
-    assertEqual(r.returnCode, 200, "Should return 200")
-    assertEqual(
-      r.headersOut["Content-Type"],
-      "application/json",
-      "Should be JSON"
-    )
-    const body = JSON.parse(r.returnBody)
-    assertEqual(body.status, "online", "Should have status online")
-    assertEqual(body.version, 42, "Should have version from deployment file")
-  })
-
-  await test("returns version 0 when deployment file does not exist", async () => {
-    // Mock fs.readFileSync to throw (file not found)
-    const originalReadFileSync = fs.readFileSync
-    fs.readFileSync = (path, encoding) => {
-      if (path === "/etc/nginx/templates/global-components-deployment.json") {
-        throw new Error("ENOENT: no such file or directory")
-      }
-      return originalReadFileSync(path, encoding)
-    }
-
-    const r = createMockRequest({})
-    gloco.handleStatus(r)
-
-    fs.readFileSync = originalReadFileSync // Restore
-
-    assertEqual(r.returnCode, 200, "Should return 200")
-    const body = JSON.parse(r.returnBody)
-    assertEqual(body.status, "online", "Should have status online")
-    assertEqual(body.version, 0, "Should return version 0 when file missing")
-  })
-
   // --- handleSessionHint tests ---
   console.log("\nhandleSessionHint:")
 
-  await test('returns "null" when no cms-session-hint cookie present', async () => {
+  await test('returns "null" when no Cms-Session-Hint cookie present', async () => {
     const r = createMockRequest({})
     gloco.handleSessionHint(r)
     assertEqual(r.returnCode, 200, "Should return 200")
     assertEqual(r.returnBody, "null", 'Should return "null"')
   })
 
-  await test("returns cookie value when cms-session-hint cookie present", async () => {
+  await test("returns cookie value when Cms-Session-Hint cookie present", async () => {
     const hintValue = '{"cmsDomains":["foo.cps.gov.uk"],"isProxySession":false}'
     const r = createMockRequest({
-      headersIn: { Cookie: `cms-session-hint=${hintValue}` },
+      headersIn: { Cookie: `Cms-Session-Hint=${hintValue}` },
     })
     gloco.handleSessionHint(r)
     assertEqual(r.returnCode, 200, "Should return 200")
     assertEqual(r.returnBody, hintValue, "Should return cookie value")
   })
 
-  await test("decodes URL-encoded cms-session-hint cookie value", async () => {
+  await test("decodes URL-encoded Cms-Session-Hint cookie value", async () => {
     const hintValue = '{"cmsDomains":["foo.cps.gov.uk"],"isProxySession":true}'
     const encodedValue = encodeURIComponent(hintValue)
     const r = createMockRequest({
-      headersIn: { Cookie: `cms-session-hint=${encodedValue}` },
+      headersIn: { Cookie: `Cms-Session-Hint=${encodedValue}` },
     })
     gloco.handleSessionHint(r)
     assertEqual(r.returnCode, 200, "Should return 200")
     assertEqual(r.returnBody, hintValue, "Should return decoded cookie value")
   })
 
-  await test("extracts cms-session-hint from multiple cookies", async () => {
+  await test("extracts Cms-Session-Hint from multiple cookies", async () => {
     const hintValue = '{"cmsDomains":[],"isProxySession":false}'
     const r = createMockRequest({
       headersIn: {
-        Cookie: `other=value; cms-session-hint=${encodeURIComponent(
+        Cookie: `other=value; Cms-Session-Hint=${encodeURIComponent(
           hintValue
         )}; another=cookie`,
       },

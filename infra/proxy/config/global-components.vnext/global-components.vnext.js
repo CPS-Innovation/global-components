@@ -1,21 +1,16 @@
+import fs from "fs"
 import gloco from "templates/global-components.js"
 
+const DEPLOYMENT_JSON_PATH = "/etc/nginx/templates/global-components-deployment.json"
 const TENANT_ID = "00dd0d1d-d7e6-6338-ac51-565339c7088c"
 const STATE_COOKIE_NAME = "cps-global-components-state"
 const STATE_KEYS_NO_AUTH_ON_GET = ["preview"]
 const STATE_COOKIE_LIFESPAN_MS = 365 * 24 * 60 * 60 * 1000
 const AD_AUTH_ENDPOINT = "https://graph.microsoft.com/v1.0/me"
-const HEALTHCHECK_ALLOWED_URLS = [
-  "https://polaris.cps.gov.uk/polaris",
-  "https://cms.cps.gov.uk/polaris",
-  "https://polaris-qa-notprod.cps.gov.uk/polaris",
-  "https://cin2.cps.gov.uk/polaris",
-  "https://cin3.cps.gov.uk/polaris",
-  "https://cin4.cps.gov.uk/polaris",
-  "https://cin5.cps.gov.uk/polaris",
-  "http://mock-upstream:3000/api/health", // For testing
-]
-const HEALTHCHECK_TIMEOUT_MS = 2_000
+
+function _escapeRegExp(string) {
+  return string.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
+}
 
 function _base64UrlDecode(str) {
   // Replace base64url chars with base64 chars
@@ -132,50 +127,52 @@ async function handleState(r) {
   }
 }
 
-async function handleHealthCheck(r) {
-  r.headersOut["Content-Type"] = "application/json"
-
-  const url = r.args.url
-
-  if (!url) {
-    r.return(400, JSON.stringify({ error: "url parameter required" }))
-    return
-  }
-
-  // Whitelist check
-  const allowedUrls = HEALTHCHECK_ALLOWED_URLS || []
-  if (!allowedUrls.includes(url)) {
-    r.return(403, JSON.stringify({ error: "url not in whitelist", url }))
-    return
-  }
-
-  try {
-    const timeout = HEALTHCHECK_TIMEOUT_MS
-    const response = await ngx.fetch(url, { method: "GET", timeout })
-    r.return(
-      200,
-      JSON.stringify({
-        url,
-        status: response.status,
-        healthy: response.status >= 200 && response.status < 400,
-      })
-    )
-  } catch (e) {
-    r.return(
-      200,
-      JSON.stringify({ url, status: 0, healthy: false, error: e.message })
-    )
-  }
-}
-
 async function handleValidateToken(r) {
   // Used by auth_request - returns 200 if valid, 401 if not
   const isValid = await _validateToken(r)
   r.return(isValid ? 200 : 401, "")
 }
 
+function handleStatus(r) {
+  r.headersOut["Content-Type"] = "application/json"
+
+  let version = 0
+  let error = null
+  try {
+    const data = fs.readFileSync(DEPLOYMENT_JSON_PATH, "utf8")
+    const json = JSON.parse(data)
+    version = json.version || 0
+  } catch (e) {
+    error = e.message || String(e)
+  }
+
+  const response = {
+    status: "online",
+    version: version,
+  }
+  if (error) {
+    response.error = error
+  }
+
+  r.return(200, JSON.stringify(response))
+}
+
+function filterSwaggerBody(r, data, flags) {
+  // Replace upstream URL with proxy URL and fix API paths
+  const host = r.headersIn["Host"] || r.variables.host
+  const proxyBase = "https://" + host + "/global-components"
+
+  const pattern = new RegExp(_escapeRegExp(r.variables.wm_mds_base_url), "g")
+  const result = data
+    .replace(pattern, proxyBase)
+    .replace(/\"\/api\//g, '"/global-components/')
+
+  r.sendBuffer(result, flags)
+}
+
 export default {
   handleState,
-  handleHealthCheck,
   handleValidateToken,
+  handleStatus,
+  filterSwaggerBody,
 }

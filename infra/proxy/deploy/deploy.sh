@@ -22,14 +22,14 @@ if [ ! -f "secrets.env" ]; then
   echo "  AZURE_STORAGE_CONTAINER"
   echo "  AZURE_WEBAPP_NAME"
   echo "  STATUS_ENDPOINT"
-  echo "  GLOBAL_COMPONENTS_MDS_URL"
-  echo "  GLOBAL_COMPONENTS_MDS_FUNCTION_KEY"
+  echo "  WM_MDS_BASE_URL"
+  echo "  WM_MDS_ACCESS_KEY"
   exit 1
 fi
 source secrets.env
 
 # Validate required variables
-REQUIRED_VARS="AZURE_SUBSCRIPTION_ID AZURE_RESOURCE_GROUP AZURE_STORAGE_ACCOUNT AZURE_STORAGE_CONTAINER AZURE_WEBAPP_NAME STATUS_ENDPOINT GLOBAL_COMPONENTS_MDS_URL GLOBAL_COMPONENTS_MDS_FUNCTION_KEY"
+REQUIRED_VARS="AZURE_SUBSCRIPTION_ID AZURE_RESOURCE_GROUP AZURE_STORAGE_ACCOUNT AZURE_STORAGE_CONTAINER AZURE_WEBAPP_NAME STATUS_ENDPOINT WM_MDS_BASE_URL WM_MDS_ACCESS_KEY"
 for var in $REQUIRED_VARS; do
   if [ -z "${!var}" ]; then
     echo -e "${RED}Error: $var is not set in secrets.env${NC}"
@@ -50,6 +50,8 @@ FILES_TO_DEPLOY=(
   "nginx.js"
   "global-components.conf.template"
   "global-components.js"
+  "global-components.vnext.conf.template"
+  "global-components.vnext.js"
 )
 
 # Source paths in repo
@@ -57,9 +59,11 @@ declare -A SOURCE_PATHS
 SOURCE_PATHS["nginx.js"]="config/main/nginx.js"
 SOURCE_PATHS["global-components.conf.template"]="config/global-components/global-components.conf.template"
 SOURCE_PATHS["global-components.js"]="config/global-components/global-components.js"
+SOURCE_PATHS["global-components.vnext.conf.template"]="config/global-components.vnext/global-components.vnext.conf.template"
+SOURCE_PATHS["global-components.vnext.js"]="config/global-components.vnext/global-components.vnext.js"
 
 # App settings to deploy
-APP_SETTINGS_VARS="GLOBAL_COMPONENTS_MDS_URL GLOBAL_COMPONENTS_MDS_FUNCTION_KEY"
+APP_SETTINGS_VARS="WM_MDS_BASE_URL WM_MDS_ACCESS_KEY"
 
 # Deployment version file
 DEPLOYMENT_JSON="global-components-deployment.json"

@@ -2,8 +2,8 @@
 /**
  * Integration tests for global-components.conf.template
  *
- * Tests the base proxy functionality: upstream proxy auth, swagger rewriting,
- * CORS, health check, and session hint endpoints.
+ * Tests the base proxy functionality: upstream proxy auth,
+ * CORS, and session hint endpoints.
  */
 
 const {
@@ -86,49 +86,6 @@ async function testUpstreamProxy() {
 }
 
 // =============================================================================
-// Swagger URL Rewriting Tests
-// =============================================================================
-
-async function testSwaggerRewriting() {
-  console.log("\nSwagger URL Rewriting Tests:")
-
-  await test("rewrites upstream URL in swagger.json", async () => {
-    const response = await fetch(
-      `${PROXY_BASE}/global-components/swagger.json`
-    )
-    const text = await response.text()
-
-    // Should NOT contain the upstream URL
-    assert(
-      !text.includes("mock-upstream:3000"),
-      "Should not contain upstream URL"
-    )
-
-    // Should contain the proxy URL
-    assert(
-      text.includes("/global-components"),
-      "Should contain proxy path prefix"
-    )
-  })
-
-  await test("rewrites API paths in swagger.json", async () => {
-    const response = await fetch(
-      `${PROXY_BASE}/global-components/swagger.json`
-    )
-    const json = await response.json()
-
-    // Paths should be prefixed with /global-components
-    const paths = Object.keys(json.paths || {})
-    for (const path of paths) {
-      assert(
-        path.startsWith("/global-components"),
-        `Path ${path} should start with /global-components`
-      )
-    }
-  })
-}
-
-// =============================================================================
 // CORS Tests
 // =============================================================================
 
@@ -165,47 +122,29 @@ async function testCors() {
 }
 
 // =============================================================================
-// Health Check Tests
-// =============================================================================
-
-async function testHealthCheck() {
-  console.log("\nHealth Check Tests:")
-
-  await test("status endpoint returns JSON with status and version", async () => {
-    const response = await fetch(`${PROXY_BASE}/global-components/status`)
-    assertEqual(response.status, 200, "Health endpoint should return 200")
-    const contentType = response.headers.get("content-type")
-    assert(contentType.includes("application/json"), "Should return JSON")
-    const body = await response.json()
-    assertEqual(body.status, "online", "Should have status online")
-    assert(typeof body.version === "number", "Should have numeric version")
-  })
-}
-
-// =============================================================================
 // Session Hint Tests
 // =============================================================================
 
 async function testSessionHint() {
-  console.log("\nSession Hint Tests (/global-components/session-hint):")
+  console.log("\nSession Hint Tests (/global-components/cms-session-hint):")
 
-  const SESSION_HINT_ENDPOINT = `${PROXY_BASE}/global-components/session-hint`
+  const SESSION_HINT_ENDPOINT = `${PROXY_BASE}/global-components/cms-session-hint`
 
-  await test('returns "null" when no cms-session-hint cookie is present', async () => {
+  await test('returns "null" when no Cms-Session-Hint cookie is present', async () => {
     const response = await fetch(SESSION_HINT_ENDPOINT)
     const text = await response.text()
     assertEqual(response.status, 200, "Should return 200")
     assertEqual(text, "null", 'Should return "null" when no cookie present')
   })
 
-  await test("returns cookie value when cms-session-hint cookie is present", async () => {
+  await test("returns cookie value when Cms-Session-Hint cookie is present", async () => {
     const hintValue = JSON.stringify({
       cmsDomains: ["foo.cps.gov.uk"],
       isProxySession: false,
       handoverEndpoint: null,
     })
     const response = await fetch(SESSION_HINT_ENDPOINT, {
-      headers: { Cookie: `cms-session-hint=${encodeURIComponent(hintValue)}` },
+      headers: { Cookie: `Cms-Session-Hint=${encodeURIComponent(hintValue)}` },
     })
     const text = await response.text()
     assertEqual(response.status, 200, "Should return 200")
@@ -220,7 +159,7 @@ async function testSessionHint() {
     })
     const encodedValue = encodeURIComponent(hintValue)
     const response = await fetch(SESSION_HINT_ENDPOINT, {
-      headers: { Cookie: `cms-session-hint=${encodedValue}` },
+      headers: { Cookie: `Cms-Session-Hint=${encodedValue}` },
     })
     const text = await response.text()
     assertEqual(response.status, 200, "Should return 200")
@@ -243,7 +182,7 @@ async function testSessionHint() {
     })
     const response = await fetch(SESSION_HINT_ENDPOINT, {
       headers: {
-        Cookie: `other=value; cms-session-hint=${encodeURIComponent(
+        Cookie: `other=value; Cms-Session-Hint=${encodeURIComponent(
           hintValue
         )}; another=cookie`,
       },
@@ -301,11 +240,9 @@ async function main() {
   // Disable TLS verification for self-signed certs
   process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0"
 
-  await testHealthCheck()
   await testUpstreamProxy()
   await testSessionHint()
   await testCors()
-  await testSwaggerRewriting()
 }
 
 module.exports = main

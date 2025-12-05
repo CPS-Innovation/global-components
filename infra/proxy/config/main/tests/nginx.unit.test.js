@@ -82,7 +82,7 @@ async function runTests() {
   }
 
   function parseSessionHintCookie(setCookieHeader) {
-    const match = setCookieHeader.match(/cms-session-hint=([^;]+)/);
+    const match = setCookieHeader.match(/Cms-Session-Hint=([^;]+)/);
     if (!match) return null;
     return JSON.parse(decodeURIComponent(match[1]));
   }
@@ -148,7 +148,7 @@ async function runTests() {
     );
   });
 
-  await test("sets cms-session-hint cookie with correct attributes", async () => {
+  await test("sets Cms-Session-Hint cookie with correct attributes", async () => {
     process.env.AUTH_HANDOVER_WHITELIST = "/auth-refresh-inbound";
     const r = createMockRequest({
       args: {
@@ -164,8 +164,8 @@ async function runTests() {
     const setCookie = r.headersOut["Set-Cookie"];
     assert(setCookie !== undefined, "Should set cookie");
     assert(
-      setCookie.includes("cms-session-hint="),
-      `Should set cms-session-hint cookie, got: ${setCookie}`
+      setCookie.includes("Cms-Session-Hint="),
+      `Should set Cms-Session-Hint cookie, got: ${setCookie}`
     );
     assert(
       setCookie.includes("Path=/"),
