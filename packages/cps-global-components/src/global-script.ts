@@ -114,10 +114,10 @@ const initialise = async (correlationIds: CorrelationIds, window: Window) => {
       //     .then(response => response.json())
       //     .then(response => _debug("Experimental state check, expected", timestamp, response))
       //     .catch(reason => _debug("Experimental fetch token-check error", reason));
-      //   //   fetch(config.GATEWAY_URL + "session-hint", { credentials: "include" })
+      //   //   fetch(config.GATEWAY_URL + "cms-session-hint", { credentials: "include" })
       //   //     .then(response => response.json())
-      //   //     .then(content => _debug("Experimental fetch session-hint", content))
-      //   //     .catch(reason => _debug("Experimental fetch session-hint error", reason));
+      //   //     .then(content => _debug("Experimental fetch cms-session-hint", content))
+      //   //     .catch(reason => _debug("Experimental fetch cms-session-hint error", reason));
 
       //   // [
       //   //   "https://polaris-qa-notprod.cps.gov.uk/polaris",
