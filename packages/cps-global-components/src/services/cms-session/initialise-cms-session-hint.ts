@@ -21,7 +21,6 @@ export const initialiseCmsSessionHint = async ({
     if (!response.ok) {
       throw new Error(`Response status: ${response.status} ${response.statusText}`);
     }
-
     const hint = (await response.json()) as CmsSessionHint;
 
     return { found: true, hint };
