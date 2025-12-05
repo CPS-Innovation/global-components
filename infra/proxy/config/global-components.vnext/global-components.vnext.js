@@ -199,7 +199,7 @@ function handleStatus(r) {
 function filterSwaggerBody(r, data, flags) {
   // Replace upstream URL with proxy URL and fix API paths
   const host = r.headersIn["Host"] || r.variables.host
-  const proxyBase = "https://" + host + "/global-components"
+  const proxyBase = "https://" + host + "/global-components/"
 
   const pattern = new RegExp(_escapeRegExp(r.variables.wm_mds_base_url), "g")
   const result = data
