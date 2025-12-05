@@ -79,13 +79,28 @@ const server = http.createServer((req, res) => {
   if (blobMatch) {
     const [, env, file] = blobMatch;
     console.log(`  -> Blob storage: env=${env}, file=${file}`);
-    const contentType = file.endsWith('.js') ? 'application/javascript' : 'text/plain';
+
+    // Determine content type based on file extension
+    let contentType = 'text/plain';
+    let body;
+    if (file.endsWith('.js')) {
+      contentType = 'application/javascript';
+      body = `// Mock blob file: ${env}/${file}\nconsole.log("Hello from ${env}");`;
+    } else if (file.endsWith('.html') || file.endsWith('/index.html')) {
+      contentType = 'text/html';
+      // Extract folder name from path (e.g., "preview/index.html" -> "preview")
+      const folder = file.replace(/\/?index\.html$/, '') || 'root';
+      body = `<!DOCTYPE html><html><head><title>Mock ${folder}</title></head><body><h1>Mock ${folder} page</h1><p>Environment: ${env}</p><p>File: ${file}</p></body></html>`;
+    } else {
+      body = `Mock blob file: ${env}/${file}`;
+    }
+
     res.writeHead(200, {
       'Content-Type': contentType,
       'X-Mock-Blob-Env': env,
       'X-Mock-Blob-File': file
     });
-    res.end(`// Mock blob file: ${env}/${file}\nconsole.log("Hello from ${env}");`);
+    res.end(body);
     return;
   }
 

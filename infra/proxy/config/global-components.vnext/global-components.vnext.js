@@ -2,6 +2,21 @@ import fs from "fs"
 import gloco from "templates/global-components.js"
 
 const DEPLOYMENT_JSON_PATH = "/etc/nginx/templates/global-components-deployment.json"
+
+// Compute blob path suffix: folder paths with trailing slash get index.html appended
+function computeBlobIndexSuffix(r) {
+  const uri = r.uri
+  // If URI ends with a file extension, no suffix needed
+  if (/\.[^/]+$/.test(uri)) {
+    return ""
+  }
+  // If URI ends with /, append index.html (folder paths are redirected to have trailing slash)
+  if (uri.endsWith("/")) {
+    return "index.html"
+  }
+  // Shouldn't reach here if redirect location is working, but handle gracefully
+  return "/index.html"
+}
 const TENANT_ID = "00dd0d1d-d7e6-6338-ac51-565339c7088c"
 const STATE_COOKIE_NAME = "cps-global-components-state"
 const STATE_KEYS_NO_AUTH_ON_GET = ["preview"]
@@ -171,6 +186,7 @@ function filterSwaggerBody(r, data, flags) {
 }
 
 export default {
+  computeBlobIndexSuffix,
   handleState,
   handleValidateToken,
   handleStatus,

@@ -58,6 +58,41 @@ async function testBlobStorageProxy() {
     const allowMethods = response.headers.get("access-control-allow-methods")
     assert(allowMethods !== null, "Should have Access-Control-Allow-Methods header")
   })
+
+  // Index.html routing tests - folder paths redirect to trailing slash, then resolve to index.html
+  await test("folder path without trailing slash redirects to trailing slash", async () => {
+    const response = await fetch(`${PROXY_BASE}/global-components/dev/preview`, {
+      redirect: "manual",
+    })
+    assertEqual(response.status, 301, "Should return 301 redirect")
+    const location = response.headers.get("location")
+    assert(location.endsWith("/global-components/dev/preview/"), "Should redirect to trailing slash")
+  })
+
+  await test("folder path with trailing slash resolves to index.html", async () => {
+    const response = await fetch(`${PROXY_BASE}/global-components/dev/preview/`)
+    assertEqual(response.status, 200, "Should return 200 for folder path with slash")
+    const contentType = response.headers.get("content-type")
+    assert(contentType.includes("text/html"), "Should return HTML content")
+    const blobFile = response.headers.get("x-mock-blob-file")
+    assertEqual(blobFile, "preview/index.html", "Should request index.html from blob")
+  })
+
+  await test("nested folder path redirects to trailing slash", async () => {
+    const response = await fetch(`${PROXY_BASE}/global-components/prod/nested/folder`, {
+      redirect: "manual",
+    })
+    assertEqual(response.status, 301, "Should return 301 redirect")
+    const location = response.headers.get("location")
+    assert(location.endsWith("/global-components/prod/nested/folder/"), "Should redirect to trailing slash")
+  })
+
+  await test("file with extension is NOT modified", async () => {
+    const response = await fetch(`${PROXY_BASE}/global-components/dev/script.js`)
+    assertEqual(response.status, 200, "Should return 200 for .js file")
+    const blobFile = response.headers.get("x-mock-blob-file")
+    assertEqual(blobFile, "script.js", "Should request exact file path")
+  })
 }
 
 // =============================================================================
