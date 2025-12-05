@@ -58,12 +58,53 @@ async function testBlobStorageProxy() {
     const allowMethods = response.headers.get("access-control-allow-methods")
     assert(allowMethods !== null, "Should have Access-Control-Allow-Methods header")
   })
+
+  // Index.html routing tests - folder paths redirect to trailing slash, then resolve to index.html
+  await test("folder path without trailing slash redirects to trailing slash", async () => {
+    const response = await fetch(`${PROXY_BASE}/global-components/dev/preview`, {
+      redirect: "manual",
+    })
+    assertEqual(response.status, 301, "Should return 301 redirect")
+    const location = response.headers.get("location")
+    assert(location.endsWith("/global-components/dev/preview/"), "Should redirect to trailing slash")
+  })
+
+  await test("folder path with trailing slash resolves to index.html", async () => {
+    const response = await fetch(`${PROXY_BASE}/global-components/dev/preview/`)
+    assertEqual(response.status, 200, "Should return 200 for folder path with slash")
+    const contentType = response.headers.get("content-type")
+    assert(contentType.includes("text/html"), "Should return HTML content")
+    const blobFile = response.headers.get("x-mock-blob-file")
+    assertEqual(blobFile, "preview/index.html", "Should request index.html from blob")
+  })
+
+  await test("nested folder path redirects to trailing slash", async () => {
+    const response = await fetch(`${PROXY_BASE}/global-components/prod/nested/folder`, {
+      redirect: "manual",
+    })
+    assertEqual(response.status, 301, "Should return 301 redirect")
+    const location = response.headers.get("location")
+    assert(location.endsWith("/global-components/prod/nested/folder/"), "Should redirect to trailing slash")
+  })
+
+  await test("file with extension is NOT modified", async () => {
+    const response = await fetch(`${PROXY_BASE}/global-components/dev/script.js`)
+    assertEqual(response.status, 200, "Should return 200 for .js file")
+    const blobFile = response.headers.get("x-mock-blob-file")
+    assertEqual(blobFile, "script.js", "Should request exact file path")
+  })
 }
 
 // =============================================================================
 // State Endpoint Tests
 // =============================================================================
 // GET is public only for whitelisted keys (e.g. "preview"), PUT always requires auth.
+// State is stored as base64url encoded in cookies.
+
+// Helper to base64url encode (matches server-side wrapState)
+function base64UrlEncode(str) {
+  return Buffer.from(str).toString("base64").replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "")
+}
 
 async function testStateEndpoint() {
   console.log("\nState Endpoint Tests (/global-components/state/*):")
@@ -80,14 +121,15 @@ async function testStateEndpoint() {
 
   await test("GET on whitelisted key returns cookie value without auth", async () => {
     const stateValue = JSON.stringify({ foo: "bar" })
+    const wrappedState = base64UrlEncode(stateValue)
     const response = await fetch(PREVIEW_ENDPOINT, {
       headers: {
-        Cookie: `cps-global-components-state=${encodeURIComponent(stateValue)}`,
+        Cookie: `cps-global-components-state=${wrappedState}`,
       },
     })
     assertEqual(response.status, 200, "GET should return 200")
     const text = await response.text()
-    assertEqual(text, stateValue, "Should return cookie value")
+    assertEqual(text, stateValue, "Should return unwrapped cookie value")
   })
 
   await test("GET on non-whitelisted key returns 401 without auth", async () => {

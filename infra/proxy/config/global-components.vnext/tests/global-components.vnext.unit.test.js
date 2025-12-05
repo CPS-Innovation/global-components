@@ -166,16 +166,18 @@ async function runTests() {
 
   await test("GET on whitelisted key returns cookie value without auth", async () => {
     const stateValue = JSON.stringify({ foo: "bar" })
+    // State is stored as base64url encoded
+    const wrappedState = Buffer.from(stateValue).toString("base64").replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "")
     const r = createMockRequest({
       method: "GET",
       uri: "/global-components/state/preview",
       headersIn: {
-        Cookie: `cps-global-components-state=${encodeURIComponent(stateValue)}`,
+        Cookie: `cps-global-components-state=${wrappedState}`,
       },
     })
     await glocovnext.handleState(r)
     assertEqual(r.returnCode, 200, "Should return 200")
-    assertEqual(r.returnBody, stateValue, "Should return cookie value")
+    assertEqual(r.returnBody, stateValue, "Should return unwrapped cookie value")
   })
 
   await test("GET on non-whitelisted key returns 401 without auth", async () => {
