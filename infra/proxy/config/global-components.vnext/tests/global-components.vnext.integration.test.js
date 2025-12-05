@@ -99,6 +99,12 @@ async function testBlobStorageProxy() {
 // State Endpoint Tests
 // =============================================================================
 // GET is public only for whitelisted keys (e.g. "preview"), PUT always requires auth.
+// State is stored as base64url encoded in cookies.
+
+// Helper to base64url encode (matches server-side wrapState)
+function base64UrlEncode(str) {
+  return Buffer.from(str).toString("base64").replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "")
+}
 
 async function testStateEndpoint() {
   console.log("\nState Endpoint Tests (/global-components/state/*):")
@@ -115,14 +121,15 @@ async function testStateEndpoint() {
 
   await test("GET on whitelisted key returns cookie value without auth", async () => {
     const stateValue = JSON.stringify({ foo: "bar" })
+    const wrappedState = base64UrlEncode(stateValue)
     const response = await fetch(PREVIEW_ENDPOINT, {
       headers: {
-        Cookie: `cps-global-components-state=${encodeURIComponent(stateValue)}`,
+        Cookie: `cps-global-components-state=${wrappedState}`,
       },
     })
     assertEqual(response.status, 200, "GET should return 200")
     const text = await response.text()
-    assertEqual(text, stateValue, "Should return cookie value")
+    assertEqual(text, stateValue, "Should return unwrapped cookie value")
   })
 
   await test("GET on non-whitelisted key returns 401 without auth", async () => {
