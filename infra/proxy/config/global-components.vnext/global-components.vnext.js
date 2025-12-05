@@ -1,7 +1,8 @@
 import fs from "fs"
 import gloco from "templates/global-components.js"
 
-const DEPLOYMENT_JSON_PATH = "/etc/nginx/templates/global-components-deployment.json"
+const DEPLOYMENT_JSON_PATH =
+  "/etc/nginx/templates/global-components-deployment.json"
 const TENANT_ID = "00dd0d1d-d7e6-6338-ac51-565339c7088c"
 const STATE_COOKIE_NAME = "cps-global-components-state"
 const STATE_KEYS_NO_AUTH_ON_GET = ["preview"]
@@ -20,6 +21,26 @@ function _base64UrlDecode(str) {
     str += "="
   }
   return atob(str)
+}
+
+function _base64UrlEncode(str) {
+  // Encode to base64, then convert to base64url (URL-safe, no padding)
+  return btoa(str).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "")
+}
+
+// Wrap state for storage (encode). Currently base64url, could add encryption later.
+function wrapState(plaintext) {
+  return _base64UrlEncode(plaintext)
+}
+
+// Unwrap state from storage (decode). Currently base64url, could add decryption later.
+function unwrapState(wrapped) {
+  try {
+    return _base64UrlDecode(wrapped)
+  } catch (e) {
+    // If decode fails, return null (corrupted or legacy data)
+    return null
+  }
 }
 
 function _extractAndValidateClaims(r) {
@@ -72,6 +93,21 @@ async function _validateToken(r) {
   }
 }
 
+// Compute blob path suffix: folder paths with trailing slash get index.html appended
+function computeBlobIndexSuffix(r) {
+  const uri = r.uri
+  // If URI ends with a file extension, no suffix needed
+  if (/\.[^/]+$/.test(uri)) {
+    return ""
+  }
+  // If URI ends with /, append index.html (folder paths are redirected to have trailing slash)
+  if (uri.endsWith("/")) {
+    return "index.html"
+  }
+  // Shouldn't reach here if redirect location is working, but handle gracefully
+  return "/index.html"
+}
+
 async function handleState(r) {
   if (!["GET", "PUT"].includes(r.method)) {
     // Method not allowed
@@ -98,24 +134,27 @@ async function handleState(r) {
   }
 
   if (r.method === "GET") {
-    // Use helper function from base module
+    // Get wrapped state from cookie and unwrap it
     const cookieValue = gloco._getCookieValue(r, STATE_COOKIE_NAME)
-    r.return(
-      200,
-      cookieValue ? gloco._maybeDecodeURIComponent(cookieValue) : "null"
-    )
+    if (!cookieValue) {
+      r.return(200, "null")
+      return
+    }
+    const unwrapped = unwrapState(gloco._maybeDecodeURIComponent(cookieValue))
+    r.return(200, unwrapped !== null ? unwrapped : "null")
     return
   }
 
   if (r.method === "PUT") {
-    // Read body and set as cookie on this exact path
+    // Wrap the body and store in cookie
     const body = r.requestText || ""
+    const wrapped = wrapState(body)
     const expires = new Date(Date.now() + STATE_COOKIE_LIFESPAN_MS) // 1 year
 
     r.headersOut["Set-Cookie"] =
       STATE_COOKIE_NAME +
       "=" +
-      encodeURIComponent(body) +
+      wrapped +
       "; Path=" +
       r.uri +
       "; Expires=" +
@@ -171,6 +210,7 @@ function filterSwaggerBody(r, data, flags) {
 }
 
 export default {
+  computeBlobIndexSuffix,
   handleState,
   handleValidateToken,
   handleStatus,
