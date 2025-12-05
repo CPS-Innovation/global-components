@@ -24,12 +24,14 @@ if [ ! -f "secrets.env" ]; then
   echo "  STATUS_ENDPOINT"
   echo "  WM_MDS_BASE_URL"
   echo "  WM_MDS_ACCESS_KEY"
+  echo "  GLOBAL_COMPONENTS_APPLICATION_ID"
+  echo "  GLOBAL_COMPONENTS_BLOB_STORAGE_URL"
   exit 1
 fi
 source secrets.env
 
 # Validate required variables
-REQUIRED_VARS="AZURE_SUBSCRIPTION_ID AZURE_RESOURCE_GROUP AZURE_STORAGE_ACCOUNT AZURE_STORAGE_CONTAINER AZURE_WEBAPP_NAME STATUS_ENDPOINT WM_MDS_BASE_URL WM_MDS_ACCESS_KEY"
+REQUIRED_VARS="AZURE_SUBSCRIPTION_ID AZURE_RESOURCE_GROUP AZURE_STORAGE_ACCOUNT AZURE_STORAGE_CONTAINER AZURE_WEBAPP_NAME STATUS_ENDPOINT WM_MDS_BASE_URL WM_MDS_ACCESS_KEY GLOBAL_COMPONENTS_APPLICATION_ID GLOBAL_COMPONENTS_BLOB_STORAGE_URL"
 for var in $REQUIRED_VARS; do
   if [ -z "${!var}" ]; then
     echo -e "${RED}Error: $var is not set in secrets.env${NC}"
@@ -63,7 +65,7 @@ SOURCE_PATHS["global-components.vnext.conf.template"]="config/global-components.
 SOURCE_PATHS["global-components.vnext.js"]="config/global-components.vnext/global-components.vnext.js"
 
 # App settings to deploy
-APP_SETTINGS_VARS="WM_MDS_BASE_URL WM_MDS_ACCESS_KEY"
+APP_SETTINGS_VARS="WM_MDS_BASE_URL WM_MDS_ACCESS_KEY GLOBAL_COMPONENTS_APPLICATION_ID GLOBAL_COMPONENTS_BLOB_STORAGE_URL"
 
 # Deployment version file
 DEPLOYMENT_JSON="global-components-deployment.json"
