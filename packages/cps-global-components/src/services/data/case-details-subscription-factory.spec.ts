@@ -3,6 +3,9 @@ import { caseDetailsSubscriptionFactory } from "./case-details-subscription-fact
 import { LocalStorageCache } from "../cache/create-cache";
 import { Handover } from "../handover/Handover";
 import { CaseDetails } from "./CaseDetails";
+import { CaseIdentifiers } from "../context/CaseIdentifiers";
+
+type CaseIdentifiersHandler = (v: CaseIdentifiers | undefined) => void;
 
 describe("caseDetailsSubscriptionFactory", () => {
   const mockCaseDetails: CaseDetails = {
@@ -121,8 +124,10 @@ describe("caseDetailsSubscriptionFactory", () => {
       });
 
       expect(result.type).toBe("onChange");
-      expect(result.handler).toHaveProperty("propName", "caseIdentifiers");
-      expect(typeof result.handler.handler).toBe("function");
+      if (result.type === "onChange") {
+        expect(result.handler).toHaveProperty("propName", "caseIdentifiers");
+        expect(typeof result.handler.handler).toBe("function");
+      }
     });
   });
 
@@ -197,7 +202,7 @@ describe("caseDetailsSubscriptionFactory", () => {
       });
 
       if (subscription.type === "onChange") {
-        subscription.handler.handler({ caseId: "456" });
+        (subscription.handler.handler as CaseIdentifiersHandler)({ caseId: "456" });
       }
 
       expect(entityCache.fetch).toHaveBeenCalledWith("456", expect.any(Function), { fields: ["id", "urn", "isDcfCase"] });
@@ -224,7 +229,7 @@ describe("caseDetailsSubscriptionFactory", () => {
       });
 
       if (subscription.type === "onChange") {
-        subscription.handler.handler({ caseId: "456" });
+        (subscription.handler.handler as CaseIdentifiersHandler)({ caseId: "456" });
       }
 
       await new Promise(resolve => setTimeout(resolve, 0));
@@ -256,7 +261,7 @@ describe("caseDetailsSubscriptionFactory", () => {
       });
 
       if (subscription.type === "onChange") {
-        subscription.handler.handler({ caseId: "456" });
+        (subscription.handler.handler as CaseIdentifiersHandler)({ caseId: "456" });
       }
 
       await new Promise(resolve => setTimeout(resolve, 0));
@@ -286,7 +291,7 @@ describe("caseDetailsSubscriptionFactory", () => {
       });
 
       if (subscription.type === "onChange") {
-        subscription.handler.handler({ caseId: "456" });
+        (subscription.handler.handler as CaseIdentifiersHandler)({ caseId: "456" });
       }
 
       await new Promise(resolve => setTimeout(resolve, 0));
@@ -320,7 +325,7 @@ describe("caseDetailsSubscriptionFactory", () => {
       });
 
       if (subscription.type === "onChange") {
-        subscription.handler.handler({ caseId: "999" });
+        (subscription.handler.handler as CaseIdentifiersHandler)({ caseId: "999" });
       }
 
       await new Promise(resolve => setTimeout(resolve, 0));

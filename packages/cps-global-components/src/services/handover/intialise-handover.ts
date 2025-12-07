@@ -43,6 +43,7 @@ export const initialiseHandover = async ({
       const isSameCaseAsBefore = handover.found && handover.data.caseDetails.id === newData.caseDetails.id;
       if (!isSameCaseAsBefore)
         try {
+          // no need to await this
           fetch(url, {
             method: "PUT",
             headers: { "Content-Type": "application/json" },
