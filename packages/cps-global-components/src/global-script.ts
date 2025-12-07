@@ -74,7 +74,7 @@ const initialise = async (correlationIds: CorrelationIds, window: Window) => {
     const cmsSessionHint = await cachedResult("cmsSessionHint", () => initialiseCmsSessionHint({ config, flags }));
     register({ cmsSessionHint });
 
-    const handover = await cachedResult("handover", () => initialiseHandover({ config, flags }));
+    const { handover, setNextHandover } = await cachedResult("handover", () => initialiseHandover({ config, flags }));
     register({ handover });
 
     const context = initialiseContext({ window, config });
@@ -108,7 +108,7 @@ const initialise = async (correlationIds: CorrelationIds, window: Window) => {
         pipe(fetch, fetchWithCircuitBreaker({ config, trackEvent }), fetchWithAuthFactory({ config, context, getToken, readyState })),
       );
 
-      cachedResult("case-details", () => subscribe(caseDetailsSubscriptionFactory({ config, cache, handover, fetch: augmentedFetch })));
+      cachedResult("case-details", () => subscribe(caseDetailsSubscriptionFactory({ config, cache, handover, setNextHandover, fetch: augmentedFetch })));
 
       // if (flags.isOverrideMode) {
       //   const timestamp = +new Date();

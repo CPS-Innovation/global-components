@@ -1,3 +1,3 @@
 import { CaseDetails } from "../data/CaseDetails";
-
-export type Handover = { found: true; data: { caseDetails: Partial<CaseDetails> } } | { found: false; error: any };
+export type HandoverData = { caseDetails: CaseDetails };
+export type Handover = { found: true; data: HandoverData } | { found: false; error: any };
