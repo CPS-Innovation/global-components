@@ -92,7 +92,7 @@
       "href": "/accessibility/static/cases/urns/{urn}/cases/{caseId}/review",
       "visibleContexts": "case",
       "activeContexts": "review",
-      "preferEventNavigationContexts": "details"
+      "dcfContextsToUseEventNavigation": { "contexts": "details", "data": "" }
     }
   ]
 }

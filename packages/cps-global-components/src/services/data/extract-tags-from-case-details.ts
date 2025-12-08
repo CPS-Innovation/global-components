@@ -5,7 +5,7 @@ export const extractTagsFromCaseDetails = (caseDetails: Partial<CaseDetails>): {
   const fieldsInCaseDetails = Object.keys(caseDetails);
   const allTagsArePresent = caseDetailsTagFields.every(field => fieldsInCaseDetails.includes(field));
 
-  const tags = caseDetailsTagFields.reduce((acc, curr) => ({ ...acc, [curr]: caseDetails[curr] }), {});
+  const tags = caseDetailsTagFields.reduce((acc, curr) => ({ ...acc, [curr]: String(caseDetails[curr]) }), {});
 
   return { allTagsArePresent, tags };
 };

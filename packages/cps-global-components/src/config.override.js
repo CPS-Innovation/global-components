@@ -49,6 +49,13 @@ cps_global_components_config_jsonp_callback({
     { label: "Cases", level: 0, href: "/cases", activeContexts: "cases case" },
     { label: "Details", level: 1, href: "/cases/{caseId}", visibleContexts: "case", activeContexts: "details" },
     { label: "Materials", level: 1, href: "/cases/{caseId}/materials", visibleContexts: "case", activeContexts: "materials" },
-    { label: "Review", level: 1, href: "/cases/{caseId}/review", visibleContexts: "case", activeContexts: "review", preferEventNavigationContexts: "details" },
+    {
+      label: "Review",
+      level: 1,
+      href: "/cases/{caseId}/review",
+      visibleContexts: "case",
+      activeContexts: "review",
+      dcfContextsToUseEventNavigation: { contexts: "details", data: "" },
+    },
   ],
 });

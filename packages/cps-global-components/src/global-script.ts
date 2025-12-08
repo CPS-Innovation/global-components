@@ -51,7 +51,7 @@ let register: Register;
 
 const initialise = async (correlationIds: CorrelationIds, window: Window) => {
   try {
-    const dcfNavigationObserver = initialiseInterimDcfNavigation({ window });
+    const interimDcfNavigationObserver = initialiseInterimDcfNavigation({ window });
 
     const { register: r, readyState, resetContextSpecificTags, subscribe, mergeTags } = cachedResult("store", initialiseStore);
     register = r;
@@ -65,7 +65,7 @@ const initialise = async (correlationIds: CorrelationIds, window: Window) => {
     //  We use `cachedResult` give us the ability to rerun this function many times while ensuring that the one-time-only
     //  operations are only executed once (alternative would be lots of if statements or similar)
     const { initialiseDomForContext } = cachedResult("dom", () =>
-      initialiseDomObservation({ window, register, mergeTags }, domTagMutationSubscriber, dcfNavigationObserver, ...outSystemsShimSubscribers),
+      initialiseDomObservation({ window, register, mergeTags }, domTagMutationSubscriber, interimDcfNavigationObserver, ...outSystemsShimSubscribers),
     );
 
     const flags = cachedResult("flags", () => getApplicationFlags({ window }));

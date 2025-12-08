@@ -44,7 +44,7 @@ describe("menuConfig", () => {
         visibleContexts: "context1",
         activeContexts: "active1",
         openInNewTab: false,
-        preferEventNavigationContexts: "event1",
+        dcfContextsToUseEventNavigation: { contexts: "event1", data: "" },
       },
       {
         label: "Link 2",
@@ -53,7 +53,7 @@ describe("menuConfig", () => {
         visibleContexts: "context2",
         activeContexts: "active2",
         openInNewTab: true,
-        preferEventNavigationContexts: "event2",
+        dcfContextsToUseEventNavigation: { contexts: "event2", data: "" },
       },
       {
         label: "Link 3",
@@ -62,7 +62,7 @@ describe("menuConfig", () => {
         visibleContexts: "context3",
         activeContexts: "active3",
         openInNewTab: false,
-        preferEventNavigationContexts: "event3",
+        dcfContextsToUseEventNavigation: { contexts: "event3", data: "" },
       },
     ],
     CONTEXTS: [
@@ -187,7 +187,7 @@ describe("menuConfig", () => {
         level: 0,
         selected: true,
         openInNewTab: false,
-        preferEventNavigation: false,
+        dcfContextsToUseEventNavigation: undefined,
       })
       .mockReturnValueOnce({
         label: "Mapped Link 3",
@@ -195,15 +195,15 @@ describe("menuConfig", () => {
         level: 0,
         selected: false,
         openInNewTab: false,
-        preferEventNavigation: true,
+        dcfContextsToUseEventNavigation: { contexts: "app-event section-event", data: "" },
       });
     mockMapLinkConfig.mockReturnValue(mockMapFunction);
 
     // Mock groupLinksByLevel
     const groupedLinks = [
       [
-        { label: "Mapped Link 1", href: "/mapped1", selected: true, openInNewTab: false, preferEventNavigation: false as const, ariaSelected: true as true },
-        { label: "Mapped Link 3", href: "/mapped3", selected: false, openInNewTab: false, preferEventNavigation: "private" as const },
+        { label: "Mapped Link 1", href: "/mapped1", selected: true, openInNewTab: false, dcfContextsToUseEventNavigation: undefined, ariaSelected: true as true },
+        { label: "Mapped Link 3", href: "/mapped3", selected: false, openInNewTab: false, dcfContextsToUseEventNavigation: { contexts: "app-event section-event", data: "" } },
       ],
     ];
     mockGroupLinksByLevel.mockReturnValue(groupedLinks);
@@ -231,7 +231,7 @@ describe("menuConfig", () => {
         level: 0,
         selected: true,
         openInNewTab: false,
-        preferEventNavigation: false,
+        dcfContextsToUseEventNavigation: undefined,
       },
       {
         label: "Mapped Link 3",
@@ -239,7 +239,7 @@ describe("menuConfig", () => {
         level: 0,
         selected: false,
         openInNewTab: false,
-        preferEventNavigation: true,
+        dcfContextsToUseEventNavigation: { contexts: "app-event section-event", data: "" },
       },
     ]);
   });
@@ -298,7 +298,7 @@ describe("menuConfig", () => {
       level: 0,
       selected: false,
       openInNewTab: false,
-      preferEventNavigation: false,
+      dcfContextsToUseEventNavigation: undefined,
     });
     mockMapLinkConfig.mockReturnValue(mockMapFunction);
 
@@ -369,7 +369,7 @@ describe("menuConfig", () => {
       level: 0,
       selected: false,
       openInNewTab: false,
-      preferEventNavigation: false,
+      dcfContextsToUseEventNavigation: undefined,
     });
     mockMapLinkConfig.mockReturnValue(mockMapFunction);
 
