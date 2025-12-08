@@ -91,7 +91,7 @@ describe("groupLinksByLevel", () => {
     expect(groupedLink.href).toBe("/test");
     expect(groupedLink.selected).toBe(true);
     expect(groupedLink.openInNewTab).toBe(true);
-    expect(groupedLink.preferEventNavigation).toBe(true);
+    expect(groupedLink.preferEventNavigation).toBe("private");
     expect(groupedLink.ariaSelected).toBe(true);
     expect("level" in groupedLink).toBe(false);
   });
