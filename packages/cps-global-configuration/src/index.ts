@@ -3,5 +3,6 @@ export {
   type Config,
   type ConfigStorage,
   type Link,
-} from "./schema";
-export { transformAndValidateConfig, type ValidationResult } from "./validator";
+  type ContextsToUseEventNavigation,
+} from "./schema"
+export { transformAndValidateConfig, type ValidationResult } from "./validator"

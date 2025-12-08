@@ -8,7 +8,7 @@ describe("shouldShowLink", () => {
     level: 1,
     activeContexts: "test",
     openInNewTab: false,
-    preferEventNavigationContexts: "event",
+    dcfContextsToUseEventNavigation: { contexts: "event", data: "" },
   };
 
   it("should return true when context matches visibleContexts", () => {

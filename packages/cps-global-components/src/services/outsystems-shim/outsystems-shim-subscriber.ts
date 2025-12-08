@@ -30,7 +30,7 @@ export const outSystemsShimSubscribers: DomMutationObserver[] = [
           handler: applyStyles({ display: "none" }),
         },
         {
-          cssSelector: "#b1-b2-Container_GlobalNav",
+          cssSelector: "#b1-b2-Container_GlobalNav:not(:has(cps-global-header))",
           handler: (element: HTMLElement) => {
             const cpsHeader: HTMLCpsGlobalHeaderElement = window.document.createElement("cps-global-header");
             applyStyles({ marginBottom: "20px" })(cpsHeader);

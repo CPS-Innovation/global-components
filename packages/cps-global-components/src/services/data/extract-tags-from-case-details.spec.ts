@@ -24,7 +24,7 @@ describe("extractTagsFromCaseDetails", () => {
 
       expect(result.tags).toEqual({
         urn: "12AB3456789",
-        isDcfCase: false,
+        isDcfCase: "false",
       });
     });
 
@@ -40,7 +40,7 @@ describe("extractTagsFromCaseDetails", () => {
       expect(result.allTagsArePresent).toBe(true);
       expect(result.tags).toEqual({
         urn: "12AB3456789",
-        isDcfCase: true,
+        isDcfCase: "true",
       });
     });
 
@@ -87,7 +87,7 @@ describe("extractTagsFromCaseDetails", () => {
 
       expect(result.tags).toEqual({
         urn: "12AB3456789",
-        isDcfCase: undefined,
+        isDcfCase: "undefined",
       });
     });
   });
@@ -107,8 +107,8 @@ describe("extractTagsFromCaseDetails", () => {
       const result = extractTagsFromCaseDetails(caseDetails);
 
       expect(result.tags).toEqual({
-        urn: undefined,
-        isDcfCase: undefined,
+        urn: "undefined",
+        isDcfCase: "undefined",
       });
     });
   });
@@ -125,7 +125,7 @@ describe("extractTagsFromCaseDetails", () => {
       expect(result.allTagsArePresent).toBe(true);
       expect(result.tags).toEqual({
         urn: "",
-        isDcfCase: false,
+        isDcfCase: "false",
       });
     });
 
@@ -138,7 +138,7 @@ describe("extractTagsFromCaseDetails", () => {
       const result = extractTagsFromCaseDetails(caseDetails);
 
       expect(result.allTagsArePresent).toBe(true);
-      expect(result.tags.isDcfCase).toBe(false);
+      expect(result.tags.isDcfCase).toBe("false");
     });
   });
 });

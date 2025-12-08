@@ -235,7 +235,7 @@ describe("caseDetailsSubscriptionFactory", () => {
       await new Promise(resolve => setTimeout(resolve, 0));
 
       expect(mergeTags).toHaveBeenCalledWith({
-        caseDetailsTags: { urn: "12AB3456789", isDcfCase: true },
+        caseDetailsTags: { urn: "12AB3456789", isDcfCase: "true" },
       });
     });
 

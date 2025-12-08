@@ -1,12 +1,23 @@
 import { z } from "zod"
 
+const dcfContextsToUseEventNavigationSchema = z.object({
+  contexts: z.string(),
+  data: z.string(),
+})
+
+export type ContextsToUseEventNavigation = z.infer<
+  typeof dcfContextsToUseEventNavigationSchema
+>
+
 const linkSchema = z.object({
   label: z.string(),
   href: z.string(),
+  dcfHref: z.string().optional(),
   activeContexts: z.string(),
   visibleContexts: z.string(),
   openInNewTab: z.boolean().optional(),
-  preferEventNavigationContexts: z.string().optional(),
+  dcfContextsToUseEventNavigation:
+    dcfContextsToUseEventNavigationSchema.optional(),
   level: z.number(),
 })
 

@@ -10,10 +10,10 @@ describe("groupLinksByLevel", () => {
 
   it("should group links by level", () => {
     const links: MapLinkConfigResult[] = [
-      { label: "Link 1", level: 0, href: "/link1", selected: false, openInNewTab: false, preferEventNavigation: false },
-      { label: "Link 2", level: 1, href: "/link2", selected: false, openInNewTab: false, preferEventNavigation: false },
-      { label: "Link 3", level: 0, href: "/link3", selected: false, openInNewTab: false, preferEventNavigation: false },
-      { label: "Link 4", level: 1, href: "/link4", selected: false, openInNewTab: false, preferEventNavigation: false },
+      { label: "Link 1", level: 0, href: "/link1", selected: false, openInNewTab: false, dcfContextsToUseEventNavigation: undefined },
+      { label: "Link 2", level: 1, href: "/link2", selected: false, openInNewTab: false, dcfContextsToUseEventNavigation: undefined },
+      { label: "Link 3", level: 0, href: "/link3", selected: false, openInNewTab: false, dcfContextsToUseEventNavigation: undefined },
+      { label: "Link 4", level: 1, href: "/link4", selected: false, openInNewTab: false, dcfContextsToUseEventNavigation: undefined },
     ];
 
     const result = groupLinksByLevel(links);
@@ -28,10 +28,10 @@ describe("groupLinksByLevel", () => {
 
   it("should add ariaSelected to links at the highest selected level", () => {
     const links: MapLinkConfigResult[] = [
-      { label: "Link 1", level: 0, href: "/link1", selected: true, openInNewTab: false, preferEventNavigation: false },
-      { label: "Link 2", level: 1, href: "/link2", selected: true, openInNewTab: false, preferEventNavigation: false },
-      { label: "Link 3", level: 2, href: "/link3", selected: true, openInNewTab: false, preferEventNavigation: false },
-      { label: "Link 4", level: 2, href: "/link4", selected: false, openInNewTab: false, preferEventNavigation: false },
+      { label: "Link 1", level: 0, href: "/link1", selected: true, openInNewTab: false, dcfContextsToUseEventNavigation: undefined },
+      { label: "Link 2", level: 1, href: "/link2", selected: true, openInNewTab: false, dcfContextsToUseEventNavigation: undefined },
+      { label: "Link 3", level: 2, href: "/link3", selected: true, openInNewTab: false, dcfContextsToUseEventNavigation: undefined },
+      { label: "Link 4", level: 2, href: "/link4", selected: false, openInNewTab: false, dcfContextsToUseEventNavigation: undefined },
     ];
 
     const result = groupLinksByLevel(links);
@@ -43,9 +43,9 @@ describe("groupLinksByLevel", () => {
 
   it("should handle sparse levels", () => {
     const links: MapLinkConfigResult[] = [
-      { label: "Link 1", level: 0, href: "/link1", selected: false, openInNewTab: false, preferEventNavigation: false },
-      { label: "Link 2", level: 3, href: "/link2", selected: false, openInNewTab: false, preferEventNavigation: false },
-      { label: "Link 3", level: 5, href: "/link3", selected: false, openInNewTab: false, preferEventNavigation: false },
+      { label: "Link 1", level: 0, href: "/link1", selected: false, openInNewTab: false, dcfContextsToUseEventNavigation: undefined },
+      { label: "Link 2", level: 3, href: "/link2", selected: false, openInNewTab: false, dcfContextsToUseEventNavigation: undefined },
+      { label: "Link 3", level: 5, href: "/link3", selected: false, openInNewTab: false, dcfContextsToUseEventNavigation: undefined },
     ];
 
     const result = groupLinksByLevel(links);
@@ -60,9 +60,9 @@ describe("groupLinksByLevel", () => {
 
   it("should handle all links at same level", () => {
     const links: MapLinkConfigResult[] = [
-      { label: "Link 1", level: 1, href: "/link1", selected: false, openInNewTab: false, preferEventNavigation: false },
-      { label: "Link 2", level: 1, href: "/link2", selected: true, openInNewTab: false, preferEventNavigation: false },
-      { label: "Link 3", level: 1, href: "/link3", selected: false, openInNewTab: false, preferEventNavigation: false },
+      { label: "Link 1", level: 1, href: "/link1", selected: false, openInNewTab: false, dcfContextsToUseEventNavigation: undefined },
+      { label: "Link 2", level: 1, href: "/link2", selected: true, openInNewTab: false, dcfContextsToUseEventNavigation: undefined },
+      { label: "Link 3", level: 1, href: "/link3", selected: false, openInNewTab: false, dcfContextsToUseEventNavigation: undefined },
     ];
 
     const result = groupLinksByLevel(links);
@@ -80,7 +80,7 @@ describe("groupLinksByLevel", () => {
         href: "/test",
         selected: true,
         openInNewTab: true,
-        preferEventNavigation: "private",
+        dcfContextsToUseEventNavigation: { contexts: "test", data: "" },
       },
     ];
 
@@ -91,16 +91,16 @@ describe("groupLinksByLevel", () => {
     expect(groupedLink.href).toBe("/test");
     expect(groupedLink.selected).toBe(true);
     expect(groupedLink.openInNewTab).toBe(true);
-    expect(groupedLink.preferEventNavigation).toBe("private");
+    expect(groupedLink.dcfContextsToUseEventNavigation).toEqual({ contexts: "test", data: "" });
     expect(groupedLink.ariaSelected).toBe(true);
     expect("level" in groupedLink).toBe(false);
   });
 
   it("should handle multiple selected links at different levels", () => {
     const links: MapLinkConfigResult[] = [
-      { label: "Link 1", level: 0, href: "/link1", selected: true, openInNewTab: false, preferEventNavigation: false },
-      { label: "Link 2", level: 1, href: "/link2", selected: true, openInNewTab: false, preferEventNavigation: false },
-      { label: "Link 3", level: 2, href: "/link3", selected: false, openInNewTab: false, preferEventNavigation: false },
+      { label: "Link 1", level: 0, href: "/link1", selected: true, openInNewTab: false, dcfContextsToUseEventNavigation: undefined },
+      { label: "Link 2", level: 1, href: "/link2", selected: true, openInNewTab: false, dcfContextsToUseEventNavigation: undefined },
+      { label: "Link 3", level: 2, href: "/link3", selected: false, openInNewTab: false, dcfContextsToUseEventNavigation: undefined },
     ];
 
     const result = groupLinksByLevel(links);
@@ -111,8 +111,8 @@ describe("groupLinksByLevel", () => {
 
   it("should handle no selected links", () => {
     const links: MapLinkConfigResult[] = [
-      { label: "Link 1", level: 0, href: "/link1", selected: false, openInNewTab: false, preferEventNavigation: false },
-      { label: "Link 2", level: 1, href: "/link2", selected: false, openInNewTab: false, preferEventNavigation: false },
+      { label: "Link 1", level: 0, href: "/link1", selected: false, openInNewTab: false, dcfContextsToUseEventNavigation: undefined },
+      { label: "Link 2", level: 1, href: "/link2", selected: false, openInNewTab: false, dcfContextsToUseEventNavigation: undefined },
     ];
 
     const result = groupLinksByLevel(links);
@@ -122,10 +122,10 @@ describe("groupLinksByLevel", () => {
 
   it("should maintain order of links within each level", () => {
     const links: MapLinkConfigResult[] = [
-      { label: "B", level: 0, href: "/b", selected: false, openInNewTab: false, preferEventNavigation: false },
-      { label: "A", level: 0, href: "/a", selected: false, openInNewTab: false, preferEventNavigation: false },
-      { label: "D", level: 0, href: "/d", selected: false, openInNewTab: false, preferEventNavigation: false },
-      { label: "C", level: 0, href: "/c", selected: false, openInNewTab: false, preferEventNavigation: false },
+      { label: "B", level: 0, href: "/b", selected: false, openInNewTab: false, dcfContextsToUseEventNavigation: undefined },
+      { label: "A", level: 0, href: "/a", selected: false, openInNewTab: false, dcfContextsToUseEventNavigation: undefined },
+      { label: "D", level: 0, href: "/d", selected: false, openInNewTab: false, dcfContextsToUseEventNavigation: undefined },
+      { label: "C", level: 0, href: "/c", selected: false, openInNewTab: false, dcfContextsToUseEventNavigation: undefined },
     ];
 
     const result = groupLinksByLevel(links);
