@@ -48,6 +48,7 @@ type StartupState = {
   auth: AuthResult;
   build: Build;
   cmsSessionHint: CmsSessionHintResult;
+  firstContext: FoundContext;
 };
 
 const initialStartupState = {
@@ -56,6 +57,7 @@ const initialStartupState = {
   auth: undefined,
   build: undefined,
   cmsSessionHint: undefined,
+  firstContext: undefined,
 };
 
 // This state could change (e.g. history-based non-full-refresh navigation or dom tags changing)

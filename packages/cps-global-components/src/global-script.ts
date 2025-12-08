@@ -12,10 +12,6 @@ import { makeConsole } from "./logging/makeConsole";
 import { initialiseDomObservation } from "./services/dom/initialise-dom-observation";
 import { domTagMutationSubscriber } from "./services/dom/dom-tag-mutation-subscriber";
 import { outSystemsShimSubscribers } from "./services/outsystems-shim/outsystems-shim-subscriber";
-import { handleOutSystemsForcedAuth } from "./services/outsystems-shim/handle-outsystems-force-auth";
-import { handleContextAuthorisation } from "./services/authorisation/handle-context-authorisation";
-import { cachedResult } from "./utils/cached-result";
-import { CorrelationIds } from "./services/correlation/CorrelationIds";
 import { createCache } from "./services/cache/create-cache";
 import { fetchWithAuthFactory } from "./services/api/fetch-with-auth-factory";
 import { caseDetailsSubscriptionFactory } from "./services/data/case-details-subscription-factory";
@@ -33,123 +29,177 @@ const { _debug, _error } = makeConsole("global-script");
 //  ready.  This means that a long-running auth process will not stop components that
 //  do not need auth from rendering.
 export default () => {
-  const scriptLoadCorrelationId = uuidv4();
-  handleSetOverrideMode({ window });
-  // For first initialisation we want our two correlationIds to be the same
-  /* do not await this */ initialise({ scriptLoadCorrelationId, navigationCorrelationId: scriptLoadCorrelationId }, window);
-
-  // Every time we detect a SPA navigation (i.e. not a full page reload), lets rerun our initialisation
-  //  logic as out context may have changed
-  window.navigation?.addEventListener("navigatesuccess", async event => {
-    _debug("navigation", event);
-    initialise({ scriptLoadCorrelationId, navigationCorrelationId: uuidv4() }, window);
-  });
+  /* do not await this */ initialise(window);
 };
 
-let trackException: (err: Error) => void;
-let register: Register;
+const loadPhase = async ({
+  window,
+  storeFns: { register, mergeTags, subscribe, readyState },
+}: {
+  window: Window & typeof globalThis;
+  storeFns: ReturnType<typeof initialiseStore>;
+}) => {
+  handleSetOverrideMode({ window });
 
-const initialise = async (correlationIds: CorrelationIds, window: Window) => {
-  try {
-    const interimDcfNavigationObserver = initialiseInterimDcfNavigation({ window });
+  const interimDcfNavigationObserver = initialiseInterimDcfNavigation({ window });
 
-    const { register: r, readyState, resetContextSpecificTags, subscribe, mergeTags } = cachedResult("store", initialiseStore);
-    register = r;
-    register({ correlationIds });
-    // We reset the tags to empty as we could be being called after a navigate in a SPA
-    resetContextSpecificTags();
+  const flags = getApplicationFlags({ window });
+  register({ flags });
 
-    const build = window.cps_global_components_build;
-    register({ build });
-    // Several of the operations below need only be run when we first spin up and not on any potential SPA navigation.
-    //  We use `cachedResult` give us the ability to rerun this function many times while ensuring that the one-time-only
-    //  operations are only executed once (alternative would be lots of if statements or similar)
-    const { initialiseDomForContext } = cachedResult("dom", () =>
-      initialiseDomObservation({ window, register, mergeTags }, domTagMutationSubscriber, interimDcfNavigationObserver, ...outSystemsShimSubscribers),
-    );
+  const build = window.cps_global_components_build;
+  register({ build });
 
-    const flags = cachedResult("flags", () => getApplicationFlags({ window }));
-    register({ flags });
+  const config = await initialiseConfig({ flags });
+  register({ config });
 
-    const config = await cachedResult("config", () => initialiseConfig({ flags }));
-    register({ config });
+  const firstContext = initialiseContext({ window, config });
+  register({ firstContext });
 
-    const cmsSessionHint = await cachedResult("cmsSessionHint", () => initialiseCmsSessionHint({ config, flags }));
+  // Opportunity to kick some async logic off early and in parallel
+  const sessionHintPromise = (async () => {
+    const cmsSessionHint = await initialiseCmsSessionHint({ config, flags });
     register({ cmsSessionHint });
+    return { cmsSessionHint };
+  })();
 
-    const { handover, setNextHandover } = await cachedResult("handover", () => initialiseHandover({ config, flags }));
-    register({ handover });
-
-    const context = initialiseContext({ window, config });
-    register({ context });
-    initialiseDomForContext({ context });
-
-    const { pathTags } = context;
-    register({ pathTags });
-
-    const { auth, getToken } = await cachedResult("auth", () => (flags.e2eTestMode.isE2eTestMode ? initialiseMockAuth({ flags }) : initialiseAuth({ config, context })));
+  const authPromise = (async () => {
+    const { auth, getToken } = await (flags.e2eTestMode.isE2eTestMode ? initialiseMockAuth({ flags }) : initialiseAuth({ config, context: firstContext }));
     register({ auth });
+    return { auth, getToken };
+  })();
 
-    const {
-      trackPageView,
-      trackEvent,
-      trackException: t,
-    } = cachedResult("analytics", () =>
-      flags.e2eTestMode.isE2eTestMode ? initialiseMockAnalytics() : initialiseAnalytics({ window, config, auth, readyState, build, cmsSessionHint }),
+  const handoverPromise = (async () => {
+    const { handover, setNextHandover } = await initialiseHandover({ config, flags });
+    register({ handover });
+    return { handover, setNextHandover };
+  })();
+
+  const [{ cmsSessionHint }, { auth, getToken }] = await Promise.all([sessionHintPromise, authPromise]);
+
+  const { trackPageView, trackEvent, trackException } = flags.e2eTestMode.isE2eTestMode
+    ? initialiseMockAnalytics()
+    : initialiseAnalytics({ window, config, auth, readyState, build, cmsSessionHint });
+
+  const isDataAccessEnabled = !!config.GATEWAY_URL;
+  if (isDataAccessEnabled) {
+    const { handover, setNextHandover } = await handoverPromise;
+
+    subscribe(
+      caseDetailsSubscriptionFactory({
+        config,
+        handover,
+        setNextHandover,
+        cache: createCache("cps-global-components-cache"),
+        fetch: pipe(fetch, fetchWithCircuitBreaker({ config, trackEvent }), fetchWithAuthFactory({ config, context: firstContext, getToken, readyState })),
+      }),
     );
-    trackException = t;
+  }
 
-    trackPageView({ context, correlationIds });
+  const { initialiseDomForContext } = initialiseDomObservation(
+    { window, register, mergeTags },
+    domTagMutationSubscriber,
+    interimDcfNavigationObserver,
+    ...outSystemsShimSubscribers,
+  );
 
-    handleContextAuthorisation({ window, context, auth });
-    handleOutSystemsForcedAuth({ window, config, context });
+  return {
+    config,
+    initialiseDomForContext,
+    trackPageView,
+    trackException,
+  };
+};
 
-    const isDataAccessEnabled = !!config.GATEWAY_URL;
-    if (isDataAccessEnabled) {
-      const cache = cachedResult("cache", () => createCache("cps-global-components-cache"));
-      const augmentedFetch = cachedResult("fetch", () =>
-        pipe(fetch, fetchWithCircuitBreaker({ config, trackEvent }), fetchWithAuthFactory({ config, context, getToken, readyState })),
-      );
+const contextPhase = ({
+  config,
+  initialiseDomForContext,
+  trackPageView,
+  scriptLoadCorrelationId,
+  navigationCorrelationId,
+  storeFns: { register, resetContextSpecificTags },
+}: Awaited<ReturnType<typeof loadPhase>> & { storeFns: ReturnType<typeof initialiseStore> } & { scriptLoadCorrelationId: string; navigationCorrelationId: string }) => {
+  // We reset the tags to empty as we could be being called after a navigate in a SPA
+  resetContextSpecificTags();
+  const correlationIds = { scriptLoadCorrelationId, navigationCorrelationId };
+  register({ correlationIds });
 
-      cachedResult("case-details", () => subscribe(caseDetailsSubscriptionFactory({ config, cache, handover, setNextHandover, fetch: augmentedFetch })));
+  const context = initialiseContext({ window, config });
+  register({ context });
+  initialiseDomForContext({ context });
 
-      // if (flags.isOverrideMode) {
-      //   const timestamp = +new Date();
-      //   augmentedFetch("state/experimental-state", { method: "PUT", body: JSON.stringify({ foo: "bar", timestamp }) })
-      //     .then(response => response.statusText)
-      //     .then(() => augmentedFetch("state/experimental-state"))
-      //     .then(response => response.json())
-      //     .then(response => _debug("Experimental state check, expected", timestamp, response))
-      //     .catch(reason => _debug("Experimental fetch token-check error", reason));
-      //   //   fetch(config.GATEWAY_URL + "cms-session-hint", { credentials: "include" })
-      //   //     .then(response => response.json())
-      //   //     .then(content => _debug("Experimental fetch cms-session-hint", content))
-      //   //     .catch(reason => _debug("Experimental fetch cms-session-hint error", reason));
+  const { pathTags } = context;
+  register({ pathTags });
 
-      //   // [
-      //   //   "https://polaris-qa-notprod.cps.gov.uk/polaris",
-      //   //   "https://cin2.cps.gov.uk/polaris",
-      //   //   "https://cin3.cps.gov.uk/polaris",
-      //   //   "https://cin4.cps.gov.uk/polaris",
-      //   //   "https://cin5.cps.gov.uk/polaris",
-      //   // ].map(endpoint =>
-      //   //   fetch(config.GATEWAY_URL + "upstream-handover-health-check?url=" + encodeURIComponent(endpoint))
-      //   //     .then(response => (response.ok ? response.json() : Promise.resolve({ ...response })))
-      //   //     .then(obj => _debug("Experimental endpoint health check", obj))
-      //   //     .catch(reason => _debug("Experimental endpoint health error", reason)),
-      //   // );
+  trackPageView({ context, correlationIds });
 
-      //   // fetch(config.GATEWAY_URL + "cookie", { method: "POST", credentials: "include" })
-      //   //   .then(response => response.text())
-      //   //   .then(content => _debug("Experimental fetch", content))
-      //   //   .catch(reason => _debug("Experimental fetch error", reason));
-      // }
-    }
+  register({ initialisationStatus: "complete" });
+};
 
-    register({ initialisationStatus: "complete" });
-  } catch (err) {
+const initialise = async (window: Window & typeof globalThis) => {
+  let register: Register | undefined = undefined;
+  let trackException: ((err: Error) => void) | undefined = undefined;
+  const handleError = (err: Error) => {
     trackException?.(err);
     _error(err);
     register?.({ fatalInitialisationError: err, initialisationStatus: "broken" });
+  };
+
+  try {
+    const scriptLoadCorrelationId = uuidv4();
+
+    const storeFns = initialiseStore();
+    register = storeFns.register;
+
+    const loadResult = await loadPhase({ window, storeFns });
+    trackException = loadResult.trackException;
+
+    // It is meaningful in our analytics when navigationCorrelationId === scriptLoadCorrelationId as we know
+    //  those entries are for page load rather than subsequent SPA-navigated-to pages
+    contextPhase({ storeFns, ...loadResult, scriptLoadCorrelationId, navigationCorrelationId: scriptLoadCorrelationId });
+
+    // Every time we detect a SPA navigation (i.e. not a full page reload), lets rerun our initialisation
+    //  logic as out context may have changed
+    window.navigation?.addEventListener("navigatesuccess", async event => {
+      try {
+        _debug("navigation", event);
+        contextPhase({ storeFns, ...loadResult, scriptLoadCorrelationId, navigationCorrelationId: uuidv4() });
+      } catch (err) {
+        handleError(err);
+      }
+    });
+  } catch (err) {
+    handleError(err);
   }
 };
+
+// if (flags.isOverrideMode) {
+//   const timestamp = +new Date();
+//   augmentedFetch("state/experimental-state", { method: "PUT", body: JSON.stringify({ foo: "bar", timestamp }) })
+//     .then(response => response.statusText)
+//     .then(() => augmentedFetch("state/experimental-state"))
+//     .then(response => response.json())
+//     .then(response => _debug("Experimental state check, expected", timestamp, response))
+//     .catch(reason => _debug("Experimental fetch token-check error", reason));
+//   //   fetch(config.GATEWAY_URL + "cms-session-hint", { credentials: "include" })
+//   //     .then(response => response.json())
+//   //     .then(content => _debug("Experimental fetch cms-session-hint", content))
+//   //     .catch(reason => _debug("Experimental fetch cms-session-hint error", reason));
+
+//   // [
+//   //   "https://polaris-qa-notprod.cps.gov.uk/polaris",
+//   //   "https://cin2.cps.gov.uk/polaris",
+//   //   "https://cin3.cps.gov.uk/polaris",
+//   //   "https://cin4.cps.gov.uk/polaris",
+//   //   "https://cin5.cps.gov.uk/polaris",
+//   // ].map(endpoint =>
+//   //   fetch(config.GATEWAY_URL + "upstream-handover-health-check?url=" + encodeURIComponent(endpoint))
+//   //     .then(response => (response.ok ? response.json() : Promise.resolve({ ...response })))
+//   //     .then(obj => _debug("Experimental endpoint health check", obj))
+//   //     .catch(reason => _debug("Experimental endpoint health error", reason)),
+//   // );
+
+//   // fetch(config.GATEWAY_URL + "cookie", { method: "POST", credentials: "include" })
+//   //   .then(response => response.text())
+//   //   .then(content => _debug("Experimental fetch", content))
+//   //   .catch(reason => _debug("Experimental fetch error", reason));
+// }

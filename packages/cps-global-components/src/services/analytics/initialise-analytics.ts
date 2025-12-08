@@ -18,7 +18,7 @@ const { _debug } = makeConsole("initialiseAnalytics");
 
 export const initialiseAnalytics = ({ window, config: { APP_INSIGHTS_CONNECTION_STRING, ENVIRONMENT }, auth, readyState, build, cmsSessionHint: { hint } }: Props) => {
   if (!APP_INSIGHTS_CONNECTION_STRING) {
-    return { trackPageView: () => {}, trackException: () => {}, rebindTrackEvent: () => {}, trackEvent: (_: AnalyticsEventData) => {} };
+    return { trackPageView: () => {}, trackException: (_: Error) => {}, rebindTrackEvent: () => {}, trackEvent: (_: AnalyticsEventData) => {} };
   }
 
   const appInsights = new ApplicationInsights({
