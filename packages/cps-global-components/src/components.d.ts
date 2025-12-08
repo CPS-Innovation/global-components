@@ -5,6 +5,8 @@
  * It contains typing information for all components that exist in this project.
  */
 import { HTMLStencilElement, JSXBase } from "@stencil/core/internal";
+import { ContextsToUseEventNavigation } from "cps-global-configuration";
+export { ContextsToUseEventNavigation } from "cps-global-configuration";
 export namespace Components {
     interface CpsGlobalBanner {
     }
@@ -20,11 +22,11 @@ export namespace Components {
     }
     interface NavLink {
         "ariaSelected"?: boolean;
+        "dcfContextsToUseEventNavigation"?: ContextsToUseEventNavigation;
         "disabled": boolean;
         "href": string;
         "label": string;
         "openInNewTab"?: boolean;
-        "preferEventNavigation"?: "public" | "private" | false | undefined;
         "selected": boolean;
     }
 }
@@ -59,7 +61,6 @@ declare global {
     };
     interface HTMLNavLinkElementEventMap {
         "cps-global-header-event": string;
-        "cps-global-header-event-private": string;
     }
     interface HTMLNavLinkElement extends Components.NavLink, HTMLStencilElement {
         addEventListener<K extends keyof HTMLNavLinkElementEventMap>(type: K, listener: (this: HTMLNavLinkElement, ev: NavLinkCustomEvent<HTMLNavLinkElementEventMap[K]>) => any, options?: boolean | AddEventListenerOptions): void;
@@ -98,13 +99,12 @@ declare namespace LocalJSX {
     }
     interface NavLink {
         "ariaSelected"?: boolean;
+        "dcfContextsToUseEventNavigation"?: ContextsToUseEventNavigation;
         "disabled"?: boolean;
         "href"?: string;
         "label"?: string;
         "onCps-global-header-event"?: (event: NavLinkCustomEvent<string>) => void;
-        "onCps-global-header-event-private"?: (event: NavLinkCustomEvent<string>) => void;
         "openInNewTab"?: boolean;
-        "preferEventNavigation"?: "public" | "private" | false | undefined;
         "selected"?: boolean;
     }
     interface IntrinsicElements {
