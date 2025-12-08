@@ -24,7 +24,7 @@ export namespace Components {
         "href": string;
         "label": string;
         "openInNewTab"?: boolean;
-        "preferEventNavigation"?: boolean;
+        "preferEventNavigation"?: "public" | "private" | false | undefined;
         "selected": boolean;
     }
 }
@@ -59,6 +59,7 @@ declare global {
     };
     interface HTMLNavLinkElementEventMap {
         "cps-global-header-event": string;
+        "cps-global-header-event-private": string;
     }
     interface HTMLNavLinkElement extends Components.NavLink, HTMLStencilElement {
         addEventListener<K extends keyof HTMLNavLinkElementEventMap>(type: K, listener: (this: HTMLNavLinkElement, ev: NavLinkCustomEvent<HTMLNavLinkElementEventMap[K]>) => any, options?: boolean | AddEventListenerOptions): void;
@@ -101,8 +102,9 @@ declare namespace LocalJSX {
         "href"?: string;
         "label"?: string;
         "onCps-global-header-event"?: (event: NavLinkCustomEvent<string>) => void;
+        "onCps-global-header-event-private"?: (event: NavLinkCustomEvent<string>) => void;
         "openInNewTab"?: boolean;
-        "preferEventNavigation"?: boolean;
+        "preferEventNavigation"?: "public" | "private" | false | undefined;
         "selected"?: boolean;
     }
     interface IntrinsicElements {

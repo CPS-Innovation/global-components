@@ -38,7 +38,7 @@ describe("mapLinkConfig", () => {
     const mapper1 = mapLinkConfig({ contextIds: "event user", tags: {} });
     const mapper2 = mapLinkConfig({ contextIds: "admin test", tags: {} });
 
-    expect(mapper1(basicLink).preferEventNavigation).toBe(true);
+    expect(mapper1(basicLink).preferEventNavigation).toBe("private");
     expect(mapper2(basicLink).preferEventNavigation).toBe(false);
   });
 
@@ -125,7 +125,7 @@ describe("mapLinkConfig", () => {
     const mapper2 = mapLinkConfig({ contextIds: "event-admin test", tags: {} });
     const result2 = mapper2(complexLink);
     expect(result2.selected).toBe(false);
-    expect(result2.preferEventNavigation).toBe(true);
+    expect(result2.preferEventNavigation).toBe("private");
   });
 
   it("should preserve label exactly as provided", () => {
@@ -184,7 +184,7 @@ describe("mapLinkConfig", () => {
       openInNewTab: true,
       href: "/app/myapp/section/mysection",
       selected: true,
-      preferEventNavigation: true,
+      preferEventNavigation: "private",
     });
   });
 });

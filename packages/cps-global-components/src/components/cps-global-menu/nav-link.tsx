@@ -6,7 +6,7 @@ const { _debug } = makeConsole("NavLink");
 
 window.addEventListener("cps-global-header-event", (event: Event & { detail: string }) => _debug("A navigation event has been fired: ", event));
 
-type LinkMode = "standard" | "new-tab" | "emit-event" | "disabled";
+type LinkMode = "standard" | "new-tab" | "emit-event" | "emit-event-private" | "disabled";
 
 @Component({
   tag: "nav-link",
@@ -19,7 +19,7 @@ export class NavLink {
   @Prop() ariaSelected?: boolean;
   @Prop() disabled: boolean;
   @Prop() openInNewTab?: boolean;
-  @Prop() preferEventNavigation?: boolean;
+  @Prop() preferEventNavigation?: "public" | "private" | false | undefined;
 
   @Event({
     eventName: "cps-global-header-event",
@@ -31,11 +31,30 @@ export class NavLink {
 
   emitEvent = (link: string) => this.CpsGlobalHeaderEvent.emit(link);
 
+  @Event({
+    eventName: "cps-global-header-event-private",
+    composed: true,
+    cancelable: true,
+    bubbles: true,
+  })
+  CpsGlobalHeaderEventPrivate: EventEmitter<string>;
+
+  emitEventPrivate = (link: string) => this.CpsGlobalHeaderEventPrivate.emit(link);
+
   launchNewTab = (link: string) => window.open(link, "_blank", "noopener,noreferrer");
 
   @WithLogging("NavLink")
   render() {
-    const mode: LinkMode = this.disabled || !this.href ? "disabled" : this.openInNewTab ? "new-tab" : this.preferEventNavigation ? "emit-event" : "standard";
+    const mode: LinkMode =
+      this.disabled || !this.href
+        ? "disabled"
+        : this.openInNewTab
+        ? "new-tab"
+        : this.preferEventNavigation === "public"
+        ? "emit-event"
+        : this.preferEventNavigation === "private"
+        ? "emit-event-private"
+        : "standard";
 
     const coreProps = {
       "role": "link",
@@ -58,6 +77,12 @@ export class NavLink {
         case "emit-event":
           return (
             <button {...coreProps} class="linkButton" onClick={() => this.emitEvent(this.href)}>
+              {this.label}
+            </button>
+          );
+        case "emit-event-private":
+          return (
+            <button {...coreProps} class="linkButton" onClick={() => this.emitEventPrivate(this.href)}>
               {this.label}
             </button>
           );
