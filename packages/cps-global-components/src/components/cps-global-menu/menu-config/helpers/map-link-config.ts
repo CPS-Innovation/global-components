@@ -18,7 +18,7 @@ export const mapLinkConfigInternal =
       openInNewTab,
       href: handoverAdapter ? handoverAdapter(processedHref) : processedHref,
       selected: isContextMatch(contextIds, activeContexts),
-      preferEventNavigation: isContextMatch(contextIds, preferEventNavigationContexts),
+      preferEventNavigation: isContextMatch(contextIds, preferEventNavigationContexts) ? ("private" as const) : (false as const),
     };
   };
 

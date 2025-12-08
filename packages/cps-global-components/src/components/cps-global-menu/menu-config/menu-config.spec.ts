@@ -202,8 +202,8 @@ describe("menuConfig", () => {
     // Mock groupLinksByLevel
     const groupedLinks = [
       [
-        { label: "Mapped Link 1", href: "/mapped1", selected: true, openInNewTab: false, preferEventNavigation: false, ariaSelected: true as true },
-        { label: "Mapped Link 3", href: "/mapped3", selected: false, openInNewTab: false, preferEventNavigation: true },
+        { label: "Mapped Link 1", href: "/mapped1", selected: true, openInNewTab: false, preferEventNavigation: false as const, ariaSelected: true as true },
+        { label: "Mapped Link 3", href: "/mapped3", selected: false, openInNewTab: false, preferEventNavigation: "private" as const },
       ],
     ];
     mockGroupLinksByLevel.mockReturnValue(groupedLinks);

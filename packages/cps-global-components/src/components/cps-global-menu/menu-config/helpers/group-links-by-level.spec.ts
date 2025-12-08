@@ -80,18 +80,18 @@ describe("groupLinksByLevel", () => {
         href: "/test",
         selected: true,
         openInNewTab: true,
-        preferEventNavigation: true,
+        preferEventNavigation: "private",
       },
     ];
 
     const result = groupLinksByLevel(links);
     const groupedLink: GroupedLink = result[0][0];
-    
+
     expect(groupedLink.label).toBe("Test Link");
     expect(groupedLink.href).toBe("/test");
     expect(groupedLink.selected).toBe(true);
     expect(groupedLink.openInNewTab).toBe(true);
-    expect(groupedLink.preferEventNavigation).toBe(true);
+    expect(groupedLink.preferEventNavigation).toBe("private");
     expect(groupedLink.ariaSelected).toBe(true);
     expect("level" in groupedLink).toBe(false);
   });
