@@ -11,8 +11,8 @@ export type MapLinkConfigParams = { contextIds: string; tags: Record<string, str
 export const mapLinkConfigInternal =
   ({ contextIds, tags, handoverAdapter }: MapLinkConfigParams) =>
   ({ label, href, dcfHref, level, activeContexts, openInNewTab, dcfContextsToUseEventNavigation }: Link) => {
-    const isThisADcfCase = tags[isDcfCaseKey] === "true" && dcfHref;
-    const processedHref = replaceTagsInString(isThisADcfCase ? dcfHref : href, tags);
+    const shouldUseDcfHref = tags[isDcfCaseKey] === "true" && dcfHref;
+    const processedHref = replaceTagsInString(shouldUseDcfHref ? dcfHref : href, tags);
 
     return {
       label,
