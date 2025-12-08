@@ -23,6 +23,7 @@ import { fetchWithCircuitBreaker } from "./services/api/fetch-with-circuit-break
 import { pipe } from "./utils/pipe";
 import { initialiseCmsSessionHint } from "./services/cms-session/initialise-cms-session-hint";
 import { initialiseHandover } from "./services/handover/intialise-handover";
+import { initialiseInterimDcfNavigation } from "./services/outsystems-shim/initialise-interim-dcf-navigation";
 
 const { _debug, _error } = makeConsole("global-script");
 
@@ -50,6 +51,8 @@ let register: Register;
 
 const initialise = async (correlationIds: CorrelationIds, window: Window) => {
   try {
+    initialiseInterimDcfNavigation({ window });
+
     const { register: r, readyState, resetContextSpecificTags, subscribe, mergeTags } = cachedResult("store", initialiseStore);
     register = r;
     register({ correlationIds });
