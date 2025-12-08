@@ -83,7 +83,7 @@ describe("menuConfig", () => {
 
   const mockTags: Tags = {};
 
-  const mockCaseDetails: CaseDetails = { urn: "foo", isDcfCase: false };
+  const mockCaseDetails: CaseDetails = { id: 1, urn: "foo", isDcfCase: false };
 
   const mockCmsSessionHint: CmsSessionHintResult = {
     found: false,
@@ -118,6 +118,7 @@ describe("menuConfig", () => {
       caseIdentifiers: { caseId: "1" },
       build: {} as Build,
       cmsSessionHint: mockCmsSessionHint,
+      handover: { found: false, error: null },
     };
 
     const result = menuConfig(mockState);
@@ -166,6 +167,7 @@ describe("menuConfig", () => {
       caseIdentifiers: { caseId: "1" },
       build: {} as Build,
       cmsSessionHint: mockCmsSessionHint,
+      handover: { found: false, error: null },
     };
 
     // Mock shouldShowLink to filter out the second link
@@ -282,6 +284,7 @@ describe("menuConfig", () => {
       caseIdentifiers: { caseId: "1" },
       build: {} as Build,
       cmsSessionHint: mockCmsSessionHint,
+      handover: { found: false, error: null },
     };
 
     // Mock shouldShowLink to pass all links
@@ -352,6 +355,7 @@ describe("menuConfig", () => {
       caseIdentifiers: { caseId: "1" },
       build: {} as Build,
       cmsSessionHint: mockCmsSessionHint,
+      handover: { found: false, error: null },
     };
 
     // Mock shouldShowLink to pass all links
@@ -423,6 +427,7 @@ describe("menuConfig", () => {
       caseIdentifiers: { caseId: "1" },
       build: {} as Build,
       cmsSessionHint: mockCmsSessionHint,
+      handover: { found: false, error: null },
     };
 
     // Mock shouldShowLink to pass all links
@@ -493,6 +498,7 @@ describe("menuConfig", () => {
       caseIdentifiers: { caseId: "1" },
       build: {} as Build,
       cmsSessionHint: mockCmsSessionHint,
+      handover: { found: false, error: null },
     };
 
     // Mock shouldShowLink to pass all links
@@ -583,6 +589,7 @@ describe("menuConfig", () => {
       caseIdentifiers: { caseId: "1" },
       build: {} as Build,
       cmsSessionHint: cmsSessionHintWithEndpoint,
+      handover: { found: false, error: null },
     };
 
     // Mock shouldShowLink to pass all links

@@ -30,6 +30,7 @@ describe("extractTagsFromCaseDetails", () => {
 
     it("should include all tag fields even when extra fields are present", () => {
       const caseDetails: CaseDetails = {
+        id: 123,
         urn: "12AB3456789",
         isDcfCase: true,
       };
@@ -45,6 +46,7 @@ describe("extractTagsFromCaseDetails", () => {
 
     it("should not include caseId in tags", () => {
       const caseDetails: CaseDetails = {
+        id: 456,
         urn: "99ZZ1234567",
         isDcfCase: false,
       };

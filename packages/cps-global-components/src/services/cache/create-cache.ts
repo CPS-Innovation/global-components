@@ -176,6 +176,27 @@ export function createCache(storageKey: string) {
       return selectFields(validatedData, fields as K[]);
     }
 
+    const set = (id: string, data: T): void => {
+      // Store only cacheable fields
+      const cacheableData = config.cacheableFields.reduce((acc, field) => {
+        acc[field] = data[field];
+        return acc;
+      }, {} as Partial<T>);
+
+      // Ensure entity section exists
+      if (!cache.entities[entityType]) {
+        cache.entities[entityType] = {};
+      }
+
+      cache.entities[entityType][id] = {
+        data: cacheableData,
+        timestamp: Date.now(),
+      };
+
+      saveCache(cache);
+      _debug(entityType, id, "was set directly");
+    };
+
     const invalidate = (id: string): void => {
       if (cache.entities[entityType]) {
         delete cache.entities[entityType][id];
@@ -206,6 +227,7 @@ export function createCache(storageKey: string) {
 
     return {
       get,
+      set,
       fetch,
       invalidate,
       invalidateAll,
