@@ -1,7 +1,7 @@
 import { v4 as uuidv4 } from "uuid";
 import { handleSetOverrideMode } from "./services/override-mode/handle-set-override-mode";
 import { initialiseAuth } from "./services/auth/initialise-auth";
-import { initialiseStore, Register } from "./store/store";
+import { initialiseStore } from "./store/store";
 import { initialiseAnalytics } from "./services/analytics/initialise-analytics";
 import { initialiseConfig } from "./services/config/initialise-config";
 import { initialiseContext } from "./services/context/initialise-context";
@@ -32,7 +32,7 @@ export default () => {
   /* do not await this */ initialise(window);
 };
 
-const loadPhase = async ({
+const scriptLoadPhase = async ({
   window,
   storeFns: { register, mergeTags, subscribe, readyState },
 }: {
@@ -110,14 +110,14 @@ const loadPhase = async ({
   };
 };
 
-const contextPhase = ({
+const contextChangePhase = ({
   config,
   initialiseDomForContext,
   trackPageView,
   scriptLoadCorrelationId,
   navigationCorrelationId,
   storeFns: { register, resetContextSpecificTags },
-}: Awaited<ReturnType<typeof loadPhase>> & { storeFns: ReturnType<typeof initialiseStore> } & { scriptLoadCorrelationId: string; navigationCorrelationId: string }) => {
+}: Awaited<ReturnType<typeof scriptLoadPhase>> & { storeFns: ReturnType<typeof initialiseStore> } & { scriptLoadCorrelationId: string; navigationCorrelationId: string }) => {
   // We reset the tags to empty as we could be being called after a navigate in a SPA
   resetContextSpecificTags();
   const correlationIds = { scriptLoadCorrelationId, navigationCorrelationId };
@@ -136,33 +136,31 @@ const contextPhase = ({
 };
 
 const initialise = async (window: Window & typeof globalThis) => {
-  let register: Register | undefined = undefined;
   let trackException: ((err: Error) => void) | undefined = undefined;
+
+  const storeFns = initialiseStore();
+
   const handleError = (err: Error) => {
     trackException?.(err);
     _error(err);
-    register?.({ fatalInitialisationError: err, initialisationStatus: "broken" });
+    storeFns.register({ fatalInitialisationError: err, initialisationStatus: "broken" });
   };
 
   try {
-    const scriptLoadCorrelationId = uuidv4();
-
-    const storeFns = initialiseStore();
-    register = storeFns.register;
-
-    const loadResult = await loadPhase({ window, storeFns });
+    const loadResult = await scriptLoadPhase({ window, storeFns });
     trackException = loadResult.trackException;
 
+    const scriptLoadCorrelationId = uuidv4();
     // It is meaningful in our analytics when navigationCorrelationId === scriptLoadCorrelationId as we know
     //  those entries are for page load rather than subsequent SPA-navigated-to pages
-    contextPhase({ storeFns, ...loadResult, scriptLoadCorrelationId, navigationCorrelationId: scriptLoadCorrelationId });
+    contextChangePhase({ storeFns, ...loadResult, scriptLoadCorrelationId, navigationCorrelationId: scriptLoadCorrelationId });
 
     // Every time we detect a SPA navigation (i.e. not a full page reload), lets rerun our initialisation
     //  logic as out context may have changed
     window.navigation?.addEventListener("navigatesuccess", async event => {
       try {
         _debug("navigation", event);
-        contextPhase({ storeFns, ...loadResult, scriptLoadCorrelationId, navigationCorrelationId: uuidv4() });
+        contextChangePhase({ storeFns, ...loadResult, scriptLoadCorrelationId, navigationCorrelationId: uuidv4() });
       } catch (err) {
         handleError(err);
       }
@@ -171,35 +169,3 @@ const initialise = async (window: Window & typeof globalThis) => {
     handleError(err);
   }
 };
-
-// if (flags.isOverrideMode) {
-//   const timestamp = +new Date();
-//   augmentedFetch("state/experimental-state", { method: "PUT", body: JSON.stringify({ foo: "bar", timestamp }) })
-//     .then(response => response.statusText)
-//     .then(() => augmentedFetch("state/experimental-state"))
-//     .then(response => response.json())
-//     .then(response => _debug("Experimental state check, expected", timestamp, response))
-//     .catch(reason => _debug("Experimental fetch token-check error", reason));
-//   //   fetch(config.GATEWAY_URL + "cms-session-hint", { credentials: "include" })
-//   //     .then(response => response.json())
-//   //     .then(content => _debug("Experimental fetch cms-session-hint", content))
-//   //     .catch(reason => _debug("Experimental fetch cms-session-hint error", reason));
-
-//   // [
-//   //   "https://polaris-qa-notprod.cps.gov.uk/polaris",
-//   //   "https://cin2.cps.gov.uk/polaris",
-//   //   "https://cin3.cps.gov.uk/polaris",
-//   //   "https://cin4.cps.gov.uk/polaris",
-//   //   "https://cin5.cps.gov.uk/polaris",
-//   // ].map(endpoint =>
-//   //   fetch(config.GATEWAY_URL + "upstream-handover-health-check?url=" + encodeURIComponent(endpoint))
-//   //     .then(response => (response.ok ? response.json() : Promise.resolve({ ...response })))
-//   //     .then(obj => _debug("Experimental endpoint health check", obj))
-//   //     .catch(reason => _debug("Experimental endpoint health error", reason)),
-//   // );
-
-//   // fetch(config.GATEWAY_URL + "cookie", { method: "POST", credentials: "include" })
-//   //   .then(response => response.text())
-//   //   .then(content => _debug("Experimental fetch", content))
-//   //   .catch(reason => _debug("Experimental fetch error", reason));
-// }
