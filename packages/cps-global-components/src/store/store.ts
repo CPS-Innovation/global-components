@@ -114,6 +114,8 @@ export type MergeTags = (arg: SingleKnownTypePropertyOf<TransientState, Tags>) =
 export type MergeTagFireAndForget = (arg: SingleKnownTypePropertyOf<TransientState, Tags>) => void;
 class MergeTagFireAndForgetEvent extends CustomEvent<Parameters<MergeTagFireAndForget>[0]> {}
 
+export type Subscribe = (...factories: SubscriptionFactory[]) => void;
+
 export type Store = ReturnType<typeof createStore<StoredState>>;
 
 export type Build = typeof window.cps_global_components_build;
@@ -153,7 +155,7 @@ export const initialiseStore = () => {
     privateTagProperties.filter(key => key !== "propTags").forEach(key => store.set(key, {}));
   };
 
-  const subscribe = (...subscriptionFactories: SubscriptionFactory[]) =>
+  const subscribe: Subscribe = (...subscriptionFactories: SubscriptionFactory[]) =>
     subscriptionFactories.map(factory => {
       const { type, handler } = factory({ register, mergeTags, get: store.get });
       if (type === "subscription") {

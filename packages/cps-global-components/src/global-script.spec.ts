@@ -11,11 +11,36 @@ const clearCachedResultCache = () => {
   jest.resetModules();
 };
 
-// Mock uuid to return predictable values
-const mockUuidv4 = jest.fn();
-jest.mock("uuid", () => ({
-  v4: () => mockUuidv4(),
+// Mock correlation IDs to return predictable values
+const mockInitialiseCorrelationIds = jest.fn();
+jest.mock("./services/correlation/initialise-correlation-ids", () => ({
+  initialiseCorrelationIds: () => mockInitialiseCorrelationIds(),
 }));
+
+// Mock navigation subscription - captures the handler so tests can trigger navigation
+const mockInitialiseNavigationSubscription = jest.fn();
+let capturedNavigationHandler: (() => void) | null = null;
+let capturedHandleError: ((err: Error) => void) | null = null;
+jest.mock("./services/browser/navigation/initialise-navigation-subscription", () => ({
+  initialiseNavigationSubscription: ({ handler, handleError }: { handler: () => void; handleError: (err: Error) => void }) => {
+    capturedNavigationHandler = handler;
+    capturedHandleError = handleError;
+    mockInitialiseNavigationSubscription({ handler, window: expect.any(Object), handleError: expect.any(Function) });
+  },
+}));
+
+// Helper to trigger navigation in tests (mimics real behavior with error handling)
+const triggerNavigation = () => {
+  if (capturedNavigationHandler) {
+    try {
+      capturedNavigationHandler();
+    } catch (err) {
+      if (capturedHandleError) {
+        capturedHandleError(err as Error);
+      }
+    }
+  }
+};
 
 // Mock all the services - these return jest.fn() so we can inspect calls
 const mockHandleSetOverrideMode = jest.fn();
@@ -28,19 +53,9 @@ jest.mock("./services/auth/initialise-auth", () => ({
   initialiseAuth: mockInitialiseAuth,
 }));
 
-const mockInitialiseMockAuth = jest.fn();
-jest.mock("./services/auth/initialise-mock-auth", () => ({
-  initialiseMockAuth: mockInitialiseMockAuth,
-}));
-
 const mockInitialiseAnalytics = jest.fn();
 jest.mock("./services/analytics/initialise-analytics", () => ({
   initialiseAnalytics: mockInitialiseAnalytics,
-}));
-
-const mockInitialiseMockAnalytics = jest.fn();
-jest.mock("./services/analytics/initialise-mock-analytics", () => ({
-  initialiseMockAnalytics: mockInitialiseMockAnalytics,
 }));
 
 const mockInitialiseConfig = jest.fn();
@@ -59,11 +74,11 @@ jest.mock("./services/application-flags/get-application-flags", () => ({
 }));
 
 const mockInitialiseDomObservation = jest.fn();
-jest.mock("./services/dom/initialise-dom-observation", () => ({
+jest.mock("./services/browser/dom/initialise-dom-observation", () => ({
   initialiseDomObservation: mockInitialiseDomObservation,
 }));
 
-jest.mock("./services/dom/dom-tag-mutation-subscriber", () => ({
+jest.mock("./services/browser/dom/dom-tag-mutation-subscriber", () => ({
   domTagMutationSubscriber: jest.fn(),
 }));
 
@@ -71,24 +86,9 @@ jest.mock("./services/outsystems-shim/outsystems-shim-subscriber", () => ({
   outSystemsShimSubscribers: [],
 }));
 
-const mockCreateCache = jest.fn();
-jest.mock("./services/cache/create-cache", () => ({
-  createCache: mockCreateCache,
-}));
-
-const mockFetchWithAuthFactory = jest.fn();
-jest.mock("./services/api/fetch-with-auth-factory", () => ({
-  fetchWithAuthFactory: mockFetchWithAuthFactory,
-}));
-
-const mockCaseDetailsSubscriptionFactory = jest.fn();
-jest.mock("./services/data/case-details-subscription-factory", () => ({
-  caseDetailsSubscriptionFactory: mockCaseDetailsSubscriptionFactory,
-}));
-
-const mockFetchWithCircuitBreaker = jest.fn();
-jest.mock("./services/api/fetch-with-circuit-breaker", () => ({
-  fetchWithCircuitBreaker: mockFetchWithCircuitBreaker,
+const mockInitialiseCaseDetailsData = jest.fn();
+jest.mock("./services/data/initialise-case-details-data", () => ({
+  initialiseCaseDetailsData: mockInitialiseCaseDetailsData,
 }));
 
 const mockInitialiseCmsSessionHint = jest.fn();
@@ -145,8 +145,14 @@ const createMockWindow = () => {
 
 // Default mock implementations
 const setupDefaultMocks = () => {
-  let uuidCounter = 0;
-  mockUuidv4.mockImplementation(() => `uuid-${++uuidCounter}`);
+  let correlationIdCounter = 0;
+  mockInitialiseCorrelationIds.mockImplementation(() => {
+    correlationIdCounter++;
+    const navigationCorrelationId = `uuid-${correlationIdCounter}`;
+    // scriptLoadCorrelationId is always uuid-1 (set on first call)
+    const scriptLoadCorrelationId = "uuid-1";
+    return { scriptLoadCorrelationId, navigationCorrelationId };
+  });
 
   mockHandleSetOverrideMode.mockImplementation(() => {});
 
@@ -213,6 +219,8 @@ describe("global-script", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     clearCachedResultCache();
+    capturedNavigationHandler = null;
+    capturedHandleError = null;
     mockWindow = createMockWindow();
     defaultMocks = setupDefaultMocks();
 
@@ -241,8 +249,8 @@ describe("global-script", () => {
       // Wait for async initialization
       await new Promise(resolve => setTimeout(resolve, 10));
 
-      // Check that the first uuid was used for both correlation IDs
-      expect(mockUuidv4).toHaveBeenCalledTimes(1);
+      // Check that initialiseCorrelationIds was called once
+      expect(mockInitialiseCorrelationIds).toHaveBeenCalledTimes(1);
 
       // The trackPageView should have been called with matching correlation IDs
       expect(defaultMocks.mockTrackPageView).toHaveBeenCalledWith(
@@ -263,7 +271,11 @@ describe("global-script", () => {
       // Wait for async initialization to complete (listener is registered inside initialise())
       await new Promise(resolve => setTimeout(resolve, 10));
 
-      expect(mockWindow.navigation.addEventListener).toHaveBeenCalledWith("navigatesuccess", expect.any(Function));
+      expect(mockInitialiseNavigationSubscription).toHaveBeenCalledWith({
+        window: mockWindow,
+        handler: expect.any(Function),
+        handleError: expect.any(Function),
+      });
     });
 
     it("should register build info to store", async () => {
@@ -416,17 +428,13 @@ describe("global-script", () => {
       expect(state.state.initialisationStatus).toBe("complete");
     });
 
-    it("should use mock auth when in e2e test mode", async () => {
-      mockGetApplicationFlags.mockReturnValue({
+    it("should pass flags to initialiseAuth so it can decide mock vs real internally", async () => {
+      const testFlags = {
         e2eTestMode: { isE2eTestMode: true },
         isOverrideMode: false,
         isDevelopment: false,
-      });
-
-      mockInitialiseMockAuth.mockResolvedValue({
-        auth: { isAuthed: true, username: "e2e-user", groups: [], objectId: "e2e-obj" },
-        getToken: jest.fn(),
-      });
+      };
+      mockGetApplicationFlags.mockReturnValue(testFlags);
 
       const globalScript = require("./global-script").default;
 
@@ -434,27 +442,21 @@ describe("global-script", () => {
 
       await new Promise(resolve => setTimeout(resolve, 10));
 
-      expect(mockInitialiseMockAuth).toHaveBeenCalled();
-      expect(mockInitialiseAuth).not.toHaveBeenCalled();
+      // initialiseAuth receives flags and decides internally whether to use mock
+      expect(mockInitialiseAuth).toHaveBeenCalledWith(
+        expect.objectContaining({
+          flags: testFlags,
+        }),
+      );
     });
 
-    it("should use mock analytics when in e2e test mode", async () => {
-      mockGetApplicationFlags.mockReturnValue({
+    it("should pass flags to initialiseAnalytics so it can decide mock vs real internally", async () => {
+      const testFlags = {
         e2eTestMode: { isE2eTestMode: true },
         isOverrideMode: false,
         isDevelopment: false,
-      });
-
-      mockInitialiseMockAuth.mockResolvedValue({
-        auth: { isAuthed: true, username: "e2e-user", groups: [], objectId: "e2e-obj" },
-        getToken: jest.fn(),
-      });
-
-      mockInitialiseMockAnalytics.mockReturnValue({
-        trackPageView: jest.fn(),
-        trackEvent: jest.fn(),
-        trackException: jest.fn(),
-      });
+      };
+      mockGetApplicationFlags.mockReturnValue(testFlags);
 
       const globalScript = require("./global-script").default;
 
@@ -462,46 +464,41 @@ describe("global-script", () => {
 
       await new Promise(resolve => setTimeout(resolve, 10));
 
-      expect(mockInitialiseMockAnalytics).toHaveBeenCalled();
-      expect(mockInitialiseAnalytics).not.toHaveBeenCalled();
+      // initialiseAnalytics receives flags and decides internally whether to use mock
+      expect(mockInitialiseAnalytics).toHaveBeenCalledWith(
+        expect.objectContaining({
+          flags: testFlags,
+        }),
+      );
     });
   });
 
-  describe("data access (GATEWAY_URL enabled)", () => {
-    beforeEach(() => {
-      mockInitialiseConfig.mockResolvedValue({
+  describe("data access initialization", () => {
+    it("should call initialiseCaseDetailsData with correct parameters", async () => {
+      const testConfig = {
         CONTEXTS: [],
         GATEWAY_URL: "https://gateway.example.com/",
-      });
+      };
+      mockInitialiseConfig.mockResolvedValue(testConfig);
 
-      mockCreateCache.mockReturnValue({
-        get: jest.fn(),
-        set: jest.fn(),
-      });
-
-      // These functions are "fetch transformers" - they take a fetch function and return a modified fetch
-      mockFetchWithCircuitBreaker.mockReturnValue((realFetch: typeof fetch) => realFetch);
-      mockFetchWithAuthFactory.mockReturnValue((realFetch: typeof fetch) => realFetch);
-    });
-
-    it("should set up cache when GATEWAY_URL is configured", async () => {
       const globalScript = require("./global-script").default;
 
       globalScript();
 
       await new Promise(resolve => setTimeout(resolve, 10));
 
-      expect(mockCreateCache).toHaveBeenCalledWith("cps-global-components-cache");
-    });
-
-    it("should set up case details subscription when GATEWAY_URL is configured", async () => {
-      const globalScript = require("./global-script").default;
-
-      globalScript();
-
-      await new Promise(resolve => setTimeout(resolve, 10));
-
-      expect(mockCaseDetailsSubscriptionFactory).toHaveBeenCalled();
+      expect(mockInitialiseCaseDetailsData).toHaveBeenCalledWith(
+        expect.objectContaining({
+          config: testConfig,
+          context: expect.any(Object),
+          subscribe: expect.any(Function),
+          handover: expect.any(Object),
+          setNextHandover: expect.any(Function),
+          getToken: expect.any(Function),
+          readyState: expect.any(Function),
+          trackEvent: expect.any(Function),
+        }),
+      );
     });
   });
 
@@ -523,7 +520,7 @@ describe("global-script", () => {
       });
 
       // Trigger SPA navigation
-      mockWindow.navigation._triggerEvent("navigatesuccess", { type: "navigatesuccess" });
+      triggerNavigation();
 
       await new Promise(resolve => setTimeout(resolve, 10));
 
@@ -548,7 +545,7 @@ describe("global-script", () => {
       expect(mockInitialiseContext).toHaveBeenCalledTimes(2);
 
       // Trigger SPA navigation
-      mockWindow.navigation._triggerEvent("navigatesuccess", { type: "navigatesuccess" });
+      triggerNavigation();
 
       await new Promise(resolve => setTimeout(resolve, 10));
 
@@ -566,7 +563,7 @@ describe("global-script", () => {
       expect(mockGetApplicationFlags).toHaveBeenCalledTimes(1);
 
       // Trigger SPA navigation
-      mockWindow.navigation._triggerEvent("navigatesuccess", { type: "navigatesuccess" });
+      triggerNavigation();
 
       await new Promise(resolve => setTimeout(resolve, 10));
 
@@ -584,7 +581,7 @@ describe("global-script", () => {
       expect(mockInitialiseConfig).toHaveBeenCalledTimes(1);
 
       // Trigger SPA navigation
-      mockWindow.navigation._triggerEvent("navigatesuccess", { type: "navigatesuccess" });
+      triggerNavigation();
 
       await new Promise(resolve => setTimeout(resolve, 10));
 
@@ -602,7 +599,7 @@ describe("global-script", () => {
       expect(mockInitialiseAuth).toHaveBeenCalledTimes(1);
 
       // Trigger SPA navigation
-      mockWindow.navigation._triggerEvent("navigatesuccess", { type: "navigatesuccess" });
+      triggerNavigation();
 
       await new Promise(resolve => setTimeout(resolve, 10));
 
@@ -620,7 +617,7 @@ describe("global-script", () => {
       expect(mockInitialiseAnalytics).toHaveBeenCalledTimes(1);
 
       // Trigger SPA navigation
-      mockWindow.navigation._triggerEvent("navigatesuccess", { type: "navigatesuccess" });
+      triggerNavigation();
 
       await new Promise(resolve => setTimeout(resolve, 10));
 
@@ -645,7 +642,7 @@ describe("global-script", () => {
       });
 
       // Trigger SPA navigation
-      mockWindow.navigation._triggerEvent("navigatesuccess", { type: "navigatesuccess" });
+      triggerNavigation();
 
       await new Promise(resolve => setTimeout(resolve, 10));
 
@@ -670,7 +667,7 @@ describe("global-script", () => {
       expect(defaultMocks.mockTrackPageView).toHaveBeenCalledTimes(1);
 
       // Trigger SPA navigation
-      mockWindow.navigation._triggerEvent("navigatesuccess", { type: "navigatesuccess" });
+      triggerNavigation();
 
       await new Promise(resolve => setTimeout(resolve, 10));
 
@@ -699,7 +696,7 @@ describe("global-script", () => {
       });
 
       // Trigger SPA navigation
-      mockWindow.navigation._triggerEvent("navigatesuccess", { type: "navigatesuccess" });
+      triggerNavigation();
 
       await new Promise(resolve => setTimeout(resolve, 10));
 
@@ -729,7 +726,7 @@ describe("global-script", () => {
       });
 
       // Trigger SPA navigation
-      mockWindow.navigation._triggerEvent("navigatesuccess", { type: "navigatesuccess" });
+      triggerNavigation();
 
       await new Promise(resolve => setTimeout(resolve, 10));
 
@@ -745,20 +742,20 @@ describe("global-script", () => {
       await new Promise(resolve => setTimeout(resolve, 10));
 
       // Trigger multiple SPA navigations
-      mockWindow.navigation._triggerEvent("navigatesuccess", {});
+      triggerNavigation();
       await new Promise(resolve => setTimeout(resolve, 10));
 
-      mockWindow.navigation._triggerEvent("navigatesuccess", {});
+      triggerNavigation();
       await new Promise(resolve => setTimeout(resolve, 10));
 
-      mockWindow.navigation._triggerEvent("navigatesuccess", {});
+      triggerNavigation();
       await new Promise(resolve => setTimeout(resolve, 10));
 
       // Should have 4 page views (initial + 3 navigations)
       expect(defaultMocks.mockTrackPageView).toHaveBeenCalledTimes(4);
 
-      // Should have generated 4 uuids (1 for initial, 1 for each navigation)
-      expect(mockUuidv4).toHaveBeenCalledTimes(4);
+      // Should have called initialiseCorrelationIds 4 times (1 for initial, 1 for each navigation)
+      expect(mockInitialiseCorrelationIds).toHaveBeenCalledTimes(4);
 
       // Last call should have original scriptLoadCorrelationId with new navigationCorrelationId
       expect(defaultMocks.mockTrackPageView).toHaveBeenLastCalledWith({
@@ -835,7 +832,7 @@ describe("global-script", () => {
       });
 
       // Trigger navigation - should fail
-      mockWindow.navigation._triggerEvent("navigatesuccess", {});
+      triggerNavigation();
       await new Promise(resolve => setTimeout(resolve, 10));
 
       expect(getReadyState()().state.initialisationStatus).toBe("broken");
@@ -848,7 +845,7 @@ describe("global-script", () => {
       });
 
       // Trigger another navigation - should recover
-      mockWindow.navigation._triggerEvent("navigatesuccess", {});
+      triggerNavigation();
       await new Promise(resolve => setTimeout(resolve, 10));
 
       expect(getReadyState()().state.initialisationStatus).toBe("complete");
@@ -918,7 +915,7 @@ describe("global-script", () => {
       expect(mockInitialiseCmsSessionHint).toHaveBeenCalledTimes(1);
 
       // Trigger SPA navigation
-      mockWindow.navigation._triggerEvent("navigatesuccess", {});
+      triggerNavigation();
 
       await new Promise(resolve => setTimeout(resolve, 10));
 
@@ -935,7 +932,7 @@ describe("global-script", () => {
       expect(mockInitialiseHandover).toHaveBeenCalledTimes(1);
 
       // Trigger SPA navigation
-      mockWindow.navigation._triggerEvent("navigatesuccess", {});
+      triggerNavigation();
 
       await new Promise(resolve => setTimeout(resolve, 10));
 
@@ -1028,7 +1025,12 @@ describe("global-script", () => {
       });
     });
 
-    it("should pass config and context to initialiseAuth (non-e2e mode)", async () => {
+    it("should pass config, context and flags to initialiseAuth", async () => {
+      const testFlags = {
+        e2eTestMode: { isE2eTestMode: false },
+        isOverrideMode: false,
+        isDevelopment: false,
+      };
       const testConfig = {
         CONTEXTS: [],
         GATEWAY_URL: null,
@@ -1040,11 +1042,7 @@ describe("global-script", () => {
         pathTags: { caseId: "123" },
         cmsAuth: { isCmsAuth: true },
       };
-      mockGetApplicationFlags.mockReturnValue({
-        e2eTestMode: { isE2eTestMode: false },
-        isOverrideMode: false,
-        isDevelopment: false,
-      });
+      mockGetApplicationFlags.mockReturnValue(testFlags);
       mockInitialiseConfig.mockResolvedValue(testConfig);
       mockInitialiseContext.mockReturnValue(testContext);
 
@@ -1055,40 +1053,23 @@ describe("global-script", () => {
       expect(mockInitialiseAuth).toHaveBeenCalledWith({
         config: testConfig,
         context: testContext,
+        flags: testFlags,
       });
-    });
-
-    it("should pass flags to initialiseMockAuth (e2e mode)", async () => {
-      const testFlags = {
-        e2eTestMode: { isE2eTestMode: true, mockUser: "test-e2e-user" },
-        isOverrideMode: false,
-        isDevelopment: false,
-      };
-      mockGetApplicationFlags.mockReturnValue(testFlags);
-      mockInitialiseMockAuth.mockResolvedValue({
-        auth: { isAuthed: true, username: "e2e", groups: [], objectId: "e2e" },
-        getToken: jest.fn(),
-      });
-      mockInitialiseMockAnalytics.mockReturnValue({
-        trackPageView: jest.fn(),
-        trackEvent: jest.fn(),
-        trackException: jest.fn(),
-      });
-
-      const globalScript = require("./global-script").default;
-      globalScript();
-      await new Promise(resolve => setTimeout(resolve, 10));
-
-      expect(mockInitialiseMockAuth).toHaveBeenCalledWith({ flags: testFlags });
     });
 
     it("should pass all required dependencies to initialiseAnalytics", async () => {
+      const testFlags = {
+        e2eTestMode: { isE2eTestMode: false },
+        isOverrideMode: false,
+        isDevelopment: false,
+      };
       const testConfig = { CONTEXTS: [], GATEWAY_URL: null, APP_INSIGHTS_KEY: "test-key" };
       const testAuth = { isAuthed: true, username: "analytics-test", groups: ["group1"], objectId: "obj-456" };
       const testBuild = { version: "2.0.0", buildDate: "2024-06-15" };
       const testCmsSessionHint = { hint: "analytics-hint", sessionId: "sess-123" };
 
       (mockWindow as any).cps_global_components_build = testBuild;
+      mockGetApplicationFlags.mockReturnValue(testFlags);
       mockInitialiseConfig.mockResolvedValue(testConfig);
       mockInitialiseAuth.mockResolvedValue({
         auth: testAuth,
@@ -1107,6 +1088,7 @@ describe("global-script", () => {
           auth: testAuth,
           build: testBuild,
           cmsSessionHint: testCmsSessionHint,
+          flags: testFlags,
           // readyState is also passed but is a function, harder to assert exactly
         }),
       );
@@ -1133,32 +1115,33 @@ describe("global-script", () => {
       });
     });
 
-    it("should pass all required dependencies to caseDetailsSubscriptionFactory when GATEWAY_URL is set", async () => {
+    it("should pass all required dependencies to initialiseCaseDetailsData", async () => {
       const testConfig = { CONTEXTS: [], GATEWAY_URL: "https://gateway.test.com/" };
       const testHandover = { caseId: "case-789", source: "test" };
       const mockSetNextHandover = jest.fn();
-      const mockCache = { get: jest.fn(), set: jest.fn(), delete: jest.fn() };
+      const testContext = {
+        found: true,
+        contextDefinition: { name: "test-context" },
+        pathTags: { caseId: "123" },
+      };
 
       mockInitialiseConfig.mockResolvedValue(testConfig);
       mockInitialiseHandover.mockResolvedValue({
         handover: testHandover,
         setNextHandover: mockSetNextHandover,
       });
-      mockCreateCache.mockReturnValue(mockCache);
-      mockFetchWithCircuitBreaker.mockReturnValue((realFetch: typeof fetch) => realFetch);
-      mockFetchWithAuthFactory.mockReturnValue((realFetch: typeof fetch) => realFetch);
+      mockInitialiseContext.mockReturnValue(testContext);
 
       const globalScript = require("./global-script").default;
       globalScript();
       await new Promise(resolve => setTimeout(resolve, 10));
 
-      expect(mockCaseDetailsSubscriptionFactory).toHaveBeenCalledWith(
+      expect(mockInitialiseCaseDetailsData).toHaveBeenCalledWith(
         expect.objectContaining({
           config: testConfig,
-          cache: mockCache,
+          context: testContext,
           handover: testHandover,
           setNextHandover: mockSetNextHandover,
-          // fetch is the augmented fetch, hard to assert exactly
         }),
       );
     });
@@ -1329,7 +1312,7 @@ describe("global-script", () => {
       });
 
       // Navigate
-      mockWindow.navigation._triggerEvent("navigatesuccess", {});
+      triggerNavigation();
       await new Promise(resolve => setTimeout(resolve, 10));
 
       // Second trackPageView uses updated context
@@ -1370,7 +1353,7 @@ describe("global-script", () => {
       expect(defaultMocks.mockInitialiseDomForContext).toHaveBeenNthCalledWith(1, { context: initialContext });
 
       // Navigate
-      mockWindow.navigation._triggerEvent("navigatesuccess", {});
+      triggerNavigation();
       await new Promise(resolve => setTimeout(resolve, 10));
 
       expect(defaultMocks.mockInitialiseDomForContext).toHaveBeenNthCalledWith(2, { context: updatedContext });
@@ -1394,7 +1377,7 @@ describe("global-script", () => {
       expect(mockInitialiseConfig).toHaveBeenCalledTimes(1);
 
       // Navigate
-      mockWindow.navigation._triggerEvent("navigatesuccess", {});
+      triggerNavigation();
       await new Promise(resolve => setTimeout(resolve, 10));
 
       // Config still only called once (cached via loadPhase)
