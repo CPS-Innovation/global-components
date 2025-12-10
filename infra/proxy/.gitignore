@@ -1,5 +1,12 @@
+# Build output
+dist/
+
 # Test build artifacts
 .dist/
+
+# Compiled JavaScript files (keep nginx.js which is not ours)
+config/**/*.js
+!config/main/nginx.js
 
 # Deployment secrets and backups
 deploy/secrets.env
