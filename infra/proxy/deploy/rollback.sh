@@ -83,30 +83,54 @@ az account show > /dev/null 2>&1 || {
 az account set --subscription "$AZURE_SUBSCRIPTION_ID"
 echo -e "${GREEN}Using subscription: $AZURE_SUBSCRIPTION_ID${NC}"
 
+# List current container contents
+echo -e "\n${YELLOW}Current blob storage contents:${NC}"
+echo "  Storage account: $AZURE_STORAGE_ACCOUNT"
+echo "  Container: $AZURE_STORAGE_CONTAINER"
+echo "  Running: az storage blob list --account-name $AZURE_STORAGE_ACCOUNT --container-name $AZURE_STORAGE_CONTAINER --auth-mode login --output table"
+echo ""
+az storage blob list \
+  --account-name "$AZURE_STORAGE_ACCOUNT" \
+  --container-name "$AZURE_STORAGE_CONTAINER" \
+  --auth-mode login \
+  --output table \
+  2>&1 | sed 's/^/  /'
+
 # Get current version for new backup
-CURRENT_VERSION=$(curl -s "$STATUS_ENDPOINT" | grep -o '"version":[ ]*[0-9]*' | grep -o '[0-9]*' || echo "0")
+echo -e "\n${YELLOW}Getting current version from status endpoint...${NC}"
+echo "  Endpoint: $STATUS_ENDPOINT"
+STATUS_RESPONSE=$(curl -s "$STATUS_ENDPOINT" 2>&1)
+echo "  Response: $STATUS_RESPONSE"
+CURRENT_VERSION=$(echo "$STATUS_RESPONSE" | grep -o '"version":[ ]*[0-9]*' | grep -o '[0-9]*' || echo "0")
+echo "  Parsed version: $CURRENT_VERSION"
 
 # Create a backup of current state before rollback
 PRE_ROLLBACK_DIR="$BACKUPS_DIR/$(date +%Y%m%d_%H%M%S)_pre-rollback_v${CURRENT_VERSION}"
 mkdir -p "$PRE_ROLLBACK_DIR"
-echo -e "\n${YELLOW}Backing up current state before rollback...${NC}"
+echo -e "\n${YELLOW}Backing up current state before rollback to: $PRE_ROLLBACK_DIR${NC}"
 
 FILES_TO_BACKUP=(
   "nginx.js"
   "global-components.conf.template"
   "global-components.js"
+  "global-components.vnext.conf.template"
+  "global-components.vnext.js"
   "global-components-deployment.json"
 )
 
 for file in "${FILES_TO_BACKUP[@]}"; do
   echo "  Downloading $file..."
-  az storage blob download \
+  if az storage blob download \
     --account-name "$AZURE_STORAGE_ACCOUNT" \
     --container-name "$AZURE_STORAGE_CONTAINER" \
     --name "$file" \
     --file "$PRE_ROLLBACK_DIR/$file" \
     --auth-mode login \
-    2>/dev/null || echo "    (file may not exist)"
+    2>&1 | sed 's/^/    /'; then
+    echo -e "    ${GREEN}✓ Downloaded${NC}"
+  else
+    echo -e "    ${YELLOW}⚠ File may not exist${NC}"
+  fi
 done
 
 # Upload backup files
