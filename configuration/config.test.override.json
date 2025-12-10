@@ -157,15 +157,23 @@
       "level": 1,
       "href": "https://cps-tst.outsystemsenterprise.com/WorkManagementApp/CaseOverview?CaseId={caseId}&URN={urn}",
       "visibleContexts": "case",
-      "activeContexts": "details"
+      "activeContexts": "details",
+      "dcfContextsToUseEventNavigation": {
+        "contexts": "materials",
+        "data": "details"
+      }
     },
     {
       "label": "Materials",
       "level": 1,
       "href": "https://polaris-qa-notprod.cps.gov.uk/polaris?q=%7B%22caseId%22%3A{caseId}%7D",
+      "dcfHref": "https://cps-tst.outsystemsenterprise.com/WorkManagementApp/CaseOverview?CaseId={caseId}&URN={urn}#cps-global-components-navigate-materials",
       "visibleContexts": "case",
       "activeContexts": "materials",
-      "preferEventNavigationContexts": "details"
+      "dcfContextsToUseEventNavigation": {
+        "contexts": "details",
+        "data": "materials"
+      }
     },
     {
       "label": "Review",

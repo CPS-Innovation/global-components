@@ -5,6 +5,8 @@
  * It contains typing information for all components that exist in this project.
  */
 import { HTMLStencilElement, JSXBase } from "@stencil/core/internal";
+import { ContextsToUseEventNavigation } from "cps-global-configuration";
+export { ContextsToUseEventNavigation } from "cps-global-configuration";
 export namespace Components {
     interface CpsGlobalBanner {
     }
@@ -20,11 +22,11 @@ export namespace Components {
     }
     interface NavLink {
         "ariaSelected"?: boolean;
+        "dcfContextsToUseEventNavigation"?: ContextsToUseEventNavigation;
         "disabled": boolean;
         "href": string;
         "label": string;
         "openInNewTab"?: boolean;
-        "preferEventNavigation"?: boolean;
         "selected": boolean;
     }
 }
@@ -97,12 +99,12 @@ declare namespace LocalJSX {
     }
     interface NavLink {
         "ariaSelected"?: boolean;
+        "dcfContextsToUseEventNavigation"?: ContextsToUseEventNavigation;
         "disabled"?: boolean;
         "href"?: string;
         "label"?: string;
         "onCps-global-header-event"?: (event: NavLinkCustomEvent<string>) => void;
         "openInNewTab"?: boolean;
-        "preferEventNavigation"?: boolean;
         "selected"?: boolean;
     }
     interface IntrinsicElements {

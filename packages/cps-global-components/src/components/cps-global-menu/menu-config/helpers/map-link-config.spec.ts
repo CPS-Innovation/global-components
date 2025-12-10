@@ -9,7 +9,7 @@ describe("mapLinkConfig", () => {
     visibleContexts: "all",
     activeContexts: "test",
     openInNewTab: false,
-    preferEventNavigationContexts: "event",
+    dcfContextsToUseEventNavigation: { contexts: "event", data: "" },
   };
 
   it("should map basic link properties", () => {
@@ -22,7 +22,7 @@ describe("mapLinkConfig", () => {
       openInNewTab: false,
       href: "/test",
       selected: true,
-      preferEventNavigation: false,
+      dcfContextsToUseEventNavigation: undefined,
     });
   });
 
@@ -34,12 +34,12 @@ describe("mapLinkConfig", () => {
     expect(mapper2(basicLink).selected).toBe(false);
   });
 
-  it("should determine preferEventNavigation based on context match", () => {
+  it("should determine dcfContextsToUseEventNavigation based on context match", () => {
     const mapper1 = mapLinkConfig({ contextIds: "event user", tags: {} });
     const mapper2 = mapLinkConfig({ contextIds: "admin test", tags: {} });
 
-    expect(mapper1(basicLink).preferEventNavigation).toBe(true);
-    expect(mapper2(basicLink).preferEventNavigation).toBe(false);
+    expect(mapper1(basicLink).dcfContextsToUseEventNavigation).toEqual({ contexts: "event", data: "" });
+    expect(mapper2(basicLink).dcfContextsToUseEventNavigation).toBeUndefined();
   });
 
   it("should replace tags in href", () => {
@@ -98,34 +98,34 @@ describe("mapLinkConfig", () => {
     expect(result.openInNewTab).toBe(true);
   });
 
-  it("should handle undefined preferEventNavigationContexts", () => {
+  it("should handle undefined dcfContextsToUseEventNavigation", () => {
     const linkNoEvent: Link = {
       ...basicLink,
-      preferEventNavigationContexts: undefined,
+      dcfContextsToUseEventNavigation: undefined,
     };
 
     const mapper = mapLinkConfig({ contextIds: "event", tags: {} });
     const result = mapper(linkNoEvent);
 
-    expect(result.preferEventNavigation).toBe(false);
+    expect(result.dcfContextsToUseEventNavigation).toBeUndefined();
   });
 
   it("should handle complex context matching", () => {
     const complexLink: Link = {
       ...basicLink,
       activeContexts: "admin user moderator",
-      preferEventNavigationContexts: "event-admin event-user",
+      dcfContextsToUseEventNavigation: { contexts: "event-admin event-user", data: "" },
     };
 
     const mapper1 = mapLinkConfig({ contextIds: "user guest", tags: {} });
     const result1 = mapper1(complexLink);
     expect(result1.selected).toBe(true);
-    expect(result1.preferEventNavigation).toBe(false);
+    expect(result1.dcfContextsToUseEventNavigation).toBeUndefined();
 
     const mapper2 = mapLinkConfig({ contextIds: "event-admin test", tags: {} });
     const result2 = mapper2(complexLink);
     expect(result2.selected).toBe(false);
-    expect(result2.preferEventNavigation).toBe(true);
+    expect(result2.dcfContextsToUseEventNavigation).toEqual({ contexts: "event-admin event-user", data: "" });
   });
 
   it("should preserve label exactly as provided", () => {
@@ -172,7 +172,7 @@ describe("mapLinkConfig", () => {
       visibleContexts: "app",
       activeContexts: "app-section section-detail",
       openInNewTab: true,
-      preferEventNavigationContexts: "app-event section-event",
+      dcfContextsToUseEventNavigation: { contexts: "app-event section-event", data: "" },
     };
 
     const mapper = mapLinkConfig({ contextIds: "app-section app-event", tags: { appId: "myapp", sectionId: "mysection" } });
@@ -184,7 +184,7 @@ describe("mapLinkConfig", () => {
       openInNewTab: true,
       href: "/app/myapp/section/mysection",
       selected: true,
-      preferEventNavigation: true,
+      dcfContextsToUseEventNavigation: { contexts: "app-event section-event", data: "" },
     });
   });
 });

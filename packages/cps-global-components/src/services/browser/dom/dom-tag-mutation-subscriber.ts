@@ -1,7 +1,7 @@
 import { DomTagDefinitions } from "cps-global-configuration/dist/schema";
-import { DomMutationObserver } from "./DomMutationSubscriber";
-import { makeConsole } from "../../logging/makeConsole";
-import { areAllTagsFound } from "../context/tag-helpers";
+import { DomMutationObserver } from "./DomMutationObserver";
+import { makeConsole } from "../../../logging/makeConsole";
+import { areAllTagsFound } from "../../context/tag-helpers";
 
 const { _debug } = makeConsole("domTagMutationSubscriber");
 
