@@ -20,7 +20,8 @@ export const mapLinkConfigInternal =
       openInNewTab,
       href: handoverAdapter ? handoverAdapter(processedHref) : processedHref,
       selected: isContextMatch(contextIds, activeContexts),
-      dcfContextsToUseEventNavigation: isContextMatch(contextIds, dcfContextsToUseEventNavigation?.contexts) ? dcfContextsToUseEventNavigation : undefined,
+      dcfContextsToUseEventNavigation:
+        tags[isDcfCaseKey] === "true" && isContextMatch(contextIds, dcfContextsToUseEventNavigation?.contexts) ? dcfContextsToUseEventNavigation : undefined,
     };
   };
 
