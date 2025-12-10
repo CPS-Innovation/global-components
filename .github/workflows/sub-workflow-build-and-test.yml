@@ -80,6 +80,8 @@ jobs:
           cp ./packages/cps-global-components/dist/cps-global-components.js ./to-deploy
           cp ./packages/cps-global-components/dist/cps-global-components.js.map ./to-deploy
           cp ./packages/cps-global-os-handover/dist/auth-handover.js ./to-deploy
+          mkdir -p ./to-deploy/proxy
+          cp ./infra/proxy/dist/* ./to-deploy/proxy/
 
       - uses: actions/upload-artifact@v4
         id: upload
