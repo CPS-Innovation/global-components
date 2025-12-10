@@ -428,6 +428,55 @@ describe("global-script", () => {
       expect(state.state.initialisationStatus).toBe("complete");
     });
 
+    it("should set initialisationStatus to complete BEFORE auth finishes (non-blocking auth)", async () => {
+      let authResolved = false;
+
+      mockInitialiseAuth.mockImplementation(
+        () =>
+          new Promise(resolve => {
+            setTimeout(() => {
+              authResolved = true;
+              resolve({
+                auth: { isAuthed: true, username: "test", groups: [], objectId: "123" },
+                getToken: jest.fn(),
+              });
+            }, 100);
+          }),
+      );
+
+      const globalScript = require("./global-script").default;
+      globalScript();
+
+      // Wait for initial setup but not for auth to complete
+      await new Promise(resolve => setTimeout(resolve, 20));
+
+      // Status should already be complete even though auth hasn't finished
+      expect(authResolved).toBe(false);
+      expect(getReadyState()().state.initialisationStatus).toBe("complete");
+
+      // Wait for auth to finish
+      await new Promise(resolve => setTimeout(resolve, 150));
+      expect(authResolved).toBe(true);
+    });
+
+    it("should register firstContext to store", async () => {
+      const globalScript = require("./global-script").default;
+
+      globalScript();
+
+      await new Promise(resolve => setTimeout(resolve, 10));
+
+      const state = getReadyState()("firstContext");
+      expect(state.isReady).toBe(true);
+      if (state.isReady) {
+        expect(state.state.firstContext).toEqual({
+          found: true,
+          contextDefinition: { name: "test-context" },
+          pathTags: { testTag: "testValue" },
+        });
+      }
+    });
+
     it("should pass flags to initialiseAuth so it can decide mock vs real internally", async () => {
       const testFlags = {
         e2eTestMode: { isE2eTestMode: true },
@@ -1057,39 +1106,40 @@ describe("global-script", () => {
       });
     });
 
-    it("should pass all required dependencies to initialiseAnalytics", async () => {
+    it("should pass all required dependencies to initialiseAnalytics (auth is obtained via readyState)", async () => {
       const testFlags = {
         e2eTestMode: { isE2eTestMode: false },
         isOverrideMode: false,
         isDevelopment: false,
       };
       const testConfig = { CONTEXTS: [], GATEWAY_URL: null, APP_INSIGHTS_KEY: "test-key" };
-      const testAuth = { isAuthed: true, username: "analytics-test", groups: ["group1"], objectId: "obj-456" };
       const testBuild = { version: "2.0.0", buildDate: "2024-06-15" };
       const testCmsSessionHint = { hint: "analytics-hint", sessionId: "sess-123" };
 
       (mockWindow as any).cps_global_components_build = testBuild;
       mockGetApplicationFlags.mockReturnValue(testFlags);
       mockInitialiseConfig.mockResolvedValue(testConfig);
-      mockInitialiseAuth.mockResolvedValue({
-        auth: testAuth,
-        getToken: jest.fn(),
-      });
       mockInitialiseCmsSessionHint.mockResolvedValue(testCmsSessionHint);
 
       const globalScript = require("./global-script").default;
       globalScript();
       await new Promise(resolve => setTimeout(resolve, 10));
 
+      // Analytics is now called without auth - it uses readyState to get auth when needed
       expect(mockInitialiseAnalytics).toHaveBeenCalledWith(
         expect.objectContaining({
           window: mockWindow,
           config: testConfig,
-          auth: testAuth,
           build: testBuild,
           cmsSessionHint: testCmsSessionHint,
           flags: testFlags,
-          // readyState is also passed but is a function, harder to assert exactly
+          readyState: expect.any(Function),
+        }),
+      );
+      // Verify auth is NOT passed directly
+      expect(mockInitialiseAnalytics).not.toHaveBeenCalledWith(
+        expect.objectContaining({
+          auth: expect.any(Object),
         }),
       );
     });
@@ -1151,7 +1201,7 @@ describe("global-script", () => {
     // These tests verify that operations happen in the correct order
     // using mock call order tracking
 
-    it("should initialise in correct order: flags -> config -> cmsSessionHint/handover -> context -> auth -> analytics", async () => {
+    it("should initialise in correct order: flags -> config -> cmsSessionHint/handover -> firstContext -> analytics (auth runs async later)", async () => {
       const callOrder: string[] = [];
 
       mockGetApplicationFlags.mockImplementation(() => {
@@ -1193,13 +1243,14 @@ describe("global-script", () => {
       globalScript();
       await new Promise(resolve => setTimeout(resolve, 10));
 
-      // Verify order - config must come after flags, context after config, auth after context, analytics after auth
+      // Verify order - flags first, then config, then parallel cmsSessionHint/handover, then firstContext
+      // Analytics now comes BEFORE auth (auth is non-blocking to avoid UI delay)
       expect(callOrder.indexOf("flags")).toBeLessThan(callOrder.indexOf("config"));
       expect(callOrder.indexOf("config")).toBeLessThan(callOrder.indexOf("cmsSessionHint"));
       expect(callOrder.indexOf("config")).toBeLessThan(callOrder.indexOf("handover"));
       expect(callOrder.indexOf("config")).toBeLessThan(callOrder.indexOf("context"));
-      expect(callOrder.indexOf("context")).toBeLessThan(callOrder.indexOf("auth"));
-      expect(callOrder.indexOf("auth")).toBeLessThan(callOrder.indexOf("analytics"));
+      // Analytics is now initialized BEFORE auth (auth is non-blocking)
+      expect(callOrder.indexOf("analytics")).toBeLessThan(callOrder.indexOf("auth"));
     });
 
     it("should await config before initialising context", async () => {
@@ -1228,7 +1279,7 @@ describe("global-script", () => {
       expect(mockInitialiseContext).toHaveBeenCalled();
     });
 
-    it("should await auth before initialising analytics", async () => {
+    it("should NOT await auth before initialising analytics (auth is non-blocking)", async () => {
       let authResolved = false;
 
       mockInitialiseAuth.mockImplementation(
@@ -1245,16 +1296,21 @@ describe("global-script", () => {
       );
 
       mockInitialiseAnalytics.mockImplementation(() => {
-        // This should only be called after auth is resolved
-        expect(authResolved).toBe(true);
+        // Analytics should be called BEFORE auth is resolved (auth is non-blocking)
+        expect(authResolved).toBe(false);
         return { trackPageView: jest.fn(), trackEvent: jest.fn(), trackException: jest.fn() };
       });
 
       const globalScript = require("./global-script").default;
       globalScript();
-      await new Promise(resolve => setTimeout(resolve, 100));
+      await new Promise(resolve => setTimeout(resolve, 10));
 
+      // Analytics should be called immediately (before auth completes)
       expect(mockInitialiseAnalytics).toHaveBeenCalled();
+
+      // Wait for auth to complete
+      await new Promise(resolve => setTimeout(resolve, 100));
+      expect(authResolved).toBe(true);
     });
 
     it("should register correlationIds before anything else that uses the store", async () => {
