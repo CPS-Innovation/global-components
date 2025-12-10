@@ -1,5 +1,6 @@
 import { mapLinkConfig } from "./map-link-config";
 import { Link } from "cps-global-configuration";
+import { isDcfCaseKey } from "../../../../services/data/CaseDetails";
 
 describe("mapLinkConfig", () => {
   const basicLink: Link = {
@@ -34,12 +35,14 @@ describe("mapLinkConfig", () => {
     expect(mapper2(basicLink).selected).toBe(false);
   });
 
-  it("should determine dcfContextsToUseEventNavigation based on context match", () => {
-    const mapper1 = mapLinkConfig({ contextIds: "event user", tags: {} });
-    const mapper2 = mapLinkConfig({ contextIds: "admin test", tags: {} });
+  it("should determine dcfContextsToUseEventNavigation based on isDcfCase tag and context match", () => {
+    const mapper1 = mapLinkConfig({ contextIds: "event user", tags: { [isDcfCaseKey]: "true" } });
+    const mapper2 = mapLinkConfig({ contextIds: "admin test", tags: { [isDcfCaseKey]: "true" } });
+    const mapper3 = mapLinkConfig({ contextIds: "event user", tags: {} });
 
     expect(mapper1(basicLink).dcfContextsToUseEventNavigation).toEqual({ contexts: "event", data: "" });
     expect(mapper2(basicLink).dcfContextsToUseEventNavigation).toBeUndefined();
+    expect(mapper3(basicLink).dcfContextsToUseEventNavigation).toBeUndefined();
   });
 
   it("should replace tags in href", () => {
@@ -117,12 +120,12 @@ describe("mapLinkConfig", () => {
       dcfContextsToUseEventNavigation: { contexts: "event-admin event-user", data: "" },
     };
 
-    const mapper1 = mapLinkConfig({ contextIds: "user guest", tags: {} });
+    const mapper1 = mapLinkConfig({ contextIds: "user guest", tags: { [isDcfCaseKey]: "true" } });
     const result1 = mapper1(complexLink);
     expect(result1.selected).toBe(true);
     expect(result1.dcfContextsToUseEventNavigation).toBeUndefined();
 
-    const mapper2 = mapLinkConfig({ contextIds: "event-admin test", tags: {} });
+    const mapper2 = mapLinkConfig({ contextIds: "event-admin test", tags: { [isDcfCaseKey]: "true" } });
     const result2 = mapper2(complexLink);
     expect(result2.selected).toBe(false);
     expect(result2.dcfContextsToUseEventNavigation).toEqual({ contexts: "event-admin event-user", data: "" });
@@ -175,7 +178,7 @@ describe("mapLinkConfig", () => {
       dcfContextsToUseEventNavigation: { contexts: "app-event section-event", data: "" },
     };
 
-    const mapper = mapLinkConfig({ contextIds: "app-section app-event", tags: { appId: "myapp", sectionId: "mysection" } });
+    const mapper = mapLinkConfig({ contextIds: "app-section app-event", tags: { appId: "myapp", sectionId: "mysection", [isDcfCaseKey]: "true" } });
     const result = mapper(fullLink);
 
     expect(result).toEqual({
