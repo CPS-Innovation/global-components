@@ -2,10 +2,16 @@
   "name": "@cps/proxy",
   "private": true,
   "scripts": {
-    "test": "node config/global-components/tests/global-components.unit.test.js && node config/global-components.vnext/tests/global-components.vnext.unit.test.js && node config/global-components.vnever/tests/global-components.vnever.unit.test.js && node config/main/tests/nginx.unit.test.js",
-    "test:integration": "./run-tests.sh"
+    "build": "./scripts/build.sh",
+    "build:watch": "tsc --watch",
+    "test": "npx ts-node --project tsconfig.test.json config/global-components/tests/global-components.unit.test.ts && npx ts-node --project tsconfig.test.json config/global-components.vnext/tests/global-components.vnext.unit.test.ts && npx ts-node --project tsconfig.test.json config/global-components.vnever/tests/global-components.vnever.unit.test.ts && npx ts-node --project tsconfig.test.json config/main/tests/nginx.unit.test.ts",
+    "test:integration": "pnpm build && ./run-tests.sh"
   },
   "devDependencies": {
-    "esbuild": "^0.27.0"
+    "@types/node": "^22.0.0",
+    "esbuild": "^0.27.0",
+    "njs-types": "^0.9.4",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.7.2"
   }
 }

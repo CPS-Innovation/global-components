@@ -10,10 +10,17 @@ const HEALTHCHECK_ALLOWED_URLS = [
 ]
 const HEALTHCHECK_TIMEOUT_MS = 2_000
 
-async function handleHealthCheck(r) {
+interface HealthCheckResponse {
+  url: string
+  status: number
+  healthy: boolean
+  error?: string
+}
+
+async function handleHealthCheck(r: NginxHTTPRequest): Promise<void> {
   r.headersOut["Content-Type"] = "application/json"
 
-  const url = r.args.url
+  const url = r.args.url as string | undefined
 
   if (!url) {
     r.return(400, JSON.stringify({ error: "url parameter required" }))
@@ -28,20 +35,19 @@ async function handleHealthCheck(r) {
   }
 
   try {
-    const timeout = HEALTHCHECK_TIMEOUT_MS
-    const response = await ngx.fetch(url, { method: "GET", timeout })
+    const response = await ngx.fetch(url, { method: "GET", timeout: HEALTHCHECK_TIMEOUT_MS } as NgxFetchOptions)
     r.return(
       200,
       JSON.stringify({
         url,
         status: response.status,
         healthy: response.status >= 200 && response.status < 400,
-      })
+      } as HealthCheckResponse)
     )
   } catch (e) {
     r.return(
       200,
-      JSON.stringify({ url, status: 0, healthy: false, error: e.message })
+      JSON.stringify({ url, status: 0, healthy: false, error: (e as Error).message } as HealthCheckResponse)
     )
   }
 }

@@ -2,6 +2,8 @@
 # Use with overrides for additional layers:
 #   docker-compose -f docker-compose.yml -f docker-compose.global-components.yml up
 #   docker-compose -f docker-compose.yml -f docker-compose.global-components.yml -f docker-compose.vnext.yml up
+#
+# IMPORTANT: Run `pnpm build` before starting docker to populate dist/
 
 services:
   nginx:
@@ -15,9 +17,9 @@ services:
       - WEBSITE_DNS_SERVER=127.0.0.11
       - AUTH_HANDOVER_WHITELIST=/auth-refresh-inbound,http://some-destination-domain.example.org
     volumes:
-      # Mount main config for live reload during development
-      - ../config/main/nginx.conf.template:/etc/nginx/templates/nginx.conf.template:ro
-      - ../config/main/nginx.js:/etc/nginx/nginx.js:ro
+      # Mount from dist/ folder (built by pnpm build)
+      - ../dist/nginx.conf.template:/etc/nginx/templates/nginx.conf.template:ro
+      - ../dist/nginx.js:/etc/nginx/nginx.js:ro
     depends_on:
       - mock-upstream
 

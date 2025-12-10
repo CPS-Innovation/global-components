@@ -103,6 +103,7 @@ describe("menuConfig", () => {
 
     const mockState: State = {
       context: foundContext,
+      firstContext: foundContext,
       caseDetails: mockCaseDetails,
       config: mockConfig,
       flags: mockFlags,
@@ -152,6 +153,7 @@ describe("menuConfig", () => {
 
     const mockState: State = {
       context: foundContext,
+      firstContext: foundContext,
       caseDetails: mockCaseDetails,
       config: mockConfig,
       flags: mockFlags,
@@ -263,6 +265,7 @@ describe("menuConfig", () => {
 
     const mockState: State = {
       context: foundContext,
+      firstContext: foundContext,
       caseDetails: mockCaseDetails,
       config: {
         ...mockConfig,
@@ -334,6 +337,7 @@ describe("menuConfig", () => {
 
     const mockState: State = {
       context: foundContext,
+      firstContext: foundContext,
       caseDetails: mockCaseDetails,
       config: {
         ...mockConfig,
@@ -405,6 +409,7 @@ describe("menuConfig", () => {
 
     const mockState: State = {
       context: foundContext,
+      firstContext: foundContext,
       caseDetails: mockCaseDetails,
       config: {
         ...mockConfig,
@@ -476,6 +481,7 @@ describe("menuConfig", () => {
 
     const mockState: State = {
       context: foundContext,
+      firstContext: foundContext,
       caseDetails: mockCaseDetails,
       config: {
         ...mockConfig,
@@ -567,6 +573,7 @@ describe("menuConfig", () => {
 
     const mockState: State = {
       context: foundContext,
+      firstContext: foundContext,
       caseDetails: mockCaseDetails,
       config: {
         ...mockConfig,

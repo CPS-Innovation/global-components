@@ -4,5 +4,5 @@
 services:
   nginx:
     volumes:
-      - ../config/global-components.vnever/global-components.vnever.conf.template:/etc/nginx/templates/global-components.vnever.conf.template:ro
-      - ../config/global-components.vnever/global-components.vnever.js:/etc/nginx/templates/global-components.vnever.js:ro
+      - ../dist/global-components.vnever.conf.template:/etc/nginx/templates/global-components.vnever.conf.template:ro
+      - ../dist/global-components.vnever.js:/etc/nginx/templates/global-components.vnever.js:ro
