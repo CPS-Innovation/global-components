@@ -41,7 +41,7 @@ done
 
 # GitHub configuration
 GITHUB_REPO="${GITHUB_REPO:-CPS-Innovation/global-components}"
-ARTIFACT_NAME="${ARTIFACT_NAME:-build-artifact}"
+ARTIFACT_NAME="${ARTIFACT_NAME:-proxy-artifact}"
 
 # Content directory (matches blob container name)
 CONTENT_DIR="./$AZURE_STORAGE_CONTAINER"
@@ -110,8 +110,8 @@ fi
 mkdir -p "$CONTENT_DIR"
 echo "  Copying proxy files..."
 for file in "${FILES_TO_DEPLOY[@]}"; do
-  if [ -f "$ARTIFACT_DIR/proxy/$file" ]; then
-    cp "$ARTIFACT_DIR/proxy/$file" "$CONTENT_DIR/$file"
+  if [ -f "$ARTIFACT_DIR/$file" ]; then
+    cp "$ARTIFACT_DIR/$file" "$CONTENT_DIR/$file"
     echo "    $file"
   else
     echo -e "${RED}Error: $file not found in artifact${NC}"
@@ -129,6 +129,19 @@ az account show > /dev/null 2>&1 || {
 az account set --subscription "$AZURE_SUBSCRIPTION_ID"
 echo -e "${GREEN}Using subscription: $AZURE_SUBSCRIPTION_ID${NC}"
 
+# List current container contents
+echo -e "\n${YELLOW}Current blob storage contents:${NC}"
+echo "  Storage account: $AZURE_STORAGE_ACCOUNT"
+echo "  Container: $AZURE_STORAGE_CONTAINER"
+echo "  Running: az storage blob list --account-name $AZURE_STORAGE_ACCOUNT --container-name $AZURE_STORAGE_CONTAINER --auth-mode login --output table"
+echo ""
+az storage blob list \
+  --account-name "$AZURE_STORAGE_ACCOUNT" \
+  --container-name "$AZURE_STORAGE_CONTAINER" \
+  --auth-mode login \
+  --output table \
+  2>&1 | sed 's/^/  /'
+
 # Create backup directory
 BACKUP_DIR="./backups/$(date +%Y%m%d_%H%M%S)"
 mkdir -p "$BACKUP_DIR"
@@ -137,13 +150,17 @@ echo -e "\n${YELLOW}Backing up current files to $BACKUP_DIR...${NC}"
 # Download current files from blob storage (for backup/rollback)
 for file in "${FILES_TO_DEPLOY[@]}"; do
   echo "  Downloading $file..."
-  az storage blob download \
+  if az storage blob download \
     --account-name "$AZURE_STORAGE_ACCOUNT" \
     --container-name "$AZURE_STORAGE_CONTAINER" \
     --name "$file" \
     --file "$BACKUP_DIR/$file" \
     --auth-mode login \
-    2>/dev/null || echo "    (file may not exist yet)"
+    2>&1 | sed 's/^/    /'; then
+    echo -e "    ${GREEN}✓ Downloaded${NC}"
+  else
+    echo -e "    ${YELLOW}⚠ File may not exist yet${NC}"
+  fi
 done
 
 # Download current deployment.json to get version
@@ -155,8 +172,11 @@ if az storage blob download \
     --name "$DEPLOYMENT_JSON" \
     --file "$BACKUP_DIR/$DEPLOYMENT_JSON" \
     --auth-mode login \
-    2>/dev/null; then
+    2>&1 | sed 's/^/    /'; then
+  echo -e "    ${GREEN}✓ Downloaded${NC}"
   CURRENT_VERSION=$(grep -o '"version":[ ]*[0-9]*' "$BACKUP_DIR/$DEPLOYMENT_JSON" | grep -o '[0-9]*' || echo "0")
+else
+  echo -e "    ${YELLOW}⚠ File may not exist yet${NC}"
 fi
 echo -e "${GREEN}Backup complete${NC}"
 
