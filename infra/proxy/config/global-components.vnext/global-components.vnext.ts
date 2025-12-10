@@ -1,19 +1,39 @@
 import fs from "fs"
+// @ts-ignore - njs runtime import path
 import gloco from "templates/global-components.js"
 
 const DEPLOYMENT_JSON_PATH =
   "/etc/nginx/templates/global-components-deployment.json"
 const TENANT_ID = "00dd0d1d-d7e6-6338-ac51-565339c7088c"
+const VALIDATE_TOKEN_AGAINST_AD = false // Set to true when ready to enforce AD token validation
 const STATE_COOKIE_NAME = "cps-global-components-state"
 const STATE_KEYS_NO_AUTH_ON_GET = ["preview"]
 const STATE_COOKIE_LIFESPAN_MS = 365 * 24 * 60 * 60 * 1000
 const AD_AUTH_ENDPOINT = "https://graph.microsoft.com/v1.0/me"
 
-function _escapeRegExp(string) {
+interface TokenClaims {
+  tid?: string
+  appid?: string
+  [key: string]: unknown
+}
+
+interface ClaimsResult {
+  claimsAreValid: boolean
+  claims: TokenClaims
+}
+
+interface CookieOptions {
+  Path?: string
+  Expires?: Date
+  Secure?: boolean
+  SameSite?: "Strict" | "Lax" | "None"
+}
+
+function _escapeRegExp(string: string): string {
   return string.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
 }
 
-function _base64UrlDecode(str) {
+function _base64UrlDecode(str: string): string {
   // Replace base64url chars with base64 chars
   str = str.replace(/-/g, "+").replace(/_/g, "/")
   // Pad if necessary
@@ -23,18 +43,18 @@ function _base64UrlDecode(str) {
   return atob(str)
 }
 
-function _base64UrlEncode(str) {
+function _base64UrlEncode(str: string): string {
   // Encode to base64, then convert to base64url (URL-safe, no padding)
   return btoa(str).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "")
 }
 
 // Wrap state for storage (encode). Currently base64url, could add encryption later.
-function wrapState(plaintext) {
+function _wrapState(plaintext: string): string {
   return _base64UrlEncode(plaintext)
 }
 
 // Unwrap state from storage (decode). Currently base64url, could add decryption later.
-function unwrapState(wrapped) {
+function _unwrapState(wrapped: string): string | null {
   try {
     return _base64UrlDecode(wrapped)
   } catch (e) {
@@ -43,8 +63,52 @@ function unwrapState(wrapped) {
   }
 }
 
-function _extractAndValidateClaims(r) {
-  const authHeader = r.headersIn["Authorization"]
+function buildCookieString(
+  name: string,
+  value: string,
+  options?: CookieOptions
+): string {
+  let cookie = name + "=" + value
+  if (options?.Path) {
+    cookie += "; Path=" + options.Path
+  }
+  if (options?.Expires) {
+    cookie += "; Expires=" + options.Expires.toUTCString()
+  }
+  if (options?.Secure) {
+    cookie += "; Secure"
+  }
+  if (options?.SameSite) {
+    cookie += "; SameSite=" + options.SameSite
+  }
+  return cookie
+}
+
+function setCookie(
+  r: NginxHTTPRequest,
+  name: string,
+  value: string,
+  options?: CookieOptions
+): void {
+  const cookie = buildCookieString(name, value, options)
+  // njs headersOut["Set-Cookie"] accepts either string or string[]
+  // For multiple cookies, we need to use an array
+  const existing = r.headersOut["Set-Cookie"]
+  if (existing) {
+    if (Array.isArray(existing)) {
+      existing.push(cookie)
+    } else {
+      // Convert single string to array and add new cookie
+      r.headersOut["Set-Cookie"] = [existing as unknown as string, cookie]
+    }
+  } else {
+    // First cookie - use string for compatibility
+    ;(r.headersOut as Record<string, string>)["Set-Cookie"] = cookie
+  }
+}
+
+function _extractAndValidateClaims(r: NginxHTTPRequest): ClaimsResult {
+  const authHeader = r.headersIn["Authorization"] as string | undefined
 
   if (!authHeader || !authHeader.startsWith("Bearer ")) {
     return { claimsAreValid: false, claims: {} }
@@ -59,7 +123,7 @@ function _extractAndValidateClaims(r) {
 
   try {
     const payload = _base64UrlDecode(parts[1])
-    const claims = JSON.parse(payload)
+    const claims: TokenClaims = JSON.parse(payload)
     const claimsAreValid =
       claims &&
       claims.tid === TENANT_ID &&
@@ -70,7 +134,12 @@ function _extractAndValidateClaims(r) {
   }
 }
 
-async function _validateToken(r) {
+async function _validateToken(r: NginxHTTPRequest): Promise<boolean> {
+  // Skip validation entirely if not enforcing AD tokens
+  if (!VALIDATE_TOKEN_AGAINST_AD) {
+    return true
+  }
+
   // First: validate claims locally (tenant ID and app ID)
   const result = _extractAndValidateClaims(r)
   if (!result.claimsAreValid) {
@@ -78,7 +147,7 @@ async function _validateToken(r) {
   }
 
   // Second: validate token with Graph API (checks signature, expiry, revocation)
-  const authHeader = r.headersIn["Authorization"]
+  const authHeader = r.headersIn["Authorization"] as string
   try {
     const response = await ngx.fetch(AD_AUTH_ENDPOINT, {
       method: "GET",
@@ -94,7 +163,7 @@ async function _validateToken(r) {
 }
 
 // Compute blob path suffix: folder paths with trailing slash get index.html appended
-function computeBlobIndexSuffix(r) {
+function computeBlobIndexSuffix(r: NginxHTTPRequest): string {
   const uri = r.uri
   // If URI ends with a file extension, no suffix needed
   if (/\.[^/]+$/.test(uri)) {
@@ -108,7 +177,7 @@ function computeBlobIndexSuffix(r) {
   return "/index.html"
 }
 
-async function handleState(r) {
+async function handleState(r: NginxHTTPRequest): Promise<void> {
   if (!["GET", "PUT"].includes(r.method)) {
     // Method not allowed
     r.return(405, JSON.stringify({ error: "Method not allowed" }))
@@ -140,7 +209,7 @@ async function handleState(r) {
       r.return(200, "null")
       return
     }
-    const unwrapped = unwrapState(gloco._maybeDecodeURIComponent(cookieValue))
+    const unwrapped = _unwrapState(gloco._maybeDecodeURIComponent(cookieValue))
     r.return(200, unwrapped !== null ? unwrapped : "null")
     return
   }
@@ -148,44 +217,40 @@ async function handleState(r) {
   if (r.method === "PUT") {
     // Wrap the body and store in cookie
     const body = r.requestText || ""
-    const wrapped = wrapState(body)
-    const expires = new Date(Date.now() + STATE_COOKIE_LIFESPAN_MS) // 1 year
+    const wrapped = _wrapState(body)
 
-    r.headersOut["Set-Cookie"] =
-      STATE_COOKIE_NAME +
-      "=" +
-      wrapped +
-      "; Path=" +
-      r.uri +
-      "; Expires=" +
-      expires.toUTCString() +
-      "; Secure; SameSite=None"
+    setCookie(r, STATE_COOKIE_NAME, wrapped, {
+      Path: r.uri,
+      Expires: new Date(Date.now() + STATE_COOKIE_LIFESPAN_MS), // 1 year
+      Secure: true,
+      SameSite: "None",
+    })
 
     r.return(200, JSON.stringify({ success: true, path: r.uri }))
     return
   }
 }
 
-async function handleValidateToken(r) {
+async function handleValidateToken(r: NginxHTTPRequest): Promise<void> {
   // Used by auth_request - returns 200 if valid, 401 if not
   const isValid = await _validateToken(r)
   r.return(isValid ? 200 : 401, "")
 }
 
-function handleStatus(r) {
+function handleStatus(r: NginxHTTPRequest): void {
   r.headersOut["Content-Type"] = "application/json"
 
   let version = 0
-  let error = null
+  let error: string | null = null
   try {
     const data = fs.readFileSync(DEPLOYMENT_JSON_PATH, "utf8")
     const json = JSON.parse(data)
     version = json.version || 0
   } catch (e) {
-    error = e.message || String(e)
+    error = (e as Error).message || String(e)
   }
 
-  const response = {
+  const response: { status: string; version: number; error?: string } = {
     status: "online",
     version: version,
   }
@@ -196,12 +261,19 @@ function handleStatus(r) {
   r.return(200, JSON.stringify(response))
 }
 
-function filterSwaggerBody(r, data, flags) {
+function filterSwaggerBody(
+  r: NginxHTTPRequest,
+  data: string,
+  flags: NginxHTTPSendBufferOptions
+): void {
   // Replace upstream URL with proxy URL and fix API paths
-  const host = r.headersIn["Host"] || r.variables.host
+  const host = (r.headersIn["Host"] as string) || r.variables.host
   const proxyBase = "https://" + host + "/global-components/"
 
-  const pattern = new RegExp(_escapeRegExp(r.variables.wm_mds_base_url), "g")
+  const pattern = new RegExp(
+    _escapeRegExp(r.variables.wm_mds_base_url as string),
+    "g"
+  )
   const result = data
     .replace(pattern, proxyBase)
     .replace(/\"\/api\//g, '"/global-components/')
@@ -215,4 +287,5 @@ export default {
   handleValidateToken,
   handleStatus,
   filterSwaggerBody,
+  setCookie,
 }

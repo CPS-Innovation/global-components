@@ -1,14 +1,14 @@
-#!/usr/bin/env node
+#!/usr/bin/env npx ts-node
 /**
- * Build and run unit tests for global-components.vnever.js
+ * Build and run unit tests for global-components.vnever.ts
  *
  * Uses esbuild to bundle the njs module, then runs the unit tests
  * against the bundled code.
  */
 
-const esbuild = require("esbuild")
-const path = require("path")
-const fs = require("fs")
+import * as esbuild from "esbuild"
+import * as path from "path"
+import * as fs from "fs"
 
 const CONFIG_DIR = path.join(__dirname, "..", "..")
 const DIST_DIR = path.join(__dirname, "..", "..", "..", ".dist")
@@ -18,14 +18,43 @@ if (!fs.existsSync(DIST_DIR)) {
   fs.mkdirSync(DIST_DIR, { recursive: true })
 }
 
+interface MockRequest {
+  method: string
+  uri: string
+  args: Record<string, string>
+  headersIn: Record<string, string>
+  headersOut: Record<string, string>
+  variables: Record<string, string>
+  returnCode: number | null
+  returnBody: string | null
+  return(code: number, body: string): void
+}
+
+interface MockRequestOptions {
+  method?: string
+  uri?: string
+  args?: Record<string, string>
+  headersIn?: Record<string, string>
+  variables?: Record<string, string>
+}
+
+interface GlocoVneverModule {
+  handleHealthCheck(r: MockRequest): Promise<void>
+}
+
+interface MockFetchResponse {
+  status: number
+  ok?: boolean
+}
+
 // Bundle the module
-async function build() {
+async function build(): Promise<void> {
   await esbuild.build({
     entryPoints: [
       path.join(
         CONFIG_DIR,
         "global-components.vnever",
-        "global-components.vnever.js"
+        "global-components.vnever.ts"
       ),
     ],
     bundle: true,
@@ -37,31 +66,27 @@ async function build() {
 }
 
 // Run tests
-async function runTests() {
-  // Dynamic import of the bundled module
+async function runTests(): Promise<void> {
   const modulePath = path.join(DIST_DIR, "global-components.vnever.bundle.js")
   const module = await import(modulePath)
-  const glocovnever = module.default
+  const glocovnever: GlocoVneverModule = module.default
 
-  // Test framework
   let passed = 0
   let failed = 0
 
-  function assert(condition, message) {
+  function assert(condition: boolean, message: string): void {
     if (!condition) throw new Error(message)
   }
 
-  function assertEqual(actual, expected, message) {
+  function assertEqual(actual: unknown, expected: unknown, message: string): void {
     if (actual !== expected) {
       throw new Error(
-        `${message}\n  Expected: ${JSON.stringify(
-          expected
-        )}\n  Actual:   ${JSON.stringify(actual)}`
+        `${message}\n  Expected: ${JSON.stringify(expected)}\n  Actual:   ${JSON.stringify(actual)}`
       )
     }
   }
 
-  async function test(name, fn) {
+  async function test(name: string, fn: () => Promise<void>): Promise<void> {
     try {
       await fn()
       passed++
@@ -69,11 +94,11 @@ async function runTests() {
     } catch (err) {
       failed++
       console.log(`  \x1b[31m✗\x1b[0m ${name}`)
-      console.log(`    ${err.message}`)
+      console.log(`    ${(err as Error).message}`)
     }
   }
 
-  function createMockRequest(options = {}) {
+  function createMockRequest(options: MockRequestOptions = {}): MockRequest {
     return {
       method: options.method || "GET",
       uri: options.uri || "/global-components/test",
@@ -83,7 +108,7 @@ async function runTests() {
       variables: options.variables || {},
       returnCode: null,
       returnBody: null,
-      return(code, body) {
+      return(code: number, body: string) {
         this.returnCode = code
         this.returnBody = body
       },
@@ -91,17 +116,17 @@ async function runTests() {
   }
 
   // Mock ngx.fetch globally
-  let mockFetchResponse = { status: 200, ok: true }
-  let mockFetchError = null
-  globalThis.ngx = {
-    fetch: async (url, options) => {
+  let mockFetchResponse: MockFetchResponse = { status: 200, ok: true }
+  let mockFetchError: Error | null = null
+  ;(globalThis as Record<string, unknown>).ngx = {
+    fetch: async (_url: string, _options?: Record<string, unknown>): Promise<MockFetchResponse> => {
       if (mockFetchError) throw mockFetchError
       return mockFetchResponse
     },
   }
 
   console.log("=".repeat(60))
-  console.log("global-components.vnever.js Unit Tests")
+  console.log("global-components.vnever.ts Unit Tests")
   console.log("=".repeat(60))
 
   // --- handleHealthCheck tests ---
@@ -112,7 +137,7 @@ async function runTests() {
     await glocovnever.handleHealthCheck(r)
     assertEqual(r.returnCode, 400, "Should return 400")
     assert(
-      r.returnBody.includes("url parameter required"),
+      r.returnBody!.includes("url parameter required"),
       "Should have error message"
     )
   })
@@ -122,7 +147,7 @@ async function runTests() {
     await glocovnever.handleHealthCheck(r)
     assertEqual(r.returnCode, 403, "Should return 403")
     assert(
-      r.returnBody.includes("url not in whitelist"),
+      r.returnBody!.includes("url not in whitelist"),
       "Should have error message"
     )
   })
@@ -135,7 +160,7 @@ async function runTests() {
     })
     await glocovnever.handleHealthCheck(r)
     assertEqual(r.returnCode, 200, "Should return 200")
-    const body = JSON.parse(r.returnBody)
+    const body = JSON.parse(r.returnBody!)
     assertEqual(body.healthy, true, "Should be healthy")
     assertEqual(body.status, 200, "Should have status 200")
   })
@@ -147,7 +172,7 @@ async function runTests() {
       args: { url: "https://polaris.cps.gov.uk/polaris" },
     })
     await glocovnever.handleHealthCheck(r)
-    const body = JSON.parse(r.returnBody)
+    const body = JSON.parse(r.returnBody!)
     assertEqual(body.healthy, false, "Should not be healthy")
     assertEqual(body.status, 500, "Should have status 500")
   })
@@ -158,7 +183,7 @@ async function runTests() {
       args: { url: "https://polaris.cps.gov.uk/polaris" },
     })
     await glocovnever.handleHealthCheck(r)
-    const body = JSON.parse(r.returnBody)
+    const body = JSON.parse(r.returnBody!)
     assertEqual(body.healthy, false, "Should not be healthy")
     assertEqual(body.status, 0, "Should have status 0")
     assertEqual(body.error, "Connection refused", "Should have error message")
@@ -179,7 +204,7 @@ async function runTests() {
     await build()
     await runTests()
   } catch (err) {
-    console.error("Build/test failed:", err.message)
+    console.error("Build/test failed:", (err as Error).message)
     process.exit(1)
   }
 })()
