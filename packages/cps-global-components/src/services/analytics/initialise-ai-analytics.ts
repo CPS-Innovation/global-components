@@ -1,6 +1,5 @@
 import { ApplicationInsights } from "@microsoft/applicationinsights-web";
 import { Config } from "cps-global-configuration";
-import { AuthResult } from "../auth/AuthResult";
 import { FoundContext } from "../context/FoundContext";
 import { CorrelationIds } from "../correlation/CorrelationIds";
 import { AnalyticsEvent, AnalyticsEventData, trackEvent } from "./analytics-event";
@@ -10,13 +9,13 @@ import { CmsSessionHintResult } from "../cms-session/CmsSessionHint";
 
 const STORAGE_PREFIX = "cps_global_components";
 
-type Props = { window: Window; config: Config; auth: AuthResult; readyState: ReadyStateHelper; build: Build; cmsSessionHint: CmsSessionHintResult };
+type Props = { window: Window; config: Config; readyState: ReadyStateHelper; build: Build; cmsSessionHint: CmsSessionHintResult };
 
 export type Analytics = ReturnType<typeof initialiseAiAnalytics>;
 
 const { _debug } = makeConsole("initialiseAnalytics");
 
-export const initialiseAiAnalytics = ({ window, config: { APP_INSIGHTS_CONNECTION_STRING, ENVIRONMENT }, auth, readyState, build, cmsSessionHint: { hint } }: Props) => {
+export const initialiseAiAnalytics = ({ window, config: { APP_INSIGHTS_CONNECTION_STRING, ENVIRONMENT }, readyState, build, cmsSessionHint: { hint } }: Props) => {
   if (!APP_INSIGHTS_CONNECTION_STRING) {
     return { trackPageView: () => {}, trackException: (_: Error) => {}, rebindTrackEvent: () => {}, trackEvent: (_: AnalyticsEventData) => {} };
   }
@@ -79,9 +78,16 @@ export const initialiseAiAnalytics = ({ window, config: { APP_INSIGHTS_CONNECTIO
 
   appInsights.loadAppInsights();
 
-  let authValues = { IsAuthed: auth.isAuthed } as Record<string, string | boolean>;
-  if (auth.isAuthed) {
-    authValues = { Username: auth.username, ...authValues };
+  let authValues = {} as Record<string, string | boolean>;
+  const {
+    isReady,
+    state: { auth },
+  } = readyState("auth");
+  if (isReady) {
+    authValues = { IsAuthed: auth.isAuthed };
+    if (auth.isAuthed) {
+      authValues = { Username: auth.username, ...authValues };
+    }
   }
 
   const trackPageView = ({ context: { found, contextIds }, correlationIds }: { context: FoundContext; correlationIds: CorrelationIds }) => {
