@@ -1,6 +1,6 @@
 import { makeConsole } from "../../logging/makeConsole";
 import { FoundContext } from "../context/FoundContext";
-import { DomMutationObserver } from "../dom/DomMutationObserver";
+import { DomMutationObserver } from "../browser/dom/DomMutationObserver";
 
 type Styles = { [K in keyof CSSStyleDeclaration]?: string };
 

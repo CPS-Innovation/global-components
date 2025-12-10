@@ -1,6 +1,6 @@
-import { makeConsole } from "../../logging/makeConsole";
-import { MergeTags, Register } from "../../store/store";
-import { FoundContext } from "../context/FoundContext";
+import { makeConsole } from "../../../logging/makeConsole";
+import { MergeTags, Register } from "../../../store/store";
+import { FoundContext } from "../../context/FoundContext";
 import { DomMutationObserver } from "./DomMutationObserver";
 import "arrive";
 
