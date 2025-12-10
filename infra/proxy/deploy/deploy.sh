@@ -41,13 +41,12 @@ done
 
 # GitHub configuration
 GITHUB_REPO="${GITHUB_REPO:-CPS-Innovation/global-components}"
-GITHUB_BRANCH="${GITHUB_BRANCH:-main}"
-GITHUB_BASE_URL="https://raw.githubusercontent.com/${GITHUB_REPO}/refs/heads/${GITHUB_BRANCH}/infra/proxy"
+ARTIFACT_NAME="${ARTIFACT_NAME:-build-artifact}"
 
 # Content directory (matches blob container name)
 CONTENT_DIR="./$AZURE_STORAGE_CONTAINER"
 
-# Files to deploy
+# Files to deploy (these come from the build artifact's proxy/ folder)
 FILES_TO_DEPLOY=(
   "nginx.js"
   "global-components.conf.template"
@@ -56,37 +55,70 @@ FILES_TO_DEPLOY=(
   "global-components.vnext.js"
 )
 
-# Source paths in repo
-declare -A SOURCE_PATHS
-SOURCE_PATHS["nginx.js"]="config/main/nginx.js"
-SOURCE_PATHS["global-components.conf.template"]="config/global-components/global-components.conf.template"
-SOURCE_PATHS["global-components.js"]="config/global-components/global-components.js"
-SOURCE_PATHS["global-components.vnext.conf.template"]="config/global-components.vnext/global-components.vnext.conf.template"
-SOURCE_PATHS["global-components.vnext.js"]="config/global-components.vnext/global-components.vnext.js"
-
 # App settings to deploy
 APP_SETTINGS_VARS="WM_MDS_BASE_URL WM_MDS_ACCESS_KEY GLOBAL_COMPONENTS_APPLICATION_ID GLOBAL_COMPONENTS_BLOB_STORAGE_URL"
 
 # Deployment version file
 DEPLOYMENT_JSON="global-components-deployment.json"
 
-# Fetch files from GitHub
-echo -e "\n${YELLOW}Fetching files from GitHub...${NC}"
+# Download artifact from GitHub Actions
+echo -e "\n${YELLOW}Downloading build artifact from GitHub Actions...${NC}"
 echo "  Repo: $GITHUB_REPO"
-echo "  Branch: $GITHUB_BRANCH"
-echo "  Base URL: $GITHUB_BASE_URL"
-mkdir -p "$CONTENT_DIR"
+echo "  Artifact: $ARTIFACT_NAME"
 
+# Check if gh CLI is available
+if ! command -v gh &> /dev/null; then
+  echo -e "${RED}Error: GitHub CLI (gh) is not installed${NC}"
+  echo "Install it from: https://cli.github.com/"
+  exit 1
+fi
+
+# Check if logged in to gh
+if ! gh auth status &> /dev/null; then
+  echo -e "${RED}Error: Not logged in to GitHub CLI${NC}"
+  echo "Run: gh auth login"
+  exit 1
+fi
+
+# Create temp directory for artifact download
+ARTIFACT_DIR=$(mktemp -d)
+trap "rm -rf $ARTIFACT_DIR" EXIT
+
+# Download the latest artifact from a successful workflow run on main
+echo "  Finding latest successful build..."
+RUN_ID=$(gh run list --repo "$GITHUB_REPO" --branch main --status success --workflow "PR" --limit 1 --json databaseId --jq '.[0].databaseId' 2>/dev/null || echo "")
+
+if [ -z "$RUN_ID" ]; then
+  # Try deploy workflow if PR workflow not found
+  RUN_ID=$(gh run list --repo "$GITHUB_REPO" --branch main --status success --limit 1 --json databaseId --jq '.[0].databaseId' 2>/dev/null || echo "")
+fi
+
+if [ -z "$RUN_ID" ]; then
+  echo -e "${RED}Error: Could not find a successful workflow run${NC}"
+  exit 1
+fi
+
+echo "  Found run: $RUN_ID"
+echo "  Downloading artifact..."
+
+if ! gh run download "$RUN_ID" --repo "$GITHUB_REPO" --name "$ARTIFACT_NAME" --dir "$ARTIFACT_DIR"; then
+  echo -e "${RED}Error: Failed to download artifact${NC}"
+  exit 1
+fi
+
+# Copy proxy files to content directory
+mkdir -p "$CONTENT_DIR"
+echo "  Copying proxy files..."
 for file in "${FILES_TO_DEPLOY[@]}"; do
-  source_path="${SOURCE_PATHS[$file]}"
-  url="${GITHUB_BASE_URL}/${source_path}"
-  echo "  Fetching $file..."
-  if ! curl -fsSL "$url" -o "$CONTENT_DIR/$file"; then
-    echo -e "${RED}Error: Failed to fetch ${url}${NC}"
+  if [ -f "$ARTIFACT_DIR/proxy/$file" ]; then
+    cp "$ARTIFACT_DIR/proxy/$file" "$CONTENT_DIR/$file"
+    echo "    $file"
+  else
+    echo -e "${RED}Error: $file not found in artifact${NC}"
     exit 1
   fi
 done
-echo -e "${GREEN}Files fetched successfully${NC}"
+echo -e "${GREEN}Artifact downloaded and extracted successfully${NC}"
 
 # Login check
 echo -e "\n${YELLOW}Checking Azure CLI login...${NC}"
