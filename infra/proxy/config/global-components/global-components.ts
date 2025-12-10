@@ -16,17 +16,17 @@ const CORS_ALLOWED_ORIGINS = [
   // see later for check for localhost with port
 ]
 
-function _getHeaderValue(r, headerName) {
-  return r.headersIn[headerName] || ""
+function _getHeaderValue(r: NginxHTTPRequest, headerName: string): string {
+  return (r.headersIn[headerName] as string) || ""
 }
 
-function _getCookieValue(r, cookieName) {
+function _getCookieValue(r: NginxHTTPRequest, cookieName: string): string {
   const cookies = _getHeaderValue(r, "Cookie")
   const match = cookies.match(new RegExp(`(?:^|;\\s*)${cookieName}=([^;]*)`))
   return match ? match[1] : ""
 }
 
-function _maybeDecodeURIComponent(value) {
+function _maybeDecodeURIComponent(value: string): string {
   // Check if value appears not to be URL-encoded
   // (does not contain %XX patterns)
   if (!/%[0-9A-Fa-f]{2}/.test(value)) {
@@ -39,7 +39,7 @@ function _maybeDecodeURIComponent(value) {
   }
 }
 
-function readCmsAuthValues(r) {
+function readCmsAuthValues(r: NginxHTTPRequest): string {
   return _maybeDecodeURIComponent(
     _getHeaderValue(r, CMS_AUTH_VALUES_COOKIE_NAME) ||
       _getCookieValue(r, CMS_AUTH_VALUES_COOKIE_NAME)
@@ -47,8 +47,8 @@ function readCmsAuthValues(r) {
 }
 
 // For nginx js_set - returns origin if allowed, empty string otherwise
-function readCorsOrigin(r) {
-  const origin = r.headersIn["Origin"]
+function readCorsOrigin(r: NginxHTTPRequest): string {
+  const origin = r.headersIn["Origin"] as string
   return CORS_ALLOWED_ORIGINS.includes(origin) ||
     origin.startsWith("http://localhost:") ||
     origin.startsWith("https://localhost:") ||
@@ -58,7 +58,7 @@ function readCorsOrigin(r) {
     : ""
 }
 
-function handleSessionHint(r) {
+function handleSessionHint(r: NginxHTTPRequest): void {
   const hintValue = _getCookieValue(r, SESSION_HINT_COOKIE_NAME)
   r.return(200, hintValue ? _maybeDecodeURIComponent(hintValue) : "null")
 }
