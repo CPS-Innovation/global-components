@@ -1,5 +1,5 @@
-import { MergeTags, Register } from "../../store/store";
-import { FoundContext } from "../context/FoundContext";
+import { MergeTags, Register } from "../../../store/store";
+import { FoundContext } from "../../context/FoundContext";
 
 export type DomMutationObserver = ({ context, register, mergeTags, window }: { context: FoundContext; register: Register; mergeTags: MergeTags; window: Window }) => {
   isActiveForContext: boolean;

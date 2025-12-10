@@ -1,5 +1,5 @@
 import { makeConsole } from "../../logging/makeConsole";
-import { DomMutationObserver } from "../dom/DomMutationObserver";
+import { DomMutationObserver } from "../browser/dom/DomMutationObserver";
 
 const MATERIALS_HANDOVER_MARKER = "#cps-global-components-navigate-materials";
 // An arbitrary locator, when found it means the page is loaded enough for us
