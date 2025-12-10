@@ -98,7 +98,8 @@ async function testBlobStorageProxy() {
 // =============================================================================
 // State Endpoint Tests
 // =============================================================================
-// GET is public only for whitelisted keys (e.g. "preview"), PUT always requires auth.
+// Note: VALIDATE_TOKEN_AGAINST_AD is currently false, so PUT operations
+// succeed without authentication. When enabled, PUT requires valid Azure AD token.
 // State is stored as base64url encoded in cookies.
 
 // Helper to base64url encode (matches server-side wrapState)
@@ -108,18 +109,19 @@ function base64UrlEncode(str) {
 
 async function testStateEndpoint() {
   console.log("\nState Endpoint Tests (/global-components/state/*):")
+  console.log("  (Note: VALIDATE_TOKEN_AGAINST_AD=false, auth not enforced)")
 
   const PREVIEW_ENDPOINT = `${PROXY_BASE}/global-components/state/preview`
   const OTHER_ENDPOINT = `${PROXY_BASE}/global-components/state/other-key`
 
-  await test("GET on whitelisted key (preview) returns 200 without auth", async () => {
+  await test("GET on whitelisted key (preview) returns 200", async () => {
     const response = await fetch(PREVIEW_ENDPOINT)
-    assertEqual(response.status, 200, "GET should return 200 without auth")
+    assertEqual(response.status, 200, "GET should return 200")
     const text = await response.text()
     assertEqual(text, "null", 'Should return "null" when no cookie present')
   })
 
-  await test("GET on whitelisted key returns cookie value without auth", async () => {
+  await test("GET on whitelisted key returns cookie value", async () => {
     const stateValue = JSON.stringify({ foo: "bar" })
     const wrappedState = base64UrlEncode(stateValue)
     const response = await fetch(PREVIEW_ENDPOINT, {
@@ -132,16 +134,16 @@ async function testStateEndpoint() {
     assertEqual(text, stateValue, "Should return unwrapped cookie value")
   })
 
-  await test("GET on non-whitelisted key returns 401 without auth", async () => {
+  await test("GET on non-whitelisted key returns 200 (validation disabled)", async () => {
     const response = await fetch(OTHER_ENDPOINT)
     assertEqual(
       response.status,
-      401,
-      "GET should return 401 for non-whitelisted key"
+      200,
+      "GET should return 200 when validation disabled"
     )
   })
 
-  await test("PUT returns 401 when no Authorization header is provided", async () => {
+  await test("PUT succeeds without Authorization header (validation disabled)", async () => {
     const response = await fetch(PREVIEW_ENDPOINT, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
@@ -149,21 +151,26 @@ async function testStateEndpoint() {
     })
     assertEqual(
       response.status,
-      401,
-      "Should return 401 without Authorization header"
+      200,
+      "Should return 200 when validation disabled"
     )
+    const body = await response.json()
+    assertEqual(body.success, true, "Should have success true")
   })
 
-  await test("PUT returns 401 when invalid Authorization header is provided", async () => {
+  await test("PUT sets cookie with state value", async () => {
+    const stateValue = JSON.stringify({ count: 42 })
     const response = await fetch(PREVIEW_ENDPOINT, {
       method: "PUT",
-      headers: {
-        Authorization: "Bearer invalid-token-12345",
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ test: "data" }),
+      headers: { "Content-Type": "application/json" },
+      body: stateValue,
     })
-    assertEqual(response.status, 401, "Should return 401 for invalid token")
+    assertEqual(response.status, 200, "Should return 200")
+    const setCookie = response.headers.get("set-cookie")
+    assert(setCookie !== null, "Should have Set-Cookie header")
+    assert(setCookie.includes("cps-global-components-state="), "Should set state cookie")
+    assert(setCookie.includes("Secure"), "Should have Secure flag")
+    assert(setCookie.includes("SameSite=None"), "Should have SameSite=None")
   })
 
   await test("handles OPTIONS preflight request", async () => {
@@ -182,9 +189,6 @@ async function testStateEndpoint() {
     )
     assert(allowMethods.includes("PUT"), "Should allow PUT method")
   })
-
-  // Note: We cannot test successful PUT operations without a valid
-  // Microsoft Graph API token. PUT requires valid token with correct tid/appid.
 }
 
 // =============================================================================
