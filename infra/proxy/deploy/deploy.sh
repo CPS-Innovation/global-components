@@ -41,7 +41,7 @@ done
 
 # GitHub configuration
 GITHUB_REPO="${GITHUB_REPO:-CPS-Innovation/global-components}"
-ARTIFACT_NAME="${ARTIFACT_NAME:-build-artifact}"
+ARTIFACT_NAME="${ARTIFACT_NAME:-proxy-artifact}"
 
 # Content directory (matches blob container name)
 CONTENT_DIR="./$AZURE_STORAGE_CONTAINER"
@@ -110,8 +110,8 @@ fi
 mkdir -p "$CONTENT_DIR"
 echo "  Copying proxy files..."
 for file in "${FILES_TO_DEPLOY[@]}"; do
-  if [ -f "$ARTIFACT_DIR/proxy/$file" ]; then
-    cp "$ARTIFACT_DIR/proxy/$file" "$CONTENT_DIR/$file"
+  if [ -f "$ARTIFACT_DIR/$file" ]; then
+    cp "$ARTIFACT_DIR/$file" "$CONTENT_DIR/$file"
     echo "    $file"
   else
     echo -e "${RED}Error: $file not found in artifact${NC}"

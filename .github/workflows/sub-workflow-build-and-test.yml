@@ -20,6 +20,7 @@ permissions:
 
 env:
   BUILD_ARTIFACT_NAME: build-artifact
+  PROXY_ARTIFACT_NAME: proxy-artifact
 
 jobs:
   build-and-test:
@@ -80,8 +81,6 @@ jobs:
           cp ./packages/cps-global-components/dist/cps-global-components.js ./to-deploy
           cp ./packages/cps-global-components/dist/cps-global-components.js.map ./to-deploy
           cp ./packages/cps-global-os-handover/dist/auth-handover.js ./to-deploy
-          mkdir -p ./to-deploy/proxy
-          cp ./infra/proxy/dist/* ./to-deploy/proxy/
 
       - uses: actions/upload-artifact@v4
         id: upload
@@ -89,4 +88,12 @@ jobs:
           name: ${{env.BUILD_ARTIFACT_NAME}}
           path: |
             ./to-deploy/*
+          retention-days: 1
+
+      - uses: actions/upload-artifact@v4
+        id: upload-proxy
+        with:
+          name: ${{env.PROXY_ARTIFACT_NAME}}
+          path: |
+            ./infra/proxy/dist/*
           retention-days: 1
