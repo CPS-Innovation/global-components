@@ -49,6 +49,7 @@ location @gloco_preflight {
   add_header Access-Control-Allow-Methods 'GET, POST, PUT, PATCH, DELETE, OPTIONS';
   add_header Access-Control-Allow-Headers 'Authorization, Content-Type, Correlation-Id, X-Application, Cms-Auth-Values';
   add_header Access-Control-Allow-Credentials true;
+  add_header Access-Control-Allow-Private-Network true;
   add_header Access-Control-Max-Age 86400;
   add_header Content-Length 0;
   add_header Content-Type 'text/plain';
