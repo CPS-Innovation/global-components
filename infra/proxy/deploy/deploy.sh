@@ -11,6 +11,34 @@ echo "========================================"
 echo "Global Components Proxy Deployment"
 echo "========================================"
 
+# Check if gh CLI is available and logged in
+echo -e "\n${YELLOW}Checking GitHub CLI...${NC}"
+if ! command -v gh &> /dev/null; then
+  echo -e "${RED}Error: GitHub CLI (gh) is not installed${NC}"
+  echo "Install it from: https://cli.github.com/"
+  exit 1
+fi
+if ! gh auth status &> /dev/null; then
+  echo -e "${RED}Error: Not logged in to GitHub CLI${NC}"
+  echo "Run: gh auth login"
+  exit 1
+fi
+echo -e "${GREEN}GitHub CLI: OK${NC}"
+
+# Check if az CLI is available and logged in
+echo -e "\n${YELLOW}Checking Azure CLI...${NC}"
+if ! command -v az &> /dev/null; then
+  echo -e "${RED}Error: Azure CLI (az) is not installed${NC}"
+  echo "Install it from: https://docs.microsoft.com/en-us/cli/azure/install-azure-cli"
+  exit 1
+fi
+if ! az account show > /dev/null 2>&1; then
+  echo -e "${RED}Error: Not logged in to Azure CLI${NC}"
+  echo "Run: az login"
+  exit 1
+fi
+echo -e "${GREEN}Azure CLI: OK${NC}"
+
 # Load secrets from current directory
 if [ ! -f "secrets.env" ]; then
   echo -e "${RED}Error: secrets.env not found in current directory${NC}"
@@ -66,20 +94,6 @@ echo -e "\n${YELLOW}Downloading build artifact from GitHub Actions...${NC}"
 echo "  Repo: $GITHUB_REPO"
 echo "  Artifact: $ARTIFACT_NAME"
 
-# Check if gh CLI is available
-if ! command -v gh &> /dev/null; then
-  echo -e "${RED}Error: GitHub CLI (gh) is not installed${NC}"
-  echo "Install it from: https://cli.github.com/"
-  exit 1
-fi
-
-# Check if logged in to gh
-if ! gh auth status &> /dev/null; then
-  echo -e "${RED}Error: Not logged in to GitHub CLI${NC}"
-  echo "Run: gh auth login"
-  exit 1
-fi
-
 # Create temp directory for artifact download
 ARTIFACT_DIR=$(mktemp -d)
 trap "rm -rf $ARTIFACT_DIR" EXIT
@@ -120,14 +134,9 @@ for file in "${FILES_TO_DEPLOY[@]}"; do
 done
 echo -e "${GREEN}Artifact downloaded and extracted successfully${NC}"
 
-# Login check
-echo -e "\n${YELLOW}Checking Azure CLI login...${NC}"
-az account show > /dev/null 2>&1 || {
-  echo -e "${RED}Not logged in to Azure CLI. Run 'az login' first.${NC}"
-  exit 1
-}
+# Set subscription
 az account set --subscription "$AZURE_SUBSCRIPTION_ID"
-echo -e "${GREEN}Using subscription: $AZURE_SUBSCRIPTION_ID${NC}"
+echo -e "\n${GREEN}Using subscription: $AZURE_SUBSCRIPTION_ID${NC}"
 
 # List current container contents
 echo -e "\n${YELLOW}Current blob storage contents:${NC}"
