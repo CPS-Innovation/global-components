@@ -1,5 +1,4 @@
 import { Config } from "cps-global-configuration";
-import { AuthResult } from "../auth/AuthResult";
 import { Build, ReadyStateHelper } from "../../store/store";
 import { CmsSessionHintResult } from "../cms-session/CmsSessionHint";
 import { ApplicationFlags } from "../application-flags/ApplicationFlags";
@@ -21,8 +20,6 @@ describe("initialiseAnalytics", () => {
   const mockWindow = {} as Window;
 
   const mockConfig = {} as Config;
-
-  const mockAuth = {} as AuthResult;
 
   const mockReadyState = jest.fn() as unknown as ReadyStateHelper;
 
@@ -54,7 +51,6 @@ describe("initialiseAnalytics", () => {
       initialiseAnalytics({
         window: mockWindow,
         config: mockConfig,
-        auth: mockAuth,
         readyState: mockReadyState,
         build: mockBuild,
         cmsSessionHint: mockCmsSessionHint,
@@ -76,7 +72,6 @@ describe("initialiseAnalytics", () => {
       const result = initialiseAnalytics({
         window: mockWindow,
         config: mockConfig,
-        auth: mockAuth,
         readyState: mockReadyState,
         build: mockBuild,
         cmsSessionHint: mockCmsSessionHint,
@@ -99,7 +94,6 @@ describe("initialiseAnalytics", () => {
       initialiseAnalytics({
         window: mockWindow,
         config: mockConfig,
-        auth: mockAuth,
         readyState: mockReadyState,
         build: mockBuild,
         cmsSessionHint: mockCmsSessionHint,
@@ -114,7 +108,6 @@ describe("initialiseAnalytics", () => {
       initialiseAnalytics({
         window: mockWindow,
         config: mockConfig,
-        auth: mockAuth,
         readyState: mockReadyState,
         build: mockBuild,
         cmsSessionHint: mockCmsSessionHint,
@@ -124,7 +117,6 @@ describe("initialiseAnalytics", () => {
       expect(mockInitialiseAiAnalytics).toHaveBeenCalledWith({
         window: mockWindow,
         config: mockConfig,
-        auth: mockAuth,
         readyState: mockReadyState,
         build: mockBuild,
         cmsSessionHint: mockCmsSessionHint,
@@ -142,7 +134,6 @@ describe("initialiseAnalytics", () => {
       const result = initialiseAnalytics({
         window: mockWindow,
         config: mockConfig,
-        auth: mockAuth,
         readyState: mockReadyState,
         build: mockBuild,
         cmsSessionHint: mockCmsSessionHint,
