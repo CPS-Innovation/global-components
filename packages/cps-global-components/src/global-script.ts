@@ -40,10 +40,10 @@ const initialise = async (window: Window & typeof globalThis) => {
   try {
     storeFns = initialiseStore();
     startupServices = await startupPhase({ window, storeFns });
+    authPhase({ storeFns, ...startupServices });
     contextChangePhase({ storeFns, ...startupServices });
 
     initialiseNavigationSubscription({
-      window,
       handler: () => contextChangePhase({ storeFns, ...startupServices }),
       handleError,
     });
@@ -52,13 +52,7 @@ const initialise = async (window: Window & typeof globalThis) => {
   }
 };
 
-const startupPhase = async ({
-  window,
-  storeFns: { register, mergeTags, subscribe, readyState },
-}: {
-  window: Window & typeof globalThis;
-  storeFns: ReturnType<typeof initialiseStore>;
-}) => {
+const startupPhase = async ({ window, storeFns: { register, mergeTags, readyState } }: { window: Window & typeof globalThis; storeFns: ReturnType<typeof initialiseStore> }) => {
   handleSetOverrideMode({ window });
 
   const interimDcfNavigationObserver = initialiseInterimDcfNavigation({ window });
@@ -75,18 +69,10 @@ const startupPhase = async ({
   const firstContext = initialiseContext({ window, config });
   register({ firstContext });
 
-  // Opportunity to kick some async logic off in parallel
-  // There are further opportunities for optimisation
-  const [cmsSessionHint, { auth, getToken }, { handover, setNextHandover }] = await Promise.all([
-    initialiseCmsSessionHint({ config, flags }),
-    initialiseAuth({ config, context: firstContext, flags }),
-    initialiseHandover({ config, flags }),
-  ]);
-  register({ cmsSessionHint, auth, handover });
+  const [cmsSessionHint, { handover, setNextHandover }] = await Promise.all([initialiseCmsSessionHint({ config, flags }), initialiseHandover({ config, flags })]);
+  register({ cmsSessionHint, handover });
 
-  const { trackPageView, trackEvent, trackException } = initialiseAnalytics({ window, config, auth, readyState, build, cmsSessionHint, flags });
-
-  initialiseCaseDetailsData({ config, context: firstContext, subscribe, handover, setNextHandover, getToken, readyState, trackEvent });
+  const { trackPageView, trackEvent, trackException } = initialiseAnalytics({ window, config, readyState, build, cmsSessionHint, flags });
 
   const { initialiseDomForContext } = initialiseDomObservation(
     { window, register, mergeTags },
@@ -99,8 +85,31 @@ const startupPhase = async ({
     config,
     initialiseDomForContext,
     trackPageView,
+    trackEvent,
     trackException,
+    firstContext,
+    flags,
+    handover,
+    setNextHandover,
   };
+};
+
+const authPhase = ({
+  storeFns: { register, subscribe, readyState },
+  config,
+  firstContext,
+  flags,
+  handover,
+  trackEvent,
+  setNextHandover,
+}: Awaited<ReturnType<typeof startupPhase>> & { storeFns: ReturnType<typeof initialiseStore> }) => {
+  // Positioning auth after many of the other setup stuff helps us not block the UI
+  // (initialiseAuth can take a long time, especially if there is a problem)
+  (async () => {
+    const { auth, getToken } = await initialiseAuth({ config, context: firstContext, flags });
+    register({ auth });
+    initialiseCaseDetailsData({ config, context: firstContext, subscribe, handover, setNextHandover, getToken, readyState, trackEvent });
+  })();
 };
 
 const contextChangePhase = ({

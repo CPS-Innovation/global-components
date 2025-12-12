@@ -3,6 +3,9 @@ import { z } from "zod"
 const dcfContextsToUseEventNavigationSchema = z.object({
   contexts: z.string(),
   data: z.string(),
+  paramsToAddToQuery: z
+    .record(z.string(), z.union([z.string(), z.null()]))
+    .optional(),
 })
 
 export type ContextsToUseEventNavigation = z.infer<
