@@ -65,6 +65,10 @@
           "cmsAuthFromStorageKey": "$OS_Users$WorkManagementApp$ClientVars$JSONString",
           "contexts": [
             {
+              "path": "https://cps-tst.outsystemsenterprise.com/WorkManagementApp.*?(?=.*[&?]CaseId=(?<caseId>\\d+))(?=.*[&?](?:Case)?URN=(?<urn>[^&]+))?IsMaterials=true",
+              "contextIds": "case materials"
+            },
+            {
               "path": "https://cps-tst.outsystemsenterprise.com/WorkManagementApp.*?(?=.*[&?]CaseId=(?<caseId>\\d+))(?=.*[&?](?:Case)?URN=(?<urn>[^&]+))",
               "contextIds": "case details"
             },
@@ -160,19 +164,21 @@
       "activeContexts": "details",
       "dcfContextsToUseEventNavigation": {
         "contexts": "materials",
-        "data": "details"
+        "data": "details",
+        "paramsToAddToQuery": { "IsMaterials": null }
       }
     },
     {
       "label": "Materials",
       "level": 1,
       "href": "https://polaris-qa-notprod.cps.gov.uk/polaris?q=%7B%22caseId%22%3A{caseId}%7D",
-      "dcfHref": "https://cps-tst.outsystemsenterprise.com/WorkManagementApp/CaseOverview?CaseId={caseId}&URN={urn}#cps-global-components-navigate-materials",
+      "dcfHref": "https://cps-tst.outsystemsenterprise.com/WorkManagementApp/CaseOverview?CaseId={caseId}&URN={urn}&IsMaterials=true",
       "visibleContexts": "case",
       "activeContexts": "materials",
       "dcfContextsToUseEventNavigation": {
         "contexts": "details",
-        "data": "materials"
+        "data": "materials",
+        "paramsToAddToQuery": { "IsMaterials": "true" }
       }
     },
     {
