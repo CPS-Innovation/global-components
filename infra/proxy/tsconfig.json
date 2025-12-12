@@ -1,0 +1,17 @@
+{
+  "compilerOptions": {
+    "target": "ES2017",
+    "module": "ES2015",
+    "lib": ["ES2020"],
+    "moduleResolution": "node",
+    "strict": true,
+    "declaration": false,
+    "outDir": "./dist",
+    "rootDir": "./config",
+    "esModuleInterop": true,
+    "skipLibCheck": true
+  },
+  "files": ["./node_modules/njs-types/ngx_http_js_module.d.ts"],
+  "include": ["config/**/*.ts"],
+  "exclude": ["node_modules", "**/*.test.ts", "**/*.unit.test.ts", "**/*.integration.test.js"]
+}

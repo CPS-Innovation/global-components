@@ -64,7 +64,7 @@ cps_global_components_config_jsonp_callback({
       href: "/cases/{caseId}/review",
       visibleContexts: "case",
       activeContexts: "review",
-      preferEventNavigationContexts: "details",
+      dcfContextsToUseEventNavigation: { contexts: "details", data: "" },
     },
   ],
-});
+})

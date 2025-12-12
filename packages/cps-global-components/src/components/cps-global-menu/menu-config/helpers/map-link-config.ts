@@ -2,6 +2,7 @@ import { Link } from "cps-global-configuration";
 import { isContextMatch } from "./is-context-match";
 import { replaceTagsInString } from "./replace-tags-in-string";
 import { withLogging } from "../../../../logging/with-logging";
+import { isDcfCaseKey } from "../../../../services/data/CaseDetails";
 
 export type MapLinkConfigResult = ReturnType<ReturnType<typeof mapLinkConfig>>;
 
@@ -9,8 +10,9 @@ export type MapLinkConfigParams = { contextIds: string; tags: Record<string, str
 
 export const mapLinkConfigInternal =
   ({ contextIds, tags, handoverAdapter }: MapLinkConfigParams) =>
-  ({ label, href, level, activeContexts, openInNewTab, preferEventNavigationContexts }: Link) => {
-    const processedHref = replaceTagsInString(href, tags);
+  ({ label, href, dcfHref, level, activeContexts, openInNewTab, dcfContextsToUseEventNavigation }: Link) => {
+    const shouldUseDcfHref = tags[isDcfCaseKey] === "true" && dcfHref;
+    const processedHref = replaceTagsInString(shouldUseDcfHref ? dcfHref : href, tags);
 
     return {
       label,
@@ -18,7 +20,8 @@ export const mapLinkConfigInternal =
       openInNewTab,
       href: handoverAdapter ? handoverAdapter(processedHref) : processedHref,
       selected: isContextMatch(contextIds, activeContexts),
-      preferEventNavigation: isContextMatch(contextIds, preferEventNavigationContexts),
+      dcfContextsToUseEventNavigation:
+        tags[isDcfCaseKey] === "true" && isContextMatch(contextIds, dcfContextsToUseEventNavigation?.contexts) ? dcfContextsToUseEventNavigation : undefined,
     };
   };
 

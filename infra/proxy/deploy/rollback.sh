@@ -1,8 +1,6 @@
 #!/bin/bash
 set -e
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-
 # Colors
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -13,17 +11,41 @@ echo "========================================"
 echo "Global Components Proxy Rollback"
 echo "========================================"
 
-# Load secrets
-if [ ! -f "$SCRIPT_DIR/secrets.env" ]; then
-  echo -e "${RED}Error: secrets.env not found${NC}"
+# Check if az CLI is available and logged in
+echo -e "\n${YELLOW}Checking Azure CLI...${NC}"
+if ! command -v az &> /dev/null; then
+  echo -e "${RED}Error: Azure CLI (az) is not installed${NC}"
+  echo "Install it from: https://docs.microsoft.com/en-us/cli/azure/install-azure-cli"
   exit 1
 fi
-source "$SCRIPT_DIR/secrets.env"
+if ! az account show > /dev/null 2>&1; then
+  echo -e "${RED}Error: Not logged in to Azure CLI${NC}"
+  echo "Run: az login"
+  exit 1
+fi
+echo -e "${GREEN}Azure CLI: OK${NC}"
+
+# Load secrets from current directory
+if [ ! -f "secrets.env" ]; then
+  echo -e "${RED}Error: secrets.env not found in current directory${NC}"
+  exit 1
+fi
+source secrets.env
+
+# Validate required variables
+REQUIRED_VARS="AZURE_SUBSCRIPTION_ID AZURE_RESOURCE_GROUP AZURE_STORAGE_ACCOUNT AZURE_STORAGE_CONTAINER AZURE_WEBAPP_NAME STATUS_ENDPOINT"
+for var in $REQUIRED_VARS; do
+  if [ -z "${!var}" ]; then
+    echo -e "${RED}Error: $var is not set in secrets.env${NC}"
+    exit 1
+  fi
+done
 
 # List available backups
-BACKUPS_DIR="$SCRIPT_DIR/backups"
+BACKUPS_DIR="./backups"
 if [ ! -d "$BACKUPS_DIR" ]; then
   echo -e "${RED}No backups directory found${NC}"
+  echo "Run a deployment first to create backups."
   exit 1
 fi
 
@@ -42,7 +64,7 @@ done
 
 # Select backup
 echo -e "\n${YELLOW}Enter backup number to restore (or 'q' to quit):${NC}"
-read -r selection
+read -r selection < /dev/tty
 
 if [ "$selection" = "q" ]; then
   echo "Cancelled"
@@ -60,35 +82,64 @@ echo -e "\n${YELLOW}Restoring from: $BACKUP_NAME${NC}"
 
 # Confirm
 echo -e "${RED}This will overwrite the current deployment. Continue? (y/N)${NC}"
-read -r confirm
+read -r confirm < /dev/tty
 if [ "$confirm" != "y" ] && [ "$confirm" != "Y" ]; then
   echo "Cancelled"
   exit 0
 fi
 
+# Set subscription
+az account set --subscription "$AZURE_SUBSCRIPTION_ID"
+echo -e "\n${GREEN}Using subscription: $AZURE_SUBSCRIPTION_ID${NC}"
+
+# List current container contents
+echo -e "\n${YELLOW}Current blob storage contents:${NC}"
+echo "  Storage account: $AZURE_STORAGE_ACCOUNT"
+echo "  Container: $AZURE_STORAGE_CONTAINER"
+echo "  Running: az storage blob list --account-name $AZURE_STORAGE_ACCOUNT --container-name $AZURE_STORAGE_CONTAINER --auth-mode login --output table"
+echo ""
+az storage blob list \
+  --account-name "$AZURE_STORAGE_ACCOUNT" \
+  --container-name "$AZURE_STORAGE_CONTAINER" \
+  --auth-mode login \
+  --output table \
+  2>&1 | sed 's/^/  /'
+
 # Get current version for new backup
-CURRENT_VERSION=$(curl -s "$STATUS_ENDPOINT" | grep -o '"version":[0-9]*' | grep -o '[0-9]*' || echo "0")
+echo -e "\n${YELLOW}Getting current version from status endpoint...${NC}"
+echo "  Endpoint: $STATUS_ENDPOINT"
+STATUS_RESPONSE=$(curl -s "$STATUS_ENDPOINT" 2>&1)
+echo "  Response: $STATUS_RESPONSE"
+CURRENT_VERSION=$(echo "$STATUS_RESPONSE" | grep -o '"version":[ ]*[0-9]*' | grep -o '[0-9]*' || echo "0")
+echo "  Parsed version: $CURRENT_VERSION"
 
 # Create a backup of current state before rollback
 PRE_ROLLBACK_DIR="$BACKUPS_DIR/$(date +%Y%m%d_%H%M%S)_pre-rollback_v${CURRENT_VERSION}"
 mkdir -p "$PRE_ROLLBACK_DIR"
-echo -e "\n${YELLOW}Backing up current state before rollback...${NC}"
+echo -e "\n${YELLOW}Backing up current state before rollback to: $PRE_ROLLBACK_DIR${NC}"
 
 FILES_TO_BACKUP=(
-  "global-components.js"
-  "global-components.conf.template"
   "nginx.js"
-  "global-components-vars.js"
+  "global-components.conf.template"
+  "global-components.js"
+  "global-components.vnext.conf.template"
+  "global-components.vnext.js"
+  "global-components-deployment.json"
 )
 
 for file in "${FILES_TO_BACKUP[@]}"; do
-  az storage blob download \
+  echo "  Downloading $file..."
+  if az storage blob download \
     --account-name "$AZURE_STORAGE_ACCOUNT" \
     --container-name "$AZURE_STORAGE_CONTAINER" \
     --name "$file" \
     --file "$PRE_ROLLBACK_DIR/$file" \
     --auth-mode login \
-    2>/dev/null || true
+    2>&1 | sed 's/^/    /'; then
+    echo -e "    ${GREEN}✓ Downloaded${NC}"
+  else
+    echo -e "    ${YELLOW}⚠ File may not exist${NC}"
+  fi
 done
 
 # Upload backup files
@@ -115,18 +166,20 @@ echo -e "\n${YELLOW}Restarting web app...${NC}"
 az webapp restart \
   --name "$AZURE_WEBAPP_NAME" \
   --resource-group "$AZURE_RESOURCE_GROUP"
+echo -e "${GREEN}Restart initiated${NC}"
 
-# Get expected version from backup vars file
-EXPECTED_VERSION=$(grep -o 'deployVersion:[[:space:]]*[0-9]*' "$SELECTED_BACKUP/global-components-vars.js" 2>/dev/null | grep -o '[0-9]*' || echo "unknown")
+# Get expected version from backup deployment.json
+EXPECTED_VERSION=$(grep -o '"version":[ ]*[0-9]*' "$SELECTED_BACKUP/global-components-deployment.json" 2>/dev/null | grep -o '[0-9]*' || echo "unknown")
 
 # Poll for version change
 echo -e "\n${YELLOW}Waiting for rollback to complete...${NC}"
+echo "Expected version: $EXPECTED_VERSION"
 MAX_ATTEMPTS=60
 ATTEMPT=1
 while [ $ATTEMPT -le $MAX_ATTEMPTS ]; do
-  LIVE_VERSION=$(curl -s "$STATUS_ENDPOINT" 2>/dev/null | grep -o '"version":[0-9]*' | grep -o '[0-9]*' || echo "0")
+  LIVE_VERSION=$(curl -s "$STATUS_ENDPOINT" 2>/dev/null | grep -o '"version":[ ]*[0-9]*' | grep -o '[0-9]*' || echo "0")
   if [ "$LIVE_VERSION" != "$CURRENT_VERSION" ]; then
-    echo -e "\n${GREEN}✓ Rollback complete! Version is now: $LIVE_VERSION${NC}"
+    echo -e "\n${GREEN}Rollback complete! Version is now: $LIVE_VERSION${NC}"
     exit 0
   fi
   echo -n "."

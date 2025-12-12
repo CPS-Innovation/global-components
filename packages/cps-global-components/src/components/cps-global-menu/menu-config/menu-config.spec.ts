@@ -44,7 +44,7 @@ describe("menuConfig", () => {
         visibleContexts: "context1",
         activeContexts: "active1",
         openInNewTab: false,
-        preferEventNavigationContexts: "event1",
+        dcfContextsToUseEventNavigation: { contexts: "event1", data: "" },
       },
       {
         label: "Link 2",
@@ -53,7 +53,7 @@ describe("menuConfig", () => {
         visibleContexts: "context2",
         activeContexts: "active2",
         openInNewTab: true,
-        preferEventNavigationContexts: "event2",
+        dcfContextsToUseEventNavigation: { contexts: "event2", data: "" },
       },
       {
         label: "Link 3",
@@ -62,7 +62,7 @@ describe("menuConfig", () => {
         visibleContexts: "context3",
         activeContexts: "active3",
         openInNewTab: false,
-        preferEventNavigationContexts: "event3",
+        dcfContextsToUseEventNavigation: { contexts: "event3", data: "" },
       },
     ],
     CONTEXTS: [
@@ -83,7 +83,7 @@ describe("menuConfig", () => {
 
   const mockTags: Tags = {};
 
-  const mockCaseDetails: CaseDetails = { urn: "foo", isDcfCase: false };
+  const mockCaseDetails: CaseDetails = { id: 1, urn: "foo", isDcfCase: false };
 
   const mockCmsSessionHint: CmsSessionHintResult = {
     found: false,
@@ -103,6 +103,7 @@ describe("menuConfig", () => {
 
     const mockState: State = {
       context: foundContext,
+      firstContext: foundContext,
       caseDetails: mockCaseDetails,
       config: mockConfig,
       flags: mockFlags,
@@ -118,6 +119,7 @@ describe("menuConfig", () => {
       caseIdentifiers: { caseId: "1" },
       build: {} as Build,
       cmsSessionHint: mockCmsSessionHint,
+      handover: { found: false, error: null },
     };
 
     const result = menuConfig(mockState);
@@ -151,6 +153,7 @@ describe("menuConfig", () => {
 
     const mockState: State = {
       context: foundContext,
+      firstContext: foundContext,
       caseDetails: mockCaseDetails,
       config: mockConfig,
       flags: mockFlags,
@@ -166,6 +169,7 @@ describe("menuConfig", () => {
       caseIdentifiers: { caseId: "1" },
       build: {} as Build,
       cmsSessionHint: mockCmsSessionHint,
+      handover: { found: false, error: null },
     };
 
     // Mock shouldShowLink to filter out the second link
@@ -185,7 +189,7 @@ describe("menuConfig", () => {
         level: 0,
         selected: true,
         openInNewTab: false,
-        preferEventNavigation: false,
+        dcfContextsToUseEventNavigation: undefined,
       })
       .mockReturnValueOnce({
         label: "Mapped Link 3",
@@ -193,15 +197,15 @@ describe("menuConfig", () => {
         level: 0,
         selected: false,
         openInNewTab: false,
-        preferEventNavigation: true,
+        dcfContextsToUseEventNavigation: { contexts: "app-event section-event", data: "" },
       });
     mockMapLinkConfig.mockReturnValue(mockMapFunction);
 
     // Mock groupLinksByLevel
     const groupedLinks = [
       [
-        { label: "Mapped Link 1", href: "/mapped1", selected: true, openInNewTab: false, preferEventNavigation: false, ariaSelected: true as true },
-        { label: "Mapped Link 3", href: "/mapped3", selected: false, openInNewTab: false, preferEventNavigation: true },
+        { label: "Mapped Link 1", href: "/mapped1", selected: true, openInNewTab: false, dcfContextsToUseEventNavigation: undefined, ariaSelected: true as true },
+        { label: "Mapped Link 3", href: "/mapped3", selected: false, openInNewTab: false, dcfContextsToUseEventNavigation: { contexts: "app-event section-event", data: "" } },
       ],
     ];
     mockGroupLinksByLevel.mockReturnValue(groupedLinks);
@@ -229,7 +233,7 @@ describe("menuConfig", () => {
         level: 0,
         selected: true,
         openInNewTab: false,
-        preferEventNavigation: false,
+        dcfContextsToUseEventNavigation: undefined,
       },
       {
         label: "Mapped Link 3",
@@ -237,7 +241,7 @@ describe("menuConfig", () => {
         level: 0,
         selected: false,
         openInNewTab: false,
-        preferEventNavigation: true,
+        dcfContextsToUseEventNavigation: { contexts: "app-event section-event", data: "" },
       },
     ]);
   });
@@ -261,6 +265,7 @@ describe("menuConfig", () => {
 
     const mockState: State = {
       context: foundContext,
+      firstContext: foundContext,
       caseDetails: mockCaseDetails,
       config: {
         ...mockConfig,
@@ -282,6 +287,7 @@ describe("menuConfig", () => {
       caseIdentifiers: { caseId: "1" },
       build: {} as Build,
       cmsSessionHint: mockCmsSessionHint,
+      handover: { found: false, error: null },
     };
 
     // Mock shouldShowLink to pass all links
@@ -295,7 +301,7 @@ describe("menuConfig", () => {
       level: 0,
       selected: false,
       openInNewTab: false,
-      preferEventNavigation: false,
+      dcfContextsToUseEventNavigation: undefined,
     });
     mockMapLinkConfig.mockReturnValue(mockMapFunction);
 
@@ -331,6 +337,7 @@ describe("menuConfig", () => {
 
     const mockState: State = {
       context: foundContext,
+      firstContext: foundContext,
       caseDetails: mockCaseDetails,
       config: {
         ...mockConfig,
@@ -352,6 +359,7 @@ describe("menuConfig", () => {
       caseIdentifiers: { caseId: "1" },
       build: {} as Build,
       cmsSessionHint: mockCmsSessionHint,
+      handover: { found: false, error: null },
     };
 
     // Mock shouldShowLink to pass all links
@@ -365,7 +373,7 @@ describe("menuConfig", () => {
       level: 0,
       selected: false,
       openInNewTab: false,
-      preferEventNavigation: false,
+      dcfContextsToUseEventNavigation: undefined,
     });
     mockMapLinkConfig.mockReturnValue(mockMapFunction);
 
@@ -401,6 +409,7 @@ describe("menuConfig", () => {
 
     const mockState: State = {
       context: foundContext,
+      firstContext: foundContext,
       caseDetails: mockCaseDetails,
       config: {
         ...mockConfig,
@@ -423,6 +432,7 @@ describe("menuConfig", () => {
       caseIdentifiers: { caseId: "1" },
       build: {} as Build,
       cmsSessionHint: mockCmsSessionHint,
+      handover: { found: false, error: null },
     };
 
     // Mock shouldShowLink to pass all links
@@ -471,6 +481,7 @@ describe("menuConfig", () => {
 
     const mockState: State = {
       context: foundContext,
+      firstContext: foundContext,
       caseDetails: mockCaseDetails,
       config: {
         ...mockConfig,
@@ -493,6 +504,7 @@ describe("menuConfig", () => {
       caseIdentifiers: { caseId: "1" },
       build: {} as Build,
       cmsSessionHint: mockCmsSessionHint,
+      handover: { found: false, error: null },
     };
 
     // Mock shouldShowLink to pass all links
@@ -561,6 +573,7 @@ describe("menuConfig", () => {
 
     const mockState: State = {
       context: foundContext,
+      firstContext: foundContext,
       caseDetails: mockCaseDetails,
       config: {
         ...mockConfig,
@@ -583,6 +596,7 @@ describe("menuConfig", () => {
       caseIdentifiers: { caseId: "1" },
       build: {} as Build,
       cmsSessionHint: cmsSessionHintWithEndpoint,
+      handover: { found: false, error: null },
     };
 
     // Mock shouldShowLink to pass all links

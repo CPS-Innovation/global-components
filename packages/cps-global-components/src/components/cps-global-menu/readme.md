@@ -5,15 +5,15 @@
 
 ## Properties
 
-| Property                | Attribute                 | Description | Type                   | Default     |
-| ----------------------- | ------------------------- | ----------- | ---------------------- | ----------- |
-| `ariaSelected`          | `aria-selected`           |             | `boolean \| undefined` | `undefined` |
-| `disabled`              | `disabled`                |             | `boolean`              | `undefined` |
-| `href`                  | `href`                    |             | `string`               | `undefined` |
-| `label`                 | `label`                   |             | `string`               | `undefined` |
-| `openInNewTab`          | `open-in-new-tab`         |             | `boolean \| undefined` | `undefined` |
-| `preferEventNavigation` | `prefer-event-navigation` |             | `boolean \| undefined` | `undefined` |
-| `selected`              | `selected`                |             | `boolean`              | `undefined` |
+| Property                          | Attribute                              | Description | Type                                               | Default     |
+| --------------------------------- | -------------------------------------- | ----------- | -------------------------------------------------- | ----------- |
+| `ariaSelected`                    | `aria-selected`                        |             | `boolean \| undefined`                             | `undefined` |
+| `dcfContextsToUseEventNavigation` | `dcf-contexts-to-use-event-navigation` |             | `undefined \| { contexts: string; data: string; }` | `undefined` |
+| `disabled`                        | `disabled`                             |             | `boolean`                                          | `undefined` |
+| `href`                            | `href`                                 |             | `string`                                           | `undefined` |
+| `label`                           | `label`                                |             | `string`                                           | `undefined` |
+| `openInNewTab`                    | `open-in-new-tab`                      |             | `boolean \| undefined`                             | `undefined` |
+| `selected`                        | `selected`                             |             | `boolean`                                          | `undefined` |
 
 
 ## Events

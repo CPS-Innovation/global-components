@@ -15,6 +15,7 @@ import { ReadyStateHelper, readyStateFactory } from "./ready-state-factory";
 import { CaseIdentifiers } from "../services/context/CaseIdentifiers";
 import { caseIdentifiersSubscriptionFactory } from "./subscriptions/case-identifiers-subscription-factory";
 import { CmsSessionHintResult } from "../services/cms-session/CmsSessionHint";
+import { Handover } from "../services/handover/Handover";
 export { type ReadyStateHelper };
 
 const registerEventName = "cps-global-components-register";
@@ -47,6 +48,7 @@ type StartupState = {
   auth: AuthResult;
   build: Build;
   cmsSessionHint: CmsSessionHintResult;
+  firstContext: FoundContext;
 };
 
 const initialStartupState = {
@@ -55,6 +57,7 @@ const initialStartupState = {
   auth: undefined,
   build: undefined,
   cmsSessionHint: undefined,
+  firstContext: undefined,
 };
 
 // This state could change (e.g. history-based non-full-refresh navigation or dom tags changing)
@@ -66,6 +69,7 @@ type TransientState = {
   correlationIds: CorrelationIds;
   caseDetailsTags: Tags;
   caseIdentifiers: CaseIdentifiers;
+  handover: Handover;
   caseDetails: Partial<CaseDetails>;
 };
 const initialTransientState = {
@@ -77,6 +81,7 @@ const initialTransientState = {
   caseDetailsTags: undefined,
   caseIdentifiers: undefined,
   caseDetails: undefined,
+  handover: undefined,
 };
 
 type AggregateState = {
@@ -108,6 +113,8 @@ class RegisterEvent extends CustomEvent<Parameters<Register>[0]> {}
 export type MergeTags = (arg: SingleKnownTypePropertyOf<TransientState, Tags>) => Tags;
 export type MergeTagFireAndForget = (arg: SingleKnownTypePropertyOf<TransientState, Tags>) => void;
 class MergeTagFireAndForgetEvent extends CustomEvent<Parameters<MergeTagFireAndForget>[0]> {}
+
+export type Subscribe = (...factories: SubscriptionFactory[]) => void;
 
 export type Store = ReturnType<typeof createStore<StoredState>>;
 
@@ -148,7 +155,7 @@ export const initialiseStore = () => {
     privateTagProperties.filter(key => key !== "propTags").forEach(key => store.set(key, {}));
   };
 
-  const subscribe = (...subscriptionFactories: SubscriptionFactory[]) =>
+  const subscribe: Subscribe = (...subscriptionFactories: SubscriptionFactory[]) =>
     subscriptionFactories.map(factory => {
       const { type, handler } = factory({ register, mergeTags, get: store.get });
       if (type === "subscription") {

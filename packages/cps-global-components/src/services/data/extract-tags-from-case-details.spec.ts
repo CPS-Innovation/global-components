@@ -24,12 +24,13 @@ describe("extractTagsFromCaseDetails", () => {
 
       expect(result.tags).toEqual({
         urn: "12AB3456789",
-        isDcfCase: false,
+        isDcfCase: "false",
       });
     });
 
     it("should include all tag fields even when extra fields are present", () => {
       const caseDetails: CaseDetails = {
+        id: 123,
         urn: "12AB3456789",
         isDcfCase: true,
       };
@@ -39,12 +40,13 @@ describe("extractTagsFromCaseDetails", () => {
       expect(result.allTagsArePresent).toBe(true);
       expect(result.tags).toEqual({
         urn: "12AB3456789",
-        isDcfCase: true,
+        isDcfCase: "true",
       });
     });
 
     it("should not include caseId in tags", () => {
       const caseDetails: CaseDetails = {
+        id: 456,
         urn: "99ZZ1234567",
         isDcfCase: false,
       };
@@ -85,7 +87,7 @@ describe("extractTagsFromCaseDetails", () => {
 
       expect(result.tags).toEqual({
         urn: "12AB3456789",
-        isDcfCase: undefined,
+        isDcfCase: "undefined",
       });
     });
   });
@@ -105,8 +107,8 @@ describe("extractTagsFromCaseDetails", () => {
       const result = extractTagsFromCaseDetails(caseDetails);
 
       expect(result.tags).toEqual({
-        urn: undefined,
-        isDcfCase: undefined,
+        urn: "undefined",
+        isDcfCase: "undefined",
       });
     });
   });
@@ -123,7 +125,7 @@ describe("extractTagsFromCaseDetails", () => {
       expect(result.allTagsArePresent).toBe(true);
       expect(result.tags).toEqual({
         urn: "",
-        isDcfCase: false,
+        isDcfCase: "false",
       });
     });
 
@@ -136,7 +138,7 @@ describe("extractTagsFromCaseDetails", () => {
       const result = extractTagsFromCaseDetails(caseDetails);
 
       expect(result.allTagsArePresent).toBe(true);
-      expect(result.tags.isDcfCase).toBe(false);
+      expect(result.tags.isDcfCase).toBe("false");
     });
   });
 });

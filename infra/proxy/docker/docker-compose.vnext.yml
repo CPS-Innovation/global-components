@@ -1,0 +1,10 @@
+# VNext layer override (requires global-components layer)
+# Use: docker-compose -f docker-compose.yml -f docker-compose.global-components.yml -f docker-compose.vnext.yml up
+
+services:
+  nginx:
+    env_file:
+      - global-components.vnext.mock.env
+    volumes:
+      - ../dist/global-components.vnext.conf.template:/etc/nginx/templates/global-components.vnext.conf.template:ro
+      - ../dist/global-components.vnext.js:/etc/nginx/templates/global-components.vnext.js:ro

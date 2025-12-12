@@ -1,6 +1,17 @@
+# Build output
+dist/
+
 # Test build artifacts
-tests/.dist/
+.dist/
+
+# Compiled JavaScript files (keep nginx.js which is not ours)
+config/**/*.js
+!config/main/nginx.js
 
 # Deployment secrets and backups
 deploy/secrets.env
 deploy/backups/
+
+# Environment config files (contain secrets)
+config/global-components/.env
+config/global-components.vnext/.env
