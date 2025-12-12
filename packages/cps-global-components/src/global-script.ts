@@ -44,7 +44,6 @@ const initialise = async (window: Window & typeof globalThis) => {
     contextChangePhase({ storeFns, ...startupServices });
 
     initialiseNavigationSubscription({
-      window,
       handler: () => contextChangePhase({ storeFns, ...startupServices }),
       handleError,
     });

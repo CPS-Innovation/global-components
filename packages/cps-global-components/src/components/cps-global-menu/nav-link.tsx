@@ -2,6 +2,7 @@ import { Component, Prop, h, Event, EventEmitter } from "@stencil/core";
 import { makeConsole } from "../../logging/makeConsole";
 import { WithLogging } from "../../logging/WithLogging";
 import { ContextsToUseEventNavigation } from "cps-global-configuration";
+import { newTab, updateAddressQuery } from "../../services/browser/navigation/navigation";
 
 const { _debug } = makeConsole("NavLink");
 
@@ -30,9 +31,15 @@ export class NavLink {
   })
   CpsGlobalHeaderEvent: EventEmitter<string>;
 
-  emitEvent = () => this.CpsGlobalHeaderEvent.emit(this.dcfContextsToUseEventNavigation?.data);
+  handleOsNavigation = () => {
+    const { data, paramsToAddToQuery } = this.dcfContextsToUseEventNavigation || {};
+    this.CpsGlobalHeaderEvent.emit(data);
+    if (paramsToAddToQuery) {
+      updateAddressQuery(paramsToAddToQuery, true);
+    }
+  };
 
-  launchNewTab = (link: string) => window.open(link, "_blank", "noopener,noreferrer");
+  launchNewTab = () => newTab(this.href);
 
   @WithLogging("NavLink")
   render() {
@@ -52,13 +59,13 @@ export class NavLink {
           );
         case "new-tab":
           return (
-            <button {...coreProps} class="linkButton" onClick={() => this.launchNewTab(this.href)}>
+            <button {...coreProps} class="linkButton" onClick={() => this.launchNewTab()}>
               {this.label}
             </button>
           );
         case "emit-event":
           return (
-            <button {...coreProps} class="linkButton" onClick={() => this.emitEvent()}>
+            <button {...coreProps} class="linkButton" onClick={() => this.handleOsNavigation()}>
               {this.label}
             </button>
           );

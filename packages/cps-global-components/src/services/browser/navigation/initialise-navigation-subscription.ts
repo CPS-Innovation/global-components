@@ -1,10 +1,7 @@
-import { makeConsole } from "../../../logging/makeConsole";
+import { onNavigation } from "./navigation";
 
-const { _debug } = makeConsole("global-script");
-
-export const initialiseNavigationSubscription = ({ window, handler, handleError }: { window: Window; handler: () => void; handleError: (err: Error) => any }) =>
-  window.navigation?.addEventListener("navigatesuccess", async event => {
-    _debug("navigation", event);
+export const initialiseNavigationSubscription = ({ handler, handleError }: { handler: () => void; handleError: (err: Error) => any }) =>
+  onNavigation(() => {
     try {
       handler();
     } catch (err) {
