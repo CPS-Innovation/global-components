@@ -69,12 +69,13 @@ done
 GITHUB_REPO="${GITHUB_REPO:-CPS-Innovation/global-components}"
 ARTIFACT_NAME="${ARTIFACT_NAME:-proxy-artifact}"
 
-# Content directory (matches blob container name)
-CONTENT_DIR="./$AZURE_STORAGE_CONTAINER"
+# Content directory (use HOME for Windows compatibility)
+CONTENT_DIR="${HOME}/.gc-deploy-content"
 
 # Files to deploy (these come from the build artifact's proxy/ folder)
-# Note: nginx.js, global-components.conf.template, and global-components.js
+# Note: nginx.js, global-components.conf, and global-components.js
 # are deployed by the parent project - we only deploy vnext-specific files
+# Source files are .conf but build.sh adds .template suffix for nginx envsubst
 FILES_TO_DEPLOY=(
   "global-components.vnext.conf.template"
   "global-components.vnext.js"
@@ -93,8 +94,14 @@ echo "  Repo: $GITHUB_REPO"
 echo "  Artifact: $ARTIFACT_NAME"
 
 # Create temp directory for artifact download
-ARTIFACT_DIR=$(mktemp -d)
-trap "rm -rf $ARTIFACT_DIR" EXIT
+# Use HOME for Windows compatibility (current dir may have issues when piped from curl)
+ARTIFACT_DIR="${HOME}/.gc-deploy-temp-$$"
+if ! mkdir -p "$ARTIFACT_DIR"; then
+  echo -e "${RED}Error: Failed to create temp directory: $ARTIFACT_DIR${NC}"
+  echo "Current directory: $(pwd)"
+  exit 1
+fi
+trap "rm -rf '$ARTIFACT_DIR'" EXIT
 
 # Download the latest artifact from a successful workflow run on main
 echo "  Finding latest successful build..."
@@ -117,6 +124,10 @@ if ! gh run download "$RUN_ID" --repo "$GITHUB_REPO" --name "$ARTIFACT_NAME" --d
   echo -e "${RED}Error: Failed to download artifact${NC}"
   exit 1
 fi
+
+# Debug: show what was downloaded
+echo "  Downloaded files:"
+ls -la "$ARTIFACT_DIR" 2>&1 | sed 's/^/    /'
 
 # Copy proxy files to content directory
 mkdir -p "$CONTENT_DIR"
@@ -150,7 +161,7 @@ az storage blob list \
   2>&1 | sed 's/^/  /'
 
 # Create backup directory
-BACKUP_DIR="./backups/$(date +%Y%m%d_%H%M%S)"
+BACKUP_DIR="${HOME}/.gc-deploy-backups/$(date +%Y%m%d_%H%M%S)"
 mkdir -p "$BACKUP_DIR"
 echo -e "\n${YELLOW}Backing up current files to $BACKUP_DIR...${NC}"
 

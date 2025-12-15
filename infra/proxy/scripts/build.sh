@@ -21,12 +21,12 @@ npx tsc
 echo "Copying nginx.js..."
 cp "$PROXY_DIR/config/main/nginx.js" "$DIST_DIR/nginx.js"
 
-# Copy config templates
-echo "Copying config templates..."
-cp "$PROXY_DIR/config/main/nginx.conf.template" "$DIST_DIR/nginx.conf.template"
-cp "$PROXY_DIR/config/main/global-components.conf.template" "$DIST_DIR/global-components.conf.template"
-cp "$PROXY_DIR/config/global-components.vnext/global-components.vnext.conf.template" "$DIST_DIR/global-components.vnext.conf.template"
-cp "$PROXY_DIR/config/global-components.vnever/global-components.vnever.conf.template" "$DIST_DIR/global-components.vnever.conf.template"
+# Copy config files (add .template suffix for nginx envsubst)
+echo "Copying config files..."
+cp "$PROXY_DIR/config/main/nginx.conf" "$DIST_DIR/nginx.conf.template"
+cp "$PROXY_DIR/config/main/global-components.conf" "$DIST_DIR/global-components.conf.template"
+cp "$PROXY_DIR/config/global-components.vnext/global-components.vnext.conf" "$DIST_DIR/global-components.vnext.conf.template"
+cp "$PROXY_DIR/config/global-components.vnever/global-components.vnever.conf" "$DIST_DIR/global-components.vnever.conf.template"
 
 # Flatten the compiled JS files (they're in subdirectories from tsc)
 echo "Flattening compiled JS files..."

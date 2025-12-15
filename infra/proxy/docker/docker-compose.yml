@@ -19,12 +19,12 @@ services:
       - WEBSITE_DNS_SERVER=127.0.0.11
       - AUTH_HANDOVER_WHITELIST=/auth-refresh-inbound,http://some-destination-domain.example.org
     volumes:
-      # Mount from dist/ folder (built by pnpm build)
-      - ../dist/nginx.conf.template:/etc/nginx/templates/nginx.conf.template:ro
-      - ../dist/nginx.js:/etc/nginx/nginx.js:ro
-      - ../dist/global-components.conf.template:/etc/nginx/templates/global-components.conf.template:ro
+      # Mount directly from config/ (add .template suffix for nginx envsubst)
+      - ../config/main/nginx.conf:/etc/nginx/templates/nginx.conf.template:ro
+      - ../config/main/nginx.js:/etc/nginx/nginx.js:ro
+      - ../config/main/global-components.conf:/etc/nginx/templates/global-components.conf.template:ro
       - ../dist/global-components.js:/etc/nginx/templates/global-components.js:ro
-      - ./global-components-deployment.mock.json:/etc/nginx/templates/global-components-deployment.json:ro
+      - ./global-components-deployment.mock.json:/etc/nginx/global-components-deployment.json:ro
     depends_on:
       - mock-upstream
 
