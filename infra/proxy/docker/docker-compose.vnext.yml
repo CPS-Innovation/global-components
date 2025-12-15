@@ -6,5 +6,5 @@ services:
     env_file:
       - global-components.vnext.mock.env
     volumes:
-      - ../dist/global-components.vnext.conf.template:/etc/nginx/templates/global-components.vnext.conf.template:ro
+      - ../config/global-components.vnext/global-components.vnext.conf:/etc/nginx/templates/global-components.vnext.conf.template:ro
       - ../dist/global-components.vnext.js:/etc/nginx/templates/global-components.vnext.js:ro
