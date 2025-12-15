@@ -65,7 +65,7 @@ interface GlocoVnextModule {
 async function build(): Promise<void> {
   // Bundle base module first
   await esbuild.build({
-    entryPoints: [path.join(CONFIG_DIR, "global-components", "global-components.ts")],
+    entryPoints: [path.join(CONFIG_DIR, "main", "global-components.ts")],
     bundle: true,
     outfile: path.join(DIST_DIR, "global-components.bundle.js"),
     format: "esm",
