@@ -1,7 +1,7 @@
-# Base docker-compose - only main nginx config
+# Base docker-compose - main nginx config with global-components
 # Use with overrides for additional layers:
-#   docker-compose -f docker-compose.yml -f docker-compose.global-components.yml up
-#   docker-compose -f docker-compose.yml -f docker-compose.global-components.yml -f docker-compose.vnext.yml up
+#   docker-compose -f docker-compose.yml -f docker-compose.vnext.yml up
+#   docker-compose -f docker-compose.yml -f docker-compose.vnext.yml -f docker-compose.vnever.yml up
 #
 # IMPORTANT: Run `pnpm build` before starting docker to populate dist/
 
@@ -12,6 +12,8 @@ services:
       dockerfile: docker/Dockerfile.base
     ports:
       - "8080:8080"
+    env_file:
+      - global-components.mock.env
     environment:
       - NGINX_ENVSUBST_OUTPUT_DIR=/etc/nginx
       - WEBSITE_DNS_SERVER=127.0.0.11
@@ -20,6 +22,9 @@ services:
       # Mount from dist/ folder (built by pnpm build)
       - ../dist/nginx.conf.template:/etc/nginx/templates/nginx.conf.template:ro
       - ../dist/nginx.js:/etc/nginx/nginx.js:ro
+      - ../dist/global-components.conf.template:/etc/nginx/templates/global-components.conf.template:ro
+      - ../dist/global-components.js:/etc/nginx/templates/global-components.js:ro
+      - ./global-components-deployment.mock.json:/etc/nginx/templates/global-components-deployment.json:ro
     depends_on:
       - mock-upstream
 

@@ -50,8 +50,6 @@ if [ ! -f "secrets.env" ]; then
   echo "  AZURE_STORAGE_CONTAINER"
   echo "  AZURE_WEBAPP_NAME"
   echo "  STATUS_ENDPOINT"
-  echo "  WM_MDS_BASE_URL"
-  echo "  WM_MDS_ACCESS_KEY"
   echo "  GLOBAL_COMPONENTS_APPLICATION_ID"
   echo "  GLOBAL_COMPONENTS_BLOB_STORAGE_URL"
   exit 1
@@ -59,7 +57,7 @@ fi
 source secrets.env
 
 # Validate required variables
-REQUIRED_VARS="AZURE_SUBSCRIPTION_ID AZURE_RESOURCE_GROUP AZURE_STORAGE_ACCOUNT AZURE_STORAGE_CONTAINER AZURE_WEBAPP_NAME STATUS_ENDPOINT WM_MDS_BASE_URL WM_MDS_ACCESS_KEY GLOBAL_COMPONENTS_APPLICATION_ID GLOBAL_COMPONENTS_BLOB_STORAGE_URL"
+REQUIRED_VARS="AZURE_SUBSCRIPTION_ID AZURE_RESOURCE_GROUP AZURE_STORAGE_ACCOUNT AZURE_STORAGE_CONTAINER AZURE_WEBAPP_NAME STATUS_ENDPOINT GLOBAL_COMPONENTS_APPLICATION_ID GLOBAL_COMPONENTS_BLOB_STORAGE_URL"
 for var in $REQUIRED_VARS; do
   if [ -z "${!var}" ]; then
     echo -e "${RED}Error: $var is not set in secrets.env${NC}"
@@ -75,16 +73,16 @@ ARTIFACT_NAME="${ARTIFACT_NAME:-proxy-artifact}"
 CONTENT_DIR="./$AZURE_STORAGE_CONTAINER"
 
 # Files to deploy (these come from the build artifact's proxy/ folder)
+# Note: nginx.js, global-components.conf.template, and global-components.js
+# are deployed by the parent project - we only deploy vnext-specific files
 FILES_TO_DEPLOY=(
-  "nginx.js"
-  "global-components.conf.template"
-  "global-components.js"
   "global-components.vnext.conf.template"
   "global-components.vnext.js"
 )
 
-# App settings to deploy
-APP_SETTINGS_VARS="WM_MDS_BASE_URL WM_MDS_ACCESS_KEY GLOBAL_COMPONENTS_APPLICATION_ID GLOBAL_COMPONENTS_BLOB_STORAGE_URL"
+# App settings to deploy (vnext-specific only)
+# Note: WM_MDS_BASE_URL and WM_MDS_ACCESS_KEY are deployed by the parent project
+APP_SETTINGS_VARS="GLOBAL_COMPONENTS_APPLICATION_ID GLOBAL_COMPONENTS_BLOB_STORAGE_URL"
 
 # Deployment version file
 DEPLOYMENT_JSON="global-components-deployment.json"
