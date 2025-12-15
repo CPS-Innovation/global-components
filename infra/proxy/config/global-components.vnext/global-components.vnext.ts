@@ -270,12 +270,12 @@ function filterSwaggerBody(
   const host = (r.headersIn["Host"] as string) || r.variables.host
   const proxyBase = "https://" + host + "/global-components/"
 
-  const pattern = new RegExp(
-    _escapeRegExp(r.variables.wm_mds_base_url as string),
-    "g"
-  )
+  // Strip trailing slash from base URL for matching (swagger may not include it)
+  const baseUrl = (r.variables.wm_mds_base_url as string).replace(/\/$/, "")
+  const pattern = new RegExp(_escapeRegExp(baseUrl), "g")
+
   const result = data
-    .replace(pattern, proxyBase)
+    .replace(pattern, proxyBase.replace(/\/$/, ""))
     .replace(/\"\/api\//g, '"/global-components/')
 
   r.sendBuffer(result, flags)

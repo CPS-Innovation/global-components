@@ -440,6 +440,23 @@ async function runTests(): Promise<void> {
     )
   })
 
+  await test("replaces upstream URL without trailing slash", async () => {
+    // WM_MDS_BASE_URL has trailing slash but swagger JSON may not
+    const r = createMockRequest({
+      headersIn: { Host: "proxy.example.com" },
+    })
+    const data = '{"url": "http://mock-upstream:3000/api"}'
+    glocovnext.filterSwaggerBody(r, data, {})
+    assert(
+      r.sentBuffer!.includes("https://proxy.example.com/global-components"),
+      `Should replace upstream URL without trailing slash, got: ${r.sentBuffer}`
+    )
+    assert(
+      !r.sentBuffer!.includes("mock-upstream"),
+      `Should not contain original URL, got: ${r.sentBuffer}`
+    )
+  })
+
   await test("rewrites API paths", async () => {
     const r = createMockRequest({
       headersIn: { Host: "proxy.example.com" },
