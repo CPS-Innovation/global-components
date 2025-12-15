@@ -4,14 +4,15 @@ dist/
 # Test build artifacts
 .dist/
 
-# Compiled JavaScript files (keep nginx.js which is not ours)
+# Compiled JavaScript files (keep nginx.js which is not ours, and test files)
 config/**/*.js
 !config/main/nginx.js
+!config/**/tests/*.js
 
 # Deployment secrets and backups
 deploy/secrets.env
 deploy/backups/
 
 # Environment config files (contain secrets)
-config/global-components/.env
+config/main/.env
 config/global-components.vnext/.env

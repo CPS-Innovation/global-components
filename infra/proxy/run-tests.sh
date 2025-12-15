@@ -38,7 +38,7 @@ wait_for_proxy() {
 # Stop any running stack
 stop_stack() {
   cd "$DOCKER_DIR"
-  docker compose -f docker-compose.yml -f docker-compose.global-components.yml -f docker-compose.vnext.yml -f docker-compose.vnever.yml down -t 2 2>/dev/null || true
+  docker compose -f docker-compose.yml -f docker-compose.vnext.yml -f docker-compose.vnever.yml down -t 2 2>/dev/null || true
 }
 
 # Run a test layer
@@ -98,20 +98,20 @@ else
   TOTAL_FAILED=$((TOTAL_FAILED + 1))
 fi
 
-# Layer 2: Global Components
+# Layer 2: Global Components (now part of base config)
 if run_layer "global-components" \
-  "-f docker-compose.yml -f docker-compose.global-components.yml" \
+  "-f docker-compose.yml" \
   "/global-components/cms-session-hint" \
-  "$SCRIPT_DIR/config/global-components/tests/global-components.integration.test.js"; then
+  "$SCRIPT_DIR/config/main/tests/global-components.integration.test.js"; then
   LAYER_RESULTS="${LAYER_RESULTS}  ${GREEN}✓${NC} global-components\n"
 else
   LAYER_RESULTS="${LAYER_RESULTS}  ${RED}✗${NC} global-components\n"
   TOTAL_FAILED=$((TOTAL_FAILED + 1))
 fi
 
-# Layer 3: VNext (requires global-components)
+# Layer 3: VNext
 if run_layer "vnext" \
-  "-f docker-compose.yml -f docker-compose.global-components.yml -f docker-compose.vnext.yml" \
+  "-f docker-compose.yml -f docker-compose.vnext.yml" \
   "/global-components/status" \
   "$SCRIPT_DIR/config/global-components.vnext/tests/global-components.vnext.integration.test.js"; then
   LAYER_RESULTS="${LAYER_RESULTS}  ${GREEN}✓${NC} vnext\n"
@@ -122,7 +122,7 @@ fi
 
 # Layer 4: VNever (requires vnext) - not deployed, test-only features
 if run_layer "vnever" \
-  "-f docker-compose.yml -f docker-compose.global-components.yml -f docker-compose.vnext.yml -f docker-compose.vnever.yml" \
+  "-f docker-compose.yml -f docker-compose.vnext.yml -f docker-compose.vnever.yml" \
   "/global-components/status" \
   "$SCRIPT_DIR/config/global-components.vnever/tests/global-components.vnever.integration.test.js"; then
   LAYER_RESULTS="${LAYER_RESULTS}  ${GREEN}✓${NC} vnever\n"
