@@ -73,8 +73,9 @@ ARTIFACT_NAME="${ARTIFACT_NAME:-proxy-artifact}"
 CONTENT_DIR="${HOME}/.gc-deploy-content"
 
 # Files to deploy (these come from the build artifact's proxy/ folder)
-# Note: nginx.js, global-components.conf.template, and global-components.js
+# Note: nginx.js, global-components.conf, and global-components.js
 # are deployed by the parent project - we only deploy vnext-specific files
+# Source files are .conf but build.sh adds .template suffix for nginx envsubst
 FILES_TO_DEPLOY=(
   "global-components.vnext.conf.template"
   "global-components.vnext.js"
