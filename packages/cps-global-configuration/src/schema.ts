@@ -111,7 +111,7 @@ export type FetchCircuitBreakerConfig = z.infer<
 
 export const configBaseSchema = z.object({
   ENVIRONMENT: z.string(),
-  REDIRECT_SCRIPT_URL: z.boolean().optional(),
+  REDIRECT_SCRIPT_URL: z.string().optional(),
   LINKS: z.array(linkSchema),
   BANNER_TITLE_HREF: z.string(),
   AD_TENANT_AUTHORITY: z.string().optional(),
