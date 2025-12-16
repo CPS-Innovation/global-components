@@ -1,0 +1,23 @@
+{
+  "name": "cps-global-script-redirect",
+  "version": "1.0.0",
+  "description": "Injects a script tag into the document head with a configurable src URL",
+  "main": "dist/script-redirect.js",
+  "types": "dist/index.d.ts",
+  "type": "module",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "rollup -c rollup.config.mjs",
+    "dev": "tsc --watch",
+    "clean": "rm -rf dist"
+  },
+  "devDependencies": {
+    "@rollup/plugin-replace": "^6.0.0",
+    "@rollup/plugin-typescript": "^12.0.0",
+    "rollup": "^4.0.0",
+    "tslib": "^2.6.0",
+    "typescript": "^5.0.0"
+  }
+}
