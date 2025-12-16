@@ -1,6 +1,5 @@
 {
   "ENVIRONMENT": "test",
-  "REDIRECT_SCRIPT_URL": "https://polaris-qa-notprod.cps.gov.uk/global-components/test/global-components.js",
   "BANNER_TITLE_HREF": "https://cps-tst.outsystemsenterprise.com/Casework_Blocks/home",
   "AD_TENANT_AUTHORITY": "https://login.microsoftonline.com/00dd0d1d-d7e6-4338-ac51-565339c7088c",
   "AD_CLIENT_ID": "8d6133af-9593-47c6-94d0-5c65e9e310f1",
