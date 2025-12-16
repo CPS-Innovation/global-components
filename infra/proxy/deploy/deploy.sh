@@ -50,8 +50,6 @@ if [ ! -f "secrets.env" ]; then
   echo "  AZURE_STORAGE_CONTAINER"
   echo "  AZURE_WEBAPP_NAME"
   echo "  STATUS_ENDPOINT"
-  echo "  WM_MDS_BASE_URL"
-  echo "  WM_MDS_ACCESS_KEY"
   echo "  GLOBAL_COMPONENTS_APPLICATION_ID"
   echo "  GLOBAL_COMPONENTS_BLOB_STORAGE_URL"
   exit 1
@@ -59,7 +57,7 @@ fi
 source secrets.env
 
 # Validate required variables
-REQUIRED_VARS="AZURE_SUBSCRIPTION_ID AZURE_RESOURCE_GROUP AZURE_STORAGE_ACCOUNT AZURE_STORAGE_CONTAINER AZURE_WEBAPP_NAME STATUS_ENDPOINT WM_MDS_BASE_URL WM_MDS_ACCESS_KEY GLOBAL_COMPONENTS_APPLICATION_ID GLOBAL_COMPONENTS_BLOB_STORAGE_URL"
+REQUIRED_VARS="AZURE_SUBSCRIPTION_ID AZURE_RESOURCE_GROUP AZURE_STORAGE_ACCOUNT AZURE_STORAGE_CONTAINER AZURE_WEBAPP_NAME STATUS_ENDPOINT GLOBAL_COMPONENTS_APPLICATION_ID GLOBAL_COMPONENTS_BLOB_STORAGE_URL"
 for var in $REQUIRED_VARS; do
   if [ -z "${!var}" ]; then
     echo -e "${RED}Error: $var is not set in secrets.env${NC}"
@@ -71,20 +69,21 @@ done
 GITHUB_REPO="${GITHUB_REPO:-CPS-Innovation/global-components}"
 ARTIFACT_NAME="${ARTIFACT_NAME:-proxy-artifact}"
 
-# Content directory (matches blob container name)
-CONTENT_DIR="./$AZURE_STORAGE_CONTAINER"
+# Content directory (use HOME for Windows compatibility)
+CONTENT_DIR="${HOME}/.gc-deploy-content"
 
 # Files to deploy (these come from the build artifact's proxy/ folder)
+# Note: nginx.js, global-components.conf, and global-components.js
+# are deployed by the parent project - we only deploy vnext-specific files
+# Source files are .conf but build.sh adds .template suffix for nginx envsubst
 FILES_TO_DEPLOY=(
-  "nginx.js"
-  "global-components.conf.template"
-  "global-components.js"
   "global-components.vnext.conf.template"
   "global-components.vnext.js"
 )
 
-# App settings to deploy
-APP_SETTINGS_VARS="WM_MDS_BASE_URL WM_MDS_ACCESS_KEY GLOBAL_COMPONENTS_APPLICATION_ID GLOBAL_COMPONENTS_BLOB_STORAGE_URL"
+# App settings to deploy (vnext-specific only)
+# Note: WM_MDS_BASE_URL and WM_MDS_ACCESS_KEY are deployed by the parent project
+APP_SETTINGS_VARS="GLOBAL_COMPONENTS_APPLICATION_ID GLOBAL_COMPONENTS_BLOB_STORAGE_URL"
 
 # Deployment version file
 DEPLOYMENT_JSON="global-components-deployment.json"
@@ -95,8 +94,14 @@ echo "  Repo: $GITHUB_REPO"
 echo "  Artifact: $ARTIFACT_NAME"
 
 # Create temp directory for artifact download
-ARTIFACT_DIR=$(mktemp -d)
-trap "rm -rf $ARTIFACT_DIR" EXIT
+# Use HOME for Windows compatibility (current dir may have issues when piped from curl)
+ARTIFACT_DIR="${HOME}/.gc-deploy-temp-$$"
+if ! mkdir -p "$ARTIFACT_DIR"; then
+  echo -e "${RED}Error: Failed to create temp directory: $ARTIFACT_DIR${NC}"
+  echo "Current directory: $(pwd)"
+  exit 1
+fi
+trap "rm -rf '$ARTIFACT_DIR'" EXIT
 
 # Download the latest artifact from a successful workflow run on main
 echo "  Finding latest successful build..."
@@ -119,6 +124,10 @@ if ! gh run download "$RUN_ID" --repo "$GITHUB_REPO" --name "$ARTIFACT_NAME" --d
   echo -e "${RED}Error: Failed to download artifact${NC}"
   exit 1
 fi
+
+# Debug: show what was downloaded
+echo "  Downloaded files:"
+ls -la "$ARTIFACT_DIR" 2>&1 | sed 's/^/    /'
 
 # Copy proxy files to content directory
 mkdir -p "$CONTENT_DIR"
@@ -152,7 +161,7 @@ az storage blob list \
   2>&1 | sed 's/^/  /'
 
 # Create backup directory
-BACKUP_DIR="./backups/$(date +%Y%m%d_%H%M%S)"
+BACKUP_DIR="${HOME}/.gc-deploy-backups/$(date +%Y%m%d_%H%M%S)"
 mkdir -p "$BACKUP_DIR"
 echo -e "\n${YELLOW}Backing up current files to $BACKUP_DIR...${NC}"
 

@@ -65,7 +65,7 @@ interface GlocoVnextModule {
 async function build(): Promise<void> {
   // Bundle base module first
   await esbuild.build({
-    entryPoints: [path.join(CONFIG_DIR, "global-components", "global-components.ts")],
+    entryPoints: [path.join(CONFIG_DIR, "main", "global-components.ts")],
     bundle: true,
     outfile: path.join(DIST_DIR, "global-components.bundle.js"),
     format: "esm",
@@ -437,6 +437,23 @@ async function runTests(): Promise<void> {
     assert(
       r.sentBuffer!.includes("https://proxy.example.com/global-components"),
       `Should replace upstream URL, got: ${r.sentBuffer}`
+    )
+  })
+
+  await test("replaces upstream URL without trailing slash", async () => {
+    // WM_MDS_BASE_URL has trailing slash but swagger JSON may not
+    const r = createMockRequest({
+      headersIn: { Host: "proxy.example.com" },
+    })
+    const data = '{"url": "http://mock-upstream:3000/api"}'
+    glocovnext.filterSwaggerBody(r, data, {})
+    assert(
+      r.sentBuffer!.includes("https://proxy.example.com/global-components"),
+      `Should replace upstream URL without trailing slash, got: ${r.sentBuffer}`
+    )
+    assert(
+      !r.sentBuffer!.includes("mock-upstream"),
+      `Should not contain original URL, got: ${r.sentBuffer}`
     )
   })
 

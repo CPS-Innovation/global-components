@@ -118,10 +118,9 @@ PRE_ROLLBACK_DIR="$BACKUPS_DIR/$(date +%Y%m%d_%H%M%S)_pre-rollback_v${CURRENT_VE
 mkdir -p "$PRE_ROLLBACK_DIR"
 echo -e "\n${YELLOW}Backing up current state before rollback to: $PRE_ROLLBACK_DIR${NC}"
 
+# Note: nginx.js, global-components.conf.template, and global-components.js
+# are deployed by the parent project - we only backup/restore vnext-specific files
 FILES_TO_BACKUP=(
-  "nginx.js"
-  "global-components.conf.template"
-  "global-components.js"
   "global-components.vnext.conf.template"
   "global-components.vnext.js"
   "global-components-deployment.json"
