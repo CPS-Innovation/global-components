@@ -4,13 +4,14 @@ import { LocalStorageCache } from "../cache/create-cache";
 import { caseDetailsSafeToCacheFields, CaseDetailsSchema } from "./CaseDetails";
 import { extractTagsFromCaseDetails } from "./extract-tags-from-case-details";
 import { SubscriptionFactory } from "../../store/subscriptions/SubscriptionFactory";
-import { Handover, HandoverData } from "../handover/Handover";
+import { Handover } from "../handover/Handover";
+import { Result } from "../../utils/Result";
 
 type Props = {
   config: Config;
   cache: LocalStorageCache;
-  handover: Handover;
-  setNextHandover: (data: HandoverData) => void;
+  handover: Result<Handover>;
+  setNextHandover: (data: Handover) => void;
   fetch: typeof fetch;
 };
 
@@ -19,7 +20,7 @@ export const caseDetailsSubscriptionFactory = ({ config, cache, fetch, handover,
   const caseDetailsCache = cache.createEntityCache("case-details", CaseDetailsSchema, { cacheableFields: caseDetailsSafeToCacheFields, ...config.CACHE_CONFIG });
 
   if (handover.found) {
-    caseDetailsCache.set(String(handover.data.caseDetails.id), handover.data.caseDetails);
+    caseDetailsCache.set(String(handover.result.caseDetails.id), handover.result.caseDetails);
   }
 
   return ({ register, mergeTags }) => ({
