@@ -66,8 +66,8 @@ const startupPhase = async ({ window, storeFns: { register, mergeTags, readyStat
   register({ flags });
 
   const [cmsSessionHint, { handover, setNextHandover }, preview, config] = await Promise.all([
-    initialiseCmsSessionHint({ rootUrl }),
-    initialiseHandover({ rootUrl }),
+    initialiseCmsSessionHint({ rootUrl, flags }),
+    initialiseHandover({ rootUrl, flags }),
     initialisePreview({ rootUrl }),
     initialiseConfig({ rootUrl, flags }),
   ]);
