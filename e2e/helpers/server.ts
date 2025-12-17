@@ -16,6 +16,16 @@ const server = createServer((request, response) => {
     const config = decode(request.headers["x-config"] as string)
     response.writeHead(200, { "Content-Type": "application/json" })
     response.end(config)
+  } else if (parsedUrl.pathname === "/cms-session-hint") {
+    // Return a valid cms-session-hint response for e2e tests
+    // isProxySession: true is required for menu to show (fail-safe logic)
+    const cmsSessionHint = {
+      isProxySession: true,
+      cmsDomains: [],
+      handoverEndpoint: ""
+    }
+    response.writeHead(200, { "Content-Type": "application/json" })
+    response.end(JSON.stringify(cmsSessionHint))
   } else if (parsedUrl.pathname.startsWith(C.GATEWAY_URL)) {
     const caseSummaryMatch = parsedUrl.pathname.match(
       /\/cases\/(\d+)\/summary$/
