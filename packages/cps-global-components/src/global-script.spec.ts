@@ -1044,8 +1044,14 @@ describe("global-script", () => {
       expect(mockInitialiseConfig).toHaveBeenCalledWith({ rootUrl: testRootUrl, flags: testFlags });
     });
 
-    it("should pass rootUrl to initialiseCmsSessionHint", async () => {
+    it("should pass rootUrl and flags to initialiseCmsSessionHint", async () => {
+      const testFlags = {
+        e2eTestMode: { isE2eTestMode: false },
+        isOverrideMode: false,
+        isDevelopment: false,
+      };
       const testRootUrl = "https://test.example.com/env/script.js";
+      mockGetApplicationFlags.mockReturnValue(testFlags);
       mockInitialiseRootUrl.mockReturnValue(testRootUrl);
 
       const globalScript = require("./global-script").default;
@@ -1054,11 +1060,18 @@ describe("global-script", () => {
 
       expect(mockInitialiseCmsSessionHint).toHaveBeenCalledWith({
         rootUrl: testRootUrl,
+        flags: testFlags,
       });
     });
 
-    it("should pass rootUrl to initialiseHandover", async () => {
+    it("should pass rootUrl and flags to initialiseHandover", async () => {
+      const testFlags = {
+        e2eTestMode: { isE2eTestMode: false },
+        isOverrideMode: false,
+        isDevelopment: false,
+      };
       const testRootUrl = "https://test.example.com/env/script.js";
+      mockGetApplicationFlags.mockReturnValue(testFlags);
       mockInitialiseRootUrl.mockReturnValue(testRootUrl);
 
       const globalScript = require("./global-script").default;
@@ -1067,6 +1080,7 @@ describe("global-script", () => {
 
       expect(mockInitialiseHandover).toHaveBeenCalledWith({
         rootUrl: testRootUrl,
+        flags: testFlags,
       });
     });
 
