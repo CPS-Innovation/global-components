@@ -2,6 +2,9 @@ export {
   configSchema,
   type Config,
   type ConfigStorage,
+  type Context,
+  type DomTagDefinitions,
+  type FeatureFlagUsers,
   type Link,
   type ContextsToUseEventNavigation,
 } from "./config"

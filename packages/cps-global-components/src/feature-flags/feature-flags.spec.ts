@@ -256,7 +256,7 @@ describe("FEATURE_FLAGS", () => {
       expect(result).toBe(true);
     });
 
-    it("should fail-safe and return false when cmsSessionHint is not found", () => {
+    it("should fail-open and continue to normal logic when cmsSessionHint is not found", () => {
       const state: Pick<State, "config" | "auth" | "context" | "cmsSessionHint"> = {
         config: { SHOW_MENU: true, FEATURE_FLAG_MENU_USERS: { adGroupIds: ["admin-group"] } } as any,
         auth: { isAuthed: true, groups: ["admin-group"], username: "testuser", objectId: "test-object-id" } as any,
@@ -265,7 +265,7 @@ describe("FEATURE_FLAGS", () => {
       };
 
       const result = FEATURE_FLAGS.shouldShowMenu(state);
-      expect(result).toBe(false);
+      expect(result).toBe(true);
     });
   });
 
