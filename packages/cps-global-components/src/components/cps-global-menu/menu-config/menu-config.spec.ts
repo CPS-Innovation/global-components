@@ -18,7 +18,8 @@ import { createOutboundUrlDirect } from "cps-global-os-handover";
 import { Build, State } from "../../../store/store";
 import { CorrelationIds } from "../../../services/correlation/CorrelationIds";
 import { CaseDetails } from "../../../services/data/CaseDetails";
-import { CmsSessionHintResult } from "../../../services/cms-session/CmsSessionHint";
+import { Result } from "../../../utils/Result";
+import { CmsSessionHint } from "../../../services/cms-session/CmsSessionHint";
 
 // Type the mocked functions
 const mockShouldShowLink = shouldShowLink as jest.MockedFunction<typeof shouldShowLink>;
@@ -85,9 +86,9 @@ describe("menuConfig", () => {
 
   const mockCaseDetails: CaseDetails = { id: 1, urn: "foo", isDcfCase: false };
 
-  const mockCmsSessionHint: CmsSessionHintResult = {
+  const mockCmsSessionHint: Result<CmsSessionHint> = {
     found: false,
-    error: undefined,
+    error: {} as Error,
   };
 
   beforeEach(() => {
@@ -102,6 +103,8 @@ describe("menuConfig", () => {
     };
 
     const mockState: State = {
+      rootUrl: "",
+      preview: { found: true, result: {} },
       context: foundContext,
       firstContext: foundContext,
       caseDetails: mockCaseDetails,
@@ -119,7 +122,7 @@ describe("menuConfig", () => {
       caseIdentifiers: { caseId: "1" },
       build: {} as Build,
       cmsSessionHint: mockCmsSessionHint,
-      handover: { found: false, error: null },
+      handover: { found: false, error: {} as Error },
     };
 
     const result = menuConfig(mockState);
@@ -152,6 +155,8 @@ describe("menuConfig", () => {
     };
 
     const mockState: State = {
+      rootUrl: "",
+      preview: { found: true, result: {} },
       context: foundContext,
       firstContext: foundContext,
       caseDetails: mockCaseDetails,
@@ -169,7 +174,7 @@ describe("menuConfig", () => {
       caseIdentifiers: { caseId: "1" },
       build: {} as Build,
       cmsSessionHint: mockCmsSessionHint,
-      handover: { found: false, error: null },
+      handover: { found: false, error: {} as Error },
     };
 
     // Mock shouldShowLink to filter out the second link
@@ -264,6 +269,8 @@ describe("menuConfig", () => {
     };
 
     const mockState: State = {
+      rootUrl: "",
+      preview: { found: true, result: {} },
       context: foundContext,
       firstContext: foundContext,
       caseDetails: mockCaseDetails,
@@ -287,7 +294,7 @@ describe("menuConfig", () => {
       caseIdentifiers: { caseId: "1" },
       build: {} as Build,
       cmsSessionHint: mockCmsSessionHint,
-      handover: { found: false, error: null },
+      handover: { found: false, error: {} as Error },
     };
 
     // Mock shouldShowLink to pass all links
@@ -336,6 +343,8 @@ describe("menuConfig", () => {
     };
 
     const mockState: State = {
+      rootUrl: "",
+      preview: { found: true, result: {} },
       context: foundContext,
       firstContext: foundContext,
       caseDetails: mockCaseDetails,
@@ -359,7 +368,7 @@ describe("menuConfig", () => {
       caseIdentifiers: { caseId: "1" },
       build: {} as Build,
       cmsSessionHint: mockCmsSessionHint,
-      handover: { found: false, error: null },
+      handover: { found: false, error: {} as Error },
     };
 
     // Mock shouldShowLink to pass all links
@@ -408,6 +417,8 @@ describe("menuConfig", () => {
     };
 
     const mockState: State = {
+      rootUrl: "",
+      preview: { found: true, result: {} },
       context: foundContext,
       firstContext: foundContext,
       caseDetails: mockCaseDetails,
@@ -432,7 +443,7 @@ describe("menuConfig", () => {
       caseIdentifiers: { caseId: "1" },
       build: {} as Build,
       cmsSessionHint: mockCmsSessionHint,
-      handover: { found: false, error: null },
+      handover: { found: false, error: {} as Error },
     };
 
     // Mock shouldShowLink to pass all links
@@ -480,6 +491,8 @@ describe("menuConfig", () => {
     };
 
     const mockState: State = {
+      rootUrl: "",
+      preview: { found: true, result: {} },
       context: foundContext,
       firstContext: foundContext,
       caseDetails: mockCaseDetails,
@@ -504,7 +517,7 @@ describe("menuConfig", () => {
       caseIdentifiers: { caseId: "1" },
       build: {} as Build,
       cmsSessionHint: mockCmsSessionHint,
-      handover: { found: false, error: null },
+      handover: { found: false, error: {} as Error },
     };
 
     // Mock shouldShowLink to pass all links
@@ -562,9 +575,9 @@ describe("menuConfig", () => {
       currentHref: "https://foo",
     };
 
-    const cmsSessionHintWithEndpoint: CmsSessionHintResult = {
+    const cmsSessionHintWithEndpoint: Result<CmsSessionHint> = {
       found: true,
-      hint: {
+      result: {
         cmsDomains: ["example.com"],
         isProxySession: true,
         handoverEndpoint: "https://proxy-cookie.example.com",
@@ -572,6 +585,8 @@ describe("menuConfig", () => {
     };
 
     const mockState: State = {
+      rootUrl: "",
+      preview: { found: true, result: {} },
       context: foundContext,
       firstContext: foundContext,
       caseDetails: mockCaseDetails,
@@ -596,7 +611,7 @@ describe("menuConfig", () => {
       caseIdentifiers: { caseId: "1" },
       build: {} as Build,
       cmsSessionHint: cmsSessionHintWithEndpoint,
-      handover: { found: false, error: null },
+      handover: { found: false, error: {} as Error },
     };
 
     // Mock shouldShowLink to pass all links
