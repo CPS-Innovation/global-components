@@ -1,6 +1,6 @@
 import { describe, test, expect } from "@jest/globals";
 import { transformConfig } from "./transform-config";
-import { ConfigStorage } from "./schema";
+import { ConfigStorage } from "./config";
 
 describe("transformConfig", () => {
   test("preserves order of paths in flat structure", () => {

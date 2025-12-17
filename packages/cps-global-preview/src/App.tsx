@@ -1,25 +1,22 @@
 import { useState, useEffect, useCallback } from 'react';
-
-interface PreviewState {
-  enabled: boolean;
-  features: string[];
-}
+import type { PreviewState } from 'cps-global-configuration';
 
 const STATE_ENDPOINT = '/global-components/state/preview';
 
 const FEATURES = [
-  { id: 'case-markers', label: 'Case details' },
-  { id: 'case-search', label: 'Case search' },
-  { id: 'my-recent-cases', label: 'My recent cases' },
-  { id: 'new-header', label: 'New header' },
-  { id: 'accessibility', label: 'Accessibility' },
+  { key: 'caseMarkers', label: 'Case details' },
+  { key: 'caseSearch', label: 'Case search' },
+  { key: 'myRecentCases', label: 'My recent cases' },
+  { key: 'newHeader', label: 'New header' },
+  { key: 'accessibility', label: 'Accessibility' },
 ] as const;
+
+type FeatureKey = typeof FEATURES[number]['key'];
 
 type StatusType = 'info' | 'error' | 'success';
 
 export function App() {
-  const [enabled, setEnabled] = useState(false);
-  const [features, setFeatures] = useState<string[]>([]);
+  const [state, setState] = useState<PreviewState>({});
   const [loading, setLoading] = useState(true);
   const [status, setStatus] = useState<{ message: string; type: StatusType } | null>(null);
 
@@ -36,10 +33,9 @@ export function App() {
       if (!response.ok) {
         throw new Error('Failed to load state');
       }
-      const state: PreviewState | null = await response.json();
-      if (state) {
-        setEnabled(state.enabled);
-        setFeatures(state.features);
+      const data: PreviewState | null = await response.json();
+      if (data) {
+        setState(data);
       }
     } catch (err) {
       showStatus(`Failed to load settings: ${err instanceof Error ? err.message : 'Unknown error'}`, 'error');
@@ -48,13 +44,13 @@ export function App() {
     }
   }, [showStatus]);
 
-  const saveState = useCallback(async (newEnabled: boolean, newFeatures: string[]) => {
+  const saveState = useCallback(async (newState: PreviewState) => {
     try {
       const response = await fetch(STATE_ENDPOINT, {
         method: 'PUT',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ enabled: newEnabled, features: newFeatures }),
+        body: JSON.stringify(newState),
       });
       if (!response.ok) {
         throw new Error('Failed to save state');
@@ -70,16 +66,15 @@ export function App() {
   }, [loadState]);
 
   const handleEnabledChange = (checked: boolean) => {
-    setEnabled(checked);
-    saveState(checked, features);
+    const newState = { ...state, enabled: checked || undefined };
+    setState(newState);
+    saveState(newState);
   };
 
-  const handleFeatureChange = (featureId: string, checked: boolean) => {
-    const newFeatures = checked
-      ? [...features, featureId]
-      : features.filter(f => f !== featureId);
-    setFeatures(newFeatures);
-    saveState(enabled, newFeatures);
+  const handleFeatureChange = (key: FeatureKey, checked: boolean) => {
+    const newState = { ...state, [key]: checked || undefined };
+    setState(newState);
+    saveState(newState);
   };
 
   const statusClassName = status
@@ -129,7 +124,7 @@ export function App() {
                   id="enabled"
                   name="enabled"
                   type="checkbox"
-                  checked={enabled}
+                  checked={state.enabled ?? false}
                   disabled={loading}
                   onChange={(e) => handleEnabledChange(e.target.checked)}
                 />
@@ -147,19 +142,18 @@ export function App() {
               <h2 className="govuk-fieldset__heading">Features</h2>
             </legend>
             <div className="govuk-checkboxes" data-module="govuk-checkboxes">
-              {FEATURES.map(({ id, label }) => (
-                <div key={id} className="govuk-checkboxes__item">
+              {FEATURES.map(({ key, label }) => (
+                <div key={key} className="govuk-checkboxes__item">
                   <input
                     className="govuk-checkboxes__input"
-                    id={id}
+                    id={key}
                     name="features"
                     type="checkbox"
-                    value={id}
-                    checked={features.includes(id)}
+                    checked={state[key] ?? false}
                     disabled={loading}
-                    onChange={(e) => handleFeatureChange(id, e.target.checked)}
+                    onChange={(e) => handleFeatureChange(key, e.target.checked)}
                   />
-                  <label className="govuk-label govuk-checkboxes__label" htmlFor={id}>
+                  <label className="govuk-label govuk-checkboxes__label" htmlFor={key}>
                     {label}
                   </label>
                 </div>

@@ -4,5 +4,9 @@ export {
   type ConfigStorage,
   type Link,
   type ContextsToUseEventNavigation,
-} from "./schema"
+} from "./config"
+export {
+  previewStateSchema,
+  type PreviewState,
+} from "./preview"
 export { transformAndValidateConfig, type ValidationResult } from "./validator"
