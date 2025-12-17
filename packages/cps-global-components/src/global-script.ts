@@ -1,4 +1,3 @@
-import { handleSetOverrideMode } from "./services/override-mode/handle-set-override-mode";
 import { initialiseAuth } from "./services/auth/initialise-auth";
 import { initialiseStore } from "./store/store";
 import { initialiseAnalytics } from "./services/analytics/initialise-analytics";
@@ -15,6 +14,8 @@ import { initialiseInterimDcfNavigation } from "./services/outsystems-shim/initi
 import { initialiseCaseDetailsData } from "./services/data/initialise-case-details-data";
 import { initialiseNavigationSubscription } from "./services/browser/navigation/initialise-navigation-subscription";
 import { initialiseCorrelationIds } from "./services/correlation/initialise-correlation-ids";
+import { initialiseRootUrl } from "./services/root-url/initialise-root-url";
+import { initialisePreview } from "./services/preview/initialise-preview";
 
 const { _error } = makeConsole("global-script");
 
@@ -53,24 +54,27 @@ const initialise = async (window: Window & typeof globalThis) => {
 };
 
 const startupPhase = async ({ window, storeFns: { register, mergeTags, readyState } }: { window: Window & typeof globalThis; storeFns: ReturnType<typeof initialiseStore> }) => {
-  handleSetOverrideMode({ window });
+  const build = window.cps_global_components_build;
+  register({ build });
 
   const interimDcfNavigationObserver = initialiseInterimDcfNavigation({ window });
+
+  const rootUrl = initialiseRootUrl();
+  register({ rootUrl });
 
   const flags = getApplicationFlags({ window });
   register({ flags });
 
-  const build = window.cps_global_components_build;
-  register({ build });
-
-  const config = await initialiseConfig({ flags });
-  register({ config });
+  const [cmsSessionHint, { handover, setNextHandover }, preview, config] = await Promise.all([
+    initialiseCmsSessionHint({ rootUrl, flags }),
+    initialiseHandover({ rootUrl, flags }),
+    initialisePreview({ rootUrl }),
+    initialiseConfig({ rootUrl, flags }),
+  ]);
+  register({ cmsSessionHint, handover, preview, config });
 
   const firstContext = initialiseContext({ window, config });
   register({ firstContext });
-
-  const [cmsSessionHint, { handover, setNextHandover }] = await Promise.all([initialiseCmsSessionHint({ config, flags }), initialiseHandover({ config, flags })]);
-  register({ cmsSessionHint, handover });
 
   const { trackPageView, trackEvent, trackException } = initialiseAnalytics({ window, config, readyState, build, cmsSessionHint, flags });
 

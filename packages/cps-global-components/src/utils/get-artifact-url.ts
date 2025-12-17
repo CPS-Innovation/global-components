@@ -1,1 +1,1 @@
-export const getArtifactUrl = (fileName: string) => new URL("./", import.meta.url).href + fileName;
+export const getArtifactUrl = (rootUrl: string, path: string) => new URL(path, rootUrl).href;

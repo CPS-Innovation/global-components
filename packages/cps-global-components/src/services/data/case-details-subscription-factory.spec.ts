@@ -4,6 +4,7 @@ import { LocalStorageCache } from "../cache/create-cache";
 import { Handover } from "../handover/Handover";
 import { CaseDetails } from "./CaseDetails";
 import { CaseIdentifiers } from "../context/CaseIdentifiers";
+import { Result } from "../../utils/Result";
 
 type CaseIdentifiersHandler = (v: CaseIdentifiers | undefined) => void;
 
@@ -20,7 +21,7 @@ describe("caseDetailsSubscriptionFactory", () => {
         maxAge: 3600000,
         maxItems: 100,
       },
-    }) as Config;
+    } as Config);
 
   const createMockEntityCache = () => ({
     get: jest.fn(),
@@ -36,7 +37,7 @@ describe("caseDetailsSubscriptionFactory", () => {
       createEntityCache: jest.fn().mockReturnValue(entityCache),
       clearAll: jest.fn(),
       getStats: jest.fn(),
-    }) as unknown as LocalStorageCache;
+    } as unknown as LocalStorageCache);
 
   const createMockFetch = (responseData: unknown = mockCaseDetails): typeof fetch =>
     jest.fn().mockResolvedValue({
@@ -44,14 +45,14 @@ describe("caseDetailsSubscriptionFactory", () => {
       json: jest.fn().mockResolvedValue(responseData),
     }) as unknown as typeof fetch;
 
-  const createMockHandoverFound = (caseDetails: CaseDetails = mockCaseDetails): Handover => ({
+  const createMockHandoverFound = (caseDetails: CaseDetails = mockCaseDetails): Result<Handover> => ({
     found: true,
-    data: { caseDetails },
+    result: { caseDetails },
   });
 
-  const createMockHandoverNotFound = (): Handover => ({
+  const createMockHandoverNotFound = (): Result<Handover> => ({
     found: false,
-    error: null,
+    error: {} as Error,
   });
 
   describe("factory initialization", () => {

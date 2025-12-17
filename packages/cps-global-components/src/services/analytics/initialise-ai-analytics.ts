@@ -5,17 +5,18 @@ import { CorrelationIds } from "../correlation/CorrelationIds";
 import { AnalyticsEvent, AnalyticsEventData, trackEvent } from "./analytics-event";
 import { makeConsole } from "../../logging/makeConsole";
 import { Build, ReadyStateHelper } from "../../store/store";
-import { CmsSessionHintResult } from "../cms-session/CmsSessionHint";
+import { CmsSessionHint } from "../cms-session/CmsSessionHint";
+import { Result } from "../../utils/Result";
 
 const STORAGE_PREFIX = "cps_global_components";
 
-type Props = { window: Window; config: Config; readyState: ReadyStateHelper; build: Build; cmsSessionHint: CmsSessionHintResult };
+type Props = { window: Window; config: Config; readyState: ReadyStateHelper; build: Build; cmsSessionHint: Result<CmsSessionHint> };
 
 export type Analytics = ReturnType<typeof initialiseAiAnalytics>;
 
 const { _debug } = makeConsole("initialiseAnalytics");
 
-export const initialiseAiAnalytics = ({ window, config: { APP_INSIGHTS_CONNECTION_STRING, ENVIRONMENT }, readyState, build, cmsSessionHint: { hint } }: Props) => {
+export const initialiseAiAnalytics = ({ window, config: { APP_INSIGHTS_CONNECTION_STRING, ENVIRONMENT }, readyState, build, cmsSessionHint: { result: hint } }: Props) => {
   if (!APP_INSIGHTS_CONNECTION_STRING) {
     return { trackPageView: () => {}, trackException: (_: Error) => {}, rebindTrackEvent: () => {}, trackEvent: (_: AnalyticsEventData) => {} };
   }

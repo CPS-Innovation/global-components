@@ -26,6 +26,7 @@ const tryConfigSources = async ([source, ...rest]: ConfigFetch[], configUrl: str
 };
 
 export const initialiseConfig = async ({
+  rootUrl,
   flags: {
     isOverrideMode,
     isOutSystems,
@@ -33,9 +34,10 @@ export const initialiseConfig = async ({
     e2eTestMode: { isE2eTestMode },
   },
 }: {
+  rootUrl: string;
   flags: ApplicationFlags;
 }): Promise<Config> => {
-  const configUrl = getArtifactUrl("config.json");
+  const configUrl = getArtifactUrl(rootUrl, "config.json");
 
   const fetchConfig: ConfigFetch = async (configUrl: string) => await fetch(configUrl);
 

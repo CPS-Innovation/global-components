@@ -57,7 +57,7 @@ describe("FEATURE_FLAGS", () => {
         config: { SHOW_MENU: true, FEATURE_FLAG_MENU_USERS: { adGroupIds: ["admin-group"] } } as any,
         auth: { isAuthed: true, groups: ["admin-group"], username: "testuser", objectId: "test-object-id" } as any,
         context: { found: false },
-        cmsSessionHint: { found: false, error: null },
+        cmsSessionHint: { found: false, error: {} as Error },
       };
 
       const result = FEATURE_FLAGS.shouldShowMenu(state);
@@ -69,7 +69,7 @@ describe("FEATURE_FLAGS", () => {
         config: { SHOW_MENU: true, FEATURE_FLAG_MENU_USERS: { adGroupIds: ["admin-group"] } } as any,
         auth: { isAuthed: true, groups: ["admin-group"], username: "testuser", objectId: "test-object-id" } as any,
         context: { found: true, showMenuOverride: "never-show-menu" } as any,
-        cmsSessionHint: { found: false, error: null },
+        cmsSessionHint: { found: false, error: {} as Error },
       };
 
       const result = FEATURE_FLAGS.shouldShowMenu(state);
@@ -81,7 +81,7 @@ describe("FEATURE_FLAGS", () => {
         config: { SHOW_MENU: false, FEATURE_FLAG_MENU_USERS: { adGroupIds: [] } } as any,
         auth: { isAuthed: false, groups: [], username: "testuser", objectId: "test-object-id" } as any,
         context: { found: true, showMenuOverride: "always-show-menu" } as any,
-        cmsSessionHint: { found: false, error: null },
+        cmsSessionHint: { found: false, error: {} as Error },
       };
 
       const result = FEATURE_FLAGS.shouldShowMenu(state);
@@ -93,7 +93,7 @@ describe("FEATURE_FLAGS", () => {
         config: { SHOW_MENU: true, FEATURE_FLAG_MENU_USERS: { adGroupIds: ["admin-group"] } } as any,
         auth: { isAuthed: true, groups: ["admin-group", "other-group"], username: "testuser", objectId: "test-object-id" } as any,
         context: { found: true } as any,
-        cmsSessionHint: { found: false, error: null },
+        cmsSessionHint: { found: false, error: {} as Error },
       };
 
       const result = FEATURE_FLAGS.shouldShowMenu(state);
@@ -105,7 +105,7 @@ describe("FEATURE_FLAGS", () => {
         config: { SHOW_MENU: false, FEATURE_FLAG_MENU_USERS: { adGroupIds: ["admin-group"] } } as any,
         auth: { isAuthed: true, groups: ["admin-group"], username: "testuser", objectId: "test-object-id" } as any,
         context: { found: true } as any,
-        cmsSessionHint: { found: false, error: null },
+        cmsSessionHint: { found: false, error: {} as Error },
       };
 
       const result = FEATURE_FLAGS.shouldShowMenu(state);
@@ -117,7 +117,7 @@ describe("FEATURE_FLAGS", () => {
         config: { SHOW_MENU: true } as any,
         auth: { isAuthed: true, groups: ["admin-group"], username: "testuser", objectId: "test-object-id" } as any,
         context: { found: true } as any,
-        cmsSessionHint: { found: false, error: null },
+        cmsSessionHint: { found: false, error: {} as Error },
       };
 
       const result = FEATURE_FLAGS.shouldShowMenu(state);
@@ -129,7 +129,7 @@ describe("FEATURE_FLAGS", () => {
         config: { SHOW_MENU: true, FEATURE_FLAG_MENU_USERS: { adGroupIds: ["admin-group"] } } as any,
         auth: { isAuthed: false, groups: ["admin-group"], username: "testuser", objectId: "test-object-id" } as any,
         context: { found: true } as any,
-        cmsSessionHint: { found: false, error: null },
+        cmsSessionHint: { found: false, error: {} as Error },
       };
 
       const result = FEATURE_FLAGS.shouldShowMenu(state);
@@ -141,7 +141,7 @@ describe("FEATURE_FLAGS", () => {
         config: { SHOW_MENU: true, FEATURE_FLAG_MENU_USERS: { adGroupIds: ["admin-group"] } } as any,
         auth: { isAuthed: true, groups: ["other-group", "another-group"], username: "testuser", objectId: "test-object-id" } as any,
         context: { found: true } as any,
-        cmsSessionHint: { found: false, error: null },
+        cmsSessionHint: { found: false, error: {} as Error },
       };
 
       const result = FEATURE_FLAGS.shouldShowMenu(state);
@@ -153,7 +153,7 @@ describe("FEATURE_FLAGS", () => {
         config: { SHOW_MENU: true, FEATURE_FLAG_MENU_USERS: { adGroupIds: ["admin-group"] } } as any,
         auth: { isAuthed: true, groups: [], username: "testuser", objectId: "test-object-id" } as any,
         context: { found: true } as any,
-        cmsSessionHint: { found: false, error: null },
+        cmsSessionHint: { found: false, error: {} as Error },
       };
 
       const result = FEATURE_FLAGS.shouldShowMenu(state);
@@ -165,7 +165,7 @@ describe("FEATURE_FLAGS", () => {
         config: { SHOW_MENU: true, FEATURE_FLAG_MENU_USERS: { adGroupIds: ["admin-group"] } } as any,
         auth: { isAuthed: true, groups: ["user-group", "admin-group", "editor-group"], username: "testuser", objectId: "test-object-id" } as any,
         context: { found: true } as any,
-        cmsSessionHint: { found: false, error: null },
+        cmsSessionHint: { found: false, error: {} as Error },
       };
 
       const result = FEATURE_FLAGS.shouldShowMenu(state);
@@ -177,7 +177,7 @@ describe("FEATURE_FLAGS", () => {
         config: { SHOW_MENU: true, FEATURE_FLAG_MENU_USERS: { adGroupIds: ["admin-group"] } } as any,
         auth: { isAuthed: true, groups: ["admin-group"], username: "testuser", objectId: "test-object-id" } as any,
         context: { found: true, showMenuOverride: "never-show-menu" } as any,
-        cmsSessionHint: { found: false, error: null },
+        cmsSessionHint: { found: false, error: {} as Error },
       };
 
       const result = FEATURE_FLAGS.shouldShowMenu(state);
@@ -189,7 +189,7 @@ describe("FEATURE_FLAGS", () => {
         config: { SHOW_MENU: false, FEATURE_FLAG_MENU_USERS: { adGroupIds: [] } } as any,
         auth: { isAuthed: false, groups: [], username: "testuser", objectId: "test-object-id" } as any,
         context: { found: true, showMenuOverride: "always-show-menu" } as any,
-        cmsSessionHint: { found: false, error: null },
+        cmsSessionHint: { found: false, error: {} as Error },
       };
 
       const result = FEATURE_FLAGS.shouldShowMenu(state);
@@ -201,7 +201,7 @@ describe("FEATURE_FLAGS", () => {
         config: { SHOW_MENU: true, FEATURE_FLAG_MENU_USERS: { adHocUserObjectIds: ["test-object-id"] } } as any,
         auth: { isAuthed: true, groups: [], username: "testuser", objectId: "test-object-id" } as any,
         context: { found: true } as any,
-        cmsSessionHint: { found: false, error: null },
+        cmsSessionHint: { found: false, error: {} as Error },
       };
 
       const result = FEATURE_FLAGS.shouldShowMenu(state);
@@ -213,7 +213,7 @@ describe("FEATURE_FLAGS", () => {
         config: { SHOW_MENU: true, FEATURE_FLAG_MENU_USERS: { adGroupIds: ["admin-group"], adHocUserObjectIds: ["special-object-id"] } } as any,
         auth: { isAuthed: true, groups: [], username: "specialuser", objectId: "special-object-id" } as any,
         context: { found: true } as any,
-        cmsSessionHint: { found: false, error: null },
+        cmsSessionHint: { found: false, error: {} as Error },
       };
 
       const result = FEATURE_FLAGS.shouldShowMenu(state);
@@ -225,7 +225,7 @@ describe("FEATURE_FLAGS", () => {
         config: { SHOW_MENU: true, FEATURE_FLAG_MENU_USERS: { adGroupIds: [], adHocUserObjectIds: [] } } as any,
         auth: { isAuthed: true, groups: ["admin-group"], username: "testuser", objectId: "test-object-id" } as any,
         context: { found: true } as any,
-        cmsSessionHint: { found: false, error: null },
+        cmsSessionHint: { found: false, error: {} as Error },
       };
 
       const result = FEATURE_FLAGS.shouldShowMenu(state);
@@ -237,7 +237,7 @@ describe("FEATURE_FLAGS", () => {
         config: { SHOW_MENU: true, FEATURE_FLAG_MENU_USERS: { adGroupIds: ["admin-group"] } } as any,
         auth: { isAuthed: true, groups: ["admin-group"], username: "testuser", objectId: "test-object-id" } as any,
         context: { found: true } as any,
-        cmsSessionHint: { found: true, hint: { isProxySession: false, cmsDomains: [], handoverEndpoint: "" } },
+        cmsSessionHint: { found: true, result: { isProxySession: false, cmsDomains: [], handoverEndpoint: "" } },
       };
 
       const result = FEATURE_FLAGS.shouldShowMenu(state);
@@ -249,7 +249,7 @@ describe("FEATURE_FLAGS", () => {
         config: { SHOW_MENU: true, FEATURE_FLAG_MENU_USERS: { adGroupIds: ["admin-group"] } } as any,
         auth: { isAuthed: true, groups: ["admin-group"], username: "testuser", objectId: "test-object-id" } as any,
         context: { found: true } as any,
-        cmsSessionHint: { found: true, hint: { isProxySession: true, cmsDomains: [], handoverEndpoint: "" } },
+        cmsSessionHint: { found: true, result: { isProxySession: true, cmsDomains: [], handoverEndpoint: "" } },
       };
 
       const result = FEATURE_FLAGS.shouldShowMenu(state);

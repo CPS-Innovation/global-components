@@ -14,8 +14,10 @@ import { CaseDetails } from "../services/data/CaseDetails";
 import { ReadyStateHelper, readyStateFactory } from "./ready-state-factory";
 import { CaseIdentifiers } from "../services/context/CaseIdentifiers";
 import { caseIdentifiersSubscriptionFactory } from "./subscriptions/case-identifiers-subscription-factory";
-import { CmsSessionHintResult } from "../services/cms-session/CmsSessionHint";
 import { Handover } from "../services/handover/Handover";
+import { Preview } from "../services/preview/Preview";
+import { Result } from "../utils/Result";
+import { CmsSessionHint } from "../services/cms-session/CmsSessionHint";
 export { type ReadyStateHelper };
 
 const registerEventName = "cps-global-components-register";
@@ -43,20 +45,26 @@ type MakeUndefinable<T> = {
 
 // This state is expected to be set up once on startup
 type StartupState = {
+  rootUrl: string;
+  preview: Result<Preview>;
   flags: ApplicationFlags;
   config: Config;
   auth: AuthResult;
   build: Build;
-  cmsSessionHint: CmsSessionHintResult;
+  cmsSessionHint: Result<CmsSessionHint>;
+  handover: Result<Handover>;
   firstContext: FoundContext;
 };
 
 const initialStartupState = {
+  rootUrl: undefined,
+  preview: undefined,
   flags: undefined,
   config: undefined,
   auth: undefined,
   build: undefined,
   cmsSessionHint: undefined,
+  handover: undefined,
   firstContext: undefined,
 };
 
@@ -69,7 +77,6 @@ type TransientState = {
   correlationIds: CorrelationIds;
   caseDetailsTags: Tags;
   caseIdentifiers: CaseIdentifiers;
-  handover: Handover;
   caseDetails: Partial<CaseDetails>;
 };
 const initialTransientState = {
@@ -81,7 +88,6 @@ const initialTransientState = {
   caseDetailsTags: undefined,
   caseIdentifiers: undefined,
   caseDetails: undefined,
-  handover: undefined,
 };
 
 type AggregateState = {
