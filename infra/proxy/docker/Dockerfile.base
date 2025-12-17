@@ -8,7 +8,8 @@ RUN mkdir -p /etc/nginx/templates
 
 # Copy only main nginx config (context is parent directory)
 # Additional configs are mounted via docker-compose overrides
-COPY config/main/nginx.conf.template /etc/nginx/templates/nginx.conf.template
+# Source files are .conf, add .template suffix for nginx envsubst
+COPY config/main/nginx.conf /etc/nginx/templates/nginx.conf.template
 COPY config/main/nginx.js /etc/nginx/nginx.js
 
 # Configure nginx to run as non-root
