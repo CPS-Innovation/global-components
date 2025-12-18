@@ -7,6 +7,11 @@ on:
         description: "JSON array of environment names to deploy to"
         type: string
         required: true
+      ref:
+        description: "Git ref (commit SHA, branch, or tag) to deploy. Defaults to the triggering ref."
+        type: string
+        required: false
+        default: ""
     secrets:
       BLOB_STORAGE_CONNECTION_STRING:
         required: true
@@ -17,6 +22,8 @@ permissions:
 jobs:
   build-and-test:
     uses: ./.github/workflows/sub-workflow-build-and-test.yml
+    with:
+      ref: ${{ inputs.ref }}
 
   deploy-script:
     needs: [build-and-test]
