@@ -15,18 +15,15 @@
 
 ### Steps
 
-1. Go to **Actions** → **"Rollback: deploy previous version and revert"**
+1. Go to **Actions** → **"Rollback: pre-prod environments to previous commit"**
 2. Click **"Run workflow"**
-3. Configure options:
-   - **environments**: Which environments to rollback (default: all pre-prod)
-   - **bad_commit_sha**: Leave empty to rollback the latest commit, or enter a specific SHA
-   - **create_revert_commit**: Keep checked (recommended) to prevent future deploys of bad code
+3. Select **main** branch
 4. Click **"Run workflow"**
 
 ### What happens
 
-1. The workflow deploys the **previous commit** to the selected environments
-2. A **revert commit** is created on main (if enabled)
+1. The workflow deploys the **previous commit** (HEAD^) to all pre-prod environments
+2. A **revert commit** is created on main to prevent future deploys of the bad code
 3. The CI/CD pipeline will **NOT** redeploy the bad code because the revert is now HEAD
 
 ### After rollback
@@ -50,15 +47,16 @@ If the developer merges main (containing the revert) into their feature branch, 
 
 1. **Confirm** the developer has fixed the issue on their feature branch
 2. Go to **Actions** → **"Utility: revert the revert (prepare for re-merge)"**
-3. Enter the **revert commit SHA** (found in the original rollback workflow summary)
+3. Select **main** branch
 4. Click **"Run workflow"**
 5. **Tell the developer** they can now create a new PR
 
 ### What happens
 
-1. The revert commit is itself reverted, re-enabling the original feature on main
-2. This triggers CI/CD and deploys to pre-prod environments
-3. The developer's new PR will now only contain their **fix**, not the whole feature
+1. The workflow finds the most recent revert commit automatically
+2. The revert commit is itself reverted, re-enabling the original feature on main
+3. This triggers CI/CD and deploys to pre-prod environments
+4. The developer's new PR will now only contain their **fix**, not the whole feature
 
 ---
 
@@ -75,10 +73,10 @@ If your feature was rolled back:
 
 ## Workflow Locations
 
-| Workflow          | File                                      | Purpose                                 |
-| ----------------- | ----------------------------------------- | --------------------------------------- |
-| Rollback          | `.github/workflows/rollback.yml`          | Deploy previous version + create revert |
-| Revert the Revert | `.github/workflows/revert-the-revert.yml` | Prepare main for re-merge               |
+| Workflow          | File                                      | Purpose                                  |
+| ----------------- | ----------------------------------------- | ---------------------------------------- |
+| Rollback          | `.github/workflows/rollback.yml`          | Deploy previous version + create revert  |
+| Revert the Revert | `.github/workflows/revert-the-revert.yml` | Prepare main for re-merge                |
 
 ---
 
@@ -88,19 +86,19 @@ If your feature was rolled back:
 Timeline:
 1. Developer merges feature branch "add-widget" to main
 2. CI/CD deploys to pre-prod environments
-3. Bug discovered in production candidate
+3. Bug discovered in staging
 
 Rollback:
 4. Maintainer runs "Rollback" workflow
-5. Previous version deployed immediately
-6. Revert commit created on main (abc123)
+5. Previous version deployed immediately to all pre-prod
+6. Revert commit created on main
 
 Fix:
 7. Developer stays on "add-widget" branch, fixes the bug
 8. Developer notifies maintainer they're ready
 
 Re-merge:
-9. Maintainer runs "Revert the Revert" with SHA abc123
+9. Maintainer runs "Revert the Revert" workflow
 10. Developer creates new PR from "add-widget"
 11. PR merged, CI/CD deploys fixed version
 ```
@@ -109,17 +107,26 @@ Re-merge:
 
 ## Troubleshooting
 
-### "Commit not found" error
-
-- Ensure you're using the full SHA or at least 7 characters
-- The commit must exist in the repository history
-
 ### Rollback didn't deploy
 
 - Check the workflow logs for build/test failures
 - The previous commit must still pass all tests
 
+### "No revert commit found" error in Revert-the-Revert
+
+- The workflow looks for commits starting with "Revert" in the last 20 commits
+- If the revert is older, you'll need to do this manually:
+  ```bash
+  git revert <revert-commit-sha>
+  git push origin main
+  ```
+
 ### Developer's PR shows massive changes after revert-the-revert
 
 - The developer may have merged main into their branch before the revert-the-revert
 - Solution: Developer should reset their branch to before the merge, or cherry-pick only the fix commits
+
+### Need to rollback production specifically
+
+- The rollback workflow only affects pre-prod environments
+- For production rollback, manually run `deploy-all.yml` from a known good commit tag, or contact platform team

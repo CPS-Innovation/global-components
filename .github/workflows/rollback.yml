@@ -1,22 +1,10 @@
-name: "Rollback: deploy previous version and revert"
+name: "Rollback: pre-prod environments to previous commit"
+
+# Rolls back all pre-prod environments to the commit before HEAD.
+# Also creates a revert commit on main to prevent future deploys of the bad code.
 
 on:
   workflow_dispatch:
-    inputs:
-      environments:
-        description: "Environments to rollback (JSON array)"
-        required: true
-        default: '["unstable", "accessibility", "dev", "test", "staging"]'
-        type: string
-      bad_commit_sha:
-        description: "The merge commit SHA to revert (leave empty to revert latest commit on main)"
-        required: false
-        type: string
-      create_revert_commit:
-        description: "Create a revert commit on main to prevent future deploys of bad code"
-        required: true
-        default: true
-        type: boolean
 
 permissions:
   contents: write
@@ -48,20 +36,8 @@ jobs:
       - name: Identify commits for rollback
         id: identify
         run: |
-          if [ -n "${{ inputs.bad_commit_sha }}" ]; then
-            BAD_SHA="${{ inputs.bad_commit_sha }}"
-            # Validate the commit exists
-            if ! git cat-file -e "$BAD_SHA" 2>/dev/null; then
-              echo "Error: Commit $BAD_SHA not found"
-              exit 1
-            fi
-          else
-            BAD_SHA=$(git rev-parse HEAD)
-          fi
-
-          # Get the parent commit (the "good" version to deploy)
-          # For merge commits, HEAD^ gets the first parent (the main branch before merge)
-          GOOD_SHA=$(git rev-parse ${BAD_SHA}^)
+          BAD_SHA=$(git rev-parse HEAD)
+          GOOD_SHA=$(git rev-parse HEAD^)
 
           echo "bad_sha=$BAD_SHA" >> $GITHUB_OUTPUT
           echo "good_sha=$GOOD_SHA" >> $GITHUB_OUTPUT
@@ -76,20 +52,17 @@ jobs:
           git log -1 --format="%h %s%n%b" $BAD_SHA >> $GITHUB_STEP_SUMMARY
           echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
 
-  # Step 1: Immediately deploy the previous (good) version
   deploy-previous-version:
     needs: identify-commits
     uses: ./.github/workflows/sub-workflow-core-deploy.yml
     with:
-      environments: ${{ inputs.environments }}
+      environments: '["unstable", "accessibility", "dev", "test", "staging"]'
       ref: ${{ needs.identify-commits.outputs.good_sha }}
     secrets:
       BLOB_STORAGE_CONNECTION_STRING: ${{ secrets.BLOB_STORAGE_CONNECTION_STRING }}
 
-  # Step 2: Create revert commit on main (prevents future deploys of bad code)
   create-revert:
     needs: [identify-commits, deploy-previous-version]
-    if: ${{ inputs.create_revert_commit }}
     runs-on: ubuntu-latest
     outputs:
       revert_sha: ${{ steps.revert.outputs.revert_sha }}
@@ -107,7 +80,6 @@ jobs:
 
           BAD_SHA="${{ needs.identify-commits.outputs.bad_sha }}"
 
-          # Check if it's a merge commit (has more than one parent)
           PARENT_COUNT=$(git cat-file -p $BAD_SHA | grep -c "^parent")
 
           if [ "$PARENT_COUNT" -gt 1 ]; then
@@ -128,7 +100,6 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "- **Revert commit:** \`$REVERT_SHA\`" >> $GITHUB_STEP_SUMMARY
 
-  # Step 3: Output instructions for the developer
   developer-instructions:
     needs: [identify-commits, deploy-previous-version, create-revert]
     if: always() && needs.deploy-previous-version.result == 'success'
@@ -139,22 +110,19 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "## Rollback Complete" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "The previous version has been deployed to: ${{ inputs.environments }}" >> $GITHUB_STEP_SUMMARY
+          echo "The previous version has been deployed to: unstable, accessibility, dev, test, staging" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-
-          if [ "${{ inputs.create_revert_commit }}" == "true" ]; then
-            echo "### Developer Instructions" >> $GITHUB_STEP_SUMMARY
-            echo "" >> $GITHUB_STEP_SUMMARY
-            echo "To fix and re-merge your feature:" >> $GITHUB_STEP_SUMMARY
-            echo "" >> $GITHUB_STEP_SUMMARY
-            echo "1. **Stay on your feature branch** - do NOT merge main into your feature branch" >> $GITHUB_STEP_SUMMARY
-            echo "2. **Fix the issue** on your feature branch" >> $GITHUB_STEP_SUMMARY
-            echo "3. **When ready to re-merge**, ask a maintainer to run the 'Revert the Revert' workflow first" >> $GITHUB_STEP_SUMMARY
-            echo "4. **Then create a new PR** from your fixed feature branch" >> $GITHUB_STEP_SUMMARY
-            echo "" >> $GITHUB_STEP_SUMMARY
-            echo "**Why this process?**" >> $GITHUB_STEP_SUMMARY
-            echo "" >> $GITHUB_STEP_SUMMARY
-            echo "If you merge main (with the revert) into your feature branch, git will see the revert" >> $GITHUB_STEP_SUMMARY
-            echo "and remove your feature changes. The 'revert the revert' step re-enables your feature" >> $GITHUB_STEP_SUMMARY
-            echo "on main before you merge your fix." >> $GITHUB_STEP_SUMMARY
-          fi
+          echo "### Developer Instructions" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "To fix and re-merge your feature:" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "1. **Stay on your feature branch** - do NOT merge main into your feature branch" >> $GITHUB_STEP_SUMMARY
+          echo "2. **Fix the issue** on your feature branch" >> $GITHUB_STEP_SUMMARY
+          echo "3. **When ready to re-merge**, ask a maintainer to run the 'Revert the Revert' workflow" >> $GITHUB_STEP_SUMMARY
+          echo "4. **Then create a new PR** from your fixed feature branch" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Why this process?**" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "If you merge main (with the revert) into your feature branch, git will see the revert" >> $GITHUB_STEP_SUMMARY
+          echo "and remove your feature changes. The 'revert the revert' step re-enables your feature" >> $GITHUB_STEP_SUMMARY
+          echo "on main before you merge your fix." >> $GITHUB_STEP_SUMMARY
