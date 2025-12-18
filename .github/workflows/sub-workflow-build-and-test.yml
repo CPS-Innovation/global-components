@@ -7,6 +7,11 @@ on:
         required: false
         type: string
         default: ""
+      ref:
+        description: "Git ref (commit SHA, branch, or tag) to checkout. Defaults to the triggering ref."
+        required: false
+        type: string
+        default: ""
     outputs:
       artifact-id:
         description: "The ID of the uploaded artifact"
@@ -32,6 +37,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@v5
+        with:
+          ref: ${{ inputs.ref || github.ref }}
 
       - uses: benjlevesque/short-sha@v3.0
         id: short-sha
