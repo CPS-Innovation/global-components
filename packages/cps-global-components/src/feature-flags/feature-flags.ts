@@ -2,7 +2,7 @@ import { withLogging } from "../logging/with-logging";
 import { State } from "../store/store";
 import { isUserInFeatureGroup } from "./is-user-in-feature-group";
 
-const shouldEnableAccessibilityMode = ({ preview }: Pick<State, "preview">) => preview.result?.accessibility;
+const shouldEnableAccessibilityMode = ({ preview }: Pick<State, "preview">) => !!preview.result?.accessibility;
 
 const shouldShowGovUkRebrand = ({ config }: Pick<State, "config">) => !!config.SHOW_GOVUK_REBRAND;
 

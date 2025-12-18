@@ -1022,21 +1022,23 @@ describe("global-script", () => {
     // These tests verify that the correct data flows from one step to the next
     // A control flow refactor should not break these dependencies
 
-    it("should pass rootUrl and flags to initialiseConfig", async () => {
+    it("should pass rootUrl, flags and preview to initialiseConfig", async () => {
       const testFlags = {
         e2eTestMode: { isE2eTestMode: false },
         isDevelopment: true,
         customFlag: "test-value",
       };
       const testRootUrl = "https://test.example.com/env/script.js";
+      const testPreview = { enabled: true, features: ["feature1"] };
       mockGetApplicationFlags.mockReturnValue(testFlags);
       mockInitialiseRootUrl.mockReturnValue(testRootUrl);
+      mockInitialisePreview.mockResolvedValue(testPreview);
 
       const globalScript = require("./global-script").default;
       globalScript();
       await new Promise(resolve => setTimeout(resolve, 10));
 
-      expect(mockInitialiseConfig).toHaveBeenCalledWith({ rootUrl: testRootUrl, flags: testFlags });
+      expect(mockInitialiseConfig).toHaveBeenCalledWith({ rootUrl: testRootUrl, flags: testFlags, preview: testPreview });
     });
 
     it("should pass rootUrl to initialiseCmsSessionHint", async () => {
