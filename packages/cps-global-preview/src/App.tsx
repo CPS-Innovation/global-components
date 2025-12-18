@@ -77,10 +77,6 @@ export function App() {
     saveState(newState);
   };
 
-  const statusClassName = status
-    ? `preview-status preview-status--${status.type}`
-    : 'preview-status';
-
   return (
     <div className="preview-container">
       <style>{`
@@ -89,25 +85,29 @@ export function App() {
           margin: 0 auto;
           padding: 20px;
         }
-        .preview-status {
-          padding: 15px;
-          margin-bottom: 20px;
-          border-left: 5px solid #1d70b8;
-          background-color: #f3f2f1;
-        }
-        .preview-status--error {
-          border-left-color: #d4351c;
-        }
-        .preview-status--success {
-          border-left-color: #00703c;
-        }
       `}</style>
 
       <h1 className="govuk-heading-l">Preview Settings</h1>
 
-      {status && (
-        <div className={statusClassName}>
-          {status.message}
+      {status?.type === 'error' && (
+        <div className="govuk-error-summary" data-module="govuk-error-summary">
+          <div role="alert">
+            <h2 className="govuk-error-summary__title">There is a problem</h2>
+            <div className="govuk-error-summary__body">
+              <p>{status.message}</p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {status?.type === 'success' && (
+        <div className="govuk-notification-banner govuk-notification-banner--success" role="alert" data-module="govuk-notification-banner">
+          <div className="govuk-notification-banner__header">
+            <h2 className="govuk-notification-banner__title" id="govuk-notification-banner-title">Success</h2>
+          </div>
+          <div className="govuk-notification-banner__content">
+            <p className="govuk-notification-banner__heading">{status.message}</p>
+          </div>
         </div>
       )}
 
