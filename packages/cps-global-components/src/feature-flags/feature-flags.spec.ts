@@ -3,18 +3,27 @@ import { State } from "../store/store";
 
 describe("FEATURE_FLAGS", () => {
   describe("shouldEnableAccessibilityMode", () => {
-    it("should return true when isOverrideMode is true", () => {
-      const state: Pick<State, "flags"> = {
-        flags: { isOverrideMode: true, isOutSystems: false, e2eTestMode: { isE2eTestMode: false }, isLocalDevelopment: false },
+    it("should return true when preview accessibility is true", () => {
+      const state: Pick<State, "preview"> = {
+        preview: { found: true, result: { accessibility: true } },
       };
 
       const result = FEATURE_FLAGS.shouldEnableAccessibilityMode(state);
       expect(result).toBe(true);
     });
 
-    it("should return false when isOverrideMode is false", () => {
-      const state: Pick<State, "flags"> = {
-        flags: { isOverrideMode: false, isOutSystems: false, e2eTestMode: { isE2eTestMode: false }, isLocalDevelopment: false },
+    it("should return false when preview accessibility is falsy", () => {
+      const state: Pick<State, "preview"> = {
+        preview: { found: true, result: {} },
+      };
+
+      const result = FEATURE_FLAGS.shouldEnableAccessibilityMode(state);
+      expect(result).toBe(false);
+    });
+
+    it("should return false when preview is not found", () => {
+      const state: Pick<State, "preview"> = {
+        preview: { found: false, error: {} as Error },
       };
 
       const result = FEATURE_FLAGS.shouldEnableAccessibilityMode(state);

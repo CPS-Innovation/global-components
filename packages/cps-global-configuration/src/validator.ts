@@ -3,7 +3,7 @@ import {
   configSchema,
   ConfigStorage,
   configStorageSchema,
-} from "./config";
+} from "./Config";
 import { PotentiallyValidConfig, transformConfig } from "./transform-config";
 
 export type ValidationResult =

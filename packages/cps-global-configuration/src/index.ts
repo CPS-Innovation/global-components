@@ -7,9 +7,6 @@ export {
   type FeatureFlagUsers,
   type Link,
   type ContextsToUseEventNavigation,
-} from "./config"
-export {
-  previewStateSchema,
-  type PreviewState,
-} from "./preview"
-export { transformAndValidateConfig, type ValidationResult } from "./validator"
+} from "./Config";
+export { previewStateSchema, type PreviewState } from "./Preview";
+export { transformAndValidateConfig, type ValidationResult } from "./validator";

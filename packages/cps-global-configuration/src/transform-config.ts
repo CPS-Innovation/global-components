@@ -1,4 +1,4 @@
-import { Config, ConfigStorage, Context, ContextStorageSchema } from "./config";
+import { Config, ConfigStorage, Context, ContextStorageSchema } from "./Config";
 
 export type PotentiallyValidConfig = Omit<Config, "CONTEXTS"> & {
   CONTEXTS: Partial<Context>[];
