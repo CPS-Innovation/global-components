@@ -54,7 +54,9 @@ if [ ! -f "secrets.env" ]; then
   echo "  GLOBAL_COMPONENTS_BLOB_STORAGE_URL"
   exit 1
 fi
+set -a  # Export all variables defined from here
 source secrets.env
+set +a  # Stop auto-exporting
 
 # Validate required variables
 REQUIRED_VARS="AZURE_SUBSCRIPTION_ID AZURE_RESOURCE_GROUP AZURE_STORAGE_ACCOUNT AZURE_STORAGE_CONTAINER AZURE_WEBAPP_NAME STATUS_ENDPOINT GLOBAL_COMPONENTS_APPLICATION_ID GLOBAL_COMPONENTS_BLOB_STORAGE_URL"
@@ -130,18 +132,31 @@ echo "  Downloaded files:"
 ls -la "$ARTIFACT_DIR" 2>&1 | sed 's/^/    /'
 
 # Copy proxy files to content directory
+# For .template files, substitute only the vnext-specific variables we know from secrets.env
+# Other variables (WEBSITE_DNS_SERVER, WM_MDS_*, etc.) remain as placeholders for nginx's runtime envsubst
 mkdir -p "$CONTENT_DIR"
-echo "  Copying proxy files..."
+echo "  Processing proxy files..."
+
+# Variables to substitute from secrets.env (leave others for nginx runtime)
+ENVSUBST_VARS='$GLOBAL_COMPONENTS_APPLICATION_ID $GLOBAL_COMPONENTS_BLOB_STORAGE_URL'
+
 for file in "${FILES_TO_DEPLOY[@]}"; do
   if [ -f "$ARTIFACT_DIR/$file" ]; then
-    cp "$ARTIFACT_DIR/$file" "$CONTENT_DIR/$file"
-    echo "    $file"
+    if [[ "$file" == *.template ]]; then
+      # Substitute only our known variables, keep .template suffix
+      envsubst "$ENVSUBST_VARS" < "$ARTIFACT_DIR/$file" > "$CONTENT_DIR/$file"
+      echo "    $file (envsubst: GLOBAL_COMPONENTS_*)"
+    else
+      # Copy non-template files as-is
+      cp "$ARTIFACT_DIR/$file" "$CONTENT_DIR/$file"
+      echo "    $file"
+    fi
   else
     echo -e "${RED}Error: $file not found in artifact${NC}"
     exit 1
   fi
 done
-echo -e "${GREEN}Artifact downloaded and extracted successfully${NC}"
+echo -e "${GREEN}Artifact downloaded and processed successfully${NC}"
 
 # Set subscription
 az account set --subscription "$AZURE_SUBSCRIPTION_ID"
@@ -207,19 +222,20 @@ echo "  New version: $NEW_VERSION"
 # Create new deployment.json
 echo '{"version": '$NEW_VERSION'}' > "$CONTENT_DIR/$DEPLOYMENT_JSON"
 
-# Apply app settings from secrets.env
-echo -e "\n${YELLOW}Applying app settings to web app...${NC}"
-APP_SETTINGS=""
-for var in $APP_SETTINGS_VARS; do
-  APP_SETTINGS="$APP_SETTINGS $var=\"${!var}\""
-  echo "  $var=***"
-done
-eval az webapp config appsettings set \
-  --name "$AZURE_WEBAPP_NAME" \
-  --resource-group "$AZURE_RESOURCE_GROUP" \
-  --settings $APP_SETTINGS \
-  --output none
-echo -e "${GREEN}App settings updated${NC}"
+# App settings are now baked into the config via envsubst during deployment
+# Uncomment below if you also need to set them as runtime app settings
+# echo -e "\n${YELLOW}Applying app settings to web app...${NC}"
+# APP_SETTINGS=""
+# for var in $APP_SETTINGS_VARS; do
+#   APP_SETTINGS="$APP_SETTINGS $var=\"${!var}\""
+#   echo "  $var=***"
+# done
+# eval az webapp config appsettings set \
+#   --name "$AZURE_WEBAPP_NAME" \
+#   --resource-group "$AZURE_RESOURCE_GROUP" \
+#   --settings $APP_SETTINGS \
+#   --output none
+# echo -e "${GREEN}App settings updated${NC}"
 
 # Upload files to blob storage
 echo -e "\n${YELLOW}Uploading files to blob storage...${NC}"
