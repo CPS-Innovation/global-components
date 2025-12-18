@@ -54,7 +54,9 @@ if [ ! -f "secrets.env" ]; then
   echo "  GLOBAL_COMPONENTS_BLOB_STORAGE_URL"
   exit 1
 fi
+set -a  # Export all variables defined from here
 source secrets.env
+set +a  # Stop auto-exporting
 
 # Validate required variables
 REQUIRED_VARS="AZURE_SUBSCRIPTION_ID AZURE_RESOURCE_GROUP AZURE_STORAGE_ACCOUNT AZURE_STORAGE_CONTAINER AZURE_WEBAPP_NAME STATUS_ENDPOINT GLOBAL_COMPONENTS_APPLICATION_ID GLOBAL_COMPONENTS_BLOB_STORAGE_URL"
