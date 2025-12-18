@@ -1,29 +1,16 @@
-import { Config } from "cps-global-configuration";
-import { fullyQualifyRequest } from "../../utils/fully-qualify-request";
-import { CmsSessionHint, CmsSessionHintResult } from "./CmsSessionHint";
-import { ApplicationFlags } from "../application-flags/ApplicationFlags";
+import { CmsSessionHint } from "./CmsSessionHint";
+import { getArtifactUrl } from "../../utils/get-artifact-url";
+import { Result } from "../../utils/Result";
 
-export const initialiseCmsSessionHint = async ({
-  config: { GATEWAY_URL },
-  flags: { isOverrideMode },
-}: {
-  config: Config;
-  flags: ApplicationFlags;
-}): Promise<CmsSessionHintResult> => {
-  if (!isOverrideMode) {
-    return { found: false, error: new Error("Not enabled") };
-  }
-  if (!GATEWAY_URL) {
-    return { found: false, error: new Error("No GATEWAY_URL") };
-  }
+export const initialiseCmsSessionHint = async ({ rootUrl }: { rootUrl: string }): Promise<Result<CmsSessionHint>> => {
   try {
-    const response = await fetch(fullyQualifyRequest("/global-components/cms-session-hint", GATEWAY_URL), { credentials: "include" });
+    const response = await fetch(getArtifactUrl(rootUrl, "../cms-session-hint"), { credentials: "include" });
     if (!response.ok) {
       throw new Error(`Response status: ${response.status} ${response.statusText}`);
     }
-    const hint = (await response.json()) as CmsSessionHint;
+    const result = (await response.json()) as CmsSessionHint;
 
-    return { found: true, hint };
+    return { found: true, result };
   } catch (error) {
     return { found: false, error };
   }

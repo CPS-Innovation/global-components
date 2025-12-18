@@ -632,7 +632,7 @@ describe("store", () => {
         expect(result.state.initialisationStatus).toBeUndefined(); // But status shows not all state is ready
       });
 
-      it("should include all properties even when only some are requested", () => {
+      it("should only return requested properties when ready", () => {
         const { register } = initialiseStore();
 
         register({
@@ -651,13 +651,17 @@ describe("store", () => {
           expect(result.state.flags).toEqual({ isDevelopment: true });
           expect(result.state.config).toEqual({ CONTEXTS: [] });
 
-          // Non-requested properties are also available (but may be undefined)
-          expect(result.state.auth).toBeDefined();
-          expect(result.state.context).toBeUndefined();
+          // Non-requested properties are NOT available (only requested + always-returned)
+          expect((result.state as any).auth).toBeUndefined();
+          expect((result.state as any).context).toBeUndefined();
+
+          // But always-returned properties are available
+          expect(result.state.initialisationStatus).toBeUndefined();
+          expect(result.state.fatalInitialisationError).toBeUndefined();
         }
       });
 
-      it("should allow accessing non-requested properties for lazy handling", () => {
+      it("should include optional properties when using two-array syntax", () => {
         const { register } = initialiseStore();
 
         register({
@@ -666,12 +670,12 @@ describe("store", () => {
           // auth is undefined
         });
 
-        // Request only config and context, but code may want to check auth
-        const result = readyState("config", "context");
+        // Request config and context as required, auth as optional
+        const result = readyState(["config", "context"] as const, ["auth"] as const);
 
         expect(result.isReady).toBe(true);
         if (result.isReady) {
-          // Requested properties are guaranteed non-undefined
+          // Required properties are guaranteed non-undefined
           expect(result.state.config).toBeDefined();
           expect(result.state.context).toBeDefined();
 

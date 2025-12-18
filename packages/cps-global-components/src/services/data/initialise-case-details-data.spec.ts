@@ -5,6 +5,7 @@ import { ReadyStateHelper, Subscribe } from "../../store/store";
 import { Handover } from "../handover/Handover";
 import { GetToken } from "../auth/GetToken";
 import { AnalyticsEventData } from "../analytics/analytics-event";
+import { Result } from "../../utils/Result";
 
 const mockCreateCache = jest.fn();
 jest.mock("../cache/create-cache", () => ({
@@ -30,7 +31,7 @@ describe("initialiseCaseDetailsData", () => {
   const createMockConfig = (gatewayUrl: string | null = null): Config =>
     ({
       GATEWAY_URL: gatewayUrl,
-    }) as Config;
+    } as Config);
 
   const createMockContext = (): FoundContext =>
     ({
@@ -40,11 +41,11 @@ describe("initialiseCaseDetailsData", () => {
       path: "/test",
       contextIds: "test",
       msalRedirectUrl: "https://test.com",
-    }) as unknown as FoundContext;
+    } as unknown as FoundContext);
 
-  const createMockHandover = (): Handover => ({
+  const createMockHandover = (): Result<Handover> => ({
     found: false,
-    error: null,
+    error: {} as Error,
   });
 
   const createMockCache = (): LocalStorageCache =>
@@ -52,7 +53,7 @@ describe("initialiseCaseDetailsData", () => {
       createEntityCache: jest.fn(),
       clearAll: jest.fn(),
       getStats: jest.fn(),
-    }) as unknown as LocalStorageCache;
+    } as unknown as LocalStorageCache);
 
   const createMockSubscribe = (): Subscribe => jest.fn() as Subscribe;
 
