@@ -1,0 +1,88 @@
+name: "Utility: revert the revert (prepare for re-merge)"
+
+# This workflow is used after a rollback to prepare main for re-merging a fixed feature.
+# It "reverts the revert" so that when the developer merges their fixed feature branch,
+# git won't see conflicting changes from the original revert.
+
+on:
+  workflow_dispatch:
+    inputs:
+      revert_commit_sha:
+        description: "The revert commit SHA to undo (from the rollback workflow)"
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  validate-branch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validate branch is main
+        run: |
+          if [[ "${{ github.ref_name }}" != "main" ]]; then
+            echo "Error: This workflow can only be run from the main branch"
+            echo "Current branch: ${{ github.ref_name }}"
+            exit 1
+          fi
+          echo "Branch validation passed: running from main branch"
+
+  revert-the-revert:
+    needs: validate-branch
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Validate revert commit
+        run: |
+          REVERT_SHA="${{ inputs.revert_commit_sha }}"
+
+          # Check the commit exists
+          if ! git cat-file -e "$REVERT_SHA" 2>/dev/null; then
+            echo "Error: Commit $REVERT_SHA not found"
+            exit 1
+          fi
+
+          # Check it looks like a revert commit
+          COMMIT_MSG=$(git log -1 --format="%s" $REVERT_SHA)
+          if [[ ! "$COMMIT_MSG" =~ ^Revert ]]; then
+            echo "Warning: Commit $REVERT_SHA doesn't appear to be a revert commit"
+            echo "Commit message: $COMMIT_MSG"
+            echo ""
+            echo "Proceeding anyway, but please verify this is the correct commit."
+          fi
+
+      - name: Revert the revert
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          REVERT_SHA="${{ inputs.revert_commit_sha }}"
+
+          # Get info about the original revert for the summary
+          ORIGINAL_REVERT_MSG=$(git log -1 --format="%s" $REVERT_SHA)
+
+          git revert --no-edit $REVERT_SHA
+
+          REVERT_REVERT_SHA=$(git rev-parse HEAD)
+          git push origin main
+
+          echo "## Revert-the-Revert Complete" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **Original revert undone:** \`$REVERT_SHA\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **Original revert message:** $ORIGINAL_REVERT_MSG" >> $GITHUB_STEP_SUMMARY
+          echo "- **New commit:** \`$REVERT_REVERT_SHA\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Next Steps" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "The feature has been re-enabled on main. The developer can now:" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "1. Create a new PR from their fixed feature branch" >> $GITHUB_STEP_SUMMARY
+          echo "2. The PR will contain only the fix (the original feature is already on main)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Note:** This will trigger the CI/CD pipeline and deploy to pre-prod environments." >> $GITHUB_STEP_SUMMARY
+          echo "Make sure the developer's fix is ready before running this workflow." >> $GITHUB_STEP_SUMMARY
