@@ -1,5 +1,6 @@
 import { Component, h, Fragment } from "@stencil/core";
 import { readyState } from "../../store/store";
+import { getCaseDefendantHeadline } from "../../services/data/get-case-defendant-headline";
 
 @Component({
   tag: "cps-global-case-details",
@@ -24,9 +25,7 @@ export class CpsGlobalCaseDetails {
                 <>
                   <div>{caseDetails.urn}</div>
                   <div>
-                    <b>
-                      {caseDetails.leadDefendantSurname}, {caseDetails.leadDefendantFirstNames}
-                    </b>
+                    <b>{getCaseDefendantHeadline(caseDetails)}</b>
                   </div>
                 </>
               )}

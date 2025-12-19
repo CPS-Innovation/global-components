@@ -7,6 +7,7 @@ export const CaseDetailsSchema = z.object({
   leadDefendantFirstNames: z.string(),
   leadDefendantSurname: z.string(),
   leadDefendantType: z.string(),
+  numberOfDefendants: z.number(),
 });
 
 export type CaseDetails = z.infer<typeof CaseDetailsSchema>;

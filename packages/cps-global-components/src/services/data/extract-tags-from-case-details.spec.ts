@@ -36,6 +36,7 @@ describe("extractTagsFromCaseDetails", () => {
         leadDefendantFirstNames: "",
         leadDefendantSurname: "",
         leadDefendantType: "",
+        numberOfDefendants: 1,
       };
 
       const result = extractTagsFromCaseDetails(caseDetails);
@@ -55,6 +56,7 @@ describe("extractTagsFromCaseDetails", () => {
         leadDefendantFirstNames: "",
         leadDefendantSurname: "",
         leadDefendantType: "",
+        numberOfDefendants: 1,
       };
 
       const result = extractTagsFromCaseDetails(caseDetails);

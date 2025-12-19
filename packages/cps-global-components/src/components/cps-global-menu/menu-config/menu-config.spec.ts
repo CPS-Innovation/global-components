@@ -84,7 +84,10 @@ describe("menuConfig", () => {
 
   const mockTags: Tags = {};
 
-  const mockCaseDetails: Result<CaseDetails> = { found: true, result: { id: 1, urn: "foo", isDcfCase: false, leadDefendantFirstNames: "", leadDefendantSurname: "", leadDefendantType: "" } };
+  const mockCaseDetails: Result<CaseDetails> = {
+    found: true,
+    result: { id: 1, urn: "foo", isDcfCase: false, leadDefendantFirstNames: "", leadDefendantSurname: "", leadDefendantType: "", numberOfDefendants: 1 },
+  };
 
   const mockCaseMonitoringCodes: Result<MonitoringCodes> = { found: true, result: [] };
 

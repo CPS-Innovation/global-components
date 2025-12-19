@@ -756,7 +756,10 @@ describe("store", () => {
         const { register } = initialiseStore();
 
         register({
-          caseDetails: { found: true, result: { id: 1, urn: "URN-123", isDcfCase: false, leadDefendantFirstNames: "", leadDefendantSurname: "", leadDefendantType: "" } },
+          caseDetails: {
+            found: true,
+            result: { id: 1, urn: "URN-123", isDcfCase: false, leadDefendantFirstNames: "", leadDefendantSurname: "", leadDefendantType: "", numberOfDefendants: 1 },
+          },
         });
 
         const result = readyState("caseDetails");
@@ -770,11 +773,17 @@ describe("store", () => {
         const { register } = initialiseStore();
 
         register({
-          caseDetails: { found: true, result: { id: 1, urn: "URN-123", isDcfCase: false, leadDefendantFirstNames: "", leadDefendantSurname: "", leadDefendantType: "" } },
+          caseDetails: {
+            found: true,
+            result: { id: 1, urn: "URN-123", isDcfCase: false, leadDefendantFirstNames: "", leadDefendantSurname: "", leadDefendantType: "", numberOfDefendants: 1 },
+          },
         });
 
         register({
-          caseDetails: { found: true, result: { id: 2, urn: "URN-456", isDcfCase: true, leadDefendantFirstNames: "", leadDefendantSurname: "", leadDefendantType: "" } },
+          caseDetails: {
+            found: true,
+            result: { id: 2, urn: "URN-456", isDcfCase: true, leadDefendantFirstNames: "", leadDefendantSurname: "", leadDefendantType: "", numberOfDefendants: 1 },
+          },
         });
 
         const result = readyState("caseDetails");

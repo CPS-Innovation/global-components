@@ -17,6 +17,7 @@ describe("caseDetailsSubscriptionFactory", () => {
     leadDefendantFirstNames: "",
     leadDefendantSurname: "",
     leadDefendantType: "",
+    numberOfDefendants: 1,
   };
 
   const mockMonitoringCodes: MonitoringCode[] = [{ code: "MC1", description: "Test Code", type: "test", disabled: false, isAssigned: true }];

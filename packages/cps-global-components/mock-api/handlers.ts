@@ -10,6 +10,7 @@ export const handlers = [
       leadDefendantFirstNames: "Stefan",
       leadDefendantSurname: "Stachow",
       leadDefendantType: "",
+      numberOfDefendants: 2,
     }),
   ),
   http.get<{ id: string }>("/api/global-components/cases/:id/monitoring-codes", () =>
