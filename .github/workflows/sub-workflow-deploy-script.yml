@@ -75,7 +75,7 @@ jobs:
           # Remove the redirect script template from deployment
           rm -f "${{ steps.download.outputs.download-path }}/script-redirect.js"
 
-      - uses: azure/cli@v2.0.0 # pinned to minor version whilst MS fix https://github.com/azure/azure-cli/issues/32039
+      - uses: azure/cli@v2.2.0 # pinned to minor version whilst MS fix https://github.com/azure/azure-cli/issues/32039
         with:
           azcliversion: latest
           inlineScript: |
