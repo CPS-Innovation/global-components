@@ -204,7 +204,7 @@ importers:
         version: 11.1.0
       zod:
         specifier: ^4.1.11
-        version: 4.1.11
+        version: 4.1.13
     devDependencies:
       '@rollup/plugin-dynamic-import-vars':
         specifier: ^2.1.5
@@ -253,7 +253,7 @@ importers:
     dependencies:
       zod:
         specifier: ^4.0.0
-        version: 4.1.11
+        version: 4.1.13
     devDependencies:
       '@jest/globals':
         specifier: ^30.2.0
@@ -5536,8 +5536,8 @@ packages:
   zod@3.25.76:
     resolution: {integrity: sha512-gzUt/qt81nXsFGKIFcC3YnfEAx5NkunCfnDlvuBSSFS02bcXu4Lmea0AFIUwbLWxWPx3d9p8S5QoaujKcNQxcQ==}
 
-  zod@4.1.11:
-    resolution: {integrity: sha512-WPsqwxITS2tzx1bzhIKsEs19ABD5vmCVa4xBo2tq/SrV4RNZtfws1EnCWQXM6yh8bD08a1idvkB5MZSBiZsjwg==}
+  zod@4.1.13:
+    resolution: {integrity: sha512-AvvthqfqrAhNH9dnfmrfKzX5upOdjUVJYFqNSlkmGf64gRaTzlPwz99IHYnVs28qYAybvAlBV+H7pn0saFY4Ig==}
 
 snapshots:
 
@@ -11591,4 +11591,4 @@ snapshots:
 
   zod@3.25.76: {}
 
-  zod@4.1.11: {}
+  zod@4.1.13: {}
