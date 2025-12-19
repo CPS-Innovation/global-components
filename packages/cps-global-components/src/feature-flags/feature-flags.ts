@@ -1,9 +1,9 @@
 import { State } from "../store/store";
 import { isUserInFeatureGroup } from "./is-user-in-feature-group";
 
-const shouldShowCaseDetails = ({ flags }: Pick<State, "flags">) => flags.isOverrideMode;
+const shouldShowCaseDetails = ({ preview }: Pick<State, "preview">) => !!preview.result?.caseMarkers;
 
-const shouldEnableAccessibilityMode = ({ flags }: Pick<State, "flags">) => flags.isOverrideMode;
+const shouldEnableAccessibilityMode = ({ preview }: Pick<State, "preview">) => !!preview.result?.accessibility;
 
 const shouldShowGovUkRebrand = ({ config }: Pick<State, "config">) => !!config.SHOW_GOVUK_REBRAND;
 
