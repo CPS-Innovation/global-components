@@ -18,7 +18,7 @@ export class CpsGlobalCaseDetails {
     return (
       <>
         {(caseDetailsFound || monitoringCodesFound) && (
-          <div class="level govuk-body case-details">
+          <div class="level case-details">
             <>
               {caseDetailsFound && (
                 <>

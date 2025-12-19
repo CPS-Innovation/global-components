@@ -58,17 +58,19 @@ export class CpsGlobalMenu {
         </nav>
 
         <div class={classes.divider}></div>
+
         {shouldShowCaseDetails && <cps-global-case-details></cps-global-case-details>}
+
         {!!level2Links?.length && (
           <>
-            <nav class="level level-2 background-white" aria-label="Sub-menu" data-testid="menu-level-2">
+            <nav class="level level-2" aria-label="Sub-menu" data-testid="menu-level-2">
               <ul>
                 {level2Links.map(link => (
                   <nav-link {...link}></nav-link>
                 ))}
               </ul>
             </nav>
-            <div class={shouldShowCaseDetails ? classes.divider : "background-divider-content-width"}></div>
+            <div class={shouldShowCaseDetails ? "background-divider-content-width" : classes.divider}></div>
           </>
         )}
       </div>
