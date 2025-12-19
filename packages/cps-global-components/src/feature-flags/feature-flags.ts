@@ -1,13 +1,13 @@
-import { State } from "../store/store";
+import { State, StoredState } from "../store/store";
 import { isUserInFeatureGroup } from "./is-user-in-feature-group";
 
-const shouldShowCaseDetails = ({ preview }: Pick<State, "preview">) => !!preview.result?.caseMarkers;
+const shouldShowCaseDetails = ({ preview, flags }: Pick<State, "preview" | "flags">) => !!preview.result?.caseMarkers || flags.isLocalDevelopment;
 
 const shouldEnableAccessibilityMode = ({ preview }: Pick<State, "preview">) => !!preview.result?.accessibility;
 
 const shouldShowGovUkRebrand = ({ config }: Pick<State, "config">) => !!config.SHOW_GOVUK_REBRAND;
 
-const shouldShowMenu = ({ config, auth, context, cmsSessionHint }: Pick<State, "config" | "context" | "cmsSessionHint"> & { auth: State["auth"] | undefined }) => {
+const shouldShowMenu = ({ config, auth, context, cmsSessionHint }: Pick<State, "config" | "context" | "cmsSessionHint"> & Pick<StoredState, "auth">) => {
   if (cmsSessionHint.found && !cmsSessionHint.result.isProxySession) {
     // Currently we only want the menu shown if we are connected to proxied CMS.
     // Design decision: if cmsSessionHint was not obtained then we continue to further

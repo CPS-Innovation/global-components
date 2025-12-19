@@ -9,25 +9,39 @@ import { readyState } from "../../store/store";
 export class CpsGlobalCaseDetails {
   render() {
     const {
-      isReady,
-      state: { caseDetails },
-    } = readyState("caseDetails");
+      state: {
+        caseDetails: { found: caseDetailsFound, result: caseDetails },
+        caseMonitoringCodes: { found: monitoringCodesFound, result: monitoringCodes },
+      },
+    } = readyState([], ["caseDetails", "caseMonitoringCodes"]);
 
     return (
       <>
-        <div class="level govuk-body case-details">
-          {isReady && (
+        {(caseDetailsFound || monitoringCodesFound) && (
+          <div class="level govuk-body case-details">
             <>
-              <div>{caseDetails.urn}</div>
-              <div>
-                <b>Natasha Frost and 2 more</b>
-              </div>
-              <div>
-                <strong class="govuk-tag govuk-tag--red">Custody time limit</strong>
-              </div>
+              {caseDetailsFound && (
+                <>
+                  <div>{caseDetails.urn}</div>
+                  <div>
+                    <b>
+                      {caseDetails.leadDefendantSurname}, {caseDetails.leadDefendantFirstNames}
+                    </b>
+                  </div>
+                </>
+              )}
+              {monitoringCodesFound && (
+                <div>
+                  {monitoringCodes.map(({ code, description }) => (
+                    <strong class="govuk-tag govuk-tag--red" key={code}>
+                      {description}
+                    </strong>
+                  ))}
+                </div>
+              )}
             </>
-          )}
-        </div>
+          </div>
+        )}
       </>
     );
   }

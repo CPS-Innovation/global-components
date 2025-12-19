@@ -13,7 +13,7 @@ import { WithLogging } from "../../logging/WithLogging";
 export class CpsGlobalMenu {
   @WithLogging("CpsGlobalMenu")
   render() {
-    const { isReady, state } = readyState(["config", "tags", "flags", "context", "cmsSessionHint"], ["auth"]);
+    const { isReady, state } = readyState(["config", "tags", "flags", "context", "cmsSessionHint", "preview"], ["auth"]);
     if (!isReady) {
       return null; // don't show menu until we are ready
     }

@@ -756,32 +756,32 @@ describe("store", () => {
         const { register } = initialiseStore();
 
         register({
-          caseDetails: { urn: "URN-123" },
+          caseDetails: { found: true, result: { id: 1, urn: "URN-123", isDcfCase: false, leadDefendantFirstNames: "", leadDefendantSurname: "", leadDefendantType: "" } },
         });
 
         const result = readyState("caseDetails");
 
-        if (result.isReady) {
-          expect(result.state.caseDetails).toEqual({ urn: "URN-123" });
+        if (result.isReady && result.state.caseDetails?.found) {
+          expect(result.state.caseDetails.result.urn).toEqual("URN-123");
         }
       });
 
-      it("should allow partial caseDetails updates", () => {
+      it("should allow caseDetails to be replaced", () => {
         const { register } = initialiseStore();
 
         register({
-          caseDetails: { urn: "URN-123" },
+          caseDetails: { found: true, result: { id: 1, urn: "URN-123", isDcfCase: false, leadDefendantFirstNames: "", leadDefendantSurname: "", leadDefendantType: "" } },
         });
 
         register({
-          caseDetails: { isDcfCase: true },
+          caseDetails: { found: true, result: { id: 2, urn: "URN-456", isDcfCase: true, leadDefendantFirstNames: "", leadDefendantSurname: "", leadDefendantType: "" } },
         });
 
         const result = readyState("caseDetails");
 
-        if (result.isReady) {
+        if (result.isReady && result.state.caseDetails?.found) {
           // Note: register replaces, doesn't merge at property level
-          expect(result.state.caseDetails).toEqual({ isDcfCase: true });
+          expect(result.state.caseDetails.result.isDcfCase).toEqual(true);
         }
       });
     });

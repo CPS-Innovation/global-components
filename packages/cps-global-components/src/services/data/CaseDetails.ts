@@ -4,14 +4,15 @@ export const CaseDetailsSchema = z.object({
   id: z.number(),
   urn: z.string(),
   isDcfCase: z.boolean(),
+  leadDefendantFirstNames: z.string(),
+  leadDefendantSurname: z.string(),
+  leadDefendantType: z.string(),
 });
 
 export type CaseDetails = z.infer<typeof CaseDetailsSchema>;
 
 const caseDetailsKeySchema = CaseDetailsSchema.keyof();
 type CaseDetailsKey = z.infer<typeof caseDetailsKeySchema>;
-
-export const caseDetailsSafeToCacheFields: CaseDetailsKey[] = ["id", "urn", "isDcfCase"];
 
 // caseId is always known in order to get case details so we do not need to put it back in.
 export const caseDetailsTagFields: CaseDetailsKey[] = ["urn", "isDcfCase"];

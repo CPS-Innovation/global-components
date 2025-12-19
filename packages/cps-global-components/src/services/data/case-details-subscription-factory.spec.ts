@@ -1,53 +1,43 @@
-import { Config } from "cps-global-configuration";
 import { caseDetailsSubscriptionFactory } from "./case-details-subscription-factory";
-import { LocalStorageCache } from "../cache/create-cache";
 import { Handover } from "../handover/Handover";
 import { CaseDetails } from "./CaseDetails";
 import { CaseIdentifiers } from "../context/CaseIdentifiers";
 import { Result } from "../../utils/Result";
+import { MonitoringCode } from "./MonitoringCode";
 
 type CaseIdentifiersHandler = (v: CaseIdentifiers | undefined) => void;
+
+const flushPromises = () => new Promise(resolve => setTimeout(resolve, 10));
 
 describe("caseDetailsSubscriptionFactory", () => {
   const mockCaseDetails: CaseDetails = {
     id: 123,
     urn: "12AB3456789",
     isDcfCase: true,
+    leadDefendantFirstNames: "",
+    leadDefendantSurname: "",
+    leadDefendantType: "",
   };
 
-  const createMockConfig = (): Config =>
-    ({
-      CACHE_CONFIG: {
-        maxAge: 3600000,
-        maxItems: 100,
-      },
-    } as Config);
+  const mockMonitoringCodes: MonitoringCode[] = [{ code: "MC1", description: "Test Code", type: "test", disabled: false, isAssigned: true }];
 
-  const createMockEntityCache = () => ({
-    get: jest.fn(),
-    set: jest.fn(),
-    fetch: jest.fn(),
-    invalidate: jest.fn(),
-    invalidateAll: jest.fn(),
-    getStats: jest.fn(),
-  });
-
-  const createMockCache = (entityCache = createMockEntityCache()): LocalStorageCache =>
-    ({
-      createEntityCache: jest.fn().mockReturnValue(entityCache),
-      clearAll: jest.fn(),
-      getStats: jest.fn(),
-    } as unknown as LocalStorageCache);
-
-  const createMockFetch = (responseData: unknown = mockCaseDetails): typeof fetch =>
-    jest.fn().mockResolvedValue({
-      ok: true,
-      json: jest.fn().mockResolvedValue(responseData),
+  const createMockFetch = (caseDetailsResponse: unknown = mockCaseDetails, monitoringCodesResponse: unknown = mockMonitoringCodes): typeof fetch =>
+    jest.fn().mockImplementation((url: string) => {
+      if (url.includes("/monitoring-codes")) {
+        return Promise.resolve({
+          ok: true,
+          json: jest.fn().mockResolvedValue(monitoringCodesResponse),
+        });
+      }
+      return Promise.resolve({
+        ok: true,
+        json: jest.fn().mockResolvedValue(caseDetailsResponse),
+      });
     }) as unknown as typeof fetch;
 
-  const createMockHandoverFound = (caseDetails: CaseDetails = mockCaseDetails): Result<Handover> => ({
+  const createMockHandoverFound = (caseId: number, caseDetails?: CaseDetails, monitoringCodes?: MonitoringCode[]): Result<Handover> => ({
     found: true,
-    result: { caseDetails },
+    result: { caseId, caseDetails, monitoringCodes },
   });
 
   const createMockHandoverNotFound = (): Result<Handover> => ({
@@ -56,63 +46,8 @@ describe("caseDetailsSubscriptionFactory", () => {
   });
 
   describe("factory initialization", () => {
-    it("should create entity cache with correct parameters", () => {
-      const mockCache = createMockCache();
-      const mockConfig = createMockConfig();
-
-      caseDetailsSubscriptionFactory({
-        config: mockConfig,
-        cache: mockCache,
-        fetch: createMockFetch(),
-        handover: createMockHandoverNotFound(),
-        setNextHandover: jest.fn(),
-      });
-
-      expect(mockCache.createEntityCache).toHaveBeenCalledWith(
-        "case-details",
-        expect.any(Object),
-        expect.objectContaining({
-          cacheableFields: ["id", "urn", "isDcfCase"],
-          maxAge: 3600000,
-          maxItems: 100,
-        }),
-      );
-    });
-
-    it("should set cache from handover data when handover is found", () => {
-      const entityCache = createMockEntityCache();
-      const mockCache = createMockCache(entityCache);
-
-      caseDetailsSubscriptionFactory({
-        config: createMockConfig(),
-        cache: mockCache,
-        fetch: createMockFetch(),
-        handover: createMockHandoverFound(mockCaseDetails),
-        setNextHandover: jest.fn(),
-      });
-
-      expect(entityCache.set).toHaveBeenCalledWith("123", mockCaseDetails);
-    });
-
-    it("should not set cache when handover is not found", () => {
-      const entityCache = createMockEntityCache();
-      const mockCache = createMockCache(entityCache);
-
-      caseDetailsSubscriptionFactory({
-        config: createMockConfig(),
-        cache: mockCache,
-        fetch: createMockFetch(),
-        handover: createMockHandoverNotFound(),
-        setNextHandover: jest.fn(),
-      });
-
-      expect(entityCache.set).not.toHaveBeenCalled();
-    });
-
     it("should return onChange subscription type", () => {
       const factory = caseDetailsSubscriptionFactory({
-        config: createMockConfig(),
-        cache: createMockCache(),
         fetch: createMockFetch(),
         handover: createMockHandoverNotFound(),
         setNextHandover: jest.fn(),
@@ -133,13 +68,10 @@ describe("caseDetailsSubscriptionFactory", () => {
   });
 
   describe("subscription handler", () => {
-    it("should return early when caseIdentifiers is null", () => {
-      const entityCache = createMockEntityCache();
-      const mockCache = createMockCache(entityCache);
+    it("should register undefined for both caseDetails and caseMonitoringCodes when caseIdentifiers is undefined", () => {
+      const register = jest.fn();
 
       const factory = caseDetailsSubscriptionFactory({
-        config: createMockConfig(),
-        cache: mockCache,
         fetch: createMockFetch(),
         handover: createMockHandoverNotFound(),
         setNextHandover: jest.fn(),
@@ -147,32 +79,7 @@ describe("caseDetailsSubscriptionFactory", () => {
 
       const subscription = factory({
         get: jest.fn(),
-        register: jest.fn(),
-        mergeTags: jest.fn(),
-      });
-
-      if (subscription.type === "onChange") {
-        subscription.handler.handler(null as any);
-      }
-
-      expect(entityCache.fetch).not.toHaveBeenCalled();
-    });
-
-    it("should return early when caseIdentifiers is undefined", () => {
-      const entityCache = createMockEntityCache();
-      const mockCache = createMockCache(entityCache);
-
-      const factory = caseDetailsSubscriptionFactory({
-        config: createMockConfig(),
-        cache: mockCache,
-        fetch: createMockFetch(),
-        handover: createMockHandoverNotFound(),
-        setNextHandover: jest.fn(),
-      });
-
-      const subscription = factory({
-        get: jest.fn(),
-        register: jest.fn(),
+        register,
         mergeTags: jest.fn(),
       });
 
@@ -180,18 +87,70 @@ describe("caseDetailsSubscriptionFactory", () => {
         subscription.handler.handler(undefined);
       }
 
-      expect(entityCache.fetch).not.toHaveBeenCalled();
+      expect(register).toHaveBeenCalledWith({ caseDetails: undefined, caseMonitoringCodes: undefined });
     });
 
-    it("should fetch case details with correct parameters", () => {
-      const entityCache = createMockEntityCache();
-      entityCache.fetch.mockResolvedValue({ id: 123, urn: "12AB3456789", isDcfCase: true });
-      const mockCache = createMockCache(entityCache);
+    it("should use handover data when available for matching caseId", async () => {
+      const register = jest.fn();
+      const mergeTags = jest.fn();
+      const mockFetch = createMockFetch();
 
       const factory = caseDetailsSubscriptionFactory({
-        config: createMockConfig(),
-        cache: mockCache,
-        fetch: createMockFetch(),
+        fetch: mockFetch,
+        handover: createMockHandoverFound(123, mockCaseDetails, mockMonitoringCodes),
+        setNextHandover: jest.fn(),
+      });
+
+      const subscription = factory({
+        get: jest.fn(),
+        register,
+        mergeTags,
+      });
+
+      if (subscription.type === "onChange") {
+        (subscription.handler.handler as CaseIdentifiersHandler)({ caseId: "123" });
+      }
+
+      await flushPromises();
+
+      expect(mockFetch).not.toHaveBeenCalled();
+      expect(register).toHaveBeenCalledWith({ caseDetails: { found: true, result: mockCaseDetails } });
+      expect(register).toHaveBeenCalledWith({ caseMonitoringCodes: { found: true, result: mockMonitoringCodes } });
+      expect(mergeTags).toHaveBeenCalledWith({
+        caseDetailsTags: { urn: "12AB3456789", isDcfCase: "true" },
+      });
+    });
+
+    it("should fetch when handover caseId does not match", async () => {
+      const mockFetch = createMockFetch();
+
+      const factory = caseDetailsSubscriptionFactory({
+        fetch: mockFetch,
+        handover: createMockHandoverFound(999, mockCaseDetails, mockMonitoringCodes),
+        setNextHandover: jest.fn(),
+      });
+
+      const subscription = factory({
+        get: jest.fn(),
+        register: jest.fn(),
+        mergeTags: jest.fn(),
+      });
+
+      if (subscription.type === "onChange") {
+        (subscription.handler.handler as CaseIdentifiersHandler)({ caseId: "456" });
+      }
+
+      await flushPromises();
+
+      expect(mockFetch).toHaveBeenCalledWith("/api/global-components/cases/456/summary");
+      expect(mockFetch).toHaveBeenCalledWith("/api/global-components/cases/456/monitoring-codes?assignedOnly=true");
+    });
+
+    it("should fetch both endpoints when no handover exists", async () => {
+      const mockFetch = createMockFetch();
+
+      const factory = caseDetailsSubscriptionFactory({
+        fetch: mockFetch,
         handover: createMockHandoverNotFound(),
         setNextHandover: jest.fn(),
       });
@@ -206,18 +165,16 @@ describe("caseDetailsSubscriptionFactory", () => {
         (subscription.handler.handler as CaseIdentifiersHandler)({ caseId: "456" });
       }
 
-      expect(entityCache.fetch).toHaveBeenCalledWith("456", expect.any(Function), { fields: ["id", "urn", "isDcfCase"] });
+      await flushPromises();
+
+      expect(mockFetch).toHaveBeenCalledWith("/api/global-components/cases/456/summary");
+      expect(mockFetch).toHaveBeenCalledWith("/api/global-components/cases/456/monitoring-codes?assignedOnly=true");
     });
 
     it("should merge tags after fetching case details", async () => {
-      const entityCache = createMockEntityCache();
-      entityCache.fetch.mockResolvedValue({ id: 123, urn: "12AB3456789", isDcfCase: true });
-      const mockCache = createMockCache(entityCache);
       const mergeTags = jest.fn();
 
       const factory = caseDetailsSubscriptionFactory({
-        config: createMockConfig(),
-        cache: mockCache,
         fetch: createMockFetch(),
         handover: createMockHandoverNotFound(),
         setNextHandover: jest.fn(),
@@ -233,23 +190,17 @@ describe("caseDetailsSubscriptionFactory", () => {
         (subscription.handler.handler as CaseIdentifiersHandler)({ caseId: "456" });
       }
 
-      await new Promise(resolve => setTimeout(resolve, 0));
+      await flushPromises();
 
       expect(mergeTags).toHaveBeenCalledWith({
         caseDetailsTags: { urn: "12AB3456789", isDcfCase: "true" },
       });
     });
 
-    it("should register case details after fetching", async () => {
-      const entityCache = createMockEntityCache();
-      const fetchedCaseDetails = { id: 123, urn: "12AB3456789", isDcfCase: true };
-      entityCache.fetch.mockResolvedValue(fetchedCaseDetails);
-      const mockCache = createMockCache(entityCache);
+    it("should register case details and monitoring codes separately", async () => {
       const register = jest.fn();
 
       const factory = caseDetailsSubscriptionFactory({
-        config: createMockConfig(),
-        cache: mockCache,
         fetch: createMockFetch(),
         handover: createMockHandoverNotFound(),
         setNextHandover: jest.fn(),
@@ -265,21 +216,16 @@ describe("caseDetailsSubscriptionFactory", () => {
         (subscription.handler.handler as CaseIdentifiersHandler)({ caseId: "456" });
       }
 
-      await new Promise(resolve => setTimeout(resolve, 0));
+      await flushPromises();
 
-      expect(register).toHaveBeenCalledWith({ caseDetails: fetchedCaseDetails });
+      expect(register).toHaveBeenCalledWith({ caseDetails: { found: true, result: mockCaseDetails } });
+      expect(register).toHaveBeenCalledWith({ caseMonitoringCodes: { found: true, result: mockMonitoringCodes } });
     });
 
-    it("should set next handover after fetching case details", async () => {
-      const entityCache = createMockEntityCache();
-      const fetchedCaseDetails = { id: 123, urn: "12AB3456789", isDcfCase: true };
-      entityCache.fetch.mockResolvedValue(fetchedCaseDetails);
-      const mockCache = createMockCache(entityCache);
+    it("should set next handover with caseId after both fetches complete", async () => {
       const setNextHandover = jest.fn();
 
       const factory = caseDetailsSubscriptionFactory({
-        config: createMockConfig(),
-        cache: mockCache,
         fetch: createMockFetch(),
         handover: createMockHandoverNotFound(),
         setNextHandover,
@@ -295,28 +241,22 @@ describe("caseDetailsSubscriptionFactory", () => {
         (subscription.handler.handler as CaseIdentifiersHandler)({ caseId: "456" });
       }
 
-      await new Promise(resolve => setTimeout(resolve, 0));
+      await flushPromises();
 
-      expect(setNextHandover).toHaveBeenCalledWith({ caseDetails: fetchedCaseDetails });
-    });
-  });
-
-  describe("fetcher function", () => {
-    it("should pass correct URL to fetch function", async () => {
-      const entityCache = createMockEntityCache();
-      entityCache.fetch.mockImplementation(async (id, fetcher) => {
-        await fetcher(id);
-        return mockCaseDetails;
+      expect(setNextHandover).toHaveBeenCalledWith({
+        caseId: 456,
+        caseDetails: mockCaseDetails,
+        monitoringCodes: mockMonitoringCodes,
       });
-      const mockCache = createMockCache(entityCache);
-      const mockFetchFn = createMockFetch();
+    });
+
+    it("should set next handover even when using handover data", async () => {
+      const setNextHandover = jest.fn();
 
       const factory = caseDetailsSubscriptionFactory({
-        config: createMockConfig(),
-        cache: mockCache,
-        fetch: mockFetchFn,
-        handover: createMockHandoverNotFound(),
-        setNextHandover: jest.fn(),
+        fetch: createMockFetch(),
+        handover: createMockHandoverFound(123, mockCaseDetails, mockMonitoringCodes),
+        setNextHandover,
       });
 
       const subscription = factory({
@@ -326,12 +266,16 @@ describe("caseDetailsSubscriptionFactory", () => {
       });
 
       if (subscription.type === "onChange") {
-        (subscription.handler.handler as CaseIdentifiersHandler)({ caseId: "999" });
+        (subscription.handler.handler as CaseIdentifiersHandler)({ caseId: "123" });
       }
 
-      await new Promise(resolve => setTimeout(resolve, 0));
+      await flushPromises();
 
-      expect(mockFetchFn).toHaveBeenCalledWith("/api/global-components/cases/999/summary");
+      expect(setNextHandover).toHaveBeenCalledWith({
+        caseId: 123,
+        caseDetails: mockCaseDetails,
+        monitoringCodes: mockMonitoringCodes,
+      });
     });
   });
 });
