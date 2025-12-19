@@ -39,9 +39,7 @@ jobs:
           artifact-ids: ${{ inputs.artifact-id }}
 
       - run: |
-          # Copy preview app to the deployment folder
-          mkdir -p ${{ steps.download.outputs.download-path }}/preview
-          cp -r ./packages/cps-global-preview/* ${{ steps.download.outputs.download-path }}/preview/
+          # Preview app is already in the artifact from the build step
 
           cp ./configuration/config.${{ inputs.environment }}.json ${{ steps.download.outputs.download-path }}/config.json
           if [ -f "./configuration/config.${{ inputs.environment }}.override.json" ]; then
