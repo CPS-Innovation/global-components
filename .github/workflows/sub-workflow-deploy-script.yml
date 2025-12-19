@@ -41,14 +41,11 @@ jobs:
       - run: |
           # Copy preview app to the deployment folder
           mkdir -p ${{ steps.download.outputs.download-path }}/preview
-          cp -r ./apps/preview/* ${{ steps.download.outputs.download-path }}/preview/
+          cp -r ./packages/cps-global-preview/* ${{ steps.download.outputs.download-path }}/preview/
 
           cp ./configuration/config.${{ inputs.environment }}.json ${{ steps.download.outputs.download-path }}/config.json
           if [ -f "./configuration/config.${{ inputs.environment }}.override.json" ]; then
             cp ./configuration/config.${{ inputs.environment }}.override.json ${{ steps.download.outputs.download-path }}/config.override.json
-
-            cp ./configuration/config.${{ inputs.environment }}.override.json ${{ steps.download.outputs.download-path }}/config.override.js
-            sed -i '1s/^/cps_global_components_config_jsonp_callback(/; $s/$/);/' ${{ steps.download.outputs.download-path }}/config.override.js
           fi
 
           # Read config values for the environment

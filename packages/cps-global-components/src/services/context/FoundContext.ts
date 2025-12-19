@@ -1,4 +1,4 @@
-import { Context } from "cps-global-configuration/dist/schema";
+import { Context } from "cps-global-configuration";
 import { Tags } from "./Tags";
 
 type MakeUndefinable<T> = {

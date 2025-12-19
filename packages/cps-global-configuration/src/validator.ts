@@ -1,12 +1,9 @@
-import { ZodSafeParseSuccess } from "zod";
 import {
   Config,
   configSchema,
   ConfigStorage,
   configStorageSchema,
-  Context,
-  ContextStorageSchema,
-} from "./schema";
+} from "./Config";
 import { PotentiallyValidConfig, transformConfig } from "./transform-config";
 
 export type ValidationResult =
