@@ -1,10 +1,10 @@
-import { Config, transformAndValidateConfig, ValidationResult } from "cps-global-configuration";
+import { Config, PreviewState, transformAndValidateConfig, ValidationResult } from "cps-global-configuration";
 import { ConfigFetch } from "./ConfigFetch";
 import { getArtifactUrl } from "../../utils/get-artifact-url";
 import { fetchOverrideConfig } from "../../services/override-mode/fetch-override-config";
-import { fetchOverrideConfigAsJsonP } from "../../services/outsystems-shim/fetch-override-config-as-jsonp";
 import { fetchDevelopmentConfig } from "../override-mode/fetch-development-config";
 import { ApplicationFlags } from "../application-flags/ApplicationFlags";
+import { Result } from "../../utils/Result";
 
 const tryConfigSources = async ([source, ...rest]: ConfigFetch[], configUrl: string): Promise<any> => {
   try {
@@ -28,23 +28,26 @@ const tryConfigSources = async ([source, ...rest]: ConfigFetch[], configUrl: str
 export const initialiseConfig = async ({
   rootUrl,
   flags: {
-    isOverrideMode,
-    isOutSystems,
     isLocalDevelopment,
     e2eTestMode: { isE2eTestMode },
   },
+  preview,
 }: {
   rootUrl: string;
   flags: ApplicationFlags;
+  preview: Result<PreviewState>;
 }): Promise<Config> => {
   const configUrl = getArtifactUrl(rootUrl, "config.json");
 
   const fetchConfig: ConfigFetch = async (configUrl: string) => await fetch(configUrl);
 
   let configSources = [
-    isLocalDevelopment && !isE2eTestMode ? fetchDevelopmentConfig : undefined,
-    isOverrideMode ? fetchOverrideConfig : undefined,
-    isOverrideMode && isOutSystems ? fetchOverrideConfigAsJsonP : undefined,
+    isLocalDevelopment && !isE2eTestMode //
+      ? fetchDevelopmentConfig
+      : undefined,
+    preview.result?.enabled //
+      ? fetchOverrideConfig
+      : undefined,
     fetchConfig,
   ].filter(config => !!config) as ConfigFetch[];
 

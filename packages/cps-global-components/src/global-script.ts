@@ -65,13 +65,15 @@ const startupPhase = async ({ window, storeFns: { register, mergeTags, readyStat
   const flags = getApplicationFlags({ window });
   register({ flags });
 
-  const [cmsSessionHint, { handover, setNextHandover }, preview, config] = await Promise.all([
+  const [cmsSessionHint, { handover, setNextHandover }, preview] = await Promise.all([
     initialiseCmsSessionHint({ rootUrl }),
     initialiseHandover({ rootUrl }),
     initialisePreview({ rootUrl }),
-    initialiseConfig({ rootUrl, flags }),
   ]);
-  register({ cmsSessionHint, handover, preview, config });
+  register({ cmsSessionHint, handover, preview });
+
+  const config = await initialiseConfig({ rootUrl, flags, preview });
+  register({ config });
 
   const firstContext = initialiseContext({ window, config });
   register({ firstContext });

@@ -17,7 +17,7 @@ export class CpsGlobalBanner {
 
   @WithLogging("CpsGlobalBanner")
   render() {
-    const { isReady, state } = readyState("config", "context", "flags");
+    const { isReady, state } = readyState("config", "context", "preview");
 
     const resolveValues = () => {
       if (state.fatalInitialisationError) {

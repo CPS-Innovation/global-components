@@ -161,7 +161,6 @@ const setupDefaultMocks = () => {
 
   mockGetApplicationFlags.mockReturnValue({
     e2eTestMode: { isE2eTestMode: false },
-    isOverrideMode: false,
     isDevelopment: false,
   });
 
@@ -306,7 +305,6 @@ describe("global-script", () => {
       if (state.isReady) {
         expect(state.state.flags).toEqual({
           e2eTestMode: { isE2eTestMode: false },
-          isOverrideMode: false,
           isDevelopment: false,
         });
       }
@@ -513,7 +511,6 @@ describe("global-script", () => {
     it("should pass flags to initialiseAuth so it can decide mock vs real internally", async () => {
       const testFlags = {
         e2eTestMode: { isE2eTestMode: true },
-        isOverrideMode: false,
         isDevelopment: false,
       };
       mockGetApplicationFlags.mockReturnValue(testFlags);
@@ -535,7 +532,6 @@ describe("global-script", () => {
     it("should pass flags to initialiseAnalytics so it can decide mock vs real internally", async () => {
       const testFlags = {
         e2eTestMode: { isE2eTestMode: true },
-        isOverrideMode: false,
         isDevelopment: false,
       };
       mockGetApplicationFlags.mockReturnValue(testFlags);
@@ -1026,22 +1022,23 @@ describe("global-script", () => {
     // These tests verify that the correct data flows from one step to the next
     // A control flow refactor should not break these dependencies
 
-    it("should pass rootUrl and flags to initialiseConfig", async () => {
+    it("should pass rootUrl, flags and preview to initialiseConfig", async () => {
       const testFlags = {
         e2eTestMode: { isE2eTestMode: false },
-        isOverrideMode: true,
         isDevelopment: true,
         customFlag: "test-value",
       };
       const testRootUrl = "https://test.example.com/env/script.js";
+      const testPreview = { enabled: true, features: ["feature1"] };
       mockGetApplicationFlags.mockReturnValue(testFlags);
       mockInitialiseRootUrl.mockReturnValue(testRootUrl);
+      mockInitialisePreview.mockResolvedValue(testPreview);
 
       const globalScript = require("./global-script").default;
       globalScript();
       await new Promise(resolve => setTimeout(resolve, 10));
 
-      expect(mockInitialiseConfig).toHaveBeenCalledWith({ rootUrl: testRootUrl, flags: testFlags });
+      expect(mockInitialiseConfig).toHaveBeenCalledWith({ rootUrl: testRootUrl, flags: testFlags, preview: testPreview });
     });
 
     it("should pass rootUrl to initialiseCmsSessionHint", async () => {
@@ -1103,7 +1100,6 @@ describe("global-script", () => {
     it("should pass config, context and flags to initialiseAuth", async () => {
       const testFlags = {
         e2eTestMode: { isE2eTestMode: false },
-        isOverrideMode: false,
         isDevelopment: false,
       };
       const testConfig = {
@@ -1135,7 +1131,6 @@ describe("global-script", () => {
     it("should pass all required dependencies to initialiseAnalytics (auth is obtained via readyState)", async () => {
       const testFlags = {
         e2eTestMode: { isE2eTestMode: false },
-        isOverrideMode: false,
         isDevelopment: false,
       };
       const testConfig = { CONTEXTS: [], GATEWAY_URL: null, APP_INSIGHTS_KEY: "test-key" };
@@ -1237,7 +1232,7 @@ describe("global-script", () => {
 
       mockGetApplicationFlags.mockImplementation(() => {
         callOrder.push("flags");
-        return { e2eTestMode: { isE2eTestMode: false }, isOverrideMode: false, isDevelopment: false };
+        return { e2eTestMode: { isE2eTestMode: false }, isDevelopment: false };
       });
 
       mockInitialiseConfig.mockImplementation(async () => {

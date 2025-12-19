@@ -22,6 +22,7 @@
     "test:proxy": "pnpm -r --filter \"./infra/proxy\" run test:integration",
     "run-html-harness": "./scripts/run-html-harness.sh",
     "run-spa-harness": "./scripts/run-spa-harness.sh",
+    "run-preview": "pnpm --filter cps-global-preview dev",
     "config-sync-check": "./scripts/config-sync-check.sh",
     "config-sync": "./scripts/config-sync.sh"
   },

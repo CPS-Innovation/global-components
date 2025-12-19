@@ -1,5 +1,5 @@
 import { createStore } from "@stencil/store";
-import { Config } from "cps-global-configuration";
+import { Config, PreviewState } from "cps-global-configuration";
 import { AuthResult } from "../services/auth/AuthResult";
 import { FoundContext } from "../services/context/FoundContext";
 import { ApplicationFlags } from "../services/application-flags/ApplicationFlags";
@@ -15,7 +15,6 @@ import { ReadyStateHelper, readyStateFactory } from "./ready-state-factory";
 import { CaseIdentifiers } from "../services/context/CaseIdentifiers";
 import { caseIdentifiersSubscriptionFactory } from "./subscriptions/case-identifiers-subscription-factory";
 import { Handover } from "../services/handover/Handover";
-import { Preview } from "../services/preview/Preview";
 import { Result } from "../utils/Result";
 import { CmsSessionHint } from "../services/cms-session/CmsSessionHint";
 export { type ReadyStateHelper };
@@ -46,7 +45,7 @@ type MakeUndefinable<T> = {
 // This state is expected to be set up once on startup
 type StartupState = {
   rootUrl: string;
-  preview: Result<Preview>;
+  preview: Result<PreviewState>;
   flags: ApplicationFlags;
   config: Config;
   auth: AuthResult;

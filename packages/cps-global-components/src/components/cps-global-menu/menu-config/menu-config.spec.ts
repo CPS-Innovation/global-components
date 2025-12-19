@@ -76,7 +76,6 @@ describe("menuConfig", () => {
   } as Config;
 
   const mockFlags: ApplicationFlags = {
-    isOverrideMode: false,
     isOutSystems: false,
     e2eTestMode: { isE2eTestMode: false },
     isLocalDevelopment: false,

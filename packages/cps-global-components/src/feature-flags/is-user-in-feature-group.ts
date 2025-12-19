@@ -1,5 +1,4 @@
-import { Config } from "cps-global-configuration";
-import { FeatureFlagUsers } from "cps-global-configuration/dist/schema";
+import { Config, FeatureFlagUsers } from "cps-global-configuration";
 import { State } from "../store/store";
 
 type KeysOfType<T, U> = {
