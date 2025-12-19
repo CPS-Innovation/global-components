@@ -3,8 +3,8 @@ import { menuConfig } from "./menu-config/menu-config";
 import { readyState } from "../../store/store";
 import { FEATURE_FLAGS } from "../../feature-flags/feature-flags";
 import { renderError } from "../common/render-error";
-
 import { WithLogging } from "../../logging/WithLogging";
+
 @Component({
   tag: "cps-global-menu",
   styleUrl: "cps-global-menu.scss",
@@ -40,6 +40,8 @@ export class CpsGlobalMenu {
 
     const surveyLink = FEATURE_FLAGS.surveyLink(state);
 
+    const shouldShowCaseDetails = FEATURE_FLAGS.shouldShowCaseDetails(state);
+
     const classes = FEATURE_FLAGS.shouldShowGovUkRebrand(state)
       ? { flag: "govuk-template--rebranded", level1Background: "background-light-blue", divider: "background-divider-blue" }
       : { flag: "", level1Background: "background-grey", divider: "background-divider" };
@@ -56,7 +58,7 @@ export class CpsGlobalMenu {
         </nav>
 
         <div class={classes.divider}></div>
-
+        {shouldShowCaseDetails && <cps-global-case-details></cps-global-case-details>}
         {!!level2Links?.length && (
           <>
             <nav class="level level-2 background-white" aria-label="Sub-menu" data-testid="menu-level-2">
@@ -66,7 +68,7 @@ export class CpsGlobalMenu {
                 ))}
               </ul>
             </nav>
-            <div class={classes.divider}></div>
+            <div class={shouldShowCaseDetails ? classes.divider : "background-divider-content-width"}></div>
           </>
         )}
       </div>

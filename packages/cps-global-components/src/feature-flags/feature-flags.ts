@@ -1,6 +1,7 @@
-import { withLogging } from "../logging/with-logging";
 import { State } from "../store/store";
 import { isUserInFeatureGroup } from "./is-user-in-feature-group";
+
+const shouldShowCaseDetails = ({ flags }: Pick<State, "flags">) => flags.isOverrideMode;
 
 const shouldEnableAccessibilityMode = ({ flags }: Pick<State, "flags">) => flags.isOverrideMode;
 
@@ -40,8 +41,9 @@ const shouldShowMenu = ({ config, auth, context, cmsSessionHint }: Pick<State, "
 const surveyLink = ({ config }: Pick<State, "config">) => ({ showLink: !!config.SURVEY_LINK, url: config.SURVEY_LINK });
 
 export const FEATURE_FLAGS = {
-  shouldEnableAccessibilityMode: withLogging("shouldEnableAccessibilityMode", shouldEnableAccessibilityMode),
-  shouldShowGovUkRebrand: withLogging("shouldShowGovUkRebrand", shouldShowGovUkRebrand),
-  shouldShowMenu: withLogging("shouldShowMenu", shouldShowMenu),
-  surveyLink: withLogging("surveyLink", surveyLink),
+  shouldShowCaseDetails,
+  shouldEnableAccessibilityMode,
+  shouldShowGovUkRebrand,
+  shouldShowMenu,
+  surveyLink,
 };

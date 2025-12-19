@@ -1,0 +1,9 @@
+@use "../common/common.scss" as *;
+
+.case-details {
+  display: flex;
+  align-items: center;
+  margin-bottom: 0;
+  gap: 10px;
+  border-bottom: 1px solid $govuk-border-colour;
+}
