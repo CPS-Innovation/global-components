@@ -12,6 +12,9 @@
   .govuk-tag {
     white-space: nowrap;
     width: auto;
+    max-width: none;
     display: inline-block;
+    flex-shrink: 0;
+    overflow: visible;
   }
 }
