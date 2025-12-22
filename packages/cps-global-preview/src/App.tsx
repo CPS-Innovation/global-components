@@ -38,7 +38,18 @@ const FEATURES = [
   },
 ] as const;
 
+const TACTICAL = [
+  {
+    key: "forceDcfHeader",
+    label: "Force DCF header",
+    description:
+      "Force DCF cases to have the global header. Use until the team implement the change to get rid of the custom menu",
+    disabled: false,
+  },
+] as const;
+
 type FeatureKey = (typeof FEATURES)[number]["key"];
+type TacticalKey = (typeof TACTICAL)[number]["key"];
 
 type StatusType = "info" | "error" | "success";
 
@@ -120,6 +131,12 @@ export function App() {
     saveState(newState);
   };
 
+  const handleTacticalChange = (key: TacticalKey, checked: boolean) => {
+    const newState = { ...state, [key]: checked || undefined };
+    setState(newState);
+    saveState(newState);
+  };
+
   return (
     <div className="preview-container">
       <style>{`
@@ -182,6 +199,43 @@ export function App() {
                     checked={state[key] ?? false}
                     disabled={loading || disabled}
                     onChange={(e) => handleFeatureChange(key, e.target.checked)}
+                  />
+                  <label
+                    className="govuk-label govuk-checkboxes__label"
+                    htmlFor={key}
+                  >
+                    {label}
+                  </label>
+                  <div
+                    id={`${key}-hint`}
+                    className="govuk-hint govuk-checkboxes__hint govuk-!-font-size-16"
+                  >
+                    {description}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </fieldset>
+        </div>
+
+        <div className="govuk-form-group">
+          <fieldset className="govuk-fieldset">
+            <legend className="govuk-fieldset__legend govuk-fieldset__legend--m">
+              <h2 className="govuk-fieldset__heading">Tactical</h2>
+            </legend>
+            <div className="govuk-checkboxes" data-module="govuk-checkboxes">
+              {TACTICAL.map(({ key, label, description, disabled }) => (
+                <div key={key} className="govuk-checkboxes__item">
+                  <input
+                    className="govuk-checkboxes__input"
+                    id={key}
+                    name="tactical"
+                    type="checkbox"
+                    checked={state[key] ?? false}
+                    disabled={loading || disabled}
+                    onChange={(e) =>
+                      handleTacticalChange(key, e.target.checked)
+                    }
                   />
                   <label
                     className="govuk-label govuk-checkboxes__label"
