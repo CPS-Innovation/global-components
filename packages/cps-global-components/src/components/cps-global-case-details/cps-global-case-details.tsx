@@ -10,32 +10,33 @@ import { getCaseDefendantHeadline } from "../../services/data/get-case-defendant
 export class CpsGlobalCaseDetails {
   render() {
     const {
-      state: {
-        caseDetails: { found: caseDetailsFound, result: caseDetails },
-        caseMonitoringCodes: { found: monitoringCodesFound, result: monitoringCodes },
-      },
+      state: { caseDetails, caseMonitoringCodes },
     } = readyState([], ["caseDetails", "caseMonitoringCodes"]);
 
     return (
       <>
-        {(caseDetailsFound || monitoringCodesFound) && (
+        {(caseDetails || caseMonitoringCodes) && (
           <div class="level case-details">
             <>
-              {caseDetailsFound && (
+              {caseDetails?.found && (
                 <>
-                  <div>{caseDetails.urn}</div>
+                  <div>{caseDetails.result.urn}</div>
                   <div>
-                    <b>{getCaseDefendantHeadline(caseDetails)}</b>
+                    <b>{getCaseDefendantHeadline(caseDetails.result)}</b>
                   </div>
                 </>
               )}
-              {monitoringCodesFound && (
+              {caseMonitoringCodes && (
                 <div>
-                  {monitoringCodes.map(({ code, description }) => (
-                    <strong class="govuk-tag govuk-tag--red" key={code}>
-                      {description}
-                    </strong>
-                  ))}
+                  {caseMonitoringCodes.found && (
+                    <>
+                      {caseMonitoringCodes.result.map(({ code, description }) => (
+                        <strong class="govuk-tag govuk-tag--red" key={code}>
+                          {description}
+                        </strong>
+                      ))}
+                    </>
+                  )}
                 </div>
               )}
             </>
