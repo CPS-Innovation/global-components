@@ -262,6 +262,14 @@ async function testMdsApiProxy() {
     // Should not match the regex and fall through to 404 or other handler
     assert(response.status !== 200 || !(await response.json()).endpoint, "Should not match non-numeric case ID")
   })
+
+  await test("forwards query string to upstream", async () => {
+    const response = await fetch(`${PROXY_BASE}/global-components/api/cases/123/monitoring-codes?assignedOnly=true&limit=10`)
+    assertEqual(response.status, 200, "Should return 200")
+    const body = await response.json()
+    // Mock server echoes back the original URL which includes query string
+    assert(body.originalUrl?.includes("assignedOnly=true"), "Should forward query string")
+  })
 }
 
 // =============================================================================
