@@ -8,4 +8,8 @@
   margin-bottom: 0;
   gap: 10px;
   border-bottom: 1px solid $govuk-border-colour;
+
+  .govuk-tag {
+    white-space: nowrap;
+  }
 }
