@@ -16,9 +16,9 @@ type AlwaysReturned = Pick<StateWithoutPrivateTags, "fatalInitialisationError" |
 type RequiredReturn<R extends readonly (keyof StateWithoutPrivateTags)[]> =
   R extends readonly [] ? AllDefined : Pick<AllDefined, R[number]>;
 
-// Optional keys keep their original (potentially undefined) types
+// Optional keys are present but explicitly typed as potentially undefined to prevent unsafe destructuring
 type OptionalReturn<O extends readonly (keyof StateWithoutPrivateTags)[]> =
-  O extends readonly [] ? unknown : Pick<StateWithoutPrivateTags, O[number]>;
+  O extends readonly [] ? unknown : { [K in O[number]]: StateWithoutPrivateTags[K] | undefined };
 
 type ReadyResult<R extends readonly (keyof StateWithoutPrivateTags)[], O extends readonly (keyof StateWithoutPrivateTags)[]> =
   | { isReady: true; state: RequiredReturn<R> & OptionalReturn<O> & AlwaysReturned }
