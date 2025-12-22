@@ -37,7 +37,24 @@ const server = createServer((request, response) => {
         id: caseId,
         urn: `${C.URN_PREFIX}${caseId}`,
         isDcfCase: caseId % 2 === 0,
+        leadDefendantFirstNames: "Test",
+        leadDefendantSurname: "User",
+        leadDefendantType: "Person",
+        numberOfDefendants: 1,
       }
+      response.writeHead(200, { "Content-Type": "application/json" })
+      response.end(JSON.stringify(responseBody))
+      return
+    }
+
+    const monitoringCodesMatch = parsedUrl.pathname.match(
+      /\/cases\/(\d+)\/monitoring-codes$/
+    )
+
+    if (request.method === "GET" && monitoringCodesMatch) {
+      const responseBody = [
+        { code: "MC1", description: "Test Code", type: "GLOBAL", disabled: false, isAssigned: true }
+      ]
       response.writeHead(200, { "Content-Type": "application/json" })
       response.end(JSON.stringify(responseBody))
       return

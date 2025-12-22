@@ -27,7 +27,7 @@ export const initialiseHandover = async ({ rootUrl }: { rootUrl: string }): Prom
   }
 
   const setNextHandover = (newData: Handover) => {
-    const isSameCaseAsBefore = handover.found && handover.result.caseDetails.id === newData.caseDetails.id;
+    const isSameCaseAsBefore = handover.found && handover.result.caseId === newData.caseId;
     if (!isSameCaseAsBefore)
       try {
         // no need to await this

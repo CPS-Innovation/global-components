@@ -18,6 +18,7 @@ import { createOutboundUrlDirect } from "cps-global-os-handover";
 import { Build, State } from "../../../store/store";
 import { CorrelationIds } from "../../../services/correlation/CorrelationIds";
 import { CaseDetails } from "../../../services/data/CaseDetails";
+import { MonitoringCodes } from "../../../services/data/MonitoringCode";
 import { Result } from "../../../utils/Result";
 import { CmsSessionHint } from "../../../services/cms-session/CmsSessionHint";
 
@@ -83,7 +84,12 @@ describe("menuConfig", () => {
 
   const mockTags: Tags = {};
 
-  const mockCaseDetails: CaseDetails = { id: 1, urn: "foo", isDcfCase: false };
+  const mockCaseDetails: Result<CaseDetails> = {
+    found: true,
+    result: { id: 1, urn: "foo", isDcfCase: false, leadDefendantFirstNames: "", leadDefendantSurname: "", leadDefendantType: "", numberOfDefendants: 1 },
+  };
+
+  const mockCaseMonitoringCodes: Result<MonitoringCodes> = { found: true, result: [] };
 
   const mockCmsSessionHint: Result<CmsSessionHint> = {
     found: false,
@@ -119,6 +125,7 @@ describe("menuConfig", () => {
       initialisationStatus: "complete",
       correlationIds: {} as CorrelationIds,
       caseIdentifiers: { caseId: "1" },
+      caseMonitoringCodes: mockCaseMonitoringCodes,
       build: {} as Build,
       cmsSessionHint: mockCmsSessionHint,
       handover: { found: false, error: {} as Error },
@@ -171,6 +178,7 @@ describe("menuConfig", () => {
       initialisationStatus: "complete",
       correlationIds: {} as CorrelationIds,
       caseIdentifiers: { caseId: "1" },
+      caseMonitoringCodes: mockCaseMonitoringCodes,
       build: {} as Build,
       cmsSessionHint: mockCmsSessionHint,
       handover: { found: false, error: {} as Error },
@@ -291,6 +299,7 @@ describe("menuConfig", () => {
       initialisationStatus: "complete",
       correlationIds: {} as CorrelationIds,
       caseIdentifiers: { caseId: "1" },
+      caseMonitoringCodes: mockCaseMonitoringCodes,
       build: {} as Build,
       cmsSessionHint: mockCmsSessionHint,
       handover: { found: false, error: {} as Error },
@@ -365,6 +374,7 @@ describe("menuConfig", () => {
       initialisationStatus: "complete",
       correlationIds: {} as CorrelationIds,
       caseIdentifiers: { caseId: "1" },
+      caseMonitoringCodes: mockCaseMonitoringCodes,
       build: {} as Build,
       cmsSessionHint: mockCmsSessionHint,
       handover: { found: false, error: {} as Error },
@@ -440,6 +450,7 @@ describe("menuConfig", () => {
       initialisationStatus: "complete",
       correlationIds: {} as CorrelationIds,
       caseIdentifiers: { caseId: "1" },
+      caseMonitoringCodes: mockCaseMonitoringCodes,
       build: {} as Build,
       cmsSessionHint: mockCmsSessionHint,
       handover: { found: false, error: {} as Error },
@@ -514,6 +525,7 @@ describe("menuConfig", () => {
       initialisationStatus: "complete",
       correlationIds: {} as CorrelationIds,
       caseIdentifiers: { caseId: "1" },
+      caseMonitoringCodes: mockCaseMonitoringCodes,
       build: {} as Build,
       cmsSessionHint: mockCmsSessionHint,
       handover: { found: false, error: {} as Error },
@@ -608,6 +620,7 @@ describe("menuConfig", () => {
       initialisationStatus: "complete",
       correlationIds: {} as CorrelationIds,
       caseIdentifiers: { caseId: "1" },
+      caseMonitoringCodes: mockCaseMonitoringCodes,
       build: {} as Build,
       cmsSessionHint: cmsSessionHintWithEndpoint,
       handover: { found: false, error: {} as Error },

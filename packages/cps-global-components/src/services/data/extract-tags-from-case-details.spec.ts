@@ -33,6 +33,10 @@ describe("extractTagsFromCaseDetails", () => {
         id: 123,
         urn: "12AB3456789",
         isDcfCase: true,
+        leadDefendantFirstNames: "",
+        leadDefendantSurname: "",
+        leadDefendantType: "",
+        numberOfDefendants: 1,
       };
 
       const result = extractTagsFromCaseDetails(caseDetails);
@@ -49,6 +53,10 @@ describe("extractTagsFromCaseDetails", () => {
         id: 456,
         urn: "99ZZ1234567",
         isDcfCase: false,
+        leadDefendantFirstNames: "",
+        leadDefendantSurname: "",
+        leadDefendantType: "",
+        numberOfDefendants: 1,
       };
 
       const result = extractTagsFromCaseDetails(caseDetails);

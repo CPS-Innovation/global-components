@@ -1,5 +1,4 @@
 import { Config } from "cps-global-configuration";
-import { createCache } from "../cache/create-cache";
 import { fetchWithCircuitBreaker } from "../api/fetch-with-circuit-breaker";
 import { fetchWithAuthFactory } from "../../services/api/fetch-with-auth-factory";
 import { FoundContext } from "../context/FoundContext";
@@ -37,10 +36,8 @@ export const initialiseCaseDetailsData = ({
 
   subscribe(
     caseDetailsSubscriptionFactory({
-      config,
       handover,
       setNextHandover,
-      cache: createCache("cps-global-components-cache"),
       fetch: pipe(fetch, fetchWithCircuitBreaker({ config, trackEvent }), fetchWithAuthFactory({ config, context, getToken, readyState })),
     }),
   );

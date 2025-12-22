@@ -1,2 +1,3 @@
 import { CaseDetails } from "../data/CaseDetails";
-export type Handover = { caseDetails: CaseDetails };
+import { MonitoringCode } from "../data/MonitoringCode";
+export type Handover = { caseId: number; caseDetails?: CaseDetails; monitoringCodes?: MonitoringCode[] };

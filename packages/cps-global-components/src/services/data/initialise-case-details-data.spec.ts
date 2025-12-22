@@ -1,16 +1,10 @@
 import { Config } from "cps-global-configuration";
-import { LocalStorageCache } from "../cache/create-cache";
 import { FoundContext } from "../context/FoundContext";
 import { ReadyStateHelper, Subscribe } from "../../store/store";
 import { Handover } from "../handover/Handover";
 import { GetToken } from "../auth/GetToken";
 import { AnalyticsEventData } from "../analytics/analytics-event";
 import { Result } from "../../utils/Result";
-
-const mockCreateCache = jest.fn();
-jest.mock("../cache/create-cache", () => ({
-  createCache: (...args: unknown[]) => mockCreateCache(...args),
-}));
 
 const mockFetchWithCircuitBreaker = jest.fn();
 jest.mock("../api/fetch-with-circuit-breaker", () => ({
@@ -31,7 +25,7 @@ describe("initialiseCaseDetailsData", () => {
   const createMockConfig = (gatewayUrl: string | null = null): Config =>
     ({
       GATEWAY_URL: gatewayUrl,
-    } as Config);
+    }) as Config;
 
   const createMockContext = (): FoundContext =>
     ({
@@ -41,19 +35,12 @@ describe("initialiseCaseDetailsData", () => {
       path: "/test",
       contextIds: "test",
       msalRedirectUrl: "https://test.com",
-    } as unknown as FoundContext);
+    }) as unknown as FoundContext;
 
   const createMockHandover = (): Result<Handover> => ({
     found: false,
     error: {} as Error,
   });
-
-  const createMockCache = (): LocalStorageCache =>
-    ({
-      createEntityCache: jest.fn(),
-      clearAll: jest.fn(),
-      getStats: jest.fn(),
-    } as unknown as LocalStorageCache);
 
   const createMockSubscribe = (): Subscribe => jest.fn() as Subscribe;
 
@@ -67,7 +54,6 @@ describe("initialiseCaseDetailsData", () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    mockCreateCache.mockReturnValue(createMockCache());
     mockFetchWithCircuitBreaker.mockReturnValue((f: typeof fetch) => f);
     mockFetchWithAuthFactory.mockReturnValue((f: typeof fetch) => f);
     mockCaseDetailsSubscriptionFactory.mockReturnValue(jest.fn());
@@ -90,7 +76,6 @@ describe("initialiseCaseDetailsData", () => {
         trackEvent: createMockTrackEvent(),
       });
 
-      expect(mockCreateCache).not.toHaveBeenCalled();
       expect(mockCaseDetailsSubscriptionFactory).not.toHaveBeenCalled();
       expect(subscribe).not.toHaveBeenCalled();
     });
@@ -111,7 +96,6 @@ describe("initialiseCaseDetailsData", () => {
         trackEvent: createMockTrackEvent(),
       });
 
-      expect(mockCreateCache).not.toHaveBeenCalled();
       expect(mockCaseDetailsSubscriptionFactory).not.toHaveBeenCalled();
       expect(subscribe).not.toHaveBeenCalled();
     });
@@ -119,24 +103,6 @@ describe("initialiseCaseDetailsData", () => {
 
   describe("when GATEWAY_URL is configured", () => {
     const gatewayUrl = "https://gateway.example.com/";
-
-    it("should create cache with correct cache name", () => {
-      const { initialiseCaseDetailsData } = require("./initialise-case-details-data");
-      const config = createMockConfig(gatewayUrl);
-
-      initialiseCaseDetailsData({
-        config,
-        context: createMockContext(),
-        subscribe: createMockSubscribe(),
-        handover: createMockHandover(),
-        setNextHandover: createMockSetNextHandover(),
-        getToken: createMockGetToken(),
-        readyState: createMockReadyState(),
-        trackEvent: createMockTrackEvent(),
-      });
-
-      expect(mockCreateCache).toHaveBeenCalledWith("cps-global-components-cache");
-    });
 
     it("should set up fetch with circuit breaker", () => {
       const { initialiseCaseDetailsData } = require("./initialise-case-details-data");
@@ -183,8 +149,6 @@ describe("initialiseCaseDetailsData", () => {
       const config = createMockConfig(gatewayUrl);
       const handover = createMockHandover();
       const setNextHandover = createMockSetNextHandover();
-      const mockCache = createMockCache();
-      mockCreateCache.mockReturnValue(mockCache);
 
       initialiseCaseDetailsData({
         config,
@@ -198,10 +162,8 @@ describe("initialiseCaseDetailsData", () => {
       });
 
       expect(mockCaseDetailsSubscriptionFactory).toHaveBeenCalledWith({
-        config,
         handover,
         setNextHandover,
-        cache: mockCache,
         fetch: expect.any(Function),
       });
     });
