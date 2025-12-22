@@ -64,6 +64,7 @@
         },
         {
           "cmsAuthFromStorageKey": "$OS_Users$WorkManagementApp$ClientVars$JSONString",
+          "applyOutSystemsShim": true,
           "contexts": [
             {
               "path": "https://cps-tst.outsystemsenterprise.com/WorkManagementApp.*?(?=.*[&?]CaseId=(?<caseId>\\d+))(?=.*[&?](?:Case)?URN=(?<urn>[^&]+))?(?=.*[&?]IsMaterials=true)",
