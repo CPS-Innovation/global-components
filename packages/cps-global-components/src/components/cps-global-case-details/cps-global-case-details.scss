@@ -10,6 +10,7 @@
   border-bottom: 1px solid $govuk-border-colour;
 
   .govuk-tag {
+    @include govuk-font($size: 16);
     white-space: nowrap;
     width: auto;
     max-width: none;
