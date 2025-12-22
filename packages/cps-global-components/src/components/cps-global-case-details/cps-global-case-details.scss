@@ -1,7 +1,7 @@
 @use "../common/common.scss" as *;
 
 .case-details {
-  @include govuk-font($size: 19);
+  @include govuk-font($size: 16);
 
   display: flex;
   align-items: center;
