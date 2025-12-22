@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en" class="govuk-template">
+
+<head>
+  <title>Preview Settings - CPS Global Components</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/govuk-frontend@5.10.0/dist/govuk/govuk-frontend.min.css">
+  <script type="module"
+    src="https://sacpsglobalcomponents.blob.core.windows.net/test/cps-global-components.js"></script>
+</head>
+
+<body class="govuk-template__body">
+  <script>document.body.className += ' js-enabled' + ('noModule' in HTMLScriptElement.prototype ? ' govuk-frontend-supported' : '');</script>
+
+  <a href="#main-content" class="govuk-skip-link">Skip to main content</a>
+
+  <div class="govuk-width-container">
+    <cps-global-header></cps-global-header>
+
+    <main class="govuk-main-wrapper" id="main-content" role="main">
+      <div id="root"></div>
+    </main>
+
+    <cps-global-footer></cps-global-footer>
+  </div>
+
+  <script type="module" src="/src/main.tsx"></script>
+</body>
+
+</html>

@@ -39,16 +39,11 @@ jobs:
           artifact-ids: ${{ inputs.artifact-id }}
 
       - run: |
-          # Copy preview app to the deployment folder
-          mkdir -p ${{ steps.download.outputs.download-path }}/preview
-          cp -r ./apps/preview/* ${{ steps.download.outputs.download-path }}/preview/
+          # Preview app is already in the artifact from the build step
 
           cp ./configuration/config.${{ inputs.environment }}.json ${{ steps.download.outputs.download-path }}/config.json
           if [ -f "./configuration/config.${{ inputs.environment }}.override.json" ]; then
             cp ./configuration/config.${{ inputs.environment }}.override.json ${{ steps.download.outputs.download-path }}/config.override.json
-
-            cp ./configuration/config.${{ inputs.environment }}.override.json ${{ steps.download.outputs.download-path }}/config.override.js
-            sed -i '1s/^/cps_global_components_config_jsonp_callback(/; $s/$/);/' ${{ steps.download.outputs.download-path }}/config.override.js
           fi
 
           # Read config values for the environment
@@ -62,7 +57,23 @@ jobs:
           cat "${{ steps.download.outputs.download-path }}/auth-handover.js" >> ./prepared-auth-handover.js
           mv -f ./prepared-auth-handover.js "${{ steps.download.outputs.download-path }}/auth-handover.js"
 
-      - uses: azure/cli@v2.0.0 # pinned to minor version whilst MS fix https://github.com/azure/azure-cli/issues/32039
+          # Create a copy of cps-global-components.js as global-components.js
+          cp "${{ steps.download.outputs.download-path }}/cps-global-components.js" "${{ steps.download.outputs.download-path }}/global-components.js"
+          cp "${{ steps.download.outputs.download-path }}/cps-global-components.js.map" "${{ steps.download.outputs.download-path }}/global-components.js.map"
+
+          # If REDIRECT_SCRIPT_URL is set, replace cps-global-components.js with the redirect script
+          REDIRECT_SCRIPT_URL=$(jq -r '.REDIRECT_SCRIPT_URL // empty' "$CONFIG_FILE")
+          if [ -n "$REDIRECT_SCRIPT_URL" ]; then
+            echo "REDIRECT_SCRIPT_URL is set to: $REDIRECT_SCRIPT_URL"
+            echo "Replacing cps-global-components.js with redirect script..."
+            sed "s|{{SCRIPT_URL}}|$REDIRECT_SCRIPT_URL|g" "${{ steps.download.outputs.download-path }}/script-redirect.js" > "${{ steps.download.outputs.download-path }}/cps-global-components.js"
+            rm "${{ steps.download.outputs.download-path }}/cps-global-components.js.map"
+          fi
+
+          # Remove the redirect script template from deployment
+          rm -f "${{ steps.download.outputs.download-path }}/script-redirect.js"
+
+      - uses: azure/cli@v2.2.0 # pinned to minor version whilst MS fix https://github.com/azure/azure-cli/issues/32039
         with:
           azcliversion: latest
           inlineScript: |

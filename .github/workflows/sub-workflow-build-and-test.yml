@@ -7,6 +7,11 @@ on:
         required: false
         type: string
         default: ""
+      ref:
+        description: "Git ref (commit SHA, branch, or tag) to checkout. Defaults to the triggering ref."
+        required: false
+        type: string
+        default: ""
     outputs:
       artifact-id:
         description: "The ID of the uploaded artifact"
@@ -32,6 +37,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@v5
+        with:
+          ref: ${{ inputs.ref || github.ref }}
 
       - uses: benjlevesque/short-sha@v3.0
         id: short-sha
@@ -81,6 +88,8 @@ jobs:
           cp ./packages/cps-global-components/dist/cps-global-components.js ./to-deploy
           cp ./packages/cps-global-components/dist/cps-global-components.js.map ./to-deploy
           cp ./packages/cps-global-os-handover/dist/auth-handover.js ./to-deploy
+          cp ./packages/cps-global-script-redirect/dist/script-redirect.js ./to-deploy
+          cp -r ./packages/cps-global-preview/dist ./to-deploy/preview
 
       - uses: actions/upload-artifact@v4
         id: upload

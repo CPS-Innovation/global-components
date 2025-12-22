@@ -37,7 +37,7 @@ const menuConfigInternal = ({
       (targetUrl: string) => {
         const shouldGoViaAuthHandover = isOutSystemsApp({ location: { href: targetUrl } }) && OS_HANDOVER_URL && COOKIE_HANDOVER_URL;
         if (shouldGoViaAuthHandover) {
-          const cookieHandoverUrl = (cmsSessionHint.found && cmsSessionHint.hint.handoverEndpoint) || COOKIE_HANDOVER_URL;
+          const cookieHandoverUrl = (cmsSessionHint.found && cmsSessionHint.result.handoverEndpoint) || COOKIE_HANDOVER_URL;
           return createOutboundUrlDirect({ cookieHandoverUrl, handoverUrl: OS_HANDOVER_URL, targetUrl });
         } else {
           return targetUrl;

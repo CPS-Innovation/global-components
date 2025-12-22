@@ -1,6 +1,6 @@
 import { Config } from "cps-global-configuration";
 import { Build, ReadyStateHelper } from "../../store/store";
-import { CmsSessionHintResult } from "../cms-session/CmsSessionHint";
+import { CmsSessionHint } from "../cms-session/CmsSessionHint";
 import { ApplicationFlags } from "../application-flags/ApplicationFlags";
 
 // Mock the dependencies
@@ -15,6 +15,7 @@ jest.mock("./initialise-ai-analytics", () => ({
 }));
 
 import { initialiseAnalytics } from "./initialise-analytics";
+import { Result } from "../../utils/Result";
 
 describe("initialiseAnalytics", () => {
   const mockWindow = {} as Window;
@@ -25,7 +26,7 @@ describe("initialiseAnalytics", () => {
 
   const mockBuild = {} as Build;
 
-  const mockCmsSessionHint = {} as CmsSessionHintResult;
+  const mockCmsSessionHint = {} as Result<CmsSessionHint>;
 
   const mockAnalyticsResult = {
     trackPageView: jest.fn(),
@@ -42,7 +43,6 @@ describe("initialiseAnalytics", () => {
   describe("when e2eTestMode is enabled", () => {
     const e2eFlags: ApplicationFlags = {
       e2eTestMode: { isE2eTestMode: true, isAuthed: true, adGroups: [] },
-      isOverrideMode: false,
       isOutSystems: false,
       isLocalDevelopment: false,
     };
@@ -85,7 +85,6 @@ describe("initialiseAnalytics", () => {
   describe("when e2eTestMode is disabled", () => {
     const normalFlags: ApplicationFlags = {
       e2eTestMode: { isE2eTestMode: false },
-      isOverrideMode: false,
       isOutSystems: false,
       isLocalDevelopment: false,
     };

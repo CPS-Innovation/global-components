@@ -1,6 +1,7 @@
 import { makeConsole } from "../../logging/makeConsole";
-import { FoundContext } from "../context/FoundContext";
+import { Result } from "../../utils/Result";
 import { DomMutationObserver } from "../browser/dom/DomMutationObserver";
+import { PreviewState } from "cps-global-configuration";
 
 type Styles = { [K in keyof CSSStyleDeclaration]?: string };
 
@@ -17,13 +18,11 @@ const applyStylesFactory =
       }
     });
 
-const isActiveForApp = (context: FoundContext) => context.found && !!context.applyOutSystemsShim;
-
-export const outSystemsShimSubscribers: DomMutationObserver[] = [
+export const outSystemsShimSubscribers = ({ preview }: { preview: Result<PreviewState> }): DomMutationObserver[] => [
   ({ context, window }) => {
     const applyStyles = applyStylesFactory(window);
     return {
-      isActiveForContext: isActiveForApp(context),
+      isActiveForContext: context.found && !!context.applyOutSystemsShim && preview.found && !!preview?.result?.forceDcfHeader,
       subscriptions: [
         {
           cssSelector: "div[data-block='Common.TempHeader'], #b1-b2-GlobalNavigation",

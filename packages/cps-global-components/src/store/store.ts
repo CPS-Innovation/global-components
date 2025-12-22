@@ -1,5 +1,5 @@
 import { createStore } from "@stencil/store";
-import { Config } from "cps-global-configuration";
+import { Config, PreviewState } from "cps-global-configuration";
 import { AuthResult } from "../services/auth/AuthResult";
 import { FoundContext } from "../services/context/FoundContext";
 import { ApplicationFlags } from "../services/application-flags/ApplicationFlags";
@@ -14,8 +14,10 @@ import { CaseDetails } from "../services/data/CaseDetails";
 import { ReadyStateHelper, readyStateFactory } from "./ready-state-factory";
 import { CaseIdentifiers } from "../services/context/CaseIdentifiers";
 import { caseIdentifiersSubscriptionFactory } from "./subscriptions/case-identifiers-subscription-factory";
-import { CmsSessionHintResult } from "../services/cms-session/CmsSessionHint";
 import { Handover } from "../services/handover/Handover";
+import { Result } from "../utils/Result";
+import { CmsSessionHint } from "../services/cms-session/CmsSessionHint";
+import { MonitoringCodes } from "../services/data/MonitoringCode";
 export { type ReadyStateHelper };
 
 const registerEventName = "cps-global-components-register";
@@ -43,20 +45,26 @@ type MakeUndefinable<T> = {
 
 // This state is expected to be set up once on startup
 type StartupState = {
+  rootUrl: string;
+  preview: Result<PreviewState>;
   flags: ApplicationFlags;
   config: Config;
   auth: AuthResult;
   build: Build;
-  cmsSessionHint: CmsSessionHintResult;
+  cmsSessionHint: Result<CmsSessionHint>;
+  handover: Result<Handover>;
   firstContext: FoundContext;
 };
 
 const initialStartupState = {
+  rootUrl: undefined,
+  preview: undefined,
   flags: undefined,
   config: undefined,
   auth: undefined,
   build: undefined,
   cmsSessionHint: undefined,
+  handover: undefined,
   firstContext: undefined,
 };
 
@@ -69,8 +77,8 @@ type TransientState = {
   correlationIds: CorrelationIds;
   caseDetailsTags: Tags;
   caseIdentifiers: CaseIdentifiers;
-  handover: Handover;
-  caseDetails: Partial<CaseDetails>;
+  caseDetails: Result<CaseDetails>;
+  caseMonitoringCodes: Result<MonitoringCodes>;
 };
 const initialTransientState = {
   context: undefined,
@@ -81,7 +89,7 @@ const initialTransientState = {
   caseDetailsTags: undefined,
   caseIdentifiers: undefined,
   caseDetails: undefined,
-  handover: undefined,
+  caseMonitoringCodes: undefined,
 };
 
 type AggregateState = {

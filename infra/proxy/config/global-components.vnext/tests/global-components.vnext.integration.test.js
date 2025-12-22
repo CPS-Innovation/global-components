@@ -192,6 +192,87 @@ async function testStateEndpoint() {
 }
 
 // =============================================================================
+// MDS API Proxy Tests
+// =============================================================================
+
+async function testMdsApiProxy() {
+  console.log("\nMDS API Proxy Tests (/global-components/api/cases/*):")
+
+  await test("proxies case summary endpoint", async () => {
+    const response = await fetch(`${PROXY_BASE}/global-components/api/cases/12345/summary`)
+    assertEqual(response.status, 200, "Should return 200 for case summary")
+    const body = await response.json()
+    assertEqual(body.caseId, 12345, "Should have correct caseId")
+    assertEqual(body.endpoint, "summary", "Should be summary endpoint")
+  })
+
+  await test("proxies monitoring-codes endpoint", async () => {
+    const response = await fetch(`${PROXY_BASE}/global-components/api/cases/67890/monitoring-codes`)
+    assertEqual(response.status, 200, "Should return 200 for monitoring-codes")
+    const body = await response.json()
+    assertEqual(body.caseId, 67890, "Should have correct caseId")
+    assertEqual(body.endpoint, "monitoring-codes", "Should be monitoring-codes endpoint")
+  })
+
+  await test("forwards x-functions-key header", async () => {
+    const response = await fetch(`${PROXY_BASE}/global-components/api/cases/123/summary`)
+    assertEqual(response.status, 200, "Should return 200")
+    const body = await response.json()
+    assert(body.headers["x-functions-key"] !== null, "Should have x-functions-key header")
+  })
+
+  await test("strips Authorization header", async () => {
+    const response = await fetch(`${PROXY_BASE}/global-components/api/cases/123/summary`, {
+      headers: { Authorization: "Bearer some-token" },
+    })
+    assertEqual(response.status, 200, "Should return 200")
+    const body = await response.json()
+    // nginx sets Authorization to "" which is sent as empty or not at all
+    // mock server converts empty/missing to null
+    assert(
+      body.headers.authorization === null || body.headers.authorization === "",
+      "Authorization header should be stripped (null or empty)"
+    )
+  })
+
+  await test("returns CORS headers", async () => {
+    const response = await fetch(`${PROXY_BASE}/global-components/api/cases/123/summary`, {
+      headers: { Origin: "http://localhost:3000" },
+    })
+    const corsHeader = response.headers.get("access-control-allow-origin")
+    assert(corsHeader !== null, "Should have Access-Control-Allow-Origin header")
+    assertEqual(corsHeader, "http://localhost:3000", "Should echo back allowed origin")
+  })
+
+  await test("handles OPTIONS preflight request", async () => {
+    const response = await fetch(`${PROXY_BASE}/global-components/api/cases/123/summary`, {
+      method: "OPTIONS",
+      headers: {
+        Origin: "https://example.com",
+        "Access-Control-Request-Method": "GET",
+      },
+    })
+    assertEqual(response.status, 204, "OPTIONS should return 204")
+    const allowMethods = response.headers.get("access-control-allow-methods")
+    assert(allowMethods !== null, "Should have Access-Control-Allow-Methods header")
+  })
+
+  await test("rejects invalid case ID paths", async () => {
+    const response = await fetch(`${PROXY_BASE}/global-components/api/cases/abc/summary`)
+    // Should not match the regex and fall through to 404 or other handler
+    assert(response.status !== 200 || !(await response.json()).endpoint, "Should not match non-numeric case ID")
+  })
+
+  await test("forwards query string to upstream", async () => {
+    const response = await fetch(`${PROXY_BASE}/global-components/api/cases/123/monitoring-codes?assignedOnly=true&limit=10`)
+    assertEqual(response.status, 200, "Should return 200")
+    const body = await response.json()
+    // Mock server echoes back the original URL which includes query string
+    assert(body.originalUrl?.includes("assignedOnly=true"), "Should forward query string")
+  })
+}
+
+// =============================================================================
 // Status Endpoint Tests
 // =============================================================================
 
@@ -264,6 +345,7 @@ async function main() {
   await testSwaggerRewriting()
   await testBlobStorageProxy()
   await testStateEndpoint()
+  await testMdsApiProxy()
 }
 
 module.exports = main

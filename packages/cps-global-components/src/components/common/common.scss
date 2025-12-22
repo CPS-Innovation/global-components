@@ -36,6 +36,10 @@ $level-height: 3rem;
   @include background(rgb(244, 248, 251));
 }
 
+.background-divider-content-width {
+  border-bottom: 1px solid $govuk-border-colour;
+}
+
 .background-divider {
   height: 1px;
   box-shadow: 0 0 0 100vmax $govuk-border-colour;
@@ -67,4 +71,8 @@ $level-height: 3rem;
   @include govuk-font($size: 19);
   color: $govuk-secondary-text-colour;
   font-weight: bold;
+}
+
+.level {
+  height: $level-height;
 }

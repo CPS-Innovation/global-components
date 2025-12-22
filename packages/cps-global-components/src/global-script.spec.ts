@@ -43,11 +43,6 @@ const triggerNavigation = () => {
 };
 
 // Mock all the services - these return jest.fn() so we can inspect calls
-const mockHandleSetOverrideMode = jest.fn();
-jest.mock("./services/override-mode/handle-set-override-mode", () => ({
-  handleSetOverrideMode: mockHandleSetOverrideMode,
-}));
-
 const mockInitialiseAuth = jest.fn();
 jest.mock("./services/auth/initialise-auth", () => ({
   initialiseAuth: mockInitialiseAuth,
@@ -82,8 +77,9 @@ jest.mock("./services/browser/dom/dom-tag-mutation-subscriber", () => ({
   domTagMutationSubscriber: jest.fn(),
 }));
 
+const mockOutSystemsShimSubscribers = jest.fn(() => []);
 jest.mock("./services/outsystems-shim/outsystems-shim-subscriber", () => ({
-  outSystemsShimSubscribers: [],
+  outSystemsShimSubscribers: mockOutSystemsShimSubscribers,
 }));
 
 const mockInitialiseCaseDetailsData = jest.fn();
@@ -104,6 +100,16 @@ jest.mock("./services/handover/intialise-handover", () => ({
 const mockInitialiseInterimDcfNavigation = jest.fn();
 jest.mock("./services/outsystems-shim/initialise-interim-dcf-navigation", () => ({
   initialiseInterimDcfNavigation: mockInitialiseInterimDcfNavigation,
+}));
+
+const mockInitialiseRootUrl = jest.fn();
+jest.mock("./services/root-url/initialise-root-url", () => ({
+  initialiseRootUrl: () => mockInitialiseRootUrl(),
+}));
+
+const mockInitialisePreview = jest.fn();
+jest.mock("./services/preview/initialise-preview", () => ({
+  initialisePreview: mockInitialisePreview,
 }));
 
 // Mock makeConsole to return no-op functions
@@ -154,11 +160,8 @@ const setupDefaultMocks = () => {
     return { scriptLoadCorrelationId, navigationCorrelationId };
   });
 
-  mockHandleSetOverrideMode.mockImplementation(() => {});
-
   mockGetApplicationFlags.mockReturnValue({
     e2eTestMode: { isE2eTestMode: false },
-    isOverrideMode: false,
     isDevelopment: false,
   });
 
@@ -204,6 +207,10 @@ const setupDefaultMocks = () => {
     disconnect: jest.fn(),
   });
 
+  mockInitialiseRootUrl.mockReturnValue("https://example.com/env/components/script.js");
+
+  mockInitialisePreview.mockResolvedValue({ enabled: false, features: [] });
+
   return {
     mockTrackPageView,
     mockTrackEvent,
@@ -233,14 +240,6 @@ describe("global-script", () => {
   });
 
   describe("initial script load", () => {
-    it("should call handleSetOverrideMode on startup", async () => {
-      const globalScript = require("./global-script").default;
-
-      globalScript();
-
-      expect(mockHandleSetOverrideMode).toHaveBeenCalledWith({ window: mockWindow });
-    });
-
     it("should use the same correlationId for scriptLoadCorrelationId and navigationCorrelationId on first load", async () => {
       const globalScript = require("./global-script").default;
 
@@ -307,9 +306,42 @@ describe("global-script", () => {
       if (state.isReady) {
         expect(state.state.flags).toEqual({
           e2eTestMode: { isE2eTestMode: false },
-          isOverrideMode: false,
           isDevelopment: false,
         });
+      }
+    });
+
+    it("should register rootUrl to store", async () => {
+      const testRootUrl = "https://test.example.com/env/script.js";
+      mockInitialiseRootUrl.mockReturnValue(testRootUrl);
+
+      const globalScript = require("./global-script").default;
+
+      globalScript();
+
+      await new Promise(resolve => setTimeout(resolve, 10));
+
+      const state = getReadyState()("rootUrl");
+      expect(state.isReady).toBe(true);
+      if (state.isReady) {
+        expect(state.state.rootUrl).toBe(testRootUrl);
+      }
+    });
+
+    it("should register preview to store", async () => {
+      const testPreview = { enabled: true, features: ["feature1", "feature2"] };
+      mockInitialisePreview.mockResolvedValue(testPreview);
+
+      const globalScript = require("./global-script").default;
+
+      globalScript();
+
+      await new Promise(resolve => setTimeout(resolve, 10));
+
+      const state = getReadyState()("preview");
+      expect(state.isReady).toBe(true);
+      if (state.isReady) {
+        expect(state.state.preview).toEqual(testPreview);
       }
     });
 
@@ -480,7 +512,6 @@ describe("global-script", () => {
     it("should pass flags to initialiseAuth so it can decide mock vs real internally", async () => {
       const testFlags = {
         e2eTestMode: { isE2eTestMode: true },
-        isOverrideMode: false,
         isDevelopment: false,
       };
       mockGetApplicationFlags.mockReturnValue(testFlags);
@@ -502,7 +533,6 @@ describe("global-script", () => {
     it("should pass flags to initialiseAnalytics so it can decide mock vs real internally", async () => {
       const testFlags = {
         e2eTestMode: { isE2eTestMode: true },
-        isOverrideMode: false,
         isDevelopment: false,
       };
       mockGetApplicationFlags.mockReturnValue(testFlags);
@@ -993,68 +1023,73 @@ describe("global-script", () => {
     // These tests verify that the correct data flows from one step to the next
     // A control flow refactor should not break these dependencies
 
-    it("should pass flags to initialiseConfig", async () => {
+    it("should pass rootUrl, flags and preview to initialiseConfig", async () => {
       const testFlags = {
         e2eTestMode: { isE2eTestMode: false },
-        isOverrideMode: true,
         isDevelopment: true,
         customFlag: "test-value",
       };
+      const testRootUrl = "https://test.example.com/env/script.js";
+      const testPreview = { enabled: true, features: ["feature1"] };
       mockGetApplicationFlags.mockReturnValue(testFlags);
+      mockInitialiseRootUrl.mockReturnValue(testRootUrl);
+      mockInitialisePreview.mockResolvedValue(testPreview);
 
       const globalScript = require("./global-script").default;
       globalScript();
       await new Promise(resolve => setTimeout(resolve, 10));
 
-      expect(mockInitialiseConfig).toHaveBeenCalledWith({ flags: testFlags });
+      expect(mockInitialiseConfig).toHaveBeenCalledWith({ rootUrl: testRootUrl, flags: testFlags, preview: testPreview });
     });
 
-    it("should pass config and flags to initialiseCmsSessionHint", async () => {
-      const testFlags = {
-        e2eTestMode: { isE2eTestMode: false },
-        isOverrideMode: false,
-        isDevelopment: false,
-      };
-      const testConfig = {
-        CONTEXTS: [{ name: "test" }],
-        GATEWAY_URL: "https://test-gateway.com/",
-        CUSTOM_CONFIG: "custom-value",
-      };
-      mockGetApplicationFlags.mockReturnValue(testFlags);
-      mockInitialiseConfig.mockResolvedValue(testConfig);
+    it("should pass rootUrl to initialiseCmsSessionHint", async () => {
+      const testRootUrl = "https://test.example.com/env/script.js";
+      mockInitialiseRootUrl.mockReturnValue(testRootUrl);
 
       const globalScript = require("./global-script").default;
       globalScript();
       await new Promise(resolve => setTimeout(resolve, 10));
 
       expect(mockInitialiseCmsSessionHint).toHaveBeenCalledWith({
-        config: testConfig,
-        flags: testFlags,
+        rootUrl: testRootUrl,
       });
     });
 
-    it("should pass config and flags to initialiseHandover", async () => {
-      const testFlags = {
-        e2eTestMode: { isE2eTestMode: false },
-        isOverrideMode: false,
-        isDevelopment: false,
-      };
-      const testConfig = {
-        CONTEXTS: [],
-        GATEWAY_URL: null,
-        HANDOVER_CONFIG: "test",
-      };
-      mockGetApplicationFlags.mockReturnValue(testFlags);
-      mockInitialiseConfig.mockResolvedValue(testConfig);
+    it("should pass rootUrl to initialiseHandover", async () => {
+      const testRootUrl = "https://test.example.com/env/script.js";
+      mockInitialiseRootUrl.mockReturnValue(testRootUrl);
 
       const globalScript = require("./global-script").default;
       globalScript();
       await new Promise(resolve => setTimeout(resolve, 10));
 
       expect(mockInitialiseHandover).toHaveBeenCalledWith({
-        config: testConfig,
-        flags: testFlags,
+        rootUrl: testRootUrl,
       });
+    });
+
+    it("should pass rootUrl to initialisePreview", async () => {
+      const testRootUrl = "https://test.example.com/env/script.js";
+      mockInitialiseRootUrl.mockReturnValue(testRootUrl);
+
+      const globalScript = require("./global-script").default;
+      globalScript();
+      await new Promise(resolve => setTimeout(resolve, 10));
+
+      expect(mockInitialisePreview).toHaveBeenCalledWith({
+        rootUrl: testRootUrl,
+      });
+    });
+
+    it("should pass preview to outSystemsShimSubscribers", async () => {
+      const testPreview = { enabled: true, forceDcfHeader: true };
+      mockInitialisePreview.mockResolvedValue(testPreview);
+
+      const globalScript = require("./global-script").default;
+      globalScript();
+      await new Promise(resolve => setTimeout(resolve, 10));
+
+      expect(mockOutSystemsShimSubscribers).toHaveBeenCalledWith({ preview: testPreview });
     });
 
     it("should pass window and config to initialiseContext", async () => {
@@ -1077,7 +1112,6 @@ describe("global-script", () => {
     it("should pass config, context and flags to initialiseAuth", async () => {
       const testFlags = {
         e2eTestMode: { isE2eTestMode: false },
-        isOverrideMode: false,
         isDevelopment: false,
       };
       const testConfig = {
@@ -1109,7 +1143,6 @@ describe("global-script", () => {
     it("should pass all required dependencies to initialiseAnalytics (auth is obtained via readyState)", async () => {
       const testFlags = {
         e2eTestMode: { isE2eTestMode: false },
-        isOverrideMode: false,
         isDevelopment: false,
       };
       const testConfig = { CONTEXTS: [], GATEWAY_URL: null, APP_INSIGHTS_KEY: "test-key" };
@@ -1201,12 +1234,17 @@ describe("global-script", () => {
     // These tests verify that operations happen in the correct order
     // using mock call order tracking
 
-    it("should initialise in correct order: flags -> config -> cmsSessionHint/handover -> firstContext -> analytics (auth runs async later)", async () => {
+    it("should initialise in correct order: rootUrl -> flags -> config/cmsSessionHint/handover/preview (parallel) -> firstContext -> analytics (auth runs async later)", async () => {
       const callOrder: string[] = [];
+
+      mockInitialiseRootUrl.mockImplementation(() => {
+        callOrder.push("rootUrl");
+        return "https://example.com/script.js";
+      });
 
       mockGetApplicationFlags.mockImplementation(() => {
         callOrder.push("flags");
-        return { e2eTestMode: { isE2eTestMode: false }, isOverrideMode: false, isDevelopment: false };
+        return { e2eTestMode: { isE2eTestMode: false }, isDevelopment: false };
       });
 
       mockInitialiseConfig.mockImplementation(async () => {
@@ -1222,6 +1260,11 @@ describe("global-script", () => {
       mockInitialiseHandover.mockImplementation(async () => {
         callOrder.push("handover");
         return { handover: {}, setNextHandover: jest.fn() };
+      });
+
+      mockInitialisePreview.mockImplementation(async () => {
+        callOrder.push("preview");
+        return { enabled: false, features: [] };
       });
 
       mockInitialiseContext.mockImplementation(() => {
@@ -1243,11 +1286,13 @@ describe("global-script", () => {
       globalScript();
       await new Promise(resolve => setTimeout(resolve, 10));
 
-      // Verify order - flags first, then config, then parallel cmsSessionHint/handover, then firstContext
+      // Verify order - rootUrl and flags first, then parallel async calls, then firstContext
       // Analytics now comes BEFORE auth (auth is non-blocking to avoid UI delay)
+      expect(callOrder.indexOf("rootUrl")).toBeLessThan(callOrder.indexOf("flags"));
       expect(callOrder.indexOf("flags")).toBeLessThan(callOrder.indexOf("config"));
-      expect(callOrder.indexOf("config")).toBeLessThan(callOrder.indexOf("cmsSessionHint"));
-      expect(callOrder.indexOf("config")).toBeLessThan(callOrder.indexOf("handover"));
+      expect(callOrder.indexOf("flags")).toBeLessThan(callOrder.indexOf("cmsSessionHint"));
+      expect(callOrder.indexOf("flags")).toBeLessThan(callOrder.indexOf("handover"));
+      expect(callOrder.indexOf("flags")).toBeLessThan(callOrder.indexOf("preview"));
       expect(callOrder.indexOf("config")).toBeLessThan(callOrder.indexOf("context"));
       // Analytics is now initialized BEFORE auth (auth is non-blocking)
       expect(callOrder.indexOf("analytics")).toBeLessThan(callOrder.indexOf("auth"));

@@ -18,7 +18,9 @@ import { createOutboundUrlDirect } from "cps-global-os-handover";
 import { Build, State } from "../../../store/store";
 import { CorrelationIds } from "../../../services/correlation/CorrelationIds";
 import { CaseDetails } from "../../../services/data/CaseDetails";
-import { CmsSessionHintResult } from "../../../services/cms-session/CmsSessionHint";
+import { MonitoringCodes } from "../../../services/data/MonitoringCode";
+import { Result } from "../../../utils/Result";
+import { CmsSessionHint } from "../../../services/cms-session/CmsSessionHint";
 
 // Type the mocked functions
 const mockShouldShowLink = shouldShowLink as jest.MockedFunction<typeof shouldShowLink>;
@@ -75,7 +77,6 @@ describe("menuConfig", () => {
   } as Config;
 
   const mockFlags: ApplicationFlags = {
-    isOverrideMode: false,
     isOutSystems: false,
     e2eTestMode: { isE2eTestMode: false },
     isLocalDevelopment: false,
@@ -83,11 +84,16 @@ describe("menuConfig", () => {
 
   const mockTags: Tags = {};
 
-  const mockCaseDetails: CaseDetails = { id: 1, urn: "foo", isDcfCase: false };
+  const mockCaseDetails: Result<CaseDetails> = {
+    found: true,
+    result: { id: 1, urn: "foo", isDcfCase: false, leadDefendantFirstNames: "", leadDefendantSurname: "", leadDefendantType: "", numberOfDefendants: 1 },
+  };
 
-  const mockCmsSessionHint: CmsSessionHintResult = {
+  const mockCaseMonitoringCodes: Result<MonitoringCodes> = { found: true, result: [] };
+
+  const mockCmsSessionHint: Result<CmsSessionHint> = {
     found: false,
-    error: undefined,
+    error: {} as Error,
   };
 
   beforeEach(() => {
@@ -102,6 +108,8 @@ describe("menuConfig", () => {
     };
 
     const mockState: State = {
+      rootUrl: "",
+      preview: { found: true, result: {} },
       context: foundContext,
       firstContext: foundContext,
       caseDetails: mockCaseDetails,
@@ -117,9 +125,10 @@ describe("menuConfig", () => {
       initialisationStatus: "complete",
       correlationIds: {} as CorrelationIds,
       caseIdentifiers: { caseId: "1" },
+      caseMonitoringCodes: mockCaseMonitoringCodes,
       build: {} as Build,
       cmsSessionHint: mockCmsSessionHint,
-      handover: { found: false, error: null },
+      handover: { found: false, error: {} as Error },
     };
 
     const result = menuConfig(mockState);
@@ -152,6 +161,8 @@ describe("menuConfig", () => {
     };
 
     const mockState: State = {
+      rootUrl: "",
+      preview: { found: true, result: {} },
       context: foundContext,
       firstContext: foundContext,
       caseDetails: mockCaseDetails,
@@ -167,9 +178,10 @@ describe("menuConfig", () => {
       initialisationStatus: "complete",
       correlationIds: {} as CorrelationIds,
       caseIdentifiers: { caseId: "1" },
+      caseMonitoringCodes: mockCaseMonitoringCodes,
       build: {} as Build,
       cmsSessionHint: mockCmsSessionHint,
-      handover: { found: false, error: null },
+      handover: { found: false, error: {} as Error },
     };
 
     // Mock shouldShowLink to filter out the second link
@@ -264,6 +276,8 @@ describe("menuConfig", () => {
     };
 
     const mockState: State = {
+      rootUrl: "",
+      preview: { found: true, result: {} },
       context: foundContext,
       firstContext: foundContext,
       caseDetails: mockCaseDetails,
@@ -285,9 +299,10 @@ describe("menuConfig", () => {
       initialisationStatus: "complete",
       correlationIds: {} as CorrelationIds,
       caseIdentifiers: { caseId: "1" },
+      caseMonitoringCodes: mockCaseMonitoringCodes,
       build: {} as Build,
       cmsSessionHint: mockCmsSessionHint,
-      handover: { found: false, error: null },
+      handover: { found: false, error: {} as Error },
     };
 
     // Mock shouldShowLink to pass all links
@@ -336,6 +351,8 @@ describe("menuConfig", () => {
     };
 
     const mockState: State = {
+      rootUrl: "",
+      preview: { found: true, result: {} },
       context: foundContext,
       firstContext: foundContext,
       caseDetails: mockCaseDetails,
@@ -357,9 +374,10 @@ describe("menuConfig", () => {
       initialisationStatus: "complete",
       correlationIds: {} as CorrelationIds,
       caseIdentifiers: { caseId: "1" },
+      caseMonitoringCodes: mockCaseMonitoringCodes,
       build: {} as Build,
       cmsSessionHint: mockCmsSessionHint,
-      handover: { found: false, error: null },
+      handover: { found: false, error: {} as Error },
     };
 
     // Mock shouldShowLink to pass all links
@@ -408,6 +426,8 @@ describe("menuConfig", () => {
     };
 
     const mockState: State = {
+      rootUrl: "",
+      preview: { found: true, result: {} },
       context: foundContext,
       firstContext: foundContext,
       caseDetails: mockCaseDetails,
@@ -430,9 +450,10 @@ describe("menuConfig", () => {
       initialisationStatus: "complete",
       correlationIds: {} as CorrelationIds,
       caseIdentifiers: { caseId: "1" },
+      caseMonitoringCodes: mockCaseMonitoringCodes,
       build: {} as Build,
       cmsSessionHint: mockCmsSessionHint,
-      handover: { found: false, error: null },
+      handover: { found: false, error: {} as Error },
     };
 
     // Mock shouldShowLink to pass all links
@@ -480,6 +501,8 @@ describe("menuConfig", () => {
     };
 
     const mockState: State = {
+      rootUrl: "",
+      preview: { found: true, result: {} },
       context: foundContext,
       firstContext: foundContext,
       caseDetails: mockCaseDetails,
@@ -502,9 +525,10 @@ describe("menuConfig", () => {
       initialisationStatus: "complete",
       correlationIds: {} as CorrelationIds,
       caseIdentifiers: { caseId: "1" },
+      caseMonitoringCodes: mockCaseMonitoringCodes,
       build: {} as Build,
       cmsSessionHint: mockCmsSessionHint,
-      handover: { found: false, error: null },
+      handover: { found: false, error: {} as Error },
     };
 
     // Mock shouldShowLink to pass all links
@@ -562,9 +586,9 @@ describe("menuConfig", () => {
       currentHref: "https://foo",
     };
 
-    const cmsSessionHintWithEndpoint: CmsSessionHintResult = {
+    const cmsSessionHintWithEndpoint: Result<CmsSessionHint> = {
       found: true,
-      hint: {
+      result: {
         cmsDomains: ["example.com"],
         isProxySession: true,
         handoverEndpoint: "https://proxy-cookie.example.com",
@@ -572,6 +596,8 @@ describe("menuConfig", () => {
     };
 
     const mockState: State = {
+      rootUrl: "",
+      preview: { found: true, result: {} },
       context: foundContext,
       firstContext: foundContext,
       caseDetails: mockCaseDetails,
@@ -594,9 +620,10 @@ describe("menuConfig", () => {
       initialisationStatus: "complete",
       correlationIds: {} as CorrelationIds,
       caseIdentifiers: { caseId: "1" },
+      caseMonitoringCodes: mockCaseMonitoringCodes,
       build: {} as Build,
       cmsSessionHint: cmsSessionHintWithEndpoint,
-      handover: { found: false, error: null },
+      handover: { found: false, error: {} as Error },
     };
 
     // Mock shouldShowLink to pass all links

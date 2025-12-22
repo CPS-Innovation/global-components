@@ -45,7 +45,6 @@ describe("initialiseAuth", () => {
   describe("when e2eTestMode is enabled", () => {
     const e2eFlags: ApplicationFlags = {
       e2eTestMode: { isE2eTestMode: true, isAuthed: true, adGroups: [] },
-      isOverrideMode: false,
       isOutSystems: false,
       isLocalDevelopment: false,
     };
@@ -79,7 +78,6 @@ describe("initialiseAuth", () => {
   describe("when e2eTestMode is disabled", () => {
     const normalFlags: ApplicationFlags = {
       e2eTestMode: { isE2eTestMode: false },
-      isOverrideMode: false,
       isOutSystems: false,
       isLocalDevelopment: false,
     };
