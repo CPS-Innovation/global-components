@@ -104,11 +104,11 @@ const server = http.createServer((req, res) => {
     return;
   }
 
-  // Handle case summary requests
-  const caseMatch = path.match(/^cases\/(\d+)\/summary$/);
+  // Handle case summary and monitoring-codes requests
+  const caseMatch = path.match(/^cases\/(\d+)\/(summary|monitoring-codes)$/);
   if (caseMatch) {
-    const caseId = caseMatch[1];
-    console.log(`  -> Case summary: caseId=${caseId}`);
+    const [, caseId, endpoint] = caseMatch;
+    console.log(`  -> Case ${endpoint}: caseId=${caseId}`);
     res.writeHead(200, {
       'Content-Type': 'application/json',
       'X-Functions-Key-Received': functionsKey || 'none'
@@ -116,7 +116,8 @@ const server = http.createServer((req, res) => {
     res.end(JSON.stringify({
       mock: true,
       caseId: parseInt(caseId),
-      summary: 'Mock case summary',
+      endpoint: endpoint,
+      data: endpoint === 'summary' ? 'Mock case summary' : ['MC001', 'MC002'],
       headers: {
         'x-functions-key': functionsKey || null,
         'cms-auth-values': cmsAuthValues || null,
