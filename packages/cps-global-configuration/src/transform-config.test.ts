@@ -103,7 +103,7 @@ describe("transformConfig", () => {
       CONTEXTS: [
         {
           msalRedirectUrl: "https://redirect.example.com",
-          applyOutSystemsShim: true,
+          applyShim: "work-management",
           contexts: [
             { path: "/first", contextIds: "ctx1" },
             {
@@ -124,7 +124,7 @@ describe("transformConfig", () => {
     expect(result.CONTEXTS[0].msalRedirectUrl).toBe(
       "https://redirect.example.com"
     );
-    expect(result.CONTEXTS[0].applyOutSystemsShim).toBe(true);
+    expect(result.CONTEXTS[0].applyShim).toBe("work-management");
     expect(result.CONTEXTS[0].forceCmsAuthRefresh).toBeUndefined();
 
     // Second context inherits from both root and intermediate node
@@ -132,7 +132,7 @@ describe("transformConfig", () => {
     expect(result.CONTEXTS[1].msalRedirectUrl).toBe(
       "https://redirect.example.com"
     );
-    expect(result.CONTEXTS[1].applyOutSystemsShim).toBe(true);
+    expect(result.CONTEXTS[1].applyShim).toBe("work-management");
     expect(result.CONTEXTS[1].forceCmsAuthRefresh).toBe(true);
   });
 
@@ -144,7 +144,7 @@ describe("transformConfig", () => {
       CONTEXTS: [
         {
           msalRedirectUrl: "https://root.example.com",
-          applyOutSystemsShim: true,
+          applyShim: "housekeeping",
           contexts: [
             {
               msalRedirectUrl: "https://child.example.com",
@@ -162,7 +162,7 @@ describe("transformConfig", () => {
     expect(result.CONTEXTS[0].msalRedirectUrl).toBe(
       "https://child.example.com"
     );
-    expect(result.CONTEXTS[0].applyOutSystemsShim).toBe(true);
+    expect(result.CONTEXTS[0].applyShim).toBe("housekeeping");
   });
 
   test("preserves order with multiple root-level context nodes", () => {
