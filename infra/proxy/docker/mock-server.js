@@ -105,7 +105,7 @@ const server = http.createServer((req, res) => {
   }
 
   // Handle case summary and monitoring-codes requests
-  const caseMatch = path.match(/^cases\/(\d+)\/(summary|monitoring-codes)$/);
+  const caseMatch = path.match(/^cases\/(\d+)\/(summary|monitoring-codes)/);
   if (caseMatch) {
     const [, caseId, endpoint] = caseMatch;
     console.log(`  -> Case ${endpoint}: caseId=${caseId}`);
@@ -117,6 +117,7 @@ const server = http.createServer((req, res) => {
       mock: true,
       caseId: parseInt(caseId),
       endpoint: endpoint,
+      originalUrl: req.url,
       data: endpoint === 'summary' ? 'Mock case summary' : ['MC001', 'MC002'],
       headers: {
         'x-functions-key': functionsKey || null,
