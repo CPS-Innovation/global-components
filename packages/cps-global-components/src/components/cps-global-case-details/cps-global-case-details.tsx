@@ -10,15 +10,18 @@ import { getCaseDefendantHeadline } from "../../services/data/get-case-defendant
 export class CpsGlobalCaseDetails {
   render() {
     const {
+      isReady,
       state: { caseDetails, caseMonitoringCodes },
-    } = readyState([], ["caseDetails", "caseMonitoringCodes"]);
+      // Let's have caseMonitoringCodes be lazy i.e. we will not hold up the UI for the
+      //  caseMonitoringCodes call to have completed.
+    } = readyState(["caseDetails"], ["caseMonitoringCodes"]);
 
     return (
       <>
-        {(caseDetails || caseMonitoringCodes) && (
+        {isReady && (
           <div class="level case-details">
             <>
-              {caseDetails?.found && (
+              {caseDetails.found && (
                 <>
                   <div>{caseDetails.result.urn}</div>
                   <div>
