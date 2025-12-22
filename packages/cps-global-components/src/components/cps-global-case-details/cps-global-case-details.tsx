@@ -29,15 +29,15 @@ export class CpsGlobalCaseDetails {
                   </div>
                 </>
               )}
-              <div>
+              <div class="scrolling-tags">
                 {caseMonitoringCodes?.found && (
-                  <>
+                  <div class="scrolling-tags-container">
                     {caseMonitoringCodes.result.map(({ code, description }) => (
                       <strong class="govuk-tag govuk-tag--red" key={code}>
                         {description}
                       </strong>
                     ))}
-                  </>
+                  </div>
                 )}
               </div>
             </>
