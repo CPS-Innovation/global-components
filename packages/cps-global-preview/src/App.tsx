@@ -3,9 +3,8 @@ import type { PreviewState } from "cps-global-configuration";
 import { diffLines } from "diff";
 
 const STATE_ENDPOINT = "/global-components/state/preview";
-// HACK: Local testing - change these back for production
-const CONFIG_ENDPOINT = "/local-config/config.test.json";
-const CONFIG_OVERRIDE_ENDPOINT = "/local-config/config.test.override.json";
+const CONFIG_ENDPOINT = "/global-components/test/config.json";
+const CONFIG_OVERRIDE_ENDPOINT = "/global-components/test/config.override.json";
 
 type ConfigResult =
   | { loaded: true; content: string }
