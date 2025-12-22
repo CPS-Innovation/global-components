@@ -9,7 +9,7 @@ export const initialisePreview = async ({ rootUrl }: { rootUrl: string }): Promi
       throw new Error(`Response status: ${response.status} ${response.statusText}`);
     }
     const result = (await response.json()) as PreviewState;
-    return { found: true, result };
+    return result === null ? { found: false, error: new Error("Null preview state returned") } : { found: true, result };
   } catch (error) {
     return { found: false, error };
   }
