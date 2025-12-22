@@ -18,4 +18,21 @@
     flex-shrink: 0;
     overflow: visible;
   }
+
+  .scrolling-tags {
+    min-width: 0;
+    flex: 1;
+  }
+
+  .scrolling-tags-container {
+    display: flex;
+    gap: 8px;
+    overflow-x: auto;
+    scrollbar-width: none;
+    mask-image: linear-gradient(to right, black calc(100% - 24px), transparent);
+    -webkit-mask-image: linear-gradient(to right, black calc(100% - 24px), transparent);
+  }
+  .scrolling-tags-container::-webkit-scrollbar {
+    display: none;
+  }
 }
