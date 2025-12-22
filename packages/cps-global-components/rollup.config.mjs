@@ -20,6 +20,8 @@ export default {
   plugins: [
     sourcemaps(),
     dynamicImportVars({
+      include: ["**/*.js"],
+      exclude: ["**/*.js.map"],
       errorWhenNoFilesFound: true,
     }),
   ],
