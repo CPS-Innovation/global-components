@@ -77,8 +77,9 @@ jest.mock("./services/browser/dom/dom-tag-mutation-subscriber", () => ({
   domTagMutationSubscriber: jest.fn(),
 }));
 
+const mockOutSystemsShimSubscribers = jest.fn(() => []);
 jest.mock("./services/outsystems-shim/outsystems-shim-subscriber", () => ({
-  outSystemsShimSubscribers: [],
+  outSystemsShimSubscribers: mockOutSystemsShimSubscribers,
 }));
 
 const mockInitialiseCaseDetailsData = jest.fn();
@@ -1078,6 +1079,17 @@ describe("global-script", () => {
       expect(mockInitialisePreview).toHaveBeenCalledWith({
         rootUrl: testRootUrl,
       });
+    });
+
+    it("should pass preview to outSystemsShimSubscribers", async () => {
+      const testPreview = { enabled: true, forceDcfHeader: true };
+      mockInitialisePreview.mockResolvedValue(testPreview);
+
+      const globalScript = require("./global-script").default;
+      globalScript();
+      await new Promise(resolve => setTimeout(resolve, 10));
+
+      expect(mockOutSystemsShimSubscribers).toHaveBeenCalledWith({ preview: testPreview });
     });
 
     it("should pass window and config to initialiseContext", async () => {
