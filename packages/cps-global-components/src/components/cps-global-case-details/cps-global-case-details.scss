@@ -1,0 +1,11 @@
+@use "../common/common.scss" as *;
+
+.case-details {
+  @include govuk-font($size: 19);
+
+  display: flex;
+  align-items: center;
+  margin-bottom: 0;
+  gap: 10px;
+  border-bottom: 1px solid $govuk-border-colour;
+}

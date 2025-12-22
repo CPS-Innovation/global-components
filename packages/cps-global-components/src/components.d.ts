@@ -10,6 +10,8 @@ export { ContextsToUseEventNavigation } from "cps-global-configuration";
 export namespace Components {
     interface CpsGlobalBanner {
     }
+    interface CpsGlobalCaseDetails {
+    }
     interface CpsGlobalFooter {
     }
     interface CpsGlobalHeader {
@@ -40,6 +42,12 @@ declare global {
     var HTMLCpsGlobalBannerElement: {
         prototype: HTMLCpsGlobalBannerElement;
         new (): HTMLCpsGlobalBannerElement;
+    };
+    interface HTMLCpsGlobalCaseDetailsElement extends Components.CpsGlobalCaseDetails, HTMLStencilElement {
+    }
+    var HTMLCpsGlobalCaseDetailsElement: {
+        prototype: HTMLCpsGlobalCaseDetailsElement;
+        new (): HTMLCpsGlobalCaseDetailsElement;
     };
     interface HTMLCpsGlobalFooterElement extends Components.CpsGlobalFooter, HTMLStencilElement {
     }
@@ -78,6 +86,7 @@ declare global {
     };
     interface HTMLElementTagNameMap {
         "cps-global-banner": HTMLCpsGlobalBannerElement;
+        "cps-global-case-details": HTMLCpsGlobalCaseDetailsElement;
         "cps-global-footer": HTMLCpsGlobalFooterElement;
         "cps-global-header": HTMLCpsGlobalHeaderElement;
         "cps-global-menu": HTMLCpsGlobalMenuElement;
@@ -86,6 +95,8 @@ declare global {
 }
 declare namespace LocalJSX {
     interface CpsGlobalBanner {
+    }
+    interface CpsGlobalCaseDetails {
     }
     interface CpsGlobalFooter {
     }
@@ -109,6 +120,7 @@ declare namespace LocalJSX {
     }
     interface IntrinsicElements {
         "cps-global-banner": CpsGlobalBanner;
+        "cps-global-case-details": CpsGlobalCaseDetails;
         "cps-global-footer": CpsGlobalFooter;
         "cps-global-header": CpsGlobalHeader;
         "cps-global-menu": CpsGlobalMenu;
@@ -120,6 +132,7 @@ declare module "@stencil/core" {
     export namespace JSX {
         interface IntrinsicElements {
             "cps-global-banner": LocalJSX.CpsGlobalBanner & JSXBase.HTMLAttributes<HTMLCpsGlobalBannerElement>;
+            "cps-global-case-details": LocalJSX.CpsGlobalCaseDetails & JSXBase.HTMLAttributes<HTMLCpsGlobalCaseDetailsElement>;
             "cps-global-footer": LocalJSX.CpsGlobalFooter & JSXBase.HTMLAttributes<HTMLCpsGlobalFooterElement>;
             "cps-global-header": LocalJSX.CpsGlobalHeader & JSXBase.HTMLAttributes<HTMLCpsGlobalHeaderElement>;
             "cps-global-menu": LocalJSX.CpsGlobalMenu & JSXBase.HTMLAttributes<HTMLCpsGlobalMenuElement>;

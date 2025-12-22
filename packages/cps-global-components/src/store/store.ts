@@ -17,6 +17,7 @@ import { caseIdentifiersSubscriptionFactory } from "./subscriptions/case-identif
 import { Handover } from "../services/handover/Handover";
 import { Result } from "../utils/Result";
 import { CmsSessionHint } from "../services/cms-session/CmsSessionHint";
+import { MonitoringCodes } from "../services/data/MonitoringCode";
 export { type ReadyStateHelper };
 
 const registerEventName = "cps-global-components-register";
@@ -76,7 +77,8 @@ type TransientState = {
   correlationIds: CorrelationIds;
   caseDetailsTags: Tags;
   caseIdentifiers: CaseIdentifiers;
-  caseDetails: Partial<CaseDetails>;
+  caseDetails: Result<CaseDetails>;
+  caseMonitoringCodes: Result<MonitoringCodes>;
 };
 const initialTransientState = {
   context: undefined,
@@ -87,6 +89,7 @@ const initialTransientState = {
   caseDetailsTags: undefined,
   caseIdentifiers: undefined,
   caseDetails: undefined,
+  caseMonitoringCodes: undefined,
 };
 
 type AggregateState = {

@@ -3,8 +3,8 @@ import { menuConfig } from "./menu-config/menu-config";
 import { readyState } from "../../store/store";
 import { FEATURE_FLAGS } from "../../feature-flags/feature-flags";
 import { renderError } from "../common/render-error";
-
 import { WithLogging } from "../../logging/WithLogging";
+
 @Component({
   tag: "cps-global-menu",
   styleUrl: "cps-global-menu.scss",
@@ -13,7 +13,7 @@ import { WithLogging } from "../../logging/WithLogging";
 export class CpsGlobalMenu {
   @WithLogging("CpsGlobalMenu")
   render() {
-    const { isReady, state } = readyState(["config", "tags", "flags", "context", "cmsSessionHint"], ["auth"]);
+    const { isReady, state } = readyState(["config", "tags", "flags", "context", "cmsSessionHint", "preview"], ["auth"]);
     if (!isReady) {
       return null; // don't show menu until we are ready
     }
@@ -40,6 +40,8 @@ export class CpsGlobalMenu {
 
     const surveyLink = FEATURE_FLAGS.surveyLink(state);
 
+    const shouldShowCaseDetails = FEATURE_FLAGS.shouldShowCaseDetails(state);
+
     const classes = FEATURE_FLAGS.shouldShowGovUkRebrand(state)
       ? { flag: "govuk-template--rebranded", level1Background: "background-light-blue", divider: "background-divider-blue" }
       : { flag: "", level1Background: "background-grey", divider: "background-divider" };
@@ -57,16 +59,18 @@ export class CpsGlobalMenu {
 
         <div class={classes.divider}></div>
 
+        {shouldShowCaseDetails && <cps-global-case-details></cps-global-case-details>}
+
         {!!level2Links?.length && (
           <>
-            <nav class="level level-2 background-white" aria-label="Sub-menu" data-testid="menu-level-2">
+            <nav class="level level-2" aria-label="Sub-menu" data-testid="menu-level-2">
               <ul>
                 {level2Links.map(link => (
                   <nav-link {...link}></nav-link>
                 ))}
               </ul>
             </nav>
-            <div class={classes.divider}></div>
+            <div class={shouldShowCaseDetails ? "background-divider-content-width" : classes.divider}></div>
           </>
         )}
       </div>

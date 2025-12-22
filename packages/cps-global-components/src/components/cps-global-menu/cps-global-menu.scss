@@ -51,7 +51,6 @@ a.govuk-link {
 }
 
 .level {
-  height: $level-height;
   ul {
     @include horizontal-list();
     @include border-bottom-active-link();
