@@ -169,42 +169,6 @@ export function App() {
         <div className="govuk-form-group">
           <fieldset className="govuk-fieldset">
             <legend className="govuk-fieldset__legend govuk-fieldset__legend--m">
-              <h2 className="govuk-fieldset__heading">Preview mode</h2>
-            </legend>
-            <div className="govuk-checkboxes" data-module="govuk-checkboxes">
-              <div className="govuk-checkboxes__item">
-                <input
-                  className="govuk-checkboxes__input"
-                  id="enabled"
-                  name="enabled"
-                  type="checkbox"
-                  checked={state.enabled ?? false}
-                  disabled={loading}
-                  onChange={(e) => handleEnabledChange(e.target.checked)}
-                />
-                <label
-                  className="govuk-label govuk-checkboxes__label"
-                  htmlFor="enabled"
-                >
-                  Enable override configuration
-                </label>
-                <div
-                  id="enabled-hint"
-                  className="govuk-hint govuk-checkboxes__hint govuk-!-font-size-16"
-                >
-                  The override configuration file allows us to investigate
-                  configuration changes in QA environment before making them
-                  available to users. Don't enable this unless you know what you
-                  are doing!
-                </div>
-              </div>
-            </div>
-          </fieldset>
-        </div>
-
-        <div className="govuk-form-group">
-          <fieldset className="govuk-fieldset">
-            <legend className="govuk-fieldset__legend govuk-fieldset__legend--m">
               <h2 className="govuk-fieldset__heading">Features</h2>
             </legend>
             <div className="govuk-checkboxes" data-module="govuk-checkboxes">
@@ -233,6 +197,42 @@ export function App() {
                   </div>
                 </div>
               ))}
+            </div>
+          </fieldset>
+        </div>
+
+        <div className="govuk-form-group">
+          <fieldset className="govuk-fieldset">
+            <legend className="govuk-fieldset__legend govuk-fieldset__legend--m">
+              <h2 className="govuk-fieldset__heading">Override mode</h2>
+            </legend>
+            <div className="govuk-checkboxes" data-module="govuk-checkboxes">
+              <div className="govuk-checkboxes__item">
+                <input
+                  className="govuk-checkboxes__input"
+                  id="enabled"
+                  name="enabled"
+                  type="checkbox"
+                  checked={state.enabled ?? false}
+                  disabled={loading}
+                  onChange={(e) => handleEnabledChange(e.target.checked)}
+                />
+                <label
+                  className="govuk-label govuk-checkboxes__label"
+                  htmlFor="enabled"
+                >
+                  Enable override configuration
+                </label>
+                <div
+                  id="enabled-hint"
+                  className="govuk-hint govuk-checkboxes__hint govuk-!-font-size-16"
+                >
+                  The override configuration file allows us to investigate
+                  configuration changes in QA environment before making them
+                  available to users. Don't enable this unless you know what you
+                  are doing!
+                </div>
+              </div>
             </div>
           </fieldset>
         </div>
