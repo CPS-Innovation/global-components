@@ -2,4 +2,22 @@
 
 :host {
   display: block;
+
+  // Reset inherited properties to prevent external CSS bleeding through shadow DOM.
+  // Deliberately preserving font-* and line-height for accessibility (user font preferences).
+  color: initial;
+  text-align: initial;
+  text-transform: initial;
+  text-indent: initial;
+  text-shadow: initial;
+  letter-spacing: initial;
+  word-spacing: initial;
+  white-space: initial;
+  direction: initial;
+  visibility: initial;
+  cursor: initial;
+  quotes: initial;
+  list-style: initial;
+  border-collapse: initial;
+  border-spacing: initial;
 }

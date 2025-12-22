@@ -26,19 +26,17 @@ export class CpsGlobalCaseDetails {
                   </div>
                 </>
               )}
-              {caseMonitoringCodes && (
-                <div>
-                  {caseMonitoringCodes.found && (
-                    <>
-                      {caseMonitoringCodes.result.map(({ code, description }) => (
-                        <strong class="govuk-tag govuk-tag--red" key={code}>
-                          {description}
-                        </strong>
-                      ))}
-                    </>
-                  )}
-                </div>
-              )}
+              <div>
+                {caseMonitoringCodes?.found && (
+                  <>
+                    {caseMonitoringCodes.result.map(({ code, description }) => (
+                      <strong class="govuk-tag govuk-tag--red" key={code}>
+                        {description}
+                      </strong>
+                    ))}
+                  </>
+                )}
+              </div>
             </>
           </div>
         )}
