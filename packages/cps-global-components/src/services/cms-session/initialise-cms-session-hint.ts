@@ -8,9 +8,9 @@ export const initialiseCmsSessionHint = async ({ rootUrl }: { rootUrl: string })
     if (!response.ok) {
       throw new Error(`Response status: ${response.status} ${response.statusText}`);
     }
-    const result = (await response.json()) as CmsSessionHint;
+    const result = (await response.json()) as CmsSessionHint | null;
 
-    return { found: true, result };
+    return result === null ? { found: false, error: new Error("Null preview state returned") } : { found: true, result };
   } catch (error) {
     return { found: false, error };
   }
