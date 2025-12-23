@@ -19,6 +19,12 @@ const FEATURES = [
     disabled: false,
   },
   {
+    key: "newHeader",
+    label: "New header",
+    description: "Display the header with the latest blue GDS styling.",
+    disabled: true,
+  },
+  {
     key: "caseSearch",
     label: "Case search",
     description: "Show case search functionality.",
@@ -31,12 +37,7 @@ const FEATURES = [
       "Track the user's most recently visited cases and display on the home page.",
     disabled: true,
   },
-  {
-    key: "newHeader",
-    label: "New header",
-    description: "Display the header with the latest blue GDS styling.",
-    disabled: true,
-  },
+
   {
     key: "accessibility",
     label: "Accessibility",
@@ -450,8 +451,8 @@ export function App() {
               const className = part.added
                 ? "diff-line diff-added"
                 : part.removed
-                  ? "diff-line diff-removed"
-                  : "diff-line diff-unchanged";
+                ? "diff-line diff-removed"
+                : "diff-line diff-unchanged";
               return part.value.split("\n").map((line, j) =>
                 line || j < part.value.split("\n").length - 1 ? (
                   <div key={`${i}-${j}`} className={className}>

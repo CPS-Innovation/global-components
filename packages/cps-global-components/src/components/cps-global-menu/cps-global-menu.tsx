@@ -47,16 +47,17 @@ export class CpsGlobalMenu {
       : { flag: "", level1Background: "background-grey", divider: "background-divider" };
 
     return (
-      <div class={classes.flag}>
-        <nav class={`level level-1 ${classes.level1Background}`} aria-label="Menu" data-testid="menu-level-1">
-          <ul>
-            {level1Links?.map(link => (
-              <nav-link {...link}></nav-link>
-            ))}
-            {surveyLink.showLink && <nav-link openInNewTab class="survey-link" label="Give feedback" href={surveyLink.url}></nav-link>}
-          </ul>
-        </nav>
-
+      <>
+        <div class={classes.flag}>
+          <nav class={`level level-1 ${classes.level1Background}`} aria-label="Menu" data-testid="menu-level-1">
+            <ul>
+              {level1Links?.map(link => (
+                <nav-link {...link}></nav-link>
+              ))}
+              {surveyLink.showLink && <nav-link openInNewTab class="survey-link" label="Give feedback" href={surveyLink.url}></nav-link>}
+            </ul>
+          </nav>
+        </div>
         <div class={classes.divider}></div>
 
         {shouldShowCaseDetails && <cps-global-case-details></cps-global-case-details>}
@@ -73,7 +74,7 @@ export class CpsGlobalMenu {
             <div class={shouldShowCaseDetails ? "background-divider-content-width" : classes.divider}></div>
           </>
         )}
-      </div>
+      </>
     );
   }
 }
