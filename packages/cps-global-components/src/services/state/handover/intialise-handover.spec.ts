@@ -131,6 +131,7 @@ describe("initialiseHandover", () => {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(newHandover),
+          credentials: "include",
         });
       });
     });
@@ -176,6 +177,7 @@ describe("initialiseHandover", () => {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(newHandover),
+          credentials: "include",
         });
       });
     });
