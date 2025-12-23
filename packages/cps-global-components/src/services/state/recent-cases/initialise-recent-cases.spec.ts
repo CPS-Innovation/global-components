@@ -234,6 +234,7 @@ describe("initialiseRecentCases", () => {
           { caseId: 123, urn: "12AB3456789", description: "Smith, John" },
           { caseId: 456, urn: "34CD5678901", description: "Doe, Jane" },
         ]),
+        credentials: "include",
       });
     });
 
@@ -266,6 +267,7 @@ describe("initialiseRecentCases", () => {
           { caseId: 456, urn: "34CD5678901", description: "Doe, Jane" },
           { caseId: 123, urn: "12AB3456789", description: "Smith, John" },
         ]),
+        credentials: "include",
       });
     });
 
@@ -299,6 +301,7 @@ describe("initialiseRecentCases", () => {
           { caseId: 789, urn: "56EF7890123", description: "Wilson, Bob" },
           ...tenExistingCases.slice(0, 9),
         ]),
+        credentials: "include",
       });
     });
 
@@ -326,6 +329,7 @@ describe("initialiseRecentCases", () => {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify([{ caseId: 789, urn: "56EF7890123", description: "Wilson, Bob" }]),
+          credentials: "include",
         });
       });
     });
