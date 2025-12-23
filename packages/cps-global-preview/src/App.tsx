@@ -104,11 +104,15 @@ export function App() {
   const saveState = useCallback(
     async (newState: PreviewState) => {
       try {
+        // If all properties are falsy/undefined, send null to clear the cookie
+        const hasAnyValue = Object.values(newState).some((v) => v);
+        const body = hasAnyValue ? JSON.stringify(newState) : "null";
+
         const response = await fetch(STATE_ENDPOINT, {
           method: "PUT",
           credentials: "include",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(newState),
+          body,
         });
         if (!response.ok) {
           throw new Error("Failed to save state");
