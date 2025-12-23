@@ -219,14 +219,14 @@ describe("initialiseRecentCases", () => {
       mockFetch.mockClear();
       mockFetch.mockResolvedValue({
         ok: true,
-        json: () => Promise.resolve({ success: true, path: "/state/handover" }),
+        json: () => Promise.resolve({ success: true, path: "/state/recent-cases" }),
       });
 
       setNextRecentCases(mockCaseDetails);
 
       await new Promise(resolve => setTimeout(resolve, 0));
 
-      expect(mockFetch).toHaveBeenCalledWith("https://example.com/api/state/handover", {
+      expect(mockFetch).toHaveBeenCalledWith("https://example.com/api/state/recent-cases", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify([
@@ -252,19 +252,52 @@ describe("initialiseRecentCases", () => {
       mockFetch.mockClear();
       mockFetch.mockResolvedValue({
         ok: true,
-        json: () => Promise.resolve({ success: true, path: "/state/handover" }),
+        json: () => Promise.resolve({ success: true, path: "/state/recent-cases" }),
       });
 
       setNextRecentCases(caseAlreadyInList);
 
       await new Promise(resolve => setTimeout(resolve, 0));
 
-      expect(mockFetch).toHaveBeenCalledWith("https://example.com/api/state/handover", {
+      expect(mockFetch).toHaveBeenCalledWith("https://example.com/api/state/recent-cases", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify([
           { caseId: 456, urn: "34CD5678901", description: "Doe, Jane" },
           { caseId: 123, urn: "12AB3456789", description: "Smith, John" },
+        ]),
+      });
+    });
+
+    it("should limit the list to 10 items when adding a new case to a full list", async () => {
+      const tenExistingCases: RecentCases = Array.from({ length: 10 }, (_, i) => ({
+        caseId: i + 1,
+        urn: `URN${i + 1}`,
+        description: `Case ${i + 1}`,
+      }));
+
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve(tenExistingCases),
+      });
+
+      const { setNextRecentCases } = await initialiseRecentCases({ rootUrl, preview: previewWithRecentCases });
+      mockFetch.mockClear();
+      mockFetch.mockResolvedValue({
+        ok: true,
+        json: () => Promise.resolve({ success: true, path: "/state/recent-cases" }),
+      });
+
+      setNextRecentCases(mockCaseDetails);
+
+      await new Promise(resolve => setTimeout(resolve, 0));
+
+      expect(mockFetch).toHaveBeenCalledWith("https://example.com/api/state/recent-cases", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify([
+          { caseId: 789, urn: "56EF7890123", description: "Wilson, Bob" },
+          ...tenExistingCases.slice(0, 9),
         ]),
       });
     });
@@ -282,14 +315,14 @@ describe("initialiseRecentCases", () => {
         mockFetch.mockClear();
         mockFetch.mockResolvedValue({
           ok: true,
-          json: () => Promise.resolve({ success: true, path: "/state/handover" }),
+          json: () => Promise.resolve({ success: true, path: "/state/recent-cases" }),
         });
 
         setNextRecentCases(mockCaseDetails);
 
         await new Promise(resolve => setTimeout(resolve, 0));
 
-        expect(mockFetch).toHaveBeenCalledWith("https://example.com/api/state/handover", {
+        expect(mockFetch).toHaveBeenCalledWith("https://example.com/api/state/recent-cases", {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify([{ caseId: 789, urn: "56EF7890123", description: "Wilson, Bob" }]),
