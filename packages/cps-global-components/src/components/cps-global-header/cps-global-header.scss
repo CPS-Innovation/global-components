@@ -2,4 +2,23 @@
 
 :host {
   display: block;
+
+  // Reset inherited properties to prevent external CSS bleeding through shadow DOM.
+  // Deliberately preserving font-* and line-height for accessibility (user font preferences).
+  // Using !important to override host app styles targeting classes on the host element.
+  color: initial !important;
+  text-align: initial !important;
+  text-transform: initial !important;
+  text-indent: initial !important;
+  text-shadow: initial !important;
+  letter-spacing: initial !important;
+  word-spacing: initial !important;
+  white-space: initial !important;
+  direction: initial !important;
+  visibility: initial !important;
+  cursor: initial !important;
+  quotes: initial !important;
+  list-style: initial !important;
+  border-collapse: initial !important;
+  border-spacing: initial !important;
 }

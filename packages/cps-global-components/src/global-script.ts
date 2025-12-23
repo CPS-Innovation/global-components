@@ -84,7 +84,7 @@ const startupPhase = async ({ window, storeFns: { register, mergeTags, readyStat
     { window, register, mergeTags },
     domTagMutationSubscriber,
     interimDcfNavigationObserver,
-    ...outSystemsShimSubscribers,
+    ...outSystemsShimSubscribers({ preview }),
   );
 
   return {

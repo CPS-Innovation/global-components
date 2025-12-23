@@ -10,34 +10,36 @@ import { getCaseDefendantHeadline } from "../../services/data/get-case-defendant
 export class CpsGlobalCaseDetails {
   render() {
     const {
-      state: {
-        caseDetails: { found: caseDetailsFound, result: caseDetails },
-        caseMonitoringCodes: { found: monitoringCodesFound, result: monitoringCodes },
-      },
-    } = readyState([], ["caseDetails", "caseMonitoringCodes"]);
+      isReady,
+      state: { caseDetails, caseMonitoringCodes },
+      // Let's have caseMonitoringCodes be lazy i.e. we will not hold up the UI for the
+      //  caseMonitoringCodes call to have completed.
+    } = readyState(["caseDetails"], ["caseMonitoringCodes"]);
 
     return (
       <>
-        {(caseDetailsFound || monitoringCodesFound) && (
+        {isReady && (
           <div class="level case-details">
             <>
-              {caseDetailsFound && (
+              {caseDetails.found && (
                 <>
-                  <div>{caseDetails.urn}</div>
+                  <div>{caseDetails.result.urn}</div>
                   <div>
-                    <b>{getCaseDefendantHeadline(caseDetails)}</b>
+                    <b>{getCaseDefendantHeadline(caseDetails.result)}</b>
                   </div>
                 </>
               )}
-              {monitoringCodesFound && (
-                <div>
-                  {monitoringCodes.map(({ code, description }) => (
-                    <strong class="govuk-tag govuk-tag--red" key={code}>
-                      {description}
-                    </strong>
-                  ))}
-                </div>
-              )}
+              <div class="scrolling-tags">
+                {caseMonitoringCodes?.found && (
+                  <div class="scrolling-tags-container">
+                    {caseMonitoringCodes.result.map(({ code, description }) => (
+                      <strong class="govuk-tag govuk-tag--red" key={code}>
+                        {description}
+                      </strong>
+                    ))}
+                  </div>
+                )}
+              </div>
             </>
           </div>
         )}
