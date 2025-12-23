@@ -189,6 +189,74 @@ async function testStateEndpoint() {
     )
     assert(allowMethods.includes("PUT"), "Should allow PUT method")
   })
+
+  await test("PUT with null clears cookie and returns cleared flag", async () => {
+    const response = await fetch(PREVIEW_ENDPOINT, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: "null",
+    })
+    assertEqual(response.status, 200, "Should return 200")
+    const body = await response.json()
+    assertEqual(body.success, true, "Should have success true")
+    assertEqual(body.cleared, true, "Should have cleared flag")
+    const setCookie = response.headers.get("set-cookie")
+    assert(setCookie !== null, "Should have Set-Cookie header")
+    assert(setCookie.includes("Expires=Thu, 01 Jan 1970"), "Should set cookie to expire in the past")
+  })
+
+  await test("PUT with empty body clears cookie", async () => {
+    const response = await fetch(PREVIEW_ENDPOINT, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: "",
+    })
+    assertEqual(response.status, 200, "Should return 200")
+    const body = await response.json()
+    assertEqual(body.cleared, true, "Should have cleared flag for empty body")
+  })
+
+  await test("roundtrip: set state, verify, clear with null, verify cleared", async () => {
+    // Step 1: Set state
+    const stateValue = JSON.stringify({ enabled: true, caseMarkers: true })
+    const putResponse = await fetch(PREVIEW_ENDPOINT, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: stateValue,
+    })
+    assertEqual(putResponse.status, 200, "PUT should return 200")
+    const setCookie = putResponse.headers.get("set-cookie")
+    assert(setCookie !== null, "Should have Set-Cookie header")
+
+    // Extract cookie for subsequent requests
+    const cookieMatch = setCookie.match(/cps-global-components-state=([^;]+)/)
+    assert(cookieMatch !== null, "Should be able to extract cookie value")
+    const cookieValue = cookieMatch[1]
+
+    // Step 2: Verify state is returned on GET
+    const getResponse1 = await fetch(PREVIEW_ENDPOINT, {
+      headers: { Cookie: `cps-global-components-state=${cookieValue}` },
+    })
+    assertEqual(getResponse1.status, 200, "GET should return 200")
+    const retrievedState = await getResponse1.text()
+    assertEqual(retrievedState, stateValue, "Should return the stored state")
+
+    // Step 3: Clear state with null
+    const clearResponse = await fetch(PREVIEW_ENDPOINT, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: "null",
+    })
+    assertEqual(clearResponse.status, 200, "Clear PUT should return 200")
+    const clearBody = await clearResponse.json()
+    assertEqual(clearBody.cleared, true, "Should have cleared flag")
+
+    // Step 4: Verify GET without cookie returns null (simulating cleared cookie)
+    const getResponse2 = await fetch(PREVIEW_ENDPOINT)
+    assertEqual(getResponse2.status, 200, "GET should return 200")
+    const clearedState = await getResponse2.text()
+    assertEqual(clearedState, "null", "Should return null after clearing")
+  })
 }
 
 // =============================================================================
