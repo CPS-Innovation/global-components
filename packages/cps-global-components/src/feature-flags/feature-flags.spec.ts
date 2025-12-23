@@ -33,8 +33,9 @@ describe("FEATURE_FLAGS", () => {
 
   describe("shouldShowGovUkRebrand", () => {
     it("should return true when preview newHeader is true", () => {
-      const state: Pick<State, "preview"> = {
+      const state: Pick<State, "preview" | "flags"> = {
         preview: { found: true, result: { newHeader: true } },
+        flags: { isLocalDevelopment: false, isOutSystems: false, e2eTestMode: { isE2eTestMode: false } },
       };
 
       const result = FEATURE_FLAGS.shouldShowGovUkRebrand(state);
@@ -42,8 +43,9 @@ describe("FEATURE_FLAGS", () => {
     });
 
     it("should return false when preview newHeader is false", () => {
-      const state: Pick<State, "preview"> = {
+      const state: Pick<State, "preview" | "flags"> = {
         preview: { found: true, result: { newHeader: false } },
+        flags: { isLocalDevelopment: false, isOutSystems: false, e2eTestMode: { isE2eTestMode: false } },
       };
 
       const result = FEATURE_FLAGS.shouldShowGovUkRebrand(state);
@@ -51,8 +53,9 @@ describe("FEATURE_FLAGS", () => {
     });
 
     it("should return false when preview newHeader is undefined", () => {
-      const state: Pick<State, "preview"> = {
+      const state: Pick<State, "preview" | "flags"> = {
         preview: { found: true, result: {} },
+        flags: { isLocalDevelopment: false, isOutSystems: false, e2eTestMode: { isE2eTestMode: false } },
       };
 
       const result = FEATURE_FLAGS.shouldShowGovUkRebrand(state);
@@ -60,12 +63,23 @@ describe("FEATURE_FLAGS", () => {
     });
 
     it("should return false when preview is not found", () => {
-      const state: Pick<State, "preview"> = {
+      const state: Pick<State, "preview" | "flags"> = {
         preview: { found: false, error: {} as Error },
+        flags: { isLocalDevelopment: false, isOutSystems: false, e2eTestMode: { isE2eTestMode: false } },
       };
 
       const result = FEATURE_FLAGS.shouldShowGovUkRebrand(state);
       expect(result).toBe(false);
+    });
+
+    it("should return true when isLocalDevelopment is true", () => {
+      const state: Pick<State, "preview" | "flags"> = {
+        preview: { found: true, result: {} },
+        flags: { isLocalDevelopment: true, isOutSystems: false, e2eTestMode: { isE2eTestMode: false } },
+      };
+
+      const result = FEATURE_FLAGS.shouldShowGovUkRebrand(state);
+      expect(result).toBe(true);
     });
   });
 
