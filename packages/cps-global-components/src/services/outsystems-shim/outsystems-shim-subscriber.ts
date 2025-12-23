@@ -22,7 +22,7 @@ export const outSystemsShimSubscribers = ({ preview }: { preview: Result<Preview
   ({ context, window }) => {
     const applyStyles = applyStylesFactory(window);
     return {
-      isActiveForContext: context.found && !!context.applyOutSystemsShim && preview.found && !!preview?.result?.forceDcfHeader,
+      isActiveForContext: context.found && context.applyShim === "work-management" && preview.found && !!preview.result.forceDcfHeader,
       subscriptions: [
         {
           cssSelector: "div[data-block='Common.TempHeader'], #b1-b2-GlobalNavigation",

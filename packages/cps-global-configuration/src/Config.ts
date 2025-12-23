@@ -1,4 +1,4 @@
-import { z } from "zod"
+import { z } from "zod";
 
 const dcfContextsToUseEventNavigationSchema = z.object({
   contexts: z.string(),
@@ -6,11 +6,11 @@ const dcfContextsToUseEventNavigationSchema = z.object({
   paramsToAddToQuery: z
     .record(z.string(), z.union([z.string(), z.null()]))
     .optional(),
-})
+});
 
 export type ContextsToUseEventNavigation = z.infer<
   typeof dcfContextsToUseEventNavigationSchema
->
+>;
 
 const linkSchema = z.object({
   label: z.string(),
@@ -22,23 +22,23 @@ const linkSchema = z.object({
   dcfContextsToUseEventNavigation:
     dcfContextsToUseEventNavigationSchema.optional(),
   level: z.number(),
-})
+});
 
-export type Link = z.infer<typeof linkSchema>
+export type Link = z.infer<typeof linkSchema>;
 
 const domTagDefinitionsSchema = z.object({
   cssSelector: z.string(),
   regex: z.string(),
-})
+});
 
-export type DomTagDefinitions = z.infer<typeof domTagDefinitionsSchema>
+export type DomTagDefinitions = z.infer<typeof domTagDefinitionsSchema>;
 
 const authorisationSchema = z.object({
   adGroup: z.string(),
   unAuthedRedirectUrl: z.string(),
-})
+});
 
-export type Authorisation = z.infer<typeof authorisationSchema>
+export type Authorisation = z.infer<typeof authorisationSchema>;
 
 const featureFlagUsersSchema = z.object({
   adGroupIds: z.array(z.string()).optional(),
@@ -47,21 +47,23 @@ const featureFlagUsersSchema = z.object({
   //  control, object ids do not convey personal data.
   adHocUserObjectIds: z.array(z.string()).optional(),
   generallyAvailable: z.boolean().optional(),
-})
+});
 
-export type FeatureFlagUsers = z.infer<typeof featureFlagUsersSchema>
+export type FeatureFlagUsers = z.infer<typeof featureFlagUsersSchema>;
 
 const contextPathsSchema = z.object({
   path: z.string(),
   contextIds: z.string(),
-})
+});
 
-export type ContextPathsSchema = z.infer<typeof contextPathsSchema>
+export type ContextPathsSchema = z.infer<typeof contextPathsSchema>;
 
 const contextsBaseSchema = z.object({
   msalRedirectUrl: z.string().optional(),
   domTagDefinitions: z.array(domTagDefinitionsSchema).optional(),
-  applyOutSystemsShim: z.boolean().optional(),
+  applyShim: z
+    .union([z.literal("work-management"), z.literal("housekeeping")])
+    .optional(),
   forceCmsAuthRefresh: z.boolean().optional(),
   authorisation: authorisationSchema.optional(),
   headerCustomCssClasses: z.string().optional(),
@@ -71,43 +73,43 @@ const contextsBaseSchema = z.object({
     .optional(),
   cmsAuthFromStorageKey: z.string().optional(),
   skipToMainContentCustomSelector: z.string().optional(),
-})
+});
 
 const contextStorageSchema: z.ZodType<ContextStorageSchema> =
   contextsBaseSchema.extend({
     contexts: z.lazy(() =>
       z.array(z.union([contextStorageSchema, contextPathsSchema]))
     ),
-  })
+  });
 
 // Because of the recursion we define the type before the schema
 export type ContextStorageSchema = z.infer<typeof contextsBaseSchema> & {
-  contexts: (ContextStorageSchema | ContextPathsSchema)[]
-}
+  contexts: (ContextStorageSchema | ContextPathsSchema)[];
+};
 
 const contextSchema = contextsBaseSchema.extend({
   path: z.string(),
   contextIds: z.string(),
   msalRedirectUrl: z.string(), // redefine as required, not optional in app config
-})
+});
 
-export type Context = z.infer<typeof contextSchema>
+export type Context = z.infer<typeof contextSchema>;
 
 const cacheConfigSchema = z.object({
   maxAge: z.number(),
   maxItems: z.number(),
-})
+});
 
-export type CacheConfig = z.infer<typeof cacheConfigSchema>
+export type CacheConfig = z.infer<typeof cacheConfigSchema>;
 
 const fetchCircuitBreakerConfigSchema = z.object({
   maxPerInterval: z.number(),
   intervalMs: z.number(),
-})
+});
 
 export type FetchCircuitBreakerConfig = z.infer<
   typeof fetchCircuitBreakerConfigSchema
->
+>;
 
 export const configBaseSchema = z.object({
   ENVIRONMENT: z.string(),
@@ -129,16 +131,16 @@ export const configBaseSchema = z.object({
   FEATURE_FLAG_ENABLE_INTRUSIVE_AD_LOGIN: z.boolean().optional(),
   CACHE_CONFIG: cacheConfigSchema.optional(),
   FETCH_CIRCUIT_BREAKER_CONFIG: fetchCircuitBreakerConfigSchema.optional(),
-})
+});
 
 export const configStorageSchema = configBaseSchema.extend({
   CONTEXTS: z.array(contextStorageSchema),
-})
+});
 
-export type ConfigStorage = z.infer<typeof configStorageSchema>
+export type ConfigStorage = z.infer<typeof configStorageSchema>;
 
 export const configSchema = configBaseSchema.extend({
   CONTEXTS: z.array(contextSchema),
-})
+});
 
-export type Config = z.infer<typeof configSchema>
+export type Config = z.infer<typeof configSchema>;
