@@ -18,7 +18,7 @@ export const fetchState = async <T extends ZodType>({
 
     const requestInit: RequestInit =
       data !== undefined
-        ? { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) }
+        ? { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data), credentials: "include" }
         : // When getting, we need to send cookies as that is where the data is stored
           { credentials: "include" };
 
