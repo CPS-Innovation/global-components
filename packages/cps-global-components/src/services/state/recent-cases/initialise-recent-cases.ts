@@ -25,9 +25,7 @@ export const initialiseRecentCases = async ({ rootUrl, preview }: { rootUrl: str
       return;
     }
 
-    fetchState({ rootUrl, url: "../state/handover", schema: StatePutResponseSchema, data: [nextEntry, ...recentCasesList.filter(c => c.caseId !== nextEntry.caseId)] }).catch(
-      error => _warn("Unexpected error setting handover data", String(error)),
-    );
+    fetchState({ rootUrl, url: "../state/recent-cases", schema: StatePutResponseSchema, data: [nextEntry, ...recentCasesList.filter(c => c.caseId !== nextEntry.caseId)] });
   };
   return { recentCases, setNextRecentCases };
 };
