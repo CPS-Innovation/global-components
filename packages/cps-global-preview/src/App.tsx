@@ -22,13 +22,7 @@ const FEATURES = [
     key: "newHeader",
     label: "New header",
     description: "Display the header with the latest blue GDS styling.",
-    disabled: true,
-  },
-  {
-    key: "caseSearch",
-    label: "Case search",
-    description: "Show case search functionality.",
-    disabled: true,
+    disabled: false,
   },
   {
     key: "myRecentCases",
@@ -37,7 +31,12 @@ const FEATURES = [
       "Track the user's most recently visited cases and display on the home page.",
     disabled: true,
   },
-
+  {
+    key: "caseSearch",
+    label: "Case search",
+    description: "Show case search functionality.",
+    disabled: true,
+  },
   {
     key: "accessibility",
     label: "Accessibility",
