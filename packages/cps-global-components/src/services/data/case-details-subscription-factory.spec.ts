@@ -1,5 +1,5 @@
 import { caseDetailsSubscriptionFactory } from "./case-details-subscription-factory";
-import { Handover } from "../handover/Handover";
+import { Handover } from "../state/handover/Handover";
 import { CaseDetails } from "./CaseDetails";
 import { CaseIdentifiers } from "../context/CaseIdentifiers";
 import { Result } from "../../utils/Result";
@@ -52,6 +52,7 @@ describe("caseDetailsSubscriptionFactory", () => {
         fetch: createMockFetch(),
         handover: createMockHandoverNotFound(),
         setNextHandover: jest.fn(),
+        setNextRecentCases: jest.fn(),
       });
 
       const result = factory({
@@ -76,6 +77,7 @@ describe("caseDetailsSubscriptionFactory", () => {
         fetch: createMockFetch(),
         handover: createMockHandoverNotFound(),
         setNextHandover: jest.fn(),
+        setNextRecentCases: jest.fn(),
       });
 
       const subscription = factory({
@@ -100,6 +102,7 @@ describe("caseDetailsSubscriptionFactory", () => {
         fetch: mockFetch,
         handover: createMockHandoverFound(123, mockCaseDetails, mockMonitoringCodes),
         setNextHandover: jest.fn(),
+        setNextRecentCases: jest.fn(),
       });
 
       const subscription = factory({
@@ -129,6 +132,7 @@ describe("caseDetailsSubscriptionFactory", () => {
         fetch: mockFetch,
         handover: createMockHandoverFound(999, mockCaseDetails, mockMonitoringCodes),
         setNextHandover: jest.fn(),
+        setNextRecentCases: jest.fn(),
       });
 
       const subscription = factory({
@@ -154,6 +158,7 @@ describe("caseDetailsSubscriptionFactory", () => {
         fetch: mockFetch,
         handover: createMockHandoverNotFound(),
         setNextHandover: jest.fn(),
+        setNextRecentCases: jest.fn(),
       });
 
       const subscription = factory({
@@ -179,6 +184,7 @@ describe("caseDetailsSubscriptionFactory", () => {
         fetch: createMockFetch(),
         handover: createMockHandoverNotFound(),
         setNextHandover: jest.fn(),
+        setNextRecentCases: jest.fn(),
       });
 
       const subscription = factory({
@@ -205,6 +211,7 @@ describe("caseDetailsSubscriptionFactory", () => {
         fetch: createMockFetch(),
         handover: createMockHandoverNotFound(),
         setNextHandover: jest.fn(),
+        setNextRecentCases: jest.fn(),
       });
 
       const subscription = factory({
@@ -230,6 +237,7 @@ describe("caseDetailsSubscriptionFactory", () => {
         fetch: createMockFetch(),
         handover: createMockHandoverNotFound(),
         setNextHandover,
+        setNextRecentCases: jest.fn(),
       });
 
       const subscription = factory({
@@ -258,6 +266,7 @@ describe("caseDetailsSubscriptionFactory", () => {
         fetch: createMockFetch(),
         handover: createMockHandoverFound(123, mockCaseDetails, mockMonitoringCodes),
         setNextHandover,
+        setNextRecentCases: jest.fn(),
       });
 
       const subscription = factory({

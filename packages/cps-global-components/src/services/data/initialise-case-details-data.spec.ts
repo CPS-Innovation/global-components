@@ -1,18 +1,18 @@
 import { Config } from "cps-global-configuration";
 import { FoundContext } from "../context/FoundContext";
 import { ReadyStateHelper, Subscribe } from "../../store/store";
-import { Handover } from "../handover/Handover";
+import { Handover } from "../state/handover/Handover";
 import { GetToken } from "../auth/GetToken";
 import { AnalyticsEventData } from "../analytics/analytics-event";
 import { Result } from "../../utils/Result";
 
 const mockFetchWithCircuitBreaker = jest.fn();
-jest.mock("../api/fetch-with-circuit-breaker", () => ({
+jest.mock("../fetch/fetch-with-circuit-breaker", () => ({
   fetchWithCircuitBreaker: (...args: unknown[]) => mockFetchWithCircuitBreaker(...args),
 }));
 
 const mockFetchWithAuthFactory = jest.fn();
-jest.mock("../api/fetch-with-auth-factory", () => ({
+jest.mock("../fetch/fetch-with-auth-factory", () => ({
   fetchWithAuthFactory: (...args: unknown[]) => mockFetchWithAuthFactory(...args),
 }));
 
@@ -25,7 +25,7 @@ describe("initialiseCaseDetailsData", () => {
   const createMockConfig = (gatewayUrl: string | null = null): Config =>
     ({
       GATEWAY_URL: gatewayUrl,
-    }) as Config;
+    } as Config);
 
   const createMockContext = (): FoundContext =>
     ({
@@ -35,7 +35,7 @@ describe("initialiseCaseDetailsData", () => {
       path: "/test",
       contextIds: "test",
       msalRedirectUrl: "https://test.com",
-    }) as unknown as FoundContext;
+    } as unknown as FoundContext);
 
   const createMockHandover = (): Result<Handover> => ({
     found: false,

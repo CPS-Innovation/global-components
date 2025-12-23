@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import type { PreviewState } from "cps-global-configuration";
+import type { Preview } from "cps-global-configuration";
 import { diffLines } from "diff";
 
 const STATE_ENDPOINT = "/global-components/state/preview";
@@ -29,7 +29,7 @@ const FEATURES = [
     label: "My recent cases",
     description:
       "Track the user's most recently visited cases and display on the home page.",
-    disabled: true,
+    disabled: false,
   },
   {
     key: "caseSearch",
@@ -61,7 +61,7 @@ type TacticalKey = (typeof TACTICAL)[number]["key"];
 type StatusType = "info" | "error" | "success";
 
 export function App() {
-  const [state, setState] = useState<PreviewState>({});
+  const [state, setState] = useState<Preview>({});
   const [loading, setLoading] = useState(true);
   const [status, setStatus] = useState<{
     message: string;
@@ -85,7 +85,7 @@ export function App() {
       if (!response.ok) {
         throw new Error("Failed to load state");
       }
-      const data: PreviewState | null = await response.json();
+      const data: Preview | null = await response.json();
       if (data) {
         setState(data);
       }
@@ -102,7 +102,7 @@ export function App() {
   }, [showStatus]);
 
   const saveState = useCallback(
-    async (newState: PreviewState) => {
+    async (newState: Preview) => {
       try {
         // If all properties are falsy/undefined, send null to clear the cookie
         const hasAnyValue = Object.values(newState).some((v) => v);

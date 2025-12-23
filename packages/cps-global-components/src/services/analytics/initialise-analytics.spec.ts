@@ -1,6 +1,6 @@
 import { Config } from "cps-global-configuration";
 import { Build, ReadyStateHelper } from "../../store/store";
-import { CmsSessionHint } from "../cms-session/CmsSessionHint";
+import { CmsSessionHint } from "../state/cms-session/CmsSessionHint";
 import { ApplicationFlags } from "../application-flags/ApplicationFlags";
 
 // Mock the dependencies

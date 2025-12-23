@@ -20,7 +20,7 @@ import { CorrelationIds } from "../../../services/correlation/CorrelationIds";
 import { CaseDetails } from "../../../services/data/CaseDetails";
 import { MonitoringCodes } from "../../../services/data/MonitoringCode";
 import { Result } from "../../../utils/Result";
-import { CmsSessionHint } from "../../../services/cms-session/CmsSessionHint";
+import { CmsSessionHint } from "../../../services/state/cms-session/CmsSessionHint";
 
 // Type the mocked functions
 const mockShouldShowLink = shouldShowLink as jest.MockedFunction<typeof shouldShowLink>;
@@ -129,6 +129,7 @@ describe("menuConfig", () => {
       build: {} as Build,
       cmsSessionHint: mockCmsSessionHint,
       handover: { found: false, error: {} as Error },
+      recentCases: { found: false, error: {} as Error },
     };
 
     const result = menuConfig(mockState);
@@ -182,6 +183,7 @@ describe("menuConfig", () => {
       build: {} as Build,
       cmsSessionHint: mockCmsSessionHint,
       handover: { found: false, error: {} as Error },
+      recentCases: { found: false, error: {} as Error },
     };
 
     // Mock shouldShowLink to filter out the second link
@@ -303,6 +305,7 @@ describe("menuConfig", () => {
       build: {} as Build,
       cmsSessionHint: mockCmsSessionHint,
       handover: { found: false, error: {} as Error },
+      recentCases: { found: false, error: {} as Error },
     };
 
     // Mock shouldShowLink to pass all links
@@ -378,6 +381,7 @@ describe("menuConfig", () => {
       build: {} as Build,
       cmsSessionHint: mockCmsSessionHint,
       handover: { found: false, error: {} as Error },
+      recentCases: { found: false, error: {} as Error },
     };
 
     // Mock shouldShowLink to pass all links
@@ -454,6 +458,7 @@ describe("menuConfig", () => {
       build: {} as Build,
       cmsSessionHint: mockCmsSessionHint,
       handover: { found: false, error: {} as Error },
+      recentCases: { found: false, error: {} as Error },
     };
 
     // Mock shouldShowLink to pass all links
@@ -529,6 +534,7 @@ describe("menuConfig", () => {
       build: {} as Build,
       cmsSessionHint: mockCmsSessionHint,
       handover: { found: false, error: {} as Error },
+      recentCases: { found: false, error: {} as Error },
     };
 
     // Mock shouldShowLink to pass all links
@@ -624,6 +630,7 @@ describe("menuConfig", () => {
       build: {} as Build,
       cmsSessionHint: cmsSessionHintWithEndpoint,
       handover: { found: false, error: {} as Error },
+      recentCases: { found: false, error: {} as Error },
     };
 
     // Mock shouldShowLink to pass all links

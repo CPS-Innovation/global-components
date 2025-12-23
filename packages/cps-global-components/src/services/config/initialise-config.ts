@@ -1,4 +1,4 @@
-import { Config, PreviewState, transformAndValidateConfig, ValidationResult } from "cps-global-configuration";
+import { Config, Preview, transformAndValidateConfig, ValidationResult } from "cps-global-configuration";
 import { ConfigFetch } from "./ConfigFetch";
 import { getArtifactUrl } from "../../utils/get-artifact-url";
 import { fetchOverrideConfig } from "../../services/override-mode/fetch-override-config";
@@ -35,7 +35,7 @@ export const initialiseConfig = async ({
 }: {
   rootUrl: string;
   flags: ApplicationFlags;
-  preview: Result<PreviewState>;
+  preview: Result<Preview>;
 }): Promise<Config> => {
   const configUrl = getArtifactUrl(rootUrl, "config.json");
 
