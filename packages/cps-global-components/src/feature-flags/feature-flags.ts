@@ -5,7 +5,7 @@ const shouldShowCaseDetails = ({ preview, flags }: Pick<State, "preview" | "flag
 
 const shouldEnableAccessibilityMode = ({ preview }: Pick<State, "preview">) => !!preview.result?.accessibility;
 
-const shouldShowGovUkRebrand = ({ config }: Pick<State, "config">) => !!config.SHOW_GOVUK_REBRAND;
+const shouldShowGovUkRebrand = ({ preview }: Pick<State, "preview">) => !!preview.result?.newHeader;
 
 const shouldShowMenu = ({ config, auth, context, cmsSessionHint }: Pick<State, "config" | "context" | "cmsSessionHint"> & Pick<StoredState, "auth">) => {
   if (cmsSessionHint.found && !cmsSessionHint.result.isProxySession) {

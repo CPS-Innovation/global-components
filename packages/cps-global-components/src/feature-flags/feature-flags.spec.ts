@@ -32,27 +32,36 @@ describe("FEATURE_FLAGS", () => {
   });
 
   describe("shouldShowGovUkRebrand", () => {
-    it("should return true when SHOW_GOVUK_REBRAND is truthy", () => {
-      const state: Pick<State, "config"> = {
-        config: { SHOW_GOVUK_REBRAND: true } as any,
+    it("should return true when preview newHeader is true", () => {
+      const state: Pick<State, "preview"> = {
+        preview: { found: true, result: { newHeader: true } },
       };
 
       const result = FEATURE_FLAGS.shouldShowGovUkRebrand(state);
       expect(result).toBe(true);
     });
 
-    it("should return false when SHOW_GOVUK_REBRAND is false", () => {
-      const state: Pick<State, "config"> = {
-        config: { SHOW_GOVUK_REBRAND: false } as any,
+    it("should return false when preview newHeader is false", () => {
+      const state: Pick<State, "preview"> = {
+        preview: { found: true, result: { newHeader: false } },
       };
 
       const result = FEATURE_FLAGS.shouldShowGovUkRebrand(state);
       expect(result).toBe(false);
     });
 
-    it("should return false when SHOW_GOVUK_REBRAND is undefined", () => {
-      const state: Pick<State, "config"> = {
-        config: {} as any,
+    it("should return false when preview newHeader is undefined", () => {
+      const state: Pick<State, "preview"> = {
+        preview: { found: true, result: {} },
+      };
+
+      const result = FEATURE_FLAGS.shouldShowGovUkRebrand(state);
+      expect(result).toBe(false);
+    });
+
+    it("should return false when preview is not found", () => {
+      const state: Pick<State, "preview"> = {
+        preview: { found: false, error: {} as Error },
       };
 
       const result = FEATURE_FLAGS.shouldShowGovUkRebrand(state);
