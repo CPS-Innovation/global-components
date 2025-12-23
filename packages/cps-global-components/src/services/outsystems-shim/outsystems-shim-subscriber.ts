@@ -1,7 +1,7 @@
 import { makeConsole } from "../../logging/makeConsole";
 import { Result } from "../../utils/Result";
 import { DomMutationObserver } from "../browser/dom/DomMutationObserver";
-import { PreviewState } from "cps-global-configuration";
+import { Preview } from "cps-global-configuration";
 
 type Styles = { [K in keyof CSSStyleDeclaration]?: string };
 
@@ -18,7 +18,7 @@ const applyStylesFactory =
       }
     });
 
-export const outSystemsShimSubscribers = ({ preview }: { preview: Result<PreviewState> }): DomMutationObserver[] => [
+export const outSystemsShimSubscribers = ({ preview }: { preview: Result<Preview> }): DomMutationObserver[] => [
   ({ context, window }) => {
     const applyStyles = applyStylesFactory(window);
     return {
