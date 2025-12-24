@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-export const previewStateSchema = z.object({
+export const PreviewSchema = z.object({
   enabled: z.boolean().optional(),
 
   caseMarkers: z.boolean().optional(),
@@ -12,4 +12,4 @@ export const previewStateSchema = z.object({
   forceDcfHeader: z.boolean().optional(),
 });
 
-export type PreviewState = z.infer<typeof previewStateSchema>;
+export type Preview = z.infer<typeof PreviewSchema>;

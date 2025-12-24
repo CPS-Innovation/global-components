@@ -8,5 +8,5 @@ export {
   type Link,
   type ContextsToUseEventNavigation,
 } from "./Config";
-export { previewStateSchema, type PreviewState } from "./Preview";
+export { PreviewSchema, type Preview } from "./Preview";
 export { transformAndValidateConfig, type ValidationResult } from "./validator";

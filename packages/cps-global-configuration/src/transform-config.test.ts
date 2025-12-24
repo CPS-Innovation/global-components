@@ -103,9 +103,12 @@ describe("transformConfig", () => {
       CONTEXTS: [
         {
           msalRedirectUrl: "https://redirect.example.com",
-          applyShim: "work-management",
           contexts: [
-            { path: "/first", contextIds: "ctx1" },
+            {
+              path: "/first",
+              contextIds: "ctx1",
+              applyShim: "force-global-menu",
+            },
             {
               forceCmsAuthRefresh: true,
               contexts: [{ path: "/second", contextIds: "ctx2" }],
@@ -124,7 +127,7 @@ describe("transformConfig", () => {
     expect(result.CONTEXTS[0].msalRedirectUrl).toBe(
       "https://redirect.example.com"
     );
-    expect(result.CONTEXTS[0].applyShim).toBe("work-management");
+    expect(result.CONTEXTS[0].applyShim).toBe("force-global-menu");
     expect(result.CONTEXTS[0].forceCmsAuthRefresh).toBeUndefined();
 
     // Second context inherits from both root and intermediate node
@@ -132,7 +135,7 @@ describe("transformConfig", () => {
     expect(result.CONTEXTS[1].msalRedirectUrl).toBe(
       "https://redirect.example.com"
     );
-    expect(result.CONTEXTS[1].applyShim).toBe("work-management");
+    expect(result.CONTEXTS[1].applyShim).toBeUndefined();
     expect(result.CONTEXTS[1].forceCmsAuthRefresh).toBe(true);
   });
 
@@ -144,11 +147,16 @@ describe("transformConfig", () => {
       CONTEXTS: [
         {
           msalRedirectUrl: "https://root.example.com",
-          applyShim: "housekeeping",
           contexts: [
             {
               msalRedirectUrl: "https://child.example.com",
-              contexts: [{ path: "/first", contextIds: "ctx1" }],
+              contexts: [
+                {
+                  path: "/first",
+                  contextIds: "ctx1",
+                  applyShim: "force-recent-cases",
+                },
+              ],
             },
           ],
         },
@@ -162,7 +170,7 @@ describe("transformConfig", () => {
     expect(result.CONTEXTS[0].msalRedirectUrl).toBe(
       "https://child.example.com"
     );
-    expect(result.CONTEXTS[0].applyShim).toBe("housekeeping");
+    expect(result.CONTEXTS[0].applyShim).toBe("force-recent-cases");
   });
 
   test("preserves order with multiple root-level context nodes", () => {
@@ -299,5 +307,39 @@ describe("transformConfig", () => {
       expect(result.CONTEXTS[i].path).toBe(`/path-${i + 1}`);
       expect(result.CONTEXTS[i].contextIds).toBe(`${i + 1}`);
     }
+  });
+
+  test("preserves domTagDefinitions on leaf nodes", () => {
+    const input: ConfigStorage = {
+      ENVIRONMENT: "test",
+      LINKS: [],
+      BANNER_TITLE_HREF: "https://example.com",
+      CONTEXTS: [
+        {
+          contexts: [
+            {
+              path: "/with-tags",
+              contextIds: "ctx1",
+              domTagDefinitions: [
+                { cssSelector: ".case-id", regex: "^[A-Z]{2}\\d{6}$" },
+                { cssSelector: ".reference", regex: "^REF-\\d+$" },
+              ],
+            },
+            { path: "/without-tags", contextIds: "ctx2" },
+          ],
+        },
+      ],
+    };
+
+    const result = transformConfig(input);
+
+    expect(result.CONTEXTS.length).toBe(2);
+    expect(result.CONTEXTS[0].path).toBe("/with-tags");
+    expect(result.CONTEXTS[0].domTagDefinitions).toEqual([
+      { cssSelector: ".case-id", regex: "^[A-Z]{2}\\d{6}$" },
+      { cssSelector: ".reference", regex: "^REF-\\d+$" },
+    ]);
+    expect(result.CONTEXTS[1].path).toBe("/without-tags");
+    expect(result.CONTEXTS[1].domTagDefinitions).toBeUndefined();
   });
 });

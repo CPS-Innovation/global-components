@@ -25,7 +25,7 @@ jest.mock("./services/browser/navigation/initialise-navigation-subscription", ()
   initialiseNavigationSubscription: ({ handler, handleError }: { handler: () => void; handleError: (err: Error) => void }) => {
     capturedNavigationHandler = handler;
     capturedHandleError = handleError;
-    mockInitialiseNavigationSubscription({ handler, window: expect.any(Object), handleError: expect.any(Function) });
+    mockInitialiseNavigationSubscription({ handler, handleError });
   },
 }));
 
@@ -88,12 +88,12 @@ jest.mock("./services/data/initialise-case-details-data", () => ({
 }));
 
 const mockInitialiseCmsSessionHint = jest.fn();
-jest.mock("./services/cms-session/initialise-cms-session-hint", () => ({
+jest.mock("./services/state/cms-session/initialise-cms-session-hint", () => ({
   initialiseCmsSessionHint: mockInitialiseCmsSessionHint,
 }));
 
 const mockInitialiseHandover = jest.fn();
-jest.mock("./services/handover/intialise-handover", () => ({
+jest.mock("./services/state/handover/intialise-handover", () => ({
   initialiseHandover: mockInitialiseHandover,
 }));
 
@@ -108,8 +108,13 @@ jest.mock("./services/root-url/initialise-root-url", () => ({
 }));
 
 const mockInitialisePreview = jest.fn();
-jest.mock("./services/preview/initialise-preview", () => ({
+jest.mock("./services/state/preview/initialise-preview", () => ({
   initialisePreview: mockInitialisePreview,
+}));
+
+const mockInitialiseRecentCases = jest.fn();
+jest.mock("./services/state/recent-cases/initialise-recent-cases", () => ({
+  initialiseRecentCases: mockInitialiseRecentCases,
 }));
 
 // Mock makeConsole to return no-op functions
@@ -211,6 +216,11 @@ const setupDefaultMocks = () => {
 
   mockInitialisePreview.mockResolvedValue({ enabled: false, features: [] });
 
+  mockInitialiseRecentCases.mockResolvedValue({
+    recentCases: { found: false, error: new Error("No recent cases") },
+    setNextRecentCases: jest.fn(),
+  });
+
   return {
     mockTrackPageView,
     mockTrackEvent,
@@ -271,7 +281,6 @@ describe("global-script", () => {
       await new Promise(resolve => setTimeout(resolve, 10));
 
       expect(mockInitialiseNavigationSubscription).toHaveBeenCalledWith({
-        window: mockWindow,
         handler: expect.any(Function),
         handleError: expect.any(Function),
       });
@@ -573,6 +582,7 @@ describe("global-script", () => {
           subscribe: expect.any(Function),
           handover: expect.any(Object),
           setNextHandover: expect.any(Function),
+          setNextRecentCases: expect.any(Function),
           getToken: expect.any(Function),
           readyState: expect.any(Function),
           trackEvent: expect.any(Function),
@@ -955,7 +965,7 @@ describe("global-script", () => {
     });
   });
 
-  describe("cmsSessionHint and handover initialization", () => {
+  describe("cmsSessionHint, handover and recentCases initialization", () => {
     it("should register cmsSessionHint to store", async () => {
       const globalScript = require("./global-script").default;
 
@@ -1016,6 +1026,43 @@ describe("global-script", () => {
       await new Promise(resolve => setTimeout(resolve, 10));
 
       expect(mockInitialiseHandover).toHaveBeenCalledTimes(1);
+    });
+
+    it("should register recentCases to store", async () => {
+      const testRecentCases = { found: true, result: [{ caseId: 123, urn: "12AB3456789" }] };
+      mockInitialiseRecentCases.mockResolvedValue({
+        recentCases: testRecentCases,
+        setNextRecentCases: jest.fn(),
+      });
+
+      const globalScript = require("./global-script").default;
+
+      globalScript();
+
+      await new Promise(resolve => setTimeout(resolve, 10));
+
+      const state = getReadyState()("recentCases");
+      expect(state.isReady).toBe(true);
+      if (state.isReady) {
+        expect(state.state.recentCases).toEqual(testRecentCases);
+      }
+    });
+
+    it("should NOT reinitialize recentCases on navigation (cached)", async () => {
+      const globalScript = require("./global-script").default;
+
+      globalScript();
+
+      await new Promise(resolve => setTimeout(resolve, 10));
+
+      expect(mockInitialiseRecentCases).toHaveBeenCalledTimes(1);
+
+      // Trigger SPA navigation
+      triggerNavigation();
+
+      await new Promise(resolve => setTimeout(resolve, 10));
+
+      expect(mockInitialiseRecentCases).toHaveBeenCalledTimes(1);
     });
   });
 
@@ -1078,6 +1125,22 @@ describe("global-script", () => {
 
       expect(mockInitialisePreview).toHaveBeenCalledWith({
         rootUrl: testRootUrl,
+      });
+    });
+
+    it("should pass rootUrl and preview to initialiseRecentCases", async () => {
+      const testRootUrl = "https://test.example.com/env/script.js";
+      const testPreview = { enabled: true, myRecentCases: true };
+      mockInitialiseRootUrl.mockReturnValue(testRootUrl);
+      mockInitialisePreview.mockResolvedValue(testPreview);
+
+      const globalScript = require("./global-script").default;
+      globalScript();
+      await new Promise(resolve => setTimeout(resolve, 10));
+
+      expect(mockInitialiseRecentCases).toHaveBeenCalledWith({
+        rootUrl: testRootUrl,
+        preview: testPreview,
       });
     });
 
@@ -1202,6 +1265,7 @@ describe("global-script", () => {
       const testConfig = { CONTEXTS: [], GATEWAY_URL: "https://gateway.test.com/" };
       const testHandover = { caseId: "case-789", source: "test" };
       const mockSetNextHandover = jest.fn();
+      const mockSetNextRecentCases = jest.fn();
       const testContext = {
         found: true,
         contextDefinition: { name: "test-context" },
@@ -1212,6 +1276,10 @@ describe("global-script", () => {
       mockInitialiseHandover.mockResolvedValue({
         handover: testHandover,
         setNextHandover: mockSetNextHandover,
+      });
+      mockInitialiseRecentCases.mockResolvedValue({
+        recentCases: { found: false, error: new Error("No recent cases") },
+        setNextRecentCases: mockSetNextRecentCases,
       });
       mockInitialiseContext.mockReturnValue(testContext);
 
@@ -1225,6 +1293,7 @@ describe("global-script", () => {
           context: testContext,
           handover: testHandover,
           setNextHandover: mockSetNextHandover,
+          setNextRecentCases: mockSetNextRecentCases,
         }),
       );
     });
@@ -1234,7 +1303,7 @@ describe("global-script", () => {
     // These tests verify that operations happen in the correct order
     // using mock call order tracking
 
-    it("should initialise in correct order: rootUrl -> flags -> config/cmsSessionHint/handover/preview (parallel) -> firstContext -> analytics (auth runs async later)", async () => {
+    it("should initialise in correct order: rootUrl -> flags -> cmsSessionHint/handover/preview (parallel) -> recentCases -> config -> firstContext -> analytics (auth runs async later)", async () => {
       const callOrder: string[] = [];
 
       mockInitialiseRootUrl.mockImplementation(() => {
@@ -1267,6 +1336,11 @@ describe("global-script", () => {
         return { enabled: false, features: [] };
       });
 
+      mockInitialiseRecentCases.mockImplementation(async () => {
+        callOrder.push("recentCases");
+        return { recentCases: { found: false, error: new Error("No recent cases") }, setNextRecentCases: jest.fn() };
+      });
+
       mockInitialiseContext.mockImplementation(() => {
         callOrder.push("context");
         return { found: true, contextDefinition: {}, pathTags: {} };
@@ -1286,13 +1360,16 @@ describe("global-script", () => {
       globalScript();
       await new Promise(resolve => setTimeout(resolve, 10));
 
-      // Verify order - rootUrl and flags first, then parallel async calls, then firstContext
+      // Verify order - rootUrl and flags first, then parallel async calls (cmsSessionHint/handover/preview),
+      // then recentCases (needs preview), then config, then firstContext
       // Analytics now comes BEFORE auth (auth is non-blocking to avoid UI delay)
       expect(callOrder.indexOf("rootUrl")).toBeLessThan(callOrder.indexOf("flags"));
-      expect(callOrder.indexOf("flags")).toBeLessThan(callOrder.indexOf("config"));
       expect(callOrder.indexOf("flags")).toBeLessThan(callOrder.indexOf("cmsSessionHint"));
       expect(callOrder.indexOf("flags")).toBeLessThan(callOrder.indexOf("handover"));
       expect(callOrder.indexOf("flags")).toBeLessThan(callOrder.indexOf("preview"));
+      // recentCases is called after preview (not in parallel)
+      expect(callOrder.indexOf("preview")).toBeLessThan(callOrder.indexOf("recentCases"));
+      expect(callOrder.indexOf("recentCases")).toBeLessThan(callOrder.indexOf("config"));
       expect(callOrder.indexOf("config")).toBeLessThan(callOrder.indexOf("context"));
       // Analytics is now initialized BEFORE auth (auth is non-blocking)
       expect(callOrder.indexOf("analytics")).toBeLessThan(callOrder.indexOf("auth"));
@@ -1397,10 +1474,7 @@ describe("global-script", () => {
       };
 
       // First call is in loadPhase (firstContext), second in initialise (context), third on navigation
-      mockInitialiseContext
-        .mockReturnValueOnce(firstContext)
-        .mockReturnValueOnce(initialContext)
-        .mockReturnValueOnce(updatedContext);
+      mockInitialiseContext.mockReturnValueOnce(firstContext).mockReturnValueOnce(initialContext).mockReturnValueOnce(updatedContext);
 
       const globalScript = require("./global-script").default;
       globalScript();
@@ -1441,10 +1515,7 @@ describe("global-script", () => {
       };
 
       // First call is in loadPhase (firstContext), second in initialise (context), third on navigation
-      mockInitialiseContext
-        .mockReturnValueOnce(firstContext)
-        .mockReturnValueOnce(initialContext)
-        .mockReturnValueOnce(updatedContext);
+      mockInitialiseContext.mockReturnValueOnce(firstContext).mockReturnValueOnce(initialContext).mockReturnValueOnce(updatedContext);
 
       const globalScript = require("./global-script").default;
       globalScript();

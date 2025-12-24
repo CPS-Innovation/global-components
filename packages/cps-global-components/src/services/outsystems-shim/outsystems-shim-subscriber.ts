@@ -1,7 +1,7 @@
 import { makeConsole } from "../../logging/makeConsole";
 import { Result } from "../../utils/Result";
 import { DomMutationObserver } from "../browser/dom/DomMutationObserver";
-import { PreviewState } from "cps-global-configuration";
+import { Preview } from "cps-global-configuration";
 
 type Styles = { [K in keyof CSSStyleDeclaration]?: string };
 
@@ -18,11 +18,11 @@ const applyStylesFactory =
       }
     });
 
-export const outSystemsShimSubscribers = ({ preview }: { preview: Result<PreviewState> }): DomMutationObserver[] => [
+export const outSystemsShimSubscribers = ({ preview }: { preview: Result<Preview> }): DomMutationObserver[] => [
   ({ context, window }) => {
     const applyStyles = applyStylesFactory(window);
     return {
-      isActiveForContext: context.found && context.applyShim === "work-management" && preview.found && !!preview.result.forceDcfHeader,
+      isActiveForContext: context.found && context.applyShim === "force-global-menu" && preview.found && !!preview.result.forceDcfHeader,
       subscriptions: [
         {
           cssSelector: "div[data-block='Common.TempHeader'], #b1-b2-GlobalNavigation",
@@ -44,6 +44,47 @@ export const outSystemsShimSubscribers = ({ preview }: { preview: Result<Preview
               }
               ancestor = ancestor.parentElement;
             }
+          },
+        },
+      ],
+    };
+  },
+  ({ context }) => {
+    const applyStyles = applyStylesFactory(window);
+    return {
+      isActiveForContext: context.found && context.contextIds.includes("details") && context.applyShim === "force-recent-cases" && !!preview.result?.myRecentCases,
+      subscriptions: [
+        {
+          cssSelector: "div[data-block='ReusableBlocks.CasesList']",
+          handler: (element: HTMLElement) => {
+            if (element.ownerDocument.querySelector("cps-global-recent-cases")) {
+              return;
+            }
+            const cpsRecentCases: HTMLCpsGlobalRecentCasesElement = window.document.createElement("cps-global-recent-cases");
+            applyStyles({ marginTop: "40px" })(cpsRecentCases);
+            element.after(cpsRecentCases);
+          },
+        },
+      ],
+    };
+  },
+  ({ context }) => {
+    return {
+      isActiveForContext: context.found && context.contextIds.includes("home") && context.applyShim === "force-recent-cases" && !!preview.result?.myRecentCases,
+      subscriptions: [
+        {
+          cssSelector: "div#$b5",
+          handler: (element: HTMLElement) => {
+            if (element.ownerDocument.querySelector("cps-global-recent-cases")) {
+              return;
+            }
+            const clonedHr = document.querySelector("hr")?.cloneNode();
+            if (clonedHr) {
+              element.before(clonedHr);
+            }
+
+            const cpsRecentCases: HTMLCpsGlobalRecentCasesElement = window.document.createElement("cps-global-recent-cases");
+            element.before(cpsRecentCases);
           },
         },
       ],
