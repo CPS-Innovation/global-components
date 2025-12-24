@@ -61,7 +61,7 @@ export const outSystemsShimSubscribers = ({ preview }: { preview: Result<Preview
               return;
             }
             const cpsRecentCases: HTMLCpsGlobalRecentCasesElement = window.document.createElement("cps-global-recent-cases");
-            applyStyles({ marginTop: "20px" })(cpsRecentCases);
+            applyStyles({ marginTop: "40px" })(cpsRecentCases);
             element.after(cpsRecentCases);
           },
         },
