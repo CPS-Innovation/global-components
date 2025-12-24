@@ -59,7 +59,7 @@ export const outSystemsShimSubscribers = ({ preview }: { preview: Result<Preview
             return;
           }
           const cpsRecentCases: HTMLCpsGlobalRecentCasesElement = window.document.createElement("cps-global-recent-cases");
-          element.before(cpsRecentCases);
+          element.after(cpsRecentCases);
         },
       },
     ],

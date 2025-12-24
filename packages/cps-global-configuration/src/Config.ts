@@ -131,6 +131,7 @@ export const configBaseSchema = z.object({
   FEATURE_FLAG_ENABLE_INTRUSIVE_AD_LOGIN: z.boolean().optional(),
   CACHE_CONFIG: cacheConfigSchema.optional(),
   FETCH_CIRCUIT_BREAKER_CONFIG: fetchCircuitBreakerConfigSchema.optional(),
+  RECENT_CASES_NAVIGATE_URL: z.string().optional(),
 });
 
 export const configStorageSchema = configBaseSchema.extend({
