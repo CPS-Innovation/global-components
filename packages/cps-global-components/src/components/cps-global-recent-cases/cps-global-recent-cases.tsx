@@ -1,5 +1,6 @@
 import { Component, h, Fragment } from "@stencil/core";
 import { readyState } from "../../store/store";
+import { replaceTagsInString } from "../cps-global-menu/menu-config/helpers/replace-tags-in-string";
 
 @Component({
   tag: "cps-global-recent-cases",
@@ -10,27 +11,34 @@ export class CpsGlobalRecentCases {
   render() {
     const {
       isReady,
-      state: { recentCases },
+      state: {
+        recentCases,
+        config: { RECENT_CASES_NAVIGATE_URL },
+      },
       // Let's have caseMonitoringCodes be lazy i.e. we will not hold up the UI for the
       //  caseMonitoringCodes call to have completed.
-    } = readyState("recentCases");
+    } = readyState("recentCases", "tags", "config");
+
+    if (!(isReady && recentCases.found && RECENT_CASES_NAVIGATE_URL)) {
+      return null;
+    }
+
+    const buildCaseLink = ({ caseId, urn }: { caseId: number; urn: string }) => replaceTagsInString(RECENT_CASES_NAVIGATE_URL, { caseId, urn });
 
     return (
       <>
-        <h2>Recent cases</h2>
-        {isReady && recentCases.found && (
-          <div class="recent-cases">
-            <ul>
-              {recentCases.result.map(({ caseId, urn, description }) => (
-                <li>
-                  <a href={`/${caseId}`}>
-                    {urn} - {description}
-                  </a>
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
+        <h3 class="govuk-heading-m">Recent cases</h3>
+        <div class="recent-cases govuk-list">
+          <ul>
+            {recentCases.result.map(({ caseId, urn, description }) => (
+              <li>
+                <a class="govuk-link" href={buildCaseLink({ caseId, urn })}>
+                  {urn} - {description}
+                </a>
+              </li>
+            ))}
+          </ul>
+        </div>
       </>
     );
   }
