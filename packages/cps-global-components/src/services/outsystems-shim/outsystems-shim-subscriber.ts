@@ -61,7 +61,9 @@ export const outSystemsShimSubscribers: DomMutationObserver[] = [
             const cpsRecentCases: HTMLCpsGlobalRecentCasesElement = window.document.createElement("cps-global-recent-cases");
             applyStyles({ marginTop: "40px" })(cpsRecentCases);
             element.after(cpsRecentCases);
-            return true;
+            // Have seen evidence that we need to leave this one running as the target element arrives and leaves
+            //  multiple times
+            return false;
           },
         },
       ],
