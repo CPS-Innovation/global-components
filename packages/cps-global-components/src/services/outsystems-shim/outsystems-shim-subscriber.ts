@@ -49,4 +49,19 @@ export const outSystemsShimSubscribers = ({ preview }: { preview: Result<Preview
       ],
     };
   },
+  ({ context }) => ({
+    isActiveForContext: context.found && context.path.endsWith("/Cases") && context.applyShim === "work-management" && !!preview.result?.myRecentCases,
+    subscriptions: [
+      {
+        cssSelector: "div[data-block='ReusableBlocks.CasesList']",
+        handler: (element: HTMLElement) => {
+          if (element.ownerDocument.querySelector("cps-global-recent-cases")) {
+            return;
+          }
+          const cpsRecentCases: HTMLCpsGlobalRecentCasesElement = window.document.createElement("cps-global-recent-cases");
+          element.before(cpsRecentCases);
+        },
+      },
+    ],
+  }),
 ];
