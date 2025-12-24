@@ -1,5 +1,9 @@
 @use "../common/common.scss" as *;
 
+:host {
+  display: block;
+}
+
 .recent-cases {
   border: 1px solid govuk-colour("red");
 }

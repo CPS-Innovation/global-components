@@ -28,7 +28,7 @@ export class CpsGlobalRecentCases {
     return (
       <div class="recent-cases">
         <h3 class="govuk-heading-m">Your recent cases</h3>
-        <div class="recent-cases govuk-list govuk-list--bullet govuk-list--spaced">
+        <div class="govuk-list govuk-list--bullet govuk-list--spaced">
           <ul>
             {recentCases.result.map(({ caseId, urn, description }) => (
               <li>
