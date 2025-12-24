@@ -28,17 +28,16 @@ export class CpsGlobalRecentCases {
     return (
       <div class="recent-cases">
         <h3 class="govuk-heading-m">Your recent cases</h3>
-        <div class="govuk-list govuk-list--bullet govuk-list--spaced">
-          <ul>
-            {recentCases.result.map(({ caseId, urn, description }) => (
-              <li>
-                <a class="govuk-link" href={buildCaseLink({ caseId, urn })}>
-                  {urn} - {description}
-                </a>
-              </li>
-            ))}
-          </ul>
-        </div>
+
+        <ul class="govuk-list govuk-list--spaced">
+          {recentCases.result.map(({ caseId, urn, description }) => (
+            <li>
+              <a class="govuk-link" href={buildCaseLink({ caseId, urn })}>
+                {urn} - {description}
+              </a>
+            </li>
+          ))}
+        </ul>
       </div>
     );
   }
