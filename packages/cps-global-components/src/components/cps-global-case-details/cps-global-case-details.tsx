@@ -20,27 +20,25 @@ export class CpsGlobalCaseDetails {
       <>
         {isReady && (
           <div class="level case-details">
-            <>
-              {caseDetails.found && (
-                <>
-                  <div>{caseDetails.result.urn}</div>
-                  <div>
-                    <b>{getCaseDefendantHeadline(caseDetails.result)}</b>
-                  </div>
-                </>
+            {caseDetails.found && (
+              <>
+                <div>{caseDetails.result.urn}</div>
+                <div>
+                  <b>{getCaseDefendantHeadline(caseDetails.result)}</b>
+                </div>
+              </>
+            )}
+            <div class="scrolling-tags">
+              {caseMonitoringCodes?.found && (
+                <div class="scrolling-tags-container">
+                  {caseMonitoringCodes.result.map(({ code, description }) => (
+                    <strong class="govuk-tag govuk-tag--red" key={code}>
+                      {description}
+                    </strong>
+                  ))}
+                </div>
               )}
-              <div class="scrolling-tags">
-                {caseMonitoringCodes?.found && (
-                  <div class="scrolling-tags-container">
-                    {caseMonitoringCodes.result.map(({ code, description }) => (
-                      <strong class="govuk-tag govuk-tag--red" key={code}>
-                        {description}
-                      </strong>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </>
+            </div>
           </div>
         )}
       </>
