@@ -29,7 +29,7 @@ export class CpsGlobalRecentCases {
       <div class="recent-cases">
         <h3 class="govuk-heading-m">Your recent cases</h3>
 
-        <ul class="govuk-list govuk-list--bullet govuk-list--spaced">
+        <ul class="govuk-list govuk-list--spaced">
           {recentCases.result.map(({ caseId, urn, description }) => (
             <li>
               <a class="govuk-link" href={buildCaseLink({ caseId, urn })}>
