@@ -30,7 +30,8 @@
       "contexts": [
         {
           "path": "https://cps-tst.outsystemsenterprise.com/casework_blocks/home",
-          "contextIds": "home"
+          "contextIds": "home",
+          "applyShim": "force-recent-cases"
         },
         {
           "path": "https://cps-tst.outsystemsenterprise.com/casework_blocks",
@@ -53,11 +54,12 @@
         {
           "path": "https://cps-tst.outsystemsenterprise.com/WorkManagementApp.*?(?=.*[&?]CaseId=(?<caseId>\\d+))(?=.*[&?](?:Case)?URN=(?<urn>[^&]+))",
           "contextIds": "case details",
-          "applyShim": "work-management"
+          "applyShim": "force-global-menu"
         },
         {
           "path": "https://cps-tst.outsystemsenterprise.com/WorkManagementApp/Cases",
-          "contextIds": "cases"
+          "contextIds": "cases",
+          "applyShim": "force-recent-cases"
         },
         {
           "path": "https://cps-tst.outsystemsenterprise.com/WorkManagementApp/TaskList",
