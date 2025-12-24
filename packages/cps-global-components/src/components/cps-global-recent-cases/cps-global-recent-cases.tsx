@@ -1,4 +1,4 @@
-import { Component, h, Fragment } from "@stencil/core";
+import { Component, h } from "@stencil/core";
 import { readyState } from "../../store/store";
 import { replaceTagsInString } from "../cps-global-menu/menu-config/helpers/replace-tags-in-string";
 
@@ -26,9 +26,9 @@ export class CpsGlobalRecentCases {
     const buildCaseLink = ({ caseId, urn }: { caseId: number; urn: string }) => replaceTagsInString(RECENT_CASES_NAVIGATE_URL, { caseId, urn });
 
     return (
-      <>
+      <div class="recent-cases">
         <h3 class="govuk-heading-m">Your recent cases</h3>
-        <div class="recent-cases govuk-list">
+        <div class="recent-cases govuk-list govuk-list--bullet govuk-list--spaced">
           <ul>
             {recentCases.result.map(({ caseId, urn, description }) => (
               <li>
@@ -39,7 +39,7 @@ export class CpsGlobalRecentCases {
             ))}
           </ul>
         </div>
-      </>
+      </div>
     );
   }
 }
