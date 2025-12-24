@@ -51,9 +51,18 @@ const featureFlagUsersSchema = z.object({
 
 export type FeatureFlagUsers = z.infer<typeof featureFlagUsersSchema>;
 
+const shimTypeSchema = z.union([
+  z.literal("work-management"),
+  z.literal("housekeeping"),
+]);
+
+export type ShimType = z.infer<typeof shimTypeSchema>;
+
 const contextPathsSchema = z.object({
   path: z.string(),
   contextIds: z.string(),
+  applyShim: shimTypeSchema.optional(),
+  domTagDefinitions: z.array(domTagDefinitionsSchema).optional(),
 });
 
 export type ContextPathsSchema = z.infer<typeof contextPathsSchema>;
@@ -61,9 +70,6 @@ export type ContextPathsSchema = z.infer<typeof contextPathsSchema>;
 const contextsBaseSchema = z.object({
   msalRedirectUrl: z.string().optional(),
   domTagDefinitions: z.array(domTagDefinitionsSchema).optional(),
-  applyShim: z
-    .union([z.literal("work-management"), z.literal("housekeeping")])
-    .optional(),
   forceCmsAuthRefresh: z.boolean().optional(),
   authorisation: authorisationSchema.optional(),
   headerCustomCssClasses: z.string().optional(),
@@ -91,6 +97,7 @@ const contextSchema = contextsBaseSchema.extend({
   path: z.string(),
   contextIds: z.string(),
   msalRedirectUrl: z.string(), // redefine as required, not optional in app config
+  applyShim: shimTypeSchema.optional(),
 });
 
 export type Context = z.infer<typeof contextSchema>;

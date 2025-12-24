@@ -26,68 +26,50 @@
       },
       "msalRedirectUrl": "https://cps-tst.outsystemsenterprise.com/Casework_Patterns/auth-handover-test.html",
       "skipToMainContentCustomSelector": "main",
+      "cmsAuthFromStorageKey": "$OS_Users$Casework_Blocks$ClientVars$JSONString",
       "contexts": [
         {
-          "cmsAuthFromStorageKey": "$OS_Users$Casework_Blocks$ClientVars$JSONString",
-          "contexts": [
+          "path": "https://cps-tst.outsystemsenterprise.com/casework_blocks/home",
+          "contextIds": "home"
+        },
+        {
+          "path": "https://cps-tst.outsystemsenterprise.com/casework_blocks",
+          "contextIds": "unknown-home"
+        },
+        {
+          "path": "https://cps-tst.outsystemsenterprise.com/CaseReview.*?[&?](?:CMS)?CaseId=(?<caseId>\\d+)",
+          "contextIds": "case review",
+          "domTagDefinitions": [
             {
-              "path": "https://cps-tst.outsystemsenterprise.com/casework_blocks/home",
-              "contextIds": "home"
-            },
-            {
-              "path": "https://cps-tst.outsystemsenterprise.com/casework_blocks",
-              "contextIds": "unknown-home"
+              "cssSelector": "div#URN_Container",
+              "regex": "<span[^>]*>(?<urn>.*?)</span>"
             }
           ]
         },
         {
-          "cmsAuthFromStorageKey": "$OS_Users$CaseReview$ClientVars$CmsAuthValues",
-          "contexts": [
-            {
-              "domTagDefinitions": [
-                {
-                  "cssSelector": "div#URN_Container",
-                  "regex": "<span[^>]*>(?<urn>.*?)</span>"
-                }
-              ],
-              "contexts": [
-                {
-                  "path": "https://cps-tst.outsystemsenterprise.com/CaseReview.*?[&?](?:CMS)?CaseId=(?<caseId>\\d+)",
-                  "contextIds": "case review"
-                }
-              ]
-            },
-            {
-              "path": "https://cps-tst.outsystemsenterprise.com/CaseReview/",
-              "contextIds": "cases"
-            }
-          ]
+          "path": "https://cps-tst.outsystemsenterprise.com/CaseReview/",
+          "contextIds": "cases"
         },
         {
-          "cmsAuthFromStorageKey": "$OS_Users$WorkManagementApp$ClientVars$JSONString",
-          "applyShim": "work-management",
-          "contexts": [
-            {
-              "path": "https://cps-tst.outsystemsenterprise.com/WorkManagementApp.*?(?=.*[&?]CaseId=(?<caseId>\\d+))(?=.*[&?](?:Case)?URN=(?<urn>[^&]+))",
-              "contextIds": "case details"
-            },
-            {
-              "path": "https://cps-tst.outsystemsenterprise.com/WorkManagementApp/Cases",
-              "contextIds": "cases"
-            },
-            {
-              "path": "https://cps-tst.outsystemsenterprise.com/WorkManagementApp/TaskList",
-              "contextIds": "tasks"
-            },
-            {
-              "path": "https://cps-tst.outsystemsenterprise.com/WorkManagementApp/SearchCase",
-              "contextIds": "cases"
-            },
-            {
-              "path": "https://cps-tst.outsystemsenterprise.com/WorkManagementApp",
-              "contextIds": "unknown-wma"
-            }
-          ]
+          "path": "https://cps-tst.outsystemsenterprise.com/WorkManagementApp.*?(?=.*[&?]CaseId=(?<caseId>\\d+))(?=.*[&?](?:Case)?URN=(?<urn>[^&]+))",
+          "contextIds": "case details",
+          "applyShim": "work-management"
+        },
+        {
+          "path": "https://cps-tst.outsystemsenterprise.com/WorkManagementApp/Cases",
+          "contextIds": "cases"
+        },
+        {
+          "path": "https://cps-tst.outsystemsenterprise.com/WorkManagementApp/TaskList",
+          "contextIds": "tasks"
+        },
+        {
+          "path": "https://cps-tst.outsystemsenterprise.com/WorkManagementApp/SearchCase",
+          "contextIds": "cases"
+        },
+        {
+          "path": "https://cps-tst.outsystemsenterprise.com/WorkManagementApp",
+          "contextIds": "unknown-wma"
         }
       ]
     },
@@ -106,20 +88,20 @@
     },
     {
       "msalRedirectUrl": "https://housekeeping-staging.int.cps.gov.uk/global-components-msal-redirect.html",
-      "domTagDefinitions": [
-        {
-          "cssSelector": "a[href*='/polaris-ui/case-details/']",
-          "regex": "/polaris-ui/case-details/.*/(?<caseId>\\d+)\""
-        },
-        {
-          "cssSelector": "div.case-info-details p",
-          "regex": ">(?<urn>[^<]+)"
-        }
-      ],
       "contexts": [
         {
           "path": "https://housekeeping",
-          "contextIds": "case materials"
+          "contextIds": "case materials",
+          "domTagDefinitions": [
+            {
+              "cssSelector": "a[href*='/polaris-ui/case-details/']",
+              "regex": "/polaris-ui/case-details/.*/(?<caseId>\\d+)\""
+            },
+            {
+              "cssSelector": "div.case-info-details p",
+              "regex": ">(?<urn>[^<]+)"
+            }
+          ]
         }
       ]
     },
