@@ -52,8 +52,8 @@ const featureFlagUsersSchema = z.object({
 export type FeatureFlagUsers = z.infer<typeof featureFlagUsersSchema>;
 
 const shimTypeSchema = z.union([
-  z.literal("work-management"),
-  z.literal("housekeeping"),
+  z.literal("force-global-menu"),
+  z.literal("force-recent-cases"),
 ]);
 
 export type ShimType = z.infer<typeof shimTypeSchema>;
