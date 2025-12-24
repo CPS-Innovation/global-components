@@ -28,7 +28,7 @@ const FEATURES = [
     key: "myRecentCases",
     label: "My recent cases",
     description:
-      "Track the user's most recently visited cases and display on the home page.",
+      "Track the user's most recently visited cases and display the list on the home and cases pages.",
     disabled: false,
   },
   {
