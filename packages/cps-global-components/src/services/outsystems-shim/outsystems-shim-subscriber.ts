@@ -1,7 +1,5 @@
 import { makeConsole } from "../../logging/makeConsole";
-import { Result } from "../../utils/Result";
 import { DomMutationObserver } from "../browser/dom/DomMutationObserver";
-import { Preview } from "cps-global-configuration";
 
 type Styles = { [K in keyof CSSStyleDeclaration]?: string };
 
@@ -18,8 +16,8 @@ const applyStylesFactory =
       }
     });
 
-export const outSystemsShimSubscribers = ({ preview }: { preview: Result<Preview> }): DomMutationObserver[] => [
-  ({ context, window }) => {
+export const outSystemsShimSubscribers: DomMutationObserver[] = [
+  ({ context, window, preview }) => {
     const applyStyles = applyStylesFactory(window);
     return {
       isActiveForContext: context.found && context.applyShim === "force-global-menu" && preview.found && !!preview.result.forceDcfHeader,
@@ -49,7 +47,7 @@ export const outSystemsShimSubscribers = ({ preview }: { preview: Result<Preview
       ],
     };
   },
-  ({ context }) => {
+  ({ context, preview, window }) => {
     const applyStyles = applyStylesFactory(window);
     return {
       isActiveForContext: context.found && context.contextIds.includes("details") && context.applyShim === "force-recent-cases" && !!preview.result?.myRecentCases,
@@ -63,17 +61,18 @@ export const outSystemsShimSubscribers = ({ preview }: { preview: Result<Preview
             const cpsRecentCases: HTMLCpsGlobalRecentCasesElement = window.document.createElement("cps-global-recent-cases");
             applyStyles({ marginTop: "40px" })(cpsRecentCases);
             element.after(cpsRecentCases);
+            return true;
           },
         },
       ],
     };
   },
-  ({ context }) => {
+  ({ context, preview, window }) => {
     return {
       isActiveForContext: context.found && context.contextIds.includes("home") && context.applyShim === "force-recent-cases" && !!preview.result?.myRecentCases,
       subscriptions: [
         {
-          cssSelector: "div#$b5",
+          cssSelector: "div#\\$b5",
           handler: (element: HTMLElement) => {
             if (element.ownerDocument.querySelector("cps-global-recent-cases")) {
               return;
@@ -85,6 +84,7 @@ export const outSystemsShimSubscribers = ({ preview }: { preview: Result<Preview
 
             const cpsRecentCases: HTMLCpsGlobalRecentCasesElement = window.document.createElement("cps-global-recent-cases");
             element.before(cpsRecentCases);
+            return true;
           },
         },
       ],

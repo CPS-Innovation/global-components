@@ -1,7 +1,21 @@
+import { Preview } from "cps-global-configuration";
 import { MergeTags, Register } from "../../../store/store";
+import { Result } from "../../../utils/Result";
 import { FoundContext } from "../../context/FoundContext";
 
-export type DomMutationObserver = ({ context, register, mergeTags, window }: { context: FoundContext; register: Register; mergeTags: MergeTags; window: Window }) => {
+export type DomMutationObserver = ({
+  context,
+  register,
+  mergeTags,
+  window,
+  preview,
+}: {
+  context: FoundContext;
+  register: Register;
+  mergeTags: MergeTags;
+  window: Window;
+  preview: Result<Preview>;
+}) => {
   isActiveForContext: boolean;
   subscriptions: {
     cssSelector: string;
