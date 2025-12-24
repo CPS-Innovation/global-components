@@ -17,6 +17,7 @@ import { initialiseCorrelationIds } from "./services/correlation/initialise-corr
 import { initialiseRootUrl } from "./services/root-url/initialise-root-url";
 import { initialisePreview } from "./services/state/preview/initialise-preview";
 import { initialiseRecentCases } from "./services/state/recent-cases/initialise-recent-cases";
+import { footerSubscriber } from "./services/browser/dom/footer-subscriber";
 
 const { _error } = makeConsole("global-script");
 
@@ -85,10 +86,11 @@ const startupPhase = async ({ window, storeFns: { register, mergeTags, readyStat
   const { trackPageView, trackEvent, trackException } = initialiseAnalytics({ window, config, readyState, build, cmsSessionHint, flags });
 
   const { initialiseDomForContext } = initialiseDomObservation(
-    { window, register, mergeTags },
+    { window, register, mergeTags, preview },
     domTagMutationSubscriber,
     interimDcfNavigationObserver,
-    ...outSystemsShimSubscribers({ preview }),
+    footerSubscriber,
+    ...outSystemsShimSubscribers,
   );
 
   return {

@@ -25,6 +25,12 @@ const FEATURES = [
     disabled: false,
   },
   {
+    key: "footer",
+    label: "Global footer",
+    description: "Display the same global footer on every app",
+    disabled: false,
+  },
+  {
     key: "myRecentCases",
     label: "My recent cases",
     description:
