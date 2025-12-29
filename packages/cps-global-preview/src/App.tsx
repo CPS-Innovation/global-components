@@ -38,15 +38,15 @@ const FEATURES = [
     disabled: false,
   },
   {
-    key: "caseSearch",
-    label: "Case search",
-    description: "Show case search functionality.",
-    disabled: true,
-  },
-  {
     key: "accessibility",
     label: "Accessibility",
     description: "Enable accessibility features (low contrast background).",
+    disabled: false,
+  },
+  {
+    key: "caseSearch",
+    label: "Case search",
+    description: "Show case search functionality.",
     disabled: true,
   },
 ] as const;
