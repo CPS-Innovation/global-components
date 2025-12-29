@@ -31,7 +31,8 @@ export class CpsGlobalCaseDetails {
         </div>
         <div class="scrolling-tags">
           <div class="scrolling-tags-container">
-            {/* Let's only show monitoring codes once we have the headline, otherwise  */}
+            {/* Let's only show monitoring codes once we have the headline, otherwise 
+                we get layout stuttering as the values come in  */}
             {headline &&
               monitoringCodes.map(({ code, description }) => (
                 <strong class="govuk-tag govuk-tag--red" key={code}>
