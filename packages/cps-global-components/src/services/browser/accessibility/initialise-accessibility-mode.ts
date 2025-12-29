@@ -8,7 +8,7 @@ export const initialiseAccessibilityMode = ({ preview, window: { document } }: {
 
   const style = document.createElement("style");
   style.id = "grey-mode-styles";
-  style.textContent = `[data-grey-mode] body { background-color: #f3f2f1 !important; }`;
+  style.textContent = `[data-grey-mode] body { background-color: #b1b4b6 !important; }`;
   document.head.appendChild(style);
 
   document.documentElement.toggleAttribute("data-grey-mode", true);
