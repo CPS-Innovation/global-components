@@ -1,5 +1,5 @@
 import { createStore } from "@stencil/store";
-import { Config, PreviewState } from "cps-global-configuration";
+import { Config, Preview } from "cps-global-configuration";
 import { AuthResult } from "../services/auth/AuthResult";
 import { FoundContext } from "../services/context/FoundContext";
 import { ApplicationFlags } from "../services/application-flags/ApplicationFlags";
@@ -14,10 +14,11 @@ import { CaseDetails } from "../services/data/CaseDetails";
 import { ReadyStateHelper, readyStateFactory } from "./ready-state-factory";
 import { CaseIdentifiers } from "../services/context/CaseIdentifiers";
 import { caseIdentifiersSubscriptionFactory } from "./subscriptions/case-identifiers-subscription-factory";
-import { Handover } from "../services/handover/Handover";
+import { Handover } from "../services/state/handover/Handover";
 import { Result } from "../utils/Result";
-import { CmsSessionHint } from "../services/cms-session/CmsSessionHint";
+import { CmsSessionHint } from "../services/state/cms-session/CmsSessionHint";
 import { MonitoringCodes } from "../services/data/MonitoringCode";
+import { RecentCases } from "../services/state/recent-cases/recent-cases";
 export { type ReadyStateHelper };
 
 const registerEventName = "cps-global-components-register";
@@ -46,13 +47,14 @@ type MakeUndefinable<T> = {
 // This state is expected to be set up once on startup
 type StartupState = {
   rootUrl: string;
-  preview: Result<PreviewState>;
+  preview: Result<Preview>;
   flags: ApplicationFlags;
   config: Config;
   auth: AuthResult;
   build: Build;
   cmsSessionHint: Result<CmsSessionHint>;
   handover: Result<Handover>;
+  recentCases: Result<RecentCases>;
   firstContext: FoundContext;
 };
 
@@ -65,6 +67,7 @@ const initialStartupState = {
   build: undefined,
   cmsSessionHint: undefined,
   handover: undefined,
+  recentCases: undefined,
   firstContext: undefined,
 };
 

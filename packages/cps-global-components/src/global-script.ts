@@ -8,14 +8,16 @@ import { makeConsole } from "./logging/makeConsole";
 import { initialiseDomObservation } from "./services/browser/dom/initialise-dom-observation";
 import { domTagMutationSubscriber } from "./services/browser/dom/dom-tag-mutation-subscriber";
 import { outSystemsShimSubscribers } from "./services/outsystems-shim/outsystems-shim-subscriber";
-import { initialiseCmsSessionHint } from "./services/cms-session/initialise-cms-session-hint";
-import { initialiseHandover } from "./services/handover/intialise-handover";
+import { initialiseCmsSessionHint } from "./services/state/cms-session/initialise-cms-session-hint";
+import { initialiseHandover } from "./services/state/handover/intialise-handover";
 import { initialiseInterimDcfNavigation } from "./services/outsystems-shim/initialise-interim-dcf-navigation";
 import { initialiseCaseDetailsData } from "./services/data/initialise-case-details-data";
 import { initialiseNavigationSubscription } from "./services/browser/navigation/initialise-navigation-subscription";
 import { initialiseCorrelationIds } from "./services/correlation/initialise-correlation-ids";
 import { initialiseRootUrl } from "./services/root-url/initialise-root-url";
-import { initialisePreview } from "./services/preview/initialise-preview";
+import { initialisePreview } from "./services/state/preview/initialise-preview";
+import { initialiseRecentCases } from "./services/state/recent-cases/initialise-recent-cases";
+import { footerSubscriber } from "./services/browser/dom/footer-subscriber";
 
 const { _error } = makeConsole("global-script");
 
@@ -72,6 +74,9 @@ const startupPhase = async ({ window, storeFns: { register, mergeTags, readyStat
   ]);
   register({ cmsSessionHint, handover, preview });
 
+  const { recentCases, setNextRecentCases } = await initialiseRecentCases({ rootUrl, preview });
+  register({ recentCases });
+
   const config = await initialiseConfig({ rootUrl, flags, preview });
   register({ config });
 
@@ -81,9 +86,10 @@ const startupPhase = async ({ window, storeFns: { register, mergeTags, readyStat
   const { trackPageView, trackEvent, trackException } = initialiseAnalytics({ window, config, readyState, build, cmsSessionHint, flags });
 
   const { initialiseDomForContext } = initialiseDomObservation(
-    { window, register, mergeTags },
+    { window, register, mergeTags, preview },
     domTagMutationSubscriber,
     interimDcfNavigationObserver,
+    footerSubscriber,
     ...outSystemsShimSubscribers,
   );
 
@@ -97,6 +103,7 @@ const startupPhase = async ({ window, storeFns: { register, mergeTags, readyStat
     flags,
     handover,
     setNextHandover,
+    setNextRecentCases,
   };
 };
 
@@ -108,13 +115,14 @@ const authPhase = ({
   handover,
   trackEvent,
   setNextHandover,
+  setNextRecentCases,
 }: Awaited<ReturnType<typeof startupPhase>> & { storeFns: ReturnType<typeof initialiseStore> }) => {
   // Positioning auth after many of the other setup stuff helps us not block the UI
   // (initialiseAuth can take a long time, especially if there is a problem)
   (async () => {
     const { auth, getToken } = await initialiseAuth({ config, context: firstContext, flags });
     register({ auth });
-    initialiseCaseDetailsData({ config, context: firstContext, subscribe, handover, setNextHandover, getToken, readyState, trackEvent });
+    initialiseCaseDetailsData({ config, context: firstContext, subscribe, handover, setNextHandover, setNextRecentCases, getToken, readyState, trackEvent });
   })();
 };
 

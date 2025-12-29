@@ -250,6 +250,62 @@ async function runTests(): Promise<void> {
     assert(setCookie.includes("SameSite=None"), "Should have SameSite=None")
   })
 
+  await test("PUT with null body clears cookie", async () => {
+    const r = createMockRequest({
+      method: "PUT",
+      uri: "/global-components/state/my-key",
+      requestText: "null",
+    })
+    await glocovnext.handleState(r)
+    assertEqual(r.returnCode, 200, "Should return 200")
+    const body = JSON.parse(r.returnBody!)
+    assertEqual(body.success, true, "Should have success true")
+    assertEqual(body.cleared, true, "Should have cleared true")
+    const setCookie = r.headersOut["Set-Cookie"] as string
+    assert(setCookie.includes("cps-global-components-state=;"), "Should set empty cookie value")
+    assert(setCookie.includes("Expires=Thu, 01 Jan 1970"), "Should set cookie to expire in the past")
+  })
+
+  await test("PUT with empty body clears cookie", async () => {
+    const r = createMockRequest({
+      method: "PUT",
+      uri: "/global-components/state/my-key",
+      requestText: "",
+    })
+    await glocovnext.handleState(r)
+    assertEqual(r.returnCode, 200, "Should return 200")
+    const body = JSON.parse(r.returnBody!)
+    assertEqual(body.success, true, "Should have success true")
+    assertEqual(body.cleared, true, "Should have cleared true")
+    const setCookie = r.headersOut["Set-Cookie"] as string
+    assert(setCookie.includes("Expires=Thu, 01 Jan 1970"), "Should set cookie to expire in the past")
+  })
+
+  await test("PUT with whitespace-only body clears cookie", async () => {
+    const r = createMockRequest({
+      method: "PUT",
+      uri: "/global-components/state/my-key",
+      requestText: "   \n  ",
+    })
+    await glocovnext.handleState(r)
+    assertEqual(r.returnCode, 200, "Should return 200")
+    const body = JSON.parse(r.returnBody!)
+    assertEqual(body.cleared, true, "Should have cleared true for whitespace body")
+  })
+
+  await test("PUT with valid JSON does not set cleared flag", async () => {
+    const r = createMockRequest({
+      method: "PUT",
+      uri: "/global-components/state/my-key",
+      requestText: JSON.stringify({ enabled: true }),
+    })
+    await glocovnext.handleState(r)
+    assertEqual(r.returnCode, 200, "Should return 200")
+    const body = JSON.parse(r.returnBody!)
+    assertEqual(body.success, true, "Should have success true")
+    assertEqual(body.cleared, undefined, "Should not have cleared flag for valid data")
+  })
+
   await test("returns 405 for unsupported methods", async () => {
     const r = createMockRequest({
       method: "DELETE",

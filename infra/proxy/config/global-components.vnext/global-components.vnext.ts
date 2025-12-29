@@ -215,8 +215,21 @@ async function handleState(r: NginxHTTPRequest): Promise<void> {
   }
 
   if (r.method === "PUT") {
+    const body = (r.requestText || "").trim()
+
+    // If body is "null" or empty, clear the cookie by setting it to expire in the past
+    if (body === "null" || body === "") {
+      setCookie(r, STATE_COOKIE_NAME, "", {
+        Path: r.uri,
+        Expires: new Date(0), // Expire immediately (clears cookie)
+        Secure: true,
+        SameSite: "None",
+      })
+      r.return(200, JSON.stringify({ success: true, path: r.uri, cleared: true }))
+      return
+    }
+
     // Wrap the body and store in cookie
-    const body = r.requestText || ""
     const wrapped = _wrapState(body)
 
     setCookie(r, STATE_COOKIE_NAME, wrapped, {
