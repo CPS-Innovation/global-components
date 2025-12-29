@@ -14,9 +14,11 @@ export class CpsGlobalCaseDetails {
     } = readyState(["tags", "caseIdentifiers"], ["caseDetails", "caseMonitoringCodes"]);
 
     if (!caseIdentifiers?.caseId) {
+      // We are not on a case-specific page, or we do not have caseId yet
       return null;
     }
 
+    // If there is a urn in our tags then use that while case details are being obtained
     const urn = caseDetails?.result?.urn || tags.urn;
     const headline = caseDetails?.result && getCaseDefendantHeadline(caseDetails.result);
     const monitoringCodes = caseMonitoringCodes?.result || [];
@@ -27,14 +29,15 @@ export class CpsGlobalCaseDetails {
         <div>
           <b>{headline}</b>
         </div>
-
         <div class="scrolling-tags">
           <div class="scrolling-tags-container">
-            {monitoringCodes.map(({ code, description }) => (
-              <strong class="govuk-tag govuk-tag--red" key={code}>
-                {description}
-              </strong>
-            ))}
+            {/* Let's only show monitoring codes once we have the headline, otherwise  */}
+            {headline &&
+              monitoringCodes.map(({ code, description }) => (
+                <strong class="govuk-tag govuk-tag--red" key={code}>
+                  {description}
+                </strong>
+              ))}
           </div>
         </div>
       </div>
