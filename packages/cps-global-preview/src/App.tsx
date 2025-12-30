@@ -55,9 +55,6 @@ const FEATURES: Feature[] = [
     label: "Accessibility",
     description: "Enable accessibility features (low contrast background).",
     disabled: false,
-    textInputs: [
-      { key: "accessibilityBackgroundColor", label: "Background color" },
-    ],
   },
   {
     key: "caseSearch",
@@ -342,65 +339,67 @@ export function App() {
               <h2 className="govuk-fieldset__heading">Features</h2>
             </legend>
             <div className="govuk-checkboxes" data-module="govuk-checkboxes">
-              {FEATURES.map(({ key, label, description, disabled, textInputs }) => (
-                <div key={key} className="govuk-checkboxes__item">
-                  <input
-                    className="govuk-checkboxes__input"
-                    id={key}
-                    name="features"
-                    type="checkbox"
-                    checked={!!state[key]}
-                    disabled={loading || disabled}
-                    onChange={(e) =>
-                      handleFeatureChange(key, e.target.checked, textInputs)
-                    }
-                  />
-                  <label
-                    className="govuk-label govuk-checkboxes__label"
-                    htmlFor={key}
-                  >
-                    {label}
-                  </label>
-                  <div
-                    id={`${key}-hint`}
-                    className="govuk-hint govuk-checkboxes__hint govuk-!-font-size-16"
-                  >
-                    {description}
-                  </div>
-                  {textInputs && state[key] && (
-                    <div
-                      className="govuk-checkboxes__conditional"
-                      style={{ marginTop: "10px", paddingLeft: "15px" }}
+              {FEATURES.map(
+                ({ key, label, description, disabled, textInputs }) => (
+                  <div key={key} className="govuk-checkboxes__item">
+                    <input
+                      className="govuk-checkboxes__input"
+                      id={key}
+                      name="features"
+                      type="checkbox"
+                      checked={!!state[key]}
+                      disabled={loading || disabled}
+                      onChange={(e) =>
+                        handleFeatureChange(key, e.target.checked, textInputs)
+                      }
+                    />
+                    <label
+                      className="govuk-label govuk-checkboxes__label"
+                      htmlFor={key}
                     >
-                      {textInputs.map((input) => (
-                        <div
-                          key={input.key}
-                          className="govuk-form-group"
-                          style={{ marginBottom: "10px" }}
-                        >
-                          <label
-                            className="govuk-label govuk-!-font-size-16"
-                            htmlFor={input.key}
-                          >
-                            {input.label}
-                          </label>
-                          <input
-                            className="govuk-input govuk-input--width-10"
-                            id={input.key}
-                            name={input.key}
-                            type="text"
-                            value={String(state[input.key] ?? "")}
-                            disabled={loading || disabled}
-                            onChange={(e) =>
-                              handleTextInputChange(input.key, e.target.value)
-                            }
-                          />
-                        </div>
-                      ))}
+                      {label}
+                    </label>
+                    <div
+                      id={`${key}-hint`}
+                      className="govuk-hint govuk-checkboxes__hint govuk-!-font-size-16"
+                    >
+                      {description}
                     </div>
-                  )}
-                </div>
-              ))}
+                    {textInputs && state[key] && (
+                      <div
+                        className="govuk-checkboxes__conditional"
+                        style={{ marginTop: "10px", paddingLeft: "15px" }}
+                      >
+                        {textInputs.map((input) => (
+                          <div
+                            key={input.key}
+                            className="govuk-form-group"
+                            style={{ marginBottom: "10px" }}
+                          >
+                            <label
+                              className="govuk-label govuk-!-font-size-16"
+                              htmlFor={input.key}
+                            >
+                              {input.label}
+                            </label>
+                            <input
+                              className="govuk-input govuk-input--width-10"
+                              id={input.key}
+                              name={input.key}
+                              type="text"
+                              value={String(state[input.key] ?? "")}
+                              disabled={loading || disabled}
+                              onChange={(e) =>
+                                handleTextInputChange(input.key, e.target.value)
+                              }
+                            />
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )
+              )}
             </div>
           </fieldset>
         </div>
