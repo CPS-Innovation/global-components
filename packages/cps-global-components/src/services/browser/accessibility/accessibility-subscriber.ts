@@ -1,8 +1,8 @@
 import { DomMutationObserver } from "../dom/DomMutationObserver";
 
 const COLOUR_MAP: Record<string, string> = {
-  "#ffffff": "#f3f2f1", // white → light grey
-  "#f3f2f1": "#b1b4b6", // light grey → mid grey
+  "#ffffff": "#f7f6f6", // white → light grey
+  //"#f3f2f1": "#b1b4b6", // light grey → mid grey
 };
 
 const rgbToHex = (rgb: string): string => {
@@ -49,7 +49,7 @@ export const accessibilitySubscriber: DomMutationObserver = ({ preview, window }
   };
 
   return {
-    isActiveForContext: !!preview.result?.accessibility,
+    isActiveForContext: !!preview.result?.accessibility && !!COLOUR_MAP["#ffffff"],
     subscriptions: [
       // Top-level CSS approach for document background
       {
@@ -63,7 +63,7 @@ export const accessibilitySubscriber: DomMutationObserver = ({ preview, window }
           style.id = "grey-mode-styles";
           style.textContent = `
   [data-grey-mode] {
-    background-color: #f3f2f1 !important;
+    background-color: ${COLOUR_MAP["#ffffff"]} !important;
   }
   [data-grey-mode] body,
   [data-grey-mode] .govuk-template__body,
@@ -77,7 +77,7 @@ export const accessibilitySubscriber: DomMutationObserver = ({ preview, window }
       },
       // Per-element processing for elements with explicit backgrounds
       {
-        cssSelector: "*",
+        cssSelector: "*:not(input):not(textarea):not(select)",
         handler: (element: Element) => {
           if (processed.has(element)) {
             return;
