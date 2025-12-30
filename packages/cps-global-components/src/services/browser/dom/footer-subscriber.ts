@@ -10,7 +10,7 @@ export const footerSubscriber: DomMutationObserver = ({ preview, window }) => ({
           return true;
         }
         const cpsGlobalFooter: HTMLCpsGlobalFooterElement = window.document.createElement("cps-global-footer");
-        element.before(cpsGlobalFooter);
+        element.after(cpsGlobalFooter);
         element.style.display = "none";
         return true;
       },
