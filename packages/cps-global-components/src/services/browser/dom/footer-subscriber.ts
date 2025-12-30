@@ -12,7 +12,8 @@ export const footerSubscriber: DomMutationObserver = ({ preview, window }) => ({
         const cpsGlobalFooter: HTMLCpsGlobalFooterElement = window.document.createElement("cps-global-footer");
         element.after(cpsGlobalFooter);
         element.style.display = "none";
-        return true;
+        // OS apps seem to bring footers in and out so keep this subscription alive
+        // return true;
       },
     },
   ],
