@@ -49,7 +49,7 @@ export const accessibilitySubscriber: DomMutationObserver = ({ preview, window }
   };
 
   return {
-    isActiveForContext: !!preview.result?.accessibility,
+    isActiveForContext: !!preview.result?.accessibility && !!COLOUR_MAP["#ffffff"],
     subscriptions: [
       // Top-level CSS approach for document background
       {
@@ -63,7 +63,7 @@ export const accessibilitySubscriber: DomMutationObserver = ({ preview, window }
           style.id = "grey-mode-styles";
           style.textContent = `
   [data-grey-mode] {
-    background-color: #f3f2f1 !important;
+    background-color: ${COLOUR_MAP["#ffffff"]} !important;
   }
   [data-grey-mode] body,
   [data-grey-mode] .govuk-template__body,
