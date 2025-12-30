@@ -10,7 +10,20 @@ type ConfigResult =
   | { loaded: true; content: string }
   | { loaded: false; error: string };
 
-const FEATURES = [
+type TextInput = {
+  key: keyof Preview;
+  label: string;
+};
+
+type Feature = {
+  key: keyof Preview;
+  label: string;
+  description: string;
+  disabled: boolean;
+  textInputs?: TextInput[];
+};
+
+const FEATURES: Feature[] = [
   {
     key: "caseMarkers",
     label: "Case details",
@@ -42,6 +55,9 @@ const FEATURES = [
     label: "Accessibility",
     description: "Enable accessibility features (low contrast background).",
     disabled: false,
+    textInputs: [
+      { key: "accessibilityBackgroundColor", label: "Background color" },
+    ],
   },
   {
     key: "caseSearch",
@@ -49,7 +65,7 @@ const FEATURES = [
     description: "Show case search functionality.",
     disabled: true,
   },
-] as const;
+];
 
 const TACTICAL = [
   {
@@ -61,7 +77,7 @@ const TACTICAL = [
   },
 ] as const;
 
-type FeatureKey = (typeof FEATURES)[number]["key"];
+type FeatureKey = Feature["key"];
 type TacticalKey = (typeof TACTICAL)[number]["key"];
 
 type StatusType = "info" | "error" | "success";
@@ -175,14 +191,30 @@ export function App() {
     saveState(newState);
   };
 
-  const handleFeatureChange = (key: FeatureKey, checked: boolean) => {
+  const handleFeatureChange = (
+    key: FeatureKey,
+    checked: boolean,
+    textInputs?: TextInput[]
+  ) => {
     const newState = { ...state, [key]: checked || undefined };
+    // Clear text inputs when the feature is unchecked
+    if (!checked && textInputs) {
+      for (const input of textInputs) {
+        newState[input.key] = undefined;
+      }
+    }
     setState(newState);
     saveState(newState);
   };
 
   const handleTacticalChange = (key: TacticalKey, checked: boolean) => {
     const newState = { ...state, [key]: checked || undefined };
+    setState(newState);
+    saveState(newState);
+  };
+
+  const handleTextInputChange = (key: keyof Preview, value: string) => {
+    const newState = { ...state, [key]: value || undefined };
     setState(newState);
     saveState(newState);
   };
@@ -310,16 +342,18 @@ export function App() {
               <h2 className="govuk-fieldset__heading">Features</h2>
             </legend>
             <div className="govuk-checkboxes" data-module="govuk-checkboxes">
-              {FEATURES.map(({ key, label, description, disabled }) => (
+              {FEATURES.map(({ key, label, description, disabled, textInputs }) => (
                 <div key={key} className="govuk-checkboxes__item">
                   <input
                     className="govuk-checkboxes__input"
                     id={key}
                     name="features"
                     type="checkbox"
-                    checked={state[key] ?? false}
+                    checked={!!state[key]}
                     disabled={loading || disabled}
-                    onChange={(e) => handleFeatureChange(key, e.target.checked)}
+                    onChange={(e) =>
+                      handleFeatureChange(key, e.target.checked, textInputs)
+                    }
                   />
                   <label
                     className="govuk-label govuk-checkboxes__label"
@@ -333,6 +367,38 @@ export function App() {
                   >
                     {description}
                   </div>
+                  {textInputs && state[key] && (
+                    <div
+                      className="govuk-checkboxes__conditional"
+                      style={{ marginTop: "10px", paddingLeft: "15px" }}
+                    >
+                      {textInputs.map((input) => (
+                        <div
+                          key={input.key}
+                          className="govuk-form-group"
+                          style={{ marginBottom: "10px" }}
+                        >
+                          <label
+                            className="govuk-label govuk-!-font-size-16"
+                            htmlFor={input.key}
+                          >
+                            {input.label}
+                          </label>
+                          <input
+                            className="govuk-input govuk-input--width-10"
+                            id={input.key}
+                            name={input.key}
+                            type="text"
+                            value={String(state[input.key] ?? "")}
+                            disabled={loading || disabled}
+                            onChange={(e) =>
+                              handleTextInputChange(input.key, e.target.value)
+                            }
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
