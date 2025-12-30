@@ -81,6 +81,11 @@ jest.mock("./services/browser/dom/footer-subscriber", () => ({
   footerSubscriber: jest.fn(),
 }));
 
+const mockAccessibilitySubscriber = jest.fn();
+jest.mock("./services/browser/accessibility/accessibility-subscriber", () => ({
+  accessibilitySubscriber: mockAccessibilitySubscriber,
+}));
+
 jest.mock("./services/outsystems-shim/outsystems-shim-subscriber", () => ({
   outSystemsShimSubscribers: [],
 }));
@@ -114,6 +119,7 @@ const mockInitialisePreview = jest.fn();
 jest.mock("./services/state/preview/initialise-preview", () => ({
   initialisePreview: mockInitialisePreview,
 }));
+
 
 const mockInitialiseRecentCases = jest.fn();
 jest.mock("./services/state/recent-cases/initialise-recent-cases", () => ({
@@ -355,6 +361,17 @@ describe("global-script", () => {
       if (state.isReady) {
         expect(state.state.preview).toEqual(testPreview);
       }
+    });
+
+    it("should pass accessibilitySubscriber to initialiseDomObservation", async () => {
+      const globalScript = require("./global-script").default;
+
+      globalScript();
+
+      await new Promise(resolve => setTimeout(resolve, 10));
+
+      const callArgs = mockInitialiseDomObservation.mock.calls[0];
+      expect(callArgs).toContain(mockAccessibilitySubscriber);
     });
 
     it("should register config to store", async () => {
@@ -1147,6 +1164,26 @@ describe("global-script", () => {
       });
     });
 
+    it("should pass preview to initialiseDomObservation for accessibilitySubscriber", async () => {
+      const testPreview = { result: { accessibility: true } };
+      mockInitialisePreview.mockResolvedValue(testPreview);
+
+      const globalScript = require("./global-script").default;
+      globalScript();
+      await new Promise(resolve => setTimeout(resolve, 10));
+
+      const callArgs = mockInitialiseDomObservation.mock.calls[0];
+      // First arg is the options object containing window and preview
+      expect(callArgs[0]).toEqual(
+        expect.objectContaining({
+          window: mockWindow,
+          preview: testPreview,
+        }),
+      );
+      // accessibilitySubscriber should be in the args
+      expect(callArgs).toContain(mockAccessibilitySubscriber);
+    });
+
     it("should pass window and config to initialiseContext", async () => {
       const testConfig = {
         CONTEXTS: [{ paths: ["/test"], contexts: "test-context" }],
@@ -1355,11 +1392,11 @@ describe("global-script", () => {
       // Verify order - rootUrl and flags first, then parallel async calls (cmsSessionHint/handover/preview),
       // then recentCases (needs preview), then config, then firstContext
       // Analytics now comes BEFORE auth (auth is non-blocking to avoid UI delay)
+      // accessibilitySubscriber is now part of DOM observation (called via initialiseDomForContext)
       expect(callOrder.indexOf("rootUrl")).toBeLessThan(callOrder.indexOf("flags"));
       expect(callOrder.indexOf("flags")).toBeLessThan(callOrder.indexOf("cmsSessionHint"));
       expect(callOrder.indexOf("flags")).toBeLessThan(callOrder.indexOf("handover"));
       expect(callOrder.indexOf("flags")).toBeLessThan(callOrder.indexOf("preview"));
-      // recentCases is called after preview (not in parallel)
       expect(callOrder.indexOf("preview")).toBeLessThan(callOrder.indexOf("recentCases"));
       expect(callOrder.indexOf("recentCases")).toBeLessThan(callOrder.indexOf("config"));
       expect(callOrder.indexOf("config")).toBeLessThan(callOrder.indexOf("context"));

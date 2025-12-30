@@ -1,4 +1,4 @@
-import { Component, h, Fragment } from "@stencil/core";
+import { Component, h } from "@stencil/core";
 import { readyState } from "../../store/store";
 import { getCaseDefendantHeadline } from "../../services/data/get-case-defendant-headline";
 
@@ -10,38 +10,38 @@ import { getCaseDefendantHeadline } from "../../services/data/get-case-defendant
 export class CpsGlobalCaseDetails {
   render() {
     const {
-      isReady,
-      state: { caseDetails, caseMonitoringCodes },
-      // Let's have caseMonitoringCodes be lazy i.e. we will not hold up the UI for the
-      //  caseMonitoringCodes call to have completed.
-    } = readyState(["caseDetails"], ["caseMonitoringCodes"]);
+      state: { caseIdentifiers, tags, caseDetails, caseMonitoringCodes },
+    } = readyState(["tags", "caseIdentifiers"], ["caseDetails", "caseMonitoringCodes"]);
+
+    if (!caseIdentifiers?.caseId) {
+      // We are not on a case-specific page, or we do not have caseId yet
+      return null;
+    }
+
+    // If there is a urn in our tags then use that while case details are being obtained
+    const urn = caseDetails?.result?.urn || tags.urn;
+    const headline = caseDetails?.result && getCaseDefendantHeadline(caseDetails.result);
+    const monitoringCodes = caseMonitoringCodes?.result || [];
 
     return (
-      <>
-        {isReady && (
-          <div class="level case-details">
-            {caseDetails.found && (
-              <>
-                <div>{caseDetails.result.urn}</div>
-                <div>
-                  <b>{getCaseDefendantHeadline(caseDetails.result)}</b>
-                </div>
-              </>
-            )}
-            <div class="scrolling-tags">
-              {caseMonitoringCodes?.found && (
-                <div class="scrolling-tags-container">
-                  {caseMonitoringCodes.result.map(({ code, description }) => (
-                    <strong class="govuk-tag govuk-tag--red" key={code}>
-                      {description}
-                    </strong>
-                  ))}
-                </div>
-              )}
-            </div>
+      <div class="level case-details">
+        <div>{urn}</div>
+        <div>
+          <b>{headline}</b>
+        </div>
+        <div class="scrolling-tags">
+          <div class="scrolling-tags-container">
+            {/* Let's only show monitoring codes once we have the headline, otherwise 
+                we get layout stuttering as the values come in  */}
+            {headline &&
+              monitoringCodes.map(({ code, description }) => (
+                <strong class="govuk-tag govuk-tag--red" key={code}>
+                  {description}
+                </strong>
+              ))}
           </div>
-        )}
-      </>
+        </div>
+      </div>
     );
   }
 }

@@ -9,7 +9,6 @@ export const PreviewSchema = z.object({
   newHeader: z.boolean().optional(),
   footer: z.boolean().optional(),
   accessibility: z.boolean().optional(),
-
   forceDcfHeader: z.boolean().optional(),
 });
 

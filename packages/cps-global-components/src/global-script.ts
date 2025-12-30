@@ -18,6 +18,7 @@ import { initialiseRootUrl } from "./services/root-url/initialise-root-url";
 import { initialisePreview } from "./services/state/preview/initialise-preview";
 import { initialiseRecentCases } from "./services/state/recent-cases/initialise-recent-cases";
 import { footerSubscriber } from "./services/browser/dom/footer-subscriber";
+import { accessibilitySubscriber } from "./services/browser/accessibility/accessibility-subscriber";
 
 const { _error } = makeConsole("global-script");
 
@@ -90,6 +91,7 @@ const startupPhase = async ({ window, storeFns: { register, mergeTags, readyStat
     domTagMutationSubscriber,
     interimDcfNavigationObserver,
     footerSubscriber,
+    accessibilitySubscriber,
     ...outSystemsShimSubscribers,
   );
 
