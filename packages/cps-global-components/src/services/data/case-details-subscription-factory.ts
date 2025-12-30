@@ -1,19 +1,20 @@
-import { CaseDetailsSchema } from "./CaseDetails";
+import { CaseDetails, CaseDetailsSchema } from "./CaseDetails";
 import { extractTagsFromCaseDetails } from "./extract-tags-from-case-details";
 import { SubscriptionFactory } from "../../store/subscriptions/SubscriptionFactory";
-import { Handover } from "../handover/Handover";
+import { Handover } from "../state/handover/Handover";
 import { Result } from "../../utils/Result";
-import { fetchAndValidate } from "../api/fetch-and-validate";
+import { fetchAndValidate } from "../fetch/fetch-and-validate";
 import { MonitoringCodesSchema } from "./MonitoringCode";
 
 type Props = {
   handover: Result<Handover>;
   setNextHandover: (data: Handover) => void;
+  setNextRecentCases: (caseDetails: CaseDetails | undefined) => void;
   fetch: typeof fetch;
 };
 
 export const caseDetailsSubscriptionFactory =
-  ({ fetch, handover, setNextHandover }: Props): SubscriptionFactory =>
+  ({ fetch, handover, setNextHandover, setNextRecentCases }: Props): SubscriptionFactory =>
   ({ register, mergeTags }) => ({
     type: "onChange",
     handler: {
@@ -57,6 +58,7 @@ export const caseDetailsSubscriptionFactory =
 
         Promise.all([caseDetailsPromise, monitoringCodesPromise]).then(([caseDetails, monitoringCodes]) => {
           setNextHandover({ caseId, caseDetails, monitoringCodes });
+          setNextRecentCases(caseDetails);
         });
       },
     },

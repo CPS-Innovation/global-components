@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import type { PreviewState } from "cps-global-configuration";
+import type { Preview } from "cps-global-configuration";
 import { diffLines } from "diff";
 
 const STATE_ENDPOINT = "/global-components/state/preview";
@@ -10,7 +10,20 @@ type ConfigResult =
   | { loaded: true; content: string }
   | { loaded: false; error: string };
 
-const FEATURES = [
+type TextInput = {
+  key: keyof Preview;
+  label: string;
+};
+
+type Feature = {
+  key: keyof Preview;
+  label: string;
+  description: string;
+  disabled: boolean;
+  textInputs?: TextInput[];
+};
+
+const FEATURES: Feature[] = [
   {
     key: "caseMarkers",
     label: "Case details",
@@ -25,11 +38,23 @@ const FEATURES = [
     disabled: false,
   },
   {
+    key: "footer",
+    label: "Global footer",
+    description: "Display the same global footer on every app",
+    disabled: false,
+  },
+  {
     key: "myRecentCases",
     label: "My recent cases",
     description:
-      "Track the user's most recently visited cases and display on the home page.",
-    disabled: true,
+      "Track the user's most recently visited cases and display the list on the home and cases pages.",
+    disabled: false,
+  },
+  {
+    key: "accessibility",
+    label: "Accessibility",
+    description: "Enable accessibility features (low contrast background).",
+    disabled: false,
   },
   {
     key: "caseSearch",
@@ -37,13 +62,7 @@ const FEATURES = [
     description: "Show case search functionality.",
     disabled: true,
   },
-  {
-    key: "accessibility",
-    label: "Accessibility",
-    description: "Enable accessibility features (low contrast background).",
-    disabled: true,
-  },
-] as const;
+];
 
 const TACTICAL = [
   {
@@ -55,13 +74,13 @@ const TACTICAL = [
   },
 ] as const;
 
-type FeatureKey = (typeof FEATURES)[number]["key"];
+type FeatureKey = Feature["key"];
 type TacticalKey = (typeof TACTICAL)[number]["key"];
 
 type StatusType = "info" | "error" | "success";
 
 export function App() {
-  const [state, setState] = useState<PreviewState>({});
+  const [state, setState] = useState<Preview>({});
   const [loading, setLoading] = useState(true);
   const [status, setStatus] = useState<{
     message: string;
@@ -85,7 +104,7 @@ export function App() {
       if (!response.ok) {
         throw new Error("Failed to load state");
       }
-      const data: PreviewState | null = await response.json();
+      const data: Preview | null = await response.json();
       if (data) {
         setState(data);
       }
@@ -102,13 +121,17 @@ export function App() {
   }, [showStatus]);
 
   const saveState = useCallback(
-    async (newState: PreviewState) => {
+    async (newState: Preview) => {
       try {
+        // If all properties are falsy/undefined, send null to clear the cookie
+        const hasAnyValue = Object.values(newState).some((v) => v);
+        const body = hasAnyValue ? JSON.stringify(newState) : "null";
+
         const response = await fetch(STATE_ENDPOINT, {
           method: "PUT",
           credentials: "include",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(newState),
+          body,
         });
         if (!response.ok) {
           throw new Error("Failed to save state");
@@ -165,14 +188,30 @@ export function App() {
     saveState(newState);
   };
 
-  const handleFeatureChange = (key: FeatureKey, checked: boolean) => {
+  const handleFeatureChange = (
+    key: FeatureKey,
+    checked: boolean,
+    textInputs?: TextInput[]
+  ) => {
     const newState = { ...state, [key]: checked || undefined };
+    // Clear text inputs when the feature is unchecked
+    if (!checked && textInputs) {
+      for (const input of textInputs) {
+        newState[input.key] = undefined;
+      }
+    }
     setState(newState);
     saveState(newState);
   };
 
   const handleTacticalChange = (key: TacticalKey, checked: boolean) => {
     const newState = { ...state, [key]: checked || undefined };
+    setState(newState);
+    saveState(newState);
+  };
+
+  const handleTextInputChange = (key: keyof Preview, value: string) => {
+    const newState = { ...state, [key]: value || undefined };
     setState(newState);
     saveState(newState);
   };
@@ -300,31 +339,67 @@ export function App() {
               <h2 className="govuk-fieldset__heading">Features</h2>
             </legend>
             <div className="govuk-checkboxes" data-module="govuk-checkboxes">
-              {FEATURES.map(({ key, label, description, disabled }) => (
-                <div key={key} className="govuk-checkboxes__item">
-                  <input
-                    className="govuk-checkboxes__input"
-                    id={key}
-                    name="features"
-                    type="checkbox"
-                    checked={state[key] ?? false}
-                    disabled={loading || disabled}
-                    onChange={(e) => handleFeatureChange(key, e.target.checked)}
-                  />
-                  <label
-                    className="govuk-label govuk-checkboxes__label"
-                    htmlFor={key}
-                  >
-                    {label}
-                  </label>
-                  <div
-                    id={`${key}-hint`}
-                    className="govuk-hint govuk-checkboxes__hint govuk-!-font-size-16"
-                  >
-                    {description}
+              {FEATURES.map(
+                ({ key, label, description, disabled, textInputs }) => (
+                  <div key={key} className="govuk-checkboxes__item">
+                    <input
+                      className="govuk-checkboxes__input"
+                      id={key}
+                      name="features"
+                      type="checkbox"
+                      checked={!!state[key]}
+                      disabled={loading || disabled}
+                      onChange={(e) =>
+                        handleFeatureChange(key, e.target.checked, textInputs)
+                      }
+                    />
+                    <label
+                      className="govuk-label govuk-checkboxes__label"
+                      htmlFor={key}
+                    >
+                      {label}
+                    </label>
+                    <div
+                      id={`${key}-hint`}
+                      className="govuk-hint govuk-checkboxes__hint govuk-!-font-size-16"
+                    >
+                      {description}
+                    </div>
+                    {textInputs && state[key] && (
+                      <div
+                        className="govuk-checkboxes__conditional"
+                        style={{ marginTop: "10px", paddingLeft: "15px" }}
+                      >
+                        {textInputs.map((input) => (
+                          <div
+                            key={input.key}
+                            className="govuk-form-group"
+                            style={{ marginBottom: "10px" }}
+                          >
+                            <label
+                              className="govuk-label govuk-!-font-size-16"
+                              htmlFor={input.key}
+                            >
+                              {input.label}
+                            </label>
+                            <input
+                              className="govuk-input govuk-input--width-10"
+                              id={input.key}
+                              name={input.key}
+                              type="text"
+                              value={String(state[input.key] ?? "")}
+                              disabled={loading || disabled}
+                              onChange={(e) =>
+                                handleTextInputChange(input.key, e.target.value)
+                              }
+                            />
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
-                </div>
-              ))}
+                )
+              )}
             </div>
           </fieldset>
         </div>

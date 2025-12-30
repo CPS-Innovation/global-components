@@ -1,15 +1,17 @@
+import { Preview } from "cps-global-configuration";
 import { makeConsole } from "../../../logging/makeConsole";
 import { MergeTags, Register } from "../../../store/store";
 import { FoundContext } from "../../context/FoundContext";
 import { DomMutationObserver } from "./DomMutationObserver";
 import "arrive";
+import { Result } from "../../../utils/Result";
 
 type Subscription = ReturnType<DomMutationObserver>["subscriptions"][number];
 
 const { _debug } = makeConsole("initialiseDomObservation");
 
 export const initialiseDomObservation = (
-  { window: { document }, register, mergeTags }: { window: Window; register: Register; mergeTags: MergeTags },
+  { window: { document }, register, mergeTags, preview }: { window: Window; register: Register; mergeTags: MergeTags; preview: Result<Preview> },
   ...subscribers: DomMutationObserver[]
 ) => ({
   initialiseDomForContext: ({ context }: { context: FoundContext }) => {
@@ -44,7 +46,7 @@ export const initialiseDomObservation = (
     };
 
     subscribers.forEach(subscriber => {
-      const { isActiveForContext, subscriptions } = subscriber({ context, register, mergeTags, window });
+      const { isActiveForContext, subscriptions } = subscriber({ context, register, mergeTags, window, preview });
       subscriptions.forEach(subscription => (isActiveForContext ? bindHandler(subscription) : unBindHandler(subscription)));
     });
     log("Subscriptions set up.");
