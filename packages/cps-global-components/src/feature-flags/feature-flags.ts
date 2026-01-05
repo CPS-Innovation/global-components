@@ -7,6 +7,8 @@ const shouldEnableAccessibilityMode = ({ preview }: Pick<State, "preview">) => !
 
 const shouldShowGovUkRebrand = ({ preview, flags }: Pick<State, "preview" | "flags">) => !!preview.result?.newHeader || flags.isLocalDevelopment;
 
+const shouldShowRecentCases = ({ preview, flags }: Pick<State, "preview" | "flags">) => !!preview.result?.myRecentCasesOnHeader || flags.isLocalDevelopment;
+
 const shouldShowMenu = ({ config, auth, context, cmsSessionHint }: Pick<State, "config" | "context" | "cmsSessionHint"> & Pick<StoredState, "auth">) => {
   if (cmsSessionHint.found && !cmsSessionHint.result.isProxySession) {
     // Currently we only want the menu shown if we are connected to proxied CMS.
@@ -44,6 +46,7 @@ export const FEATURE_FLAGS = {
   shouldShowCaseDetails,
   shouldEnableAccessibilityMode,
   shouldShowGovUkRebrand,
+  shouldShowRecentCases,
   shouldShowMenu,
   surveyLink,
 };
