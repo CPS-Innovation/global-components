@@ -112,10 +112,18 @@ async function testStateEndpoint() {
   console.log("  (Note: VALIDATE_TOKEN_AGAINST_AD=false, auth not enforced)")
 
   const PREVIEW_ENDPOINT = `${PROXY_BASE}/global-components/state/preview`
+  const SETTINGS_ENDPOINT = `${PROXY_BASE}/global-components/state/settings`
   const OTHER_ENDPOINT = `${PROXY_BASE}/global-components/state/other-key`
 
   await test("GET on whitelisted key (preview) returns 200", async () => {
     const response = await fetch(PREVIEW_ENDPOINT)
+    assertEqual(response.status, 200, "GET should return 200")
+    const text = await response.text()
+    assertEqual(text, "null", 'Should return "null" when no cookie present')
+  })
+
+  await test("GET on whitelisted key (settings) returns 200", async () => {
+    const response = await fetch(SETTINGS_ENDPOINT)
     assertEqual(response.status, 200, "GET should return 200")
     const text = await response.text()
     assertEqual(text, "null", 'Should return "null" when no cookie present')
@@ -256,6 +264,32 @@ async function testStateEndpoint() {
     assertEqual(getResponse2.status, 200, "GET should return 200")
     const clearedState = await getResponse2.text()
     assertEqual(clearedState, "null", "Should return null after clearing")
+  })
+
+  await test("roundtrip: settings endpoint set and get", async () => {
+    // Step 1: Set settings state
+    const settingsValue = JSON.stringify({ accessibilityBackground: true })
+    const putResponse = await fetch(SETTINGS_ENDPOINT, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: settingsValue,
+    })
+    assertEqual(putResponse.status, 200, "PUT should return 200")
+    const setCookie = putResponse.headers.get("set-cookie")
+    assert(setCookie !== null, "Should have Set-Cookie header")
+
+    // Extract cookie for subsequent requests
+    const cookieMatch = setCookie.match(/cps-global-components-state=([^;]+)/)
+    assert(cookieMatch !== null, "Should be able to extract cookie value")
+    const cookieValue = cookieMatch[1]
+
+    // Step 2: Verify settings state is returned on GET
+    const getResponse = await fetch(SETTINGS_ENDPOINT, {
+      headers: { Cookie: `cps-global-components-state=${cookieValue}` },
+    })
+    assertEqual(getResponse.status, 200, "GET should return 200")
+    const retrievedState = await getResponse.text()
+    assertEqual(retrievedState, settingsValue, "Should return the stored settings state")
   })
 }
 

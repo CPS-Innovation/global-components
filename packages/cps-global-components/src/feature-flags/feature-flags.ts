@@ -3,7 +3,7 @@ import { isUserInFeatureGroup } from "./is-user-in-feature-group";
 
 const shouldShowCaseDetails = ({ preview, flags }: Pick<State, "preview" | "flags">) => !!preview.result?.caseMarkers || flags.isLocalDevelopment;
 
-const shouldEnableAccessibilityMode = ({ preview, flags }: Pick<State, "preview" | "flags">) => !!preview.result?.accessibility || flags.isLocalDevelopment;
+const shouldEnableAccessibilityMode = ({ preview, flags }: Pick<State, "preview" | "flags">) => !!(preview.result?.accessibility || flags.isLocalDevelopment);
 
 const shouldShowGovUkRebrand = ({ preview, flags }: Pick<State, "preview" | "flags">) => !!preview.result?.newHeader || flags.isLocalDevelopment;
 
