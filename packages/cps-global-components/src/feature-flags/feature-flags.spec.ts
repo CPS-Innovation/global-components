@@ -1,11 +1,13 @@
 import { FEATURE_FLAGS } from "./feature-flags";
 import { State } from "../store/store";
+import { ApplicationFlags } from "../services/application-flags/ApplicationFlags";
 
 describe("FEATURE_FLAGS", () => {
   describe("shouldEnableAccessibilityMode", () => {
     it("should return true when preview accessibility is true", () => {
-      const state: Pick<State, "preview"> = {
+      const state: Pick<State, "preview" | "flags"> = {
         preview: { found: true, result: { accessibility: true } },
+        flags: {} as ApplicationFlags,
       };
 
       const result = FEATURE_FLAGS.shouldEnableAccessibilityMode(state);
@@ -13,8 +15,9 @@ describe("FEATURE_FLAGS", () => {
     });
 
     it("should return false when preview accessibility is falsy", () => {
-      const state: Pick<State, "preview"> = {
+      const state: Pick<State, "preview" | "flags"> = {
         preview: { found: true, result: {} },
+        flags: {} as ApplicationFlags,
       };
 
       const result = FEATURE_FLAGS.shouldEnableAccessibilityMode(state);
@@ -22,8 +25,9 @@ describe("FEATURE_FLAGS", () => {
     });
 
     it("should return false when preview is not found", () => {
-      const state: Pick<State, "preview"> = {
+      const state: Pick<State, "preview" | "flags"> = {
         preview: { found: false, error: {} as Error },
+        flags: {} as ApplicationFlags,
       };
 
       const result = FEATURE_FLAGS.shouldEnableAccessibilityMode(state);
