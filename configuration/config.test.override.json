@@ -51,7 +51,7 @@
           "contextIds": "cases"
         },
         {
-          "path": "https://cps-tst.outsystemsenterprise.com/WorkManagementApp.*?(?=.*[&?]CaseId=(?<caseId>\\d+))(?=.*[&?](?:Case)?URN=(?<urn>[^&]+))?(?=.*[&?]IsMaterials=true)",
+          "path": "https://cps-tst.outsystemsenterprise.com/WorkManagementApp.*?(?=.*[&?]CaseId=(?<caseId>\\d+))(?=.*[&?](?:Case)?URN=(?<urn>[^&]+))?(?=.*[&?]IsOpenMaterials=true)",
           "contextIds": "case materials",
           "applyShim": "force-global-menu"
         },
