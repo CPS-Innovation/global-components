@@ -151,7 +151,7 @@
       "dcfContextsToUseEventNavigation": {
         "contexts": "materials",
         "data": "details",
-        "paramsToAddToQuery": { "IsMaterials": null }
+        "paramsToAddToQuery": { "IsOpenMaterials": null }
       }
     },
     {
@@ -164,7 +164,7 @@
       "dcfContextsToUseEventNavigation": {
         "contexts": "details",
         "data": "materials",
-        "paramsToAddToQuery": { "IsMaterials": "true" }
+        "paramsToAddToQuery": { "IsOpenMaterials": "true" }
       }
     },
     {
