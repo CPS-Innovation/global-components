@@ -1,8 +1,8 @@
 import { DomMutationObserver } from "../dom/DomMutationObserver";
 
 const COLOUR_MAP: Record<string, string> = {
-  "#ffffff": "#f7f6f6", // white → light grey
-  //"#f3f2f1": "#b1b4b6", // light grey → mid grey
+  "#ffffff": "#f3f2f1", // white → light grey (#f7f6f6 is not as much of a shift)
+  "#f3f2f1": "#b1b4b6", // light grey → mid grey
 };
 
 const rgbToHex = (rgb: string): string => {
