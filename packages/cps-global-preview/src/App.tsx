@@ -15,12 +15,18 @@ type TextInput = {
   label: string;
 };
 
+type SubOption = {
+  key: keyof Preview;
+  label: string;
+};
+
 type Feature = {
   key: keyof Preview;
   label: string;
   description: string;
   disabled: boolean;
   textInputs?: TextInput[];
+  subOptions?: SubOption[];
 };
 
 const FEATURES: Feature[] = [
@@ -49,6 +55,11 @@ const FEATURES: Feature[] = [
     description:
       "Track the user's most recently visited cases and display the list on the home and cases pages.",
     disabled: false,
+    subOptions: [
+      { key: "myRecentCasesOnHome", label: "Show on Home page" },
+      { key: "myRecentCasesOnCases", label: "Show on Cases page" },
+      { key: "myRecentCasesOnHeader", label: "Show on Header" },
+    ],
   },
   {
     key: "accessibility",
@@ -191,15 +202,29 @@ export function App() {
   const handleFeatureChange = (
     key: FeatureKey,
     checked: boolean,
-    textInputs?: TextInput[]
+    textInputs?: TextInput[],
+    subOptions?: SubOption[]
   ) => {
     const newState = { ...state, [key]: checked || undefined };
-    // Clear text inputs when the feature is unchecked
-    if (!checked && textInputs) {
-      for (const input of textInputs) {
-        newState[input.key] = undefined;
+    // Clear text inputs and sub-options when the feature is unchecked
+    if (!checked) {
+      if (textInputs) {
+        for (const input of textInputs) {
+          newState[input.key] = undefined;
+        }
+      }
+      if (subOptions) {
+        for (const option of subOptions) {
+          newState[option.key] = undefined;
+        }
       }
     }
+    setState(newState);
+    saveState(newState);
+  };
+
+  const handleSubOptionChange = (key: keyof Preview, checked: boolean) => {
+    const newState = { ...state, [key]: checked || undefined };
     setState(newState);
     saveState(newState);
   };
@@ -340,7 +365,14 @@ export function App() {
             </legend>
             <div className="govuk-checkboxes" data-module="govuk-checkboxes">
               {FEATURES.map(
-                ({ key, label, description, disabled, textInputs }) => (
+                ({
+                  key,
+                  label,
+                  description,
+                  disabled,
+                  textInputs,
+                  subOptions,
+                }) => (
                   <div key={key} className="govuk-checkboxes__item">
                     <input
                       className="govuk-checkboxes__input"
@@ -350,7 +382,12 @@ export function App() {
                       checked={!!state[key]}
                       disabled={loading || disabled}
                       onChange={(e) =>
-                        handleFeatureChange(key, e.target.checked, textInputs)
+                        handleFeatureChange(
+                          key,
+                          e.target.checked,
+                          textInputs,
+                          subOptions
+                        )
                       }
                     />
                     <label
@@ -395,6 +432,42 @@ export function App() {
                             />
                           </div>
                         ))}
+                      </div>
+                    )}
+                    {subOptions && state[key] && (
+                      <div
+                        className="govuk-checkboxes__conditional"
+                        style={{ marginTop: "10px", paddingLeft: "15px" }}
+                      >
+                        <div className="govuk-checkboxes govuk-checkboxes--small">
+                          {subOptions.map((option) => (
+                            <div
+                              key={option.key}
+                              className="govuk-checkboxes__item"
+                            >
+                              <input
+                                className="govuk-checkboxes__input"
+                                id={option.key}
+                                name={option.key}
+                                type="checkbox"
+                                checked={!!state[option.key]}
+                                disabled={loading || disabled}
+                                onChange={(e) =>
+                                  handleSubOptionChange(
+                                    option.key,
+                                    e.target.checked
+                                  )
+                                }
+                              />
+                              <label
+                                className="govuk-label govuk-checkboxes__label"
+                                htmlFor={option.key}
+                              >
+                                {option.label}
+                              </label>
+                            </div>
+                          ))}
+                        </div>
                       </div>
                     )}
                   </div>

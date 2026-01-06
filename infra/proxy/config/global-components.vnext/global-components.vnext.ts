@@ -7,7 +7,7 @@ const DEPLOYMENT_JSON_PATH =
 const TENANT_ID = "00dd0d1d-d7e6-6338-ac51-565339c7088c"
 const VALIDATE_TOKEN_AGAINST_AD = false // Set to true when ready to enforce AD token validation
 const STATE_COOKIE_NAME = "cps-global-components-state"
-const STATE_KEYS_NO_AUTH_ON_GET = ["preview"]
+const STATE_KEYS_NO_AUTH_ON_GET = ["preview", "settings"]
 const STATE_COOKIE_LIFESPAN_MS = 365 * 24 * 60 * 60 * 1000
 const AD_AUTH_ENDPOINT = "https://graph.microsoft.com/v1.0/me"
 
