@@ -19,6 +19,7 @@ import { initialisePreview } from "./services/state/preview/initialise-preview";
 import { initialiseRecentCases } from "./services/state/recent-cases/initialise-recent-cases";
 import { footerSubscriber } from "./services/browser/dom/footer-subscriber";
 import { accessibilitySubscriber } from "./services/browser/accessibility/accessibility-subscriber";
+import { initialiseSettings } from "./services/state/settings/initialise-settings";
 
 const { _error } = makeConsole("global-script");
 
@@ -68,10 +69,11 @@ const startupPhase = async ({ window, storeFns: { register, mergeTags, readyStat
   const flags = getApplicationFlags({ window });
   register({ flags });
 
-  const [cmsSessionHint, { handover, setNextHandover }, preview] = await Promise.all([
+  const [cmsSessionHint, { handover, setNextHandover }, preview, settings] = await Promise.all([
     initialiseCmsSessionHint({ rootUrl }),
     initialiseHandover({ rootUrl }),
     initialisePreview({ rootUrl }),
+    initialiseSettings({ rootUrl }),
   ]);
   register({ cmsSessionHint, handover, preview });
 
@@ -87,7 +89,7 @@ const startupPhase = async ({ window, storeFns: { register, mergeTags, readyStat
   const { trackPageView, trackEvent, trackException } = initialiseAnalytics({ window, config, readyState, build, cmsSessionHint, flags });
 
   const { initialiseDomForContext } = initialiseDomObservation(
-    { window, register, mergeTags, preview },
+    { window, register, mergeTags, preview, settings },
     domTagMutationSubscriber,
     interimDcfNavigationObserver,
     footerSubscriber,
