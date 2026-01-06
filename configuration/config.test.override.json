@@ -158,7 +158,7 @@
       "label": "Materials",
       "level": 1,
       "href": "https://polaris-qa-notprod.cps.gov.uk/polaris?q=%7B%22caseId%22%3A{caseId}%7D",
-      "dcfHref": "https://cps-tst.outsystemsenterprise.com/WorkManagementApp/CaseOverview?CaseId={caseId}&URN={urn}&IsMaterials=true",
+      "dcfHref": "https://cps-tst.outsystemsenterprise.com/WorkManagementApp/CaseOverview?CaseId={caseId}&URN={urn}&IsOpenMaterials=true",
       "visibleContexts": "case",
       "activeContexts": "materials",
       "dcfContextsToUseEventNavigation": {
