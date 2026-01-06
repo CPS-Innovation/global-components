@@ -4,6 +4,7 @@ import { FEATURE_FLAGS } from "../../feature-flags/feature-flags";
 import { WithLogging } from "../../logging/WithLogging";
 import { SkipLink } from "../common/SkipLink";
 import { replaceTagsInString } from "../cps-global-menu/menu-config/helpers/replace-tags-in-string";
+import { getArtifactUrl } from "../../utils/get-artifact-url";
 
 @Component({
   tag: "cps-global-banner",
@@ -13,7 +14,7 @@ import { replaceTagsInString } from "../cps-global-menu/menu-config/helpers/repl
 export class CpsGlobalBanner {
   @WithLogging("CpsGlobalBanner")
   render() {
-    const { isReady, state } = readyState(["config", "flags", "context", "preview"], ["recentCases"]);
+    const { isReady, state } = readyState(["config", "flags", "context", "preview", "rootUrl"], ["recentCases"]);
 
     const resolveValues = () => {
       if (state.fatalInitialisationError) {
@@ -38,9 +39,9 @@ export class CpsGlobalBanner {
       return <></>;
     }
 
-    const { templateCssClass, backgroundColourClass, dividerCssClass } = showGovUkRebrand
-      ? { templateCssClass: "govuk-template--rebranded", backgroundColourClass: "background-blue", dividerCssClass: "" }
-      : { templateCssClass: "", backgroundColourClass: "background-black", dividerCssClass: "header-divider" };
+    const { templateCssClass, backgroundColourClass, dividerCssClass, recentCasesStyles } = showGovUkRebrand
+      ? { templateCssClass: "govuk-template--rebranded", backgroundColourClass: "background-blue", dividerCssClass: "", recentCasesStyles: { marginTop: "10px" } }
+      : { templateCssClass: "", backgroundColourClass: "background-black", dividerCssClass: "header-divider", recentCasesStyles: { marginTop: "-5px" } };
 
     const handleChange = (event: Event) => {
       const caseId = Number((event.target as HTMLSelectElement).value);
@@ -52,6 +53,8 @@ export class CpsGlobalBanner {
       window.location.assign(nextUrl);
     };
 
+    const truncate = (str: string, max = 10) => (str.length > max ? str.slice(0, max) + "..." : str);
+
     return (
       <>
         <div class={templateCssClass}>
@@ -59,7 +62,7 @@ export class CpsGlobalBanner {
             Skip to main content
           </SkipLink>
           <header class={`govuk-header govuk-header--with-js-navigation ${backgroundColourClass}`} data-module="govuk-header" data-govuk-header-init="">
-            <div class="govuk-header__container" style={{ display: "flex", flexDirection: "row", gap: "2rem" }}>
+            <div class="govuk-header__container" style={{ display: "flex", flexDirection: "row" }}>
               <div class="govuk-header__logo">
                 <a href={href} class="govuk-header__link govuk-header__link--homepage">
                   <span class="govuk-!-font-weight-bold"> CPS </span>
@@ -72,7 +75,7 @@ export class CpsGlobalBanner {
                     <nav aria-label="Menu" class="govuk-header__navigation govuk-header__navigation--end">
                       <ul id="navigation" class="govuk-header__navigation-list">
                         <li class="govuk-header__navigation-item">
-                          <a class="govuk-header__link" href="/account/sign-out">
+                          <a class="govuk-header__link" href={getArtifactUrl(state.rootUrl, "accessibility/")}>
                             Accessibility
                           </a>
                         </li>
@@ -82,14 +85,14 @@ export class CpsGlobalBanner {
                 )}
 
                 {showRecentCases && state.recentCases?.result?.length && (
-                  <div style={{ padding: "10px 0 0 0 " }}>
+                  <div style={recentCasesStyles}>
                     <select class="govuk-select" onChange={handleChange} style={{ border: "1px solid #fff" }}>
                       <option value="" disabled selected>
                         Recent cases
                       </option>
                       {state.recentCases.result.map(({ caseId, urn, description }) => (
                         <option value={caseId}>
-                          {urn} {description}
+                          {urn} {truncate(description)}
                         </option>
                       ))}
                     </select>
