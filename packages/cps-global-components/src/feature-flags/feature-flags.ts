@@ -3,9 +3,11 @@ import { isUserInFeatureGroup } from "./is-user-in-feature-group";
 
 const shouldShowCaseDetails = ({ preview, flags }: Pick<State, "preview" | "flags">) => !!preview.result?.caseMarkers || flags.isLocalDevelopment;
 
-const shouldEnableAccessibilityMode = ({ preview }: Pick<State, "preview">) => !!preview.result?.accessibility;
+const shouldEnableAccessibilityMode = ({ preview, flags }: Pick<State, "preview" | "flags">) => !!(preview.result?.accessibility || flags.isLocalDevelopment);
 
 const shouldShowGovUkRebrand = ({ preview, flags }: Pick<State, "preview" | "flags">) => !!preview.result?.newHeader || flags.isLocalDevelopment;
+
+const shouldShowRecentCases = ({ preview, flags }: Pick<State, "preview" | "flags">) => !!preview.result?.myRecentCasesOnHeader || flags.isLocalDevelopment;
 
 const shouldShowMenu = ({ config, auth, context, cmsSessionHint }: Pick<State, "config" | "context" | "cmsSessionHint"> & Pick<StoredState, "auth">) => {
   if (cmsSessionHint.found && !cmsSessionHint.result.isProxySession) {
@@ -44,6 +46,7 @@ export const FEATURE_FLAGS = {
   shouldShowCaseDetails,
   shouldEnableAccessibilityMode,
   shouldShowGovUkRebrand,
+  shouldShowRecentCases,
   shouldShowMenu,
   surveyLink,
 };

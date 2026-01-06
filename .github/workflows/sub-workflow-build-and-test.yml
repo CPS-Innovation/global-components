@@ -90,6 +90,7 @@ jobs:
           cp ./packages/cps-global-os-handover/dist/auth-handover.js ./to-deploy
           cp ./packages/cps-global-script-redirect/dist/script-redirect.js ./to-deploy
           cp -r ./packages/cps-global-preview/dist ./to-deploy/preview
+          cp -r ./packages/cps-global-accessibility/dist ./to-deploy/accessibility
 
       - uses: actions/upload-artifact@v4
         id: upload

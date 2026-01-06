@@ -1158,10 +1158,12 @@ describe("global-script", () => {
       globalScript();
       await new Promise(resolve => setTimeout(resolve, 10));
 
-      expect(mockInitialiseRecentCases).toHaveBeenCalledWith({
-        rootUrl: testRootUrl,
-        preview: testPreview,
-      });
+      expect(mockInitialiseRecentCases).toHaveBeenCalledWith(
+        expect.objectContaining({
+          rootUrl: testRootUrl,
+          preview: testPreview,
+        })
+      );
     });
 
     it("should pass preview to initialiseDomObservation for accessibilitySubscriber", async () => {

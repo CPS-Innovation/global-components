@@ -5,8 +5,16 @@ import { getCaseDefendantHeadline } from "../../data/get-case-defendant-headline
 import { fetchState } from "../fetch-state";
 import { StatePutResponseSchema } from "../StatePutResponse";
 import { RecentCase, RecentCases, RecentCasesSchema } from "./recent-cases";
+import { ApplicationFlags } from "../../application-flags/ApplicationFlags";
 
-export const initialiseRecentCases = async ({ rootUrl, preview }: { rootUrl: string; preview: Result<Preview> }) => {
+export const initialiseRecentCases = async ({ rootUrl, preview, flags }: { rootUrl: string; preview: Result<Preview>; flags?: ApplicationFlags }) => {
+  if (flags?.isLocalDevelopment) {
+    return {
+      recentCases: { found: true, result: [{ caseId: 1, urn: "12AB1212121", description: "Smith plus 2" }] } as Result<RecentCases>,
+      setNextRecentCases: (() => {}) as (caseDetails: CaseDetails | undefined) => void,
+    };
+  }
+
   if (!(preview.found && preview.result.myRecentCases)) {
     return { recentCases: { found: false, error: new Error("Recent cases not enabled") } as Result<RecentCases>, setNextRecentCases: () => {} };
   }

@@ -75,7 +75,7 @@ const startupPhase = async ({ window, storeFns: { register, mergeTags, readyStat
   ]);
   register({ cmsSessionHint, handover, preview });
 
-  const { recentCases, setNextRecentCases } = await initialiseRecentCases({ rootUrl, preview });
+  const { recentCases, setNextRecentCases } = await initialiseRecentCases({ rootUrl, preview, flags });
   register({ recentCases });
 
   const config = await initialiseConfig({ rootUrl, flags, preview });

@@ -162,6 +162,34 @@ importers:
         specifier: ^5.7.2
         version: 5.9.3
 
+  packages/cps-global-accessibility:
+    dependencies:
+      cps-global-configuration:
+        specifier: workspace:*
+        version: link:../cps-global-configuration
+      react:
+        specifier: ^18.3.0
+        version: 18.3.1
+      react-dom:
+        specifier: ^18.3.0
+        version: 18.3.1(react@18.3.1)
+    devDependencies:
+      '@types/react':
+        specifier: ^18.3.0
+        version: 18.3.27
+      '@types/react-dom':
+        specifier: ^18.3.0
+        version: 18.3.7(@types/react@18.3.27)
+      '@vitejs/plugin-react':
+        specifier: ^5.0.0
+        version: 5.1.2(vite@6.4.1(@types/node@24.5.2)(sass-embedded@1.97.1)(sass@1.97.1)(tsx@4.20.6))
+      typescript:
+        specifier: ^5.6.0
+        version: 5.9.3
+      vite:
+        specifier: ^6.4.1
+        version: 6.4.1(@types/node@24.5.2)(sass-embedded@1.97.1)(sass@1.97.1)(tsx@4.20.6)
+
   packages/cps-global-components:
     dependencies:
       '@azure/msal-browser':
