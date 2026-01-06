@@ -25,7 +25,7 @@ const processElement = (element: HTMLElement) => {
   }
 };
 
-export const accessibilitySubscriber: DomMutationObserver = ({ preview, window }) => {
+export const accessibilitySubscriber: DomMutationObserver = ({ preview, window, settings }) => {
   const { document } = window;
 
   // WeakSet so no memory leaks if e.g. we are on a SPA and there are multiple route
@@ -49,7 +49,7 @@ export const accessibilitySubscriber: DomMutationObserver = ({ preview, window }
   };
 
   return {
-    isActiveForContext: !!preview.result?.accessibility && !!COLOUR_MAP["#ffffff"],
+    isActiveForContext: !!preview.result?.accessibility && !!settings.result?.accessibilityBackground && !!COLOUR_MAP["#ffffff"],
     subscriptions: [
       // Top-level CSS approach for document background
       {

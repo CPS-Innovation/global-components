@@ -120,6 +120,10 @@ jest.mock("./services/state/preview/initialise-preview", () => ({
   initialisePreview: mockInitialisePreview,
 }));
 
+const mockInitialiseSettings = jest.fn();
+jest.mock("./services/state/settings/initialise-settings", () => ({
+  initialiseSettings: mockInitialiseSettings,
+}));
 
 const mockInitialiseRecentCases = jest.fn();
 jest.mock("./services/state/recent-cases/initialise-recent-cases", () => ({
@@ -224,6 +228,8 @@ const setupDefaultMocks = () => {
   mockInitialiseRootUrl.mockReturnValue("https://example.com/env/components/script.js");
 
   mockInitialisePreview.mockResolvedValue({ enabled: false, features: [] });
+
+  mockInitialiseSettings.mockResolvedValue({ fontSize: "default" });
 
   mockInitialiseRecentCases.mockResolvedValue({
     recentCases: { found: false, error: new Error("No recent cases") },
@@ -1148,6 +1154,19 @@ describe("global-script", () => {
       });
     });
 
+    it("should pass rootUrl to initialiseSettings", async () => {
+      const testRootUrl = "https://test.example.com/env/script.js";
+      mockInitialiseRootUrl.mockReturnValue(testRootUrl);
+
+      const globalScript = require("./global-script").default;
+      globalScript();
+      await new Promise(resolve => setTimeout(resolve, 10));
+
+      expect(mockInitialiseSettings).toHaveBeenCalledWith({
+        rootUrl: testRootUrl,
+      });
+    });
+
     it("should pass rootUrl and preview to initialiseRecentCases", async () => {
       const testRootUrl = "https://test.example.com/env/script.js";
       const testPreview = { enabled: true, myRecentCases: true };
@@ -1166,20 +1185,23 @@ describe("global-script", () => {
       );
     });
 
-    it("should pass preview to initialiseDomObservation for accessibilitySubscriber", async () => {
+    it("should pass preview and settings to initialiseDomObservation for accessibilitySubscriber", async () => {
       const testPreview = { result: { accessibility: true } };
+      const testSettings = { fontSize: "large" };
       mockInitialisePreview.mockResolvedValue(testPreview);
+      mockInitialiseSettings.mockResolvedValue(testSettings);
 
       const globalScript = require("./global-script").default;
       globalScript();
       await new Promise(resolve => setTimeout(resolve, 10));
 
       const callArgs = mockInitialiseDomObservation.mock.calls[0];
-      // First arg is the options object containing window and preview
+      // First arg is the options object containing window, preview, and settings
       expect(callArgs[0]).toEqual(
         expect.objectContaining({
           window: mockWindow,
           preview: testPreview,
+          settings: testSettings,
         }),
       );
       // accessibilitySubscriber should be in the args
@@ -1334,7 +1356,7 @@ describe("global-script", () => {
     // These tests verify that operations happen in the correct order
     // using mock call order tracking
 
-    it("should initialise in correct order: rootUrl -> flags -> cmsSessionHint/handover/preview (parallel) -> recentCases -> config -> firstContext -> analytics (auth runs async later)", async () => {
+    it("should initialise in correct order: rootUrl -> flags -> cmsSessionHint/handover/preview/settings (parallel) -> recentCases -> config -> firstContext -> analytics (auth runs async later)", async () => {
       const callOrder: string[] = [];
 
       mockInitialiseRootUrl.mockImplementation(() => {
@@ -1367,6 +1389,11 @@ describe("global-script", () => {
         return { enabled: false, features: [] };
       });
 
+      mockInitialiseSettings.mockImplementation(async () => {
+        callOrder.push("settings");
+        return { fontSize: "default" };
+      });
+
       mockInitialiseRecentCases.mockImplementation(async () => {
         callOrder.push("recentCases");
         return { recentCases: { found: false, error: new Error("No recent cases") }, setNextRecentCases: jest.fn() };
@@ -1391,7 +1418,7 @@ describe("global-script", () => {
       globalScript();
       await new Promise(resolve => setTimeout(resolve, 10));
 
-      // Verify order - rootUrl and flags first, then parallel async calls (cmsSessionHint/handover/preview),
+      // Verify order - rootUrl and flags first, then parallel async calls (cmsSessionHint/handover/preview/settings),
       // then recentCases (needs preview), then config, then firstContext
       // Analytics now comes BEFORE auth (auth is non-blocking to avoid UI delay)
       // accessibilitySubscriber is now part of DOM observation (called via initialiseDomForContext)
@@ -1399,7 +1426,9 @@ describe("global-script", () => {
       expect(callOrder.indexOf("flags")).toBeLessThan(callOrder.indexOf("cmsSessionHint"));
       expect(callOrder.indexOf("flags")).toBeLessThan(callOrder.indexOf("handover"));
       expect(callOrder.indexOf("flags")).toBeLessThan(callOrder.indexOf("preview"));
+      expect(callOrder.indexOf("flags")).toBeLessThan(callOrder.indexOf("settings"));
       expect(callOrder.indexOf("preview")).toBeLessThan(callOrder.indexOf("recentCases"));
+      expect(callOrder.indexOf("settings")).toBeLessThan(callOrder.indexOf("recentCases"));
       expect(callOrder.indexOf("recentCases")).toBeLessThan(callOrder.indexOf("config"));
       expect(callOrder.indexOf("config")).toBeLessThan(callOrder.indexOf("context"));
       // Analytics is now initialized BEFORE auth (auth is non-blocking)
