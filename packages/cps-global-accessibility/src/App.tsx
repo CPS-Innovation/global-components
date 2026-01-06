@@ -43,7 +43,7 @@ export function App() {
   }, [showStatus]);
 
   const saveState = useCallback(
-    async (newState: Settings) => {
+    async (newState: Settings): Promise<boolean> => {
       try {
         const hasAnyValue = Object.values(newState).some((v) => v);
         const body = hasAnyValue ? JSON.stringify(newState) : "null";
@@ -58,6 +58,7 @@ export function App() {
           throw new Error("Failed to save settings");
         }
         showStatus("Settings saved", "success");
+        return true;
       } catch (err) {
         showStatus(
           `Failed to save settings: ${
@@ -65,6 +66,7 @@ export function App() {
           }`,
           "error"
         );
+        return false;
       }
     },
     [showStatus]
@@ -74,10 +76,13 @@ export function App() {
     loadState();
   }, [loadState]);
 
-  const handleBackgroundChange = (checked: boolean) => {
+  const handleBackgroundChange = async (checked: boolean) => {
     const newState = { ...state, accessibilityBackground: checked || undefined };
     setState(newState);
-    saveState(newState);
+    const success = await saveState(newState);
+    if (success) {
+      window.location.href = "/";
+    }
   };
 
   return (
