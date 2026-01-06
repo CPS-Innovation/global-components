@@ -50,7 +50,7 @@ export const outSystemsShimSubscribers: DomMutationObserver[] = [
   ({ context, preview, window }) => {
     const applyStyles = applyStylesFactory(window);
     return {
-      isActiveForContext: context.found && context.applyShim === "force-recent-cases" && !!preview.result?.myRecentCasesOnCases,
+      isActiveForContext: context.found && context.applyShim === "force-recent-cases" && context.path.includes("WorkManagementApp/Cases") && !!preview.result?.myRecentCasesOnCases,
       subscriptions: [
         {
           cssSelector: "div[data-block='ReusableBlocks.CasesList']",
@@ -69,7 +69,7 @@ export const outSystemsShimSubscribers: DomMutationObserver[] = [
   },
   ({ context, preview, window }) => {
     return {
-      isActiveForContext: context.found && context.applyShim === "force-recent-cases" && !!preview.result?.myRecentCasesOnHome,
+      isActiveForContext: context.found && context.applyShim === "force-recent-cases" && context.path.includes("Casework_Blocks/home") && !!preview.result?.myRecentCasesOnHome,
       subscriptions: [
         {
           cssSelector: "div#\\$b5",
