@@ -39,13 +39,7 @@
         },
         {
           "path": "https://cps-tst.outsystemsenterprise.com/CaseReview.*?[&?](?:CMS)?CaseId=(?<caseId>\\d+)",
-          "contextIds": "case review",
-          "domTagDefinitions": [
-            {
-              "cssSelector": "div#URN_Container",
-              "regex": "<span[^>]*>(?<urn>.*?)</span>"
-            }
-          ]
+          "contextIds": "case review"
         },
         {
           "path": "https://cps-tst.outsystemsenterprise.com/CaseReview/",
@@ -98,10 +92,6 @@
             {
               "cssSelector": "a[href*='/polaris-ui/case-details/']",
               "regex": "/polaris-ui/case-details/.*/(?<caseId>\\d+)\""
-            },
-            {
-              "cssSelector": "div.case-info-details p",
-              "regex": ">(?<urn>[^<]+)"
             }
           ]
         }
