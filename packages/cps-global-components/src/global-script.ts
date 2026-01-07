@@ -10,7 +10,6 @@ import { domTagMutationSubscriber } from "./services/browser/dom/dom-tag-mutatio
 import { outSystemsShimSubscribers } from "./services/outsystems-shim/outsystems-shim-subscriber";
 import { initialiseCmsSessionHint } from "./services/state/cms-session/initialise-cms-session-hint";
 import { initialiseHandover } from "./services/state/handover/intialise-handover";
-import { initialiseInterimDcfNavigation } from "./services/outsystems-shim/initialise-interim-dcf-navigation";
 import { initialiseCaseDetailsData } from "./services/data/initialise-case-details-data";
 import { initialiseNavigationSubscription } from "./services/browser/navigation/initialise-navigation-subscription";
 import { initialiseCorrelationIds } from "./services/correlation/initialise-correlation-ids";
@@ -61,8 +60,6 @@ const startupPhase = async ({ window, storeFns: { register, mergeTags, readyStat
   const build = window.cps_global_components_build;
   register({ build });
 
-  const interimDcfNavigationObserver = initialiseInterimDcfNavigation({ window });
-
   const rootUrl = initialiseRootUrl();
   register({ rootUrl });
 
@@ -91,7 +88,6 @@ const startupPhase = async ({ window, storeFns: { register, mergeTags, readyStat
   const { initialiseDomForContext } = initialiseDomObservation(
     { window, register, mergeTags, preview, settings },
     domTagMutationSubscriber,
-    interimDcfNavigationObserver,
     footerSubscriber,
     accessibilitySubscriber,
     ...outSystemsShimSubscribers,

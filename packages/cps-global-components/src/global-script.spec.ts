@@ -105,11 +105,6 @@ jest.mock("./services/state/handover/intialise-handover", () => ({
   initialiseHandover: mockInitialiseHandover,
 }));
 
-const mockInitialiseInterimDcfNavigation = jest.fn();
-jest.mock("./services/outsystems-shim/initialise-interim-dcf-navigation", () => ({
-  initialiseInterimDcfNavigation: mockInitialiseInterimDcfNavigation,
-}));
-
 const mockInitialiseRootUrl = jest.fn();
 jest.mock("./services/root-url/initialise-root-url", () => ({
   initialiseRootUrl: () => mockInitialiseRootUrl(),
@@ -218,11 +213,6 @@ const setupDefaultMocks = () => {
     trackPageView: mockTrackPageView,
     trackEvent: mockTrackEvent,
     trackException: mockTrackException,
-  });
-
-  mockInitialiseInterimDcfNavigation.mockReturnValue({
-    observe: jest.fn(),
-    disconnect: jest.fn(),
   });
 
   mockInitialiseRootUrl.mockReturnValue("https://example.com/env/components/script.js");
