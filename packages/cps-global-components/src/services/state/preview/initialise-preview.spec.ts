@@ -15,7 +15,7 @@ describe("initialisePreview", () => {
   describe("when fetch succeeds with valid data", () => {
     const validPreview: Preview = {
       enabled: true,
-      caseMarkers: true,
+      caseMarkers: "a",
       newHeader: false,
     };
 

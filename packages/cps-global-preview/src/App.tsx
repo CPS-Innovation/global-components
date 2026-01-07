@@ -20,6 +20,11 @@ type SubOption = {
   label: string;
 };
 
+type RadioOption<T extends string> = {
+  value: T;
+  label: string;
+};
+
 type Feature = {
   key: keyof Preview;
   label: string;
@@ -27,7 +32,13 @@ type Feature = {
   disabled: boolean;
   textInputs?: TextInput[];
   subOptions?: SubOption[];
+  radioOptions?: RadioOption<string>[];
 };
+
+const CASE_MARKERS_OPTIONS: RadioOption<string>[] = [
+  { value: "a", label: "Design A" },
+  { value: "b", label: "Design B" },
+];
 
 const FEATURES: Feature[] = [
   {
@@ -36,6 +47,7 @@ const FEATURES: Feature[] = [
     description:
       "Show the case details line in the header: URN, lead defendant name and case markers (monitoring codes).",
     disabled: false,
+    radioOptions: CASE_MARKERS_OPTIONS,
   },
   {
     key: "newHeader",
@@ -203,9 +215,12 @@ export function App() {
     key: FeatureKey,
     checked: boolean,
     textInputs?: TextInput[],
-    subOptions?: SubOption[]
+    subOptions?: SubOption[],
+    radioOptions?: RadioOption<string>[]
   ) => {
-    const newState = { ...state, [key]: checked || undefined };
+    // For features with radioOptions, set the first option as default when checked
+    const value = radioOptions ? (checked ? radioOptions[0].value : undefined) : (checked || undefined);
+    const newState = { ...state, [key]: value };
     // Clear text inputs and sub-options when the feature is unchecked
     if (!checked) {
       if (textInputs) {
@@ -225,6 +240,12 @@ export function App() {
 
   const handleSubOptionChange = (key: keyof Preview, checked: boolean) => {
     const newState = { ...state, [key]: checked || undefined };
+    setState(newState);
+    saveState(newState);
+  };
+
+  const handleRadioChange = (key: keyof Preview, value: string) => {
+    const newState = { ...state, [key]: value };
     setState(newState);
     saveState(newState);
   };
@@ -363,7 +384,7 @@ export function App() {
             <legend className="govuk-fieldset__legend govuk-fieldset__legend--m">
               <h2 className="govuk-fieldset__heading">Features</h2>
             </legend>
-            <div className="govuk-checkboxes" data-module="govuk-checkboxes">
+            <div>
               {FEATURES.map(
                 ({
                   key,
@@ -372,104 +393,137 @@ export function App() {
                   disabled,
                   textInputs,
                   subOptions,
+                  radioOptions,
                 }) => (
-                  <div key={key} className="govuk-checkboxes__item">
-                    <input
-                      className="govuk-checkboxes__input"
-                      id={key}
-                      name="features"
-                      type="checkbox"
-                      checked={!!state[key]}
-                      disabled={loading || disabled}
-                      onChange={(e) =>
-                        handleFeatureChange(
-                          key,
-                          e.target.checked,
-                          textInputs,
-                          subOptions
-                        )
-                      }
-                    />
-                    <label
-                      className="govuk-label govuk-checkboxes__label"
-                      htmlFor={key}
-                    >
-                      {label}
-                    </label>
-                    <div
-                      id={`${key}-hint`}
-                      className="govuk-hint govuk-checkboxes__hint govuk-!-font-size-16"
-                    >
-                      {description}
-                    </div>
-                    {textInputs && state[key] && (
-                      <div
-                        className="govuk-checkboxes__conditional"
-                        style={{ marginTop: "10px", paddingLeft: "15px" }}
+                  <div key={key} className="govuk-checkboxes" data-module="govuk-checkboxes" style={{ marginBottom: "10px" }}>
+                    <div className="govuk-checkboxes__item">
+                      <input
+                        className="govuk-checkboxes__input"
+                        id={key}
+                        name="features"
+                        type="checkbox"
+                        checked={!!state[key]}
+                        disabled={loading || disabled}
+                        onChange={(e) =>
+                          handleFeatureChange(
+                            key,
+                            e.target.checked,
+                            textInputs,
+                            subOptions,
+                            radioOptions
+                          )
+                        }
+                      />
+                      <label
+                        className="govuk-label govuk-checkboxes__label"
+                        htmlFor={key}
                       >
-                        {textInputs.map((input) => (
-                          <div
-                            key={input.key}
-                            className="govuk-form-group"
-                            style={{ marginBottom: "10px" }}
-                          >
-                            <label
-                              className="govuk-label govuk-!-font-size-16"
-                              htmlFor={input.key}
-                            >
-                              {input.label}
-                            </label>
-                            <input
-                              className="govuk-input govuk-input--width-10"
-                              id={input.key}
-                              name={input.key}
-                              type="text"
-                              value={String(state[input.key] ?? "")}
-                              disabled={loading || disabled}
-                              onChange={(e) =>
-                                handleTextInputChange(input.key, e.target.value)
-                              }
-                            />
-                          </div>
-                        ))}
+                        {label}
+                      </label>
+                      <div
+                        id={`${key}-hint`}
+                        className="govuk-hint govuk-checkboxes__hint govuk-!-font-size-16"
+                      >
+                        {description}
                       </div>
-                    )}
-                    {subOptions && state[key] && (
-                      <div
-                        className="govuk-checkboxes__conditional"
-                        style={{ marginTop: "10px", paddingLeft: "15px" }}
-                      >
-                        <div className="govuk-checkboxes govuk-checkboxes--small">
-                          {subOptions.map((option) => (
+                      {radioOptions && state[key] && (
+                        <div
+                          className="govuk-checkboxes__conditional"
+                          style={{ marginTop: "10px", paddingLeft: "15px" }}
+                        >
+                          <div className="govuk-radios govuk-radios--small" data-module="govuk-radios">
+                            {radioOptions.map((option) => (
+                              <div key={option.value} className="govuk-radios__item">
+                                <input
+                                  className="govuk-radios__input"
+                                  id={`${key}-${option.value}`}
+                                  name={key}
+                                  type="radio"
+                                  value={option.value}
+                                  checked={state[key] === option.value}
+                                  disabled={loading || disabled}
+                                  onChange={() => handleRadioChange(key, option.value)}
+                                />
+                                <label
+                                  className="govuk-label govuk-radios__label"
+                                  htmlFor={`${key}-${option.value}`}
+                                >
+                                  {option.label}
+                                </label>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                      {textInputs && state[key] && (
+                        <div
+                          className="govuk-checkboxes__conditional"
+                          style={{ marginTop: "10px", paddingLeft: "15px" }}
+                        >
+                          {textInputs.map((input) => (
                             <div
-                              key={option.key}
-                              className="govuk-checkboxes__item"
+                              key={input.key}
+                              className="govuk-form-group"
+                              style={{ marginBottom: "10px" }}
                             >
+                              <label
+                                className="govuk-label govuk-!-font-size-16"
+                                htmlFor={input.key}
+                              >
+                                {input.label}
+                              </label>
                               <input
-                                className="govuk-checkboxes__input"
-                                id={option.key}
-                                name={option.key}
-                                type="checkbox"
-                                checked={!!state[option.key]}
+                                className="govuk-input govuk-input--width-10"
+                                id={input.key}
+                                name={input.key}
+                                type="text"
+                                value={String(state[input.key] ?? "")}
                                 disabled={loading || disabled}
                                 onChange={(e) =>
-                                  handleSubOptionChange(
-                                    option.key,
-                                    e.target.checked
-                                  )
+                                  handleTextInputChange(input.key, e.target.value)
                                 }
                               />
-                              <label
-                                className="govuk-label govuk-checkboxes__label"
-                                htmlFor={option.key}
-                              >
-                                {option.label}
-                              </label>
                             </div>
                           ))}
                         </div>
-                      </div>
-                    )}
+                      )}
+                      {subOptions && state[key] && (
+                        <div
+                          className="govuk-checkboxes__conditional"
+                          style={{ marginTop: "10px", paddingLeft: "15px" }}
+                        >
+                          <div className="govuk-checkboxes govuk-checkboxes--small">
+                            {subOptions.map((option) => (
+                              <div
+                                key={option.key}
+                                className="govuk-checkboxes__item"
+                              >
+                                <input
+                                  className="govuk-checkboxes__input"
+                                  id={option.key}
+                                  name={option.key}
+                                  type="checkbox"
+                                  checked={!!state[option.key]}
+                                  disabled={loading || disabled}
+                                  onChange={(e) =>
+                                    handleSubOptionChange(
+                                      option.key,
+                                      e.target.checked
+                                    )
+                                  }
+                                />
+                                <label
+                                  className="govuk-label govuk-checkboxes__label"
+                                  htmlFor={option.key}
+                                >
+                                  {option.label}
+                                </label>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 )
               )}
