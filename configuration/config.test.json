@@ -52,7 +52,7 @@
           "contextIds": "cases"
         },
         {
-          "path": "https://cps-tst.outsystemsenterprise.com/WorkManagementApp.*[&?]CaseId=(?<caseId>d+)",
+          "path": "https://cps-tst.outsystemsenterprise.com/WorkManagementApp.*[&?]CaseId=(?<caseId>\\d+)",
           "contextIds": "case details",
           "applyShim": "force-global-menu"
         },
