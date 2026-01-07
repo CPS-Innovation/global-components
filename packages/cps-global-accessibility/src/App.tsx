@@ -81,7 +81,7 @@ export function App() {
     setState(newState);
     const success = await saveState(newState);
     if (success) {
-      window.location.href = "/";
+      window.location.reload();
     }
   };
 
