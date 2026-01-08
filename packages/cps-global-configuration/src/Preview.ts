@@ -3,7 +3,11 @@ import { z } from "zod";
 export const PreviewSchema = z.object({
   enabled: z.boolean().optional(),
 
-  caseMarkers: z.union([z.literal("a"), z.literal("b")]).optional(),
+  // Backwards compatibility: migrate boolean true to "a"
+  caseMarkers: z.preprocess(
+    (val) => (val === true ? "a" : val),
+    z.union([z.literal("a"), z.literal("b")]).optional()
+  ),
   caseSearch: z.boolean().optional(),
   myRecentCases: z.boolean().optional(),
   myRecentCasesOnHome: z.boolean().optional(),
