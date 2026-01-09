@@ -15,7 +15,7 @@ describe("initialisePreview", () => {
   describe("when fetch succeeds with valid data", () => {
     const validPreview: Preview = {
       enabled: true,
-      caseMarkers: true,
+      caseMarkers: "a",
       newHeader: false,
     };
 
@@ -101,6 +101,27 @@ describe("initialisePreview", () => {
 
       expect(result.found).toBe(false);
       expect(result.error).toBeDefined();
+    });
+  });
+
+  describe("backwards compatibility", () => {
+    it("should migrate caseMarkers: true to caseMarkers: 'a'", async () => {
+      const legacyPreview = {
+        enabled: true,
+        caseMarkers: true,
+      };
+
+      mockFetch.mockResolvedValue({
+        ok: true,
+        json: () => Promise.resolve(legacyPreview),
+      });
+
+      const result = await initialisePreview({ rootUrl });
+
+      expect(result.found).toBe(true);
+      if (result.found) {
+        expect(result.result.caseMarkers).toBe("a");
+      }
     });
   });
 });
