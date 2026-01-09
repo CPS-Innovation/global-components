@@ -160,6 +160,19 @@ show_help() {
 
 cmd_add() {
     echo ""
+
+    # Check for uncommitted changes
+    if [[ -n $(git status --porcelain 2>/dev/null) ]]; then
+        echo -e "${YELLOW}Warning: You have uncommitted changes in your working directory${NC}"
+        git status --short
+        echo ""
+        if ! confirm "Continue anyway?" "n"; then
+            echo "Aborted. Please commit or stash your changes first."
+            exit 0
+        fi
+        echo ""
+    fi
+
     echo -e "${BOLD}Add New Work Item${NC}"
     echo "=================="
     echo ""
@@ -236,6 +249,20 @@ cmd_add() {
     fi
     echo ""
 
+    # Ask about assignment
+    local assign_to_me=false
+    if confirm "Assign to me ($JIRA_EMAIL)?" "y"; then
+        assign_to_me=true
+    fi
+    echo ""
+
+    # Ask about starting work
+    local start_progress=false
+    if confirm "Set to In Progress?" "y"; then
+        start_progress=true
+    fi
+    echo ""
+
     # Select work item type
     local -a type_options=("Task" "Story" "Bug")
     select_option "Work item type:" 0 "${type_options[@]}"
@@ -251,6 +278,14 @@ cmd_add() {
     echo -e "  Summary:     ${CYAN}${summary}${NC}"
     if [[ -n "$description" ]]; then
         echo -e "  Description: ${CYAN}${description}${NC}"
+    fi
+    echo -e "  Label:       ${CYAN}${JIRA_LABEL}${NC}"
+    echo -e "  Team:        ${CYAN}Global Navigation${NC}"
+    if [[ "$assign_to_me" == true ]]; then
+        echo -e "  Assignee:    ${CYAN}${JIRA_EMAIL}${NC}"
+    fi
+    if [[ "$start_progress" == true ]]; then
+        echo -e "  Status:      ${CYAN}In Progress${NC}"
     fi
     if [[ "$add_to_sprint" == true ]]; then
         echo -e "  Sprint:      ${CYAN}${sprint_name}${NC}"
@@ -285,13 +320,20 @@ EOF
         "issuetype": {"name": "$item_type"},
         "parent": {"key": "$parent_key"},
         "summary": "$summary",
-        "customfield_10154": {"id": "10596"}
+        "labels": ["$JIRA_LABEL"],
+        "customfield_10154": {"id": "10596"},
+        "customfield_10001": "$JIRA_TEAM_ID"
 EOF
 )
 
     if [[ -n "$description" ]]; then
         payload+=",
         \"description\": $desc_json"
+    fi
+
+    if [[ "$assign_to_me" == true ]]; then
+        payload+=",
+        \"assignee\": {\"emailAddress\": \"$JIRA_EMAIL\"}"
     fi
 
     payload+="
@@ -326,6 +368,22 @@ EOF
             fi
         fi
 
+        # Transition to In Progress if requested
+        if [[ "$start_progress" == true ]]; then
+            echo "Setting to In Progress..."
+            curl -s -X POST \
+                -H "Authorization: Basic $(echo -n "${JIRA_EMAIL}:${JIRA_TOKEN}" | base64)" \
+                -H "Content-Type: application/json" \
+                -d '{"transition": {"id": "21"}}' \
+                "https://${JIRA_SITE}/rest/api/3/issue/${new_key}/transitions" > /dev/null 2>&1
+
+            if [[ $? -eq 0 ]]; then
+                echo -e "${GREEN}Status: In Progress${NC}"
+            else
+                echo -e "${YELLOW}Warning: Could not transition to In Progress${NC}"
+            fi
+        fi
+
         echo ""
         echo -e "View: ${BLUE}https://${JIRA_SITE}/browse/${new_key}${NC}"
 
@@ -335,15 +393,26 @@ EOF
 
         echo ""
         if confirm "Create git branch?" "y"; then
+            echo "Checking out main and pulling latest..."
+            git checkout main 2>/dev/null
+            if [[ $? -ne 0 ]]; then
+                echo -e "${YELLOW}Warning: Could not checkout main${NC}"
+            else
+                git pull 2>/dev/null
+                if [[ $? -ne 0 ]]; then
+                    echo -e "${YELLOW}Warning: Could not pull latest changes${NC}"
+                fi
+            fi
+
             git checkout -b "$branch_name" 2>/dev/null
             if [[ $? -eq 0 ]]; then
                 echo -e "${GREEN}Created branch: ${branch_name}${NC}"
             else
-                echo -e "${YELLOW}Could not create branch (maybe already exists or not in a git repo)${NC}"
+                echo -e "${YELLOW}Could not create branch (maybe already exists)${NC}"
                 echo -e "Run manually: ${CYAN}git checkout -b ${branch_name}${NC}"
             fi
         else
-            echo -e "Branch: ${CYAN}git checkout -b ${branch_name}${NC}"
+            echo -e "Branch: ${CYAN}git checkout main && git pull && git checkout -b ${branch_name}${NC}"
         fi
     else
         echo -e "${YELLOW}Error creating work item:${NC}"
