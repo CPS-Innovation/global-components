@@ -10,8 +10,8 @@ import { getCaseDefendantHeadline } from "../../services/data/get-case-defendant
 export class CpsGlobalCaseDetails {
   render() {
     const {
-      state: { caseIdentifiers, tags, caseDetails, caseMonitoringCodes },
-    } = readyState(["tags", "caseIdentifiers"], ["caseDetails", "caseMonitoringCodes"]);
+      state: { caseIdentifiers, tags, caseDetails, caseMonitoringCodes, preview },
+    } = readyState(["tags", "caseIdentifiers", "preview"], ["caseDetails", "caseMonitoringCodes"]);
 
     if (!caseIdentifiers?.caseId) {
       // We are not on a case-specific page, or we do not have caseId yet
@@ -23,7 +23,27 @@ export class CpsGlobalCaseDetails {
     const headline = caseDetails?.result && getCaseDefendantHeadline(caseDetails.result);
     const monitoringCodes = caseMonitoringCodes?.result || [];
 
-    return (
+    return preview.result?.caseMarkers === "b" ? (
+      <div class="level case-details">
+        <div class="govuk-body-l" style={{ marginBottom: "0" }}>
+          <b>{headline}</b>
+        </div>
+
+        <div>{urn}</div>
+        <div class="scrolling-tags">
+          <div class="scrolling-tags-container">
+            {/* Let's only show monitoring codes once we have the headline, otherwise 
+                we get layout stuttering as the values come in  */}
+            {headline &&
+              monitoringCodes.map(({ code, description }) => (
+                <strong class="govuk-tag govuk-tag--red" key={code}>
+                  {description}
+                </strong>
+              ))}
+          </div>
+        </div>
+      </div>
+    ) : (
       <div class="level case-details">
         <div>{urn}</div>
         <div>

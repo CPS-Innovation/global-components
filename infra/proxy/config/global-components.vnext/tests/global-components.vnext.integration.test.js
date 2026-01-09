@@ -226,7 +226,7 @@ async function testStateEndpoint() {
 
   await test("roundtrip: set state, verify, clear with null, verify cleared", async () => {
     // Step 1: Set state
-    const stateValue = JSON.stringify({ enabled: true, caseMarkers: true })
+    const stateValue = JSON.stringify({ enabled: true, caseMarkers: "a" })
     const putResponse = await fetch(PREVIEW_ENDPOINT, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
