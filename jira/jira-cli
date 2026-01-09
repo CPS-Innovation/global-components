@@ -333,7 +333,7 @@ EOF
 
     if [[ "$assign_to_me" == true ]]; then
         payload+=",
-        \"assignee\": {\"emailAddress\": \"$JIRA_EMAIL\"}"
+        \"assignee\": {\"accountId\": \"$JIRA_ACCOUNT_ID\"}"
     fi
 
     payload+="
