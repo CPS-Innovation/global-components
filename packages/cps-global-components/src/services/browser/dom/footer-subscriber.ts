@@ -7,7 +7,8 @@ export const footerSubscriber: DomMutationObserver = ({ preview, window }) => ({
       cssSelector: "footer",
       handler: (element: HTMLElement) => {
         if (element.ownerDocument.querySelector("cps-global-footer")) {
-          return true;
+          // OS apps seem to bring footers in and out so keep this subscription alive
+          return /* true*/;
         }
         const cpsGlobalFooter: HTMLCpsGlobalFooterElement = window.document.createElement("cps-global-footer");
         element.after(cpsGlobalFooter);
