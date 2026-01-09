@@ -20,7 +20,7 @@ export const outSystemsShimSubscribers: DomMutationObserver[] = [
   ({ context, window, preview }) => {
     const applyStyles = applyStylesFactory(window);
     return {
-      isActiveForContext: context.found && context.applyShim === "force-global-menu" && preview.found && !!preview.result.forceDcfHeader,
+      isActiveForContext: context.found && context.applyShim === "force-global-menu" && !!preview.result?.forceDcfHeader,
       subscriptions: [
         {
           cssSelector: "div[data-block='Common.TempHeader'], #b1-b2-GlobalNavigation",
@@ -50,7 +50,8 @@ export const outSystemsShimSubscribers: DomMutationObserver[] = [
   ({ context, preview, window }) => {
     const applyStyles = applyStylesFactory(window);
     return {
-      isActiveForContext: context.found && context.applyShim === "force-recent-cases" && !!preview.result?.myRecentCases,
+      isActiveForContext:
+        context.found && context.applyShim === "force-recent-cases" && context.path.toLowerCase().includes("workmanagementapp/cases") && !!preview.result?.myRecentCasesOnCases,
       subscriptions: [
         {
           cssSelector: "div[data-block='ReusableBlocks.CasesList']",
@@ -69,7 +70,8 @@ export const outSystemsShimSubscribers: DomMutationObserver[] = [
   },
   ({ context, preview, window }) => {
     return {
-      isActiveForContext: context.found && context.applyShim === "force-recent-cases" && !!preview.result?.myRecentCases,
+      isActiveForContext:
+        context.found && context.applyShim === "force-recent-cases" && context.path.toLowerCase().includes("casework_blocks/home") && !!preview.result?.myRecentCasesOnHome,
       subscriptions: [
         {
           cssSelector: "div#\\$b5",

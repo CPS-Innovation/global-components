@@ -10,7 +10,6 @@ import { domTagMutationSubscriber } from "./services/browser/dom/dom-tag-mutatio
 import { outSystemsShimSubscribers } from "./services/outsystems-shim/outsystems-shim-subscriber";
 import { initialiseCmsSessionHint } from "./services/state/cms-session/initialise-cms-session-hint";
 import { initialiseHandover } from "./services/state/handover/intialise-handover";
-import { initialiseInterimDcfNavigation } from "./services/outsystems-shim/initialise-interim-dcf-navigation";
 import { initialiseCaseDetailsData } from "./services/data/initialise-case-details-data";
 import { initialiseNavigationSubscription } from "./services/browser/navigation/initialise-navigation-subscription";
 import { initialiseCorrelationIds } from "./services/correlation/initialise-correlation-ids";
@@ -19,6 +18,7 @@ import { initialisePreview } from "./services/state/preview/initialise-preview";
 import { initialiseRecentCases } from "./services/state/recent-cases/initialise-recent-cases";
 import { footerSubscriber } from "./services/browser/dom/footer-subscriber";
 import { accessibilitySubscriber } from "./services/browser/accessibility/accessibility-subscriber";
+import { initialiseSettings } from "./services/state/settings/initialise-settings";
 
 const { _error } = makeConsole("global-script");
 
@@ -60,22 +60,21 @@ const startupPhase = async ({ window, storeFns: { register, mergeTags, readyStat
   const build = window.cps_global_components_build;
   register({ build });
 
-  const interimDcfNavigationObserver = initialiseInterimDcfNavigation({ window });
-
   const rootUrl = initialiseRootUrl();
   register({ rootUrl });
 
   const flags = getApplicationFlags({ window });
   register({ flags });
 
-  const [cmsSessionHint, { handover, setNextHandover }, preview] = await Promise.all([
+  const [cmsSessionHint, { handover, setNextHandover }, preview, settings] = await Promise.all([
     initialiseCmsSessionHint({ rootUrl }),
     initialiseHandover({ rootUrl }),
     initialisePreview({ rootUrl }),
+    initialiseSettings({ rootUrl }),
   ]);
   register({ cmsSessionHint, handover, preview });
 
-  const { recentCases, setNextRecentCases } = await initialiseRecentCases({ rootUrl, preview });
+  const { recentCases, setNextRecentCases } = await initialiseRecentCases({ rootUrl, preview, flags });
   register({ recentCases });
 
   const config = await initialiseConfig({ rootUrl, flags, preview });
@@ -87,9 +86,8 @@ const startupPhase = async ({ window, storeFns: { register, mergeTags, readyStat
   const { trackPageView, trackEvent, trackException } = initialiseAnalytics({ window, config, readyState, build, cmsSessionHint, flags });
 
   const { initialiseDomForContext } = initialiseDomObservation(
-    { window, register, mergeTags, preview },
+    { window, register, mergeTags, preview, settings },
     domTagMutationSubscriber,
-    interimDcfNavigationObserver,
     footerSubscriber,
     accessibilitySubscriber,
     ...outSystemsShimSubscribers,

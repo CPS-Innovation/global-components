@@ -1,8 +1,8 @@
 import { DomMutationObserver } from "../dom/DomMutationObserver";
 
 const COLOUR_MAP: Record<string, string> = {
-  "#ffffff": "#f7f6f6", // white → light grey
-  //"#f3f2f1": "#b1b4b6", // light grey → mid grey
+  "#ffffff": "#f3f2f1", // white → light grey (#f7f6f6 is not as much of a shift)
+  "#f3f2f1": "#b1b4b6", // light grey → mid grey
 };
 
 const rgbToHex = (rgb: string): string => {
@@ -25,7 +25,7 @@ const processElement = (element: HTMLElement) => {
   }
 };
 
-export const accessibilitySubscriber: DomMutationObserver = ({ preview, window }) => {
+export const accessibilitySubscriber: DomMutationObserver = ({ preview, window, settings }) => {
   const { document } = window;
 
   // WeakSet so no memory leaks if e.g. we are on a SPA and there are multiple route
@@ -49,7 +49,7 @@ export const accessibilitySubscriber: DomMutationObserver = ({ preview, window }
   };
 
   return {
-    isActiveForContext: !!preview.result?.accessibility && !!COLOUR_MAP["#ffffff"],
+    isActiveForContext: !!preview.result?.accessibility && !!settings.result?.accessibilityBackground && !!COLOUR_MAP["#ffffff"],
     subscriptions: [
       // Top-level CSS approach for document background
       {

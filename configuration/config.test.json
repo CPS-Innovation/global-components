@@ -12,7 +12,7 @@
   "OS_HANDOVER_URL": "https://cps-tst.outsystemsenterprise.com/Casework_Patterns/auth-handover-test.html",
   "COOKIE_HANDOVER_URL": "https://polaris-qa-notprod.cps.gov.uk/polaris",
   "TOKEN_HANDOVER_URL": "https://polaris-qa-notprod.cps.gov.uk/auth-refresh-cms-modern-token",
-  "RECENT_CASES_NAVIGATE_URL": "https://cps-tst.outsystemsenterprise.com/WorkManagementApp/CaseOverview?CaseId={caseId}&URN={urn}",
+  "RECENT_CASES_NAVIGATE_URL": "https://cps-tst.outsystemsenterprise.com/WorkManagementApp/CaseOverview?CaseId={caseId}",
   "FEATURE_FLAG_MENU_USERS": {
     "generallyAvailable": true
   },
@@ -39,20 +39,14 @@
         },
         {
           "path": "https://cps-tst.outsystemsenterprise.com/CaseReview.*?[&?](?:CMS)?CaseId=(?<caseId>\\d+)",
-          "contextIds": "case review",
-          "domTagDefinitions": [
-            {
-              "cssSelector": "div#URN_Container",
-              "regex": "<span[^>]*>(?<urn>.*?)</span>"
-            }
-          ]
+          "contextIds": "case review"
         },
         {
           "path": "https://cps-tst.outsystemsenterprise.com/CaseReview/",
           "contextIds": "cases"
         },
         {
-          "path": "https://cps-tst.outsystemsenterprise.com/WorkManagementApp.*?(?=.*[&?]CaseId=(?<caseId>\\d+))(?=.*[&?](?:Case)?URN=(?<urn>[^&]+))",
+          "path": "https://cps-tst.outsystemsenterprise.com/WorkManagementApp.*[&?]CaseId=(?<caseId>\\d+)",
           "contextIds": "case details",
           "applyShim": "force-global-menu"
         },
@@ -98,10 +92,6 @@
             {
               "cssSelector": "a[href*='/polaris-ui/case-details/']",
               "regex": "/polaris-ui/case-details/.*/(?<caseId>\\d+)\""
-            },
-            {
-              "cssSelector": "div.case-info-details p",
-              "regex": ">(?<urn>[^<]+)"
             }
           ]
         }
@@ -142,7 +132,7 @@
     {
       "label": "Details",
       "level": 1,
-      "href": "https://cps-tst.outsystemsenterprise.com/WorkManagementApp/CaseOverview?CaseId={caseId}&URN={urn}",
+      "href": "https://cps-tst.outsystemsenterprise.com/WorkManagementApp/CaseOverview?CaseId={caseId}",
       "visibleContexts": "case",
       "activeContexts": "details"
     },
