@@ -62,12 +62,3 @@ jobs:
               --source "./apps/harness-html/_site" \
               --connection-string "${{ secrets.BLOB_STORAGE_CONNECTION_STRING }}"
 
-            az storage blob delete-batch \
-                --source '$web' \
-                --pattern "${{ inputs.environment }}/spa/*" \
-                --connection-string "${{ secrets.BLOB_STORAGE_CONNECTION_STRING }}"
-
-            az storage blob upload-batch \
-              --destination "\$web/${{ inputs.environment }}/spa" \
-              --source "./apps/harness-spa/dist" \
-              --connection-string "${{ secrets.BLOB_STORAGE_CONNECTION_STRING }}"
