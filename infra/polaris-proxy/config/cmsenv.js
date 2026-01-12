@@ -42,6 +42,9 @@ const _replaceCmsDomains = (hostVariableName) => (r, data, flags) => {
     "UpstreamCmsModernIpFarnborough",
   ]
     .map((suffix) =>
+      // FCT2-13548: Not sure about this. The logic for a long time has been to
+      // strip -=./ chars from the incoming variables. There have not been any
+      // problems so far so keeping this in place.
       _applyGlobalReplacements(r.variables[_getCmsEnv(r) + suffix], [
         ["[-=./]", ""],
       ])
@@ -63,15 +66,60 @@ const _addAppButtons = (data) =>
     ],
   ]);
 
-const devLoginEnvCookie = (r) =>
-  r.headersOut["Set-Cookie"].push(
-    "__CMSENV=" + _getCmsEnv(r, "out") + "; path=/"
+const _appendEnvCookies = (r, env) => {
+  let cookies = env
+    ? [`__CMSENV=${env === "cin3" ? "default" : env}; path=/`]
+    : ["__CMSENV=deleted; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT"];
+
+  ["cin2", "cin3", "cin4", "cin5"]
+    .filter((e) => e !== env)
+    .forEach((e) => {
+      cookies = cookies.concat(
+        ["CPSACP", "CPSAFP"].map(
+          (lb) =>
+            `BIGipServer~ent-s221~${lb}-LTM-CM-WAN-${e.toUpperCase()}-${e}.cps.gov.uk_POOL=deleted; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT`
+        )
+      );
+    });
+
+  r.headersOut["Set-Cookie"] = (r.headersOut["Set-Cookie"] || []).concat(
+    cookies
+  );
+};
+
+const devLoginCookieHandler = (r) =>
+  _appendEnvCookies(
+    r,
+    r.variables.request_method === "POST" ? _getCmsEnv(r, "out") : undefined
   );
 
-function cmsMenuBarFilters(r, data, flags) {
+const cmsMenuBarFilters = (r, data, flags) => {
   data = _addAppButtons(data);
   _replaceCmsDomains("host")(r, data, flags);
-}
+};
+
+const switchEnvironment = (r) => {
+  const ua = r.headersIn["User-Agent"] || "";
+  const isIE = /Trident/i.test(ua);
+  const configHeader = r.headersIn["X-InternetExplorerModeConfigurable"];
+  const isConfigurable = configHeader === "1";
+
+  // IE mode check - non-IE without configurable header returns 402
+  if (!isIE && !isConfigurable) {
+    r.return(402, "requires Internet Explorer mode");
+    return;
+  }
+  // Non-IE with configurable header - redirect to trigger IE mode
+  if (!isIE && isConfigurable) {
+    r.headersOut["X-InternetExplorerMode"] = "1";
+    r.return(302, r.variables.websiteScheme + "://" + r.headersIn.Host + r.uri);
+    return;
+  }
+
+  // Extract environment from URI (e.g., /cin2 -> cin2)
+  _appendEnvCookies(r, r.uri.substring(1));
+  r.return(302, r.variables.websiteScheme + "://" + r.headersIn.Host + "/CMS");
+};
 
 export default {
   proxyDestinationCorsham: _getProxyDestination("UpstreamCmsIpCorsham"),
@@ -110,6 +158,7 @@ export default {
   replaceCmsDomains: _replaceCmsDomains("host"),
   replaceCmsDomainsAjaxViewer: _replaceCmsDomains("websiteHostname"),
   cmsMenuBarFilters,
-  devLoginEnvCookie,
+  devLoginCookieHandler,
   getDomainFromCookie: _getDomainFromCookie,
+  switchEnvironment,
 };
