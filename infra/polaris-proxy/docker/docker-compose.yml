@@ -1,0 +1,31 @@
+# Docker Compose for polaris-proxy local testing
+#
+# Usage:
+#   docker-compose up --build
+
+services:
+  nginx:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.base
+    ports:
+      - "8080:80"
+    env_file:
+      - polaris-proxy.mock.env
+    environment:
+      - NGINX_ENVSUBST_OUTPUT_DIR=/etc/nginx
+    volumes:
+      # Mount config files directly for live editing (add .template suffix for nginx envsubst)
+      - ../config/nginx.conf:/etc/nginx/templates/nginx.conf.template:ro
+      - ../config/nginx.js:/etc/nginx/templates/nginx.js:ro
+      - ../config/cmsenv.js:/etc/nginx/templates/cmsenv.js:ro
+      - ../config/polaris-script.js:/etc/nginx/templates/polaris-script.js:ro
+    depends_on:
+      - mock-upstream
+
+  mock-upstream:
+    build:
+      context: .
+      dockerfile: Dockerfile.mock
+    ports:
+      - "3000:3000"
