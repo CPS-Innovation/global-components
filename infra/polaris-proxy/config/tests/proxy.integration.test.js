@@ -93,6 +93,86 @@ async function runTests() {
     assertIncludes(setCookie, "__CMSENV=cin2", "Should set cin2 environment cookie")
   })
 
+  // ============================================================
+  // Dev-login route tests
+  // ============================================================
+
+  await test("GET /dev-login/ clears __CMSENV cookie", async () => {
+    const response = await fetchResponse(`${PROXY_BASE}/dev-login/`)
+    assertEqual(response.status, 200, "dev-login GET should return 200")
+    const setCookie = response.headers.get("set-cookie")
+    assert(setCookie, "Should have Set-Cookie header")
+    assertIncludes(setCookie, "__CMSENV=deleted", "Should clear __CMSENV cookie")
+  })
+
+  await test("GET /dev-login/ clears BIG-IP cookies", async () => {
+    const response = await fetchResponse(`${PROXY_BASE}/dev-login/`)
+    const setCookie = response.headers.get("set-cookie")
+    assertIncludes(setCookie, "BIGipServer", "Should have BIG-IP cookie deletions")
+    assertIncludes(setCookie, "expires=Thu, 01 Jan 1970", "BIG-IP cookies should be expired")
+  })
+
+  await test("POST /dev-login/ with selected-environment=cin2 sets __CMSENV=cin2", async () => {
+    const response = await fetchResponse(`${PROXY_BASE}/dev-login/`, {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: "selected-environment=cin2",
+    })
+    assertEqual(response.status, 200, "dev-login POST should return 200")
+    const setCookie = response.headers.get("set-cookie")
+    assert(setCookie, "Should have Set-Cookie header")
+    assertIncludes(setCookie, "__CMSENV=cin2", "Should set cin2 environment cookie")
+  })
+
+  await test("POST /dev-login/ with selected-environment=cin5 sets __CMSENV=cin5", async () => {
+    const response = await fetchResponse(`${PROXY_BASE}/dev-login/`, {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: "selected-environment=cin5",
+    })
+    const setCookie = response.headers.get("set-cookie")
+    assertIncludes(setCookie, "__CMSENV=cin5", "Should set cin5 environment cookie")
+  })
+
+  await test("POST /dev-login/ with selected-environment=cin3 sets __CMSENV=default", async () => {
+    const response = await fetchResponse(`${PROXY_BASE}/dev-login/`, {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: "selected-environment=cin3",
+    })
+    const setCookie = response.headers.get("set-cookie")
+    assertIncludes(setCookie, "__CMSENV=default", "cin3 should map to __CMSENV=default")
+  })
+
+  await test("POST /dev-login/ without selected-environment clears cookies", async () => {
+    const response = await fetchResponse(`${PROXY_BASE}/dev-login/`, {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: "username=test&password=test",
+    })
+    const setCookie = response.headers.get("set-cookie")
+    assertIncludes(setCookie, "__CMSENV=deleted", "Should clear __CMSENV when no env selected")
+  })
+
+  // Full-cookie endpoint tests
+  await test("GET /api/dev-login-full-cookie/ clears cookies", async () => {
+    const response = await fetchResponse(`${PROXY_BASE}/api/dev-login-full-cookie/`)
+    assertEqual(response.status, 200, "dev-login-full-cookie GET should return 200")
+    const setCookie = response.headers.get("set-cookie")
+    assert(setCookie, "Should have Set-Cookie header")
+    assertIncludes(setCookie, "__CMSENV=deleted", "Should clear __CMSENV cookie")
+  })
+
+  await test("POST /api/dev-login-full-cookie/ with selected-environment=cin4 sets __CMSENV=cin4", async () => {
+    const response = await fetchResponse(`${PROXY_BASE}/api/dev-login-full-cookie/`, {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: "selected-environment=cin4",
+    })
+    const setCookie = response.headers.get("set-cookie")
+    assertIncludes(setCookie, "__CMSENV=cin4", "Should set cin4 environment cookie")
+  })
+
   // Print summary
   const state = getState()
   console.log("")
