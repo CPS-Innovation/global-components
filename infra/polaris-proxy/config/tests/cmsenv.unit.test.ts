@@ -50,15 +50,6 @@ interface MockRequestOptions {
 const IE_USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Trident/7.0; rv:11.0)"
 
 interface CmsEnvModule {
-  getDomainFromCookie(r: MockRequest): string
-  proxyDestinationCorsham(r: MockRequest): string
-  proxyDestinationCorshamInternal(r: MockRequest): string
-  proxyDestinationModernCorsham(r: MockRequest): string
-  proxyDestinationModernCorshamInternal(r: MockRequest): string
-  proxyDestinationFarnborough(r: MockRequest): string
-  proxyDestinationFarnboroughInternal(r: MockRequest): string
-  proxyDestinationModernFarnborough(r: MockRequest): string
-  proxyDestinationModernFarnboroughInternal(r: MockRequest): string
   upstreamCmsDomainName(r: MockRequest): string
   upstreamCmsModernDomainName(r: MockRequest): string
   upstreamCmsServicesDomainName(r: MockRequest): string
@@ -76,7 +67,6 @@ interface CmsEnvModule {
 // Standard mock variables for all CMS environments
 function createMockVariables(overrides: Record<string, string> = {}): Record<string, string> {
   return {
-    endpointHttpProtocol: "https",
     websiteScheme: "https",
     host: "polaris.cps.gov.uk",
     websiteHostname: "polaris.cps.gov.uk",
@@ -196,42 +186,9 @@ async function runTests(): Promise<void> {
   console.log("=".repeat(60))
 
   // ============================================================
-  // getDomainFromCookie tests
+  // Environment detection tests (via upstreamCmsIpCorsham)
   // ============================================================
-  console.log("\ngetDomainFromCookie:")
-
-  await test("extracts domain from simple cookie", async () => {
-    const r = createMockRequest({
-      headersIn: { Cookie: "session=abc; domain=cin3.cps.gov.uk" },
-    })
-    assertEqual(cmsenv.getDomainFromCookie(r), "cin3.cps.gov.uk", "Should extract domain")
-  })
-
-  await test("extracts first matching domain from cookie", async () => {
-    const r = createMockRequest({
-      headersIn: { Cookie: "BIGip=cin2.cps.gov.uk; other=value" },
-    })
-    assertEqual(cmsenv.getDomainFromCookie(r), "cin2.cps.gov.uk", "Should extract first domain")
-  })
-
-  await test("handles cin4 domain", async () => {
-    const r = createMockRequest({
-      headersIn: { Cookie: "env=cin4.cps.gov.uk" },
-    })
-    assertEqual(cmsenv.getDomainFromCookie(r), "cin4.cps.gov.uk", "Should extract cin4 domain")
-  })
-
-  await test("handles cin5 domain", async () => {
-    const r = createMockRequest({
-      headersIn: { Cookie: "env=cin5.cps.gov.uk" },
-    })
-    assertEqual(cmsenv.getDomainFromCookie(r), "cin5.cps.gov.uk", "Should extract cin5 domain")
-  })
-
-  // ============================================================
-  // Environment detection tests (via proxyDestinationCorsham)
-  // ============================================================
-  console.log("\nEnvironment detection (via proxy destinations):")
+  console.log("\nEnvironment detection (via upstream IPs):")
 
   await test("defaults to 'default' environment when no cookie", async () => {
     const r = createMockRequest({
@@ -239,8 +196,8 @@ async function runTests(): Promise<void> {
       variables: createMockVariables(),
     })
     assertEqual(
-      cmsenv.proxyDestinationCorsham(r),
-      "https://10.0.0.1",
+      cmsenv.upstreamCmsIpCorsham(r),
+      "10.0.0.1",
       "Should use default environment IP"
     )
   })
@@ -251,8 +208,8 @@ async function runTests(): Promise<void> {
       variables: createMockVariables(),
     })
     assertEqual(
-      cmsenv.proxyDestinationCorsham(r),
-      "https://10.2.0.1",
+      cmsenv.upstreamCmsIpCorsham(r),
+      "10.2.0.1",
       "Should use cin2 environment IP"
     )
   })
@@ -263,8 +220,8 @@ async function runTests(): Promise<void> {
       variables: createMockVariables(),
     })
     assertEqual(
-      cmsenv.proxyDestinationCorsham(r),
-      "https://10.0.0.1",
+      cmsenv.upstreamCmsIpCorsham(r),
+      "10.0.0.1",
       "cin3 should map to default environment"
     )
   })
@@ -275,8 +232,8 @@ async function runTests(): Promise<void> {
       variables: createMockVariables(),
     })
     assertEqual(
-      cmsenv.proxyDestinationCorsham(r),
-      "https://10.4.0.1",
+      cmsenv.upstreamCmsIpCorsham(r),
+      "10.4.0.1",
       "Should use cin4 environment IP"
     )
   })
@@ -287,8 +244,8 @@ async function runTests(): Promise<void> {
       variables: createMockVariables(),
     })
     assertEqual(
-      cmsenv.proxyDestinationCorsham(r),
-      "https://10.5.0.1",
+      cmsenv.upstreamCmsIpCorsham(r),
+      "10.5.0.1",
       "Should use cin5 environment IP"
     )
   })
@@ -300,8 +257,8 @@ async function runTests(): Promise<void> {
     })
     // cin3 is checked first and returns "default"
     assertEqual(
-      cmsenv.proxyDestinationCorsham(r),
-      "https://10.0.0.1",
+      cmsenv.upstreamCmsIpCorsham(r),
+      "10.0.0.1",
       "cin3 should take precedence"
     )
   })
@@ -312,66 +269,9 @@ async function runTests(): Promise<void> {
       variables: createMockVariables(),
     })
     assertEqual(
-      cmsenv.proxyDestinationCorsham(r),
-      "https://10.2.0.1",
+      cmsenv.upstreamCmsIpCorsham(r),
+      "10.2.0.1",
       "cin2 should be detected"
-    )
-  })
-
-  // ============================================================
-  // Proxy destination tests
-  // ============================================================
-  console.log("\nProxy destinations:")
-
-  await test("proxyDestinationCorsham returns correct URL", async () => {
-    const r = createMockRequest({ variables: createMockVariables() })
-    assertEqual(cmsenv.proxyDestinationCorsham(r), "https://10.0.0.1", "Should build correct URL")
-  })
-
-  await test("proxyDestinationCorshamInternal returns same as proxyDestinationCorsham", async () => {
-    const r = createMockRequest({ variables: createMockVariables() })
-    assertEqual(
-      cmsenv.proxyDestinationCorshamInternal(r),
-      cmsenv.proxyDestinationCorsham(r),
-      "Internal should match regular"
-    )
-  })
-
-  await test("proxyDestinationModernCorsham returns modern IP", async () => {
-    const r = createMockRequest({ variables: createMockVariables() })
-    assertEqual(
-      cmsenv.proxyDestinationModernCorsham(r),
-      "https://10.0.0.2",
-      "Should use modern IP"
-    )
-  })
-
-  await test("proxyDestinationFarnborough returns Farnborough IP", async () => {
-    const r = createMockRequest({ variables: createMockVariables() })
-    assertEqual(
-      cmsenv.proxyDestinationFarnborough(r),
-      "https://10.0.1.1",
-      "Should use Farnborough IP"
-    )
-  })
-
-  await test("proxyDestinationModernFarnborough returns modern Farnborough IP", async () => {
-    const r = createMockRequest({ variables: createMockVariables() })
-    assertEqual(
-      cmsenv.proxyDestinationModernFarnborough(r),
-      "https://10.0.1.2",
-      "Should use modern Farnborough IP"
-    )
-  })
-
-  await test("uses http protocol when configured", async () => {
-    const r = createMockRequest({
-      variables: createMockVariables({ endpointHttpProtocol: "http" }),
-    })
-    assertEqual(
-      cmsenv.proxyDestinationCorsham(r),
-      "http://10.0.0.1",
-      "Should use http protocol"
     )
   })
 
@@ -723,91 +623,6 @@ async function runTests(): Promise<void> {
   })
 
   // ============================================================
-  // Additional proxy destination tests (Internal variants)
-  // ============================================================
-  console.log("\nProxy destination Internal variants:")
-
-  await test("proxyDestinationModernCorshamInternal returns same as proxyDestinationModernCorsham", async () => {
-    const r = createMockRequest({ variables: createMockVariables() })
-    assertEqual(
-      cmsenv.proxyDestinationModernCorshamInternal(r),
-      cmsenv.proxyDestinationModernCorsham(r),
-      "ModernCorshamInternal should match ModernCorsham"
-    )
-  })
-
-  await test("proxyDestinationFarnboroughInternal returns same as proxyDestinationFarnborough", async () => {
-    const r = createMockRequest({ variables: createMockVariables() })
-    assertEqual(
-      cmsenv.proxyDestinationFarnboroughInternal(r),
-      cmsenv.proxyDestinationFarnborough(r),
-      "FarnboroughInternal should match Farnborough"
-    )
-  })
-
-  await test("proxyDestinationModernFarnboroughInternal returns same as proxyDestinationModernFarnborough", async () => {
-    const r = createMockRequest({ variables: createMockVariables() })
-    assertEqual(
-      cmsenv.proxyDestinationModernFarnboroughInternal(r),
-      cmsenv.proxyDestinationModernFarnborough(r),
-      "ModernFarnboroughInternal should match ModernFarnborough"
-    )
-  })
-
-  // ============================================================
-  // Farnborough with different environments
-  // ============================================================
-  console.log("\nFarnborough with different environments:")
-
-  await test("proxyDestinationFarnborough uses cin2 IP when cin2 env", async () => {
-    const r = createMockRequest({
-      headersIn: { Cookie: "__CMSENV=cin2" },
-      variables: createMockVariables(),
-    })
-    assertEqual(
-      cmsenv.proxyDestinationFarnborough(r),
-      "https://10.2.1.1",
-      "Should use cin2 Farnborough IP"
-    )
-  })
-
-  await test("proxyDestinationFarnborough uses cin4 IP when cin4 env", async () => {
-    const r = createMockRequest({
-      headersIn: { Cookie: "__CMSENV=cin4" },
-      variables: createMockVariables(),
-    })
-    assertEqual(
-      cmsenv.proxyDestinationFarnborough(r),
-      "https://10.4.1.1",
-      "Should use cin4 Farnborough IP"
-    )
-  })
-
-  await test("proxyDestinationFarnborough uses cin5 IP when cin5 env", async () => {
-    const r = createMockRequest({
-      headersIn: { Cookie: "__CMSENV=cin5" },
-      variables: createMockVariables(),
-    })
-    assertEqual(
-      cmsenv.proxyDestinationFarnborough(r),
-      "https://10.5.1.1",
-      "Should use cin5 Farnborough IP"
-    )
-  })
-
-  await test("proxyDestinationModernFarnborough uses cin2 IP when cin2 env", async () => {
-    const r = createMockRequest({
-      headersIn: { Cookie: "__CMSENV=cin2" },
-      variables: createMockVariables(),
-    })
-    assertEqual(
-      cmsenv.proxyDestinationModernFarnborough(r),
-      "https://10.2.1.2",
-      "Should use cin2 modern Farnborough IP"
-    )
-  })
-
-  // ============================================================
   // Domain replacement transformation tests
   // ============================================================
   console.log("\nDomain replacement transformation:")
@@ -999,8 +814,8 @@ async function runTests(): Promise<void> {
     })
     // Should default to "default" environment without throwing
     assertEqual(
-      cmsenv.proxyDestinationCorsham(r),
-      "https://10.0.0.1",
+      cmsenv.upstreamCmsIpCorsham(r),
+      "10.0.0.1",
       "Should handle empty cookie"
     )
   })
@@ -1011,8 +826,8 @@ async function runTests(): Promise<void> {
       variables: createMockVariables(),
     })
     assertEqual(
-      cmsenv.proxyDestinationCorsham(r),
-      "https://10.0.0.1",
+      cmsenv.upstreamCmsIpCorsham(r),
+      "10.0.0.1",
       "Should handle missing cookie"
     )
   })
@@ -1024,8 +839,8 @@ async function runTests(): Promise<void> {
     })
     // Should NOT match cin2 (lowercase check)
     assertEqual(
-      cmsenv.proxyDestinationCorsham(r),
-      "https://10.0.0.1",
+      cmsenv.upstreamCmsIpCorsham(r),
+      "10.0.0.1",
       "Should be case-sensitive (default)"
     )
   })
