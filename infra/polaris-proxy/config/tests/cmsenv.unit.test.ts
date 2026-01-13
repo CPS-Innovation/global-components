@@ -26,6 +26,7 @@ interface MockRequest {
   headersIn: Record<string, string>
   headersOut: Record<string, string | string[]>
   variables: Record<string, string>
+  requestText: string
   returnCode: number | null
   returnBody: string | null
   sentBuffer: string | null
@@ -42,6 +43,7 @@ interface MockRequestOptions {
   headersIn?: Record<string, string>
   headersOut?: Record<string, string | string[]>
   variables?: Record<string, string>
+  requestText?: string
 }
 
 // IE User-Agent for convenience
@@ -67,7 +69,7 @@ interface CmsEnvModule {
   replaceCmsDomains(r: MockRequest, data: string, flags: Record<string, unknown>): void
   replaceCmsDomainsAjaxViewer(r: MockRequest, data: string, flags: Record<string, unknown>): void
   cmsMenuBarFilters(r: MockRequest, data: string, flags: Record<string, unknown>): void
-  devLoginCookieHandler(r: MockRequest): void
+  switchEnvironmentDevLogin(r: MockRequest): void
   switchEnvironment(r: MockRequest): void
 }
 
@@ -173,6 +175,7 @@ async function runTests(): Promise<void> {
       headersIn: options.headersIn || {},
       headersOut: options.headersOut || {},
       variables: options.variables || createMockVariables(),
+      requestText: options.requestText || "",
       returnCode: null,
       returnBody: null,
       sentBuffer: null,
@@ -553,16 +556,16 @@ async function runTests(): Promise<void> {
   })
 
   // ============================================================
-  // devLoginCookieHandler tests
+  // switchEnvironmentDevLogin tests
   // ============================================================
-  console.log("\ndevLoginCookieHandler:")
+  console.log("\nswitchEnvironmentDevLogin:")
 
-  await test("devLoginCookieHandler clears __CMSENV and all BIG-IP cookies on GET", async () => {
+  await test("switchEnvironmentDevLogin clears __CMSENV and all BIG-IP cookies on GET", async () => {
     const r = createMockRequest({
       headersOut: { "Set-Cookie": [] },
       variables: createMockVariables({ request_method: "GET" }),
     })
-    cmsenv.devLoginCookieHandler(r)
+    cmsenv.switchEnvironmentDevLogin(r)
     const cookies = r.headersOut["Set-Cookie"] as string[]
     // Should have 9 cookies: 1 __CMSENV + 8 BIG-IP (2 per env for cin2,cin3,cin4,cin5)
     assertEqual(cookies.length, 9, "Should have 9 cookies (1 __CMSENV + 8 BIG-IP)")
@@ -573,12 +576,12 @@ async function runTests(): Promise<void> {
     )
   })
 
-  await test("devLoginCookieHandler clears all 4 environment BIG-IP cookies on GET", async () => {
+  await test("switchEnvironmentDevLogin clears all 4 environment BIG-IP cookies on GET", async () => {
     const r = createMockRequest({
       headersOut: { "Set-Cookie": [] },
       variables: createMockVariables({ request_method: "GET" }),
     })
-    cmsenv.devLoginCookieHandler(r)
+    cmsenv.switchEnvironmentDevLogin(r)
     const cookies = r.headersOut["Set-Cookie"] as string[]
     // Check for all environments
     const cin2Cookies = cookies.filter((c) => c.includes("CIN2"))
@@ -591,12 +594,12 @@ async function runTests(): Promise<void> {
     assertEqual(cin5Cookies.length, 2, "Should have 2 cin5 BIG-IP cookies")
   })
 
-  await test("devLoginCookieHandler BIG-IP cookies have deletion expiry on GET", async () => {
+  await test("switchEnvironmentDevLogin BIG-IP cookies have deletion expiry on GET", async () => {
     const r = createMockRequest({
       headersOut: { "Set-Cookie": [] },
       variables: createMockVariables({ request_method: "GET" }),
     })
-    cmsenv.devLoginCookieHandler(r)
+    cmsenv.switchEnvironmentDevLogin(r)
     const cookies = r.headersOut["Set-Cookie"] as string[]
     const bigIpCookies = cookies.filter((c) => c.includes("BIGipServer"))
     bigIpCookies.forEach((cookie) => {
@@ -605,28 +608,30 @@ async function runTests(): Promise<void> {
     })
   })
 
-  await test("devLoginCookieHandler adds __CMSENV and clears BIG-IP on POST for default env", async () => {
+  await test("switchEnvironmentDevLogin sets __CMSENV from form data on POST", async () => {
     const r = createMockRequest({
       headersOut: { "Set-Cookie": ["session=abc"] },
       variables: createMockVariables({ request_method: "POST" }),
+      requestText: "selected-environment=cin4",
     })
-    cmsenv.devLoginCookieHandler(r)
+    cmsenv.switchEnvironmentDevLogin(r)
     const cookies = r.headersOut["Set-Cookie"] as string[]
-    // Should have 10 cookies: 1 original + 1 __CMSENV + 8 BIG-IP deletions
-    assertEqual(cookies.length, 10, "Should have 10 cookies (1 original + 1 env + 8 BIG-IP)")
+    // Should have 8 cookies: 1 original + 1 __CMSENV + 6 BIG-IP (excludes cin4)
+    assertEqual(cookies.length, 8, "Should have 8 cookies (1 original + 1 env + 6 BIG-IP)")
     assertEqual(cookies[0], "session=abc", "First cookie should be original")
-    assertEqual(cookies[1], "__CMSENV=default; path=/", "Second cookie should be __CMSENV")
-    // Verify BIG-IP cookies are cleared
-    const bigIpCookies = cookies.filter((c) => c.includes("BIGipServer"))
-    assertEqual(bigIpCookies.length, 8, "Should have 8 BIG-IP deletion cookies")
+    assertEqual(cookies[1], "__CMSENV=cin4; path=/", "Second cookie should be __CMSENV=cin4")
+    // Should NOT have cin4 BIG-IP cookies
+    const cin4Cookies = cookies.filter((c) => c.includes("CIN4"))
+    assertEqual(cin4Cookies.length, 0, "Should not clear active env BIG-IP cookies")
   })
 
-  await test("devLoginCookieHandler adds __CMSENV and clears non-active BIG-IP on POST for cin2 env", async () => {
+  await test("switchEnvironmentDevLogin sets __CMSENV=cin2 from form data on POST", async () => {
     const r = createMockRequest({
-      headersOut: { "Set-Cookie": ["domain=cin2.cps.gov.uk"] },
+      headersOut: { "Set-Cookie": ["session=abc"] },
       variables: createMockVariables({ request_method: "POST" }),
+      requestText: "selected-environment=cin2",
     })
-    cmsenv.devLoginCookieHandler(r)
+    cmsenv.switchEnvironmentDevLogin(r)
     const cookies = r.headersOut["Set-Cookie"] as string[]
     // Should have 8 cookies: 1 original + 1 __CMSENV + 6 BIG-IP (excludes cin2)
     assertEqual(cookies.length, 8, "Should have 8 cookies (1 original + 1 env + 6 BIG-IP)")
@@ -636,27 +641,65 @@ async function runTests(): Promise<void> {
     assertEqual(cin2Cookies.length, 0, "Should not clear active env BIG-IP cookies")
   })
 
-  await test("devLoginCookieHandler adds __CMSENV and clears non-active BIG-IP on POST for cin4 env", async () => {
+  await test("switchEnvironmentDevLogin sets __CMSENV=default for cin3 from form data", async () => {
     const r = createMockRequest({
-      headersOut: { "Set-Cookie": ["domain=cin4.cps.gov.uk"] },
+      headersOut: { "Set-Cookie": ["session=abc"] },
       variables: createMockVariables({ request_method: "POST" }),
+      requestText: "selected-environment=cin3",
     })
-    cmsenv.devLoginCookieHandler(r)
+    cmsenv.switchEnvironmentDevLogin(r)
     const cookies = r.headersOut["Set-Cookie"] as string[]
-    // Should have 8 cookies: 1 original + 1 __CMSENV + 6 BIG-IP (excludes cin4)
-    assertEqual(cookies.length, 8, "Should have 8 cookies (1 original + 1 env + 6 BIG-IP)")
-    assertEqual(cookies[1], "__CMSENV=cin4; path=/", "Should add cin4 env cookie")
-    // Should NOT have cin4 BIG-IP cookies
-    const cin4Cookies = cookies.filter((c) => c.includes("CIN4"))
-    assertEqual(cin4Cookies.length, 0, "Should not clear active env BIG-IP cookies")
+    // cin3 maps to default, so clears cin2, cin4, cin5 (6 BIG-IP cookies)
+    assertEqual(cookies[1], "__CMSENV=default; path=/", "cin3 should map to __CMSENV=default")
   })
 
-  await test("devLoginCookieHandler clears cookies on PUT", async () => {
+  await test("switchEnvironmentDevLogin sets __CMSENV=cin5 with other form params", async () => {
+    const r = createMockRequest({
+      headersOut: { "Set-Cookie": ["session=abc"] },
+      variables: createMockVariables({ request_method: "POST" }),
+      requestText: "selected-environment=cin5&other=value",
+    })
+    cmsenv.switchEnvironmentDevLogin(r)
+    const cookies = r.headersOut["Set-Cookie"] as string[]
+    assertEqual(cookies[1], "__CMSENV=cin5; path=/", "Should use cin5 from form data")
+  })
+
+  await test("switchEnvironmentDevLogin clears cookies when form data empty on POST", async () => {
+    const r = createMockRequest({
+      headersOut: { "Set-Cookie": ["session=abc"] },
+      variables: createMockVariables({ request_method: "POST" }),
+      requestText: "",
+    })
+    cmsenv.switchEnvironmentDevLogin(r)
+    const cookies = r.headersOut["Set-Cookie"] as string[]
+    assertEqual(
+      cookies[1],
+      "__CMSENV=deleted; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT",
+      "Should clear cookies when no selected-environment"
+    )
+  })
+
+  await test("switchEnvironmentDevLogin clears cookies when selected-environment missing", async () => {
+    const r = createMockRequest({
+      headersOut: { "Set-Cookie": ["session=abc"] },
+      variables: createMockVariables({ request_method: "POST" }),
+      requestText: "other=value&something=else",
+    })
+    cmsenv.switchEnvironmentDevLogin(r)
+    const cookies = r.headersOut["Set-Cookie"] as string[]
+    assertEqual(
+      cookies[1],
+      "__CMSENV=deleted; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT",
+      "Should clear cookies when no selected-environment"
+    )
+  })
+
+  await test("switchEnvironmentDevLogin clears cookies on PUT", async () => {
     const r = createMockRequest({
       headersOut: { "Set-Cookie": ["existing=cookie"] },
       variables: createMockVariables({ request_method: "PUT" }),
     })
-    cmsenv.devLoginCookieHandler(r)
+    cmsenv.switchEnvironmentDevLogin(r)
     const cookies = r.headersOut["Set-Cookie"] as string[]
     // Should have 10 cookies: 1 existing + 1 __CMSENV + 8 BIG-IP
     assertEqual(cookies.length, 10, "Should have 10 cookies (1 existing + 1 __CMSENV + 8 BIG-IP)")
@@ -668,12 +711,12 @@ async function runTests(): Promise<void> {
     )
   })
 
-  await test("devLoginCookieHandler clears cookies on DELETE", async () => {
+  await test("switchEnvironmentDevLogin clears cookies on DELETE", async () => {
     const r = createMockRequest({
       headersOut: { "Set-Cookie": ["existing=cookie"] },
       variables: createMockVariables({ request_method: "DELETE" }),
     })
-    cmsenv.devLoginCookieHandler(r)
+    cmsenv.switchEnvironmentDevLogin(r)
     const cookies = r.headersOut["Set-Cookie"] as string[]
     // Should have 10 cookies: 1 existing + 1 __CMSENV + 8 BIG-IP
     assertEqual(cookies.length, 10, "Should have 10 cookies (1 existing + 1 __CMSENV + 8 BIG-IP)")
@@ -875,8 +918,8 @@ async function runTests(): Promise<void> {
 
   // ============================================================
   // switchEnvironment tests
-  // IE mode checks are now handled in nginx.conf, these tests verify
-  // the cookie setting and redirect behavior only
+  // IE mode checks and redirect are handled in nginx.conf
+  // These tests verify only the cookie setting behavior
   // ============================================================
   console.log("\nswitchEnvironment:")
 
@@ -887,7 +930,6 @@ async function runTests(): Promise<void> {
       variables: createMockVariables(),
     })
     cmsenv.switchEnvironment(r)
-    assertEqual(r.returnCode, 302, "Should return 302")
     const cookies = r.headersOut["Set-Cookie"] as string[]
     assertEqual(cookies[0], "__CMSENV=cin2; path=/", "First cookie should be __CMSENV=cin2; path=/")
   })
@@ -943,17 +985,7 @@ async function runTests(): Promise<void> {
     assertEqual(cin3Cookies.length, 2, "Should clear 2 cin3 BIG-IP cookies")
   })
 
-  await test("switchEnvironment redirects to /CMS", async () => {
-    const r = createMockRequest({
-      uri: "/cin4",
-      headersIn: { Host: "polaris.cps.gov.uk" },
-      variables: createMockVariables(),
-    })
-    cmsenv.switchEnvironment(r)
-    assertEqual(r.returnCode, 302, "Should return 302")
-    assertIncludes(r.returnBody || "", "/CMS", "Should redirect to /CMS")
-    assertIncludes(r.returnBody || "", "polaris.cps.gov.uk", "Should include host")
-  })
+  // Note: redirect to /CMS is now handled in nginx.conf, not in JS
 
   // ============================================================
   // Edge cases

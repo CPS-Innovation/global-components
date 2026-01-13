@@ -4,12 +4,20 @@
     source
   );
 
+const _parseFormData = (body) =>
+  (body || "").split("&").reduce((acc, pair) => {
+    const parts = pair.split("=");
+    var key = decodeURIComponent(parts[0] || "");
+    var value = decodeURIComponent(parts[1] || "");
+    acc[key] = value;
+    return acc;
+  }, {});
+
 const _getDomainFromCookie = (r) =>
   (r.headersIn.Cookie || "").match(/([a-z0-9]+)\.cps\.gov\.uk/)[0];
 
-const _getCmsEnv = (r, inOrOut) => {
-  const cookie =
-    inOrOut === "out" ? r.headersOut["Set-Cookie"][0] : r.headersIn.Cookie;
+const _getCmsEnv = (r) => {
+  const cookie = r.headersIn.Cookie;
   if (!cookie || cookie.includes("cin3")) return "default";
   if (cookie.includes("cin2")) return "cin2";
   if (cookie.includes("cin4")) return "cin4";
@@ -21,9 +29,9 @@ const _getUpstreamVariable = (variableSuffix) => (r) =>
   r.variables[_getCmsEnv(r) + variableSuffix];
 
 const _getProxyDestination = (variableSuffix) => (r) =>
-  r.variables.endpointHttpProtocol +
-  "://" +
-  r.variables[_getCmsEnv(r) + variableSuffix];
+  `${r.variables.endpointHttpProtocol}://${_getUpstreamVariable(variableSuffix)(
+    r
+  )}`;
 
 const _replaceCmsDomains = (hostVariableName) => (r, data, flags) => {
   // If a 302 has been issued then there's no point in processing in the response body
@@ -45,7 +53,7 @@ const _replaceCmsDomains = (hostVariableName) => (r, data, flags) => {
       // FCT2-13548: Not sure about this. The logic for a long time has been to
       // strip -=./ chars from the incoming variables. There have not been any
       // problems so far so keeping this in place.
-      _applyGlobalReplacements(r.variables[_getCmsEnv(r) + suffix], [
+      _applyGlobalReplacements(_getUpstreamVariable(suffix)(r), [
         ["[-=./]", ""],
       ])
     )
@@ -66,7 +74,9 @@ const _addAppButtons = (data) =>
     ],
   ]);
 
-const _appendEnvCookies = (r, env) => {
+const _alignCookiesToEnv = (envGetter) => (r) => {
+  const env = envGetter(r);
+
   let cookies = env
     ? [`__CMSENV=${env === "cin3" ? "default" : env}; path=/`]
     : ["__CMSENV=deleted; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT"];
@@ -87,22 +97,9 @@ const _appendEnvCookies = (r, env) => {
   );
 };
 
-const devLoginCookieHandler = (r) =>
-  _appendEnvCookies(
-    r,
-    r.variables.request_method === "POST" ? _getCmsEnv(r, "out") : undefined
-  );
-
 const cmsMenuBarFilters = (r, data, flags) => {
   data = _addAppButtons(data);
   _replaceCmsDomains("host")(r, data, flags);
-};
-
-const switchEnvironment = (r) => {
-  // Extract environment from URI (e.g., /cin2 -> cin2)
-  // IE mode checks are handled in nginx.conf before this is called
-  _appendEnvCookies(r, r.uri.substring(1));
-  r.return(302, r.variables.websiteScheme + "://" + r.headersIn.Host + "/CMS");
 };
 
 export default {
@@ -142,7 +139,10 @@ export default {
   replaceCmsDomains: _replaceCmsDomains("host"),
   replaceCmsDomainsAjaxViewer: _replaceCmsDomains("websiteHostname"),
   cmsMenuBarFilters,
-  devLoginCookieHandler,
   getDomainFromCookie: _getDomainFromCookie,
-  switchEnvironment,
+
+  switchEnvironment: _alignCookiesToEnv((r) => r.uri.substring(1)),
+  switchEnvironmentDevLogin: _alignCookiesToEnv(
+    (r) => _parseFormData(r.requestText)["selected-environment"]
+  ),
 };
