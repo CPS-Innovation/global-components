@@ -875,42 +875,15 @@ async function runTests(): Promise<void> {
 
   // ============================================================
   // switchEnvironment tests
+  // IE mode checks are now handled in nginx.conf, these tests verify
+  // the cookie setting and redirect behavior only
   // ============================================================
   console.log("\nswitchEnvironment:")
-
-  await test("switchEnvironment returns 402 for non-IE without configurable header", async () => {
-    const r = createMockRequest({
-      uri: "/cin2",
-      headersIn: { "User-Agent": "Mozilla/5.0 Chrome", Host: "polaris.cps.gov.uk" },
-      variables: createMockVariables(),
-    })
-    cmsenv.switchEnvironment(r)
-    assertEqual(r.returnCode, 402, "Should return 402")
-    assertIncludes(r.returnBody || "", "Internet Explorer", "Should mention IE in message")
-  })
-
-  await test("switchEnvironment returns 302 with IE mode header for configurable non-IE", async () => {
-    const r = createMockRequest({
-      uri: "/cin2",
-      headersIn: {
-        "User-Agent": "Mozilla/5.0 Chrome",
-        "X-InternetExplorerModeConfigurable": "1",
-        Host: "polaris.cps.gov.uk",
-      },
-      variables: createMockVariables(),
-    })
-    cmsenv.switchEnvironment(r)
-    assertEqual(r.returnCode, 302, "Should return 302 redirect")
-    assertEqual(r.headersOut["X-InternetExplorerMode"], "1", "Should set IE mode header")
-  })
 
   await test("switchEnvironment sets __CMSENV=cin2 for /cin2", async () => {
     const r = createMockRequest({
       uri: "/cin2",
-      headersIn: {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Trident/7.0; rv:11.0)",
-        Host: "polaris.cps.gov.uk",
-      },
+      headersIn: { Host: "polaris.cps.gov.uk" },
       variables: createMockVariables(),
     })
     cmsenv.switchEnvironment(r)
@@ -922,10 +895,7 @@ async function runTests(): Promise<void> {
   await test("switchEnvironment sets __CMSENV=default for /cin3", async () => {
     const r = createMockRequest({
       uri: "/cin3",
-      headersIn: {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Trident/7.0; rv:11.0)",
-        Host: "polaris.cps.gov.uk",
-      },
+      headersIn: { Host: "polaris.cps.gov.uk" },
       variables: createMockVariables(),
     })
     cmsenv.switchEnvironment(r)
@@ -936,10 +906,7 @@ async function runTests(): Promise<void> {
   await test("switchEnvironment sets __CMSENV=cin4 for /cin4", async () => {
     const r = createMockRequest({
       uri: "/cin4",
-      headersIn: {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Trident/7.0; rv:11.0)",
-        Host: "polaris.cps.gov.uk",
-      },
+      headersIn: { Host: "polaris.cps.gov.uk" },
       variables: createMockVariables(),
     })
     cmsenv.switchEnvironment(r)
@@ -950,10 +917,7 @@ async function runTests(): Promise<void> {
   await test("switchEnvironment sets __CMSENV=cin5 for /cin5", async () => {
     const r = createMockRequest({
       uri: "/cin5",
-      headersIn: {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Trident/7.0; rv:11.0)",
-        Host: "polaris.cps.gov.uk",
-      },
+      headersIn: { Host: "polaris.cps.gov.uk" },
       variables: createMockVariables(),
     })
     cmsenv.switchEnvironment(r)
@@ -964,10 +928,7 @@ async function runTests(): Promise<void> {
   await test("switchEnvironment clears other environment BIG-IP cookies", async () => {
     const r = createMockRequest({
       uri: "/cin2",
-      headersIn: {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Trident/7.0; rv:11.0)",
-        Host: "polaris.cps.gov.uk",
-      },
+      headersIn: { Host: "polaris.cps.gov.uk" },
       variables: createMockVariables(),
     })
     cmsenv.switchEnvironment(r)
@@ -985,10 +946,7 @@ async function runTests(): Promise<void> {
   await test("switchEnvironment redirects to /CMS", async () => {
     const r = createMockRequest({
       uri: "/cin4",
-      headersIn: {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Trident/7.0; rv:11.0)",
-        Host: "polaris.cps.gov.uk",
-      },
+      headersIn: { Host: "polaris.cps.gov.uk" },
       variables: createMockVariables(),
     })
     cmsenv.switchEnvironment(r)

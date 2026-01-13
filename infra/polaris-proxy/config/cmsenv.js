@@ -99,24 +99,8 @@ const cmsMenuBarFilters = (r, data, flags) => {
 };
 
 const switchEnvironment = (r) => {
-  const ua = r.headersIn["User-Agent"] || "";
-  const isIE = /Trident/i.test(ua);
-  const configHeader = r.headersIn["X-InternetExplorerModeConfigurable"];
-  const isConfigurable = configHeader === "1";
-
-  // IE mode check - non-IE without configurable header returns 402
-  if (!isIE && !isConfigurable) {
-    r.return(402, "requires Internet Explorer mode");
-    return;
-  }
-  // Non-IE with configurable header - redirect to trigger IE mode
-  if (!isIE && isConfigurable) {
-    r.headersOut["X-InternetExplorerMode"] = "1";
-    r.return(302, r.variables.websiteScheme + "://" + r.headersIn.Host + r.uri);
-    return;
-  }
-
   // Extract environment from URI (e.g., /cin2 -> cin2)
+  // IE mode checks are handled in nginx.conf before this is called
   _appendEnvCookies(r, r.uri.substring(1));
   r.return(302, r.variables.websiteScheme + "://" + r.headersIn.Host + "/CMS");
 };
