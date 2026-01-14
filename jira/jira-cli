@@ -241,11 +241,13 @@ cmd_add() {
     read -r description
     echo ""
 
-    # Get current sprint
+    # Get current sprint via REST API
     echo "Fetching current sprint..."
-    local sprint_json=$(acli jira board list-sprints --id "$JIRA_BOARD_ID" --state active --json 2>/dev/null)
-    local sprint_name=$(echo "$sprint_json" | jq -r '.sprints[] | select(.name | test("Global Navigation"; "i")) | .name' | head -1)
-    local sprint_id=$(echo "$sprint_json" | jq -r '.sprints[] | select(.name | test("Global Navigation"; "i")) | .id' | head -1)
+    local sprint_json=$(curl -s \
+        -H "Authorization: Basic $(echo -n "${JIRA_EMAIL}:${JIRA_TOKEN}" | base64)" \
+        "https://${JIRA_SITE}/rest/agile/1.0/board/${JIRA_BOARD_ID}/sprint?state=active")
+    local sprint_name=$(echo "$sprint_json" | jq -r '.values[] | select(.name | test("Global Navigation"; "i")) | .name' | head -1)
+    local sprint_id=$(echo "$sprint_json" | jq -r '.values[] | select(.name | test("Global Navigation"; "i")) | .id' | head -1)
 
     local add_to_sprint=false
     if [[ -n "$sprint_id" ]]; then
