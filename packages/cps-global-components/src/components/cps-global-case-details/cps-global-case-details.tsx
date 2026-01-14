@@ -29,7 +29,7 @@ export class CpsGlobalCaseDetails {
           <b>{headline}</b>
         </div>
 
-        <div>{urn}</div>
+        <div style={{ marginBottom: "-5px" }}>{urn}</div>
         <div class="scrolling-tags">
           <div class="scrolling-tags-container">
             {/* Let's only show monitoring codes once we have the headline, otherwise 

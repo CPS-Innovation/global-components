@@ -218,7 +218,11 @@ export function App() {
     radioOptions?: RadioOption<string>[]
   ) => {
     // For features with radioOptions, set the first option as default when checked
-    const value = radioOptions ? (checked ? radioOptions[0].value : undefined) : (checked || undefined);
+    const value = radioOptions
+      ? checked
+        ? radioOptions[0].value
+        : undefined
+      : checked || undefined;
     const newState = { ...state, [key]: value };
     // Clear text inputs and sub-options when the feature is unchecked
     if (!checked) {
@@ -355,7 +359,6 @@ export function App() {
         </div>
       )}
 
-
       <form>
         <div className="govuk-form-group">
           <fieldset className="govuk-fieldset">
@@ -373,7 +376,12 @@ export function App() {
                   subOptions,
                   radioOptions,
                 }) => (
-                  <div key={key} className="govuk-checkboxes" data-module="govuk-checkboxes" style={{ marginBottom: "10px" }}>
+                  <div
+                    key={key}
+                    className="govuk-checkboxes"
+                    data-module="govuk-checkboxes"
+                    style={{ marginBottom: "10px" }}
+                  >
                     <div className="govuk-checkboxes__item">
                       <input
                         className="govuk-checkboxes__input"
@@ -409,9 +417,15 @@ export function App() {
                           className="govuk-checkboxes__conditional"
                           style={{ marginTop: "10px", paddingLeft: "15px" }}
                         >
-                          <div className="govuk-radios govuk-radios--small govuk-radios--inline" data-module="govuk-radios">
+                          <div
+                            className="govuk-radios govuk-radios--small govuk-radios--inline"
+                            data-module="govuk-radios"
+                          >
                             {radioOptions.map((option) => (
-                              <div key={option.value} className="govuk-radios__item">
+                              <div
+                                key={option.value}
+                                className="govuk-radios__item"
+                              >
                                 <input
                                   className="govuk-radios__input"
                                   id={`${key}-${option.value}`}
@@ -420,7 +434,9 @@ export function App() {
                                   value={option.value}
                                   checked={state[key] === option.value}
                                   disabled={loading || disabled}
-                                  onChange={() => handleRadioChange(key, option.value)}
+                                  onChange={() =>
+                                    handleRadioChange(key, option.value)
+                                  }
                                 />
                                 <label
                                   className="govuk-label govuk-radios__label"
@@ -458,7 +474,10 @@ export function App() {
                                 value={String(state[input.key] ?? "")}
                                 disabled={loading || disabled}
                                 onChange={(e) =>
-                                  handleTextInputChange(input.key, e.target.value)
+                                  handleTextInputChange(
+                                    input.key,
+                                    e.target.value
+                                  )
                                 }
                               />
                             </div>
