@@ -179,10 +179,17 @@ cmd_add() {
 
     # Fetch features for parent selection
     echo "Fetching features..."
-    local jql='project = FCT2 AND type = Feature and status != Done and "fct workstream[dropdown]" = "Global Navigation" ORDER BY Rank ASC, priority DESC'
-    local features_json=$(acli jira workitem search --jql "$jql" --json 2>/dev/null)
+    local jql='project = FCT2 AND type = Feature AND status not in (Done) AND cf[10154] = "Global Navigation" ORDER BY Rank ASC, priority DESC'
+    local payload=$(jq -n --arg jql "$jql" '{jql: $jql, maxResults: 100, fields: ["key", "summary"]}')
 
-    if [[ -z "$features_json" ]]; then
+    # Use REST API directly (acli uses deprecated endpoint)
+    local features_json=$(curl -s -X POST \
+        -H "Authorization: Basic $(echo -n "${JIRA_EMAIL}:${JIRA_TOKEN}" | base64)" \
+        -H "Content-Type: application/json" \
+        -d "$payload" \
+        "https://${JIRA_SITE}/rest/api/3/search/jql" | jq '[.issues[] | {key: .key, fields: .fields}]')
+
+    if [[ -z "$features_json" || "$features_json" == "[]" || "$features_json" == "null" ]]; then
         echo "Error: Failed to fetch features from Jira"
         exit 1
     fi
@@ -424,9 +431,18 @@ EOF
 fetch_child_progress() {
     local feature_key=$1
     local tmp_dir=$2
-    local children_json=$(acli jira workitem search --jql "\"parent\" = $feature_key" --json 2>/dev/null)
 
-    if [[ -z "$children_json" || "$children_json" == "[]" ]]; then
+    # Use REST API directly (acli uses deprecated endpoint)
+    local jql="parent = $feature_key"
+    local payload=$(jq -n --arg jql "$jql" '{jql: $jql, maxResults: 100, fields: ["status"]}')
+
+    local children_json=$(curl -s -X POST \
+        -H "Authorization: Basic $(echo -n "${JIRA_EMAIL}:${JIRA_TOKEN}" | base64)" \
+        -H "Content-Type: application/json" \
+        -d "$payload" \
+        "https://${JIRA_SITE}/rest/api/3/search/jql" 2>/dev/null | jq '[.issues[] | {fields: .fields}]')
+
+    if [[ -z "$children_json" || "$children_json" == "[]" || "$children_json" == "null" ]]; then
         echo "-|-|-" > "$tmp_dir/${feature_key}_progress"
         return
     fi
@@ -456,14 +472,20 @@ fetch_story_points() {
 }
 
 cmd_features() {
-    local jql='project = FCT2 AND type = Feature and status != Done and "fct workstream[dropdown]" = "Global Navigation" ORDER BY Rank ASC, priority DESC'
-
     echo ""
     echo "Fetching features..."
 
-    local json=$(acli jira workitem search --jql "$jql" --json 2>/dev/null)
+    # Use REST API directly (acli uses deprecated endpoint)
+    local jql='project = FCT2 AND type = Feature AND status not in (Done) AND cf[10154] = "Global Navigation" ORDER BY Rank ASC, priority DESC'
+    local payload=$(jq -n --arg jql "$jql" '{jql: $jql, maxResults: 100, fields: ["key", "summary", "status", "assignee"]}')
 
-    if [[ -z "$json" ]]; then
+    local json=$(curl -s -X POST \
+        -H "Authorization: Basic $(echo -n "${JIRA_EMAIL}:${JIRA_TOKEN}" | base64)" \
+        -H "Content-Type: application/json" \
+        -d "$payload" \
+        "https://${JIRA_SITE}/rest/api/3/search/jql" | jq '[.issues[] | {key: .key, fields: .fields}]')
+
+    if [[ -z "$json" || "$json" == "[]" || "$json" == "null" ]]; then
         echo "Error: Failed to fetch features from Jira"
         exit 1
     fi
