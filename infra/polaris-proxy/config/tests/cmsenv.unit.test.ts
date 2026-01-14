@@ -60,6 +60,7 @@ interface CmsEnvModule {
   replaceCmsDomains(r: MockRequest, data: string, flags: Record<string, unknown>): void
   replaceCmsDomainsAjaxViewer(r: MockRequest, data: string, flags: Record<string, unknown>): void
   cmsMenuBarFilters(r: MockRequest, data: string, flags: Record<string, unknown>): void
+  loginPageFilters(r: MockRequest, data: string, flags: Record<string, unknown>): void
   switchEnvironmentDevLogin(r: MockRequest): void
   switchEnvironment(r: MockRequest): void
 }
@@ -729,6 +730,117 @@ async function runTests(): Promise<void> {
     cmsenv.cmsMenuBarFilters(r, data, flags)
     assertIncludes(r.sentBuffer || "", '"/polaris"', "Should replace POLARIS_URL")
     assertIncludes(r.sentBuffer || "", "polaris.cps.gov.uk", "Should also replace domains")
+  })
+
+  // ============================================================
+  // loginPageFilters tests
+  // ============================================================
+  console.log("\nloginPageFilters:")
+
+  await test("loginPageFilters adds environment indicator for cin2", async () => {
+    const r = createMockRequest({
+      status: 200,
+      headersIn: { Cookie: "__CMSENV=cin2" },
+      variables: createMockVariables(),
+    })
+    const data = 'id="txtYLoginName" onpropertychange="toggleButton()">'
+    const flags = { last: true }
+    cmsenv.loginPageFilters(r, data, flags)
+    assertIncludes(r.sentBuffer || "", "attached to cin2", "Should show cin2 indicator")
+  })
+
+  await test("loginPageFilters adds environment indicator for cin4", async () => {
+    const r = createMockRequest({
+      status: 200,
+      headersIn: { Cookie: "__CMSENV=cin4" },
+      variables: createMockVariables(),
+    })
+    const data = 'id="txtYLoginName" onpropertychange="toggleButton()">'
+    const flags = { last: true }
+    cmsenv.loginPageFilters(r, data, flags)
+    assertIncludes(r.sentBuffer || "", "attached to cin4", "Should show cin4 indicator")
+  })
+
+  await test("loginPageFilters adds environment indicator for cin5", async () => {
+    const r = createMockRequest({
+      status: 200,
+      headersIn: { Cookie: "__CMSENV=cin5" },
+      variables: createMockVariables(),
+    })
+    const data = 'id="txtYLoginName" onpropertychange="toggleButton()">'
+    const flags = { last: true }
+    cmsenv.loginPageFilters(r, data, flags)
+    assertIncludes(r.sentBuffer || "", "attached to cin5", "Should show cin5 indicator")
+  })
+
+  await test("loginPageFilters transposes 'default' to 'cin3' for display", async () => {
+    const r = createMockRequest({
+      status: 200,
+      headersIn: { Cookie: "__CMSENV=default" },
+      variables: createMockVariables(),
+    })
+    const data = 'id="txtYLoginName" onpropertychange="toggleButton()">'
+    const flags = { last: true }
+    cmsenv.loginPageFilters(r, data, flags)
+    assertIncludes(r.sentBuffer || "", "attached to cin3", "Should show cin3 for default env")
+  })
+
+  await test("loginPageFilters does not add indicator when no __CMSENV cookie", async () => {
+    const r = createMockRequest({
+      status: 200,
+      headersIn: {},
+      variables: createMockVariables(),
+    })
+    const data = 'id="txtYLoginName" onpropertychange="toggleButton()">'
+    const flags = { last: true }
+    cmsenv.loginPageFilters(r, data, flags)
+    assertEqual(
+      (r.sentBuffer || "").includes("attached to"),
+      false,
+      "Should not add indicator without cookie"
+    )
+  })
+
+  await test("loginPageFilters does not add indicator when cookie has unrelated values", async () => {
+    const r = createMockRequest({
+      status: 200,
+      headersIn: { Cookie: "session=abc; other=value" },
+      variables: createMockVariables(),
+    })
+    const data = 'id="txtYLoginName" onpropertychange="toggleButton()">'
+    const flags = { last: true }
+    cmsenv.loginPageFilters(r, data, flags)
+    assertEqual(
+      (r.sentBuffer || "").includes("attached to"),
+      false,
+      "Should not add indicator with unrelated cookies"
+    )
+  })
+
+  await test("loginPageFilters wraps indicator in non-wrapping span", async () => {
+    const r = createMockRequest({
+      status: 200,
+      headersIn: { Cookie: "__CMSENV=cin5" },
+      variables: createMockVariables(),
+    })
+    const data = 'id="txtYLoginName" onpropertychange="toggleButton()">'
+    const flags = { last: true }
+    cmsenv.loginPageFilters(r, data, flags)
+    assertIncludes(r.sentBuffer || "", "white-space:nowrap", "Should have nowrap style")
+  })
+
+  await test("loginPageFilters also performs domain replacement", async () => {
+    const r = createMockRequest({
+      status: 200,
+      headersIn: { Cookie: "__CMSENV=cin2" },
+      variables: createMockVariables(),
+    })
+    // cin2 domain is "cin2.cps.gov.uk" which gets cleaned to "cin2cpsgovuk" for matching
+    const data = 'id="txtYLoginName" onpropertychange="toggleButton()"> link to cin2cpsgovuk'
+    const flags = { last: true }
+    cmsenv.loginPageFilters(r, data, flags)
+    assertIncludes(r.sentBuffer || "", "polaris.cps.gov.uk", "Should also replace domains")
+    assertIncludes(r.sentBuffer || "", "attached to cin2", "Should show environment indicator")
   })
 
   // ============================================================
