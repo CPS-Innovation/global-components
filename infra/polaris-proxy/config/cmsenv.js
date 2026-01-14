@@ -71,6 +71,26 @@ const _appButtonReplacements = (r, data, flags) => [
   ],
 ];
 
+const _loginPageEnvIndicator = (r, data, flags) => {
+  const cookie = r.headersIn.Cookie;
+  if (!cookie) return [];
+  const match = cookie.match(/__CMSENV=([^;]+)/);
+  if (!match) return [];
+  const value = match[1];
+  // Transpose "default" back to "cin3" for display
+  const env = value === "default" ? "cin3" : value;
+  if (!env) return [];
+  // Note: () must be escaped as the pattern is used in new RegExp()
+  return [
+    [
+      'onpropertychange="toggleButton\\(\\)">',
+      'onpropertychange="toggleButton()"><span style="white-space:nowrap;margin-left:8px;color:#666;font-size:11px;">attached to ' +
+        env +
+        "</span>",
+    ],
+  ];
+};
+
 const _alignCookiesToEnv = (envGetter) => (r) => {
   const env = envGetter(r);
   let cookies = env
@@ -116,6 +136,10 @@ export default {
   ]),
   cmsMenuBarFilters: _filterBody([
     _appButtonReplacements,
+    _cmsDomainReplacements("host"),
+  ]),
+  loginPageFilters: _filterBody([
+    _loginPageEnvIndicator,
     _cmsDomainReplacements("host"),
   ]),
 
