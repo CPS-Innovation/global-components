@@ -9,7 +9,7 @@ export class CpsGlobalFooter {
   render() {
     return (
       <footer class="govuk-footer">
-        <div class="govuk-width-container">
+        <div class="govuk-width-container" style={{ minWidth: "1200px" }}>
           <svg focusable="false" role="presentation" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 60" height="30" width="32" fill="currentcolor" class="govuk-footer__crown">
             <g>
               <circle cx="20" cy="17.6" r="3.7"></circle>
