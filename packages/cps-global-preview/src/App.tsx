@@ -159,7 +159,6 @@ export function App() {
         if (!response.ok) {
           throw new Error("Failed to save state");
         }
-        showStatus("Settings saved", "success");
       } catch (err) {
         showStatus(
           `Failed to save settings: ${
@@ -356,27 +355,6 @@ export function App() {
         </div>
       )}
 
-      {status?.type === "success" && (
-        <div
-          className="govuk-notification-banner govuk-notification-banner--success"
-          role="alert"
-          data-module="govuk-notification-banner"
-        >
-          <div className="govuk-notification-banner__header">
-            <h2
-              className="govuk-notification-banner__title"
-              id="govuk-notification-banner-title"
-            >
-              Success
-            </h2>
-          </div>
-          <div className="govuk-notification-banner__content">
-            <p className="govuk-notification-banner__heading">
-              {status.message}
-            </p>
-          </div>
-        </div>
-      )}
 
       <form>
         <div className="govuk-form-group">
@@ -431,7 +409,7 @@ export function App() {
                           className="govuk-checkboxes__conditional"
                           style={{ marginTop: "10px", paddingLeft: "15px" }}
                         >
-                          <div className="govuk-radios govuk-radios--small" data-module="govuk-radios">
+                          <div className="govuk-radios govuk-radios--small govuk-radios--inline" data-module="govuk-radios">
                             {radioOptions.map((option) => (
                               <div key={option.value} className="govuk-radios__item">
                                 <input
