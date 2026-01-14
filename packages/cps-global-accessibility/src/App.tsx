@@ -57,7 +57,6 @@ export function App() {
         if (!response.ok) {
           throw new Error("Failed to save settings");
         }
-        showStatus("Settings saved", "success");
         return true;
       } catch (err) {
         showStatus(
@@ -135,25 +134,6 @@ export function App() {
         </div>
       )}
 
-      {status?.type === "success" && (
-        <div
-          className="govuk-notification-banner govuk-notification-banner--success"
-          role="alert"
-          data-module="govuk-notification-banner"
-        >
-          <div className="govuk-notification-banner__header">
-            <h2
-              className="govuk-notification-banner__title"
-              id="govuk-notification-banner-title"
-            >
-              Success
-            </h2>
-          </div>
-          <div className="govuk-notification-banner__content">
-            <p className="govuk-notification-banner__heading">{status.message}</p>
-          </div>
-        </div>
-      )}
 
       {/* Section 1: Low Contrast Background */}
       <div className="govuk-form-group">
