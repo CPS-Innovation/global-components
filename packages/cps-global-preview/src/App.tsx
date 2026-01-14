@@ -409,7 +409,7 @@ export function App() {
                           className="govuk-checkboxes__conditional"
                           style={{ marginTop: "10px", paddingLeft: "15px" }}
                         >
-                          <div className="govuk-radios govuk-radios--small" data-module="govuk-radios">
+                          <div className="govuk-radios govuk-radios--small govuk-radios--inline" data-module="govuk-radios">
                             {radioOptions.map((option) => (
                               <div key={option.value} className="govuk-radios__item">
                                 <input

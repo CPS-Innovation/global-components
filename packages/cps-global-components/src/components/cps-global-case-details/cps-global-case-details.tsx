@@ -25,7 +25,7 @@ export class CpsGlobalCaseDetails {
 
     return preview.result?.caseMarkers === "b" ? (
       <div class="level case-details">
-        <div class="govuk-body-l" style={{ marginBottom: "0" }}>
+        <div class="govuk-body-m" style={{ marginBottom: "0" }}>
           <b>{headline}</b>
         </div>
 
