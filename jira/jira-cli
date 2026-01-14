@@ -278,6 +278,20 @@ cmd_add() {
     echo -e "Selected: ${GREEN}${item_type}${NC}"
     echo ""
 
+    # If Bug, ask for affected environment (required field)
+    local affected_env_id=""
+    local affected_env_name=""
+    if [[ "$item_type" == "Bug" ]]; then
+        local -a env_options=("CIN2" "CIN3" "CIN4" "CIN5" "PRI QA" "PROD" "Unknown")
+        local -a env_ids=("10113" "10115" "10116" "10117" "10122" "10121" "10133")
+        select_option "Affected Environment:" 0 "${env_options[@]}"
+        affected_env_id="${env_ids[$SELECTED_INDEX]}"
+        affected_env_name="${env_options[$SELECTED_INDEX]}"
+        echo ""
+        echo -e "Selected: ${GREEN}${affected_env_name}${NC}"
+        echo ""
+    fi
+
     # Confirm creation
     echo -e "${BOLD}Creating work item:${NC}"
     echo -e "  Parent:      ${CYAN}${parent_key}${NC}"
@@ -285,6 +299,9 @@ cmd_add() {
     echo -e "  Summary:     ${CYAN}${summary}${NC}"
     if [[ -n "$description" ]]; then
         echo -e "  Description: ${CYAN}${description}${NC}"
+    fi
+    if [[ -n "$affected_env_name" ]]; then
+        echo -e "  Environment: ${CYAN}${affected_env_name}${NC}"
     fi
     echo -e "  Label:       ${CYAN}${JIRA_LABEL}${NC}"
     echo -e "  Team:        ${CYAN}Global Navigation${NC}"
@@ -341,6 +358,11 @@ EOF
     if [[ "$assign_to_me" == true ]]; then
         payload+=",
         \"assignee\": {\"accountId\": \"$JIRA_ACCOUNT_ID\"}"
+    fi
+
+    if [[ -n "$affected_env_id" ]]; then
+        payload+=",
+        \"customfield_10130\": [{\"id\": \"$affected_env_id\"}]"
     fi
 
     payload+="
