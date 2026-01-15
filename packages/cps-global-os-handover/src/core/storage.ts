@@ -33,8 +33,8 @@ export const isStoredAuthCurrent = (cookies: string) =>
   );
 
 export const syncOsAuth = (currentUrl: string, storage: Storage) => {
-  const app = new URLPattern({ pathname: "/:app/" }).exec(currentUrl)?.pathname
-    .groups["app"];
+  const app = new URLPattern({ pathname: "/:app{/*}?" }).exec(currentUrl)
+    ?.pathname.groups["app"];
 
   const copyToOtherApps = (
     jsonKey: keyof Pick<
