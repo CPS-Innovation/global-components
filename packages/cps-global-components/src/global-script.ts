@@ -115,7 +115,6 @@ const authPhase = ({
   config,
   firstContext,
   flags,
-  handover,
   trackEvent,
   setNextHandover,
   setNextRecentCases,
@@ -125,7 +124,7 @@ const authPhase = ({
   (async () => {
     const { auth, getToken } = await initialiseAuth({ config, context: firstContext, flags });
     register({ auth });
-    initialiseCaseDetailsData({ config, context: firstContext, subscribe, handover, setNextHandover, setNextRecentCases, getToken, readyState, trackEvent });
+    initialiseCaseDetailsData({ config, context: firstContext, subscribe, setNextHandover, setNextRecentCases, getToken, readyState, trackEvent });
   })();
 };
 

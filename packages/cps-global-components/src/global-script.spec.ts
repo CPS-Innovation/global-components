@@ -596,7 +596,6 @@ describe("global-script", () => {
           config: testConfig,
           context: expect.any(Object),
           subscribe: expect.any(Function),
-          handover: expect.any(Object),
           setNextHandover: expect.any(Function),
           setNextRecentCases: expect.any(Function),
           getToken: expect.any(Function),
@@ -1335,7 +1334,6 @@ describe("global-script", () => {
         expect.objectContaining({
           config: testConfig,
           context: testContext,
-          handover: testHandover,
           setNextHandover: mockSetNextHandover,
           setNextRecentCases: mockSetNextRecentCases,
         }),
