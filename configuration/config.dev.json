@@ -47,13 +47,11 @@
         },
         {
           "path": "https://cps-dev.outsystemsenterprise.com/WorkManagementApp.*?(?=.*[&?]CaseId=(?<caseId>\\d+))(?=.*[&?]IsOpenMaterials=true)",
-          "contextIds": "case materials",
-          "applyShim": "force-global-menu"
+          "contextIds": "case materials"
         },
         {
           "path": "https://cps-dev.outsystemsenterprise.com/WorkManagementApp.*[&?]CaseId=(?<caseId>\\d+)",
-          "contextIds": "case details",
-          "applyShim": "force-global-menu"
+          "contextIds": "case details"
         },
         {
           "path": "https://cps-dev.outsystemsenterprise.com/WorkManagementApp/Cases",
