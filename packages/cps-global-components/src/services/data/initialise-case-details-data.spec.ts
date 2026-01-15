@@ -1,10 +1,8 @@
 import { Config } from "cps-global-configuration";
 import { FoundContext } from "../context/FoundContext";
 import { ReadyStateHelper, Subscribe } from "../../store/store";
-import { Handover } from "../state/handover/Handover";
 import { GetToken } from "../auth/GetToken";
 import { AnalyticsEventData } from "../analytics/analytics-event";
-import { Result } from "../../utils/Result";
 
 const mockFetchWithCircuitBreaker = jest.fn();
 jest.mock("../fetch/fetch-with-circuit-breaker", () => ({
@@ -37,14 +35,11 @@ describe("initialiseCaseDetailsData", () => {
       msalRedirectUrl: "https://test.com",
     } as unknown as FoundContext);
 
-  const createMockHandover = (): Result<Handover> => ({
-    found: false,
-    error: {} as Error,
-  });
-
   const createMockSubscribe = (): Subscribe => jest.fn() as Subscribe;
 
   const createMockSetNextHandover = () => jest.fn();
+
+  const createMockSetNextRecentCases = () => jest.fn();
 
   const createMockGetToken = (): GetToken => jest.fn().mockResolvedValue("mock-token");
 
@@ -69,8 +64,8 @@ describe("initialiseCaseDetailsData", () => {
         config,
         context: createMockContext(),
         subscribe,
-        handover: createMockHandover(),
         setNextHandover: createMockSetNextHandover(),
+        setNextRecentCases: createMockSetNextRecentCases(),
         getToken: createMockGetToken(),
         readyState: createMockReadyState(),
         trackEvent: createMockTrackEvent(),
@@ -89,8 +84,8 @@ describe("initialiseCaseDetailsData", () => {
         config,
         context: createMockContext(),
         subscribe,
-        handover: createMockHandover(),
         setNextHandover: createMockSetNextHandover(),
+        setNextRecentCases: createMockSetNextRecentCases(),
         getToken: createMockGetToken(),
         readyState: createMockReadyState(),
         trackEvent: createMockTrackEvent(),
@@ -113,8 +108,8 @@ describe("initialiseCaseDetailsData", () => {
         config,
         context: createMockContext(),
         subscribe: createMockSubscribe(),
-        handover: createMockHandover(),
         setNextHandover: createMockSetNextHandover(),
+        setNextRecentCases: createMockSetNextRecentCases(),
         getToken: createMockGetToken(),
         readyState: createMockReadyState(),
         trackEvent,
@@ -134,8 +129,8 @@ describe("initialiseCaseDetailsData", () => {
         config,
         context,
         subscribe: createMockSubscribe(),
-        handover: createMockHandover(),
         setNextHandover: createMockSetNextHandover(),
+        setNextRecentCases: createMockSetNextRecentCases(),
         getToken,
         readyState,
         trackEvent: createMockTrackEvent(),
@@ -147,23 +142,23 @@ describe("initialiseCaseDetailsData", () => {
     it("should call caseDetailsSubscriptionFactory with correct parameters", () => {
       const { initialiseCaseDetailsData } = require("./initialise-case-details-data");
       const config = createMockConfig(gatewayUrl);
-      const handover = createMockHandover();
       const setNextHandover = createMockSetNextHandover();
+      const setNextRecentCases = createMockSetNextRecentCases();
 
       initialiseCaseDetailsData({
         config,
         context: createMockContext(),
         subscribe: createMockSubscribe(),
-        handover,
         setNextHandover,
+        setNextRecentCases,
         getToken: createMockGetToken(),
         readyState: createMockReadyState(),
         trackEvent: createMockTrackEvent(),
       });
 
       expect(mockCaseDetailsSubscriptionFactory).toHaveBeenCalledWith({
-        handover,
         setNextHandover,
+        setNextRecentCases,
         fetch: expect.any(Function),
       });
     });
@@ -179,8 +174,8 @@ describe("initialiseCaseDetailsData", () => {
         config,
         context: createMockContext(),
         subscribe,
-        handover: createMockHandover(),
         setNextHandover: createMockSetNextHandover(),
+        setNextRecentCases: createMockSetNextRecentCases(),
         getToken: createMockGetToken(),
         readyState: createMockReadyState(),
         trackEvent: createMockTrackEvent(),
@@ -212,8 +207,8 @@ describe("initialiseCaseDetailsData", () => {
         config,
         context,
         subscribe: createMockSubscribe(),
-        handover: createMockHandover(),
         setNextHandover: createMockSetNextHandover(),
+        setNextRecentCases: createMockSetNextRecentCases(),
         getToken,
         readyState,
         trackEvent,

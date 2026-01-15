@@ -8,14 +8,12 @@ import { Handover } from "../state/handover/Handover";
 import { GetToken } from "../auth/GetToken";
 import { pipe } from "../../utils/pipe";
 import { AnalyticsEventData } from "../analytics/analytics-event";
-import { Result } from "../../utils/Result";
 import { CaseDetails } from "./CaseDetails";
 
 export const initialiseCaseDetailsData = ({
   config,
   context,
   subscribe,
-  handover,
   setNextHandover,
   setNextRecentCases,
   getToken,
@@ -25,7 +23,6 @@ export const initialiseCaseDetailsData = ({
   config: Config;
   context: FoundContext;
   subscribe: Subscribe;
-  handover: Result<Handover>;
   setNextHandover: (data: Handover) => void;
   setNextRecentCases: (caseDetails: CaseDetails | undefined) => void;
   getToken: GetToken;
@@ -39,7 +36,6 @@ export const initialiseCaseDetailsData = ({
 
   subscribe(
     caseDetailsSubscriptionFactory({
-      handover,
       setNextHandover,
       setNextRecentCases,
       fetch: pipe(fetch, fetchWithCircuitBreaker({ config, trackEvent }), fetchWithAuthFactory({ config, context, getToken, readyState })),

@@ -47,6 +47,7 @@ describe("initialiseAuth", () => {
       e2eTestMode: { isE2eTestMode: true, isAuthed: true, adGroups: [] },
       isOutSystems: false,
       isLocalDevelopment: false,
+      environment: "test",
     };
 
     it("should call initialiseMockAuth", async () => {
@@ -80,6 +81,7 @@ describe("initialiseAuth", () => {
       e2eTestMode: { isE2eTestMode: false },
       isOutSystems: false,
       isLocalDevelopment: false,
+      environment: "test",
     };
 
     it("should call initialiseAdAuth", async () => {

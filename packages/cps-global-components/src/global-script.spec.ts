@@ -596,7 +596,6 @@ describe("global-script", () => {
           config: testConfig,
           context: expect.any(Object),
           subscribe: expect.any(Function),
-          handover: expect.any(Object),
           setNextHandover: expect.any(Function),
           setNextRecentCases: expect.any(Function),
           getToken: expect.any(Function),
@@ -1105,7 +1104,7 @@ describe("global-script", () => {
       expect(mockInitialiseConfig).toHaveBeenCalledWith({ rootUrl: testRootUrl, flags: testFlags, preview: testPreview });
     });
 
-    it("should pass rootUrl to initialiseCmsSessionHint", async () => {
+    it("should pass rootUrl and flags to initialiseCmsSessionHint", async () => {
       const testRootUrl = "https://test.example.com/env/script.js";
       mockInitialiseRootUrl.mockReturnValue(testRootUrl);
 
@@ -1115,6 +1114,7 @@ describe("global-script", () => {
 
       expect(mockInitialiseCmsSessionHint).toHaveBeenCalledWith({
         rootUrl: testRootUrl,
+        flags: expect.any(Object),
       });
     });
 
@@ -1334,7 +1334,6 @@ describe("global-script", () => {
         expect.objectContaining({
           config: testConfig,
           context: testContext,
-          handover: testHandover,
           setNextHandover: mockSetNextHandover,
           setNextRecentCases: mockSetNextRecentCases,
         }),

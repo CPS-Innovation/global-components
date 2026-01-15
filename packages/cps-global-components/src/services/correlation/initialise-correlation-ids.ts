@@ -1,8 +1,8 @@
-import { uuidv4 } from "zod";
+import { v4 as uuidv4 } from "uuid";
 
 let scriptLoadCorrelationId: string;
 export const initialiseCorrelationIds = () => {
-  const navigationCorrelationId = String(uuidv4());
+  const navigationCorrelationId = uuidv4();
 
   // For our analytics when scriptLoadCorrelationId === navigationCorrelationId then
   //  we know that it is the context when we first load, otherwise it is a context
