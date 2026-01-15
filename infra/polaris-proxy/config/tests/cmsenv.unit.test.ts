@@ -3,7 +3,7 @@
  * Unit tests for cmsenv.js
  *
  * Uses esbuild to bundle the njs module, then runs the unit tests
- * against the bundled code. Environment values are passed via r.variables.
+ * against the bundled code. Environment values are passed via process.env.
  */
 
 import * as esbuild from "esbuild"
@@ -25,7 +25,6 @@ interface MockRequest {
   args: Record<string, string>
   headersIn: Record<string, string>
   headersOut: Record<string, string | string[]>
-  variables: Record<string, string>
   requestText: string
   returnCode: number | null
   returnBody: string | null
@@ -42,7 +41,6 @@ interface MockRequestOptions {
   args?: Record<string, string>
   headersIn?: Record<string, string>
   headersOut?: Record<string, string | string[]>
-  variables?: Record<string, string>
   requestText?: string
 }
 
@@ -65,10 +63,10 @@ interface CmsEnvModule {
   switchEnvironment(r: MockRequest): void
 }
 
-// Standard mock variables for all CMS environments
-function createMockVariables(overrides: Record<string, string> = {}): Record<string, string> {
-  return {
-    websiteScheme: "https",
+// Standard mock environment variables for all CMS environments
+// Sets values on process.env for the njs module to access
+function setupMockEnv(overrides: Record<string, string> = {}): void {
+  const vars: Record<string, string> = {
     host: "polaris.cps.gov.uk",
     websiteHostname: "polaris.cps.gov.uk",
     // Default environment
@@ -105,6 +103,9 @@ function createMockVariables(overrides: Record<string, string> = {}): Record<str
     cin5UpstreamCmsModernDomainName: "modern-cin5.cps.gov.uk",
     ...overrides,
   }
+  Object.entries(vars).forEach(([key, value]) => {
+    process.env[key] = value
+  })
 }
 
 // Bundle the module
@@ -165,7 +166,6 @@ async function runTests(): Promise<void> {
       args: options.args || {},
       headersIn: options.headersIn || {},
       headersOut: options.headersOut || {},
-      variables: options.variables || createMockVariables(),
       requestText: options.requestText || "",
       returnCode: null,
       returnBody: null,
@@ -182,6 +182,9 @@ async function runTests(): Promise<void> {
     }
   }
 
+  // Set up mock environment variables
+  setupMockEnv()
+
   console.log("=".repeat(60))
   console.log("cmsenv.js Unit Tests")
   console.log("=".repeat(60))
@@ -194,7 +197,6 @@ async function runTests(): Promise<void> {
   await test("defaults to 'default' environment when no cookie", async () => {
     const r = createMockRequest({
       headersIn: {},
-      variables: createMockVariables(),
     })
     assertEqual(
       cmsenv.upstreamCmsIpCorsham(r),
@@ -206,7 +208,6 @@ async function runTests(): Promise<void> {
   await test("detects cin2 environment from cookie", async () => {
     const r = createMockRequest({
       headersIn: { Cookie: "__CMSENV=cin2" },
-      variables: createMockVariables(),
     })
     assertEqual(
       cmsenv.upstreamCmsIpCorsham(r),
@@ -218,7 +219,6 @@ async function runTests(): Promise<void> {
   await test("detects cin3 as default environment", async () => {
     const r = createMockRequest({
       headersIn: { Cookie: "__CMSENV=cin3" },
-      variables: createMockVariables(),
     })
     assertEqual(
       cmsenv.upstreamCmsIpCorsham(r),
@@ -230,7 +230,6 @@ async function runTests(): Promise<void> {
   await test("detects cin4 environment from cookie", async () => {
     const r = createMockRequest({
       headersIn: { Cookie: "__CMSENV=cin4" },
-      variables: createMockVariables(),
     })
     assertEqual(
       cmsenv.upstreamCmsIpCorsham(r),
@@ -242,7 +241,6 @@ async function runTests(): Promise<void> {
   await test("detects cin5 environment from cookie", async () => {
     const r = createMockRequest({
       headersIn: { Cookie: "__CMSENV=cin5" },
-      variables: createMockVariables(),
     })
     assertEqual(
       cmsenv.upstreamCmsIpCorsham(r),
@@ -254,7 +252,6 @@ async function runTests(): Promise<void> {
   await test("cin3 takes precedence when multiple env markers present", async () => {
     const r = createMockRequest({
       headersIn: { Cookie: "cin2=x; cin3=y; cin4=z" },
-      variables: createMockVariables(),
     })
     // cin3 is checked first and returns "default"
     assertEqual(
@@ -267,7 +264,6 @@ async function runTests(): Promise<void> {
   await test("cin2 detected when cin3 not present", async () => {
     const r = createMockRequest({
       headersIn: { Cookie: "cin2=x; cin4=y" },
-      variables: createMockVariables(),
     })
     assertEqual(
       cmsenv.upstreamCmsIpCorsham(r),
@@ -282,7 +278,7 @@ async function runTests(): Promise<void> {
   console.log("\nUpstream domain names:")
 
   await test("upstreamCmsDomainName returns correct domain for default env", async () => {
-    const r = createMockRequest({ variables: createMockVariables() })
+    const r = createMockRequest({})
     assertEqual(
       cmsenv.upstreamCmsDomainName(r),
       "cms.cps.gov.uk",
@@ -293,7 +289,6 @@ async function runTests(): Promise<void> {
   await test("upstreamCmsDomainName returns correct domain for cin2", async () => {
     const r = createMockRequest({
       headersIn: { Cookie: "__CMSENV=cin2" },
-      variables: createMockVariables(),
     })
     assertEqual(
       cmsenv.upstreamCmsDomainName(r),
@@ -303,7 +298,7 @@ async function runTests(): Promise<void> {
   })
 
   await test("upstreamCmsModernDomainName returns modern domain", async () => {
-    const r = createMockRequest({ variables: createMockVariables() })
+    const r = createMockRequest({})
     assertEqual(
       cmsenv.upstreamCmsModernDomainName(r),
       "modern.cps.gov.uk",
@@ -312,7 +307,7 @@ async function runTests(): Promise<void> {
   })
 
   await test("upstreamCmsServicesDomainName returns services domain", async () => {
-    const r = createMockRequest({ variables: createMockVariables() })
+    const r = createMockRequest({})
     assertEqual(
       cmsenv.upstreamCmsServicesDomainName(r),
       "services.cps.gov.uk",
@@ -326,22 +321,22 @@ async function runTests(): Promise<void> {
   console.log("\nUpstream IPs:")
 
   await test("upstreamCmsIpCorsham returns correct IP", async () => {
-    const r = createMockRequest({ variables: createMockVariables() })
+    const r = createMockRequest({})
     assertEqual(cmsenv.upstreamCmsIpCorsham(r), "10.0.0.1", "Should return Corsham IP")
   })
 
   await test("upstreamCmsModernIpCorsham returns correct IP", async () => {
-    const r = createMockRequest({ variables: createMockVariables() })
+    const r = createMockRequest({})
     assertEqual(cmsenv.upstreamCmsModernIpCorsham(r), "10.0.0.2", "Should return modern Corsham IP")
   })
 
   await test("upstreamCmsIpFarnborough returns correct IP", async () => {
-    const r = createMockRequest({ variables: createMockVariables() })
+    const r = createMockRequest({})
     assertEqual(cmsenv.upstreamCmsIpFarnborough(r), "10.0.1.1", "Should return Farnborough IP")
   })
 
   await test("upstreamCmsModernIpFarnborough returns correct IP", async () => {
-    const r = createMockRequest({ variables: createMockVariables() })
+    const r = createMockRequest({})
     assertEqual(
       cmsenv.upstreamCmsModernIpFarnborough(r),
       "10.0.1.2",
@@ -352,7 +347,6 @@ async function runTests(): Promise<void> {
   await test("upstreamCmsIpCorsham returns cin4 IP when cin4 env", async () => {
     const r = createMockRequest({
       headersIn: { Cookie: "__CMSENV=cin4" },
-      variables: createMockVariables(),
     })
     assertEqual(cmsenv.upstreamCmsIpCorsham(r), "10.4.0.1", "Should return cin4 Corsham IP")
   })
@@ -365,7 +359,6 @@ async function runTests(): Promise<void> {
   await test("does not process body on 302 redirect", async () => {
     const r = createMockRequest({
       status: 302,
-      variables: createMockVariables(),
     })
     const data = "some content with cms.cps.gov.uk"
     const flags = { last: true }
@@ -376,7 +369,6 @@ async function runTests(): Promise<void> {
   await test("replaces domain names in content", async () => {
     const r = createMockRequest({
       status: 200,
-      variables: createMockVariables(),
     })
     // Note: the replacement removes special chars like dots from the search pattern
     const data = "Link to cmscpsgovuk here"
@@ -392,7 +384,6 @@ async function runTests(): Promise<void> {
   await test("replaces IP addresses in content", async () => {
     const r = createMockRequest({
       status: 200,
-      variables: createMockVariables(),
     })
     // The replacement strips dots, so "10.0.0.1" becomes "10001" in the search
     const data = "Connect to 10001 server"
@@ -411,12 +402,13 @@ async function runTests(): Promise<void> {
   console.log("\nreplaceCmsDomainsAjaxViewer:")
 
   await test("uses websiteHostname instead of host", async () => {
+    // Override env vars for this test
+    setupMockEnv({
+      host: "proxy.local",
+      websiteHostname: "polaris.cps.gov.uk",
+    })
     const r = createMockRequest({
       status: 200,
-      variables: createMockVariables({
-        host: "proxy.local",
-        websiteHostname: "polaris.cps.gov.uk",
-      }),
     })
     const data = "Connect to cmscpsgovuk server"
     const flags = { last: true }
@@ -426,6 +418,8 @@ async function runTests(): Promise<void> {
       "polaris.cps.gov.uk",
       "Should use websiteHostname"
     )
+    // Reset to default
+    setupMockEnv()
   })
 
   // ============================================================
@@ -436,7 +430,6 @@ async function runTests(): Promise<void> {
   await test("replaces POLARIS_URL reference with /polaris", async () => {
     const r = createMockRequest({
       status: 200,
-      variables: createMockVariables(),
     })
     const data =
       'var url = objMainWindow.top.frameData.objMasterWindow.top.frameServerJS.POLARIS_URL;'
@@ -448,7 +441,6 @@ async function runTests(): Promise<void> {
   await test("replaces MENU_BAR_POLARIS_LOGO with base64 image", async () => {
     const r = createMockRequest({
       status: 200,
-      variables: createMockVariables(),
     })
     const data = 'var logo = MENU_BAR_POLARIS_LOGO;'
     const flags = { last: true }
@@ -464,7 +456,6 @@ async function runTests(): Promise<void> {
   await test("switchEnvironmentDevLogin clears __CMSENV and all BIG-IP cookies on GET", async () => {
     const r = createMockRequest({
       headersOut: { "Set-Cookie": [] },
-      variables: createMockVariables({ request_method: "GET" }),
     })
     cmsenv.switchEnvironmentDevLogin(r)
     const cookies = r.headersOut["Set-Cookie"] as string[]
@@ -480,7 +471,6 @@ async function runTests(): Promise<void> {
   await test("switchEnvironmentDevLogin clears all 4 environment BIG-IP cookies on GET", async () => {
     const r = createMockRequest({
       headersOut: { "Set-Cookie": [] },
-      variables: createMockVariables({ request_method: "GET" }),
     })
     cmsenv.switchEnvironmentDevLogin(r)
     const cookies = r.headersOut["Set-Cookie"] as string[]
@@ -498,7 +488,6 @@ async function runTests(): Promise<void> {
   await test("switchEnvironmentDevLogin BIG-IP cookies have deletion expiry on GET", async () => {
     const r = createMockRequest({
       headersOut: { "Set-Cookie": [] },
-      variables: createMockVariables({ request_method: "GET" }),
     })
     cmsenv.switchEnvironmentDevLogin(r)
     const cookies = r.headersOut["Set-Cookie"] as string[]
@@ -512,7 +501,6 @@ async function runTests(): Promise<void> {
   await test("switchEnvironmentDevLogin sets __CMSENV from form data on POST", async () => {
     const r = createMockRequest({
       headersOut: { "Set-Cookie": ["session=abc"] },
-      variables: createMockVariables({ request_method: "POST" }),
       requestText: "selected-environment=cin4",
     })
     cmsenv.switchEnvironmentDevLogin(r)
@@ -529,7 +517,6 @@ async function runTests(): Promise<void> {
   await test("switchEnvironmentDevLogin sets __CMSENV=cin2 from form data on POST", async () => {
     const r = createMockRequest({
       headersOut: { "Set-Cookie": ["session=abc"] },
-      variables: createMockVariables({ request_method: "POST" }),
       requestText: "selected-environment=cin2",
     })
     cmsenv.switchEnvironmentDevLogin(r)
@@ -545,7 +532,6 @@ async function runTests(): Promise<void> {
   await test("switchEnvironmentDevLogin sets __CMSENV=default for cin3 from form data", async () => {
     const r = createMockRequest({
       headersOut: { "Set-Cookie": ["session=abc"] },
-      variables: createMockVariables({ request_method: "POST" }),
       requestText: "selected-environment=cin3",
     })
     cmsenv.switchEnvironmentDevLogin(r)
@@ -557,7 +543,6 @@ async function runTests(): Promise<void> {
   await test("switchEnvironmentDevLogin sets __CMSENV=cin5 with other form params", async () => {
     const r = createMockRequest({
       headersOut: { "Set-Cookie": ["session=abc"] },
-      variables: createMockVariables({ request_method: "POST" }),
       requestText: "selected-environment=cin5&other=value",
     })
     cmsenv.switchEnvironmentDevLogin(r)
@@ -568,7 +553,6 @@ async function runTests(): Promise<void> {
   await test("switchEnvironmentDevLogin clears cookies when form data empty on POST", async () => {
     const r = createMockRequest({
       headersOut: { "Set-Cookie": ["session=abc"] },
-      variables: createMockVariables({ request_method: "POST" }),
       requestText: "",
     })
     cmsenv.switchEnvironmentDevLogin(r)
@@ -583,7 +567,6 @@ async function runTests(): Promise<void> {
   await test("switchEnvironmentDevLogin clears cookies when selected-environment missing", async () => {
     const r = createMockRequest({
       headersOut: { "Set-Cookie": ["session=abc"] },
-      variables: createMockVariables({ request_method: "POST" }),
       requestText: "other=value&something=else",
     })
     cmsenv.switchEnvironmentDevLogin(r)
@@ -598,7 +581,6 @@ async function runTests(): Promise<void> {
   await test("switchEnvironmentDevLogin clears cookies on PUT", async () => {
     const r = createMockRequest({
       headersOut: { "Set-Cookie": ["existing=cookie"] },
-      variables: createMockVariables({ request_method: "PUT" }),
     })
     cmsenv.switchEnvironmentDevLogin(r)
     const cookies = r.headersOut["Set-Cookie"] as string[]
@@ -615,7 +597,6 @@ async function runTests(): Promise<void> {
   await test("switchEnvironmentDevLogin clears cookies on DELETE", async () => {
     const r = createMockRequest({
       headersOut: { "Set-Cookie": ["existing=cookie"] },
-      variables: createMockVariables({ request_method: "DELETE" }),
     })
     cmsenv.switchEnvironmentDevLogin(r)
     const cookies = r.headersOut["Set-Cookie"] as string[]
@@ -631,7 +612,6 @@ async function runTests(): Promise<void> {
   await test("replaceCmsDomains strips dots from domain before matching", async () => {
     const r = createMockRequest({
       status: 200,
-      variables: createMockVariables(),
     })
     // The actual domain is "cms.cps.gov.uk" but dots are stripped for matching
     // So "cmscpsgovuk" in content should be replaced
@@ -646,11 +626,12 @@ async function runTests(): Promise<void> {
   })
 
   await test("replaceCmsDomains strips hyphens from domain before matching", async () => {
+    // Override env var for this test
+    setupMockEnv({
+      defaultUpstreamCmsServicesDomainName: "services-cms.cps.gov.uk",
+    })
     const r = createMockRequest({
       status: 200,
-      variables: createMockVariables({
-        defaultUpstreamCmsServicesDomainName: "services-cms.cps.gov.uk",
-      }),
     })
     // Hyphens should also be stripped
     const data = "URL is servicescmscpsgovuk/path"
@@ -661,12 +642,13 @@ async function runTests(): Promise<void> {
       "URL is polaris.cps.gov.uk/path",
       "Should match domain with hyphens stripped"
     )
+    // Reset to default
+    setupMockEnv()
   })
 
   await test("replaceCmsDomains replaces all 7 upstream variables", async () => {
     const r = createMockRequest({
       status: 200,
-      variables: createMockVariables(),
     })
     // Test that all variable types get replaced (dots stripped in matching)
     const data = [
@@ -689,7 +671,6 @@ async function runTests(): Promise<void> {
     const r = createMockRequest({
       status: 200,
       headersIn: { Cookie: "__CMSENV=cin4" },
-      variables: createMockVariables(),
     })
     // cin4 domain is "cin4.cps.gov.uk" -> "cin4cpsgovuk" after stripping
     const data = "URL is cin4cpsgovuk/path"
@@ -710,7 +691,6 @@ async function runTests(): Promise<void> {
   await test("cmsMenuBarFilters replaces both POLARIS_URL and logo in same content", async () => {
     const r = createMockRequest({
       status: 200,
-      variables: createMockVariables(),
     })
     const data = 'var url = objMainWindow.top.frameData.objMasterWindow.top.frameServerJS.POLARIS_URL; var logo = MENU_BAR_POLARIS_LOGO;'
     const flags = { last: true }
@@ -722,7 +702,6 @@ async function runTests(): Promise<void> {
   await test("cmsMenuBarFilters also performs domain replacement", async () => {
     const r = createMockRequest({
       status: 200,
-      variables: createMockVariables(),
     })
     // Content has both menu bar content AND a domain reference
     const data = 'var url = objMainWindow.top.frameData.objMasterWindow.top.frameServerJS.POLARIS_URL; link=cmscpsgovuk'
@@ -741,7 +720,6 @@ async function runTests(): Promise<void> {
     const r = createMockRequest({
       status: 200,
       headersIn: { Cookie: "__CMSENV=cin2" },
-      variables: createMockVariables(),
     })
     const data = 'id="txtYLoginName" onpropertychange="toggleButton()">'
     const flags = { last: true }
@@ -753,7 +731,6 @@ async function runTests(): Promise<void> {
     const r = createMockRequest({
       status: 200,
       headersIn: { Cookie: "__CMSENV=cin4" },
-      variables: createMockVariables(),
     })
     const data = 'id="txtYLoginName" onpropertychange="toggleButton()">'
     const flags = { last: true }
@@ -765,7 +742,6 @@ async function runTests(): Promise<void> {
     const r = createMockRequest({
       status: 200,
       headersIn: { Cookie: "__CMSENV=cin5" },
-      variables: createMockVariables(),
     })
     const data = 'id="txtYLoginName" onpropertychange="toggleButton()">'
     const flags = { last: true }
@@ -777,7 +753,6 @@ async function runTests(): Promise<void> {
     const r = createMockRequest({
       status: 200,
       headersIn: { Cookie: "__CMSENV=default" },
-      variables: createMockVariables(),
     })
     const data = 'id="txtYLoginName" onpropertychange="toggleButton()">'
     const flags = { last: true }
@@ -789,7 +764,6 @@ async function runTests(): Promise<void> {
     const r = createMockRequest({
       status: 200,
       headersIn: {},
-      variables: createMockVariables(),
     })
     const data = 'id="txtYLoginName" onpropertychange="toggleButton()">'
     const flags = { last: true }
@@ -805,7 +779,6 @@ async function runTests(): Promise<void> {
     const r = createMockRequest({
       status: 200,
       headersIn: { Cookie: "session=abc; other=value" },
-      variables: createMockVariables(),
     })
     const data = 'id="txtYLoginName" onpropertychange="toggleButton()">'
     const flags = { last: true }
@@ -821,7 +794,6 @@ async function runTests(): Promise<void> {
     const r = createMockRequest({
       status: 200,
       headersIn: { Cookie: "__CMSENV=cin5" },
-      variables: createMockVariables(),
     })
     const data = 'id="txtYLoginName" onpropertychange="toggleButton()">'
     const flags = { last: true }
@@ -833,7 +805,6 @@ async function runTests(): Promise<void> {
     const r = createMockRequest({
       status: 200,
       headersIn: { Cookie: "__CMSENV=cin2" },
-      variables: createMockVariables(),
     })
     // cin2 domain is "cin2.cps.gov.uk" which gets cleaned to "cin2cpsgovuk" for matching
     const data = 'id="txtYLoginName" onpropertychange="toggleButton()"> link to cin2cpsgovuk'
@@ -854,7 +825,6 @@ async function runTests(): Promise<void> {
     const r = createMockRequest({
       uri: "/cin2",
       headersIn: { Host: "polaris.cps.gov.uk" },
-      variables: createMockVariables(),
     })
     cmsenv.switchEnvironment(r)
     const cookies = r.headersOut["Set-Cookie"] as string[]
@@ -865,7 +835,6 @@ async function runTests(): Promise<void> {
     const r = createMockRequest({
       uri: "/cin3",
       headersIn: { Host: "polaris.cps.gov.uk" },
-      variables: createMockVariables(),
     })
     cmsenv.switchEnvironment(r)
     const cookies = r.headersOut["Set-Cookie"] as string[]
@@ -876,7 +845,6 @@ async function runTests(): Promise<void> {
     const r = createMockRequest({
       uri: "/cin4",
       headersIn: { Host: "polaris.cps.gov.uk" },
-      variables: createMockVariables(),
     })
     cmsenv.switchEnvironment(r)
     const cookies = r.headersOut["Set-Cookie"] as string[]
@@ -887,7 +855,6 @@ async function runTests(): Promise<void> {
     const r = createMockRequest({
       uri: "/cin5",
       headersIn: { Host: "polaris.cps.gov.uk" },
-      variables: createMockVariables(),
     })
     cmsenv.switchEnvironment(r)
     const cookies = r.headersOut["Set-Cookie"] as string[]
@@ -898,7 +865,6 @@ async function runTests(): Promise<void> {
     const r = createMockRequest({
       uri: "/cin2",
       headersIn: { Host: "polaris.cps.gov.uk" },
-      variables: createMockVariables(),
     })
     cmsenv.switchEnvironment(r)
     const cookies = r.headersOut["Set-Cookie"] as string[]
@@ -922,7 +888,6 @@ async function runTests(): Promise<void> {
   await test("handles empty cookie header gracefully", async () => {
     const r = createMockRequest({
       headersIn: { Cookie: "" },
-      variables: createMockVariables(),
     })
     // Should default to "default" environment without throwing
     assertEqual(
@@ -935,7 +900,6 @@ async function runTests(): Promise<void> {
   await test("handles missing cookie header gracefully", async () => {
     const r = createMockRequest({
       headersIn: {},
-      variables: createMockVariables(),
     })
     assertEqual(
       cmsenv.upstreamCmsIpCorsham(r),
@@ -947,7 +911,6 @@ async function runTests(): Promise<void> {
   await test("environment detection is case-sensitive", async () => {
     const r = createMockRequest({
       headersIn: { Cookie: "__CMSENV=CIN2" }, // uppercase
-      variables: createMockVariables(),
     })
     // Should NOT match cin2 (lowercase check)
     assertEqual(
