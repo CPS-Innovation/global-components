@@ -1,5 +1,6 @@
 import { CmsSessionHint } from "./CmsSessionHint";
 import { initialiseCmsSessionHint } from "./initialise-cms-session-hint";
+import { ApplicationFlags } from "../../application-flags/ApplicationFlags";
 
 const mockFetch = jest.fn();
 global.fetch = mockFetch;
@@ -7,6 +8,7 @@ global.fetch = mockFetch;
 describe("initialiseCmsSessionHint", () => {
   const rootUrl = "https://example.com/api/global-components/";
   const expectedUrl = "https://example.com/api/cms-session-hint";
+  const defaultFlags: ApplicationFlags = { isOutSystems: false, isLocalDevelopment: false, e2eTestMode: { isE2eTestMode: false }, environment: "test" };
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -27,13 +29,13 @@ describe("initialiseCmsSessionHint", () => {
     });
 
     it("should call fetch with correct URL and credentials", async () => {
-      await initialiseCmsSessionHint({ rootUrl });
+      await initialiseCmsSessionHint({ rootUrl, flags: defaultFlags });
 
       expect(mockFetch).toHaveBeenCalledWith(expectedUrl, { credentials: "include" });
     });
 
     it("should return found: true with the result", async () => {
-      const result = await initialiseCmsSessionHint({ rootUrl });
+      const result = await initialiseCmsSessionHint({ rootUrl, flags: defaultFlags });
 
       expect(result).toEqual({ found: true, result: validCmsSessionHint });
     });
@@ -54,7 +56,7 @@ describe("initialiseCmsSessionHint", () => {
     });
 
     it("should return found: true with the result", async () => {
-      const result = await initialiseCmsSessionHint({ rootUrl });
+      const result = await initialiseCmsSessionHint({ rootUrl, flags: defaultFlags });
 
       expect(result).toEqual({ found: true, result: cmsSessionHintWithNullEndpoint });
     });
@@ -69,7 +71,7 @@ describe("initialiseCmsSessionHint", () => {
     });
 
     it("should return found: false with an error", async () => {
-      const result = await initialiseCmsSessionHint({ rootUrl });
+      const result = await initialiseCmsSessionHint({ rootUrl, flags: defaultFlags });
 
       expect(result.found).toBe(false);
       expect(result.error).toBeInstanceOf(Error);
@@ -87,7 +89,7 @@ describe("initialiseCmsSessionHint", () => {
     });
 
     it("should return found: false with response status error", async () => {
-      const result = await initialiseCmsSessionHint({ rootUrl });
+      const result = await initialiseCmsSessionHint({ rootUrl, flags: defaultFlags });
 
       expect(result.found).toBe(false);
       expect(result.error?.message).toBe(`Call to ${expectedUrl} returned non-ok status code: 403 Forbidden`);
@@ -102,10 +104,24 @@ describe("initialiseCmsSessionHint", () => {
     });
 
     it("should return found: false with the error", async () => {
-      const result = await initialiseCmsSessionHint({ rootUrl });
+      const result = await initialiseCmsSessionHint({ rootUrl, flags: defaultFlags });
 
       expect(result.found).toBe(false);
       expect(result.error).toBe(networkError);
+    });
+  });
+
+  describe("when isOutSystems is truthy and environment is 'dev'", () => {
+    const devFlags: ApplicationFlags = { isOutSystems: true, isLocalDevelopment: false, e2eTestMode: { isE2eTestMode: false }, environment: "dev" };
+
+    it("should return a mock result without calling fetch", async () => {
+      const result = await initialiseCmsSessionHint({ rootUrl, flags: devFlags });
+
+      expect(mockFetch).not.toHaveBeenCalled();
+      expect(result.found).toBe(true);
+      if (result.found) {
+        expect(result.result.isProxySession).toBe(true);
+      }
     });
   });
 });

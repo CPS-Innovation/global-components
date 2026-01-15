@@ -45,6 +45,7 @@ describe("initialiseAnalytics", () => {
       e2eTestMode: { isE2eTestMode: true, isAuthed: true, adGroups: [] },
       isOutSystems: false,
       isLocalDevelopment: false,
+      environment: "test",
     };
 
     it("should call initialiseMockAnalytics", () => {
@@ -87,6 +88,7 @@ describe("initialiseAnalytics", () => {
       e2eTestMode: { isE2eTestMode: false },
       isOutSystems: false,
       isLocalDevelopment: false,
+      environment: "test",
     };
 
     it("should call initialiseAiAnalytics", () => {
