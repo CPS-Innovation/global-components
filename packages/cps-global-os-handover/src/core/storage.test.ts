@@ -1,5 +1,5 @@
 import { describe, test, expect, beforeEach } from "@jest/globals";
-import { storeAuth, isStoredAuthCurrent } from "./storage";
+import { storeAuth, isStoredAuthCurrent, syncOsAuth } from "./storage";
 
 describe("storage", () => {
   beforeEach(() => {
@@ -151,6 +151,147 @@ describe("storage", () => {
       const result = isStoredAuthCurrent(cookies);
 
       expect(result).toBe(false);
+    });
+  });
+
+  describe("syncOsAuth", () => {
+    const WMA_JSON = "$OS_Users$WorkManagementApp$ClientVars$JSONString";
+    const WMA_COOKIES = "$OS_Users$WorkManagementApp$ClientVars$Cookies";
+    const CASE_REVIEW_JSON = "$OS_Users$CaseReview$ClientVars$CmsAuthValues";
+    const CASE_REVIEW_COOKIES = "$OS_Users$CaseReview$ClientVars$Cookies";
+    const HOME_JSON = "$OS_Users$Casework_Blocks$ClientVars$JSONString";
+    const HOME_COOKIES = "$OS_Users$Casework_Blocks$ClientVars$Cookies";
+
+    test("copies WorkManagementApp auth values to all other apps", () => {
+      const wmaJson = '{"Cookies":"wma-cookies","Token":"wma-token"}';
+      const wmaCookies = "wma-cookies";
+      localStorage[WMA_JSON] = wmaJson;
+      localStorage[WMA_COOKIES] = wmaCookies;
+
+      syncOsAuth("https://example.com/WorkManagementApp/", localStorage);
+
+      expect(localStorage[WMA_JSON]).toBe(wmaJson);
+      expect(localStorage[CASE_REVIEW_JSON]).toBe(wmaJson);
+      expect(localStorage[HOME_JSON]).toBe(wmaJson);
+      expect(localStorage[WMA_COOKIES]).toBe(wmaCookies);
+      expect(localStorage[CASE_REVIEW_COOKIES]).toBe(wmaCookies);
+      expect(localStorage[HOME_COOKIES]).toBe(wmaCookies);
+    });
+
+    test("copies CaseReview auth values to all other apps", () => {
+      const caseReviewJson = '{"Cookies":"cr-cookies","Token":"cr-token"}';
+      const caseReviewCookies = "cr-cookies";
+      localStorage[CASE_REVIEW_JSON] = caseReviewJson;
+      localStorage[CASE_REVIEW_COOKIES] = caseReviewCookies;
+
+      syncOsAuth("https://example.com/CaseReview/", localStorage);
+
+      expect(localStorage[WMA_JSON]).toBe(caseReviewJson);
+      expect(localStorage[CASE_REVIEW_JSON]).toBe(caseReviewJson);
+      expect(localStorage[HOME_JSON]).toBe(caseReviewJson);
+      expect(localStorage[WMA_COOKIES]).toBe(caseReviewCookies);
+      expect(localStorage[CASE_REVIEW_COOKIES]).toBe(caseReviewCookies);
+      expect(localStorage[HOME_COOKIES]).toBe(caseReviewCookies);
+    });
+
+    test("copies Casework_Blocks (HOME) auth values to all other apps", () => {
+      const homeJson = '{"Cookies":"home-cookies","Token":"home-token"}';
+      const homeCookies = "home-cookies";
+      localStorage[HOME_JSON] = homeJson;
+      localStorage[HOME_COOKIES] = homeCookies;
+
+      syncOsAuth("https://example.com/Casework_Blocks/", localStorage);
+
+      expect(localStorage[WMA_JSON]).toBe(homeJson);
+      expect(localStorage[CASE_REVIEW_JSON]).toBe(homeJson);
+      expect(localStorage[HOME_JSON]).toBe(homeJson);
+      expect(localStorage[WMA_COOKIES]).toBe(homeCookies);
+      expect(localStorage[CASE_REVIEW_COOKIES]).toBe(homeCookies);
+      expect(localStorage[HOME_COOKIES]).toBe(homeCookies);
+    });
+
+    test("does not modify storage when URL does not match any known app", () => {
+      localStorage[WMA_JSON] = "wma-json";
+      localStorage[WMA_COOKIES] = "wma-cookies";
+      localStorage[CASE_REVIEW_JSON] = "cr-json";
+      localStorage[CASE_REVIEW_COOKIES] = "cr-cookies";
+      localStorage[HOME_JSON] = "home-json";
+      localStorage[HOME_COOKIES] = "home-cookies";
+
+      syncOsAuth("https://example.com/UnknownApp/", localStorage);
+
+      expect(localStorage[WMA_JSON]).toBe("wma-json");
+      expect(localStorage[WMA_COOKIES]).toBe("wma-cookies");
+      expect(localStorage[CASE_REVIEW_JSON]).toBe("cr-json");
+      expect(localStorage[CASE_REVIEW_COOKIES]).toBe("cr-cookies");
+      expect(localStorage[HOME_JSON]).toBe("home-json");
+      expect(localStorage[HOME_COOKIES]).toBe("home-cookies");
+    });
+
+    test("does not modify storage when URL has no app path", () => {
+      localStorage[WMA_JSON] = "wma-json";
+      localStorage[WMA_COOKIES] = "wma-cookies";
+      localStorage[CASE_REVIEW_JSON] = "cr-json";
+      localStorage[CASE_REVIEW_COOKIES] = "cr-cookies";
+      localStorage[HOME_JSON] = "home-json";
+      localStorage[HOME_COOKIES] = "home-cookies";
+
+      syncOsAuth("https://example.com/", localStorage);
+
+      expect(localStorage[WMA_JSON]).toBe("wma-json");
+      expect(localStorage[WMA_COOKIES]).toBe("wma-cookies");
+      expect(localStorage[CASE_REVIEW_JSON]).toBe("cr-json");
+      expect(localStorage[CASE_REVIEW_COOKIES]).toBe("cr-cookies");
+      expect(localStorage[HOME_JSON]).toBe("home-json");
+      expect(localStorage[HOME_COOKIES]).toBe("home-cookies");
+    });
+
+    test("overwrites existing values in other apps when syncing from WorkManagementApp", () => {
+      localStorage[WMA_JSON] = "new-wma-json";
+      localStorage[WMA_COOKIES] = "new-wma-cookies";
+      localStorage[CASE_REVIEW_JSON] = "old-cr-json";
+      localStorage[CASE_REVIEW_COOKIES] = "old-cr-cookies";
+      localStorage[HOME_JSON] = "old-home-json";
+      localStorage[HOME_COOKIES] = "old-home-cookies";
+
+      syncOsAuth("https://example.com/WorkManagementApp/", localStorage);
+
+      expect(localStorage[CASE_REVIEW_JSON]).toBe("new-wma-json");
+      expect(localStorage[CASE_REVIEW_COOKIES]).toBe("new-wma-cookies");
+      expect(localStorage[HOME_JSON]).toBe("new-wma-json");
+      expect(localStorage[HOME_COOKIES]).toBe("new-wma-cookies");
+    });
+
+    test("handles URL with query parameters and fragments", () => {
+      const wmaJson = '{"Cookies":"wma-cookies"}';
+      const wmaCookies = "wma-cookies";
+      localStorage[WMA_JSON] = wmaJson;
+      localStorage[WMA_COOKIES] = wmaCookies;
+
+      syncOsAuth("https://example.com/WorkManagementApp/?foo=bar#section", localStorage);
+
+      expect(localStorage[CASE_REVIEW_JSON]).toBe(wmaJson);
+      expect(localStorage[HOME_JSON]).toBe(wmaJson);
+    });
+
+    test("does not sync when URL has nested paths without trailing slash after app name", () => {
+      // The URLPattern /:app/ requires a trailing slash immediately after the app name
+      localStorage[WMA_JSON] = "wma-json";
+      localStorage[WMA_COOKIES] = "wma-cookies";
+      localStorage[CASE_REVIEW_JSON] = "cr-json";
+      localStorage[CASE_REVIEW_COOKIES] = "cr-cookies";
+      localStorage[HOME_JSON] = "home-json";
+      localStorage[HOME_COOKIES] = "home-cookies";
+
+      syncOsAuth("https://example.com/CaseReview/some/nested/path", localStorage);
+
+      // Values should remain unchanged since the URL pattern doesn't match
+      expect(localStorage[WMA_JSON]).toBe("wma-json");
+      expect(localStorage[WMA_COOKIES]).toBe("wma-cookies");
+      expect(localStorage[CASE_REVIEW_JSON]).toBe("cr-json");
+      expect(localStorage[CASE_REVIEW_COOKIES]).toBe("cr-cookies");
+      expect(localStorage[HOME_JSON]).toBe("home-json");
+      expect(localStorage[HOME_COOKIES]).toBe("home-cookies");
     });
   });
 });
