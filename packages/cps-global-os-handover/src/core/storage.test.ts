@@ -274,24 +274,35 @@ describe("storage", () => {
       expect(localStorage[HOME_JSON]).toBe(wmaJson);
     });
 
-    test("does not sync when URL has nested paths without trailing slash after app name", () => {
-      // The URLPattern /:app/ requires a trailing slash immediately after the app name
-      localStorage[WMA_JSON] = "wma-json";
-      localStorage[WMA_COOKIES] = "wma-cookies";
-      localStorage[CASE_REVIEW_JSON] = "cr-json";
-      localStorage[CASE_REVIEW_COOKIES] = "cr-cookies";
-      localStorage[HOME_JSON] = "home-json";
-      localStorage[HOME_COOKIES] = "home-cookies";
+    test("syncs when URL has nested paths after app name", () => {
+      const caseReviewJson = '{"Cookies":"cr-cookies"}';
+      const caseReviewCookies = "cr-cookies";
+      localStorage[CASE_REVIEW_JSON] = caseReviewJson;
+      localStorage[CASE_REVIEW_COOKIES] = caseReviewCookies;
 
       syncOsAuth("https://example.com/CaseReview/some/nested/path", localStorage);
 
-      // Values should remain unchanged since the URL pattern doesn't match
-      expect(localStorage[WMA_JSON]).toBe("wma-json");
-      expect(localStorage[WMA_COOKIES]).toBe("wma-cookies");
-      expect(localStorage[CASE_REVIEW_JSON]).toBe("cr-json");
-      expect(localStorage[CASE_REVIEW_COOKIES]).toBe("cr-cookies");
-      expect(localStorage[HOME_JSON]).toBe("home-json");
-      expect(localStorage[HOME_COOKIES]).toBe("home-cookies");
+      expect(localStorage[WMA_JSON]).toBe(caseReviewJson);
+      expect(localStorage[WMA_COOKIES]).toBe(caseReviewCookies);
+      expect(localStorage[HOME_JSON]).toBe(caseReviewJson);
+      expect(localStorage[HOME_COOKIES]).toBe(caseReviewCookies);
+    });
+
+    test("syncs WorkManagementApp with deep nested path and query params", () => {
+      const wmaJson = '{"Cookies":"wma-cookies"}';
+      const wmaCookies = "wma-cookies";
+      localStorage[WMA_JSON] = wmaJson;
+      localStorage[WMA_COOKIES] = wmaCookies;
+
+      syncOsAuth(
+        "https://cps-dev.outsystemsenterprise.com/WorkManagementApp/CaseOverview?CaseId=123&IsFromTasks=true",
+        localStorage
+      );
+
+      expect(localStorage[CASE_REVIEW_JSON]).toBe(wmaJson);
+      expect(localStorage[CASE_REVIEW_COOKIES]).toBe(wmaCookies);
+      expect(localStorage[HOME_JSON]).toBe(wmaJson);
+      expect(localStorage[HOME_COOKIES]).toBe(wmaCookies);
     });
   });
 });
