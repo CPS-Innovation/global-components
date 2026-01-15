@@ -80,6 +80,7 @@ describe("menuConfig", () => {
     isOutSystems: false,
     e2eTestMode: { isE2eTestMode: false },
     isLocalDevelopment: false,
+    environment: "test",
   };
 
   const mockTags: Tags = {};

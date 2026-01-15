@@ -1105,7 +1105,7 @@ describe("global-script", () => {
       expect(mockInitialiseConfig).toHaveBeenCalledWith({ rootUrl: testRootUrl, flags: testFlags, preview: testPreview });
     });
 
-    it("should pass rootUrl to initialiseCmsSessionHint", async () => {
+    it("should pass rootUrl and flags to initialiseCmsSessionHint", async () => {
       const testRootUrl = "https://test.example.com/env/script.js";
       mockInitialiseRootUrl.mockReturnValue(testRootUrl);
 
@@ -1115,6 +1115,7 @@ describe("global-script", () => {
 
       expect(mockInitialiseCmsSessionHint).toHaveBeenCalledWith({
         rootUrl: testRootUrl,
+        flags: expect.any(Object),
       });
     });
 
