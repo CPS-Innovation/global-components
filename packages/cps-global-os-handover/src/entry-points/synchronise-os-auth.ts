@@ -1,7 +1,7 @@
 import { syncOsAuth } from "../core/storage";
 
 export const synchroniseOsAuth = ({
-  window: { location },
+  window: { location, localStorage },
 }: {
   window: Window;
-}) => syncOsAuth(location.href);
+}) => syncOsAuth(location.href, localStorage);

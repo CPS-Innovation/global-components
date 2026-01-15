@@ -159,7 +159,6 @@ export function App() {
         if (!response.ok) {
           throw new Error("Failed to save state");
         }
-        showStatus("Settings saved", "success");
       } catch (err) {
         showStatus(
           `Failed to save settings: ${
@@ -219,7 +218,11 @@ export function App() {
     radioOptions?: RadioOption<string>[]
   ) => {
     // For features with radioOptions, set the first option as default when checked
-    const value = radioOptions ? (checked ? radioOptions[0].value : undefined) : (checked || undefined);
+    const value = radioOptions
+      ? checked
+        ? radioOptions[0].value
+        : undefined
+      : checked || undefined;
     const newState = { ...state, [key]: value };
     // Clear text inputs and sub-options when the feature is unchecked
     if (!checked) {
@@ -356,28 +359,6 @@ export function App() {
         </div>
       )}
 
-      {status?.type === "success" && (
-        <div
-          className="govuk-notification-banner govuk-notification-banner--success"
-          role="alert"
-          data-module="govuk-notification-banner"
-        >
-          <div className="govuk-notification-banner__header">
-            <h2
-              className="govuk-notification-banner__title"
-              id="govuk-notification-banner-title"
-            >
-              Success
-            </h2>
-          </div>
-          <div className="govuk-notification-banner__content">
-            <p className="govuk-notification-banner__heading">
-              {status.message}
-            </p>
-          </div>
-        </div>
-      )}
-
       <form>
         <div className="govuk-form-group">
           <fieldset className="govuk-fieldset">
@@ -395,7 +376,12 @@ export function App() {
                   subOptions,
                   radioOptions,
                 }) => (
-                  <div key={key} className="govuk-checkboxes" data-module="govuk-checkboxes" style={{ marginBottom: "10px" }}>
+                  <div
+                    key={key}
+                    className="govuk-checkboxes"
+                    data-module="govuk-checkboxes"
+                    style={{ marginBottom: "10px" }}
+                  >
                     <div className="govuk-checkboxes__item">
                       <input
                         className="govuk-checkboxes__input"
@@ -431,9 +417,15 @@ export function App() {
                           className="govuk-checkboxes__conditional"
                           style={{ marginTop: "10px", paddingLeft: "15px" }}
                         >
-                          <div className="govuk-radios govuk-radios--small" data-module="govuk-radios">
+                          <div
+                            className="govuk-radios govuk-radios--small govuk-radios--inline"
+                            data-module="govuk-radios"
+                          >
                             {radioOptions.map((option) => (
-                              <div key={option.value} className="govuk-radios__item">
+                              <div
+                                key={option.value}
+                                className="govuk-radios__item"
+                              >
                                 <input
                                   className="govuk-radios__input"
                                   id={`${key}-${option.value}`}
@@ -442,7 +434,9 @@ export function App() {
                                   value={option.value}
                                   checked={state[key] === option.value}
                                   disabled={loading || disabled}
-                                  onChange={() => handleRadioChange(key, option.value)}
+                                  onChange={() =>
+                                    handleRadioChange(key, option.value)
+                                  }
                                 />
                                 <label
                                   className="govuk-label govuk-radios__label"
@@ -480,7 +474,10 @@ export function App() {
                                 value={String(state[input.key] ?? "")}
                                 disabled={loading || disabled}
                                 onChange={(e) =>
-                                  handleTextInputChange(input.key, e.target.value)
+                                  handleTextInputChange(
+                                    input.key,
+                                    e.target.value
+                                  )
                                 }
                               />
                             </div>
