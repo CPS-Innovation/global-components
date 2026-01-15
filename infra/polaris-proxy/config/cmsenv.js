@@ -39,7 +39,7 @@ const _getUpstreamVariable = (variableSuffix) => (r) => {
     : cookie.includes("cin5")
     ? "cin5"
     : "default";
-  return r.variables[env + variableSuffix];
+  return process.env[env + variableSuffix];
 };
 
 const _cmsDomainReplacements = (hostVariableName) => (r, data, flags) =>
@@ -58,7 +58,7 @@ const _cmsDomainReplacements = (hostVariableName) => (r, data, flags) =>
       // problems so far so keeping this in place.
       _getUpstreamVariable(suffix)(r).replace(new RegExp("[-=./]", "g"), "")
     )
-    .map((cleanedVariable) => [cleanedVariable, r.variables[hostVariableName]]);
+    .map((cleanedVariable) => [cleanedVariable, process.env[hostVariableName]]);
 
 const _appButtonReplacements = (r, data, flags) => [
   [
