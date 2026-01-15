@@ -32,7 +32,7 @@ export const isStoredAuthCurrent = (cookies: string) =>
     localStorage[localStorageKeys.HOME_COOKIES]
   );
 
-export const syncOsAuth = (currentUrl: string) => {
+export const syncOsAuth = (currentUrl: string, storage: Storage) => {
   const app = new URLPattern({ pathname: "/:app/" }).exec(currentUrl)?.pathname
     .groups["app"];
 
@@ -49,12 +49,12 @@ export const syncOsAuth = (currentUrl: string) => {
     localStorage[localStorageKeys.WMA_JSON] =
       localStorage[localStorageKeys.CASE_REVIEW_JSON] =
       localStorage[localStorageKeys.HOME_JSON] =
-        localStorage[jsonKey];
+        localStorage[localStorageKeys[jsonKey]];
 
     localStorage[localStorageKeys.WMA_COOKIES] =
       localStorage[localStorageKeys.CASE_REVIEW_COOKIES] =
       localStorage[localStorageKeys.HOME_COOKIES] =
-        localStorage[cookiesKey];
+        localStorage[localStorageKeys[cookiesKey]];
   };
 
   switch (app) {
