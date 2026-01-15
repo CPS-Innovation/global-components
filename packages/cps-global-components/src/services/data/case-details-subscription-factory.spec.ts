@@ -46,17 +46,21 @@ describe("caseDetailsSubscriptionFactory", () => {
     error: {} as Error,
   });
 
+  const createMockGet = (handover: Result<Handover>) => jest.fn().mockImplementation((key: string) => {
+    if (key === "handover") return handover;
+    return undefined;
+  });
+
   describe("factory initialization", () => {
     it("should return onChange subscription type", () => {
       const factory = caseDetailsSubscriptionFactory({
         fetch: createMockFetch(),
-        handover: createMockHandoverNotFound(),
         setNextHandover: jest.fn(),
         setNextRecentCases: jest.fn(),
       });
 
       const result = factory({
-        get: jest.fn(),
+        get: createMockGet(createMockHandoverNotFound()),
         register: jest.fn(),
         mergeTags: jest.fn(),
       });
@@ -75,13 +79,12 @@ describe("caseDetailsSubscriptionFactory", () => {
 
       const factory = caseDetailsSubscriptionFactory({
         fetch: createMockFetch(),
-        handover: createMockHandoverNotFound(),
         setNextHandover: jest.fn(),
         setNextRecentCases: jest.fn(),
       });
 
       const subscription = factory({
-        get: jest.fn(),
+        get: createMockGet(createMockHandoverNotFound()),
         register,
         mergeTags: jest.fn(),
       });
@@ -97,16 +100,16 @@ describe("caseDetailsSubscriptionFactory", () => {
       const register = jest.fn();
       const mergeTags = jest.fn();
       const mockFetch = createMockFetch();
+      const handover = createMockHandoverFound(123, mockCaseDetails, mockMonitoringCodes);
 
       const factory = caseDetailsSubscriptionFactory({
         fetch: mockFetch,
-        handover: createMockHandoverFound(123, mockCaseDetails, mockMonitoringCodes),
         setNextHandover: jest.fn(),
         setNextRecentCases: jest.fn(),
       });
 
       const subscription = factory({
-        get: jest.fn(),
+        get: createMockGet(handover),
         register,
         mergeTags,
       });
@@ -127,16 +130,16 @@ describe("caseDetailsSubscriptionFactory", () => {
 
     it("should fetch when handover caseId does not match", async () => {
       const mockFetch = createMockFetch();
+      const handover = createMockHandoverFound(999, mockCaseDetails, mockMonitoringCodes);
 
       const factory = caseDetailsSubscriptionFactory({
         fetch: mockFetch,
-        handover: createMockHandoverFound(999, mockCaseDetails, mockMonitoringCodes),
         setNextHandover: jest.fn(),
         setNextRecentCases: jest.fn(),
       });
 
       const subscription = factory({
-        get: jest.fn(),
+        get: createMockGet(handover),
         register: jest.fn(),
         mergeTags: jest.fn(),
       });
@@ -156,13 +159,12 @@ describe("caseDetailsSubscriptionFactory", () => {
 
       const factory = caseDetailsSubscriptionFactory({
         fetch: mockFetch,
-        handover: createMockHandoverNotFound(),
         setNextHandover: jest.fn(),
         setNextRecentCases: jest.fn(),
       });
 
       const subscription = factory({
-        get: jest.fn(),
+        get: createMockGet(createMockHandoverNotFound()),
         register: jest.fn(),
         mergeTags: jest.fn(),
       });
@@ -182,13 +184,12 @@ describe("caseDetailsSubscriptionFactory", () => {
 
       const factory = caseDetailsSubscriptionFactory({
         fetch: createMockFetch(),
-        handover: createMockHandoverNotFound(),
         setNextHandover: jest.fn(),
         setNextRecentCases: jest.fn(),
       });
 
       const subscription = factory({
-        get: jest.fn(),
+        get: createMockGet(createMockHandoverNotFound()),
         register: jest.fn(),
         mergeTags,
       });
@@ -209,13 +210,12 @@ describe("caseDetailsSubscriptionFactory", () => {
 
       const factory = caseDetailsSubscriptionFactory({
         fetch: createMockFetch(),
-        handover: createMockHandoverNotFound(),
         setNextHandover: jest.fn(),
         setNextRecentCases: jest.fn(),
       });
 
       const subscription = factory({
-        get: jest.fn(),
+        get: createMockGet(createMockHandoverNotFound()),
         register,
         mergeTags: jest.fn(),
       });
@@ -235,13 +235,12 @@ describe("caseDetailsSubscriptionFactory", () => {
 
       const factory = caseDetailsSubscriptionFactory({
         fetch: createMockFetch(),
-        handover: createMockHandoverNotFound(),
         setNextHandover,
         setNextRecentCases: jest.fn(),
       });
 
       const subscription = factory({
-        get: jest.fn(),
+        get: createMockGet(createMockHandoverNotFound()),
         register: jest.fn(),
         mergeTags: jest.fn(),
       });
@@ -261,16 +260,16 @@ describe("caseDetailsSubscriptionFactory", () => {
 
     it("should set next handover even when using handover data", async () => {
       const setNextHandover = jest.fn();
+      const handover = createMockHandoverFound(123, mockCaseDetails, mockMonitoringCodes);
 
       const factory = caseDetailsSubscriptionFactory({
         fetch: createMockFetch(),
-        handover: createMockHandoverFound(123, mockCaseDetails, mockMonitoringCodes),
         setNextHandover,
         setNextRecentCases: jest.fn(),
       });
 
       const subscription = factory({
-        get: jest.fn(),
+        get: createMockGet(handover),
         register: jest.fn(),
         mergeTags: jest.fn(),
       });

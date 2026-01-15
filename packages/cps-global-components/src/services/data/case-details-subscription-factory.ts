@@ -2,20 +2,18 @@ import { CaseDetails, CaseDetailsSchema } from "./CaseDetails";
 import { extractTagsFromCaseDetails } from "./extract-tags-from-case-details";
 import { SubscriptionFactory } from "../../store/subscriptions/SubscriptionFactory";
 import { Handover } from "../state/handover/Handover";
-import { Result } from "../../utils/Result";
 import { fetchAndValidate } from "../fetch/fetch-and-validate";
 import { MonitoringCodesSchema } from "./MonitoringCode";
 
 type Props = {
-  handover: Result<Handover>;
   setNextHandover: (data: Handover) => void;
   setNextRecentCases: (caseDetails: CaseDetails | undefined) => void;
   fetch: typeof fetch;
 };
 
 export const caseDetailsSubscriptionFactory =
-  ({ fetch, handover, setNextHandover, setNextRecentCases }: Props): SubscriptionFactory =>
-  ({ register, mergeTags }) => ({
+  ({ fetch, setNextHandover, setNextRecentCases }: Props): SubscriptionFactory =>
+  ({ register, mergeTags, get }) => ({
     type: "onChange",
     handler: {
       propName: "caseIdentifiers",
@@ -25,9 +23,9 @@ export const caseDetailsSubscriptionFactory =
           return;
         }
         const caseId = Number(caseIdentifiers.caseId);
-
+        const handover = get("handover");
         // If we have this case's details handed over then we do not have to hit the apis
-        const { caseDetails, monitoringCodes } = (handover.found && handover.result.caseId === caseId && handover.result) || {};
+        const { caseDetails, monitoringCodes } = (handover?.found && handover.result.caseId === caseId && handover.result) || {};
 
         // Let's keep the calls and their registering separate as one may be slower than the other and the UI
         // may be able to render useful stuff with whatever it has first
@@ -57,7 +55,11 @@ export const caseDetailsSubscriptionFactory =
           });
 
         Promise.all([caseDetailsPromise, monitoringCodesPromise]).then(([caseDetails, monitoringCodes]) => {
-          setNextHandover({ caseId, caseDetails, monitoringCodes });
+          const handover = { caseId, caseDetails, monitoringCodes };
+          // Send this to the state endpoint...
+          setNextHandover(handover);
+          // ... and update the store (it might be the case that we did not have a handover to begin with)
+          register({ handover: { found: true, result: handover } });
           setNextRecentCases(caseDetails);
         });
       },
