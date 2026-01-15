@@ -1,67 +1,56 @@
-const mockUuidv4 = jest.fn();
-jest.mock("zod", () => ({
-  uuidv4: () => mockUuidv4(),
-}));
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 describe("initialiseCorrelationIds", () => {
   beforeEach(() => {
     jest.resetModules();
-    jest.clearAllMocks();
   });
 
   it("should return scriptLoadCorrelationId equal to navigationCorrelationId on first call", () => {
-    mockUuidv4.mockReturnValue("uuid-1");
-    const { initialiseCorrelationIds } = require("./initialise-correlation-ids");
+    const { initialiseCorrelationIds: freshInitialise } = require("./initialise-correlation-ids");
 
-    const result = initialiseCorrelationIds();
+    const result = freshInitialise();
 
-    expect(result.scriptLoadCorrelationId).toBe("uuid-1");
-    expect(result.navigationCorrelationId).toBe("uuid-1");
     expect(result.scriptLoadCorrelationId).toBe(result.navigationCorrelationId);
   });
 
+  it("should return valid UUIDs", () => {
+    const { initialiseCorrelationIds: freshInitialise } = require("./initialise-correlation-ids");
+
+    const result = freshInitialise();
+
+    expect(result.scriptLoadCorrelationId).toMatch(UUID_REGEX);
+    expect(result.navigationCorrelationId).toMatch(UUID_REGEX);
+  });
+
   it("should keep scriptLoadCorrelationId the same on subsequent calls", () => {
-    let uuidCounter = 0;
-    mockUuidv4.mockImplementation(() => `uuid-${++uuidCounter}`);
-    const { initialiseCorrelationIds } = require("./initialise-correlation-ids");
+    const { initialiseCorrelationIds: freshInitialise } = require("./initialise-correlation-ids");
 
-    const firstResult = initialiseCorrelationIds();
-    expect(firstResult.scriptLoadCorrelationId).toBe("uuid-1");
-    expect(firstResult.navigationCorrelationId).toBe("uuid-1");
+    const firstResult = freshInitialise();
+    const secondResult = freshInitialise();
+    const thirdResult = freshInitialise();
 
-    const secondResult = initialiseCorrelationIds();
-    expect(secondResult.scriptLoadCorrelationId).toBe("uuid-1"); // Same as first
-    expect(secondResult.navigationCorrelationId).toBe("uuid-2"); // New UUID
-
-    const thirdResult = initialiseCorrelationIds();
-    expect(thirdResult.scriptLoadCorrelationId).toBe("uuid-1"); // Still same
-    expect(thirdResult.navigationCorrelationId).toBe("uuid-3"); // New UUID
+    expect(secondResult.scriptLoadCorrelationId).toBe(firstResult.scriptLoadCorrelationId);
+    expect(thirdResult.scriptLoadCorrelationId).toBe(firstResult.scriptLoadCorrelationId);
   });
 
   it("should generate a new navigationCorrelationId on each call", () => {
-    let uuidCounter = 0;
-    mockUuidv4.mockImplementation(() => `uuid-${++uuidCounter}`);
-    const { initialiseCorrelationIds } = require("./initialise-correlation-ids");
+    const { initialiseCorrelationIds: freshInitialise } = require("./initialise-correlation-ids");
 
-    initialiseCorrelationIds();
-    const secondResult = initialiseCorrelationIds();
-    const thirdResult = initialiseCorrelationIds();
+    const firstResult = freshInitialise();
+    const secondResult = freshInitialise();
+    const thirdResult = freshInitialise();
 
-    expect(secondResult.navigationCorrelationId).toBe("uuid-2");
-    expect(thirdResult.navigationCorrelationId).toBe("uuid-3");
+    expect(secondResult.navigationCorrelationId).not.toBe(firstResult.navigationCorrelationId);
+    expect(thirdResult.navigationCorrelationId).not.toBe(secondResult.navigationCorrelationId);
+    expect(thirdResult.navigationCorrelationId).not.toBe(firstResult.navigationCorrelationId);
   });
 
-  it("should call uuidv4 once per invocation", () => {
-    mockUuidv4.mockReturnValue("test-uuid");
-    const { initialiseCorrelationIds } = require("./initialise-correlation-ids");
+  it("should have navigationCorrelationId differ from scriptLoadCorrelationId on subsequent calls", () => {
+    const { initialiseCorrelationIds: freshInitialise } = require("./initialise-correlation-ids");
 
-    initialiseCorrelationIds();
-    expect(mockUuidv4).toHaveBeenCalledTimes(1);
+    freshInitialise(); // First call sets scriptLoadCorrelationId
+    const secondResult = freshInitialise();
 
-    initialiseCorrelationIds();
-    expect(mockUuidv4).toHaveBeenCalledTimes(2);
-
-    initialiseCorrelationIds();
-    expect(mockUuidv4).toHaveBeenCalledTimes(3);
+    expect(secondResult.navigationCorrelationId).not.toBe(secondResult.scriptLoadCorrelationId);
   });
 });
