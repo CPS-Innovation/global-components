@@ -19,6 +19,7 @@ import { initialiseRecentCases } from "./services/state/recent-cases/initialise-
 import { footerSubscriber } from "./services/browser/dom/footer-subscriber";
 import { accessibilitySubscriber } from "./services/browser/accessibility/accessibility-subscriber";
 import { initialiseSettings } from "./services/state/settings/initialise-settings";
+import { initialiseOutSystemsReconcileAuth } from "./services/outsystems-shim/initialise-outsytems-reconcile-auth";
 
 const { _error } = makeConsole("global-script");
 
@@ -63,18 +64,20 @@ const startupPhase = async ({ window, storeFns: { register, mergeTags, readyStat
   const rootUrl = initialiseRootUrl();
   register({ rootUrl });
 
-  const flags = getApplicationFlags({ window });
+  const flags = getApplicationFlags({ window, rootUrl });
   register({ flags });
 
+  initialiseOutSystemsReconcileAuth({ flags, window });
+
   const [cmsSessionHint, { handover, setNextHandover }, preview, settings] = await Promise.all([
-    initialiseCmsSessionHint({ rootUrl }),
+    initialiseCmsSessionHint({ rootUrl, flags }),
     initialiseHandover({ rootUrl }),
     initialisePreview({ rootUrl }),
     initialiseSettings({ rootUrl }),
   ]);
   register({ cmsSessionHint, handover, preview });
 
-  const { recentCases, setNextRecentCases } = await initialiseRecentCases({ rootUrl, preview, flags });
+  const { recentCases, setNextRecentCases } = await initialiseRecentCases({ rootUrl, preview });
   register({ recentCases });
 
   const config = await initialiseConfig({ rootUrl, flags, preview });
