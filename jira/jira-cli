@@ -179,10 +179,17 @@ cmd_add() {
 
     # Fetch features for parent selection
     echo "Fetching features..."
-    local jql='project = FCT2 AND type = Feature and status != Done and "fct workstream[dropdown]" = "Global Navigation" ORDER BY Rank ASC, priority DESC'
-    local features_json=$(acli jira workitem search --jql "$jql" --json 2>/dev/null)
+    local jql='project = FCT2 AND type = Feature AND status not in (Done) AND cf[10154] = "Global Navigation" ORDER BY Rank ASC, priority DESC'
+    local payload=$(jq -n --arg jql "$jql" '{jql: $jql, maxResults: 100, fields: ["key", "summary"]}')
 
-    if [[ -z "$features_json" ]]; then
+    # Use REST API directly (acli uses deprecated endpoint)
+    local features_json=$(curl -s -X POST \
+        -H "Authorization: Basic $(echo -n "${JIRA_EMAIL}:${JIRA_TOKEN}" | base64)" \
+        -H "Content-Type: application/json" \
+        -d "$payload" \
+        "https://${JIRA_SITE}/rest/api/3/search/jql" | jq '[.issues[] | {key: .key, fields: .fields}]')
+
+    if [[ -z "$features_json" || "$features_json" == "[]" || "$features_json" == "null" ]]; then
         echo "Error: Failed to fetch features from Jira"
         exit 1
     fi
@@ -234,11 +241,13 @@ cmd_add() {
     read -r description
     echo ""
 
-    # Get current sprint
+    # Get current sprint via REST API
     echo "Fetching current sprint..."
-    local sprint_json=$(acli jira board list-sprints --id "$JIRA_BOARD_ID" --state active --json 2>/dev/null)
-    local sprint_name=$(echo "$sprint_json" | jq -r '.sprints[] | select(.name | test("Global Navigation"; "i")) | .name' | head -1)
-    local sprint_id=$(echo "$sprint_json" | jq -r '.sprints[] | select(.name | test("Global Navigation"; "i")) | .id' | head -1)
+    local sprint_json=$(curl -s \
+        -H "Authorization: Basic $(echo -n "${JIRA_EMAIL}:${JIRA_TOKEN}" | base64)" \
+        "https://${JIRA_SITE}/rest/agile/1.0/board/${JIRA_BOARD_ID}/sprint?state=active")
+    local sprint_name=$(echo "$sprint_json" | jq -r '.values[] | select(.name | test("Global Navigation"; "i")) | .name' | head -1)
+    local sprint_id=$(echo "$sprint_json" | jq -r '.values[] | select(.name | test("Global Navigation"; "i")) | .id' | head -1)
 
     local add_to_sprint=false
     if [[ -n "$sprint_id" ]]; then
@@ -271,6 +280,20 @@ cmd_add() {
     echo -e "Selected: ${GREEN}${item_type}${NC}"
     echo ""
 
+    # If Bug, ask for affected environment (required field)
+    local affected_env_id=""
+    local affected_env_name=""
+    if [[ "$item_type" == "Bug" ]]; then
+        local -a env_options=("CIN2" "CIN3" "CIN4" "CIN5" "PRI QA" "PROD" "Unknown")
+        local -a env_ids=("10113" "10115" "10116" "10117" "10122" "10121" "10133")
+        select_option "Affected Environment:" 0 "${env_options[@]}"
+        affected_env_id="${env_ids[$SELECTED_INDEX]}"
+        affected_env_name="${env_options[$SELECTED_INDEX]}"
+        echo ""
+        echo -e "Selected: ${GREEN}${affected_env_name}${NC}"
+        echo ""
+    fi
+
     # Confirm creation
     echo -e "${BOLD}Creating work item:${NC}"
     echo -e "  Parent:      ${CYAN}${parent_key}${NC}"
@@ -278,6 +301,9 @@ cmd_add() {
     echo -e "  Summary:     ${CYAN}${summary}${NC}"
     if [[ -n "$description" ]]; then
         echo -e "  Description: ${CYAN}${description}${NC}"
+    fi
+    if [[ -n "$affected_env_name" ]]; then
+        echo -e "  Environment: ${CYAN}${affected_env_name}${NC}"
     fi
     echo -e "  Label:       ${CYAN}${JIRA_LABEL}${NC}"
     echo -e "  Team:        ${CYAN}Global Navigation${NC}"
@@ -334,6 +360,11 @@ EOF
     if [[ "$assign_to_me" == true ]]; then
         payload+=",
         \"assignee\": {\"accountId\": \"$JIRA_ACCOUNT_ID\"}"
+    fi
+
+    if [[ -n "$affected_env_id" ]]; then
+        payload+=",
+        \"customfield_10130\": [{\"id\": \"$affected_env_id\"}]"
     fi
 
     payload+="
@@ -424,9 +455,18 @@ EOF
 fetch_child_progress() {
     local feature_key=$1
     local tmp_dir=$2
-    local children_json=$(acli jira workitem search --jql "\"parent\" = $feature_key" --json 2>/dev/null)
 
-    if [[ -z "$children_json" || "$children_json" == "[]" ]]; then
+    # Use REST API directly (acli uses deprecated endpoint)
+    local jql="parent = $feature_key"
+    local payload=$(jq -n --arg jql "$jql" '{jql: $jql, maxResults: 100, fields: ["status"]}')
+
+    local children_json=$(curl -s -X POST \
+        -H "Authorization: Basic $(echo -n "${JIRA_EMAIL}:${JIRA_TOKEN}" | base64)" \
+        -H "Content-Type: application/json" \
+        -d "$payload" \
+        "https://${JIRA_SITE}/rest/api/3/search/jql" 2>/dev/null | jq '[.issues[] | {fields: .fields}]')
+
+    if [[ -z "$children_json" || "$children_json" == "[]" || "$children_json" == "null" ]]; then
         echo "-|-|-" > "$tmp_dir/${feature_key}_progress"
         return
     fi
@@ -456,14 +496,20 @@ fetch_story_points() {
 }
 
 cmd_features() {
-    local jql='project = FCT2 AND type = Feature and status != Done and "fct workstream[dropdown]" = "Global Navigation" ORDER BY Rank ASC, priority DESC'
-
     echo ""
     echo "Fetching features..."
 
-    local json=$(acli jira workitem search --jql "$jql" --json 2>/dev/null)
+    # Use REST API directly (acli uses deprecated endpoint)
+    local jql='project = FCT2 AND type = Feature AND status not in (Done) AND cf[10154] = "Global Navigation" ORDER BY Rank ASC, priority DESC'
+    local payload=$(jq -n --arg jql "$jql" '{jql: $jql, maxResults: 100, fields: ["key", "summary", "status", "assignee"]}')
 
-    if [[ -z "$json" ]]; then
+    local json=$(curl -s -X POST \
+        -H "Authorization: Basic $(echo -n "${JIRA_EMAIL}:${JIRA_TOKEN}" | base64)" \
+        -H "Content-Type: application/json" \
+        -d "$payload" \
+        "https://${JIRA_SITE}/rest/api/3/search/jql" | jq '[.issues[] | {key: .key, fields: .fields}]')
+
+    if [[ -z "$json" || "$json" == "[]" || "$json" == "null" ]]; then
         echo "Error: Failed to fetch features from Jira"
         exit 1
     fi
