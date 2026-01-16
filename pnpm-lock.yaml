@@ -31,7 +31,7 @@ importers:
         version: 3.1.2
       govuk-frontend:
         specifier: ^5.10.1
-        version: 5.11.2
+        version: 5.13.0
 
   e2e:
     dependencies:
@@ -162,7 +162,7 @@ importers:
         version: 1.3.0
       govuk-frontend:
         specifier: ^5.7.1
-        version: 5.11.2
+        version: 5.13.0
       proper-url-join:
         specifier: ^2.1.2
         version: 2.1.2
@@ -2837,8 +2837,8 @@ packages:
     resolution: {integrity: sha512-ZUKRh6/kUFoAiTAtTYPZJ3hw9wNxx+BIBOijnlG9PnrJsCcSjs1wyyD6vJpaYtgnzDrKYRSqf3OO6Rfa93xsRg==}
     engines: {node: '>= 0.4'}
 
-  govuk-frontend@5.11.2:
-    resolution: {integrity: sha512-eHV8EMxYNjc+omFhB0HktQ3QmA3ZRdDsgRDlUIik+TpUHerR3XKXpo4zh/OGO2/C2mz65cX0XT0k4QrRFJZU8Q==}
+  govuk-frontend@5.13.0:
+    resolution: {integrity: sha512-6N3pHelWN7wftdM6e4YEzZAfattapa1gnd+Al6d5PUbfTr9D+T2dnphpNpjX75CTEhihlQqlL0RDQ3WIfZ3PSg==}
     engines: {node: '>= 4.2.0'}
 
   graceful-fs@4.2.11:
@@ -7437,7 +7437,7 @@ snapshots:
 
   gopd@1.2.0: {}
 
-  govuk-frontend@5.11.2: {}
+  govuk-frontend@5.13.0: {}
 
   graceful-fs@4.2.11: {}
 
