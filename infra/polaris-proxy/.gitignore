@@ -1,0 +1,17 @@
+# Dependencies
+node_modules/
+
+# Build artifacts
+dist/
+.dist/
+
+# Environment files (may contain secrets)
+.env
+config/**/.env
+
+# IDE
+.idea/
+.vscode/
+
+# OS files
+.DS_Store
