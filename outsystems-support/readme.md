@@ -6,22 +6,24 @@ Add a reference to the global components script.
 
 | Environment | Path                                                                                |
 | ----------- | ----------------------------------------------------------------------------------- |
-| `cps-dev`   | `https://sacpsglobalcomponents.blob.core.windows.net/dev/cps-global-components.js`  |
-| `cps-tst`   | `https://sacpsglobalcomponents.blob.core.windows.net/test/cps-global-components.js` |
+| `cps-dev`   | `https://polaris-qa-notprod.cps.gov.uk/global-components/dev/global-components.js`  |
+| `cps-tst`   | `https://polaris-qa-notprod.cps.gov.uk/global-components/test/global-components.js` |
 | `cps`       | `https://sacpsglobalcomponents.blob.core.windows.net/prod/cps-global-components.js` |
 
 Add the `<cps-global-header></cps-global-header>` HTML tag to the appropriate block.
 
 ## Content Security Policy directives
 
-| Directive type       | Path                                                          | Reason                                    |
-| -------------------- | ------------------------------------------------------------- | ----------------------------------------- |
-| script-src/child-src | `sacpsglobalcomponents.blob.core.windows.net`                 | Retrieve global components script         |
-| connect-src          | `sacpsglobalcomponents.blob.core.windows.net`                 | Retrieve environment-specific config file |
-| script-src/child-src | `login.microsoftonline.com`                                   | Entra/AD/MSAL auth                        |
-| connect-src          | `login.microsoftonline.com`                                   | Entra/AD/MSAL auth                        |
-| connect-src          | `https://js.monitor.azure.com/scripts/b/ai.config.1.cfg.json` | App Insights analytics                    |
-| connect-src          | `https://uksouth-1.in.applicationinsights.azure.com/v2/track` | App Insights analytics                    |
+| Directive type           | Path                                                                                                                                          | Reason                                                   |
+| ------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------- |
+| ~~script-src/child-src~~ | ~~`sacpsglobalcomponents.blob.core.windows.net`~~                                                                                             | ~~Retrieve global components script~~                    |
+| ~~connect-src~~          | ~~`sacpsglobalcomponents.blob.core.windows.net`~~                                                                                             | ~~Retrieve environment-specific config file~~            |
+| script-src/child-src     | **PRE-PROD:** `polaris-qa-notprod.cps.gov.uk` <br/> **PROD:**&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;`polaris.cps.gov.uk` | Retrieve global components script                        |
+| connect-src              | **PRE-PROD:** `polaris-qa-notprod.cps.gov.uk` <br/> **PROD:**&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;`polaris.cps.gov.uk` | Retrieve environment-specific config file, retrieve data |
+| script-src/child-src     | `login.microsoftonline.com`                                                                                                                   | Entra/AD/MSAL auth                                       |
+| connect-src              | `login.microsoftonline.com`                                                                                                                   | Entra/AD/MSAL auth                                       |
+| connect-src              | `https://js.monitor.azure.com/scripts/b/ai.config.1.cfg.json`                                                                                 | App Insights analytics                                   |
+| connect-src              | `https://uksouth-1.in.applicationinsights.azure.com/v2/track`                                                                                 | App Insights analytics                                   |
 
 ## Auth handover
 
@@ -32,17 +34,17 @@ Add the `<cps-global-header></cps-global-header>` HTML tag to the appropriate bl
 ```html
 <!-- in dev -->
 <html>
-  <script src="https://sacpsglobalcomponents.blob.core.windows.net/dev/auth-handover.js"></script>
+  <script src="https://polaris-qa-notprod.cps.gov.uk/global-components/dev/global-components.js"></script>
 </html>
 
 <!-- in test -->
 <html>
-  <script src="https://sacpsglobalcomponents.blob.core.windows.net/test/auth-handover.js"></script>
+  <script src="https://polaris-qa-notprod.cps.gov.uk/global-components/test/global-components.js"></script>
 </html>
 
 <!-- in prod -->
 <html>
-  <script src="https://sacpsglobalcomponents.blob.core.windows.net/prod/auth-handover.js"></script>
+  <script src="https://sacpsglobalcomponents.blob.core.windows.net/prod/cps-global-components.js"></script>
 </html>
 ```
 
