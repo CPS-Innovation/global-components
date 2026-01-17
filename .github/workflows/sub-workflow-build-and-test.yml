@@ -92,7 +92,7 @@ jobs:
           cp -r ./packages/cps-global-preview/dist ./to-deploy/preview
           cp -r ./packages/cps-global-accessibility/dist ./to-deploy/accessibility
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         id: upload
         with:
           name: ${{env.BUILD_ARTIFACT_NAME}}
@@ -100,7 +100,7 @@ jobs:
             ./to-deploy/*
           retention-days: 1
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         id: upload-proxy
         with:
           name: ${{env.PROXY_ARTIFACT_NAME}}
