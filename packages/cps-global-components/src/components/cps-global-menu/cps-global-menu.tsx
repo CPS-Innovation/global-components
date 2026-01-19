@@ -1,4 +1,4 @@
-import { Component, h, Fragment, Host } from "@stencil/core";
+import { Component, h, Fragment } from "@stencil/core";
 import { menuConfig } from "./menu-config/menu-config";
 import { readyState } from "../../store/store";
 import { FEATURE_FLAGS } from "../../feature-flags/feature-flags";
@@ -39,16 +39,15 @@ export class CpsGlobalMenu {
     }
 
     const surveyLink = FEATURE_FLAGS.surveyLink(state);
-    const showGovUkRebrand = FEATURE_FLAGS.shouldShowGovUkRebrand(state);
     const shouldShowCaseDetails = FEATURE_FLAGS.shouldShowCaseDetails(state);
 
     const classes = FEATURE_FLAGS.shouldShowGovUkRebrand(state)
-      ? { flag: "govuk-template--rebranded", level1Background: "background-light-blue", divider: "background-divider-blue" }
-      : { flag: "", level1Background: "background-grey", divider: "background-divider" };
+      ? { level1Background: "background-light-blue", divider: "background-divider-blue" }
+      : { level1Background: "background-grey", divider: "background-divider" };
 
     return (
-      <Host class={{ "cps-theme": showGovUkRebrand }}>
-        <div class={classes.flag}>
+      <>
+        <div>
           <nav class={`level level-1 ${classes.level1Background}`} aria-label="Menu" data-testid="menu-level-1">
             <ul>
               {level1Links?.map(link => (
@@ -74,7 +73,7 @@ export class CpsGlobalMenu {
             <div class={shouldShowCaseDetails ? "background-divider-content-width" : classes.divider}></div>
           </>
         )}
-      </Host>
+      </>
     );
   }
 }

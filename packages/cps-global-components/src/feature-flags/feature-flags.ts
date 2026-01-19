@@ -1,3 +1,4 @@
+import { Preview } from "cps-global-configuration";
 import { State, StoredState } from "../store/store";
 import { isUserInFeatureGroup } from "./is-user-in-feature-group";
 
@@ -5,7 +6,7 @@ const shouldShowCaseDetails = ({ preview, flags }: Pick<State, "preview" | "flag
 
 const shouldEnableAccessibilityMode = ({ preview, flags }: Pick<State, "preview" | "flags">) => !!(preview.result?.accessibility || flags.isLocalDevelopment);
 
-const shouldShowGovUkRebrand = ({ preview, flags }: Pick<State, "preview" | "flags">) => !!preview.result?.newHeader || flags.isLocalDevelopment;
+const shouldShowGovUkRebrand = ({ preview }: Pick<State, "preview">): Preview["newHeader"] => preview.result?.newHeader;
 
 const shouldShowRecentCases = ({ preview, flags }: Pick<State, "preview" | "flags">) => !!preview.result?.myRecentCasesOnHeader || flags.isLocalDevelopment;
 

@@ -3,15 +3,13 @@
 // =============================================
 // CSS Custom Properties for runtime theming
 // =============================================
-cps-global-banner,
-cps-global-menu {
+:host {
   --brand-primary-colour: #{$govuk-brand-colour};
   --brand-secondary-colour: #f4f8fb;
   --brand-text-colour: #fff;
 }
 
-cps-global-banner.cps-theme,
-cps-global-menu.cps-theme {
+.cps-theme {
   --brand-primary-colour: #002d9d;
   --brand-secondary-colour: #f2f4fa;
   --brand-text-colour: #fff;

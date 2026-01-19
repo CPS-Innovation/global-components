@@ -13,6 +13,8 @@ export const PreviewSchema = z.object({
   myRecentCasesOnHome: z.boolean().optional(),
   myRecentCasesOnCases: z.boolean().optional(),
   myRecentCasesOnHeader: z.boolean().optional(),
+
+  // Backwards compatibility: migrate boolean true to "gds"
   newHeader: z.preprocess(
     (val) => (val === true ? "gds" : val),
     z.union([z.literal("gds"), z.literal("cps")]).optional(),

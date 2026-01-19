@@ -3,6 +3,7 @@ import { renderError } from "../common/render-error";
 import { readyState, mergeTags } from "../../store/store";
 import { WithLogging } from "../../logging/WithLogging";
 import { makeConsole } from "../../logging/makeConsole";
+import { FEATURE_FLAGS } from "../../feature-flags/feature-flags";
 
 const { _debug } = makeConsole("CpsGlobalHeader");
 
@@ -26,14 +27,17 @@ export class CpsGlobalHeader {
 
   @WithLogging("CpsGlobalHeader")
   render() {
-    const { isReady, state } = readyState("context");
+    const { isReady, state } = readyState("context", "preview", "flags");
 
     const { headerCustomCssClasses, headerCustomCssStyles } =
       isReady && state?.context.found ? state.context : { headerCustomCssClasses: undefined, headerCustomCssStyles: undefined };
 
+    const showGovUkRebrand = FEATURE_FLAGS.shouldShowGovUkRebrand(state);
+
+    const cssClass = `${showGovUkRebrand ? "govuk-template--rebranded" : ""} ${showGovUkRebrand === "cps" ? "cps-theme" : ""}`;
     return (
       <Host class={headerCustomCssClasses} style={headerCustomCssStyles}>
-        <div data-internal-root data-initialisation-status={state.initialisationStatus}>
+        <div data-internal-root data-initialisation-status={state.initialisationStatus} class={cssClass}>
           <cps-global-banner></cps-global-banner>
           {state.fatalInitialisationError ? renderError(state.fatalInitialisationError) : <cps-global-menu></cps-global-menu>}
         </div>
