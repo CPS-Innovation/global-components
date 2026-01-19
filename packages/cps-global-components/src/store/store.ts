@@ -165,7 +165,7 @@ export const initialiseStore = () => {
     //  They are subject to being updated via @Watch so all good there, but we definitely do not want
     //  the tags from one context (e.g. caseId = 123) hanging around for the next context in an SPA
     //  navigation (e.g. caseId = 456).
-    privateTagProperties.filter(key => key !== "propTags").forEach(key => store.set(key, {}));
+    privateTagProperties.filter(key => !["propTags", "cmsSessionTags"].includes(key)).forEach(key => store.set(key, {}));
   };
 
   const subscribe: Subscribe = (...subscriptionFactories: SubscriptionFactory[]) =>
