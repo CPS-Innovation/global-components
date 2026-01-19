@@ -1,4 +1,4 @@
-import { Component, h, Fragment } from "@stencil/core";
+import { Component, h, Fragment, Host } from "@stencil/core";
 import { readyState } from "../../store/store";
 import { FEATURE_FLAGS } from "../../feature-flags/feature-flags";
 import { WithLogging } from "../../logging/WithLogging";
@@ -56,7 +56,7 @@ export class CpsGlobalBanner {
     const truncate = (str: string, max = 10) => (str.length > max ? str.slice(0, max) + "..." : str);
 
     return (
-      <>
+      <Host class={{ "cps-theme": showGovUkRebrand }}>
         <div class={templateCssClass}>
           <SkipLink href="#main-content" class="govuk-skip-link skip-link" data-module="govuk-skip-link" {...state.context}>
             Skip to main content
@@ -103,7 +103,7 @@ export class CpsGlobalBanner {
           </header>
           <div class={dividerCssClass}></div>
         </div>
-      </>
+      </Host>
     );
   }
 }

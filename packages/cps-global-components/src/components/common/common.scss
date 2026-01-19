@@ -1,5 +1,81 @@
 @import "node_modules/govuk-frontend/dist/govuk/index";
 
+// =============================================
+// CSS Custom Properties for runtime theming
+// =============================================
+cps-global-banner,
+cps-global-menu {
+  --brand-primary-colour: #{$govuk-brand-colour};
+  --brand-secondary-colour: #f4f8fb;
+  --brand-text-colour: #fff;
+}
+
+cps-global-banner.cps-theme,
+cps-global-menu.cps-theme {
+  --brand-primary-colour: #002d9d;
+  --brand-secondary-colour: #f2f4fa;
+  --brand-text-colour: #fff;
+}
+
+// =============================================
+// GDS Header Overrides
+// =============================================
+.govuk-template--rebranded .govuk-header {
+  background: var(--brand-primary-colour);
+  color: var(--brand-text-colour);
+}
+
+.govuk-template--rebranded .govuk-header__container {
+  border-bottom-color: var(--brand-primary-colour);
+}
+
+.govuk-template--rebranded .govuk-header__link,
+.govuk-template--rebranded .govuk-template--rebranded {
+  color: var(--brand-text-colour);
+
+  &:link,
+  &:visited {
+    color: var(--brand-text-colour);
+  }
+
+  &:hover {
+    color: var(--brand-text-colour);
+  }
+}
+
+.govuk-template--rebranded .govuk-header__link--homepage {
+  &:link,
+  &:visited {
+    color: var(--brand-text-colour);
+  }
+
+  &:hover,
+  &:active {
+    border-bottom-color: var(--brand-text-colour);
+  }
+}
+
+.govuk-template--rebranded .govuk-header__link--homepage:not(:focus) {
+  background: var(--brand-primary-colour);
+}
+
+.govuk-template--rebranded .govuk-header__navigation-item {
+  border-bottom-color: rgba(255, 255, 255, 0.3);
+}
+
+// =============================================
+// GDS Select Overrides (for recent cases dropdown)
+// =============================================
+.govuk-template--rebranded .govuk-select {
+  option:active,
+  option:checked {
+    background-color: var(--brand-primary-colour);
+  }
+
+  &:focus::-ms-value {
+    background-color: var(--brand-primary-colour);
+  }
+}
 $level-height: 3rem;
 
 @mixin background($color) {
@@ -29,11 +105,11 @@ $level-height: 3rem;
 }
 
 .background-blue {
-  @include background(govuk-colour("blue"));
+  @include background(var(--brand-primary-colour));
 }
 
 .background-light-blue {
-  @include background(rgb(244, 248, 251));
+  @include background(var(--brand-secondary-colour));
 }
 
 .background-divider-content-width {
