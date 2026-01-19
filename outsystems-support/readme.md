@@ -8,7 +8,7 @@ Add a reference to the global components script.
 | ----------- | ----------------------------------------------------------------------------------- |
 | `cps-dev`   | `https://polaris-qa-notprod.cps.gov.uk/global-components/dev/global-components.js`  |
 | `cps-tst`   | `https://polaris-qa-notprod.cps.gov.uk/global-components/test/global-components.js` |
-| `cps`       | `https://sacpsglobalcomponents.blob.core.windows.net/prod/cps-global-components.js` |
+| `cps`       | `https://polaris.cps.gov.uk/global-components/prod/global-components.js`            |
 
 Add the `<cps-global-header></cps-global-header>` HTML tag to the appropriate block.
 
