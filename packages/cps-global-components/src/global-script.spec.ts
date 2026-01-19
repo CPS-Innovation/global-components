@@ -175,7 +175,9 @@ const setupDefaultMocks = () => {
 
   mockGetApplicationFlags.mockReturnValue({
     e2eTestMode: { isE2eTestMode: false },
-    isDevelopment: false,
+    isLocalDevelopment: false,
+    isOutSystems: false,
+    environment: "test",
   });
 
   mockInitialiseConfig.mockResolvedValue({
@@ -320,7 +322,9 @@ describe("global-script", () => {
       if (state.isReady) {
         expect(state.state.flags).toEqual({
           e2eTestMode: { isE2eTestMode: false },
-          isDevelopment: false,
+          isLocalDevelopment: false,
+          isOutSystems: false,
+          environment: "test",
         });
       }
     });
@@ -537,7 +541,9 @@ describe("global-script", () => {
     it("should pass flags to initialiseAuth so it can decide mock vs real internally", async () => {
       const testFlags = {
         e2eTestMode: { isE2eTestMode: true },
-        isDevelopment: false,
+        isLocalDevelopment: false,
+        isOutSystems: false,
+        environment: "test",
       };
       mockGetApplicationFlags.mockReturnValue(testFlags);
 
@@ -558,7 +564,9 @@ describe("global-script", () => {
     it("should pass flags to initialiseAnalytics so it can decide mock vs real internally", async () => {
       const testFlags = {
         e2eTestMode: { isE2eTestMode: true },
-        isDevelopment: false,
+        isLocalDevelopment: false,
+        isOutSystems: false,
+        environment: "test",
       };
       mockGetApplicationFlags.mockReturnValue(testFlags);
 
@@ -1088,8 +1096,9 @@ describe("global-script", () => {
     it("should pass rootUrl, flags and preview to initialiseConfig", async () => {
       const testFlags = {
         e2eTestMode: { isE2eTestMode: false },
-        isDevelopment: true,
-        customFlag: "test-value",
+        isLocalDevelopment: true,
+        isOutSystems: false,
+        environment: "test",
       };
       const testRootUrl = "https://test.example.com/env/script.js";
       const testPreview = { enabled: true, features: ["feature1"] };
@@ -1218,7 +1227,9 @@ describe("global-script", () => {
     it("should pass config, context and flags to initialiseAuth", async () => {
       const testFlags = {
         e2eTestMode: { isE2eTestMode: false },
-        isDevelopment: false,
+        isLocalDevelopment: false,
+        isOutSystems: false,
+        environment: "test",
       };
       const testConfig = {
         CONTEXTS: [],
@@ -1249,7 +1260,9 @@ describe("global-script", () => {
     it("should pass all required dependencies to initialiseAnalytics (auth is obtained via readyState)", async () => {
       const testFlags = {
         e2eTestMode: { isE2eTestMode: false },
-        isDevelopment: false,
+        isLocalDevelopment: false,
+        isOutSystems: false,
+        environment: "test",
       };
       const testConfig = { CONTEXTS: [], GATEWAY_URL: null, APP_INSIGHTS_KEY: "test-key" };
       const testBuild = { version: "2.0.0", buildDate: "2024-06-15" };
@@ -1355,7 +1368,7 @@ describe("global-script", () => {
 
       mockGetApplicationFlags.mockImplementation(() => {
         callOrder.push("flags");
-        return { e2eTestMode: { isE2eTestMode: false }, isDevelopment: false };
+        return { e2eTestMode: { isE2eTestMode: false }, isLocalDevelopment: false, isOutSystems: false, environment: "test" };
       });
 
       mockInitialiseConfig.mockImplementation(async () => {
