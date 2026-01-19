@@ -46,10 +46,10 @@ const initialise = async (window: Window & typeof globalThis) => {
     storeFns = initialiseStore();
     startupServices = await startupPhase({ window, storeFns });
     authPhase({ storeFns, ...startupServices });
-    contextChangePhase({ storeFns, ...startupServices });
+    contextChangePhase({ window, storeFns, ...startupServices });
 
     initialiseNavigationSubscription({
-      handler: () => contextChangePhase({ storeFns, ...startupServices }),
+      handler: () => contextChangePhase({ window, storeFns, ...startupServices }),
       handleError,
     });
   } catch (err) {
@@ -67,15 +67,13 @@ const startupPhase = async ({ window, storeFns: { register, mergeTags, readyStat
   const flags = getApplicationFlags({ window, rootUrl });
   register({ flags });
 
-  initialiseOutSystemsReconcileAuth({ flags, window });
-
   const [cmsSessionHint, { handover, setNextHandover }, preview, settings] = await Promise.all([
     initialiseCmsSessionHint({ rootUrl, flags }),
     initialiseHandover({ rootUrl }),
     initialisePreview({ rootUrl }),
     initialiseSettings({ rootUrl }),
   ]);
-  register({ cmsSessionHint, handover, preview });
+  register({ cmsSessionHint, handover, preview, cmsSessionTags: { handoverEndpoint: cmsSessionHint.result?.handoverEndpoint || "" } });
 
   const { recentCases, setNextRecentCases } = await initialiseRecentCases({ rootUrl, preview });
   register({ recentCases });
@@ -133,7 +131,11 @@ const contextChangePhase = ({
   initialiseDomForContext,
   trackPageView,
   storeFns: { register, resetContextSpecificTags },
-}: Awaited<ReturnType<typeof startupPhase>> & { storeFns: ReturnType<typeof initialiseStore> }) => {
+  window,
+  flags,
+}: Awaited<ReturnType<typeof startupPhase>> & { storeFns: ReturnType<typeof initialiseStore>; window: Window & typeof globalThis }) => {
+  initialiseOutSystemsReconcileAuth({ flags, window });
+
   const correlationIds = initialiseCorrelationIds();
   register({ correlationIds });
 
