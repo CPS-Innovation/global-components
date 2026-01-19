@@ -16,6 +16,7 @@ export const tagsSubscriptionFactory: SubscriptionFactory = ({ get, register }) 
             ...get("domTags"),
             ...get("caseDetailsTags"),
             ...get("propTags"),
+            ...get("cmsSessionTags"),
           },
         });
       }
