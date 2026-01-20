@@ -32,7 +32,7 @@ export class CpsGlobalHeader {
     const { headerCustomCssClasses, headerCustomCssStyles } =
       isReady && state?.context.found ? state.context : { headerCustomCssClasses: undefined, headerCustomCssStyles: undefined };
 
-    const showGovUkRebrand = FEATURE_FLAGS.shouldShowGovUkRebrand(state);
+    const showGovUkRebrand = isReady && FEATURE_FLAGS.shouldShowGovUkRebrand(state);
 
     const cssClass = `${showGovUkRebrand ? "govuk-template--rebranded" : ""} ${showGovUkRebrand === "cps" ? "cps-theme" : ""}`;
     return (
