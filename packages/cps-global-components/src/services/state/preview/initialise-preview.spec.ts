@@ -16,7 +16,7 @@ describe("initialisePreview", () => {
     const validPreview: Preview = {
       enabled: true,
       caseMarkers: "a",
-      newHeader: false,
+      newHeader: undefined,
     };
 
     beforeEach(() => {

@@ -36,54 +36,40 @@ describe("FEATURE_FLAGS", () => {
   });
 
   describe("shouldShowGovUkRebrand", () => {
-    it("should return true when preview newHeader is true", () => {
-      const state: Pick<State, "preview" | "flags"> = {
-        preview: { found: true, result: { newHeader: true } },
-        flags: { isLocalDevelopment: false, isOutSystems: false, e2eTestMode: { isE2eTestMode: false }, environment: "test" },
+    it("should return 'gds' when preview newHeader is 'gds'", () => {
+      const state: Pick<State, "preview"> = {
+        preview: { found: true, result: { newHeader: "gds" } },
       };
 
       const result = FEATURE_FLAGS.shouldShowGovUkRebrand(state);
-      expect(result).toBe(true);
+      expect(result).toBe("gds");
     });
 
-    it("should return false when preview newHeader is false", () => {
-      const state: Pick<State, "preview" | "flags"> = {
-        preview: { found: true, result: { newHeader: false } },
-        flags: { isLocalDevelopment: false, isOutSystems: false, e2eTestMode: { isE2eTestMode: false }, environment: "test" },
+    it("should return 'cps' when preview newHeader is 'cps'", () => {
+      const state: Pick<State, "preview"> = {
+        preview: { found: true, result: { newHeader: "cps" } },
       };
 
       const result = FEATURE_FLAGS.shouldShowGovUkRebrand(state);
-      expect(result).toBe(false);
+      expect(result).toBe("cps");
     });
 
-    it("should return false when preview newHeader is undefined", () => {
-      const state: Pick<State, "preview" | "flags"> = {
+    it("should return undefined when preview newHeader is undefined", () => {
+      const state: Pick<State, "preview"> = {
         preview: { found: true, result: {} },
-        flags: { isLocalDevelopment: false, isOutSystems: false, e2eTestMode: { isE2eTestMode: false }, environment: "test" },
       };
 
       const result = FEATURE_FLAGS.shouldShowGovUkRebrand(state);
-      expect(result).toBe(false);
+      expect(result).toBeUndefined();
     });
 
-    it("should return false when preview is not found", () => {
-      const state: Pick<State, "preview" | "flags"> = {
+    it("should return undefined when preview is not found", () => {
+      const state: Pick<State, "preview"> = {
         preview: { found: false, error: {} as Error },
-        flags: { isLocalDevelopment: false, isOutSystems: false, e2eTestMode: { isE2eTestMode: false }, environment: "test" },
       };
 
       const result = FEATURE_FLAGS.shouldShowGovUkRebrand(state);
-      expect(result).toBe(false);
-    });
-
-    it("should return true when isLocalDevelopment is true", () => {
-      const state: Pick<State, "preview" | "flags"> = {
-        preview: { found: true, result: {} },
-        flags: { isLocalDevelopment: true, isOutSystems: false, e2eTestMode: { isE2eTestMode: false }, environment: "test" },
-      };
-
-      const result = FEATURE_FLAGS.shouldShowGovUkRebrand(state);
-      expect(result).toBe(true);
+      expect(result).toBeUndefined();
     });
   });
 

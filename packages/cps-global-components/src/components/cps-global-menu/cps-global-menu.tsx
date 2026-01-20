@@ -39,16 +39,15 @@ export class CpsGlobalMenu {
     }
 
     const surveyLink = FEATURE_FLAGS.surveyLink(state);
-
     const shouldShowCaseDetails = FEATURE_FLAGS.shouldShowCaseDetails(state);
 
     const classes = FEATURE_FLAGS.shouldShowGovUkRebrand(state)
-      ? { flag: "govuk-template--rebranded", level1Background: "background-light-blue", divider: "background-divider-blue" }
-      : { flag: "", level1Background: "background-grey", divider: "background-divider" };
+      ? { level1Background: "background-light-blue", divider: "background-divider-blue" }
+      : { level1Background: "background-grey", divider: "background-divider" };
 
     return (
       <>
-        <div class={classes.flag}>
+        <div>
           <nav class={`level level-1 ${classes.level1Background}`} aria-label="Menu" data-testid="menu-level-1">
             <ul>
               {level1Links?.map(link => (
