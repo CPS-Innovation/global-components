@@ -1,5 +1,5 @@
 import { createStore } from "@stencil/store";
-import { Config, Preview } from "cps-global-configuration";
+import { Config, Preview, Settings } from "cps-global-configuration";
 import { AuthResult } from "../services/auth/AuthResult";
 import { FoundContext } from "../services/context/FoundContext";
 import { ApplicationFlags } from "../services/application-flags/ApplicationFlags";
@@ -56,6 +56,7 @@ type StartupState = {
   handover: Result<Handover>;
   recentCases: Result<RecentCases>;
   firstContext: FoundContext;
+  settings: Result<Settings>;
 };
 
 const initialStartupState = {
@@ -69,6 +70,7 @@ const initialStartupState = {
   handover: undefined,
   recentCases: undefined,
   firstContext: undefined,
+  settings: undefined,
 };
 
 // This state could change (e.g. history-based non-full-refresh navigation or dom tags changing)

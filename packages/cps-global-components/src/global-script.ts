@@ -73,7 +73,7 @@ const startupPhase = async ({ window, storeFns: { register, mergeTags, readyStat
     initialisePreview({ rootUrl }),
     initialiseSettings({ rootUrl }),
   ]);
-  register({ cmsSessionHint, handover, preview, cmsSessionTags: { handoverEndpoint: cmsSessionHint.result?.handoverEndpoint || "" } });
+  register({ cmsSessionHint, handover, preview, settings, cmsSessionTags: { handoverEndpoint: cmsSessionHint.result?.handoverEndpoint || "" } });
 
   const { recentCases, setNextRecentCases } = await initialiseRecentCases({ rootUrl, preview });
   register({ recentCases });

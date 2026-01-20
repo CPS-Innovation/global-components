@@ -132,6 +132,7 @@ describe("menuConfig", () => {
       cmsSessionHint: mockCmsSessionHint,
       handover: { found: false, error: {} as Error },
       recentCases: { found: false, error: {} as Error },
+      settings: { found: false, error: {} as Error },
     };
 
     const result = menuConfig(mockState);
@@ -187,6 +188,7 @@ describe("menuConfig", () => {
       cmsSessionHint: mockCmsSessionHint,
       handover: { found: false, error: {} as Error },
       recentCases: { found: false, error: {} as Error },
+      settings: { found: false, error: {} as Error },
     };
 
     // Mock shouldShowLink to filter out the second link
@@ -310,6 +312,7 @@ describe("menuConfig", () => {
       cmsSessionHint: mockCmsSessionHint,
       handover: { found: false, error: {} as Error },
       recentCases: { found: false, error: {} as Error },
+      settings: { found: false, error: {} as Error },
     };
 
     // Mock shouldShowLink to pass all links
@@ -387,6 +390,7 @@ describe("menuConfig", () => {
       cmsSessionHint: mockCmsSessionHint,
       handover: { found: false, error: {} as Error },
       recentCases: { found: false, error: {} as Error },
+      settings: { found: false, error: {} as Error },
     };
 
     // Mock shouldShowLink to pass all links
@@ -465,6 +469,7 @@ describe("menuConfig", () => {
       cmsSessionHint: mockCmsSessionHint,
       handover: { found: false, error: {} as Error },
       recentCases: { found: false, error: {} as Error },
+      settings: { found: false, error: {} as Error },
     };
 
     // Mock shouldShowLink to pass all links
@@ -542,6 +547,7 @@ describe("menuConfig", () => {
       cmsSessionHint: mockCmsSessionHint,
       handover: { found: false, error: {} as Error },
       recentCases: { found: false, error: {} as Error },
+      settings: { found: false, error: {} as Error },
     };
 
     // Mock shouldShowLink to pass all links
@@ -639,6 +645,7 @@ describe("menuConfig", () => {
       cmsSessionHint: cmsSessionHintWithEndpoint,
       handover: { found: false, error: {} as Error },
       recentCases: { found: false, error: {} as Error },
+      settings: { found: false, error: {} as Error },
     };
 
     // Mock shouldShowLink to pass all links

@@ -10,8 +10,8 @@ import { getCaseDefendantHeadline } from "../../services/data/get-case-defendant
 export class CpsGlobalCaseDetails {
   render() {
     const {
-      state: { caseIdentifiers, tags, caseDetails, caseMonitoringCodes, preview },
-    } = readyState(["tags", "caseIdentifiers", "preview"], ["caseDetails", "caseMonitoringCodes"]);
+      state: { caseIdentifiers, tags, caseDetails, caseMonitoringCodes, preview, settings },
+    } = readyState(["tags", "caseIdentifiers", "preview", "settings"], ["caseDetails", "caseMonitoringCodes"]);
 
     if (!caseIdentifiers?.caseId) {
       // We are not on a case-specific page, or we do not have caseId yet
@@ -23,8 +23,11 @@ export class CpsGlobalCaseDetails {
     const headline = caseDetails?.result && getCaseDefendantHeadline(caseDetails.result);
     const monitoringCodes = caseMonitoringCodes?.result || [];
 
+    // hack for demo
+    const pageBackgroundColourStyles = { backgroundColor: !!preview?.result?.accessibility && !!settings?.result?.accessibilityBackground ? "#f3f2f1" : "#ffffff" };
+
     return preview.result?.caseMarkers === "b" ? (
-      <div class="level case-details">
+      <div class="level case-details" style={pageBackgroundColourStyles}>
         <div class="govuk-body-m" style={{ marginBottom: "0" }}>
           <b>{headline}</b>
         </div>
@@ -44,7 +47,7 @@ export class CpsGlobalCaseDetails {
         </div>
       </div>
     ) : (
-      <div class="level case-details">
+      <div class="level case-details" style={pageBackgroundColourStyles}>
         <div>{urn}</div>
         <div>
           <b>{headline}</b>

@@ -122,7 +122,9 @@ a.disabled {
   padding: 0;
   &:focus {
     background-color: $govuk-focus-colour;
-    box-shadow: 0 -2px $govuk-focus-colour, 0 4px $govuk-text-colour;
+    box-shadow:
+      0 -2px $govuk-focus-colour,
+      0 4px $govuk-text-colour;
     outline: 0.1875rem solid transparent;
   }
   // &:focus,

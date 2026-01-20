@@ -13,7 +13,7 @@ import { WithLogging } from "../../logging/WithLogging";
 export class CpsGlobalMenu {
   @WithLogging("CpsGlobalMenu")
   render() {
-    const { isReady, state } = readyState(["config", "tags", "flags", "context", "cmsSessionHint", "preview"], ["auth"]);
+    const { isReady, state } = readyState(["config", "tags", "flags", "context", "cmsSessionHint", "preview", "settings"], ["auth"]);
     if (!isReady) {
       return null; // don't show menu until we are ready
     }
@@ -45,6 +45,9 @@ export class CpsGlobalMenu {
       ? { level1Background: "background-light-blue", divider: "background-divider-blue" }
       : { level1Background: "background-grey", divider: "background-divider" };
 
+    // hack for demo
+    const pageBackgroundColourStyles = { backgroundColor: !!state?.preview.result?.accessibility && !!state?.settings.result?.accessibilityBackground ? "#f3f2f1" : "#ffffff" };
+
     return (
       <>
         <div>
@@ -63,7 +66,7 @@ export class CpsGlobalMenu {
 
         {!!level2Links?.length && (
           <>
-            <nav class="level level-2" aria-label="Sub-menu" data-testid="menu-level-2">
+            <nav class="level level-2" aria-label="Sub-menu" data-testid="menu-level-2" style={pageBackgroundColourStyles}>
               <ul>
                 {level2Links.map(link => (
                   <nav-link {...link}></nav-link>
