@@ -40,6 +40,11 @@ const CASE_MARKERS_OPTIONS: RadioOption<string>[] = [
   { value: "b", label: "Design B" },
 ];
 
+const COLOUR_PALETTE_OPTIONS: RadioOption<string>[] = [
+  { value: "gds", label: "GDS" },
+  { value: "cps", label: "CPS" },
+];
+
 const FEATURES: Feature[] = [
   {
     key: "caseMarkers",
@@ -54,6 +59,7 @@ const FEATURES: Feature[] = [
     label: "New header",
     description: "Display the header with the latest blue GDS styling.",
     disabled: false,
+    radioOptions: COLOUR_PALETTE_OPTIONS,
   },
   {
     key: "footer",
