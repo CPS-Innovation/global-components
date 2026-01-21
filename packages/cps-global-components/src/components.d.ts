@@ -10,6 +10,8 @@ export { ContextsToUseEventNavigation } from "cps-global-configuration";
 export namespace Components {
     interface CpsGlobalBanner {
     }
+    interface CpsGlobalCaseDetails {
+    }
     interface CpsGlobalFooter {
     }
     interface CpsGlobalHeader {
@@ -19,6 +21,8 @@ export namespace Components {
         "isDcf": boolean;
     }
     interface CpsGlobalMenu {
+    }
+    interface CpsGlobalRecentCases {
     }
     interface NavLink {
         "ariaSelected"?: boolean;
@@ -41,6 +45,12 @@ declare global {
         prototype: HTMLCpsGlobalBannerElement;
         new (): HTMLCpsGlobalBannerElement;
     };
+    interface HTMLCpsGlobalCaseDetailsElement extends Components.CpsGlobalCaseDetails, HTMLStencilElement {
+    }
+    var HTMLCpsGlobalCaseDetailsElement: {
+        prototype: HTMLCpsGlobalCaseDetailsElement;
+        new (): HTMLCpsGlobalCaseDetailsElement;
+    };
     interface HTMLCpsGlobalFooterElement extends Components.CpsGlobalFooter, HTMLStencilElement {
     }
     var HTMLCpsGlobalFooterElement: {
@@ -58,6 +68,12 @@ declare global {
     var HTMLCpsGlobalMenuElement: {
         prototype: HTMLCpsGlobalMenuElement;
         new (): HTMLCpsGlobalMenuElement;
+    };
+    interface HTMLCpsGlobalRecentCasesElement extends Components.CpsGlobalRecentCases, HTMLStencilElement {
+    }
+    var HTMLCpsGlobalRecentCasesElement: {
+        prototype: HTMLCpsGlobalRecentCasesElement;
+        new (): HTMLCpsGlobalRecentCasesElement;
     };
     interface HTMLNavLinkElementEventMap {
         "cps-global-header-event": string;
@@ -78,14 +94,18 @@ declare global {
     };
     interface HTMLElementTagNameMap {
         "cps-global-banner": HTMLCpsGlobalBannerElement;
+        "cps-global-case-details": HTMLCpsGlobalCaseDetailsElement;
         "cps-global-footer": HTMLCpsGlobalFooterElement;
         "cps-global-header": HTMLCpsGlobalHeaderElement;
         "cps-global-menu": HTMLCpsGlobalMenuElement;
+        "cps-global-recent-cases": HTMLCpsGlobalRecentCasesElement;
         "nav-link": HTMLNavLinkElement;
     }
 }
 declare namespace LocalJSX {
     interface CpsGlobalBanner {
+    }
+    interface CpsGlobalCaseDetails {
     }
     interface CpsGlobalFooter {
     }
@@ -96,6 +116,8 @@ declare namespace LocalJSX {
         "isDcf"?: boolean;
     }
     interface CpsGlobalMenu {
+    }
+    interface CpsGlobalRecentCases {
     }
     interface NavLink {
         "ariaSelected"?: boolean;
@@ -109,9 +131,11 @@ declare namespace LocalJSX {
     }
     interface IntrinsicElements {
         "cps-global-banner": CpsGlobalBanner;
+        "cps-global-case-details": CpsGlobalCaseDetails;
         "cps-global-footer": CpsGlobalFooter;
         "cps-global-header": CpsGlobalHeader;
         "cps-global-menu": CpsGlobalMenu;
+        "cps-global-recent-cases": CpsGlobalRecentCases;
         "nav-link": NavLink;
     }
 }
@@ -120,9 +144,11 @@ declare module "@stencil/core" {
     export namespace JSX {
         interface IntrinsicElements {
             "cps-global-banner": LocalJSX.CpsGlobalBanner & JSXBase.HTMLAttributes<HTMLCpsGlobalBannerElement>;
+            "cps-global-case-details": LocalJSX.CpsGlobalCaseDetails & JSXBase.HTMLAttributes<HTMLCpsGlobalCaseDetailsElement>;
             "cps-global-footer": LocalJSX.CpsGlobalFooter & JSXBase.HTMLAttributes<HTMLCpsGlobalFooterElement>;
             "cps-global-header": LocalJSX.CpsGlobalHeader & JSXBase.HTMLAttributes<HTMLCpsGlobalHeaderElement>;
             "cps-global-menu": LocalJSX.CpsGlobalMenu & JSXBase.HTMLAttributes<HTMLCpsGlobalMenuElement>;
+            "cps-global-recent-cases": LocalJSX.CpsGlobalRecentCases & JSXBase.HTMLAttributes<HTMLCpsGlobalRecentCasesElement>;
             "nav-link": LocalJSX.NavLink & JSXBase.HTMLAttributes<HTMLNavLinkElement>;
         }
     }

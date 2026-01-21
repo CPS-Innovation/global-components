@@ -1,14 +1,18 @@
-import { withLogging } from "../logging/with-logging";
-import { State } from "../store/store";
+import { Preview } from "cps-global-configuration";
+import { State, StoredState } from "../store/store";
 import { isUserInFeatureGroup } from "./is-user-in-feature-group";
 
-const shouldEnableAccessibilityMode = ({ flags }: Pick<State, "flags">) => flags.isOverrideMode;
+const shouldShowCaseDetails = ({ preview, flags }: Pick<State, "preview" | "flags">) => !!preview.result?.caseMarkers || flags.isLocalDevelopment;
 
-const shouldShowGovUkRebrand = ({ config }: Pick<State, "config">) => !!config.SHOW_GOVUK_REBRAND;
+const shouldEnableAccessibilityMode = ({ preview, flags }: Pick<State, "preview" | "flags">) => !!(preview.result?.accessibility || flags.isLocalDevelopment);
 
-const shouldShowMenu = ({ config, auth, context, cmsSessionHint }: Pick<State, "config" | "context" | "cmsSessionHint"> & { auth: State["auth"] | undefined }) => {
-  if (cmsSessionHint.found && !cmsSessionHint.result.isProxySession) {
-    // Currently we only want the menu shown if we are connected to proxied CMS.
+const shouldShowGovUkRebrand = ({ preview }: Pick<State, "preview">): Preview["newHeader"] => preview.result?.newHeader;
+
+const shouldShowRecentCases = ({ preview, flags }: Pick<State, "preview" | "flags">) => !!preview.result?.myRecentCasesOnHeader || flags.isLocalDevelopment;
+
+const shouldShowMenu = ({ config, auth, context, cmsSessionHint, flags }: Pick<State, "config" | "context" | "cmsSessionHint" | "flags"> & Pick<StoredState, "auth">) => {
+  if (cmsSessionHint.found && !cmsSessionHint.result.isProxySession && flags.environment === "prod") {
+    // Currently, in prod, we only want the menu shown if we are connected to proxied CMS.
     // Design decision: if cmsSessionHint was not obtained then we continue to further
     //  logic i.e. fail-open. So if we are having problems with the hint then we will
     //  be optimistic and show the menu.
@@ -40,8 +44,10 @@ const shouldShowMenu = ({ config, auth, context, cmsSessionHint }: Pick<State, "
 const surveyLink = ({ config }: Pick<State, "config">) => ({ showLink: !!config.SURVEY_LINK, url: config.SURVEY_LINK });
 
 export const FEATURE_FLAGS = {
-  shouldEnableAccessibilityMode: withLogging("shouldEnableAccessibilityMode", shouldEnableAccessibilityMode),
-  shouldShowGovUkRebrand: withLogging("shouldShowGovUkRebrand", shouldShowGovUkRebrand),
-  shouldShowMenu: withLogging("shouldShowMenu", shouldShowMenu),
-  surveyLink: withLogging("surveyLink", surveyLink),
+  shouldShowCaseDetails,
+  shouldEnableAccessibilityMode,
+  shouldShowGovUkRebrand,
+  shouldShowRecentCases,
+  shouldShowMenu,
+  surveyLink,
 };

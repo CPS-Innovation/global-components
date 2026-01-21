@@ -1,5 +1,5 @@
 import { createStore } from "@stencil/store";
-import { Config } from "cps-global-configuration";
+import { Config, Preview } from "cps-global-configuration";
 import { AuthResult } from "../services/auth/AuthResult";
 import { FoundContext } from "../services/context/FoundContext";
 import { ApplicationFlags } from "../services/application-flags/ApplicationFlags";
@@ -14,10 +14,11 @@ import { CaseDetails } from "../services/data/CaseDetails";
 import { ReadyStateHelper, readyStateFactory } from "./ready-state-factory";
 import { CaseIdentifiers } from "../services/context/CaseIdentifiers";
 import { caseIdentifiersSubscriptionFactory } from "./subscriptions/case-identifiers-subscription-factory";
-import { Handover } from "../services/handover/Handover";
-import { Preview } from "../services/preview/Preview";
+import { Handover } from "../services/state/handover/Handover";
 import { Result } from "../utils/Result";
-import { CmsSessionHint } from "../services/cms-session/CmsSessionHint";
+import { CmsSessionHint } from "../services/state/cms-session/CmsSessionHint";
+import { MonitoringCodes } from "../services/data/MonitoringCode";
+import { RecentCases } from "../services/state/recent-cases/recent-cases";
 export { type ReadyStateHelper };
 
 const registerEventName = "cps-global-components-register";
@@ -35,7 +36,7 @@ type SingleKnownTypePropertyOf<T, PropType> = {
 }[KeysOfType<T, PropType>];
 
 // With tags we want the world to use "tags" rather than the constituent sub-tag objects
-export const privateTagProperties = ["pathTags", "domTags", "propTags", "caseDetailsTags"] as const;
+export const privateTagProperties = ["pathTags", "domTags", "propTags", "caseDetailsTags", "cmsSessionTags"] as const;
 export type PrivateTagProperties = (typeof privateTagProperties)[number]; // gives us a union definition: "pathTags" | "domTags" | "propTags"
 
 // Transform a type Foo = {a: number, b: string} to FooUndefinable = {a: number | undefined, b: string | undefined}
@@ -53,6 +54,7 @@ type StartupState = {
   build: Build;
   cmsSessionHint: Result<CmsSessionHint>;
   handover: Result<Handover>;
+  recentCases: Result<RecentCases>;
   firstContext: FoundContext;
 };
 
@@ -65,6 +67,7 @@ const initialStartupState = {
   build: undefined,
   cmsSessionHint: undefined,
   handover: undefined,
+  recentCases: undefined,
   firstContext: undefined,
 };
 
@@ -76,8 +79,10 @@ type TransientState = {
   domTags: Tags;
   correlationIds: CorrelationIds;
   caseDetailsTags: Tags;
+  cmsSessionTags: Tags;
   caseIdentifiers: CaseIdentifiers;
-  caseDetails: Partial<CaseDetails>;
+  caseDetails: Result<CaseDetails>;
+  caseMonitoringCodes: Result<MonitoringCodes>;
 };
 const initialTransientState = {
   context: undefined,
@@ -86,8 +91,10 @@ const initialTransientState = {
   domTags: undefined,
   correlationIds: undefined,
   caseDetailsTags: undefined,
+  cmsSessionTags: undefined,
   caseIdentifiers: undefined,
   caseDetails: undefined,
+  caseMonitoringCodes: undefined,
 };
 
 type AggregateState = {
@@ -158,7 +165,7 @@ export const initialiseStore = () => {
     //  They are subject to being updated via @Watch so all good there, but we definitely do not want
     //  the tags from one context (e.g. caseId = 123) hanging around for the next context in an SPA
     //  navigation (e.g. caseId = 456).
-    privateTagProperties.filter(key => key !== "propTags").forEach(key => store.set(key, {}));
+    privateTagProperties.filter(key => !["propTags", "cmsSessionTags"].includes(key)).forEach(key => store.set(key, {}));
   };
 
   const subscribe: Subscribe = (...subscriptionFactories: SubscriptionFactory[]) =>

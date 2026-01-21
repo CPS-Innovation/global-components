@@ -1,45 +1,67 @@
-import { Config } from "cps-global-configuration";
-import { getCaseDetailsFactory } from "./get-case-details-factory";
-import { LocalStorageCache } from "../cache/create-cache";
-import { caseDetailsSafeToCacheFields, CaseDetailsSchema } from "./CaseDetails";
+import { CaseDetails, CaseDetailsSchema } from "./CaseDetails";
 import { extractTagsFromCaseDetails } from "./extract-tags-from-case-details";
 import { SubscriptionFactory } from "../../store/subscriptions/SubscriptionFactory";
-import { Handover } from "../handover/Handover";
-import { Result } from "../../utils/Result";
+import { Handover } from "../state/handover/Handover";
+import { fetchAndValidate } from "../fetch/fetch-and-validate";
+import { MonitoringCodesSchema } from "./MonitoringCode";
 
 type Props = {
-  config: Config;
-  cache: LocalStorageCache;
-  handover: Result<Handover>;
   setNextHandover: (data: Handover) => void;
+  setNextRecentCases: (caseDetails: CaseDetails | undefined) => void;
   fetch: typeof fetch;
 };
 
-export const caseDetailsSubscriptionFactory = ({ config, cache, fetch, handover, setNextHandover }: Props): SubscriptionFactory => {
-  const getCaseDetails = getCaseDetailsFactory(fetch);
-  const caseDetailsCache = cache.createEntityCache("case-details", CaseDetailsSchema, { cacheableFields: caseDetailsSafeToCacheFields, ...config.CACHE_CONFIG });
-
-  if (handover.found) {
-    caseDetailsCache.set(String(handover.result.caseDetails.id), handover.result.caseDetails);
-  }
-
-  return ({ register, mergeTags }) => ({
+export const caseDetailsSubscriptionFactory =
+  ({ fetch, setNextHandover, setNextRecentCases }: Props): SubscriptionFactory =>
+  ({ register, mergeTags, get }) => ({
     type: "onChange",
     handler: {
       propName: "caseIdentifiers",
       handler: caseIdentifiers => {
         if (!caseIdentifiers) {
+          register({ caseDetails: undefined, caseMonitoringCodes: undefined });
           return;
         }
+        const caseId = Number(caseIdentifiers.caseId);
+        const handover = get("handover");
+        // If we have this case's details handed over then we do not have to hit the apis
+        const { caseDetails, monitoringCodes } = (handover?.found && handover.result.caseId === caseId && handover.result) || {};
 
-        caseDetailsCache
-          .fetch(caseIdentifiers.caseId, caseId => getCaseDetails(caseId), { fields: ["id", "urn", "isDcfCase"] })
+        // Let's keep the calls and their registering separate as one may be slower than the other and the UI
+        // may be able to render useful stuff with whatever it has first
+        const caseDetailsPromise = (caseDetails ? Promise.resolve(caseDetails) : fetchAndValidate(fetch, `/api/global-components/cases/${caseId}/summary`, CaseDetailsSchema))
           .then(caseDetails => {
             mergeTags({ caseDetailsTags: extractTagsFromCaseDetails(caseDetails).tags });
-            register({ caseDetails });
-            setNextHandover({ caseDetails });
+            register({ caseDetails: { found: true, result: caseDetails } });
+            return caseDetails;
+          })
+          .catch(error => {
+            register({ caseDetails: { found: false, error } });
+            return undefined;
           });
+
+        const monitoringCodesPromise = (
+          monitoringCodes
+            ? Promise.resolve(monitoringCodes)
+            : fetchAndValidate(fetch, `/api/global-components/cases/${caseId}/monitoring-codes?assignedOnly=true`, MonitoringCodesSchema)
+        )
+          .then(caseMonitoringCodes => {
+            register({ caseMonitoringCodes: { found: true, result: caseMonitoringCodes } });
+            return caseMonitoringCodes;
+          })
+          .catch(error => {
+            register({ caseMonitoringCodes: { found: false, error } });
+            return undefined;
+          });
+
+        Promise.all([caseDetailsPromise, monitoringCodesPromise]).then(([caseDetails, monitoringCodes]) => {
+          const handover = { caseId, caseDetails, monitoringCodes };
+          // Send this to the state endpoint...
+          setNextHandover(handover);
+          // ... and update the store (it might be the case that we did not have a handover to begin with)
+          register({ handover: { found: true, result: handover } });
+          setNextRecentCases(caseDetails);
+        });
       },
     },
   });
-};

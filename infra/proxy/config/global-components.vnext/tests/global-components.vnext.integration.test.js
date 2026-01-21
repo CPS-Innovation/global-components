@@ -112,10 +112,18 @@ async function testStateEndpoint() {
   console.log("  (Note: VALIDATE_TOKEN_AGAINST_AD=false, auth not enforced)")
 
   const PREVIEW_ENDPOINT = `${PROXY_BASE}/global-components/state/preview`
+  const SETTINGS_ENDPOINT = `${PROXY_BASE}/global-components/state/settings`
   const OTHER_ENDPOINT = `${PROXY_BASE}/global-components/state/other-key`
 
   await test("GET on whitelisted key (preview) returns 200", async () => {
     const response = await fetch(PREVIEW_ENDPOINT)
+    assertEqual(response.status, 200, "GET should return 200")
+    const text = await response.text()
+    assertEqual(text, "null", 'Should return "null" when no cookie present')
+  })
+
+  await test("GET on whitelisted key (settings) returns 200", async () => {
+    const response = await fetch(SETTINGS_ENDPOINT)
     assertEqual(response.status, 200, "GET should return 200")
     const text = await response.text()
     assertEqual(text, "null", 'Should return "null" when no cookie present')
@@ -188,6 +196,181 @@ async function testStateEndpoint() {
       "Should have Access-Control-Allow-Methods header"
     )
     assert(allowMethods.includes("PUT"), "Should allow PUT method")
+  })
+
+  await test("PUT with null clears cookie and returns cleared flag", async () => {
+    const response = await fetch(PREVIEW_ENDPOINT, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: "null",
+    })
+    assertEqual(response.status, 200, "Should return 200")
+    const body = await response.json()
+    assertEqual(body.success, true, "Should have success true")
+    assertEqual(body.cleared, true, "Should have cleared flag")
+    const setCookie = response.headers.get("set-cookie")
+    assert(setCookie !== null, "Should have Set-Cookie header")
+    assert(setCookie.includes("Expires=Thu, 01 Jan 1970"), "Should set cookie to expire in the past")
+  })
+
+  await test("PUT with empty body clears cookie", async () => {
+    const response = await fetch(PREVIEW_ENDPOINT, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: "",
+    })
+    assertEqual(response.status, 200, "Should return 200")
+    const body = await response.json()
+    assertEqual(body.cleared, true, "Should have cleared flag for empty body")
+  })
+
+  await test("roundtrip: set state, verify, clear with null, verify cleared", async () => {
+    // Step 1: Set state
+    const stateValue = JSON.stringify({ enabled: true, caseMarkers: "a" })
+    const putResponse = await fetch(PREVIEW_ENDPOINT, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: stateValue,
+    })
+    assertEqual(putResponse.status, 200, "PUT should return 200")
+    const setCookie = putResponse.headers.get("set-cookie")
+    assert(setCookie !== null, "Should have Set-Cookie header")
+
+    // Extract cookie for subsequent requests
+    const cookieMatch = setCookie.match(/cps-global-components-state=([^;]+)/)
+    assert(cookieMatch !== null, "Should be able to extract cookie value")
+    const cookieValue = cookieMatch[1]
+
+    // Step 2: Verify state is returned on GET
+    const getResponse1 = await fetch(PREVIEW_ENDPOINT, {
+      headers: { Cookie: `cps-global-components-state=${cookieValue}` },
+    })
+    assertEqual(getResponse1.status, 200, "GET should return 200")
+    const retrievedState = await getResponse1.text()
+    assertEqual(retrievedState, stateValue, "Should return the stored state")
+
+    // Step 3: Clear state with null
+    const clearResponse = await fetch(PREVIEW_ENDPOINT, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: "null",
+    })
+    assertEqual(clearResponse.status, 200, "Clear PUT should return 200")
+    const clearBody = await clearResponse.json()
+    assertEqual(clearBody.cleared, true, "Should have cleared flag")
+
+    // Step 4: Verify GET without cookie returns null (simulating cleared cookie)
+    const getResponse2 = await fetch(PREVIEW_ENDPOINT)
+    assertEqual(getResponse2.status, 200, "GET should return 200")
+    const clearedState = await getResponse2.text()
+    assertEqual(clearedState, "null", "Should return null after clearing")
+  })
+
+  await test("roundtrip: settings endpoint set and get", async () => {
+    // Step 1: Set settings state
+    const settingsValue = JSON.stringify({ accessibilityBackground: true })
+    const putResponse = await fetch(SETTINGS_ENDPOINT, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: settingsValue,
+    })
+    assertEqual(putResponse.status, 200, "PUT should return 200")
+    const setCookie = putResponse.headers.get("set-cookie")
+    assert(setCookie !== null, "Should have Set-Cookie header")
+
+    // Extract cookie for subsequent requests
+    const cookieMatch = setCookie.match(/cps-global-components-state=([^;]+)/)
+    assert(cookieMatch !== null, "Should be able to extract cookie value")
+    const cookieValue = cookieMatch[1]
+
+    // Step 2: Verify settings state is returned on GET
+    const getResponse = await fetch(SETTINGS_ENDPOINT, {
+      headers: { Cookie: `cps-global-components-state=${cookieValue}` },
+    })
+    assertEqual(getResponse.status, 200, "GET should return 200")
+    const retrievedState = await getResponse.text()
+    assertEqual(retrievedState, settingsValue, "Should return the stored settings state")
+  })
+}
+
+// =============================================================================
+// MDS API Proxy Tests
+// =============================================================================
+
+async function testMdsApiProxy() {
+  console.log("\nMDS API Proxy Tests (/global-components/api/cases/*):")
+
+  await test("proxies case summary endpoint", async () => {
+    const response = await fetch(`${PROXY_BASE}/global-components/api/cases/12345/summary`)
+    assertEqual(response.status, 200, "Should return 200 for case summary")
+    const body = await response.json()
+    assertEqual(body.caseId, 12345, "Should have correct caseId")
+    assertEqual(body.endpoint, "summary", "Should be summary endpoint")
+  })
+
+  await test("proxies monitoring-codes endpoint", async () => {
+    const response = await fetch(`${PROXY_BASE}/global-components/api/cases/67890/monitoring-codes`)
+    assertEqual(response.status, 200, "Should return 200 for monitoring-codes")
+    const body = await response.json()
+    assertEqual(body.caseId, 67890, "Should have correct caseId")
+    assertEqual(body.endpoint, "monitoring-codes", "Should be monitoring-codes endpoint")
+  })
+
+  await test("forwards x-functions-key header", async () => {
+    const response = await fetch(`${PROXY_BASE}/global-components/api/cases/123/summary`)
+    assertEqual(response.status, 200, "Should return 200")
+    const body = await response.json()
+    assert(body.headers["x-functions-key"] !== null, "Should have x-functions-key header")
+  })
+
+  await test("strips Authorization header", async () => {
+    const response = await fetch(`${PROXY_BASE}/global-components/api/cases/123/summary`, {
+      headers: { Authorization: "Bearer some-token" },
+    })
+    assertEqual(response.status, 200, "Should return 200")
+    const body = await response.json()
+    // nginx sets Authorization to "" which is sent as empty or not at all
+    // mock server converts empty/missing to null
+    assert(
+      body.headers.authorization === null || body.headers.authorization === "",
+      "Authorization header should be stripped (null or empty)"
+    )
+  })
+
+  await test("returns CORS headers", async () => {
+    const response = await fetch(`${PROXY_BASE}/global-components/api/cases/123/summary`, {
+      headers: { Origin: "http://localhost:3000" },
+    })
+    const corsHeader = response.headers.get("access-control-allow-origin")
+    assert(corsHeader !== null, "Should have Access-Control-Allow-Origin header")
+    assertEqual(corsHeader, "http://localhost:3000", "Should echo back allowed origin")
+  })
+
+  await test("handles OPTIONS preflight request", async () => {
+    const response = await fetch(`${PROXY_BASE}/global-components/api/cases/123/summary`, {
+      method: "OPTIONS",
+      headers: {
+        Origin: "https://example.com",
+        "Access-Control-Request-Method": "GET",
+      },
+    })
+    assertEqual(response.status, 204, "OPTIONS should return 204")
+    const allowMethods = response.headers.get("access-control-allow-methods")
+    assert(allowMethods !== null, "Should have Access-Control-Allow-Methods header")
+  })
+
+  await test("rejects invalid case ID paths", async () => {
+    const response = await fetch(`${PROXY_BASE}/global-components/api/cases/abc/summary`)
+    // Should not match the regex and fall through to 404 or other handler
+    assert(response.status !== 200 || !(await response.json()).endpoint, "Should not match non-numeric case ID")
+  })
+
+  await test("forwards query string to upstream", async () => {
+    const response = await fetch(`${PROXY_BASE}/global-components/api/cases/123/monitoring-codes?assignedOnly=true&limit=10`)
+    assertEqual(response.status, 200, "Should return 200")
+    const body = await response.json()
+    // Mock server echoes back the original URL which includes query string
+    assert(body.originalUrl?.includes("assignedOnly=true"), "Should forward query string")
   })
 }
 
@@ -264,6 +447,7 @@ async function main() {
   await testSwaggerRewriting()
   await testBlobStorageProxy()
   await testStateEndpoint()
+  await testMdsApiProxy()
 }
 
 module.exports = main

@@ -1,0 +1,600 @@
+#!/bin/bash
+
+# Jira CLI for Global Navigation team
+# Usage: ./jira-cli <command> [options]
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# Load environment variables
+if [[ -f "$SCRIPT_DIR/.env" ]]; then
+    source "$SCRIPT_DIR/.env"
+else
+    echo "Error: .env file not found. Copy .env.example to .env and configure it."
+    exit 1
+fi
+
+# Colors
+GREEN='\033[0;32m'
+BLUE='\033[0;34m'
+GRAY='\033[0;90m'
+YELLOW='\033[0;33m'
+CYAN='\033[0;36m'
+BOLD='\033[1m'
+NC='\033[0m' # No Color
+
+# Interactive selector with arrow keys
+# Usage: select_option "prompt" default_index "${options[@]}"
+# Returns selected index in $SELECTED_INDEX
+select_option() {
+    local prompt=$1
+    local selected=$2
+    shift 2
+    local options=("$@")
+    local count=${#options[@]}
+
+    # Hide cursor
+    tput civis
+
+    # Trap to restore cursor on exit
+    trap "tput cnorm" RETURN
+
+    # Draw initial prompt
+    echo -e "${BOLD}${prompt}${NC} (use arrows, enter to select)\n"
+
+    # Draw initial options
+    for i in "${!options[@]}"; do
+        if [[ $i -eq $selected ]]; then
+            echo -e "  ${GREEN}▸ ${options[$i]}${NC}"
+        else
+            echo -e "    ${options[$i]}"
+        fi
+    done
+
+    while true; do
+        # Read single keypress
+        read -rsn1 key
+
+        # Handle arrow keys (escape sequences)
+        if [[ $key == $'\x1b' ]]; then
+            read -rsn2 key
+            case $key in
+                '[A') # Up arrow
+                    ((selected--))
+                    [[ $selected -lt 0 ]] && selected=$((count - 1))
+                    ;;
+                '[B') # Down arrow
+                    ((selected++))
+                    [[ $selected -ge $count ]] && selected=0
+                    ;;
+            esac
+        elif [[ $key == "" ]]; then
+            # Enter pressed
+            break
+        else
+            continue
+        fi
+
+        # Move cursor up to redraw options
+        echo -en "\033[${count}A"
+
+        # Redraw options
+        for i in "${!options[@]}"; do
+            # Clear line and redraw
+            echo -en "\033[2K"
+            if [[ $i -eq $selected ]]; then
+                echo -e "  ${GREEN}▸ ${options[$i]}${NC}"
+            else
+                echo -e "    ${options[$i]}"
+            fi
+        done
+    done
+
+    # Show cursor
+    tput cnorm
+
+    SELECTED_INDEX=$selected
+}
+
+# Yes/No prompt with default
+# Usage: confirm "prompt" [default: y/n]
+confirm() {
+    local prompt=$1
+    local default=${2:-y}
+
+    if [[ $default == "y" ]]; then
+        echo -en "${BOLD}${prompt}${NC} [${GREEN}Y${NC}/n]: "
+    else
+        echo -en "${BOLD}${prompt}${NC} [y/${GREEN}N${NC}]: "
+    fi
+
+    read -r response
+    response=${response:-$default}
+
+    [[ $response =~ ^[Yy]$ ]]
+}
+
+# Generate a progress bar
+# Usage: progress_bar <in_progress> <started> <total> <width>
+progress_bar() {
+    local ip=$1
+    local started=$2
+    local total=$3
+    local width=${4:-20}
+
+    if [[ "$total" == "-" || "$total" == "0" ]]; then
+        printf "${GRAY}%${width}s${NC}" " "
+        return
+    fi
+
+    local not_started=$((total - ip - started))
+
+    # Calculate widths (ensure at least 1 char if count > 0)
+    local ip_width=$((ip * width / total))
+    local started_width=$((started * width / total))
+    local ns_width=$((width - ip_width - started_width))
+
+    # Ensure minimum width of 1 for non-zero counts
+    if [[ $ip -gt 0 && $ip_width -eq 0 ]]; then ip_width=1; ns_width=$((ns_width - 1)); fi
+    if [[ $started -gt 0 && $started_width -eq 0 ]]; then started_width=1; ns_width=$((ns_width - 1)); fi
+    if [[ $ns_width -lt 0 ]]; then ns_width=0; fi
+
+    # Build the bar
+    local bar=""
+    [[ $ip_width -gt 0 ]] && bar+="${GREEN}$(printf '█%.0s' $(seq 1 $ip_width))${NC}"
+    [[ $started_width -gt 0 ]] && bar+="${BLUE}$(printf '█%.0s' $(seq 1 $started_width))${NC}"
+    [[ $ns_width -gt 0 ]] && bar+="${GRAY}$(printf '░%.0s' $(seq 1 $ns_width))${NC}"
+
+    printf "%b" "$bar"
+}
+
+show_help() {
+    echo "Jira CLI - Global Navigation"
+    echo ""
+    echo "Usage: ./jira-cli <command>"
+    echo ""
+    echo "Commands:"
+    echo "  features    List quarterly commitment features for Global Navigation"
+    echo "  add         Add a new work item (story/task)"
+    echo "  help        Show this help message"
+}
+
+cmd_add() {
+    echo ""
+
+    # Check for uncommitted changes
+    if [[ -n $(git status --porcelain 2>/dev/null) ]]; then
+        echo -e "${YELLOW}Warning: You have uncommitted changes in your working directory${NC}"
+        git status --short
+        echo ""
+        if ! confirm "Continue anyway?" "n"; then
+            echo "Aborted. Please commit or stash your changes first."
+            exit 0
+        fi
+        echo ""
+    fi
+
+    echo -e "${BOLD}Add New Work Item${NC}"
+    echo "=================="
+    echo ""
+
+    # Fetch features for parent selection
+    echo "Fetching features..."
+    local jql='project = FCT2 AND type = Feature AND status not in (Done) AND cf[10154] = "Global Navigation" ORDER BY Rank ASC, priority DESC'
+    local payload=$(jq -n --arg jql "$jql" '{jql: $jql, maxResults: 100, fields: ["key", "summary"]}')
+
+    # Use REST API directly (acli uses deprecated endpoint)
+    local features_json=$(curl -s -X POST \
+        -H "Authorization: Basic $(echo -n "${JIRA_EMAIL}:${JIRA_TOKEN}" | base64)" \
+        -H "Content-Type: application/json" \
+        -d "$payload" \
+        "https://${JIRA_SITE}/rest/api/3/search/jql" | jq '[.issues[] | {key: .key, fields: .fields}]')
+
+    if [[ -z "$features_json" || "$features_json" == "[]" || "$features_json" == "null" ]]; then
+        echo "Error: Failed to fetch features from Jira"
+        exit 1
+    fi
+
+    # Build options array with tech feature first
+    local -a feature_keys
+    local -a feature_options
+
+    # Find tech feature index and add it first
+    local tech_feature_summary=$(echo "$features_json" | jq -r ".[] | select(.key == \"$JIRA_TECH_FEATURE\") | .fields.summary")
+
+    if [[ -n "$tech_feature_summary" ]]; then
+        feature_keys+=("$JIRA_TECH_FEATURE")
+        feature_options+=("$JIRA_TECH_FEATURE - $tech_feature_summary")
+    fi
+
+    # Add other features
+    while IFS=$'\t' read -r key summary; do
+        if [[ "$key" != "$JIRA_TECH_FEATURE" ]]; then
+            feature_keys+=("$key")
+            # Truncate summary if needed
+            if [[ ${#summary} -gt 50 ]]; then
+                summary="${summary:0:47}..."
+            fi
+            feature_options+=("$key - $summary")
+        fi
+    done < <(echo "$features_json" | jq -r '.[] | [.key, .fields.summary] | @tsv')
+
+    echo ""
+
+    # Select parent
+    select_option "Select parent feature:" 0 "${feature_options[@]}"
+    local parent_key="${feature_keys[$SELECTED_INDEX]}"
+    echo ""
+    echo -e "Selected: ${GREEN}${parent_key}${NC}"
+    echo ""
+
+    # Get summary
+    echo -en "${BOLD}Summary:${NC} "
+    read -r summary
+    if [[ -z "$summary" ]]; then
+        echo "Error: Summary is required"
+        exit 1
+    fi
+    echo ""
+
+    # Get description (optional)
+    echo -e "${BOLD}Description${NC} (optional, press enter to skip):"
+    read -r description
+    echo ""
+
+    # Get current sprint via REST API
+    echo "Fetching current sprint..."
+    local sprint_json=$(curl -s \
+        -H "Authorization: Basic $(echo -n "${JIRA_EMAIL}:${JIRA_TOKEN}" | base64)" \
+        "https://${JIRA_SITE}/rest/agile/1.0/board/${JIRA_BOARD_ID}/sprint?state=active")
+    local sprint_name=$(echo "$sprint_json" | jq -r '.values[] | select(.name | test("Global Navigation"; "i")) | .name' | head -1)
+    local sprint_id=$(echo "$sprint_json" | jq -r '.values[] | select(.name | test("Global Navigation"; "i")) | .id' | head -1)
+
+    local add_to_sprint=false
+    if [[ -n "$sprint_id" ]]; then
+        echo ""
+        if confirm "Add to current sprint ($sprint_name)?" "y"; then
+            add_to_sprint=true
+        fi
+    fi
+    echo ""
+
+    # Ask about assignment
+    local assign_to_me=false
+    if confirm "Assign to me ($JIRA_EMAIL)?" "y"; then
+        assign_to_me=true
+    fi
+    echo ""
+
+    # Ask about starting work
+    local start_progress=false
+    if confirm "Set to In Progress?" "y"; then
+        start_progress=true
+    fi
+    echo ""
+
+    # Select work item type
+    local -a type_options=("Task" "Story" "Bug")
+    select_option "Work item type:" 0 "${type_options[@]}"
+    local item_type="${type_options[$SELECTED_INDEX]}"
+    echo ""
+    echo -e "Selected: ${GREEN}${item_type}${NC}"
+    echo ""
+
+    # If Bug, ask for affected environment (required field)
+    local affected_env_id=""
+    local affected_env_name=""
+    if [[ "$item_type" == "Bug" ]]; then
+        local -a env_options=("CIN2" "CIN3" "CIN4" "CIN5" "PRI QA" "PROD" "Unknown")
+        local -a env_ids=("10113" "10115" "10116" "10117" "10122" "10121" "10133")
+        select_option "Affected Environment:" 0 "${env_options[@]}"
+        affected_env_id="${env_ids[$SELECTED_INDEX]}"
+        affected_env_name="${env_options[$SELECTED_INDEX]}"
+        echo ""
+        echo -e "Selected: ${GREEN}${affected_env_name}${NC}"
+        echo ""
+    fi
+
+    # Confirm creation
+    echo -e "${BOLD}Creating work item:${NC}"
+    echo -e "  Parent:      ${CYAN}${parent_key}${NC}"
+    echo -e "  Type:        ${CYAN}${item_type}${NC}"
+    echo -e "  Summary:     ${CYAN}${summary}${NC}"
+    if [[ -n "$description" ]]; then
+        echo -e "  Description: ${CYAN}${description}${NC}"
+    fi
+    if [[ -n "$affected_env_name" ]]; then
+        echo -e "  Environment: ${CYAN}${affected_env_name}${NC}"
+    fi
+    echo -e "  Label:       ${CYAN}${JIRA_LABEL}${NC}"
+    echo -e "  Team:        ${CYAN}Global Navigation${NC}"
+    if [[ "$assign_to_me" == true ]]; then
+        echo -e "  Assignee:    ${CYAN}${JIRA_EMAIL}${NC}"
+    fi
+    if [[ "$start_progress" == true ]]; then
+        echo -e "  Status:      ${CYAN}In Progress${NC}"
+    fi
+    if [[ "$add_to_sprint" == true ]]; then
+        echo -e "  Sprint:      ${CYAN}${sprint_name}${NC}"
+    fi
+    echo ""
+
+    if ! confirm "Create this work item?" "y"; then
+        echo "Cancelled."
+        exit 0
+    fi
+
+    echo ""
+    echo "Creating work item..."
+
+    # Build JSON payload for REST API (required for custom fields)
+    local desc_json="null"
+    if [[ -n "$description" ]]; then
+        desc_json=$(cat <<EOF
+{
+    "type": "doc",
+    "version": 1,
+    "content": [{"type": "paragraph", "content": [{"type": "text", "text": "$description"}]}]
+}
+EOF
+)
+    fi
+
+    local payload=$(cat <<EOF
+{
+    "fields": {
+        "project": {"key": "$JIRA_PROJECT"},
+        "issuetype": {"name": "$item_type"},
+        "parent": {"key": "$parent_key"},
+        "summary": "$summary",
+        "labels": ["$JIRA_LABEL"],
+        "customfield_10154": {"id": "10596"},
+        "customfield_10001": "$JIRA_TEAM_ID"
+EOF
+)
+
+    if [[ -n "$description" ]]; then
+        payload+=",
+        \"description\": $desc_json"
+    fi
+
+    if [[ "$assign_to_me" == true ]]; then
+        payload+=",
+        \"assignee\": {\"accountId\": \"$JIRA_ACCOUNT_ID\"}"
+    fi
+
+    if [[ -n "$affected_env_id" ]]; then
+        payload+=",
+        \"customfield_10130\": [{\"id\": \"$affected_env_id\"}]"
+    fi
+
+    payload+="
+    }
+}"
+
+    # Execute creation via REST API
+    local result=$(curl -s -X POST \
+        -H "Authorization: Basic $(echo -n "${JIRA_EMAIL}:${JIRA_TOKEN}" | base64)" \
+        -H "Content-Type: application/json" \
+        -d "$payload" \
+        "https://${JIRA_SITE}/rest/api/3/issue")
+
+    local new_key=$(echo "$result" | jq -r '.key' 2>/dev/null)
+
+    if [[ -n "$new_key" && "$new_key" != "null" ]]; then
+        echo -e "${GREEN}Created: ${new_key}${NC}"
+
+        # Add to sprint if requested
+        if [[ "$add_to_sprint" == true && -n "$sprint_id" ]]; then
+            echo "Adding to sprint..."
+            curl -s -X POST \
+                -H "Authorization: Basic $(echo -n "${JIRA_EMAIL}:${JIRA_TOKEN}" | base64)" \
+                -H "Content-Type: application/json" \
+                -d "{\"issues\": [\"${new_key}\"]}" \
+                "https://${JIRA_SITE}/rest/agile/1.0/sprint/${sprint_id}/issue" > /dev/null 2>&1
+
+            if [[ $? -eq 0 ]]; then
+                echo -e "${GREEN}Added to sprint: ${sprint_name}${NC}"
+            else
+                echo -e "${YELLOW}Warning: Could not add to sprint${NC}"
+            fi
+        fi
+
+        # Transition to In Progress if requested
+        if [[ "$start_progress" == true ]]; then
+            echo "Setting to In Progress..."
+            curl -s -X POST \
+                -H "Authorization: Basic $(echo -n "${JIRA_EMAIL}:${JIRA_TOKEN}" | base64)" \
+                -H "Content-Type: application/json" \
+                -d '{"transition": {"id": "21"}}' \
+                "https://${JIRA_SITE}/rest/api/3/issue/${new_key}/transitions" > /dev/null 2>&1
+
+            if [[ $? -eq 0 ]]; then
+                echo -e "${GREEN}Status: In Progress${NC}"
+            else
+                echo -e "${YELLOW}Warning: Could not transition to In Progress${NC}"
+            fi
+        fi
+
+        echo ""
+        echo -e "View: ${BLUE}https://${JIRA_SITE}/browse/${new_key}${NC}"
+
+        # Generate branch name from summary
+        local branch_suffix=$(echo "$summary" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9]/_/g' | sed 's/__*/_/g' | sed 's/^_//;s/_$//')
+        local branch_name="feature/${new_key}_${branch_suffix}"
+
+        echo ""
+        if confirm "Create git branch?" "y"; then
+            echo "Checking out main and pulling latest..."
+            git checkout main 2>/dev/null
+            if [[ $? -ne 0 ]]; then
+                echo -e "${YELLOW}Warning: Could not checkout main${NC}"
+            else
+                git pull 2>/dev/null
+                if [[ $? -ne 0 ]]; then
+                    echo -e "${YELLOW}Warning: Could not pull latest changes${NC}"
+                fi
+            fi
+
+            git checkout -b "$branch_name" 2>/dev/null
+            if [[ $? -eq 0 ]]; then
+                echo -e "${GREEN}Created branch: ${branch_name}${NC}"
+            else
+                echo -e "${YELLOW}Could not create branch (maybe already exists)${NC}"
+                echo -e "Run manually: ${CYAN}git checkout -b ${branch_name}${NC}"
+            fi
+        else
+            echo -e "Branch: ${CYAN}git checkout main && git pull && git checkout -b ${branch_name}${NC}"
+        fi
+    else
+        echo -e "${YELLOW}Error creating work item:${NC}"
+        echo "$result" | jq -r '.errors // .errorMessages // .' 2>/dev/null || echo "$result"
+        exit 1
+    fi
+}
+
+fetch_child_progress() {
+    local feature_key=$1
+    local tmp_dir=$2
+
+    # Use REST API directly (acli uses deprecated endpoint)
+    local jql="parent = $feature_key"
+    local payload=$(jq -n --arg jql "$jql" '{jql: $jql, maxResults: 100, fields: ["status"]}')
+
+    local children_json=$(curl -s -X POST \
+        -H "Authorization: Basic $(echo -n "${JIRA_EMAIL}:${JIRA_TOKEN}" | base64)" \
+        -H "Content-Type: application/json" \
+        -d "$payload" \
+        "https://${JIRA_SITE}/rest/api/3/search/jql" 2>/dev/null | jq '[.issues[] | {fields: .fields}]')
+
+    if [[ -z "$children_json" || "$children_json" == "[]" || "$children_json" == "null" ]]; then
+        echo "-|-|-" > "$tmp_dir/${feature_key}_progress"
+        return
+    fi
+
+    local total=$(echo "$children_json" | jq 'length')
+    local in_progress=$(echo "$children_json" | jq '[.[] | select(.fields.status.name == "In Progress")] | length')
+    local started=$(echo "$children_json" | jq '[.[] | select(.fields.status.name | IN("In Review", "Done"))] | length')
+
+    echo "$in_progress|$started|$total" > "$tmp_dir/${feature_key}_progress"
+}
+
+fetch_story_points() {
+    local feature_key=$1
+    local tmp_dir=$2
+
+    local sp=$(curl -s \
+        -H "Authorization: Basic $(echo -n "${JIRA_EMAIL}:${JIRA_TOKEN}" | base64)" \
+        "https://${JIRA_SITE}/rest/api/3/issue/${feature_key}?fields=customfield_10031" \
+        | jq -r '.fields.customfield_10031 // "-"')
+
+    # Format as integer if it's a number
+    if [[ "$sp" =~ ^[0-9]+\.?[0-9]*$ ]]; then
+        sp=$(printf "%.0f" "$sp")
+    fi
+
+    echo "$sp" > "$tmp_dir/${feature_key}_sp"
+}
+
+cmd_features() {
+    echo ""
+    echo "Fetching features..."
+
+    # Use REST API directly (acli uses deprecated endpoint)
+    local jql='project = FCT2 AND type = Feature AND status not in (Done) AND cf[10154] = "Global Navigation" ORDER BY Rank ASC, priority DESC'
+    local payload=$(jq -n --arg jql "$jql" '{jql: $jql, maxResults: 100, fields: ["key", "summary", "status", "assignee"]}')
+
+    local json=$(curl -s -X POST \
+        -H "Authorization: Basic $(echo -n "${JIRA_EMAIL}:${JIRA_TOKEN}" | base64)" \
+        -H "Content-Type: application/json" \
+        -d "$payload" \
+        "https://${JIRA_SITE}/rest/api/3/search/jql" | jq '[.issues[] | {key: .key, fields: .fields}]')
+
+    if [[ -z "$json" || "$json" == "[]" || "$json" == "null" ]]; then
+        echo "Error: Failed to fetch features from Jira"
+        exit 1
+    fi
+
+    # Create temp directory for parallel results
+    local tmp_dir=$(mktemp -d)
+    trap "rm -rf $tmp_dir" EXIT
+
+    # Get list of feature keys and kick off parallel queries
+    local feature_keys=$(echo "$json" | jq -r '.[].key')
+
+    echo "Fetching child progress & story points (parallel)..."
+
+    for key in $feature_keys; do
+        fetch_child_progress "$key" "$tmp_dir" &
+        fetch_story_points "$key" "$tmp_dir" &
+    done
+
+    # Wait for all background jobs to complete
+    wait
+
+    echo ""
+    echo "Global Navigation - Quarterly Features"
+    echo "======================================="
+    echo ""
+
+    # Print header
+    printf "%-12s %-12s %-20s  %-7s %-4s %-14s %s\n" "KEY" "STATUS" "PROGRESS" "" "SP" "ASSIGNEE" "SUMMARY"
+    printf "%-12s %-12s %-20s  %-7s %-4s %-14s %s\n" "----------" "----------" "--------------------" "" "---" "------------" "-------------------------------------------------"
+    echo -e "                         ${GREEN}█${NC}IP ${BLUE}█${NC}Done ${GRAY}░${NC}Not started"
+    echo ""
+
+    # Parse and print each row
+    echo "$json" | jq -r '.[] | [.key, .fields.status.name, (.fields.assignee.displayName // "-"), .fields.summary] | @tsv' | while IFS=$'\t' read -r key status assignee summary; do
+        # Read progress from temp file (format: ip|started|total)
+        local progress_data=$(cat "$tmp_dir/${key}_progress" 2>/dev/null || echo "-|-|-")
+        IFS='|' read -r ip started total <<< "$progress_data"
+
+        # Read story points
+        local sp=$(cat "$tmp_dir/${key}_sp" 2>/dev/null || echo "-")
+        [[ "$sp" == "null" ]] && sp="-"
+
+        # Build progress bar
+        local bar=$(progress_bar "$ip" "$started" "$total" 20)
+
+        # Format progress label
+        local progress_label=""
+        if [[ "$total" != "-" ]]; then
+            progress_label="$((ip + started))/$total"
+        fi
+
+        # Truncate assignee if too long
+        if [[ ${#assignee} -gt 12 ]]; then
+            assignee="${assignee:0:10}.."
+        fi
+
+        # Truncate summary if too long
+        if [[ ${#summary} -gt 51 ]]; then
+            summary="${summary:0:48}..."
+        fi
+
+        if [[ "$status" == "In Progress" ]]; then
+            printf "${GREEN}%-12s %-12s${NC} %b  %-7s %-4s %-14s %s\n" "$key" "$status" "$bar" "$progress_label" "$sp" "$assignee" "$summary"
+        else
+            printf "%-12s %-12s %b  %-7s %-4s %-14s %s\n" "$key" "$status" "$bar" "$progress_label" "$sp" "$assignee" "$summary"
+        fi
+    done
+
+    echo ""
+}
+
+# Main command router
+case "${1:-help}" in
+    features)
+        cmd_features
+        ;;
+    add)
+        cmd_add
+        ;;
+    help|--help|-h)
+        show_help
+        ;;
+    *)
+        echo "Unknown command: $1"
+        show_help
+        exit 1
+        ;;
+esac

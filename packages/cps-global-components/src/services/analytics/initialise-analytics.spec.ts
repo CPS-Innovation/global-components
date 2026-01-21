@@ -1,6 +1,6 @@
 import { Config } from "cps-global-configuration";
 import { Build, ReadyStateHelper } from "../../store/store";
-import { CmsSessionHint } from "../cms-session/CmsSessionHint";
+import { CmsSessionHint } from "../state/cms-session/CmsSessionHint";
 import { ApplicationFlags } from "../application-flags/ApplicationFlags";
 
 // Mock the dependencies
@@ -43,9 +43,9 @@ describe("initialiseAnalytics", () => {
   describe("when e2eTestMode is enabled", () => {
     const e2eFlags: ApplicationFlags = {
       e2eTestMode: { isE2eTestMode: true, isAuthed: true, adGroups: [] },
-      isOverrideMode: false,
       isOutSystems: false,
       isLocalDevelopment: false,
+      environment: "test",
     };
 
     it("should call initialiseMockAnalytics", () => {
@@ -86,9 +86,9 @@ describe("initialiseAnalytics", () => {
   describe("when e2eTestMode is disabled", () => {
     const normalFlags: ApplicationFlags = {
       e2eTestMode: { isE2eTestMode: false },
-      isOverrideMode: false,
       isOutSystems: false,
       isLocalDevelopment: false,
+      environment: "test",
     };
 
     it("should call initialiseAiAnalytics", () => {

@@ -16,7 +16,7 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
-      - uses: azure/cli@v2.0.0 # pinned to minor version whilst MS fix https://github.com/azure/azure-cli/issues/32039
+      - uses: azure/cli@v2
         with:
           azcliversion: latest
           inlineScript: |

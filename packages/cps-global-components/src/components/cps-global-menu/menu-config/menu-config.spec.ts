@@ -18,8 +18,9 @@ import { createOutboundUrlDirect } from "cps-global-os-handover";
 import { Build, State } from "../../../store/store";
 import { CorrelationIds } from "../../../services/correlation/CorrelationIds";
 import { CaseDetails } from "../../../services/data/CaseDetails";
+import { MonitoringCodes } from "../../../services/data/MonitoringCode";
 import { Result } from "../../../utils/Result";
-import { CmsSessionHint } from "../../../services/cms-session/CmsSessionHint";
+import { CmsSessionHint } from "../../../services/state/cms-session/CmsSessionHint";
 
 // Type the mocked functions
 const mockShouldShowLink = shouldShowLink as jest.MockedFunction<typeof shouldShowLink>;
@@ -76,15 +77,20 @@ describe("menuConfig", () => {
   } as Config;
 
   const mockFlags: ApplicationFlags = {
-    isOverrideMode: false,
     isOutSystems: false,
     e2eTestMode: { isE2eTestMode: false },
     isLocalDevelopment: false,
+    environment: "test",
   };
 
   const mockTags: Tags = {};
 
-  const mockCaseDetails: CaseDetails = { id: 1, urn: "foo", isDcfCase: false };
+  const mockCaseDetails: Result<CaseDetails> = {
+    found: true,
+    result: { id: 1, urn: "foo", isDcfCase: false, leadDefendantFirstNames: "", leadDefendantSurname: "", leadDefendantType: "", numberOfDefendants: 1 },
+  };
+
+  const mockCaseMonitoringCodes: Result<MonitoringCodes> = { found: true, result: [] };
 
   const mockCmsSessionHint: Result<CmsSessionHint> = {
     found: false,
@@ -114,15 +120,18 @@ describe("menuConfig", () => {
       pathTags: {},
       domTags: mockTags,
       caseDetailsTags: {},
+      cmsSessionTags: {},
       tags: {},
       auth: {} as AuthResult,
       fatalInitialisationError: undefined as any,
       initialisationStatus: "complete",
       correlationIds: {} as CorrelationIds,
       caseIdentifiers: { caseId: "1" },
+      caseMonitoringCodes: mockCaseMonitoringCodes,
       build: {} as Build,
       cmsSessionHint: mockCmsSessionHint,
       handover: { found: false, error: {} as Error },
+      recentCases: { found: false, error: {} as Error },
     };
 
     const result = menuConfig(mockState);
@@ -166,15 +175,18 @@ describe("menuConfig", () => {
       pathTags: {},
       domTags: foundTags,
       caseDetailsTags: {},
+      cmsSessionTags: {},
       tags: {},
       auth: {} as AuthResult,
       fatalInitialisationError: undefined as any,
       initialisationStatus: "complete",
       correlationIds: {} as CorrelationIds,
       caseIdentifiers: { caseId: "1" },
+      caseMonitoringCodes: mockCaseMonitoringCodes,
       build: {} as Build,
       cmsSessionHint: mockCmsSessionHint,
       handover: { found: false, error: {} as Error },
+      recentCases: { found: false, error: {} as Error },
     };
 
     // Mock shouldShowLink to filter out the second link
@@ -286,15 +298,18 @@ describe("menuConfig", () => {
       pathTags: {},
       domTags: foundTags,
       caseDetailsTags: {},
+      cmsSessionTags: {},
       tags: {},
       auth: {} as AuthResult,
       fatalInitialisationError: undefined as any,
       initialisationStatus: "complete",
       correlationIds: {} as CorrelationIds,
       caseIdentifiers: { caseId: "1" },
+      caseMonitoringCodes: mockCaseMonitoringCodes,
       build: {} as Build,
       cmsSessionHint: mockCmsSessionHint,
       handover: { found: false, error: {} as Error },
+      recentCases: { found: false, error: {} as Error },
     };
 
     // Mock shouldShowLink to pass all links
@@ -360,15 +375,18 @@ describe("menuConfig", () => {
       pathTags: {},
       domTags: foundTags,
       caseDetailsTags: {},
+      cmsSessionTags: {},
       tags: {},
       auth: {} as AuthResult,
       fatalInitialisationError: undefined as any,
       initialisationStatus: "complete",
       correlationIds: {} as CorrelationIds,
       caseIdentifiers: { caseId: "1" },
+      caseMonitoringCodes: mockCaseMonitoringCodes,
       build: {} as Build,
       cmsSessionHint: mockCmsSessionHint,
       handover: { found: false, error: {} as Error },
+      recentCases: { found: false, error: {} as Error },
     };
 
     // Mock shouldShowLink to pass all links
@@ -435,15 +453,18 @@ describe("menuConfig", () => {
       pathTags: {},
       domTags: mockTags,
       caseDetailsTags: {},
+      cmsSessionTags: {},
       tags: {},
       auth: {} as AuthResult,
       fatalInitialisationError: undefined as any,
       initialisationStatus: "complete",
       correlationIds: {} as CorrelationIds,
       caseIdentifiers: { caseId: "1" },
+      caseMonitoringCodes: mockCaseMonitoringCodes,
       build: {} as Build,
       cmsSessionHint: mockCmsSessionHint,
       handover: { found: false, error: {} as Error },
+      recentCases: { found: false, error: {} as Error },
     };
 
     // Mock shouldShowLink to pass all links
@@ -509,15 +530,18 @@ describe("menuConfig", () => {
       pathTags: {},
       domTags: mockTags,
       caseDetailsTags: {},
+      cmsSessionTags: {},
       tags: {},
       auth: {} as AuthResult,
       fatalInitialisationError: undefined as any,
       initialisationStatus: "complete",
       correlationIds: {} as CorrelationIds,
       caseIdentifiers: { caseId: "1" },
+      caseMonitoringCodes: mockCaseMonitoringCodes,
       build: {} as Build,
       cmsSessionHint: mockCmsSessionHint,
       handover: { found: false, error: {} as Error },
+      recentCases: { found: false, error: {} as Error },
     };
 
     // Mock shouldShowLink to pass all links
@@ -603,15 +627,18 @@ describe("menuConfig", () => {
       pathTags: {},
       domTags: mockTags,
       caseDetailsTags: {},
+      cmsSessionTags: {},
       tags: {},
       auth: {} as AuthResult,
       fatalInitialisationError: undefined as any,
       initialisationStatus: "complete",
       correlationIds: {} as CorrelationIds,
       caseIdentifiers: { caseId: "1" },
+      caseMonitoringCodes: mockCaseMonitoringCodes,
       build: {} as Build,
       cmsSessionHint: cmsSessionHintWithEndpoint,
       handover: { found: false, error: {} as Error },
+      recentCases: { found: false, error: {} as Error },
     };
 
     // Mock shouldShowLink to pass all links

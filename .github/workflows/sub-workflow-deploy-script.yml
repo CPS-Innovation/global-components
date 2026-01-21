@@ -39,16 +39,11 @@ jobs:
           artifact-ids: ${{ inputs.artifact-id }}
 
       - run: |
-          # Copy preview app to the deployment folder
-          mkdir -p ${{ steps.download.outputs.download-path }}/preview
-          cp -r ./apps/preview/* ${{ steps.download.outputs.download-path }}/preview/
+          # Preview app is already in the artifact from the build step
 
           cp ./configuration/config.${{ inputs.environment }}.json ${{ steps.download.outputs.download-path }}/config.json
           if [ -f "./configuration/config.${{ inputs.environment }}.override.json" ]; then
             cp ./configuration/config.${{ inputs.environment }}.override.json ${{ steps.download.outputs.download-path }}/config.override.json
-
-            cp ./configuration/config.${{ inputs.environment }}.override.json ${{ steps.download.outputs.download-path }}/config.override.js
-            sed -i '1s/^/cps_global_components_config_jsonp_callback(/; $s/$/);/' ${{ steps.download.outputs.download-path }}/config.override.js
           fi
 
           # Read config values for the environment
@@ -78,7 +73,7 @@ jobs:
           # Remove the redirect script template from deployment
           rm -f "${{ steps.download.outputs.download-path }}/script-redirect.js"
 
-      - uses: azure/cli@v2.0.0 # pinned to minor version whilst MS fix https://github.com/azure/azure-cli/issues/32039
+      - uses: azure/cli@v2
         with:
           azcliversion: latest
           inlineScript: |

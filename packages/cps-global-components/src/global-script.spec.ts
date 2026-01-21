@@ -25,7 +25,7 @@ jest.mock("./services/browser/navigation/initialise-navigation-subscription", ()
   initialiseNavigationSubscription: ({ handler, handleError }: { handler: () => void; handleError: (err: Error) => void }) => {
     capturedNavigationHandler = handler;
     capturedHandleError = handleError;
-    mockInitialiseNavigationSubscription({ handler, window: expect.any(Object), handleError: expect.any(Function) });
+    mockInitialiseNavigationSubscription({ handler, handleError });
   },
 }));
 
@@ -77,6 +77,15 @@ jest.mock("./services/browser/dom/dom-tag-mutation-subscriber", () => ({
   domTagMutationSubscriber: jest.fn(),
 }));
 
+jest.mock("./services/browser/dom/footer-subscriber", () => ({
+  footerSubscriber: jest.fn(),
+}));
+
+const mockAccessibilitySubscriber = jest.fn();
+jest.mock("./services/browser/accessibility/accessibility-subscriber", () => ({
+  accessibilitySubscriber: mockAccessibilitySubscriber,
+}));
+
 jest.mock("./services/outsystems-shim/outsystems-shim-subscriber", () => ({
   outSystemsShimSubscribers: [],
 }));
@@ -87,18 +96,13 @@ jest.mock("./services/data/initialise-case-details-data", () => ({
 }));
 
 const mockInitialiseCmsSessionHint = jest.fn();
-jest.mock("./services/cms-session/initialise-cms-session-hint", () => ({
+jest.mock("./services/state/cms-session/initialise-cms-session-hint", () => ({
   initialiseCmsSessionHint: mockInitialiseCmsSessionHint,
 }));
 
 const mockInitialiseHandover = jest.fn();
-jest.mock("./services/handover/intialise-handover", () => ({
+jest.mock("./services/state/handover/intialise-handover", () => ({
   initialiseHandover: mockInitialiseHandover,
-}));
-
-const mockInitialiseInterimDcfNavigation = jest.fn();
-jest.mock("./services/outsystems-shim/initialise-interim-dcf-navigation", () => ({
-  initialiseInterimDcfNavigation: mockInitialiseInterimDcfNavigation,
 }));
 
 const mockInitialiseRootUrl = jest.fn();
@@ -107,8 +111,18 @@ jest.mock("./services/root-url/initialise-root-url", () => ({
 }));
 
 const mockInitialisePreview = jest.fn();
-jest.mock("./services/preview/initialise-preview", () => ({
+jest.mock("./services/state/preview/initialise-preview", () => ({
   initialisePreview: mockInitialisePreview,
+}));
+
+const mockInitialiseSettings = jest.fn();
+jest.mock("./services/state/settings/initialise-settings", () => ({
+  initialiseSettings: mockInitialiseSettings,
+}));
+
+const mockInitialiseRecentCases = jest.fn();
+jest.mock("./services/state/recent-cases/initialise-recent-cases", () => ({
+  initialiseRecentCases: mockInitialiseRecentCases,
 }));
 
 // Mock makeConsole to return no-op functions
@@ -161,8 +175,9 @@ const setupDefaultMocks = () => {
 
   mockGetApplicationFlags.mockReturnValue({
     e2eTestMode: { isE2eTestMode: false },
-    isOverrideMode: false,
-    isDevelopment: false,
+    isLocalDevelopment: false,
+    isOutSystems: false,
+    environment: "test",
   });
 
   mockInitialiseConfig.mockResolvedValue({
@@ -202,14 +217,16 @@ const setupDefaultMocks = () => {
     trackException: mockTrackException,
   });
 
-  mockInitialiseInterimDcfNavigation.mockReturnValue({
-    observe: jest.fn(),
-    disconnect: jest.fn(),
-  });
-
   mockInitialiseRootUrl.mockReturnValue("https://example.com/env/components/script.js");
 
   mockInitialisePreview.mockResolvedValue({ enabled: false, features: [] });
+
+  mockInitialiseSettings.mockResolvedValue({ fontSize: "default" });
+
+  mockInitialiseRecentCases.mockResolvedValue({
+    recentCases: { found: false, error: new Error("No recent cases") },
+    setNextRecentCases: jest.fn(),
+  });
 
   return {
     mockTrackPageView,
@@ -224,7 +241,7 @@ describe("global-script", () => {
   let defaultMocks: ReturnType<typeof setupDefaultMocks>;
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    jest.resetAllMocks();
     clearCachedResultCache();
     capturedNavigationHandler = null;
     capturedHandleError = null;
@@ -271,7 +288,6 @@ describe("global-script", () => {
       await new Promise(resolve => setTimeout(resolve, 10));
 
       expect(mockInitialiseNavigationSubscription).toHaveBeenCalledWith({
-        window: mockWindow,
         handler: expect.any(Function),
         handleError: expect.any(Function),
       });
@@ -306,8 +322,9 @@ describe("global-script", () => {
       if (state.isReady) {
         expect(state.state.flags).toEqual({
           e2eTestMode: { isE2eTestMode: false },
-          isOverrideMode: false,
-          isDevelopment: false,
+          isLocalDevelopment: false,
+          isOutSystems: false,
+          environment: "test",
         });
       }
     });
@@ -344,6 +361,17 @@ describe("global-script", () => {
       if (state.isReady) {
         expect(state.state.preview).toEqual(testPreview);
       }
+    });
+
+    it("should pass accessibilitySubscriber to initialiseDomObservation", async () => {
+      const globalScript = require("./global-script").default;
+
+      globalScript();
+
+      await new Promise(resolve => setTimeout(resolve, 10));
+
+      const callArgs = mockInitialiseDomObservation.mock.calls[0];
+      expect(callArgs).toContain(mockAccessibilitySubscriber);
     });
 
     it("should register config to store", async () => {
@@ -513,8 +541,9 @@ describe("global-script", () => {
     it("should pass flags to initialiseAuth so it can decide mock vs real internally", async () => {
       const testFlags = {
         e2eTestMode: { isE2eTestMode: true },
-        isOverrideMode: false,
-        isDevelopment: false,
+        isLocalDevelopment: false,
+        isOutSystems: false,
+        environment: "test",
       };
       mockGetApplicationFlags.mockReturnValue(testFlags);
 
@@ -535,8 +564,9 @@ describe("global-script", () => {
     it("should pass flags to initialiseAnalytics so it can decide mock vs real internally", async () => {
       const testFlags = {
         e2eTestMode: { isE2eTestMode: true },
-        isOverrideMode: false,
-        isDevelopment: false,
+        isLocalDevelopment: false,
+        isOutSystems: false,
+        environment: "test",
       };
       mockGetApplicationFlags.mockReturnValue(testFlags);
 
@@ -574,8 +604,8 @@ describe("global-script", () => {
           config: testConfig,
           context: expect.any(Object),
           subscribe: expect.any(Function),
-          handover: expect.any(Object),
           setNextHandover: expect.any(Function),
+          setNextRecentCases: expect.any(Function),
           getToken: expect.any(Function),
           readyState: expect.any(Function),
           trackEvent: expect.any(Function),
@@ -958,7 +988,7 @@ describe("global-script", () => {
     });
   });
 
-  describe("cmsSessionHint and handover initialization", () => {
+  describe("cmsSessionHint, handover and recentCases initialization", () => {
     it("should register cmsSessionHint to store", async () => {
       const globalScript = require("./global-script").default;
 
@@ -1020,38 +1050,71 @@ describe("global-script", () => {
 
       expect(mockInitialiseHandover).toHaveBeenCalledTimes(1);
     });
+
+    it("should register recentCases to store", async () => {
+      const testRecentCases = { found: true, result: [{ caseId: 123, urn: "12AB3456789" }] };
+      mockInitialiseRecentCases.mockResolvedValue({
+        recentCases: testRecentCases,
+        setNextRecentCases: jest.fn(),
+      });
+
+      const globalScript = require("./global-script").default;
+
+      globalScript();
+
+      await new Promise(resolve => setTimeout(resolve, 10));
+
+      const state = getReadyState()("recentCases");
+      expect(state.isReady).toBe(true);
+      if (state.isReady) {
+        expect(state.state.recentCases).toEqual(testRecentCases);
+      }
+    });
+
+    it("should NOT reinitialize recentCases on navigation (cached)", async () => {
+      const globalScript = require("./global-script").default;
+
+      globalScript();
+
+      await new Promise(resolve => setTimeout(resolve, 10));
+
+      expect(mockInitialiseRecentCases).toHaveBeenCalledTimes(1);
+
+      // Trigger SPA navigation
+      triggerNavigation();
+
+      await new Promise(resolve => setTimeout(resolve, 10));
+
+      expect(mockInitialiseRecentCases).toHaveBeenCalledTimes(1);
+    });
   });
 
   describe("end-to-end data flow", () => {
     // These tests verify that the correct data flows from one step to the next
     // A control flow refactor should not break these dependencies
 
-    it("should pass rootUrl and flags to initialiseConfig", async () => {
+    it("should pass rootUrl, flags and preview to initialiseConfig", async () => {
       const testFlags = {
         e2eTestMode: { isE2eTestMode: false },
-        isOverrideMode: true,
-        isDevelopment: true,
-        customFlag: "test-value",
+        isLocalDevelopment: true,
+        isOutSystems: false,
+        environment: "test",
       };
       const testRootUrl = "https://test.example.com/env/script.js";
+      const testPreview = { enabled: true, features: ["feature1"] };
       mockGetApplicationFlags.mockReturnValue(testFlags);
       mockInitialiseRootUrl.mockReturnValue(testRootUrl);
+      mockInitialisePreview.mockResolvedValue(testPreview);
 
       const globalScript = require("./global-script").default;
       globalScript();
       await new Promise(resolve => setTimeout(resolve, 10));
 
-      expect(mockInitialiseConfig).toHaveBeenCalledWith({ rootUrl: testRootUrl, flags: testFlags });
+      expect(mockInitialiseConfig).toHaveBeenCalledWith({ rootUrl: testRootUrl, flags: testFlags, preview: testPreview });
     });
 
     it("should pass rootUrl and flags to initialiseCmsSessionHint", async () => {
-      const testFlags = {
-        e2eTestMode: { isE2eTestMode: false },
-        isOverrideMode: false,
-        isDevelopment: false,
-      };
       const testRootUrl = "https://test.example.com/env/script.js";
-      mockGetApplicationFlags.mockReturnValue(testFlags);
       mockInitialiseRootUrl.mockReturnValue(testRootUrl);
 
       const globalScript = require("./global-script").default;
@@ -1060,18 +1123,12 @@ describe("global-script", () => {
 
       expect(mockInitialiseCmsSessionHint).toHaveBeenCalledWith({
         rootUrl: testRootUrl,
-        flags: testFlags,
+        flags: expect.any(Object),
       });
     });
 
-    it("should pass rootUrl and flags to initialiseHandover", async () => {
-      const testFlags = {
-        e2eTestMode: { isE2eTestMode: false },
-        isOverrideMode: false,
-        isDevelopment: false,
-      };
+    it("should pass rootUrl to initialiseHandover", async () => {
       const testRootUrl = "https://test.example.com/env/script.js";
-      mockGetApplicationFlags.mockReturnValue(testFlags);
       mockInitialiseRootUrl.mockReturnValue(testRootUrl);
 
       const globalScript = require("./global-script").default;
@@ -1080,7 +1137,6 @@ describe("global-script", () => {
 
       expect(mockInitialiseHandover).toHaveBeenCalledWith({
         rootUrl: testRootUrl,
-        flags: testFlags,
       });
     });
 
@@ -1095,6 +1151,60 @@ describe("global-script", () => {
       expect(mockInitialisePreview).toHaveBeenCalledWith({
         rootUrl: testRootUrl,
       });
+    });
+
+    it("should pass rootUrl to initialiseSettings", async () => {
+      const testRootUrl = "https://test.example.com/env/script.js";
+      mockInitialiseRootUrl.mockReturnValue(testRootUrl);
+
+      const globalScript = require("./global-script").default;
+      globalScript();
+      await new Promise(resolve => setTimeout(resolve, 10));
+
+      expect(mockInitialiseSettings).toHaveBeenCalledWith({
+        rootUrl: testRootUrl,
+      });
+    });
+
+    it("should pass rootUrl and preview to initialiseRecentCases", async () => {
+      const testRootUrl = "https://test.example.com/env/script.js";
+      const testPreview = { enabled: true, myRecentCases: true };
+      mockInitialiseRootUrl.mockReturnValue(testRootUrl);
+      mockInitialisePreview.mockResolvedValue(testPreview);
+
+      const globalScript = require("./global-script").default;
+      globalScript();
+      await new Promise(resolve => setTimeout(resolve, 10));
+
+      expect(mockInitialiseRecentCases).toHaveBeenCalledWith(
+        expect.objectContaining({
+          rootUrl: testRootUrl,
+          preview: testPreview,
+        })
+      );
+    });
+
+    it("should pass preview and settings to initialiseDomObservation for accessibilitySubscriber", async () => {
+      const testPreview = { result: { accessibility: true } };
+      const testSettings = { fontSize: "large" };
+      mockInitialisePreview.mockResolvedValue(testPreview);
+      mockInitialiseSettings.mockResolvedValue(testSettings);
+
+      const globalScript = require("./global-script").default;
+      globalScript();
+      await new Promise(resolve => setTimeout(resolve, 10));
+
+      const callArgs = mockInitialiseDomObservation.mock.calls[0];
+      // First arg is the options object containing window, preview, and settings
+      expect(callArgs[0]).toEqual(
+        expect.objectContaining({
+          window: mockWindow,
+          preview: testPreview,
+          settings: testSettings,
+        }),
+      );
+      // accessibilitySubscriber should be in the args
+      expect(callArgs).toContain(mockAccessibilitySubscriber);
     });
 
     it("should pass window and config to initialiseContext", async () => {
@@ -1117,8 +1227,9 @@ describe("global-script", () => {
     it("should pass config, context and flags to initialiseAuth", async () => {
       const testFlags = {
         e2eTestMode: { isE2eTestMode: false },
-        isOverrideMode: false,
-        isDevelopment: false,
+        isLocalDevelopment: false,
+        isOutSystems: false,
+        environment: "test",
       };
       const testConfig = {
         CONTEXTS: [],
@@ -1149,8 +1260,9 @@ describe("global-script", () => {
     it("should pass all required dependencies to initialiseAnalytics (auth is obtained via readyState)", async () => {
       const testFlags = {
         e2eTestMode: { isE2eTestMode: false },
-        isOverrideMode: false,
-        isDevelopment: false,
+        isLocalDevelopment: false,
+        isOutSystems: false,
+        environment: "test",
       };
       const testConfig = { CONTEXTS: [], GATEWAY_URL: null, APP_INSIGHTS_KEY: "test-key" };
       const testBuild = { version: "2.0.0", buildDate: "2024-06-15" };
@@ -1209,6 +1321,7 @@ describe("global-script", () => {
       const testConfig = { CONTEXTS: [], GATEWAY_URL: "https://gateway.test.com/" };
       const testHandover = { caseId: "case-789", source: "test" };
       const mockSetNextHandover = jest.fn();
+      const mockSetNextRecentCases = jest.fn();
       const testContext = {
         found: true,
         contextDefinition: { name: "test-context" },
@@ -1220,6 +1333,10 @@ describe("global-script", () => {
         handover: testHandover,
         setNextHandover: mockSetNextHandover,
       });
+      mockInitialiseRecentCases.mockResolvedValue({
+        recentCases: { found: false, error: new Error("No recent cases") },
+        setNextRecentCases: mockSetNextRecentCases,
+      });
       mockInitialiseContext.mockReturnValue(testContext);
 
       const globalScript = require("./global-script").default;
@@ -1230,8 +1347,8 @@ describe("global-script", () => {
         expect.objectContaining({
           config: testConfig,
           context: testContext,
-          handover: testHandover,
           setNextHandover: mockSetNextHandover,
+          setNextRecentCases: mockSetNextRecentCases,
         }),
       );
     });
@@ -1241,7 +1358,7 @@ describe("global-script", () => {
     // These tests verify that operations happen in the correct order
     // using mock call order tracking
 
-    it("should initialise in correct order: rootUrl -> flags -> config/cmsSessionHint/handover/preview (parallel) -> firstContext -> analytics (auth runs async later)", async () => {
+    it("should initialise in correct order: rootUrl -> flags -> cmsSessionHint/handover/preview/settings (parallel) -> recentCases -> config -> firstContext -> analytics (auth runs async later)", async () => {
       const callOrder: string[] = [];
 
       mockInitialiseRootUrl.mockImplementation(() => {
@@ -1251,7 +1368,7 @@ describe("global-script", () => {
 
       mockGetApplicationFlags.mockImplementation(() => {
         callOrder.push("flags");
-        return { e2eTestMode: { isE2eTestMode: false }, isOverrideMode: false, isDevelopment: false };
+        return { e2eTestMode: { isE2eTestMode: false }, isLocalDevelopment: false, isOutSystems: false, environment: "test" };
       });
 
       mockInitialiseConfig.mockImplementation(async () => {
@@ -1274,6 +1391,16 @@ describe("global-script", () => {
         return { enabled: false, features: [] };
       });
 
+      mockInitialiseSettings.mockImplementation(async () => {
+        callOrder.push("settings");
+        return { fontSize: "default" };
+      });
+
+      mockInitialiseRecentCases.mockImplementation(async () => {
+        callOrder.push("recentCases");
+        return { recentCases: { found: false, error: new Error("No recent cases") }, setNextRecentCases: jest.fn() };
+      });
+
       mockInitialiseContext.mockImplementation(() => {
         callOrder.push("context");
         return { found: true, contextDefinition: {}, pathTags: {} };
@@ -1293,13 +1420,18 @@ describe("global-script", () => {
       globalScript();
       await new Promise(resolve => setTimeout(resolve, 10));
 
-      // Verify order - rootUrl and flags first, then parallel async calls, then firstContext
+      // Verify order - rootUrl and flags first, then parallel async calls (cmsSessionHint/handover/preview/settings),
+      // then recentCases (needs preview), then config, then firstContext
       // Analytics now comes BEFORE auth (auth is non-blocking to avoid UI delay)
+      // accessibilitySubscriber is now part of DOM observation (called via initialiseDomForContext)
       expect(callOrder.indexOf("rootUrl")).toBeLessThan(callOrder.indexOf("flags"));
-      expect(callOrder.indexOf("flags")).toBeLessThan(callOrder.indexOf("config"));
       expect(callOrder.indexOf("flags")).toBeLessThan(callOrder.indexOf("cmsSessionHint"));
       expect(callOrder.indexOf("flags")).toBeLessThan(callOrder.indexOf("handover"));
       expect(callOrder.indexOf("flags")).toBeLessThan(callOrder.indexOf("preview"));
+      expect(callOrder.indexOf("flags")).toBeLessThan(callOrder.indexOf("settings"));
+      expect(callOrder.indexOf("preview")).toBeLessThan(callOrder.indexOf("recentCases"));
+      expect(callOrder.indexOf("settings")).toBeLessThan(callOrder.indexOf("recentCases"));
+      expect(callOrder.indexOf("recentCases")).toBeLessThan(callOrder.indexOf("config"));
       expect(callOrder.indexOf("config")).toBeLessThan(callOrder.indexOf("context"));
       // Analytics is now initialized BEFORE auth (auth is non-blocking)
       expect(callOrder.indexOf("analytics")).toBeLessThan(callOrder.indexOf("auth"));
@@ -1404,10 +1536,7 @@ describe("global-script", () => {
       };
 
       // First call is in loadPhase (firstContext), second in initialise (context), third on navigation
-      mockInitialiseContext
-        .mockReturnValueOnce(firstContext)
-        .mockReturnValueOnce(initialContext)
-        .mockReturnValueOnce(updatedContext);
+      mockInitialiseContext.mockReturnValueOnce(firstContext).mockReturnValueOnce(initialContext).mockReturnValueOnce(updatedContext);
 
       const globalScript = require("./global-script").default;
       globalScript();
@@ -1448,10 +1577,7 @@ describe("global-script", () => {
       };
 
       // First call is in loadPhase (firstContext), second in initialise (context), third on navigation
-      mockInitialiseContext
-        .mockReturnValueOnce(firstContext)
-        .mockReturnValueOnce(initialContext)
-        .mockReturnValueOnce(updatedContext);
+      mockInitialiseContext.mockReturnValueOnce(firstContext).mockReturnValueOnce(initialContext).mockReturnValueOnce(updatedContext);
 
       const globalScript = require("./global-script").default;
       globalScript();

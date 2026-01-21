@@ -1,22 +1,21 @@
 import { Config } from "cps-global-configuration";
-import { createCache } from "../cache/create-cache";
-import { fetchWithCircuitBreaker } from "../api/fetch-with-circuit-breaker";
-import { fetchWithAuthFactory } from "../../services/api/fetch-with-auth-factory";
+import { fetchWithCircuitBreaker } from "../fetch/fetch-with-circuit-breaker";
+import { fetchWithAuthFactory } from "../fetch/fetch-with-auth-factory";
 import { FoundContext } from "../context/FoundContext";
 import { ReadyStateHelper, Subscribe } from "../../store/store";
 import { caseDetailsSubscriptionFactory } from "./case-details-subscription-factory";
-import { Handover } from "../handover/Handover";
+import { Handover } from "../state/handover/Handover";
 import { GetToken } from "../auth/GetToken";
 import { pipe } from "../../utils/pipe";
 import { AnalyticsEventData } from "../analytics/analytics-event";
-import { Result } from "../../utils/Result";
+import { CaseDetails } from "./CaseDetails";
 
 export const initialiseCaseDetailsData = ({
   config,
   context,
   subscribe,
-  handover,
   setNextHandover,
+  setNextRecentCases,
   getToken,
   readyState,
   trackEvent,
@@ -24,8 +23,8 @@ export const initialiseCaseDetailsData = ({
   config: Config;
   context: FoundContext;
   subscribe: Subscribe;
-  handover: Result<Handover>;
   setNextHandover: (data: Handover) => void;
+  setNextRecentCases: (caseDetails: CaseDetails | undefined) => void;
   getToken: GetToken;
   readyState: ReadyStateHelper;
   trackEvent: (detail: AnalyticsEventData) => void;
@@ -37,10 +36,8 @@ export const initialiseCaseDetailsData = ({
 
   subscribe(
     caseDetailsSubscriptionFactory({
-      config,
-      handover,
       setNextHandover,
-      cache: createCache("cps-global-components-cache"),
+      setNextRecentCases,
       fetch: pipe(fetch, fetchWithCircuitBreaker({ config, trackEvent }), fetchWithAuthFactory({ config, context, getToken, readyState })),
     }),
   );

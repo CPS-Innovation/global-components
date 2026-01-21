@@ -7,7 +7,7 @@ const DEPLOYMENT_JSON_PATH =
 const TENANT_ID = "00dd0d1d-d7e6-6338-ac51-565339c7088c"
 const VALIDATE_TOKEN_AGAINST_AD = false // Set to true when ready to enforce AD token validation
 const STATE_COOKIE_NAME = "cps-global-components-state"
-const STATE_KEYS_NO_AUTH_ON_GET = ["preview"]
+const STATE_KEYS_NO_AUTH_ON_GET = ["preview", "settings"]
 const STATE_COOKIE_LIFESPAN_MS = 365 * 24 * 60 * 60 * 1000
 const AD_AUTH_ENDPOINT = "https://graph.microsoft.com/v1.0/me"
 
@@ -215,8 +215,21 @@ async function handleState(r: NginxHTTPRequest): Promise<void> {
   }
 
   if (r.method === "PUT") {
+    const body = (r.requestText || "").trim()
+
+    // If body is "null" or empty, clear the cookie by setting it to expire in the past
+    if (body === "null" || body === "") {
+      setCookie(r, STATE_COOKIE_NAME, "", {
+        Path: r.uri,
+        Expires: new Date(0), // Expire immediately (clears cookie)
+        Secure: true,
+        SameSite: "None",
+      })
+      r.return(200, JSON.stringify({ success: true, path: r.uri, cleared: true }))
+      return
+    }
+
     // Wrap the body and store in cookie
-    const body = r.requestText || ""
     const wrapped = _wrapState(body)
 
     setCookie(r, STATE_COOKIE_NAME, wrapped, {
