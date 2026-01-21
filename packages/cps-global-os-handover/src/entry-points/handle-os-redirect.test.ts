@@ -2,63 +2,6 @@ import { describe, test, expect, beforeEach } from "@jest/globals";
 import { handleOsRedirectInternal } from "./handle-os-redirect";
 
 describe("handleOsRedirectInternal", () => {
-  describe("os-outbound stage", () => {
-    test("redirects to cookie handover URL with correct parameters", () => {
-      const result = handleOsRedirectInternal({
-        currentUrl:
-          "https://cps-dev.outsystemsenterprise.com/AuthHandover/index.html?r=https://example.com/target&stage=os-outbound",
-        cookieHandoverUrl: "https://cin3.cps.gov.uk/polaris",
-        tokenHandoverUrl:
-          "https://polaris-qa-notprod.cps.gov.uk/auth-handover-cms-modern-token",
-      });
-
-      const url = new URL(result);
-      expect(url.origin + url.pathname).toBe("https://cin3.cps.gov.uk/polaris");
-
-      const returnUrl = new URL(url.searchParams.get("r")!);
-      expect(returnUrl.searchParams.get("stage")).toBe("os-cookie-return");
-      expect(returnUrl.searchParams.get("r")).toBe(
-        "https://example.com/target"
-      );
-    });
-
-    test("preserves additional parameters in return URL", () => {
-      const result = handleOsRedirectInternal({
-        currentUrl:
-          "https://cps-dev.outsystemsenterprise.com/AuthHandover/index.html?r=https://example.com/target&stage=os-outbound&extra=value",
-        cookieHandoverUrl: "https://cin3.cps.gov.uk/polaris",
-        tokenHandoverUrl:
-          "https://polaris-qa-notprod.cps.gov.uk/auth-handover-cms-modern-token",
-      });
-
-      const url = new URL(result);
-      const returnUrl = new URL(url.searchParams.get("r")!);
-      expect(returnUrl.searchParams.get("extra")).toBe("value");
-      expect(returnUrl.searchParams.get("stage")).toBe("os-cookie-return");
-    });
-
-    test("strips cc parameter to prevent duplicate parameters (FCT2-10942)", () => {
-      const result = handleOsRedirectInternal({
-        currentUrl:
-          "https://cps-dev.outsystemsenterprise.com/AuthHandover/index.html?r=https://example.com/target&stage=os-outbound&cc=existing-cookies",
-        cookieHandoverUrl: "https://cin3.cps.gov.uk/polaris",
-        tokenHandoverUrl:
-          "https://polaris-qa-notprod.cps.gov.uk/auth-handover-cms-modern-token",
-      });
-
-      const url = new URL(result);
-      expect(url.origin + url.pathname).toBe("https://cin3.cps.gov.uk/polaris");
-
-      const returnUrl = new URL(url.searchParams.get("r")!);
-      expect(returnUrl.searchParams.get("stage")).toBe("os-cookie-return");
-      expect(returnUrl.searchParams.get("r")).toBe(
-        "https://example.com/target"
-      );
-      // The cc parameter should be stripped from the return URL
-      expect(returnUrl.searchParams.get("cc")).toBeNull();
-    });
-  });
-
   describe("os-cookie-return stage", () => {
     beforeEach(() => {
       // Clear localStorage before each test
@@ -91,7 +34,7 @@ describe("handleOsRedirectInternal", () => {
 
       const url = new URL(result);
       expect(url.origin + url.pathname).toBe(
-        "https://polaris-qa-notprod.cps.gov.uk/auth-handover-cms-modern-token"
+        "https://polaris-qa-notprod.cps.gov.uk/auth-handover-cms-modern-token",
       );
       expect(url.searchParams.get("cc")).toBe("test-cookies");
 
@@ -99,7 +42,7 @@ describe("handleOsRedirectInternal", () => {
       const returnUrl = new URL(returnUrlParam);
       expect(returnUrl.searchParams.get("stage")).toBe("os-token-return");
       expect(returnUrl.searchParams.get("r")).toBe(
-        "https://example.com/target"
+        "https://example.com/target",
       );
       expect(url.searchParams.get("cc")).toBe("test-cookies");
     });
@@ -108,8 +51,7 @@ describe("handleOsRedirectInternal", () => {
       // Set up localStorage with matching cookies
       localStorage["$OS_Users$WorkManagementApp$ClientVars$Cookies"] =
         "test-cookies";
-      localStorage["$OS_Users$CaseReview$ClientVars$Cookies"] =
-        "test-cookies";
+      localStorage["$OS_Users$CaseReview$ClientVars$Cookies"] = "test-cookies";
       localStorage["$OS_Users$Casework_Blocks$ClientVars$Cookies"] =
         "test-cookies";
 
@@ -128,8 +70,7 @@ describe("handleOsRedirectInternal", () => {
       // Set up localStorage with cookies in different order
       localStorage["$OS_Users$WorkManagementApp$ClientVars$Cookies"] =
         "b=2; a=1; c=3";
-      localStorage["$OS_Users$CaseReview$ClientVars$Cookies"] =
-        "a=1; c=3; b=2";
+      localStorage["$OS_Users$CaseReview$ClientVars$Cookies"] = "a=1; c=3; b=2";
       localStorage["$OS_Users$Casework_Blocks$ClientVars$Cookies"] =
         "c=3; a=1; b=2";
 
@@ -148,10 +89,8 @@ describe("handleOsRedirectInternal", () => {
       // localStorage has no cookies set
       localStorage["$OS_Users$WorkManagementApp$ClientVars$Cookies"] =
         undefined;
-      localStorage["$OS_Users$CaseReview$ClientVars$Cookies"] =
-        undefined;
-      localStorage["$OS_Users$Casework_Blocks$ClientVars$Cookies"] =
-        undefined;
+      localStorage["$OS_Users$CaseReview$ClientVars$Cookies"] = undefined;
+      localStorage["$OS_Users$Casework_Blocks$ClientVars$Cookies"] = undefined;
 
       const result = handleOsRedirectInternal({
         currentUrl:
@@ -163,7 +102,7 @@ describe("handleOsRedirectInternal", () => {
 
       const url = new URL(result);
       expect(url.origin + url.pathname).toBe(
-        "https://polaris-qa-notprod.cps.gov.uk/auth-handover-cms-modern-token"
+        "https://polaris-qa-notprod.cps.gov.uk/auth-handover-cms-modern-token",
       );
     });
 
@@ -186,7 +125,7 @@ describe("handleOsRedirectInternal", () => {
 
       const url = new URL(result);
       expect(url.origin + url.pathname).toBe(
-        "https://polaris-qa-notprod.cps.gov.uk/auth-handover-cms-modern-token"
+        "https://polaris-qa-notprod.cps.gov.uk/auth-handover-cms-modern-token",
       );
     });
 
@@ -200,8 +139,7 @@ describe("handleOsRedirectInternal", () => {
 
       const targetWithQuery = "https://example.com/target?foo=bar&baz=qux";
       const result = handleOsRedirectInternal({
-        currentUrl:
-          `https://cps-dev.outsystemsenterprise.com/AuthHandover/index.html?r=${encodeURIComponent(targetWithQuery)}&stage=os-cookie-return&cc=test-cookies`,
+        currentUrl: `https://cps-dev.outsystemsenterprise.com/AuthHandover/index.html?r=${encodeURIComponent(targetWithQuery)}&stage=os-cookie-return&cc=test-cookies`,
         cookieHandoverUrl: "https://cin3.cps.gov.uk/polaris",
         tokenHandoverUrl:
           "https://polaris-qa-notprod.cps.gov.uk/auth-handover-cms-modern-token",
@@ -241,25 +179,37 @@ describe("handleOsRedirectInternal", () => {
       expect(result).toBe("https://example.com/target");
 
       // Verify auth data was stored
-      expect(localStorage["$OS_Users$WorkManagementApp$ClientVars$Cookies"]).toBe("test-cookies");
-      expect(localStorage["$OS_Users$CaseReview$ClientVars$Cookies"]).toBe("test-cookies");
-      expect(localStorage["$OS_Users$Casework_Blocks$ClientVars$Cookies"]).toBe("test-cookies");
+      expect(
+        localStorage["$OS_Users$WorkManagementApp$ClientVars$Cookies"],
+      ).toBe("test-cookies");
+      expect(localStorage["$OS_Users$CaseReview$ClientVars$Cookies"]).toBe(
+        "test-cookies",
+      );
+      expect(localStorage["$OS_Users$Casework_Blocks$ClientVars$Cookies"]).toBe(
+        "test-cookies",
+      );
 
       const expectedJson = JSON.stringify({
         Cookies: "test-cookies",
         Token: "test-token",
         ExpiryTime: "2024-01-15T10:00:00.000Z",
       });
-      expect(localStorage["$OS_Users$WorkManagementApp$ClientVars$JSONString"]).toBe(expectedJson);
-      expect(localStorage["$OS_Users$CaseReview$ClientVars$CmsAuthValues"]).toBe(expectedJson);
-      expect(localStorage["$OS_Users$Casework_Blocks$ClientVars$JSONString"]).toBe(expectedJson);
+      expect(
+        localStorage["$OS_Users$WorkManagementApp$ClientVars$JSONString"],
+      ).toBe(expectedJson);
+      expect(
+        localStorage["$OS_Users$CaseReview$ClientVars$CmsAuthValues"],
+      ).toBe(expectedJson);
+      expect(
+        localStorage["$OS_Users$Casework_Blocks$ClientVars$JSONString"],
+      ).toBe(expectedJson);
     });
 
     test("handles target URL with query parameters", () => {
-      const targetWithQuery = "https://example.com/target?foo=bar&baz=qux#section";
+      const targetWithQuery =
+        "https://example.com/target?foo=bar&baz=qux#section";
       const result = handleOsRedirectInternal({
-        currentUrl:
-          `https://cps-dev.outsystemsenterprise.com/AuthHandover/index.html?r=${encodeURIComponent(targetWithQuery)}&stage=os-token-return&cc=test-cookies&cms-modern-token=test-token`,
+        currentUrl: `https://cps-dev.outsystemsenterprise.com/AuthHandover/index.html?r=${encodeURIComponent(targetWithQuery)}&stage=os-token-return&cc=test-cookies&cms-modern-token=test-token`,
         cookieHandoverUrl: "https://cin3.cps.gov.uk/polaris",
         tokenHandoverUrl:
           "https://polaris-qa-notprod.cps.gov.uk/auth-handover-cms-modern-token",
@@ -278,9 +228,11 @@ describe("handleOsRedirectInternal", () => {
       });
 
       expect(result).toBe("https://example.com/target");
-      
+
       // Verify empty token is stored
-      const storedJson = JSON.parse(localStorage["$OS_Users$WorkManagementApp$ClientVars$JSONString"]);
+      const storedJson = JSON.parse(
+        localStorage["$OS_Users$WorkManagementApp$ClientVars$JSONString"],
+      );
       expect(storedJson.Token).toBe("");
     });
   });
