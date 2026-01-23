@@ -84,7 +84,7 @@ const contextsBaseSchema = z.object({
 const contextStorageSchema: z.ZodType<ContextStorageSchema> =
   contextsBaseSchema.extend({
     contexts: z.lazy(() =>
-      z.array(z.union([contextStorageSchema, contextPathsSchema]))
+      z.array(z.union([contextStorageSchema, contextPathsSchema])),
     ),
   });
 
@@ -132,8 +132,6 @@ export const configBaseSchema = z.object({
   SHOW_MENU: z.boolean().optional(),
   SHOW_GOVUK_REBRAND: z.boolean().optional(),
   OS_HANDOVER_URL: z.string().optional(),
-  COOKIE_HANDOVER_URL: z.string().optional(),
-  TOKEN_HANDOVER_URL: z.string().optional(),
   FEATURE_FLAG_MENU_USERS: featureFlagUsersSchema.optional(),
   FEATURE_FLAG_ENABLE_INTRUSIVE_AD_LOGIN: z.boolean().optional(),
   CACHE_CONFIG: cacheConfigSchema.optional(),

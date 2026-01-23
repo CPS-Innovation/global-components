@@ -7,8 +7,6 @@
   "SURVEY_LINK": "https://forms.office.com/e/8KM9A7aS0e",
   "SHOW_MENU": true,
   "OS_HANDOVER_URL": "https://cps-dev.outsystemsenterprise.com/AuthHandover/auth-handover.html",
-  "COOKIE_HANDOVER_URL": "https://polaris-qa-notprod.cps.gov.uk/polaris",
-  "TOKEN_HANDOVER_URL": "https://polaris-qa-notprod.cps.gov.uk/auth-refresh-cms-modern-token",
   "FEATURE_FLAG_MENU_USERS": { "generallyAvailable": true },
   "FEATURE_FLAG_ENABLE_INTRUSIVE_AD_LOGIN": true,
   "CONTEXTS": [

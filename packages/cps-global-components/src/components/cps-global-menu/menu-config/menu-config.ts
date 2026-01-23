@@ -18,8 +18,8 @@ export type MenuConfigResult =
 
 const menuConfigInternal = ({
   context,
-  flags: { isOutSystems },
-  config: { OS_HANDOVER_URL, LINKS, COOKIE_HANDOVER_URL },
+  flags: { isOutSystems, origin },
+  config: { OS_HANDOVER_URL, LINKS },
   cmsSessionHint,
   tags,
 }: Pick<State, "context" | "config" | "tags" | "flags" | "cmsSessionHint">): MenuConfigResult => {
@@ -35,9 +35,14 @@ const menuConfigInternal = ({
     : // If we are outside of OutSystems and a link is pointing to OutSystems then we need to go
       //  via the auth handover endpoint to ensure OS has CMS auth
       (targetUrl: string) => {
-        const shouldGoViaAuthHandover = isOutSystemsApp({ location: { href: targetUrl } }) && OS_HANDOVER_URL && COOKIE_HANDOVER_URL;
+        const shouldGoViaAuthHandover = isOutSystemsApp({ location: { href: targetUrl } }) && OS_HANDOVER_URL;
         if (shouldGoViaAuthHandover) {
-          const cookieHandoverUrl = (cmsSessionHint.found && cmsSessionHint.result.handoverEndpoint) || COOKIE_HANDOVER_URL;
+          const cookieHandoverUrl =
+            (cmsSessionHint.found && cmsSessionHint.result.handoverEndpoint) ||
+            // todo: 1) if we have confidence in the session hint always being there we do not need this
+            // 2) This is arbitrary, all we can do is fall back to the proxied domain handover end point
+            // that we have been served from which might not be true.
+            `${origin}/polaris`;
           return createOutboundUrlDirect({ cookieHandoverUrl, handoverUrl: OS_HANDOVER_URL, targetUrl });
         } else {
           return targetUrl;

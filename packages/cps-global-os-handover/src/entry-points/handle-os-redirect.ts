@@ -2,39 +2,25 @@ import { isStoredAuthCurrent, storeAuth } from "../core/storage";
 import { createUrlWithParams, setParams, stripParams } from "../core/params";
 import { paramKeys, stages } from "../core/constants";
 
-declare global {
-  interface Window {
-    cps_global_components_cookie_handover_url: string;
-    cps_global_components_token_handover_url: string;
-  }
-}
-
 export const handleOsRedirect = (window: Window) => {
-  const inputUrls = extractUrls(window);
+  const inputUrls = extractUrls();
   const nextUrl = handleOsRedirectInternal(inputUrls);
   window.location.replace(nextUrl);
 };
 
-const extractUrls = (window: Window) => {
-  const cookieHandoverUrl = window.cps_global_components_cookie_handover_url;
-  if (!cookieHandoverUrl) {
-    throw new Error(
-      `window.cps_global_components_cookie_handover_url not specified`,
-    );
+const extractUrls = () => {
+  const scriptSrc = (document.currentScript as HTMLScriptElement)?.src;
+  if (!scriptSrc) {
+    throw new Error("Could not determine script source URL");
   }
 
-  const tokenHandoverUrl = window.cps_global_components_token_handover_url;
-  if (!tokenHandoverUrl) {
-    throw new Error(
-      `window.cps_global_components_token_handover_url not specified`,
-    );
-  }
+  const scriptOrigin = new URL(scriptSrc).origin;
+  const tokenHandoverUrl = `${scriptOrigin}/auth-refresh-cms-modern-token`;
 
   const currentUrl = window.location.href;
 
   return {
     currentUrl,
-    cookieHandoverUrl,
     tokenHandoverUrl,
   };
 };
@@ -42,11 +28,9 @@ const extractUrls = (window: Window) => {
 /** Used at the point of redirecting on the OS domain.  */
 export const handleOsRedirectInternal = ({
   currentUrl,
-  cookieHandoverUrl,
   tokenHandoverUrl,
 }: {
   currentUrl: string;
-  cookieHandoverUrl: string;
   tokenHandoverUrl: string;
 }) => {
   const url = new URL(currentUrl);

@@ -27,7 +27,6 @@ describe("handleOsRedirectInternal", () => {
       const result = handleOsRedirectInternal({
         currentUrl:
           "https://cps-dev.outsystemsenterprise.com/AuthHandover/index.html?r=https://example.com/target&stage=os-cookie-return&cc=test-cookies",
-        cookieHandoverUrl: "https://cin3.cps.gov.uk/polaris",
         tokenHandoverUrl:
           "https://polaris-qa-notprod.cps.gov.uk/auth-handover-cms-modern-token",
       });
@@ -58,7 +57,6 @@ describe("handleOsRedirectInternal", () => {
       const result = handleOsRedirectInternal({
         currentUrl:
           "https://cps-dev.outsystemsenterprise.com/AuthHandover/index.html?r=https://example.com/target&stage=os-cookie-return&cc=test-cookies",
-        cookieHandoverUrl: "https://cin3.cps.gov.uk/polaris",
         tokenHandoverUrl:
           "https://polaris-qa-notprod.cps.gov.uk/auth-handover-cms-modern-token",
       });
@@ -77,7 +75,6 @@ describe("handleOsRedirectInternal", () => {
       const result = handleOsRedirectInternal({
         currentUrl:
           "https://cps-dev.outsystemsenterprise.com/AuthHandover/index.html?r=https://example.com/target&stage=os-cookie-return&cc=c=3; b=2; a=1",
-        cookieHandoverUrl: "https://cin3.cps.gov.uk/polaris",
         tokenHandoverUrl:
           "https://polaris-qa-notprod.cps.gov.uk/auth-handover-cms-modern-token",
       });
@@ -95,7 +92,6 @@ describe("handleOsRedirectInternal", () => {
       const result = handleOsRedirectInternal({
         currentUrl:
           "https://cps-dev.outsystemsenterprise.com/AuthHandover/index.html?r=https://example.com/target&stage=os-cookie-return&cc=test-cookies",
-        cookieHandoverUrl: "https://cin3.cps.gov.uk/polaris",
         tokenHandoverUrl:
           "https://polaris-qa-notprod.cps.gov.uk/auth-handover-cms-modern-token",
       });
@@ -118,7 +114,6 @@ describe("handleOsRedirectInternal", () => {
       const result = handleOsRedirectInternal({
         currentUrl:
           "https://cps-dev.outsystemsenterprise.com/AuthHandover/index.html?r=https://example.com/target&stage=os-cookie-return&cc=test-cookies",
-        cookieHandoverUrl: "https://cin3.cps.gov.uk/polaris",
         tokenHandoverUrl:
           "https://polaris-qa-notprod.cps.gov.uk/auth-handover-cms-modern-token",
       });
@@ -140,7 +135,6 @@ describe("handleOsRedirectInternal", () => {
       const targetWithQuery = "https://example.com/target?foo=bar&baz=qux";
       const result = handleOsRedirectInternal({
         currentUrl: `https://cps-dev.outsystemsenterprise.com/AuthHandover/index.html?r=${encodeURIComponent(targetWithQuery)}&stage=os-cookie-return&cc=test-cookies`,
-        cookieHandoverUrl: "https://cin3.cps.gov.uk/polaris",
         tokenHandoverUrl:
           "https://polaris-qa-notprod.cps.gov.uk/auth-handover-cms-modern-token",
       });
@@ -171,7 +165,6 @@ describe("handleOsRedirectInternal", () => {
       const result = handleOsRedirectInternal({
         currentUrl:
           "https://cps-dev.outsystemsenterprise.com/AuthHandover/index.html?r=https://example.com/target&stage=os-token-return&cc=test-cookies&cms-modern-token=test-token",
-        cookieHandoverUrl: "https://cin3.cps.gov.uk/polaris",
         tokenHandoverUrl:
           "https://polaris-qa-notprod.cps.gov.uk/auth-handover-cms-modern-token",
       });
@@ -210,7 +203,6 @@ describe("handleOsRedirectInternal", () => {
         "https://example.com/target?foo=bar&baz=qux#section";
       const result = handleOsRedirectInternal({
         currentUrl: `https://cps-dev.outsystemsenterprise.com/AuthHandover/index.html?r=${encodeURIComponent(targetWithQuery)}&stage=os-token-return&cc=test-cookies&cms-modern-token=test-token`,
-        cookieHandoverUrl: "https://cin3.cps.gov.uk/polaris",
         tokenHandoverUrl:
           "https://polaris-qa-notprod.cps.gov.uk/auth-handover-cms-modern-token",
       });
@@ -222,7 +214,6 @@ describe("handleOsRedirectInternal", () => {
       const result = handleOsRedirectInternal({
         currentUrl:
           "https://cps-dev.outsystemsenterprise.com/AuthHandover/index.html?r=https://example.com/target&stage=os-token-return&cc=test-cookies&cms-modern-token=",
-        cookieHandoverUrl: "https://cin3.cps.gov.uk/polaris",
         tokenHandoverUrl:
           "https://polaris-qa-notprod.cps.gov.uk/auth-handover-cms-modern-token",
       });
@@ -243,7 +234,6 @@ describe("handleOsRedirectInternal", () => {
         handleOsRedirectInternal({
           currentUrl:
             "https://cps-dev.outsystemsenterprise.com/AuthHandover/index.html?r=https://example.com/target&stage=unknown",
-          cookieHandoverUrl: "https://cin3.cps.gov.uk/polaris",
           tokenHandoverUrl:
             "https://polaris-qa-notprod.cps.gov.uk/auth-handover-cms-modern-token",
         });
@@ -255,7 +245,6 @@ describe("handleOsRedirectInternal", () => {
         handleOsRedirectInternal({
           currentUrl:
             "https://cps-dev.outsystemsenterprise.com/AuthHandover/index.html?r=https://example.com/target",
-          cookieHandoverUrl: "https://cin3.cps.gov.uk/polaris",
           tokenHandoverUrl:
             "https://polaris-qa-notprod.cps.gov.uk/auth-handover-cms-modern-token",
         });
@@ -267,7 +256,6 @@ describe("handleOsRedirectInternal", () => {
         handleOsRedirectInternal({
           currentUrl:
             "https://cps-dev.outsystemsenterprise.com/AuthHandover/index.html?r=https://example.com/target&stage=",
-          cookieHandoverUrl: "https://cin3.cps.gov.uk/polaris",
           tokenHandoverUrl:
             "https://polaris-qa-notprod.cps.gov.uk/auth-handover-cms-modern-token",
         });

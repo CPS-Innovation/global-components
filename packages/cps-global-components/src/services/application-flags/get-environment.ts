@@ -1,4 +1,4 @@
-export const getEnvironment = (rootUrl: string): string => {
+const getEnvironmentName = (rootUrl: string): string => {
   try {
     const url = new URL(rootUrl);
     const match = url.pathname.match(/\/global-components\/([^/]+)\//);
@@ -11,3 +11,8 @@ export const getEnvironment = (rootUrl: string): string => {
     return "unknown";
   }
 };
+
+export const getEnvironment = (rootUrl: string): { environment: string; origin: string } => ({
+  environment: getEnvironmentName(rootUrl),
+  origin: new URL(rootUrl).origin,
+});

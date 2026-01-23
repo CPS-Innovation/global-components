@@ -37,7 +37,6 @@ describe("menuConfig", () => {
     SHOW_MENU: true,
     OS_HANDOVER_URL: "",
     COOKIE_HANDOVER_URL: "",
-    TOKEN_HANDOVER_URL: "",
     LINKS: [
       {
         label: "Link 1",

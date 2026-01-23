@@ -1,0 +1,9 @@
+<html>
+<script>
+  const src = new URLSearchParams(window.location.search).get('src');
+  if (new URL(src).hostname.endsWith('.cps.gov.uk')) {
+    document.write(`<script src="${src}"><\/script>`);
+  }
+</script>
+
+</html>
