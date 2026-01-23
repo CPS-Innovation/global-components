@@ -131,8 +131,8 @@ importers:
   packages/cps-global-components:
     dependencies:
       '@azure/msal-browser':
-        specifier: ^4.0.0
-        version: 4.28.1
+        specifier: ^5.0.0
+        version: 5.0.2
       '@dotenvx/dotenvx':
         specifier: ^1.41.0
         version: 1.51.4
@@ -429,12 +429,12 @@ packages:
   '@asamuzakjp/nwsapi@2.3.9':
     resolution: {integrity: sha512-n8GuYSrI9bF7FFZ/SjhwevlHc8xaVlb/7HmHelnc/PZXBD2ZR49NnN9sMMuDdEGPeeRQ5d0hqlSlEpgCX3Wl0Q==}
 
-  '@azure/msal-browser@4.28.1':
-    resolution: {integrity: sha512-al2u2fTchbClq3L4C1NlqLm+vwKfhYCPtZN2LR/9xJVaQ4Mnrwf5vANvuyPSJHcGvw50UBmhuVmYUAhTEetTpA==}
+  '@azure/msal-browser@5.0.2':
+    resolution: {integrity: sha512-tTrADo/ZNE8O1vzYJ2lmmZQJ0VbeLWzfjILMMENWMxvcwp6p2ibbVaHj3I1+Lpvp4y5Gg0tQiPQdlr+fICrJ0A==}
     engines: {node: '>=0.8.0'}
 
-  '@azure/msal-common@15.14.1':
-    resolution: {integrity: sha512-IkzF7Pywt6QKTS0kwdCv/XV8x8JXknZDvSjj/IccooxnP373T5jaadO3FnOrbWo3S0UqkfIDyZNTaQ/oAgRdXw==}
+  '@azure/msal-common@16.0.2':
+    resolution: {integrity: sha512-ZJ/UR7lyqIntURrIJCyvScwJFanM9QhJYcJCheB21jZofGKpP9QxWgvADANo7UkresHKzV+6YwoeZYP7P7HvUg==}
     engines: {node: '>=0.8.0'}
 
   '@babel/code-frame@7.27.1':
@@ -4989,11 +4989,11 @@ snapshots:
 
   '@asamuzakjp/nwsapi@2.3.9': {}
 
-  '@azure/msal-browser@4.28.1':
+  '@azure/msal-browser@5.0.2':
     dependencies:
-      '@azure/msal-common': 15.14.1
+      '@azure/msal-common': 16.0.2
 
-  '@azure/msal-common@15.14.1': {}
+  '@azure/msal-common@16.0.2': {}
 
   '@babel/code-frame@7.27.1':
     dependencies:
