@@ -27,7 +27,7 @@ jobs:
     needs: validate-branch
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
         with:
           fetch-depth: 20
           token: ${{ secrets.GITHUB_TOKEN }}
