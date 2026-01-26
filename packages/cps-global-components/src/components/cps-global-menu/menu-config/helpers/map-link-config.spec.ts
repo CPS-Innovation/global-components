@@ -24,6 +24,7 @@ describe("mapLinkConfig", () => {
       href: "/test",
       selected: true,
       dcfContextsToUseEventNavigation: undefined,
+      disabled: false,
     });
   });
 
@@ -188,6 +189,62 @@ describe("mapLinkConfig", () => {
       href: "/app/myapp/section/mysection",
       selected: true,
       dcfContextsToUseEventNavigation: { contexts: "app-event section-event", data: "" },
+      disabled: false,
+    });
+  });
+
+  describe("disabled property for links with dcfHref", () => {
+    const linkWithDcfHref: Link = {
+      ...basicLink,
+      href: "/non-dcf-path",
+      dcfHref: "/dcf-path",
+    };
+
+    it("should be disabled when dcfHref exists and isDcfCase status is unknown", () => {
+      const mapper = mapLinkConfig({ contextIds: "test", tags: {} });
+      const result = mapper(linkWithDcfHref);
+
+      expect(result.disabled).toBe(true);
+    });
+
+    it("should not be disabled when dcfHref exists and isDcfCase is true", () => {
+      const mapper = mapLinkConfig({ contextIds: "test", tags: { [isDcfCaseKey]: "true" } });
+      const result = mapper(linkWithDcfHref);
+
+      expect(result.disabled).toBe(false);
+    });
+
+    it("should not be disabled when dcfHref exists and isDcfCase is false", () => {
+      const mapper = mapLinkConfig({ contextIds: "test", tags: { [isDcfCaseKey]: "false" } });
+      const result = mapper(linkWithDcfHref);
+
+      expect(result.disabled).toBe(false);
+    });
+
+    it("should not be disabled when dcfHref does not exist regardless of isDcfCase status", () => {
+      const mapper1 = mapLinkConfig({ contextIds: "test", tags: {} });
+      const mapper2 = mapLinkConfig({ contextIds: "test", tags: { [isDcfCaseKey]: "true" } });
+      const mapper3 = mapLinkConfig({ contextIds: "test", tags: { [isDcfCaseKey]: "false" } });
+
+      expect(mapper1(basicLink).disabled).toBe(false);
+      expect(mapper2(basicLink).disabled).toBe(false);
+      expect(mapper3(basicLink).disabled).toBe(false);
+    });
+
+    it("should use dcfHref when isDcfCase is true", () => {
+      const mapper = mapLinkConfig({ contextIds: "test", tags: { [isDcfCaseKey]: "true" } });
+      const result = mapper(linkWithDcfHref);
+
+      expect(result.href).toBe("/dcf-path");
+      expect(result.disabled).toBe(false);
+    });
+
+    it("should use regular href when isDcfCase is false", () => {
+      const mapper = mapLinkConfig({ contextIds: "test", tags: { [isDcfCaseKey]: "false" } });
+      const result = mapper(linkWithDcfHref);
+
+      expect(result.href).toBe("/non-dcf-path");
+      expect(result.disabled).toBe(false);
     });
   });
 });
