@@ -16,6 +16,12 @@ export const config: Config = {
       esmLoaderPath: "../loader",
     },
     {
+      type: "dist-custom-elements",
+      customElementsExportBehavior: "bundle",
+      externalRuntime: false,
+      dir: "dist/custom-elements",
+    },
+    {
       type: "docs-readme",
     },
     {
