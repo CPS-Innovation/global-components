@@ -9,8 +9,8 @@ import { FEATURE_FLAGS } from "../../feature-flags/feature-flags";
 })
 export class CpsGlobalFooter {
   render() {
-    const { state } = readyState("preview");
-    const showGovUkRebrand = FEATURE_FLAGS.shouldShowGovUkRebrand(state);
+    const { isReady, state } = readyState("preview");
+    const showGovUkRebrand = isReady && FEATURE_FLAGS.shouldShowGovUkRebrand(state);
     const cssClass = `${showGovUkRebrand ? "govuk-template--rebranded" : ""} ${showGovUkRebrand === "cps" ? "cps-theme" : ""}`;
     return (
       <div class={cssClass}>
