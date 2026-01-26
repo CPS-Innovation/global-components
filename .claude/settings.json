@@ -1,0 +1,15 @@
+{
+  "sandbox": {
+    "enabled": true
+  },
+  "permissions": {
+    "allow": [
+      "Bash(gh *)",
+      "Bash(pnpm install*)",
+      "Bash(pnpm -w *)",
+      "Bash(pnpm --filter *)",
+      "WebSearch",
+      "WebFetch"
+    ]
+  }
+}
