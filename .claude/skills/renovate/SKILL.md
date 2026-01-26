@@ -12,20 +12,24 @@ Consolidate all open Renovate dependency PRs into a single uber-branch for one b
 This skill runs **fully autonomously**. Do not prompt the user for decisions. Follow these rules:
 
 ### Merge Priority (Process in this order)
+
 1. Patch updates (x.x.PATCH) - Always safe
 2. Minor updates (x.MINOR.x) - Safe for well-maintained packages
 3. Major updates (MAJOR.x.x) - Include but flag in summary
 
 ### Blocked Packages (Never Include)
+
 - **nginx** - Pinned for production infrastructure coordination
 
 ### Conflict Resolution
+
 - **package.json**: Accept theirs (incoming Renovate changes)
 - **pnpm-lock.yaml**: Delete and regenerate with `pnpm install`
 - **Source code conflicts**: Skip the PR and note in summary
 - Never prompt - either fix it or skip it
 
 ### What to Skip (automatically, without asking)
+
 - PRs for blocked packages (nginx)
 - PRs with conflicts in source code (not just config/lock files)
 - PRs that fail the build/test validation
@@ -85,6 +89,7 @@ git merge origin/<branch> --no-edit
 ```
 
 **If merge conflict:**
+
 1. Check which files conflict
 2. If only `package.json`:
    ```bash
@@ -227,6 +232,7 @@ Then say: "renovate uber-PR is merged"
 **The human reviews and merges the uber-PR manually.** The skill does NOT auto-merge.
 
 When user says any of:
+
 - "renovate uber-PR is merged"
 - "renovate cleanup"
 - "close the renovate PRs"
@@ -239,6 +245,7 @@ gh pr close <number> --comment "Closed: included in consolidated update PR #<ube
 ```
 
 **Report:**
+
 ```
 Closed 7 Renovate PRs:
 - #635 puppeteer v24
@@ -267,12 +274,14 @@ Still open (were skipped):
 ## Invocation
 
 **Phase 1 - Create uber-PR:**
+
 - `/renovate`
 - "deal with renovate PRs"
 - "handle renovate"
 - "consolidate dependency updates"
 
 **Phase 2 - Cleanup after merge:**
+
 - "renovate uber-PR is merged"
 - "renovate cleanup"
 - "close the renovate PRs"

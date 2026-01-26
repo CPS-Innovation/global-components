@@ -47,9 +47,3 @@ jobs:
       environment: ${{ matrix.environment }}
     secrets:
       BLOB_STORAGE_CONNECTION_STRING: ${{ secrets.BLOB_STORAGE_CONNECTION_STRING }}
-
-  deploy-home:
-    needs: [build-and-test]
-    uses: ./.github/workflows/sub-workflow-deploy-home.yml
-    secrets:
-      BLOB_STORAGE_CONNECTION_STRING: ${{ secrets.BLOB_STORAGE_CONNECTION_STRING }}
