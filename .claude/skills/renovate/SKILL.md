@@ -1,3 +1,8 @@
+---
+name: renovate
+description: Consolidate all open Renovate dependency PRs into a single uber-branch. Run autonomously without prompting - handles conflicts, runs tests, bisects failures.
+---
+
 # Renovate PR Consolidator
 
 Consolidate all open Renovate dependency PRs into a single uber-branch for one build/merge.
