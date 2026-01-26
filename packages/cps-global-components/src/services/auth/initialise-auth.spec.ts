@@ -21,7 +21,7 @@ describe("initialiseAuth", () => {
   const mockContext: FoundContext = {
     found: true,
     path: "/test",
-    contextIds: "test-context",
+    contextId: "test-context",
     pathTags: {},
     domTagDefinitions: undefined,
     contextIndex: 0,

@@ -10,11 +10,11 @@ const happySettings: DeepPartial<ArrangeProps> = {
     CONTEXTS: [
       {
         msalRedirectUrl: "not-used",
-        contexts: [{ contextIds: "case", path: "/cases/(?<caseId>\\d+)" }],
+        contexts: [{ contextId: "case", path: "/cases/(?<caseId>\\d+)" }],
       },
       {
         msalRedirectUrl: "not-used",
-        contexts: [{ contextIds: "not-case", path: ".*" }],
+        contexts: [{ contextId: "not-case", path: ".*" }],
       },
     ],
     LINKS: [

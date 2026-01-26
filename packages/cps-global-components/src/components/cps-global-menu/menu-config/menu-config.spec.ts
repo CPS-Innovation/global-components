@@ -70,7 +70,7 @@ describe("menuConfig", () => {
     CONTEXTS: [
       {
         path: "https://example.com/test",
-        contextIds: "test-context",
+        contextId: "test-context",
         msalRedirectUrl: "foo",
       },
     ],
@@ -153,7 +153,7 @@ describe("menuConfig", () => {
     const foundContext: FoundContext = {
       found: true,
       path: "https://example.com/test",
-      contextIds: foundContexts,
+      contextId: foundContexts,
       domTagDefinitions: undefined,
       pathTags: {},
       contextIndex: 0,
@@ -238,7 +238,7 @@ describe("menuConfig", () => {
     expect(mockFilterFunction).toHaveBeenCalledTimes(3);
     // The handoverAdapter should be a function when not in OutSystems (even with empty OS_HANDOVER_URL)
     expect(mockMapLinkConfig).toHaveBeenCalledWith({
-      contextIds: foundContexts,
+      contextId: foundContexts,
       tags: {},
       handoverAdapter: expect.any(Function),
     } as MapLinkConfigParams);
@@ -270,7 +270,7 @@ describe("menuConfig", () => {
     const foundContext: FoundContext = {
       found: true,
       path: "https://example.com/test",
-      contextIds: foundContexts,
+      contextId: foundContexts,
       domTagDefinitions: undefined,
       pathTags: {},
       contextIndex: 0,
@@ -334,7 +334,7 @@ describe("menuConfig", () => {
 
     // Verify handoverAdapter is undefined when in OutSystems
     expect(mockMapLinkConfig).toHaveBeenCalledWith({
-      contextIds: foundContexts,
+      contextId: foundContexts,
       tags: {},
       handoverAdapter: undefined,
     } as MapLinkConfigParams);
@@ -347,7 +347,7 @@ describe("menuConfig", () => {
     const foundContext: FoundContext = {
       found: true,
       path: "https://example.com/test",
-      contextIds: foundContexts,
+      contextId: foundContexts,
       domTagDefinitions: undefined,
       pathTags: {},
       contextIndex: 0,
@@ -411,7 +411,7 @@ describe("menuConfig", () => {
 
     // Verify handoverAdapter is passed as a function (not undefined)
     expect(mockMapLinkConfig).toHaveBeenCalledWith({
-      contextIds: foundContexts,
+      contextId: foundContexts,
       tags: {},
       handoverAdapter: expect.any(Function),
     } as MapLinkConfigParams);
@@ -424,7 +424,7 @@ describe("menuConfig", () => {
     const foundContext: FoundContext = {
       found: true,
       path: "https://example.com/test",
-      contextIds: foundContexts,
+      contextId: foundContexts,
       domTagDefinitions: undefined,
       pathTags: foundTags,
       contextIndex: 0,
@@ -501,7 +501,7 @@ describe("menuConfig", () => {
     const foundContext: FoundContext = {
       found: true,
       path: "https://example.com/test",
-      contextIds: foundContexts,
+      contextId: foundContexts,
       domTagDefinitions: undefined,
       pathTags: foundTags,
       contextIndex: 0,
@@ -589,7 +589,7 @@ describe("menuConfig", () => {
     const foundContext: FoundContext = {
       found: true,
       path: "https://example.com/test",
-      contextIds: foundContexts,
+      contextId: foundContexts,
       domTagDefinitions: undefined,
       pathTags: foundTags,
       contextIndex: 0,

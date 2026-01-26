@@ -17,19 +17,19 @@
       "contexts": [
         {
           "path": "http://localhost:3333/cases/(?<caseId>\\d+)/materials",
-          "contextIds": "case materials"
+          "contextId": "case materials"
         },
         {
           "path": "http://localhost:3333/cases/(?<caseId>\\d+)/review",
-          "contextIds": "case review"
+          "contextId": "case review"
         },
         {
           "path": "http://localhost:3333/cases/(?<caseId>\\d+)",
-          "contextIds": "case details"
+          "contextId": "case details"
         },
         {
           "path": "http://localhost:3333/cases",
-          "contextIds": "cases"
+          "contextId": "cases"
         },
         {
           "domTagDefinitions": [
@@ -45,7 +45,7 @@
           "contexts": [
             {
               "path": "http://localhost:3333",
-              "contextIds": "tasks"
+              "contextId": "tasks"
             }
           ]
         }

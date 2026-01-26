@@ -1,7 +1,7 @@
-import { extractTagsFromCaseDetails } from "./extract-tags-from-case-details";
-import { CaseDetails } from "./CaseDetails";
+import { extractTags } from "./extract-tags";
+import { CaseDetails, caseDetailsTagFields } from "../data/CaseDetails";
 
-describe("extractTagsFromCaseDetails", () => {
+describe("extractTags", () => {
   describe("when all tag fields are present", () => {
     it("should return allTagsArePresent as true", () => {
       const caseDetails: Partial<CaseDetails> = {
@@ -9,7 +9,7 @@ describe("extractTagsFromCaseDetails", () => {
         isDcfCase: true,
       };
 
-      const result = extractTagsFromCaseDetails(caseDetails);
+      const result = extractTags(caseDetails, caseDetailsTagFields);
 
       expect(result.allTagsArePresent).toBe(true);
     });
@@ -20,7 +20,7 @@ describe("extractTagsFromCaseDetails", () => {
         isDcfCase: false,
       };
 
-      const result = extractTagsFromCaseDetails(caseDetails);
+      const result = extractTags(caseDetails, caseDetailsTagFields);
 
       expect(result.tags).toEqual({
         urn: "12AB3456789",
@@ -39,7 +39,7 @@ describe("extractTagsFromCaseDetails", () => {
         numberOfDefendants: 1,
       };
 
-      const result = extractTagsFromCaseDetails(caseDetails);
+      const result = extractTags(caseDetails, caseDetailsTagFields);
 
       expect(result.allTagsArePresent).toBe(true);
       expect(result.tags).toEqual({
@@ -59,7 +59,7 @@ describe("extractTagsFromCaseDetails", () => {
         numberOfDefendants: 1,
       };
 
-      const result = extractTagsFromCaseDetails(caseDetails);
+      const result = extractTags(caseDetails, caseDetailsTagFields);
 
       expect(result.tags).not.toHaveProperty("caseId");
     });
@@ -71,7 +71,7 @@ describe("extractTagsFromCaseDetails", () => {
         isDcfCase: true,
       };
 
-      const result = extractTagsFromCaseDetails(caseDetails);
+      const result = extractTags(caseDetails, caseDetailsTagFields);
 
       expect(result.allTagsArePresent).toBe(false);
     });
@@ -81,7 +81,7 @@ describe("extractTagsFromCaseDetails", () => {
         urn: "12AB3456789",
       };
 
-      const result = extractTagsFromCaseDetails(caseDetails);
+      const result = extractTags(caseDetails, caseDetailsTagFields);
 
       expect(result.allTagsArePresent).toBe(false);
     });
@@ -91,7 +91,7 @@ describe("extractTagsFromCaseDetails", () => {
         urn: "12AB3456789",
       };
 
-      const result = extractTagsFromCaseDetails(caseDetails);
+      const result = extractTags(caseDetails, caseDetailsTagFields);
 
       expect(result.tags).toEqual({
         urn: "12AB3456789",
@@ -104,7 +104,7 @@ describe("extractTagsFromCaseDetails", () => {
     it("should return allTagsArePresent as false for empty object", () => {
       const caseDetails: Partial<CaseDetails> = {};
 
-      const result = extractTagsFromCaseDetails(caseDetails);
+      const result = extractTags(caseDetails, caseDetailsTagFields);
 
       expect(result.allTagsArePresent).toBe(false);
     });
@@ -112,7 +112,7 @@ describe("extractTagsFromCaseDetails", () => {
     it("should return tags with undefined values for empty object", () => {
       const caseDetails: Partial<CaseDetails> = {};
 
-      const result = extractTagsFromCaseDetails(caseDetails);
+      const result = extractTags(caseDetails, caseDetailsTagFields);
 
       expect(result.tags).toEqual({
         urn: "undefined",
@@ -128,7 +128,7 @@ describe("extractTagsFromCaseDetails", () => {
         isDcfCase: false,
       };
 
-      const result = extractTagsFromCaseDetails(caseDetails);
+      const result = extractTags(caseDetails, caseDetailsTagFields);
 
       expect(result.allTagsArePresent).toBe(true);
       expect(result.tags).toEqual({
@@ -143,10 +143,43 @@ describe("extractTagsFromCaseDetails", () => {
         isDcfCase: false,
       };
 
-      const result = extractTagsFromCaseDetails(caseDetails);
+      const result = extractTags(caseDetails, caseDetailsTagFields);
 
       expect(result.allTagsArePresent).toBe(true);
       expect(result.tags.isDcfCase).toBe("false");
+    });
+  });
+
+  describe("generic usage", () => {
+    interface CustomType {
+      foo: string;
+      bar: number;
+      baz: boolean;
+    }
+
+    it("should work with any type and tag keys", () => {
+      const source: Partial<CustomType> = {
+        foo: "hello",
+        bar: 42,
+      };
+
+      const result = extractTags(source, ["foo", "bar"]);
+
+      expect(result.allTagsArePresent).toBe(true);
+      expect(result.tags).toEqual({
+        foo: "hello",
+        bar: "42",
+      });
+    });
+
+    it("should detect missing keys for custom types", () => {
+      const source: Partial<CustomType> = {
+        foo: "hello",
+      };
+
+      const result = extractTags(source, ["foo", "bar", "baz"]);
+
+      expect(result.allTagsArePresent).toBe(false);
     });
   });
 });

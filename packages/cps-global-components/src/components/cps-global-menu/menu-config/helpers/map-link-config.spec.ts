@@ -14,7 +14,7 @@ describe("mapLinkConfig", () => {
   };
 
   it("should map basic link properties", () => {
-    const mapper = mapLinkConfig({ contextIds: "test", tags: {} });
+    const mapper = mapLinkConfig({ contextId: "test", tags: {} });
     const result = mapper(basicLink);
 
     expect(result).toEqual({
@@ -28,17 +28,17 @@ describe("mapLinkConfig", () => {
   });
 
   it("should determine selected based on context match", () => {
-    const mapper1 = mapLinkConfig({ contextIds: "test admin", tags: {} });
-    const mapper2 = mapLinkConfig({ contextIds: "user guest", tags: {} });
+    const mapper1 = mapLinkConfig({ contextId: "test", tags: {} });
+    const mapper2 = mapLinkConfig({ contextId: "foo", tags: {} });
 
     expect(mapper1(basicLink).selected).toBe(true);
     expect(mapper2(basicLink).selected).toBe(false);
   });
 
   it("should determine dcfContextsToUseEventNavigation based on isDcfCase tag and context match", () => {
-    const mapper1 = mapLinkConfig({ contextIds: "event user", tags: { [isDcfCaseKey]: "true" } });
-    const mapper2 = mapLinkConfig({ contextIds: "admin test", tags: { [isDcfCaseKey]: "true" } });
-    const mapper3 = mapLinkConfig({ contextIds: "event user", tags: {} });
+    const mapper1 = mapLinkConfig({ contextId: "event", tags: { [isDcfCaseKey]: "true" } });
+    const mapper2 = mapLinkConfig({ contextId: "test", tags: { [isDcfCaseKey]: "true" } });
+    const mapper3 = mapLinkConfig({ contextId: "event", tags: {} });
 
     expect(mapper1(basicLink).dcfContextsToUseEventNavigation).toEqual({ contexts: "event", data: "" });
     expect(mapper2(basicLink).dcfContextsToUseEventNavigation).toBeUndefined();
@@ -51,7 +51,7 @@ describe("mapLinkConfig", () => {
       href: "/users/{userId}/posts/{postId}",
     };
 
-    const mapper = mapLinkConfig({ contextIds: "test", tags: { userId: "123", postId: "456" } });
+    const mapper = mapLinkConfig({ contextId: "test", tags: { userId: "123", postId: "456" } });
     const result = mapper(linkWithTags);
 
     expect(result.href).toBe("/users/123/posts/456");
@@ -64,7 +64,7 @@ describe("mapLinkConfig", () => {
     };
 
     const mapper = mapLinkConfig({
-      contextIds: "test",
+      contextId: "test",
       tags: {
         section: "admin",
         subsection: "users",
@@ -83,7 +83,7 @@ describe("mapLinkConfig", () => {
       href: "/users/{userId}/posts/{postId}",
     };
 
-    const mapper = mapLinkConfig({ contextIds: "test", tags: { userId: "123" } });
+    const mapper = mapLinkConfig({ contextId: "test", tags: { userId: "123" } });
     const result = mapper(linkWithTags);
 
     expect(result.href).toBe("/users/123/posts/{postId}");
@@ -95,7 +95,7 @@ describe("mapLinkConfig", () => {
       openInNewTab: true,
     };
 
-    const mapper = mapLinkConfig({ contextIds: "test", tags: {} });
+    const mapper = mapLinkConfig({ contextId: "test", tags: {} });
     const result = mapper(linkNewTab);
 
     expect(result.openInNewTab).toBe(true);
@@ -107,7 +107,7 @@ describe("mapLinkConfig", () => {
       dcfContextsToUseEventNavigation: undefined,
     };
 
-    const mapper = mapLinkConfig({ contextIds: "event", tags: {} });
+    const mapper = mapLinkConfig({ contextId: "event", tags: {} });
     const result = mapper(linkNoEvent);
 
     expect(result.dcfContextsToUseEventNavigation).toBeUndefined();
@@ -120,12 +120,12 @@ describe("mapLinkConfig", () => {
       dcfContextsToUseEventNavigation: { contexts: "event-admin event-user", data: "" },
     };
 
-    const mapper1 = mapLinkConfig({ contextIds: "user guest", tags: { [isDcfCaseKey]: "true" } });
+    const mapper1 = mapLinkConfig({ contextId: "user", tags: { [isDcfCaseKey]: "true" } });
     const result1 = mapper1(complexLink);
     expect(result1.selected).toBe(true);
     expect(result1.dcfContextsToUseEventNavigation).toBeUndefined();
 
-    const mapper2 = mapLinkConfig({ contextIds: "event-admin test", tags: { [isDcfCaseKey]: "true" } });
+    const mapper2 = mapLinkConfig({ contextId: "event-admin", tags: { [isDcfCaseKey]: "true" } });
     const result2 = mapper2(complexLink);
     expect(result2.selected).toBe(false);
     expect(result2.dcfContextsToUseEventNavigation).toEqual({ contexts: "event-admin event-user", data: "" });
@@ -137,7 +137,7 @@ describe("mapLinkConfig", () => {
       label: "  Special Label with Spaces  ",
     };
 
-    const mapper = mapLinkConfig({ contextIds: "test", tags: {} });
+    const mapper = mapLinkConfig({ contextId: "test", tags: {} });
     const result = mapper(linkWithSpecialLabel);
 
     expect(result.label).toBe("  Special Label with Spaces  ");
@@ -149,7 +149,7 @@ describe("mapLinkConfig", () => {
       href: "/test/{tag1}/{tag2}",
     };
 
-    const mapper = mapLinkConfig({ contextIds: "test", tags: {} });
+    const mapper = mapLinkConfig({ contextId: "test", tags: {} });
     const result = mapper(linkWithTags);
 
     expect(result.href).toBe("/test/{tag1}/{tag2}");
@@ -161,7 +161,7 @@ describe("mapLinkConfig", () => {
       href: "/{id}/edit/{id}/confirm/{id}",
     };
 
-    const mapper = mapLinkConfig({ contextIds: "test", tags: { id: "999" } });
+    const mapper = mapLinkConfig({ contextId: "test", tags: { id: "999" } });
     const result = mapper(linkWithRepeatedTags);
 
     expect(result.href).toBe("/999/edit/999/confirm/999");
@@ -178,7 +178,7 @@ describe("mapLinkConfig", () => {
       dcfContextsToUseEventNavigation: { contexts: "app-event section-event", data: "" },
     };
 
-    const mapper = mapLinkConfig({ contextIds: "app-section app-event", tags: { appId: "myapp", sectionId: "mysection", [isDcfCaseKey]: "true" } });
+    const mapper = mapLinkConfig({ contextId: "app-section", tags: { appId: "myapp", sectionId: "mysection", [isDcfCaseKey]: "true" } });
     const result = mapper(fullLink);
 
     expect(result).toEqual({
@@ -187,7 +187,7 @@ describe("mapLinkConfig", () => {
       openInNewTab: true,
       href: "/app/myapp/section/mysection",
       selected: true,
-      dcfContextsToUseEventNavigation: { contexts: "app-event section-event", data: "" },
+      dcfContextsToUseEventNavigation: undefined,
     });
   });
 });

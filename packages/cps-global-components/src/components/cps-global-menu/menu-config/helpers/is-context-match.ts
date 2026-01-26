@@ -1,2 +1,2 @@
-export const isContextMatch = (contextStringA: string = "", contextStringB: string = "") =>
-  contextStringA.split(" ").some(contextValue => contextStringB.split(" ").includes(contextValue));
+export const isContextMatch = (contextId: string = "", targetContexts: string = "") =>
+  targetContexts.split(" ").includes(contextId);

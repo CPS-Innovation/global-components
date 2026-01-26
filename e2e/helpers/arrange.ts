@@ -13,7 +13,7 @@ const baseProps: ArrangeProps = {
     CONTEXTS: [
       {
         msalRedirectUrl: "not-used",
-        contexts: [{ contextIds: "e2e", path: ".*" }],
+        contexts: [{ contextId: "e2e", path: ".*" }],
       },
     ],
     LINKS: [],

@@ -7,7 +7,7 @@ const happySettings: DeepPartial<ArrangeProps> = {
   config: {
     SHOW_MENU: true,
     CONTEXTS: [
-      { msalRedirectUrl: "foo", contexts: [{ contextIds: "e2e", path: ".*" }] },
+      { msalRedirectUrl: "foo", contexts: [{ contextId: "e2e", path: ".*" }] },
     ],
     LINKS: [
       {

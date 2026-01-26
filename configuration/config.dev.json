@@ -30,45 +30,45 @@
       "contexts": [
         {
           "path": "https://cps-dev.outsystemsenterprise.com/casework_blocks/home",
-          "contextIds": "home",
+          "contextId": "home",
           "applyShim": "force-recent-cases"
         },
         {
           "path": "https://cps-dev.outsystemsenterprise.com/casework_blocks",
-          "contextIds": "unknown-home"
+          "contextId": "unknown-home"
         },
         {
           "path": "https://cps-dev.outsystemsenterprise.com/CaseReview.*?[&?](?:CMS)?CaseId=(?<caseId>\\d+)",
-          "contextIds": "case review"
+          "contextId": "review"
         },
         {
           "path": "https://cps-dev.outsystemsenterprise.com/CaseReview/",
-          "contextIds": "cases"
+          "contextId": "cases"
         },
         {
           "path": "https://cps-dev.outsystemsenterprise.com/WorkManagementApp.*?(?=.*[&?]CaseId=(?<caseId>\\d+))(?=.*[&?]IsOpenMaterials=true)",
-          "contextIds": "case materials"
+          "contextId": "materials"
         },
         {
           "path": "https://cps-dev.outsystemsenterprise.com/WorkManagementApp.*[&?]CaseId=(?<caseId>\\d+)",
-          "contextIds": "case details"
+          "contextId": "details"
         },
         {
           "path": "https://cps-dev.outsystemsenterprise.com/WorkManagementApp/Cases",
-          "contextIds": "cases",
+          "contextId": "cases",
           "applyShim": "force-recent-cases"
         },
         {
           "path": "https://cps-dev.outsystemsenterprise.com/WorkManagementApp/TaskList",
-          "contextIds": "tasks"
+          "contextId": "tasks"
         },
         {
           "path": "https://cps-dev.outsystemsenterprise.com/WorkManagementApp/SearchCase",
-          "contextIds": "cases"
+          "contextId": "cases"
         },
         {
           "path": "https://cps-dev.outsystemsenterprise.com/WorkManagementApp",
-          "contextIds": "unknown-wma"
+          "contextId": "unknown-wma"
         }
       ]
     },
@@ -77,11 +77,11 @@
       "contexts": [
         {
           "path": "https://polaris-qa-notprod.cps.gov.uk/polaris-ui/case-details/(?<urn>[^/]+)/(?<caseId>\\d+)",
-          "contextIds": "case materials"
+          "contextId": "materials"
         },
         {
           "path": "https://polaris",
-          "contextIds": "cases"
+          "contextId": "cases"
         }
       ]
     },
@@ -90,7 +90,7 @@
       "contexts": [
         {
           "path": "https://housekeeping",
-          "contextIds": "case materials",
+          "contextId": "materials",
           "domTagDefinitions": [
             {
               "cssSelector": "a[href*='/polaris-ui/case-details/']",
@@ -105,7 +105,7 @@
       "contexts": [
         {
           "path": "(?<scheme>https?)://localhost",
-          "contextIds": "fallback"
+          "contextId": "fallback"
         }
       ]
     }
@@ -115,28 +115,28 @@
       "label": "Home",
       "level": 0,
       "href": "https://cps-dev.outsystemsenterprise.com/Casework_Blocks/home",
-      "visibleContexts": "home tasks cases case unknown-wma",
+      "visibleContexts": "home tasks cases details materials review unknown-wma",
       "activeContexts": "home"
     },
     {
       "label": "Tasks",
       "level": 0,
       "href": "https://cps-dev.outsystemsenterprise.com/WorkManagementApp/TaskList",
-      "visibleContexts": "home tasks cases case unknown-wma",
+      "visibleContexts": "home tasks cases details materials review unknown-wma",
       "activeContexts": "tasks"
     },
     {
       "label": "Cases",
       "level": 0,
       "href": "https://cps-dev.outsystemsenterprise.com/WorkManagementApp/Cases?IsCasesNavigation=true",
-      "visibleContexts": "home tasks cases case unknown-wma",
-      "activeContexts": "cases case"
+      "visibleContexts": "home tasks cases details materials review unknown-wma",
+      "activeContexts": "cases details materials review"
     },
     {
       "label": "Details",
       "level": 1,
       "href": "https://cps-dev.outsystemsenterprise.com/WorkManagementApp/CaseOverview?CaseId={caseId}",
-      "visibleContexts": "case",
+      "visibleContexts": "details materials review",
       "activeContexts": "details",
       "dcfContextsToUseEventNavigation": {
         "contexts": "materials",
@@ -149,7 +149,7 @@
       "level": 1,
       "href": "https://polaris-qa-notprod.cps.gov.uk/polaris?q=%7B%22caseId%22%3A{caseId}%7D",
       "dcfHref": "https://cps-dev.outsystemsenterprise.com/WorkManagementApp/CaseOverview?CaseId={caseId}&IsOpenMaterials=true",
-      "visibleContexts": "case",
+      "visibleContexts": "details materials review",
       "activeContexts": "materials",
       "dcfContextsToUseEventNavigation": {
         "contexts": "details",
@@ -161,7 +161,7 @@
       "label": "Review",
       "level": 1,
       "href": "https://cps-dev.outsystemsenterprise.com/CaseReview/LandingPage?CMSCaseId={caseId}",
-      "visibleContexts": "case",
+      "visibleContexts": "details materials review",
       "activeContexts": "review"
     }
   ]

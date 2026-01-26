@@ -26,7 +26,7 @@ const menuConfigInternal = ({
   if (!context?.found) {
     return { status: "error", error: new Error("No context found for this URL.") };
   }
-  const { contextIds } = context;
+  const { contextId } = context;
 
   const handoverAdapter = isOutSystems
     ? // If we are inside the OutSystems world then we assume we have adequate CMS auth.
@@ -43,8 +43,14 @@ const menuConfigInternal = ({
           return targetUrl;
         }
       };
-  const links = LINKS.filter(shouldShowLink(contextIds)).map(mapLinkConfig({ contextIds, tags, handoverAdapter }));
+  const links = LINKS.filter(shouldShowLink(contextId)).map(mapLinkConfig({ contextId, tags, handoverAdapter }));
   return { status: "ok", links: groupLinksByLevel(links) };
 };
+
+/*
+LINKS:
+  - should show link
+  
+*/
 
 export const menuConfig = withLogging("menuConfig", menuConfigInternal);

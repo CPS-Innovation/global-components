@@ -60,7 +60,7 @@ export type ShimType = z.infer<typeof shimTypeSchema>;
 
 const contextPathsSchema = z.object({
   path: z.string(),
-  contextIds: z.string(),
+  contextId: z.string(),
   applyShim: shimTypeSchema.optional(),
   domTagDefinitions: z.array(domTagDefinitionsSchema).optional(),
 });
@@ -95,7 +95,7 @@ export type ContextStorageSchema = z.infer<typeof contextsBaseSchema> & {
 
 const contextSchema = contextsBaseSchema.extend({
   path: z.string(),
-  contextIds: z.string(),
+  contextId: z.string(),
   msalRedirectUrl: z.string(), // redefine as required, not optional in app config
   applyShim: shimTypeSchema.optional(),
 });

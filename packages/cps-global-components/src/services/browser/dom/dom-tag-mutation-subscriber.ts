@@ -1,7 +1,7 @@
 import { DomTagDefinitions } from "cps-global-configuration";
 import { DomMutationObserver } from "./DomMutationObserver";
 import { makeConsole } from "../../../logging/makeConsole";
-import { areAllTagsFound } from "../../context/tag-helpers";
+import { haveFoundAllTagsInRegex } from "../../tags/have-found-all-tags-in-regex";
 
 const { _debug } = makeConsole("domTagMutationSubscriber");
 
@@ -19,7 +19,7 @@ export const domTagMutationSubscriber: DomMutationObserver = ({ context, mergeTa
       // The alternative would be that we keep listening in case tags change
       //  for fresher versions, which could well eventually be a use case we'd
       //  encounter.
-      return areAllTagsFound(regex, allDomTags);
+      return haveFoundAllTagsInRegex(regex, allDomTags);
     },
   })),
 });
