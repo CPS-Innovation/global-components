@@ -5,6 +5,7 @@
   "permissions": {
     "allow": [
       "Bash(gh *)",
+      "Bash(git worktree *)",
       "Bash(pnpm install*)",
       "Bash(pnpm -w *)",
       "Bash(pnpm --filter *)",

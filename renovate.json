@@ -5,6 +5,12 @@
     {
       "matchDatasources": ["npm"],
       "minimumReleaseAge": "5 days"
+    },
+    {
+      "description": "Pin nginx - requires coordinated infrastructure change",
+      "matchPackageNames": ["nginx"],
+      "matchDatasources": ["docker"],
+      "enabled": false
     }
   ]
 }

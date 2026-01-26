@@ -17,36 +17,69 @@ This skill runs **fully autonomously**. Do not prompt the user for decisions. Fo
 2. Minor updates (x.MINOR.x) - Safe for well-maintained packages
 3. Major updates (MAJOR.x.x) - Include but flag in summary
 
+### Blocked Packages (Never Include)
+
+- **nginx** - Pinned for production infrastructure coordination
+
 ### Conflict Resolution
 
-- **Simple conflicts** (package.json, lock files, version numbers): Resolve automatically by accepting the incoming (Renovate) changes
-- **Complex conflicts** (source code changes): Skip the PR and note in summary
+- **package.json**: Accept theirs (incoming Renovate changes)
+- **pnpm-lock.yaml**: Delete and regenerate with `pnpm install`
+- **Source code conflicts**: Skip the PR and note in summary
 - Never prompt - either fix it or skip it
 
 ### What to Skip (automatically, without asking)
 
+- PRs for blocked packages (nginx)
 - PRs with conflicts in source code (not just config/lock files)
 - PRs that fail the build/test validation
 - PRs older than 60 days (likely stale)
 
+---
+
+## Worktree Isolation
+
+**All work happens in a temporary worktree** so the user's checkout is unaffected.
+
+```bash
+# Setup
+REPO_PATH="/Users/stef/code/CPS/global-components"
+WORKTREE_PATH="/tmp/claude/renovate-worktree-$(date +%Y%m%d-%H%M%S)"
+git -C "$REPO_PATH" fetch origin main
+git -C "$REPO_PATH" worktree add "$WORKTREE_PATH" origin/main
+cd "$WORKTREE_PATH"
+git checkout -b renovate/uber-$(date +%Y%m%d)
+
+# Cleanup (after PR created)
+git -C "$REPO_PATH" worktree remove "$WORKTREE_PATH" --force
+```
+
+---
+
 ## Workflow
 
-### Step 1: Gather Renovate PRs
+### Step 1: Gather & Filter PRs
 
 ```bash
 gh pr list --author "app/renovate" --json number,title,headRefName,createdAt,mergeable --jq 'sort_by(.createdAt)'
 ```
 
-Store this list - you'll need PR numbers for closing later.
+- Filter out blocked packages (nginx)
+- Sort by: patch > minor > major, then chronologically
+- Store this list - you'll need PR numbers for closing later
 
-### Step 2: Create uber-branch
+### Step 2: Setup Worktree
 
 ```bash
-git fetch origin main
-git checkout -b renovate/uber-$(date +%Y%m%d) origin/main
+REPO_PATH="/Users/stef/code/CPS/global-components"
+WORKTREE_PATH="/tmp/claude/renovate-worktree-$(date +%Y%m%d-%H%M%S)"
+git -C "$REPO_PATH" fetch origin main
+git -C "$REPO_PATH" worktree add "$WORKTREE_PATH" origin/main
+cd "$WORKTREE_PATH"
+git checkout -b renovate/uber-$(date +%Y%m%d)
 ```
 
-### Step 3: Merge each PR branch (chronologically)
+### Step 3: Merge PRs (Chronologically)
 
 For each PR, oldest first:
 
@@ -55,15 +88,50 @@ git fetch origin <branch>
 git merge origin/<branch> --no-edit
 ```
 
-If merge conflict:
+**If merge conflict:**
 
-- Check if conflict is only in `package.json`, `pnpm-lock.yaml`, or similar config files
-- If yes: resolve by accepting theirs (`git checkout --theirs <file> && git add <file> && git commit --no-edit`)
-- If no: abort merge (`git merge --abort`), skip this PR, add to skipped list
+1. Check which files conflict
+2. If only `package.json`:
+   ```bash
+   git checkout --theirs package.json
+   git add package.json
+   git commit --no-edit
+   ```
+3. If `pnpm-lock.yaml`: just delete it (will regenerate later)
+   ```bash
+   git rm pnpm-lock.yaml
+   git commit --no-edit
+   ```
+4. If source code: abort and skip
+   ```bash
+   git merge --abort
+   # Add to skipped list with reason "source code conflict"
+   ```
 
-Track which PRs were successfully merged into the uber-branch.
+Track which PRs were successfully merged.
 
-### Step 4: Build and Test Validation
+### Step 3.5: Regenerate Lockfile
+
+After all merges complete:
+
+```bash
+pnpm install
+git add pnpm-lock.yaml
+git commit -m "chore: regenerate lockfile after dependency updates"
+```
+
+### Step 4: Pre-flight Docker
+
+Ensure Docker is running for e2e/proxy tests:
+
+```bash
+if ! docker info &>/dev/null; then
+  open -a Docker 2>/dev/null || true
+  for i in {1..30}; do docker info &>/dev/null && break || sleep 2; done
+fi
+```
+
+### Step 5: Local Validation
 
 Run the full validation suite:
 
@@ -75,15 +143,18 @@ pnpm -w test:e2e
 pnpm -w test:proxy
 ```
 
-**If any step fails, perform bisect:**
+### Step 5.5: Bisect on Failure
+
+**If any validation step fails:**
 
 1. Note which PRs are in the uber-branch (in merge order)
 2. Binary search to find the culprit:
-   - Reset to main, merge first half of PRs, test
+   - Create fresh branch from main
+   - Merge first half of PRs, test
    - If passes: culprit is in second half
    - If fails: culprit is in first half
    - Repeat until single PR identified
-3. Remove the culprit PR from the uber-branch:
+3. Rebuild uber-branch without the culprit:
    ```bash
    git checkout -b renovate/uber-$(date +%Y%m%d)-v2 origin/main
    # Re-merge all PRs except the culprit
@@ -92,19 +163,14 @@ pnpm -w test:proxy
 5. Add culprit to skipped list with reason: "Failed: [build|test|test:e2e|test:proxy]"
 6. If still failing, repeat bisect until passing or no PRs remain
 
-### Step 5: Push and create PR
+### Step 6: Push & Create PR
 
 ```bash
 git push -u origin HEAD
-```
-
-Create PR with body listing included and skipped PRs:
-
-```bash
-gh pr create --title "chore(deps): consolidate Renovate updates $(date +%Y-%m-%d)" --body "$(cat <<EOF
+gh pr create --title "chore(deps): consolidate Renovate updates $(date +%Y-%m-%d)" --body "$(cat <<'EOF'
 ## Consolidated Dependency Updates
 
-This PR combines multiple Renovate PRs into a single update to reduce CI builds.
+This PR combines multiple Renovate PRs into a single update.
 
 ### Included PRs
 - #XXX title
@@ -115,29 +181,59 @@ This PR combines multiple Renovate PRs into a single update to reduce CI builds.
 
 ---
 
-**After merging this PR**, tell Claude: "the renovate uber-PR is merged" to auto-close the source PRs.
+**After merging this PR**, tell Claude: "renovate uber-PR is merged" to auto-close the source PRs.
 EOF
 )"
 ```
 
-### Step 6: Summary Report
+### Step 7: Wait for CI
 
-Output a summary:
+Poll CI status every 30 seconds until complete:
 
-- PRs successfully included (with numbers)
-- PRs skipped (with reason)
-- Link to the new uber-PR
-- Reminder: "After merging, say 'renovate uber-PR is merged' to close source PRs"
+```bash
+gh pr checks <pr-number> --watch
+```
 
-Store the list of included PR numbers for the cleanup phase.
+- All pass: report success
+- Any fail: investigate, fix lockfile if needed, or report
+
+### Step 8: Cleanup Worktree
+
+```bash
+git -C "$REPO_PATH" worktree remove "$WORKTREE_PATH" --force
+```
+
+### Step 9: Summary Report
+
+```
+=== Renovate Consolidation Complete ===
+
+Uber-PR: https://github.com/.../pull/XXX
+
+Included (N PRs):
+- #635 puppeteer v24
+- ...
+
+Skipped (M PRs):
+- #607 nginx - BLOCKED (pinned)
+- #614 uuid v13 - FAILED test
+- ...
+
+CI Status: PASSED
+
+**You review and merge the PR manually.**
+Then say: "renovate uber-PR is merged"
+```
 
 ---
 
 ## Phase 2: Cleanup (after uber-PR is merged)
 
+**The human reviews and merges the uber-PR manually.** The skill does NOT auto-merge.
+
 When user says any of:
 
-- "the renovate uber-PR is merged"
+- "renovate uber-PR is merged"
 - "renovate cleanup"
 - "close the renovate PRs"
 
@@ -148,16 +244,17 @@ Execute cleanup:
 gh pr close <number> --comment "Closed: included in consolidated update PR #<uber-pr-number>"
 ```
 
-Report:
+**Report:**
 
 ```
-Closed X Renovate PRs:
-- #640 react v19.2.9
-- #639 rollup v4.55.3
-...
+Closed 7 Renovate PRs:
+- #635 puppeteer v24
+- #638 testing-library/react v16
+- ...
 
-Skipped PRs (still open - need manual review):
-- #637 react v19 major - had source conflicts
+Still open (were skipped):
+- #607 nginx - pinned dependency
+- #614 uuid v13 - failed tests
 ```
 
 ---
@@ -165,10 +262,14 @@ Skipped PRs (still open - need manual review):
 ## Important Behaviors
 
 1. **No prompting** - Make decisions autonomously using the policies above
-2. **Fail gracefully** - If something breaks, skip it and continue
-3. **Bisect on failure** - Don't give up, find the culprit PR and exclude it
-4. **Report at end** - Give one comprehensive summary when done
-5. **Two-phase approach** - Create PR first, close source PRs only after user confirms merge
+2. **Worktree isolation** - Never modify the user's working directory
+3. **Fail gracefully** - If something breaks, skip it and continue
+4. **Bisect on failure** - Don't give up, find the culprit PR and exclude it
+5. **Wait for CI** - Don't report success until CI passes
+6. **Report at end** - Give one comprehensive summary when done
+7. **Two-phase approach** - Create PR first, close source PRs only after user confirms merge
+
+---
 
 ## Invocation
 
@@ -181,6 +282,6 @@ Skipped PRs (still open - need manual review):
 
 **Phase 2 - Cleanup after merge:**
 
-- "the renovate uber-PR is merged"
+- "renovate uber-PR is merged"
 - "renovate cleanup"
 - "close the renovate PRs"
