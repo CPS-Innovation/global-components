@@ -1,3 +1,8 @@
+---
+name: renovate
+description: Consolidate all open Renovate dependency PRs into a single uber-branch. Run autonomously without prompting - handles conflicts, runs tests, bisects failures.
+---
+
 # Renovate PR Consolidator
 
 Consolidate all open Renovate dependency PRs into a single uber-branch for one build/merge.
@@ -7,16 +12,19 @@ Consolidate all open Renovate dependency PRs into a single uber-branch for one b
 This skill runs **fully autonomously**. Do not prompt the user for decisions. Follow these rules:
 
 ### Merge Priority (Process in this order)
+
 1. Patch updates (x.x.PATCH) - Always safe
 2. Minor updates (x.MINOR.x) - Safe for well-maintained packages
 3. Major updates (MAJOR.x.x) - Include but flag in summary
 
 ### Conflict Resolution
+
 - **Simple conflicts** (package.json, lock files, version numbers): Resolve automatically by accepting the incoming (Renovate) changes
 - **Complex conflicts** (source code changes): Skip the PR and note in summary
 - Never prompt - either fix it or skip it
 
 ### What to Skip (automatically, without asking)
+
 - PRs with conflicts in source code (not just config/lock files)
 - PRs that fail the build/test validation
 - PRs older than 60 days (likely stale)
@@ -24,25 +32,31 @@ This skill runs **fully autonomously**. Do not prompt the user for decisions. Fo
 ## Workflow
 
 ### Step 1: Gather Renovate PRs
+
 ```bash
 gh pr list --author "app/renovate" --json number,title,headRefName,createdAt,mergeable --jq 'sort_by(.createdAt)'
 ```
+
 Store this list - you'll need PR numbers for closing later.
 
 ### Step 2: Create uber-branch
+
 ```bash
 git fetch origin main
 git checkout -b renovate/uber-$(date +%Y%m%d) origin/main
 ```
 
 ### Step 3: Merge each PR branch (chronologically)
+
 For each PR, oldest first:
+
 ```bash
 git fetch origin <branch>
 git merge origin/<branch> --no-edit
 ```
 
 If merge conflict:
+
 - Check if conflict is only in `package.json`, `pnpm-lock.yaml`, or similar config files
 - If yes: resolve by accepting theirs (`git checkout --theirs <file> && git add <file> && git commit --no-edit`)
 - If no: abort merge (`git merge --abort`), skip this PR, add to skipped list
@@ -52,6 +66,7 @@ Track which PRs were successfully merged into the uber-branch.
 ### Step 4: Build and Test Validation
 
 Run the full validation suite:
+
 ```bash
 pnpm install
 pnpm -w build
@@ -78,11 +93,13 @@ pnpm -w test:proxy
 6. If still failing, repeat bisect until passing or no PRs remain
 
 ### Step 5: Push and create PR
+
 ```bash
 git push -u origin HEAD
 ```
 
 Create PR with body listing included and skipped PRs:
+
 ```bash
 gh pr create --title "chore(deps): consolidate Renovate updates $(date +%Y-%m-%d)" --body "$(cat <<EOF
 ## Consolidated Dependency Updates
@@ -104,7 +121,9 @@ EOF
 ```
 
 ### Step 6: Summary Report
+
 Output a summary:
+
 - PRs successfully included (with numbers)
 - PRs skipped (with reason)
 - Link to the new uber-PR
@@ -117,17 +136,20 @@ Store the list of included PR numbers for the cleanup phase.
 ## Phase 2: Cleanup (after uber-PR is merged)
 
 When user says any of:
+
 - "the renovate uber-PR is merged"
 - "renovate cleanup"
 - "close the renovate PRs"
 
 Execute cleanup:
+
 ```bash
 # For each PR that was included in the uber-branch:
 gh pr close <number> --comment "Closed: included in consolidated update PR #<uber-pr-number>"
 ```
 
 Report:
+
 ```
 Closed X Renovate PRs:
 - #640 react v19.2.9
@@ -151,12 +173,14 @@ Skipped PRs (still open - need manual review):
 ## Invocation
 
 **Phase 1 - Create uber-PR:**
+
 - `/renovate`
 - "deal with renovate PRs"
 - "handle renovate"
 - "consolidate dependency updates"
 
 **Phase 2 - Cleanup after merge:**
+
 - "the renovate uber-PR is merged"
 - "renovate cleanup"
 - "close the renovate PRs"
