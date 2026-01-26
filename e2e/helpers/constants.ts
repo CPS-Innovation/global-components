@@ -11,4 +11,6 @@ export const locators = {
   BANNER: "cps-global-banner",
   MENU_CONTAINER: "cps-global-menu",
   MENU_CONTENT: "cps-global-menu nav",
+  FOOTER_CONTAINER: "cps-global-footer",
+  FOOTER_CONTENT: "footer.govuk-footer",
 };
