@@ -30,6 +30,7 @@ export default {
       file: "dist/cps-global-components.js",
       format: "es",
       sourcemap: true,
+      sourcemapExcludeSources: false,
     },
   ],
   onwarn(warning, warn) {
