@@ -29,7 +29,7 @@ jobs:
       bad_sha: ${{ steps.identify.outputs.bad_sha }}
       good_sha: ${{ steps.identify.outputs.good_sha }}
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
         with:
           fetch-depth: 20
 
@@ -67,7 +67,7 @@ jobs:
     outputs:
       revert_sha: ${{ steps.revert.outputs.revert_sha }}
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
         with:
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
