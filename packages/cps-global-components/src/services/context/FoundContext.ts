@@ -1,5 +1,5 @@
 import { Context } from "cps-global-configuration";
-import { Tags } from "./Tags";
+import { Tags } from "../tags/Tags";
 
 type MakeUndefinable<T> = {
   [K in keyof T]?: undefined;

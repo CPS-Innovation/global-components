@@ -1,5 +1,5 @@
-import { CaseDetails, CaseDetailsSchema } from "./CaseDetails";
-import { extractTagsFromCaseDetails } from "./extract-tags-from-case-details";
+import { CaseDetails, CaseDetailsSchema, caseDetailsTagFields } from "./CaseDetails";
+import { extractTags } from "../tags/extract-tags";
 import { SubscriptionFactory } from "../../store/subscriptions/SubscriptionFactory";
 import { Handover } from "../state/handover/Handover";
 import { fetchAndValidate } from "../fetch/fetch-and-validate";
@@ -31,7 +31,7 @@ export const caseDetailsSubscriptionFactory =
         // may be able to render useful stuff with whatever it has first
         const caseDetailsPromise = (caseDetails ? Promise.resolve(caseDetails) : fetchAndValidate(fetch, `/api/global-components/cases/${caseId}/summary`, CaseDetailsSchema))
           .then(caseDetails => {
-            mergeTags({ caseDetailsTags: extractTagsFromCaseDetails(caseDetails).tags });
+            mergeTags({ caseDetailsTags: extractTags(caseDetails, caseDetailsTagFields).tags });
             register({ caseDetails: { found: true, result: caseDetails } });
             return caseDetails;
           })

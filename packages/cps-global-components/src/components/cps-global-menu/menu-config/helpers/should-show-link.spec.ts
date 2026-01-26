@@ -11,7 +11,7 @@ describe("shouldShowLink", () => {
     dcfContextsToUseEventNavigation: { contexts: "event", data: "" },
   };
 
-  it("should return true when context matches visibleContexts", () => {
+  it("should return true when contextId matches one of the visibleContexts", () => {
     const link: Link = {
       ...baseLink,
       visibleContexts: "admin user",
@@ -19,14 +19,12 @@ describe("shouldShowLink", () => {
 
     const filter1 = shouldShowLink("admin");
     const filter2 = shouldShowLink("user");
-    const filter3 = shouldShowLink("admin user");
 
     expect(filter1(link)).toBe(true);
     expect(filter2(link)).toBe(true);
-    expect(filter3(link)).toBe(true);
   });
 
-  it("should return false when context does not match visibleContexts", () => {
+  it("should return false when contextId does not match visibleContexts", () => {
     const link: Link = {
       ...baseLink,
       visibleContexts: "admin user",
@@ -39,14 +37,17 @@ describe("shouldShowLink", () => {
     expect(filter2(link)).toBe(false);
   });
 
-  it("should handle multiple contexts in current context", () => {
+  it("should handle single visibleContext", () => {
     const link: Link = {
       ...baseLink,
       visibleContexts: "admin",
     };
 
-    const filter = shouldShowLink("user admin guest");
-    expect(filter(link)).toBe(true);
+    const filter1 = shouldShowLink("admin");
+    const filter2 = shouldShowLink("user");
+
+    expect(filter1(link)).toBe(true);
+    expect(filter2(link)).toBe(false);
   });
 
   it("should handle multiple contexts in visibleContexts", () => {
@@ -55,8 +56,8 @@ describe("shouldShowLink", () => {
       visibleContexts: "admin user moderator",
     };
 
-    const filter1 = shouldShowLink("guest user");
-    const filter2 = shouldShowLink("visitor guest");
+    const filter1 = shouldShowLink("user");
+    const filter2 = shouldShowLink("visitor");
 
     expect(filter1(link)).toBe(true);
     expect(filter2(link)).toBe(false);
@@ -82,8 +83,8 @@ describe("shouldShowLink", () => {
     };
 
     const filter1 = shouldShowLink("role-admin");
-    const filter2 = shouldShowLink("page-edit role-guest");
-    const filter3 = shouldShowLink("role-guest page-view");
+    const filter2 = shouldShowLink("page-edit");
+    const filter3 = shouldShowLink("role-guest");
 
     expect(filter1(link)).toBe(true);
     expect(filter2(link)).toBe(true);
@@ -122,7 +123,7 @@ describe("shouldShowLink", () => {
     expect(filtered[1].visibleContexts).toBe("admin user");
   });
 
-  it("should handle empty current context", () => {
+  it("should handle empty contextId", () => {
     const link: Link = {
       ...baseLink,
       visibleContexts: "admin",
@@ -130,16 +131,6 @@ describe("shouldShowLink", () => {
 
     const filter = shouldShowLink("");
     expect(filter(link)).toBe(false);
-  });
-
-  it("should handle whitespace in contexts", () => {
-    const link: Link = {
-      ...baseLink,
-      visibleContexts: "  admin  user  ",
-    };
-
-    const filter = shouldShowLink("  user  ");
-    expect(filter(link)).toBe(true);
   });
 
   it("should not match partial context names", () => {

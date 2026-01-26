@@ -6,10 +6,10 @@ import { isDcfCaseKey } from "../../../../services/data/CaseDetails";
 
 export type MapLinkConfigResult = ReturnType<ReturnType<typeof mapLinkConfig>>;
 
-export type MapLinkConfigParams = { contextIds: string; tags: Record<string, string>; handoverAdapter?: ((targetUrl: string) => string) | undefined };
+export type MapLinkConfigParams = { contextId: string; tags: Record<string, string>; handoverAdapter?: ((targetUrl: string) => string) | undefined };
 
 export const mapLinkConfigInternal =
-  ({ contextIds, tags, handoverAdapter }: MapLinkConfigParams) =>
+  ({ contextId, tags, handoverAdapter }: MapLinkConfigParams) =>
   ({ label, href, dcfHref, level, activeContexts, openInNewTab, dcfContextsToUseEventNavigation }: Link) => {
     const shouldUseDcfHref = tags[isDcfCaseKey] === "true" && dcfHref;
     const processedHref = replaceTagsInString(shouldUseDcfHref ? dcfHref : href, tags);
@@ -19,9 +19,9 @@ export const mapLinkConfigInternal =
       level,
       openInNewTab,
       href: handoverAdapter ? handoverAdapter(processedHref) : processedHref,
-      selected: isContextMatch(contextIds, activeContexts),
+      selected: isContextMatch(contextId, activeContexts),
       dcfContextsToUseEventNavigation:
-        tags[isDcfCaseKey] === "true" && isContextMatch(contextIds, dcfContextsToUseEventNavigation?.contexts) ? dcfContextsToUseEventNavigation : undefined,
+        tags[isDcfCaseKey] === "true" && isContextMatch(contextId, dcfContextsToUseEventNavigation?.contexts) ? dcfContextsToUseEventNavigation : undefined,
     };
   };
 

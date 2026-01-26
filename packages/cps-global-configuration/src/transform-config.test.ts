@@ -11,9 +11,9 @@ describe("transformConfig", () => {
       CONTEXTS: [
         {
           contexts: [
-            { path: "/first", contextIds: "ctx1" },
-            { path: "/second", contextIds: "ctx2" },
-            { path: "/third", contextIds: "ctx3" },
+            { path: "/first", contextId: "ctx1" },
+            { path: "/second", contextId: "ctx2" },
+            { path: "/third", contextId: "ctx3" },
           ],
         },
       ],
@@ -35,14 +35,14 @@ describe("transformConfig", () => {
       CONTEXTS: [
         {
           contexts: [
-            { path: "/first", contextIds: "ctx1" },
+            { path: "/first", contextId: "ctx1" },
             {
               contexts: [
-                { path: "/second", contextIds: "ctx2" },
-                { path: "/third", contextIds: "ctx3" },
+                { path: "/second", contextId: "ctx2" },
+                { path: "/third", contextId: "ctx3" },
               ],
             },
-            { path: "/fourth", contextIds: "ctx4" },
+            { path: "/fourth", contextId: "ctx4" },
           ],
         },
       ],
@@ -65,20 +65,20 @@ describe("transformConfig", () => {
       CONTEXTS: [
         {
           contexts: [
-            { path: "/alpha", contextIds: "ctx-alpha" },
+            { path: "/alpha", contextId: "ctx-alpha" },
             {
               contexts: [
-                { path: "/beta", contextIds: "ctx-beta" },
+                { path: "/beta", contextId: "ctx-beta" },
                 {
                   contexts: [
-                    { path: "/gamma", contextIds: "ctx-gamma" },
-                    { path: "/delta", contextIds: "ctx-delta" },
+                    { path: "/gamma", contextId: "ctx-gamma" },
+                    { path: "/delta", contextId: "ctx-delta" },
                   ],
                 },
-                { path: "/epsilon", contextIds: "ctx-epsilon" },
+                { path: "/epsilon", contextId: "ctx-epsilon" },
               ],
             },
-            { path: "/zeta", contextIds: "ctx-zeta" },
+            { path: "/zeta", contextId: "ctx-zeta" },
           ],
         },
       ],
@@ -106,12 +106,12 @@ describe("transformConfig", () => {
           contexts: [
             {
               path: "/first",
-              contextIds: "ctx1",
+              contextId: "ctx1",
               applyShim: "force-global-menu",
             },
             {
               forceCmsAuthRefresh: true,
-              contexts: [{ path: "/second", contextIds: "ctx2" }],
+              contexts: [{ path: "/second", contextId: "ctx2" }],
             },
           ],
         },
@@ -153,7 +153,7 @@ describe("transformConfig", () => {
               contexts: [
                 {
                   path: "/first",
-                  contextIds: "ctx1",
+                  contextId: "ctx1",
                   applyShim: "force-recent-cases",
                 },
               ],
@@ -182,15 +182,15 @@ describe("transformConfig", () => {
         {
           msalRedirectUrl: "https://group1.example.com",
           contexts: [
-            { path: "/first", contextIds: "ctx1" },
-            { path: "/second", contextIds: "ctx2" },
+            { path: "/first", contextId: "ctx1" },
+            { path: "/second", contextId: "ctx2" },
           ],
         },
         {
           msalRedirectUrl: "https://group2.example.com",
           contexts: [
-            { path: "/third", contextIds: "ctx3" },
-            { path: "/fourth", contextIds: "ctx4" },
+            { path: "/third", contextId: "ctx3" },
+            { path: "/fourth", contextId: "ctx4" },
           ],
         },
       ],
@@ -252,7 +252,7 @@ describe("transformConfig", () => {
       SHOW_MENU: true,
       CONTEXTS: [
         {
-          contexts: [{ path: "/test", contextIds: "ctx1" }],
+          contexts: [{ path: "/test", contextId: "ctx1" }],
         },
       ],
     };
@@ -278,23 +278,23 @@ describe("transformConfig", () => {
       CONTEXTS: [
         {
           contexts: [
-            { path: "/path-1", contextIds: "1" },
+            { path: "/path-1", contextId: "1" },
             {
               contexts: [
-                { path: "/path-2", contextIds: "2" },
-                { path: "/path-3", contextIds: "3" },
+                { path: "/path-2", contextId: "2" },
+                { path: "/path-3", contextId: "3" },
               ],
             },
-            { path: "/path-4", contextIds: "4" },
+            { path: "/path-4", contextId: "4" },
             {
               contexts: [
                 {
-                  contexts: [{ path: "/path-5", contextIds: "5" }],
+                  contexts: [{ path: "/path-5", contextId: "5" }],
                 },
-                { path: "/path-6", contextIds: "6" },
+                { path: "/path-6", contextId: "6" },
               ],
             },
-            { path: "/path-7", contextIds: "7" },
+            { path: "/path-7", contextId: "7" },
           ],
         },
       ],
@@ -305,7 +305,7 @@ describe("transformConfig", () => {
     expect(result.CONTEXTS.length).toBe(7);
     for (let i = 0; i < 7; i++) {
       expect(result.CONTEXTS[i].path).toBe(`/path-${i + 1}`);
-      expect(result.CONTEXTS[i].contextIds).toBe(`${i + 1}`);
+      expect(result.CONTEXTS[i].contextId).toBe(`${i + 1}`);
     }
   });
 
@@ -319,13 +319,13 @@ describe("transformConfig", () => {
           contexts: [
             {
               path: "/with-tags",
-              contextIds: "ctx1",
+              contextId: "ctx1",
               domTagDefinitions: [
                 { cssSelector: ".case-id", regex: "^[A-Z]{2}\\d{6}$" },
                 { cssSelector: ".reference", regex: "^REF-\\d+$" },
               ],
             },
-            { path: "/without-tags", contextIds: "ctx2" },
+            { path: "/without-tags", contextId: "ctx2" },
           ],
         },
       ],

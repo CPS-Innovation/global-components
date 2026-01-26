@@ -1,4 +1,4 @@
-import { Tags } from "./Tags";
+import { Tags } from "../tags/Tags";
 
 export type CaseIdentifiers = {
   caseId: string;

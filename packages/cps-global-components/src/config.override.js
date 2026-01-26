@@ -13,19 +13,19 @@ cps_global_components_config_jsonp_callback({
       contexts: [
         {
           path: "http://localhost:3333/cases/(?<caseId>\\d+)/materials",
-          contextIds: "case materials",
+          contextId: "materials",
         },
         {
           path: "http://localhost:3333/cases/(?<caseId>\\d+)/review",
-          contextIds: "case review",
+          contextId: "review",
         },
         {
           path: "http://localhost:3333/cases/(?<caseId>\\d+)",
-          contextIds: "case details",
+          contextId: "details",
         },
         {
           path: "http://localhost:3333/cases",
-          contextIds: "cases",
+          contextId: "cases",
         },
         {
           domTagDefinitions: [
@@ -37,7 +37,7 @@ cps_global_components_config_jsonp_callback({
           contexts: [
             {
               path: "http://localhost:3333/",
-              contextIds: "tasks",
+              contextId: "tasks",
             },
           ],
         },
@@ -46,14 +46,14 @@ cps_global_components_config_jsonp_callback({
   ],
   LINKS: [
     { label: "Tasks", level: 0, href: "/", activeContexts: "tasks" },
-    { label: "Cases", level: 0, href: "/cases", activeContexts: "cases case" },
-    { label: "Details", level: 1, href: "/cases/{caseId}", visibleContexts: "case", activeContexts: "details" },
-    { label: "Materials", level: 1, href: "/cases/{caseId}/materials", visibleContexts: "case", activeContexts: "materials" },
+    { label: "Cases", level: 0, href: "/cases", activeContexts: "cases details materials review" },
+    { label: "Details", level: 1, href: "/cases/{caseId}", visibleContexts: "details materials review", activeContexts: "details" },
+    { label: "Materials", level: 1, href: "/cases/{caseId}/materials", visibleContexts: "details materials review", activeContexts: "materials" },
     {
       label: "Review",
       level: 1,
       href: "/cases/{caseId}/review",
-      visibleContexts: "case",
+      visibleContexts: "details materials review",
       activeContexts: "review",
       dcfContextsToUseEventNavigation: { contexts: "details", data: "" },
     },

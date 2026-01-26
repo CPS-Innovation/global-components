@@ -91,8 +91,8 @@ export const initialiseAiAnalytics = ({ window, config: { APP_INSIGHTS_CONNECTIO
     }
   }
 
-  const trackPageView = ({ context: { found, contextIds }, correlationIds }: { context: FoundContext; correlationIds: CorrelationIds }) => {
-    const arg = { properties: { Environment: ENVIRONMENT, ...authValues, ...build, context: { found, contextIds }, correlationIds, hint } };
+  const trackPageView = ({ context: { found, contextId }, correlationIds }: { context: FoundContext; correlationIds: CorrelationIds }) => {
+    const arg = { properties: { Environment: ENVIRONMENT, ...authValues, ...build, context: { found, contextId }, correlationIds, hint } };
     _debug("trackPageView", arg);
     appInsights.trackPageView(arg);
   };

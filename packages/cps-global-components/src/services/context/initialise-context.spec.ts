@@ -43,7 +43,7 @@ describe("initialiseContext", () => {
     const contexts: Context[] = [
       {
         path: "https://example.com/page",
-        contextIds: "page-context",
+        contextId: "page-context",
         msalRedirectUrl: "foo",
       },
     ];
@@ -54,7 +54,7 @@ describe("initialiseContext", () => {
       contextIndex: 0,
       found: true,
       path: "https://example.com/page",
-      contextIds: "page-context",
+      contextId: "page-context",
       domTagDefinitions: undefined,
       pathTags: {},
       msalRedirectUrl: "foo",
@@ -69,12 +69,12 @@ describe("initialiseContext", () => {
     const contexts: Context[] = [
       {
         path: "https://example.com/page1",
-        contextIds: "page1-context",
+        contextId: "page1-context",
         msalRedirectUrl: "foo",
       },
       {
         path: "https://example.com/page2",
-        contextIds: "page2-context",
+        contextId: "page2-context",
         msalRedirectUrl: "foo",
       },
     ];
@@ -92,7 +92,7 @@ describe("initialiseContext", () => {
     const contexts: Context[] = [
       {
         path: "https://example.com/with-dom-tags",
-        contextIds: "dom-tags-context",
+        contextId: "dom-tags-context",
         msalRedirectUrl: "foo",
         domTagDefinitions: [
           {
@@ -113,7 +113,7 @@ describe("initialiseContext", () => {
       contextIndex: 0,
       found: true,
       path: "https://example.com/with-dom-tags",
-      contextIds: "dom-tags-context",
+      contextId: "dom-tags-context",
       domTagDefinitions: [
         {
           cssSelector: ".header",
@@ -137,7 +137,7 @@ describe("initialiseContext", () => {
     const contexts: Context[] = [
       {
         path: "https://example.com/no-dom-tags",
-        contextIds: "no-dom-tags-context",
+        contextId: "no-dom-tags-context",
         msalRedirectUrl: "foo",
       },
     ];
@@ -148,7 +148,7 @@ describe("initialiseContext", () => {
       contextIndex: 0,
       found: true,
       path: "https://example.com/no-dom-tags",
-      contextIds: "no-dom-tags-context",
+      contextId: "no-dom-tags-context",
       domTagDefinitions: undefined,
       pathTags: {},
       msalRedirectUrl: "foo",
@@ -163,7 +163,7 @@ describe("initialiseContext", () => {
     const contexts: Context[] = [
       {
         path: "https://example.com/page#section",
-        contextIds: "page-with-hash",
+        contextId: "page-with-hash",
         msalRedirectUrl: "foo",
       },
     ];
@@ -174,7 +174,7 @@ describe("initialiseContext", () => {
       contextIndex: 0,
       found: true,
       path: "https://example.com/page#section",
-      contextIds: "page-with-hash",
+      contextId: "page-with-hash",
       domTagDefinitions: undefined,
       pathTags: {},
       msalRedirectUrl: "foo",
@@ -190,7 +190,7 @@ describe("initialiseContext", () => {
       const contexts: Context[] = [
         {
           path: "https://example.com/MyPage",
-          contextIds: "page-context",
+          contextId: "page-context",
           msalRedirectUrl: "foo",
         },
       ];
@@ -201,7 +201,7 @@ describe("initialiseContext", () => {
         contextIndex: 0,
         found: true,
         path: "https://example.com/MyPage",
-        contextIds: "page-context",
+        contextId: "page-context",
         domTagDefinitions: undefined,
         pathTags: {},
         msalRedirectUrl: "foo",
@@ -221,7 +221,7 @@ describe("initialiseContext", () => {
       const contexts: Context[] = [
         {
           path: "https://example.com/users/(?<userId>\\d+)/posts/(?<postId>\\d+)",
-          contextIds: "post-context",
+          contextId: "post-context",
           msalRedirectUrl: "foo",
         },
       ];
@@ -232,7 +232,7 @@ describe("initialiseContext", () => {
         contextIndex: 0,
         found: true,
         path: "https://example.com/users/(?<userId>\\d+)/posts/(?<postId>\\d+)",
-        contextIds: "post-context",
+        contextId: "post-context",
         domTagDefinitions: undefined,
         pathTags: {
           userId: "123",
@@ -255,7 +255,7 @@ describe("initialiseContext", () => {
       const contexts: Context[] = [
         {
           path: "https://example.com:(?<port>\\d+)/page",
-          contextIds: "page-context",
+          contextId: "page-context",
           msalRedirectUrl: "https://redirect.com:{port}/callback",
         },
       ];

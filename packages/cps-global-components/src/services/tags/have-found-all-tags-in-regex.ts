@@ -16,22 +16,7 @@ const extractNamedGroups = (regexString: string): string[] => {
 
 const getNamedGroups = (...regexes: string[]) => [...new Set(regexes.flatMap(regex => extractNamedGroups(regex)))];
 
-const extractPlaceholders = (templateString: string): string[] => {
-  // Pattern to match {name} placeholders
-  const placeholderPattern = /\{([^}]+)\}/g;
-  const placeholders: string[] = [];
-  let match: RegExpExecArray | null;
-
-  while ((match = placeholderPattern.exec(templateString)) !== null) {
-    placeholders.push(match[1]);
-  }
-
-  return placeholders;
-};
-
-export const getPlaceHolders = (...templateStrings: string[]) => [...new Set(templateStrings.flatMap(regex => extractPlaceholders(regex)))];
-
-export const areAllTagsFound = (regex: string, tags: Tags) => {
+export const haveFoundAllTagsInRegex = (regex: string, tags: Tags) => {
   const tagKeys = getNamedGroups(regex);
   return tagKeys.every(key => Object.keys(tags).includes(key));
 };

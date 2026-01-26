@@ -31,7 +31,7 @@ describe("initialiseCaseDetailsData", () => {
       contextDefinition: { name: "test-context" },
       pathTags: { caseId: "123" },
       path: "/test",
-      contextIds: "test",
+      contextId: "test",
       msalRedirectUrl: "https://test.com",
     } as unknown as FoundContext);
 

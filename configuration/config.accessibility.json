@@ -16,43 +16,43 @@
       "contexts": [
         {
           "path": "https://sacpsglobalcomponents.z33.web.core.windows.net/accessibility/static/cases/urns/(?<urn>[^/]+)/cases/(?<caseId>\\d+)/materials",
-          "contextIds": "case materials"
+          "contextId": "materials"
         },
         {
           "path": "http://localhost:3335/accessibility/static/cases/urns/(?<urn>[^/]+)/cases/(?<caseId>\\d+)/materials",
-          "contextIds": "case materials"
+          "contextId": "materials"
         },
         {
           "path": "https://sacpsglobalcomponents.z33.web.core.windows.net/accessibility/static/cases/urns/(?<urn>[^/]+)/cases/(?<caseId>\\d+)/review",
-          "contextIds": "case review"
+          "contextId": "review"
         },
         {
           "path": "http://localhost:3335/accessibility/static/cases/urns/(?<urn>[^/]+)/cases/(?<caseId>\\d+)/review",
-          "contextIds": "case review"
+          "contextId": "review"
         },
         {
           "path": "https://sacpsglobalcomponents.z33.web.core.windows.net/accessibility/static/cases/urns/(?<urn>[^/]+)/cases/(?<caseId>\\d+)",
-          "contextIds": "case details"
+          "contextId": "details"
         },
         {
           "path": "http://localhost:3335/accessibility/static/cases/urns/(?<urn>[^/]+)/cases/(?<caseId>\\d+)",
-          "contextIds": "case details"
+          "contextId": "details"
         },
         {
           "path": "https://sacpsglobalcomponents.z33.web.core.windows.net/accessibility/static/cases",
-          "contextIds": "cases"
+          "contextId": "cases"
         },
         {
           "path": "http://localhost:3335/accessibility/static/cases",
-          "contextIds": "cases"
+          "contextId": "cases"
         },
         {
           "path": "https://sacpsglobalcomponents.z33.web.core.windows.net/accessibility/static",
-          "contextIds": "tasks"
+          "contextId": "tasks"
         },
         {
           "path": "http://localhost:3335/accessibility/static",
-          "contextIds": "tasks"
+          "contextId": "tasks"
         }
       ]
     }
@@ -70,27 +70,27 @@
       "level": 0,
       "href": "/accessibility/static/cases",
       "visibleContexts": "tasks cases case",
-      "activeContexts": "cases case"
+      "activeContexts": "cases details materials review"
     },
     {
       "label": "Details",
       "level": 1,
       "href": "/accessibility/static/cases/urns/{urn}/cases/{caseId}",
-      "visibleContexts": "case",
+      "visibleContexts": "details materials review",
       "activeContexts": "details"
     },
     {
       "label": "Materials",
       "level": 1,
       "href": "/accessibility/static/cases/urns/{urn}/cases/{caseId}/materials",
-      "visibleContexts": "case",
+      "visibleContexts": "details materials review",
       "activeContexts": "materials"
     },
     {
       "label": "Review",
       "level": 1,
       "href": "/accessibility/static/cases/urns/{urn}/cases/{caseId}/review",
-      "visibleContexts": "case",
+      "visibleContexts": "details materials review",
       "activeContexts": "review",
       "dcfContextsToUseEventNavigation": {
         "contexts": "details",
