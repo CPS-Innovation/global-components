@@ -10,6 +10,7 @@ export default [
         file: "dist/index.js",
         format: "es",
         sourcemap: true,
+        sourcemapExcludeSources: false,
       },
     ],
     plugins: [
@@ -18,6 +19,8 @@ export default [
         tsconfig: "./tsconfig.json",
         declaration: true,
         declarationDir: "./dist",
+        inlineSources: true,
+        sourceMap: true,
       }),
     ],
     external: [],
@@ -29,6 +32,7 @@ export default [
       file: "dist/auth-handover.js",
       format: "iife",
       sourcemap: true,
+      sourcemapExcludeSources: false,
     },
     plugins: [
       nodeResolve({
@@ -38,6 +42,8 @@ export default [
         tsconfig: "./tsconfig.json",
         declaration: false,
         module: "esnext",
+        inlineSources: true,
+        sourceMap: true,
       }),
     ],
   },
