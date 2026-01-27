@@ -1,4 +1,4 @@
-import { Component, Element, h, Host, Prop, Watch } from "@stencil/core";
+import { Component, h, Host, Prop, Watch } from "@stencil/core";
 import { renderError } from "../common/render-error";
 import { readyState, mergeTags } from "../../store/store";
 import { WithLogging } from "../../logging/WithLogging";
@@ -13,8 +13,6 @@ const { _debug } = makeConsole("CpsGlobalHeader");
   styleUrl: "cps-global-header.scss",
 })
 export class CpsGlobalHeader {
-  @Element() el: HTMLElement;
-
   @Prop() isDcf: boolean = false;
   @Watch("isDcf")
   onIsDcfChange(newValue: boolean) {
@@ -25,17 +23,6 @@ export class CpsGlobalHeader {
   componentWillLoad() {
     // Manually call the handler for initial setup
     this.onIsDcfChange(this.isDcf);
-  }
-
-  componentDidLoad() {
-    const target = document.createElement("div");
-    target.id = "cps-header-main-content";
-    target.tabIndex = -1;
-    this.el.insertAdjacentElement("afterend", target);
-  }
-
-  disconnectedCallback() {
-    document.getElementById("cps-header-main-content")?.remove();
   }
 
   @WithLogging("CpsGlobalHeader")
