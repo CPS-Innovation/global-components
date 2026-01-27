@@ -24,6 +24,12 @@ export namespace Components {
     }
     interface CpsGlobalRecentCases {
     }
+    interface CpsSkipLink {
+        /**
+          * @default false
+         */
+        "isOutSystems": boolean;
+    }
     interface NavLink {
         "ariaSelected"?: boolean;
         "dcfContextsToUseEventNavigation"?: ContextsToUseEventNavigation;
@@ -75,6 +81,12 @@ declare global {
         prototype: HTMLCpsGlobalRecentCasesElement;
         new (): HTMLCpsGlobalRecentCasesElement;
     };
+    interface HTMLCpsSkipLinkElement extends Components.CpsSkipLink, HTMLStencilElement {
+    }
+    var HTMLCpsSkipLinkElement: {
+        prototype: HTMLCpsSkipLinkElement;
+        new (): HTMLCpsSkipLinkElement;
+    };
     interface HTMLNavLinkElementEventMap {
         "cps-global-header-event": string;
     }
@@ -99,6 +111,7 @@ declare global {
         "cps-global-header": HTMLCpsGlobalHeaderElement;
         "cps-global-menu": HTMLCpsGlobalMenuElement;
         "cps-global-recent-cases": HTMLCpsGlobalRecentCasesElement;
+        "cps-skip-link": HTMLCpsSkipLinkElement;
         "nav-link": HTMLNavLinkElement;
     }
 }
@@ -119,6 +132,12 @@ declare namespace LocalJSX {
     }
     interface CpsGlobalRecentCases {
     }
+    interface CpsSkipLink {
+        /**
+          * @default false
+         */
+        "isOutSystems"?: boolean;
+    }
     interface NavLink {
         "ariaSelected"?: boolean;
         "dcfContextsToUseEventNavigation"?: ContextsToUseEventNavigation;
@@ -136,6 +155,7 @@ declare namespace LocalJSX {
         "cps-global-header": CpsGlobalHeader;
         "cps-global-menu": CpsGlobalMenu;
         "cps-global-recent-cases": CpsGlobalRecentCases;
+        "cps-skip-link": CpsSkipLink;
         "nav-link": NavLink;
     }
 }
@@ -149,6 +169,7 @@ declare module "@stencil/core" {
             "cps-global-header": LocalJSX.CpsGlobalHeader & JSXBase.HTMLAttributes<HTMLCpsGlobalHeaderElement>;
             "cps-global-menu": LocalJSX.CpsGlobalMenu & JSXBase.HTMLAttributes<HTMLCpsGlobalMenuElement>;
             "cps-global-recent-cases": LocalJSX.CpsGlobalRecentCases & JSXBase.HTMLAttributes<HTMLCpsGlobalRecentCasesElement>;
+            "cps-skip-link": LocalJSX.CpsSkipLink & JSXBase.HTMLAttributes<HTMLCpsSkipLinkElement>;
             "nav-link": LocalJSX.NavLink & JSXBase.HTMLAttributes<HTMLNavLinkElement>;
         }
     }

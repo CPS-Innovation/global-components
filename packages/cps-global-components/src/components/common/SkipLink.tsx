@@ -1,39 +1,63 @@
-import { FunctionalComponent, h } from "@stencil/core";
+import { Component, Element, h, Prop } from "@stencil/core";
 import { makeConsole } from "../../logging/makeConsole";
 
-const { _debug } = makeConsole("InertLink");
+const { _debug } = makeConsole("SkipLink");
 
-const TARGET_SELECTOR = "#cps-header-main-content";
+const TARGET_ID = "cps-header-main-content";
 
-type SkipLinkProps = h.JSX.IntrinsicElements["a"] & { isOutSystems?: boolean };
+@Component({
+  tag: "cps-skip-link",
+  shadow: false,
+})
+export class SkipLink {
+  @Element() el: HTMLElement;
 
-// #FCT2-11717 - OS does not allow the usual <a href="#some-id"> skip to work as (I think) it listens for
-//  history pushState events and does other conflicting page load stuff on those events.
-export const SkipLink: FunctionalComponent<SkipLinkProps> = ({ isOutSystems, ...anchorProps }, children) => {
-  const navigateToAnchor = (e: Event) => {
-    e.preventDefault(); // CRITICAL: Prevents hash change
+  @Prop() isOutSystems: boolean = false;
 
-    const target = document.querySelector(TARGET_SELECTOR) as HTMLElement;
-    if (target) {
-      _debug("Scrolling in to view to ", TARGET_SELECTOR);
-      target.scrollIntoView({ behavior: "instant" });
-      target.focus();
-      // Important to lose focus so GDS css hides the yellow bar
-      (e.currentTarget as HTMLAnchorElement).blur();
-    }
-  };
+  componentDidLoad() {
+    if (document.getElementById(TARGET_ID)) return;
 
-  const handleKeyDown = (e: KeyboardEvent) => {
-    if (e.key === "Enter") {
-      navigateToAnchor(e);
-    }
-  };
+    const host = (this.el.getRootNode() as ShadowRoot).host;
+    if (!host) return;
 
-  const jsHandlers = isOutSystems ? { onClick: navigateToAnchor, onKeyDown: handleKeyDown } : {};
+    const target = document.createElement("div");
+    target.id = TARGET_ID;
+    target.tabIndex = -1;
+    host.insertAdjacentElement("afterend", target);
+  }
 
-  return (
-    <a {...anchorProps} {...jsHandlers}>
-      {children}
-    </a>
-  );
-};
+  disconnectedCallback() {
+    document.getElementById(TARGET_ID)?.remove();
+  }
+
+  // #FCT2-11717 - OS does not allow the usual <a href="#some-id"> skip to work as (I think) it listens for
+  //  history pushState events and does other conflicting page load stuff on those events.
+  render() {
+    const navigateToAnchor = (e: Event) => {
+      e.preventDefault(); // CRITICAL: Prevents hash change
+
+      const target = document.querySelector(`#${TARGET_ID}`) as HTMLElement;
+      if (target) {
+        _debug("Scrolling in to view to ", `#${TARGET_ID}`);
+        target.scrollIntoView({ behavior: "instant" });
+        target.focus();
+        // Important to lose focus so GDS css hides the yellow bar
+        (e.currentTarget as HTMLAnchorElement).blur();
+      }
+    };
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Enter") {
+        navigateToAnchor(e);
+      }
+    };
+
+    const jsHandlers = !this.isOutSystems ? { onClick: navigateToAnchor, onKeyDown: handleKeyDown } : {};
+
+    return (
+      <a href={`#${TARGET_ID}`} class="govuk-skip-link skip-link" data-module="govuk-skip-link" {...jsHandlers}>
+        <slot />
+      </a>
+    );
+  }
+}
