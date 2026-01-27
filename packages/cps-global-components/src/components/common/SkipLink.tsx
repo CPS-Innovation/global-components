@@ -52,7 +52,7 @@ export class SkipLink {
       }
     };
 
-    const jsHandlers = !this.isOutSystems ? { onClick: navigateToAnchor, onKeyDown: handleKeyDown } : {};
+    const jsHandlers = this.isOutSystems ? { onClick: navigateToAnchor, onKeyDown: handleKeyDown } : {};
 
     return (
       <a href={`#${TARGET_ID}`} class="govuk-skip-link skip-link" data-module="govuk-skip-link" {...jsHandlers}>
