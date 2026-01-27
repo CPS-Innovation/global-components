@@ -37,33 +37,15 @@ export class SkipLink {
       e.preventDefault(); // CRITICAL: Prevents hash change
 
       const anchor = e.currentTarget as HTMLAnchorElement;
-      const target = document.querySelector(`#${TARGET_ID}`) as HTMLElement;
-      if (target) {
-        _debug("Scrolling in to view to ", `#${TARGET_ID}`);
-        const scrollToTarget = () => {
-          // Re-fetch in case Stencil replaced the DOM node between event and rAF
-          const freshTarget = document.getElementById(TARGET_ID);
-          _debug("Target fresh===captured", freshTarget === target, "isConnected", target.isConnected, freshTarget?.isConnected);
+      const target = document.getElementById(TARGET_ID);
+      if (!target) return;
 
-          const el = freshTarget || target;
-          const rect = el.getBoundingClientRect();
-          _debug("Before scroll", { scrollY: window.scrollY, targetTop: rect.top, offsetTop: el.offsetTop, parentElement: el.parentElement?.tagName });
-          el.scrollIntoView({ behavior: "instant" });
-          _debug("After scrollIntoView", { scrollY: window.scrollY, targetTop: el.getBoundingClientRect().top });
-          el.focus();
-          _debug("After focus", { scrollY: window.scrollY, targetTop: el.getBoundingClientRect().top });
-          anchor.blur();
-
-          // Track whether OS resets scroll position after us
-          setTimeout(() => _debug("After 100ms", { scrollY: window.scrollY, targetTop: el.getBoundingClientRect().top }), 100);
-          setTimeout(() => _debug("After 300ms", { scrollY: window.scrollY, targetTop: el.getBoundingClientRect().top }), 300);
-          setTimeout(() => _debug("After 1000ms", { scrollY: window.scrollY, targetTop: el.getBoundingClientRect().top }), 1000);
-        };
-
-        // Double-rAF: wait two paint frames so OS's own pushState/navigation listeners
-        //  have settled before we scroll, otherwise OS undoes our scroll.
-        requestAnimationFrame(() => requestAnimationFrame(scrollToTarget));
-      }
+      const absoluteY = window.scrollY + target.getBoundingClientRect().top;
+      _debug("Scrolling to absoluteY", absoluteY);
+      window.scrollTo({ top: absoluteY, behavior: "instant" });
+      target.focus({ preventScroll: true });
+      // Important to lose focus so GDS css hides the yellow bar
+      anchor.blur();
     };
 
     const handleKeyDown = (e: KeyboardEvent) => {
