@@ -25,7 +25,6 @@
         "box-shadow": "none"
       },
       "msalRedirectUrl": "https://cps-dev.outsystemsenterprise.com/Casework_Patterns/auth-handover-dev.html",
-      "skipToMainContentCustomSelector": "main",
       "cmsAuthFromStorageKey": "$OS_Users$Casework_Blocks$ClientVars$JSONString",
       "contexts": [
         {

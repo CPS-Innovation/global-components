@@ -78,7 +78,6 @@ const contextsBaseSchema = z.object({
     .union([z.literal("always-show-menu"), z.literal("never-show-menu")])
     .optional(),
   cmsAuthFromStorageKey: z.string().optional(),
-  skipToMainContentCustomSelector: z.string().optional(),
 });
 
 const contextStorageSchema: z.ZodType<ContextStorageSchema> =
