@@ -40,9 +40,8 @@ export class SkipLink {
       const target = document.getElementById(TARGET_ID);
       if (!target) return;
 
-      const absoluteY = window.scrollY + target.getBoundingClientRect().top;
-      _debug("Scrolling to absoluteY", absoluteY);
-      window.scrollTo({ top: absoluteY, behavior: "instant" });
+      _debug("Scrolling to", `#${TARGET_ID}`);
+      target.scrollIntoView({ behavior: "instant" });
       target.focus({ preventScroll: true });
       // Important to lose focus so GDS css hides the yellow bar
       anchor.blur();
