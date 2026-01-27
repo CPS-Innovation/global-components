@@ -51,11 +51,10 @@ jobs:
           COOKIE_HANDOVER_URL=$(jq -r '.COOKIE_HANDOVER_URL' "$CONFIG_FILE")
           TOKEN_HANDOVER_URL=$(jq -r '.TOKEN_HANDOVER_URL' "$CONFIG_FILE")
 
-          # Prepend the window variables to the auth-handover.js file
-          echo "window.cps_global_components_cookie_handover_url = '$COOKIE_HANDOVER_URL';" > ./prepared-auth-handover.js
-          echo "window.cps_global_components_token_handover_url = '$TOKEN_HANDOVER_URL';" >> ./prepared-auth-handover.js
-          cat "${{ steps.download.outputs.download-path }}/auth-handover.js" >> ./prepared-auth-handover.js
-          mv -f ./prepared-auth-handover.js "${{ steps.download.outputs.download-path }}/auth-handover.js"
+          # Substitute environment-specific URLs into auth-handover.js placeholders.
+          # Using substitution (rather than prepending) preserves source map line numbers.
+          sed -i "s|{{COOKIE_HANDOVER_URL}}|$COOKIE_HANDOVER_URL|g" "${{ steps.download.outputs.download-path }}/auth-handover.js"
+          sed -i "s|{{TOKEN_HANDOVER_URL}}|$TOKEN_HANDOVER_URL|g" "${{ steps.download.outputs.download-path }}/auth-handover.js"
 
           # Create a copy of cps-global-components.js as global-components.js
           cp "${{ steps.download.outputs.download-path }}/cps-global-components.js" "${{ steps.download.outputs.download-path }}/global-components.js"
