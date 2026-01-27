@@ -40,16 +40,29 @@ export class SkipLink {
       const target = document.querySelector(`#${TARGET_ID}`) as HTMLElement;
       if (target) {
         _debug("Scrolling in to view to ", `#${TARGET_ID}`);
+        const scrollToTarget = () => {
+          // Re-fetch in case Stencil replaced the DOM node between event and rAF
+          const freshTarget = document.getElementById(TARGET_ID);
+          _debug("Target fresh===captured", freshTarget === target, "isConnected", target.isConnected, freshTarget?.isConnected);
+
+          const el = freshTarget || target;
+          const rect = el.getBoundingClientRect();
+          _debug("Before scroll", { scrollY: window.scrollY, targetTop: rect.top, offsetTop: el.offsetTop, parentElement: el.parentElement?.tagName });
+          el.scrollIntoView({ behavior: "instant" });
+          _debug("After scrollIntoView", { scrollY: window.scrollY, targetTop: el.getBoundingClientRect().top });
+          el.focus();
+          _debug("After focus", { scrollY: window.scrollY, targetTop: el.getBoundingClientRect().top });
+          anchor.blur();
+
+          // Track whether OS resets scroll position after us
+          setTimeout(() => _debug("After 100ms", { scrollY: window.scrollY, targetTop: el.getBoundingClientRect().top }), 100);
+          setTimeout(() => _debug("After 300ms", { scrollY: window.scrollY, targetTop: el.getBoundingClientRect().top }), 300);
+          setTimeout(() => _debug("After 1000ms", { scrollY: window.scrollY, targetTop: el.getBoundingClientRect().top }), 1000);
+        };
+
         // Double-rAF: wait two paint frames so OS's own pushState/navigation listeners
         //  have settled before we scroll, otherwise OS undoes our scroll.
-        requestAnimationFrame(() =>
-          requestAnimationFrame(() => {
-            target.scrollIntoView({ behavior: "instant" });
-            target.focus();
-            // Important to lose focus so GDS css hides the yellow bar
-            anchor.blur();
-          }),
-        );
+        requestAnimationFrame(() => requestAnimationFrame(scrollToTarget));
       }
     };
 
