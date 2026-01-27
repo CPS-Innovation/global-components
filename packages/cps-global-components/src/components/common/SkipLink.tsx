@@ -36,13 +36,17 @@ export class SkipLink {
     const navigateToAnchor = (e: Event) => {
       e.preventDefault(); // CRITICAL: Prevents hash change
 
+      const anchor = e.currentTarget as HTMLAnchorElement;
       const target = document.querySelector(`#${TARGET_ID}`) as HTMLElement;
       if (target) {
         _debug("Scrolling in to view to ", `#${TARGET_ID}`);
-        target.scrollIntoView({ behavior: "instant" });
-        target.focus();
-        // Important to lose focus so GDS css hides the yellow bar
-        (e.currentTarget as HTMLAnchorElement).blur();
+        // Defer so OS's own pushState/navigation listeners run first and don't undo the scroll
+        setTimeout(() => {
+          target.scrollIntoView({ behavior: "instant" });
+          target.focus();
+          // Important to lose focus so GDS css hides the yellow bar
+          anchor.blur();
+        }, 0);
       }
     };
 
