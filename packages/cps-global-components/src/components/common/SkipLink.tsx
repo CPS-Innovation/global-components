@@ -40,13 +40,16 @@ export class SkipLink {
       const target = document.querySelector(`#${TARGET_ID}`) as HTMLElement;
       if (target) {
         _debug("Scrolling in to view to ", `#${TARGET_ID}`);
-        // Defer so OS's own pushState/navigation listeners run first and don't undo the scroll
-        setTimeout(() => {
-          target.scrollIntoView({ behavior: "instant" });
-          target.focus();
-          // Important to lose focus so GDS css hides the yellow bar
-          anchor.blur();
-        }, 0);
+        // Double-rAF: wait two paint frames so OS's own pushState/navigation listeners
+        //  have settled before we scroll, otherwise OS undoes our scroll.
+        requestAnimationFrame(() =>
+          requestAnimationFrame(() => {
+            target.scrollIntoView({ behavior: "instant" });
+            target.focus();
+            // Important to lose focus so GDS css hides the yellow bar
+            anchor.blur();
+          }),
+        );
       }
     };
 
