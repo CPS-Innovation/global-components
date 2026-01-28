@@ -11,6 +11,12 @@
       "matchPackageNames": ["nginx"],
       "matchDatasources": ["docker"],
       "enabled": false
+    },
+    {
+      "description": "Pin Jest to v29 for Stencil - Stencil's test runner requires Jest 29",
+      "matchPackageNames": ["jest", "jest-cli", "jest-jasmine2", "@types/jest"],
+      "matchFileNames": ["packages/cps-global-components/package.json"],
+      "enabled": false
     }
   ]
 }
