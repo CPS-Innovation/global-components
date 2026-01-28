@@ -31,7 +31,7 @@ location ~ ^/global-components/(dev|test|prod)(/.*)$ { ... }
 
 ### deploy.sh
 
-Remove `GLOBAL_COMPONENTS_BLOB_STORAGE_URL` from:
+Remove `GLOBAL_COMPONENTS_BLOB_STORAGE_DOMAIN` from:
 
 - `ENVSUBST_VARS` (line ~141)
 - `APP_SETTINGS_VARS` (line ~88)

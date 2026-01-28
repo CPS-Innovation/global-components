@@ -1,11 +1,21 @@
 const http = require('http');
+const https = require('https');
+const fs = require('fs');
 
-const PORT = 3000;
+const HTTP_PORT = 3000;
+const HTTPS_PORT = 3443;
 const BASE_URL = 'http://mock-upstream:3000/api/';
+
+// SSL options for HTTPS server (blob storage mock)
+const sslOptions = {
+  key: fs.readFileSync('/app/key.pem'),
+  cert: fs.readFileSync('/app/cert.pem')
+};
 
 // Simulate upstream CORS - only allow requests from "itself"
 const ALLOWED_ORIGINS = [
   'http://mock-upstream:3000',
+  'https://mock-upstream:3443',
   'https://localhost',
   'https://localhost:8080'
 ];
@@ -53,7 +63,7 @@ const routes = {
   }
 };
 
-const server = http.createServer((req, res) => {
+function handleRequest(req, res) {
   // Log incoming request with headers
   console.log(`[${new Date().toISOString()}] ${req.method} ${req.url}`);
   console.log('Headers:', JSON.stringify(req.headers, null, 2));
@@ -75,7 +85,7 @@ const server = http.createServer((req, res) => {
   }
 
   // Handle blob storage requests (dev/test/prod environments)
-  const blobMatch = path.match(/^blob\/(dev|test|prod)\/(.+)$/);
+  const blobMatch = path.match(/^(dev|test|prod)\/(.+)$/);
   if (blobMatch) {
     const [, env, file] = blobMatch;
     console.log(`  -> Blob storage: env=${env}, file=${file}`);
@@ -151,10 +161,18 @@ const server = http.createServer((req, res) => {
       }
     }, null, 2));
   }
+}
+
+// HTTP server for MDS API mock
+const httpServer = http.createServer(handleRequest);
+httpServer.listen(HTTP_PORT, () => {
+  console.log(`Mock upstream HTTP server running on port ${HTTP_PORT}`);
 });
 
-server.listen(PORT, () => {
-  console.log(`Mock upstream server running on port ${PORT}`);
+// HTTPS server for blob storage mock (matches production HTTPS)
+const httpsServer = https.createServer(sslOptions, handleRequest);
+httpsServer.listen(HTTPS_PORT, () => {
+  console.log(`Mock upstream HTTPS server running on port ${HTTPS_PORT}`);
   console.log('Available routes:');
   Object.keys(routes).forEach(r => console.log(`  /api/${r}`));
 });
