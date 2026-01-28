@@ -1,0 +1,29 @@
+{
+  "cps": {
+    "script-src": ["polaris.cps.gov.uk", "login.microsoftonline.com"],
+    "child-src": ["polaris.cps.gov.uk", "login.microsoftonline.com"],
+    "connect-src": ["polaris.cps.gov.uk", "login.microsoftonline.com"]
+  },
+  "cps-dev": {
+    "script-src": [
+      "polaris-qa-notprod.cps.gov.uk",
+      "login.microsoftonline.com"
+    ],
+    "child-src": ["polaris-qa-notprod.cps.gov.uk", "login.microsoftonline.com"],
+    "connect-src": [
+      "polaris-qa-notprod.cps.gov.uk",
+      "login.microsoftonline.com"
+    ]
+  },
+  "cps-tst": {
+    "script-src": [
+      "polaris-qa-notprod.cps.gov.uk",
+      "login.microsoftonline.com"
+    ],
+    "child-src": ["polaris-qa-notprod.cps.gov.uk", "login.microsoftonline.com"],
+    "connect-src": [
+      "polaris-qa-notprod.cps.gov.uk",
+      "login.microsoftonline.com"
+    ]
+  }
+}
