@@ -18,7 +18,7 @@ Nginx reverse proxy with njs (JavaScript) for header/cookie manipulation. Used t
 ### Global components vnext config (`config/global-components.vnext/`)
 
 - `global-components.vnext.js` - njs module for state endpoint, status endpoint, token validation, swagger filtering
-- `global-components.vnext.conf.template` - nginx location blocks for vnext features (uses env vars: `${GLOBAL_COMPONENTS_APPLICATION_ID}`, `${GLOBAL_COMPONENTS_BLOB_STORAGE_URL}`)
+- `global-components.vnext.conf.template` - nginx location blocks for vnext features (uses env vars: `${GLOBAL_COMPONENTS_APPLICATION_ID}`, `${GLOBAL_COMPONENTS_BLOB_STORAGE_DOMAIN}`)
 - `.env` - **gitignored** - contains vnext-specific config
 - `.env.example` - template for the above
 
@@ -126,13 +126,13 @@ Containers run as non-root users for security (checkov compliance):
 
 **VNext features (from `config/global-components.vnext/.env`):**
 - `GLOBAL_COMPONENTS_APPLICATION_ID` - Azure AD application ID for token validation
-- `GLOBAL_COMPONENTS_BLOB_STORAGE_URL` - Base URL for blob storage (e.g., `https://sacpsglobalcomponents.blob.core.windows.net`)
+- `GLOBAL_COMPONENTS_BLOB_STORAGE_DOMAIN` - Domain for blob storage (e.g., `sacpsglobalcomponents.blob.core.windows.net`)
 
 Note: `TENANT_ID` is hardcoded in `global-components.vnext.js` as it doesn't change between environments.
 
 ### Environment variable substitution
 
-The vnext-specific variables (`GLOBAL_COMPONENTS_APPLICATION_ID`, `GLOBAL_COMPONENTS_BLOB_STORAGE_URL`) are substituted at deployment time using envsubst in deploy.sh. The values come from secrets.env on the deployment machine.
+The vnext-specific variables (`GLOBAL_COMPONENTS_APPLICATION_ID`, `GLOBAL_COMPONENTS_BLOB_STORAGE_DOMAIN`) are substituted at deployment time using envsubst in deploy.sh. The values come from secrets.env on the deployment machine.
 
 Other variables (`WEBSITE_DNS_SERVER`, `WM_MDS_BASE_URL`, `WM_MDS_ACCESS_KEY`) remain as `${VAR}` placeholders and are substituted at nginx runtime by the App Service container.
 
@@ -162,7 +162,7 @@ To blob storage (vnext-specific only):
 - `global-components.vnext.js` - njs module for vnext features (state, token validation)
 - `global-components-deployment.json` - deployment version tracking file
 
-Note: `GLOBAL_COMPONENTS_APPLICATION_ID` and `GLOBAL_COMPONENTS_BLOB_STORAGE_URL` are baked into the config file via envsubst during deployment (from secrets.env). App settings code is commented out but can be re-enabled if needed.
+Note: `GLOBAL_COMPONENTS_APPLICATION_ID` and `GLOBAL_COMPONENTS_BLOB_STORAGE_DOMAIN` are baked into the config file via envsubst during deployment (from secrets.env). App settings code is commented out but can be re-enabled if needed.
 
 ### Files deployed by parent project
 
@@ -178,7 +178,7 @@ Note: `global-components.vnever` is NOT deployed - it is only used for local/Doc
 1. Create a deployment directory and `secrets.env` with:
    - Azure subscription, resource group, storage account, container, webapp name
    - Status endpoint URL
-   - `GLOBAL_COMPONENTS_APPLICATION_ID` and `GLOBAL_COMPONENTS_BLOB_STORAGE_URL`
+   - `GLOBAL_COMPONENTS_APPLICATION_ID` and `GLOBAL_COMPONENTS_BLOB_STORAGE_DOMAIN`
 
 See `deploy/README.md` for detailed setup instructions.
 

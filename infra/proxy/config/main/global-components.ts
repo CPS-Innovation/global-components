@@ -61,9 +61,25 @@ function handleSessionHint(r: NginxHTTPRequest): void {
   r.return(200, hintValue ? _maybeDecodeURIComponent(hintValue) : "null")
 }
 
+// Compute blob path suffix: folder paths with trailing slash get index.html appended
+function computeBlobIndexSuffix(r: NginxHTTPRequest): string {
+  const uri = r.uri
+  // If URI ends with a file extension, no suffix needed
+  if (/\.[^/]+$/.test(uri)) {
+    return ""
+  }
+  // If URI ends with /, append index.html (folder paths are redirected to have trailing slash)
+  if (uri.endsWith("/")) {
+    return "index.html"
+  }
+  // Shouldn't reach here if redirect location is working, but handle gracefully
+  return "/index.html"
+}
+
 export default {
   readCmsAuthValues,
   readCorsOrigin,
+  computeBlobIndexSuffix,
 
   handleSessionHint,
 
