@@ -162,20 +162,6 @@ async function _validateToken(r: NginxHTTPRequest): Promise<boolean> {
   }
 }
 
-// Compute blob path suffix: folder paths with trailing slash get index.html appended
-function computeBlobIndexSuffix(r: NginxHTTPRequest): string {
-  const uri = r.uri
-  // If URI ends with a file extension, no suffix needed
-  if (/\.[^/]+$/.test(uri)) {
-    return ""
-  }
-  // If URI ends with /, append index.html (folder paths are redirected to have trailing slash)
-  if (uri.endsWith("/")) {
-    return "index.html"
-  }
-  // Shouldn't reach here if redirect location is working, but handle gracefully
-  return "/index.html"
-}
 
 async function handleState(r: NginxHTTPRequest): Promise<void> {
   if (!["GET", "PUT"].includes(r.method)) {
@@ -295,7 +281,6 @@ function filterSwaggerBody(
 }
 
 export default {
-  computeBlobIndexSuffix,
   handleState,
   handleValidateToken,
   handleStatus,
