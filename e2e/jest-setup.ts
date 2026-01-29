@@ -134,7 +134,7 @@ if (process.env.LOG === "true") {
         flushTimer = setTimeout(flushLogs, 10);
       }
     })
-    .on("pageerror", (error) => {
+    .on("pageerror", (error: Error) => {
       // Page errors go out immediately as they're usually important
       process.stdout.write(`  [Browser Uncaught Error]: ${error.message}\n`);
     })
