@@ -1,6 +1,9 @@
 const http = require('http');
+const https = require('https');
+const fs = require('fs');
 
 const PORT = 3000;
+const HTTPS_PORT = 3443;
 const BASE_URL = 'http://mock-upstream:3000/api/';
 
 // Simulate upstream CORS - only allow requests from "itself"
@@ -75,7 +78,8 @@ const server = http.createServer((req, res) => {
   }
 
   // Handle blob storage requests (dev/test/prod environments)
-  const blobMatch = path.match(/^blob\/(dev|test|prod)\/(.+)$/);
+  // Matches both /blob/env/file (HTTP mock) and /env/file (HTTPS blob proxy)
+  const blobMatch = path.match(/^(?:blob\/)?(dev|test|prod)\/(.+)$/);
   if (blobMatch) {
     const [, env, file] = blobMatch;
     console.log(`  -> Blob storage: env=${env}, file=${file}`);
@@ -158,3 +162,17 @@ server.listen(PORT, () => {
   console.log('Available routes:');
   Object.keys(routes).forEach(r => console.log(`  /api/${r}`));
 });
+
+// HTTPS server for blob storage proxy (self-signed cert from Dockerfile)
+try {
+  const httpsOptions = {
+    key: fs.readFileSync('/app/key.pem'),
+    cert: fs.readFileSync('/app/cert.pem')
+  };
+  const httpsServer = https.createServer(httpsOptions, server.listeners('request')[0]);
+  httpsServer.listen(HTTPS_PORT, () => {
+    console.log(`Mock upstream HTTPS server running on port ${HTTPS_PORT}`);
+  });
+} catch (e) {
+  console.log(`HTTPS server not started (no certs): ${e.message}`);
+}

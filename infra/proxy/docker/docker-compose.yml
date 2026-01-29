@@ -34,3 +34,4 @@ services:
       dockerfile: Dockerfile.mock
     ports:
       - "3000:3000"
+      - "3443:3443"
