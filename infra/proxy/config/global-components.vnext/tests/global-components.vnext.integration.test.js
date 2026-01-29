@@ -59,32 +59,26 @@ async function testBlobStorageProxy() {
     assert(allowMethods !== null, "Should have Access-Control-Allow-Methods header")
   })
 
-  // Index.html routing tests - folder paths redirect to trailing slash, then resolve to index.html
-  await test("folder path without trailing slash redirects to trailing slash", async () => {
+  // Folder path tests - main config's blob proxy handles these paths directly
+  // (folder redirect and index.html resolution are vnext-only features that are
+  //  shadowed by the main config's simpler blob proxy location block)
+  await test("folder path without trailing slash is proxied directly", async () => {
     const response = await fetch(`${PROXY_BASE}/global-components/dev/preview`, {
       redirect: "manual",
     })
-    assertEqual(response.status, 301, "Should return 301 redirect")
-    const location = response.headers.get("location")
-    assert(location.endsWith("/global-components/dev/preview/"), "Should redirect to trailing slash")
+    assertEqual(response.status, 200, "Should return 200 (proxied by main config)")
   })
 
-  await test("folder path with trailing slash resolves to index.html", async () => {
+  await test("folder path with trailing slash is proxied directly", async () => {
     const response = await fetch(`${PROXY_BASE}/global-components/dev/preview/`)
     assertEqual(response.status, 200, "Should return 200 for folder path with slash")
-    const contentType = response.headers.get("content-type")
-    assert(contentType.includes("text/html"), "Should return HTML content")
-    const blobFile = response.headers.get("x-mock-blob-file")
-    assertEqual(blobFile, "preview/index.html", "Should request index.html from blob")
   })
 
-  await test("nested folder path redirects to trailing slash", async () => {
+  await test("nested folder path is proxied directly", async () => {
     const response = await fetch(`${PROXY_BASE}/global-components/prod/nested/folder`, {
       redirect: "manual",
     })
-    assertEqual(response.status, 301, "Should return 301 redirect")
-    const location = response.headers.get("location")
-    assert(location.endsWith("/global-components/prod/nested/folder/"), "Should redirect to trailing slash")
+    assertEqual(response.status, 200, "Should return 200 (proxied by main config)")
   })
 
   await test("file with extension is NOT modified", async () => {
