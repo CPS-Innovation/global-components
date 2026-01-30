@@ -11,7 +11,7 @@ Nginx reverse proxy with njs (JavaScript) for header/cookie manipulation. Used t
 - `nginx.conf.template` - main nginx configuration with server block and location routing (uses `${WEBSITE_DNS_SERVER}` env var)
 - `nginx.js` - njs module for auth redirect handlers (`appAuthRedirect`, `polarisAuthRedirect`, `taskListAuthRedirect`)
 - `global-components.ts` - njs module with header/cookie logic for upstream proxying (compiled to JS)
-- `global-components.conf.template` - nginx location blocks for global-components (uses env vars: `${WM_MDS_BASE_URL}`, `${WM_MDS_ACCESS_KEY}`, `${GLOBAL_COMPONENTS_BLOB_STORAGE_DOMAIN}`)
+- `global-components.conf.template` - nginx location blocks for global-components (uses env vars: `${WM_MDS_BASE_URL}`, `${WM_MDS_ACCESS_KEY}`, `${CPS_GLOBAL_COMPONENTS_BLOB_STORAGE_DOMAIN}`)
 - `.env` - **gitignored** - contains real upstream URL and functions key
 - `.env.example` - template for the above
 
@@ -123,18 +123,18 @@ Containers run as non-root users for security (checkov compliance):
 **Global components (managed by parent project):**
 - `WM_MDS_BASE_URL` - Azure Functions backend URL (e.g., `https://your-function-app.azurewebsites.net/api/`)
 - `WM_MDS_ACCESS_KEY` - Azure Functions access key
-- `GLOBAL_COMPONENTS_BLOB_STORAGE_DOMAIN` - Domain for blob storage proxy (e.g., `sacpsglobalcomponents.blob.core.windows.net`)
+- `CPS_GLOBAL_COMPONENTS_BLOB_STORAGE_DOMAIN` - Domain for blob storage proxy (e.g., `sacpsglobalcomponents.blob.core.windows.net`)
 
 **VNext features (from `config/global-components.vnext/.env`):**
 - `GLOBAL_COMPONENTS_APPLICATION_ID` - Azure AD application ID for token validation
 - `GLOBAL_COMPONENTS_BLOB_STORAGE_URL` - Base URL for blob storage (e.g., `https://sacpsglobalcomponents.blob.core.windows.net`)
-- `GLOBAL_COMPONENTS_BLOB_STORAGE_DOMAIN` - Domain for blob storage (e.g., `sacpsglobalcomponents.blob.core.windows.net`)
+- `CPS_GLOBAL_COMPONENTS_BLOB_STORAGE_DOMAIN` - Domain for blob storage (e.g., `sacpsglobalcomponents.blob.core.windows.net`)
 
 Note: `TENANT_ID` is hardcoded in `global-components.vnext.js` as it doesn't change between environments.
 
 ### Environment variable substitution
 
-The vnext-specific variables (`GLOBAL_COMPONENTS_APPLICATION_ID`, `GLOBAL_COMPONENTS_BLOB_STORAGE_URL`, `GLOBAL_COMPONENTS_BLOB_STORAGE_DOMAIN`) are substituted at deployment time using envsubst in deploy.sh. The values come from secrets.env on the deployment machine.
+The vnext-specific variables (`GLOBAL_COMPONENTS_APPLICATION_ID`, `GLOBAL_COMPONENTS_BLOB_STORAGE_URL`, `CPS_GLOBAL_COMPONENTS_BLOB_STORAGE_DOMAIN`) are substituted at deployment time using envsubst in deploy.sh. The values come from secrets.env on the deployment machine.
 
 Other variables (`WEBSITE_DNS_SERVER`, `WM_MDS_BASE_URL`, `WM_MDS_ACCESS_KEY`) remain as `${VAR}` placeholders and are substituted at nginx runtime by the App Service container.
 

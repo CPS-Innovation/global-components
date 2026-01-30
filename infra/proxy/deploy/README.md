@@ -26,7 +26,7 @@ Deployment is done from a remote machine with network access to Azure blob stora
    STATUS_ENDPOINT=https://your-proxy-domain/global-components/status
    GLOBAL_COMPONENTS_APPLICATION_ID=your-app-id
    GLOBAL_COMPONENTS_BLOB_STORAGE_URL=https://your-storage.blob.core.windows.net
-   GLOBAL_COMPONENTS_BLOB_STORAGE_DOMAIN=your-storage.blob.core.windows.net
+   CPS_GLOBAL_COMPONENTS_BLOB_STORAGE_DOMAIN=your-storage.blob.core.windows.net
    ```
 
 ## Deploy
@@ -79,7 +79,7 @@ To blob storage (vnext-specific only):
 As app settings:
 - `GLOBAL_COMPONENTS_APPLICATION_ID`
 - `GLOBAL_COMPONENTS_BLOB_STORAGE_URL`
-- `GLOBAL_COMPONENTS_BLOB_STORAGE_DOMAIN`
+- `CPS_GLOBAL_COMPONENTS_BLOB_STORAGE_DOMAIN`
 
 **Note**: The following are deployed by the parent project:
 - `nginx.js` - auth redirect handlers
