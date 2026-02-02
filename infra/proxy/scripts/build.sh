@@ -35,6 +35,7 @@ mv "$DIST_DIR/main/global-components.js" "$DIST_DIR/global-components.js"
 mv "$DIST_DIR/global-components.vnext/global-components.vnext.js" "$DIST_DIR/global-components.vnext.js"
 mv "$DIST_DIR/global-components.vnever/global-components.vnever.js" "$DIST_DIR/global-components.vnever.js"
 mv "$DIST_DIR/global-components.spike/global-components.spike.js" "$DIST_DIR/global-components.spike.js"
+mv "$DIST_DIR/global-components.spike/cookie-utils.js" "$DIST_DIR/cookie-utils.js"
 
 # Remove empty directories
 rmdir "$DIST_DIR/main" 2>/dev/null || true
