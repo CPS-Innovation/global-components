@@ -356,6 +356,50 @@ async function _readTable(
 }
 
 // ---------------------------------------------------------------------------
+// ASCII ↔ Unicode compression (inline from cookie-utils)
+// ---------------------------------------------------------------------------
+
+function _asciiToUnicode(ascii: string): string {
+  const len = ascii.length
+  const isOdd = len % 2 !== 0
+  const pairCount = Math.floor(len / 2)
+  let result = ""
+
+  for (let i = 0; i < pairCount; i++) {
+    const hi = ascii.charCodeAt(i * 2)
+    const lo = ascii.charCodeAt(i * 2 + 1)
+    result += String.fromCharCode((hi << 8) | lo)
+  }
+
+  if (isOdd) {
+    result += String.fromCharCode(ascii.charCodeAt(len - 1))
+    result += String.fromCharCode(0xFFFF)
+  }
+
+  return result
+}
+
+function _unicodeToAscii(packed: string): string {
+  const len = packed.length
+  let result = ""
+
+  const isOdd = len >= 2 && packed.charCodeAt(len - 1) === 0xFFFF
+  const pairCount = isOdd ? len - 2 : len
+
+  for (let i = 0; i < pairCount; i++) {
+    const code = packed.charCodeAt(i)
+    result += String.fromCharCode((code >> 8) & 0xFF)
+    result += String.fromCharCode(code & 0xFF)
+  }
+
+  if (isOdd) {
+    result += String.fromCharCode(packed.charCodeAt(len - 2) & 0xFF)
+  }
+
+  return result
+}
+
+// ---------------------------------------------------------------------------
 // OIDC token exchange helper
 // ---------------------------------------------------------------------------
 
@@ -563,275 +607,110 @@ function handleValidate(r: NginxHTTPRequest): void {
 }
 
 // ---------------------------------------------------------------------------
-// Increment 3: Store Value via OIDC
+// Increment 3: Store Value (Bearer token + POST body)
 // ---------------------------------------------------------------------------
 
-function handleStore(r: NginxHTTPRequest): void {
-  const tenantId = r.variables.spike_tenant_id as string
-  const clientId = r.variables.spike_client_id as string
-  const storeRedirectUri = r.variables.spike_store_redirect_uri as string
+async function handleStore(r: NginxHTTPRequest): Promise<void> {
+  r.headersOut["Content-Type"] = "application/json"
+  r.headersOut["Access-Control-Allow-Origin"] = r.headersIn["Origin"] as string || "*"
+  r.headersOut["Access-Control-Allow-Headers"] = "Authorization, Content-Type"
 
-  const value = _getQueryParam(r, "value")
-  if (!value) {
-    r.headersOut["Content-Type"] = "text/html; charset=utf-8"
-    r.return(
-      400,
-      _htmlPage("Missing Value", "<p>Provide a <code>?value=xxx</code> query parameter.</p>")
-    )
+  if (r.method === "OPTIONS") {
+    r.return(204, "")
     return
   }
 
-  const nonce = _generateRandomString(16)
-
-  // Encode the value and nonce into the state parameter
-  const statePayload = JSON.stringify({ value: value, nonce: nonce })
-  const state = _base64UrlEncode(statePayload)
-
-  // Store nonce in cookie for validation (state carries the value)
-  const cookieOpts = "; Path=/spike; HttpOnly; SameSite=Lax; Secure; Max-Age=300"
-  r.headersOut["Set-Cookie"] = [
-    "spike_store_nonce=" + nonce + cookieOpts,
-  ]
-
-  const params = [
-    "client_id=" + encodeURIComponent(clientId),
-    "response_type=code",
-    "redirect_uri=" + encodeURIComponent(storeRedirectUri),
-    "scope=" + encodeURIComponent("openid profile email"),
-    "state=" + state,
-    "nonce=" + nonce,
-    "response_mode=query",
-  ].join("&")
-
-  r.return(302, authorizeUrl(tenantId) + "?" + params)
-}
-
-async function handleStoreCallback(r: NginxHTTPRequest): Promise<void> {
-  r.headersOut["Content-Type"] = "text/html; charset=utf-8"
-
-  // Check for Azure AD errors
-  const error = _getQueryParam(r, "error")
-  if (error) {
-    const desc = _getQueryParam(r, "error_description") || "Unknown error"
-    r.return(400, _htmlPage("Auth Error", `<p><strong>${error}</strong></p><p>${desc}</p>`))
-    return
-  }
-
-  // Decode state to retrieve value and nonce
-  const stateParam = _getQueryParam(r, "state")
-  if (!stateParam) {
-    r.return(400, _htmlPage("Missing State", "<p>No state parameter in callback.</p>"))
-    return
-  }
-
-  let stateData: { value: string; nonce: string }
-  try {
-    stateData = JSON.parse(_base64UrlDecode(stateParam))
-  } catch {
-    r.return(400, _htmlPage("Invalid State", "<p>Could not decode state parameter.</p>"))
-    return
-  }
-
-  // Validate nonce against cookie
-  const nonceCookie = _getCookie(r, "spike_store_nonce")
-  if (!nonceCookie || stateData.nonce !== nonceCookie) {
-    r.return(400, _htmlPage("Nonce Mismatch", "<p>Nonce does not match cookie.</p>"))
-    return
-  }
-
-  // Exchange code for tokens
-  const code = _getQueryParam(r, "code")
-  if (!code) {
-    r.return(400, _htmlPage("Missing Code", "<p>No authorization code received.</p>"))
-    return
-  }
-
-  const storeRedirectUri = r.variables.spike_store_redirect_uri as string
-  const tokenResult = await _exchangeCodeForTokens(r, code, storeRedirectUri)
-
-  if (!tokenResult.ok || !tokenResult.claims) {
-    r.return(500, _htmlPage("Token Exchange Failed", `<p>${tokenResult.error}</p>`))
-    return
-  }
-
-  // Validate nonce in id_token
-  if (tokenResult.claims.nonce !== stateData.nonce) {
-    r.return(400, _htmlPage("Token Nonce Mismatch", "<p>Nonce in id_token does not match.</p>"))
+  const tokenResult = _validateBearerToken(r)
+  if (!tokenResult.valid) {
+    r.return(401, JSON.stringify({ error: tokenResult.error }))
     return
   }
 
   const oid = tokenResult.claims.oid as string
   if (!oid) {
-    r.return(500, _htmlPage("Missing OID", "<p>No oid claim in id_token.</p>"))
+    r.return(401, JSON.stringify({ error: "No oid claim in token" }))
     return
   }
 
-  // Store value in extension property
-  const stored = await _writeExtension(r, oid, stateData.value)
+  let body: { value: string }
+  try {
+    body = JSON.parse(r.requestText || "")
+  } catch {
+    r.return(400, JSON.stringify({ error: "Invalid JSON body" }))
+    return
+  }
 
-  // Clear nonce cookie
-  const clearOpts = "; Path=/spike; HttpOnly; SameSite=Lax; Secure; Max-Age=0"
-  r.headersOut["Set-Cookie"] = [
-    "spike_store_nonce=deleted" + clearOpts,
-  ]
+  if (!body.value) {
+    r.return(400, JSON.stringify({ error: "Missing value in body" }))
+    return
+  }
+
+  const stored = await _writeExtension(r, oid, body.value)
 
   if (!stored) {
-    r.return(
-      500,
-      _htmlPage(
-        "Storage Failed",
-        `<p>Authenticated as <strong>${oid}</strong> but failed to write extension property.</p>
-         <p>Check nginx error log for Graph API details.</p>`
-      )
-    )
+    r.return(500, JSON.stringify({ error: "Failed to write extension property", oid }))
     return
   }
 
-  r.return(
-    200,
-    _htmlPage(
-      "Value Stored (Increment 3)",
-      `<p>Successfully stored value in directory extension property.</p>
-       <table border="1" cellpadding="8" cellspacing="0">
-         <tr><td><strong>OID</strong></td><td>${oid}</td></tr>
-         <tr><td><strong>Value</strong></td><td>${stateData.value}</td></tr>
-         <tr><td><strong>Extension</strong></td><td>${_extensionName(r)}</td></tr>
-       </table>
-       <p><a href="/spike/">Go to test page</a> | <a href="/spike/store?value=${encodeURIComponent(stateData.value)}">Store again</a></p>`
-    )
-  )
+  r.return(200, JSON.stringify({
+    oid,
+    storedValue: body.value,
+    extensionName: _extensionName(r),
+  }))
 }
 
 // ---------------------------------------------------------------------------
-// Increment 5: Table Storage Store + Read
+// Increment 5: Table Storage Store (Bearer token + POST body)
 // ---------------------------------------------------------------------------
 
-function handleTableStore(r: NginxHTTPRequest): void {
-  const tenantId = r.variables.spike_tenant_id as string
-  const clientId = r.variables.spike_client_id as string
-  const tableStoreRedirectUri = r.variables.spike_table_store_redirect_uri as string
+async function handleTableStore(r: NginxHTTPRequest): Promise<void> {
+  r.headersOut["Content-Type"] = "application/json"
+  r.headersOut["Access-Control-Allow-Origin"] = r.headersIn["Origin"] as string || "*"
+  r.headersOut["Access-Control-Allow-Headers"] = "Authorization, Content-Type"
 
-  const value = _getQueryParam(r, "value")
-  if (!value) {
-    r.headersOut["Content-Type"] = "text/html; charset=utf-8"
-    r.return(
-      400,
-      _htmlPage("Missing Value", "<p>Provide a <code>?value=xxx</code> query parameter.</p>")
-    )
+  if (r.method === "OPTIONS") {
+    r.return(204, "")
     return
   }
 
-  const nonce = _generateRandomString(16)
-  const statePayload = JSON.stringify({ value: value, nonce: nonce })
-  const state = _base64UrlEncode(statePayload)
-
-  const cookieOpts = "; Path=/spike; HttpOnly; SameSite=Lax; Secure; Max-Age=300"
-  r.headersOut["Set-Cookie"] = [
-    "spike_table_store_nonce=" + nonce + cookieOpts,
-  ]
-
-  const params = [
-    "client_id=" + encodeURIComponent(clientId),
-    "response_type=code",
-    "redirect_uri=" + encodeURIComponent(tableStoreRedirectUri),
-    "scope=" + encodeURIComponent("openid profile email"),
-    "state=" + state,
-    "nonce=" + nonce,
-    "response_mode=query",
-  ].join("&")
-
-  r.return(302, authorizeUrl(tenantId) + "?" + params)
-}
-
-async function handleTableStoreCallback(r: NginxHTTPRequest): Promise<void> {
-  r.headersOut["Content-Type"] = "text/html; charset=utf-8"
-
-  const error = _getQueryParam(r, "error")
-  if (error) {
-    const desc = _getQueryParam(r, "error_description") || "Unknown error"
-    r.return(400, _htmlPage("Auth Error", `<p><strong>${error}</strong></p><p>${desc}</p>`))
-    return
-  }
-
-  const stateParam = _getQueryParam(r, "state")
-  if (!stateParam) {
-    r.return(400, _htmlPage("Missing State", "<p>No state parameter in callback.</p>"))
-    return
-  }
-
-  let stateData: { value: string; nonce: string }
-  try {
-    stateData = JSON.parse(_base64UrlDecode(stateParam))
-  } catch {
-    r.return(400, _htmlPage("Invalid State", "<p>Could not decode state parameter.</p>"))
-    return
-  }
-
-  const nonceCookie = _getCookie(r, "spike_table_store_nonce")
-  if (!nonceCookie || stateData.nonce !== nonceCookie) {
-    r.return(400, _htmlPage("Nonce Mismatch", "<p>Nonce does not match cookie.</p>"))
-    return
-  }
-
-  const code = _getQueryParam(r, "code")
-  if (!code) {
-    r.return(400, _htmlPage("Missing Code", "<p>No authorization code received.</p>"))
-    return
-  }
-
-  const tableStoreRedirectUri = r.variables.spike_table_store_redirect_uri as string
-  const tokenResult = await _exchangeCodeForTokens(r, code, tableStoreRedirectUri)
-
-  if (!tokenResult.ok || !tokenResult.claims) {
-    r.return(500, _htmlPage("Token Exchange Failed", `<p>${tokenResult.error}</p>`))
-    return
-  }
-
-  if (tokenResult.claims.nonce !== stateData.nonce) {
-    r.return(400, _htmlPage("Token Nonce Mismatch", "<p>Nonce in id_token does not match.</p>"))
+  const tokenResult = _validateBearerToken(r)
+  if (!tokenResult.valid) {
+    r.return(401, JSON.stringify({ error: tokenResult.error }))
     return
   }
 
   const oid = tokenResult.claims.oid as string
   if (!oid) {
-    r.return(500, _htmlPage("Missing OID", "<p>No oid claim in id_token.</p>"))
+    r.return(401, JSON.stringify({ error: "No oid claim in token" }))
     return
   }
 
-  // Store value in Azure Table Storage
-  const stored = await _writeTable(r, oid, stateData.value)
+  let body: { value: string }
+  try {
+    body = JSON.parse(r.requestText || "")
+  } catch {
+    r.return(400, JSON.stringify({ error: "Invalid JSON body" }))
+    return
+  }
 
-  const clearOpts = "; Path=/spike; HttpOnly; SameSite=Lax; Secure; Max-Age=0"
-  r.headersOut["Set-Cookie"] = [
-    "spike_table_store_nonce=deleted" + clearOpts,
-  ]
+  if (!body.value) {
+    r.return(400, JSON.stringify({ error: "Missing value in body" }))
+    return
+  }
+
+  const stored = await _writeTable(r, oid, body.value)
 
   if (!stored) {
-    r.return(
-      500,
-      _htmlPage(
-        "Table Storage Failed",
-        `<p>Authenticated as <strong>${oid}</strong> but failed to write to Table Storage.</p>
-         <p>Check nginx error log for details.</p>`
-      )
-    )
+    r.return(500, JSON.stringify({ error: "Failed to write to Table Storage", oid }))
     return
   }
 
   const account = r.variables.spike_storage_account as string
-  r.return(
-    200,
-    _htmlPage(
-      "Value Stored in Table (Increment 5)",
-      `<p>Successfully stored value in Azure Table Storage.</p>
-       <table border="1" cellpadding="8" cellspacing="0">
-         <tr><td><strong>OID</strong></td><td>${oid}</td></tr>
-         <tr><td><strong>Value</strong></td><td>${stateData.value}</td></tr>
-         <tr><td><strong>Storage</strong></td><td>${account}/cmsauth</td></tr>
-       </table>
-       <p><a href="/spike/">Go to test page</a></p>`
-    )
-  )
+  r.return(200, JSON.stringify({
+    oid,
+    storedValue: body.value,
+    storage: account + "/cmsauth",
+  }))
 }
 
 async function handleTableRead(r: NginxHTTPRequest): Promise<void> {
@@ -910,6 +789,128 @@ async function handleRead(r: NginxHTTPRequest): Promise<void> {
 }
 
 // ---------------------------------------------------------------------------
+// Increment 6: Compressed Extension Property Store (Bearer token + POST body)
+// ---------------------------------------------------------------------------
+
+async function handleExtCompressStore(r: NginxHTTPRequest): Promise<void> {
+  r.headersOut["Content-Type"] = "application/json"
+  r.headersOut["Access-Control-Allow-Origin"] = r.headersIn["Origin"] as string || "*"
+  r.headersOut["Access-Control-Allow-Headers"] = "Authorization, Content-Type"
+
+  if (r.method === "OPTIONS") {
+    r.return(204, "")
+    return
+  }
+
+  const tokenResult = _validateBearerToken(r)
+  if (!tokenResult.valid) {
+    r.return(401, JSON.stringify({ error: tokenResult.error }))
+    return
+  }
+
+  const oid = tokenResult.claims.oid as string
+  if (!oid) {
+    r.return(401, JSON.stringify({ error: "No oid claim in token" }))
+    return
+  }
+
+  let body: { value: string }
+  try {
+    body = JSON.parse(r.requestText || "")
+  } catch {
+    r.return(400, JSON.stringify({ error: "Invalid JSON body" }))
+    return
+  }
+
+  if (!body.value) {
+    r.return(400, JSON.stringify({ error: "Missing value in body" }))
+    return
+  }
+
+  // Compress ASCII value into Unicode
+  const compressed = _asciiToUnicode(body.value)
+  const asciiLen = body.value.length
+  const unicodeLen = compressed.length
+
+  if (unicodeLen > 256) {
+    r.return(400, JSON.stringify({
+      error: "Compressed value exceeds 256-char limit",
+      asciiLength: asciiLen,
+      compressedLength: unicodeLen,
+      maxAsciiInput: 512,
+    }))
+    return
+  }
+
+  const stored = await _writeExtension(r, oid, compressed)
+
+  if (!stored) {
+    r.return(500, JSON.stringify({ error: "Failed to write compressed extension property", oid }))
+    return
+  }
+
+  r.return(200, JSON.stringify({
+    oid,
+    asciiLength: asciiLen,
+    compressedLength: unicodeLen,
+    extensionName: _extensionName(r),
+  }))
+}
+
+async function handleExtCompressRead(r: NginxHTTPRequest): Promise<void> {
+  r.headersOut["Content-Type"] = "application/json"
+  r.headersOut["Access-Control-Allow-Origin"] = r.headersIn["Origin"] as string || "*"
+  r.headersOut["Access-Control-Allow-Headers"] = "Authorization, Content-Type"
+
+  if (r.method === "OPTIONS") {
+    r.return(204, "")
+    return
+  }
+
+  const tokenResult = _validateBearerToken(r)
+  if (!tokenResult.valid) {
+    r.return(401, JSON.stringify({ error: tokenResult.error }))
+    return
+  }
+
+  const oid = tokenResult.claims.oid as string
+  if (!oid) {
+    r.return(401, JSON.stringify({ error: "No oid claim in token" }))
+    return
+  }
+
+  // Read compressed value from extension property
+  const compressed = await _readExtension(r, oid)
+
+  if (!compressed) {
+    r.return(
+      200,
+      JSON.stringify({
+        oid: oid,
+        storedValue: null,
+        compressedLength: null,
+        extensionName: _extensionName(r),
+      })
+    )
+    return
+  }
+
+  // Decompress Unicode back to ASCII
+  const decompressed = _unicodeToAscii(compressed)
+
+  r.return(
+    200,
+    JSON.stringify({
+      oid: oid,
+      storedValue: decompressed,
+      compressedLength: compressed.length,
+      decompressedLength: decompressed.length,
+      extensionName: _extensionName(r),
+    })
+  )
+}
+
+// ---------------------------------------------------------------------------
 // HTML helper
 // ---------------------------------------------------------------------------
 
@@ -947,9 +948,9 @@ export default {
   handleTestPage,
   handleValidate,
   handleStore,
-  handleStoreCallback,
   handleRead,
   handleTableStore,
-  handleTableStoreCallback,
   handleTableRead,
+  handleExtCompressStore,
+  handleExtCompressRead,
 }
