@@ -16,6 +16,8 @@ services:
     volumes:
       - ../config/global-components.spike/global-components.spike.conf:/etc/nginx/templates/global-components.spike.conf.template:ro
       - ../dist/global-components.spike.js:/etc/nginx/templates/global-components.spike.js:ro
+      - ../config/global-components.spike/global-components.cms-auth.conf:/etc/nginx/templates/global-components.cms-auth.conf.template:ro
+      - ../dist/global-components.cms-auth.js:/etc/nginx/templates/global-components.cms-auth.js:ro
       - ../config/global-components.spike/spike.html:/etc/nginx/static/spike.html:ro
       - ../config/global-components.spike/nginx.spike.conf:/etc/nginx/templates/nginx.conf.template:ro
       - ./certs/localhost.crt:/etc/nginx/certs/localhost.crt:ro
