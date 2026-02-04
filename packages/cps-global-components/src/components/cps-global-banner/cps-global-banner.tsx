@@ -56,9 +56,7 @@ export class CpsGlobalBanner {
 
     return (
       <div>
-        <cps-skip-link isOutSystems={state.flags?.isOutSystems}>
-          Skip to main content
-        </cps-skip-link>
+        <cps-skip-link isOutSystems={state.flags?.isOutSystems}>Skip to main content</cps-skip-link>
         <header class={`govuk-header govuk-header--with-js-navigation ${backgroundColourClass}`} data-module="govuk-header" data-govuk-header-init="">
           <div class="govuk-header__container" style={{ display: "flex", flexDirection: "row" }}>
             <div class="govuk-header__logo">
@@ -73,7 +71,7 @@ export class CpsGlobalBanner {
                   <nav aria-label="Menu" class="govuk-header__navigation govuk-header__navigation--end">
                     <ul id="navigation" class="govuk-header__navigation-list">
                       <li class="govuk-header__navigation-item">
-                        <a class="govuk-header__link" href={getArtifactUrl(state.rootUrl, "accessibility/")}>
+                        <a class="govuk-header__link" href={getArtifactUrl(state.rootUrl, "accessibility/index.html")}>
                           Accessibility
                         </a>
                       </li>
