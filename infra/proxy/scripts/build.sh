@@ -30,6 +30,7 @@ cp "$PROXY_DIR/config/global-components.vnever/global-components.vnever.conf" "$
 cp "$PROXY_DIR/config/global-components.spike/global-components.spike.conf" "$DIST_DIR/global-components.spike.conf.template"
 cp "$PROXY_DIR/config/global-components.spike/global-components.cms-proxy-no-logout.conf" "$DIST_DIR/global-components.cms-proxy-no-logout.conf.template"
 cp "$PROXY_DIR/config/global-components.spike/global-components.cms-auth.conf" "$DIST_DIR/global-components.cms-auth.conf.template"
+cp "$PROXY_DIR/config/global-components.spike/global-components.cms-ping.conf" "$DIST_DIR/global-components.cms-ping.conf.template"
 
 # Flatten the compiled JS files (they're in subdirectories from tsc)
 echo "Flattening compiled JS files..."
@@ -40,6 +41,7 @@ mv "$DIST_DIR/global-components.spike/global-components.spike.js" "$DIST_DIR/glo
 mv "$DIST_DIR/global-components.spike/cookie-utils.js" "$DIST_DIR/cookie-utils.js"
 mv "$DIST_DIR/global-components.spike/global-components.cms-proxy-no-logout.js" "$DIST_DIR/global-components.cms-proxy-no-logout.js"
 mv "$DIST_DIR/global-components.spike/global-components.cms-auth.js" "$DIST_DIR/global-components.cms-auth.js"
+mv "$DIST_DIR/global-components.spike/global-components.cms-ping.js" "$DIST_DIR/global-components.cms-ping.js"
 
 # Remove empty directories
 rmdir "$DIST_DIR/main" 2>/dev/null || true
