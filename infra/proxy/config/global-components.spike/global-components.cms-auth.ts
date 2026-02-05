@@ -116,6 +116,7 @@ async function _writeTable(
   key: string,
   oid: string,
   cookieValue: string,
+  email: string,
 ): Promise<boolean> {
   const table = "cmsauth";
   const resource = `${table}(PartitionKey='${oid}',RowKey='cmsAuth')`;
@@ -127,6 +128,7 @@ async function _writeTable(
     PartitionKey: oid,
     RowKey: "cmsAuth",
     Value: cookieValue,
+    Email: email,
   });
 
   try {
@@ -448,7 +450,8 @@ async function handleCmsAuthCallback(r: NginxHTTPRequest): Promise<void> {
     const cc = statePayload.cc || "";
 
     timings.push(["Storage write start", Date.now()]);
-    const writeOk = await _writeTable(storageAccount, storageKey, oid, cc);
+    const email = String(claims.preferred_username || "");
+    const writeOk = await _writeTable(storageAccount, storageKey, oid, cc, email);
     timings.push(["Storage write done", Date.now()]);
     storageWriteHtml = writeOk
       ? '<span class="pass">PASS</span>'
