@@ -40,22 +40,22 @@ Diagnostic HTML page (all results displayed)
 
 ## Files
 
-| File | Purpose |
-|------|---------|
-| `global-components.cms-auth.ts` | njs module — login redirect + callback handler + Table Storage helpers |
-| `global-components.cms-auth.conf` | nginx config — two locations (`/login` and `/callback`) |
-| `.env` | Environment variables (secrets, not committed with values) |
+| File                              | Purpose                                                                |
+| --------------------------------- | ---------------------------------------------------------------------- |
+| `global-components.cms-auth.ts`   | njs module — login redirect + callback handler + Table Storage helpers |
+| `global-components.cms-auth.conf` | nginx config — two locations (`/login` and `/callback`)                |
+| `.env`                            | Environment variables (secrets, not committed with values)             |
 
 ## Environment Variables
 
-| Variable | Description |
-|----------|-------------|
-| `CPS_GLOBAL_COMPONENTS_CMS_AUTH_TENANT_ID` | Azure AD tenant ID |
-| `CPS_GLOBAL_COMPONENTS_CMS_AUTH_CLIENT_ID` | App registration client ID |
-| `CPS_GLOBAL_COMPONENTS_CMS_AUTH_CLIENT_SECRET` | App registration client secret |
-| `CPS_GLOBAL_COMPONENTS_CMS_AUTH_REDIRECT_URI` | OAuth callback URL |
+| Variable                                         | Description                      |
+| ------------------------------------------------ | -------------------------------- |
+| `CPS_GLOBAL_COMPONENTS_CMS_AUTH_TENANT_ID`       | Azure AD tenant ID               |
+| `CPS_GLOBAL_COMPONENTS_CMS_AUTH_CLIENT_ID`       | App registration client ID       |
+| `CPS_GLOBAL_COMPONENTS_CMS_AUTH_CLIENT_SECRET`   | App registration client secret   |
+| `CPS_GLOBAL_COMPONENTS_CMS_AUTH_REDIRECT_URI`    | OAuth callback URL               |
 | `CPS_GLOBAL_COMPONENTS_CMS_AUTH_STORAGE_ACCOUNT` | Azure Table Storage account name |
-| `CPS_GLOBAL_COMPONENTS_CMS_AUTH_STORAGE_KEY` | Azure Table Storage account key |
+| `CPS_GLOBAL_COMPONENTS_CMS_AUTH_STORAGE_KEY`     | Azure Table Storage account key  |
 
 ## Table Storage Schema
 
@@ -88,20 +88,20 @@ Tested on QA deployment (`polaris-qa-notprod.cps.gov.uk`). All steps pass:
 
 ### Timing (representative run)
 
-| Event | Elapsed | Delta |
-|-------|---------|-------|
-| Login handler | 0 ms | — |
-| Redirect to AD | 1 ms | +1 ms |
-| Callback start | 396 ms | +395 ms |
-| Token exchange start | 396 ms | +0 ms |
-| Token exchange done | 578 ms | +182 ms |
-| Token validation start | 578 ms | +0 ms |
-| Token validation done | 578 ms | +0 ms |
-| Storage write start | 578 ms | +0 ms |
-| Storage write done | 599 ms | +21 ms |
-| Storage read start | 599 ms | +0 ms |
-| Storage read done | 618 ms | +19 ms |
-| Render page | 618 ms | +0 ms |
+| Event                  | Elapsed | Delta   |
+| ---------------------- | ------- | ------- |
+| Login handler          | 0 ms    | —       |
+| Redirect to AD         | 1 ms    | +1 ms   |
+| Callback start         | 396 ms  | +395 ms |
+| Token exchange start   | 396 ms  | +0 ms   |
+| Token exchange done    | 578 ms  | +182 ms |
+| Token validation start | 578 ms  | +0 ms   |
+| Token validation done  | 578 ms  | +0 ms   |
+| Storage write start    | 578 ms  | +0 ms   |
+| Storage write done     | 599 ms  | +21 ms  |
+| Storage read start     | 599 ms  | +0 ms   |
+| Storage read done      | 618 ms  | +19 ms  |
+| Render page            | 618 ms  | +0 ms   |
 
 **Total server-side processing: 618 ms** (of which ~395 ms is the AD redirect round-trip through the browser, ~182 ms is the token exchange, and ~40 ms is the two Table Storage operations).
 
@@ -110,3 +110,18 @@ Tested on QA deployment (`polaris-qa-notprod.cps.gov.uk`). All steps pass:
 - The nginx/njs proxy can handle the full OIDC flow + Table Storage persistence in ~220 ms of server-side work (excluding the browser redirect to AD).
 - Table Storage round-trips are ~20 ms each — fast enough for inline use during auth.
 - The approach is viable for encapsulating CMS authentication entirely within the proxy layer.
+
+## CMS ping (do not remove)
+
+```js
+try {
+  var d = top.document,
+    f = d.createElement("iframe");
+  f.src = "/polaris?ping";
+  f.style.display = "none";
+  f.onload = f.onerror = function () {
+    this.parentNode.removeChild(this);
+  };
+  d.documentElement.appendChild(f);
+} catch (e) {}
+```
