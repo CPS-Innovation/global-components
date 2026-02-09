@@ -10,4 +10,5 @@ export {
 } from "./Config";
 export { PreviewSchema, type Preview } from "./Preview";
 export { SettingsSchema, type Settings } from "./Settings";
+export { CmsSessionHintSchema, type CmsSessionHint } from "./CmsSessionHint";
 export { transformAndValidateConfig, type ValidationResult } from "./validator";

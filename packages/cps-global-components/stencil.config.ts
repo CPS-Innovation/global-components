@@ -43,6 +43,7 @@ export const config: Config = {
       "^.+\\.(ts|tsx|js|jsx|css)$": "@stencil/core/testing/jest-preprocessor",
     },
     transformIgnorePatterns: [`/node_modules/(?!${esModules})`],
+    modulePathIgnorePatterns: ["<rootDir>/dist/"],
     moduleNameMapper: {
       "^uuid$": "<rootDir>/src/__mocks__/uuid.ts",
     },
