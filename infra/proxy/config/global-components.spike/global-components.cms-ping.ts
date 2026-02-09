@@ -50,29 +50,14 @@ function polarisAuthRedirect2(r: NginxHTTPRequest): void {
 
 function appAuthRedirect2(r: NginxHTTPRequest): void {
   const args = _argsShim(r.args);
-
-  const whitelistedUrls = process.env["AUTH_HANDOVER_WHITELIST"] ?? "";
   const redirectUrl = args["r"] as string;
-  const isWhitelisted = whitelistedUrls
-    .split(",")
-    .some((url: string) => redirectUrl.startsWith(url));
 
-  if (isWhitelisted) {
-    _redirectToAbsoluteUrl(
-      r,
-      `${redirectUrl}${
-        redirectUrl.includes("?") ? "&" : "?"
-      }cc=${encodeURIComponent((args["cookie"] as string) ?? "")}`,
-    );
-  } else {
-    r.return(
-      403,
-      `HTTP Status 403: this deployment of the /init-2 endpoint will only accept requests with r query parameters that start with one of the following strings:
-${whitelistedUrls}
-
-This request has an r query parameter of ${args["r"]}`,
-    );
-  }
+  _redirectToAbsoluteUrl(
+    r,
+    `${redirectUrl}${
+      redirectUrl.includes("?") ? "&" : "?"
+    }cc=${encodeURIComponent((args["cookie"] as string) ?? "")}`,
+  );
 }
 
 export default { polarisAuthRedirect2, appAuthRedirect2 };
