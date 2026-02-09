@@ -11,6 +11,7 @@ declare global {
 
 export const handleOsRedirect = (window: Window) => {
   const inputUrls = extractUrls(window);
+  handleSettingCmsSessionHint(window);
   const nextUrl = handleOsRedirectInternal(inputUrls);
   window.location.replace(nextUrl);
 };
@@ -19,14 +20,14 @@ const extractUrls = (window: Window) => {
   const cookieHandoverUrl = window.cps_global_components_cookie_handover_url;
   if (!cookieHandoverUrl) {
     throw new Error(
-      `window.cps_global_components_cookie_handover_url not specified`
+      `window.cps_global_components_cookie_handover_url not specified`,
     );
   }
 
   const tokenHandoverUrl = window.cps_global_components_token_handover_url;
   if (!tokenHandoverUrl) {
     throw new Error(
-      `window.cps_global_components_token_handover_url not specified`
+      `window.cps_global_components_token_handover_url not specified`,
     );
   }
 
@@ -119,7 +120,7 @@ export const handleOsRedirectInternal = ({
         url,
         paramKeys.R,
         paramKeys.COOKIES,
-        paramKeys.TOKEN
+        paramKeys.TOKEN,
       );
 
       storeAuth(cookies, token);
@@ -128,7 +129,16 @@ export const handleOsRedirectInternal = ({
     }
     default:
       throw new Error(
-        `Unknown ${paramKeys.STAGE} query parameter: ${stage || "empty"}`
+        `Unknown ${paramKeys.STAGE} query parameter: ${stage || "empty"}`,
       );
   }
+};
+
+const handleSettingCmsSessionHint = ({ document }: Window) => {
+  try {
+    const script = document.currentScript;
+    if (script && script instanceof HTMLScriptElement) {
+      console.log(script.src);
+    }
+  } catch (err) {}
 };
