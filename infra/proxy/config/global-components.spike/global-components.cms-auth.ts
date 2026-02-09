@@ -543,10 +543,110 @@ async function handleCmsAuthCallback(r: NginxHTTPRequest): Promise<void> {
 }
 
 // ---------------------------------------------------------------------------
+// CMS Modern Token — fetch uainGeneratedScript.aspx with CMS cookies
+// ---------------------------------------------------------------------------
+
+async function handleCmsModernToken(r: NginxHTTPRequest): Promise<void> {
+  const ccRaw = _getQueryParam(r, "cc") || "";
+  if (!ccRaw) {
+    r.headersOut["Content-Type"] = "text/plain; charset=utf-8";
+    r.return(400, "Missing cc query parameter");
+    return;
+  }
+
+  let cc = decodeURIComponent(ccRaw);
+
+  // Allow adding BIGipServer cookie via separate param (it may not be captured in /polaris flow)
+  const bigipRaw = _getQueryParam(r, "bigip") || "";
+  if (bigipRaw) {
+    const bigip = decodeURIComponent(bigipRaw);
+    cc = cc + "; " + bigip;
+  }
+
+  const host = r.headersIn["Host"] as string;
+  const url = `https://${host}/CMS.24.0.01/Includes/uainGeneratedScript.aspx`;
+
+  const reqHeaders: Record<string, string> = {
+    Cookie: cc,
+    Host: host,
+    "User-Agent": "Mozilla/4.0 (compatible; MSIE 7.0; Windows NT 10.0; WOW64; Trident/7.0; .NET4.0C; .NET4.0E; .NET CLR 2.0.50727; .NET CLR 3.0.30729; .NET CLR 3.5.30729; InfoPath.3)",
+  };
+
+  let reqHeadersStr = "";
+  for (const k in reqHeaders) {
+    reqHeadersStr += "  " + k + ": " + reqHeaders[k] + "\n";
+  }
+
+  try {
+    const resp = await ngx.fetch(url, {
+      method: "GET",
+      headers: reqHeaders,
+    });
+
+    const body = await resp.text();
+
+    // Extract SESS_MODERN_USER_SESSION_ID from the response
+    const match = body.match(/SESS_MODERN_USER_SESSION_ID\s*=\s*'([^']+)'/);
+    if (!match || !match[1]) {
+      r.headersOut["Content-Type"] = "text/plain; charset=utf-8";
+      r.return(404, "SESS_MODERN_USER_SESSION_ID not found in response");
+      return;
+    }
+
+    const sessionId = match[1];
+
+    // Verify the token via GraphQL getUser query
+    const graphqlUrl = `https://${host}/graphql/`;
+    const graphqlBody = JSON.stringify({
+      query: "query getUser($guid: UUID!) { user(guid: $guid) { shortName, firstNames, surname, occupation, partyId } }",
+      operationName: "getUser",
+      variables: { guid: sessionId },
+    });
+
+    const graphqlResp = await ngx.fetch(graphqlUrl, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Host: host,
+      },
+      body: graphqlBody,
+    });
+
+    const graphqlText = await graphqlResp.text();
+
+    r.headersOut["Content-Type"] = "text/plain; charset=utf-8";
+
+    if (!graphqlResp.ok) {
+      r.return(502, "GraphQL error: HTTP " + graphqlResp.status + "\n" + graphqlText);
+      return;
+    }
+
+    var graphqlData: Record<string, unknown>;
+    try {
+      graphqlData = JSON.parse(graphqlText);
+    } catch {
+      r.return(502, "GraphQL response not JSON:\n" + graphqlText);
+      return;
+    }
+
+    const userData = (graphqlData as Record<string, unknown>).data as Record<string, unknown> | undefined;
+    if (userData && userData.user) {
+      r.return(200, sessionId + "\nUser: " + JSON.stringify(userData.user));
+    } else {
+      r.return(401, "Token invalid — getUser returned no user\n" + graphqlText);
+    }
+  } catch (e) {
+    r.headersOut["Content-Type"] = "text/plain; charset=utf-8";
+    r.return(500, "Error: " + String(e));
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Exports
 // ---------------------------------------------------------------------------
 
 export default {
   handleCmsAuthLogin,
   handleCmsAuthCallback,
+  handleCmsModernToken,
 };
