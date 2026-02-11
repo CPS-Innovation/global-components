@@ -9,7 +9,7 @@
   "APP_INSIGHTS_CONNECTION_STRING": "InstrumentationKey=e572c03c-8d38-4771-b193-962f13da1b1a;IngestionEndpoint=https://polaris-qa-notprod.cps.gov.uk/global-components/analytics/;ApplicationId=3dafc37d-8c9c-4480-90fc-532ac2b8bba2",
   "SURVEY_LINK": "https://forms.office.com/e/8KM9A7aS0e",
   "SHOW_MENU": true,
-  "OS_HANDOVER_URL": "https://cps-dev.outsystemsenterprise.com/Casework_Patterns/auth-handover.html?src=https://sacpsglobalcomponents.blob.core.windows.net/dev/auth-handover.js",
+  "OS_HANDOVER_URL": "https://cps-dev.outsystemsenterprise.com/Casework_Patterns/auth-handover.html?src=https://polaris-qa-notprod.cps.gov.uk/global-components/dev/auth-handover.js",
   "COOKIE_HANDOVER_URL": "https://polaris-qa-notprod.cps.gov.uk/polaris",
   "TOKEN_HANDOVER_URL": "https://polaris-qa-notprod.cps.gov.uk/auth-refresh-cms-modern-token",
   "RECENT_CASES_NAVIGATE_URL": "https://cps-dev.outsystemsenterprise.com/WorkManagementApp/CaseOverview?CaseId={caseId}",

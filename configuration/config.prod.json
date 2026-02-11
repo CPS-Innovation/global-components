@@ -6,7 +6,7 @@
   "APP_INSIGHTS_CONNECTION_STRING": "",
   "SURVEY_LINK": "https://forms.office.com/e/8KM9A7aS0e",
   "SHOW_MENU": false,
-  "OS_HANDOVER_URL": "https://cps.outsystemsenterprise.com/Casework_Patterns/auth-handover.html?src=https://sacpsglobalcomponents.blob.core.windows.net/prod/auth-handover.js",
+  "OS_HANDOVER_URL": "https://cps.outsystemsenterprise.com/Casework_Patterns/auth-handover.html?src=https://polaris.cps.gov.uk/global-components/prod/auth-handover.js",
   "COOKIE_HANDOVER_URL": "https://polaris.cps.gov.uk/polaris",
   "TOKEN_HANDOVER_URL": "https://polaris.cps.gov.uk/auth-refresh-cms-modern-token",
   "FEATURE_FLAG_MENU_USERS": {
