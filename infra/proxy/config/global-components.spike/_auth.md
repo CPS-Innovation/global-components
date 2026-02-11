@@ -1,13 +1,25 @@
 # init?
 
-| Step             | URL                    | Params                                                              | Responsibilities                                                 |
-| ---------------- | ---------------------- | ------------------------------------------------------------------- | ---------------------------------------------------------------- |
-| Reauth outbound  | `/init/outbound`       | `*`                                                                 | 1) Switch to IE mode; 2) Figure out `/polaris`                   |
-| Append cookie    | `/polaris`             | `*,correlation`                                                     | 1) Convert cookies to query;                                     |
-| Receiving cookie | `/init/(orchestrate)`  | `*,correlation,cookie,is-proxy-session`                             | 1) Switch out of IE mode; 2) Reconcile flow/r (cwa legacy, ping) |
-| Token            | `/init/token`          | `r,correlation,cookie,is-proxy-session`                             | 1) Get modern token 2) Verify modern token                       |
-| AD               | `/init/entra`          | `r,correlation,cookie,is-proxy-session,modern-token`                | 1) Initiate AD flow                                              |
-| AD callback      | `/init/entra-callback` | `r,correlation,cookie,is-proxy-session,modern-token,entra-id-token` | 1) Return from AD flow                                           |
+| Step             | URL                        | Inbound params                                                      | Responsibilities                                                                 |
+| ---------------- | -------------------------- | ------------------------------------------------------------------- | -------------------------------------------------------------------------------- |
+| Reauth outbound  | `proxy/init/outbound`      | `r`                                                                 | 1) Switch to IE mode; 2) Figure out `/polaris`                                   |
+| Append cookie    | `[proxy or CMS]/polaris`   | `[r or legacy params],*,correlation`                                | 1) Convert cookies to query                                                      |
+| Receiving cookie | `proxy/init/(orchestrate)` | `[r or legacy params],correlation,cookie,is-proxy-session`          | 1) Switch out of IE mode; 2) Reconcile flow (cwa legacy, ping) and coerce `r`    |
+| Token            | `proxy/init/token`         | `r,correlation,cookie,is-proxy-session`                             | 1) Get and verify modern token                                                   |
+| AD               | `proxy/init/entra`         | `r,correlation,cookie,is-proxy-session,modern-token`                | 1) Initiate AD flow                                                              |
+| AD callback      | `proxy/init/inbound`       | `r,correlation,cookie,is-proxy-session,modern-token,entra-id-token` | 1) Validate AD token 2) store cms auth 3)set cms-session-hint 4) redirect to `r` |
+
+## V2
+
+| Step             | URL                      | Inbound params                                                      | Responsibilities                                                                                                   |
+| ---------------- | ------------------------ | ------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
+| Reauth outbound  | `proxy/init/outbound`    | `*`                                                                 | 1) Switch to IE mode; 2) add correlations 3) Figure out `/polaris`                                                 |
+| Append cookie    | `[proxy or CMS]/polaris` | `*,correlation`                                                     | 1) Convert cookies to query 2) add is-proxy-session                                                                |
+| Receiving cookie | `proxy/init/`            | `*,correlation,is-proxy-session,cookie`                             | 1) Switch out of IE mode; 2) Get and verify modern token                                                           |
+| AD               | `proxy/init/entra`       | `*,correlation,is-proxy-session,cookie,modern-token`                | 1) Initiate AD flow                                                                                                |
+| AD callback      | `proxy/init/inbound`     | `*,correlation,is-proxy-session,cookie,modern-token,entra-id-token` | 1) Validate AD token 2) store cms auth 3)set cms-session-hint 4) Reconcile flow (cwa legacy, ping) redirect to `r` |
+| -                | -                        | -                                                                   | -                                                                                                                  |
+| Error            | `proxy/init/error`       | `correlation,error-code`                                            | 1) Report to user the failure                                                                                      |
 
 # Core flow
 

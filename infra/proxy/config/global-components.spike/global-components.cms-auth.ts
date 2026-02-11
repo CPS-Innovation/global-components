@@ -642,6 +642,41 @@ async function handleCmsModernToken(r: NginxHTTPRequest): Promise<void> {
 }
 
 // ---------------------------------------------------------------------------
+// Auth refresh outbound — redirect via Cms-Session-Hint cookie
+// ---------------------------------------------------------------------------
+
+function handleAuthRefreshOutbound(r: NginxHTTPRequest): void {
+  const SESSION_HINT_COOKIE_NAME = "Cms-Session-Hint";
+  const fallbackDomain = r.variables.defaultUpstreamCmsDomainName as string;
+  const fallbackUrl = `https://${fallbackDomain}/polaris`;
+
+  let redirectBase = fallbackUrl;
+
+  const cookieValue = _getCookie(r, SESSION_HINT_COOKIE_NAME);
+  if (cookieValue) {
+    try {
+      const hint = JSON.parse(decodeURIComponent(cookieValue));
+      if (hint.handoverEndpoint) {
+        redirectBase = hint.handoverEndpoint;
+      }
+    } catch (e) {
+      ngx.log(
+        ngx.WARN,
+        "auth-refresh-outbound: failed to parse " +
+          SESSION_HINT_COOKIE_NAME +
+          " cookie, using fallback. Error: " +
+          String(e),
+      );
+    }
+  }
+
+  const args = r.variables.is_args as string;
+  const queryString = r.variables.args as string;
+  r.headersOut["X-InternetExplorerMode"] = "1";
+  r.return(302, redirectBase + (args || "") + (queryString || ""));
+}
+
+// ---------------------------------------------------------------------------
 // Exports
 // ---------------------------------------------------------------------------
 
@@ -649,4 +684,5 @@ export default {
   handleCmsAuthLogin,
   handleCmsAuthCallback,
   handleCmsModernToken,
+  handleAuthRefreshOutbound,
 };
