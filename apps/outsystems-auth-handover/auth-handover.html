@@ -1,0 +1,10 @@
+<html>
+<script>
+  const allowed = new Set(['polaris.cps.gov.uk', 'polaris-qa-notprod.cps.gov.uk']);
+  const src = new URLSearchParams(window.location.search).get('src');
+  if (allowed.has(new URL(src).hostname)) {
+    document.write(`<script src="${src}"><\/script>`);
+  }
+</script>
+
+</html>

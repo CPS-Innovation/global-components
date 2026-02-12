@@ -1,6 +1,6 @@
 import { Config } from "cps-global-configuration";
 import { Build, ReadyStateHelper } from "../../store/store";
-import { CmsSessionHint } from "../state/cms-session/CmsSessionHint";
+import { CmsSessionHint } from "cps-global-configuration";
 import { ApplicationFlags } from "../application-flags/ApplicationFlags";
 import { initialiseMockAnalytics } from "./initialise-mock-analytics";
 import { initialiseAiAnalytics } from "./initialise-ai-analytics";

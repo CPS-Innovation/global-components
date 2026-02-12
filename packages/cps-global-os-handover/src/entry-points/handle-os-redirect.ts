@@ -1,6 +1,11 @@
-import { isStoredAuthCurrent, storeAuth } from "../core/storage";
+import {
+  isStoredAuthCurrent,
+  setCmsSessionHint,
+  storeAuth,
+} from "../core/storage";
 import { createUrlWithParams, setParams, stripParams } from "../core/params";
 import { paramKeys, stages } from "../core/constants";
+import { getCmsSessionHint } from "../core/get-cms-session-hint";
 
 declare global {
   interface Window {
@@ -9,10 +14,10 @@ declare global {
   }
 }
 
-export const handleOsRedirect = (window: Window) => {
+export const handleOsRedirect = async (window: Window) => {
   const inputUrls = extractUrls(window);
-  handleSettingCmsSessionHint(window);
-  const nextUrl = handleOsRedirectInternal(inputUrls);
+  const { stage, nextUrl } = handleOsRedirectInternal(inputUrls);
+  await handleSettingCmsSessionHint({ stage, nextUrl });
   window.location.replace(nextUrl);
 };
 
@@ -51,7 +56,7 @@ export const handleOsRedirectInternal = ({
   tokenHandoverUrl: string;
 }) => {
   const url = new URL(currentUrl);
-  const [stage] = stripParams(url, paramKeys.STAGE);
+  const [stage] = stripParams(url, paramKeys.STAGE, paramKeys.SRC);
 
   switch (stage) {
     case stages.OS_OUTBOUND: {
@@ -93,18 +98,18 @@ export const handleOsRedirectInternal = ({
         [paramKeys.R]: url.toString(),
       });
 
-      return nextUrl.toString();
+      return { stage, nextUrl: nextUrl.toString() };
     }
     case stages.OS_COOKIE_RETURN: {
       const [cookies] = stripParams(url, paramKeys.COOKIES);
 
-      const canGoStraightToTarget = isStoredAuthCurrent(cookies);
+      const canGoStraightToTarget = isStoredAuthCurrent(cookies, localStorage);
 
       if (canGoStraightToTarget) {
         // The cookies we have in storage are the same as the ones we have been just given
         //  which means that our values as currently stored are still valid
         const [target] = stripParams(url, paramKeys.R);
-        return target;
+        return { stage, nextUrl: target };
       }
 
       setParams(url, { [paramKeys.STAGE]: stages.OS_TOKEN_RETURN });
@@ -113,7 +118,7 @@ export const handleOsRedirectInternal = ({
         [paramKeys.COOKIES]: cookies!,
       });
 
-      return nextUrl.toString();
+      return { stage, nextUrl: nextUrl.toString() };
     }
     case stages.OS_TOKEN_RETURN: {
       const [target, cookies, token] = stripParams(
@@ -123,9 +128,9 @@ export const handleOsRedirectInternal = ({
         paramKeys.TOKEN,
       );
 
-      storeAuth(cookies, token);
+      storeAuth(cookies, token, localStorage);
 
-      return target;
+      return { stage, nextUrl: target };
     }
     default:
       throw new Error(
@@ -134,11 +139,29 @@ export const handleOsRedirectInternal = ({
   }
 };
 
-const handleSettingCmsSessionHint = ({ document }: Window) => {
+const handleSettingCmsSessionHint = async ({
+  stage,
+  nextUrl,
+}: {
+  stage: string;
+  nextUrl: string;
+}) => {
   try {
-    const script = document.currentScript;
-    if (script && script instanceof HTMLScriptElement) {
-      console.log(script.src);
+    if (stage !== stages.OS_TOKEN_RETURN) {
+      // Only set this on the final part of the auth handover...
+      return;
     }
-  } catch (err) {}
+
+    if (
+      !new URL(nextUrl).pathname.toLowerCase().startsWith("/casework_blocks/")
+    ) {
+      //... and only if we are going to the home page site
+      return;
+    }
+
+    const cmsSessionHint = await getCmsSessionHint();
+    setCmsSessionHint(cmsSessionHint, localStorage);
+  } catch (err) {
+    console.log(`handleSettingCmsSessionHint error: ${err}`);
+  }
 };
