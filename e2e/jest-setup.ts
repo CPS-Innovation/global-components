@@ -136,7 +136,7 @@ if (process.env.LOG === "true") {
     })
     .on("pageerror", (error) => {
       // Page errors go out immediately as they're usually important
-      process.stdout.write(`  [Browser Uncaught Error]: ${error.message}\n`);
+      process.stdout.write(`  [Browser Uncaught Error]: ${error instanceof Error ? error.message : String(error)}\n`);
     })
     .on("close", () => {
       // Flush logs when page closes
