@@ -54,47 +54,6 @@ export const handleOsRedirectInternal = ({
   const [stage] = stripParams(url, paramKeys.STAGE);
 
   switch (stage) {
-    case stages.OS_OUTBOUND: {
-      // FCT2-10942: at the time of writing, in proxied CMS pre-prod environments
-      //  there is a slight misconfiguration.  We hit this stage when the C button
-      //  is pressed in CMS. In pre-prod the proxy is sending the request
-      //  via the /polaris endpoint on the way here.  This is not quite right as
-      //  that stage will have appended a cc parameter with cookies to the request
-      //  we are handling. Our logic in this stage is to redirect the URL as we find
-      //  it on to the /polaris endpoint in order for that next step to get our cookies
-      //  and to redirect us to the next stage below. This current configuration
-      //  results in two cc params being appended to the redirected URL, which then breaks
-      //  IIS in OutSystems because of query length restrictions.
-      //
-      // Really if the proxy wants to do it this way it should be sending the C button
-      //  request via the cookie return stage below. However it is a) easier and quicker to
-      //  fix here and b) a reasonably useful thing to do to always make sure we are not
-      //  sending a cc parameter to the /polaris endpoint no matter the circumstances.
-      //  So let's strip the cc param if we have one as it should appear in the next stage.
-
-      // FCT2-11384: app to app navigation used to come via this step. The thinking there
-      //  was to delegate anything to do with app navigation and auth handover to this
-      //  location and let all the various phases of acquiring auth to just keep bouncing
-      //  through here. The flaw with that is that we get an extra history entry in the
-      //  user's browser history. If the user has gone from page A to page B via here then
-      //  pressing the browser back button brings the user here and they get forwarded
-      //  straight back to page B. The bug fix involves switching to using
-      //  `createOutboundUrlDirect` which means the navigation skips this stage and goes
-      //  straight to the next step. This leaves this stage only being used by the C button
-      //  as per the prior comment, and even that should not be using this step.  Also
-      //  this stage is called "os-outbound" and in the remaining use case is more inbound
-      //  than "outbound"!
-
-      stripParams(url, paramKeys.COOKIES);
-
-      setParams(url, { [paramKeys.STAGE]: stages.OS_COOKIE_RETURN });
-
-      const nextUrl = createUrlWithParams(cookieHandoverUrl, {
-        [paramKeys.R]: url.toString(),
-      });
-
-      return nextUrl.toString();
-    }
     case stages.OS_COOKIE_RETURN: {
       const [cookies] = stripParams(url, paramKeys.COOKIES);
 
