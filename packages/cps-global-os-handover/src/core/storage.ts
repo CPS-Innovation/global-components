@@ -1,3 +1,4 @@
+import { CmsSessionHint } from "cps-global-configuration";
 import { areAllCookieStringsEqual } from "./are-all-cookie-strings-equal";
 
 const localStorageKeys = {
@@ -7,29 +8,30 @@ const localStorageKeys = {
   CASE_REVIEW_COOKIES: "$OS_Users$CaseReview$ClientVars$Cookies",
   HOME_JSON: "$OS_Users$Casework_Blocks$ClientVars$JSONString",
   HOME_COOKIES: "$OS_Users$Casework_Blocks$ClientVars$Cookies",
+  HOME_IS_FROM_PROXY: "$OS_Users$Casework_Blocks$ClientVars$IsFromProxy",
 };
 
-export const storeAuth = (cookies: string, token: string) => {
+export const storeAuth = (cookies: string, token: string, storage: Storage) => {
   const cmsAuthValuesJson = JSON.stringify({
     Cookies: cookies,
     Token: token,
     ExpiryTime: new Date().toISOString(),
   });
 
-  localStorage[localStorageKeys.WMA_COOKIES] = cookies;
-  localStorage[localStorageKeys.CASE_REVIEW_COOKIES] = cookies;
-  localStorage[localStorageKeys.HOME_COOKIES] = cookies;
-  localStorage[localStorageKeys.WMA_JSON] = cmsAuthValuesJson;
-  localStorage[localStorageKeys.CASE_REVIEW_JSON] = cmsAuthValuesJson;
-  localStorage[localStorageKeys.HOME_JSON] = cmsAuthValuesJson;
+  storage[localStorageKeys.WMA_COOKIES] = cookies;
+  storage[localStorageKeys.CASE_REVIEW_COOKIES] = cookies;
+  storage[localStorageKeys.HOME_COOKIES] = cookies;
+  storage[localStorageKeys.WMA_JSON] = cmsAuthValuesJson;
+  storage[localStorageKeys.CASE_REVIEW_JSON] = cmsAuthValuesJson;
+  storage[localStorageKeys.HOME_JSON] = cmsAuthValuesJson;
 };
 
-export const isStoredAuthCurrent = (cookies: string) =>
+export const isStoredAuthCurrent = (cookies: string, storage: Storage) =>
   areAllCookieStringsEqual(
     cookies,
-    localStorage[localStorageKeys.WMA_COOKIES],
-    localStorage[localStorageKeys.CASE_REVIEW_COOKIES],
-    localStorage[localStorageKeys.HOME_COOKIES]
+    storage[localStorageKeys.WMA_COOKIES],
+    storage[localStorageKeys.CASE_REVIEW_COOKIES],
+    storage[localStorageKeys.HOME_COOKIES],
   );
 
 export const syncOsAuth = (currentUrl: string, storage: Storage) => {
@@ -44,17 +46,17 @@ export const syncOsAuth = (currentUrl: string, storage: Storage) => {
     cookiesKey: keyof Pick<
       typeof localStorageKeys,
       "WMA_COOKIES" | "CASE_REVIEW_COOKIES" | "HOME_COOKIES"
-    >
+    >,
   ) => {
-    localStorage[localStorageKeys.WMA_JSON] =
-      localStorage[localStorageKeys.CASE_REVIEW_JSON] =
-      localStorage[localStorageKeys.HOME_JSON] =
-        localStorage[localStorageKeys[jsonKey]];
+    storage[localStorageKeys.WMA_JSON] =
+      storage[localStorageKeys.CASE_REVIEW_JSON] =
+      storage[localStorageKeys.HOME_JSON] =
+        storage[localStorageKeys[jsonKey]];
 
-    localStorage[localStorageKeys.WMA_COOKIES] =
-      localStorage[localStorageKeys.CASE_REVIEW_COOKIES] =
-      localStorage[localStorageKeys.HOME_COOKIES] =
-        localStorage[localStorageKeys[cookiesKey]];
+    storage[localStorageKeys.WMA_COOKIES] =
+      storage[localStorageKeys.CASE_REVIEW_COOKIES] =
+      storage[localStorageKeys.HOME_COOKIES] =
+        storage[localStorageKeys[cookiesKey]];
   };
 
   switch (app) {
@@ -69,3 +71,11 @@ export const syncOsAuth = (currentUrl: string, storage: Storage) => {
       break;
   }
 };
+
+export const setCmsSessionHint = (
+  cmsSessionHint: CmsSessionHint,
+  storage: Storage,
+) =>
+  (storage[localStorageKeys.HOME_IS_FROM_PROXY] = String(
+    cmsSessionHint.isProxySession,
+  ));

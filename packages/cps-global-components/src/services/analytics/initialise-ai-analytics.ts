@@ -5,7 +5,7 @@ import { CorrelationIds } from "../correlation/CorrelationIds";
 import { AnalyticsEvent, AnalyticsEventData, trackEvent } from "./analytics-event";
 import { makeConsole } from "../../logging/makeConsole";
 import { Build, ReadyStateHelper } from "../../store/store";
-import { CmsSessionHint } from "../state/cms-session/CmsSessionHint";
+import { CmsSessionHint } from "cps-global-configuration";
 import { Result } from "../../utils/Result";
 
 const STORAGE_PREFIX = "cps_global_components";
