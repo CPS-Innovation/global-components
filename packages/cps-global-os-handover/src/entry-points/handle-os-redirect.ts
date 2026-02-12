@@ -56,7 +56,7 @@ export const handleOsRedirectInternal = ({
   tokenHandoverUrl: string;
 }) => {
   const url = new URL(currentUrl);
-  const [stage] = stripParams(url, paramKeys.STAGE);
+  const [stage] = stripParams(url, paramKeys.STAGE, paramKeys.SRC);
 
   switch (stage) {
     case stages.OS_OUTBOUND: {

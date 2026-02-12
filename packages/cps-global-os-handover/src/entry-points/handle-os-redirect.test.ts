@@ -1,5 +1,9 @@
-import { describe, test, expect, beforeEach } from "@jest/globals";
-import { handleOsRedirectInternal } from "./handle-os-redirect";
+import { describe, test, expect, beforeEach, jest } from "@jest/globals";
+import { handleOsRedirectInternal, handleOsRedirect } from "./handle-os-redirect";
+
+jest.mock("../core/get-cms-session-hint");
+
+import { getCmsSessionHint } from "../core/get-cms-session-hint";
 
 describe("handleOsRedirectInternal", () => {
   describe("os-outbound stage", () => {
@@ -298,6 +302,153 @@ describe("handleOsRedirectInternal", () => {
             "https://polaris-qa-notprod.cps.gov.uk/auth-handover-cms-modern-token",
         });
       }).toThrow("Unknown stage query parameter: empty");
+    });
+  });
+});
+
+const mockGetCmsSessionHint = getCmsSessionHint as jest.MockedFunction<
+  typeof getCmsSessionHint
+>;
+
+describe("handleOsRedirect", () => {
+  const makeWindow = (currentUrl: string) =>
+    ({
+      cps_global_components_cookie_handover_url:
+        "https://cin3.cps.gov.uk/polaris",
+      cps_global_components_token_handover_url:
+        "https://polaris-qa-notprod.cps.gov.uk/auth-handover-cms-modern-token",
+      location: {
+        href: currentUrl,
+        replace: jest.fn(),
+      },
+    }) as unknown as Window;
+
+  beforeEach(() => {
+    localStorage.clear();
+    mockGetCmsSessionHint.mockReset();
+    jest.spyOn(console, "log").mockImplementation(() => {});
+  });
+
+  describe("handleSettingCmsSessionHint", () => {
+    test("does not call getCmsSessionHint for os-outbound stage", async () => {
+      const win = makeWindow(
+        "https://cps-dev.outsystemsenterprise.com/AuthHandover/index.html?r=https://example.com/target&stage=os-outbound",
+      );
+
+      await handleOsRedirect(win);
+
+      expect(mockGetCmsSessionHint).not.toHaveBeenCalled();
+    });
+
+    test("does not call getCmsSessionHint for os-cookie-return stage", async () => {
+      const win = makeWindow(
+        "https://cps-dev.outsystemsenterprise.com/AuthHandover/index.html?r=https://example.com/target&stage=os-cookie-return&cc=test-cookies",
+      );
+
+      await handleOsRedirect(win);
+
+      expect(mockGetCmsSessionHint).not.toHaveBeenCalled();
+    });
+
+    test("does not call getCmsSessionHint when nextUrl is not under /casework_blocks/", async () => {
+      const win = makeWindow(
+        "https://cps-dev.outsystemsenterprise.com/AuthHandover/index.html?r=https://example.com/WorkManagementApp/page&stage=os-token-return&cc=test-cookies&cms-modern-token=test-token",
+      );
+
+      await handleOsRedirect(win);
+
+      expect(mockGetCmsSessionHint).not.toHaveBeenCalled();
+    });
+
+    test("fetches and stores CmsSessionHint for os-token-return with /Casework_Blocks/ path", async () => {
+      const hint = {
+        cmsDomains: ["example.com"],
+        isProxySession: true,
+        handoverEndpoint: null,
+      };
+      mockGetCmsSessionHint.mockResolvedValue(hint);
+
+      const win = makeWindow(
+        "https://cps-dev.outsystemsenterprise.com/AuthHandover/index.html?r=https://example.com/Casework_Blocks/Home&stage=os-token-return&cc=test-cookies&cms-modern-token=test-token",
+      );
+
+      await handleOsRedirect(win);
+
+      expect(mockGetCmsSessionHint).toHaveBeenCalledTimes(1);
+      expect(
+        localStorage["$OS_Users$Casework_Blocks$ClientVars$IsFromProxy"],
+      ).toBe("true");
+    });
+
+    test("stores isProxySession false when hint says so", async () => {
+      const hint = {
+        cmsDomains: ["example.com"],
+        isProxySession: false,
+        handoverEndpoint: null,
+      };
+      mockGetCmsSessionHint.mockResolvedValue(hint);
+
+      const win = makeWindow(
+        "https://cps-dev.outsystemsenterprise.com/AuthHandover/index.html?r=https://example.com/Casework_Blocks/Home&stage=os-token-return&cc=test-cookies&cms-modern-token=test-token",
+      );
+
+      await handleOsRedirect(win);
+
+      expect(
+        localStorage["$OS_Users$Casework_Blocks$ClientVars$IsFromProxy"],
+      ).toBe("false");
+    });
+
+    test("does not block redirect when getCmsSessionHint throws", async () => {
+      mockGetCmsSessionHint.mockRejectedValue(new Error("network failure"));
+
+      const win = makeWindow(
+        "https://cps-dev.outsystemsenterprise.com/AuthHandover/index.html?r=https://example.com/Casework_Blocks/Home&stage=os-token-return&cc=test-cookies&cms-modern-token=test-token",
+      );
+
+      await handleOsRedirect(win);
+
+      expect(win.location.replace).toHaveBeenCalledWith(
+        "https://example.com/Casework_Blocks/Home",
+      );
+      expect(console.log).toHaveBeenCalledWith(
+        expect.stringContaining("handleSettingCmsSessionHint error"),
+      );
+    });
+
+    test("handles case-insensitive /casework_blocks/ path matching", async () => {
+      const hint = {
+        cmsDomains: [],
+        isProxySession: true,
+        handoverEndpoint: null,
+      };
+      mockGetCmsSessionHint.mockResolvedValue(hint);
+
+      const win = makeWindow(
+        "https://cps-dev.outsystemsenterprise.com/AuthHandover/index.html?r=https://example.com/casework_blocks/Home&stage=os-token-return&cc=test-cookies&cms-modern-token=test-token",
+      );
+
+      await handleOsRedirect(win);
+
+      expect(mockGetCmsSessionHint).toHaveBeenCalledTimes(1);
+    });
+
+    test("always calls window.location.replace with the correct nextUrl", async () => {
+      mockGetCmsSessionHint.mockResolvedValue({
+        cmsDomains: [],
+        isProxySession: false,
+        handoverEndpoint: null,
+      });
+
+      const win = makeWindow(
+        "https://cps-dev.outsystemsenterprise.com/AuthHandover/index.html?r=https://example.com/Casework_Blocks/Home&stage=os-token-return&cc=test-cookies&cms-modern-token=test-token",
+      );
+
+      await handleOsRedirect(win);
+
+      expect(win.location.replace).toHaveBeenCalledWith(
+        "https://example.com/Casework_Blocks/Home",
+      );
     });
   });
 });

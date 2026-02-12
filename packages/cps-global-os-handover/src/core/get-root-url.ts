@@ -1,4 +1,6 @@
-export const getRootUrl = () => {
-  const script = document.currentScript;
-  return script && script instanceof HTMLScriptElement ? script.src : null;
-};
+const rootUrl =
+  document.currentScript instanceof HTMLScriptElement
+    ? document.currentScript.src
+    : null;
+
+export const getRootUrl = () => rootUrl;
