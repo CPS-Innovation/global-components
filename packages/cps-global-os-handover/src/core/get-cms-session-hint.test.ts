@@ -44,7 +44,7 @@ describe("getCmsSessionHint", () => {
     expect(result).toEqual(hint);
     expect(mockFetch).toHaveBeenCalledWith(
       "https://polaris.cps.gov.uk/global-components/cms-session-hint",
-      { signal: expect.any(AbortSignal) },
+      { signal: expect.any(AbortSignal), credentials: "include" },
     );
   });
 

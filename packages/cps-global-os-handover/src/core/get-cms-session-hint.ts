@@ -10,6 +10,7 @@ export const getCmsSessionHint = async (): Promise<CmsSessionHint> => {
   const sessionHintUrl = `${new URL(rootUrl).origin}/global-components/cms-session-hint`;
   const response = await fetch(sessionHintUrl, {
     signal: AbortSignal.timeout(5000),
+    credentials: "include",
   });
   if (!response.ok) {
     throw new Error(`Error retrieving cms session hint ${response.statusText}`);
