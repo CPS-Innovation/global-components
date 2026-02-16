@@ -22,19 +22,12 @@ Nginx reverse proxy with njs (JavaScript) for header/cookie manipulation. Used t
 - `.env` - **gitignored** - contains vnext-specific config
 - `.env.example` - template for the above
 
-### Global components vnever config (`config/global-components.vnever/`)
-
-- `global-components.vnever.js` - njs module for upstream health check proxy
-- `global-components.vnever.conf.template` - nginx location block for health check endpoint
-- **Note**: vnever is NOT deployed to production - used for local/Docker testing only
-
 ### Docker (`docker/`)
 
 - `Dockerfile.base` - nginx with njs module, runs as non-root `nginx` user on port 8080
 - `Dockerfile.mock` - simple Node.js mock server for testing
 - `docker-compose.yml` - base config with nginx + mock-upstream + global-components
 - `docker-compose.vnext.yml` - vnext layer override
-- `docker-compose.vnever.yml` - vnever layer override
 - `global-components.mock.env` - mock env vars pointing to mock-upstream for testing
 - `global-components.vnext.mock.env` - mock vnext env vars for testing
 
@@ -48,8 +41,6 @@ Unit tests are located in `tests` subfolders:
 - `config/main/tests/global-components.unit.test.ts` - tests for `global-components.ts`
 - `config/main/tests/nginx.unit.test.ts` - tests for `nginx.js` auth redirect handlers
 - `config/global-components.vnext/tests/global-components.vnext.unit.test.ts` - tests for `global-components.vnext.js`
-- `config/global-components.vnever/tests/global-components.vnever.unit.test.ts` - tests for `global-components.vnever.js`
-
 Uses esbuild to bundle njs modules with mocked dependencies. Build artifacts go to `.dist/` (gitignored).
 
 ### Integration tests
@@ -60,7 +51,6 @@ Integration tests are located in `tests` subfolders:
 - `config/main/tests/nginx.integration.test.js` - tests for auth redirect endpoints
 - `config/main/tests/global-components.integration.test.js` - tests for base proxy functionality
 - `config/global-components.vnext/tests/global-components.vnext.integration.test.js` - tests for vnext features
-- `config/global-components.vnever/tests/global-components.vnever.integration.test.js` - tests for health check endpoint
 - `run-tests.sh` - script that rebuilds Docker, runs tests, and cleans up
 
 The integration test script always rebuilds Docker containers to ensure latest code is tested.
@@ -74,7 +64,6 @@ The integration test script always rebuilds Docker containers to ensure latest c
 - x-functions-key injection
 - CORS headers
 - Authorization header stripping
-- Upstream health check endpoint
 
 ## Auth Redirect Flow
 
@@ -172,8 +161,6 @@ Note: `GLOBAL_COMPONENTS_APPLICATION_ID` and `GLOBAL_COMPONENTS_BLOB_STORAGE_URL
 - `global-components.conf.template` - nginx location blocks
 - `global-components.js` - njs module for upstream proxying
 - `WM_MDS_BASE_URL` and `WM_MDS_ACCESS_KEY` app settings
-
-Note: `global-components.vnever` is NOT deployed - it is only used for local/Docker testing.
 
 ### Setup (one-time on remote machine)
 

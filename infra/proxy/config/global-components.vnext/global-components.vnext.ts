@@ -5,15 +5,16 @@ import gloco from "templates/global-components.js"
 const DEPLOYMENT_JSON_PATH =
   "/etc/nginx/templates/global-components-deployment.json"
 const TENANT_ID = "00dd0d1d-d7e6-6338-ac51-565339c7088c"
-const VALIDATE_TOKEN_AGAINST_AD = false // Set to true when ready to enforce AD token validation
 const STATE_COOKIE_NAME = "cps-global-components-state"
-const STATE_KEYS_NO_AUTH_ON_GET = ["preview", "settings"]
 const STATE_COOKIE_LIFESPAN_MS = 365 * 24 * 60 * 60 * 1000
-const AD_AUTH_ENDPOINT = "https://graph.microsoft.com/v1.0/me"
 
 interface TokenClaims {
   tid?: string
   appid?: string
+  oid?: string
+  upn?: string
+  email?: string
+  preferred_username?: string
   [key: string]: unknown
 }
 
@@ -134,59 +135,13 @@ function _extractAndValidateClaims(r: NginxHTTPRequest): ClaimsResult {
   }
 }
 
-async function _validateToken(r: NginxHTTPRequest): Promise<boolean> {
-  // Skip validation entirely if not enforcing AD tokens
-  if (!VALIDATE_TOKEN_AGAINST_AD) {
-    return true
-  }
-
-  // First: validate claims locally (tenant ID and app ID)
-  const result = _extractAndValidateClaims(r)
-  if (!result.claimsAreValid) {
-    return false
-  }
-
-  // Second: validate token with Graph API (checks signature, expiry, revocation)
-  const authHeader = r.headersIn["Authorization"] as string
-  try {
-    const response = await ngx.fetch(AD_AUTH_ENDPOINT, {
-      method: "GET",
-      headers: {
-        Authorization: authHeader,
-        Host: "graph.microsoft.com",
-      },
-    })
-    return response.ok
-  } catch (e) {
-    return false
-  }
-}
-
-
 async function handleState(r: NginxHTTPRequest): Promise<void> {
   if (!["GET", "PUT"].includes(r.method)) {
-    // Method not allowed
     r.return(405, JSON.stringify({ error: "Method not allowed" }))
     return
   }
 
   r.headersOut["Content-Type"] = "application/json"
-
-  // Extract state key from URI: /global-components/state/{key}
-  const stateKey = r.uri
-    .replace(/^\/global-components\/state\//, "")
-    .split("/")[0]
-  const isPublicKey = STATE_KEYS_NO_AUTH_ON_GET.includes(stateKey)
-  // Only allow unauthenticated GET for keys in the whitelist
-  const shouldSkipAuth = isPublicKey && r.method === "GET"
-
-  if (!shouldSkipAuth) {
-    const isValid = await _validateToken(r)
-    if (!isValid) {
-      r.return(401, JSON.stringify({ error: "Unauthorized" }))
-      return
-    }
-  }
 
   if (r.method === "GET") {
     // Get wrapped state from cookie and unwrap it
@@ -231,9 +186,30 @@ async function handleState(r: NginxHTTPRequest): Promise<void> {
 }
 
 async function handleValidateToken(r: NginxHTTPRequest): Promise<void> {
-  // Used by auth_request - returns 200 if valid, 401 if not
-  const isValid = await _validateToken(r)
-  r.return(isValid ? 200 : 401, "")
+  // Used by auth_request - always enforces AD token validation
+  // Sets X-Auth-Oid and X-Auth-Upn headers for capture via auth_request_set
+  const result = _extractAndValidateClaims(r)
+  if (!result.claimsAreValid) {
+    r.return(401, "")
+    return
+  }
+
+  r.headersOut["X-Auth-Oid"] = result.claims.oid || "-"
+  r.headersOut["X-Auth-Upn"] = result.claims.upn || result.claims.email || result.claims.preferred_username || "-"
+
+  const adAuthEndpoint = r.variables.ad_auth_endpoint as string
+  const authHeader = r.headersIn["Authorization"] as string
+  try {
+    const response = await ngx.fetch(adAuthEndpoint, {
+      method: "GET",
+      headers: {
+        Authorization: authHeader,
+      },
+    })
+    r.return(response.ok ? 200 : 401, "")
+  } catch (e) {
+    r.return(401, "")
+  }
 }
 
 function handleStatus(r: NginxHTTPRequest): void {
