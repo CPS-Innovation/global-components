@@ -3,13 +3,15 @@ import { isContextMatch } from "./is-context-match";
 import { replaceTagsInString } from "./replace-tags-in-string";
 import { withLogging } from "../../../../logging/with-logging";
 import { isDcfCaseKey } from "../../../../services/data/CaseDetails";
+import { State } from "../../../../store/store";
+import { linkHandoverAdapter } from "./link-handover-adapter";
 
 export type MapLinkConfigResult = ReturnType<ReturnType<typeof mapLinkConfig>>;
 
-export type MapLinkConfigParams = { contextIds: string; tags: Record<string, string>; handoverAdapter?: ((targetUrl: string) => string) | undefined };
+export type MapLinkConfigParams = Pick<State, "context" | "config" | "tags" | "flags" | "cmsSessionHint">;
 
 export const mapLinkConfigInternal =
-  ({ contextIds, tags, handoverAdapter }: MapLinkConfigParams) =>
+  ({ context: { contextIds }, tags, flags, config, cmsSessionHint }: MapLinkConfigParams) =>
   ({ label, href, dcfHref, level, activeContexts, openInNewTab, dcfContextsToUseEventNavigation }: Link) => {
     const shouldUseDcfHref = tags[isDcfCaseKey] === "true" && dcfHref;
     const processedHref = replaceTagsInString(shouldUseDcfHref ? dcfHref : href, tags);
@@ -18,7 +20,7 @@ export const mapLinkConfigInternal =
       label,
       level,
       openInNewTab,
-      href: handoverAdapter ? handoverAdapter(processedHref) : processedHref,
+      href: linkHandoverAdapter({ flags, config, cmsSessionHint })(processedHref),
       selected: isContextMatch(contextIds, activeContexts),
       dcfContextsToUseEventNavigation:
         tags[isDcfCaseKey] === "true" && isContextMatch(contextIds, dcfContextsToUseEventNavigation?.contexts) ? dcfContextsToUseEventNavigation : undefined,
