@@ -1,0 +1,16 @@
+{
+  "name": "@cps/polaris-proxy",
+  "private": true,
+  "scripts": {
+    "build": "./scripts/build.sh",
+    "test": "npx ts-node --project tsconfig.test.json config/tests/cmsenv.unit.test.ts",
+    "test:integration": "pnpm build && ./run-tests.sh"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "esbuild": "^0.27.0",
+    "njs-types": "^0.9.4",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.7.2"
+  }
+}
