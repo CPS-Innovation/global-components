@@ -20,7 +20,7 @@ import { CorrelationIds } from "../../../services/correlation/CorrelationIds";
 import { CaseDetails } from "../../../services/data/CaseDetails";
 import { MonitoringCodes } from "../../../services/data/MonitoringCode";
 import { Result } from "../../../utils/Result";
-import { CmsSessionHint } from "../../../services/state/cms-session/CmsSessionHint";
+import { CmsSessionHint } from "cps-global-configuration";
 
 // Type the mocked functions
 const mockShouldShowLink = shouldShowLink as jest.MockedFunction<typeof shouldShowLink>;
@@ -224,7 +224,14 @@ describe("menuConfig", () => {
     const groupedLinks = [
       [
         { label: "Mapped Link 1", href: "/mapped1", selected: true, openInNewTab: false, dcfContextsToUseEventNavigation: undefined, ariaSelected: true as true, disabled: false },
-        { label: "Mapped Link 3", href: "/mapped3", selected: false, openInNewTab: false, dcfContextsToUseEventNavigation: { contexts: "app-event section-event", data: "" }, disabled: false },
+        {
+          label: "Mapped Link 3",
+          href: "/mapped3",
+          selected: false,
+          openInNewTab: false,
+          dcfContextsToUseEventNavigation: { contexts: "app-event section-event", data: "" },
+          disabled: false,
+        },
       ],
     ];
     mockGroupLinksByLevel.mockReturnValue(groupedLinks);
