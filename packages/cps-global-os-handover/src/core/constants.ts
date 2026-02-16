@@ -3,6 +3,7 @@ export const paramKeys = {
   COOKIES: "cc",
   R: "r",
   TOKEN: "cms-modern-token",
+  SRC: "src",
 };
 
 export const stages = {

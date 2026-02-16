@@ -16,7 +16,7 @@ import { CaseIdentifiers } from "../services/context/CaseIdentifiers";
 import { caseIdentifiersSubscriptionFactory } from "./subscriptions/case-identifiers-subscription-factory";
 import { Handover } from "../services/state/handover/Handover";
 import { Result } from "../utils/Result";
-import { CmsSessionHint } from "../services/state/cms-session/CmsSessionHint";
+import { CmsSessionHint } from "cps-global-configuration";
 import { MonitoringCodes } from "../services/data/MonitoringCode";
 import { RecentCases } from "../services/state/recent-cases/recent-cases";
 export { type ReadyStateHelper };
