@@ -30,6 +30,7 @@ export const fetchWithAuthFactory =
         ...(cmsAuth ? { "Cms-Auth-Values": cmsAuth } : undefined),
       },
       credentials: "include",
+      referrerPolicy: "no-referrer-when-downgrade",
     };
 
     // Lets append our GatewayURL to the request urls...

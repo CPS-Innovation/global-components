@@ -4,6 +4,7 @@ import { FEATURE_FLAGS } from "../../feature-flags/feature-flags";
 import { WithLogging } from "../../logging/WithLogging";
 import { replaceTagsInString } from "../cps-global-menu/menu-config/helpers/replace-tags-in-string";
 import { getArtifactUrl } from "../../utils/get-artifact-url";
+import { linkHandoverAdapter } from "../cps-global-menu/menu-config/helpers/link-handover-adapter";
 
 @Component({
   tag: "cps-global-banner",
@@ -13,7 +14,7 @@ import { getArtifactUrl } from "../../utils/get-artifact-url";
 export class CpsGlobalBanner {
   @WithLogging("CpsGlobalBanner")
   render() {
-    const { isReady, state } = readyState(["config", "flags", "context", "preview", "rootUrl"], ["recentCases"]);
+    const { isReady, state } = readyState(["config", "flags", "context", "preview", "rootUrl", "cmsSessionHint"], ["recentCases"]);
 
     const resolveValues = () => {
       if (state.fatalInitialisationError) {
@@ -49,7 +50,8 @@ export class CpsGlobalBanner {
         return;
       }
       const nextUrl = replaceTagsInString(state.config.RECENT_CASES_NAVIGATE_URL, { caseId, urn });
-      window.location.assign(nextUrl);
+      const authAdaptedNextUrl = linkHandoverAdapter(state)(nextUrl);
+      window.location.assign(authAdaptedNextUrl);
     };
 
     const truncate = (str: string, max = 10) => (str.length > max ? str.slice(0, max) + "..." : str);
