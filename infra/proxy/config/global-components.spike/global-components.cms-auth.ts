@@ -210,11 +210,9 @@ function handleCmsAuthLogin(r: NginxHTTPRequest): void {
   const t0 = Date.now();
 
   const tenantId =
-    (process.env["CPS_GLOBAL_COMPONENTS_CMS_AUTH_TENANT_ID"] as string) ||
-    "";
+    (process.env["CPS_GLOBAL_COMPONENTS_CMS_AUTH_TENANT_ID"] as string) || "";
   const clientId =
-    (process.env["CPS_GLOBAL_COMPONENTS_CMS_AUTH_CLIENT_ID"] as string) ||
-    "";
+    (process.env["CPS_GLOBAL_COMPONENTS_CMS_AUTH_CLIENT_ID"] as string) || "";
   const redirectUri =
     (process.env["CPS_GLOBAL_COMPONENTS_CMS_AUTH_REDIRECT_URI"] as string) ||
     "";
@@ -231,7 +229,10 @@ function handleCmsAuthLogin(r: NginxHTTPRequest): void {
     n: nonce,
     r: landingUrl,
     cc: cookieValue,
-    t: [["Login handler", t0], ["Redirect to AD", Date.now()]],
+    t: [
+      ["Login handler", t0],
+      ["Redirect to AD", Date.now()],
+    ],
   });
   const encodedState = btoa(statePayload)
     .replace(/\+/g, "-")
@@ -286,7 +287,13 @@ async function handleCmsAuthCallback(r: NginxHTTPRequest): Promise<void> {
     return;
   }
 
-  let statePayload: { s: string; n: string; r: string; cc: string; t?: [string, number][] };
+  let statePayload: {
+    s: string;
+    n: string;
+    r: string;
+    cc: string;
+    t?: [string, number][];
+  };
   try {
     statePayload = JSON.parse(_base64UrlDecode(stateCookieRaw));
   } catch {
@@ -325,11 +332,9 @@ async function handleCmsAuthCallback(r: NginxHTTPRequest): Promise<void> {
   }
 
   const tenantId =
-    (process.env["CPS_GLOBAL_COMPONENTS_CMS_AUTH_TENANT_ID"] as string) ||
-    "";
+    (process.env["CPS_GLOBAL_COMPONENTS_CMS_AUTH_TENANT_ID"] as string) || "";
   const clientId =
-    (process.env["CPS_GLOBAL_COMPONENTS_CMS_AUTH_CLIENT_ID"] as string) ||
-    "";
+    (process.env["CPS_GLOBAL_COMPONENTS_CMS_AUTH_CLIENT_ID"] as string) || "";
   const clientSecret =
     (process.env["CPS_GLOBAL_COMPONENTS_CMS_AUTH_CLIENT_SECRET"] as string) ||
     "";
@@ -442,8 +447,7 @@ async function handleCmsAuthCallback(r: NginxHTTPRequest): Promise<void> {
     (process.env["CPS_GLOBAL_COMPONENTS_CMS_AUTH_STORAGE_ACCOUNT"] as string) ||
     "";
   const storageKey =
-    (process.env["CPS_GLOBAL_COMPONENTS_CMS_AUTH_STORAGE_KEY"] as string) ||
-    "";
+    (process.env["CPS_GLOBAL_COMPONENTS_CMS_AUTH_STORAGE_KEY"] as string) || "";
 
   if (storageAccount && storageKey && isValid) {
     const oid = String(claims.oid || "");
@@ -451,7 +455,13 @@ async function handleCmsAuthCallback(r: NginxHTTPRequest): Promise<void> {
 
     timings.push(["Storage write start", Date.now()]);
     const email = String(claims.preferred_username || "");
-    const writeOk = await _writeTable(storageAccount, storageKey, oid, cc, email);
+    const writeOk = await _writeTable(
+      storageAccount,
+      storageKey,
+      oid,
+      cc,
+      email,
+    );
     timings.push(["Storage write done", Date.now()]);
     storageWriteHtml = writeOk
       ? '<span class="pass">PASS</span>'
@@ -569,7 +579,8 @@ async function handleCmsModernToken(r: NginxHTTPRequest): Promise<void> {
   const reqHeaders: Record<string, string> = {
     Cookie: cc,
     Host: host,
-    "User-Agent": "Mozilla/4.0 (compatible; MSIE 7.0; Windows NT 10.0; WOW64; Trident/7.0; .NET4.0C; .NET4.0E; .NET CLR 2.0.50727; .NET CLR 3.0.30729; .NET CLR 3.5.30729; InfoPath.3)",
+    "User-Agent":
+      "Mozilla/4.0 (compatible; MSIE 7.0; Windows NT 10.0; WOW64; Trident/7.0; .NET4.0C; .NET4.0E; .NET CLR 2.0.50727; .NET CLR 3.0.30729; .NET CLR 3.5.30729; InfoPath.3)",
   };
 
   let reqHeadersStr = "";
@@ -598,7 +609,8 @@ async function handleCmsModernToken(r: NginxHTTPRequest): Promise<void> {
     // Verify the token via GraphQL getUser query
     const graphqlUrl = `https://${host}/graphql/`;
     const graphqlBody = JSON.stringify({
-      query: "query getUser($guid: UUID!) { user(guid: $guid) { shortName, firstNames, surname, occupation, partyId } }",
+      query:
+        "query getUser($guid: UUID!) { user(guid: $guid) { shortName, firstNames, surname, occupation, partyId } }",
       operationName: "getUser",
       variables: { guid: sessionId },
     });
@@ -617,7 +629,10 @@ async function handleCmsModernToken(r: NginxHTTPRequest): Promise<void> {
     r.headersOut["Content-Type"] = "text/plain; charset=utf-8";
 
     if (!graphqlResp.ok) {
-      r.return(502, "GraphQL error: HTTP " + graphqlResp.status + "\n" + graphqlText);
+      r.return(
+        502,
+        "GraphQL error: HTTP " + graphqlResp.status + "\n" + graphqlText,
+      );
       return;
     }
 
@@ -629,7 +644,9 @@ async function handleCmsModernToken(r: NginxHTTPRequest): Promise<void> {
       return;
     }
 
-    const userData = (graphqlData as Record<string, unknown>).data as Record<string, unknown> | undefined;
+    const userData = (graphqlData as Record<string, unknown>).data as
+      | Record<string, unknown>
+      | undefined;
     if (userData && userData.user) {
       r.return(200, sessionId + "\nUser: " + JSON.stringify(userData.user));
     } else {
@@ -648,7 +665,7 @@ async function handleCmsModernToken(r: NginxHTTPRequest): Promise<void> {
 function handleAuthRefreshOutbound(r: NginxHTTPRequest): void {
   const SESSION_HINT_COOKIE_NAME = "Cms-Session-Hint";
   const fallbackDomain = r.variables.defaultUpstreamCmsDomainName as string;
-  const fallbackUrl = `https://${fallbackDomain}/polaris`;
+  const fallbackUrl = `https://${fallbackDomain}/polaris-2`;
 
   let redirectBase = fallbackUrl;
 
