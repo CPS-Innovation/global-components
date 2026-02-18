@@ -20,8 +20,8 @@ const {
 // Mock JWT for auth_request token validation
 // =============================================================================
 
-const TENANT_ID = "00dd0d1d-d7e6-6338-ac51-565339c7088c"
-const APP_ID = "test-app-id"
+const TENANT_ID = "00dd0d1d-d7e6-4338-ac51-565339c7088c"
+const APP_ID = "8d6133af-9593-47c6-94d0-5c65e9e310f1"
 
 function createMockJwt() {
   const header = Buffer.from(JSON.stringify({ alg: "none", typ: "JWT" })).toString("base64").replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "")
@@ -307,9 +307,9 @@ async function testStateEndpoint() {
 async function testMdsApiProxy() {
   console.log("\nMDS API Proxy Tests (/global-components/api/cases/*):")
 
-  await test("rejects request without auth token", async () => {
+  await test("allows request without auth token (soft mode)", async () => {
     const response = await fetch(`${PROXY_BASE}/global-components/api/cases/12345/summary`)
-    assertEqual(response.status, 401, "Should return 401 without auth token")
+    assertEqual(response.status, 200, "Should return 200 in soft mode (no blocking)")
   })
 
   await test("proxies case summary endpoint with valid token", async () => {
