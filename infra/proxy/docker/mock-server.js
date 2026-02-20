@@ -61,6 +61,20 @@ const server = http.createServer((req, res) => {
   console.log(`[${new Date().toISOString()}] ${req.method} ${req.url}`);
   console.log('Headers:', JSON.stringify(req.headers, null, 2));
 
+  // Mock Graph API token validation endpoint
+  if (req.url === '/v1.0/me') {
+    if (req.headers.authorization) {
+      console.log('  -> Mock Graph API: token present, returning 200');
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ id: 'mock-user', displayName: 'Mock User' }));
+    } else {
+      console.log('  -> Mock Graph API: no token, returning 401');
+      res.writeHead(401, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'Unauthorized' }));
+    }
+    return;
+  }
+
   // Strip /api/ prefix if present, and leading slash
   const path = req.url.replace(/^\/api\//, '').replace(/^\//, '').replace(/\?.*$/, '');
 

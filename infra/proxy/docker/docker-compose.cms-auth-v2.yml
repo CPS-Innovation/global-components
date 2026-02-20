@@ -1,0 +1,14 @@
+# CMS Auth V2 layer override
+# Use: docker-compose -f docker-compose.yml -f docker-compose.cms-auth-v2.yml up --build
+#
+# Mounts the v2 conf and compiled JS so nginx can parse the location blocks.
+# Does NOT require real Azure AD credentials — the integration test only
+# checks that nginx starts and the sync error handler responds.
+
+services:
+  nginx:
+    env_file:
+      - global-components.cms-auth-v2.mock.env
+    volumes:
+      - ../config/global-components.spike/global-components.cms-auth-v2.conf:/etc/nginx/templates/global-components.cms-auth-v2.conf.template:ro
+      - ../dist/global-components.cms-auth-v2.js:/etc/nginx/templates/global-components.cms-auth-v2.js:ro

@@ -1,8 +1,0 @@
-# VNever layer override (requires vnext layer)
-# Use: docker-compose -f docker-compose.yml -f docker-compose.vnext.yml -f docker-compose.vnever.yml up
-
-services:
-  nginx:
-    volumes:
-      - ../config/global-components.vnever/global-components.vnever.conf:/etc/nginx/templates/global-components.vnever.conf.template:ro
-      - ../dist/global-components.vnever.js:/etc/nginx/templates/global-components.vnever.js:ro

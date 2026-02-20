@@ -1,4 +1,5 @@
 #!/usr/bin/env npx ts-node
+/// <reference types="node" />
 /**
  * Build and run unit tests for global-components.vnext.ts
  *
@@ -40,8 +41,10 @@ interface MockRequest {
   requestText: string
   sentBuffer: string | null
   sentFlags: Record<string, unknown> | null
+  warnMessages: string[]
   return(code: number, body: string): void
   sendBuffer(buffer: string, flags: Record<string, unknown>): void
+  warn(msg: string): void
 }
 
 interface MockRequestOptions {
@@ -58,6 +61,7 @@ interface GlocoVnextModule {
   handleValidateToken(r: MockRequest): Promise<void>
   handleStatus(r: MockRequest): void
   filterSwaggerBody(r: MockRequest, data: string, flags: Record<string, unknown>): void
+  logRequest(r: MockRequest): void
   setCookie(r: MockRequest, name: string, value: string, options?: CookieOptions): void
 }
 
@@ -123,12 +127,15 @@ async function runTests(): Promise<void> {
 
   // Default mock environment variables
   const defaultVariables = {
-    global_components_application_id: "test-app-id",
     wm_mds_base_url: "http://mock-upstream:3000/api/",
   }
 
-  // Hardcoded tenant ID (must match the constant in global-components.vnext.ts)
-  const TENANT_ID = "00dd0d1d-d7e6-6338-ac51-565339c7088c"
+  // Set AD_AUTH_ENDPOINT via process.env (same mechanism as njs code)
+  process.env.AD_AUTH_ENDPOINT = "http://mock-upstream:3000/v1.0/me"
+
+  // Hardcoded constants (must match the constants in global-components.vnext.ts)
+  const TENANT_ID = "00dd0d1d-d7e6-4338-ac51-565339c7088c"
+  const APPLICATION_ID = "8d6133af-9593-47c6-94d0-5c65e9e310f1"
 
   function createMockRequest(options: MockRequestOptions = {}): MockRequest {
     return {
@@ -143,6 +150,7 @@ async function runTests(): Promise<void> {
       requestText: options.requestText || "",
       sentBuffer: null,
       sentFlags: null,
+      warnMessages: [],
       return(code: number, body: string) {
         this.returnCode = code
         this.returnBody = body
@@ -150,6 +158,9 @@ async function runTests(): Promise<void> {
       sendBuffer(buffer: string, flags: Record<string, unknown>) {
         this.sentBuffer = buffer
         this.sentFlags = flags
+      },
+      warn(msg: string) {
+        this.warnMessages.push(msg)
       },
     }
   }
@@ -205,20 +216,16 @@ async function runTests(): Promise<void> {
     assertEqual(r.returnBody, stateValue, "Should return unwrapped cookie value")
   })
 
-  // Note: VALIDATE_TOKEN_AGAINST_AD is currently false, so these tests reflect
-  // the behavior when token validation is disabled. When enabled, non-whitelisted
-  // keys would return 401 without valid auth.
-
-  await test("GET on non-whitelisted key returns 200 when validation disabled", async () => {
+  await test("GET on any key returns 200 (no auth on state)", async () => {
     const r = createMockRequest({
       method: "GET",
       uri: "/global-components/state/other-key",
     })
     await glocovnext.handleState(r)
-    assertEqual(r.returnCode, 200, "Should return 200 (validation disabled)")
+    assertEqual(r.returnCode, 200, "Should return 200")
   })
 
-  await test("PUT succeeds without Authorization header when validation disabled", async () => {
+  await test("PUT succeeds without Authorization header", async () => {
     const stateValue = JSON.stringify({ count: 42 })
     const r = createMockRequest({
       method: "PUT",
@@ -226,7 +233,7 @@ async function runTests(): Promise<void> {
       requestText: stateValue,
     })
     await glocovnext.handleState(r)
-    assertEqual(r.returnCode, 200, "Should return 200 (validation disabled)")
+    assertEqual(r.returnCode, 200, "Should return 200")
     const body = JSON.parse(r.returnBody!)
     assertEqual(body.success, true, "Should have success true")
   })
@@ -318,23 +325,97 @@ async function runTests(): Promise<void> {
   })
 
   // --- handleValidateToken tests ---
-  // Note: VALIDATE_TOKEN_AGAINST_AD is currently false, so all requests return 200
   console.log("\nhandleValidateToken:")
 
-  await test("returns 200 when validation disabled (no auth header)", async () => {
+  // Helper to create a mock JWT with valid claims
+  function createMockJwt(claims: Record<string, unknown> = {}): string {
+    const header = Buffer.from(JSON.stringify({ alg: "none", typ: "JWT" })).toString("base64").replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "")
+    const payload = Buffer.from(JSON.stringify({ tid: TENANT_ID, appid: APPLICATION_ID, ...claims })).toString("base64").replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "")
+    return `${header}.${payload}.mock-signature`
+  }
+
+  await test("returns 200 with status no-token when no auth header", async () => {
     const r = createMockRequest({})
     await glocovnext.handleValidateToken(r)
-    assertEqual(r.returnCode, 200, "Should return 200 (validation disabled)")
+    assertEqual(r.returnCode, 200, "Should return 200 (soft mode)")
+    assertEqual(r.headersOut["X-Auth-Status"], "no-token", "Should set status to no-token")
   })
 
-  await test("returns 200 when validation disabled (any token)", async () => {
+  await test("returns 200 with status malformed-token for bad token", async () => {
     const r = createMockRequest({
       headersIn: {
         Authorization: "Bearer any-token",
       },
     })
     await glocovnext.handleValidateToken(r)
-    assertEqual(r.returnCode, 200, "Should return 200 (validation disabled)")
+    assertEqual(r.returnCode, 200, "Should return 200 (soft mode)")
+    assertEqual(r.headersOut["X-Auth-Status"], "malformed-token", "Should set status to malformed-token")
+  })
+
+  await test("returns 200 with status invalid-claims-tid for wrong tenant ID", async () => {
+    const token = createMockJwt({ tid: "wrong-tenant-id" })
+    const r = createMockRequest({
+      headersIn: { Authorization: `Bearer ${token}` },
+    })
+    await glocovnext.handleValidateToken(r)
+    assertEqual(r.returnCode, 200, "Should return 200 (soft mode)")
+    assert((r.headersOut["X-Auth-Status"] as string).startsWith("invalid-claims-tid"), "Should set status to invalid-claims-tid")
+  })
+
+  await test("returns 200 with status invalid-claims-appid for wrong app ID", async () => {
+    const token = createMockJwt({ appid: "wrong-app-id" })
+    const r = createMockRequest({
+      headersIn: { Authorization: `Bearer ${token}` },
+    })
+    await glocovnext.handleValidateToken(r)
+    assertEqual(r.returnCode, 200, "Should return 200 (soft mode)")
+    assert((r.headersOut["X-Auth-Status"] as string).startsWith("invalid-claims-appid"), "Should set status to invalid-claims-appid")
+  })
+
+  await test("returns 200 with status ok when Graph API succeeds", async () => {
+    mockFetchResponse = { status: 200, ok: true }
+    const token = createMockJwt()
+    const r = createMockRequest({
+      headersIn: { Authorization: `Bearer ${token}` },
+    })
+    await glocovnext.handleValidateToken(r)
+    assertEqual(r.returnCode, 200, "Should return 200")
+    assertEqual(r.headersOut["X-Auth-Status"], "ok", "Should set status to ok")
+  })
+
+  await test("returns 200 with status graph-rejected when Graph API rejects", async () => {
+    mockFetchResponse = { status: 401, ok: false }
+    const token = createMockJwt()
+    const r = createMockRequest({
+      headersIn: { Authorization: `Bearer ${token}` },
+    })
+    await glocovnext.handleValidateToken(r)
+    assertEqual(r.returnCode, 200, "Should return 200 (soft mode)")
+    assertEqual(r.headersOut["X-Auth-Status"], "graph-rejected", "Should set status to graph-rejected")
+  })
+
+  await test("returns 200 with status graph-error when Graph API fetch fails", async () => {
+    mockFetchError = new Error("Network error")
+    const token = createMockJwt()
+    const r = createMockRequest({
+      headersIn: { Authorization: `Bearer ${token}` },
+    })
+    await glocovnext.handleValidateToken(r)
+    assertEqual(r.returnCode, 200, "Should return 200 (soft mode)")
+    assertEqual(r.headersOut["X-Auth-Status"], "graph-error", "Should set status to graph-error")
+    mockFetchError = null
+  })
+
+  await test("sets X-Auth-Oid and X-Auth-Upn headers on valid claims", async () => {
+    mockFetchResponse = { status: 200, ok: true }
+    const token = createMockJwt({ oid: "user-oid-123", upn: "user@example.com" })
+    const r = createMockRequest({
+      headersIn: { Authorization: `Bearer ${token}` },
+    })
+    await glocovnext.handleValidateToken(r)
+    assertEqual(r.returnCode, 200, "Should return 200")
+    assertEqual(r.headersOut["X-Auth-Oid"], "user-oid-123", "Should set OID header")
+    assertEqual(r.headersOut["X-Auth-Upn"], "user@example.com", "Should set UPN header")
   })
 
   // --- handleStatus tests ---
@@ -479,6 +560,64 @@ async function runTests(): Promise<void> {
     assertEqual(cookies[0], "session=abc123; Path=/", "First cookie should be session")
     assertEqual(cookies[1], "theme=dark; Path=/", "Second cookie should be theme")
     assertEqual(cookies[2], "lang=en; Path=/", "Third cookie should be lang")
+  })
+
+  // --- logRequest tests ---
+  console.log("\nlogRequest:")
+
+  await test("extracts oid/upn/auth_status directly from token", async () => {
+    const token = createMockJwt({ oid: "user-oid-123", upn: "user@example.com" })
+    const r = createMockRequest({
+      headersIn: { Authorization: `Bearer ${token}` },
+      variables: {
+        ...defaultVariables,
+        http_x_forwarded_for: "10.0.0.1",
+        http_referer: "https://example.com/page",
+        request: "GET /global-components/api/cases/123/summary HTTP/1.1",
+        status: "200",
+        request_length: "256",
+        request_time: "0.042",
+        body_bytes_sent: "1024",
+        upstream_response_time: "0.038",
+        upstream_connect_time: "0.002",
+        upstream_status: "200",
+      },
+    })
+    glocovnext.logRequest(r)
+    assertEqual(r.warnMessages.length, 1, "Should have one warn message")
+    const log = JSON.parse(r.warnMessages[0])
+    assertEqual(log.tag, "GLOBAL-COMPONENTS", "Should have tag")
+    assertEqual(log.x_forwarded_for, "10.0.0.1", "Should have x_forwarded_for")
+    assertEqual(log.referer, "https://example.com/page", "Should have referer")
+    assertEqual(log.status, 200, "Should have numeric status")
+    assertEqual(log.oid, "user-oid-123", "Should have oid from token")
+    assertEqual(log.upn, "user@example.com", "Should have upn from token")
+    assertEqual(log.upstream_status, "200", "Should have upstream_status")
+    assertEqual(log.auth_status, "ok", "Should have auth_status ok")
+  })
+
+  await test("logs invalid-claims for wrong tenant but still extracts oid/upn", async () => {
+    const token = createMockJwt({ tid: "wrong-tenant", oid: "user-oid-456", upn: "wrong@example.com" })
+    const r = createMockRequest({
+      headersIn: { Authorization: `Bearer ${token}` },
+    })
+    glocovnext.logRequest(r)
+    assertEqual(r.warnMessages.length, 1, "Should have one warn message")
+    const log = JSON.parse(r.warnMessages[0])
+    assertEqual(log.oid, "user-oid-456", "Should still extract oid from token for debugging")
+    assertEqual(log.upn, "wrong@example.com", "Should still extract upn from token for debugging")
+    assert(log.auth_status.startsWith("invalid-claims-tid"), "Should have invalid-claims-tid status")
+  })
+
+  await test("logs no-token when no Authorization header", async () => {
+    const r = createMockRequest({})
+    glocovnext.logRequest(r)
+    assertEqual(r.warnMessages.length, 1, "Should have one warn message")
+    const log = JSON.parse(r.warnMessages[0])
+    assertEqual(log.tag, "GLOBAL-COMPONENTS", "Should have tag")
+    assertEqual(log.oid, "-", "Should have dash for missing oid")
+    assertEqual(log.upn, "-", "Should have dash for missing upn")
+    assertEqual(log.auth_status, "no-token", "Should have no-token status")
   })
 
   // --- filterSwaggerBody tests ---

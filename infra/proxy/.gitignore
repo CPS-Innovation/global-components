@@ -16,3 +16,7 @@ deploy/backups/
 # Environment config files (contain secrets)
 config/main/.env
 config/global-components.vnext/.env
+config/global-components.spike/.env
+
+# Self-signed certs for local HTTPS
+docker/certs/
