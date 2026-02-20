@@ -29,15 +29,19 @@ export class CpsGlobalRecentCases {
       <div class="recent-cases">
         <h3 class="govuk-heading-m">Your recent cases</h3>
 
-        <ul class="govuk-list govuk-list--spaced">
-          {recentCases.result.map(({ caseId, urn, description }) => (
-            <li>
-              <a class="govuk-link" href={buildCaseLink({ caseId, urn })}>
-                {urn} - {description}
-              </a>
-            </li>
-          ))}
-        </ul>
+        {recentCases.result.length ? (
+          <ul class="govuk-list govuk-list--spaced">
+            {recentCases.result.map(({ caseId, urn, description }) => (
+              <li>
+                <a class="govuk-link" href={buildCaseLink({ caseId, urn })}>
+                  {urn} - {description}
+                </a>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p class="govuk-body">As you start to use this service the cases that you have visited most recently will appear here.</p>
+        )}
       </div>
     );
   }
