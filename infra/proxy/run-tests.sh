@@ -38,7 +38,7 @@ wait_for_proxy() {
 # Stop any running stack
 stop_stack() {
   cd "$DOCKER_DIR"
-  docker compose -f docker-compose.yml -f docker-compose.vnext.yml down -t 2 2>/dev/null || true
+  docker compose -f docker-compose.yml -f docker-compose.vnext.yml -f docker-compose.cms-auth-v2.yml down -t 2 2>/dev/null || true
 }
 
 # Run a test layer
@@ -117,6 +117,17 @@ if run_layer "vnext" \
   LAYER_RESULTS="${LAYER_RESULTS}  ${GREEN}✓${NC} vnext\n"
 else
   LAYER_RESULTS="${LAYER_RESULTS}  ${RED}✗${NC} vnext\n"
+  TOTAL_FAILED=$((TOTAL_FAILED + 1))
+fi
+
+# Layer 4: CMS Auth V2
+if run_layer "cms-auth-v2" \
+  "-f docker-compose.yml -f docker-compose.cms-auth-v2.yml" \
+  "/init-v2/error" \
+  "$SCRIPT_DIR/config/global-components.spike/tests/global-components.cms-auth-v2.integration.test.js"; then
+  LAYER_RESULTS="${LAYER_RESULTS}  ${GREEN}✓${NC} cms-auth-v2\n"
+else
+  LAYER_RESULTS="${LAYER_RESULTS}  ${RED}✗${NC} cms-auth-v2\n"
   TOTAL_FAILED=$((TOTAL_FAILED + 1))
 fi
 
