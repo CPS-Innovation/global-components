@@ -5,18 +5,14 @@ import { readyState } from "../../store/store";
 import { assertNever } from "../../utils/assert-never";
 
 const processState = () => {
-  const {
-    isReady,
-    state: {
-      recentCases,
-      config: { RECENT_CASES_NAVIGATE_URL },
-    },
-  } = readyState(["config"], ["recentCases"]);
+  const { isReady, state } = readyState(["config"], ["recentCases"]);
 
   // 1) If we  are not ready (!isReady) then we do not yet know if we are to show ourselves or not ...
   if (!isReady) {
     return { status: "not-yet-known" } as const;
   }
+
+  const { recentCases, config: { RECENT_CASES_NAVIGATE_URL } } = state;
 
   // 2) ... because we do not have RECENT_CASES_NAVIGATE_URL. We use the presence of that value as
   //  a feature flag.
