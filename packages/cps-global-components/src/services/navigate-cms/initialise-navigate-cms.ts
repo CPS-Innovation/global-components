@@ -14,7 +14,7 @@ export const initialiseNavigateCms = ({ rootUrl, preview }: { rootUrl: string; p
       : `caseId=${detail.caseId}`;
 
     const url = new URL(`../navigate-cms?${params}`, rootUrl).href;
-    window.open(url, "_blank", "width=500,height=300");
+    window.open(url, "_blank", "width=500,height=200,top=300,left=100");
   }) as EventListener);
 };
 
