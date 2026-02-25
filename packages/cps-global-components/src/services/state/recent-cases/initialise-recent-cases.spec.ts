@@ -18,164 +18,103 @@ const flushPromises = () => new Promise(resolve => setTimeout(resolve, 0));
 describe("initialiseRecentCases", () => {
   const rootUrl = "https://example.com/api/global-components/";
   const expectedUrl = "https://example.com/api/state/recent-cases";
+  const preview: Result<Preview> = { found: true, result: { enabled: true, myRecentCases: true } };
 
   beforeEach(() => {
     jest.clearAllMocks();
   });
 
-  describe("when preview is not found", () => {
-    const previewNotFound: Result<Preview> = {
-      found: false,
-      error: new Error("Preview not found"),
-    };
+  describe("when fetch succeeds with valid data", () => {
+    const validRecentCases: RecentCases = [
+      { caseId: 123, urn: "12AB3456789", description: "Smith, John" },
+      { caseId: 456, urn: "34CD5678901", description: "Doe, Jane" },
+    ];
 
-    it("should return recentCases with found: false", async () => {
-      const { recentCases } = await initialiseRecentCases({ rootUrl, preview: previewNotFound, register: mockRegister });
-
-      expect(recentCases!.found).toBe(false);
-      expect(recentCases!.error?.message).toBe("Recent cases not enabled");
+    beforeEach(() => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        json: () => Promise.resolve(validRecentCases),
+      });
     });
 
-    it("should return a no-op setNextRecentCases function", async () => {
-      const { setNextRecentCases } = await initialiseRecentCases({ rootUrl, preview: previewNotFound, register: mockRegister });
+    it("should call fetch with correct URL and credentials", async () => {
+      await initialiseRecentCases({ rootUrl, preview, register: mockRegister });
+
+      expect(mockFetch).toHaveBeenCalledWith(expectedUrl, { credentials: "include" });
+    });
+
+    it("should register recentCases with found: true and the result", async () => {
+      await initialiseRecentCases({ rootUrl, preview, register: mockRegister });
+      await flushPromises();
+
+      expect(mockRegister).toHaveBeenCalledWith({ recentCases: { found: true, result: validRecentCases } });
+    });
+
+    it("should return a setNextRecentCases function", async () => {
+      const { setNextRecentCases } = await initialiseRecentCases({ rootUrl, preview, register: mockRegister });
 
       expect(typeof setNextRecentCases).toBe("function");
-      // Should not throw when called
-      setNextRecentCases(undefined);
-    });
-
-    it("should not call fetch or register", async () => {
-      await initialiseRecentCases({ rootUrl, preview: previewNotFound, register: mockRegister });
-
-      expect(mockFetch).not.toHaveBeenCalled();
-      expect(mockRegister).not.toHaveBeenCalled();
     });
   });
 
-  describe("when preview.myRecentCases is false", () => {
-    const previewWithoutRecentCases: Result<Preview> = {
-      found: true,
-      result: { enabled: true, myRecentCases: false },
-    };
-
-    it("should return recentCases with found: false", async () => {
-      const { recentCases } = await initialiseRecentCases({ rootUrl, preview: previewWithoutRecentCases, register: mockRegister });
-
-      expect(recentCases!.found).toBe(false);
-      expect(recentCases!.error?.message).toBe("Recent cases not enabled");
+  describe("when fetch succeeds but response is null", () => {
+    beforeEach(() => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        json: () => Promise.resolve(null),
+      });
     });
 
-    it("should not call fetch or register", async () => {
-      await initialiseRecentCases({ rootUrl, preview: previewWithoutRecentCases, register: mockRegister });
+    it("should register recentCases with found: false", async () => {
+      await initialiseRecentCases({ rootUrl, preview, register: mockRegister });
+      await flushPromises();
 
-      expect(mockFetch).not.toHaveBeenCalled();
-      expect(mockRegister).not.toHaveBeenCalled();
+      expect(mockRegister).toHaveBeenCalledTimes(1);
+      const registeredValue = mockRegister.mock.calls[0][0].recentCases;
+      expect(registeredValue.found).toBe(false);
+      expect(registeredValue.error?.message).toBe(`User has no state at ${expectedUrl}`);
     });
   });
 
-  describe("when preview.myRecentCases is true", () => {
-    const previewWithRecentCases: Result<Preview> = {
-      found: true,
-      result: { enabled: true, myRecentCases: true },
-    };
-
-    describe("when fetch succeeds with valid data", () => {
-      const validRecentCases: RecentCases = [
-        { caseId: 123, urn: "12AB3456789", description: "Smith, John" },
-        { caseId: 456, urn: "34CD5678901", description: "Doe, Jane" },
-      ];
-
-      beforeEach(() => {
-        mockFetch.mockResolvedValue({
-          ok: true,
-          json: () => Promise.resolve(validRecentCases),
-        });
-      });
-
-      it("should call fetch with correct URL and credentials", async () => {
-        await initialiseRecentCases({ rootUrl, preview: previewWithRecentCases, register: mockRegister });
-
-        expect(mockFetch).toHaveBeenCalledWith(expectedUrl, { credentials: "include" });
-      });
-
-      it("should register recentCases with found: true and the result", async () => {
-        await initialiseRecentCases({ rootUrl, preview: previewWithRecentCases, register: mockRegister });
-        await flushPromises();
-
-        expect(mockRegister).toHaveBeenCalledWith({ recentCases: { found: true, result: validRecentCases } });
-      });
-
-      it("should return a setNextRecentCases function", async () => {
-        const { setNextRecentCases } = await initialiseRecentCases({ rootUrl, preview: previewWithRecentCases, register: mockRegister });
-
-        expect(typeof setNextRecentCases).toBe("function");
+  describe("when response is not ok", () => {
+    beforeEach(() => {
+      mockFetch.mockResolvedValue({
+        ok: false,
+        status: 500,
+        statusText: "Internal Server Error",
       });
     });
 
-    describe("when fetch succeeds but response is null", () => {
-      beforeEach(() => {
-        mockFetch.mockResolvedValue({
-          ok: true,
-          json: () => Promise.resolve(null),
-        });
-      });
+    it("should register recentCases with found: false", async () => {
+      await initialiseRecentCases({ rootUrl, preview, register: mockRegister });
+      await flushPromises();
 
-      it("should register recentCases with found: false", async () => {
-        await initialiseRecentCases({ rootUrl, preview: previewWithRecentCases, register: mockRegister });
-        await flushPromises();
+      expect(mockRegister).toHaveBeenCalledTimes(1);
+      const registeredValue = mockRegister.mock.calls[0][0].recentCases;
+      expect(registeredValue.found).toBe(false);
+      expect(registeredValue.error?.message).toBe(`Call to ${expectedUrl} returned non-ok status code: 500 Internal Server Error`);
+    });
+  });
 
-        expect(mockRegister).toHaveBeenCalledTimes(1);
-        const registeredValue = mockRegister.mock.calls[0][0].recentCases;
-        expect(registeredValue.found).toBe(false);
-        expect(registeredValue.error?.message).toBe(`User has no state at ${expectedUrl}`);
-      });
+  describe("when fetch throws an error", () => {
+    const networkError = new Error("Network error");
+
+    beforeEach(() => {
+      mockFetch.mockRejectedValue(networkError);
     });
 
-    describe("when response is not ok", () => {
-      beforeEach(() => {
-        mockFetch.mockResolvedValue({
-          ok: false,
-          status: 500,
-          statusText: "Internal Server Error",
-        });
-      });
+    it("should register recentCases with found: false and the error", async () => {
+      await initialiseRecentCases({ rootUrl, preview, register: mockRegister });
+      await flushPromises();
 
-      it("should register recentCases with found: false", async () => {
-        await initialiseRecentCases({ rootUrl, preview: previewWithRecentCases, register: mockRegister });
-        await flushPromises();
-
-        expect(mockRegister).toHaveBeenCalledTimes(1);
-        const registeredValue = mockRegister.mock.calls[0][0].recentCases;
-        expect(registeredValue.found).toBe(false);
-        expect(registeredValue.error?.message).toBe(`Call to ${expectedUrl} returned non-ok status code: 500 Internal Server Error`);
-      });
-    });
-
-    describe("when fetch throws an error", () => {
-      const networkError = new Error("Network error");
-
-      beforeEach(() => {
-        mockFetch.mockRejectedValue(networkError);
-      });
-
-      it("should register recentCases with found: false and the error", async () => {
-        await initialiseRecentCases({ rootUrl, preview: previewWithRecentCases, register: mockRegister });
-        await flushPromises();
-
-        expect(mockRegister).toHaveBeenCalledTimes(1);
-        const registeredValue = mockRegister.mock.calls[0][0].recentCases;
-        expect(registeredValue.found).toBe(false);
-        expect(registeredValue.error).toBe(networkError);
-      });
+      expect(mockRegister).toHaveBeenCalledTimes(1);
+      const registeredValue = mockRegister.mock.calls[0][0].recentCases;
+      expect(registeredValue.found).toBe(false);
+      expect(registeredValue.error).toBe(networkError);
     });
   });
 
   describe("setNextRecentCases", () => {
-    const previewWithRecentCases: Result<Preview> = {
-      found: true,
-      result: { enabled: true, myRecentCases: true },
-    };
-
     const existingRecentCases: RecentCases = [
       { caseId: 123, urn: "12AB3456789", description: "Smith, John" },
       { caseId: 456, urn: "34CD5678901", description: "Doe, Jane" },
@@ -199,7 +138,7 @@ describe("initialiseRecentCases", () => {
     });
 
     it("should not call fetch when caseDetails is undefined", async () => {
-      const { setNextRecentCases } = await initialiseRecentCases({ rootUrl, preview: previewWithRecentCases, register: mockRegister });
+      const { setNextRecentCases } = await initialiseRecentCases({ rootUrl, preview, register: mockRegister });
       mockFetch.mockClear();
 
       setNextRecentCases(undefined);
@@ -220,7 +159,7 @@ describe("initialiseRecentCases", () => {
         numberOfDefendants: 1,
       };
 
-      const { setNextRecentCases } = await initialiseRecentCases({ rootUrl, preview: previewWithRecentCases, register: mockRegister });
+      const { setNextRecentCases } = await initialiseRecentCases({ rootUrl, preview, register: mockRegister });
       mockFetch.mockClear();
 
       setNextRecentCases(caseAlreadyAtTop);
@@ -231,7 +170,7 @@ describe("initialiseRecentCases", () => {
     });
 
     it("should call fetch with PUT to add new case to top of list", async () => {
-      const { setNextRecentCases } = await initialiseRecentCases({ rootUrl, preview: previewWithRecentCases, register: mockRegister });
+      const { setNextRecentCases } = await initialiseRecentCases({ rootUrl, preview, register: mockRegister });
       mockFetch.mockClear();
       mockFetch.mockResolvedValue({
         ok: true,
@@ -265,7 +204,7 @@ describe("initialiseRecentCases", () => {
         numberOfDefendants: 1,
       };
 
-      const { setNextRecentCases } = await initialiseRecentCases({ rootUrl, preview: previewWithRecentCases, register: mockRegister });
+      const { setNextRecentCases } = await initialiseRecentCases({ rootUrl, preview, register: mockRegister });
       mockFetch.mockClear();
       mockFetch.mockResolvedValue({
         ok: true,
@@ -299,7 +238,7 @@ describe("initialiseRecentCases", () => {
         json: () => Promise.resolve(tenExistingCases),
       });
 
-      const { setNextRecentCases } = await initialiseRecentCases({ rootUrl, preview: previewWithRecentCases, register: mockRegister });
+      const { setNextRecentCases } = await initialiseRecentCases({ rootUrl, preview, register: mockRegister });
       mockFetch.mockClear();
       mockFetch.mockResolvedValue({
         ok: true,
@@ -327,7 +266,7 @@ describe("initialiseRecentCases", () => {
       });
 
       it("should call fetch with PUT containing just the new case", async () => {
-        const { setNextRecentCases } = await initialiseRecentCases({ rootUrl, preview: previewWithRecentCases, register: mockRegister });
+        const { setNextRecentCases } = await initialiseRecentCases({ rootUrl, preview, register: mockRegister });
         mockFetch.mockClear();
         mockFetch.mockResolvedValue({
           ok: true,
