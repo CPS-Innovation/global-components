@@ -72,7 +72,7 @@ export class CpsGlobalMenu {
                   <nav-link {...link}></nav-link>
                 ))}
                 {shouldShowOpenCaseInCms && caseId && (
-                  <li>
+                  <li class="inline-link open-in-cms">
                     <button class="linkButton" onClick={() => dispatchCmsNavigate(caseId)}>
                       Open in CMS
                     </button>
