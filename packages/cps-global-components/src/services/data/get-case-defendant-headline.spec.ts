@@ -96,4 +96,52 @@ describe("getCaseDefendantHeadline", () => {
 
     expect(result).toBe("Smith-Jones, Sarah  and 1 other");
   });
+
+  it("should handle null first names for an organisation defendant", () => {
+    const caseDetails = createCaseDetails({
+      leadDefendantSurname: "The Acme Fake Tunnel Manufactory, Inc",
+      leadDefendantFirstNames: null,
+      numberOfDefendants: 1,
+    });
+
+    const result = getCaseDefendantHeadline(caseDetails);
+
+    expect(result).toBe("The Acme Fake Tunnel Manufactory, Inc");
+  });
+
+  it("should handle null first names with multiple defendants", () => {
+    const caseDetails = createCaseDetails({
+      leadDefendantSurname: "Acme Corp",
+      leadDefendantFirstNames: null,
+      numberOfDefendants: 3,
+    });
+
+    const result = getCaseDefendantHeadline(caseDetails);
+
+    expect(result).toBe("Acme Corp  and 2 others");
+  });
+
+  it("should handle null surname", () => {
+    const caseDetails = createCaseDetails({
+      leadDefendantSurname: null,
+      leadDefendantFirstNames: "John",
+      numberOfDefendants: 1,
+    });
+
+    const result = getCaseDefendantHeadline(caseDetails);
+
+    expect(result).toBe(", John");
+  });
+
+  it("should handle both null surname and null first names", () => {
+    const caseDetails = createCaseDetails({
+      leadDefendantSurname: null,
+      leadDefendantFirstNames: null,
+      numberOfDefendants: 1,
+    });
+
+    const result = getCaseDefendantHeadline(caseDetails);
+
+    expect(result).toBe("");
+  });
 });
