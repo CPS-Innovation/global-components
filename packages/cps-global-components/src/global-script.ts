@@ -20,6 +20,7 @@ import { footerSubscriber } from "./services/browser/dom/footer-subscriber";
 import { accessibilitySubscriber } from "./services/browser/accessibility/accessibility-subscriber";
 import { initialiseSettings } from "./services/state/settings/initialise-settings";
 import { initialiseOutSystemsReconcileAuth } from "./services/outsystems-shim/initialise-outsytems-reconcile-auth";
+import { initialiseNavigateCms } from "./services/navigate-cms/initialise-navigate-cms";
 
 const { _error } = makeConsole("global-script");
 
@@ -74,6 +75,8 @@ const startupPhase = async ({ window, storeFns: { register, mergeTags, readyStat
     initialiseSettings({ rootUrl }),
   ]);
   register({ cmsSessionHint, handover, preview, cmsSessionTags: { handoverEndpoint: cmsSessionHint.result?.handoverEndpoint || "" } });
+
+  initialiseNavigateCms({ rootUrl, preview });
 
   const config = await initialiseConfig({ rootUrl, flags, preview });
   register({ config });
