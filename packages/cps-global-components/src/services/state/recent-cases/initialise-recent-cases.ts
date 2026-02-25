@@ -4,14 +4,10 @@ import { CaseDetails } from "../../data/CaseDetails";
 import { getCaseDefendantHeadline } from "../../data/get-case-defendant-headline";
 import { fetchState } from "../fetch-state";
 import { StatePutResponseSchema } from "../StatePutResponse";
-import { RecentCase, RecentCases, RecentCasesSchema } from "./recent-cases";
+import { RecentCase, RecentCasesSchema } from "./recent-cases";
 import { Register } from "../../../store/store";
 
-export const initialiseRecentCases = async ({ rootUrl, preview, register }: { rootUrl: string; preview: Result<Preview>; register: Register }) => {
-  if (!(preview.found && preview.result.myRecentCases)) {
-    return { recentCases: { found: false, error: new Error("Recent cases not enabled") } as Result<RecentCases>, setNextRecentCases: () => {} };
-  }
-
+export const initialiseRecentCases = async ({ rootUrl, register }: { rootUrl: string; preview: Result<Preview>; register: Register }) => {
   const recentCasesPromise = fetchState({ rootUrl, url: "../state/recent-cases", schema: RecentCasesSchema });
 
   recentCasesPromise.then(recentCases => {
