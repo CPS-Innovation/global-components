@@ -229,8 +229,10 @@ describe("Recent cases", () => {
     }, L.RECENT_CASES_CONTAINER);
     expect(waitingText).toBe("Loading recent cases...");
 
-    // Wait long enough for V8 GC to potentially collect WeakRefs
-    await new Promise((resolve) => setTimeout(resolve, 5000));
+    // Force V8 garbage collection to collect any WeakRefs that lack strong refs
+    const cdp = await page.createCDPSession();
+    await cdp.send("HeapProfiler.collectGarbage");
+    await cdp.detach();
 
     // Now respond with case data
     if (heldRequest) {
@@ -244,9 +246,9 @@ describe("Recent cases", () => {
 
     // The component should re-render with the case list — this is the critical
     // assertion. Without the store.ts strong-ref workaround, the stencil store's
-    // WeakRef subscription would have been GC'd during the 2.5s wait, and the
-    // component would silently fail to re-render.
-    await waitForRecentCasesContent(L.RECENT_CASES_LIST, 10000);
+    // WeakRef subscription would have been GC'd by the forced collection above,
+    // and the component would silently fail to re-render.
+    await waitForRecentCasesContent(L.RECENT_CASES_LIST);
 
     const links = await getRecentCasesLinks();
     expect(links).toHaveLength(MOCK_CASES.length);
