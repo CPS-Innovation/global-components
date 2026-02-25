@@ -12,7 +12,10 @@ const processState = () => {
     return { status: "not-yet-known" } as const;
   }
 
-  const { recentCases, config: { RECENT_CASES_NAVIGATE_URL } } = state;
+  const {
+    recentCases,
+    config: { RECENT_CASES_NAVIGATE_URL },
+  } = state;
 
   // 2) ... because we do not have RECENT_CASES_NAVIGATE_URL. We use the presence of that value as
   //  a feature flag.
@@ -40,7 +43,7 @@ const processState = () => {
   return { status: "have-data", data: recentCases.result, urlTemplate: RECENT_CASES_NAVIGATE_URL } as const;
 };
 
-const buildCaseLink = ({ caseId, urn, urlTemplate }: { caseId: number; urn: string; urlTemplate: string }) => replaceTagsInString(urlTemplate, { caseId, urn });
+const buildCaseLink = ({ caseId, urn, urlTemplate }: { caseId: number; urn: string | null; urlTemplate: string }) => replaceTagsInString(urlTemplate, { caseId, urn });
 
 const withHeader = (content: VNode) => (
   <div class="recent-cases">

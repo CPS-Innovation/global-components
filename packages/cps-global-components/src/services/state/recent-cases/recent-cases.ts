@@ -2,7 +2,7 @@ import { z } from "zod";
 
 export const RecentCaseSchema = z.object({
   caseId: z.number(),
-  urn: z.string(),
+  urn: z.string().nullable(),
   description: z.string(),
 });
 
