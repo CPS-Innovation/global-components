@@ -23,6 +23,22 @@ export namespace Components {
     interface CpsGlobalMenu {
     }
     interface CpsGlobalRecentCases {
+        /**
+          * @default ""
+         */
+        "itemClass": string;
+        /**
+          * @default "{urn} - {description}"
+         */
+        "itemTextTemplate": string;
+        /**
+          * @default "govuk-link"
+         */
+        "linkClass": string;
+        /**
+          * @default "govuk-list govuk-list--spaced"
+         */
+        "listClass": string;
     }
     interface CpsSkipLink {
         /**
@@ -131,6 +147,22 @@ declare namespace LocalJSX {
     interface CpsGlobalMenu {
     }
     interface CpsGlobalRecentCases {
+        /**
+          * @default ""
+         */
+        "itemClass"?: string;
+        /**
+          * @default "{urn} - {description}"
+         */
+        "itemTextTemplate"?: string;
+        /**
+          * @default "govuk-link"
+         */
+        "linkClass"?: string;
+        /**
+          * @default "govuk-list govuk-list--spaced"
+         */
+        "listClass"?: string;
     }
     interface CpsSkipLink {
         /**

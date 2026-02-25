@@ -13,12 +13,10 @@ type AlwaysReturned = Pick<StateWithoutPrivateTags, "fatalInitialisationError" |
 
 // When ready with required keys: those keys are guaranteed non-undefined
 // When ready with no required keys: all properties guaranteed non-undefined
-type RequiredReturn<R extends readonly (keyof StateWithoutPrivateTags)[]> =
-  R extends readonly [] ? AllDefined : Pick<AllDefined, R[number]>;
+type RequiredReturn<R extends readonly (keyof StateWithoutPrivateTags)[]> = R extends readonly [] ? AllDefined : Pick<AllDefined, R[number]>;
 
 // Optional keys are present but explicitly typed as potentially undefined to prevent unsafe destructuring
-type OptionalReturn<O extends readonly (keyof StateWithoutPrivateTags)[]> =
-  O extends readonly [] ? unknown : { [K in O[number]]: StateWithoutPrivateTags[K] | undefined };
+type OptionalReturn<O extends readonly (keyof StateWithoutPrivateTags)[]> = O extends readonly [] ? unknown : { [K in O[number]]: StateWithoutPrivateTags[K] | undefined };
 
 type ReadyResult<R extends readonly (keyof StateWithoutPrivateTags)[], O extends readonly (keyof StateWithoutPrivateTags)[]> =
   | { isReady: true; state: RequiredReturn<R> & OptionalReturn<O> & AlwaysReturned }
@@ -33,10 +31,7 @@ type ReadyStateFunction = {
   <K extends (keyof StateWithoutPrivateTags)[]>(...keys: K): ReadyResult<K, readonly []>;
 
   // Overload 3: Two arrays - required + optional keys
-  <R extends readonly (keyof StateWithoutPrivateTags)[], O extends readonly (keyof StateWithoutPrivateTags)[]>(
-    required: R,
-    optional: O
-  ): ReadyResult<R, O>;
+  <R extends readonly (keyof StateWithoutPrivateTags)[], O extends readonly (keyof StateWithoutPrivateTags)[]>(required: R, optional: O): ReadyResult<R, O>;
 };
 
 export type ReadyStateHelper = ReadyStateFunction;
@@ -83,10 +78,7 @@ export const readyStateFactory = (store: Store): ReadyStateFunction => {
 
     if (isReady) {
       // When ready, only return the picked properties (or all if no keys specified)
-      const result: any =
-        allKeys.length === 0
-          ? { ...store.state }
-          : allKeys.reduce((acc, key) => ({ ...acc, [key]: store.state[key] }), {});
+      const result: any = allKeys.length === 0 ? { ...store.state } : allKeys.reduce((acc, key) => ({ ...acc, [key]: store.state[key] }), {});
       return { isReady: true, state: { ...result, ...alwaysReturnedState } };
     } else {
       return { isReady: false, state: { ...(store.state as StateWithoutPrivateTags), ...alwaysReturnedState } };
