@@ -1,4 +1,5 @@
 import { createStore } from "@stencil/store";
+import { getRenderingRef, forceUpdate } from "@stencil/core";
 import { Config, Preview } from "cps-global-configuration";
 import { AuthResult } from "../services/auth/AuthResult";
 import { FoundContext } from "../services/context/FoundContext";
@@ -149,6 +150,36 @@ export const initialiseStore = () => {
   );
 
   readyState = readyStateFactory(store);
+
+  // Workaround for @stencil/store WeakRef bug: the built-in stencil subscription
+  // (added by createStore) tracks component instances via WeakRef. V8's GC can collect
+  // these before async store updates arrive, silently breaking reactivity. This
+  // supplementary subscription uses strong refs with periodic cleanup of disconnected
+  // elements, matching what the built-in subscription intended but with reliable retention.
+
+  // We first detected this as a problem in https://github.com/stenciljs/store/releases/tag/v2.2.2.
+  // Feel free to remove the following code after upgrading to a future version, the e2e tests
+  //  will show if the bug is still present or not.
+  const elms = new Map<string, Set<any>>();
+  store.use({
+    get: propName => {
+      const ref = getRenderingRef();
+      if (ref) {
+        let set = elms.get(propName as string);
+        if (!set) {
+          set = new Set();
+          elms.set(propName as string, set);
+        }
+        set.add(ref);
+      }
+    },
+    set: propName => {
+      const set = elms.get(propName as string);
+      if (set) {
+        set.forEach(ref => forceUpdate(ref));
+      }
+    },
+  });
 
   const register = (arg: Partial<StoredState>) => Object.keys(arg).forEach((key: keyof StoredState) => store.set(key, arg[key]));
 

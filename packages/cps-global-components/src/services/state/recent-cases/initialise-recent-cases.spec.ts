@@ -7,9 +7,13 @@ import { initialiseRecentCases } from "./initialise-recent-cases";
 const mockFetch = jest.fn();
 global.fetch = mockFetch;
 
+const mockRegister = jest.fn();
+
 jest.mock("../../data/get-case-defendant-headline", () => ({
   getCaseDefendantHeadline: jest.fn((caseDetails: CaseDetails) => `${caseDetails.leadDefendantSurname}, ${caseDetails.leadDefendantFirstNames}`),
 }));
+
+const flushPromises = () => new Promise(resolve => setTimeout(resolve, 0));
 
 describe("initialiseRecentCases", () => {
   const rootUrl = "https://example.com/api/global-components/";
@@ -26,24 +30,25 @@ describe("initialiseRecentCases", () => {
     };
 
     it("should return recentCases with found: false", async () => {
-      const { recentCases } = await initialiseRecentCases({ rootUrl, preview: previewNotFound });
+      const { recentCases } = await initialiseRecentCases({ rootUrl, preview: previewNotFound, register: mockRegister });
 
-      expect(recentCases.found).toBe(false);
-      expect(recentCases.error?.message).toBe("Recent cases not enabled");
+      expect(recentCases!.found).toBe(false);
+      expect(recentCases!.error?.message).toBe("Recent cases not enabled");
     });
 
     it("should return a no-op setNextRecentCases function", async () => {
-      const { setNextRecentCases } = await initialiseRecentCases({ rootUrl, preview: previewNotFound });
+      const { setNextRecentCases } = await initialiseRecentCases({ rootUrl, preview: previewNotFound, register: mockRegister });
 
       expect(typeof setNextRecentCases).toBe("function");
       // Should not throw when called
       setNextRecentCases(undefined);
     });
 
-    it("should not call fetch", async () => {
-      await initialiseRecentCases({ rootUrl, preview: previewNotFound });
+    it("should not call fetch or register", async () => {
+      await initialiseRecentCases({ rootUrl, preview: previewNotFound, register: mockRegister });
 
       expect(mockFetch).not.toHaveBeenCalled();
+      expect(mockRegister).not.toHaveBeenCalled();
     });
   });
 
@@ -54,16 +59,17 @@ describe("initialiseRecentCases", () => {
     };
 
     it("should return recentCases with found: false", async () => {
-      const { recentCases } = await initialiseRecentCases({ rootUrl, preview: previewWithoutRecentCases });
+      const { recentCases } = await initialiseRecentCases({ rootUrl, preview: previewWithoutRecentCases, register: mockRegister });
 
-      expect(recentCases.found).toBe(false);
-      expect(recentCases.error?.message).toBe("Recent cases not enabled");
+      expect(recentCases!.found).toBe(false);
+      expect(recentCases!.error?.message).toBe("Recent cases not enabled");
     });
 
-    it("should not call fetch", async () => {
-      await initialiseRecentCases({ rootUrl, preview: previewWithoutRecentCases });
+    it("should not call fetch or register", async () => {
+      await initialiseRecentCases({ rootUrl, preview: previewWithoutRecentCases, register: mockRegister });
 
       expect(mockFetch).not.toHaveBeenCalled();
+      expect(mockRegister).not.toHaveBeenCalled();
     });
   });
 
@@ -87,19 +93,20 @@ describe("initialiseRecentCases", () => {
       });
 
       it("should call fetch with correct URL and credentials", async () => {
-        await initialiseRecentCases({ rootUrl, preview: previewWithRecentCases });
+        await initialiseRecentCases({ rootUrl, preview: previewWithRecentCases, register: mockRegister });
 
         expect(mockFetch).toHaveBeenCalledWith(expectedUrl, { credentials: "include" });
       });
 
-      it("should return recentCases with found: true and the result", async () => {
-        const { recentCases } = await initialiseRecentCases({ rootUrl, preview: previewWithRecentCases });
+      it("should register recentCases with found: true and the result", async () => {
+        await initialiseRecentCases({ rootUrl, preview: previewWithRecentCases, register: mockRegister });
+        await flushPromises();
 
-        expect(recentCases).toEqual({ found: true, result: validRecentCases });
+        expect(mockRegister).toHaveBeenCalledWith({ recentCases: { found: true, result: validRecentCases } });
       });
 
       it("should return a setNextRecentCases function", async () => {
-        const { setNextRecentCases } = await initialiseRecentCases({ rootUrl, preview: previewWithRecentCases });
+        const { setNextRecentCases } = await initialiseRecentCases({ rootUrl, preview: previewWithRecentCases, register: mockRegister });
 
         expect(typeof setNextRecentCases).toBe("function");
       });
@@ -113,11 +120,14 @@ describe("initialiseRecentCases", () => {
         });
       });
 
-      it("should return recentCases with found: false", async () => {
-        const { recentCases } = await initialiseRecentCases({ rootUrl, preview: previewWithRecentCases });
+      it("should register recentCases with found: false", async () => {
+        await initialiseRecentCases({ rootUrl, preview: previewWithRecentCases, register: mockRegister });
+        await flushPromises();
 
-        expect(recentCases.found).toBe(false);
-        expect(recentCases.error?.message).toBe(`User has no state at ${expectedUrl}`);
+        expect(mockRegister).toHaveBeenCalledTimes(1);
+        const registeredValue = mockRegister.mock.calls[0][0].recentCases;
+        expect(registeredValue.found).toBe(false);
+        expect(registeredValue.error?.message).toBe(`User has no state at ${expectedUrl}`);
       });
     });
 
@@ -130,11 +140,14 @@ describe("initialiseRecentCases", () => {
         });
       });
 
-      it("should return recentCases with found: false", async () => {
-        const { recentCases } = await initialiseRecentCases({ rootUrl, preview: previewWithRecentCases });
+      it("should register recentCases with found: false", async () => {
+        await initialiseRecentCases({ rootUrl, preview: previewWithRecentCases, register: mockRegister });
+        await flushPromises();
 
-        expect(recentCases.found).toBe(false);
-        expect(recentCases.error?.message).toBe(`Call to ${expectedUrl} returned non-ok status code: 500 Internal Server Error`);
+        expect(mockRegister).toHaveBeenCalledTimes(1);
+        const registeredValue = mockRegister.mock.calls[0][0].recentCases;
+        expect(registeredValue.found).toBe(false);
+        expect(registeredValue.error?.message).toBe(`Call to ${expectedUrl} returned non-ok status code: 500 Internal Server Error`);
       });
     });
 
@@ -145,11 +158,14 @@ describe("initialiseRecentCases", () => {
         mockFetch.mockRejectedValue(networkError);
       });
 
-      it("should return recentCases with found: false and the error", async () => {
-        const { recentCases } = await initialiseRecentCases({ rootUrl, preview: previewWithRecentCases });
+      it("should register recentCases with found: false and the error", async () => {
+        await initialiseRecentCases({ rootUrl, preview: previewWithRecentCases, register: mockRegister });
+        await flushPromises();
 
-        expect(recentCases.found).toBe(false);
-        expect(recentCases.error).toBe(networkError);
+        expect(mockRegister).toHaveBeenCalledTimes(1);
+        const registeredValue = mockRegister.mock.calls[0][0].recentCases;
+        expect(registeredValue.found).toBe(false);
+        expect(registeredValue.error).toBe(networkError);
       });
     });
   });
@@ -183,12 +199,12 @@ describe("initialiseRecentCases", () => {
     });
 
     it("should not call fetch when caseDetails is undefined", async () => {
-      const { setNextRecentCases } = await initialiseRecentCases({ rootUrl, preview: previewWithRecentCases });
+      const { setNextRecentCases } = await initialiseRecentCases({ rootUrl, preview: previewWithRecentCases, register: mockRegister });
       mockFetch.mockClear();
 
       setNextRecentCases(undefined);
 
-      await new Promise(resolve => setTimeout(resolve, 0));
+      await flushPromises();
 
       expect(mockFetch).not.toHaveBeenCalled();
     });
@@ -204,18 +220,18 @@ describe("initialiseRecentCases", () => {
         numberOfDefendants: 1,
       };
 
-      const { setNextRecentCases } = await initialiseRecentCases({ rootUrl, preview: previewWithRecentCases });
+      const { setNextRecentCases } = await initialiseRecentCases({ rootUrl, preview: previewWithRecentCases, register: mockRegister });
       mockFetch.mockClear();
 
       setNextRecentCases(caseAlreadyAtTop);
 
-      await new Promise(resolve => setTimeout(resolve, 0));
+      await flushPromises();
 
       expect(mockFetch).not.toHaveBeenCalled();
     });
 
     it("should call fetch with PUT to add new case to top of list", async () => {
-      const { setNextRecentCases } = await initialiseRecentCases({ rootUrl, preview: previewWithRecentCases });
+      const { setNextRecentCases } = await initialiseRecentCases({ rootUrl, preview: previewWithRecentCases, register: mockRegister });
       mockFetch.mockClear();
       mockFetch.mockResolvedValue({
         ok: true,
@@ -224,7 +240,7 @@ describe("initialiseRecentCases", () => {
 
       setNextRecentCases(mockCaseDetails);
 
-      await new Promise(resolve => setTimeout(resolve, 0));
+      await flushPromises();
 
       expect(mockFetch).toHaveBeenCalledWith("https://example.com/api/state/recent-cases", {
         method: "PUT",
@@ -249,7 +265,7 @@ describe("initialiseRecentCases", () => {
         numberOfDefendants: 1,
       };
 
-      const { setNextRecentCases } = await initialiseRecentCases({ rootUrl, preview: previewWithRecentCases });
+      const { setNextRecentCases } = await initialiseRecentCases({ rootUrl, preview: previewWithRecentCases, register: mockRegister });
       mockFetch.mockClear();
       mockFetch.mockResolvedValue({
         ok: true,
@@ -258,7 +274,7 @@ describe("initialiseRecentCases", () => {
 
       setNextRecentCases(caseAlreadyInList);
 
-      await new Promise(resolve => setTimeout(resolve, 0));
+      await flushPromises();
 
       expect(mockFetch).toHaveBeenCalledWith("https://example.com/api/state/recent-cases", {
         method: "PUT",
@@ -283,7 +299,7 @@ describe("initialiseRecentCases", () => {
         json: () => Promise.resolve(tenExistingCases),
       });
 
-      const { setNextRecentCases } = await initialiseRecentCases({ rootUrl, preview: previewWithRecentCases });
+      const { setNextRecentCases } = await initialiseRecentCases({ rootUrl, preview: previewWithRecentCases, register: mockRegister });
       mockFetch.mockClear();
       mockFetch.mockResolvedValue({
         ok: true,
@@ -292,15 +308,12 @@ describe("initialiseRecentCases", () => {
 
       setNextRecentCases(mockCaseDetails);
 
-      await new Promise(resolve => setTimeout(resolve, 0));
+      await flushPromises();
 
       expect(mockFetch).toHaveBeenCalledWith("https://example.com/api/state/recent-cases", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify([
-          { caseId: 789, urn: "56EF7890123", description: "Wilson, Bob" },
-          ...tenExistingCases.slice(0, 9),
-        ]),
+        body: JSON.stringify([{ caseId: 789, urn: "56EF7890123", description: "Wilson, Bob" }, ...tenExistingCases.slice(0, 9)]),
         credentials: "include",
       });
     });
@@ -314,7 +327,7 @@ describe("initialiseRecentCases", () => {
       });
 
       it("should call fetch with PUT containing just the new case", async () => {
-        const { setNextRecentCases } = await initialiseRecentCases({ rootUrl, preview: previewWithRecentCases });
+        const { setNextRecentCases } = await initialiseRecentCases({ rootUrl, preview: previewWithRecentCases, register: mockRegister });
         mockFetch.mockClear();
         mockFetch.mockResolvedValue({
           ok: true,
@@ -323,7 +336,7 @@ describe("initialiseRecentCases", () => {
 
         setNextRecentCases(mockCaseDetails);
 
-        await new Promise(resolve => setTimeout(resolve, 0));
+        await flushPromises();
 
         expect(mockFetch).toHaveBeenCalledWith("https://example.com/api/state/recent-cases", {
           method: "PUT",

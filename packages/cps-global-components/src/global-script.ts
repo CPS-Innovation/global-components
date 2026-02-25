@@ -75,14 +75,13 @@ const startupPhase = async ({ window, storeFns: { register, mergeTags, readyStat
   ]);
   register({ cmsSessionHint, handover, preview, cmsSessionTags: { handoverEndpoint: cmsSessionHint.result?.handoverEndpoint || "" } });
 
-  const { recentCases, setNextRecentCases } = await initialiseRecentCases({ rootUrl, preview });
-  register({ recentCases });
-
   const config = await initialiseConfig({ rootUrl, flags, preview });
   register({ config });
 
   const firstContext = initialiseContext({ window, config });
   register({ firstContext });
+
+  const { setNextRecentCases } = await initialiseRecentCases({ rootUrl, preview, register });
 
   const { trackPageView, trackEvent, trackException } = initialiseAnalytics({ window, config, readyState, build, cmsSessionHint, flags });
 
