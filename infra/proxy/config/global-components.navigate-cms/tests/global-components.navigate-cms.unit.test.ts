@@ -116,7 +116,7 @@ async function runTests(): Promise<void> {
   // --- OPEN PHASE ---
   console.log("\nOpen phase:")
 
-  await test("non-IE + configurable: redirects to self with IE mode header", () => {
+  await test("non-IE + configurable: extracts domain from cookie and passes as cmsDomain query param", () => {
     const r = createMockRequest({
       args: { caseId: "123" },
       variables: { ieaction: "nonie+configurable+", args: "caseId=123" },
@@ -126,16 +126,37 @@ async function runTests(): Promise<void> {
     assertEqual(r.returnCode, 302, "Should return 302")
     assertEqual(r.headersOut["X-InternetExplorerMode"], "1", "Should set IE mode header")
     assert(
-      r.returnBody!.includes("/global-components/navigate-cms?caseId=123"),
-      `Should redirect to self with args, got: ${r.returnBody}`
+      r.returnBody!.includes("caseId=123"),
+      `Should preserve original args, got: ${r.returnBody}`
+    )
+    assert(
+      r.returnBody!.includes("cmsDomain="),
+      `Should include cmsDomain in redirect, got: ${r.returnBody}`
+    )
+    assert(
+      r.returnBody!.includes("foo.cps.gov.uk"),
+      `cmsDomain should contain extracted domain, got: ${r.returnBody}`
     )
   })
 
-  await test("IE + configurable (case): serves iframe page with case navigate URL", () => {
+  await test("non-IE + configurable without cookie: returns 400", () => {
     const r = createMockRequest({
       args: { caseId: "123" },
+      variables: { ieaction: "nonie+configurable+", args: "caseId=123" },
+      headersIn: {},
+    })
+    glococms.handleNavigateCms(r)
+    assertEqual(r.returnCode, 400, "Should return 400")
+    assert(
+      r.returnBody!.includes("could not determine CMS domain"),
+      `Should contain error message, got: ${r.returnBody}`
+    )
+  })
+
+  await test("IE + configurable (case): reads cmsDomain from query param and serves iframe", () => {
+    const r = createMockRequest({
+      args: { caseId: "123", cmsDomain: "foo.cps.gov.uk" },
       variables: { ieaction: "ie+configurable+" },
-      headersIn: { Cookie: SESSION_HINT_COOKIE },
     })
     glococms.handleNavigateCms(r)
     assertEqual(r.returnCode, 200, "Should return 200")
@@ -146,15 +167,22 @@ async function runTests(): Promise<void> {
     )
     assert(
       r.returnBody!.includes("foo.cps.gov.uk"),
-      `Should use domain from session hint, got: ${r.returnBody}`
+      `Should use domain from cmsDomain arg, got: ${r.returnBody}`
+    )
+    assert(
+      r.returnBody!.includes("Opening case in CMS"),
+      `Should have case heading, got: ${r.returnBody}`
+    )
+    assert(
+      r.returnBody!.includes("do not close this window"),
+      `Should have inset text, got: ${r.returnBody}`
     )
   })
 
-  await test("IE + configurable (task): serves iframe page with task activate URL", () => {
+  await test("IE + configurable (task): reads cmsDomain from query param and serves iframe with task heading", () => {
     const r = createMockRequest({
-      args: { caseId: "123", taskId: "456" },
+      args: { caseId: "123", taskId: "456", cmsDomain: "foo.cps.gov.uk" },
       variables: { ieaction: "ie+configurable+" },
-      headersIn: { Cookie: SESSION_HINT_COOKIE },
     })
     glococms.handleNavigateCms(r)
     assertEqual(r.returnCode, 200, "Should return 200")
@@ -162,9 +190,13 @@ async function runTests(): Promise<void> {
       r.returnBody!.includes("action=activate_task&screen=case_details&wId=MASTER&taskId=456&caseId=123"),
       `Should contain activate_task action with taskId and caseId, got: ${r.returnBody}`
     )
+    assert(
+      r.returnBody!.includes("Opening task in CMS"),
+      `Should have task heading, got: ${r.returnBody}`
+    )
   })
 
-  await test("no session hint cookie: returns 400 error", () => {
+  await test("IE + configurable without cmsDomain or cookie: returns 400", () => {
     const r = createMockRequest({
       args: { caseId: "123" },
       variables: { ieaction: "ie+configurable+" },

@@ -43,6 +43,7 @@ describe("initialiseNavigateCms", () => {
     expect(openSpy).toHaveBeenCalledWith(
       "https://example.com/global-components/navigate-cms?caseId=123",
       "_blank",
+      "width=500,height=300",
     );
   });
 
@@ -57,6 +58,7 @@ describe("initialiseNavigateCms", () => {
     expect(openSpy).toHaveBeenCalledWith(
       "https://example.com/global-components/navigate-cms?caseId=123&taskId=456",
       "_blank",
+      "width=500,height=300",
     );
   });
 });

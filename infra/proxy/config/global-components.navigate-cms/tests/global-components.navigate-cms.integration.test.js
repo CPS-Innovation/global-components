@@ -37,7 +37,7 @@ const NAVIGATE_CMS = `${PROXY_BASE}/global-components/navigate-cms`
 async function testOpenPhase() {
   console.log("\nOpen Phase Tests:")
 
-  await test("non-IE + configurable: redirects to self with IE mode header", async () => {
+  await test("non-IE + configurable: extracts domain from cookie and passes as cmsDomain", async () => {
     const response = await fetch(`${NAVIGATE_CMS}?caseId=123`, {
       redirect: "manual",
       headers: {
@@ -60,19 +60,47 @@ async function testOpenPhase() {
       location.includes("caseId=123"),
       `Should preserve caseId in redirect, got: ${location}`
     )
+    assert(
+      location.includes("cmsDomain="),
+      `Should include cmsDomain in redirect, got: ${location}`
+    )
+    assert(
+      location.includes("foo.cps.gov.uk"),
+      `cmsDomain should contain extracted domain, got: ${location}`
+    )
   })
 
-  await test("IE + configurable (case): serves iframe with case navigate URL", async () => {
+  await test("non-IE + configurable without cookie: returns 400", async () => {
     const response = await fetch(`${NAVIGATE_CMS}?caseId=123`, {
       redirect: "manual",
       headers: {
         "X-Forwarded-Proto": "https",
         "Host": "localhost:8080",
-        "User-Agent": TRIDENT_UA,
+        "User-Agent": EDGE_UA,
         "X-InternetExplorerModeConfigurable": "1",
-        "Cookie": SESSION_HINT_COOKIE,
       },
     })
+    assertEqual(response.status, 400, "Should return 400")
+    const body = await response.text()
+    assert(
+      body.includes("could not determine CMS domain"),
+      `Should contain error message, got: ${body}`
+    )
+  })
+
+  await test("IE + configurable (case): reads cmsDomain from query param", async () => {
+    const response = await fetch(
+      `${NAVIGATE_CMS}?caseId=123&cmsDomain=foo.cps.gov.uk`,
+      {
+        redirect: "manual",
+        headers: {
+          "X-Forwarded-Proto": "https",
+          "Host": "localhost:8080",
+          "User-Agent": TRIDENT_UA,
+          "X-InternetExplorerModeConfigurable": "1",
+        },
+      }
+    )
     assertEqual(response.status, 200, "Should return 200")
     const body = await response.text()
     assert(body.includes("iframe"), `Should contain iframe, got: ${body}`)
@@ -84,21 +112,23 @@ async function testOpenPhase() {
     )
     assert(
       body.includes("foo.cps.gov.uk"),
-      `Should use domain from session hint, got: ${body}`
+      `Should use domain from cmsDomain arg, got: ${body}`
     )
   })
 
-  await test("IE + configurable (task): serves iframe with task activate URL", async () => {
-    const response = await fetch(`${NAVIGATE_CMS}?caseId=123&taskId=456`, {
-      redirect: "manual",
-      headers: {
-        "X-Forwarded-Proto": "https",
-        "Host": "localhost:8080",
-        "User-Agent": TRIDENT_UA,
-        "X-InternetExplorerModeConfigurable": "1",
-        "Cookie": SESSION_HINT_COOKIE,
-      },
-    })
+  await test("IE + configurable (task): reads cmsDomain from query param", async () => {
+    const response = await fetch(
+      `${NAVIGATE_CMS}?caseId=123&taskId=456&cmsDomain=foo.cps.gov.uk`,
+      {
+        redirect: "manual",
+        headers: {
+          "X-Forwarded-Proto": "https",
+          "Host": "localhost:8080",
+          "User-Agent": TRIDENT_UA,
+          "X-InternetExplorerModeConfigurable": "1",
+        },
+      }
+    )
     assertEqual(response.status, 200, "Should return 200")
     const body = await response.text()
     assert(
@@ -109,7 +139,7 @@ async function testOpenPhase() {
     )
   })
 
-  await test("no session hint cookie: returns 400 error", async () => {
+  await test("IE + configurable without cmsDomain or cookie: returns 400", async () => {
     const response = await fetch(`${NAVIGATE_CMS}?caseId=123`, {
       redirect: "manual",
       headers: {
