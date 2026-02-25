@@ -1,0 +1,24 @@
+# Spike layer override - Azure AD authentication with directory extensions
+# Use: docker-compose -f docker-compose.yml -f docker-compose.spike.yml up --build
+#
+# Prerequisites:
+#   1. Generate self-signed cert: see spike.md Step 4
+#   2. Create .env with real Azure AD values: see spike.md Step 5
+#   3. Build: cd infra/proxy && pnpm build
+
+services:
+  nginx:
+    ports:
+      - "8443:8443"
+    env_file:
+      - global-components.spike.mock.env
+      - ../config/global-components.spike/.env
+    volumes:
+      - ../config/global-components.spike/global-components.spike.conf:/etc/nginx/templates/global-components.spike.conf.template:ro
+      - ../dist/global-components.spike.js:/etc/nginx/templates/global-components.spike.js:ro
+      - ../config/global-components.spike/global-components.cms-auth.conf:/etc/nginx/templates/global-components.cms-auth.conf.template:ro
+      - ../dist/global-components.cms-auth.js:/etc/nginx/templates/global-components.cms-auth.js:ro
+      - ../config/global-components.spike/spike.html:/etc/nginx/static/spike.html:ro
+      - ../config/global-components.spike/nginx.spike.conf:/etc/nginx/templates/nginx.conf.template:ro
+      - ./certs/localhost.crt:/etc/nginx/certs/localhost.crt:ro
+      - ./certs/localhost.key:/etc/nginx/certs/localhost.key:ro

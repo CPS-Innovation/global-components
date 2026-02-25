@@ -17,6 +17,21 @@ const {
 } = require("../../../test-utils")
 
 // =============================================================================
+// Mock JWT for auth_request token validation
+// =============================================================================
+
+const TENANT_ID = "00dd0d1d-d7e6-4338-ac51-565339c7088c"
+const APP_ID = "8d6133af-9593-47c6-94d0-5c65e9e310f1"
+
+function createMockJwt() {
+  const header = Buffer.from(JSON.stringify({ alg: "none", typ: "JWT" })).toString("base64").replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "")
+  const payload = Buffer.from(JSON.stringify({ tid: TENANT_ID, appid: APP_ID, oid: "mock-oid", upn: "mock@test.com" })).toString("base64").replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "")
+  return `${header}.${payload}.mock-signature`
+}
+
+const MOCK_AUTH_HEADER = `Bearer ${createMockJwt()}`
+
+// =============================================================================
 // Blob Storage Proxy Tests
 // =============================================================================
 
@@ -92,9 +107,7 @@ async function testBlobStorageProxy() {
 // =============================================================================
 // State Endpoint Tests
 // =============================================================================
-// Note: VALIDATE_TOKEN_AGAINST_AD is currently false, so PUT operations
-// succeed without authentication. When enabled, PUT requires valid Azure AD token.
-// State is stored as base64url encoded in cookies.
+// State is stored as base64url encoded in cookies. No auth on state endpoints.
 
 // Helper to base64url encode (matches server-side wrapState)
 function base64UrlEncode(str) {
@@ -103,7 +116,7 @@ function base64UrlEncode(str) {
 
 async function testStateEndpoint() {
   console.log("\nState Endpoint Tests (/global-components/state/*):")
-  console.log("  (Note: VALIDATE_TOKEN_AGAINST_AD=false, auth not enforced)")
+  console.log("  (No auth on state endpoints)")
 
   const PREVIEW_ENDPOINT = `${PROXY_BASE}/global-components/state/preview`
   const SETTINGS_ENDPOINT = `${PROXY_BASE}/global-components/state/settings`
@@ -294,16 +307,25 @@ async function testStateEndpoint() {
 async function testMdsApiProxy() {
   console.log("\nMDS API Proxy Tests (/global-components/api/cases/*):")
 
-  await test("proxies case summary endpoint", async () => {
+  await test("allows request without auth token (soft mode)", async () => {
     const response = await fetch(`${PROXY_BASE}/global-components/api/cases/12345/summary`)
+    assertEqual(response.status, 200, "Should return 200 in soft mode (no blocking)")
+  })
+
+  await test("proxies case summary endpoint with valid token", async () => {
+    const response = await fetch(`${PROXY_BASE}/global-components/api/cases/12345/summary`, {
+      headers: { Authorization: MOCK_AUTH_HEADER },
+    })
     assertEqual(response.status, 200, "Should return 200 for case summary")
     const body = await response.json()
     assertEqual(body.caseId, 12345, "Should have correct caseId")
     assertEqual(body.endpoint, "summary", "Should be summary endpoint")
   })
 
-  await test("proxies monitoring-codes endpoint", async () => {
-    const response = await fetch(`${PROXY_BASE}/global-components/api/cases/67890/monitoring-codes`)
+  await test("proxies monitoring-codes endpoint with valid token", async () => {
+    const response = await fetch(`${PROXY_BASE}/global-components/api/cases/67890/monitoring-codes`, {
+      headers: { Authorization: MOCK_AUTH_HEADER },
+    })
     assertEqual(response.status, 200, "Should return 200 for monitoring-codes")
     const body = await response.json()
     assertEqual(body.caseId, 67890, "Should have correct caseId")
@@ -311,15 +333,17 @@ async function testMdsApiProxy() {
   })
 
   await test("forwards x-functions-key header", async () => {
-    const response = await fetch(`${PROXY_BASE}/global-components/api/cases/123/summary`)
+    const response = await fetch(`${PROXY_BASE}/global-components/api/cases/123/summary`, {
+      headers: { Authorization: MOCK_AUTH_HEADER },
+    })
     assertEqual(response.status, 200, "Should return 200")
     const body = await response.json()
     assert(body.headers["x-functions-key"] !== null, "Should have x-functions-key header")
   })
 
-  await test("strips Authorization header", async () => {
+  await test("strips Authorization header from upstream request", async () => {
     const response = await fetch(`${PROXY_BASE}/global-components/api/cases/123/summary`, {
-      headers: { Authorization: "Bearer some-token" },
+      headers: { Authorization: MOCK_AUTH_HEADER },
     })
     assertEqual(response.status, 200, "Should return 200")
     const body = await response.json()
@@ -333,7 +357,7 @@ async function testMdsApiProxy() {
 
   await test("returns CORS headers", async () => {
     const response = await fetch(`${PROXY_BASE}/global-components/api/cases/123/summary`, {
-      headers: { Origin: "http://localhost:3000" },
+      headers: { Origin: "http://localhost:3000", Authorization: MOCK_AUTH_HEADER },
     })
     const corsHeader = response.headers.get("access-control-allow-origin")
     assert(corsHeader !== null, "Should have Access-Control-Allow-Origin header")
@@ -360,7 +384,9 @@ async function testMdsApiProxy() {
   })
 
   await test("forwards query string to upstream", async () => {
-    const response = await fetch(`${PROXY_BASE}/global-components/api/cases/123/monitoring-codes?assignedOnly=true&limit=10`)
+    const response = await fetch(`${PROXY_BASE}/global-components/api/cases/123/monitoring-codes?assignedOnly=true&limit=10`, {
+      headers: { Authorization: MOCK_AUTH_HEADER },
+    })
     assertEqual(response.status, 200, "Should return 200")
     const body = await response.json()
     // Mock server echoes back the original URL which includes query string

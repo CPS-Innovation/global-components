@@ -4,7 +4,7 @@
   "scripts": {
     "build": "./scripts/build.sh",
     "build:watch": "tsc --watch",
-    "test": "npx ts-node --project tsconfig.test.json config/main/tests/global-components.unit.test.ts && npx ts-node --project tsconfig.test.json config/global-components.vnext/tests/global-components.vnext.unit.test.ts && npx ts-node --project tsconfig.test.json config/global-components.vnever/tests/global-components.vnever.unit.test.ts && npx ts-node --project tsconfig.test.json config/main/tests/nginx.unit.test.ts",
+    "test": "npx ts-node --project tsconfig.test.json config/main/tests/global-components.unit.test.ts && npx ts-node --project tsconfig.test.json config/global-components.vnext/tests/global-components.vnext.unit.test.ts && npx ts-node --project tsconfig.test.json config/main/tests/nginx.unit.test.ts",
     "test:integration": "pnpm build && ./run-tests.sh"
   },
   "devDependencies": {
