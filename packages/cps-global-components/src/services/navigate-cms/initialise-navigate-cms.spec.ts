@@ -18,7 +18,7 @@ describe("initialiseNavigateCms", () => {
       rootUrl: "https://example.com/global-components/test/cps-global-components.esm.js",
       preview: { found: true, result: {} },
     });
-    expect(addEventSpy).not.toHaveBeenCalledWith("cms-navigate", expect.anything());
+    expect(addEventSpy).not.toHaveBeenCalledWith(CmsNavigateEvent.type, expect.anything());
     addEventSpy.mockRestore();
   });
 
@@ -28,7 +28,7 @@ describe("initialiseNavigateCms", () => {
       rootUrl: "https://example.com/global-components/test/cps-global-components.esm.js",
       preview: { found: true, result: { openCaseInCms: true } },
     });
-    expect(addEventSpy).toHaveBeenCalledWith("cms-navigate", expect.anything());
+    expect(addEventSpy).toHaveBeenCalledWith(CmsNavigateEvent.type, expect.anything());
     addEventSpy.mockRestore();
   });
 
@@ -66,7 +66,7 @@ describe("initialiseNavigateCms", () => {
 describe("dispatchCmsNavigate", () => {
   it("dispatches a cms-navigate event with case action", () => {
     const handler = jest.fn();
-    document.addEventListener("cms-navigate", handler);
+    document.addEventListener(CmsNavigateEvent.type, handler);
 
     dispatchCmsNavigate(42);
 
@@ -74,6 +74,6 @@ describe("dispatchCmsNavigate", () => {
     const event = handler.mock.calls[0][0] as CmsNavigateEvent;
     expect(event.detail).toEqual({ action: "case", caseId: 42 });
 
-    document.removeEventListener("cms-navigate", handler);
+    document.removeEventListener(CmsNavigateEvent.type, handler);
   });
 });
