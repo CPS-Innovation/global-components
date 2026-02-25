@@ -19,16 +19,26 @@ function handleNavigateCms(r: NginxHTTPRequest): void {
   }
 
   // === OPEN PHASE ===
-  // If non-IE browser with configurable IE mode: redirect to self to enter IE mode
+  // If non-IE browser with configurable IE mode: extract CMS domain from
+  // cookie (only available in Edge, not in IE mode) and pass it as a query
+  // param so IE mode can use it.
   if (ieaction === "nonie+configurable+") {
+    var domain = extractDomainFromSessionHint(r);
+    if (!domain) {
+      r.headersOut["Content-Type"] = "text/html";
+      r.return(400, "<html><body><p>Error: could not determine CMS domain from session.</p></body></html>");
+      return;
+    }
+    var args = r.variables.args || "";
+    var separator = args ? "&" : "";
     r.headersOut["X-InternetExplorerMode"] = "1";
-    r.return(302, proto + "://" + host + r.uri + "?" + (r.variables.args || ""));
+    r.return(302, proto + "://" + host + r.uri + "?" + args + separator + "cmsDomain=" + encodeURIComponent(domain));
     return;
   }
 
-  // Now in IE mode (or non-configurable): extract CMS domain from cookie and serve iframe page
-  var domain = extractDomainFromSessionHint(r);
-  if (!domain) {
+  // Now in IE mode (or non-configurable): get domain from query param (IE) or cookie (non-configurable)
+  var cmsDomain = r.args.cmsDomain || extractDomainFromSessionHint(r);
+  if (!cmsDomain) {
     r.headersOut["Content-Type"] = "text/html";
     r.return(400, "<html><body><p>Error: could not determine CMS domain from session.</p></body></html>");
     return;
@@ -37,14 +47,22 @@ function handleNavigateCms(r: NginxHTTPRequest): void {
   var caseId = r.args.caseId || "";
   var taskId = r.args.taskId || "";
   var iframeSrc = taskId
-    ? proto + "://" + domain + "/CMSModern/Navigation/Notification.html?action=activate_task&screen=case_details&wId=MASTER&taskId=" + taskId + "&caseId=" + caseId
-    : proto + "://" + domain + "/CMSModern/Navigation/Notification.html?action=navigate&screen=case_details&wId=MASTER&caseId=" + caseId;
+    ? proto + "://" + cmsDomain + "/CMSModern/Navigation/Notification.html?action=activate_task&screen=case_details&wId=MASTER&taskId=" + taskId + "&caseId=" + caseId
+    : proto + "://" + cmsDomain + "/CMSModern/Navigation/Notification.html?action=navigate&screen=case_details&wId=MASTER&caseId=" + caseId;
 
   var closeUrl = "/global-components/navigate-cms?step=close";
 
+  var heading = taskId ? "Opening task in CMS" : "Opening case in CMS";
+
   r.headersOut["Content-Type"] = "text/html";
-  r.return(200, "<html><body>"
-    + "<p>Please wait, opening CMS...</p>"
+  r.return(200, "<!DOCTYPE html>"
+    + "<html><head><title>" + heading + "</title></head>"
+    + '<body style="font-family: Arial, sans-serif; margin: 30px;">'
+    + '<h1 style="font-size: 24px; font-weight: 700; margin: 0 0 20px 0;">' + heading + "</h1>"
+    + '<div style="border-left: 10px solid #b1b4b6; padding: 15px; margin: 0; clear: both;">'
+    + "<p style=\"font-size: 16px; margin: 0 0 10px 0;\">This may take a few seconds.</p>"
+    + "<p style=\"font-size: 16px; margin: 0;\">Please do not close this window. It will close automatically when CMS has finished navigating.</p>"
+    + "</div>"
     + '<iframe src="' + iframeSrc + '" style="display:none" onload="window.location.href=\'' + closeUrl + '\'"></iframe>'
     + "</body></html>");
 }
