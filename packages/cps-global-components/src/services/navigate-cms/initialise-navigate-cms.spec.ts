@@ -12,21 +12,10 @@ describe("initialiseNavigateCms", () => {
     openSpy.mockRestore();
   });
 
-  it("does not register listener when preview flag is off", () => {
+  it("registers listener", () => {
     const addEventSpy = jest.spyOn(document, "addEventListener");
     initialiseNavigateCms({
       rootUrl: "https://example.com/global-components/test/cps-global-components.esm.js",
-      preview: { found: true, result: {} },
-    });
-    expect(addEventSpy).not.toHaveBeenCalledWith(CmsNavigateEvent.type, expect.anything());
-    addEventSpy.mockRestore();
-  });
-
-  it("registers listener when preview flag is on", () => {
-    const addEventSpy = jest.spyOn(document, "addEventListener");
-    initialiseNavigateCms({
-      rootUrl: "https://example.com/global-components/test/cps-global-components.esm.js",
-      preview: { found: true, result: { openCaseInCms: true } },
     });
     expect(addEventSpy).toHaveBeenCalledWith(CmsNavigateEvent.type, expect.anything());
     addEventSpy.mockRestore();
@@ -35,7 +24,6 @@ describe("initialiseNavigateCms", () => {
   it("opens correct URL for case action", () => {
     initialiseNavigateCms({
       rootUrl: "https://example.com/global-components/test/cps-global-components.esm.js",
-      preview: { found: true, result: { openCaseInCms: true } },
     });
 
     document.dispatchEvent(new CmsNavigateEvent({ action: "case", caseId: 123 }));
@@ -46,7 +34,6 @@ describe("initialiseNavigateCms", () => {
   it("opens correct URL for task action", () => {
     initialiseNavigateCms({
       rootUrl: "https://example.com/global-components/test/cps-global-components.esm.js",
-      preview: { found: true, result: { openCaseInCms: true } },
     });
 
     document.dispatchEvent(new CmsNavigateEvent({ action: "task", caseId: 123, taskId: 456 }));

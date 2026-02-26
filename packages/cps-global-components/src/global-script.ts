@@ -65,6 +65,8 @@ const startupPhase = async ({ window, storeFns: { register, mergeTags, readyStat
   const rootUrl = initialiseRootUrl();
   register({ rootUrl });
 
+  initialiseNavigateCms({ rootUrl });
+
   const flags = getApplicationFlags({ window, rootUrl });
   register({ flags });
 
@@ -75,8 +77,6 @@ const startupPhase = async ({ window, storeFns: { register, mergeTags, readyStat
     initialiseSettings({ rootUrl }),
   ]);
   register({ cmsSessionHint, handover, preview, cmsSessionTags: { handoverEndpoint: cmsSessionHint.result?.handoverEndpoint || "" } });
-
-  initialiseNavigateCms({ rootUrl, preview });
 
   const config = await initialiseConfig({ rootUrl, flags, preview });
   register({ config });

@@ -125,6 +125,11 @@ jest.mock("./services/state/recent-cases/initialise-recent-cases", () => ({
   initialiseRecentCases: mockInitialiseRecentCases,
 }));
 
+const mockInitialiseNavigateCms = jest.fn();
+jest.mock("./services/navigate-cms/initialise-navigate-cms", () => ({
+  initialiseNavigateCms: mockInitialiseNavigateCms,
+}));
+
 // Mock makeConsole to return no-op functions
 jest.mock("./logging/makeConsole", () => ({
   makeConsole: () => ({
@@ -1165,6 +1170,19 @@ describe("global-script", () => {
       });
     });
 
+    it("should pass rootUrl to initialiseNavigateCms", async () => {
+      const testRootUrl = "https://test.example.com/env/script.js";
+      mockInitialiseRootUrl.mockReturnValue(testRootUrl);
+
+      const globalScript = require("./global-script").default;
+      globalScript();
+      await new Promise(resolve => setTimeout(resolve, 10));
+
+      expect(mockInitialiseNavigateCms).toHaveBeenCalledWith({
+        rootUrl: testRootUrl,
+      });
+    });
+
     it("should pass rootUrl and preview to initialiseRecentCases", async () => {
       const testRootUrl = "https://test.example.com/env/script.js";
       const testPreview = { enabled: true, myRecentCases: true };
@@ -1356,12 +1374,16 @@ describe("global-script", () => {
     // These tests verify that operations happen in the correct order
     // using mock call order tracking
 
-    it("should initialise in correct order: rootUrl -> flags -> cmsSessionHint/handover/preview/settings (parallel) -> config -> firstContext -> recentCases -> analytics (auth runs async later)", async () => {
+    it("should initialise in correct order: rootUrl -> navigateCms -> flags -> cmsSessionHint/handover/preview/settings (parallel) -> config -> firstContext -> recentCases -> analytics (auth runs async later)", async () => {
       const callOrder: string[] = [];
 
       mockInitialiseRootUrl.mockImplementation(() => {
         callOrder.push("rootUrl");
         return "https://example.com/script.js";
+      });
+
+      mockInitialiseNavigateCms.mockImplementation(() => {
+        callOrder.push("navigateCms");
       });
 
       mockGetApplicationFlags.mockImplementation(() => {
@@ -1422,7 +1444,8 @@ describe("global-script", () => {
       // then config, then firstContext, then recentCases (register is fire-and-forget)
       // Analytics now comes BEFORE auth (auth is non-blocking to avoid UI delay)
       // accessibilitySubscriber is now part of DOM observation (called via initialiseDomForContext)
-      expect(callOrder.indexOf("rootUrl")).toBeLessThan(callOrder.indexOf("flags"));
+      expect(callOrder.indexOf("rootUrl")).toBeLessThan(callOrder.indexOf("navigateCms"));
+      expect(callOrder.indexOf("navigateCms")).toBeLessThan(callOrder.indexOf("flags"));
       expect(callOrder.indexOf("flags")).toBeLessThan(callOrder.indexOf("cmsSessionHint"));
       expect(callOrder.indexOf("flags")).toBeLessThan(callOrder.indexOf("handover"));
       expect(callOrder.indexOf("flags")).toBeLessThan(callOrder.indexOf("preview"));
