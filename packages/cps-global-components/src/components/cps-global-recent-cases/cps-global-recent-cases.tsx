@@ -1,10 +1,10 @@
-import { Component, Prop, VNode, h } from "@stencil/core";
+import { Component, Element, Prop, VNode, h } from "@stencil/core";
 import { replaceTagsInString } from "../cps-global-menu/menu-config/helpers/replace-tags-in-string";
 import { WithLogging } from "../../logging/WithLogging";
 import { readyState } from "../../store/store";
 import { assertNever } from "../../utils/assert-never";
 
-const processState = () => {
+const processState = (el: HTMLElement) => {
   const { isReady, state } = readyState(["config"], ["recentCases"]);
 
   // 1) If we  are not ready (!isReady) then we do not yet know if we are to show ourselves or not ...
@@ -35,7 +35,12 @@ const processState = () => {
     return { status: "api-error" } as const;
   }
 
-  // 5) We have response from the api but it is empty
+  // 5) We have response from the api but it is empty and the consumer has passed some content
+  if (!recentCases.result.length && el.querySelector('[slot="no-cases"]')) {
+    return { status: "empty-data-holding-content" } as const;
+  }
+
+  // 6)
   if (!recentCases.result.length) {
     return { status: "empty-data" } as const;
   }
@@ -60,6 +65,8 @@ const withHeader = (content: VNode) => (
   shadow: true,
 })
 export class CpsGlobalRecentCases {
+  @Element() el: HTMLElement;
+
   @Prop() listClass: string = "govuk-list govuk-list--spaced";
   @Prop() itemClass: string = "";
   @Prop() linkClass: string = "govuk-link";
@@ -67,7 +74,7 @@ export class CpsGlobalRecentCases {
 
   @WithLogging("CpsGlobalRecentCases")
   render() {
-    const state = processState();
+    const state = processState(this.el);
 
     switch (state.status) {
       case "not-yet-known":
@@ -75,13 +82,12 @@ export class CpsGlobalRecentCases {
         return null;
       case "api-still-waiting":
         return withHeader(<slot name="waiting"></slot>);
-      case "api-error": // todo: do we need a specific error message?
+      case "api-error":
+        return withHeader(<p class="govuk-body">An error has occurred retrieving the list of your recent cases.</p>);
+      case "empty-data-holding-content":
+        return withHeader(<slot name="no-cases"></slot>);
       case "empty-data":
-        return withHeader(
-          <slot name="no-cases">
-            <p class="govuk-body">As you start to use this service the cases that you have visited most recently will appear here.</p>
-          </slot>,
-        );
+        return null;
       case "have-data":
         return withHeader(
           <ul class={this.listClass}>
