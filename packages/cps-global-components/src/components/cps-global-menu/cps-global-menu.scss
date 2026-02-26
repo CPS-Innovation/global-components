@@ -56,10 +56,12 @@ a.govuk-link {
     @include border-bottom-active-link();
     margin-left: -1 * $level-height / 5;
 
-    nav-link {
+    nav-link,
+    li.inline-link {
       align-self: stretch;
 
-      li {
+      li,
+      & {
         height: 100%;
 
         a {
@@ -99,6 +101,11 @@ a.govuk-link {
     button {
       font-weight: bold;
     }
+  }
+
+  .open-in-cms {
+    margin-left: auto;
+    margin-right: 0;
   }
 }
 
