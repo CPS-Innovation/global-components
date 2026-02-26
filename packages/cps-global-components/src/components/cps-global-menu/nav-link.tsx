@@ -59,7 +59,7 @@ export class NavLink {
           );
         case "new-tab":
           return (
-            <button {...coreProps} class="linkButton" onClick={() => this.launchNewTab()}>
+            <button {...coreProps} class="linkButton" aria-label={`${this.label} (opens in new tab)`} onClick={() => this.launchNewTab()}>
               {this.label}
             </button>
           );

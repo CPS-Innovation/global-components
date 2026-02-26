@@ -46,6 +46,8 @@ const shouldShowOpenCaseInCms = ({ preview, flags }: Pick<State, "preview" | "fl
 
 const surveyLink = ({ config }: Pick<State, "config">) => ({ showLink: !!config.SURVEY_LINK, url: config.SURVEY_LINK });
 
+const reportIssueLink = ({ config }: Pick<State, "config">) => ({ showLink: !!config.REPORT_ISSUE_LINK, url: config.REPORT_ISSUE_LINK });
+
 export const FEATURE_FLAGS = {
   shouldShowCaseDetails,
   shouldEnableAccessibilityMode,
@@ -54,4 +56,5 @@ export const FEATURE_FLAGS = {
   shouldShowMenu,
   shouldShowOpenCaseInCms,
   surveyLink,
+  reportIssueLink,
 };

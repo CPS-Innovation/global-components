@@ -128,6 +128,7 @@ export const configBaseSchema = z.object({
   GATEWAY_URL: z.string().optional(),
   APP_INSIGHTS_CONNECTION_STRING: z.string().optional(),
   SURVEY_LINK: z.string().optional(),
+  REPORT_ISSUE_LINK: z.string().optional(),
   SHOW_MENU: z.boolean().optional(),
   SHOW_GOVUK_REBRAND: z.boolean().optional(),
   OS_HANDOVER_URL: z.string().optional(),

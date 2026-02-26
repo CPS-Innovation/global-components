@@ -371,4 +371,54 @@ describe("FEATURE_FLAGS", () => {
       });
     });
   });
+
+  describe("reportIssueLink", () => {
+    it("should return showLink true and url when REPORT_ISSUE_LINK is set", () => {
+      const state: Pick<State, "config"> = {
+        config: { REPORT_ISSUE_LINK: "https://example.com/report" } as any,
+      };
+
+      const result = FEATURE_FLAGS.reportIssueLink(state);
+      expect(result).toEqual({
+        showLink: true,
+        url: "https://example.com/report",
+      });
+    });
+
+    it("should return showLink false and url undefined when REPORT_ISSUE_LINK is not set", () => {
+      const state: Pick<State, "config"> = {
+        config: {} as any,
+      };
+
+      const result = FEATURE_FLAGS.reportIssueLink(state);
+      expect(result).toEqual({
+        showLink: false,
+        url: undefined,
+      });
+    });
+
+    it("should return showLink false and url empty string when REPORT_ISSUE_LINK is empty string", () => {
+      const state: Pick<State, "config"> = {
+        config: { REPORT_ISSUE_LINK: "" } as any,
+      };
+
+      const result = FEATURE_FLAGS.reportIssueLink(state);
+      expect(result).toEqual({
+        showLink: false,
+        url: "",
+      });
+    });
+
+    it("should return showLink true and url when REPORT_ISSUE_LINK is a non-empty string", () => {
+      const state: Pick<State, "config"> = {
+        config: { REPORT_ISSUE_LINK: "https://servicenow.example.com/report" } as any,
+      };
+
+      const result = FEATURE_FLAGS.reportIssueLink(state);
+      expect(result).toEqual({
+        showLink: true,
+        url: "https://servicenow.example.com/report",
+      });
+    });
+  });
 });
