@@ -172,36 +172,31 @@ describe("Recent cases", () => {
     });
   });
 
-  it("renders the default no-cases message when API returns empty array", async () => {
+  it("renders nothing when API returns empty array and no no-cases slot is provided", async () => {
     await setupInterception({ recentCasesResponse: [] });
     await arrange(recentCasesSettings);
 
     await act();
-    await waitForRecentCasesContent(L.RECENT_CASES_NO_CASES_DEFAULT);
 
-    const hasHeading = await queryRecentCasesShadow(L.RECENT_CASES_HEADING);
-    expect(hasHeading).toBe(true);
+    // Wait for store to settle (recentCases registered after config)
+    await new Promise((r) => setTimeout(r, 500));
 
-    const hasNoCasesMsg = await queryRecentCasesShadow(
-      L.RECENT_CASES_NO_CASES_DEFAULT
-    );
-    expect(hasNoCasesMsg).toBe(true);
-
-    const hasList = await queryRecentCasesShadow(L.RECENT_CASES_LIST);
-    expect(hasList).toBe(false);
+    const hasWrapper = await queryRecentCasesShadow(L.RECENT_CASES_WRAPPER);
+    expect(hasWrapper).toBe(false);
   });
 
-  it("renders the default no-cases message when API returns an error", async () => {
+  it("renders an error message when API returns an error", async () => {
     await setupInterception({ recentCasesStatus: 500 });
     await arrange(recentCasesSettings);
 
     await act();
-    await waitForRecentCasesContent(L.RECENT_CASES_NO_CASES_DEFAULT);
+    await waitForRecentCasesContent(L.RECENT_CASES_ERROR_MSG);
 
-    const hasNoCasesMsg = await queryRecentCasesShadow(
-      L.RECENT_CASES_NO_CASES_DEFAULT
-    );
-    expect(hasNoCasesMsg).toBe(true);
+    const hasWrapper = await queryRecentCasesShadow(L.RECENT_CASES_WRAPPER);
+    expect(hasWrapper).toBe(true);
+
+    const hasErrorMsg = await queryRecentCasesShadow(L.RECENT_CASES_ERROR_MSG);
+    expect(hasErrorMsg).toBe(true);
 
     const hasList = await queryRecentCasesShadow(L.RECENT_CASES_LIST);
     expect(hasList).toBe(false);

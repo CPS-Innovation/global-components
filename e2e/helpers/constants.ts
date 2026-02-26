@@ -20,4 +20,5 @@ export const locators = {
   RECENT_CASES_LINK: "a",
   RECENT_CASES_WAITING_SLOT: 'slot[name="waiting"]',
   RECENT_CASES_NO_CASES_DEFAULT: "p.govuk-body",
+  RECENT_CASES_ERROR_MSG: "p.govuk-body",
 };
