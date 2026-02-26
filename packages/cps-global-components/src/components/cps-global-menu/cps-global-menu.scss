@@ -84,8 +84,18 @@ a.govuk-link {
 }
 
 .level-1 {
+  nav-link.report-issue-link,
   nav-link.survey-link {
     margin-left: auto;
+    margin-right: 0;
+  }
+
+  nav-link.report-issue-link ~ nav-link.survey-link {
+    margin-left: 0;
+  }
+
+  nav-link:last-child a,
+  nav-link:last-child button {
     margin-right: 0;
   }
 

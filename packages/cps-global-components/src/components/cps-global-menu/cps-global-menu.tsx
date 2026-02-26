@@ -39,6 +39,7 @@ export class CpsGlobalMenu {
       return null;
     }
 
+    const reportIssueLink = FEATURE_FLAGS.reportIssueLink(state);
     const surveyLink = FEATURE_FLAGS.surveyLink(state);
     const shouldShowCaseDetails = FEATURE_FLAGS.shouldShowCaseDetails(state);
     const shouldShowOpenCaseInCms = FEATURE_FLAGS.shouldShowOpenCaseInCms(state);
@@ -56,6 +57,7 @@ export class CpsGlobalMenu {
               {level1Links?.map(link => (
                 <nav-link {...link}></nav-link>
               ))}
+              {reportIssueLink.showLink && <nav-link openInNewTab class="report-issue-link" label="Report an issue" href={reportIssueLink.url}></nav-link>}
               {surveyLink.showLink && <nav-link openInNewTab class="survey-link" label="Give feedback" href={surveyLink.url}></nav-link>}
             </ul>
           </nav>
