@@ -7,11 +7,13 @@ export const fetchState = async <T extends ZodType>({
   url,
   schema,
   data = undefined,
+  defaultResultWhenNull = undefined,
 }: {
   rootUrl: string;
   url: string;
   schema: T;
   data?: any;
+  defaultResultWhenNull?: z.infer<T>;
 }): Promise<Result<z.infer<T>>> => {
   try {
     const resolvedUrl = getArtifactUrl(rootUrl, url);
@@ -31,7 +33,11 @@ export const fetchState = async <T extends ZodType>({
     const responseData = await response.json();
     const result = schema.nullable().parse(responseData);
     if (result === null) {
-      throw new Error(`User has no state at ${resolvedUrl}`);
+      if (defaultResultWhenNull) {
+        return { found: true, result: defaultResultWhenNull };
+      } else {
+        throw new Error(`User has no state at ${resolvedUrl}`);
+      }
     }
 
     return { found: true, result };

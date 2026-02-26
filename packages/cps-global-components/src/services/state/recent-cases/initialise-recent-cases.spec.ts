@@ -65,14 +65,11 @@ describe("initialiseRecentCases", () => {
       });
     });
 
-    it("should register recentCases with found: false", async () => {
+    it("should register recentCases with found: true and an empty array", async () => {
       await initialiseRecentCases({ rootUrl, preview, register: mockRegister });
       await flushPromises();
 
-      expect(mockRegister).toHaveBeenCalledTimes(1);
-      const registeredValue = mockRegister.mock.calls[0][0].recentCases;
-      expect(registeredValue.found).toBe(false);
-      expect(registeredValue.error?.message).toBe(`User has no state at ${expectedUrl}`);
+      expect(mockRegister).toHaveBeenCalledWith({ recentCases: { found: true, result: [] } });
     });
   });
 
