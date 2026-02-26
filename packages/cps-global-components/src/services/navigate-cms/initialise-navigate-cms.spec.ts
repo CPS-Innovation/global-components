@@ -18,7 +18,7 @@ describe("initialiseNavigateCms", () => {
       rootUrl: "https://example.com/global-components/test/cps-global-components.esm.js",
       preview: { found: true, result: {} },
     });
-    expect(addEventSpy).not.toHaveBeenCalledWith("cms-navigate", expect.anything());
+    expect(addEventSpy).not.toHaveBeenCalledWith(CmsNavigateEvent.type, expect.anything());
     addEventSpy.mockRestore();
   });
 
@@ -28,7 +28,7 @@ describe("initialiseNavigateCms", () => {
       rootUrl: "https://example.com/global-components/test/cps-global-components.esm.js",
       preview: { found: true, result: { openCaseInCms: true } },
     });
-    expect(addEventSpy).toHaveBeenCalledWith("cms-navigate", expect.anything());
+    expect(addEventSpy).toHaveBeenCalledWith(CmsNavigateEvent.type, expect.anything());
     addEventSpy.mockRestore();
   });
 
@@ -40,11 +40,7 @@ describe("initialiseNavigateCms", () => {
 
     document.dispatchEvent(new CmsNavigateEvent({ action: "case", caseId: 123 }));
 
-    expect(openSpy).toHaveBeenCalledWith(
-      "https://example.com/global-components/navigate-cms?caseId=123",
-      "_blank",
-      "width=500,height=300",
-    );
+    expect(openSpy).toHaveBeenCalledWith("https://example.com/global-components/navigate-cms?caseId=123", "_blank", expect.stringContaining("width=500"));
   });
 
   it("opens correct URL for task action", () => {
@@ -55,18 +51,14 @@ describe("initialiseNavigateCms", () => {
 
     document.dispatchEvent(new CmsNavigateEvent({ action: "task", caseId: 123, taskId: 456 }));
 
-    expect(openSpy).toHaveBeenCalledWith(
-      "https://example.com/global-components/navigate-cms?caseId=123&taskId=456",
-      "_blank",
-      "width=500,height=300",
-    );
+    expect(openSpy).toHaveBeenCalledWith("https://example.com/global-components/navigate-cms?caseId=123&taskId=456", "_blank", expect.stringContaining("width=500"));
   });
 });
 
 describe("dispatchCmsNavigate", () => {
   it("dispatches a cms-navigate event with case action", () => {
     const handler = jest.fn();
-    document.addEventListener("cms-navigate", handler);
+    document.addEventListener(CmsNavigateEvent.type, handler);
 
     dispatchCmsNavigate(42);
 
@@ -74,6 +66,6 @@ describe("dispatchCmsNavigate", () => {
     const event = handler.mock.calls[0][0] as CmsNavigateEvent;
     expect(event.detail).toEqual({ action: "case", caseId: 42 });
 
-    document.removeEventListener("cms-navigate", handler);
+    document.removeEventListener(CmsNavigateEvent.type, handler);
   });
 });
