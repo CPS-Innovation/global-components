@@ -8,7 +8,7 @@ import { RecentCase, RecentCasesSchema } from "./recent-cases";
 import { Register } from "../../../store/store";
 
 export const initialiseRecentCases = async ({ rootUrl, register }: { rootUrl: string; preview: Result<Preview>; register: Register }) => {
-  const recentCasesPromise = fetchState({ rootUrl, url: "../state/recent-cases", schema: RecentCasesSchema });
+  const recentCasesPromise = fetchState({ rootUrl, url: "../state/recent-cases", schema: RecentCasesSchema, defaultResultWhenNull: [] });
 
   recentCasesPromise.then(recentCases => {
     register({ recentCases });
