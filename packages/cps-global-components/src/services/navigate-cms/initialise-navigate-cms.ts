@@ -9,9 +9,7 @@ export const initialiseNavigateCms = ({ rootUrl, preview }: { rootUrl: string; p
 
   document.addEventListener(CmsNavigateEvent.type, ((event: CmsNavigateEvent) => {
     const detail = event.detail;
-    const params = detail.action === "task"
-      ? `caseId=${detail.caseId}&taskId=${detail.taskId}`
-      : `caseId=${detail.caseId}`;
+    const params = detail.action === "task" ? `caseId=${detail.caseId}&taskId=${detail.taskId}` : `caseId=${detail.caseId}`;
 
     const url = new URL(`../navigate-cms?${params}`, rootUrl).href;
     window.open(url, "_blank", "width=500,height=200,top=300,left=100");

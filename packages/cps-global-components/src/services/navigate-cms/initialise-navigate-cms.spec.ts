@@ -40,11 +40,7 @@ describe("initialiseNavigateCms", () => {
 
     document.dispatchEvent(new CmsNavigateEvent({ action: "case", caseId: 123 }));
 
-    expect(openSpy).toHaveBeenCalledWith(
-      "https://example.com/global-components/navigate-cms?caseId=123",
-      "_blank",
-      expect.stringContaining("width=500"),
-    );
+    expect(openSpy).toHaveBeenCalledWith("https://example.com/global-components/navigate-cms?caseId=123", "_blank", expect.stringContaining("width=500"));
   });
 
   it("opens correct URL for task action", () => {
@@ -55,11 +51,7 @@ describe("initialiseNavigateCms", () => {
 
     document.dispatchEvent(new CmsNavigateEvent({ action: "task", caseId: 123, taskId: 456 }));
 
-    expect(openSpy).toHaveBeenCalledWith(
-      "https://example.com/global-components/navigate-cms?caseId=123&taskId=456",
-      "_blank",
-      expect.stringContaining("width=500"),
-    );
+    expect(openSpy).toHaveBeenCalledWith("https://example.com/global-components/navigate-cms?caseId=123&taskId=456", "_blank", expect.stringContaining("width=500"));
   });
 });
 
