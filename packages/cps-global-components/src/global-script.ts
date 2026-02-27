@@ -84,7 +84,7 @@ const startupPhase = async ({ window, storeFns: { register, mergeTags, readyStat
   const firstContext = initialiseContext({ window, config });
   register({ firstContext });
 
-  const { setNextRecentCases } = await initialiseRecentCases({ rootUrl, preview, register });
+  const { setNextRecentCases } = await initialiseRecentCases({ rootUrl, config, register });
 
   const { trackPageView, trackEvent, trackException } = initialiseAnalytics({ window, config, readyState, build, cmsSessionHint, flags });
 

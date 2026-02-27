@@ -14,12 +14,12 @@ const processState = (el: HTMLElement) => {
 
   const {
     recentCases,
-    config: { RECENT_CASES_NAVIGATE_URL },
+    config: { RECENT_CASES_NAVIGATE_URL, RECENT_CASES_LIST_LENGTH },
   } = state;
 
-  // 2) ... because we do not have RECENT_CASES_NAVIGATE_URL. We use the presence of that value as
-  //  a feature flag.
-  if (!RECENT_CASES_NAVIGATE_URL) {
+  // 2) ... because we do not have RECENT_CASES_NAVIGATE_URL or RECENT_CASES_LIST_LENGTH.
+  //  We use the presence of these values as a feature flag.
+  if (!RECENT_CASES_NAVIGATE_URL || !RECENT_CASES_LIST_LENGTH) {
     return { status: "feature-off" } as const;
   }
 
