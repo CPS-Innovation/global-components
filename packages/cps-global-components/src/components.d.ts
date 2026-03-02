@@ -36,7 +36,7 @@ export namespace Components {
          */
         "linkClass": string;
         /**
-          * @default "govuk-list govuk-list--spaced"
+          * @default "govuk-list govuk-list--spaced govuk-list--bullet"
          */
         "listClass": string;
     }
@@ -160,7 +160,7 @@ declare namespace LocalJSX {
          */
         "linkClass"?: string;
         /**
-          * @default "govuk-list govuk-list--spaced"
+          * @default "govuk-list govuk-list--spaced govuk-list--bullet"
          */
         "listClass"?: string;
     }

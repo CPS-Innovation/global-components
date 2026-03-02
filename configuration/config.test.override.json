@@ -14,6 +14,7 @@
   "COOKIE_HANDOVER_URL": "https://polaris-qa-notprod.cps.gov.uk/polaris",
   "TOKEN_HANDOVER_URL": "https://polaris-qa-notprod.cps.gov.uk/auth-refresh-cms-modern-token",
   "RECENT_CASES_NAVIGATE_URL": "https://cps-tst.outsystemsenterprise.com/WorkManagementApp/CaseOverview?CaseId={caseId}",
+  "RECENT_CASES_LIST_LENGTH": 5,
   "FEATURE_FLAG_MENU_USERS": {
     "generallyAvailable": true
   },

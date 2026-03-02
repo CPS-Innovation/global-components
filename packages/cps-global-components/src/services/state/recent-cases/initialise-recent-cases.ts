@@ -1,5 +1,4 @@
-import { Preview } from "cps-global-configuration";
-import { Result } from "../../../utils/Result";
+import { Config } from "cps-global-configuration";
 import { CaseDetails } from "../../data/CaseDetails";
 import { getCaseDefendantHeadline } from "../../data/get-case-defendant-headline";
 import { fetchState } from "../fetch-state";
@@ -7,7 +6,21 @@ import { StatePutResponseSchema } from "../StatePutResponse";
 import { RecentCase, RecentCasesSchema } from "./recent-cases";
 import { Register } from "../../../store/store";
 
-export const initialiseRecentCases = async ({ rootUrl, register }: { rootUrl: string; preview: Result<Preview>; register: Register }) => {
+export const initialiseRecentCases = async ({
+  rootUrl,
+  register,
+  config,
+}: {
+  rootUrl: string;
+  register: Register;
+  config: Config;
+}) => {
+  const { RECENT_CASES_LIST_LENGTH } = config;
+
+  if (!RECENT_CASES_LIST_LENGTH) {
+    return { setNextRecentCases: () => {} };
+  }
+
   const recentCasesPromise = fetchState({ rootUrl, url: "../state/recent-cases", schema: RecentCasesSchema, defaultResultWhenNull: [] });
 
   recentCasesPromise.then(recentCases => {
@@ -30,7 +43,7 @@ export const initialiseRecentCases = async ({ rootUrl, register }: { rootUrl: st
         rootUrl,
         url: "../state/recent-cases",
         schema: StatePutResponseSchema,
-        data: [nextEntry, ...recentCasesList.filter(c => c.caseId !== nextEntry.caseId)].slice(0, 10),
+        data: [nextEntry, ...recentCasesList.filter(c => c.caseId !== nextEntry.caseId)].slice(0, RECENT_CASES_LIST_LENGTH),
       });
     });
   };
