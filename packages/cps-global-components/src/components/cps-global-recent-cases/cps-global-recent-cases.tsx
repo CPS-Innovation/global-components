@@ -67,7 +67,7 @@ const withHeader = (content: VNode) => (
 export class CpsGlobalRecentCases {
   @Element() el: HTMLElement;
 
-  @Prop() listClass: string = "govuk-list govuk-list--spaced";
+  @Prop() listClass: string = "govuk-list govuk-list--spaced govuk-list--bullet";
   @Prop() itemClass: string = "";
   @Prop() linkClass: string = "govuk-link";
   @Prop() itemTextTemplate: string = "{urn} - {description}";
