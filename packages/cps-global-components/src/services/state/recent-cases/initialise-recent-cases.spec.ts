@@ -77,6 +77,69 @@ describe("initialiseRecentCases", () => {
     });
   });
 
+  describe("when existing list exceeds RECENT_CASES_LIST_LENGTH", () => {
+    const twelveCases: RecentCases = Array.from({ length: 12 }, (_, i) => ({
+      caseId: i + 1,
+      urn: `URN${i + 1}`,
+      description: `Case ${i + 1}`,
+    }));
+
+    beforeEach(() => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        json: () => Promise.resolve(twelveCases),
+      });
+    });
+
+    it("should truncate the registered result to RECENT_CASES_LIST_LENGTH", async () => {
+      await initialiseRecentCases({ rootUrl, config, register: mockRegister });
+      await flushPromises();
+
+      const registeredValue = mockRegister.mock.calls[0][0].recentCases;
+      expect(registeredValue.found).toBe(true);
+      expect(registeredValue.result).toHaveLength(10);
+      expect(registeredValue.result).toEqual(twelveCases.slice(0, 10));
+    });
+
+    it("should respect a custom RECENT_CASES_LIST_LENGTH", async () => {
+      const shortConfig = { RECENT_CASES_LIST_LENGTH: 3 } as Config;
+      await initialiseRecentCases({ rootUrl, config: shortConfig, register: mockRegister });
+      await flushPromises();
+
+      const registeredValue = mockRegister.mock.calls[0][0].recentCases;
+      expect(registeredValue.result).toHaveLength(3);
+      expect(registeredValue.result).toEqual(twelveCases.slice(0, 3));
+    });
+
+    it("should not truncate when list is shorter than RECENT_CASES_LIST_LENGTH", async () => {
+      const shortList: RecentCases = [{ caseId: 1, urn: "URN1", description: "Case 1" }];
+      mockFetch.mockResolvedValue({
+        ok: true,
+        json: () => Promise.resolve(shortList),
+      });
+
+      await initialiseRecentCases({ rootUrl, config, register: mockRegister });
+      await flushPromises();
+
+      const registeredValue = mockRegister.mock.calls[0][0].recentCases;
+      expect(registeredValue.result).toEqual(shortList);
+    });
+
+    it("should not truncate when fetch fails", async () => {
+      mockFetch.mockResolvedValue({
+        ok: false,
+        status: 500,
+        statusText: "Internal Server Error",
+      });
+
+      await initialiseRecentCases({ rootUrl, config, register: mockRegister });
+      await flushPromises();
+
+      const registeredValue = mockRegister.mock.calls[0][0].recentCases;
+      expect(registeredValue.found).toBe(false);
+    });
+  });
+
   describe("when fetch succeeds but response is null", () => {
     beforeEach(() => {
       mockFetch.mockResolvedValue({
@@ -244,7 +307,7 @@ describe("initialiseRecentCases", () => {
     });
 
     it("should limit the list to RECENT_CASES_LIST_LENGTH items when adding a new case to a full list", async () => {
-      const tenExistingCases: RecentCases = Array.from({ length: 10 }, (_, i) => ({
+      const threeExistingCases: RecentCases = Array.from({ length: 3 }, (_, i) => ({
         caseId: i + 1,
         urn: `URN${i + 1}`,
         description: `Case ${i + 1}`,
@@ -252,10 +315,11 @@ describe("initialiseRecentCases", () => {
 
       mockFetch.mockResolvedValueOnce({
         ok: true,
-        json: () => Promise.resolve(tenExistingCases),
+        json: () => Promise.resolve(threeExistingCases),
       });
 
-      const { setNextRecentCases } = await initialiseRecentCases({ rootUrl, config, register: mockRegister });
+      const shortConfig = { RECENT_CASES_LIST_LENGTH: 3 } as Config;
+      const { setNextRecentCases } = await initialiseRecentCases({ rootUrl, config: shortConfig, register: mockRegister });
       mockFetch.mockClear();
       mockFetch.mockResolvedValue({
         ok: true,
@@ -269,7 +333,7 @@ describe("initialiseRecentCases", () => {
       expect(mockFetch).toHaveBeenCalledWith("https://example.com/api/state/recent-cases", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify([{ caseId: 789, urn: "56EF7890123", description: "Wilson, Bob" }, ...tenExistingCases.slice(0, 9)]),
+        body: JSON.stringify([{ caseId: 789, urn: "56EF7890123", description: "Wilson, Bob" }, ...threeExistingCases.slice(0, 2)]),
         credentials: "include",
       });
     });
