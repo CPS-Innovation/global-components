@@ -1183,11 +1183,11 @@ describe("global-script", () => {
       });
     });
 
-    it("should pass rootUrl and preview to initialiseRecentCases", async () => {
+    it("should pass rootUrl and config to initialiseRecentCases", async () => {
       const testRootUrl = "https://test.example.com/env/script.js";
-      const testPreview = { enabled: true, myRecentCases: true };
+      const testConfig = { CONTEXTS: [], GATEWAY_URL: null, RECENT_CASES_LIST_LENGTH: 5 };
       mockInitialiseRootUrl.mockReturnValue(testRootUrl);
-      mockInitialisePreview.mockResolvedValue(testPreview);
+      mockInitialiseConfig.mockResolvedValue(testConfig);
 
       const globalScript = require("./global-script").default;
       globalScript();
@@ -1196,7 +1196,7 @@ describe("global-script", () => {
       expect(mockInitialiseRecentCases).toHaveBeenCalledWith(
         expect.objectContaining({
           rootUrl: testRootUrl,
-          preview: testPreview,
+          config: testConfig,
         })
       );
     });

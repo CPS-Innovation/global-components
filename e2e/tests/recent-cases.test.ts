@@ -17,6 +17,7 @@ const NAVIGATE_URL = "/cases/{caseId}?urn={urn}";
 const recentCasesSettings: DeepPartial<ArrangeProps> = {
   config: {
     RECENT_CASES_NAVIGATE_URL: NAVIGATE_URL,
+    RECENT_CASES_LIST_LENGTH: 10,
   },
 };
 
@@ -135,9 +136,9 @@ describe("Recent cases", () => {
     await teardownInterception();
   });
 
-  it("renders nothing when RECENT_CASES_NAVIGATE_URL is not configured", async () => {
+  it("renders nothing when recent cases config is not set", async () => {
     // No interception needed — preview/recent-cases will 404
-    // and config has no RECENT_CASES_NAVIGATE_URL
+    // and config has no RECENT_CASES_NAVIGATE_URL or RECENT_CASES_LIST_LENGTH
     await arrange({});
 
     await act();

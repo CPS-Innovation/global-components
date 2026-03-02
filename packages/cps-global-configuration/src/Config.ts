@@ -139,6 +139,7 @@ export const configBaseSchema = z.object({
   CACHE_CONFIG: cacheConfigSchema.optional(),
   FETCH_CIRCUIT_BREAKER_CONFIG: fetchCircuitBreakerConfigSchema.optional(),
   RECENT_CASES_NAVIGATE_URL: z.string().optional(),
+  RECENT_CASES_LIST_LENGTH: z.number().optional(),
 });
 
 export const configStorageSchema = configBaseSchema.extend({
