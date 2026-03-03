@@ -430,6 +430,76 @@ async function testSwaggerRewriting() {
 }
 
 // =============================================================================
+// Auth Refresh Outbound Tests
+// =============================================================================
+
+async function testAuthRefreshOutbound() {
+  console.log("\nAuth Refresh Outbound Tests (/auth-refresh-outbound):")
+
+  await test("redirects to handoverEndpoint from cookie", async () => {
+    const hint = JSON.stringify({ handoverEndpoint: "https://custom-cms.cps.gov.uk/polaris" })
+    const response = await fetch(`${PROXY_BASE}/auth-refresh-outbound`, {
+      headers: { Cookie: `Cms-Session-Hint=${encodeURIComponent(hint)}` },
+      redirect: "manual",
+    })
+    assertEqual(response.status, 302, "Should return 302")
+    const location = response.headers.get("location")
+    assertEqual(location, "https://custom-cms.cps.gov.uk/polaris", "Should redirect to handoverEndpoint")
+    assertEqual(response.headers.get("x-internetexplorermode"), "1", "Should set X-InternetExplorerMode header")
+  })
+
+  await test("appends query string to handoverEndpoint redirect", async () => {
+    const hint = JSON.stringify({ handoverEndpoint: "https://custom-cms.cps.gov.uk/polaris" })
+    const response = await fetch(`${PROXY_BASE}/auth-refresh-outbound?foo=bar&baz=1`, {
+      headers: { Cookie: `Cms-Session-Hint=${encodeURIComponent(hint)}` },
+      redirect: "manual",
+    })
+    assertEqual(response.status, 302, "Should return 302")
+    const location = response.headers.get("location")
+    assertEqual(location, "https://custom-cms.cps.gov.uk/polaris?foo=bar&baz=1", "Should append query string")
+  })
+
+  await test("falls back to default CMS domain when no cookie", async () => {
+    const response = await fetch(`${PROXY_BASE}/auth-refresh-outbound`, {
+      redirect: "manual",
+    })
+    assertEqual(response.status, 302, "Should return 302")
+    const location = response.headers.get("location")
+    assertEqual(location, "https://default-cms.cps.gov.uk/polaris", "Should redirect to default domain")
+  })
+
+  await test("falls back when cookie has no handoverEndpoint", async () => {
+    const hint = JSON.stringify({ otherField: "value" })
+    const response = await fetch(`${PROXY_BASE}/auth-refresh-outbound`, {
+      headers: { Cookie: `Cms-Session-Hint=${encodeURIComponent(hint)}` },
+      redirect: "manual",
+    })
+    assertEqual(response.status, 302, "Should return 302")
+    const location = response.headers.get("location")
+    assertEqual(location, "https://default-cms.cps.gov.uk/polaris", "Should fall back to default domain")
+  })
+
+  await test("falls back on invalid JSON cookie", async () => {
+    const response = await fetch(`${PROXY_BASE}/auth-refresh-outbound`, {
+      headers: { Cookie: "Cms-Session-Hint=not-valid-json{{{" },
+      redirect: "manual",
+    })
+    assertEqual(response.status, 302, "Should return 302")
+    const location = response.headers.get("location")
+    assertEqual(location, "https://default-cms.cps.gov.uk/polaris", "Should fall back to default on bad JSON")
+  })
+
+  await test("appends query string to default fallback", async () => {
+    const response = await fetch(`${PROXY_BASE}/auth-refresh-outbound?r=someRedirect`, {
+      redirect: "manual",
+    })
+    assertEqual(response.status, 302, "Should return 302")
+    const location = response.headers.get("location")
+    assertEqual(location, "https://default-cms.cps.gov.uk/polaris?r=someRedirect", "Should append query string to default")
+  })
+}
+
+// =============================================================================
 // Main
 // =============================================================================
 
@@ -442,6 +512,7 @@ async function main() {
   await testBlobStorageProxy()
   await testStateEndpoint()
   await testMdsApiProxy()
+  await testAuthRefreshOutbound()
 }
 
 module.exports = main
