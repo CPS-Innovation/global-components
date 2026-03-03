@@ -1,5 +1,5 @@
-const SESSION_HINT_COOKIE_NAME = "Cms-Session-Hint"
-const CMS_AUTH_VALUES_COOKIE_NAME = "Cms-Auth-Values"
+const SESSION_HINT_COOKIE_NAME = "Cms-Session-Hint";
+const CMS_AUTH_VALUES_COOKIE_NAME = "Cms-Auth-Values";
 // Plenty of hardcoded stuff elsewhere in the nginx config. Let's keep only things
 //  that are sensitive or trigger differences in the ENV/App settings.
 const CORS_ALLOWED_ORIGINS = [
@@ -11,41 +11,123 @@ const CORS_ALLOWED_ORIGINS = [
   "http://127.0.0.1",
   "https://127.0.0.1",
   // see later for check for localhost with port
-]
+];
+const STATE_COOKIE_NAME = "cps-global-components-state";
+const STATE_COOKIE_LIFESPAN_MS = 365 * 24 * 60 * 60 * 1000;
+interface CookieOptions {
+  Path?: string;
+  Expires?: Date;
+  Secure?: boolean;
+  SameSite?: "Strict" | "Lax" | "None";
+}
 
 function _getHeaderValue(r: NginxHTTPRequest, headerName: string): string {
-  return (r.headersIn[headerName] as string) || ""
+  return (r.headersIn[headerName] as string) || "";
 }
 
 function _getCookieValue(r: NginxHTTPRequest, cookieName: string): string {
-  const cookies = _getHeaderValue(r, "Cookie")
-  const match = cookies.match(new RegExp(`(?:^|;\\s*)${cookieName}=([^;]*)`))
-  return match ? match[1] : ""
+  const cookies = _getHeaderValue(r, "Cookie");
+  const match = cookies.match(new RegExp(`(?:^|;\\s*)${cookieName}=([^;]*)`));
+  return match ? match[1] : "";
 }
 
 function _maybeDecodeURIComponent(value: string): string {
   // Check if value appears not to be URL-encoded
   // (does not contain %XX patterns)
   if (!/%[0-9A-Fa-f]{2}/.test(value)) {
-    return value
+    return value;
   }
   try {
-    return decodeURIComponent(value)
+    return decodeURIComponent(value);
   } catch (e) {
-    return value
+    return value;
+  }
+}
+
+function _base64UrlDecode(str: string): string {
+  // Replace base64url chars with base64 chars
+  str = str.replace(/-/g, "+").replace(/_/g, "/");
+  // Pad if necessary
+  while (str.length % 4) {
+    str += "=";
+  }
+  return atob(str);
+}
+
+function _base64UrlEncode(str: string): string {
+  // Encode to base64, then convert to base64url (URL-safe, no padding)
+  return btoa(str).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+}
+
+// Wrap state for storage (encode). Currently base64url, could add encryption later.
+function _wrapState(plaintext: string): string {
+  return _base64UrlEncode(plaintext);
+}
+
+// Unwrap state from storage (decode). Currently base64url, could add decryption later.
+function _unwrapState(wrapped: string): string | null {
+  try {
+    return _base64UrlDecode(wrapped);
+  } catch (e) {
+    // If decode fails, return null (corrupted or legacy data)
+    return null;
+  }
+}
+
+function _buildCookieString(
+  name: string,
+  value: string,
+  options?: CookieOptions,
+): string {
+  let cookie = name + "=" + value;
+  if (options?.Path) {
+    cookie += "; Path=" + options.Path;
+  }
+  if (options?.Expires) {
+    cookie += "; Expires=" + options.Expires.toUTCString();
+  }
+  if (options?.Secure) {
+    cookie += "; Secure";
+  }
+  if (options?.SameSite) {
+    cookie += "; SameSite=" + options.SameSite;
+  }
+  return cookie;
+}
+
+function _setCookie(
+  r: NginxHTTPRequest,
+  name: string,
+  value: string,
+  options?: CookieOptions,
+): void {
+  const cookie = _buildCookieString(name, value, options);
+  // njs headersOut["Set-Cookie"] accepts either string or string[]
+  // For multiple cookies, we need to use an array
+  const existing = r.headersOut["Set-Cookie"];
+  if (existing) {
+    if (Array.isArray(existing)) {
+      existing.push(cookie);
+    } else {
+      // Convert single string to array and add new cookie
+      r.headersOut["Set-Cookie"] = [existing as unknown as string, cookie];
+    }
+  } else {
+    // First cookie - use string for compatibility
+    (r.headersOut as Record<string, string>)["Set-Cookie"] = cookie;
   }
 }
 
 function readCmsAuthValues(r: NginxHTTPRequest): string {
   return _maybeDecodeURIComponent(
     _getHeaderValue(r, CMS_AUTH_VALUES_COOKIE_NAME) ||
-      _getCookieValue(r, CMS_AUTH_VALUES_COOKIE_NAME)
-  )
+      _getCookieValue(r, CMS_AUTH_VALUES_COOKIE_NAME),
+  );
 }
 
 // For nginx js_set - returns origin if allowed, empty string otherwise
 function readCorsOrigin(r: NginxHTTPRequest): string {
-  const origin = r.headersIn["Origin"] as string
+  const origin = r.headersIn["Origin"] as string;
   return CORS_ALLOWED_ORIGINS.includes(origin) ||
     origin.endsWith(".cps.gov.uk") ||
     origin.startsWith("http://localhost:") ||
@@ -53,12 +135,66 @@ function readCorsOrigin(r: NginxHTTPRequest): string {
     origin.startsWith("http://127.0.0.1:") ||
     origin.startsWith("https://127.0.0.1:")
     ? origin
-    : ""
+    : "";
 }
 
 function handleSessionHint(r: NginxHTTPRequest): void {
-  const hintValue = _getCookieValue(r, SESSION_HINT_COOKIE_NAME)
-  r.return(200, hintValue ? _maybeDecodeURIComponent(hintValue) : "null")
+  const hintValue = _getCookieValue(r, SESSION_HINT_COOKIE_NAME);
+  r.return(200, hintValue ? _maybeDecodeURIComponent(hintValue) : "null");
+}
+
+async function handleState(r: NginxHTTPRequest): Promise<void> {
+  if (!["GET", "PUT"].includes(r.method)) {
+    // Method not allowed
+    r.return(405, JSON.stringify({ error: "Method not allowed" }));
+    return;
+  }
+
+  r.headersOut["Content-Type"] = "application/json";
+
+  if (r.method === "GET") {
+    // Get wrapped state from cookie and unwrap it
+    const cookieValue = _getCookieValue(r, STATE_COOKIE_NAME);
+    if (!cookieValue) {
+      r.return(200, "null");
+      return;
+    }
+    const unwrapped = _unwrapState(_maybeDecodeURIComponent(cookieValue));
+    r.return(200, unwrapped !== null ? unwrapped : "null");
+    return;
+  }
+
+  if (r.method === "PUT") {
+    const body = (r.requestText || "").trim();
+
+    // If body is "null" or empty, clear the cookie by setting it to expire in the past
+    if (body === "null" || body === "") {
+      _setCookie(r, STATE_COOKIE_NAME, "", {
+        Path: r.uri,
+        Expires: new Date(0), // Expire immediately (clears cookie)
+        Secure: true,
+        SameSite: "None",
+      });
+      r.return(
+        200,
+        JSON.stringify({ success: true, path: r.uri, cleared: true }),
+      );
+      return;
+    }
+
+    // Wrap the body and store in cookie
+    const wrapped = _wrapState(body);
+
+    _setCookie(r, STATE_COOKIE_NAME, wrapped, {
+      Path: r.uri,
+      Expires: new Date(Date.now() + STATE_COOKIE_LIFESPAN_MS), // 1 year
+      Secure: true,
+      SameSite: "None",
+    });
+
+    r.return(200, JSON.stringify({ success: true, path: r.uri }));
+    return;
+  }
 }
 
 export default {
@@ -66,8 +202,8 @@ export default {
   readCorsOrigin,
 
   handleSessionHint,
-
+  handleState,
   // Export helper functions for vnext
   _getCookieValue,
   _maybeDecodeURIComponent,
-}
+};

@@ -23,10 +23,11 @@ interface MockRequest {
   uri: string
   args: Record<string, string>
   headersIn: Record<string, string>
-  headersOut: Record<string, string>
+  headersOut: Record<string, string | string[]>
   variables: Record<string, string>
   returnCode: number | null
   returnBody: string | null
+  requestText: string
   sentBuffer: string | null
   sentFlags: Record<string, unknown> | null
   return(code: number, body: string): void
@@ -39,12 +40,14 @@ interface MockRequestOptions {
   args?: Record<string, string>
   headersIn?: Record<string, string>
   variables?: Record<string, string>
+  requestText?: string
 }
 
 interface GlocoModule {
   readCmsAuthValues(r: MockRequest): string
   readCorsOrigin(r: MockRequest): string
   handleSessionHint(r: MockRequest): void
+  handleState(r: MockRequest): Promise<void>
 }
 
 // Bundle the module
@@ -68,6 +71,10 @@ async function runTests(): Promise<void> {
 
   let passed = 0
   let failed = 0
+
+  function assert(condition: boolean, message: string): void {
+    if (!condition) throw new Error(message)
+  }
 
   function assertEqual(actual: unknown, expected: unknown, message: string): void {
     if (actual !== expected) {
@@ -99,6 +106,7 @@ async function runTests(): Promise<void> {
       variables: options.variables || {},
       returnCode: null,
       returnBody: null,
+      requestText: options.requestText || "",
       sentBuffer: null,
       sentFlags: null,
       return(code: number, body: string) {
@@ -110,6 +118,11 @@ async function runTests(): Promise<void> {
         this.sentFlags = flags
       },
     }
+  }
+
+  // Mock ngx.fetch globally (used by _validateToken, currently disabled)
+  ;(globalThis as Record<string, unknown>).ngx = {
+    fetch: async () => ({ status: 200, ok: true, text: async () => "" }),
   }
 
   console.log("=".repeat(60))
@@ -213,6 +226,147 @@ async function runTests(): Promise<void> {
     gloco.handleSessionHint(r)
     assertEqual(r.returnCode, 200, "Should return 200")
     assertEqual(r.returnBody, hintValue, "Should extract correct cookie")
+  })
+
+  // --- handleState tests ---
+  console.log("\nhandleState:")
+
+  await test("GET on whitelisted key (preview) returns null without auth", async () => {
+    const r = createMockRequest({
+      method: "GET",
+      uri: "/global-components/state/preview",
+    })
+    await gloco.handleState(r)
+    assertEqual(r.returnCode, 200, "Should return 200")
+    assertEqual(r.returnBody, "null", "Should return null")
+    assertEqual(r.headersOut["Content-Type"], "application/json", "Should set Content-Type")
+  })
+
+  await test("GET on whitelisted key returns cookie value without auth", async () => {
+    const stateValue = JSON.stringify({ foo: "bar" })
+    const wrappedState = Buffer.from(stateValue)
+      .toString("base64")
+      .replace(/\+/g, "-")
+      .replace(/\//g, "_")
+      .replace(/=+$/, "")
+    const r = createMockRequest({
+      method: "GET",
+      uri: "/global-components/state/preview",
+      headersIn: {
+        Cookie: `cps-global-components-state=${wrappedState}`,
+      },
+    })
+    await gloco.handleState(r)
+    assertEqual(r.returnCode, 200, "Should return 200")
+    assertEqual(r.returnBody, stateValue, "Should return unwrapped cookie value")
+  })
+
+  await test("GET on non-whitelisted key returns 200 when validation disabled", async () => {
+    const r = createMockRequest({
+      method: "GET",
+      uri: "/global-components/state/other-key",
+    })
+    await gloco.handleState(r)
+    assertEqual(r.returnCode, 200, "Should return 200 (validation disabled)")
+  })
+
+  await test("PUT succeeds without Authorization header when validation disabled", async () => {
+    const stateValue = JSON.stringify({ count: 42 })
+    const r = createMockRequest({
+      method: "PUT",
+      uri: "/global-components/state/my-key",
+      requestText: stateValue,
+    })
+    await gloco.handleState(r)
+    assertEqual(r.returnCode, 200, "Should return 200 (validation disabled)")
+    const body = JSON.parse(r.returnBody!)
+    assertEqual(body.success, true, "Should have success true")
+  })
+
+  await test("PUT sets cookie with body content", async () => {
+    const stateValue = JSON.stringify({ count: 42 })
+    const r = createMockRequest({
+      method: "PUT",
+      uri: "/global-components/state/my-key",
+      requestText: stateValue,
+    })
+    await gloco.handleState(r)
+    assertEqual(r.returnCode, 200, "Should return 200")
+    const body = JSON.parse(r.returnBody!)
+    assertEqual(body.success, true, "Should have success true")
+    assertEqual(body.path, "/global-components/state/my-key", "Should include path")
+    const setCookie = r.headersOut["Set-Cookie"] as string
+    assert(setCookie.includes("cps-global-components-state="), "Should set cookie")
+    assert(setCookie.includes("Path=/global-components/state/my-key"), "Should set path")
+    assert(setCookie.includes("Secure"), "Should have Secure flag")
+    assert(setCookie.includes("SameSite=None"), "Should have SameSite=None")
+  })
+
+  await test("PUT with null body clears cookie", async () => {
+    const r = createMockRequest({
+      method: "PUT",
+      uri: "/global-components/state/my-key",
+      requestText: "null",
+    })
+    await gloco.handleState(r)
+    assertEqual(r.returnCode, 200, "Should return 200")
+    const body = JSON.parse(r.returnBody!)
+    assertEqual(body.success, true, "Should have success true")
+    assertEqual(body.cleared, true, "Should have cleared true")
+    const setCookie = r.headersOut["Set-Cookie"] as string
+    assert(setCookie.includes("cps-global-components-state=;"), "Should set empty cookie value")
+    assert(setCookie.includes("Expires=Thu, 01 Jan 1970"), "Should set cookie to expire in the past")
+  })
+
+  await test("PUT with empty body clears cookie", async () => {
+    const r = createMockRequest({
+      method: "PUT",
+      uri: "/global-components/state/my-key",
+      requestText: "",
+    })
+    await gloco.handleState(r)
+    assertEqual(r.returnCode, 200, "Should return 200")
+    const body = JSON.parse(r.returnBody!)
+    assertEqual(body.success, true, "Should have success true")
+    assertEqual(body.cleared, true, "Should have cleared true")
+    const setCookie = r.headersOut["Set-Cookie"] as string
+    assert(setCookie.includes("Expires=Thu, 01 Jan 1970"), "Should set cookie to expire in the past")
+  })
+
+  await test("PUT with whitespace-only body clears cookie", async () => {
+    const r = createMockRequest({
+      method: "PUT",
+      uri: "/global-components/state/my-key",
+      requestText: "   \n  ",
+    })
+    await gloco.handleState(r)
+    assertEqual(r.returnCode, 200, "Should return 200")
+    const body = JSON.parse(r.returnBody!)
+    assertEqual(body.cleared, true, "Should have cleared true for whitespace body")
+  })
+
+  await test("PUT with valid JSON does not set cleared flag", async () => {
+    const r = createMockRequest({
+      method: "PUT",
+      uri: "/global-components/state/my-key",
+      requestText: JSON.stringify({ enabled: true }),
+    })
+    await gloco.handleState(r)
+    assertEqual(r.returnCode, 200, "Should return 200")
+    const body = JSON.parse(r.returnBody!)
+    assertEqual(body.success, true, "Should have success true")
+    assertEqual(body.cleared, undefined, "Should not have cleared flag for valid data")
+  })
+
+  await test("returns 405 for unsupported methods", async () => {
+    const r = createMockRequest({
+      method: "DELETE",
+      uri: "/global-components/state/my-key",
+    })
+    await gloco.handleState(r)
+    assertEqual(r.returnCode, 405, "Should return 405")
+    const body = JSON.parse(r.returnBody!)
+    assertEqual(body.error, "Method not allowed", "Should have error message")
   })
 
   // Summary
