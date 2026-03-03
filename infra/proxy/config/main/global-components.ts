@@ -326,6 +326,7 @@ export default {
   handleSessionHint,
   handleState,
   handleNavigateCms,
+
   // Export helper functions for vnext
   _getCookieValue,
   _maybeDecodeURIComponent,
