@@ -48,6 +48,7 @@ interface GlocoModule {
   readCorsOrigin(r: MockRequest): string
   handleSessionHint(r: MockRequest): void
   handleState(r: MockRequest): Promise<void>
+  handleNavigateCms(r: MockRequest): void
 }
 
 // Bundle the module
@@ -367,6 +368,135 @@ async function runTests(): Promise<void> {
     assertEqual(r.returnCode, 405, "Should return 405")
     const body = JSON.parse(r.returnBody!)
     assertEqual(body.error, "Method not allowed", "Should have error message")
+  })
+
+  // --- handleNavigateCms tests ---
+  const SESSION_HINT_COOKIE = "Cms-Session-Hint=" + encodeURIComponent(JSON.stringify({
+    cmsDomains: ["foo.cps.gov.uk"],
+    isProxySession: false,
+    handoverEndpoint: "https://foo.cps.gov.uk/polaris",
+  }))
+
+  console.log("\nhandleNavigateCms (open phase):")
+
+  await test("non-IE + configurable: extracts domain from cookie and passes as cmsDomain query param", async () => {
+    const r = createMockRequest({
+      uri: "/global-components/navigate-cms",
+      args: { caseId: "123" },
+      variables: { ieaction: "nonie+configurable+", args: "caseId=123" },
+      headersIn: { "X-Forwarded-Proto": "https", Host: "localhost:8080", Cookie: SESSION_HINT_COOKIE },
+    })
+    gloco.handleNavigateCms(r)
+    assertEqual(r.returnCode, 302, "Should return 302")
+    assertEqual(r.headersOut["X-InternetExplorerMode"] as string, "1", "Should set IE mode header")
+    assert(r.returnBody!.includes("caseId=123"), `Should preserve original args, got: ${r.returnBody}`)
+    assert(r.returnBody!.includes("cmsDomain="), `Should include cmsDomain in redirect, got: ${r.returnBody}`)
+    assert(r.returnBody!.includes("foo.cps.gov.uk"), `cmsDomain should contain extracted domain, got: ${r.returnBody}`)
+  })
+
+  await test("non-IE + configurable without cookie: returns 400", async () => {
+    const r = createMockRequest({
+      uri: "/global-components/navigate-cms",
+      args: { caseId: "123" },
+      variables: { ieaction: "nonie+configurable+", args: "caseId=123" },
+      headersIn: { "X-Forwarded-Proto": "https", Host: "localhost:8080" },
+    })
+    gloco.handleNavigateCms(r)
+    assertEqual(r.returnCode, 400, "Should return 400")
+    assert(r.returnBody!.includes("could not determine CMS domain"), `Should contain error message, got: ${r.returnBody}`)
+  })
+
+  await test("IE + configurable (case): reads cmsDomain from query param and serves iframe", async () => {
+    const r = createMockRequest({
+      uri: "/global-components/navigate-cms",
+      args: { caseId: "123", cmsDomain: "foo.cps.gov.uk" },
+      variables: { ieaction: "ie+configurable+" },
+      headersIn: { "X-Forwarded-Proto": "https", Host: "localhost:8080" },
+    })
+    gloco.handleNavigateCms(r)
+    assertEqual(r.returnCode, 200, "Should return 200")
+    assert(r.returnBody!.includes("iframe"), `Should contain iframe, got: ${r.returnBody}`)
+    assert(r.returnBody!.includes("action=navigate&screen=case_details&wId=MASTER&caseId=123"), `Should contain navigate action with caseId, got: ${r.returnBody}`)
+    assert(r.returnBody!.includes("foo.cps.gov.uk"), `Should use domain from cmsDomain arg, got: ${r.returnBody}`)
+    assert(r.returnBody!.includes("Opening case in CMS"), `Should have case heading, got: ${r.returnBody}`)
+    assert(r.returnBody!.includes("do not close this window"), `Should have inset text, got: ${r.returnBody}`)
+  })
+
+  await test("IE + configurable (task): reads cmsDomain from query param and serves iframe with task heading", async () => {
+    const r = createMockRequest({
+      uri: "/global-components/navigate-cms",
+      args: { caseId: "123", taskId: "456", cmsDomain: "foo.cps.gov.uk" },
+      variables: { ieaction: "ie+configurable+" },
+      headersIn: { "X-Forwarded-Proto": "https", Host: "localhost:8080" },
+    })
+    gloco.handleNavigateCms(r)
+    assertEqual(r.returnCode, 200, "Should return 200")
+    assert(r.returnBody!.includes("action=activate_task&screen=case_details&wId=MASTER&taskId=456&caseId=123"), `Should contain activate_task action with taskId and caseId, got: ${r.returnBody}`)
+    assert(r.returnBody!.includes("Opening task in CMS"), `Should have task heading, got: ${r.returnBody}`)
+  })
+
+  await test("IE + configurable without cmsDomain or cookie: returns 400", async () => {
+    const r = createMockRequest({
+      uri: "/global-components/navigate-cms",
+      args: { caseId: "123" },
+      variables: { ieaction: "ie+configurable+" },
+      headersIn: { "X-Forwarded-Proto": "https", Host: "localhost:8080" },
+    })
+    gloco.handleNavigateCms(r)
+    assertEqual(r.returnCode, 400, "Should return 400")
+    assert(r.returnBody!.includes("could not determine CMS domain"), `Should contain error message, got: ${r.returnBody}`)
+  })
+
+  await test("non-configurable: serves iframe page directly (no redirect)", async () => {
+    const r = createMockRequest({
+      uri: "/global-components/navigate-cms",
+      args: { caseId: "123" },
+      variables: { ieaction: "nonie+nonconfigurable+" },
+      headersIn: { "X-Forwarded-Proto": "https", Host: "localhost:8080", Cookie: SESSION_HINT_COOKIE },
+    })
+    gloco.handleNavigateCms(r)
+    assertEqual(r.returnCode, 200, "Should return 200")
+    assert(r.returnBody!.includes("iframe"), `Should contain iframe, got: ${r.returnBody}`)
+    assert(r.returnBody!.includes("action=navigate&screen=case_details&wId=MASTER&caseId=123"), `Should contain navigate action, got: ${r.returnBody}`)
+  })
+
+  console.log("\nhandleNavigateCms (close phase):")
+
+  await test("IE + configurable close: redirects to self with IE mode off", async () => {
+    const r = createMockRequest({
+      uri: "/global-components/navigate-cms",
+      args: { step: "close" },
+      variables: { ieaction: "ie+configurable+" },
+      headersIn: { "X-Forwarded-Proto": "https", Host: "localhost:8080" },
+    })
+    gloco.handleNavigateCms(r)
+    assertEqual(r.returnCode, 302, "Should return 302")
+    assertEqual(r.headersOut["X-InternetExplorerMode"] as string, "0", "Should set IE mode to 0")
+    assert(r.returnBody!.includes("/global-components/navigate-cms?step=close"), `Should redirect to self with step=close, got: ${r.returnBody}`)
+  })
+
+  await test("non-IE (Edge) close: serves window.close script", async () => {
+    const r = createMockRequest({
+      uri: "/global-components/navigate-cms",
+      args: { step: "close" },
+      variables: { ieaction: "nonie+configurable+" },
+      headersIn: { "X-Forwarded-Proto": "https", Host: "localhost:8080" },
+    })
+    gloco.handleNavigateCms(r)
+    assertEqual(r.returnCode, 200, "Should return 200")
+    assert(r.returnBody!.includes("window.close()"), `Should contain window.close(), got: ${r.returnBody}`)
+  })
+
+  await test("close with non-configurable: serves window.close script", async () => {
+    const r = createMockRequest({
+      uri: "/global-components/navigate-cms",
+      args: { step: "close" },
+      variables: { ieaction: "nonie+nonconfigurable+" },
+      headersIn: { "X-Forwarded-Proto": "https", Host: "localhost:8080" },
+    })
+    gloco.handleNavigateCms(r)
+    assertEqual(r.returnCode, 200, "Should return 200")
+    assert(r.returnBody!.includes("window.close()"), `Should contain window.close(), got: ${r.returnBody}`)
   })
 
   // Summary
