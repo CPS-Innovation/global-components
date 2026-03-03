@@ -319,6 +319,52 @@ function handleNavigateCms(r: NginxHTTPRequest): void {
   );
 }
 
+function handleCaseReviewRedirect(r: NginxHTTPRequest): void {
+  const proto = r.headersIn["X-Forwarded-Proto"] || "https";
+  const host = r.headersIn["Host"] || "";
+
+  // URI is /case-review-redirect/{osSubdomain}/{envFolder}
+  // e.g. /case-review-redirect/cps-tst/test
+  const parts = r.uri.split("/");
+  const osSubdomain = parts[2] || "";
+  const envFolder = parts[3] || "";
+
+  if (!osSubdomain || !envFolder) {
+    r.return(
+      400,
+      "case-review: expected path /case-review-redirect/{osSubdomain}/{envFolder}",
+    );
+    return;
+  }
+
+  const osDomain = `${osSubdomain}.outsystemsenterprise.com`;
+  const caseId = r.args["CMSCaseId"] || "";
+  const urn = r.args["URN"] || "";
+
+  if (!caseId) {
+    r.return(400, "case-review: CMSCaseId query parameter is required");
+    return;
+  }
+
+  // Final destination: OutSystems CaseReview app
+  const finalDest = `https://${osDomain}/CaseReview/LandingPage?CMSCaseId=${caseId}&URN=${urn}`;
+
+  // Auth handover page with src (our JS), stage, and encoded final destination
+  const authHandoverJs = `${proto}://${host}/global-components/${envFolder}/auth-handover.js`;
+  const authHandoverPage =
+    `https://${osDomain}/Casework_Patterns/auth-handover.html` +
+    `?src=${encodeURIComponent(authHandoverJs)}` +
+    `&stage=os-cookie-return` +
+    `&r=${encodeURIComponent(finalDest)}`;
+
+  // Redirect through /auth-refresh-outbound which determines the correct
+  // CMS polaris endpoint from the Cms-Session-Hint cookie (or default domain)
+  r.return(
+    302,
+    `${proto}://${host}/auth-refresh-outbound?r=${encodeURIComponent(authHandoverPage)}`,
+  );
+}
+
 export default {
   readCmsAuthValues,
   readCorsOrigin,
@@ -326,6 +372,7 @@ export default {
   handleSessionHint,
   handleState,
   handleNavigateCms,
+  handleCaseReviewRedirect,
 
   // Export helper functions for vnext
   _getCookieValue,

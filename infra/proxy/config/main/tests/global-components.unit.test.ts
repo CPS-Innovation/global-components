@@ -49,6 +49,7 @@ interface GlocoModule {
   handleSessionHint(r: MockRequest): void
   handleState(r: MockRequest): Promise<void>
   handleNavigateCms(r: MockRequest): void
+  handleCaseReviewRedirect(r: MockRequest): void
 }
 
 // Bundle the module
@@ -497,6 +498,171 @@ async function runTests(): Promise<void> {
     gloco.handleNavigateCms(r)
     assertEqual(r.returnCode, 200, "Should return 200")
     assert(r.returnBody!.includes("window.close()"), `Should contain window.close(), got: ${r.returnBody}`)
+  })
+
+  // --- handleCaseReviewRedirect tests ---
+  console.log("\nhandleCaseReviewRedirect:")
+
+  await test("redirects to /auth-refresh-outbound with encoded auth-handover chain", async () => {
+    const r = createMockRequest({
+      uri: "/case-review-redirect/cps-tst/test",
+      args: { CMSCaseId: "42", URN: "12AB3456789" },
+      headersIn: { "X-Forwarded-Proto": "https", Host: "polaris-qa.cps.gov.uk" },
+    })
+    gloco.handleCaseReviewRedirect(r)
+    assertEqual(r.returnCode, 302, "Should return 302")
+    assert(
+      r.returnBody!.startsWith("https://polaris-qa.cps.gov.uk/auth-refresh-outbound?r="),
+      `Should redirect to /auth-refresh-outbound, got: ${r.returnBody}`
+    )
+
+    // Decode the outer r= param to get the auth-handover URL
+    const outerR = r.returnBody!.split("?r=")[1]
+    const authHandoverUrl = decodeURIComponent(outerR)
+
+    assert(
+      authHandoverUrl.startsWith("https://cps-tst.outsystemsenterprise.com/Casework_Patterns/auth-handover.html"),
+      `Auth handover URL should point to OS domain, got: ${authHandoverUrl}`
+    )
+
+    // Parse the auth-handover URL params
+    const ahUrl = new URL(authHandoverUrl)
+    assertEqual(ahUrl.searchParams.get("stage"), "os-cookie-return", "Should have stage=os-cookie-return")
+
+    // Check src (auth-handover.js URL)
+    const src = ahUrl.searchParams.get("src")!
+    assertEqual(
+      src,
+      "https://polaris-qa.cps.gov.uk/global-components/test/auth-handover.js",
+      "src should use host + envFolder"
+    )
+
+    // Check inner r (final destination)
+    const finalDest = ahUrl.searchParams.get("r")!
+    assertEqual(
+      finalDest,
+      "https://cps-tst.outsystemsenterprise.com/CaseReview/LandingPage?CMSCaseId=42&URN=12AB3456789",
+      "Final destination should be CaseReview LandingPage with CMSCaseId and URN"
+    )
+  })
+
+  await test("reconstructs OS domain from path segment", async () => {
+    const r = createMockRequest({
+      uri: "/case-review-redirect/cps-dev/dev",
+      args: { CMSCaseId: "99", URN: "99ZZ0000001" },
+      headersIn: { "X-Forwarded-Proto": "https", Host: "polaris-dev.cps.gov.uk" },
+    })
+    gloco.handleCaseReviewRedirect(r)
+    assertEqual(r.returnCode, 302, "Should return 302")
+
+    const outerR = r.returnBody!.split("?r=")[1]
+    const authHandoverUrl = decodeURIComponent(outerR)
+    assert(
+      authHandoverUrl.includes("cps-dev.outsystemsenterprise.com"),
+      `Should use cps-dev OS domain, got: ${authHandoverUrl}`
+    )
+  })
+
+  await test("returns 400 when CMSCaseId is missing", async () => {
+    const r = createMockRequest({
+      uri: "/case-review-redirect/cps-tst/test",
+      args: { URN: "12AB3456789" },
+      headersIn: { "X-Forwarded-Proto": "https", Host: "polaris-qa.cps.gov.uk" },
+    })
+    gloco.handleCaseReviewRedirect(r)
+    assertEqual(r.returnCode, 400, "Should return 400")
+    assert(
+      r.returnBody!.includes("CMSCaseId"),
+      `Should mention CMSCaseId in error, got: ${r.returnBody}`
+    )
+  })
+
+  await test("returns 400 when path segments are missing", async () => {
+    const r = createMockRequest({
+      uri: "/case-review-redirect/",
+      args: { CMSCaseId: "42", URN: "12AB3456789" },
+      headersIn: { "X-Forwarded-Proto": "https", Host: "polaris-qa.cps.gov.uk" },
+    })
+    gloco.handleCaseReviewRedirect(r)
+    assertEqual(r.returnCode, 400, "Should return 400")
+    assert(
+      r.returnBody!.includes("expected path"),
+      `Should mention expected path format, got: ${r.returnBody}`
+    )
+  })
+
+  await test("returns 400 when envFolder is missing", async () => {
+    const r = createMockRequest({
+      uri: "/case-review-redirect/cps-tst",
+      args: { CMSCaseId: "42", URN: "12AB3456789" },
+      headersIn: { "X-Forwarded-Proto": "https", Host: "polaris-qa.cps.gov.uk" },
+    })
+    gloco.handleCaseReviewRedirect(r)
+    assertEqual(r.returnCode, 400, "Should return 400")
+    assert(
+      r.returnBody!.includes("expected path"),
+      `Should mention expected path format, got: ${r.returnBody}`
+    )
+  })
+
+  await test("handles missing URN gracefully (still redirects with empty URN)", async () => {
+    const r = createMockRequest({
+      uri: "/case-review-redirect/cps-tst/test",
+      args: { CMSCaseId: "42" },
+      headersIn: { "X-Forwarded-Proto": "https", Host: "polaris-qa.cps.gov.uk" },
+    })
+    gloco.handleCaseReviewRedirect(r)
+    assertEqual(r.returnCode, 302, "Should return 302 even without URN")
+
+    const outerR = r.returnBody!.split("?r=")[1]
+    const authHandoverUrl = decodeURIComponent(outerR)
+    const ahUrl = new URL(authHandoverUrl)
+    const finalDest = ahUrl.searchParams.get("r")!
+    assert(
+      finalDest.includes("CMSCaseId=42"),
+      `Should include CMSCaseId, got: ${finalDest}`
+    )
+    assert(
+      finalDest.includes("URN="),
+      `Should include URN param (empty), got: ${finalDest}`
+    )
+  })
+
+  await test("uses X-Forwarded-Proto for protocol", async () => {
+    const r = createMockRequest({
+      uri: "/case-review-redirect/cps-tst/test",
+      args: { CMSCaseId: "42", URN: "12AB3456789" },
+      headersIn: { "X-Forwarded-Proto": "http", Host: "localhost:8080" },
+    })
+    gloco.handleCaseReviewRedirect(r)
+    assertEqual(r.returnCode, 302, "Should return 302")
+    assert(
+      r.returnBody!.startsWith("http://localhost:8080/auth-refresh-outbound"),
+      `Should use http:// from X-Forwarded-Proto, got: ${r.returnBody}`
+    )
+
+    const outerR = r.returnBody!.split("?r=")[1]
+    const authHandoverUrl = decodeURIComponent(outerR)
+    const ahUrl = new URL(authHandoverUrl)
+    const src = ahUrl.searchParams.get("src")!
+    assert(
+      src.startsWith("http://localhost:8080/"),
+      `Auth handover JS URL should use http, got: ${src}`
+    )
+  })
+
+  await test("defaults to https when X-Forwarded-Proto is missing", async () => {
+    const r = createMockRequest({
+      uri: "/case-review-redirect/cps-tst/test",
+      args: { CMSCaseId: "42", URN: "12AB3456789" },
+      headersIn: { Host: "polaris-qa.cps.gov.uk" },
+    })
+    gloco.handleCaseReviewRedirect(r)
+    assertEqual(r.returnCode, 302, "Should return 302")
+    assert(
+      r.returnBody!.startsWith("https://polaris-qa.cps.gov.uk/auth-refresh-outbound"),
+      `Should default to https, got: ${r.returnBody}`
+    )
   })
 
   // Summary
