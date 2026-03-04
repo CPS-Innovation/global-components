@@ -32,6 +32,9 @@ const surveyLink = ({ config }: Pick<State, "config">) => ({ showLink: !!config.
 
 const reportIssueLink = ({ config }: Pick<State, "config">) => ({ showLink: !!config.REPORT_ISSUE_LINK, url: config.REPORT_ISSUE_LINK });
 
+const shouldShowHomePageNotification = ({ config, auth }: Pick<State, "config"> & Pick<StoredState, "auth">) =>
+  !isUserInFeatureGroup({ auth, config }, "FEATURE_FLAG_MENU_USERS");
+
 export const FEATURE_FLAGS = {
   shouldShowCaseDetails,
   shouldEnableAccessibilityMode,
@@ -41,4 +44,5 @@ export const FEATURE_FLAGS = {
   shouldShowOpenCaseInCms,
   surveyLink,
   reportIssueLink,
+  shouldShowHomePageNotification,
 };
