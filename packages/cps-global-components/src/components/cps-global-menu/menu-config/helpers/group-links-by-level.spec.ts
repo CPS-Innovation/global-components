@@ -80,7 +80,7 @@ describe("groupLinksByLevel", () => {
         href: "/test",
         selected: true,
         openInNewTab: true,
-        dcfContextsToUseEventNavigation: { contexts: "test", data: "" },
+        dcfContextsToUseEventNavigation: { contexts: "test", data: "", waitingBehaviour: "disabled" },
         disabled: false,
       },
     ];
@@ -92,7 +92,7 @@ describe("groupLinksByLevel", () => {
     expect(groupedLink.href).toBe("/test");
     expect(groupedLink.selected).toBe(true);
     expect(groupedLink.openInNewTab).toBe(true);
-    expect(groupedLink.dcfContextsToUseEventNavigation).toEqual({ contexts: "test", data: "" });
+    expect(groupedLink.dcfContextsToUseEventNavigation).toEqual({ contexts: "test", data: "", waitingBehaviour: "disabled" });
     expect(groupedLink.ariaSelected).toBe(true);
     expect("level" in groupedLink).toBe(false);
   });
