@@ -212,6 +212,48 @@ describe("FEATURE_FLAGS", () => {
     });
   });
 
+  describe("shouldShowHomePageNotification", () => {
+    const makeState = (overrides: { FEATURE_FLAG_MENU_USERS?: any; isAuthed?: boolean; groups?: string[]; objectId?: string }) => ({
+      config: { FEATURE_FLAG_MENU_USERS: overrides.FEATURE_FLAG_MENU_USERS } as any,
+      auth: {
+        isAuthed: overrides.isAuthed ?? true,
+        groups: overrides.groups ?? [],
+        username: "testuser",
+        objectId: overrides.objectId ?? "test-object-id",
+      } as any,
+    });
+
+    it("should return false when user is in the feature flag AD group", () => {
+      const state = makeState({ FEATURE_FLAG_MENU_USERS: { adGroupIds: ["admin-group"] }, groups: ["admin-group"] });
+      expect(FEATURE_FLAGS.shouldShowHomePageNotification(state)).toBe(false);
+    });
+
+    it("should return false when user is in adHocUsers list", () => {
+      const state = makeState({ FEATURE_FLAG_MENU_USERS: { adHocUserObjectIds: ["test-object-id"] }, objectId: "test-object-id" });
+      expect(FEATURE_FLAGS.shouldShowHomePageNotification(state)).toBe(false);
+    });
+
+    it("should return false when feature is generally available", () => {
+      const state = makeState({ FEATURE_FLAG_MENU_USERS: { generallyAvailable: true } });
+      expect(FEATURE_FLAGS.shouldShowHomePageNotification(state)).toBe(false);
+    });
+
+    it("should return true when user is not in the feature flag group", () => {
+      const state = makeState({ FEATURE_FLAG_MENU_USERS: { adGroupIds: ["admin-group"] }, groups: ["other-group"] });
+      expect(FEATURE_FLAGS.shouldShowHomePageNotification(state)).toBe(true);
+    });
+
+    it("should return true when user is not authenticated", () => {
+      const state = makeState({ FEATURE_FLAG_MENU_USERS: { adGroupIds: ["admin-group"] }, isAuthed: false });
+      expect(FEATURE_FLAGS.shouldShowHomePageNotification(state)).toBe(true);
+    });
+
+    it("should return true when FEATURE_FLAG_MENU_USERS is not configured", () => {
+      const state = makeState({});
+      expect(FEATURE_FLAGS.shouldShowHomePageNotification(state)).toBe(true);
+    });
+  });
+
   describe("reportIssueLink", () => {
     it("should return showLink true and url when REPORT_ISSUE_LINK is set", () => {
       const state: Pick<State, "config"> = {

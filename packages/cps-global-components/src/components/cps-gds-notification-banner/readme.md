@@ -22,11 +22,13 @@
 
 ### Used by
 
+ - [cps-global-home-page-notification](../cps-global-home-page-notification)
  - [cps-global-menu](../cps-global-menu)
 
 ### Graph
 ```mermaid
 graph TD;
+  cps-global-home-page-notification --> cps-gds-notification-banner
   cps-global-menu --> cps-gds-notification-banner
   style cps-gds-notification-banner fill:#f9f,stroke:#333,stroke-width:4px
 ```
