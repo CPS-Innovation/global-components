@@ -54,6 +54,9 @@ const processState = (el: HTMLElement) => {
 
 const buildCaseLink = ({ caseId, urn, urlTemplate }: { caseId: number; urn: string | null; urlTemplate: string }) => replaceTagsInString(urlTemplate, { caseId, urn });
 
+const buildItemText = (template: string, tags: { caseId: number; urn: string | null; description: string }) =>
+  replaceTagsInString(tags.description ? template : template.replace(/\s*-\s*\{description\}/, ""), tags);
+
 const withHeader = (content: VNode) => (
   <div class="recent-cases">
     <slot name="heading">
@@ -98,7 +101,7 @@ export class CpsGlobalRecentCases {
             {state.data.map(({ caseId, urn, description }) => (
               <li class={this.itemClass || undefined}>
                 <a class={this.linkClass || undefined} href={buildCaseLink({ caseId, urn, urlTemplate: state.urlTemplate })}>
-                  {replaceTagsInString(this.itemTextTemplate, { caseId, urn, description })}
+                  {buildItemText(this.itemTextTemplate, { caseId, urn, description })}
                 </a>
               </li>
             ))}
