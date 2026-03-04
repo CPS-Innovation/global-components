@@ -98,8 +98,8 @@ describe("FEATURE_FLAGS", () => {
       cmsSessionHint: overrides.cmsSessionHint ?? { found: false, error: new Error("not found") },
     });
 
-    const cin3CmsSessionHint = { found: true, result: { isProxySession: true, cmsDomains: ["CIN3.example.com"], handoverEndpoint: "" } };
-    const nonCin3CmsSessionHint = { found: true, result: { isProxySession: true, cmsDomains: ["OTHER.example.com"], handoverEndpoint: "" } };
+    const cin5CmsSessionHint = { found: true, result: { isProxySession: true, cmsDomains: ["CIN5.example.com"], handoverEndpoint: "" } };
+    const nonCin5CmsSessionHint = { found: true, result: { isProxySession: true, cmsDomains: ["OTHER.example.com"], handoverEndpoint: "" } };
 
     it("should return 'hide-menu' when SHOW_MENU is false", () => {
       const state = makeState({ SHOW_MENU: false, FEATURE_FLAG_MENU_USERS: { adGroupIds: ["admin-group"] }, groups: ["admin-group"] });
@@ -113,6 +113,11 @@ describe("FEATURE_FLAGS", () => {
 
     it("should return 'show-menu' when context is not found (no contextIds)", () => {
       const state = makeState({ contextFound: false, FEATURE_FLAG_MENU_USERS: { adGroupIds: ["admin-group"] } });
+      expect(FEATURE_FLAGS.shouldShowMenu(state)).toBe("show-menu");
+    });
+
+    it("should return 'show-menu' on materials page with cin5 domain regardless of AD group", () => {
+      const state = makeState({ contextIds: "case materials", FEATURE_FLAG_MENU_USERS: { adGroupIds: ["admin-group"] }, groups: [], cmsSessionHint: cin5CmsSessionHint });
       expect(FEATURE_FLAGS.shouldShowMenu(state)).toBe("show-menu");
     });
 
@@ -131,33 +136,23 @@ describe("FEATURE_FLAGS", () => {
       expect(FEATURE_FLAGS.shouldShowMenu(state)).toBe("show-menu");
     });
 
-    it("should return 'show-hint' on materials page in test env with cin3 domain when user is not in feature group", () => {
-      const state = makeState({ contextIds: "case materials", FEATURE_FLAG_MENU_USERS: { adGroupIds: ["admin-group"] }, groups: ["other-group"], environment: "test", cmsSessionHint: cin3CmsSessionHint });
+    it("should return 'show-hint' on materials page in test env when user is not in feature group and not cin5", () => {
+      const state = makeState({ contextIds: "case materials", FEATURE_FLAG_MENU_USERS: { adGroupIds: ["admin-group"] }, groups: ["other-group"], environment: "test", cmsSessionHint: nonCin5CmsSessionHint });
       expect(FEATURE_FLAGS.shouldShowMenu(state)).toBe("show-hint");
     });
 
-    it("should return 'show-hint' on materials page in test env with cin3 domain when user has no groups", () => {
-      const state = makeState({ contextIds: "case materials", FEATURE_FLAG_MENU_USERS: { adGroupIds: ["admin-group"] }, groups: [], environment: "test", cmsSessionHint: cin3CmsSessionHint });
-      expect(FEATURE_FLAGS.shouldShowMenu(state)).toBe("show-hint");
-    });
-
-    it("should return 'show-hint' on materials page in test env with cin3 domain when user is not authenticated", () => {
-      const state = makeState({ contextIds: "case materials", FEATURE_FLAG_MENU_USERS: { adGroupIds: ["admin-group"] }, isAuthed: false, environment: "test", cmsSessionHint: cin3CmsSessionHint });
-      expect(FEATURE_FLAGS.shouldShowMenu(state)).toBe("show-hint");
-    });
-
-    it("should return 'hide-menu' on materials page in test env without cin3 domain when user is not in feature group", () => {
-      const state = makeState({ contextIds: "case materials", FEATURE_FLAG_MENU_USERS: { adGroupIds: ["admin-group"] }, groups: ["other-group"], environment: "test", cmsSessionHint: nonCin3CmsSessionHint });
-      expect(FEATURE_FLAGS.shouldShowMenu(state)).toBe("hide-menu");
-    });
-
-    it("should return 'hide-menu' on materials page in test env when cmsSessionHint is not found", () => {
+    it("should return 'show-hint' on materials page in test env when cmsSessionHint is not found and user is not in feature group", () => {
       const state = makeState({ contextIds: "case materials", FEATURE_FLAG_MENU_USERS: { adGroupIds: ["admin-group"] }, groups: ["other-group"], environment: "test" });
-      expect(FEATURE_FLAGS.shouldShowMenu(state)).toBe("hide-menu");
+      expect(FEATURE_FLAGS.shouldShowMenu(state)).toBe("show-hint");
     });
 
-    it("should return 'hide-menu' on materials page in prod env with cin3 domain when user is not in feature group", () => {
-      const state = makeState({ contextIds: "case materials", FEATURE_FLAG_MENU_USERS: { adGroupIds: ["admin-group"] }, groups: ["other-group"], environment: "prod", cmsSessionHint: cin3CmsSessionHint });
+    it("should return 'show-hint' on materials page in test env when user is not authenticated", () => {
+      const state = makeState({ contextIds: "case materials", FEATURE_FLAG_MENU_USERS: { adGroupIds: ["admin-group"] }, isAuthed: false, environment: "test" });
+      expect(FEATURE_FLAGS.shouldShowMenu(state)).toBe("show-hint");
+    });
+
+    it("should return 'hide-menu' on materials page in prod env when user is not in feature group", () => {
+      const state = makeState({ contextIds: "case materials", FEATURE_FLAG_MENU_USERS: { adGroupIds: ["admin-group"] }, groups: ["other-group"], environment: "prod" });
       expect(FEATURE_FLAGS.shouldShowMenu(state)).toBe("hide-menu");
     });
 

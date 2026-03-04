@@ -15,9 +15,11 @@ const shouldShowMenu = ({ config, auth, context, flags, cmsSessionHint }: Pick<S
     return "hide-menu";
   } else if (!context.contextIds?.includes("materials")) {
     return "show-menu";
+  } else if (cmsSessionHint.found && cmsSessionHint.result.cmsDomains.some(cmsDomain => cmsDomain?.toLowerCase().includes("cin5"))) {
+    return "show-menu";
   } else if (isUserInFeatureGroup({ auth, config }, "FEATURE_FLAG_MENU_USERS")) {
     return "show-menu";
-  } else if (flags.environment === "test" && cmsSessionHint.found && cmsSessionHint.result.cmsDomains.some(cmsDomain => cmsDomain?.toLowerCase().includes("cin3"))) {
+  } else if (flags.environment === "test") {
     return "show-hint";
   } else {
     return "hide-menu";
