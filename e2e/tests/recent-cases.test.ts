@@ -18,6 +18,7 @@ const recentCasesSettings: DeepPartial<ArrangeProps> = {
   config: {
     RECENT_CASES_NAVIGATE_URL: NAVIGATE_URL,
     RECENT_CASES_LIST_LENGTH: 10,
+    SHOW_RECENT_CASES: true,
   },
 };
 
@@ -136,6 +137,24 @@ describe("Recent cases", () => {
     await teardownInterception();
   });
 
+  it("renders nothing when SHOW_RECENT_CASES is false", async () => {
+    await setupInterception({ recentCasesResponse: MOCK_CASES });
+    await arrange({
+      config: {
+        RECENT_CASES_NAVIGATE_URL: NAVIGATE_URL,
+        RECENT_CASES_LIST_LENGTH: 10,
+        SHOW_RECENT_CASES: false,
+      },
+    });
+
+    await act();
+
+    await new Promise((r) => setTimeout(r, 500));
+
+    const hasWrapper = await queryRecentCasesShadow(L.RECENT_CASES_WRAPPER);
+    expect(hasWrapper).toBe(false);
+  });
+
   it("renders nothing when recent cases config is not set", async () => {
     // No interception needed — preview/recent-cases will 404
     // and config has no RECENT_CASES_NAVIGATE_URL or RECENT_CASES_LIST_LENGTH
@@ -170,6 +189,28 @@ describe("Recent cases", () => {
     expect(links[2]).toEqual({
       href: "/cases/789?urn=56EF7890123",
       text: "56EF7890123 - Brown, Bob",
+    });
+  });
+
+  it("renders link text without hyphen when description is empty", async () => {
+    const casesWithEmptyDescription = [
+      { caseId: 123, urn: "12AB3456789", description: "" },
+      { caseId: 456, urn: "34CD5678901", description: "Jones, Jane" },
+    ];
+    await setupInterception({ recentCasesResponse: casesWithEmptyDescription });
+    await arrange(recentCasesSettings);
+
+    await act();
+    await waitForRecentCasesContent(L.RECENT_CASES_LIST);
+
+    const links = await getRecentCasesLinks();
+    expect(links[0]).toEqual({
+      href: "/cases/123?urn=12AB3456789",
+      text: "12AB3456789",
+    });
+    expect(links[1]).toEqual({
+      href: "/cases/456?urn=34CD5678901",
+      text: "34CD5678901 - Jones, Jane",
     });
   });
 
