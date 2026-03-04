@@ -10,6 +10,7 @@
   "SURVEY_LINK": "https://forms.office.com/e/8KM9A7aS0e",
   "REPORT_ISSUE_LINK": "https://cpsprod1.service-now.com/sp?id=sc_cat_item&sys_id=716b2e011bd66410d5b3dce3b24bcbbf",
   "SHOW_MENU": true,
+  "SHOW_RECENT_CASES": true,
   "OS_HANDOVER_URL": "https://cps-dev.outsystemsenterprise.com/Casework_Patterns/auth-handover.html?src=https://polaris-qa-notprod.cps.gov.uk/global-components/dev/auth-handover.js",
   "COOKIE_HANDOVER_URL": "https://polaris-qa-notprod.cps.gov.uk/polaris",
   "TOKEN_HANDOVER_URL": "https://polaris-qa-notprod.cps.gov.uk/auth-refresh-cms-modern-token",

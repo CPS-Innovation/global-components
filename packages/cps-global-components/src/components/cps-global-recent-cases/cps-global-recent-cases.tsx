@@ -12,6 +12,10 @@ const processState = (el: HTMLElement) => {
     return { status: "not-yet-known" } as const;
   }
 
+  if (!state.config.SHOW_RECENT_CASES) {
+    return { status: "feature-off" } as const;
+  }
+
   const {
     recentCases,
     config: { RECENT_CASES_NAVIGATE_URL, RECENT_CASES_LIST_LENGTH },
@@ -49,6 +53,9 @@ const processState = (el: HTMLElement) => {
 };
 
 const buildCaseLink = ({ caseId, urn, urlTemplate }: { caseId: number; urn: string | null; urlTemplate: string }) => replaceTagsInString(urlTemplate, { caseId, urn });
+
+const buildItemText = (template: string, tags: { caseId: number; urn: string | null; description: string }) =>
+  replaceTagsInString(tags.description ? template : template.replace(/\s*-\s*\{description\}/, ""), tags);
 
 const withHeader = (content: VNode) => (
   <div class="recent-cases">
@@ -94,7 +101,7 @@ export class CpsGlobalRecentCases {
             {state.data.map(({ caseId, urn, description }) => (
               <li class={this.itemClass || undefined}>
                 <a class={this.linkClass || undefined} href={buildCaseLink({ caseId, urn, urlTemplate: state.urlTemplate })}>
-                  {replaceTagsInString(this.itemTextTemplate, { caseId, urn, description })}
+                  {buildItemText(this.itemTextTemplate, { caseId, urn, description })}
                 </a>
               </li>
             ))}
