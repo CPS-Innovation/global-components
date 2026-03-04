@@ -6,6 +6,7 @@ const dcfContextsToUseEventNavigationSchema = z.object({
   paramsToAddToQuery: z
     .record(z.string(), z.union([z.string(), z.null()]))
     .optional(),
+  waitingBehaviour: z.enum(["disabled", "default-dcf", "default-no-dcf"]),
 });
 
 export type ContextsToUseEventNavigation = z.infer<

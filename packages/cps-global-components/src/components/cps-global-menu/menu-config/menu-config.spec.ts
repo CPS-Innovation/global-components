@@ -40,7 +40,7 @@ describe("menuConfig", () => {
         visibleContexts: "context1",
         activeContexts: "active1",
         openInNewTab: false,
-        dcfContextsToUseEventNavigation: { contexts: "event1", data: "" },
+        dcfContextsToUseEventNavigation: { contexts: "event1", data: "", waitingBehaviour: "disabled" },
       },
       {
         label: "Link 2",
@@ -49,7 +49,7 @@ describe("menuConfig", () => {
         visibleContexts: "context2",
         activeContexts: "active2",
         openInNewTab: true,
-        dcfContextsToUseEventNavigation: { contexts: "event2", data: "" },
+        dcfContextsToUseEventNavigation: { contexts: "event2", data: "", waitingBehaviour: "disabled" },
       },
       {
         label: "Link 3",
@@ -58,7 +58,7 @@ describe("menuConfig", () => {
         visibleContexts: "context3",
         activeContexts: "active3",
         openInNewTab: false,
-        dcfContextsToUseEventNavigation: { contexts: "event3", data: "" },
+        dcfContextsToUseEventNavigation: { contexts: "event3", data: "", waitingBehaviour: "disabled" },
       },
     ],
     CONTEXTS: [
@@ -209,7 +209,7 @@ describe("menuConfig", () => {
         level: 0,
         selected: false,
         openInNewTab: false,
-        dcfContextsToUseEventNavigation: { contexts: "app-event section-event", data: "" },
+        dcfContextsToUseEventNavigation: { contexts: "app-event section-event", data: "", waitingBehaviour: "disabled" },
         disabled: false,
       });
     mockMapLinkConfig.mockReturnValue(mockMapFunction);
@@ -223,7 +223,7 @@ describe("menuConfig", () => {
           href: "/mapped3",
           selected: false,
           openInNewTab: false,
-          dcfContextsToUseEventNavigation: { contexts: "app-event section-event", data: "" },
+          dcfContextsToUseEventNavigation: { contexts: "app-event section-event", data: "", waitingBehaviour: "disabled" as const },
           disabled: false,
         },
       ],
@@ -263,7 +263,7 @@ describe("menuConfig", () => {
         level: 0,
         selected: false,
         openInNewTab: false,
-        dcfContextsToUseEventNavigation: { contexts: "app-event section-event", data: "" },
+        dcfContextsToUseEventNavigation: { contexts: "app-event section-event", data: "", waitingBehaviour: "disabled" },
         disabled: false,
       },
     ]);

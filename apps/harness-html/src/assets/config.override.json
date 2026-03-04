@@ -80,7 +80,7 @@
       "href": "/cases/{caseId}/review",
       "visibleContexts": "case",
       "activeContexts": "review",
-      "dcfContextsToUseEventNavigation": { "contexts": "details", "data": "" }
+      "dcfContextsToUseEventNavigation": { "contexts": "details", "data": "", "waitingBehaviour": "disabled" }
     }
   ]
 }

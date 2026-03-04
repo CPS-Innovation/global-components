@@ -96,7 +96,8 @@
       "activeContexts": "review",
       "dcfContextsToUseEventNavigation": {
         "contexts": "details",
-        "data": "materials"
+        "data": "materials",
+        "waitingBehaviour": "disabled"
       }
     }
   ]
