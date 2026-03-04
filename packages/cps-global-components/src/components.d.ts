@@ -55,6 +55,8 @@ export namespace Components {
          */
         "isDcf": boolean;
     }
+    interface CpsGlobalHomePageNotification {
+    }
     interface CpsGlobalMenu {
     }
     interface CpsGlobalRecentCases {
@@ -126,6 +128,12 @@ declare global {
         prototype: HTMLCpsGlobalHeaderElement;
         new (): HTMLCpsGlobalHeaderElement;
     };
+    interface HTMLCpsGlobalHomePageNotificationElement extends Components.CpsGlobalHomePageNotification, HTMLStencilElement {
+    }
+    var HTMLCpsGlobalHomePageNotificationElement: {
+        prototype: HTMLCpsGlobalHomePageNotificationElement;
+        new (): HTMLCpsGlobalHomePageNotificationElement;
+    };
     interface HTMLCpsGlobalMenuElement extends Components.CpsGlobalMenu, HTMLStencilElement {
     }
     var HTMLCpsGlobalMenuElement: {
@@ -167,6 +175,7 @@ declare global {
         "cps-global-case-details": HTMLCpsGlobalCaseDetailsElement;
         "cps-global-footer": HTMLCpsGlobalFooterElement;
         "cps-global-header": HTMLCpsGlobalHeaderElement;
+        "cps-global-home-page-notification": HTMLCpsGlobalHomePageNotificationElement;
         "cps-global-menu": HTMLCpsGlobalMenuElement;
         "cps-global-recent-cases": HTMLCpsGlobalRecentCasesElement;
         "cps-skip-link": HTMLCpsSkipLinkElement;
@@ -219,6 +228,8 @@ declare namespace LocalJSX {
          */
         "isDcf"?: boolean;
     }
+    interface CpsGlobalHomePageNotification {
+    }
     interface CpsGlobalMenu {
     }
     interface CpsGlobalRecentCases {
@@ -261,6 +272,7 @@ declare namespace LocalJSX {
         "cps-global-case-details": CpsGlobalCaseDetails;
         "cps-global-footer": CpsGlobalFooter;
         "cps-global-header": CpsGlobalHeader;
+        "cps-global-home-page-notification": CpsGlobalHomePageNotification;
         "cps-global-menu": CpsGlobalMenu;
         "cps-global-recent-cases": CpsGlobalRecentCases;
         "cps-skip-link": CpsSkipLink;
@@ -276,6 +288,7 @@ declare module "@stencil/core" {
             "cps-global-case-details": LocalJSX.CpsGlobalCaseDetails & JSXBase.HTMLAttributes<HTMLCpsGlobalCaseDetailsElement>;
             "cps-global-footer": LocalJSX.CpsGlobalFooter & JSXBase.HTMLAttributes<HTMLCpsGlobalFooterElement>;
             "cps-global-header": LocalJSX.CpsGlobalHeader & JSXBase.HTMLAttributes<HTMLCpsGlobalHeaderElement>;
+            "cps-global-home-page-notification": LocalJSX.CpsGlobalHomePageNotification & JSXBase.HTMLAttributes<HTMLCpsGlobalHomePageNotificationElement>;
             "cps-global-menu": LocalJSX.CpsGlobalMenu & JSXBase.HTMLAttributes<HTMLCpsGlobalMenuElement>;
             "cps-global-recent-cases": LocalJSX.CpsGlobalRecentCases & JSXBase.HTMLAttributes<HTMLCpsGlobalRecentCasesElement>;
             "cps-skip-link": LocalJSX.CpsSkipLink & JSXBase.HTMLAttributes<HTMLCpsSkipLinkElement>;
