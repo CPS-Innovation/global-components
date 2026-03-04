@@ -40,3 +40,8 @@ Combines all open Renovate dependency PRs into a single uber-branch for one buil
 Prefer `export const foo = () => ...` function declarations.
 Avoid `class` wherever possible.
 Functional is good - functions that "pipe" to other functions etc etc are easy to rationalise.
+
+## Builds
+
+Code and unit test files must build and be free of IDE build-preventing errors before you report back that a given
+change is complete.
