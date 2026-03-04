@@ -84,6 +84,7 @@ describe("FEATURE_FLAGS", () => {
       contextIds?: string;
       contextFound?: boolean;
       environment?: string;
+      cmsSessionHint?: any;
     }) => ({
       config: { SHOW_MENU: overrides.SHOW_MENU ?? true, FEATURE_FLAG_MENU_USERS: overrides.FEATURE_FLAG_MENU_USERS } as any,
       auth: {
@@ -94,7 +95,11 @@ describe("FEATURE_FLAGS", () => {
       } as any,
       context: { found: overrides.contextFound ?? true, contextIds: overrides.contextIds } as any,
       flags: { isLocalDevelopment: false, isOutSystems: false, e2eTestMode: { isE2eTestMode: false as const }, environment: overrides.environment ?? "test" },
+      cmsSessionHint: overrides.cmsSessionHint ?? { found: false, error: new Error("not found") },
     });
+
+    const cin5CmsSessionHint = { found: true, result: { isProxySession: true, cmsDomains: ["CIN5.example.com"], handoverEndpoint: "" } };
+    const nonCin5CmsSessionHint = { found: true, result: { isProxySession: true, cmsDomains: ["OTHER.example.com"], handoverEndpoint: "" } };
 
     it("should return 'hide-menu' when SHOW_MENU is false", () => {
       const state = makeState({ SHOW_MENU: false, FEATURE_FLAG_MENU_USERS: { adGroupIds: ["admin-group"] }, groups: ["admin-group"] });
@@ -108,6 +113,11 @@ describe("FEATURE_FLAGS", () => {
 
     it("should return 'show-menu' when context is not found (no contextIds)", () => {
       const state = makeState({ contextFound: false, FEATURE_FLAG_MENU_USERS: { adGroupIds: ["admin-group"] } });
+      expect(FEATURE_FLAGS.shouldShowMenu(state)).toBe("show-menu");
+    });
+
+    it("should return 'show-menu' on materials page with cin5 domain regardless of AD group", () => {
+      const state = makeState({ contextIds: "case materials", FEATURE_FLAG_MENU_USERS: { adGroupIds: ["admin-group"] }, groups: [], cmsSessionHint: cin5CmsSessionHint });
       expect(FEATURE_FLAGS.shouldShowMenu(state)).toBe("show-menu");
     });
 
@@ -126,28 +136,18 @@ describe("FEATURE_FLAGS", () => {
       expect(FEATURE_FLAGS.shouldShowMenu(state)).toBe("show-menu");
     });
 
-    it("should return 'show-hint' on materials page in test env when user is not in feature group", () => {
-      const state = makeState({ contextIds: "case materials", FEATURE_FLAG_MENU_USERS: { adGroupIds: ["admin-group"] }, groups: ["other-group"], environment: "test" });
+    it("should return 'show-hint' on materials page in test env when user is not in feature group and not cin5", () => {
+      const state = makeState({ contextIds: "case materials", FEATURE_FLAG_MENU_USERS: { adGroupIds: ["admin-group"] }, groups: ["other-group"], environment: "test", cmsSessionHint: nonCin5CmsSessionHint });
       expect(FEATURE_FLAGS.shouldShowMenu(state)).toBe("show-hint");
     });
 
-    it("should return 'show-hint' on materials page in test env when user has no groups", () => {
-      const state = makeState({ contextIds: "case materials", FEATURE_FLAG_MENU_USERS: { adGroupIds: ["admin-group"] }, groups: [], environment: "test" });
+    it("should return 'show-hint' on materials page in test env when cmsSessionHint is not found and user is not in feature group", () => {
+      const state = makeState({ contextIds: "case materials", FEATURE_FLAG_MENU_USERS: { adGroupIds: ["admin-group"] }, groups: ["other-group"], environment: "test" });
       expect(FEATURE_FLAGS.shouldShowMenu(state)).toBe("show-hint");
     });
 
     it("should return 'show-hint' on materials page in test env when user is not authenticated", () => {
       const state = makeState({ contextIds: "case materials", FEATURE_FLAG_MENU_USERS: { adGroupIds: ["admin-group"] }, isAuthed: false, environment: "test" });
-      expect(FEATURE_FLAGS.shouldShowMenu(state)).toBe("show-hint");
-    });
-
-    it("should return 'show-hint' on materials page in test env when FEATURE_FLAG_MENU_USERS is not set", () => {
-      const state = makeState({ contextIds: "case materials", environment: "test" });
-      expect(FEATURE_FLAGS.shouldShowMenu(state)).toBe("show-hint");
-    });
-
-    it("should return 'show-hint' on materials page in test env when FEATURE_FLAG_MENU_USERS has empty arrays", () => {
-      const state = makeState({ contextIds: "case materials", FEATURE_FLAG_MENU_USERS: { adGroupIds: [], adHocUserObjectIds: [] }, groups: ["admin-group"], environment: "test" });
       expect(FEATURE_FLAGS.shouldShowMenu(state)).toBe("show-hint");
     });
 
