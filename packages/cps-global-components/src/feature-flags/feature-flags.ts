@@ -11,9 +11,7 @@ const shouldShowGovUkRebrand = ({ preview }: Pick<State, "preview">): Preview["n
 const shouldShowRecentCases = ({ preview, flags }: Pick<State, "preview" | "flags">) => !!preview.result?.myRecentCasesOnHeader || flags.isLocalDevelopment;
 
 const shouldShowMenu = ({ config, auth, context, flags }: Pick<State, "config" | "context" | "flags"> & Pick<StoredState, "auth">) => {
-  if (auth?.isAuthed && auth.username?.toLocaleLowerCase().startsWith("stefan.stachow")) {
-    return "show-hint";
-  } else if (!config.SHOW_MENU) {
+  if (!config.SHOW_MENU) {
     return "hide-menu";
   } else if (!context.contextIds?.includes("materials")) {
     return "show-menu";
