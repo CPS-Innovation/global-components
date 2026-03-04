@@ -12,6 +12,10 @@ const processState = (el: HTMLElement) => {
     return { status: "not-yet-known" } as const;
   }
 
+  if (!state.config.SHOW_RECENT_CASES) {
+    return { status: "feature-off" } as const;
+  }
+
   const {
     recentCases,
     config: { RECENT_CASES_NAVIGATE_URL, RECENT_CASES_LIST_LENGTH },
