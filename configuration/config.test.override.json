@@ -87,7 +87,7 @@
         },
         {
           "path": "https://polaris",
-          "contextIds": "cases"
+          "contextIds": "cases materials-search"
         }
       ]
     },

@@ -10,10 +10,12 @@ const shouldShowGovUkRebrand = ({ preview }: Pick<State, "preview">): Preview["n
 
 const shouldShowRecentCases = ({ preview, flags }: Pick<State, "preview" | "flags">) => !!preview.result?.myRecentCasesOnHeader || flags.isLocalDevelopment;
 
-const shouldShowMenu = ({ config, auth, context, flags }: Pick<State, "config" | "context" | "flags"> & Pick<StoredState, "auth">) => {
+const shouldShowMenu = ({ config, auth, context, flags, cmsSessionHint }: Pick<State, "config" | "context" | "flags" | "cmsSessionHint"> & Pick<StoredState, "auth">) => {
   if (!config.SHOW_MENU) {
     return "hide-menu";
   } else if (!context.contextIds?.includes("materials")) {
+    return "show-menu";
+  } else if (cmsSessionHint.found && cmsSessionHint.result.cmsDomains.some(cmsDomain => cmsDomain?.toLowerCase().includes("cin5"))) {
     return "show-menu";
   } else if (isUserInFeatureGroup({ auth, config }, "FEATURE_FLAG_MENU_USERS")) {
     return "show-menu";
