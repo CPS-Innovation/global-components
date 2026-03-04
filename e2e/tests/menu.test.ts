@@ -46,8 +46,13 @@ describe("Global menu", () => {
     await expect(header).not.toMatchElement(L.ERROR);
   });
 
-  it("should should not show the menu if the user is not authenticated", async () => {
-    await arrange(typedDeepMerge(happySettings, { auth: { isAuthed: false } }));
+  it("should should not show the menu if the user is not authenticated on a materials page", async () => {
+    await arrange(
+      typedDeepMerge(happySettings, {
+        config: { CONTEXTS: [{ msalRedirectUrl: "foo", contexts: [{ contextIds: "e2e materials", path: ".*" }] }] },
+        auth: { isAuthed: false },
+      })
+    );
 
     const header = await act();
 
@@ -56,9 +61,10 @@ describe("Global menu", () => {
     await expect(header).not.toMatchElement(L.ERROR);
   });
 
-  it("should should not show the menu if the user is not in an appropriate AD group", async () => {
+  it("should should not show the menu if the user is not in an appropriate AD group on a materials page", async () => {
     await arrange(
       typedDeepMerge(happySettings, {
+        config: { CONTEXTS: [{ msalRedirectUrl: "foo", contexts: [{ contextIds: "e2e materials", path: ".*" }] }] },
         auth: { isAuthed: true, adGroups: ["not-the-e2e-test-group"] },
       })
     );

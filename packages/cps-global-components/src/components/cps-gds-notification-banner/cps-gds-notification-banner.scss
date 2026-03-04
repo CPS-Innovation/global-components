@@ -1,0 +1,5 @@
+@use "../common/common.scss" as *;
+
+.govuk-notification-banner__content > * {
+  max-width: none !important;
+}

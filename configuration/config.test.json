@@ -16,7 +16,10 @@
   "RECENT_CASES_NAVIGATE_URL": "https://cps-tst.outsystemsenterprise.com/WorkManagementApp/CaseOverview?CaseId={caseId}",
   "RECENT_CASES_LIST_LENGTH": 5,
   "FEATURE_FLAG_MENU_USERS": {
-    "generallyAvailable": true
+    "adGroupIds": [
+      "e9abbdb6-b6e9-4972-90fb-79d3140df840",
+      "1e5874e3-1c88-4506-8b9f-4f469acc1a42"
+    ]
   },
   "FEATURE_FLAG_ENABLE_INTRUSIVE_AD_LOGIN": false,
   "CONTEXTS": [
@@ -26,7 +29,7 @@
         "background-color": "transparent",
         "box-shadow": "none"
       },
-      "msalRedirectUrl": "https://cps-tst.outsystemsenterprise.com/Casework_Patterns/auth-handover-test.html",
+      "msalRedirectUrl": "https://cps-tst.outsystemsenterprise.com/Casework_Patterns/auth-handover.html",
       "cmsAuthFromStorageKey": "$OS_Users$Casework_Blocks$ClientVars$JSONString",
       "contexts": [
         {
