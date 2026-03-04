@@ -5,9 +5,44 @@
  * It contains typing information for all components that exist in this project.
  */
 import { HTMLStencilElement, JSXBase } from "@stencil/core/internal";
+import { NotificationBannerType } from "./components/cps-gds-notification-banner/cps-gds-notification-banner";
 import { ContextsToUseEventNavigation } from "cps-global-configuration";
+export { NotificationBannerType } from "./components/cps-gds-notification-banner/cps-gds-notification-banner";
 export { ContextsToUseEventNavigation } from "cps-global-configuration";
 export namespace Components {
+    interface CpsGdsNotificationBanner {
+        /**
+          * Prevent the banner from being focused on page load (only relevant for success type).
+          * @default false
+         */
+        "disableAutoFocus": boolean;
+        /**
+          * When set, enables dismiss behaviour. The full localStorage key is `cps-global-notification-dismiss-${dismissKey}`.
+         */
+        "dismissKey"?: string;
+        /**
+          * Override the ARIA role. Defaults to "region" (or "alert" for success type).
+         */
+        "role"?: string;
+        /**
+          * The heading level for the title (1-6). Defaults to 2.
+          * @default 2
+         */
+        "titleHeadingLevel": number;
+        /**
+          * Custom id for the title element. Defaults to "govuk-notification-banner-title".
+          * @default "govuk-notification-banner-title"
+         */
+        "titleId": string;
+        /**
+          * The title text shown in the banner header. Defaults to "Important" or "Success" based on type.
+         */
+        "titleText"?: string;
+        /**
+          * Set to "success" for the green success variant. Omit for the default (information) variant.
+         */
+        "type"?: NotificationBannerType;
+    }
     interface CpsGlobalBanner {
     }
     interface CpsGlobalCaseDetails {
@@ -61,6 +96,12 @@ export interface NavLinkCustomEvent<T> extends CustomEvent<T> {
     target: HTMLNavLinkElement;
 }
 declare global {
+    interface HTMLCpsGdsNotificationBannerElement extends Components.CpsGdsNotificationBanner, HTMLStencilElement {
+    }
+    var HTMLCpsGdsNotificationBannerElement: {
+        prototype: HTMLCpsGdsNotificationBannerElement;
+        new (): HTMLCpsGdsNotificationBannerElement;
+    };
     interface HTMLCpsGlobalBannerElement extends Components.CpsGlobalBanner, HTMLStencilElement {
     }
     var HTMLCpsGlobalBannerElement: {
@@ -121,6 +162,7 @@ declare global {
         new (): HTMLNavLinkElement;
     };
     interface HTMLElementTagNameMap {
+        "cps-gds-notification-banner": HTMLCpsGdsNotificationBannerElement;
         "cps-global-banner": HTMLCpsGlobalBannerElement;
         "cps-global-case-details": HTMLCpsGlobalCaseDetailsElement;
         "cps-global-footer": HTMLCpsGlobalFooterElement;
@@ -132,6 +174,39 @@ declare global {
     }
 }
 declare namespace LocalJSX {
+    interface CpsGdsNotificationBanner {
+        /**
+          * Prevent the banner from being focused on page load (only relevant for success type).
+          * @default false
+         */
+        "disableAutoFocus"?: boolean;
+        /**
+          * When set, enables dismiss behaviour. The full localStorage key is `cps-global-notification-dismiss-${dismissKey}`.
+         */
+        "dismissKey"?: string;
+        /**
+          * Override the ARIA role. Defaults to "region" (or "alert" for success type).
+         */
+        "role"?: string;
+        /**
+          * The heading level for the title (1-6). Defaults to 2.
+          * @default 2
+         */
+        "titleHeadingLevel"?: number;
+        /**
+          * Custom id for the title element. Defaults to "govuk-notification-banner-title".
+          * @default "govuk-notification-banner-title"
+         */
+        "titleId"?: string;
+        /**
+          * The title text shown in the banner header. Defaults to "Important" or "Success" based on type.
+         */
+        "titleText"?: string;
+        /**
+          * Set to "success" for the green success variant. Omit for the default (information) variant.
+         */
+        "type"?: NotificationBannerType;
+    }
     interface CpsGlobalBanner {
     }
     interface CpsGlobalCaseDetails {
@@ -181,6 +256,7 @@ declare namespace LocalJSX {
         "selected"?: boolean;
     }
     interface IntrinsicElements {
+        "cps-gds-notification-banner": CpsGdsNotificationBanner;
         "cps-global-banner": CpsGlobalBanner;
         "cps-global-case-details": CpsGlobalCaseDetails;
         "cps-global-footer": CpsGlobalFooter;
@@ -195,6 +271,7 @@ export { LocalJSX as JSX };
 declare module "@stencil/core" {
     export namespace JSX {
         interface IntrinsicElements {
+            "cps-gds-notification-banner": LocalJSX.CpsGdsNotificationBanner & JSXBase.HTMLAttributes<HTMLCpsGdsNotificationBannerElement>;
             "cps-global-banner": LocalJSX.CpsGlobalBanner & JSXBase.HTMLAttributes<HTMLCpsGlobalBannerElement>;
             "cps-global-case-details": LocalJSX.CpsGlobalCaseDetails & JSXBase.HTMLAttributes<HTMLCpsGlobalCaseDetailsElement>;
             "cps-global-footer": LocalJSX.CpsGlobalFooter & JSXBase.HTMLAttributes<HTMLCpsGlobalFooterElement>;
