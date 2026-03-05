@@ -43,5 +43,7 @@ Functional is good - functions that "pipe" to other functions etc etc are easy t
 
 ## Builds
 
+We use `pnpm` and not `npm`.
+
 Code and unit test files must build and be free of IDE build-preventing errors before you report back that a given
 change is complete.
