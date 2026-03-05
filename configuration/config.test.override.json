@@ -36,7 +36,8 @@
         {
           "path": "https://cps-tst.outsystemsenterprise.com/casework_blocks/home",
           "contextIds": "home",
-          "applyShim": "force-recent-cases"
+          "applyShim": "force-recent-cases",
+          "showNotification": true
         },
         {
           "path": "https://cps-tst.outsystemsenterprise.com/casework_blocks",
