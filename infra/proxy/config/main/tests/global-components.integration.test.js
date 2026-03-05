@@ -233,6 +233,91 @@ async function testSessionHint() {
 }
 
 // =============================================================================
+// Case Review Redirect Tests
+// =============================================================================
+
+async function testCaseReviewRedirect() {
+  console.log("\nCase Review Redirect Tests (/case-review-redirect/):")
+
+  await test("redirects to /auth-refresh-outbound with encoded auth-handover URL", async () => {
+    const response = await fetch(
+      `${PROXY_BASE}/case-review-redirect/cps-tst/test?CMSCaseId=42&URN=12AB3456789`,
+      { redirect: "manual" }
+    )
+    assertEqual(response.status, 302, "Should return 302")
+
+    const location = response.headers.get("location")
+    assert(location !== null, "Should have Location header")
+    assert(
+      location.includes("/auth-refresh-outbound?r="),
+      `Should redirect to /auth-refresh-outbound, got: ${location}`
+    )
+
+    // Decode the redirect chain and verify structure
+    const outerR = location.split("?r=")[1]
+    const authHandoverUrl = decodeURIComponent(outerR)
+    assert(
+      authHandoverUrl.includes("cps-tst.outsystemsenterprise.com/Casework_Patterns/auth-handover.html"),
+      `Should point to OS auth-handover page, got: ${authHandoverUrl}`
+    )
+
+    const ahUrl = new URL(authHandoverUrl)
+    assertEqual(ahUrl.searchParams.get("stage"), "os-cookie-return", "Should have stage=os-cookie-return")
+
+    const src = ahUrl.searchParams.get("src")
+    assert(src.includes("/global-components/test/auth-handover.js"), `src should reference auth-handover.js, got: ${src}`)
+
+    const finalDest = ahUrl.searchParams.get("r")
+    assert(
+      finalDest.includes("CaseReview/LandingPage?CMSCaseId=42&URN=12AB3456789"),
+      `Final destination should be CaseReview LandingPage, got: ${finalDest}`
+    )
+  })
+
+  await test("returns 400 when CMSCaseId is missing", async () => {
+    const response = await fetch(
+      `${PROXY_BASE}/case-review-redirect/cps-tst/test?URN=12AB3456789`,
+      { redirect: "manual" }
+    )
+    assertEqual(response.status, 400, "Should return 400")
+    const text = await response.text()
+    assert(text.includes("CMSCaseId"), `Should mention CMSCaseId in error, got: ${text}`)
+  })
+
+  await test("handles missing URN gracefully", async () => {
+    const response = await fetch(
+      `${PROXY_BASE}/case-review-redirect/cps-tst/test?CMSCaseId=42`,
+      { redirect: "manual" }
+    )
+    assertEqual(response.status, 302, "Should return 302 even without URN")
+
+    const location = response.headers.get("location")
+    const outerR = location.split("?r=")[1]
+    const authHandoverUrl = decodeURIComponent(outerR)
+    const ahUrl = new URL(authHandoverUrl)
+    const finalDest = ahUrl.searchParams.get("r")
+    assert(
+      finalDest.includes("CMSCaseId=42"),
+      `Final destination should include CMSCaseId, got: ${finalDest}`
+    )
+    assert(
+      finalDest.includes("URN="),
+      `Final destination should include URN param (empty), got: ${finalDest}`
+    )
+  })
+
+  await test("returns 400 when path segments are missing", async () => {
+    const response = await fetch(
+      `${PROXY_BASE}/case-review-redirect/?CMSCaseId=42`,
+      { redirect: "manual" }
+    )
+    assertEqual(response.status, 400, "Should return 400")
+    const text = await response.text()
+    assert(text.includes("expected path"), `Should mention expected path format, got: ${text}`)
+  })
+}
+
+// =============================================================================
 // Main
 // =============================================================================
 
@@ -243,6 +328,7 @@ async function main() {
   await testUpstreamProxy()
   await testSessionHint()
   await testCors()
+  await testCaseReviewRedirect()
 }
 
 module.exports = main
