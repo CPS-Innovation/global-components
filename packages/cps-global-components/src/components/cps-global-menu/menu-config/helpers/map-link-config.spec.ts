@@ -8,7 +8,7 @@ import { linkHandoverAdapter } from "./link-handover-adapter";
 const mockLinkHandoverAdapter = linkHandoverAdapter as jest.MockedFunction<typeof linkHandoverAdapter>;
 
 const makeParams = (contextIds: string, tags: Record<string, string> = {}): MapLinkConfigParams =>
-  ({ context: { contextIds }, tags, config: {}, flags: {}, cmsSessionHint: { found: false, error: {} } }) as any;
+  ({ context: { contextIds }, tags, config: {}, flags: {} }) as any;
 
 describe("mapLinkConfig", () => {
   beforeEach(() => {
