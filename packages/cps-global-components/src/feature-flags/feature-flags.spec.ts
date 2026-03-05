@@ -213,7 +213,13 @@ describe("FEATURE_FLAGS", () => {
   });
 
   describe("shouldShowHomePageNotification", () => {
-    const makeState = (overrides: { FEATURE_FLAG_MENU_USERS?: any; isAuthed?: boolean; groups?: string[]; objectId?: string }) => ({
+    const makeState = (overrides: {
+      FEATURE_FLAG_MENU_USERS?: any;
+      isAuthed?: boolean;
+      groups?: string[];
+      objectId?: string;
+      homePageNotification?: boolean;
+    }) => ({
       config: { FEATURE_FLAG_MENU_USERS: overrides.FEATURE_FLAG_MENU_USERS } as any,
       auth: {
         isAuthed: overrides.isAuthed ?? true,
@@ -221,6 +227,7 @@ describe("FEATURE_FLAGS", () => {
         username: "testuser",
         objectId: overrides.objectId ?? "test-object-id",
       } as any,
+      preview: { found: true, result: { homePageNotification: overrides.homePageNotification } } as any,
     });
 
     it("should return false when user is in the feature flag AD group", () => {
@@ -250,6 +257,11 @@ describe("FEATURE_FLAGS", () => {
 
     it("should return true when FEATURE_FLAG_MENU_USERS is not configured", () => {
       const state = makeState({});
+      expect(FEATURE_FLAGS.shouldShowHomePageNotification(state)).toBe(true);
+    });
+
+    it("should return true when preview homePageNotification is set, even if user is in the feature group", () => {
+      const state = makeState({ FEATURE_FLAG_MENU_USERS: { adGroupIds: ["admin-group"] }, groups: ["admin-group"], homePageNotification: true });
       expect(FEATURE_FLAGS.shouldShowHomePageNotification(state)).toBe(true);
     });
   });

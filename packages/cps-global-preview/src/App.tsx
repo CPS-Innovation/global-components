@@ -98,6 +98,13 @@ const FEATURES: Feature[] = [
       "Show an 'Open in CMS' button in the case-level menu bar.",
     disabled: false,
   },
+  {
+    key: "homePageNotification",
+    label: "Home page notification",
+    description:
+      "Force the home page introductory sessions notification banner to appear, regardless of feature flag group membership.",
+    disabled: false,
+  },
 ];
 
 const TACTICAL = [

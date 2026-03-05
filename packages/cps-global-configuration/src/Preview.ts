@@ -23,6 +23,7 @@ export const PreviewSchema = z.object({
   accessibility: z.boolean().optional(),
   forceDcfHeader: z.boolean().optional(),
   openCaseInCms: z.boolean().optional(),
+  homePageNotification: z.boolean().optional(),
 });
 
 export type Preview = z.infer<typeof PreviewSchema>;
