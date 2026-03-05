@@ -9,14 +9,13 @@ import { State } from "../../../../store/store";
 const mockIsOutSystemsApp = isOutSystemsApp as jest.MockedFunction<typeof isOutSystemsApp>;
 const mockCreateOutboundUrlDirect = createOutboundUrlDirect as jest.MockedFunction<typeof createOutboundUrlDirect>;
 
-type AdapterParams = Pick<State, "flags" | "config" | "cmsSessionHint">;
+type AdapterParams = Pick<State, "flags" | "config">;
 
 const makeParams = (
   overrides: Partial<{
     isOutSystems: boolean;
     OS_HANDOVER_URL: string;
     COOKIE_HANDOVER_URL: string;
-    cmsSessionHint: AdapterParams["cmsSessionHint"];
   }>,
 ): AdapterParams =>
   ({
@@ -25,7 +24,6 @@ const makeParams = (
       OS_HANDOVER_URL: overrides.OS_HANDOVER_URL ?? "",
       COOKIE_HANDOVER_URL: overrides.COOKIE_HANDOVER_URL ?? "",
     },
-    cmsSessionHint: overrides.cmsSessionHint ?? { found: false, error: {} as Error },
   }) as any;
 
 describe("linkHandoverAdapter", () => {
@@ -101,37 +99,5 @@ describe("linkHandoverAdapter", () => {
       expect(result).toBe("https://cookie.example.com?r=https://handover.example.com?stage=os-cookie-return&r=https://os-app.com/page");
     });
 
-    it("should use cmsSessionHint.handoverEndpoint when available as cookieHandoverUrl", () => {
-      mockIsOutSystemsApp.mockReturnValue(true);
-      mockCreateOutboundUrlDirect.mockReturnValue(
-        "https://proxy-cookie.example.com?r=https://handover.example.com?stage=os-cookie-return&r=https://os-app.com/page",
-      );
-
-      const adapt = linkHandoverAdapter(
-        makeParams({
-          OS_HANDOVER_URL: "https://handover.example.com",
-          COOKIE_HANDOVER_URL: "https://cookie.example.com",
-          cmsSessionHint: {
-            found: true,
-            result: {
-              cmsDomains: ["example.com"],
-              isProxySession: true,
-              handoverEndpoint: "https://proxy-cookie.example.com",
-            },
-          },
-        }),
-      );
-
-      const result = adapt("https://os-app.com/page");
-
-      expect(mockCreateOutboundUrlDirect).toHaveBeenCalledWith({
-        cookieHandoverUrl: "https://proxy-cookie.example.com",
-        handoverUrl: "https://handover.example.com",
-        targetUrl: "https://os-app.com/page",
-      });
-      expect(result).toBe(
-        "https://proxy-cookie.example.com?r=https://handover.example.com?stage=os-cookie-return&r=https://os-app.com/page",
-      );
-    });
-  });
+});
 });

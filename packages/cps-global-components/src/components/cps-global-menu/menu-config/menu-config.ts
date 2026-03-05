@@ -14,13 +14,13 @@ export type MenuConfigResult =
       error: Error;
     };
 
-const menuConfigInternal = ({ context, flags, config, cmsSessionHint, tags }: Pick<State, "context" | "config" | "tags" | "flags" | "cmsSessionHint">): MenuConfigResult => {
+const menuConfigInternal = ({ context, flags, config, tags }: Pick<State, "context" | "config" | "tags" | "flags">): MenuConfigResult => {
   if (!context?.found) {
     return { status: "error", error: new Error("No context found for this URL.") };
   }
 
   const visibleLinks = config.LINKS.filter(shouldShowLink(context.contextIds));
-  const mappedLinks = visibleLinks.map(mapLinkConfig({ context, tags, flags, config, cmsSessionHint }));
+  const mappedLinks = visibleLinks.map(mapLinkConfig({ context, tags, flags, config }));
   const groupedLinks = groupLinksByLevel(mappedLinks);
 
   return { status: "ok", links: groupedLinks };

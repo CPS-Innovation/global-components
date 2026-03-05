@@ -16,7 +16,7 @@ import { CorrelationIds } from "../../../services/correlation/CorrelationIds";
 import { CaseDetails } from "../../../services/data/CaseDetails";
 import { MonitoringCodes } from "../../../services/data/MonitoringCode";
 import { Result } from "../../../utils/Result";
-import { CmsSessionHint } from "cps-global-configuration";
+
 
 // Type the mocked functions
 const mockShouldShowLink = shouldShowLink as jest.MockedFunction<typeof shouldShowLink>;
@@ -86,12 +86,7 @@ describe("menuConfig", () => {
 
   const mockCaseMonitoringCodes: Result<MonitoringCodes> = { found: true, result: [] };
 
-  const mockCmsSessionHint: Result<CmsSessionHint> = {
-    found: false,
-    error: {} as Error,
-  };
-
-  beforeEach(() => {
+beforeEach(() => {
     jest.clearAllMocks();
   });
 
@@ -123,7 +118,7 @@ describe("menuConfig", () => {
       caseIdentifiers: { caseId: "1" },
       caseMonitoringCodes: mockCaseMonitoringCodes,
       build: {} as Build,
-      cmsSessionHint: mockCmsSessionHint,
+      cmsSessionHint: { found: false, error: {} as Error },
       handover: { found: false, error: {} as Error },
       recentCases: { found: false, error: {} as Error },
     };
@@ -178,7 +173,7 @@ describe("menuConfig", () => {
       caseIdentifiers: { caseId: "1" },
       caseMonitoringCodes: mockCaseMonitoringCodes,
       build: {} as Build,
-      cmsSessionHint: mockCmsSessionHint,
+      cmsSessionHint: { found: false, error: {} as Error },
       handover: { found: false, error: {} as Error },
       recentCases: { found: false, error: {} as Error },
     };
@@ -244,7 +239,6 @@ describe("menuConfig", () => {
       tags: {},
       flags: mockFlags,
       config: mockConfig,
-      cmsSessionHint: mockCmsSessionHint,
     });
     expect(mockMapFunction).toHaveBeenCalledTimes(2); // Only called for filtered links
     expect(mockGroupLinksByLevel).toHaveBeenCalledWith([
