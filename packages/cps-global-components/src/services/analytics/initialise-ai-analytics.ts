@@ -7,6 +7,7 @@ import { makeConsole } from "../../logging/makeConsole";
 import { Build, ReadyStateHelper } from "../../store/store";
 import { CmsSessionHint } from "cps-global-configuration";
 import { Result } from "../../utils/Result";
+import { AuthResult } from "../auth/AuthResult";
 
 const STORAGE_PREFIX = "cps_global_components";
 
@@ -18,7 +19,7 @@ const { _debug } = makeConsole("initialiseAnalytics");
 
 export const initialiseAiAnalytics = ({ window, config: { APP_INSIGHTS_CONNECTION_STRING, ENVIRONMENT }, readyState, build, cmsSessionHint: { result: hint } }: Props) => {
   if (!APP_INSIGHTS_CONNECTION_STRING) {
-    return { trackPageView: () => {}, trackException: (_: Error) => {}, rebindTrackEvent: () => {}, trackEvent: (_: AnalyticsEventData) => {} };
+    return { trackPageView: () => {}, trackException: (_: Error) => {}, trackEvent: (_: AnalyticsEventData) => {}, registerAuth: (_: AuthResult) => {} };
   }
 
   const appInsights = new ApplicationInsights({
@@ -80,16 +81,13 @@ export const initialiseAiAnalytics = ({ window, config: { APP_INSIGHTS_CONNECTIO
   appInsights.loadAppInsights();
 
   let authValues = {} as Record<string, string | boolean>;
-  const {
-    isReady,
-    state: { auth },
-  } = readyState("auth");
-  if (isReady) {
+
+  const registerAuth = (auth: AuthResult) => {
     authValues = { IsAuthed: auth.isAuthed };
     if (auth.isAuthed) {
       authValues = { Username: auth.username, ...authValues };
     }
-  }
+  };
 
   const trackPageView = ({ context: { found, contextIds }, correlationIds }: { context: FoundContext; correlationIds: CorrelationIds }) => {
     const arg = { properties: { Environment: ENVIRONMENT, ...authValues, ...build, context: { found, contextIds }, correlationIds, hint } };
@@ -110,5 +108,5 @@ export const initialiseAiAnalytics = ({ window, config: { APP_INSIGHTS_CONNECTIO
     appInsights.trackEvent({ name: ev.type, properties: { ...rest, ...correlationIds } });
   });
 
-  return { trackPageView, trackException, trackEvent };
+  return { trackPageView, trackException, trackEvent, registerAuth };
 };

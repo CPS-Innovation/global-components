@@ -85,9 +85,8 @@ const startupPhase = async ({ window, storeFns: { register, mergeTags, readyStat
   const firstContext = initialiseContext({ window, config });
   register({ firstContext });
 
-  const { setNextRecentCases } = await initialiseRecentCases({ rootUrl, config, register });
-
-  const { trackPageView, trackEvent, trackException } = initialiseAnalytics({ window, config, readyState, build, cmsSessionHint, flags });
+  const { setNextRecentCases } = initialiseRecentCases({ rootUrl, config, register });
+  const { trackPageView, trackEvent, trackException, registerAuth } = initialiseAnalytics({ window, config, readyState, build, cmsSessionHint, flags });
 
   const { initialiseDomForContext } = initialiseDomObservation(
     { window, register, mergeTags, preview, settings },
@@ -103,6 +102,7 @@ const startupPhase = async ({ window, storeFns: { register, mergeTags, readyStat
     trackPageView,
     trackEvent,
     trackException,
+    registerAuth,
     firstContext,
     flags,
     handover,
@@ -118,6 +118,7 @@ const authPhase = ({
   firstContext,
   flags,
   trackEvent,
+  registerAuth,
   setNextHandover,
   setNextRecentCases,
   preview,
@@ -127,6 +128,7 @@ const authPhase = ({
   (async () => {
     const { auth, getToken } = await initialiseAuth({ config, context: firstContext, flags });
     register({ auth });
+    registerAuth(auth);
     initialiseOutSystemsShowAlert({ context: firstContext, config, auth, preview });
     initialiseCaseDetailsData({ config, context: firstContext, subscribe, setNextHandover, setNextRecentCases, getToken, readyState, trackEvent });
   })();
