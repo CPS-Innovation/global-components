@@ -57,6 +57,7 @@ describe("caseDetailsSubscriptionFactory", () => {
         fetch: createMockFetch(),
         setNextHandover: jest.fn(),
         setNextRecentCases: jest.fn(),
+        showMonitoringCodes: true,
       });
 
       const result = factory({
@@ -81,6 +82,7 @@ describe("caseDetailsSubscriptionFactory", () => {
         fetch: createMockFetch(),
         setNextHandover: jest.fn(),
         setNextRecentCases: jest.fn(),
+        showMonitoringCodes: true,
       });
 
       const subscription = factory({
@@ -106,6 +108,7 @@ describe("caseDetailsSubscriptionFactory", () => {
         fetch: mockFetch,
         setNextHandover: jest.fn(),
         setNextRecentCases: jest.fn(),
+        showMonitoringCodes: true,
       });
 
       const subscription = factory({
@@ -136,6 +139,7 @@ describe("caseDetailsSubscriptionFactory", () => {
         fetch: mockFetch,
         setNextHandover: jest.fn(),
         setNextRecentCases: jest.fn(),
+        showMonitoringCodes: true,
       });
 
       const subscription = factory({
@@ -161,6 +165,7 @@ describe("caseDetailsSubscriptionFactory", () => {
         fetch: mockFetch,
         setNextHandover: jest.fn(),
         setNextRecentCases: jest.fn(),
+        showMonitoringCodes: true,
       });
 
       const subscription = factory({
@@ -186,6 +191,7 @@ describe("caseDetailsSubscriptionFactory", () => {
         fetch: createMockFetch(),
         setNextHandover: jest.fn(),
         setNextRecentCases: jest.fn(),
+        showMonitoringCodes: true,
       });
 
       const subscription = factory({
@@ -212,6 +218,7 @@ describe("caseDetailsSubscriptionFactory", () => {
         fetch: createMockFetch(),
         setNextHandover: jest.fn(),
         setNextRecentCases: jest.fn(),
+        showMonitoringCodes: true,
       });
 
       const subscription = factory({
@@ -230,6 +237,35 @@ describe("caseDetailsSubscriptionFactory", () => {
       expect(register).toHaveBeenCalledWith({ caseMonitoringCodes: { found: true, result: mockMonitoringCodes } });
     });
 
+    it("should not fetch monitoring codes when showMonitoringCodes is false", async () => {
+      const register = jest.fn();
+      const mockFetch = createMockFetch();
+
+      const factory = caseDetailsSubscriptionFactory({
+        fetch: mockFetch,
+        setNextHandover: jest.fn(),
+        setNextRecentCases: jest.fn(),
+        showMonitoringCodes: false,
+      });
+
+      const subscription = factory({
+        get: createMockGet(createMockHandoverNotFound()),
+        register,
+        mergeTags: jest.fn(),
+      });
+
+      if (subscription.type === "onChange") {
+        (subscription.handler.handler as CaseIdentifiersHandler)({ caseId: "456" });
+      }
+
+      await flushPromises();
+
+      expect(mockFetch).toHaveBeenCalledWith("/api/global-components/cases/456/summary");
+      expect(mockFetch).not.toHaveBeenCalledWith("/api/global-components/cases/456/monitoring-codes?assignedOnly=true");
+      expect(register).toHaveBeenCalledWith({ caseDetails: { found: true, result: mockCaseDetails } });
+      expect(register).not.toHaveBeenCalledWith(expect.objectContaining({ caseMonitoringCodes: expect.anything() }));
+    });
+
     it("should set next handover with caseId after both fetches complete", async () => {
       const setNextHandover = jest.fn();
 
@@ -237,6 +273,7 @@ describe("caseDetailsSubscriptionFactory", () => {
         fetch: createMockFetch(),
         setNextHandover,
         setNextRecentCases: jest.fn(),
+        showMonitoringCodes: true,
       });
 
       const subscription = factory({
@@ -266,6 +303,7 @@ describe("caseDetailsSubscriptionFactory", () => {
         fetch: createMockFetch(),
         setNextHandover,
         setNextRecentCases: jest.fn(),
+        showMonitoringCodes: true,
       });
 
       const subscription = factory({
