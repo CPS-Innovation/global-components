@@ -9,10 +9,11 @@ type Props = {
   setNextHandover: (data: Handover) => void;
   setNextRecentCases: (caseDetails: CaseDetails | undefined) => void;
   fetch: typeof fetch;
+  showMonitoringCodes: boolean;
 };
 
 export const caseDetailsSubscriptionFactory =
-  ({ fetch, setNextHandover, setNextRecentCases }: Props): SubscriptionFactory =>
+  ({ fetch, setNextHandover, setNextRecentCases, showMonitoringCodes }: Props): SubscriptionFactory =>
   ({ register, mergeTags, get }) => ({
     type: "onChange",
     handler: {
@@ -40,19 +41,21 @@ export const caseDetailsSubscriptionFactory =
             return undefined;
           });
 
-        const monitoringCodesPromise = (
-          monitoringCodes
-            ? Promise.resolve(monitoringCodes)
-            : fetchAndValidate(fetch, `/api/global-components/cases/${caseId}/monitoring-codes?assignedOnly=true`, MonitoringCodesSchema)
-        )
-          .then(caseMonitoringCodes => {
-            register({ caseMonitoringCodes: { found: true, result: caseMonitoringCodes } });
-            return caseMonitoringCodes;
-          })
-          .catch(error => {
-            register({ caseMonitoringCodes: { found: false, error } });
-            return undefined;
-          });
+        const monitoringCodesPromise = !showMonitoringCodes
+          ? Promise.resolve(undefined)
+          : (
+            monitoringCodes
+              ? Promise.resolve(monitoringCodes)
+              : fetchAndValidate(fetch, `/api/global-components/cases/${caseId}/monitoring-codes?assignedOnly=true`, MonitoringCodesSchema)
+          )
+            .then(caseMonitoringCodes => {
+              register({ caseMonitoringCodes: { found: true, result: caseMonitoringCodes } });
+              return caseMonitoringCodes;
+            })
+            .catch(error => {
+              register({ caseMonitoringCodes: { found: false, error } });
+              return undefined;
+            });
 
         Promise.all([caseDetailsPromise, monitoringCodesPromise]).then(([caseDetails, monitoringCodes]) => {
           const handover = { caseId, caseDetails, monitoringCodes };

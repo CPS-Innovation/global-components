@@ -131,6 +131,7 @@ export const configBaseSchema = z.object({
   REPORT_ISSUE_LINK: z.string().optional(),
   SHOW_MENU: z.boolean().optional(),
   SHOW_RECENT_CASES: z.boolean().optional(),
+  SHOW_MONITORING_CODES: z.boolean().optional(),
   SHOW_GOVUK_REBRAND: z.boolean().optional(),
   OS_HANDOVER_URL: z.string().optional(),
   COOKIE_HANDOVER_URL: z.string().optional(),
