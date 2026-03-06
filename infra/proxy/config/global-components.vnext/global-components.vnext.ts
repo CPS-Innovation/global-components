@@ -6,8 +6,6 @@ const DEPLOYMENT_JSON_PATH =
   "/etc/nginx/templates/global-components-deployment.json";
 const TENANT_ID = "00dd0d1d-d7e6-6338-ac51-565339c7088c";
 const VALIDATE_TOKEN_AGAINST_AD = false; // Set to true when ready to enforce AD token validation
-const STATE_COOKIE_NAME = "cps-global-components-state";
-const STATE_COOKIE_LIFESPAN_MS = 365 * 24 * 60 * 60 * 1000;
 const AD_AUTH_ENDPOINT = "https://graph.microsoft.com/v1.0/me";
 
 interface TokenClaims {
@@ -19,13 +17,6 @@ interface TokenClaims {
 interface ClaimsResult {
   claimsAreValid: boolean;
   claims: TokenClaims;
-}
-
-interface CookieOptions {
-  Path?: string;
-  Expires?: Date;
-  Secure?: boolean;
-  SameSite?: "Strict" | "Lax" | "None";
 }
 
 function _escapeRegExp(string: string): string {
@@ -40,70 +31,6 @@ function _base64UrlDecode(str: string): string {
     str += "=";
   }
   return atob(str);
-}
-
-function _base64UrlEncode(str: string): string {
-  // Encode to base64, then convert to base64url (URL-safe, no padding)
-  return btoa(str).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
-}
-
-// Wrap state for storage (encode). Currently base64url, could add encryption later.
-function _wrapState(plaintext: string): string {
-  return _base64UrlEncode(plaintext);
-}
-
-// Unwrap state from storage (decode). Currently base64url, could add decryption later.
-function _unwrapState(wrapped: string): string | null {
-  try {
-    return _base64UrlDecode(wrapped);
-  } catch (e) {
-    // If decode fails, return null (corrupted or legacy data)
-    return null;
-  }
-}
-
-function buildCookieString(
-  name: string,
-  value: string,
-  options?: CookieOptions,
-): string {
-  let cookie = name + "=" + value;
-  if (options?.Path) {
-    cookie += "; Path=" + options.Path;
-  }
-  if (options?.Expires) {
-    cookie += "; Expires=" + options.Expires.toUTCString();
-  }
-  if (options?.Secure) {
-    cookie += "; Secure";
-  }
-  if (options?.SameSite) {
-    cookie += "; SameSite=" + options.SameSite;
-  }
-  return cookie;
-}
-
-function setCookie(
-  r: NginxHTTPRequest,
-  name: string,
-  value: string,
-  options?: CookieOptions,
-): void {
-  const cookie = buildCookieString(name, value, options);
-  // njs headersOut["Set-Cookie"] accepts either string or string[]
-  // For multiple cookies, we need to use an array
-  const existing = r.headersOut["Set-Cookie"];
-  if (existing) {
-    if (Array.isArray(existing)) {
-      existing.push(cookie);
-    } else {
-      // Convert single string to array and add new cookie
-      r.headersOut["Set-Cookie"] = [existing as unknown as string, cookie];
-    }
-  } else {
-    // First cookie - use string for compatibility
-    (r.headersOut as Record<string, string>)["Set-Cookie"] = cookie;
-  }
 }
 
 function _extractAndValidateClaims(r: NginxHTTPRequest): ClaimsResult {
@@ -161,60 +88,6 @@ async function _validateToken(r: NginxHTTPRequest): Promise<boolean> {
   }
 }
 
-async function handleState(r: NginxHTTPRequest): Promise<void> {
-  if (!["GET", "PUT"].includes(r.method)) {
-    // Method not allowed
-    r.return(405, JSON.stringify({ error: "Method not allowed" }));
-    return;
-  }
-
-  r.headersOut["Content-Type"] = "application/json";
-
-  if (r.method === "GET") {
-    // Get wrapped state from cookie and unwrap it
-    const cookieValue = gloco._getCookieValue(r, STATE_COOKIE_NAME);
-    if (!cookieValue) {
-      r.return(200, "null");
-      return;
-    }
-    const unwrapped = _unwrapState(gloco._maybeDecodeURIComponent(cookieValue));
-    r.return(200, unwrapped !== null ? unwrapped : "null");
-    return;
-  }
-
-  if (r.method === "PUT") {
-    const body = (r.requestText || "").trim();
-
-    // If body is "null" or empty, clear the cookie by setting it to expire in the past
-    if (body === "null" || body === "") {
-      setCookie(r, STATE_COOKIE_NAME, "", {
-        Path: r.uri,
-        Expires: new Date(0), // Expire immediately (clears cookie)
-        Secure: true,
-        SameSite: "None",
-      });
-      r.return(
-        200,
-        JSON.stringify({ success: true, path: r.uri, cleared: true }),
-      );
-      return;
-    }
-
-    // Wrap the body and store in cookie
-    const wrapped = _wrapState(body);
-
-    setCookie(r, STATE_COOKIE_NAME, wrapped, {
-      Path: r.uri,
-      Expires: new Date(Date.now() + STATE_COOKIE_LIFESPAN_MS), // 1 year
-      Secure: true,
-      SameSite: "None",
-    });
-
-    r.return(200, JSON.stringify({ success: true, path: r.uri }));
-    return;
-  }
-}
-
 async function handleValidateToken(r: NginxHTTPRequest): Promise<void> {
   // Used by auth_request - returns 200 if valid, 401 if not
   const isValid = await _validateToken(r);
@@ -265,45 +138,8 @@ function filterSwaggerBody(
   r.sendBuffer(result, flags);
 }
 
-function handleAuthRefreshOutbound(r: NginxHTTPRequest): void {
-  const defaultDomain = process.env["DEFAULT_UPSTREAM_CMS_DOMAIN_NAME"] || "";
-  const defaultTarget = defaultDomain ? `https://${defaultDomain}/polaris` : "";
-
-  let redirectTarget = defaultTarget;
-
-  try {
-    const rawCookie = gloco._getCookieValue(r, "Cms-Session-Hint");
-    if (rawCookie) {
-      const decoded = gloco._maybeDecodeURIComponent(rawCookie);
-      const parsed = JSON.parse(decoded);
-      if (parsed.handoverEndpoint) {
-        redirectTarget = parsed.handoverEndpoint;
-      }
-    }
-  } catch (e) {
-    // JSON parse failure: fall through to default
-  }
-
-  if (!redirectTarget) {
-    r.return(
-      502,
-      "auth-refresh-outbound: no handoverEndpoint in cookie and no DEFAULT_UPSTREAM_CMS_DOMAIN_NAME configured",
-    );
-    return;
-  }
-
-  const args = r.variables.args || "";
-  const redirectUrl = args ? `${redirectTarget}?${args}` : redirectTarget;
-
-  r.headersOut["X-InternetExplorerMode"] = "1";
-  r.return(302, redirectUrl);
-}
-
 export default {
-  handleState,
   handleValidateToken,
   handleStatus,
   filterSwaggerBody,
-  setCookie,
-  handleAuthRefreshOutbound,
 };
