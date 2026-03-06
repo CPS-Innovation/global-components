@@ -38,6 +38,7 @@ export const initialiseCaseDetailsData = ({
     caseDetailsSubscriptionFactory({
       setNextHandover,
       setNextRecentCases,
+      showMonitoringCodes: !!config.SHOW_MONITORING_CODES,
       fetch: pipe(fetch, fetchWithCircuitBreaker({ config, trackEvent }), fetchWithAuthFactory({ config, context, getToken, readyState })),
     }),
   );
