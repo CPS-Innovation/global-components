@@ -13,3 +13,5 @@ e2e.log
 
 *.tsbuildinfo
 PLAN*
+# Added by ggshield
+.cache_ggshield
