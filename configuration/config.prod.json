@@ -20,7 +20,8 @@
   "FEATURE_FLAG_MENU_USERS": {
     "adGroupIds": [
       "e9abbdb6-b6e9-4972-90fb-79d3140df840",
-      "1e5874e3-1c88-4506-8b9f-4f469acc1a42"
+      "1e5874e3-1c88-4506-8b9f-4f469acc1a42",
+      "870b7ef9-5937-4eb6-9ea0-98158f522ed7"
     ]
   },
   "FEATURE_FLAG_ENABLE_INTRUSIVE_AD_LOGIN": false,
@@ -165,7 +166,7 @@
         "contexts": "details",
         "data": "materials",
         "paramsToAddToQuery": { "IsOpenMaterials": "true" },
-        "waitingBehaviour": "disabled"
+        "waitingBehaviour": "default-no-dcf"
       }
     },
     {
