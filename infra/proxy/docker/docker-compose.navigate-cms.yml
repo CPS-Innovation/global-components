@@ -1,8 +1,0 @@
-# Navigate-CMS layer override
-# Use: docker-compose -f docker-compose.yml -f docker-compose.navigate-cms.yml up
-
-services:
-  nginx:
-    volumes:
-      - ../config/global-components.navigate-cms/global-components.navigate-cms.conf:/etc/nginx/templates/global-components.navigate-cms.conf.template:ro
-      - ../dist/global-components.navigate-cms.js:/etc/nginx/templates/global-components.navigate-cms.js:ro

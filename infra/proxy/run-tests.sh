@@ -38,7 +38,7 @@ wait_for_proxy() {
 # Stop any running stack
 stop_stack() {
   cd "$DOCKER_DIR"
-  docker compose -f docker-compose.yml -f docker-compose.vnext.yml -f docker-compose.vnever.yml -f docker-compose.navigate-cms.yml down -t 2 2>/dev/null || true
+  docker compose -f docker-compose.yml -f docker-compose.vnext.yml -f docker-compose.vnever.yml down -t 2 2>/dev/null || true
 }
 
 # Run a test layer
@@ -128,17 +128,6 @@ if run_layer "vnever" \
   LAYER_RESULTS="${LAYER_RESULTS}  ${GREEN}✓${NC} vnever\n"
 else
   LAYER_RESULTS="${LAYER_RESULTS}  ${RED}✗${NC} vnever\n"
-  TOTAL_FAILED=$((TOTAL_FAILED + 1))
-fi
-
-# Layer 5: Navigate-CMS
-if run_layer "navigate-cms" \
-  "-f docker-compose.yml -f docker-compose.navigate-cms.yml" \
-  "/global-components/navigate-cms?step=close" \
-  "$SCRIPT_DIR/config/global-components.navigate-cms/tests/global-components.navigate-cms.integration.test.js"; then
-  LAYER_RESULTS="${LAYER_RESULTS}  ${GREEN}✓${NC} navigate-cms\n"
-else
-  LAYER_RESULTS="${LAYER_RESULTS}  ${RED}✗${NC} navigate-cms\n"
   TOTAL_FAILED=$((TOTAL_FAILED + 1))
 fi
 
