@@ -11,5 +11,7 @@ not-tracked
 .env
 e2e.log
 
-*.tsbuildinfo 
+*.tsbuildinfo
 PLAN*
+# Added by ggshield
+.cache_ggshield
