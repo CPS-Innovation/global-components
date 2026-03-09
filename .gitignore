@@ -10,3 +10,6 @@ not-tracked
 .act-secrets
 .env
 e2e.log
+
+*.tsbuildinfo
+PLAN* 

@@ -2,8 +2,8 @@
 /**
  * Integration tests for global-components.vnext.conf.template
  *
- * Tests the vnext functionality: blob storage proxy, state endpoint,
- * status endpoint, and swagger URL rewriting.
+ * Tests the vnext-only functionality: status endpoint, swagger URL rewriting,
+ * and MDS API proxy (monitoring-codes).
  */
 
 const {
@@ -17,315 +17,22 @@ const {
 } = require("../../../test-utils")
 
 // =============================================================================
-// Mock JWT for auth_request token validation
-// =============================================================================
-
-const TENANT_ID = "00dd0d1d-d7e6-4338-ac51-565339c7088c"
-const APP_ID = "8d6133af-9593-47c6-94d0-5c65e9e310f1"
-
-function createMockJwt() {
-  const header = Buffer.from(JSON.stringify({ alg: "none", typ: "JWT" })).toString("base64").replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "")
-  const payload = Buffer.from(JSON.stringify({ tid: TENANT_ID, appid: APP_ID, oid: "mock-oid", upn: "mock@test.com" })).toString("base64").replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "")
-  return `${header}.${payload}.mock-signature`
-}
-
-const MOCK_AUTH_HEADER = `Bearer ${createMockJwt()}`
-
-// =============================================================================
-// Blob Storage Proxy Tests
-// =============================================================================
-
-async function testBlobStorageProxy() {
-  console.log("\nBlob Storage Proxy Tests (/global-components/{dev|test|prod}/*):")
-
-  await test("proxies dev environment files", async () => {
-    const response = await fetch(`${PROXY_BASE}/global-components/dev/test-file.js`)
-    assertEqual(response.status, 200, "Should return 200 for dev files")
-  })
-
-  await test("proxies test environment files", async () => {
-    const response = await fetch(`${PROXY_BASE}/global-components/test/test-file.js`)
-    assertEqual(response.status, 200, "Should return 200 for test files")
-  })
-
-  await test("proxies prod environment files", async () => {
-    const response = await fetch(`${PROXY_BASE}/global-components/prod/test-file.js`)
-    assertEqual(response.status, 200, "Should return 200 for prod files")
-  })
-
-  await test("returns CORS headers", async () => {
-    const response = await fetch(`${PROXY_BASE}/global-components/dev/test-file.js`, {
-      headers: { Origin: "http://localhost:3000" },
-    })
-    const corsHeader = response.headers.get("access-control-allow-origin")
-    assert(corsHeader !== null, "Should have Access-Control-Allow-Origin header")
-  })
-
-  await test("handles OPTIONS preflight request", async () => {
-    const response = await fetch(`${PROXY_BASE}/global-components/dev/test-file.js`, {
-      method: "OPTIONS",
-      headers: {
-        Origin: "https://example.com",
-        "Access-Control-Request-Method": "GET",
-      },
-    })
-    assertEqual(response.status, 204, "OPTIONS should return 204")
-    const allowMethods = response.headers.get("access-control-allow-methods")
-    assert(allowMethods !== null, "Should have Access-Control-Allow-Methods header")
-  })
-
-  // Folder path tests - main config's blob proxy handles these paths directly
-  // (folder redirect and index.html resolution are vnext-only features that are
-  //  shadowed by the main config's simpler blob proxy location block)
-  await test("folder path without trailing slash is proxied directly", async () => {
-    const response = await fetch(`${PROXY_BASE}/global-components/dev/preview`, {
-      redirect: "manual",
-    })
-    assertEqual(response.status, 200, "Should return 200 (proxied by main config)")
-  })
-
-  await test("folder path with trailing slash is proxied directly", async () => {
-    const response = await fetch(`${PROXY_BASE}/global-components/dev/preview/`)
-    assertEqual(response.status, 200, "Should return 200 for folder path with slash")
-  })
-
-  await test("nested folder path is proxied directly", async () => {
-    const response = await fetch(`${PROXY_BASE}/global-components/prod/nested/folder`, {
-      redirect: "manual",
-    })
-    assertEqual(response.status, 200, "Should return 200 (proxied by main config)")
-  })
-
-  await test("file with extension is NOT modified", async () => {
-    const response = await fetch(`${PROXY_BASE}/global-components/dev/script.js`)
-    assertEqual(response.status, 200, "Should return 200 for .js file")
-    const blobFile = response.headers.get("x-mock-blob-file")
-    assertEqual(blobFile, "script.js", "Should request exact file path")
-  })
-}
-
-// =============================================================================
-// State Endpoint Tests
-// =============================================================================
-// State is stored as base64url encoded in cookies. No auth on state endpoints.
-
-// Helper to base64url encode (matches server-side wrapState)
-function base64UrlEncode(str) {
-  return Buffer.from(str).toString("base64").replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "")
-}
-
-async function testStateEndpoint() {
-  console.log("\nState Endpoint Tests (/global-components/state/*):")
-  console.log("  (No auth on state endpoints)")
-
-  const PREVIEW_ENDPOINT = `${PROXY_BASE}/global-components/state/preview`
-  const SETTINGS_ENDPOINT = `${PROXY_BASE}/global-components/state/settings`
-  const OTHER_ENDPOINT = `${PROXY_BASE}/global-components/state/other-key`
-
-  await test("GET on whitelisted key (preview) returns 200", async () => {
-    const response = await fetch(PREVIEW_ENDPOINT)
-    assertEqual(response.status, 200, "GET should return 200")
-    const text = await response.text()
-    assertEqual(text, "null", 'Should return "null" when no cookie present')
-  })
-
-  await test("GET on whitelisted key (settings) returns 200", async () => {
-    const response = await fetch(SETTINGS_ENDPOINT)
-    assertEqual(response.status, 200, "GET should return 200")
-    const text = await response.text()
-    assertEqual(text, "null", 'Should return "null" when no cookie present')
-  })
-
-  await test("GET on whitelisted key returns cookie value", async () => {
-    const stateValue = JSON.stringify({ foo: "bar" })
-    const wrappedState = base64UrlEncode(stateValue)
-    const response = await fetch(PREVIEW_ENDPOINT, {
-      headers: {
-        Cookie: `cps-global-components-state=${wrappedState}`,
-      },
-    })
-    assertEqual(response.status, 200, "GET should return 200")
-    const text = await response.text()
-    assertEqual(text, stateValue, "Should return unwrapped cookie value")
-  })
-
-  await test("GET on non-whitelisted key returns 200 (validation disabled)", async () => {
-    const response = await fetch(OTHER_ENDPOINT)
-    assertEqual(
-      response.status,
-      200,
-      "GET should return 200 when validation disabled"
-    )
-  })
-
-  await test("PUT succeeds without Authorization header (validation disabled)", async () => {
-    const response = await fetch(PREVIEW_ENDPOINT, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ test: "data" }),
-    })
-    assertEqual(
-      response.status,
-      200,
-      "Should return 200 when validation disabled"
-    )
-    const body = await response.json()
-    assertEqual(body.success, true, "Should have success true")
-  })
-
-  await test("PUT sets cookie with state value", async () => {
-    const stateValue = JSON.stringify({ count: 42 })
-    const response = await fetch(PREVIEW_ENDPOINT, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: stateValue,
-    })
-    assertEqual(response.status, 200, "Should return 200")
-    const setCookie = response.headers.get("set-cookie")
-    assert(setCookie !== null, "Should have Set-Cookie header")
-    assert(setCookie.includes("cps-global-components-state="), "Should set state cookie")
-    assert(setCookie.includes("Secure"), "Should have Secure flag")
-    assert(setCookie.includes("SameSite=None"), "Should have SameSite=None")
-  })
-
-  await test("handles OPTIONS preflight request", async () => {
-    const response = await fetch(PREVIEW_ENDPOINT, {
-      method: "OPTIONS",
-      headers: {
-        Origin: "https://example.com",
-        "Access-Control-Request-Method": "PUT",
-      },
-    })
-    assertEqual(response.status, 204, "OPTIONS should return 204")
-    const allowMethods = response.headers.get("access-control-allow-methods")
-    assert(
-      allowMethods !== null,
-      "Should have Access-Control-Allow-Methods header"
-    )
-    assert(allowMethods.includes("PUT"), "Should allow PUT method")
-  })
-
-  await test("PUT with null clears cookie and returns cleared flag", async () => {
-    const response = await fetch(PREVIEW_ENDPOINT, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: "null",
-    })
-    assertEqual(response.status, 200, "Should return 200")
-    const body = await response.json()
-    assertEqual(body.success, true, "Should have success true")
-    assertEqual(body.cleared, true, "Should have cleared flag")
-    const setCookie = response.headers.get("set-cookie")
-    assert(setCookie !== null, "Should have Set-Cookie header")
-    assert(setCookie.includes("Expires=Thu, 01 Jan 1970"), "Should set cookie to expire in the past")
-  })
-
-  await test("PUT with empty body clears cookie", async () => {
-    const response = await fetch(PREVIEW_ENDPOINT, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: "",
-    })
-    assertEqual(response.status, 200, "Should return 200")
-    const body = await response.json()
-    assertEqual(body.cleared, true, "Should have cleared flag for empty body")
-  })
-
-  await test("roundtrip: set state, verify, clear with null, verify cleared", async () => {
-    // Step 1: Set state
-    const stateValue = JSON.stringify({ enabled: true, caseMarkers: "a" })
-    const putResponse = await fetch(PREVIEW_ENDPOINT, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: stateValue,
-    })
-    assertEqual(putResponse.status, 200, "PUT should return 200")
-    const setCookie = putResponse.headers.get("set-cookie")
-    assert(setCookie !== null, "Should have Set-Cookie header")
-
-    // Extract cookie for subsequent requests
-    const cookieMatch = setCookie.match(/cps-global-components-state=([^;]+)/)
-    assert(cookieMatch !== null, "Should be able to extract cookie value")
-    const cookieValue = cookieMatch[1]
-
-    // Step 2: Verify state is returned on GET
-    const getResponse1 = await fetch(PREVIEW_ENDPOINT, {
-      headers: { Cookie: `cps-global-components-state=${cookieValue}` },
-    })
-    assertEqual(getResponse1.status, 200, "GET should return 200")
-    const retrievedState = await getResponse1.text()
-    assertEqual(retrievedState, stateValue, "Should return the stored state")
-
-    // Step 3: Clear state with null
-    const clearResponse = await fetch(PREVIEW_ENDPOINT, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: "null",
-    })
-    assertEqual(clearResponse.status, 200, "Clear PUT should return 200")
-    const clearBody = await clearResponse.json()
-    assertEqual(clearBody.cleared, true, "Should have cleared flag")
-
-    // Step 4: Verify GET without cookie returns null (simulating cleared cookie)
-    const getResponse2 = await fetch(PREVIEW_ENDPOINT)
-    assertEqual(getResponse2.status, 200, "GET should return 200")
-    const clearedState = await getResponse2.text()
-    assertEqual(clearedState, "null", "Should return null after clearing")
-  })
-
-  await test("roundtrip: settings endpoint set and get", async () => {
-    // Step 1: Set settings state
-    const settingsValue = JSON.stringify({ accessibilityBackground: true })
-    const putResponse = await fetch(SETTINGS_ENDPOINT, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: settingsValue,
-    })
-    assertEqual(putResponse.status, 200, "PUT should return 200")
-    const setCookie = putResponse.headers.get("set-cookie")
-    assert(setCookie !== null, "Should have Set-Cookie header")
-
-    // Extract cookie for subsequent requests
-    const cookieMatch = setCookie.match(/cps-global-components-state=([^;]+)/)
-    assert(cookieMatch !== null, "Should be able to extract cookie value")
-    const cookieValue = cookieMatch[1]
-
-    // Step 2: Verify settings state is returned on GET
-    const getResponse = await fetch(SETTINGS_ENDPOINT, {
-      headers: { Cookie: `cps-global-components-state=${cookieValue}` },
-    })
-    assertEqual(getResponse.status, 200, "GET should return 200")
-    const retrievedState = await getResponse.text()
-    assertEqual(retrievedState, settingsValue, "Should return the stored settings state")
-  })
-}
-
-// =============================================================================
 // MDS API Proxy Tests
 // =============================================================================
 
 async function testMdsApiProxy() {
   console.log("\nMDS API Proxy Tests (/global-components/api/cases/*):")
 
-  await test("allows request without auth token (soft mode)", async () => {
+  await test("proxies case summary endpoint", async () => {
     const response = await fetch(`${PROXY_BASE}/global-components/api/cases/12345/summary`)
-    assertEqual(response.status, 200, "Should return 200 in soft mode (no blocking)")
-  })
-
-  await test("proxies case summary endpoint with valid token", async () => {
-    const response = await fetch(`${PROXY_BASE}/global-components/api/cases/12345/summary`, {
-      headers: { Authorization: MOCK_AUTH_HEADER },
-    })
     assertEqual(response.status, 200, "Should return 200 for case summary")
     const body = await response.json()
     assertEqual(body.caseId, 12345, "Should have correct caseId")
     assertEqual(body.endpoint, "summary", "Should be summary endpoint")
   })
 
-  await test("proxies monitoring-codes endpoint with valid token", async () => {
-    const response = await fetch(`${PROXY_BASE}/global-components/api/cases/67890/monitoring-codes`, {
-      headers: { Authorization: MOCK_AUTH_HEADER },
-    })
+  await test("proxies monitoring-codes endpoint", async () => {
+    const response = await fetch(`${PROXY_BASE}/global-components/api/cases/67890/monitoring-codes`)
     assertEqual(response.status, 200, "Should return 200 for monitoring-codes")
     const body = await response.json()
     assertEqual(body.caseId, 67890, "Should have correct caseId")
@@ -333,17 +40,15 @@ async function testMdsApiProxy() {
   })
 
   await test("forwards x-functions-key header", async () => {
-    const response = await fetch(`${PROXY_BASE}/global-components/api/cases/123/summary`, {
-      headers: { Authorization: MOCK_AUTH_HEADER },
-    })
+    const response = await fetch(`${PROXY_BASE}/global-components/api/cases/123/summary`)
     assertEqual(response.status, 200, "Should return 200")
     const body = await response.json()
     assert(body.headers["x-functions-key"] !== null, "Should have x-functions-key header")
   })
 
-  await test("strips Authorization header from upstream request", async () => {
+  await test("strips Authorization header", async () => {
     const response = await fetch(`${PROXY_BASE}/global-components/api/cases/123/summary`, {
-      headers: { Authorization: MOCK_AUTH_HEADER },
+      headers: { Authorization: "Bearer some-token" },
     })
     assertEqual(response.status, 200, "Should return 200")
     const body = await response.json()
@@ -357,7 +62,7 @@ async function testMdsApiProxy() {
 
   await test("returns CORS headers", async () => {
     const response = await fetch(`${PROXY_BASE}/global-components/api/cases/123/summary`, {
-      headers: { Origin: "http://localhost:3000", Authorization: MOCK_AUTH_HEADER },
+      headers: { Origin: "http://localhost:3000" },
     })
     const corsHeader = response.headers.get("access-control-allow-origin")
     assert(corsHeader !== null, "Should have Access-Control-Allow-Origin header")
@@ -384,9 +89,7 @@ async function testMdsApiProxy() {
   })
 
   await test("forwards query string to upstream", async () => {
-    const response = await fetch(`${PROXY_BASE}/global-components/api/cases/123/monitoring-codes?assignedOnly=true&limit=10`, {
-      headers: { Authorization: MOCK_AUTH_HEADER },
-    })
+    const response = await fetch(`${PROXY_BASE}/global-components/api/cases/123/monitoring-codes?assignedOnly=true&limit=10`)
     assertEqual(response.status, 200, "Should return 200")
     const body = await response.json()
     // Mock server echoes back the original URL which includes query string
@@ -465,8 +168,6 @@ async function main() {
 
   await testStatusEndpoint()
   await testSwaggerRewriting()
-  await testBlobStorageProxy()
-  await testStateEndpoint()
   await testMdsApiProxy()
 }
 

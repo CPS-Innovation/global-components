@@ -8,6 +8,7 @@ dist/
 config/**/*.js
 !config/main/nginx.js
 !config/**/tests/*.js
+!config/**/main-reference/*.js
 
 # Deployment secrets and backups
 deploy/secrets.env
@@ -16,7 +17,3 @@ deploy/backups/
 # Environment config files (contain secrets)
 config/main/.env
 config/global-components.vnext/.env
-config/global-components.spike/.env
-
-# Self-signed certs for local HTTPS
-docker/certs/

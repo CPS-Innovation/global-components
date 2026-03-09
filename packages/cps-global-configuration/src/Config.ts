@@ -6,6 +6,7 @@ const dcfContextsToUseEventNavigationSchema = z.object({
   paramsToAddToQuery: z
     .record(z.string(), z.union([z.string(), z.null()]))
     .optional(),
+  waitingBehaviour: z.enum(["disabled", "default-dcf", "default-no-dcf"]),
 });
 
 export type ContextsToUseEventNavigation = z.infer<
@@ -63,6 +64,7 @@ const contextPathsSchema = z.object({
   contextIds: z.string(),
   applyShim: shimTypeSchema.optional(),
   domTagDefinitions: z.array(domTagDefinitionsSchema).optional(),
+  showNotification: z.boolean().optional(),
 });
 
 export type ContextPathsSchema = z.infer<typeof contextPathsSchema>;
@@ -74,9 +76,6 @@ const contextsBaseSchema = z.object({
   authorisation: authorisationSchema.optional(),
   headerCustomCssClasses: z.string().optional(),
   headerCustomCssStyles: z.record(z.string(), z.string().optional()).optional(),
-  showMenuOverride: z
-    .union([z.literal("always-show-menu"), z.literal("never-show-menu")])
-    .optional(),
   cmsAuthFromStorageKey: z.string().optional(),
 });
 
@@ -97,6 +96,7 @@ const contextSchema = contextsBaseSchema.extend({
   contextIds: z.string(),
   msalRedirectUrl: z.string(), // redefine as required, not optional in app config
   applyShim: shimTypeSchema.optional(),
+  showNotification: z.boolean().optional(),
 });
 
 export type Context = z.infer<typeof contextSchema>;
@@ -128,7 +128,10 @@ export const configBaseSchema = z.object({
   GATEWAY_URL: z.string().optional(),
   APP_INSIGHTS_CONNECTION_STRING: z.string().optional(),
   SURVEY_LINK: z.string().optional(),
+  REPORT_ISSUE_LINK: z.string().optional(),
   SHOW_MENU: z.boolean().optional(),
+  SHOW_RECENT_CASES: z.boolean().optional(),
+  SHOW_MONITORING_CODES: z.boolean().optional(),
   SHOW_GOVUK_REBRAND: z.boolean().optional(),
   OS_HANDOVER_URL: z.string().optional(),
   COOKIE_HANDOVER_URL: z.string().optional(),
@@ -138,6 +141,7 @@ export const configBaseSchema = z.object({
   CACHE_CONFIG: cacheConfigSchema.optional(),
   FETCH_CIRCUIT_BREAKER_CONFIG: fetchCircuitBreakerConfigSchema.optional(),
   RECENT_CASES_NAVIGATE_URL: z.string().optional(),
+  RECENT_CASES_LIST_LENGTH: z.number().optional(),
 });
 
 export const configStorageSchema = configBaseSchema.extend({

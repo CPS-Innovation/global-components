@@ -8,7 +8,7 @@ import { linkHandoverAdapter } from "./link-handover-adapter";
 const mockLinkHandoverAdapter = linkHandoverAdapter as jest.MockedFunction<typeof linkHandoverAdapter>;
 
 const makeParams = (contextIds: string, tags: Record<string, string> = {}): MapLinkConfigParams =>
-  ({ context: { contextIds }, tags, config: {}, flags: {}, cmsSessionHint: { found: false, error: {} } }) as any;
+  ({ context: { contextIds }, tags, config: {}, flags: {} }) as any;
 
 describe("mapLinkConfig", () => {
   beforeEach(() => {
@@ -23,7 +23,7 @@ describe("mapLinkConfig", () => {
     visibleContexts: "all",
     activeContexts: "test",
     openInNewTab: false,
-    dcfContextsToUseEventNavigation: { contexts: "event", data: "" },
+    dcfContextsToUseEventNavigation: { contexts: "event", data: "", waitingBehaviour: "disabled" },
   };
 
   it("should map basic link properties", () => {
@@ -54,7 +54,7 @@ describe("mapLinkConfig", () => {
     const mapper2 = mapLinkConfig(makeParams("admin test", { [isDcfCaseKey]: "true" }));
     const mapper3 = mapLinkConfig(makeParams("event user"));
 
-    expect(mapper1(basicLink).dcfContextsToUseEventNavigation).toEqual({ contexts: "event", data: "" });
+    expect(mapper1(basicLink).dcfContextsToUseEventNavigation).toEqual({ contexts: "event", data: "", waitingBehaviour: "disabled" });
     expect(mapper2(basicLink).dcfContextsToUseEventNavigation).toBeUndefined();
     expect(mapper3(basicLink).dcfContextsToUseEventNavigation).toBeUndefined();
   });
@@ -130,7 +130,7 @@ describe("mapLinkConfig", () => {
     const complexLink: Link = {
       ...basicLink,
       activeContexts: "admin user moderator",
-      dcfContextsToUseEventNavigation: { contexts: "event-admin event-user", data: "" },
+      dcfContextsToUseEventNavigation: { contexts: "event-admin event-user", data: "", waitingBehaviour: "disabled" },
     };
 
     const mapper1 = mapLinkConfig(makeParams("user guest", { [isDcfCaseKey]: "true" }));
@@ -141,7 +141,7 @@ describe("mapLinkConfig", () => {
     const mapper2 = mapLinkConfig(makeParams("event-admin test", { [isDcfCaseKey]: "true" }));
     const result2 = mapper2(complexLink);
     expect(result2.selected).toBe(false);
-    expect(result2.dcfContextsToUseEventNavigation).toEqual({ contexts: "event-admin event-user", data: "" });
+    expect(result2.dcfContextsToUseEventNavigation).toEqual({ contexts: "event-admin event-user", data: "", waitingBehaviour: "disabled" });
   });
 
   it("should preserve label exactly as provided", () => {
@@ -188,7 +188,7 @@ describe("mapLinkConfig", () => {
       visibleContexts: "app",
       activeContexts: "app-section section-detail",
       openInNewTab: true,
-      dcfContextsToUseEventNavigation: { contexts: "app-event section-event", data: "" },
+      dcfContextsToUseEventNavigation: { contexts: "app-event section-event", data: "", waitingBehaviour: "disabled" },
     };
 
     const mapper = mapLinkConfig(makeParams("app-section app-event", { appId: "myapp", sectionId: "mysection", [isDcfCaseKey]: "true" }));
@@ -200,7 +200,7 @@ describe("mapLinkConfig", () => {
       openInNewTab: true,
       href: "/app/myapp/section/mysection",
       selected: true,
-      dcfContextsToUseEventNavigation: { contexts: "app-event section-event", data: "" },
+      dcfContextsToUseEventNavigation: { contexts: "app-event section-event", data: "", waitingBehaviour: "disabled" },
       disabled: false,
     });
   });
@@ -257,6 +257,59 @@ describe("mapLinkConfig", () => {
 
       expect(result.href).toBe("/non-dcf-path");
       expect(result.disabled).toBe(false);
+    });
+  });
+
+  describe("waitingBehaviour on dcfContextsToUseEventNavigation", () => {
+    const makeLinkWithWaitingBehaviour = (waitingBehaviour: "disabled" | "default-dcf" | "default-no-dcf"): Link => ({
+      ...basicLink,
+      href: "/non-dcf-path",
+      dcfHref: "/dcf-path",
+      dcfContextsToUseEventNavigation: { contexts: "test", data: "", waitingBehaviour },
+    });
+
+    it("should not be disabled and use non-dcf href when waitingBehaviour is 'default-no-dcf' and isDcfCase is unknown", () => {
+      const mapper = mapLinkConfig(makeParams("test"));
+      const result = mapper(makeLinkWithWaitingBehaviour("default-no-dcf"));
+
+      expect(result.disabled).toBe(false);
+      expect(result.href).toBe("/non-dcf-path");
+    });
+
+    it("should not be disabled and use dcf href when waitingBehaviour is 'default-dcf' and isDcfCase is unknown", () => {
+      const mapper = mapLinkConfig(makeParams("test"));
+      const result = mapper(makeLinkWithWaitingBehaviour("default-dcf"));
+
+      expect(result.disabled).toBe(false);
+      expect(result.href).toBe("/dcf-path");
+    });
+
+    it("should be disabled when waitingBehaviour is 'disabled' and isDcfCase is unknown", () => {
+      const mapper = mapLinkConfig(makeParams("test"));
+      const result = mapper(makeLinkWithWaitingBehaviour("disabled"));
+
+      expect(result.disabled).toBe(true);
+    });
+
+    it("should use actual isDcfCase value when known, regardless of waitingBehaviour", () => {
+      const mapperTrue = mapLinkConfig(makeParams("test", { [isDcfCaseKey]: "true" }));
+      const mapperFalse = mapLinkConfig(makeParams("test", { [isDcfCaseKey]: "false" }));
+
+      const linkDefaultNoDcf = makeLinkWithWaitingBehaviour("default-no-dcf");
+      const linkDefaultDcf = makeLinkWithWaitingBehaviour("default-dcf");
+
+      expect(mapperTrue(linkDefaultNoDcf).href).toBe("/dcf-path");
+      expect(mapperFalse(linkDefaultDcf).href).toBe("/non-dcf-path");
+    });
+
+    it("should apply waitingBehaviour to dcfContextsToUseEventNavigation when isDcfCase is unknown", () => {
+      const mapper = mapLinkConfig(makeParams("test"));
+
+      const resultDcf = mapper(makeLinkWithWaitingBehaviour("default-dcf"));
+      const resultNoDcf = mapper(makeLinkWithWaitingBehaviour("default-no-dcf"));
+
+      expect(resultDcf.dcfContextsToUseEventNavigation).toEqual({ contexts: "test", data: "", waitingBehaviour: "default-dcf" });
+      expect(resultNoDcf.dcfContextsToUseEventNavigation).toBeUndefined();
     });
   });
 });

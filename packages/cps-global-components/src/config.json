@@ -7,6 +7,8 @@
   "AD_GATEWAY_SCOPE": "https://CPSGOVUK.onmicrosoft.com/fa-polaris-qa-gateway/user_impersonation",
   "SURVEY_LINK": "https://forms.office.com/e/8KM9A7aS0e",
   "SHOW_MENU": true,
+  "SHOW_RECENT_CASES": true,
+  "SHOW_MONITORING_CODES": true,
   "OS_HANDOVER_URL": "https://cps-dev.outsystemsenterprise.com/AuthHandover/auth-handover.html",
   "COOKIE_HANDOVER_URL": "https://polaris-qa-notprod.cps.gov.uk/polaris",
   "TOKEN_HANDOVER_URL": "https://polaris-qa-notprod.cps.gov.uk/auth-refresh-cms-modern-token",
@@ -63,7 +65,7 @@
       "href": "/cases/{caseId}/review",
       "visibleContexts": "case",
       "activeContexts": "review",
-      "dcfContextsToUseEventNavigation": { "contexts": "details", "data": "" }
+      "dcfContextsToUseEventNavigation": { "contexts": "details", "data": "", "waitingBehaviour": "disabled" }
     }
   ]
 }

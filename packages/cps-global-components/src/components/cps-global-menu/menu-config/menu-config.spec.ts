@@ -16,7 +16,7 @@ import { CorrelationIds } from "../../../services/correlation/CorrelationIds";
 import { CaseDetails } from "../../../services/data/CaseDetails";
 import { MonitoringCodes } from "../../../services/data/MonitoringCode";
 import { Result } from "../../../utils/Result";
-import { CmsSessionHint } from "cps-global-configuration";
+
 
 // Type the mocked functions
 const mockShouldShowLink = shouldShowLink as jest.MockedFunction<typeof shouldShowLink>;
@@ -40,7 +40,7 @@ describe("menuConfig", () => {
         visibleContexts: "context1",
         activeContexts: "active1",
         openInNewTab: false,
-        dcfContextsToUseEventNavigation: { contexts: "event1", data: "" },
+        dcfContextsToUseEventNavigation: { contexts: "event1", data: "", waitingBehaviour: "disabled" },
       },
       {
         label: "Link 2",
@@ -49,7 +49,7 @@ describe("menuConfig", () => {
         visibleContexts: "context2",
         activeContexts: "active2",
         openInNewTab: true,
-        dcfContextsToUseEventNavigation: { contexts: "event2", data: "" },
+        dcfContextsToUseEventNavigation: { contexts: "event2", data: "", waitingBehaviour: "disabled" },
       },
       {
         label: "Link 3",
@@ -58,7 +58,7 @@ describe("menuConfig", () => {
         visibleContexts: "context3",
         activeContexts: "active3",
         openInNewTab: false,
-        dcfContextsToUseEventNavigation: { contexts: "event3", data: "" },
+        dcfContextsToUseEventNavigation: { contexts: "event3", data: "", waitingBehaviour: "disabled" },
       },
     ],
     CONTEXTS: [
@@ -86,12 +86,7 @@ describe("menuConfig", () => {
 
   const mockCaseMonitoringCodes: Result<MonitoringCodes> = { found: true, result: [] };
 
-  const mockCmsSessionHint: Result<CmsSessionHint> = {
-    found: false,
-    error: {} as Error,
-  };
-
-  beforeEach(() => {
+beforeEach(() => {
     jest.clearAllMocks();
   });
 
@@ -123,7 +118,7 @@ describe("menuConfig", () => {
       caseIdentifiers: { caseId: "1" },
       caseMonitoringCodes: mockCaseMonitoringCodes,
       build: {} as Build,
-      cmsSessionHint: mockCmsSessionHint,
+      cmsSessionHint: { found: false, error: {} as Error },
       handover: { found: false, error: {} as Error },
       recentCases: { found: false, error: {} as Error },
     };
@@ -178,7 +173,7 @@ describe("menuConfig", () => {
       caseIdentifiers: { caseId: "1" },
       caseMonitoringCodes: mockCaseMonitoringCodes,
       build: {} as Build,
-      cmsSessionHint: mockCmsSessionHint,
+      cmsSessionHint: { found: false, error: {} as Error },
       handover: { found: false, error: {} as Error },
       recentCases: { found: false, error: {} as Error },
     };
@@ -209,7 +204,7 @@ describe("menuConfig", () => {
         level: 0,
         selected: false,
         openInNewTab: false,
-        dcfContextsToUseEventNavigation: { contexts: "app-event section-event", data: "" },
+        dcfContextsToUseEventNavigation: { contexts: "app-event section-event", data: "", waitingBehaviour: "disabled" },
         disabled: false,
       });
     mockMapLinkConfig.mockReturnValue(mockMapFunction);
@@ -223,7 +218,7 @@ describe("menuConfig", () => {
           href: "/mapped3",
           selected: false,
           openInNewTab: false,
-          dcfContextsToUseEventNavigation: { contexts: "app-event section-event", data: "" },
+          dcfContextsToUseEventNavigation: { contexts: "app-event section-event", data: "", waitingBehaviour: "disabled" as const },
           disabled: false,
         },
       ],
@@ -244,7 +239,6 @@ describe("menuConfig", () => {
       tags: {},
       flags: mockFlags,
       config: mockConfig,
-      cmsSessionHint: mockCmsSessionHint,
     });
     expect(mockMapFunction).toHaveBeenCalledTimes(2); // Only called for filtered links
     expect(mockGroupLinksByLevel).toHaveBeenCalledWith([
@@ -263,7 +257,7 @@ describe("menuConfig", () => {
         level: 0,
         selected: false,
         openInNewTab: false,
-        dcfContextsToUseEventNavigation: { contexts: "app-event section-event", data: "" },
+        dcfContextsToUseEventNavigation: { contexts: "app-event section-event", data: "", waitingBehaviour: "disabled" },
         disabled: false,
       },
     ]);

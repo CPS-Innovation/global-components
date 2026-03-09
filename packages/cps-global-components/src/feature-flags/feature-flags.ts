@@ -10,38 +10,30 @@ const shouldShowGovUkRebrand = ({ preview }: Pick<State, "preview">): Preview["n
 
 const shouldShowRecentCases = ({ preview, flags }: Pick<State, "preview" | "flags">) => !!preview.result?.myRecentCasesOnHeader || flags.isLocalDevelopment;
 
-const shouldShowMenu = ({ config, auth, context, cmsSessionHint, flags }: Pick<State, "config" | "context" | "cmsSessionHint" | "flags"> & Pick<StoredState, "auth">) => {
-  if (cmsSessionHint.found && !cmsSessionHint.result.isProxySession && flags.environment === "prod") {
-    // Currently, in prod, we only want the menu shown if we are connected to proxied CMS.
-    // Design decision: if cmsSessionHint was not obtained then we continue to further
-    //  logic i.e. fail-open. So if we are having problems with the hint then we will
-    //  be optimistic and show the menu.
-    return false;
+const shouldShowMenu = ({ config, auth, context, flags, cmsSessionHint }: Pick<State, "config" | "context" | "flags" | "cmsSessionHint"> & Pick<StoredState, "auth">) => {
+  if (!config.SHOW_MENU) {
+    return "hide-menu";
+  } else if (!context.contextIds?.includes("materials")) {
+    return "show-menu";
+  } else if (cmsSessionHint.found && cmsSessionHint.result.cmsDomains.some(cmsDomain => cmsDomain?.toLowerCase().includes("cin5"))) {
+    return "show-menu";
+  } else if (isUserInFeatureGroup({ auth, config }, "FEATURE_FLAG_MENU_USERS")) {
+    return "show-menu";
+  } else if (flags.environment === "test") {
+    return "show-hint";
+  } else {
+    return "hide-menu";
   }
-
-  if (context.found) {
-    if (context.showMenuOverride === "never-show-menu") {
-      // Work management always need the menu to never appear on some pages
-      return false;
-    }
-
-    if (context.showMenuOverride === "always-show-menu") {
-      // Work management always need the menu on some pages
-      return true;
-    }
-  }
-
-  // Note: at this point we are saying it is acceptable to be executing this code without
-  //  a context i.e. context.found === false. This is subject to being reassessed because
-  //  the menuConfig code is a related concern and a refactor may be warranted.
-
-  return (
-    // standard feature flag
-    !!config.SHOW_MENU && isUserInFeatureGroup({ auth, config }, "FEATURE_FLAG_MENU_USERS")
-  );
 };
 
+const shouldShowOpenCaseInCms = ({ preview, flags }: Pick<State, "preview" | "flags">) => !!preview.result?.openCaseInCms || flags.isLocalDevelopment;
+
 const surveyLink = ({ config }: Pick<State, "config">) => ({ showLink: !!config.SURVEY_LINK, url: config.SURVEY_LINK });
+
+const reportIssueLink = ({ config }: Pick<State, "config">) => ({ showLink: !!config.REPORT_ISSUE_LINK, url: config.REPORT_ISSUE_LINK });
+
+const shouldShowHomePageNotification = ({ config, auth, preview }: Pick<State, "config" | "preview"> & Pick<StoredState, "auth">) =>
+  !!preview.result?.homePageNotification || !isUserInFeatureGroup({ auth, config }, "FEATURE_FLAG_MENU_USERS");
 
 export const FEATURE_FLAGS = {
   shouldShowCaseDetails,
@@ -49,5 +41,8 @@ export const FEATURE_FLAGS = {
   shouldShowGovUkRebrand,
   shouldShowRecentCases,
   shouldShowMenu,
+  shouldShowOpenCaseInCms,
   surveyLink,
+  reportIssueLink,
+  shouldShowHomePageNotification,
 };

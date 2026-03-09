@@ -2,12 +2,18 @@ import { z } from "zod";
 
 export const CaseDetailsSchema = z.object({
   id: z.number(),
-  urn: z.string(),
-  isDcfCase: z.boolean(),
-  leadDefendantFirstNames: z.string(),
-  leadDefendantSurname: z.string(),
+  urn: z.string().nullable(),
+  isDcfCase: z
+    .boolean()
+    .nullable()
+    .transform(val => val ?? false),
+  leadDefendantFirstNames: z.string().nullable(),
+  leadDefendantSurname: z.string().nullable(),
   leadDefendantType: z.string(),
-  numberOfDefendants: z.number(),
+  numberOfDefendants: z
+    .number()
+    .nullable()
+    .transform(val => val ?? 0),
 });
 
 export type CaseDetails = z.infer<typeof CaseDetailsSchema>;

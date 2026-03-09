@@ -20,6 +20,8 @@ import { footerSubscriber } from "./services/browser/dom/footer-subscriber";
 import { accessibilitySubscriber } from "./services/browser/accessibility/accessibility-subscriber";
 import { initialiseSettings } from "./services/state/settings/initialise-settings";
 import { initialiseOutSystemsReconcileAuth } from "./services/outsystems-shim/initialise-outsytems-reconcile-auth";
+import { initialiseOutSystemsShowAlert } from "./services/outsystems-shim/outsystems-show-alert";
+import { initialiseNavigateCms } from "./services/navigate-cms/initialise-navigate-cms";
 
 const { _error } = makeConsole("global-script");
 
@@ -64,6 +66,8 @@ const startupPhase = async ({ window, storeFns: { register, mergeTags, readyStat
   const rootUrl = initialiseRootUrl();
   register({ rootUrl });
 
+  initialiseNavigateCms({ rootUrl });
+
   const flags = getApplicationFlags({ window, rootUrl });
   register({ flags });
 
@@ -75,14 +79,13 @@ const startupPhase = async ({ window, storeFns: { register, mergeTags, readyStat
   ]);
   register({ cmsSessionHint, handover, preview, cmsSessionTags: { handoverEndpoint: cmsSessionHint.result?.handoverEndpoint || "" } });
 
-  const { recentCases, setNextRecentCases } = await initialiseRecentCases({ rootUrl, preview });
-  register({ recentCases });
-
   const config = await initialiseConfig({ rootUrl, flags, preview });
   register({ config });
 
   const firstContext = initialiseContext({ window, config });
   register({ firstContext });
+
+  const { setNextRecentCases } = await initialiseRecentCases({ rootUrl, config, register });
 
   const { trackPageView, trackEvent, trackException } = initialiseAnalytics({ window, config, readyState, build, cmsSessionHint, flags });
 
@@ -105,6 +108,7 @@ const startupPhase = async ({ window, storeFns: { register, mergeTags, readyStat
     handover,
     setNextHandover,
     setNextRecentCases,
+    preview,
   };
 };
 
@@ -116,12 +120,14 @@ const authPhase = ({
   trackEvent,
   setNextHandover,
   setNextRecentCases,
+  preview,
 }: Awaited<ReturnType<typeof startupPhase>> & { storeFns: ReturnType<typeof initialiseStore> }) => {
   // Positioning auth after many of the other setup stuff helps us not block the UI
   // (initialiseAuth can take a long time, especially if there is a problem)
   (async () => {
     const { auth, getToken } = await initialiseAuth({ config, context: firstContext, flags });
     register({ auth });
+    initialiseOutSystemsShowAlert({ context: firstContext, config, auth, preview });
     initialiseCaseDetailsData({ config, context: firstContext, subscribe, setNextHandover, setNextRecentCases, getToken, readyState, trackEvent });
   })();
 };

@@ -458,6 +458,12 @@ async function handleInitV2(r: NginxHTTPRequest): Promise<void> {
     "; Path=/init-v2; HttpOnly; Secure; SameSite=Lax; Max-Age=300";
   r.headersOut["Set-Cookie"] = ["cms_auth_state=" + encodedState + cookieOpts];
 
+  // Two-pass silent auth: first attempt uses prompt=none to try silent SSO.
+  // If Azure AD returns login_required or interaction_required, the callback
+  // will redirect back here for a second attempt with prompt=select_account.
+  const isRetry = _getQueryParam(r, "auth_retry") === "1";
+  const loginHint = _getCookie(r, "cms_auth_hint");
+
   const params = [
     "client_id=" + encodeURIComponent(clientId),
     "response_type=code",
@@ -466,9 +472,20 @@ async function handleInitV2(r: NginxHTTPRequest): Promise<void> {
     "state=" + state,
     "nonce=" + nonce,
     "response_mode=query",
-  ].join("&");
+  ];
 
-  r.return(302, authorizeUrl(tenantId) + "?" + params);
+  if (isRetry) {
+    // Second attempt: force the account picker
+    params.push("prompt=select_account");
+  } else {
+    // First attempt: try silent SSO
+    params.push("prompt=none");
+    if (loginHint) {
+      params.push("login_hint=" + encodeURIComponent(loginHint));
+    }
+  }
+
+  r.return(302, authorizeUrl(tenantId) + "?" + params.join("&"));
 }
 
 // ---------------------------------------------------------------------------
@@ -481,6 +498,36 @@ async function handleInitV2Callback(r: NginxHTTPRequest): Promise<void> {
   // Check for Azure AD errors
   const error = _getQueryParam(r, "error");
   if (error) {
+    // If prompt=none failed with login_required or interaction_required,
+    // redirect back through /init-v2/ for a second attempt with the account
+    // picker. The state cookie is still valid (Max-Age=300).
+    if (error === "login_required" || error === "interaction_required") {
+      // Recover the state cookie to extract the original query params
+      const retryCookieRaw = _getCookie(r, "cms_auth_state");
+      if (retryCookieRaw) {
+        try {
+          const retryState = JSON.parse(_base64UrlDecode(retryCookieRaw));
+          const proto = r.headersIn["X-Forwarded-Proto"] || "https";
+          const host = r.headersIn["Host"] || "";
+          const retryParams = [
+            "auth_retry=1",
+            retryState.cc
+              ? "cookies=" + retryState.cc
+              : "",
+            retryState.r
+              ? "r=" + encodeURIComponent(retryState.r)
+              : "",
+          ]
+            .filter(Boolean)
+            .join("&");
+          r.return(302, proto + "://" + host + "/init-v2/?" + retryParams);
+          return;
+        } catch {
+          // Fall through to error page if state cookie is unreadable
+        }
+      }
+    }
+
     const desc = _getQueryParam(r, "error_description") || "Unknown error";
     r.return(
       400,
@@ -722,10 +769,18 @@ async function handleInitV2Callback(r: NginxHTTPRequest): Promise<void> {
     })
     .join("\n");
 
-  // Clear the state cookie
+  // Clear the state cookie and set the login hint cookie for silent SSO
   const clearOpts =
     "; Path=/init-v2; HttpOnly; Secure; SameSite=Lax; Max-Age=0";
-  r.headersOut["Set-Cookie"] = ["cms_auth_state=deleted" + clearOpts];
+  const cookies = ["cms_auth_state=deleted" + clearOpts];
+
+  if (email) {
+    const hintOpts =
+      "; Path=/init-v2; HttpOnly; Secure; SameSite=Lax; Max-Age=31536000";
+    cookies.push("cms_auth_hint=" + encodeURIComponent(email) + hintOpts);
+  }
+
+  r.headersOut["Set-Cookie"] = cookies;
 
   // Render diagnostic page
   const rows = [
@@ -768,6 +823,7 @@ async function handleInitV2Callback(r: NginxHTTPRequest): Promise<void> {
     ],
     ["ID Token", "<code>" + tokenDisplay + "</code>"],
     ["OID", oid],
+    ["Login Hint (cookie)", _getCookie(r, "cms_auth_hint") || "<em>(none — will be set)</em>"],
     ["Tenant ID", String(claims.tid || "")],
     ["Name", name],
     ["Email", email || '<span class="fail">(empty)</span>'],
@@ -798,6 +854,34 @@ async function handleInitV2Callback(r: NginxHTTPRequest): Promise<void> {
        </table>
        <p>Total: <strong>${timings[timings.length - 1][1] - t0} ms</strong></p>`,
     ),
+  );
+}
+
+// ---------------------------------------------------------------------------
+// /init-v2/hint — Echo back the login hint cookie value
+//
+// GET  → returns { hint: "user@example.com" } or { hint: null }
+// DELETE → clears the hint cookie, returns { hint: null, cleared: true }
+// ---------------------------------------------------------------------------
+
+function handleHint(r: NginxHTTPRequest): void {
+  r.headersOut["Content-Type"] = "application/json";
+  r.headersOut["Access-Control-Allow-Origin"] =
+    (r.headersIn["Origin"] as string) || "*";
+  r.headersOut["Access-Control-Allow-Credentials"] = "true";
+
+  if (r.method === "DELETE") {
+    const clearOpts =
+      "; Path=/init-v2; HttpOnly; Secure; SameSite=Lax; Max-Age=0";
+    r.headersOut["Set-Cookie"] = ["cms_auth_hint=deleted" + clearOpts];
+    r.return(200, JSON.stringify({ hint: null, cleared: true }));
+    return;
+  }
+
+  const hint = _getCookie(r, "cms_auth_hint");
+  r.return(
+    200,
+    JSON.stringify({ hint: hint ? decodeURIComponent(hint) : null }),
   );
 }
 
@@ -920,6 +1004,7 @@ export default {
   handlePolarisV2,
   handleInitV2,
   handleInitV2Callback,
+  handleHint,
   handleInitV2Error,
   handleCmsModernToken,
 };

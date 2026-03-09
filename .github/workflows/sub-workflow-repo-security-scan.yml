@@ -25,6 +25,11 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
-      - run: pnpm audit --audit-level high
+      - run: pnpm audit --audit-level high --prod
 
       - uses: actions/dependency-review-action@v4
+        with:
+          # minimatch <10.2.1 ReDoS (GHSA-3ppc-4f35-3m26) — no patch exists for
+          # the 3.x line. All affected paths are dev/test-only dependencies
+          # (serve-handler, maximatch, jest/glob) with developer-controlled patterns.
+          allow-ghsas: GHSA-3ppc-4f35-3m26

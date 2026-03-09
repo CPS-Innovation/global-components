@@ -148,4 +148,28 @@ describe("replaceTagsInString", () => {
     );
     expect(result).toBe(`Start${longValue}End`);
   });
+
+  it("should replace null tag value with empty string", () => {
+    const result = replaceTagsInString(
+      "/cases/{caseId}/{urn}",
+      { caseId: 123, urn: null }
+    );
+    expect(result).toBe("/cases/123/");
+  });
+
+  it("should handle all null tag values", () => {
+    const result = replaceTagsInString(
+      "{a}-{b}-{c}",
+      { a: null, b: null, c: null }
+    );
+    expect(result).toBe("--");
+  });
+
+  it("should handle mix of null and non-null tag values", () => {
+    const result = replaceTagsInString(
+      "{name} ({code})",
+      { name: "Test", code: null }
+    );
+    expect(result).toBe("Test ()");
+  });
 });
