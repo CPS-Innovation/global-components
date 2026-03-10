@@ -71,6 +71,10 @@ export const initialiseAiAnalytics = ({ window, config: { APP_INSIGHTS_CONNECTIO
       return false;
     }
 
+    if (baseType === "PageviewData" && envelope.baseData) {
+      delete envelope.baseData.refUri;
+    }
+
     if (baseType === "ExceptionData") {
       if (envelope.data && envelope.data.source === STORAGE_PREFIX) {
         // This is our exception, so clear the artificial source prop
@@ -98,13 +102,13 @@ export const initialiseAiAnalytics = ({ window, config: { APP_INSIGHTS_CONNECTIO
   };
 
   const trackPageView = ({ context: { found, contextIds }, correlationIds }: { context: FoundContext; correlationIds: CorrelationIds }) => {
-    const arg = { properties: capitalizeKeys({ environment: ENVIRONMENT, ...authValues, build: build, context: { found, contextIds }, correlationIds }) };
+    const arg = { properties: capitalizeKeys({ environment: ENVIRONMENT, auth: authValues, build: build, context: { found, contextIds }, correlationIds }) };
     _debug("trackPageView", arg);
     appInsights.trackPageView(arg);
   };
 
   const trackException = (exception: Error) => {
-    appInsights.trackException({ exception }, { source: STORAGE_PREFIX, properties: capitalizeKeys({ environment: ENVIRONMENT, ...authValues, build }) });
+    appInsights.trackException({ exception }, { source: STORAGE_PREFIX, properties: capitalizeKeys({ environment: ENVIRONMENT, auth: authValues, build }) });
   };
 
   window.addEventListener(AnalyticsEvent.type, (ev: AnalyticsEvent) => {
