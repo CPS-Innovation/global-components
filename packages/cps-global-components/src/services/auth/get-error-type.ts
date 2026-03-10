@@ -1,5 +1,5 @@
 import { BrowserAuthError, InteractionRequiredAuthError } from "@azure/msal-browser";
-import { KnowErrorType } from "./AuthResult";
+import { KnownErrorType } from "./AuthResult";
 
 const MSAL_ERROR_CODES = {
   ConditionalAccessRule: "AADSTS53003",
@@ -7,11 +7,11 @@ const MSAL_ERROR_CODES = {
   IframeTimeout: "monitor_window_timeout",
 };
 
-export const getErrorType = (error: Error): KnowErrorType =>
+export const getErrorType = (error: Error): KnownErrorType =>
   error instanceof InteractionRequiredAuthError && error.message.includes(MSAL_ERROR_CODES.MultipleIdentities)
     ? "MultipleIdentities"
     : error instanceof InteractionRequiredAuthError && error.message.includes(MSAL_ERROR_CODES.ConditionalAccessRule)
-    ? "ConditionalAccessRule"
-    : error instanceof BrowserAuthError && error.message.includes(MSAL_ERROR_CODES.IframeTimeout)
-    ? "SilentFlowProblem"
-    : "Unknown";
+      ? "ConditionalAccessRule"
+      : error instanceof BrowserAuthError && error.message.includes(MSAL_ERROR_CODES.IframeTimeout)
+        ? "SilentFlowProblem"
+        : "Unknown";

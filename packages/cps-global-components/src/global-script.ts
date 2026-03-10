@@ -59,7 +59,7 @@ const initialise = async (window: Window & typeof globalThis) => {
   }
 };
 
-const startupPhase = async ({ window, storeFns: { register, mergeTags, readyState } }: { window: Window & typeof globalThis; storeFns: ReturnType<typeof initialiseStore> }) => {
+const startupPhase = async ({ window, storeFns: { register, mergeTags } }: { window: Window & typeof globalThis; storeFns: ReturnType<typeof initialiseStore> }) => {
   const build = window.cps_global_components_build;
   register({ build });
 
@@ -86,7 +86,7 @@ const startupPhase = async ({ window, storeFns: { register, mergeTags, readyStat
   register({ firstContext });
 
   const { setNextRecentCases } = initialiseRecentCases({ rootUrl, config, register });
-  const { trackPageView, trackEvent, trackException, registerAuth } = initialiseAnalytics({ window, config, readyState, build, cmsSessionHint, flags });
+  const { trackPageView, trackEvent, trackException, registerAuth, registerCorrelationIds } = initialiseAnalytics({ window, config, build, flags });
 
   const { initialiseDomForContext } = initialiseDomObservation(
     { window, register, mergeTags, preview, settings },
@@ -103,6 +103,7 @@ const startupPhase = async ({ window, storeFns: { register, mergeTags, readyStat
     trackEvent,
     trackException,
     registerAuth,
+    registerCorrelationIds,
     firstContext,
     flags,
     handover,
@@ -138,6 +139,7 @@ const contextChangePhase = ({
   config,
   initialiseDomForContext,
   trackPageView,
+  registerCorrelationIds,
   storeFns: { register, resetContextSpecificTags },
   window,
   flags,
@@ -146,6 +148,7 @@ const contextChangePhase = ({
 
   const correlationIds = initialiseCorrelationIds();
   register({ correlationIds });
+  registerCorrelationIds(correlationIds);
 
   const context = initialiseContext({ window, config });
   register({ context });
