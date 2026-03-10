@@ -1,6 +1,5 @@
 import { Config } from "cps-global-configuration";
-import { Build, ReadyStateHelper } from "../../store/store";
-import { CmsSessionHint } from "cps-global-configuration";
+import { Build } from "../../store/store";
 import { ApplicationFlags } from "../application-flags/ApplicationFlags";
 
 // Mock the dependencies
@@ -15,18 +14,13 @@ jest.mock("./initialise-ai-analytics", () => ({
 }));
 
 import { initialiseAnalytics } from "./initialise-analytics";
-import { Result } from "../../utils/Result";
 
 describe("initialiseAnalytics", () => {
   const mockWindow = {} as Window;
 
   const mockConfig = {} as Config;
 
-  const mockReadyState = jest.fn() as unknown as ReadyStateHelper;
-
   const mockBuild = {} as Build;
-
-  const mockCmsSessionHint = {} as Result<CmsSessionHint>;
 
   const mockAnalyticsResult = {
     trackPageView: jest.fn(),
@@ -52,9 +46,7 @@ describe("initialiseAnalytics", () => {
       initialiseAnalytics({
         window: mockWindow,
         config: mockConfig,
-        readyState: mockReadyState,
         build: mockBuild,
-        cmsSessionHint: mockCmsSessionHint,
         flags: e2eFlags,
       });
 
@@ -73,9 +65,7 @@ describe("initialiseAnalytics", () => {
       const result = initialiseAnalytics({
         window: mockWindow,
         config: mockConfig,
-        readyState: mockReadyState,
         build: mockBuild,
-        cmsSessionHint: mockCmsSessionHint,
         flags: e2eFlags,
       });
 
@@ -95,9 +85,7 @@ describe("initialiseAnalytics", () => {
       initialiseAnalytics({
         window: mockWindow,
         config: mockConfig,
-        readyState: mockReadyState,
         build: mockBuild,
-        cmsSessionHint: mockCmsSessionHint,
         flags: normalFlags,
       });
 
@@ -109,18 +97,14 @@ describe("initialiseAnalytics", () => {
       initialiseAnalytics({
         window: mockWindow,
         config: mockConfig,
-        readyState: mockReadyState,
         build: mockBuild,
-        cmsSessionHint: mockCmsSessionHint,
         flags: normalFlags,
       });
 
       expect(mockInitialiseAiAnalytics).toHaveBeenCalledWith({
         window: mockWindow,
         config: mockConfig,
-        readyState: mockReadyState,
         build: mockBuild,
-        cmsSessionHint: mockCmsSessionHint,
       });
     });
 
@@ -135,9 +119,7 @@ describe("initialiseAnalytics", () => {
       const result = initialiseAnalytics({
         window: mockWindow,
         config: mockConfig,
-        readyState: mockReadyState,
         build: mockBuild,
-        cmsSessionHint: mockCmsSessionHint,
         flags: normalFlags,
       });
 
