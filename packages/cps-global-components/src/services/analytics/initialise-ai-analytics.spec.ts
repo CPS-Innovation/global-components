@@ -69,7 +69,7 @@ describe("initialiseAiAnalytics", () => {
       trackPageView({ context: makeContext(), correlationIds: makeCorrelationIds() });
 
       const properties = mockTrackPageView.mock.calls[0][0].properties;
-      expect(properties).toMatchObject({ IsAuthed: true, Username: "alice" });
+      expect(properties.Auth).toMatchObject({ IsAuthed: true, Username: "alice" });
     });
 
     it("should include auth values in trackPageView after registering an unauthenticated user", () => {
@@ -79,8 +79,8 @@ describe("initialiseAiAnalytics", () => {
       trackPageView({ context: makeContext(), correlationIds: makeCorrelationIds() });
 
       const properties = mockTrackPageView.mock.calls[0][0].properties;
-      expect(properties).toMatchObject({ IsAuthed: false });
-      expect(properties).not.toHaveProperty("Username");
+      expect(properties.Auth).toMatchObject({ IsAuthed: false, KnownErrorType: "Unknown" });
+      expect(properties.Auth).not.toHaveProperty("Username");
     });
 
     it("should not include auth values in trackPageView before registerAuth is called", () => {
@@ -89,8 +89,7 @@ describe("initialiseAiAnalytics", () => {
       trackPageView({ context: makeContext(), correlationIds: makeCorrelationIds() });
 
       const properties = mockTrackPageView.mock.calls[0][0].properties;
-      expect(properties).not.toHaveProperty("IsAuthed");
-      expect(properties).not.toHaveProperty("Username");
+      expect(properties.Auth).toBeUndefined();
     });
 
     it("should include auth values in trackException after registering", () => {
@@ -100,7 +99,7 @@ describe("initialiseAiAnalytics", () => {
       trackException(new Error("boom"));
 
       const properties = mockTrackException.mock.calls[0][1].properties;
-      expect(properties).toMatchObject({ IsAuthed: true, Username: "bob" });
+      expect(properties.Auth).toMatchObject({ IsAuthed: true, Username: "bob" });
     });
   });
 
