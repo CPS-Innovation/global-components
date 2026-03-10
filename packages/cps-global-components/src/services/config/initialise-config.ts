@@ -39,7 +39,9 @@ export const initialiseConfig = async ({
 }): Promise<Config> => {
   const configUrl = getArtifactUrl(rootUrl, "config.json");
 
-  const fetchConfig: ConfigFetch = async (configUrl: string) => await fetch(configUrl);
+  // "no-cache" is important. If a user does a hard-refresh and a new version has been released, the behaviour
+  //  of fetch means that it will still go with the stale json config. This can lead to config validation fails.
+  const fetchConfig: ConfigFetch = async (configUrl: string) => await fetch(configUrl, { cache: "no-cache" });
 
   let configSources = [
     isLocalDevelopment && !isE2eTestMode //

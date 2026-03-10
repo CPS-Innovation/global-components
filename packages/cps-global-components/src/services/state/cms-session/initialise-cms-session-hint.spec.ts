@@ -31,7 +31,7 @@ describe("initialiseCmsSessionHint", () => {
     it("should call fetch with correct URL and credentials", async () => {
       await initialiseCmsSessionHint({ rootUrl, flags: defaultFlags });
 
-      expect(mockFetch).toHaveBeenCalledWith(expectedUrl, { credentials: "include" });
+      expect(mockFetch).toHaveBeenCalledWith(expectedUrl, { credentials: "include", cache: "no-cache" });
     });
 
     it("should return found: true with the result", async () => {

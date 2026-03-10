@@ -60,7 +60,7 @@ describe("initialiseRecentCases", () => {
     it("should call fetch with correct URL and credentials", async () => {
       await initialiseRecentCases({ rootUrl, config, register: mockRegister });
 
-      expect(mockFetch).toHaveBeenCalledWith(expectedUrl, { credentials: "include" });
+      expect(mockFetch).toHaveBeenCalledWith(expectedUrl, { credentials: "include", cache: "no-cache" });
     });
 
     it("should register recentCases with found: true and the result", async () => {
