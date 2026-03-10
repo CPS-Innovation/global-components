@@ -30,10 +30,11 @@ const makeProps = (overrides?: Partial<{ window: Window; config: Config; build: 
   ...overrides,
 });
 
-const makeContext = (): FoundContext => ({
-  found: { type: "found" },
-  contextIds: { caseId: "123" },
-}) as unknown as FoundContext;
+const makeContext = (): FoundContext =>
+  ({
+    found: { type: "found" },
+    contextIds: { caseId: "123" },
+  }) as unknown as FoundContext;
 
 const makeCorrelationIds = (): CorrelationIds => ({
   scriptLoadCorrelationId: "script-123",
@@ -62,34 +63,41 @@ describe("initialiseAiAnalytics", () => {
   });
 
   describe("registerAuth", () => {
-    it("should include auth values in trackPageView after registering an authenticated user", () => {
+    it("should include auth values in trackPageView after registering an authenticated user", async () => {
       const { registerAuth, trackPageView } = initialiseAiAnalytics(makeProps());
 
       registerAuth({ isAuthed: true, username: "alice", name: "Alice", groups: [], objectId: "obj-1" });
-      trackPageView({ context: makeContext(), correlationIds: makeCorrelationIds() });
+      trackPageView({ context: makeContext() });
+      await Promise.resolve();
 
       const properties = mockTrackPageView.mock.calls[0][0].properties;
-      expect(properties.Auth).toMatchObject({ IsAuthed: true, Username: "alice" });
+      expect(properties.Auth).toMatchObject({ IsAuthed: true, Username: "alice", ObjectId: "obj-1" });
     });
 
-    it("should include auth values in trackPageView after registering an unauthenticated user", () => {
+    it("should include auth values in trackPageView after registering an unauthenticated user", async () => {
       const { registerAuth, trackPageView } = initialiseAiAnalytics(makeProps());
 
       registerAuth({ isAuthed: false, knownErrorType: "Unknown", reason: "test" } as AuthResult);
-      trackPageView({ context: makeContext(), correlationIds: makeCorrelationIds() });
+      trackPageView({ context: makeContext() });
+      await Promise.resolve();
 
       const properties = mockTrackPageView.mock.calls[0][0].properties;
       expect(properties.Auth).toMatchObject({ IsAuthed: false, KnownErrorType: "Unknown" });
       expect(properties.Auth).not.toHaveProperty("Username");
     });
 
-    it("should not include auth values in trackPageView before registerAuth is called", () => {
-      const { trackPageView } = initialiseAiAnalytics(makeProps());
+    it("should wait for registerAuth before sending trackPageView", async () => {
+      const { registerAuth, trackPageView } = initialiseAiAnalytics(makeProps());
 
-      trackPageView({ context: makeContext(), correlationIds: makeCorrelationIds() });
+      trackPageView({ context: makeContext() });
+      await Promise.resolve();
+      expect(mockTrackPageView).not.toHaveBeenCalled();
 
-      const properties = mockTrackPageView.mock.calls[0][0].properties;
-      expect(properties.Auth).toBeUndefined();
+      registerAuth({ isAuthed: true, username: "alice", name: "Alice", groups: [], objectId: "obj-1" });
+      await Promise.resolve();
+
+      expect(mockTrackPageView).toHaveBeenCalledTimes(1);
+      expect(mockTrackPageView.mock.calls[0][0].properties.Auth).toMatchObject({ IsAuthed: true, Username: "alice", ObjectId: "obj-1" });
     });
 
     it("should include auth values in trackException after registering", () => {
@@ -99,16 +107,15 @@ describe("initialiseAiAnalytics", () => {
       trackException(new Error("boom"));
 
       const properties = mockTrackException.mock.calls[0][1].properties;
-      expect(properties.Auth).toMatchObject({ IsAuthed: true, Username: "bob" });
+      expect(properties.Auth).toMatchObject({ IsAuthed: true, Username: "bob", ObjectId: "obj-2" });
     });
   });
 
   describe("registerCorrelationIds", () => {
     it("should include correlation ids in analytics events after registering", () => {
       const { registerCorrelationIds } = initialiseAiAnalytics(makeProps());
-      const ids = makeCorrelationIds();
 
-      registerCorrelationIds(ids);
+      registerCorrelationIds(makeCorrelationIds());
 
       const event = new AnalyticsEvent({ name: "loaded", componentName: "test-component" });
       window.dispatchEvent(event);
@@ -116,8 +123,7 @@ describe("initialiseAiAnalytics", () => {
       const properties = mockTrackEvent.mock.calls[0][0].properties;
       expect(properties).toMatchObject({
         componentName: "test-component",
-        scriptLoadCorrelationId: "script-123",
-        navigationCorrelationId: "nav-456",
+        correlationIds: { scriptLoadCorrelationId: "script-123", navigationCorrelationId: "nav-456" },
       });
     });
 
@@ -128,15 +134,32 @@ describe("initialiseAiAnalytics", () => {
       window.dispatchEvent(event);
 
       const properties = mockTrackEvent.mock.calls[0][0].properties;
-      expect(properties).not.toHaveProperty("scriptLoadCorrelationId");
+      expect(properties.correlationIds).toEqual({});
+    });
+
+    it("should include correlation ids in trackPageView after registering", async () => {
+      const { registerAuth, registerCorrelationIds, trackPageView } = initialiseAiAnalytics(makeProps());
+
+      registerAuth({ isAuthed: true, username: "alice", name: "Alice", groups: [], objectId: "obj-1" });
+      registerCorrelationIds(makeCorrelationIds());
+      trackPageView({ context: makeContext() });
+      await Promise.resolve();
+
+      const properties = mockTrackPageView.mock.calls[0][0].properties;
+      expect(properties.CorrelationIds).toMatchObject({
+        ScriptLoadCorrelationId: "script-123",
+        NavigationCorrelationId: "nav-456",
+      });
     });
   });
 
   describe("trackPageView", () => {
-    it("should capitalize property keys", () => {
-      const { trackPageView } = initialiseAiAnalytics(makeProps());
+    it("should capitalize property keys", async () => {
+      const { registerAuth, trackPageView } = initialiseAiAnalytics(makeProps());
 
-      trackPageView({ context: makeContext(), correlationIds: makeCorrelationIds() });
+      registerAuth({ isAuthed: true, username: "alice", name: "Alice", groups: [], objectId: "obj-1" });
+      trackPageView({ context: makeContext() });
+      await Promise.resolve();
 
       const properties = mockTrackPageView.mock.calls[0][0].properties;
       expect(properties).toHaveProperty("Environment", "test");
@@ -156,6 +179,15 @@ describe("initialiseAiAnalytics", () => {
       expect(exceptionArg.exception.message).toBe("boom");
       expect(propsArg.properties).toHaveProperty("Environment", "test");
       expect(propsArg.properties).toHaveProperty("Build");
+    });
+
+    it("should not include auth when registerAuth has not been called", () => {
+      const { trackException } = initialiseAiAnalytics(makeProps());
+
+      trackException(new Error("boom"));
+
+      const properties = mockTrackException.mock.calls[0][1].properties;
+      expect(properties).not.toHaveProperty("Auth");
     });
   });
 });

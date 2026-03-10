@@ -160,6 +160,6 @@ const contextChangePhase = ({
   const { pathTags } = context;
   register({ pathTags });
 
-  trackPageView({ context, correlationIds });
+  trackPageView({ context });
   register({ initialisationStatus: "complete" });
 };

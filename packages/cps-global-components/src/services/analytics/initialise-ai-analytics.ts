@@ -12,7 +12,7 @@ const STORAGE_PREFIX = "cps_global_components";
 
 type Props = { window: Window; config: Config; build: Build };
 
-type AuthAnalyticsProps = undefined | { isAuthed: false; knownErrorType: KnownErrorType } | { isAuthed: true; username: string };
+type AuthAnalyticsProps = undefined | { isAuthed: false; knownErrorType: KnownErrorType } | { isAuthed: true; username: string; objectId: string };
 
 export type Analytics = ReturnType<typeof initialiseAiAnalytics>;
 
@@ -97,25 +97,34 @@ export const initialiseAiAnalytics = ({ window, config: { APP_INSIGHTS_CONNECTIO
   };
 
   let authValues: AuthAnalyticsProps = undefined;
+  let resolveAuthReady: () => void;
+  const authReady = new Promise<void>(resolve => {
+    resolveAuthReady = resolve;
+  });
+
   const registerAuth = (auth: AuthResult) => {
-    authValues = auth.isAuthed ? { isAuthed: true, username: auth.username } : { isAuthed: false, knownErrorType: auth.knownErrorType };
+    authValues = auth.isAuthed ? { isAuthed: true, username: auth.username, objectId: auth.objectId } : { isAuthed: false, knownErrorType: auth.knownErrorType };
+    resolveAuthReady();
   };
 
-  const trackPageView = ({ context: { found, contextIds }, correlationIds }: { context: FoundContext; correlationIds: CorrelationIds }) => {
-    const arg = { properties: capitalizeKeys({ environment: ENVIRONMENT, auth: authValues, build: build, context: { found, contextIds }, correlationIds }) };
-    _debug("trackPageView", arg);
-    appInsights.trackPageView(arg);
+  const trackPageView = ({ context: { found, contextIds } }: { context: FoundContext }) => {
+    (async () => {
+      await authReady;
+      const arg = { properties: capitalizeKeys({ environment: ENVIRONMENT, auth: authValues, build: build, context: { found, contextIds }, correlationIds: correlationIdValues }) };
+      _debug("trackPageView", arg);
+      appInsights.trackPageView(arg);
+    })();
   };
 
   const trackException = (exception: Error) => {
-    appInsights.trackException({ exception }, { source: STORAGE_PREFIX, properties: capitalizeKeys({ environment: ENVIRONMENT, auth: authValues, build }) });
+    appInsights.trackException({ exception }, { source: STORAGE_PREFIX, properties: capitalizeKeys({ environment: ENVIRONMENT, ...(authValues && { auth: authValues }), build }) });
   };
 
   window.addEventListener(AnalyticsEvent.type, (ev: AnalyticsEvent) => {
     _debug("trackEvent", ev);
     const { name, ...rest } = ev.detail;
 
-    appInsights.trackEvent({ name: ev.type, properties: { ...rest, ...correlationIdValues } });
+    appInsights.trackEvent({ name: ev.type, properties: { ...rest, correlationIds: correlationIdValues } });
   });
 
   return { trackPageView, trackException, trackEvent, registerAuth, registerCorrelationIds };
