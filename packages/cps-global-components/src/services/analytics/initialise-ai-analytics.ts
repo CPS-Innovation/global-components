@@ -6,7 +6,7 @@ import { AnalyticsEvent, AnalyticsEventData, trackEvent } from "./analytics-even
 import { makeConsole } from "../../logging/makeConsole";
 import { Build } from "../../store/store";
 import { AuthResult, KnownErrorType } from "../auth/AuthResult";
-import { capitalizeKeys } from "../../utils/capitalise-keys";
+import { capitalizeKeys } from "../../utils/capitalize-keys";
 
 const STORAGE_PREFIX = "cps_global_components";
 
