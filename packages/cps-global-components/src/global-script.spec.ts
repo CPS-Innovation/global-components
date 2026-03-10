@@ -216,12 +216,13 @@ const setupDefaultMocks = () => {
   const mockTrackPageView = jest.fn();
   const mockTrackEvent = jest.fn();
   const mockTrackException = jest.fn();
+  const mockRegisterCorrelationIds = jest.fn();
   mockInitialiseAnalytics.mockReturnValue({
     trackPageView: mockTrackPageView,
     trackEvent: mockTrackEvent,
     trackException: mockTrackException,
     registerAuth: jest.fn(),
-    registerCorrelationIds: jest.fn(),
+    registerCorrelationIds: mockRegisterCorrelationIds,
   });
 
   mockInitialiseRootUrl.mockReturnValue("https://example.com/env/components/script.js");
@@ -238,6 +239,7 @@ const setupDefaultMocks = () => {
     mockTrackPageView,
     mockTrackEvent,
     mockTrackException,
+    mockRegisterCorrelationIds,
     mockInitialiseDomForContext,
   };
 };
@@ -277,10 +279,7 @@ describe("global-script", () => {
       // The trackPageView should have been called with matching correlation IDs
       expect(defaultMocks.mockTrackPageView).toHaveBeenCalledWith(
         expect.objectContaining({
-          correlationIds: {
-            scriptLoadCorrelationId: "uuid-1",
-            navigationCorrelationId: "uuid-1",
-          },
+          context: expect.any(Object),
         }),
       );
     });
@@ -477,10 +476,6 @@ describe("global-script", () => {
           contextDefinition: { name: "test-context" },
           pathTags: { testTag: "testValue" },
         },
-        correlationIds: {
-          scriptLoadCorrelationId: "uuid-1",
-          navigationCorrelationId: "uuid-1",
-        },
       });
     });
 
@@ -629,12 +624,9 @@ describe("global-script", () => {
       await new Promise(resolve => setTimeout(resolve, 10));
 
       // First call should have matching IDs
-      expect(defaultMocks.mockTrackPageView).toHaveBeenNthCalledWith(1, {
-        context: expect.any(Object),
-        correlationIds: {
-          scriptLoadCorrelationId: "uuid-1",
-          navigationCorrelationId: "uuid-1",
-        },
+      expect(defaultMocks.mockRegisterCorrelationIds).toHaveBeenNthCalledWith(1, {
+        scriptLoadCorrelationId: "uuid-1",
+        navigationCorrelationId: "uuid-1",
       });
 
       // Trigger SPA navigation
@@ -643,12 +635,9 @@ describe("global-script", () => {
       await new Promise(resolve => setTimeout(resolve, 10));
 
       // Second call should have same scriptLoadCorrelationId but different navigationCorrelationId
-      expect(defaultMocks.mockTrackPageView).toHaveBeenNthCalledWith(2, {
-        context: expect.any(Object),
-        correlationIds: {
-          scriptLoadCorrelationId: "uuid-1",
-          navigationCorrelationId: "uuid-2",
-        },
+      expect(defaultMocks.mockRegisterCorrelationIds).toHaveBeenNthCalledWith(2, {
+        scriptLoadCorrelationId: "uuid-1",
+        navigationCorrelationId: "uuid-2",
       });
     });
 
@@ -876,12 +865,9 @@ describe("global-script", () => {
       expect(mockInitialiseCorrelationIds).toHaveBeenCalledTimes(4);
 
       // Last call should have original scriptLoadCorrelationId with new navigationCorrelationId
-      expect(defaultMocks.mockTrackPageView).toHaveBeenLastCalledWith({
-        context: expect.any(Object),
-        correlationIds: {
-          scriptLoadCorrelationId: "uuid-1",
-          navigationCorrelationId: "uuid-4",
-        },
+      expect(defaultMocks.mockRegisterCorrelationIds).toHaveBeenLastCalledWith({
+        scriptLoadCorrelationId: "uuid-1",
+        navigationCorrelationId: "uuid-4",
       });
     });
   });
@@ -1312,7 +1298,7 @@ describe("global-script", () => {
       );
     });
 
-    it("should pass context and correlationIds to trackPageView", async () => {
+    it("should pass context to trackPageView", async () => {
       const testContext = {
         found: true,
         contextDefinition: { name: "pageview-context" },
@@ -1326,10 +1312,6 @@ describe("global-script", () => {
 
       expect(defaultMocks.mockTrackPageView).toHaveBeenCalledWith({
         context: testContext,
-        correlationIds: {
-          scriptLoadCorrelationId: "uuid-1",
-          navigationCorrelationId: "uuid-1",
-        },
       });
     });
 
@@ -1563,7 +1545,6 @@ describe("global-script", () => {
       // First trackPageView uses context from initialise (second call to initialiseContext)
       expect(defaultMocks.mockTrackPageView).toHaveBeenNthCalledWith(1, {
         context: initialContext,
-        correlationIds: expect.any(Object),
       });
 
       // Navigate
@@ -1573,7 +1554,6 @@ describe("global-script", () => {
       // Second trackPageView uses updated context
       expect(defaultMocks.mockTrackPageView).toHaveBeenNthCalledWith(2, {
         context: updatedContext,
-        correlationIds: expect.any(Object),
       });
     });
 
