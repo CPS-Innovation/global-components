@@ -29,7 +29,7 @@ describe("initialisePreview", () => {
     it("should call fetch with correct URL and credentials", async () => {
       await initialisePreview({ rootUrl });
 
-      expect(mockFetch).toHaveBeenCalledWith(expectedUrl, { credentials: "include" });
+      expect(mockFetch).toHaveBeenCalledWith(expectedUrl, { credentials: "include", cache: "no-cache" });
     });
 
     it("should return found: true with the parsed result", async () => {

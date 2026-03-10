@@ -159,6 +159,7 @@ describe("initialiseCaseDetailsData", () => {
       expect(mockCaseDetailsSubscriptionFactory).toHaveBeenCalledWith({
         setNextHandover,
         setNextRecentCases,
+        showMonitoringCodes: false,
         fetch: expect.any(Function),
       });
     });

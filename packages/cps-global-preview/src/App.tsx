@@ -3,8 +3,10 @@ import type { Preview } from "cps-global-configuration";
 import { diffLines } from "diff";
 
 const STATE_ENDPOINT = "/global-components/state/preview";
-const CONFIG_ENDPOINT = "/global-components/test/config.json";
-const CONFIG_OVERRIDE_ENDPOINT = "/global-components/test/config.override.json";
+const ENV_MATCH = window.location.pathname.match(/\/global-components\/([^/]+)\//);
+const ENV = ENV_MATCH?.[1] ?? "test";
+const CONFIG_ENDPOINT = `/global-components/${ENV}/config.json`;
+const CONFIG_OVERRIDE_ENDPOINT = `/global-components/${ENV}/config.override.json`;
 
 type ConfigResult =
   | { loaded: true; content: string }
