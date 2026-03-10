@@ -30,7 +30,7 @@ describe("fetchState", () => {
       it("should call fetch with correct URL and credentials", async () => {
         await fetchState({ rootUrl, url, schema: TestSchema });
 
-        expect(mockFetch).toHaveBeenCalledWith(expectedUrl, { credentials: "include" });
+        expect(mockFetch).toHaveBeenCalledWith(expectedUrl, { credentials: "include", cache: "no-cache" });
       });
 
       it("should return found: true with the parsed result", async () => {

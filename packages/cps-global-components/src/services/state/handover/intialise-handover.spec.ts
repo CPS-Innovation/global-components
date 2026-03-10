@@ -36,7 +36,7 @@ describe("initialiseHandover", () => {
     it("should call fetch with correct URL and credentials", async () => {
       await initialiseHandover({ rootUrl });
 
-      expect(mockFetch).toHaveBeenCalledWith(expectedUrl, { credentials: "include" });
+      expect(mockFetch).toHaveBeenCalledWith(expectedUrl, { credentials: "include", cache: "no-cache" });
     });
 
     it("should return handover with found: true and the result", async () => {
