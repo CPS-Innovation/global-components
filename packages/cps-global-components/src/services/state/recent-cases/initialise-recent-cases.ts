@@ -6,7 +6,7 @@ import { StatePutResponseSchema } from "../StatePutResponse";
 import { RecentCase, RecentCasesSchema } from "./recent-cases";
 import { Register } from "../../../store/store";
 
-export const initialiseRecentCases = async ({ rootUrl, register, config }: { rootUrl: string; register: Register; config: Config }) => {
+export const initialiseRecentCases = ({ rootUrl, register, config }: { rootUrl: string; register: Register; config: Config }) => {
   const { RECENT_CASES_LIST_LENGTH } = config;
 
   if (!RECENT_CASES_LIST_LENGTH) {

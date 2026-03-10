@@ -220,6 +220,8 @@ const setupDefaultMocks = () => {
     trackPageView: mockTrackPageView,
     trackEvent: mockTrackEvent,
     trackException: mockTrackException,
+    registerAuth: jest.fn(),
+    registerCorrelationIds: jest.fn(),
   });
 
   mockInitialiseRootUrl.mockReturnValue("https://example.com/env/components/script.js");
@@ -228,7 +230,7 @@ const setupDefaultMocks = () => {
 
   mockInitialiseSettings.mockResolvedValue({ fontSize: "default" });
 
-  mockInitialiseRecentCases.mockResolvedValue({
+  mockInitialiseRecentCases.mockReturnValue({
     setNextRecentCases: jest.fn(),
   });
 
@@ -921,6 +923,8 @@ describe("global-script", () => {
         }),
         trackEvent: jest.fn(),
         trackException: mockTrackException,
+        registerAuth: jest.fn(),
+        registerCorrelationIds: jest.fn(),
       });
 
       const globalScript = require("./global-script").default;
@@ -1057,7 +1061,7 @@ describe("global-script", () => {
 
     it("should register recentCases to store", async () => {
       const testRecentCases = { found: true, result: [{ caseId: 123, urn: "12AB3456789" }] };
-      mockInitialiseRecentCases.mockImplementation(async ({ register }) => {
+      mockInitialiseRecentCases.mockImplementation(({ register }) => {
         register({ recentCases: testRecentCases });
         return { setNextRecentCases: jest.fn() };
       });
@@ -1274,7 +1278,7 @@ describe("global-script", () => {
       });
     });
 
-    it("should pass all required dependencies to initialiseAnalytics (auth is obtained via readyState)", async () => {
+    it("should pass all required dependencies to initialiseAnalytics", async () => {
       const testFlags = {
         e2eTestMode: { isE2eTestMode: false },
         isLocalDevelopment: false,
@@ -1283,26 +1287,21 @@ describe("global-script", () => {
       };
       const testConfig = { CONTEXTS: [], GATEWAY_URL: null, APP_INSIGHTS_KEY: "test-key" };
       const testBuild = { version: "2.0.0", buildDate: "2024-06-15" };
-      const testCmsSessionHint = { hint: "analytics-hint", sessionId: "sess-123" };
 
       (mockWindow as any).cps_global_components_build = testBuild;
       mockGetApplicationFlags.mockReturnValue(testFlags);
       mockInitialiseConfig.mockResolvedValue(testConfig);
-      mockInitialiseCmsSessionHint.mockResolvedValue(testCmsSessionHint);
 
       const globalScript = require("./global-script").default;
       globalScript();
       await new Promise(resolve => setTimeout(resolve, 10));
 
-      // Analytics is now called without auth - it uses readyState to get auth when needed
       expect(mockInitialiseAnalytics).toHaveBeenCalledWith(
         expect.objectContaining({
           window: mockWindow,
           config: testConfig,
           build: testBuild,
-          cmsSessionHint: testCmsSessionHint,
           flags: testFlags,
-          readyState: expect.any(Function),
         }),
       );
       // Verify auth is NOT passed directly
@@ -1350,7 +1349,7 @@ describe("global-script", () => {
         handover: testHandover,
         setNextHandover: mockSetNextHandover,
       });
-      mockInitialiseRecentCases.mockResolvedValue({
+      mockInitialiseRecentCases.mockReturnValue({
         setNextRecentCases: mockSetNextRecentCases,
       });
       mockInitialiseContext.mockReturnValue(testContext);
@@ -1416,7 +1415,7 @@ describe("global-script", () => {
         return { fontSize: "default" };
       });
 
-      mockInitialiseRecentCases.mockImplementation(async () => {
+      mockInitialiseRecentCases.mockImplementation(() => {
         callOrder.push("recentCases");
         return { setNextRecentCases: jest.fn() };
       });
@@ -1433,7 +1432,7 @@ describe("global-script", () => {
 
       mockInitialiseAnalytics.mockImplementation(() => {
         callOrder.push("analytics");
-        return { trackPageView: jest.fn(), trackEvent: jest.fn(), trackException: jest.fn() };
+        return { trackPageView: jest.fn(), trackEvent: jest.fn(), trackException: jest.fn(), registerAuth: jest.fn(), registerCorrelationIds: jest.fn() };
       });
 
       const globalScript = require("./global-script").default;
@@ -1501,7 +1500,7 @@ describe("global-script", () => {
       mockInitialiseAnalytics.mockImplementation(() => {
         // Analytics should be called BEFORE auth is resolved (auth is non-blocking)
         expect(authResolved).toBe(false);
-        return { trackPageView: jest.fn(), trackEvent: jest.fn(), trackException: jest.fn() };
+        return { trackPageView: jest.fn(), trackEvent: jest.fn(), trackException: jest.fn(), registerAuth: jest.fn(), registerCorrelationIds: jest.fn() };
       });
 
       const globalScript = require("./global-script").default;

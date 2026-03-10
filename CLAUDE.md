@@ -46,4 +46,28 @@ Functional is good - functions that "pipe" to other functions etc etc are easy t
 We use `pnpm` and not `npm`.
 
 Code and unit test files must build and be free of IDE build-preventing errors before you report back that a given
-change is complete.
+change is complete. After making changes, **actually run** the relevant build/test command and verify it passes
+before reporting done. Do not assume changes compile — confirm it.
+
+## Workflow
+
+When I share a plan, question, or context — discuss and confirm before implementing unless I explicitly say
+"go ahead" or "implement this". Default to suggesting, not doing.
+
+When I say "sanity check" — I've already made changes myself. Review what I've done for correctness, edge cases,
+and consistency with the codebase. Don't rewrite — just flag issues.
+
+## Proxy Layer (nginx / njs)
+
+- Proxy config lives in `infra/proxy/config/`
+- njs modules are TypeScript, compiled to JS for nginx
+- Prefer `process.env["VAR"]` in njs over `js_var` nginx directives
+- Integration tests: `pnpm -w test:proxy` (runs via Docker — can hang; don't retry indefinitely)
+- When debugging proxy issues, ask for diagnostic output (HTTP responses, logs) rather than guessing
+
+## Stencil Components
+
+- Components use shadow DOM — be aware of styling and slot constraints
+- State management via `@stencil/store`
+- Config is validated with Zod schemas
+- GDS (GOV.UK Design System) CSS classes are used for styling (e.g. `govuk-body`, `govuk-notification-banner`)
