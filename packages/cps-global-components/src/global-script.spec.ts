@@ -125,6 +125,11 @@ jest.mock("./services/state/recent-cases/initialise-recent-cases", () => ({
   initialiseRecentCases: mockInitialiseRecentCases,
 }));
 
+const mockInitialiseAuthHint = jest.fn();
+jest.mock("./services/state/auth-hint/initialise-auth-hint", () => ({
+  initialiseAuthHint: mockInitialiseAuthHint,
+}));
+
 const mockInitialiseNavigateCms = jest.fn();
 jest.mock("./services/navigate-cms/initialise-navigate-cms", () => ({
   initialiseNavigateCms: mockInitialiseNavigateCms,
@@ -233,6 +238,11 @@ const setupDefaultMocks = () => {
 
   mockInitialiseRecentCases.mockReturnValue({
     setNextRecentCases: jest.fn(),
+  });
+
+  mockInitialiseAuthHint.mockResolvedValue({
+    authHint: { found: false, error: new Error("no hint") },
+    setAuthHint: jest.fn(),
   });
 
   return {
@@ -1262,6 +1272,8 @@ describe("global-script", () => {
         context: testContext,
         flags: testFlags,
         onError: expect.any(Function),
+        authHint: { found: false, error: expect.any(Error) },
+        setAuthHint: expect.any(Function),
       });
     });
 

@@ -24,7 +24,7 @@
       "870b7ef9-5937-4eb6-9ea0-98158f522ed7"
     ]
   },
-  "FEATURE_FLAG_ENABLE_INTRUSIVE_AD_LOGIN": false,
+  "FEATURE_FLAG_ENABLE_INTRUSIVE_AD_LOGIN": true,
   "CONTEXTS": [
     {
       "headerCustomCssClasses": "header",
