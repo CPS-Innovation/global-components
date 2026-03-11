@@ -10,7 +10,8 @@ type Props = {
   config: Config;
   context: FoundContext;
   flags: ApplicationFlags;
+  onError?: (error: Error) => void;
 };
 
-export const initialiseAuth = async ({ config, context, flags }: Props): Promise<{ auth: AuthResult; getToken: GetToken }> =>
-  flags.e2eTestMode.isE2eTestMode ? initialiseMockAuth({ flags }) : initialiseAdAuth({ config, context });
+export const initialiseAuth = async ({ config, context, flags, onError }: Props): Promise<{ auth: AuthResult; getToken: GetToken }> =>
+  flags.e2eTestMode.isE2eTestMode ? initialiseMockAuth({ flags }) : initialiseAdAuth({ config, context, onError });
