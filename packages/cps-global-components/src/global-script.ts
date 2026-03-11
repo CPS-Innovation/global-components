@@ -119,6 +119,7 @@ const authPhase = ({
   firstContext,
   flags,
   trackEvent,
+  trackException,
   registerAuth,
   setNextHandover,
   setNextRecentCases,
@@ -127,7 +128,7 @@ const authPhase = ({
   // Positioning auth after many of the other setup stuff helps us not block the UI
   // (initialiseAuth can take a long time, especially if there is a problem)
   (async () => {
-    const { auth, getToken } = await initialiseAuth({ config, context: firstContext, flags });
+    const { auth, getToken } = await initialiseAuth({ config, context: firstContext, flags, onError: trackException });
     register({ auth });
     registerAuth(auth);
     initialiseOutSystemsShowAlert({ context: firstContext, config, auth, preview });

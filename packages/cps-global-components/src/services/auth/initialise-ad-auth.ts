@@ -12,6 +12,7 @@ import { GetToken } from "./GetToken";
 type Props = {
   config: Config;
   context: FoundContext;
+  onError?: (error: Error) => void;
 };
 
 const failedAuth = (knownErrorType: KnownErrorType, reason: string): { auth: FailedAuth; getToken: GetToken } => ({
@@ -28,7 +29,9 @@ const { _error } = makeConsole("initialiseAuth");
 const initialiseAdAuthInternal = async ({
   config: { AD_TENANT_AUTHORITY: authority, AD_CLIENT_ID: clientId, FEATURE_FLAG_ENABLE_INTRUSIVE_AD_LOGIN },
   context: { msalRedirectUrl: redirectUri, currentHref },
+  onError,
 }: Props): Promise<{ auth: AuthResult; getToken: GetToken }> => {
+
   if (!(authority && clientId && redirectUri)) {
     return failedAuth("ConfigurationIncomplete", `Found configuration is: ${JSON.stringify({ authority, clientId, redirectUri })}`);
   }
@@ -61,6 +64,7 @@ const initialiseAdAuthInternal = async ({
   } catch (error) {
     const errorType = getErrorType(error);
     _error({ errorType, authority, clientId, redirectUri, error });
+    onError?.(error instanceof Error ? error : new Error(`${error}`));
     return failedAuth(errorType, `${error}`);
   }
 };

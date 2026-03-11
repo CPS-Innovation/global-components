@@ -1261,6 +1261,7 @@ describe("global-script", () => {
         config: testConfig,
         context: testContext,
         flags: testFlags,
+        onError: expect.any(Function),
       });
     });
 
