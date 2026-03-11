@@ -74,251 +74,91 @@ describe("FEATURE_FLAGS", () => {
   });
 
   describe("shouldShowMenu", () => {
-    it("should return true when context is not found but user meets feature flag criteria", () => {
-      const state: Pick<State, "config" | "auth" | "context" | "cmsSessionHint" | "flags"> = {
-        config: { SHOW_MENU: true, FEATURE_FLAG_MENU_USERS: { adGroupIds: ["admin-group"] } } as any,
-        auth: { isAuthed: true, groups: ["admin-group"], username: "testuser", objectId: "test-object-id" } as any,
-        context: { found: false },
-        cmsSessionHint: { found: true, result: { isProxySession: true, cmsDomains: [], handoverEndpoint: "" } },
-        flags: { isLocalDevelopment: false, isOutSystems: false, e2eTestMode: { isE2eTestMode: false }, environment: "test" },
-      };
-
-      const result = FEATURE_FLAGS.shouldShowMenu(state);
-      expect(result).toBe(true);
+    const makeState = (overrides: {
+      SHOW_MENU?: boolean;
+      FEATURE_FLAG_MENU_USERS?: any;
+      isAuthed?: boolean;
+      groups?: string[];
+      username?: string;
+      objectId?: string;
+      contextIds?: string;
+      contextFound?: boolean;
+      environment?: string;
+      cmsSessionHint?: any;
+    }) => ({
+      config: { SHOW_MENU: overrides.SHOW_MENU ?? true, FEATURE_FLAG_MENU_USERS: overrides.FEATURE_FLAG_MENU_USERS } as any,
+      auth: {
+        isAuthed: overrides.isAuthed ?? true,
+        groups: overrides.groups ?? [],
+        username: overrides.username ?? "testuser",
+        objectId: overrides.objectId ?? "test-object-id",
+      } as any,
+      context: { found: overrides.contextFound ?? true, contextIds: overrides.contextIds } as any,
+      flags: { isLocalDevelopment: false, isOutSystems: false, e2eTestMode: { isE2eTestMode: false as const }, environment: overrides.environment ?? "test" },
+      cmsSessionHint: overrides.cmsSessionHint ?? { found: false, error: new Error("not found") },
     });
 
-    it("should return false when showMenuOverride is 'never-show-menu'", () => {
-      const state: Pick<State, "config" | "auth" | "context" | "cmsSessionHint" | "flags"> = {
-        config: { SHOW_MENU: true, FEATURE_FLAG_MENU_USERS: { adGroupIds: ["admin-group"] } } as any,
-        auth: { isAuthed: true, groups: ["admin-group"], username: "testuser", objectId: "test-object-id" } as any,
-        context: { found: true, showMenuOverride: "never-show-menu" } as any,
-        cmsSessionHint: { found: false, error: {} as Error },
-        flags: { isLocalDevelopment: false, isOutSystems: false, e2eTestMode: { isE2eTestMode: false }, environment: "test" },
-      };
+    const cin5CmsSessionHint = { found: true, result: { isProxySession: true, cmsDomains: ["CIN5.example.com"], handoverEndpoint: "" } };
+    const nonCin5CmsSessionHint = { found: true, result: { isProxySession: true, cmsDomains: ["OTHER.example.com"], handoverEndpoint: "" } };
 
-      const result = FEATURE_FLAGS.shouldShowMenu(state);
-      expect(result).toBe(false);
+    it("should return 'hide-menu' when SHOW_MENU is false", () => {
+      const state = makeState({ SHOW_MENU: false, FEATURE_FLAG_MENU_USERS: { adGroupIds: ["admin-group"] }, groups: ["admin-group"] });
+      expect(FEATURE_FLAGS.shouldShowMenu(state)).toBe("hide-menu");
     });
 
-    it("should return true when showMenuOverride is 'always-show-menu'", () => {
-      const state: Pick<State, "config" | "auth" | "context" | "cmsSessionHint" | "flags"> = {
-        config: { SHOW_MENU: false, FEATURE_FLAG_MENU_USERS: { adGroupIds: [] } } as any,
-        auth: { isAuthed: false, groups: [], username: "testuser", objectId: "test-object-id" } as any,
-        context: { found: true, showMenuOverride: "always-show-menu" } as any,
-        cmsSessionHint: { found: true, result: { isProxySession: true, cmsDomains: [], handoverEndpoint: "" } },
-        flags: { isLocalDevelopment: false, isOutSystems: false, e2eTestMode: { isE2eTestMode: false }, environment: "test" },
-      };
-
-      const result = FEATURE_FLAGS.shouldShowMenu(state);
-      expect(result).toBe(true);
+    it("should return 'show-menu' when context is not a materials page", () => {
+      const state = makeState({ contextIds: "case details", FEATURE_FLAG_MENU_USERS: { adGroupIds: ["admin-group"] } });
+      expect(FEATURE_FLAGS.shouldShowMenu(state)).toBe("show-menu");
     });
 
-    it("should return true when all standard conditions are met", () => {
-      const state: Pick<State, "config" | "auth" | "context" | "cmsSessionHint" | "flags"> = {
-        config: { SHOW_MENU: true, FEATURE_FLAG_MENU_USERS: { adGroupIds: ["admin-group"] } } as any,
-        auth: { isAuthed: true, groups: ["admin-group", "other-group"], username: "testuser", objectId: "test-object-id" } as any,
-        context: { found: true } as any,
-        cmsSessionHint: { found: true, result: { isProxySession: true, cmsDomains: [], handoverEndpoint: "" } },
-        flags: { isLocalDevelopment: false, isOutSystems: false, e2eTestMode: { isE2eTestMode: false }, environment: "test" },
-      };
-
-      const result = FEATURE_FLAGS.shouldShowMenu(state);
-      expect(result).toBe(true);
+    it("should return 'show-menu' when context is not found (no contextIds)", () => {
+      const state = makeState({ contextFound: false, FEATURE_FLAG_MENU_USERS: { adGroupIds: ["admin-group"] } });
+      expect(FEATURE_FLAGS.shouldShowMenu(state)).toBe("show-menu");
     });
 
-    it("should return false when SHOW_MENU is false", () => {
-      const state: Pick<State, "config" | "auth" | "context" | "cmsSessionHint" | "flags"> = {
-        config: { SHOW_MENU: false, FEATURE_FLAG_MENU_USERS: { adGroupIds: ["admin-group"] } } as any,
-        auth: { isAuthed: true, groups: ["admin-group"], username: "testuser", objectId: "test-object-id" } as any,
-        context: { found: true } as any,
-        cmsSessionHint: { found: false, error: {} as Error },
-        flags: { isLocalDevelopment: false, isOutSystems: false, e2eTestMode: { isE2eTestMode: false }, environment: "test" },
-      };
-
-      const result = FEATURE_FLAGS.shouldShowMenu(state);
-      expect(result).toBe(false);
+    it("should return 'show-menu' on materials page with cin5 domain regardless of AD group", () => {
+      const state = makeState({ contextIds: "case materials", FEATURE_FLAG_MENU_USERS: { adGroupIds: ["admin-group"] }, groups: [], cmsSessionHint: cin5CmsSessionHint });
+      expect(FEATURE_FLAGS.shouldShowMenu(state)).toBe("show-menu");
     });
 
-    it("should return false when FEATURE_FLAG_MENU_USERS is not set", () => {
-      const state: Pick<State, "config" | "auth" | "context" | "cmsSessionHint" | "flags"> = {
-        config: { SHOW_MENU: true } as any,
-        auth: { isAuthed: true, groups: ["admin-group"], username: "testuser", objectId: "test-object-id" } as any,
-        context: { found: true } as any,
-        cmsSessionHint: { found: false, error: {} as Error },
-        flags: { isLocalDevelopment: false, isOutSystems: false, e2eTestMode: { isE2eTestMode: false }, environment: "test" },
-      };
-
-      const result = FEATURE_FLAGS.shouldShowMenu(state);
-      expect(result).toBe(false);
+    it("should return 'show-menu' on materials page when user is in the required AD group", () => {
+      const state = makeState({ contextIds: "case materials", FEATURE_FLAG_MENU_USERS: { adGroupIds: ["admin-group"] }, groups: ["admin-group"] });
+      expect(FEATURE_FLAGS.shouldShowMenu(state)).toBe("show-menu");
     });
 
-    it("should return false when user is not authenticated", () => {
-      const state: Pick<State, "config" | "auth" | "context" | "cmsSessionHint" | "flags"> = {
-        config: { SHOW_MENU: true, FEATURE_FLAG_MENU_USERS: { adGroupIds: ["admin-group"] } } as any,
-        auth: { isAuthed: false, groups: ["admin-group"], username: "testuser", objectId: "test-object-id" } as any,
-        context: { found: true } as any,
-        cmsSessionHint: { found: false, error: {} as Error },
-        flags: { isLocalDevelopment: false, isOutSystems: false, e2eTestMode: { isE2eTestMode: false }, environment: "test" },
-      };
-
-      const result = FEATURE_FLAGS.shouldShowMenu(state);
-      expect(result).toBe(false);
+    it("should return 'show-menu' on materials page when user is in one of multiple groups including the required group", () => {
+      const state = makeState({ contextIds: "case materials", FEATURE_FLAG_MENU_USERS: { adGroupIds: ["admin-group"] }, groups: ["user-group", "admin-group", "editor-group"] });
+      expect(FEATURE_FLAGS.shouldShowMenu(state)).toBe("show-menu");
     });
 
-    it("should return false when user is not in the required group", () => {
-      const state: Pick<State, "config" | "auth" | "context" | "cmsSessionHint" | "flags"> = {
-        config: { SHOW_MENU: true, FEATURE_FLAG_MENU_USERS: { adGroupIds: ["admin-group"] } } as any,
-        auth: { isAuthed: true, groups: ["other-group", "another-group"], username: "testuser", objectId: "test-object-id" } as any,
-        context: { found: true } as any,
-        cmsSessionHint: { found: false, error: {} as Error },
-        flags: { isLocalDevelopment: false, isOutSystems: false, e2eTestMode: { isE2eTestMode: false }, environment: "test" },
-      };
-
-      const result = FEATURE_FLAGS.shouldShowMenu(state);
-      expect(result).toBe(false);
+    it("should return 'show-menu' on materials page when user is in adHocUsers list", () => {
+      const state = makeState({ contextIds: "case materials", FEATURE_FLAG_MENU_USERS: { adHocUserObjectIds: ["test-object-id"] }, objectId: "test-object-id" });
+      expect(FEATURE_FLAGS.shouldShowMenu(state)).toBe("show-menu");
     });
 
-    it("should return false when user has no groups", () => {
-      const state: Pick<State, "config" | "auth" | "context" | "cmsSessionHint" | "flags"> = {
-        config: { SHOW_MENU: true, FEATURE_FLAG_MENU_USERS: { adGroupIds: ["admin-group"] } } as any,
-        auth: { isAuthed: true, groups: [], username: "testuser", objectId: "test-object-id" } as any,
-        context: { found: true } as any,
-        cmsSessionHint: { found: false, error: {} as Error },
-        flags: { isLocalDevelopment: false, isOutSystems: false, e2eTestMode: { isE2eTestMode: false }, environment: "test" },
-      };
-
-      const result = FEATURE_FLAGS.shouldShowMenu(state);
-      expect(result).toBe(false);
+    it("should return 'show-hint' on materials page in test env when user is not in feature group and not cin5", () => {
+      const state = makeState({ contextIds: "case materials", FEATURE_FLAG_MENU_USERS: { adGroupIds: ["admin-group"] }, groups: ["other-group"], environment: "test", cmsSessionHint: nonCin5CmsSessionHint });
+      expect(FEATURE_FLAGS.shouldShowMenu(state)).toBe("show-hint");
     });
 
-    it("should return true when user is in one of multiple groups including the required group", () => {
-      const state: Pick<State, "config" | "auth" | "context" | "cmsSessionHint" | "flags"> = {
-        config: { SHOW_MENU: true, FEATURE_FLAG_MENU_USERS: { adGroupIds: ["admin-group"] } } as any,
-        auth: { isAuthed: true, groups: ["user-group", "admin-group", "editor-group"], username: "testuser", objectId: "test-object-id" } as any,
-        context: { found: true } as any,
-        cmsSessionHint: { found: true, result: { isProxySession: true, cmsDomains: [], handoverEndpoint: "" } },
-        flags: { isLocalDevelopment: false, isOutSystems: false, e2eTestMode: { isE2eTestMode: false }, environment: "test" },
-      };
-
-      const result = FEATURE_FLAGS.shouldShowMenu(state);
-      expect(result).toBe(true);
+    it("should return 'show-hint' on materials page in test env when cmsSessionHint is not found and user is not in feature group", () => {
+      const state = makeState({ contextIds: "case materials", FEATURE_FLAG_MENU_USERS: { adGroupIds: ["admin-group"] }, groups: ["other-group"], environment: "test" });
+      expect(FEATURE_FLAGS.shouldShowMenu(state)).toBe("show-hint");
     });
 
-    it("should prioritize 'never-show-menu' override over 'always-show-menu' when testing order", () => {
-      const state: Pick<State, "config" | "auth" | "context" | "cmsSessionHint" | "flags"> = {
-        config: { SHOW_MENU: true, FEATURE_FLAG_MENU_USERS: { adGroupIds: ["admin-group"] } } as any,
-        auth: { isAuthed: true, groups: ["admin-group"], username: "testuser", objectId: "test-object-id" } as any,
-        context: { found: true, showMenuOverride: "never-show-menu" } as any,
-        cmsSessionHint: { found: false, error: {} as Error },
-        flags: { isLocalDevelopment: false, isOutSystems: false, e2eTestMode: { isE2eTestMode: false }, environment: "test" },
-      };
-
-      const result = FEATURE_FLAGS.shouldShowMenu(state);
-      expect(result).toBe(false);
+    it("should return 'show-hint' on materials page in test env when user is not authenticated", () => {
+      const state = makeState({ contextIds: "case materials", FEATURE_FLAG_MENU_USERS: { adGroupIds: ["admin-group"] }, isAuthed: false, environment: "test" });
+      expect(FEATURE_FLAGS.shouldShowMenu(state)).toBe("show-hint");
     });
 
-    it("should return true with 'always-show-menu' override even when standard conditions are not met", () => {
-      const state: Pick<State, "config" | "auth" | "context" | "cmsSessionHint" | "flags"> = {
-        config: { SHOW_MENU: false, FEATURE_FLAG_MENU_USERS: { adGroupIds: [] } } as any,
-        auth: { isAuthed: false, groups: [], username: "testuser", objectId: "test-object-id" } as any,
-        context: { found: true, showMenuOverride: "always-show-menu" } as any,
-        cmsSessionHint: { found: true, result: { isProxySession: true, cmsDomains: [], handoverEndpoint: "" } },
-        flags: { isLocalDevelopment: false, isOutSystems: false, e2eTestMode: { isE2eTestMode: false }, environment: "test" },
-      };
-
-      const result = FEATURE_FLAGS.shouldShowMenu(state);
-      expect(result).toBe(true);
+    it("should return 'hide-menu' on materials page in prod env when user is not in feature group", () => {
+      const state = makeState({ contextIds: "case materials", FEATURE_FLAG_MENU_USERS: { adGroupIds: ["admin-group"] }, groups: ["other-group"], environment: "prod" });
+      expect(FEATURE_FLAGS.shouldShowMenu(state)).toBe("hide-menu");
     });
 
-    it("should return true when user is in adHocUsers list", () => {
-      const state: Pick<State, "config" | "auth" | "context" | "cmsSessionHint" | "flags"> = {
-        config: { SHOW_MENU: true, FEATURE_FLAG_MENU_USERS: { adHocUserObjectIds: ["test-object-id"] } } as any,
-        auth: { isAuthed: true, groups: [], username: "testuser", objectId: "test-object-id" } as any,
-        context: { found: true } as any,
-        cmsSessionHint: { found: true, result: { isProxySession: true, cmsDomains: [], handoverEndpoint: "" } },
-        flags: { isLocalDevelopment: false, isOutSystems: false, e2eTestMode: { isE2eTestMode: false }, environment: "test" },
-      };
-
-      const result = FEATURE_FLAGS.shouldShowMenu(state);
-      expect(result).toBe(true);
-    });
-
-    it("should return true when user is either in adHocUsers or in adGroupIds", () => {
-      const state: Pick<State, "config" | "auth" | "context" | "cmsSessionHint" | "flags"> = {
-        config: { SHOW_MENU: true, FEATURE_FLAG_MENU_USERS: { adGroupIds: ["admin-group"], adHocUserObjectIds: ["special-object-id"] } } as any,
-        auth: { isAuthed: true, groups: [], username: "specialuser", objectId: "special-object-id" } as any,
-        context: { found: true } as any,
-        cmsSessionHint: { found: true, result: { isProxySession: true, cmsDomains: [], handoverEndpoint: "" } },
-        flags: { isLocalDevelopment: false, isOutSystems: false, e2eTestMode: { isE2eTestMode: false }, environment: "test" },
-      };
-
-      const result = FEATURE_FLAGS.shouldShowMenu(state);
-      expect(result).toBe(true);
-    });
-
-    it("should return false when FEATURE_FLAG_MENU_USERS has empty arrays", () => {
-      const state: Pick<State, "config" | "auth" | "context" | "cmsSessionHint" | "flags"> = {
-        config: { SHOW_MENU: true, FEATURE_FLAG_MENU_USERS: { adGroupIds: [], adHocUserObjectIds: [] } } as any,
-        auth: { isAuthed: true, groups: ["admin-group"], username: "testuser", objectId: "test-object-id" } as any,
-        context: { found: true } as any,
-        cmsSessionHint: { found: false, error: {} as Error },
-        flags: { isLocalDevelopment: false, isOutSystems: false, e2eTestMode: { isE2eTestMode: false }, environment: "test" },
-      };
-
-      const result = FEATURE_FLAGS.shouldShowMenu(state);
-      expect(result).toBe(false);
-    });
-
-    it("should return false when cmsSessionHint is found, isProxySession is false, and environment is prod", () => {
-      const state: Pick<State, "config" | "auth" | "context" | "cmsSessionHint" | "flags"> = {
-        config: { SHOW_MENU: true, FEATURE_FLAG_MENU_USERS: { adGroupIds: ["admin-group"] } } as any,
-        auth: { isAuthed: true, groups: ["admin-group"], username: "testuser", objectId: "test-object-id" } as any,
-        context: { found: true } as any,
-        cmsSessionHint: { found: true, result: { isProxySession: false, cmsDomains: [], handoverEndpoint: "" } },
-        flags: { isLocalDevelopment: false, isOutSystems: false, e2eTestMode: { isE2eTestMode: false }, environment: "prod" },
-      };
-
-      const result = FEATURE_FLAGS.shouldShowMenu(state);
-      expect(result).toBe(false);
-    });
-
-    it("should continue to normal logic when cmsSessionHint is found, isProxySession is false, but environment is not prod", () => {
-      const state: Pick<State, "config" | "auth" | "context" | "cmsSessionHint" | "flags"> = {
-        config: { SHOW_MENU: true, FEATURE_FLAG_MENU_USERS: { adGroupIds: ["admin-group"] } } as any,
-        auth: { isAuthed: true, groups: ["admin-group"], username: "testuser", objectId: "test-object-id" } as any,
-        context: { found: true } as any,
-        cmsSessionHint: { found: true, result: { isProxySession: false, cmsDomains: [], handoverEndpoint: "" } },
-        flags: { isLocalDevelopment: false, isOutSystems: false, e2eTestMode: { isE2eTestMode: false }, environment: "test" },
-      };
-
-      const result = FEATURE_FLAGS.shouldShowMenu(state);
-      expect(result).toBe(true);
-    });
-
-    it("should continue to normal logic when cmsSessionHint is found and isProxySession is true", () => {
-      const state: Pick<State, "config" | "auth" | "context" | "cmsSessionHint" | "flags"> = {
-        config: { SHOW_MENU: true, FEATURE_FLAG_MENU_USERS: { adGroupIds: ["admin-group"] } } as any,
-        auth: { isAuthed: true, groups: ["admin-group"], username: "testuser", objectId: "test-object-id" } as any,
-        context: { found: true } as any,
-        cmsSessionHint: { found: true, result: { isProxySession: true, cmsDomains: [], handoverEndpoint: "" } },
-        flags: { isLocalDevelopment: false, isOutSystems: false, e2eTestMode: { isE2eTestMode: false }, environment: "prod" },
-      };
-
-      const result = FEATURE_FLAGS.shouldShowMenu(state);
-      expect(result).toBe(true);
-    });
-
-    it("should fail-open and continue to normal logic when cmsSessionHint is not found", () => {
-      const state: Pick<State, "config" | "auth" | "context" | "cmsSessionHint" | "flags"> = {
-        config: { SHOW_MENU: true, FEATURE_FLAG_MENU_USERS: { adGroupIds: ["admin-group"] } } as any,
-        auth: { isAuthed: true, groups: ["admin-group"], username: "testuser", objectId: "test-object-id" } as any,
-        context: { found: true } as any,
-        cmsSessionHint: { found: false, error: new Error("Failed to fetch hint") },
-        flags: { isLocalDevelopment: false, isOutSystems: false, e2eTestMode: { isE2eTestMode: false }, environment: "prod" },
-      };
-
-      const result = FEATURE_FLAGS.shouldShowMenu(state);
-      expect(result).toBe(true);
+    it("should return 'hide-menu' on materials page in prod env when user is not authenticated", () => {
+      const state = makeState({ contextIds: "case materials", FEATURE_FLAG_MENU_USERS: { adGroupIds: ["admin-group"] }, isAuthed: false, environment: "prod" });
+      expect(FEATURE_FLAGS.shouldShowMenu(state)).toBe("hide-menu");
     });
   });
 
@@ -368,6 +208,110 @@ describe("FEATURE_FLAGS", () => {
       expect(result).toEqual({
         showLink: true,
         url: "https://feedback.gov.uk",
+      });
+    });
+  });
+
+  describe("shouldShowHomePageNotification", () => {
+    const makeState = (overrides: {
+      FEATURE_FLAG_MENU_USERS?: any;
+      isAuthed?: boolean;
+      groups?: string[];
+      objectId?: string;
+      homePageNotification?: boolean;
+    }) => ({
+      config: { FEATURE_FLAG_MENU_USERS: overrides.FEATURE_FLAG_MENU_USERS } as any,
+      auth: {
+        isAuthed: overrides.isAuthed ?? true,
+        groups: overrides.groups ?? [],
+        username: "testuser",
+        objectId: overrides.objectId ?? "test-object-id",
+      } as any,
+      preview: { found: true, result: { homePageNotification: overrides.homePageNotification } } as any,
+    });
+
+    it("should return false when user is in the feature flag AD group", () => {
+      const state = makeState({ FEATURE_FLAG_MENU_USERS: { adGroupIds: ["admin-group"] }, groups: ["admin-group"] });
+      expect(FEATURE_FLAGS.shouldShowHomePageNotification(state)).toBe(false);
+    });
+
+    it("should return false when user is in adHocUsers list", () => {
+      const state = makeState({ FEATURE_FLAG_MENU_USERS: { adHocUserObjectIds: ["test-object-id"] }, objectId: "test-object-id" });
+      expect(FEATURE_FLAGS.shouldShowHomePageNotification(state)).toBe(false);
+    });
+
+    it("should return false when feature is generally available", () => {
+      const state = makeState({ FEATURE_FLAG_MENU_USERS: { generallyAvailable: true } });
+      expect(FEATURE_FLAGS.shouldShowHomePageNotification(state)).toBe(false);
+    });
+
+    it("should return true when user is not in the feature flag group", () => {
+      const state = makeState({ FEATURE_FLAG_MENU_USERS: { adGroupIds: ["admin-group"] }, groups: ["other-group"] });
+      expect(FEATURE_FLAGS.shouldShowHomePageNotification(state)).toBe(true);
+    });
+
+    it("should return true when user is not authenticated", () => {
+      const state = makeState({ FEATURE_FLAG_MENU_USERS: { adGroupIds: ["admin-group"] }, isAuthed: false });
+      expect(FEATURE_FLAGS.shouldShowHomePageNotification(state)).toBe(true);
+    });
+
+    it("should return true when FEATURE_FLAG_MENU_USERS is not configured", () => {
+      const state = makeState({});
+      expect(FEATURE_FLAGS.shouldShowHomePageNotification(state)).toBe(true);
+    });
+
+    it("should return true when preview homePageNotification is set, even if user is in the feature group", () => {
+      const state = makeState({ FEATURE_FLAG_MENU_USERS: { adGroupIds: ["admin-group"] }, groups: ["admin-group"], homePageNotification: true });
+      expect(FEATURE_FLAGS.shouldShowHomePageNotification(state)).toBe(true);
+    });
+  });
+
+  describe("reportIssueLink", () => {
+    it("should return showLink true and url when REPORT_ISSUE_LINK is set", () => {
+      const state: Pick<State, "config"> = {
+        config: { REPORT_ISSUE_LINK: "https://example.com/report" } as any,
+      };
+
+      const result = FEATURE_FLAGS.reportIssueLink(state);
+      expect(result).toEqual({
+        showLink: true,
+        url: "https://example.com/report",
+      });
+    });
+
+    it("should return showLink false and url undefined when REPORT_ISSUE_LINK is not set", () => {
+      const state: Pick<State, "config"> = {
+        config: {} as any,
+      };
+
+      const result = FEATURE_FLAGS.reportIssueLink(state);
+      expect(result).toEqual({
+        showLink: false,
+        url: undefined,
+      });
+    });
+
+    it("should return showLink false and url empty string when REPORT_ISSUE_LINK is empty string", () => {
+      const state: Pick<State, "config"> = {
+        config: { REPORT_ISSUE_LINK: "" } as any,
+      };
+
+      const result = FEATURE_FLAGS.reportIssueLink(state);
+      expect(result).toEqual({
+        showLink: false,
+        url: "",
+      });
+    });
+
+    it("should return showLink true and url when REPORT_ISSUE_LINK is a non-empty string", () => {
+      const state: Pick<State, "config"> = {
+        config: { REPORT_ISSUE_LINK: "https://servicenow.example.com/report" } as any,
+      };
+
+      const result = FEATURE_FLAGS.reportIssueLink(state);
+      expect(result).toEqual({
+        showLink: true,
+        url: "https://servicenow.example.com/report",
       });
     });
   });

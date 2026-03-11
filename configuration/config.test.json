@@ -8,13 +8,20 @@
   "GATEWAY_URL": "https://polaris-qa-notprod.cps.gov.uk/",
   "APP_INSIGHTS_CONNECTION_STRING": "InstrumentationKey=e572c03c-8d38-4771-b193-962f13da1b1a;IngestionEndpoint=https://polaris-qa-notprod.cps.gov.uk/global-components/analytics/;ApplicationId=3dafc37d-8c9c-4480-90fc-532ac2b8bba2",
   "SURVEY_LINK": "https://forms.office.com/e/8KM9A7aS0e",
+  "REPORT_ISSUE_LINK": "https://cpsprod1.service-now.com/sp?id=sc_cat_item&sys_id=716b2e011bd66410d5b3dce3b24bcbbf",
   "SHOW_MENU": true,
-  "OS_HANDOVER_URL": "https://cps-tst.outsystemsenterprise.com/Casework_Patterns/auth-handover-test.html",
-  "COOKIE_HANDOVER_URL": "https://polaris-qa-notprod.cps.gov.uk/polaris",
+  "SHOW_RECENT_CASES": true,
+  "SHOW_MONITORING_CODES": true,
+  "OS_HANDOVER_URL": "https://cps-tst.outsystemsenterprise.com/Casework_Patterns/auth-handover.html?src=https://polaris-qa-notprod.cps.gov.uk/global-components/test/auth-handover.js",
+  "COOKIE_HANDOVER_URL": "https://polaris-qa-notprod.cps.gov.uk/auth-refresh-outbound",
   "TOKEN_HANDOVER_URL": "https://polaris-qa-notprod.cps.gov.uk/auth-refresh-cms-modern-token",
   "RECENT_CASES_NAVIGATE_URL": "https://cps-tst.outsystemsenterprise.com/WorkManagementApp/CaseOverview?CaseId={caseId}",
+  "RECENT_CASES_LIST_LENGTH": 5,
   "FEATURE_FLAG_MENU_USERS": {
-    "generallyAvailable": true
+    "adGroupIds": [
+      "e9abbdb6-b6e9-4972-90fb-79d3140df840",
+      "1e5874e3-1c88-4506-8b9f-4f469acc1a42"
+    ]
   },
   "FEATURE_FLAG_ENABLE_INTRUSIVE_AD_LOGIN": false,
   "CONTEXTS": [
@@ -24,14 +31,14 @@
         "background-color": "transparent",
         "box-shadow": "none"
       },
-      "msalRedirectUrl": "https://cps-tst.outsystemsenterprise.com/Casework_Patterns/auth-handover-test.html",
-      "skipToMainContentCustomSelector": "main",
+      "msalRedirectUrl": "https://cps-tst.outsystemsenterprise.com/Casework_Patterns/auth-handover.html",
       "cmsAuthFromStorageKey": "$OS_Users$Casework_Blocks$ClientVars$JSONString",
       "contexts": [
         {
           "path": "https://cps-tst.outsystemsenterprise.com/casework_blocks/home",
           "contextIds": "home",
-          "applyShim": "force-recent-cases"
+          "applyShim": "force-recent-cases",
+          "showNotification": true
         },
         {
           "path": "https://cps-tst.outsystemsenterprise.com/casework_blocks",
@@ -83,7 +90,7 @@
         },
         {
           "path": "https://polaris",
-          "contextIds": "cases"
+          "contextIds": "cases materials-search"
         }
       ]
     },
@@ -143,20 +150,22 @@
       "dcfContextsToUseEventNavigation": {
         "contexts": "materials",
         "data": "details",
-        "paramsToAddToQuery": { "IsOpenMaterials": null }
+        "paramsToAddToQuery": { "IsOpenMaterials": null },
+        "waitingBehaviour": "disabled"
       }
     },
     {
       "label": "Materials",
       "level": 1,
-      "href": "https://polaris-qa-notprod.cps.gov.uk/polaris?q=%7B%22caseId%22%3A{caseId}%7D",
+      "href": "https://polaris-qa-notprod.cps.gov.uk/auth-refresh-outbound?q=%7B%22caseId%22%3A{caseId}%7D",
       "dcfHref": "https://cps-tst.outsystemsenterprise.com/WorkManagementApp/CaseOverview?CaseId={caseId}&IsOpenMaterials=true",
       "visibleContexts": "case",
       "activeContexts": "materials",
       "dcfContextsToUseEventNavigation": {
         "contexts": "details",
         "data": "materials",
-        "paramsToAddToQuery": { "IsOpenMaterials": "true" }
+        "paramsToAddToQuery": { "IsOpenMaterials": "true" },
+        "waitingBehaviour": "disabled"
       }
     },
     {

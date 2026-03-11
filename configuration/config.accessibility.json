@@ -3,7 +3,10 @@
   "BANNER_TITLE_HREF": "http://localhost:3335/accessibility/static",
   "APP_INSIGHTS_CONNECTION_STRING": "InstrumentationKey=e572c03c-8d38-4771-b193-962f13da1b1a;IngestionEndpoint=https://uksouth-1.in.applicationinsights.azure.com/",
   "SURVEY_LINK": "https://forms.office.com/e/8KM9A7aS0e",
+  "REPORT_ISSUE_LINK": "https://cpsprod1.service-now.com/sp?id=sc_cat_item&sys_id=716b2e011bd66410d5b3dce3b24bcbbf",
   "SHOW_MENU": true,
+  "SHOW_RECENT_CASES": true,
+  "SHOW_MONITORING_CODES": true,
   "OS_HANDOVER_URL": "",
   "COOKIE_HANDOVER_URL": "",
   "TOKEN_HANDOVER_URL": "",
@@ -94,7 +97,8 @@
       "activeContexts": "review",
       "dcfContextsToUseEventNavigation": {
         "contexts": "details",
-        "data": "materials"
+        "data": "materials",
+        "waitingBehaviour": "disabled"
       }
     }
   ]

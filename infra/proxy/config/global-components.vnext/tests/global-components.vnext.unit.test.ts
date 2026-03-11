@@ -21,13 +21,6 @@ if (!fs.existsSync(DIST_DIR)) {
   fs.mkdirSync(DIST_DIR, { recursive: true })
 }
 
-interface CookieOptions {
-  Path?: string
-  Expires?: Date
-  Secure?: boolean
-  SameSite?: "Strict" | "Lax" | "None"
-}
-
 interface MockRequest {
   method: string
   uri: string
@@ -54,11 +47,9 @@ interface MockRequestOptions {
 }
 
 interface GlocoVnextModule {
-  handleState(r: MockRequest): Promise<void>
   handleValidateToken(r: MockRequest): Promise<void>
   handleStatus(r: MockRequest): void
   filterSwaggerBody(r: MockRequest, data: string, flags: Record<string, unknown>): void
-  setCookie(r: MockRequest, name: string, value: string, options?: CookieOptions): void
 }
 
 // Bundle both modules
@@ -123,9 +114,11 @@ async function runTests(): Promise<void> {
 
   // Default mock environment variables
   const defaultVariables = {
-    global_components_application_id: "test-app-id",
     wm_mds_base_url: "http://mock-upstream:3000/api/",
   }
+
+  // Set env var that was previously passed via js_var
+  process.env["GLOBAL_COMPONENTS_APPLICATION_ID"] = "test-app-id"
 
   // Hardcoded tenant ID (must match the constant in global-components.vnext.ts)
   const TENANT_ID = "00dd0d1d-d7e6-6338-ac51-565339c7088c"
@@ -171,151 +164,6 @@ async function runTests(): Promise<void> {
   console.log("=".repeat(60))
   console.log("global-components.vnext.js Unit Tests")
   console.log("=".repeat(60))
-
-  // --- handleState tests ---
-  console.log("\nhandleState:")
-
-  await test("GET on whitelisted key (preview) returns null without auth", async () => {
-    const r = createMockRequest({
-      method: "GET",
-      uri: "/global-components/state/preview",
-    })
-    await glocovnext.handleState(r)
-    assertEqual(r.returnCode, 200, "Should return 200")
-    assertEqual(r.returnBody, "null", "Should return null")
-    assertEqual(r.headersOut["Content-Type"], "application/json", "Should set Content-Type")
-  })
-
-  await test("GET on whitelisted key returns cookie value without auth", async () => {
-    const stateValue = JSON.stringify({ foo: "bar" })
-    const wrappedState = Buffer.from(stateValue)
-      .toString("base64")
-      .replace(/\+/g, "-")
-      .replace(/\//g, "_")
-      .replace(/=+$/, "")
-    const r = createMockRequest({
-      method: "GET",
-      uri: "/global-components/state/preview",
-      headersIn: {
-        Cookie: `cps-global-components-state=${wrappedState}`,
-      },
-    })
-    await glocovnext.handleState(r)
-    assertEqual(r.returnCode, 200, "Should return 200")
-    assertEqual(r.returnBody, stateValue, "Should return unwrapped cookie value")
-  })
-
-  // Note: VALIDATE_TOKEN_AGAINST_AD is currently false, so these tests reflect
-  // the behavior when token validation is disabled. When enabled, non-whitelisted
-  // keys would return 401 without valid auth.
-
-  await test("GET on non-whitelisted key returns 200 when validation disabled", async () => {
-    const r = createMockRequest({
-      method: "GET",
-      uri: "/global-components/state/other-key",
-    })
-    await glocovnext.handleState(r)
-    assertEqual(r.returnCode, 200, "Should return 200 (validation disabled)")
-  })
-
-  await test("PUT succeeds without Authorization header when validation disabled", async () => {
-    const stateValue = JSON.stringify({ count: 42 })
-    const r = createMockRequest({
-      method: "PUT",
-      uri: "/global-components/state/my-key",
-      requestText: stateValue,
-    })
-    await glocovnext.handleState(r)
-    assertEqual(r.returnCode, 200, "Should return 200 (validation disabled)")
-    const body = JSON.parse(r.returnBody!)
-    assertEqual(body.success, true, "Should have success true")
-  })
-
-  await test("PUT sets cookie with body content", async () => {
-    const stateValue = JSON.stringify({ count: 42 })
-    const r = createMockRequest({
-      method: "PUT",
-      uri: "/global-components/state/my-key",
-      requestText: stateValue,
-    })
-    await glocovnext.handleState(r)
-    assertEqual(r.returnCode, 200, "Should return 200")
-    const body = JSON.parse(r.returnBody!)
-    assertEqual(body.success, true, "Should have success true")
-    assertEqual(body.path, "/global-components/state/my-key", "Should include path")
-    const setCookie = r.headersOut["Set-Cookie"] as string
-    assert(setCookie.includes("cps-global-components-state="), "Should set cookie")
-    assert(setCookie.includes("Path=/global-components/state/my-key"), "Should set path")
-    assert(setCookie.includes("Secure"), "Should have Secure flag")
-    assert(setCookie.includes("SameSite=None"), "Should have SameSite=None")
-  })
-
-  await test("PUT with null body clears cookie", async () => {
-    const r = createMockRequest({
-      method: "PUT",
-      uri: "/global-components/state/my-key",
-      requestText: "null",
-    })
-    await glocovnext.handleState(r)
-    assertEqual(r.returnCode, 200, "Should return 200")
-    const body = JSON.parse(r.returnBody!)
-    assertEqual(body.success, true, "Should have success true")
-    assertEqual(body.cleared, true, "Should have cleared true")
-    const setCookie = r.headersOut["Set-Cookie"] as string
-    assert(setCookie.includes("cps-global-components-state=;"), "Should set empty cookie value")
-    assert(setCookie.includes("Expires=Thu, 01 Jan 1970"), "Should set cookie to expire in the past")
-  })
-
-  await test("PUT with empty body clears cookie", async () => {
-    const r = createMockRequest({
-      method: "PUT",
-      uri: "/global-components/state/my-key",
-      requestText: "",
-    })
-    await glocovnext.handleState(r)
-    assertEqual(r.returnCode, 200, "Should return 200")
-    const body = JSON.parse(r.returnBody!)
-    assertEqual(body.success, true, "Should have success true")
-    assertEqual(body.cleared, true, "Should have cleared true")
-    const setCookie = r.headersOut["Set-Cookie"] as string
-    assert(setCookie.includes("Expires=Thu, 01 Jan 1970"), "Should set cookie to expire in the past")
-  })
-
-  await test("PUT with whitespace-only body clears cookie", async () => {
-    const r = createMockRequest({
-      method: "PUT",
-      uri: "/global-components/state/my-key",
-      requestText: "   \n  ",
-    })
-    await glocovnext.handleState(r)
-    assertEqual(r.returnCode, 200, "Should return 200")
-    const body = JSON.parse(r.returnBody!)
-    assertEqual(body.cleared, true, "Should have cleared true for whitespace body")
-  })
-
-  await test("PUT with valid JSON does not set cleared flag", async () => {
-    const r = createMockRequest({
-      method: "PUT",
-      uri: "/global-components/state/my-key",
-      requestText: JSON.stringify({ enabled: true }),
-    })
-    await glocovnext.handleState(r)
-    assertEqual(r.returnCode, 200, "Should return 200")
-    const body = JSON.parse(r.returnBody!)
-    assertEqual(body.success, true, "Should have success true")
-    assertEqual(body.cleared, undefined, "Should not have cleared flag for valid data")
-  })
-
-  await test("returns 405 for unsupported methods", async () => {
-    const r = createMockRequest({
-      method: "DELETE",
-      uri: "/global-components/state/my-key",
-    })
-    await glocovnext.handleState(r)
-    assertEqual(r.returnCode, 405, "Should return 405")
-    const body = JSON.parse(r.returnBody!)
-    assertEqual(body.error, "Method not allowed", "Should have error message")
-  })
 
   // --- handleValidateToken tests ---
   // Note: VALIDATE_TOKEN_AGAINST_AD is currently false, so all requests return 200
@@ -379,106 +227,6 @@ async function runTests(): Promise<void> {
     const body = JSON.parse(r.returnBody!)
     assertEqual(body.status, "online", "Should have status online")
     assertEqual(body.version, 0, "Should return version 0 when file missing")
-  })
-
-  // --- setCookie tests ---
-  console.log("\nsetCookie:")
-
-  await test("sets basic cookie with name and value", async () => {
-    const r = createMockRequest({})
-    glocovnext.setCookie(r, "session", "abc123")
-    assertEqual(r.headersOut["Set-Cookie"], "session=abc123", "Should set basic name=value cookie")
-  })
-
-  await test("sets cookie with Path option", async () => {
-    const r = createMockRequest({})
-    glocovnext.setCookie(r, "session", "abc123", { Path: "/api" })
-    assertEqual(r.headersOut["Set-Cookie"], "session=abc123; Path=/api", "Should include Path attribute")
-  })
-
-  await test("sets cookie with Expires option as UTC string", async () => {
-    const r = createMockRequest({})
-    const expires = new Date("2025-12-31T23:59:59.000Z")
-    glocovnext.setCookie(r, "session", "abc123", { Expires: expires })
-    assertEqual(
-      r.headersOut["Set-Cookie"],
-      "session=abc123; Expires=Wed, 31 Dec 2025 23:59:59 GMT",
-      "Should include Expires in RFC 7231 format"
-    )
-  })
-
-  await test("sets cookie with Secure flag", async () => {
-    const r = createMockRequest({})
-    glocovnext.setCookie(r, "session", "abc123", { Secure: true })
-    assertEqual(r.headersOut["Set-Cookie"], "session=abc123; Secure", "Should include Secure flag")
-  })
-
-  await test("does not include Secure flag when false", async () => {
-    const r = createMockRequest({})
-    glocovnext.setCookie(r, "session", "abc123", { Secure: false })
-    assertEqual(r.headersOut["Set-Cookie"], "session=abc123", "Should not include Secure flag when false")
-  })
-
-  await test("sets cookie with SameSite=Strict", async () => {
-    const r = createMockRequest({})
-    glocovnext.setCookie(r, "session", "abc123", { SameSite: "Strict" })
-    assertEqual(
-      r.headersOut["Set-Cookie"],
-      "session=abc123; SameSite=Strict",
-      "Should include SameSite=Strict"
-    )
-  })
-
-  await test("sets cookie with SameSite=Lax", async () => {
-    const r = createMockRequest({})
-    glocovnext.setCookie(r, "session", "abc123", { SameSite: "Lax" })
-    assertEqual(r.headersOut["Set-Cookie"], "session=abc123; SameSite=Lax", "Should include SameSite=Lax")
-  })
-
-  await test("sets cookie with SameSite=None", async () => {
-    const r = createMockRequest({})
-    glocovnext.setCookie(r, "session", "abc123", { SameSite: "None" })
-    assertEqual(r.headersOut["Set-Cookie"], "session=abc123; SameSite=None", "Should include SameSite=None")
-  })
-
-  await test("sets cookie with all options in correct order", async () => {
-    const r = createMockRequest({})
-    const expires = new Date("2025-06-15T12:00:00.000Z")
-    glocovnext.setCookie(r, "auth", "token123", {
-      Path: "/secure",
-      Expires: expires,
-      Secure: true,
-      SameSite: "None",
-    })
-    assertEqual(
-      r.headersOut["Set-Cookie"],
-      "auth=token123; Path=/secure; Expires=Sun, 15 Jun 2025 12:00:00 GMT; Secure; SameSite=None",
-      "Should include all attributes in order"
-    )
-  })
-
-  await test("handles empty options object", async () => {
-    const r = createMockRequest({})
-    glocovnext.setCookie(r, "test", "value", {})
-    assertEqual(r.headersOut["Set-Cookie"], "test=value", "Should set basic cookie with empty options")
-  })
-
-  await test("handles undefined options", async () => {
-    const r = createMockRequest({})
-    glocovnext.setCookie(r, "test", "value", undefined)
-    assertEqual(r.headersOut["Set-Cookie"], "test=value", "Should set basic cookie with undefined options")
-  })
-
-  await test("allows multiple cookies to be set", async () => {
-    const r = createMockRequest({})
-    glocovnext.setCookie(r, "session", "abc123", { Path: "/" })
-    glocovnext.setCookie(r, "theme", "dark", { Path: "/" })
-    glocovnext.setCookie(r, "lang", "en", { Path: "/" })
-    const cookies = r.headersOut["Set-Cookie"] as string[]
-    assertEqual(cookies.length, 3, "Should have 3 cookies")
-    assertEqual(cookies[0], "session=abc123; Path=/", "First cookie should be session")
-    assertEqual(cookies[1], "theme=dark; Path=/", "Second cookie should be theme")
-    assertEqual(cookies[2], "lang=en; Path=/", "Third cookie should be lang")
   })
 
   // --- filterSwaggerBody tests ---

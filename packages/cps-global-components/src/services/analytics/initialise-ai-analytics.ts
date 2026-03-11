@@ -4,21 +4,29 @@ import { FoundContext } from "../context/FoundContext";
 import { CorrelationIds } from "../correlation/CorrelationIds";
 import { AnalyticsEvent, AnalyticsEventData, trackEvent } from "./analytics-event";
 import { makeConsole } from "../../logging/makeConsole";
-import { Build, ReadyStateHelper } from "../../store/store";
-import { CmsSessionHint } from "../state/cms-session/CmsSessionHint";
-import { Result } from "../../utils/Result";
+import { Build } from "../../store/store";
+import { AuthResult, KnownErrorType } from "../auth/AuthResult";
+import { capitalizeKeys } from "../../utils/capitalize-keys";
 
 const STORAGE_PREFIX = "cps_global_components";
 
-type Props = { window: Window; config: Config; readyState: ReadyStateHelper; build: Build; cmsSessionHint: Result<CmsSessionHint> };
+type Props = { window: Window; config: Config; build: Build };
+
+type AuthAnalyticsProps = undefined | { isAuthed: false; knownErrorType: KnownErrorType } | { isAuthed: true; username: string; objectId: string };
 
 export type Analytics = ReturnType<typeof initialiseAiAnalytics>;
 
 const { _debug } = makeConsole("initialiseAnalytics");
 
-export const initialiseAiAnalytics = ({ window, config: { APP_INSIGHTS_CONNECTION_STRING, ENVIRONMENT }, readyState, build, cmsSessionHint: { result: hint } }: Props) => {
+export const initialiseAiAnalytics = ({ window, config: { APP_INSIGHTS_CONNECTION_STRING, ENVIRONMENT }, build }: Props) => {
   if (!APP_INSIGHTS_CONNECTION_STRING) {
-    return { trackPageView: () => {}, trackException: (_: Error) => {}, rebindTrackEvent: () => {}, trackEvent: (_: AnalyticsEventData) => {} };
+    return {
+      trackPageView: () => {},
+      trackException: (_: Error) => {},
+      trackEvent: (_: AnalyticsEventData) => {},
+      registerAuth: (_: AuthResult) => {},
+      registerCorrelationIds: (_: CorrelationIds) => {},
+    };
   }
 
   const appInsights = new ApplicationInsights({
@@ -63,6 +71,10 @@ export const initialiseAiAnalytics = ({ window, config: { APP_INSIGHTS_CONNECTIO
       return false;
     }
 
+    if (baseType === "PageviewData" && envelope.baseData) {
+      delete envelope.baseData.refUri;
+    }
+
     if (baseType === "ExceptionData") {
       if (envelope.data && envelope.data.source === STORAGE_PREFIX) {
         // This is our exception, so clear the artificial source prop
@@ -79,36 +91,41 @@ export const initialiseAiAnalytics = ({ window, config: { APP_INSIGHTS_CONNECTIO
 
   appInsights.loadAppInsights();
 
-  let authValues = {} as Record<string, string | boolean>;
-  const {
-    isReady,
-    state: { auth },
-  } = readyState("auth");
-  if (isReady) {
-    authValues = { IsAuthed: auth.isAuthed };
-    if (auth.isAuthed) {
-      authValues = { Username: auth.username, ...authValues };
-    }
-  }
+  let correlationIdValues = {} as CorrelationIds | {};
+  const registerCorrelationIds = (ids: CorrelationIds) => {
+    correlationIdValues = ids;
+  };
 
-  const trackPageView = ({ context: { found, contextIds }, correlationIds }: { context: FoundContext; correlationIds: CorrelationIds }) => {
-    const arg = { properties: { Environment: ENVIRONMENT, ...authValues, ...build, context: { found, contextIds }, correlationIds, hint } };
-    _debug("trackPageView", arg);
-    appInsights.trackPageView(arg);
+  let authValues: AuthAnalyticsProps = undefined;
+  let resolveAuthReady: () => void;
+  const authReady = new Promise<void>(resolve => {
+    resolveAuthReady = resolve;
+  });
+
+  const registerAuth = (auth: AuthResult) => {
+    authValues = auth.isAuthed ? { isAuthed: true, username: auth.username, objectId: auth.objectId } : { isAuthed: false, knownErrorType: auth.knownErrorType };
+    resolveAuthReady();
+  };
+
+  const trackPageView = ({ context: { found, contextIds } }: { context: FoundContext }) => {
+    (async () => {
+      await authReady;
+      const arg = { properties: capitalizeKeys({ environment: ENVIRONMENT, auth: authValues, build: build, context: { found, contextIds }, correlationIds: correlationIdValues }) };
+      _debug("trackPageView", arg);
+      appInsights.trackPageView(arg);
+    })();
   };
 
   const trackException = (exception: Error) => {
-    appInsights.trackException({ exception }, { source: STORAGE_PREFIX, properties: { Environment: ENVIRONMENT, ...authValues, ...build } });
+    appInsights.trackException({ exception }, { source: STORAGE_PREFIX, properties: capitalizeKeys({ environment: ENVIRONMENT, ...(authValues && { auth: authValues }), build }) });
   };
 
   window.addEventListener(AnalyticsEvent.type, (ev: AnalyticsEvent) => {
     _debug("trackEvent", ev);
     const { name, ...rest } = ev.detail;
-    const state = readyState("correlationIds");
-    const correlationIds = state.isReady ? state.state.correlationIds : {};
 
-    appInsights.trackEvent({ name: ev.type, properties: { ...rest, ...correlationIds } });
+    appInsights.trackEvent({ name: ev.type, properties: { ...rest, correlationIds: correlationIdValues } });
   });
 
-  return { trackPageView, trackException, trackEvent };
+  return { trackPageView, trackException, trackEvent, registerAuth, registerCorrelationIds };
 };

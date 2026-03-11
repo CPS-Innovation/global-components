@@ -1,4 +1,4 @@
-export type KnowErrorType =
+export type KnownErrorType =
   | "ConfigurationIncomplete"
   | "RedirectLocationIsApp"
   | "NoAccountFound"
@@ -17,7 +17,7 @@ export type Auth = {
 
 export type FailedAuth = {
   isAuthed: false;
-  knownErrorType: KnowErrorType;
+  knownErrorType: KnownErrorType;
   reason: string;
 };
 

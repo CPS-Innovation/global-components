@@ -8,11 +8,15 @@
   "GATEWAY_URL": "https://polaris-qa-notprod.cps.gov.uk/",
   "APP_INSIGHTS_CONNECTION_STRING": "InstrumentationKey=e572c03c-8d38-4771-b193-962f13da1b1a;IngestionEndpoint=https://polaris-qa-notprod.cps.gov.uk/global-components/analytics/;ApplicationId=3dafc37d-8c9c-4480-90fc-532ac2b8bba2",
   "SURVEY_LINK": "https://forms.office.com/e/8KM9A7aS0e",
+  "REPORT_ISSUE_LINK": "https://cpsprod1.service-now.com/sp?id=sc_cat_item&sys_id=716b2e011bd66410d5b3dce3b24bcbbf",
   "SHOW_MENU": true,
-  "OS_HANDOVER_URL": "https://cps-dev.outsystemsenterprise.com/Casework_Patterns/auth-handover-dev.html",
+  "SHOW_RECENT_CASES": true,
+  "SHOW_MONITORING_CODES": true,
+  "OS_HANDOVER_URL": "https://cps-dev.outsystemsenterprise.com/Casework_Patterns/auth-handover.html?src=https://polaris-qa-notprod.cps.gov.uk/global-components/dev/auth-handover.js",
   "COOKIE_HANDOVER_URL": "https://polaris-qa-notprod.cps.gov.uk/polaris",
   "TOKEN_HANDOVER_URL": "https://polaris-qa-notprod.cps.gov.uk/auth-refresh-cms-modern-token",
   "RECENT_CASES_NAVIGATE_URL": "https://cps-dev.outsystemsenterprise.com/WorkManagementApp/CaseOverview?CaseId={caseId}",
+  "RECENT_CASES_LIST_LENGTH": 5,
   "FEATURE_FLAG_MENU_USERS": {
     "generallyAvailable": true
   },
@@ -24,8 +28,7 @@
         "background-color": "transparent",
         "box-shadow": "none"
       },
-      "msalRedirectUrl": "https://cps-dev.outsystemsenterprise.com/Casework_Patterns/auth-handover-dev.html",
-      "skipToMainContentCustomSelector": "main",
+      "msalRedirectUrl": "https://cps-dev.outsystemsenterprise.com/Casework_Patterns/auth-handover.html",
       "cmsAuthFromStorageKey": "$OS_Users$Casework_Blocks$ClientVars$JSONString",
       "contexts": [
         {
@@ -141,7 +144,8 @@
       "dcfContextsToUseEventNavigation": {
         "contexts": "materials",
         "data": "details",
-        "paramsToAddToQuery": { "IsOpenMaterials": null }
+        "paramsToAddToQuery": { "IsOpenMaterials": null },
+        "waitingBehaviour": "disabled"
       }
     },
     {
@@ -154,7 +158,8 @@
       "dcfContextsToUseEventNavigation": {
         "contexts": "details",
         "data": "materials",
-        "paramsToAddToQuery": { "IsOpenMaterials": "true" }
+        "paramsToAddToQuery": { "IsOpenMaterials": "true" },
+        "waitingBehaviour": "disabled"
       }
     },
     {

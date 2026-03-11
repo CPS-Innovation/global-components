@@ -42,6 +42,7 @@ interface NginxModule {
   appAuthRedirect(r: MockRequest): void
   polarisAuthRedirect(r: MockRequest): void
   taskListAuthRedirect(r: MockRequest): void
+  handleAuthRefreshOutbound(r: MockRequest): void
 }
 
 // Bundle the module
@@ -520,6 +521,110 @@ async function runTests(): Promise<void> {
       `Should preserve absolute URL, got: ${r.returnBody}`
     )
   })
+
+  // --- handleAuthRefreshOutbound tests ---
+  console.log("\nhandleAuthRefreshOutbound:")
+
+  const savedEnv = process.env["DEFAULT_UPSTREAM_CMS_DOMAIN_NAME"]
+
+  await test("redirects to handoverEndpoint from cookie", async () => {
+    process.env["DEFAULT_UPSTREAM_CMS_DOMAIN_NAME"] = "default-cms.cps.gov.uk"
+    const hint = JSON.stringify({ handoverEndpoint: "https://custom-cms.cps.gov.uk/polaris" })
+    const r = createMockRequest({
+      headersIn: { Cookie: `Cms-Session-Hint=${encodeURIComponent(hint)}` },
+    })
+    nginx.handleAuthRefreshOutbound(r)
+    assertEqual(r.returnCode, 302, "Should return 302")
+    assertEqual(r.returnBody, "https://custom-cms.cps.gov.uk/polaris", "Should redirect to handoverEndpoint")
+  })
+
+  await test("appends query string to handoverEndpoint redirect", async () => {
+    process.env["DEFAULT_UPSTREAM_CMS_DOMAIN_NAME"] = "default-cms.cps.gov.uk"
+    const hint = JSON.stringify({ handoverEndpoint: "https://custom-cms.cps.gov.uk/polaris" })
+    const r = createMockRequest({
+      headersIn: { Cookie: `Cms-Session-Hint=${encodeURIComponent(hint)}` },
+      variables: { args: "foo=bar&baz=1" },
+    })
+    nginx.handleAuthRefreshOutbound(r)
+    assertEqual(r.returnCode, 302, "Should return 302")
+    assertEqual(r.returnBody, "https://custom-cms.cps.gov.uk/polaris?foo=bar&baz=1", "Should append query string")
+  })
+
+  await test("falls back to default domain when cookie has no handoverEndpoint", async () => {
+    process.env["DEFAULT_UPSTREAM_CMS_DOMAIN_NAME"] = "default-cms.cps.gov.uk"
+    const hint = JSON.stringify({ otherField: "value" })
+    const r = createMockRequest({
+      headersIn: { Cookie: `Cms-Session-Hint=${encodeURIComponent(hint)}` },
+    })
+    nginx.handleAuthRefreshOutbound(r)
+    assertEqual(r.returnCode, 302, "Should return 302")
+    assertEqual(r.returnBody, "https://default-cms.cps.gov.uk/polaris", "Should redirect to default domain")
+  })
+
+  await test("falls back to default domain when no cookie present", async () => {
+    process.env["DEFAULT_UPSTREAM_CMS_DOMAIN_NAME"] = "default-cms.cps.gov.uk"
+    const r = createMockRequest({})
+    nginx.handleAuthRefreshOutbound(r)
+    assertEqual(r.returnCode, 302, "Should return 302")
+    assertEqual(r.returnBody, "https://default-cms.cps.gov.uk/polaris", "Should redirect to default domain")
+  })
+
+  await test("falls back to default on malformed cookie JSON", async () => {
+    process.env["DEFAULT_UPSTREAM_CMS_DOMAIN_NAME"] = "default-cms.cps.gov.uk"
+    const r = createMockRequest({
+      headersIn: { Cookie: "Cms-Session-Hint=not-valid-json{{{" },
+    })
+    nginx.handleAuthRefreshOutbound(r)
+    assertEqual(r.returnCode, 302, "Should return 302")
+    assertEqual(r.returnBody, "https://default-cms.cps.gov.uk/polaris", "Should fall back to default on bad JSON")
+  })
+
+  await test("returns 502 when no cookie and no env var", async () => {
+    delete process.env["DEFAULT_UPSTREAM_CMS_DOMAIN_NAME"]
+    const r = createMockRequest({})
+    nginx.handleAuthRefreshOutbound(r)
+    assertEqual(r.returnCode, 502, "Should return 502")
+    assert(
+      r.returnBody!.includes("no handoverEndpoint"),
+      `Should include error message, got: ${r.returnBody}`
+    )
+  })
+
+  await test("handles handoverEndpoint: null in cookie", async () => {
+    process.env["DEFAULT_UPSTREAM_CMS_DOMAIN_NAME"] = "default-cms.cps.gov.uk"
+    const hint = JSON.stringify({ handoverEndpoint: null })
+    const r = createMockRequest({
+      headersIn: { Cookie: `Cms-Session-Hint=${encodeURIComponent(hint)}` },
+    })
+    nginx.handleAuthRefreshOutbound(r)
+    assertEqual(r.returnCode, 302, "Should return 302")
+    assertEqual(r.returnBody, "https://default-cms.cps.gov.uk/polaris", "Should fall back to default when handoverEndpoint is null")
+  })
+
+  await test("handles non-URL-encoded cookie value", async () => {
+    process.env["DEFAULT_UPSTREAM_CMS_DOMAIN_NAME"] = "default-cms.cps.gov.uk"
+    const hint = JSON.stringify({ handoverEndpoint: "https://custom-cms.cps.gov.uk/polaris" })
+    const r = createMockRequest({
+      headersIn: { Cookie: `Cms-Session-Hint=${hint}` },
+    })
+    nginx.handleAuthRefreshOutbound(r)
+    assertEqual(r.returnCode, 302, "Should return 302")
+    assertEqual(r.returnBody, "https://custom-cms.cps.gov.uk/polaris", "Should handle non-encoded cookie")
+  })
+
+  await test("always sets X-InternetExplorerMode header", async () => {
+    process.env["DEFAULT_UPSTREAM_CMS_DOMAIN_NAME"] = "default-cms.cps.gov.uk"
+    const r = createMockRequest({})
+    nginx.handleAuthRefreshOutbound(r)
+    assertEqual(r.headersOut["X-InternetExplorerMode"], "1", "Should set X-InternetExplorerMode header")
+  })
+
+  // Restore env
+  if (savedEnv !== undefined) {
+    process.env["DEFAULT_UPSTREAM_CMS_DOMAIN_NAME"] = savedEnv
+  } else {
+    delete process.env["DEFAULT_UPSTREAM_CMS_DOMAIN_NAME"]
+  }
 
   // Summary
   console.log("\n" + "=".repeat(60))

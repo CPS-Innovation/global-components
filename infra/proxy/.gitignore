@@ -8,6 +8,7 @@ dist/
 config/**/*.js
 !config/main/nginx.js
 !config/**/tests/*.js
+!config/**/main-reference/*.js
 
 # Deployment secrets and backups
 deploy/secrets.env

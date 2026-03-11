@@ -1,5 +1,9 @@
-import { describe, test, expect, beforeEach } from "@jest/globals";
-import { handleOsRedirectInternal } from "./handle-os-redirect";
+import { describe, test, expect, beforeEach, jest } from "@jest/globals";
+import { handleOsRedirectInternal, handleOsRedirect } from "./handle-os-redirect";
+
+jest.mock("../core/get-cms-session-hint");
+
+import { getCmsSessionHint } from "../core/get-cms-session-hint";
 
 describe("handleOsRedirectInternal", () => {
   describe("os-outbound stage", () => {
@@ -12,13 +16,14 @@ describe("handleOsRedirectInternal", () => {
           "https://polaris-qa-notprod.cps.gov.uk/auth-handover-cms-modern-token",
       });
 
-      const url = new URL(result);
+      expect(result.stage).toBe("os-outbound");
+      const url = new URL(result.nextUrl);
       expect(url.origin + url.pathname).toBe("https://cin3.cps.gov.uk/polaris");
 
       const returnUrl = new URL(url.searchParams.get("r")!);
       expect(returnUrl.searchParams.get("stage")).toBe("os-cookie-return");
       expect(returnUrl.searchParams.get("r")).toBe(
-        "https://example.com/target"
+        "https://example.com/target",
       );
     });
 
@@ -31,7 +36,7 @@ describe("handleOsRedirectInternal", () => {
           "https://polaris-qa-notprod.cps.gov.uk/auth-handover-cms-modern-token",
       });
 
-      const url = new URL(result);
+      const url = new URL(result.nextUrl);
       const returnUrl = new URL(url.searchParams.get("r")!);
       expect(returnUrl.searchParams.get("extra")).toBe("value");
       expect(returnUrl.searchParams.get("stage")).toBe("os-cookie-return");
@@ -46,13 +51,13 @@ describe("handleOsRedirectInternal", () => {
           "https://polaris-qa-notprod.cps.gov.uk/auth-handover-cms-modern-token",
       });
 
-      const url = new URL(result);
+      const url = new URL(result.nextUrl);
       expect(url.origin + url.pathname).toBe("https://cin3.cps.gov.uk/polaris");
 
       const returnUrl = new URL(url.searchParams.get("r")!);
       expect(returnUrl.searchParams.get("stage")).toBe("os-cookie-return");
       expect(returnUrl.searchParams.get("r")).toBe(
-        "https://example.com/target"
+        "https://example.com/target",
       );
       // The cc parameter should be stripped from the return URL
       expect(returnUrl.searchParams.get("cc")).toBeNull();
@@ -61,15 +66,7 @@ describe("handleOsRedirectInternal", () => {
 
   describe("os-cookie-return stage", () => {
     beforeEach(() => {
-      // Clear localStorage before each test
-      global.localStorage = {
-        clear: jest.fn(),
-        getItem: jest.fn(),
-        setItem: jest.fn(),
-        removeItem: jest.fn(),
-        length: 0,
-        key: jest.fn(),
-      };
+      localStorage.clear();
     });
 
     test("redirects to token handover URL when cookies do not match localStorage", () => {
@@ -89,9 +86,10 @@ describe("handleOsRedirectInternal", () => {
           "https://polaris-qa-notprod.cps.gov.uk/auth-handover-cms-modern-token",
       });
 
-      const url = new URL(result);
+      expect(result.stage).toBe("os-cookie-return");
+      const url = new URL(result.nextUrl);
       expect(url.origin + url.pathname).toBe(
-        "https://polaris-qa-notprod.cps.gov.uk/auth-handover-cms-modern-token"
+        "https://polaris-qa-notprod.cps.gov.uk/auth-handover-cms-modern-token",
       );
       expect(url.searchParams.get("cc")).toBe("test-cookies");
 
@@ -99,7 +97,7 @@ describe("handleOsRedirectInternal", () => {
       const returnUrl = new URL(returnUrlParam);
       expect(returnUrl.searchParams.get("stage")).toBe("os-token-return");
       expect(returnUrl.searchParams.get("r")).toBe(
-        "https://example.com/target"
+        "https://example.com/target",
       );
       expect(url.searchParams.get("cc")).toBe("test-cookies");
     });
@@ -121,7 +119,8 @@ describe("handleOsRedirectInternal", () => {
           "https://polaris-qa-notprod.cps.gov.uk/auth-handover-cms-modern-token",
       });
 
-      expect(result).toBe("https://example.com/target");
+      expect(result.stage).toBe("os-cookie-return");
+      expect(result.nextUrl).toBe("https://example.com/target");
     });
 
     test("returns target URL when cookies match but are in different order", () => {
@@ -141,18 +140,10 @@ describe("handleOsRedirectInternal", () => {
           "https://polaris-qa-notprod.cps.gov.uk/auth-handover-cms-modern-token",
       });
 
-      expect(result).toBe("https://example.com/target");
+      expect(result.nextUrl).toBe("https://example.com/target");
     });
 
     test("redirects to token handover when localStorage cookies are undefined", () => {
-      // localStorage has no cookies set
-      localStorage["$OS_Users$WorkManagementApp$ClientVars$Cookies"] =
-        undefined;
-      localStorage["$OS_Users$CaseReview$ClientVars$Cookies"] =
-        undefined;
-      localStorage["$OS_Users$Casework_Blocks$ClientVars$Cookies"] =
-        undefined;
-
       const result = handleOsRedirectInternal({
         currentUrl:
           "https://cps-dev.outsystemsenterprise.com/AuthHandover/index.html?r=https://example.com/target&stage=os-cookie-return&cc=test-cookies",
@@ -161,9 +152,9 @@ describe("handleOsRedirectInternal", () => {
           "https://polaris-qa-notprod.cps.gov.uk/auth-handover-cms-modern-token",
       });
 
-      const url = new URL(result);
+      const url = new URL(result.nextUrl);
       expect(url.origin + url.pathname).toBe(
-        "https://polaris-qa-notprod.cps.gov.uk/auth-handover-cms-modern-token"
+        "https://polaris-qa-notprod.cps.gov.uk/auth-handover-cms-modern-token",
       );
     });
 
@@ -184,9 +175,9 @@ describe("handleOsRedirectInternal", () => {
           "https://polaris-qa-notprod.cps.gov.uk/auth-handover-cms-modern-token",
       });
 
-      const url = new URL(result);
+      const url = new URL(result.nextUrl);
       expect(url.origin + url.pathname).toBe(
-        "https://polaris-qa-notprod.cps.gov.uk/auth-handover-cms-modern-token"
+        "https://polaris-qa-notprod.cps.gov.uk/auth-handover-cms-modern-token",
       );
     });
 
@@ -200,14 +191,13 @@ describe("handleOsRedirectInternal", () => {
 
       const targetWithQuery = "https://example.com/target?foo=bar&baz=qux";
       const result = handleOsRedirectInternal({
-        currentUrl:
-          `https://cps-dev.outsystemsenterprise.com/AuthHandover/index.html?r=${encodeURIComponent(targetWithQuery)}&stage=os-cookie-return&cc=test-cookies`,
+        currentUrl: `https://cps-dev.outsystemsenterprise.com/AuthHandover/index.html?r=${encodeURIComponent(targetWithQuery)}&stage=os-cookie-return&cc=test-cookies`,
         cookieHandoverUrl: "https://cin3.cps.gov.uk/polaris",
         tokenHandoverUrl:
           "https://polaris-qa-notprod.cps.gov.uk/auth-handover-cms-modern-token",
       });
 
-      const url = new URL(result);
+      const url = new URL(result.nextUrl);
       const returnUrl = new URL(url.searchParams.get("r")!);
       expect(returnUrl.searchParams.get("r")).toBe(targetWithQuery);
     });
@@ -215,15 +205,7 @@ describe("handleOsRedirectInternal", () => {
 
   describe("os-token-return stage", () => {
     beforeEach(() => {
-      // Clear localStorage before each test
-      global.localStorage = {
-        clear: jest.fn(),
-        getItem: jest.fn(),
-        setItem: jest.fn(),
-        removeItem: jest.fn(),
-        length: 0,
-        key: jest.fn(),
-      };
+      localStorage.clear();
     });
 
     test("returns target URL and stores auth data", () => {
@@ -238,7 +220,8 @@ describe("handleOsRedirectInternal", () => {
           "https://polaris-qa-notprod.cps.gov.uk/auth-handover-cms-modern-token",
       });
 
-      expect(result).toBe("https://example.com/target");
+      expect(result.stage).toBe("os-token-return");
+      expect(result.nextUrl).toBe("https://example.com/target");
 
       // Verify auth data was stored
       expect(localStorage["$OS_Users$WorkManagementApp$ClientVars$Cookies"]).toBe("test-cookies");
@@ -258,14 +241,13 @@ describe("handleOsRedirectInternal", () => {
     test("handles target URL with query parameters", () => {
       const targetWithQuery = "https://example.com/target?foo=bar&baz=qux#section";
       const result = handleOsRedirectInternal({
-        currentUrl:
-          `https://cps-dev.outsystemsenterprise.com/AuthHandover/index.html?r=${encodeURIComponent(targetWithQuery)}&stage=os-token-return&cc=test-cookies&cms-modern-token=test-token`,
+        currentUrl: `https://cps-dev.outsystemsenterprise.com/AuthHandover/index.html?r=${encodeURIComponent(targetWithQuery)}&stage=os-token-return&cc=test-cookies&cms-modern-token=test-token`,
         cookieHandoverUrl: "https://cin3.cps.gov.uk/polaris",
         tokenHandoverUrl:
           "https://polaris-qa-notprod.cps.gov.uk/auth-handover-cms-modern-token",
       });
 
-      expect(result).toBe(targetWithQuery);
+      expect(result.nextUrl).toBe(targetWithQuery);
     });
 
     test("handles empty token value", () => {
@@ -277,8 +259,8 @@ describe("handleOsRedirectInternal", () => {
           "https://polaris-qa-notprod.cps.gov.uk/auth-handover-cms-modern-token",
       });
 
-      expect(result).toBe("https://example.com/target");
-      
+      expect(result.nextUrl).toBe("https://example.com/target");
+
       // Verify empty token is stored
       const storedJson = JSON.parse(localStorage["$OS_Users$WorkManagementApp$ClientVars$JSONString"]);
       expect(storedJson.Token).toBe("");
@@ -320,6 +302,153 @@ describe("handleOsRedirectInternal", () => {
             "https://polaris-qa-notprod.cps.gov.uk/auth-handover-cms-modern-token",
         });
       }).toThrow("Unknown stage query parameter: empty");
+    });
+  });
+});
+
+const mockGetCmsSessionHint = getCmsSessionHint as jest.MockedFunction<
+  typeof getCmsSessionHint
+>;
+
+describe("handleOsRedirect", () => {
+  const makeWindow = (currentUrl: string) =>
+    ({
+      cps_global_components_cookie_handover_url:
+        "https://cin3.cps.gov.uk/polaris",
+      cps_global_components_token_handover_url:
+        "https://polaris-qa-notprod.cps.gov.uk/auth-handover-cms-modern-token",
+      location: {
+        href: currentUrl,
+        replace: jest.fn(),
+      },
+    }) as unknown as Window;
+
+  beforeEach(() => {
+    localStorage.clear();
+    mockGetCmsSessionHint.mockReset();
+    jest.spyOn(console, "log").mockImplementation(() => {});
+  });
+
+  describe("handleSettingCmsSessionHint", () => {
+    test("does not call getCmsSessionHint for os-outbound stage", async () => {
+      const win = makeWindow(
+        "https://cps-dev.outsystemsenterprise.com/AuthHandover/index.html?r=https://example.com/target&stage=os-outbound",
+      );
+
+      await handleOsRedirect(win);
+
+      expect(mockGetCmsSessionHint).not.toHaveBeenCalled();
+    });
+
+    test("does not call getCmsSessionHint for os-cookie-return stage", async () => {
+      const win = makeWindow(
+        "https://cps-dev.outsystemsenterprise.com/AuthHandover/index.html?r=https://example.com/target&stage=os-cookie-return&cc=test-cookies",
+      );
+
+      await handleOsRedirect(win);
+
+      expect(mockGetCmsSessionHint).not.toHaveBeenCalled();
+    });
+
+    test("does not call getCmsSessionHint when nextUrl is not under /casework_blocks/", async () => {
+      const win = makeWindow(
+        "https://cps-dev.outsystemsenterprise.com/AuthHandover/index.html?r=https://example.com/WorkManagementApp/page&stage=os-token-return&cc=test-cookies&cms-modern-token=test-token",
+      );
+
+      await handleOsRedirect(win);
+
+      expect(mockGetCmsSessionHint).not.toHaveBeenCalled();
+    });
+
+    test("fetches and stores CmsSessionHint for os-token-return with /Casework_Blocks/ path", async () => {
+      const hint = {
+        cmsDomains: ["example.com"],
+        isProxySession: true,
+        handoverEndpoint: null,
+      };
+      mockGetCmsSessionHint.mockResolvedValue(hint);
+
+      const win = makeWindow(
+        "https://cps-dev.outsystemsenterprise.com/AuthHandover/index.html?r=https://example.com/Casework_Blocks/Home&stage=os-token-return&cc=test-cookies&cms-modern-token=test-token",
+      );
+
+      await handleOsRedirect(win);
+
+      expect(mockGetCmsSessionHint).toHaveBeenCalledTimes(1);
+      expect(
+        localStorage["$OS_Users$Casework_Blocks$ClientVars$IsFromProxy"],
+      ).toBe("true");
+    });
+
+    test("stores isProxySession false when hint says so", async () => {
+      const hint = {
+        cmsDomains: ["example.com"],
+        isProxySession: false,
+        handoverEndpoint: null,
+      };
+      mockGetCmsSessionHint.mockResolvedValue(hint);
+
+      const win = makeWindow(
+        "https://cps-dev.outsystemsenterprise.com/AuthHandover/index.html?r=https://example.com/Casework_Blocks/Home&stage=os-token-return&cc=test-cookies&cms-modern-token=test-token",
+      );
+
+      await handleOsRedirect(win);
+
+      expect(
+        localStorage["$OS_Users$Casework_Blocks$ClientVars$IsFromProxy"],
+      ).toBe("false");
+    });
+
+    test("does not block redirect when getCmsSessionHint throws", async () => {
+      mockGetCmsSessionHint.mockRejectedValue(new Error("network failure"));
+
+      const win = makeWindow(
+        "https://cps-dev.outsystemsenterprise.com/AuthHandover/index.html?r=https://example.com/Casework_Blocks/Home&stage=os-token-return&cc=test-cookies&cms-modern-token=test-token",
+      );
+
+      await handleOsRedirect(win);
+
+      expect(win.location.replace).toHaveBeenCalledWith(
+        "https://example.com/Casework_Blocks/Home",
+      );
+      expect(console.log).toHaveBeenCalledWith(
+        expect.stringContaining("handleSettingCmsSessionHint error"),
+      );
+    });
+
+    test("handles case-insensitive /casework_blocks/ path matching", async () => {
+      const hint = {
+        cmsDomains: [],
+        isProxySession: true,
+        handoverEndpoint: null,
+      };
+      mockGetCmsSessionHint.mockResolvedValue(hint);
+
+      const win = makeWindow(
+        "https://cps-dev.outsystemsenterprise.com/AuthHandover/index.html?r=https://example.com/casework_blocks/Home&stage=os-token-return&cc=test-cookies&cms-modern-token=test-token",
+      );
+
+      await handleOsRedirect(win);
+
+      expect(mockGetCmsSessionHint).toHaveBeenCalledTimes(1);
+    });
+
+    test("always calls window.location.replace with the correct nextUrl", async () => {
+      mockGetCmsSessionHint.mockResolvedValue({
+        cmsDomains: [],
+        isProxySession: false,
+        handoverEndpoint: null,
+      });
+
+      const win = makeWindow(
+        "https://cps-dev.outsystemsenterprise.com/AuthHandover/index.html?r=https://example.com/Casework_Blocks/Home&stage=os-token-return&cc=test-cookies&cms-modern-token=test-token",
+      );
+
+      await handleOsRedirect(win);
+
+      expect(win.location.replace).toHaveBeenCalledWith(
+        "https://example.com/Casework_Blocks/Home",
+      );
     });
   });
 });

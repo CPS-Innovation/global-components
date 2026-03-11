@@ -2,9 +2,9 @@ import { Component, h, Fragment } from "@stencil/core";
 import { readyState } from "../../store/store";
 import { FEATURE_FLAGS } from "../../feature-flags/feature-flags";
 import { WithLogging } from "../../logging/WithLogging";
-import { SkipLink } from "../common/SkipLink";
 import { replaceTagsInString } from "../cps-global-menu/menu-config/helpers/replace-tags-in-string";
 import { getArtifactUrl } from "../../utils/get-artifact-url";
+import { linkHandoverAdapter } from "../cps-global-menu/menu-config/helpers/link-handover-adapter";
 
 @Component({
   tag: "cps-global-banner",
@@ -14,7 +14,7 @@ import { getArtifactUrl } from "../../utils/get-artifact-url";
 export class CpsGlobalBanner {
   @WithLogging("CpsGlobalBanner")
   render() {
-    const { isReady, state } = readyState(["config", "flags", "context", "preview", "rootUrl"], ["recentCases"]);
+    const { isReady, state } = readyState(["config", "flags", "context", "preview", "rootUrl", "cmsSessionHint"], ["recentCases"]);
 
     const resolveValues = () => {
       if (state.fatalInitialisationError) {
@@ -50,16 +50,15 @@ export class CpsGlobalBanner {
         return;
       }
       const nextUrl = replaceTagsInString(state.config.RECENT_CASES_NAVIGATE_URL, { caseId, urn });
-      window.location.assign(nextUrl);
+      const authAdaptedNextUrl = linkHandoverAdapter(state)(nextUrl);
+      window.location.assign(authAdaptedNextUrl);
     };
 
     const truncate = (str: string, max = 10) => (str.length > max ? str.slice(0, max) + "..." : str);
 
     return (
       <div>
-        <SkipLink href="#main-content" class="govuk-skip-link skip-link" data-module="govuk-skip-link" {...state.context}>
-          Skip to main content
-        </SkipLink>
+        <cps-skip-link isOutSystems={state.flags?.isOutSystems}>Skip to main content</cps-skip-link>
         <header class={`govuk-header govuk-header--with-js-navigation ${backgroundColourClass}`} data-module="govuk-header" data-govuk-header-init="">
           <div class="govuk-header__container" style={{ display: "flex", flexDirection: "row" }}>
             <div class="govuk-header__logo">
@@ -74,7 +73,7 @@ export class CpsGlobalBanner {
                   <nav aria-label="Menu" class="govuk-header__navigation govuk-header__navigation--end">
                     <ul id="navigation" class="govuk-header__navigation-list">
                       <li class="govuk-header__navigation-item">
-                        <a class="govuk-header__link" href={getArtifactUrl(state.rootUrl, "accessibility/")}>
+                        <a class="govuk-header__link" href={getArtifactUrl(state.rootUrl, "accessibility/index.html")}>
                           Accessibility
                         </a>
                       </li>

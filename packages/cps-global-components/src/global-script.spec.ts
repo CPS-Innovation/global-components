@@ -125,6 +125,11 @@ jest.mock("./services/state/recent-cases/initialise-recent-cases", () => ({
   initialiseRecentCases: mockInitialiseRecentCases,
 }));
 
+const mockInitialiseNavigateCms = jest.fn();
+jest.mock("./services/navigate-cms/initialise-navigate-cms", () => ({
+  initialiseNavigateCms: mockInitialiseNavigateCms,
+}));
+
 // Mock makeConsole to return no-op functions
 jest.mock("./logging/makeConsole", () => ({
   makeConsole: () => ({
@@ -211,10 +216,13 @@ const setupDefaultMocks = () => {
   const mockTrackPageView = jest.fn();
   const mockTrackEvent = jest.fn();
   const mockTrackException = jest.fn();
+  const mockRegisterCorrelationIds = jest.fn();
   mockInitialiseAnalytics.mockReturnValue({
     trackPageView: mockTrackPageView,
     trackEvent: mockTrackEvent,
     trackException: mockTrackException,
+    registerAuth: jest.fn(),
+    registerCorrelationIds: mockRegisterCorrelationIds,
   });
 
   mockInitialiseRootUrl.mockReturnValue("https://example.com/env/components/script.js");
@@ -223,8 +231,7 @@ const setupDefaultMocks = () => {
 
   mockInitialiseSettings.mockResolvedValue({ fontSize: "default" });
 
-  mockInitialiseRecentCases.mockResolvedValue({
-    recentCases: { found: false, error: new Error("No recent cases") },
+  mockInitialiseRecentCases.mockReturnValue({
     setNextRecentCases: jest.fn(),
   });
 
@@ -232,6 +239,7 @@ const setupDefaultMocks = () => {
     mockTrackPageView,
     mockTrackEvent,
     mockTrackException,
+    mockRegisterCorrelationIds,
     mockInitialiseDomForContext,
   };
 };
@@ -271,10 +279,7 @@ describe("global-script", () => {
       // The trackPageView should have been called with matching correlation IDs
       expect(defaultMocks.mockTrackPageView).toHaveBeenCalledWith(
         expect.objectContaining({
-          correlationIds: {
-            scriptLoadCorrelationId: "uuid-1",
-            navigationCorrelationId: "uuid-1",
-          },
+          context: expect.any(Object),
         }),
       );
     });
@@ -471,10 +476,6 @@ describe("global-script", () => {
           contextDefinition: { name: "test-context" },
           pathTags: { testTag: "testValue" },
         },
-        correlationIds: {
-          scriptLoadCorrelationId: "uuid-1",
-          navigationCorrelationId: "uuid-1",
-        },
       });
     });
 
@@ -623,12 +624,9 @@ describe("global-script", () => {
       await new Promise(resolve => setTimeout(resolve, 10));
 
       // First call should have matching IDs
-      expect(defaultMocks.mockTrackPageView).toHaveBeenNthCalledWith(1, {
-        context: expect.any(Object),
-        correlationIds: {
-          scriptLoadCorrelationId: "uuid-1",
-          navigationCorrelationId: "uuid-1",
-        },
+      expect(defaultMocks.mockRegisterCorrelationIds).toHaveBeenNthCalledWith(1, {
+        scriptLoadCorrelationId: "uuid-1",
+        navigationCorrelationId: "uuid-1",
       });
 
       // Trigger SPA navigation
@@ -637,12 +635,9 @@ describe("global-script", () => {
       await new Promise(resolve => setTimeout(resolve, 10));
 
       // Second call should have same scriptLoadCorrelationId but different navigationCorrelationId
-      expect(defaultMocks.mockTrackPageView).toHaveBeenNthCalledWith(2, {
-        context: expect.any(Object),
-        correlationIds: {
-          scriptLoadCorrelationId: "uuid-1",
-          navigationCorrelationId: "uuid-2",
-        },
+      expect(defaultMocks.mockRegisterCorrelationIds).toHaveBeenNthCalledWith(2, {
+        scriptLoadCorrelationId: "uuid-1",
+        navigationCorrelationId: "uuid-2",
       });
     });
 
@@ -870,12 +865,9 @@ describe("global-script", () => {
       expect(mockInitialiseCorrelationIds).toHaveBeenCalledTimes(4);
 
       // Last call should have original scriptLoadCorrelationId with new navigationCorrelationId
-      expect(defaultMocks.mockTrackPageView).toHaveBeenLastCalledWith({
-        context: expect.any(Object),
-        correlationIds: {
-          scriptLoadCorrelationId: "uuid-1",
-          navigationCorrelationId: "uuid-4",
-        },
+      expect(defaultMocks.mockRegisterCorrelationIds).toHaveBeenLastCalledWith({
+        scriptLoadCorrelationId: "uuid-1",
+        navigationCorrelationId: "uuid-4",
       });
     });
   });
@@ -917,6 +909,8 @@ describe("global-script", () => {
         }),
         trackEvent: jest.fn(),
         trackException: mockTrackException,
+        registerAuth: jest.fn(),
+        registerCorrelationIds: jest.fn(),
       });
 
       const globalScript = require("./global-script").default;
@@ -1053,9 +1047,9 @@ describe("global-script", () => {
 
     it("should register recentCases to store", async () => {
       const testRecentCases = { found: true, result: [{ caseId: 123, urn: "12AB3456789" }] };
-      mockInitialiseRecentCases.mockResolvedValue({
-        recentCases: testRecentCases,
-        setNextRecentCases: jest.fn(),
+      mockInitialiseRecentCases.mockImplementation(({ register }) => {
+        register({ recentCases: testRecentCases });
+        return { setNextRecentCases: jest.fn() };
       });
 
       const globalScript = require("./global-script").default;
@@ -1166,11 +1160,24 @@ describe("global-script", () => {
       });
     });
 
-    it("should pass rootUrl and preview to initialiseRecentCases", async () => {
+    it("should pass rootUrl to initialiseNavigateCms", async () => {
       const testRootUrl = "https://test.example.com/env/script.js";
-      const testPreview = { enabled: true, myRecentCases: true };
       mockInitialiseRootUrl.mockReturnValue(testRootUrl);
-      mockInitialisePreview.mockResolvedValue(testPreview);
+
+      const globalScript = require("./global-script").default;
+      globalScript();
+      await new Promise(resolve => setTimeout(resolve, 10));
+
+      expect(mockInitialiseNavigateCms).toHaveBeenCalledWith({
+        rootUrl: testRootUrl,
+      });
+    });
+
+    it("should pass rootUrl and config to initialiseRecentCases", async () => {
+      const testRootUrl = "https://test.example.com/env/script.js";
+      const testConfig = { CONTEXTS: [], GATEWAY_URL: null, RECENT_CASES_LIST_LENGTH: 5 };
+      mockInitialiseRootUrl.mockReturnValue(testRootUrl);
+      mockInitialiseConfig.mockResolvedValue(testConfig);
 
       const globalScript = require("./global-script").default;
       globalScript();
@@ -1179,7 +1186,7 @@ describe("global-script", () => {
       expect(mockInitialiseRecentCases).toHaveBeenCalledWith(
         expect.objectContaining({
           rootUrl: testRootUrl,
-          preview: testPreview,
+          config: testConfig,
         })
       );
     });
@@ -1254,10 +1261,11 @@ describe("global-script", () => {
         config: testConfig,
         context: testContext,
         flags: testFlags,
+        onError: expect.any(Function),
       });
     });
 
-    it("should pass all required dependencies to initialiseAnalytics (auth is obtained via readyState)", async () => {
+    it("should pass all required dependencies to initialiseAnalytics", async () => {
       const testFlags = {
         e2eTestMode: { isE2eTestMode: false },
         isLocalDevelopment: false,
@@ -1266,26 +1274,21 @@ describe("global-script", () => {
       };
       const testConfig = { CONTEXTS: [], GATEWAY_URL: null, APP_INSIGHTS_KEY: "test-key" };
       const testBuild = { version: "2.0.0", buildDate: "2024-06-15" };
-      const testCmsSessionHint = { hint: "analytics-hint", sessionId: "sess-123" };
 
       (mockWindow as any).cps_global_components_build = testBuild;
       mockGetApplicationFlags.mockReturnValue(testFlags);
       mockInitialiseConfig.mockResolvedValue(testConfig);
-      mockInitialiseCmsSessionHint.mockResolvedValue(testCmsSessionHint);
 
       const globalScript = require("./global-script").default;
       globalScript();
       await new Promise(resolve => setTimeout(resolve, 10));
 
-      // Analytics is now called without auth - it uses readyState to get auth when needed
       expect(mockInitialiseAnalytics).toHaveBeenCalledWith(
         expect.objectContaining({
           window: mockWindow,
           config: testConfig,
           build: testBuild,
-          cmsSessionHint: testCmsSessionHint,
           flags: testFlags,
-          readyState: expect.any(Function),
         }),
       );
       // Verify auth is NOT passed directly
@@ -1296,7 +1299,7 @@ describe("global-script", () => {
       );
     });
 
-    it("should pass context and correlationIds to trackPageView", async () => {
+    it("should pass context to trackPageView", async () => {
       const testContext = {
         found: true,
         contextDefinition: { name: "pageview-context" },
@@ -1310,10 +1313,6 @@ describe("global-script", () => {
 
       expect(defaultMocks.mockTrackPageView).toHaveBeenCalledWith({
         context: testContext,
-        correlationIds: {
-          scriptLoadCorrelationId: "uuid-1",
-          navigationCorrelationId: "uuid-1",
-        },
       });
     });
 
@@ -1333,8 +1332,7 @@ describe("global-script", () => {
         handover: testHandover,
         setNextHandover: mockSetNextHandover,
       });
-      mockInitialiseRecentCases.mockResolvedValue({
-        recentCases: { found: false, error: new Error("No recent cases") },
+      mockInitialiseRecentCases.mockReturnValue({
         setNextRecentCases: mockSetNextRecentCases,
       });
       mockInitialiseContext.mockReturnValue(testContext);
@@ -1358,12 +1356,16 @@ describe("global-script", () => {
     // These tests verify that operations happen in the correct order
     // using mock call order tracking
 
-    it("should initialise in correct order: rootUrl -> flags -> cmsSessionHint/handover/preview/settings (parallel) -> recentCases -> config -> firstContext -> analytics (auth runs async later)", async () => {
+    it("should initialise in correct order: rootUrl -> navigateCms -> flags -> cmsSessionHint/handover/preview/settings (parallel) -> config -> firstContext -> recentCases -> analytics (auth runs async later)", async () => {
       const callOrder: string[] = [];
 
       mockInitialiseRootUrl.mockImplementation(() => {
         callOrder.push("rootUrl");
         return "https://example.com/script.js";
+      });
+
+      mockInitialiseNavigateCms.mockImplementation(() => {
+        callOrder.push("navigateCms");
       });
 
       mockGetApplicationFlags.mockImplementation(() => {
@@ -1396,9 +1398,9 @@ describe("global-script", () => {
         return { fontSize: "default" };
       });
 
-      mockInitialiseRecentCases.mockImplementation(async () => {
+      mockInitialiseRecentCases.mockImplementation(() => {
         callOrder.push("recentCases");
-        return { recentCases: { found: false, error: new Error("No recent cases") }, setNextRecentCases: jest.fn() };
+        return { setNextRecentCases: jest.fn() };
       });
 
       mockInitialiseContext.mockImplementation(() => {
@@ -1413,7 +1415,7 @@ describe("global-script", () => {
 
       mockInitialiseAnalytics.mockImplementation(() => {
         callOrder.push("analytics");
-        return { trackPageView: jest.fn(), trackEvent: jest.fn(), trackException: jest.fn() };
+        return { trackPageView: jest.fn(), trackEvent: jest.fn(), trackException: jest.fn(), registerAuth: jest.fn(), registerCorrelationIds: jest.fn() };
       });
 
       const globalScript = require("./global-script").default;
@@ -1421,18 +1423,17 @@ describe("global-script", () => {
       await new Promise(resolve => setTimeout(resolve, 10));
 
       // Verify order - rootUrl and flags first, then parallel async calls (cmsSessionHint/handover/preview/settings),
-      // then recentCases (needs preview), then config, then firstContext
+      // then config, then firstContext, then recentCases (register is fire-and-forget)
       // Analytics now comes BEFORE auth (auth is non-blocking to avoid UI delay)
       // accessibilitySubscriber is now part of DOM observation (called via initialiseDomForContext)
-      expect(callOrder.indexOf("rootUrl")).toBeLessThan(callOrder.indexOf("flags"));
+      expect(callOrder.indexOf("rootUrl")).toBeLessThan(callOrder.indexOf("navigateCms"));
+      expect(callOrder.indexOf("navigateCms")).toBeLessThan(callOrder.indexOf("flags"));
       expect(callOrder.indexOf("flags")).toBeLessThan(callOrder.indexOf("cmsSessionHint"));
       expect(callOrder.indexOf("flags")).toBeLessThan(callOrder.indexOf("handover"));
       expect(callOrder.indexOf("flags")).toBeLessThan(callOrder.indexOf("preview"));
       expect(callOrder.indexOf("flags")).toBeLessThan(callOrder.indexOf("settings"));
-      expect(callOrder.indexOf("preview")).toBeLessThan(callOrder.indexOf("recentCases"));
-      expect(callOrder.indexOf("settings")).toBeLessThan(callOrder.indexOf("recentCases"));
-      expect(callOrder.indexOf("recentCases")).toBeLessThan(callOrder.indexOf("config"));
       expect(callOrder.indexOf("config")).toBeLessThan(callOrder.indexOf("context"));
+      expect(callOrder.indexOf("context")).toBeLessThan(callOrder.indexOf("recentCases"));
       // Analytics is now initialized BEFORE auth (auth is non-blocking)
       expect(callOrder.indexOf("analytics")).toBeLessThan(callOrder.indexOf("auth"));
     });
@@ -1482,7 +1483,7 @@ describe("global-script", () => {
       mockInitialiseAnalytics.mockImplementation(() => {
         // Analytics should be called BEFORE auth is resolved (auth is non-blocking)
         expect(authResolved).toBe(false);
-        return { trackPageView: jest.fn(), trackEvent: jest.fn(), trackException: jest.fn() };
+        return { trackPageView: jest.fn(), trackEvent: jest.fn(), trackException: jest.fn(), registerAuth: jest.fn(), registerCorrelationIds: jest.fn() };
       });
 
       const globalScript = require("./global-script").default;
@@ -1545,7 +1546,6 @@ describe("global-script", () => {
       // First trackPageView uses context from initialise (second call to initialiseContext)
       expect(defaultMocks.mockTrackPageView).toHaveBeenNthCalledWith(1, {
         context: initialContext,
-        correlationIds: expect.any(Object),
       });
 
       // Navigate
@@ -1555,7 +1555,6 @@ describe("global-script", () => {
       // Second trackPageView uses updated context
       expect(defaultMocks.mockTrackPageView).toHaveBeenNthCalledWith(2, {
         context: updatedContext,
-        correlationIds: expect.any(Object),
       });
     });
 

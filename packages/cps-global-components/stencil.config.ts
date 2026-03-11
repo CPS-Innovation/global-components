@@ -3,6 +3,7 @@ import { sass } from "@stencil/sass";
 
 const esModules = [
   "cps-global-os-handover",
+  "uuid",
   // dependencies of esm packages
 ].join("|");
 
@@ -13,6 +14,12 @@ export const config: Config = {
     {
       type: "dist",
       esmLoaderPath: "../loader",
+    },
+    {
+      type: "dist-custom-elements",
+      customElementsExportBehavior: "bundle",
+      externalRuntime: false,
+      dir: "dist/custom-elements",
     },
     {
       type: "docs-readme",
@@ -36,6 +43,10 @@ export const config: Config = {
       "^.+\\.(ts|tsx|js|jsx|css)$": "@stencil/core/testing/jest-preprocessor",
     },
     transformIgnorePatterns: [`/node_modules/(?!${esModules})`],
+    modulePathIgnorePatterns: ["<rootDir>/dist/"],
+    moduleNameMapper: {
+      "^uuid$": "<rootDir>/src/__mocks__/uuid.ts",
+    },
   },
   plugins: [
     sass({

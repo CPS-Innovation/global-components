@@ -3,8 +3,10 @@ import type { Preview } from "cps-global-configuration";
 import { diffLines } from "diff";
 
 const STATE_ENDPOINT = "/global-components/state/preview";
-const CONFIG_ENDPOINT = "/global-components/test/config.json";
-const CONFIG_OVERRIDE_ENDPOINT = "/global-components/test/config.override.json";
+const ENV_MATCH = window.location.pathname.match(/\/global-components\/([^/]+)\//);
+const ENV = ENV_MATCH?.[1] ?? "test";
+const CONFIG_ENDPOINT = `/global-components/${ENV}/config.json`;
+const CONFIG_OVERRIDE_ENDPOINT = `/global-components/${ENV}/config.override.json`;
 
 type ConfigResult =
   | { loaded: true; content: string }
@@ -90,6 +92,20 @@ const FEATURES: Feature[] = [
     label: "Case search",
     description: "Show case search functionality.",
     disabled: true,
+  },
+  {
+    key: "openCaseInCms",
+    label: "Open case in CMS",
+    description:
+      "Show an 'Open in CMS' button in the case-level menu bar.",
+    disabled: false,
+  },
+  {
+    key: "homePageNotification",
+    label: "Home page notification",
+    description:
+      "Force the home page introductory sessions notification banner to appear, regardless of feature flag group membership.",
+    disabled: false,
   },
 ];
 
