@@ -8,7 +8,7 @@
   "GATEWAY_URL": "https://polaris.cps.gov.uk/",
   "APP_INSIGHTS_CONNECTION_STRING": "InstrumentationKey=7b67fd50-e1eb-42d5-88e4-8975559f79d7;IngestionEndpoint=https://polaris.cps.gov.uk/global-components/analytics/;ApplicationId=7462fa88-ecdc-4812-9271-fb5db83359d4",
   "SURVEY_LINK": "https://forms.office.com/e/8KM9A7aS0e",
-  "REPORT_ISSUE_LINK": "https://cpsprod1.service-now.com/sp?id=sc_cat_item&sys_id=716b2e011bd66410d5b3dce3b24bcbbf",
+  "REPORT_ISSUE_LINK": "",
   "SHOW_MENU": true,
   "SHOW_RECENT_CASES": true,
   "SHOW_MONITORING_CODES": false,
