@@ -22,6 +22,7 @@ import { initialiseSettings } from "./services/state/settings/initialise-setting
 import { initialiseOutSystemsReconcileAuth } from "./services/outsystems-shim/initialise-outsytems-reconcile-auth";
 import { initialiseOutSystemsShowAlert } from "./services/outsystems-shim/outsystems-show-alert";
 import { initialiseNavigateCms } from "./services/navigate-cms/initialise-navigate-cms";
+import { initialiseAuthHint } from "./services/state/auth-hint/initialise-auth-hint";
 
 const { _error } = makeConsole("global-script");
 
@@ -71,11 +72,12 @@ const startupPhase = async ({ window, storeFns: { register, mergeTags } }: { win
   const flags = getApplicationFlags({ window, rootUrl });
   register({ flags });
 
-  const [cmsSessionHint, { handover, setNextHandover }, preview, settings] = await Promise.all([
+  const [cmsSessionHint, { handover, setNextHandover }, preview, settings, { authHint, setAuthHint }] = await Promise.all([
     initialiseCmsSessionHint({ rootUrl, flags }),
     initialiseHandover({ rootUrl }),
     initialisePreview({ rootUrl }),
     initialiseSettings({ rootUrl }),
+    initialiseAuthHint({ rootUrl }),
   ]);
   register({ cmsSessionHint, handover, preview, cmsSessionTags: { handoverEndpoint: cmsSessionHint.result?.handoverEndpoint || "" } });
 
@@ -106,6 +108,8 @@ const startupPhase = async ({ window, storeFns: { register, mergeTags } }: { win
     registerCorrelationIds,
     firstContext,
     flags,
+    authHint,
+    setAuthHint,
     handover,
     setNextHandover,
     setNextRecentCases,
@@ -121,6 +125,8 @@ const authPhase = ({
   trackEvent,
   trackException,
   registerAuth,
+  authHint,
+  setAuthHint,
   setNextHandover,
   setNextRecentCases,
   preview,
@@ -128,7 +134,7 @@ const authPhase = ({
   // Positioning auth after many of the other setup stuff helps us not block the UI
   // (initialiseAuth can take a long time, especially if there is a problem)
   (async () => {
-    const { auth, getToken } = await initialiseAuth({ config, context: firstContext, flags, onError: trackException });
+    const { auth, getToken } = await initialiseAuth({ config, context: firstContext, flags, onError: trackException, authHint, setAuthHint });
     register({ auth });
     registerAuth(auth);
     initialiseOutSystemsShowAlert({ context: firstContext, config, auth, preview });

@@ -8,11 +8,14 @@ import { getErrorType } from "./get-error-type";
 import { createMsalInstance } from "./create-msal-instance";
 import { getTokenFactory } from "./get-token-factory";
 import { GetToken } from "./GetToken";
+import { Result } from "../../utils/Result";
 
 type Props = {
   config: Config;
   context: FoundContext;
   onError?: (error: Error) => void;
+  authHint?: Result<string>;
+  setAuthHint?: (sid: string) => void;
 };
 
 const failedAuth = (knownErrorType: KnownErrorType, reason: string): { auth: FailedAuth; getToken: GetToken } => ({
@@ -30,6 +33,8 @@ const initialiseAdAuthInternal = async ({
   config: { AD_TENANT_AUTHORITY: authority, AD_CLIENT_ID: clientId, FEATURE_FLAG_ENABLE_INTRUSIVE_AD_LOGIN },
   context: { msalRedirectUrl: redirectUri, currentHref },
   onError,
+  authHint,
+  setAuthHint,
 }: Props): Promise<{ auth: AuthResult; getToken: GetToken }> => {
 
   if (!(authority && clientId && redirectUri)) {
@@ -46,7 +51,7 @@ const initialiseAdAuthInternal = async ({
 
   try {
     const instance = await createMsalInstance({ authority, clientId, redirectUri });
-    const account = await getAdUserAccount({ instance, config: { FEATURE_FLAG_ENABLE_INTRUSIVE_AD_LOGIN } });
+    const account = await getAdUserAccount({ instance, config: { FEATURE_FLAG_ENABLE_INTRUSIVE_AD_LOGIN }, authHint, setAuthHint });
     if (!account) {
       return failedAuth("NoAccountFound", "No AD account found");
     }
