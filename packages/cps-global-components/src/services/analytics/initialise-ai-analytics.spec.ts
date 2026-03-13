@@ -98,7 +98,7 @@ describe("initialiseAiAnalytics", () => {
       await Promise.resolve();
 
       const properties = mockTrackPageView.mock.calls[0][0].properties;
-      expect(properties.Auth).toMatchObject({ IsAuthed: false, KnownErrorType: "Unknown", Username: "hint@example.com" });
+      expect(properties.Auth).toMatchObject({ IsAuthed: false, KnownErrorType: "Unknown", Username: "hint@example.com", ObjectId: "obj-hint" });
     });
 
     it("should not include username from authHint when auth succeeds", async () => {
