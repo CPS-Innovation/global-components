@@ -81,7 +81,7 @@ const startupPhase = async ({ window, storeFns: { register, mergeTags } }: { win
     initialiseSettings({ rootUrl }),
     initialiseAuthHint({ rootUrl }),
   ]);
-  register({ cmsSessionHint, handover, preview, cmsSessionTags: { handoverEndpoint: cmsSessionHint.result?.handoverEndpoint || "" } });
+  register({ cmsSessionHint, handover, preview, authHint, cmsSessionTags: { handoverEndpoint: cmsSessionHint.result?.handoverEndpoint || "" } });
 
   const config = await initialiseConfig({ rootUrl, flags, preview });
   register({ config });
@@ -90,7 +90,7 @@ const startupPhase = async ({ window, storeFns: { register, mergeTags } }: { win
   register({ firstContext });
 
   const { setNextRecentCases } = initialiseRecentCases({ rootUrl, config, register });
-  const { trackPageView, trackEvent, trackException, registerAuth, registerCorrelationIds } = initialiseAnalytics({ window, config, build, flags });
+  const { trackPageView, trackEvent, trackException, registerAuth, registerCorrelationIds } = initialiseAnalytics({ window, config, build, flags, authHint });
 
   const { initialiseDomForContext } = initialiseDomObservation(
     { window, register, mergeTags, preview, settings },
@@ -126,7 +126,6 @@ const authPhase = ({
   trackEvent,
   trackException,
   registerAuth,
-  authHint,
   setAuthHint,
   setNextHandover,
   setNextRecentCases,
@@ -135,9 +134,12 @@ const authPhase = ({
   // Positioning auth after many of the other setup stuff helps us not block the UI
   // (initialiseAuth can take a long time, especially if there is a problem)
   (async () => {
-    const { auth, getToken } = await initialiseAuth({ config, context: firstContext, flags, onError: trackException, authHint, setAuthHint });
+    const { auth, getToken } = await initialiseAuth({ config, context: firstContext, flags, onError: trackException });
     register({ auth });
     registerAuth(auth);
+    if (auth.isAuthed) {
+      setAuthHint(auth);
+    }
     initialiseOutSystemsShowAlert({ context: firstContext, config, auth, preview });
     initialiseCaseDetailsData({ config, context: firstContext, subscribe, setNextHandover, setNextRecentCases, getToken, readyState, trackEvent });
   })();

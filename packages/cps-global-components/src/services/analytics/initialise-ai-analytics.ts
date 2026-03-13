@@ -7,18 +7,20 @@ import { makeConsole } from "../../logging/makeConsole";
 import { Build } from "../../store/store";
 import { AuthResult, KnownErrorType } from "../auth/AuthResult";
 import { capitalizeKeys } from "../../utils/capitalize-keys";
+import { Result } from "../../utils/Result";
+import { AuthHint } from "../state/auth-hint/initialise-auth-hint";
 
 const STORAGE_PREFIX = "cps_global_components";
 
-type Props = { window: Window; config: Config; build: Build };
+type Props = { window: Window; config: Config; build: Build; authHint?: Result<AuthHint> };
 
-type AuthAnalyticsProps = undefined | { isAuthed: false; knownErrorType: KnownErrorType } | { isAuthed: true; username: string; objectId: string };
+type AuthAnalyticsProps = undefined | { isAuthed: false; knownErrorType: KnownErrorType; username?: string } | { isAuthed: true; username: string; objectId: string };
 
 export type Analytics = ReturnType<typeof initialiseAiAnalytics>;
 
 const { _debug } = makeConsole("initialiseAnalytics");
 
-export const initialiseAiAnalytics = ({ window, config: { APP_INSIGHTS_CONNECTION_STRING, ENVIRONMENT }, build }: Props) => {
+export const initialiseAiAnalytics = ({ window, config: { APP_INSIGHTS_CONNECTION_STRING, ENVIRONMENT }, build, authHint }: Props) => {
   if (!APP_INSIGHTS_CONNECTION_STRING) {
     return {
       trackPageView: () => {},
@@ -108,7 +110,12 @@ export const initialiseAiAnalytics = ({ window, config: { APP_INSIGHTS_CONNECTIO
   });
 
   const registerAuth = (auth: AuthResult) => {
-    authValues = auth.isAuthed ? { isAuthed: true, username: auth.username, objectId: auth.objectId } : { isAuthed: false, knownErrorType: auth.knownErrorType };
+    if (auth.isAuthed) {
+      authValues = { isAuthed: true, username: auth.username, objectId: auth.objectId };
+    } else {
+      const hintUsername = authHint?.found ? authHint.result.authResult.username : undefined;
+      authValues = { isAuthed: false, knownErrorType: auth.knownErrorType, ...(hintUsername && { username: hintUsername }) };
+    }
     resolveAuthReady();
   };
 
