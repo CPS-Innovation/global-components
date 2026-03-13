@@ -14,7 +14,7 @@ const STORAGE_PREFIX = "cps_global_components";
 
 type Props = { window: Window; config: Config; build: Build; authHint?: Result<AuthHint> };
 
-type AuthAnalyticsProps = undefined | { isAuthed: false; knownErrorType: KnownErrorType; username?: string } | { isAuthed: true; username: string; objectId: string };
+type AuthAnalyticsProps = undefined | { isAuthed: false; knownErrorType: KnownErrorType; username?: string; objectId?: string } | { isAuthed: true; username: string; objectId: string };
 
 export type Analytics = ReturnType<typeof initialiseAiAnalytics>;
 
@@ -113,8 +113,8 @@ export const initialiseAiAnalytics = ({ window, config: { APP_INSIGHTS_CONNECTIO
     if (auth.isAuthed) {
       authValues = { isAuthed: true, username: auth.username, objectId: auth.objectId };
     } else {
-      const hintUsername = authHint?.found ? authHint.result.authResult.username : undefined;
-      authValues = { isAuthed: false, knownErrorType: auth.knownErrorType, ...(hintUsername && { username: hintUsername }) };
+      const hint = authHint?.found ? authHint.result.authResult : undefined;
+      authValues = { isAuthed: false, knownErrorType: auth.knownErrorType, ...(hint && { username: hint.username, objectId: hint.objectId }) };
     }
     resolveAuthReady();
   };
