@@ -547,6 +547,26 @@ describe("global-script", () => {
       expect(authResolved).toBe(true);
     });
 
+    it("should register authHint to store", async () => {
+      const testAuthHint = { found: true as const, result: { authResult: { isAuthed: true as const, username: "hint@example.com", name: "Hint User", objectId: "obj-hint", groups: [] }, timestamp: 12345 } };
+      mockInitialiseAuthHint.mockResolvedValue({
+        authHint: testAuthHint,
+        setAuthHint: jest.fn(),
+      });
+
+      const globalScript = require("./global-script").default;
+
+      globalScript();
+
+      await new Promise(resolve => setTimeout(resolve, 10));
+
+      const state = getReadyState()("authHint");
+      expect(state.isReady).toBe(true);
+      if (state.isReady) {
+        expect(state.state.authHint).toEqual(testAuthHint);
+      }
+    });
+
     it("should register firstContext to store", async () => {
       const globalScript = require("./global-script").default;
 
@@ -1288,8 +1308,6 @@ describe("global-script", () => {
         context: testContext,
         flags: testFlags,
         onError: expect.any(Function),
-        authHint: { found: false, error: expect.any(Error) },
-        setAuthHint: expect.any(Function),
       });
     });
 
@@ -1317,6 +1335,7 @@ describe("global-script", () => {
           config: testConfig,
           build: testBuild,
           flags: testFlags,
+          authHint: expect.anything(),
         }),
       );
       // Verify auth is NOT passed directly

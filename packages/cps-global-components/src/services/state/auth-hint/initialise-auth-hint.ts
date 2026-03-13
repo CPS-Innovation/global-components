@@ -3,16 +3,23 @@ import { fetchState } from "../fetch-state";
 import { StatePutResponseSchema } from "../StatePutResponse";
 import { makeConsole } from "../../../logging/makeConsole";
 import { Result } from "../../../utils/Result";
+import { Auth, AuthSchema } from "../../auth/AuthResult";
 
-const AuthHintSchema = z.string();
+const AuthHintSchema = z.object({
+  authResult: AuthSchema,
+  timestamp: z.number(),
+});
+
+export type AuthHint = z.infer<typeof AuthHintSchema>;
 
 const { _warn } = makeConsole("initialiseAuthHint");
 
-export const initialiseAuthHint = async ({ rootUrl }: { rootUrl: string }): Promise<{ authHint: Result<string>; setAuthHint: (sid: string) => void }> => {
+export const initialiseAuthHint = async ({ rootUrl }: { rootUrl: string }): Promise<{ authHint: Result<AuthHint>; setAuthHint: (auth: Auth) => void }> => {
   const authHint = await fetchState({ rootUrl, url: "../state/auth-hint", schema: AuthHintSchema });
 
-  const setAuthHint = (sid: string) => {
-    fetchState({ rootUrl, url: "../state/auth-hint", schema: StatePutResponseSchema, data: sid }).catch(error =>
+  const setAuthHint = (auth: Auth) => {
+    const data: AuthHint = { authResult: auth, timestamp: Date.now() };
+    fetchState({ rootUrl, url: "../state/auth-hint", schema: StatePutResponseSchema, data }).catch(error =>
       _warn("Unexpected error setting auth hint", String(error)),
     );
   };
