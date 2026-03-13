@@ -49,6 +49,12 @@
           "contextIds": "case review"
         },
         {
+          "path": "https://cps-tst.outsystemsenterprise.com/CaseReview/RedirectCW",
+          "contextIds": "redirect",
+          "preventADAndDataCalls": true,
+          "preventPageViewAnalytics": true
+        },
+        {
           "path": "https://cps-tst.outsystemsenterprise.com/CaseReview/",
           "contextIds": "cases"
         },
@@ -72,6 +78,12 @@
           "contextIds": "tasks"
         },
         {
+          "path": "https://cps-tst.outsystemsenterprise.com/WorkManagementApp/Redirect",
+          "contextIds": "redirect",
+          "preventADAndDataCalls": true,
+          "preventPageViewAnalytics": true
+        },
+        {
           "path": "https://cps-tst.outsystemsenterprise.com/WorkManagementApp/SearchCase",
           "contextIds": "cases"
         },
@@ -89,6 +101,12 @@
           "contextIds": "case materials"
         },
         {
+          "path": "https://polaris-qa-notprod.cps.gov.uk/polaris-ui/go\\?",
+          "contextIds": "redirect",
+          "preventADAndDataCalls": true,
+          "preventPageViewAnalytics": true
+        },
+        {
           "path": "https://polaris",
           "contextIds": "cases materials-search"
         }
@@ -97,6 +115,12 @@
     {
       "msalRedirectUrl": "https://housekeeping-staging.int.cps.gov.uk/global-components-msal-redirect.html",
       "contexts": [
+        {
+          "path": "https://housekeeping-staging.int.cps.gov.uk/init",
+          "contextIds": "redirect",
+          "preventADAndDataCalls": true,
+          "preventPageViewAnalytics": true
+        },
         {
           "path": "https://housekeeping",
           "contextIds": "case materials",
