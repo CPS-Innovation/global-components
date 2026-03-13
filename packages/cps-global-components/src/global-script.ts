@@ -141,7 +141,9 @@ const authPhase = ({
       setAuthHint(auth);
     }
     initialiseOutSystemsShowAlert({ context: firstContext, config, auth, preview });
-    initialiseCaseDetailsData({ config, context: firstContext, subscribe, setNextHandover, setNextRecentCases, getToken, readyState, trackEvent });
+    if (!firstContext.preventADAndDataCalls) {
+      initialiseCaseDetailsData({ config, context: firstContext, subscribe, setNextHandover, setNextRecentCases, getToken, readyState, trackEvent });
+    }
   })();
 };
 
@@ -170,6 +172,8 @@ const contextChangePhase = ({
   const { pathTags } = context;
   register({ pathTags });
 
-  trackPageView({ context });
+  if (!context.preventPageViewAnalytics) {
+    trackPageView({ context });
+  }
   register({ initialisationStatus: "complete" });
 };
