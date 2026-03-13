@@ -32,6 +32,8 @@ const { _error } = makeConsole("global-script");
 //  ready.  This means that a long-running auth process will not stop components that
 //  do not need auth from rendering.
 export default () => {
+  if (window.cps_global_components_initialised) return;
+  window.cps_global_components_initialised = true;
   /* do not await this */ initialise(window);
 };
 
@@ -110,7 +112,6 @@ const startupPhase = async ({ window, storeFns: { register, mergeTags } }: { win
     flags,
     authHint,
     setAuthHint,
-    handover,
     setNextHandover,
     setNextRecentCases,
     preview,

@@ -274,6 +274,22 @@ describe("global-script", () => {
     delete (global as any).window;
   });
 
+  describe("duplicate script load guard", () => {
+    it("should not initialise a second time if already initialised", async () => {
+      const globalScript = require("./global-script").default;
+
+      globalScript();
+      await new Promise(resolve => setTimeout(resolve, 10));
+
+      expect(mockInitialiseCorrelationIds).toHaveBeenCalledTimes(1);
+
+      globalScript();
+      await new Promise(resolve => setTimeout(resolve, 10));
+
+      expect(mockInitialiseCorrelationIds).toHaveBeenCalledTimes(1);
+    });
+  });
+
   describe("initial script load", () => {
     it("should use the same correlationId for scriptLoadCorrelationId and navigationCorrelationId on first load", async () => {
       const globalScript = require("./global-script").default;
