@@ -1,3 +1,5 @@
+import { z } from "zod";
+
 export type KnownErrorType =
   | "ConfigurationIncomplete"
   | "RedirectLocationIsApp"
@@ -7,13 +9,15 @@ export type KnownErrorType =
   | "SilentFlowProblem"
   | "Unknown";
 
-export type Auth = {
-  isAuthed: true;
-  username: string;
-  name: string | undefined;
-  groups: string[];
-  objectId: string;
-};
+export const AuthSchema = z.object({
+  isAuthed: z.literal(true),
+  username: z.string(),
+  name: z.string().optional(),
+  objectId: z.string(),
+  groups: z.array(z.string()),
+});
+
+export type Auth = z.infer<typeof AuthSchema>;
 
 export type FailedAuth = {
   isAuthed: false;

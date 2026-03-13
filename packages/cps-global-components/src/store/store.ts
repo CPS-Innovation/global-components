@@ -18,6 +18,7 @@ import { caseIdentifiersSubscriptionFactory } from "./subscriptions/case-identif
 import { Handover } from "../services/state/handover/Handover";
 import { Result } from "../utils/Result";
 import { CmsSessionHint } from "cps-global-configuration";
+import { AuthHint } from "../services/state/auth-hint/initialise-auth-hint";
 import { MonitoringCodes } from "../services/data/MonitoringCode";
 import { RecentCases } from "../services/state/recent-cases/recent-cases";
 export { type ReadyStateHelper };
@@ -52,6 +53,7 @@ type StartupState = {
   flags: ApplicationFlags;
   config: Config;
   auth: AuthResult;
+  authHint: Result<AuthHint>;
   build: Build;
   cmsSessionHint: Result<CmsSessionHint>;
   handover: Result<Handover>;
@@ -65,6 +67,7 @@ const initialStartupState = {
   flags: undefined,
   config: undefined,
   auth: undefined,
+  authHint: undefined,
   build: undefined,
   cmsSessionHint: undefined,
   handover: undefined,
