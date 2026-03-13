@@ -3,6 +3,7 @@ import { z } from "zod";
 export type KnownErrorType =
   | "ConfigurationIncomplete"
   | "RedirectLocationIsApp"
+  | "ADPreventedByContext"
   | "NoAccountFound"
   | "ConditionalAccessRule"
   | "MultipleIdentities"
