@@ -58,6 +58,7 @@ export const initialiseAiAnalytics = ({ window, config: { APP_INSIGHTS_CONNECTIO
     },
   });
 
+  const allowed = new Set(["EventData", "ExceptionData", "PageviewData"]);
   appInsights.addTelemetryInitializer(envelope => {
     // We are a guest in the host app so we do not want to capture telemetry that
     //  they should be (for reasons of hygiene and to keep our analytics data usage minimal)
@@ -66,13 +67,17 @@ export const initialiseAiAnalytics = ({ window, config: { APP_INSIGHTS_CONNECTIO
       return false;
     }
 
-    const allowed = new Set(["EventData", "ExceptionData", "PageviewData"]);
     if (!allowed.has(baseType)) {
       return false;
     }
 
     if (baseType === "PageviewData" && envelope.baseData) {
       delete envelope.baseData.refUri;
+
+      if (envelope.baseData.uri) {
+        // Let's avoid logging the hash e.g. MSAL return data #code=
+        envelope.baseData.uri = envelope.baseData.uri.split("#")[0];
+      }
     }
 
     if (baseType === "ExceptionData") {
@@ -113,6 +118,9 @@ export const initialiseAiAnalytics = ({ window, config: { APP_INSIGHTS_CONNECTIO
       const arg = { properties: capitalizeKeys({ environment: ENVIRONMENT, auth: authValues, build: build, context: { found, contextIds }, correlationIds: correlationIdValues }) };
       _debug("trackPageView", arg);
       appInsights.trackPageView(arg);
+      // Let's do our best to ensure our page view analytics gets registered before the page navigates away.
+      //  This is a bit speculative, not sure if this will have a material effect.
+      appInsights.flush();
     })();
   };
 

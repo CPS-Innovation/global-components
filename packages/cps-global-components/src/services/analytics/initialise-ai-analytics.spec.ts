@@ -11,6 +11,8 @@ const mockTrackEvent = jest.fn();
 const mockAddTelemetryInitializer = jest.fn();
 const mockLoadAppInsights = jest.fn();
 
+const mockFlush = jest.fn();
+
 jest.mock("@microsoft/applicationinsights-web", () => ({
   ApplicationInsights: jest.fn().mockImplementation(() => ({
     trackPageView: mockTrackPageView,
@@ -18,6 +20,7 @@ jest.mock("@microsoft/applicationinsights-web", () => ({
     trackEvent: mockTrackEvent,
     addTelemetryInitializer: mockAddTelemetryInitializer,
     loadAppInsights: mockLoadAppInsights,
+    flush: mockFlush,
   })),
 }));
 
