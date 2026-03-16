@@ -22,7 +22,6 @@ export const PreviewSchema = z.object({
   footer: z.boolean().optional(),
   accessibility: z.boolean().optional(),
   forceDcfHeader: z.boolean().optional(),
-  openCaseInCms: z.boolean().optional(),
   homePageNotification: z.boolean().optional(),
 });
 

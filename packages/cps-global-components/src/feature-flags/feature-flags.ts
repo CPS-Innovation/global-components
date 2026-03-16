@@ -26,8 +26,6 @@ const shouldShowMenu = ({ config, auth, context, flags, cmsSessionHint }: Pick<S
   }
 };
 
-const shouldShowOpenCaseInCms = ({ preview, flags }: Pick<State, "preview" | "flags">) => !!preview.result?.openCaseInCms || flags.isLocalDevelopment;
-
 const surveyLink = ({ config }: Pick<State, "config">) => ({ showLink: !!config.SURVEY_LINK, url: config.SURVEY_LINK });
 
 const reportIssueLink = ({ config }: Pick<State, "config">) => ({ showLink: !!config.REPORT_ISSUE_LINK, url: config.REPORT_ISSUE_LINK });
@@ -41,7 +39,6 @@ export const FEATURE_FLAGS = {
   shouldShowGovUkRebrand,
   shouldShowRecentCases,
   shouldShowMenu,
-  shouldShowOpenCaseInCms,
   surveyLink,
   reportIssueLink,
   shouldShowHomePageNotification,

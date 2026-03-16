@@ -55,7 +55,6 @@ export class CpsGlobalMenu {
     const reportIssueLink = FEATURE_FLAGS.reportIssueLink(state);
     const surveyLink = FEATURE_FLAGS.surveyLink(state);
     const shouldShowCaseDetails = FEATURE_FLAGS.shouldShowCaseDetails(state);
-    const shouldShowOpenCaseInCms = FEATURE_FLAGS.shouldShowOpenCaseInCms(state);
     const caseId = state.tags?.caseId ? Number(state.tags.caseId) : undefined;
 
     const classes = FEATURE_FLAGS.shouldShowGovUkRebrand(state)
@@ -86,10 +85,10 @@ export class CpsGlobalMenu {
                 {level2Links.map(link => (
                   <nav-link {...link}></nav-link>
                 ))}
-                {shouldShowOpenCaseInCms && caseId && (
+                {caseId && (
                   <li class="inline-link open-in-cms">
                     <button class="linkButton" onClick={() => dispatchCmsNavigate(caseId)}>
-                      Open in CMS
+                      Open in CMS Classic
                     </button>
                   </li>
                 )}
