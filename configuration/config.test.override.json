@@ -51,7 +51,6 @@
         {
           "path": "https://cps-tst.outsystemsenterprise.com/CaseReview/RedirectCW",
           "contextIds": "redirect",
-          "preventADAndDataCalls": true,
           "preventPageViewAnalytics": true
         },
         {
@@ -80,7 +79,6 @@
         {
           "path": "https://cps-tst.outsystemsenterprise.com/WorkManagementApp/Redirect",
           "contextIds": "redirect",
-          "preventADAndDataCalls": true,
           "preventPageViewAnalytics": true
         },
         {
@@ -103,7 +101,6 @@
         {
           "path": "https://polaris-qa-notprod.cps.gov.uk/polaris-ui/go\\?",
           "contextIds": "redirect",
-          "preventADAndDataCalls": true,
           "preventPageViewAnalytics": true
         },
         {
