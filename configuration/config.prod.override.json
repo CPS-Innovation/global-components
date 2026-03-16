@@ -52,7 +52,7 @@
         {
           "path": "https://cps.outsystemsenterprise.com/CaseReview/RedirectCW",
           "contextIds": "redirect",
-          "preventADAndDataCalls": true,
+          "preventADAndDataCalls": false,
           "preventPageViewAnalytics": true
         },
         {
@@ -81,7 +81,7 @@
         {
           "path": "https://cps.outsystemsenterprise.com/WorkManagementApp/Redirect",
           "contextIds": "redirect",
-          "preventADAndDataCalls": true,
+          "preventADAndDataCalls": false,
           "preventPageViewAnalytics": true
         },
         {
