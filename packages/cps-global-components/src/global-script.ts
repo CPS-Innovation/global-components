@@ -62,7 +62,7 @@ const initialise = async (window: Window & typeof globalThis) => {
   }
 };
 
-const startupPhase = async ({ window, storeFns: { register, mergeTags } }: { window: Window & typeof globalThis; storeFns: ReturnType<typeof initialiseStore> }) => {
+const startupPhase = async ({ window, storeFns: { register, mergeTags, get } }: { window: Window & typeof globalThis; storeFns: ReturnType<typeof initialiseStore> }) => {
   const build = window.cps_global_components_build;
   register({ build });
 
@@ -95,7 +95,7 @@ const startupPhase = async ({ window, storeFns: { register, mergeTags } }: { win
   }
 
   const { setNextRecentCases } = initialiseRecentCases({ rootUrl, config, register });
-  const { trackPageView, trackEvent, trackException, registerAuth, registerCorrelationIds } = initialiseAnalytics({ window, config, build, flags, authHint });
+  const { trackPageView, trackEvent, trackException, registerAuth, registerCorrelationIds } = initialiseAnalytics({ window, config, build, flags, authHint, get });
 
   const { initialiseDomForContext } = initialiseDomObservation(
     { window, register, mergeTags, preview, settings },
