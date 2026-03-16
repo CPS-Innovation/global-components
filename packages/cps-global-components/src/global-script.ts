@@ -89,6 +89,11 @@ const startupPhase = async ({ window, storeFns: { register, mergeTags } }: { win
   const firstContext = initialiseContext({ window, config });
   register({ firstContext });
 
+  if (firstContext.takeTagsFromHandover && handover.found) {
+    const { caseId, caseDetails } = handover.result;
+    register({ handoverTags: { caseId: String(caseId), ...(caseDetails?.urn && { urn: caseDetails.urn }) } });
+  }
+
   const { setNextRecentCases } = initialiseRecentCases({ rootUrl, config, register });
   const { trackPageView, trackEvent, trackException, registerAuth, registerCorrelationIds } = initialiseAnalytics({ window, config, build, flags, authHint });
 

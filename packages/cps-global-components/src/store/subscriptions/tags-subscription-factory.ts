@@ -12,6 +12,7 @@ export const tagsSubscriptionFactory: SubscriptionFactory = ({ get, register }) 
         //  Prop tags should override everything as they are actively supplied by the host.
         register({
           tags: {
+            ...get("handoverTags"),
             ...get("pathTags"),
             ...get("domTags"),
             ...get("caseDetailsTags"),
