@@ -49,6 +49,12 @@ Code and unit test files must build and be free of IDE build-preventing errors b
 change is complete. After making changes, **actually run** the relevant build/test command and verify it passes
 before reporting done. Do not assume changes compile — confirm it.
 
+**`pnpm build` runs all packages and can take a while.** Prefer targeted builds when possible:
+`pnpm -r --filter cps-global-components run build`. Do NOT use `run_in_background` for builds — run them
+in the foreground with a sufficient timeout (120000ms for single package, 300000ms for full build) so that
+build errors are immediately visible. Using background tasks for builds hides failures and leads to
+block-waiting on `TaskOutput` which hangs.
+
 ## Workflow
 
 When I share a plan, question, or context — discuss and confirm before implementing unless I explicitly say
