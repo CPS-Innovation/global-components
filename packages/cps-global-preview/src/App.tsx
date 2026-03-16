@@ -94,13 +94,6 @@ const FEATURES: Feature[] = [
     disabled: true,
   },
   {
-    key: "openCaseInCms",
-    label: "Open case in CMS",
-    description:
-      "Show an 'Open in CMS' button in the case-level menu bar.",
-    disabled: false,
-  },
-  {
     key: "homePageNotification",
     label: "Home page notification",
     description:
