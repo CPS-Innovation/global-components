@@ -22,6 +22,8 @@ describe("initialiseAnalytics", () => {
 
   const mockBuild = {} as Build;
 
+  const mockGet = jest.fn() as any;
+
   const mockAnalyticsResult = {
     trackPageView: jest.fn(),
     trackEvent: jest.fn(),
@@ -48,6 +50,7 @@ describe("initialiseAnalytics", () => {
         config: mockConfig,
         build: mockBuild,
         flags: e2eFlags,
+        get: mockGet,
       });
 
       expect(mockInitialiseMockAnalytics).toHaveBeenCalledTimes(1);
@@ -67,6 +70,7 @@ describe("initialiseAnalytics", () => {
         config: mockConfig,
         build: mockBuild,
         flags: e2eFlags,
+        get: mockGet,
       });
 
       expect(result).toBe(expectedResult);
@@ -87,6 +91,7 @@ describe("initialiseAnalytics", () => {
         config: mockConfig,
         build: mockBuild,
         flags: normalFlags,
+        get: mockGet,
       });
 
       expect(mockInitialiseAiAnalytics).toHaveBeenCalledTimes(1);
@@ -99,12 +104,14 @@ describe("initialiseAnalytics", () => {
         config: mockConfig,
         build: mockBuild,
         flags: normalFlags,
+        get: mockGet,
       });
 
       expect(mockInitialiseAiAnalytics).toHaveBeenCalledWith({
         window: mockWindow,
         config: mockConfig,
         build: mockBuild,
+        get: mockGet,
       });
     });
 
@@ -121,6 +128,7 @@ describe("initialiseAnalytics", () => {
         config: mockConfig,
         build: mockBuild,
         flags: normalFlags,
+        get: mockGet,
       });
 
       expect(result).toBe(expectedResult);

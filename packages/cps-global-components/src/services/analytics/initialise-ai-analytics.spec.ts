@@ -26,10 +26,13 @@ jest.mock("@microsoft/applicationinsights-web", () => ({
 
 import { initialiseAiAnalytics } from "./initialise-ai-analytics";
 
+const mockGet = jest.fn() as any;
+
 const makeProps = (overrides?: Partial<{ window: Window; config: Config; build: Build }>) => ({
   window: globalThis.window,
   config: { APP_INSIGHTS_CONNECTION_STRING: "InstrumentationKey=test", ENVIRONMENT: "test" } as Config,
   build: { version: "1.0.0" } as unknown as Build,
+  get: mockGet,
   ...overrides,
 });
 

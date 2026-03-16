@@ -1336,6 +1336,7 @@ describe("global-script", () => {
           build: testBuild,
           flags: testFlags,
           authHint: expect.anything(),
+          get: expect.any(Function),
         }),
       );
       // Verify auth is NOT passed directly

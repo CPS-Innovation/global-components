@@ -221,7 +221,7 @@ export const initialiseStore = () => {
     withLogging(registerEventName, (event: RegisterEvent) => register(event.detail)),
   );
 
-  return { readyState, register, mergeTags, resetContextSpecificTags, subscribe };
+  return { readyState, register, mergeTags, resetContextSpecificTags, subscribe, get: store.get };
 };
 
 export const mergeTags: MergeTagFireAndForget = detail =>
