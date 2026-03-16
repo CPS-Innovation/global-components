@@ -125,7 +125,7 @@ export const initialiseAiAnalytics = ({ window, config: { APP_INSIGHTS_CONNECTIO
     (async () => {
       await authReady;
       const caseId = get("caseIdentifiers")?.caseId;
-      const arg = { properties: capitalizeKeys({ environment: ENVIRONMENT, auth: authValues, build: build, context: { found, contextIds }, correlationIds: correlationIdValues, caseId }) };
+      const arg = { properties: capitalizeKeys({ environment: ENVIRONMENT, auth: authValues, build: build, context: { found, contextIds }, correlationIds: correlationIdValues, ...(caseId && { caseId }) }) };
       _debug("trackPageView", arg);
       appInsights.trackPageView(arg);
       // Let's do our best to ensure our page view analytics gets registered before the page navigates away.
