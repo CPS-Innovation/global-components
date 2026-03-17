@@ -126,5 +126,18 @@ describe("hostAppEventSubscriber", () => {
 
       expect(shouldUnbind).toBe(true);
     });
+
+    it("only dispatches once even if handler is called multiple times", () => {
+      const { subscriptions } = hostAppEventSubscriber(makeSubscriberArgs(makeAppearContext()));
+
+      const events: HostAppEvent[] = [];
+      window.addEventListener(HostAppEvent.type, (ev: HostAppEvent) => events.push(ev));
+
+      subscriptions[0].handler(document.createElement("div"));
+      subscriptions[0].handler(document.createElement("div"));
+      subscriptions[0].handler(document.createElement("div"));
+
+      expect(events).toHaveLength(1);
+    });
   });
 });
