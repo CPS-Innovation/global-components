@@ -46,7 +46,8 @@
         },
         {
           "path": "https://cps-tst.outsystemsenterprise.com/CaseReview.*?[&?](?:CMS)?CaseId=(?<caseId>\\d+)",
-          "contextIds": "case review"
+          "contextIds": "case review",
+          "hostAppEventTargets": ["#b1-Resume"]
         },
         {
           "path": "https://cps-tst.outsystemsenterprise.com/CaseReview/RedirectCW",
