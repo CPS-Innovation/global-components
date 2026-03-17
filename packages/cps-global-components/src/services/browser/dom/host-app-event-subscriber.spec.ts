@@ -6,7 +6,7 @@ const makeContext = (overrides: Partial<FoundContext> = {}): FoundContext =>
   ({
     found: true,
     contextIds: "case review",
-    hostAppEventTargets: ["#b1-Resume"],
+    hostAppEventTargets: [{ selector: "#b1-Resume", action: "click" }],
     ...overrides,
   }) as unknown as FoundContext;
 
@@ -40,54 +40,91 @@ describe("hostAppEventSubscriber", () => {
     expect(isActiveForContext).toBe(false);
   });
 
-  it("creates a subscription per target selector", () => {
-    const context = makeContext({ hostAppEventTargets: ["#b1-Resume", "#b2-Other"] } as any);
+  it("creates a subscription per target", () => {
+    const context = makeContext({
+      hostAppEventTargets: [
+        { selector: "#b1-Resume", action: "click" },
+        { selector: "#b1-TaskCompleted2", action: "appear" },
+      ],
+    } as any);
     const { subscriptions } = hostAppEventSubscriber(makeSubscriberArgs(context));
     expect(subscriptions).toHaveLength(2);
     expect(subscriptions[0].cssSelector).toBe("#b1-Resume");
-    expect(subscriptions[1].cssSelector).toBe("#b2-Other");
+    expect(subscriptions[1].cssSelector).toBe("#b1-TaskCompleted2");
   });
 
-  it("handler attaches a click listener and returns true to unbind", () => {
-    const { subscriptions } = hostAppEventSubscriber(makeSubscriberArgs(makeContext()));
-    const element = document.createElement("button");
-    element.id = "b1-Resume";
-    const addEventListenerSpy = jest.spyOn(element, "addEventListener");
+  describe("click action", () => {
+    it("attaches a click listener and returns true to unbind", () => {
+      const { subscriptions } = hostAppEventSubscriber(makeSubscriberArgs(makeContext()));
+      const element = document.createElement("button");
+      const addEventListenerSpy = jest.spyOn(element, "addEventListener");
 
-    const shouldUnbind = subscriptions[0].handler(element);
+      const shouldUnbind = subscriptions[0].handler(element);
 
-    expect(shouldUnbind).toBe(true);
-    expect(addEventListenerSpy).toHaveBeenCalledWith("click", expect.any(Function), { passive: true, once: true });
-  });
+      expect(shouldUnbind).toBe(true);
+      expect(addEventListenerSpy).toHaveBeenCalledWith("click", expect.any(Function), { passive: true, once: true });
+    });
 
-  it("click listener dispatches a HostAppEvent", () => {
-    const { subscriptions } = hostAppEventSubscriber(makeSubscriberArgs(makeContext()));
-    const element = document.createElement("button");
-    element.id = "b1-Resume";
+    it("dispatches a HostAppEvent on click", () => {
+      const { subscriptions } = hostAppEventSubscriber(makeSubscriberArgs(makeContext()));
+      const element = document.createElement("button");
 
-    subscriptions[0].handler(element);
+      subscriptions[0].handler(element);
 
-    const events: HostAppEvent[] = [];
-    window.addEventListener(HostAppEvent.type, (ev: HostAppEvent) => events.push(ev));
+      const events: HostAppEvent[] = [];
+      window.addEventListener(HostAppEvent.type, (ev: HostAppEvent) => events.push(ev));
 
-    element.click();
+      element.click();
 
-    expect(events).toHaveLength(1);
-    expect(events[0].detail).toEqual({
-      action: "click",
-      elementId: "#b1-Resume",
-      contextIds: "case review",
+      expect(events).toHaveLength(1);
+      expect(events[0].detail).toEqual({
+        action: "click",
+        elementId: "#b1-Resume",
+        contextIds: "case review",
+      });
     });
   });
 
-  it("click listener fires only once", () => {
-    const { subscriptions } = hostAppEventSubscriber(makeSubscriberArgs(makeContext()));
-    const element = document.createElement("button");
-    const addEventListenerSpy = jest.spyOn(element, "addEventListener");
+  describe("appear action", () => {
+    const makeAppearContext = () =>
+      makeContext({
+        hostAppEventTargets: [{ selector: "#b1-TaskCompleted2", action: "appear" }],
+      } as any);
 
-    subscriptions[0].handler(element);
+    it("dispatches a HostAppEvent immediately when element is found", () => {
+      const { subscriptions } = hostAppEventSubscriber(makeSubscriberArgs(makeAppearContext()));
+      const element = document.createElement("div");
 
-    // Verify once: true is passed so the browser removes the listener after first click
-    expect(addEventListenerSpy).toHaveBeenCalledWith("click", expect.any(Function), { passive: true, once: true });
+      const events: HostAppEvent[] = [];
+      window.addEventListener(HostAppEvent.type, (ev: HostAppEvent) => events.push(ev));
+
+      subscriptions[0].handler(element);
+
+      expect(events).toHaveLength(1);
+      expect(events[0].detail).toEqual({
+        action: "appear",
+        elementId: "#b1-TaskCompleted2",
+        contextIds: "case review",
+      });
+    });
+
+    it("does not attach a click listener", () => {
+      const { subscriptions } = hostAppEventSubscriber(makeSubscriberArgs(makeAppearContext()));
+      const element = document.createElement("div");
+      const addEventListenerSpy = jest.spyOn(element, "addEventListener");
+
+      subscriptions[0].handler(element);
+
+      expect(addEventListenerSpy).not.toHaveBeenCalled();
+    });
+
+    it("returns true to unbind the arrive subscription", () => {
+      const { subscriptions } = hostAppEventSubscriber(makeSubscriberArgs(makeAppearContext()));
+      const element = document.createElement("div");
+
+      const shouldUnbind = subscriptions[0].handler(element);
+
+      expect(shouldUnbind).toBe(true);
+    });
   });
 });

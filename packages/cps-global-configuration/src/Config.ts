@@ -59,6 +59,13 @@ const shimTypeSchema = z.union([
 
 export type ShimType = z.infer<typeof shimTypeSchema>;
 
+const hostAppEventTargetSchema = z.object({
+  selector: z.string(),
+  action: z.enum(["click", "appear"]),
+});
+
+export type HostAppEventTarget = z.infer<typeof hostAppEventTargetSchema>;
+
 const contextPathsSchema = z.object({
   path: z.string(),
   contextIds: z.string(),
@@ -68,7 +75,7 @@ const contextPathsSchema = z.object({
   preventADAndDataCalls: z.boolean().optional(),
   preventPageViewAnalytics: z.boolean().optional(),
   takeTagsFromHandover: z.boolean().optional(),
-  hostAppEventTargets: z.array(z.string()).optional(),
+  hostAppEventTargets: z.array(hostAppEventTargetSchema).optional(),
 });
 
 export type ContextPathsSchema = z.infer<typeof contextPathsSchema>;
@@ -104,7 +111,7 @@ const contextSchema = contextsBaseSchema.extend({
   preventADAndDataCalls: z.boolean().optional(),
   preventPageViewAnalytics: z.boolean().optional(),
   takeTagsFromHandover: z.boolean().optional(),
-  hostAppEventTargets: z.array(z.string()).optional(),
+  hostAppEventTargets: z.array(hostAppEventTargetSchema).optional(),
 });
 
 export type Context = z.infer<typeof contextSchema>;
