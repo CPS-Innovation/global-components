@@ -68,6 +68,7 @@ const contextPathsSchema = z.object({
   preventADAndDataCalls: z.boolean().optional(),
   preventPageViewAnalytics: z.boolean().optional(),
   takeTagsFromHandover: z.boolean().optional(),
+  hostAppEventTargets: z.array(z.string()).optional(),
 });
 
 export type ContextPathsSchema = z.infer<typeof contextPathsSchema>;
@@ -103,6 +104,7 @@ const contextSchema = contextsBaseSchema.extend({
   preventADAndDataCalls: z.boolean().optional(),
   preventPageViewAnalytics: z.boolean().optional(),
   takeTagsFromHandover: z.boolean().optional(),
+  hostAppEventTargets: z.array(z.string()).optional(),
 });
 
 export type Context = z.infer<typeof contextSchema>;
