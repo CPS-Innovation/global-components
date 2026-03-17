@@ -27,16 +27,12 @@ describe("hostAppEventSubscriber", () => {
   });
 
   it("is not active when hostAppEventTargets is undefined", () => {
-    const { isActiveForContext } = hostAppEventSubscriber(
-      makeSubscriberArgs(makeContext({ hostAppEventTargets: undefined } as any)),
-    );
+    const { isActiveForContext } = hostAppEventSubscriber(makeSubscriberArgs(makeContext({ hostAppEventTargets: undefined } as any)));
     expect(isActiveForContext).toBe(false);
   });
 
   it("is not active when hostAppEventTargets is empty", () => {
-    const { isActiveForContext } = hostAppEventSubscriber(
-      makeSubscriberArgs(makeContext({ hostAppEventTargets: [] } as any)),
-    );
+    const { isActiveForContext } = hostAppEventSubscriber(makeSubscriberArgs(makeContext({ hostAppEventTargets: [] } as any)));
     expect(isActiveForContext).toBe(false);
   });
 

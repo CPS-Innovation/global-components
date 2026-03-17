@@ -27,10 +27,14 @@ export const hostAppEventSubscriber: DomMutationObserver = ({ context }) => ({
           dispatch();
         } else {
           _debug("Attaching click listener to", target.selector);
-          element.addEventListener("click", () => {
-            _debug("Host app event fired for", target.selector);
-            dispatch();
-          }, { passive: true, once: true });
+          element.addEventListener(
+            "click",
+            () => {
+              _debug("Host app event fired for", target.selector);
+              dispatch();
+            },
+            { passive: true, once: true },
+          );
         }
 
         return true;
