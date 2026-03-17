@@ -3,6 +3,7 @@ import { Config } from "cps-global-configuration";
 import { FoundContext } from "../context/FoundContext";
 import { CorrelationIds } from "../correlation/CorrelationIds";
 import { AnalyticsEvent, AnalyticsEventData, trackEvent } from "./analytics-event";
+import { HostAppEvent } from "./host-app-event";
 import { makeConsole } from "../../logging/makeConsole";
 import { Build } from "../../store/store";
 import { AuthResult, KnownErrorType } from "../auth/AuthResult";
@@ -143,6 +144,11 @@ export const initialiseAiAnalytics = ({ window, config: { APP_INSIGHTS_CONNECTIO
     const { name, ...rest } = ev.detail;
 
     appInsights.trackEvent({ name: ev.type, properties: { ...rest, correlationIds: correlationIdValues } });
+  });
+
+  window.addEventListener(HostAppEvent.type, (ev: HostAppEvent) => {
+    _debug("trackHostAppEvent", ev);
+    appInsights.trackEvent({ name: ev.type, properties: { ...ev.detail, correlationIds: correlationIdValues } });
   });
 
   return { trackPageView, trackException, trackEvent, registerAuth, registerCorrelationIds };

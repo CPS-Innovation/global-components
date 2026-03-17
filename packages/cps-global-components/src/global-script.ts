@@ -17,6 +17,7 @@ import { initialiseRootUrl } from "./services/root-url/initialise-root-url";
 import { initialisePreview } from "./services/state/preview/initialise-preview";
 import { initialiseRecentCases } from "./services/state/recent-cases/initialise-recent-cases";
 import { footerSubscriber } from "./services/browser/dom/footer-subscriber";
+import { hostAppEventSubscriber } from "./services/browser/dom/host-app-event-subscriber";
 import { accessibilitySubscriber } from "./services/browser/accessibility/accessibility-subscriber";
 import { initialiseSettings } from "./services/state/settings/initialise-settings";
 import { initialiseOutSystemsReconcileAuth } from "./services/outsystems-shim/initialise-outsytems-reconcile-auth";
@@ -101,6 +102,7 @@ const startupPhase = async ({ window, storeFns: { register, mergeTags, get } }: 
     { window, register, mergeTags, preview, settings },
     domTagMutationSubscriber,
     footerSubscriber,
+    hostAppEventSubscriber,
     accessibilitySubscriber,
     ...outSystemsShimSubscribers,
   );
