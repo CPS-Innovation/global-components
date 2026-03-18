@@ -27,16 +27,12 @@ describe("hostAppEventSubscriber", () => {
   });
 
   it("is not active when hostAppEventTargets is undefined", () => {
-    const { isActiveForContext } = hostAppEventSubscriber(
-      makeSubscriberArgs(makeContext({ hostAppEventTargets: undefined } as any)),
-    );
+    const { isActiveForContext } = hostAppEventSubscriber(makeSubscriberArgs(makeContext({ hostAppEventTargets: undefined } as any)));
     expect(isActiveForContext).toBe(false);
   });
 
   it("is not active when hostAppEventTargets is empty", () => {
-    const { isActiveForContext } = hostAppEventSubscriber(
-      makeSubscriberArgs(makeContext({ hostAppEventTargets: [] } as any)),
-    );
+    const { isActiveForContext } = hostAppEventSubscriber(makeSubscriberArgs(makeContext({ hostAppEventTargets: [] } as any)));
     expect(isActiveForContext).toBe(false);
   });
 
@@ -125,6 +121,19 @@ describe("hostAppEventSubscriber", () => {
       const shouldUnbind = subscriptions[0].handler(element);
 
       expect(shouldUnbind).toBe(true);
+    });
+
+    it("only dispatches once even if handler is called multiple times", () => {
+      const { subscriptions } = hostAppEventSubscriber(makeSubscriberArgs(makeAppearContext()));
+
+      const events: HostAppEvent[] = [];
+      window.addEventListener(HostAppEvent.type, (ev: HostAppEvent) => events.push(ev));
+
+      subscriptions[0].handler(document.createElement("div"));
+      subscriptions[0].handler(document.createElement("div"));
+      subscriptions[0].handler(document.createElement("div"));
+
+      expect(events).toHaveLength(1);
     });
   });
 });
