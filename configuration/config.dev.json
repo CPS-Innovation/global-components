@@ -131,7 +131,7 @@
       ]
     },
     {
-      "msalRedirectUrl": "https://housekeeping-staging.int.cps.gov.uk/global-components-msal-redirect.html",
+      "msalRedirectUrl": "",
       "contexts": [
         {
           "path": "https://lacc-app-ui-spa",
