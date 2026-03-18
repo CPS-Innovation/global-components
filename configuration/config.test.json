@@ -47,7 +47,10 @@
         {
           "path": "https://cps-tst.outsystemsenterprise.com/CaseReview.*?[&?](?:CMS)?CaseId=(?<caseId>\\d+)",
           "contextIds": "case review",
-          "hostAppEventTargets": [{ "selector": "#b1-Resume", "action": "click" }, { "selector": "#b1-TaskCompleted2", "action": "appear" }]
+          "hostAppEventTargets": [
+            { "selector": "#b1-Resume", "action": "click" },
+            { "selector": "#b1-TaskCompleted2", "action": "appear" }
+          ]
         },
         {
           "path": "https://cps-tst.outsystemsenterprise.com/CaseReview/RedirectCW",
@@ -130,6 +133,15 @@
               "regex": "/polaris-ui/case-details/.*/(?<caseId>\\d+)\""
             }
           ]
+        }
+      ]
+    },
+    {
+      "msalRedirectUrl": "https://housekeeping-staging.int.cps.gov.uk/global-components-msal-redirect.html",
+      "contexts": [
+        {
+          "path": "https://lacc-app-ui-spa",
+          "contextIds": "lcc"
         }
       ]
     },
