@@ -137,7 +137,7 @@
       ]
     },
     {
-      "msalRedirectUrl": "",
+      "msalRedirectUrl": "https://lacc-app-ui-spa-staging.azurewebsites.net/global-components-msal-redirect.html",
       "contexts": [
         {
           "path": "https://lacc-app-ui-spa",
