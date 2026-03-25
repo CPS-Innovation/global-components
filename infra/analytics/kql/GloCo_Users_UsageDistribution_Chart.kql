@@ -1,0 +1,9 @@
+GloCo_Users_UsageDistribution
+| evaluate pivot(App, sum(Pct_of_App_Visits), BucketNum, Bucket)
+| order by BucketNum asc
+| project-away BucketNum
+| render timechart with (
+    title  = "Percentile users vs percentage visits",
+    ytitle = "% of app visits",
+    xtitle = "User percentile bucket"
+)

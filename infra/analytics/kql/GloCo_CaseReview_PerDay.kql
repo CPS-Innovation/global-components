@@ -1,0 +1,42 @@
+let Cases = GloCo_PageViews_CaseReview
+| where TimeGenerated > datetime(2026-03-09T12:00:01)
+| summarize
+    Has_Review_First_Review       = countif(Is_Review_First_Review) > 0,
+    Has_Review_Subsequent_Review  = countif(Is_Review_Subsequent_Review) > 0,
+    Has_Early_Advice_First_Review = countif(Is_Early_Advice_First_Review) > 0,
+    Has_Early_Advice_Subsequent   = countif(Is_Early_Advice_Subsequent) > 0,
+    Has_Admin_Finalise            = countif(Is_Admin_Finalise) > 0,
+    FirstSeen                     = min(bin(TimeGenerated, 1d))
+    by CaseId
+| project CaseId, FirstSeen,
+    F = case(
+        Has_Review_First_Review,       "First",
+        Has_Review_Subsequent_Review,  "Subsequent",
+        Has_Early_Advice_First_Review, "EAFirst",
+        Has_Early_Advice_Subsequent,   "EASubsequent",
+        Has_Admin_Finalise,            "QuickAdmin",
+        "Other");
+let NewCases = Cases
+| summarize NewCases = count() by Day = FirstSeen, F;
+let Spine = range Day from toscalar(Cases | summarize min(FirstSeen)) to toscalar(Cases | summarize max(FirstSeen)) step 1d
+| mv-expand F = dynamic(["First","Subsequent","EAFirst","EASubsequent","QuickAdmin"]) to typeof(string);
+let Combined = Spine
+| join kind=leftouter NewCases on Day, F
+| extend NewCases = coalesce(NewCases, 0)
+| project Day, F, NewCases
+| partition by F (
+    order by Day asc
+    | extend CumulativeCases = row_cumsum(NewCases)
+);
+let DailyPivot      = Combined | project Day, F, NewCases       | evaluate pivot(F, sum(NewCases));
+let CumulativePivot = Combined | project Day, F, CumulativeCases | evaluate pivot(F, max(CumulativeCases));
+DailyPivot
+| join kind=inner CumulativePivot on Day
+| project-away Day1
+| project Day,
+    First_Review_Daily           = First,          First_Review_Cumulative           = First1,
+    Subsequent_Review_Daily      = Subsequent,     Subsequent_Review_Cumulative      = Subsequent1,
+    EA_First_Review_Daily        = EAFirst,        EA_First_Review_Cumulative        = EAFirst1,
+    EA_Subsequent_Review_Daily   = EASubsequent,   EA_Subsequent_Review_Cumulative   = EASubsequent1,
+    Quick_Admin_Finalise_Daily   = QuickAdmin,     Quick_Admin_Finalise_Cumulative   = QuickAdmin1
+| order by Day desc

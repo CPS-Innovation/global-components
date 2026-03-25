@@ -1,0 +1,25 @@
+let Visits = GloCo_PageViews
+| where TimeGenerated > datetime(2026-03-09T12:00:01)
+| where App != "Casework app"
+| where Auth_IsAuthed
+| summarize Visits = count_distinct(CorrelationId_ScriptLoad) by Auth_Username, App;
+let UserCountPerApp = Visits
+| summarize UserCount = count() by App;
+let AppTotals = Visits
+| summarize App_Total_Visits = sum(Visits) by App;
+Visits
+| join kind=leftouter UserCountPerApp on App
+| join kind=leftouter AppTotals on App
+| project-away App1, App2
+| order by App asc, Visits desc
+| extend Rank = row_number(1, App != prev(App))
+| extend BucketNum = toint(100.0 * (todouble(Rank) - 1) / todouble(UserCount) / 5.0) + 1
+| extend Bucket = strcat(tostring((BucketNum - 1) * 5), "–", tostring(BucketNum * 5), "%")
+| summarize
+    Users           = count(),
+    Bucket_Visits   = sum(Visits),
+    App_Total_Visits = any(App_Total_Visits)
+    by App, BucketNum, Bucket
+| extend Pct_of_App_Visits = round(100.0 * Bucket_Visits / App_Total_Visits, 1)
+| order by App asc, BucketNum asc
+| project BucketNum, Bucket, App, Pct_of_App_Visits
