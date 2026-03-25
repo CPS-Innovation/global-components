@@ -1,0 +1,1018 @@
+{
+  "id": "/subscriptions/__SUBSCRIPTION_ID__/resourceGroups/rg-global-nav-dev/providers/Microsoft.Portal/dashboards/028650ca-6b89-4dc9-a048-70643d7e90de",
+  "location": "uksouth",
+  "name": "028650ca-6b89-4dc9-a048-70643d7e90de",
+  "properties": {
+    "lenses": [
+      {
+        "order": 0,
+        "parts": [
+          {
+            "metadata": {
+              "inputs": [
+                {
+                  "isOptional": true,
+                  "name": "resourceTypeMode"
+                },
+                {
+                  "isOptional": true,
+                  "name": "ComponentId"
+                },
+                {
+                  "isOptional": true,
+                  "name": "Scope",
+                  "value": {
+                    "resourceIds": [
+                      "/subscriptions/__SUBSCRIPTION_ID__/resourcegroups/rg-global-nav-dev/providers/microsoft.operationalinsights/workspaces/la-global-nav-dev"
+                    ]
+                  }
+                },
+                {
+                  "isOptional": true,
+                  "name": "PartId",
+                  "value": "39479574-f840-42cd-9180-bcbf434ac466"
+                },
+                {
+                  "isOptional": true,
+                  "name": "Version",
+                  "value": "2.0"
+                },
+                {
+                  "isOptional": true,
+                  "name": "TimeRange",
+                  "value": "P7D"
+                },
+                {
+                  "isOptional": true,
+                  "name": "DashboardId"
+                },
+                {
+                  "isOptional": true,
+                  "name": "DraftRequestParameters"
+                },
+                {
+                  "isOptional": true,
+                  "name": "Query",
+                  "value": "GloCo_App_UsersPerDay_Chart\n"
+                },
+                {
+                  "isOptional": true,
+                  "name": "ControlType",
+                  "value": "FrameControlChart"
+                },
+                {
+                  "isOptional": true,
+                  "name": "SpecificChart",
+                  "value": "Line"
+                },
+                {
+                  "isOptional": true,
+                  "name": "PartTitle",
+                  "value": "Cumulative users by app"
+                },
+                {
+                  "isOptional": true,
+                  "name": "PartSubTitle",
+                  "value": "la-global-nav-dev"
+                },
+                {
+                  "isOptional": true,
+                  "name": "Dimensions",
+                  "value": {
+                    "aggregation": "Sum",
+                    "splitBy": [],
+                    "xAxis": {
+                      "name": "Day",
+                      "type": "datetime"
+                    },
+                    "yAxis": [
+                      {
+                        "name": "CaseReview_CumulativeUsers",
+                        "type": "long"
+                      },
+                      {
+                        "name": "WorkManagement_CumulativeUsers",
+                        "type": "long"
+                      },
+                      {
+                        "name": "Home_CumulativeUsers",
+                        "type": "long"
+                      },
+                      {
+                        "name": "Housekeeping_CumulativeUsers",
+                        "type": "long"
+                      }
+                    ]
+                  }
+                },
+                {
+                  "isOptional": true,
+                  "name": "LegendOptions",
+                  "value": {
+                    "isEnabled": true,
+                    "position": "Bottom"
+                  }
+                },
+                {
+                  "isOptional": true,
+                  "name": "IsQueryContainTimeRange",
+                  "value": false
+                }
+              ],
+              "settings": {},
+              "type": "Extension/Microsoft_OperationsManagementSuite_Workspace/PartType/LogsDashboardPart"
+            },
+            "position": {
+              "colSpan": 8,
+              "rowSpan": 5,
+              "x": 0,
+              "y": 0
+            }
+          },
+          {
+            "metadata": {
+              "inputs": [
+                {
+                  "isOptional": true,
+                  "name": "resourceTypeMode"
+                },
+                {
+                  "isOptional": true,
+                  "name": "ComponentId"
+                },
+                {
+                  "isOptional": true,
+                  "name": "Scope",
+                  "value": {
+                    "resourceIds": [
+                      "/subscriptions/__SUBSCRIPTION_ID__/resourcegroups/rg-global-nav-dev/providers/microsoft.operationalinsights/workspaces/la-global-nav-dev"
+                    ]
+                  }
+                },
+                {
+                  "isOptional": true,
+                  "name": "PartId",
+                  "value": "250dc532-01d9-4e9c-a18b-15171124200c"
+                },
+                {
+                  "isOptional": true,
+                  "name": "Version",
+                  "value": "2.0"
+                },
+                {
+                  "isOptional": true,
+                  "name": "TimeRange",
+                  "value": "P1D"
+                },
+                {
+                  "isOptional": true,
+                  "name": "DashboardId"
+                },
+                {
+                  "isOptional": true,
+                  "name": "DraftRequestParameters"
+                },
+                {
+                  "isOptional": true,
+                  "name": "Query",
+                  "value": "GloCo_App_UsersPerDay\n"
+                },
+                {
+                  "isOptional": true,
+                  "name": "ControlType",
+                  "value": "AnalyticsGrid"
+                },
+                {
+                  "isOptional": true,
+                  "name": "SpecificChart"
+                },
+                {
+                  "isOptional": true,
+                  "name": "PartTitle",
+                  "value": "Analytics"
+                },
+                {
+                  "isOptional": true,
+                  "name": "PartSubTitle",
+                  "value": "la-global-nav-dev"
+                },
+                {
+                  "isOptional": true,
+                  "name": "Dimensions"
+                },
+                {
+                  "isOptional": true,
+                  "name": "LegendOptions"
+                },
+                {
+                  "isOptional": true,
+                  "name": "IsQueryContainTimeRange",
+                  "value": false
+                }
+              ],
+              "settings": {
+                "content": {
+                  "PartTitle": "Cumulative users by app"
+                }
+              },
+              "type": "Extension/Microsoft_OperationsManagementSuite_Workspace/PartType/LogsDashboardPart"
+            },
+            "position": {
+              "colSpan": 9,
+              "rowSpan": 5,
+              "x": 8,
+              "y": 0
+            }
+          },
+          {
+            "metadata": {
+              "filters": {
+                "MsPortalFx_TimeRange": {
+                  "model": {
+                    "format": "utc",
+                    "granularity": "auto",
+                    "relative": "30m"
+                  }
+                }
+              },
+              "inputs": [
+                {
+                  "isOptional": true,
+                  "name": "resourceTypeMode"
+                },
+                {
+                  "isOptional": true,
+                  "name": "ComponentId"
+                },
+                {
+                  "isOptional": true,
+                  "name": "Scope",
+                  "value": {
+                    "resourceIds": [
+                      "/subscriptions/__SUBSCRIPTION_ID__/resourcegroups/rg-global-nav-dev/providers/microsoft.operationalinsights/workspaces/la-global-nav-dev"
+                    ]
+                  }
+                },
+                {
+                  "isOptional": true,
+                  "name": "PartId",
+                  "value": "1e6e33e4-c6c3-4f53-8125-06cd6512170b"
+                },
+                {
+                  "isOptional": true,
+                  "name": "Version",
+                  "value": "2.0"
+                },
+                {
+                  "isOptional": true,
+                  "name": "TimeRange",
+                  "value": "P1D"
+                },
+                {
+                  "isOptional": true,
+                  "name": "DashboardId"
+                },
+                {
+                  "isOptional": true,
+                  "name": "DraftRequestParameters"
+                },
+                {
+                  "isOptional": true,
+                  "name": "Query",
+                  "value": "GloCo_PageViews_ActiveUsers_Chart\n"
+                },
+                {
+                  "isOptional": true,
+                  "name": "ControlType",
+                  "value": "AnalyticsGrid"
+                },
+                {
+                  "isOptional": true,
+                  "name": "SpecificChart"
+                },
+                {
+                  "isOptional": true,
+                  "name": "PartTitle",
+                  "value": "Analytics"
+                },
+                {
+                  "isOptional": true,
+                  "name": "PartSubTitle",
+                  "value": "la-global-nav-dev"
+                },
+                {
+                  "isOptional": true,
+                  "name": "Dimensions"
+                },
+                {
+                  "isOptional": true,
+                  "name": "LegendOptions"
+                },
+                {
+                  "isOptional": true,
+                  "name": "IsQueryContainTimeRange",
+                  "value": false
+                }
+              ],
+              "settings": {
+                "content": {
+                  "ControlType": "FrameControlChart",
+                  "Dimensions": {
+                    "aggregation": "Sum",
+                    "splitBy": [],
+                    "xAxis": {
+                      "name": "App",
+                      "type": "string"
+                    },
+                    "yAxis": [
+                      {
+                        "name": "count_distinct_Auth_Username",
+                        "type": "long"
+                      }
+                    ]
+                  },
+                  "LegendOptions": {
+                    "isEnabled": true,
+                    "position": "Bottom"
+                  },
+                  "PartTitle": "Active users (last 10 minutes)",
+                  "Query": "GloCo_PageViews_ActiveUsers_Chart\n",
+                  "SpecificChart": "Pie"
+                }
+              },
+              "type": "Extension/Microsoft_OperationsManagementSuite_Workspace/PartType/LogsDashboardPart"
+            },
+            "position": {
+              "colSpan": 7,
+              "rowSpan": 5,
+              "x": 17,
+              "y": 0
+            }
+          },
+          {
+            "metadata": {
+              "inputs": [
+                {
+                  "isOptional": true,
+                  "name": "resourceTypeMode"
+                },
+                {
+                  "isOptional": true,
+                  "name": "ComponentId"
+                },
+                {
+                  "isOptional": true,
+                  "name": "Scope",
+                  "value": {
+                    "resourceIds": [
+                      "/subscriptions/__SUBSCRIPTION_ID__/resourcegroups/rg-global-nav-dev/providers/microsoft.operationalinsights/workspaces/la-global-nav-dev"
+                    ]
+                  }
+                },
+                {
+                  "isOptional": true,
+                  "name": "PartId",
+                  "value": "70bef2ef-789f-4bcb-a798-5528310d7833"
+                },
+                {
+                  "isOptional": true,
+                  "name": "Version",
+                  "value": "2.0"
+                },
+                {
+                  "isOptional": true,
+                  "name": "TimeRange",
+                  "value": "P1D"
+                },
+                {
+                  "isOptional": true,
+                  "name": "DashboardId"
+                },
+                {
+                  "isOptional": true,
+                  "name": "DraftRequestParameters"
+                },
+                {
+                  "isOptional": true,
+                  "name": "Query",
+                  "value": "GloCo_Users_UsageDistribution_Chart\n"
+                },
+                {
+                  "isOptional": true,
+                  "name": "ControlType",
+                  "value": "FrameControlChart"
+                },
+                {
+                  "isOptional": true,
+                  "name": "SpecificChart",
+                  "value": "Line"
+                },
+                {
+                  "isOptional": true,
+                  "name": "PartTitle",
+                  "value": "Percentile users vs percentage visits"
+                },
+                {
+                  "isOptional": true,
+                  "name": "PartSubTitle",
+                  "value": "la-global-nav-dev"
+                },
+                {
+                  "isOptional": true,
+                  "name": "Dimensions",
+                  "value": {
+                    "aggregation": "Sum",
+                    "splitBy": [],
+                    "xAxis": {
+                      "name": "Bucket",
+                      "type": "string"
+                    },
+                    "yAxis": [
+                      {
+                        "name": "Case review",
+                        "type": "real"
+                      },
+                      {
+                        "name": "Home",
+                        "type": "real"
+                      },
+                      {
+                        "name": "Housekeeping",
+                        "type": "real"
+                      },
+                      {
+                        "name": "Work management app",
+                        "type": "real"
+                      }
+                    ]
+                  }
+                },
+                {
+                  "isOptional": true,
+                  "name": "LegendOptions",
+                  "value": {
+                    "isEnabled": true,
+                    "position": "Bottom"
+                  }
+                },
+                {
+                  "isOptional": true,
+                  "name": "IsQueryContainTimeRange",
+                  "value": false
+                }
+              ],
+              "settings": {},
+              "type": "Extension/Microsoft_OperationsManagementSuite_Workspace/PartType/LogsDashboardPart"
+            },
+            "position": {
+              "colSpan": 8,
+              "rowSpan": 5,
+              "x": 0,
+              "y": 5
+            }
+          },
+          {
+            "metadata": {
+              "inputs": [
+                {
+                  "isOptional": true,
+                  "name": "resourceTypeMode"
+                },
+                {
+                  "isOptional": true,
+                  "name": "ComponentId"
+                },
+                {
+                  "isOptional": true,
+                  "name": "Scope",
+                  "value": {
+                    "resourceIds": [
+                      "/subscriptions/__SUBSCRIPTION_ID__/resourcegroups/rg-global-nav-dev/providers/microsoft.operationalinsights/workspaces/la-global-nav-dev"
+                    ]
+                  }
+                },
+                {
+                  "isOptional": true,
+                  "name": "PartId",
+                  "value": "12335a05-907e-424f-ac21-6964b687abf8"
+                },
+                {
+                  "isOptional": true,
+                  "name": "Version",
+                  "value": "2.0"
+                },
+                {
+                  "isOptional": true,
+                  "name": "TimeRange",
+                  "value": "P7D"
+                },
+                {
+                  "isOptional": true,
+                  "name": "DashboardId"
+                },
+                {
+                  "isOptional": true,
+                  "name": "DraftRequestParameters"
+                },
+                {
+                  "isOptional": true,
+                  "name": "Query",
+                  "value": "GloCo_Users_VisitsPerApp\n"
+                },
+                {
+                  "isOptional": true,
+                  "name": "ControlType",
+                  "value": "AnalyticsGrid"
+                },
+                {
+                  "isOptional": true,
+                  "name": "SpecificChart"
+                },
+                {
+                  "isOptional": true,
+                  "name": "PartTitle",
+                  "value": "Analytics"
+                },
+                {
+                  "isOptional": true,
+                  "name": "PartSubTitle",
+                  "value": "la-global-nav-dev"
+                },
+                {
+                  "isOptional": true,
+                  "name": "Dimensions"
+                },
+                {
+                  "isOptional": true,
+                  "name": "LegendOptions"
+                },
+                {
+                  "isOptional": true,
+                  "name": "IsQueryContainTimeRange",
+                  "value": false
+                }
+              ],
+              "settings": {
+                "content": {
+                  "GridColumnsWidth": {
+                    "Auth_Username": "267px"
+                  },
+                  "PartTitle": "Top users by visit",
+                  "Query": "GloCo_Users_VisitsPerApp\n"
+                }
+              },
+              "type": "Extension/Microsoft_OperationsManagementSuite_Workspace/PartType/LogsDashboardPart"
+            },
+            "position": {
+              "colSpan": 16,
+              "rowSpan": 5,
+              "x": 8,
+              "y": 5
+            }
+          },
+          {
+            "metadata": {
+              "inputs": [
+                {
+                  "isOptional": true,
+                  "name": "resourceTypeMode"
+                },
+                {
+                  "isOptional": true,
+                  "name": "ComponentId"
+                },
+                {
+                  "isOptional": true,
+                  "name": "Scope",
+                  "value": {
+                    "resourceIds": [
+                      "/subscriptions/__SUBSCRIPTION_ID__/resourcegroups/rg-global-nav-dev/providers/microsoft.operationalinsights/workspaces/la-global-nav-dev"
+                    ]
+                  }
+                },
+                {
+                  "isOptional": true,
+                  "name": "PartId",
+                  "value": "52cc5be9-586d-424e-b93b-7e52711a6a35"
+                },
+                {
+                  "isOptional": true,
+                  "name": "Version",
+                  "value": "2.0"
+                },
+                {
+                  "isOptional": true,
+                  "name": "TimeRange",
+                  "value": "P1D"
+                },
+                {
+                  "isOptional": true,
+                  "name": "DashboardId"
+                },
+                {
+                  "isOptional": true,
+                  "name": "DraftRequestParameters"
+                },
+                {
+                  "isOptional": true,
+                  "name": "Query",
+                  "value": "GloCo_CaseReview_Duration_Chart\n"
+                },
+                {
+                  "isOptional": true,
+                  "name": "ControlType",
+                  "value": "FrameControlChart"
+                },
+                {
+                  "isOptional": true,
+                  "name": "SpecificChart",
+                  "value": "UnstackedColumn"
+                },
+                {
+                  "isOptional": true,
+                  "name": "PartTitle",
+                  "value": "Review duration distribution (hours)"
+                },
+                {
+                  "isOptional": true,
+                  "name": "PartSubTitle",
+                  "value": "la-global-nav-dev"
+                },
+                {
+                  "isOptional": true,
+                  "name": "Dimensions",
+                  "value": {
+                    "aggregation": "Sum",
+                    "splitBy": [],
+                    "xAxis": {
+                      "name": "BucketLabel",
+                      "type": "string"
+                    },
+                    "yAxis": [
+                      {
+                        "name": "First",
+                        "type": "real"
+                      },
+                      {
+                        "name": "Subsequent",
+                        "type": "real"
+                      }
+                    ]
+                  }
+                },
+                {
+                  "isOptional": true,
+                  "name": "LegendOptions",
+                  "value": {
+                    "isEnabled": true,
+                    "position": "Bottom"
+                  }
+                },
+                {
+                  "isOptional": true,
+                  "name": "IsQueryContainTimeRange",
+                  "value": false
+                }
+              ],
+              "settings": {},
+              "type": "Extension/Microsoft_OperationsManagementSuite_Workspace/PartType/LogsDashboardPart"
+            },
+            "position": {
+              "colSpan": 8,
+              "rowSpan": 5,
+              "x": 0,
+              "y": 10
+            }
+          },
+          {
+            "metadata": {
+              "inputs": [
+                {
+                  "isOptional": true,
+                  "name": "resourceTypeMode"
+                },
+                {
+                  "isOptional": true,
+                  "name": "ComponentId"
+                },
+                {
+                  "isOptional": true,
+                  "name": "Scope",
+                  "value": {
+                    "resourceIds": [
+                      "/subscriptions/__SUBSCRIPTION_ID__/resourcegroups/rg-global-nav-dev/providers/microsoft.operationalinsights/workspaces/la-global-nav-dev"
+                    ]
+                  }
+                },
+                {
+                  "isOptional": true,
+                  "name": "PartId",
+                  "value": "1257fc6a-3457-49d7-9c64-c2751c7a9f4a"
+                },
+                {
+                  "isOptional": true,
+                  "name": "Version",
+                  "value": "2.0"
+                },
+                {
+                  "isOptional": true,
+                  "name": "TimeRange",
+                  "value": "P7D"
+                },
+                {
+                  "isOptional": true,
+                  "name": "DashboardId"
+                },
+                {
+                  "isOptional": true,
+                  "name": "DraftRequestParameters"
+                },
+                {
+                  "isOptional": true,
+                  "name": "Query",
+                  "value": "GloCo_CaseReview_PerDay\n"
+                },
+                {
+                  "isOptional": true,
+                  "name": "ControlType",
+                  "value": "AnalyticsGrid"
+                },
+                {
+                  "isOptional": true,
+                  "name": "SpecificChart"
+                },
+                {
+                  "isOptional": true,
+                  "name": "PartTitle",
+                  "value": "Analytics"
+                },
+                {
+                  "isOptional": true,
+                  "name": "PartSubTitle",
+                  "value": "la-global-nav-dev"
+                },
+                {
+                  "isOptional": true,
+                  "name": "Dimensions"
+                },
+                {
+                  "isOptional": true,
+                  "name": "LegendOptions"
+                },
+                {
+                  "isOptional": true,
+                  "name": "IsQueryContainTimeRange",
+                  "value": false
+                }
+              ],
+              "settings": {
+                "content": {
+                  "PartTitle": "Reviews by day"
+                }
+              },
+              "type": "Extension/Microsoft_OperationsManagementSuite_Workspace/PartType/LogsDashboardPart"
+            },
+            "position": {
+              "colSpan": 16,
+              "rowSpan": 5,
+              "x": 8,
+              "y": 10
+            }
+          },
+          {
+            "metadata": {
+              "inputs": [
+                {
+                  "isOptional": true,
+                  "name": "resourceTypeMode"
+                },
+                {
+                  "isOptional": true,
+                  "name": "ComponentId"
+                },
+                {
+                  "isOptional": true,
+                  "name": "Scope",
+                  "value": {
+                    "resourceIds": [
+                      "/subscriptions/__SUBSCRIPTION_ID__/resourcegroups/rg-global-nav-dev/providers/microsoft.operationalinsights/workspaces/la-global-nav-dev"
+                    ]
+                  }
+                },
+                {
+                  "isOptional": true,
+                  "name": "PartId",
+                  "value": "15a5c96e-1171-4a60-8d85-a4ff664101e7"
+                },
+                {
+                  "isOptional": true,
+                  "name": "Version",
+                  "value": "2.0"
+                },
+                {
+                  "isOptional": true,
+                  "name": "TimeRange",
+                  "value": "P1D"
+                },
+                {
+                  "isOptional": true,
+                  "name": "DashboardId"
+                },
+                {
+                  "isOptional": true,
+                  "name": "DraftRequestParameters"
+                },
+                {
+                  "isOptional": true,
+                  "name": "Query",
+                  "value": "AppExceptions\n| extend ErrorCode = strcat_array(array_slice(split(OuterMessage, \":\"), 0, 2), \":\")\n| summarize count() by ErrorCode, bin(TimeGenerated, 1d)"
+                },
+                {
+                  "isOptional": true,
+                  "name": "ControlType",
+                  "value": "AnalyticsGrid"
+                },
+                {
+                  "isOptional": true,
+                  "name": "SpecificChart"
+                },
+                {
+                  "isOptional": true,
+                  "name": "PartTitle",
+                  "value": "Analytics"
+                },
+                {
+                  "isOptional": true,
+                  "name": "PartSubTitle",
+                  "value": "la-global-nav-dev"
+                },
+                {
+                  "isOptional": true,
+                  "name": "Dimensions"
+                },
+                {
+                  "isOptional": true,
+                  "name": "LegendOptions"
+                },
+                {
+                  "isOptional": true,
+                  "name": "IsQueryContainTimeRange",
+                  "value": false
+                }
+              ],
+              "settings": {
+                "content": {
+                  "GridColumnsWidth": {
+                    "ErrorCode": "637px"
+                  },
+                  "PartTitle": "AD auth errors"
+                }
+              },
+              "type": "Extension/Microsoft_OperationsManagementSuite_Workspace/PartType/LogsDashboardPart"
+            },
+            "position": {
+              "colSpan": 16,
+              "rowSpan": 5,
+              "x": 8,
+              "y": 15
+            }
+          },
+          {
+            "metadata": {
+              "inputs": [
+                {
+                  "isOptional": true,
+                  "name": "resourceTypeMode"
+                },
+                {
+                  "isOptional": true,
+                  "name": "ComponentId"
+                },
+                {
+                  "isOptional": true,
+                  "name": "Scope",
+                  "value": {
+                    "resourceIds": [
+                      "/subscriptions/__SUBSCRIPTION_ID__/resourcegroups/rg-global-nav-dev/providers/microsoft.operationalinsights/workspaces/la-global-nav-dev"
+                    ]
+                  }
+                },
+                {
+                  "isOptional": true,
+                  "name": "PartId",
+                  "value": "45b638ca-515d-4276-ad12-46fe12d15f11"
+                },
+                {
+                  "isOptional": true,
+                  "name": "Version",
+                  "value": "2.0"
+                },
+                {
+                  "isOptional": true,
+                  "name": "TimeRange"
+                },
+                {
+                  "isOptional": true,
+                  "name": "DashboardId"
+                },
+                {
+                  "isOptional": true,
+                  "name": "DraftRequestParameters"
+                },
+                {
+                  "isOptional": true,
+                  "name": "Query",
+                  "value": "GloCo_CaseReview_TotalStartedSubmitted\n"
+                },
+                {
+                  "isOptional": true,
+                  "name": "ControlType",
+                  "value": "AnalyticsGrid"
+                },
+                {
+                  "isOptional": true,
+                  "name": "SpecificChart"
+                },
+                {
+                  "isOptional": true,
+                  "name": "PartTitle",
+                  "value": "Analytics"
+                },
+                {
+                  "isOptional": true,
+                  "name": "PartSubTitle",
+                  "value": "la-global-nav-dev"
+                },
+                {
+                  "isOptional": true,
+                  "name": "Dimensions"
+                },
+                {
+                  "isOptional": true,
+                  "name": "LegendOptions"
+                },
+                {
+                  "isOptional": true,
+                  "name": "IsQueryContainTimeRange",
+                  "value": true
+                }
+              ],
+              "type": "Extension/Microsoft_OperationsManagementSuite_Workspace/PartType/LogsDashboardPart"
+            },
+            "position": {
+              "colSpan": 6,
+              "rowSpan": 4,
+              "x": 0,
+              "y": 15
+            }
+          }
+        ]
+      }
+    ],
+    "metadata": {
+      "model": {
+        "filterLocale": {
+          "value": "en-us"
+        },
+        "filters": {
+          "value": {
+            "MsPortalFx_TimeRange": {
+              "displayCache": {
+                "name": "UTC Time",
+                "value": "Past 30 days"
+              },
+              "filteredPartIds": [
+                "StartboardPart-LogsDashboardPart-84fc72dd-803d-4cc4-8691-aee8806a60c4",
+                "StartboardPart-LogsDashboardPart-84fc72dd-803d-4cc4-8691-aee8806a60c6",
+                "StartboardPart-LogsDashboardPart-84fc72dd-803d-4cc4-8691-aee8806a60c8",
+                "StartboardPart-LogsDashboardPart-84fc72dd-803d-4cc4-8691-aee8806a60ca",
+                "StartboardPart-LogsDashboardPart-84fc72dd-803d-4cc4-8691-aee8806a60cc",
+                "StartboardPart-LogsDashboardPart-84fc72dd-803d-4cc4-8691-aee8806a60ce",
+                "StartboardPart-LogsDashboardPart-84fc72dd-803d-4cc4-8691-aee8806a60d0",
+                "StartboardPart-LogsDashboardPart-84fc72dd-803d-4cc4-8691-aee8806a60d2"
+              ],
+              "model": {
+                "format": "utc",
+                "granularity": "auto",
+                "relative": "30d"
+              }
+            }
+          }
+        },
+        "timeRange": {
+          "type": "MsPortalFx.Composition.Configuration.ValueTypes.TimeRange",
+          "value": {
+            "relative": {
+              "duration": 24,
+              "timeUnit": 1
+            }
+          }
+        }
+      }
+    }
+  },
+  "tags": {
+    "hidden-title": "Global Components - preprod"
+  },
+  "type": "Microsoft.Portal/dashboards"
+}

@@ -1,0 +1,33 @@
+let UserDays = GloCo_PageViews
+| where TimeGenerated > datetime(2026-03-09T12:00:01)
+| where App != "Casework app"
+| where isnotempty(Auth_Username)
+| distinct bin(TimeGenerated, 1d), App, Auth_Username
+| project-rename Day = TimeGenerated;
+let FirstSeen = UserDays
+| summarize FirstDay = min(Day) by App, Auth_Username;
+let DailyUsers = UserDays
+| summarize DailyUsers = count() by Day, App;
+let NewUsers = FirstSeen
+| summarize NewUsers = count() by Day = FirstDay, App;
+let Combined = DailyUsers
+| join kind=leftouter NewUsers on Day, App
+| extend NewUsers = coalesce(NewUsers, 0)
+| partition by App (
+    order by Day asc
+    | extend CumulativeUsers = row_cumsum(NewUsers)
+)
+| extend AppClean = replace_string(replace_string(App, " ", "_"), "/", "");
+let DailyPivot      = Combined | project Day, App = AppClean, DailyUsers      | evaluate pivot(App, sum(DailyUsers));
+let NewPivot         = Combined | project Day, App = AppClean, NewUsers        | evaluate pivot(App, sum(NewUsers));
+let CumulativePivot  = Combined | project Day, App = AppClean, CumulativeUsers | evaluate pivot(App, max(CumulativeUsers));
+DailyPivot
+| join kind=inner NewPivot on Day
+| join kind=inner CumulativePivot on Day
+| project-away Day1, Day2
+| project Day,
+    CaseReview_DailyUsers       = Case_review,   CaseReview_NewUsers       = Case_review1,   CaseReview_CumulativeUsers       = Case_review2,
+    WorkManagement_DailyUsers   = Work_management_app, WorkManagement_NewUsers   = Work_management_app1, WorkManagement_CumulativeUsers   = Work_management_app2,
+    Home_DailyUsers             = Home,           Home_NewUsers             = Home1,           Home_CumulativeUsers             = Home2,
+    Housekeeping_DailyUsers     = Housekeeping,   Housekeeping_NewUsers     = Housekeeping1,   Housekeeping_CumulativeUsers     = Housekeeping2
+| order by Day desc

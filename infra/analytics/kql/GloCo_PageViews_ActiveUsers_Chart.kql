@@ -1,0 +1,6 @@
+GloCo_PageViews
+| where TimeGenerated > ago(10m)
+| summarize count_distinct(Auth_Username) by App
+| render piechart with (
+    title = "Active users (last 10 minutes)"
+)
