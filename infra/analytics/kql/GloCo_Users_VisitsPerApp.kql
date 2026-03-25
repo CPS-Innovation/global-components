@@ -1,0 +1,16 @@
+let Visits = GloCo_PageViews
+| where TimeGenerated > datetime(2026-03-09T12:00:01)
+| where App != "Casework app"
+| where Auth_IsAuthed
+| summarize Visits = count_distinct(CorrelationId_ScriptLoad) by Auth_Username, App;
+let Totals = Visits
+| summarize Total_Visits = sum(Visits) by Auth_Username;
+let GrandTotal = toscalar(Totals | summarize sum(Total_Visits));
+Visits
+| evaluate pivot(App, sum(Visits))
+| join kind=leftouter Totals on Auth_Username
+| project-away Auth_Username1
+| order by Total_Visits desc
+| extend Rank = row_number()
+| extend Cumulative_Pct = round(100.0 * row_cumsum(Total_Visits) / GrandTotal, 1)
+| project-reorder *, Rank, Cumulative_Pct
