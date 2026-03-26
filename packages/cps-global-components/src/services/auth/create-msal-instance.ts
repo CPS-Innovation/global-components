@@ -9,6 +9,8 @@ type Props = { authority: string; clientId: string; redirectUri: string; diagnos
 const { _debug, _warn, _error } = makeConsole("createMsalInstance");
 
 export const createMsalInstance = async ({ authority, clientId, redirectUri, diagnosticsCollector }: Props) => {
+  const tConstruct = performance.now();
+
   const instance = new PublicClientApplication({
     auth: {
       authority,
@@ -33,7 +35,16 @@ export const createMsalInstance = async ({ authority, clientId, redirectUri, dia
     },
   });
 
+  const tInit = performance.now();
   await instance.initialize();
+  const tInitDone = performance.now();
+
+  diagnosticsCollector?.add({
+    msalConstructStartMs: Math.round(tConstruct),
+    msalConstructDurationMs: Math.round(tInit - tConstruct),
+    msalInitStartMs: Math.round(tInit),
+    msalInitDurationMs: Math.round(tInitDone - tInit),
+  });
 
   if (diagnosticsCollector) {
     registerMsalDiagnosticEvents(instance, diagnosticsCollector);

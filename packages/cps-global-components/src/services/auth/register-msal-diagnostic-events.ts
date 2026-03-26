@@ -5,8 +5,9 @@ export const registerMsalDiagnosticEvents = (
   instance: PublicClientApplication,
   collector: AdDiagnosticsCollector,
 ): void => {
-  let flowStart: number | null = null;
+  let ssoSilentStart: number | null = null;
   let networkStart: number | null = null;
+  let loginPopupStart: number | null = null;
 
   instance.addEventCallback(
     (message) => {
@@ -14,7 +15,7 @@ export const registerMsalDiagnosticEvents = (
 
       switch (eventType) {
         case EventType.SSO_SILENT_START: {
-          flowStart = timestamp;
+          ssoSilentStart = timestamp;
           networkStart = null;
           break;
         }
@@ -28,16 +29,42 @@ export const registerMsalDiagnosticEvents = (
         case EventType.SSO_SILENT_FAILURE: {
           const outcome = eventType === EventType.SSO_SILENT_SUCCESS ? "success" : "failure";
           collector.add({
-            ssoSilentTotalDurationMs: flowStart != null ? timestamp - flowStart : null,
-            ssoSilentIframeDurationMs: flowStart != null && networkStart != null ? networkStart - flowStart : null,
+            ssoSilentTotalDurationMs: ssoSilentStart != null ? timestamp - ssoSilentStart : null,
+            ssoSilentIframeDurationMs: ssoSilentStart != null && networkStart != null ? networkStart - ssoSilentStart : null,
             ssoSilentTokenPostDurationMs: networkStart != null ? timestamp - networkStart : null,
             ssoSilentOutcome: outcome,
             ...(outcome === "failure" && {
               ssoSilentErrorCode: (error as Error & { errorCode?: string })?.errorCode ?? null,
             }),
           });
-          flowStart = null;
+          ssoSilentStart = null;
           networkStart = null;
+          break;
+        }
+
+        case EventType.LOGIN_START: {
+          loginPopupStart = timestamp;
+          break;
+        }
+
+        case EventType.POPUP_OPENED: {
+          collector.add({
+            popupOpenedDelayMs: loginPopupStart != null ? timestamp - loginPopupStart : null,
+          });
+          break;
+        }
+
+        case EventType.LOGIN_SUCCESS:
+        case EventType.LOGIN_FAILURE: {
+          const popupOutcome = eventType === EventType.LOGIN_SUCCESS ? "success" : "failure";
+          collector.add({
+            loginPopupDurationMs: loginPopupStart != null ? timestamp - loginPopupStart : null,
+            loginPopupOutcome: popupOutcome,
+            ...(popupOutcome === "failure" && {
+              loginPopupErrorCode: (error as Error & { errorCode?: string })?.errorCode ?? null,
+            }),
+          });
+          loginPopupStart = null;
           break;
         }
       }
@@ -47,6 +74,10 @@ export const registerMsalDiagnosticEvents = (
       EventType.SSO_SILENT_SUCCESS,
       EventType.SSO_SILENT_FAILURE,
       EventType.ACQUIRE_TOKEN_NETWORK_START,
+      EventType.LOGIN_START,
+      EventType.LOGIN_SUCCESS,
+      EventType.LOGIN_FAILURE,
+      EventType.POPUP_OPENED,
     ],
   );
 };

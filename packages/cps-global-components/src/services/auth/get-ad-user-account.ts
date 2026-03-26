@@ -19,12 +19,20 @@ const loginRequest = { scopes: ["User.Read"] };
 const { _debug } = makeConsole("getAdUserAccount");
 
 const internalGetAdUserAccount = async ({ instance, config: { FEATURE_FLAG_ENABLE_INTRUSIVE_AD_LOGIN }, diagnosticsCollector }: Props) => {
+  const t0 = performance.now();
+
   const tryGetAccountFromCache = async (): AccountRetrievalResult => {
+    const tCache = performance.now();
     const account = instance.getActiveAccount();
+    diagnosticsCollector?.add({
+      cacheCheckStartMs: Math.round(tCache),
+      cacheCheckDurationMs: Math.round(performance.now() - tCache),
+    });
     return account ? { source: "cache", account } : null;
   };
 
   const tryGetAccountSilently = async (): AccountRetrievalResult => {
+    const tSilent = performance.now();
     let pageHiddenDuringAuth = false;
     let beforeUnloadFired = false;
 
@@ -40,11 +48,15 @@ const internalGetAdUserAccount = async ({ instance, config: { FEATURE_FLAG_ENABL
 
     try {
       const { account } = await instance.ssoSilent(loginRequest);
+      diagnosticsCollector?.add({
+        ssoSilentStartMs: Math.round(tSilent),
+      });
       return account ? { source: "silent", account } : null;
     } catch (error) {
       const errorType = getErrorType(error);
 
       diagnosticsCollector?.add({
+        ssoSilentStartMs: Math.round(tSilent),
         pageHiddenDuringAuth,
         beforeUnloadFired,
         documentHiddenAtFailure: document.hidden,
@@ -67,12 +79,19 @@ const internalGetAdUserAccount = async ({ instance, config: { FEATURE_FLAG_ENABL
   };
 
   const tryGetAccountViaPopup = async (): AccountRetrievalResult => {
+    diagnosticsCollector?.add({ loginPopupStartMs: Math.round(performance.now()) });
     const { account } = await instance.loginPopup(loginRequest);
     return account ? { source: "popup", account } : null;
   };
 
   const { account, source } = (await tryGetAccountFromCache()) || (await tryGetAccountSilently()) || (await tryGetAccountViaPopup()) || { source: "failed", account: null };
   instance.setActiveAccount(account);
+
+  diagnosticsCollector?.add({
+    authSource: source,
+    authTotalDurationMs: Math.round(performance.now() - t0),
+  });
+
   _debug("Source", source);
   return account;
 };
