@@ -12,10 +12,11 @@ import { Result } from "../../utils/Result";
 import { AuthHint } from "../state/auth-hint/initialise-auth-hint";
 import { Getter } from "@stencil/store/dist/types";
 import { StoredState } from "../../store/store";
+import type { AdDiagnosticsCollector } from "../auth/ad-diagnostics-collector";
 
 const STORAGE_PREFIX = "cps_global_components";
 
-type Props = { window: Window; config: Config; build: Build; authHint?: Result<AuthHint>; get: Getter<StoredState> };
+type Props = { window: Window; config: Config; build: Build; authHint?: Result<AuthHint>; get: Getter<StoredState>; diagnosticsCollector?: AdDiagnosticsCollector };
 
 type AuthAnalyticsProps = undefined | { isAuthed: false; knownErrorType: KnownErrorType; username?: string; objectId?: string } | { isAuthed: true; username: string; objectId: string };
 
@@ -23,7 +24,7 @@ export type Analytics = ReturnType<typeof initialiseAiAnalytics>;
 
 const { _debug } = makeConsole("initialiseAnalytics");
 
-export const initialiseAiAnalytics = ({ window, config: { APP_INSIGHTS_CONNECTION_STRING, ENVIRONMENT }, build, authHint, get }: Props) => {
+export const initialiseAiAnalytics = ({ window, config: { APP_INSIGHTS_CONNECTION_STRING, ENVIRONMENT, COLLECT_AD_DIAGNOSTICS_IN_PAGE_VIEW }, build, authHint, get, diagnosticsCollector }: Props) => {
   if (!APP_INSIGHTS_CONNECTION_STRING) {
     return {
       trackPageView: () => {},
@@ -122,11 +123,14 @@ export const initialiseAiAnalytics = ({ window, config: { APP_INSIGHTS_CONNECTIO
     resolveAuthReady();
   };
 
+  const getDiagnostics = () => diagnosticsCollector?.get() ?? {};
+
   const trackPageView = ({ context: { found, contextIds } }: { context: FoundContext }) => {
     (async () => {
       await authReady;
       const caseId = get("caseIdentifiers")?.caseId;
-      const arg = { properties: capitalizeKeys({ environment: ENVIRONMENT, auth: authValues, build: build, context: { found, contextIds }, correlationIds: correlationIdValues, ...(caseId && { caseId }) }) };
+      const diagnostics = COLLECT_AD_DIAGNOSTICS_IN_PAGE_VIEW ? getDiagnostics() : {};
+      const arg = { properties: capitalizeKeys({ environment: ENVIRONMENT, auth: authValues, build: build, context: { found, contextIds }, correlationIds: correlationIdValues, ...(caseId && { caseId }), ...diagnostics }) };
       _debug("trackPageView", arg);
       appInsights.trackPageView(arg);
       // Let's do our best to ensure our page view analytics gets registered before the page navigates away.
@@ -136,7 +140,7 @@ export const initialiseAiAnalytics = ({ window, config: { APP_INSIGHTS_CONNECTIO
   };
 
   const trackException = (exception: Error) => {
-    appInsights.trackException({ exception }, { source: STORAGE_PREFIX, properties: capitalizeKeys({ environment: ENVIRONMENT, ...(authValues && { auth: authValues }), build }) });
+    appInsights.trackException({ exception }, { source: STORAGE_PREFIX, properties: capitalizeKeys({ environment: ENVIRONMENT, ...(authValues && { auth: authValues }), build, ...getDiagnostics() }) });
   };
 
   window.addEventListener(AnalyticsEvent.type, (ev: AnalyticsEvent) => {

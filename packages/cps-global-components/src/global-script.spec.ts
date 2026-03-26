@@ -1308,6 +1308,7 @@ describe("global-script", () => {
         context: testContext,
         flags: testFlags,
         onError: expect.any(Function),
+        diagnosticsCollector: expect.objectContaining({ add: expect.any(Function), get: expect.any(Function) }),
       });
     });
 
