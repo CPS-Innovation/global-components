@@ -1,6 +1,10 @@
 import type { INetworkModule, NetworkRequestOptions, NetworkResponse } from "@azure/msal-browser";
 import type { AdDiagnosticsCollector } from "./ad-diagnostics-collector";
 
+const safePathname = (url: string): string => {
+  try { return new URL(url).pathname; } catch { return url; }
+};
+
 const buildHeaders = (options?: NetworkRequestOptions): Headers => {
   const headers = new Headers();
   if (options?.headers) {
@@ -31,7 +35,7 @@ export const createDiagnosticNetworkClient = (collector: AdDiagnosticsCollector)
       };
     } catch (e) {
       collector.add({
-        fetchFailedEndpoint: new URL(url).pathname,
+        fetchFailedEndpoint: safePathname(url),
         fetchFailedDurationMs: Math.round(performance.now() - startTime),
         fetchErrorName: e instanceof Error ? e.name : "unknown",
         fetchErrorMessage: e instanceof Error ? e.message : String(e),
@@ -58,7 +62,7 @@ export const createDiagnosticNetworkClient = (collector: AdDiagnosticsCollector)
       };
     } catch (e) {
       collector.add({
-        fetchFailedEndpoint: new URL(url).pathname,
+        fetchFailedEndpoint: safePathname(url),
         fetchFailedDurationMs: Math.round(performance.now() - startTime),
         fetchErrorName: e instanceof Error ? e.name : "unknown",
         fetchErrorMessage: e instanceof Error ? e.message : String(e),
