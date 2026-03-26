@@ -24,6 +24,7 @@ import { initialiseOutSystemsReconcileAuth } from "./services/outsystems-shim/in
 import { initialiseOutSystemsShowAlert } from "./services/outsystems-shim/outsystems-show-alert";
 import { initialiseNavigateCms } from "./services/navigate-cms/initialise-navigate-cms";
 import { initialiseAuthHint } from "./services/state/auth-hint/initialise-auth-hint";
+import { createAdDiagnosticsCollector } from "./services/auth/ad-diagnostics-collector";
 
 const { _error } = makeConsole("global-script");
 
@@ -95,8 +96,10 @@ const startupPhase = async ({ window, storeFns: { register, mergeTags, get } }: 
     register({ handoverTags: { caseId: String(caseId), ...(caseDetails?.urn && { urn: caseDetails.urn }) } });
   }
 
+  const diagnosticsCollector = createAdDiagnosticsCollector();
+
   const { setNextRecentCases } = initialiseRecentCases({ rootUrl, config, register });
-  const { trackPageView, trackEvent, trackException, registerAuth, registerCorrelationIds } = initialiseAnalytics({ window, config, build, flags, authHint, get });
+  const { trackPageView, trackEvent, trackException, registerAuth, registerCorrelationIds } = initialiseAnalytics({ window, config, build, flags, authHint, get, diagnosticsCollector });
 
   const { initialiseDomForContext } = initialiseDomObservation(
     { window, register, mergeTags, preview, settings },
@@ -109,6 +112,7 @@ const startupPhase = async ({ window, storeFns: { register, mergeTags, get } }: 
 
   return {
     config,
+    diagnosticsCollector,
     initialiseDomForContext,
     trackPageView,
     trackEvent,
@@ -128,6 +132,7 @@ const startupPhase = async ({ window, storeFns: { register, mergeTags, get } }: 
 const authPhase = ({
   storeFns: { register, subscribe, readyState },
   config,
+  diagnosticsCollector,
   firstContext,
   flags,
   trackEvent,
@@ -141,7 +146,7 @@ const authPhase = ({
   // Positioning auth after many of the other setup stuff helps us not block the UI
   // (initialiseAuth can take a long time, especially if there is a problem)
   (async () => {
-    const { auth, getToken } = await initialiseAuth({ config, context: firstContext, flags, onError: trackException });
+    const { auth, getToken } = await initialiseAuth({ config, context: firstContext, flags, onError: trackException, diagnosticsCollector });
     register({ auth });
     registerAuth(auth);
     if (auth.isAuthed) {

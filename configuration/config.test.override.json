@@ -24,6 +24,7 @@
     ]
   },
   "FEATURE_FLAG_ENABLE_INTRUSIVE_AD_LOGIN": true,
+  "COLLECT_AD_DIAGNOSTICS_IN_PAGE_VIEW": true,
   "CONTEXTS": [
     {
       "headerCustomCssClasses": "header",

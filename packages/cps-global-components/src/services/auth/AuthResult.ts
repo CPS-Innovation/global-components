@@ -8,6 +8,8 @@ export type KnownErrorType =
   | "ConditionalAccessRule"
   | "MultipleIdentities"
   | "SilentFlowProblem"
+  | "PostRequestFailed"
+  | "NoNetworkConnectivity"
   | "Unknown";
 
 export const AuthSchema = z.object({
