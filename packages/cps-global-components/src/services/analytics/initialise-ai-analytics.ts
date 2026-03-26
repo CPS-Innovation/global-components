@@ -129,8 +129,8 @@ export const initialiseAiAnalytics = ({ window, config: { APP_INSIGHTS_CONNECTIO
     (async () => {
       await authReady;
       const caseId = get("caseIdentifiers")?.caseId;
-      const diagnostics = COLLECT_AD_DIAGNOSTICS_IN_PAGE_VIEW ? getDiagnostics() : {};
-      const arg = { properties: capitalizeKeys({ environment: ENVIRONMENT, auth: authValues, build: build, context: { found, contextIds }, correlationIds: correlationIdValues, ...(caseId && { caseId }), ...diagnostics }) };
+      const authDiagnostics = COLLECT_AD_DIAGNOSTICS_IN_PAGE_VIEW ? getDiagnostics() : undefined;
+      const arg = { properties: capitalizeKeys({ environment: ENVIRONMENT, auth: authValues, build: build, context: { found, contextIds }, correlationIds: correlationIdValues, ...(caseId && { caseId }), ...(authDiagnostics && { authDiagnostics }) }) };
       _debug("trackPageView", arg);
       appInsights.trackPageView(arg);
       // Let's do our best to ensure our page view analytics gets registered before the page navigates away.
@@ -140,7 +140,8 @@ export const initialiseAiAnalytics = ({ window, config: { APP_INSIGHTS_CONNECTIO
   };
 
   const trackException = (exception: Error) => {
-    appInsights.trackException({ exception }, { source: STORAGE_PREFIX, properties: capitalizeKeys({ environment: ENVIRONMENT, ...(authValues && { auth: authValues }), build, ...getDiagnostics() }) });
+    const authDiagnostics = getDiagnostics();
+    appInsights.trackException({ exception }, { source: STORAGE_PREFIX, properties: capitalizeKeys({ environment: ENVIRONMENT, ...(authValues && { auth: authValues }), build, authDiagnostics }) });
   };
 
   window.addEventListener(AnalyticsEvent.type, (ev: AnalyticsEvent) => {
