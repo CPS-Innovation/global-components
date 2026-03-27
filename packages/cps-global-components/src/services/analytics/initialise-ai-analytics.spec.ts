@@ -11,6 +11,8 @@ const mockTrackEvent = jest.fn();
 const mockAddTelemetryInitializer = jest.fn();
 const mockLoadAppInsights = jest.fn();
 
+const mockFlush = jest.fn();
+
 jest.mock("@microsoft/applicationinsights-web", () => ({
   ApplicationInsights: jest.fn().mockImplementation(() => ({
     trackPageView: mockTrackPageView,
@@ -18,15 +20,19 @@ jest.mock("@microsoft/applicationinsights-web", () => ({
     trackEvent: mockTrackEvent,
     addTelemetryInitializer: mockAddTelemetryInitializer,
     loadAppInsights: mockLoadAppInsights,
+    flush: mockFlush,
   })),
 }));
 
 import { initialiseAiAnalytics } from "./initialise-ai-analytics";
 
+const mockGet = jest.fn() as any;
+
 const makeProps = (overrides?: Partial<{ window: Window; config: Config; build: Build }>) => ({
   window: globalThis.window,
   config: { APP_INSIGHTS_CONNECTION_STRING: "InstrumentationKey=test", ENVIRONMENT: "test" } as Config,
   build: { version: "1.0.0" } as unknown as Build,
+  get: mockGet,
   ...overrides,
 });
 
@@ -84,6 +90,30 @@ describe("initialiseAiAnalytics", () => {
       const properties = mockTrackPageView.mock.calls[0][0].properties;
       expect(properties.Auth).toMatchObject({ IsAuthed: false, KnownErrorType: "Unknown" });
       expect(properties.Auth).not.toHaveProperty("Username");
+    });
+
+    it("should include username from authHint when auth fails and authHint is available", async () => {
+      const authHint = { found: true as const, result: { authResult: { isAuthed: true as const, username: "hint@example.com", name: "Hint User", objectId: "obj-hint", groups: [] }, timestamp: 12345 } };
+      const { registerAuth, trackPageView } = initialiseAiAnalytics({ ...makeProps(), authHint });
+
+      registerAuth({ isAuthed: false, knownErrorType: "Unknown", reason: "test" } as AuthResult);
+      trackPageView({ context: makeContext() });
+      await Promise.resolve();
+
+      const properties = mockTrackPageView.mock.calls[0][0].properties;
+      expect(properties.Auth).toMatchObject({ IsAuthed: false, KnownErrorType: "Unknown", Username: "hint@example.com", ObjectId: "obj-hint" });
+    });
+
+    it("should not include username from authHint when auth succeeds", async () => {
+      const authHint = { found: true as const, result: { authResult: { isAuthed: true as const, username: "hint@example.com", name: "Hint User", objectId: "obj-hint", groups: [] }, timestamp: 12345 } };
+      const { registerAuth, trackPageView } = initialiseAiAnalytics({ ...makeProps(), authHint });
+
+      registerAuth({ isAuthed: true, username: "real@example.com", name: "Real User", groups: [], objectId: "obj-real" });
+      trackPageView({ context: makeContext() });
+      await Promise.resolve();
+
+      const properties = mockTrackPageView.mock.calls[0][0].properties;
+      expect(properties.Auth).toMatchObject({ IsAuthed: true, Username: "real@example.com", ObjectId: "obj-real" });
     });
 
     it("should wait for registerAuth before sending trackPageView", async () => {

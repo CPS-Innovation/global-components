@@ -18,6 +18,7 @@ import { caseIdentifiersSubscriptionFactory } from "./subscriptions/case-identif
 import { Handover } from "../services/state/handover/Handover";
 import { Result } from "../utils/Result";
 import { CmsSessionHint } from "cps-global-configuration";
+import { AuthHint } from "../services/state/auth-hint/initialise-auth-hint";
 import { MonitoringCodes } from "../services/data/MonitoringCode";
 import { RecentCases } from "../services/state/recent-cases/recent-cases";
 export { type ReadyStateHelper };
@@ -37,7 +38,7 @@ type SingleKnownTypePropertyOf<T, PropType> = {
 }[KeysOfType<T, PropType>];
 
 // With tags we want the world to use "tags" rather than the constituent sub-tag objects
-export const privateTagProperties = ["pathTags", "domTags", "propTags", "caseDetailsTags", "cmsSessionTags"] as const;
+export const privateTagProperties = ["pathTags", "domTags", "propTags", "caseDetailsTags", "cmsSessionTags", "handoverTags"] as const;
 export type PrivateTagProperties = (typeof privateTagProperties)[number]; // gives us a union definition: "pathTags" | "domTags" | "propTags"
 
 // Transform a type Foo = {a: number, b: string} to FooUndefinable = {a: number | undefined, b: string | undefined}
@@ -52,6 +53,7 @@ type StartupState = {
   flags: ApplicationFlags;
   config: Config;
   auth: AuthResult;
+  authHint: Result<AuthHint>;
   build: Build;
   cmsSessionHint: Result<CmsSessionHint>;
   handover: Result<Handover>;
@@ -65,6 +67,7 @@ const initialStartupState = {
   flags: undefined,
   config: undefined,
   auth: undefined,
+  authHint: undefined,
   build: undefined,
   cmsSessionHint: undefined,
   handover: undefined,
@@ -81,6 +84,7 @@ type TransientState = {
   correlationIds: CorrelationIds;
   caseDetailsTags: Tags;
   cmsSessionTags: Tags;
+  handoverTags: Tags;
   caseIdentifiers: CaseIdentifiers;
   caseDetails: Result<CaseDetails>;
   caseMonitoringCodes: Result<MonitoringCodes>;
@@ -93,6 +97,7 @@ const initialTransientState = {
   correlationIds: undefined,
   caseDetailsTags: undefined,
   cmsSessionTags: undefined,
+  handoverTags: undefined,
   caseIdentifiers: undefined,
   caseDetails: undefined,
   caseMonitoringCodes: undefined,
@@ -196,7 +201,7 @@ export const initialiseStore = () => {
     //  They are subject to being updated via @Watch so all good there, but we definitely do not want
     //  the tags from one context (e.g. caseId = 123) hanging around for the next context in an SPA
     //  navigation (e.g. caseId = 456).
-    privateTagProperties.filter(key => !["propTags", "cmsSessionTags"].includes(key)).forEach(key => store.set(key, {}));
+    privateTagProperties.filter(key => !["propTags", "cmsSessionTags", "handoverTags"].includes(key)).forEach(key => store.set(key, {}));
   };
 
   const subscribe: Subscribe = (...subscriptionFactories: SubscriptionFactory[]) =>
@@ -216,7 +221,7 @@ export const initialiseStore = () => {
     withLogging(registerEventName, (event: RegisterEvent) => register(event.detail)),
   );
 
-  return { readyState, register, mergeTags, resetContextSpecificTags, subscribe };
+  return { readyState, register, mergeTags, resetContextSpecificTags, subscribe, get: store.get };
 };
 
 export const mergeTags: MergeTagFireAndForget = detail =>

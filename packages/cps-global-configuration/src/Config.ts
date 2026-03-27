@@ -59,12 +59,23 @@ const shimTypeSchema = z.union([
 
 export type ShimType = z.infer<typeof shimTypeSchema>;
 
+const hostAppEventTargetSchema = z.object({
+  selector: z.string(),
+  action: z.enum(["click", "appear"]),
+});
+
+export type HostAppEventTarget = z.infer<typeof hostAppEventTargetSchema>;
+
 const contextPathsSchema = z.object({
   path: z.string(),
   contextIds: z.string(),
   applyShim: shimTypeSchema.optional(),
   domTagDefinitions: z.array(domTagDefinitionsSchema).optional(),
   showNotification: z.boolean().optional(),
+  preventADAndDataCalls: z.boolean().optional(),
+  preventPageViewAnalytics: z.boolean().optional(),
+  takeTagsFromHandover: z.boolean().optional(),
+  hostAppEventTargets: z.array(hostAppEventTargetSchema).optional(),
 });
 
 export type ContextPathsSchema = z.infer<typeof contextPathsSchema>;
@@ -97,6 +108,10 @@ const contextSchema = contextsBaseSchema.extend({
   msalRedirectUrl: z.string(), // redefine as required, not optional in app config
   applyShim: shimTypeSchema.optional(),
   showNotification: z.boolean().optional(),
+  preventADAndDataCalls: z.boolean().optional(),
+  preventPageViewAnalytics: z.boolean().optional(),
+  takeTagsFromHandover: z.boolean().optional(),
+  hostAppEventTargets: z.array(hostAppEventTargetSchema).optional(),
 });
 
 export type Context = z.infer<typeof contextSchema>;
@@ -138,6 +153,7 @@ export const configBaseSchema = z.object({
   TOKEN_HANDOVER_URL: z.string().optional(),
   FEATURE_FLAG_MENU_USERS: featureFlagUsersSchema.optional(),
   FEATURE_FLAG_ENABLE_INTRUSIVE_AD_LOGIN: z.boolean().optional(),
+  COLLECT_AD_DIAGNOSTICS_IN_PAGE_VIEW: z.boolean().optional(),
   CACHE_CONFIG: cacheConfigSchema.optional(),
   FETCH_CIRCUIT_BREAKER_CONFIG: fetchCircuitBreakerConfigSchema.optional(),
   RECENT_CASES_NAVIGATE_URL: z.string().optional(),

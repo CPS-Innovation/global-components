@@ -274,6 +274,22 @@ describe("global-script", () => {
     delete (global as any).window;
   });
 
+  describe("duplicate script load guard", () => {
+    it("should not initialise a second time if already initialised", async () => {
+      const globalScript = require("./global-script").default;
+
+      globalScript();
+      await new Promise(resolve => setTimeout(resolve, 10));
+
+      expect(mockInitialiseCorrelationIds).toHaveBeenCalledTimes(1);
+
+      globalScript();
+      await new Promise(resolve => setTimeout(resolve, 10));
+
+      expect(mockInitialiseCorrelationIds).toHaveBeenCalledTimes(1);
+    });
+  });
+
   describe("initial script load", () => {
     it("should use the same correlationId for scriptLoadCorrelationId and navigationCorrelationId on first load", async () => {
       const globalScript = require("./global-script").default;
@@ -529,6 +545,26 @@ describe("global-script", () => {
       // Wait for auth to finish
       await new Promise(resolve => setTimeout(resolve, 150));
       expect(authResolved).toBe(true);
+    });
+
+    it("should register authHint to store", async () => {
+      const testAuthHint = { found: true as const, result: { authResult: { isAuthed: true as const, username: "hint@example.com", name: "Hint User", objectId: "obj-hint", groups: [] }, timestamp: 12345 } };
+      mockInitialiseAuthHint.mockResolvedValue({
+        authHint: testAuthHint,
+        setAuthHint: jest.fn(),
+      });
+
+      const globalScript = require("./global-script").default;
+
+      globalScript();
+
+      await new Promise(resolve => setTimeout(resolve, 10));
+
+      const state = getReadyState()("authHint");
+      expect(state.isReady).toBe(true);
+      if (state.isReady) {
+        expect(state.state.authHint).toEqual(testAuthHint);
+      }
     });
 
     it("should register firstContext to store", async () => {
@@ -1272,8 +1308,7 @@ describe("global-script", () => {
         context: testContext,
         flags: testFlags,
         onError: expect.any(Function),
-        authHint: { found: false, error: expect.any(Error) },
-        setAuthHint: expect.any(Function),
+        diagnosticsCollector: expect.objectContaining({ add: expect.any(Function), get: expect.any(Function) }),
       });
     });
 
@@ -1301,6 +1336,8 @@ describe("global-script", () => {
           config: testConfig,
           build: testBuild,
           flags: testFlags,
+          authHint: expect.anything(),
+          get: expect.any(Function),
         }),
       );
       // Verify auth is NOT passed directly

@@ -24,6 +24,7 @@
     ]
   },
   "FEATURE_FLAG_ENABLE_INTRUSIVE_AD_LOGIN": true,
+  "COLLECT_AD_DIAGNOSTICS_IN_PAGE_VIEW": true,
   "CONTEXTS": [
     {
       "headerCustomCssClasses": "header",
@@ -46,7 +47,16 @@
         },
         {
           "path": "https://cps-tst.outsystemsenterprise.com/CaseReview.*?[&?](?:CMS)?CaseId=(?<caseId>\\d+)",
-          "contextIds": "case review"
+          "contextIds": "case review",
+          "hostAppEventTargets": [
+            { "selector": "#b1-Resume", "action": "click" },
+            { "selector": "#b1-TaskCompleted2", "action": "appear" }
+          ]
+        },
+        {
+          "path": "https://cps-tst.outsystemsenterprise.com/CaseReview/RedirectCW",
+          "contextIds": "redirect",
+          "preventPageViewAnalytics": true
         },
         {
           "path": "https://cps-tst.outsystemsenterprise.com/CaseReview/",
@@ -72,6 +82,11 @@
           "contextIds": "tasks"
         },
         {
+          "path": "https://cps-tst.outsystemsenterprise.com/WorkManagementApp/Redirect",
+          "contextIds": "redirect",
+          "preventPageViewAnalytics": true
+        },
+        {
           "path": "https://cps-tst.outsystemsenterprise.com/WorkManagementApp/SearchCase",
           "contextIds": "cases"
         },
@@ -89,6 +104,11 @@
           "contextIds": "case materials"
         },
         {
+          "path": "https://polaris-qa-notprod.cps.gov.uk/polaris-ui/go\\?",
+          "contextIds": "redirect",
+          "preventPageViewAnalytics": true
+        },
+        {
           "path": "https://polaris",
           "contextIds": "cases materials-search"
         }
@@ -98,14 +118,31 @@
       "msalRedirectUrl": "https://housekeeping-staging.int.cps.gov.uk/global-components-msal-redirect.html",
       "contexts": [
         {
+          "path": "https://housekeeping-staging.int.cps.gov.uk/init",
+          "contextIds": "redirect",
+          "preventADAndDataCalls": true,
+          "preventPageViewAnalytics": true
+        },
+        {
           "path": "https://housekeeping",
           "contextIds": "case materials",
+          "preventADAndDataCalls": true,
+          "takeTagsFromHandover": true,
           "domTagDefinitions": [
             {
               "cssSelector": "a[href*='/polaris-ui/case-details/']",
               "regex": "/polaris-ui/case-details/.*/(?<caseId>\\d+)\""
             }
           ]
+        }
+      ]
+    },
+    {
+      "msalRedirectUrl": "https://lacc-app-ui-spa-staging.azurewebsites.net/global-components-msal-redirect.html",
+      "contexts": [
+        {
+          "path": "https://lacc-app-ui-spa",
+          "contextIds": "lcc"
         }
       ]
     },

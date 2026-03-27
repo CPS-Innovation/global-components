@@ -1,0 +1,19 @@
+GloCo_PageViews
+| where App == "Case review"
+| where isnotnull(CaseId)
+| extend Params = parse_url(Url)["Query Parameters"]
+| extend Page                        = tostring(split(parse_url(Url)["Path"], "/")[-1])
+| extend IsFirstReviewParam          = tobool(Params["IsFirstReview"])
+| extend IsSubmittedParam            = tobool(Params["IsSubmitted"])
+| extend SubmittedIsFirstReviewParam = tobool(Params["SubmittedIsFirstReview"])
+| extend
+    Is_Review_First_Review         = Page == "CaseReview_V2" and IsFirstReviewParam,
+    Is_Review_Subsequent_Review    = (Page == "CaseReview_V2" and IsFirstReviewParam != true) or Page == "PCDSubsequentCustomReview",
+    Is_Early_Advice_First_Review   = Page == "CaseReviewEA" and IsFirstReviewParam,
+    Is_Early_Advice_Subsequent     = Page == "CaseReviewEA" and IsFirstReviewParam != true,
+    Is_Submitted_First_Review      = Page == "LandingPage" and SubmittedIsFirstReviewParam == true,
+    Is_Submitted_Subsequent_Review = Page == "LandingPage" and IsSubmittedParam == true and SubmittedIsFirstReviewParam != true,
+    Is_Saved_First_Review          = Page == "LandingPage" and IsSubmittedParam == false and SubmittedIsFirstReviewParam == true,
+    Is_Saved_Subsequent_Review     = Page == "LandingPage" and IsSubmittedParam == false and SubmittedIsFirstReviewParam != true,
+    Is_Admin_Finalise              = Page == "QuickAdminFinalise"
+| project-away Params

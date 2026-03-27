@@ -17,12 +17,14 @@ import { initialiseRootUrl } from "./services/root-url/initialise-root-url";
 import { initialisePreview } from "./services/state/preview/initialise-preview";
 import { initialiseRecentCases } from "./services/state/recent-cases/initialise-recent-cases";
 import { footerSubscriber } from "./services/browser/dom/footer-subscriber";
+import { hostAppEventSubscriber } from "./services/browser/dom/host-app-event-subscriber";
 import { accessibilitySubscriber } from "./services/browser/accessibility/accessibility-subscriber";
 import { initialiseSettings } from "./services/state/settings/initialise-settings";
 import { initialiseOutSystemsReconcileAuth } from "./services/outsystems-shim/initialise-outsytems-reconcile-auth";
 import { initialiseOutSystemsShowAlert } from "./services/outsystems-shim/outsystems-show-alert";
 import { initialiseNavigateCms } from "./services/navigate-cms/initialise-navigate-cms";
 import { initialiseAuthHint } from "./services/state/auth-hint/initialise-auth-hint";
+import { createAdDiagnosticsCollector } from "./services/auth/ad-diagnostics-collector";
 
 const { _error } = makeConsole("global-script");
 
@@ -32,6 +34,8 @@ const { _error } = makeConsole("global-script");
 //  ready.  This means that a long-running auth process will not stop components that
 //  do not need auth from rendering.
 export default () => {
+  if (window.cps_global_components_initialised) return;
+  window.cps_global_components_initialised = true;
   /* do not await this */ initialise(window);
 };
 
@@ -60,7 +64,7 @@ const initialise = async (window: Window & typeof globalThis) => {
   }
 };
 
-const startupPhase = async ({ window, storeFns: { register, mergeTags } }: { window: Window & typeof globalThis; storeFns: ReturnType<typeof initialiseStore> }) => {
+const startupPhase = async ({ window, storeFns: { register, mergeTags, get } }: { window: Window & typeof globalThis; storeFns: ReturnType<typeof initialiseStore> }) => {
   const build = window.cps_global_components_build;
   register({ build });
 
@@ -79,7 +83,7 @@ const startupPhase = async ({ window, storeFns: { register, mergeTags } }: { win
     initialiseSettings({ rootUrl }),
     initialiseAuthHint({ rootUrl }),
   ]);
-  register({ cmsSessionHint, handover, preview, cmsSessionTags: { handoverEndpoint: cmsSessionHint.result?.handoverEndpoint || "" } });
+  register({ cmsSessionHint, handover, preview, authHint, cmsSessionTags: { handoverEndpoint: cmsSessionHint.result?.handoverEndpoint || "" } });
 
   const config = await initialiseConfig({ rootUrl, flags, preview });
   register({ config });
@@ -87,19 +91,28 @@ const startupPhase = async ({ window, storeFns: { register, mergeTags } }: { win
   const firstContext = initialiseContext({ window, config });
   register({ firstContext });
 
+  if (firstContext.takeTagsFromHandover && handover.found) {
+    const { caseId, caseDetails } = handover.result;
+    register({ handoverTags: { caseId: String(caseId), ...(caseDetails?.urn && { urn: caseDetails.urn }) } });
+  }
+
+  const diagnosticsCollector = createAdDiagnosticsCollector();
+
   const { setNextRecentCases } = initialiseRecentCases({ rootUrl, config, register });
-  const { trackPageView, trackEvent, trackException, registerAuth, registerCorrelationIds } = initialiseAnalytics({ window, config, build, flags });
+  const { trackPageView, trackEvent, trackException, registerAuth, registerCorrelationIds } = initialiseAnalytics({ window, config, build, flags, authHint, get, diagnosticsCollector });
 
   const { initialiseDomForContext } = initialiseDomObservation(
     { window, register, mergeTags, preview, settings },
     domTagMutationSubscriber,
     footerSubscriber,
+    hostAppEventSubscriber,
     accessibilitySubscriber,
     ...outSystemsShimSubscribers,
   );
 
   return {
     config,
+    diagnosticsCollector,
     initialiseDomForContext,
     trackPageView,
     trackEvent,
@@ -110,7 +123,6 @@ const startupPhase = async ({ window, storeFns: { register, mergeTags } }: { win
     flags,
     authHint,
     setAuthHint,
-    handover,
     setNextHandover,
     setNextRecentCases,
     preview,
@@ -120,12 +132,12 @@ const startupPhase = async ({ window, storeFns: { register, mergeTags } }: { win
 const authPhase = ({
   storeFns: { register, subscribe, readyState },
   config,
+  diagnosticsCollector,
   firstContext,
   flags,
   trackEvent,
   trackException,
   registerAuth,
-  authHint,
   setAuthHint,
   setNextHandover,
   setNextRecentCases,
@@ -134,11 +146,16 @@ const authPhase = ({
   // Positioning auth after many of the other setup stuff helps us not block the UI
   // (initialiseAuth can take a long time, especially if there is a problem)
   (async () => {
-    const { auth, getToken } = await initialiseAuth({ config, context: firstContext, flags, onError: trackException, authHint, setAuthHint });
+    const { auth, getToken } = await initialiseAuth({ config, context: firstContext, flags, onError: trackException, diagnosticsCollector });
     register({ auth });
     registerAuth(auth);
+    if (auth.isAuthed) {
+      setAuthHint(auth);
+    }
     initialiseOutSystemsShowAlert({ context: firstContext, config, auth, preview });
-    initialiseCaseDetailsData({ config, context: firstContext, subscribe, setNextHandover, setNextRecentCases, getToken, readyState, trackEvent });
+    if (!firstContext.preventADAndDataCalls) {
+      initialiseCaseDetailsData({ config, context: firstContext, subscribe, setNextHandover, setNextRecentCases, getToken, readyState, trackEvent });
+    }
   })();
 };
 
@@ -167,6 +184,8 @@ const contextChangePhase = ({
   const { pathTags } = context;
   register({ pathTags });
 
-  trackPageView({ context });
+  if (!context.preventPageViewAnalytics) {
+    trackPageView({ context });
+  }
   register({ initialisationStatus: "complete" });
 };

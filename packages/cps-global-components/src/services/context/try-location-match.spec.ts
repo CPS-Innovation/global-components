@@ -218,6 +218,55 @@ describe("tryLocationMatch", () => {
   });
 
   it.each([
+    "https://polaris.cps.gov.uk/polaris-ui/go?caseId=123",
+    "https://polaris.cps.gov.uk/polaris-ui/go?caseId=123&foo=bar",
+    "https://polaris-qa-notprod.cps.gov.uk/polaris-ui/go?caseId=456",
+  ])("should match polaris go redirect URL: %s", address => {
+    const result = tryLocationMatch(address, "https://polaris.*\\.cps\\.gov\\.uk/polaris-ui/go\\?");
+    expect(result).toEqual({ groups: {} });
+  });
+
+  it("should not match polaris go redirect pattern against non-redirect polaris URLs", () => {
+    expect(tryLocationMatch("https://polaris.cps.gov.uk/polaris-ui/case-details/URN/123", "https://polaris.cps.gov.uk/polaris-ui/go\\?")).toBeNull();
+    expect(tryLocationMatch("https://polaris.cps.gov.uk/polaris-ui/gopher", "https://polaris.cps.gov.uk/polaris-ui/go\\?")).toBeNull();
+  });
+
+  it.each([
+    "https://cps.outsystemsenterprise.com/WorkManagementApp/Redirect",
+    "https://cps.outsystemsenterprise.com/WorkManagementApp/Redirect?foo=bar",
+    "https://cps-tst.outsystemsenterprise.com/WorkManagementApp/Redirect",
+  ])("should match WorkManagementApp redirect URL: %s", address => {
+    const result = tryLocationMatch(address, address.match(/https:\/\/[^/]+/)![0] + "/WorkManagementApp/Redirect");
+    expect(result).toEqual({ groups: {} });
+  });
+
+  it.each([
+    "https://cps.outsystemsenterprise.com/CaseReview/RedirectCW",
+    "https://cps.outsystemsenterprise.com/CaseReview/RedirectCW?foo=bar",
+    "https://cps-tst.outsystemsenterprise.com/CaseReview/RedirectCW",
+  ])("should match CaseReview redirect URL: %s", address => {
+    const result = tryLocationMatch(address, address.match(/https:\/\/[^/]+/)![0] + "/CaseReview/RedirectCW");
+    expect(result).toEqual({ groups: {} });
+  });
+
+  it.each([
+    "https://housekeeping.cps.gov.uk/init",
+    "https://housekeeping.cps.gov.uk/init?foo=bar",
+    "https://housekeeping-staging.int.cps.gov.uk/init",
+  ])("should match housekeeping init URL: %s", address => {
+    const result = tryLocationMatch(address, address.match(/https:\/\/housekeeping[^/]*/)![0] + "/init");
+    expect(result).toEqual({ groups: {} });
+  });
+
+  it("should match housekeeping init before general housekeeping pattern", () => {
+    const url = "https://housekeeping.cps.gov.uk/init?foo=bar";
+    // The /init pattern should match
+    expect(tryLocationMatch(url, "https://housekeeping.cps.gov.uk/init")).toBeTruthy();
+    // The general housekeeping pattern would also match - but ordering in config ensures /init wins
+    expect(tryLocationMatch(url, "https://housekeeping")).toBeTruthy();
+  });
+
+  it.each([
     "https://cps-dev.outsystemsenterprise.com/some-app?CaseId=123&URN=abc",
     "https://cps-dev.outsystemsenterprise.com/some-app?CaseId=123&CaseURN=abc",
     "https://cps-dev.outsystemsenterprise.com/some-app?URN=abc&CaseId=123",

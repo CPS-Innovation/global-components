@@ -1,0 +1,21 @@
+let Data = GloCo_CaseReview_Duration
+| extend HoursBucket = iff(HoursDiff > 8.0, 8.0, bin(HoursDiff, 0.25))
+| summarize Cases = count() by HoursBucket, ReviewType;
+let Totals = GloCo_CaseReview_Duration | summarize Total = count() by ReviewType;
+Data
+| make-series CaseSeries = sum(Cases) default=0 on HoursBucket from 0.0 to 8.25 step 0.25 by ReviewType
+| extend CumulativeSeries = series_iir(CaseSeries, dynamic([1]), dynamic([1, -1]))
+| mv-expand HoursBucket to typeof(real), CumulativeCases = CumulativeSeries to typeof(real)
+| join kind=inner Totals on ReviewType
+| extend PctSubmitted = round(100.0 * CumulativeCases / Total, 1)
+| extend BucketLabel = iff(HoursBucket == 8.0, ">8", strcat(tostring(HoursBucket), " - ", tostring(HoursBucket + 0.25)))
+| project HoursBucket, BucketLabel, ReviewType, PctSubmitted
+| evaluate pivot(ReviewType, sum(PctSubmitted))
+| order by HoursBucket asc
+| project-away HoursBucket
+| render columnchart with (
+    kind = unstacked,
+    xtitle = "Hours to submit",
+    ytitle = "% submitted",
+    title  = "Cumulative % of reviews submitted by duration"
+)

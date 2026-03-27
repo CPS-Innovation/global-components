@@ -1,0 +1,17 @@
+GloCo_PageViews_CaseReview
+| where TimeGenerated > datetime(2026-03-09T12:00:01)
+| where Is_Review_First_Review or Is_Review_Subsequent_Review
+   or Is_Submitted_First_Review or Is_Submitted_Subsequent_Review
+| extend ReviewType = case(
+    Is_Review_First_Review or Is_Submitted_First_Review,         "First",
+    Is_Review_Subsequent_Review or Is_Submitted_Subsequent_Review, "Subsequent",
+    "Unknown")
+| summarize
+    ReviewStart   = minif(TimeGenerated, Is_Review_First_Review or Is_Review_Subsequent_Review),
+    SubmittedTime = maxif(TimeGenerated, Is_Submitted_First_Review or Is_Submitted_Subsequent_Review),
+    HasReview     = countif(Is_Review_First_Review or Is_Review_Subsequent_Review) > 0,
+    HasSubmission = countif(Is_Submitted_First_Review or Is_Submitted_Subsequent_Review) > 0
+    by CaseId, ReviewType
+| where HasReview and HasSubmission
+| extend HoursDiff = round(datetime_diff("minute", SubmittedTime, ReviewStart) / 60.0, 1)
+| where HoursDiff > 0

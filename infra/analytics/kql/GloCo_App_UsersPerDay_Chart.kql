@@ -1,0 +1,7 @@
+GloCo_App_UsersPerDay
+| project Day, CaseReview_CumulativeUsers, WorkManagement_CumulativeUsers, Home_CumulativeUsers, Housekeeping_CumulativeUsers
+| render timechart with (
+    title  = "Cumulative users by app",
+    ytitle = "Users",
+    xtitle = "Date"
+)

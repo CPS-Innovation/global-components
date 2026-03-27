@@ -3,22 +3,28 @@ import { Config } from "cps-global-configuration";
 import { FoundContext } from "../context/FoundContext";
 import { CorrelationIds } from "../correlation/CorrelationIds";
 import { AnalyticsEvent, AnalyticsEventData, trackEvent } from "./analytics-event";
+import { HostAppEvent } from "./host-app-event";
 import { makeConsole } from "../../logging/makeConsole";
 import { Build } from "../../store/store";
 import { AuthResult, KnownErrorType } from "../auth/AuthResult";
 import { capitalizeKeys } from "../../utils/capitalize-keys";
+import { Result } from "../../utils/Result";
+import { AuthHint } from "../state/auth-hint/initialise-auth-hint";
+import { Getter } from "@stencil/store/dist/types";
+import { StoredState } from "../../store/store";
+import type { AdDiagnosticsCollector } from "../auth/ad-diagnostics-collector";
 
 const STORAGE_PREFIX = "cps_global_components";
 
-type Props = { window: Window; config: Config; build: Build };
+type Props = { window: Window; config: Config; build: Build; authHint?: Result<AuthHint>; get: Getter<StoredState>; diagnosticsCollector?: AdDiagnosticsCollector };
 
-type AuthAnalyticsProps = undefined | { isAuthed: false; knownErrorType: KnownErrorType } | { isAuthed: true; username: string; objectId: string };
+type AuthAnalyticsProps = undefined | { isAuthed: false; knownErrorType: KnownErrorType; username?: string; objectId?: string } | { isAuthed: true; username: string; objectId: string };
 
 export type Analytics = ReturnType<typeof initialiseAiAnalytics>;
 
 const { _debug } = makeConsole("initialiseAnalytics");
 
-export const initialiseAiAnalytics = ({ window, config: { APP_INSIGHTS_CONNECTION_STRING, ENVIRONMENT }, build }: Props) => {
+export const initialiseAiAnalytics = ({ window, config: { APP_INSIGHTS_CONNECTION_STRING, ENVIRONMENT, COLLECT_AD_DIAGNOSTICS_IN_PAGE_VIEW }, build, authHint, get, diagnosticsCollector }: Props) => {
   if (!APP_INSIGHTS_CONNECTION_STRING) {
     return {
       trackPageView: () => {},
@@ -58,6 +64,7 @@ export const initialiseAiAnalytics = ({ window, config: { APP_INSIGHTS_CONNECTIO
     },
   });
 
+  const allowed = new Set(["EventData", "ExceptionData", "PageviewData"]);
   appInsights.addTelemetryInitializer(envelope => {
     // We are a guest in the host app so we do not want to capture telemetry that
     //  they should be (for reasons of hygiene and to keep our analytics data usage minimal)
@@ -66,13 +73,17 @@ export const initialiseAiAnalytics = ({ window, config: { APP_INSIGHTS_CONNECTIO
       return false;
     }
 
-    const allowed = new Set(["EventData", "ExceptionData", "PageviewData"]);
     if (!allowed.has(baseType)) {
       return false;
     }
 
     if (baseType === "PageviewData" && envelope.baseData) {
       delete envelope.baseData.refUri;
+
+      if (envelope.baseData.uri) {
+        // Let's avoid logging the hash e.g. MSAL return data #code=
+        envelope.baseData.uri = envelope.baseData.uri.split("#")[0];
+      }
     }
 
     if (baseType === "ExceptionData") {
@@ -103,21 +114,34 @@ export const initialiseAiAnalytics = ({ window, config: { APP_INSIGHTS_CONNECTIO
   });
 
   const registerAuth = (auth: AuthResult) => {
-    authValues = auth.isAuthed ? { isAuthed: true, username: auth.username, objectId: auth.objectId } : { isAuthed: false, knownErrorType: auth.knownErrorType };
+    if (auth.isAuthed) {
+      authValues = { isAuthed: true, username: auth.username, objectId: auth.objectId };
+    } else {
+      const hint = authHint?.found ? authHint.result.authResult : undefined;
+      authValues = { isAuthed: false, knownErrorType: auth.knownErrorType, ...(hint && { username: hint.username, objectId: hint.objectId }) };
+    }
     resolveAuthReady();
   };
+
+  const getDiagnostics = () => diagnosticsCollector?.get() ?? {};
 
   const trackPageView = ({ context: { found, contextIds } }: { context: FoundContext }) => {
     (async () => {
       await authReady;
-      const arg = { properties: capitalizeKeys({ environment: ENVIRONMENT, auth: authValues, build: build, context: { found, contextIds }, correlationIds: correlationIdValues }) };
+      const caseId = get("caseIdentifiers")?.caseId;
+      const authDiagnostics = COLLECT_AD_DIAGNOSTICS_IN_PAGE_VIEW ? getDiagnostics() : undefined;
+      const arg = { properties: capitalizeKeys({ environment: ENVIRONMENT, auth: authValues, build: build, context: { found, contextIds }, correlationIds: correlationIdValues, ...(caseId && { caseId }), ...(authDiagnostics && { authDiagnostics }) }) };
       _debug("trackPageView", arg);
       appInsights.trackPageView(arg);
+      // Let's do our best to ensure our page view analytics gets registered before the page navigates away.
+      //  This is a bit speculative, not sure if this will have a material effect.
+      appInsights.flush();
     })();
   };
 
   const trackException = (exception: Error) => {
-    appInsights.trackException({ exception }, { source: STORAGE_PREFIX, properties: capitalizeKeys({ environment: ENVIRONMENT, ...(authValues && { auth: authValues }), build }) });
+    const authDiagnostics = getDiagnostics();
+    appInsights.trackException({ exception }, { source: STORAGE_PREFIX, properties: capitalizeKeys({ environment: ENVIRONMENT, ...(authValues && { auth: authValues }), build, authDiagnostics }) });
   };
 
   window.addEventListener(AnalyticsEvent.type, (ev: AnalyticsEvent) => {
@@ -125,6 +149,11 @@ export const initialiseAiAnalytics = ({ window, config: { APP_INSIGHTS_CONNECTIO
     const { name, ...rest } = ev.detail;
 
     appInsights.trackEvent({ name: ev.type, properties: { ...rest, correlationIds: correlationIdValues } });
+  });
+
+  window.addEventListener(HostAppEvent.type, (ev: HostAppEvent) => {
+    _debug("trackHostAppEvent", ev);
+    appInsights.trackEvent({ name: ev.type, properties: { ...ev.detail, correlationIds: correlationIdValues } });
   });
 
   return { trackPageView, trackException, trackEvent, registerAuth, registerCorrelationIds };

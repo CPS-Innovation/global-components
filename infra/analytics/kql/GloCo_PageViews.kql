@@ -1,0 +1,42 @@
+AppPageViews
+| project TimeGenerated, OperationId, Id, Url, SessionId, UserId, parsed = parse_json(Properties)
+| extend Environment = tostring(parsed.Environment)
+| where Environment == "prod"
+| where Url !startswith "https://cps.outsystemsenterprise.com/WorkManagementApp/Redirect"
+| where Url !startswith "https://polaris.cps.gov.uk/global-components/prod/preview/index.html"
+| where Url !in ("https://polaris.cps.gov.uk/polaris-ui", "https://polaris.cps.gov.uk/polaris-ui/")
+| where Url !startswith "https://polaris.cps.gov.uk/polaris-ui/go"
+| where Url !startswith "https://polaris.cps.gov.uk/polaris-ui#code"
+| where Url !startswith "https://cps.outsystemsenterprise.com/CaseReview/RedirectCW"
+| where Url !startswith "https://cps.outsystemsenterprise.com/CaseReview/LoginPage"
+// Nested double-encoded objects — parse_json() again on each
+| extend Auth    = parse_json(tostring(parsed.Auth))
+| extend App = case(
+    Url startswith "https://polaris.",                                         "Casework app",
+    Url startswith "https://housekeeping",                                    "Housekeeping",
+    Url startswith "https://cps.outsystemsenterprise.com/CaseReview",         "Case review",
+    Url startswith "https://cps.outsystemsenterprise.com/WorkManagementApp",  "Work management app",
+    Url startswith "https://cps.outsystemsenterprise.com/casework_blocks"
+ or Url startswith "https://cps.outsystemsenterprise.com/Casework_Blocks",    "Home",
+    "Unknown")
+| extend Build   = parse_json(tostring(parsed.Build))
+| extend Context = parse_json(tostring(parsed.Context))
+| extend CorrelationIds = parse_json(tostring(parsed.CorrelationIds))
+// Flatten to leaf columns
+| extend
+    Auth_IsAuthed       = iff(isnotempty(Auth), tobool(Auth.IsAuthed), false),
+    Auth_Username       = tostring(Auth.Username),
+    Auth_ObjectId       = tostring(Auth.ObjectId),
+    Auth_KnownErrorType = iff(isnotempty(Auth), tostring(Auth.KnownErrorType), "NoAuthObjectInAnalytics"),
+    Build_Sha       = tostring(Build.Sha),
+    Build_RunId     = tostring(Build.RunId),
+    Build_Timestamp = todatetime(Build.Timestamp),
+    Context_Found   = tobool(Context.Found),
+    Context_ContextIds = tostring(Context.ContextIds),
+    CorrelationId_ScriptLoad  = tostring(CorrelationIds.ScriptLoadCorrelationId),
+    CorrelationId_Navigation  = tostring(CorrelationIds.NavigationCorrelationId),
+    CaseId = coalesce(
+        tolong(parse_url(Url)["Query Parameters"]["CMSCaseId"]),
+        tolong(extract(@"[/=](\d{8})(\D|$)", 1, Url)),
+        tolong(tostring(parsed.CaseId)))
+| project-away parsed, Build, Auth, Context, CorrelationIds
