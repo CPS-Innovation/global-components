@@ -10,9 +10,7 @@
   "SHOW_RECENT_CASES": true,
   "SHOW_MONITORING_CODES": true,
   "OS_HANDOVER_URL": "https://cps-dev.outsystemsenterprise.com/AuthHandover/auth-handover.html",
-  "COOKIE_HANDOVER_URL": "https://polaris-qa-notprod.cps.gov.uk/polaris",
-  "TOKEN_HANDOVER_URL": "https://polaris-qa-notprod.cps.gov.uk/auth-refresh-cms-modern-token",
-  "FEATURE_FLAG_MENU_USERS": { "generallyAvailable": true },
+"FEATURE_FLAG_MENU_USERS": { "generallyAvailable": true },
   "CONTEXTS": [
     {
       "msalRedirectUrl": "http://localhost:{port}/auth",

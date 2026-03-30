@@ -14,15 +14,14 @@ type AdapterParams = Pick<State, "flags" | "config">;
 const makeParams = (
   overrides: Partial<{
     isOutSystems: boolean;
+    origin: string;
     OS_HANDOVER_URL: string;
-    COOKIE_HANDOVER_URL: string;
   }>,
 ): AdapterParams =>
   ({
-    flags: { isOutSystems: overrides.isOutSystems ?? false },
+    flags: { isOutSystems: overrides.isOutSystems ?? false, origin: overrides.origin ?? "https://polaris-qa-notprod.cps.gov.uk" },
     config: {
       OS_HANDOVER_URL: overrides.OS_HANDOVER_URL ?? "",
-      COOKIE_HANDOVER_URL: overrides.COOKIE_HANDOVER_URL ?? "",
     },
   }) as any;
 
@@ -36,7 +35,6 @@ describe("linkHandoverAdapter", () => {
       makeParams({
         isOutSystems: true,
         OS_HANDOVER_URL: "https://handover.example.com",
-        COOKIE_HANDOVER_URL: "https://cookie.example.com",
       }),
     );
 
@@ -52,7 +50,6 @@ describe("linkHandoverAdapter", () => {
       const adapt = linkHandoverAdapter(
         makeParams({
           OS_HANDOVER_URL: "https://handover.example.com",
-          COOKIE_HANDOVER_URL: "https://cookie.example.com",
         }),
       );
 
@@ -60,13 +57,12 @@ describe("linkHandoverAdapter", () => {
       expect(mockCreateOutboundUrlDirect).not.toHaveBeenCalled();
     });
 
-    it("should return URL unchanged when OS_HANDOVER_URL or COOKIE_HANDOVER_URL is empty", () => {
+    it("should return URL unchanged when OS_HANDOVER_URL is empty", () => {
       mockIsOutSystemsApp.mockReturnValue(true);
 
       const adapt = linkHandoverAdapter(
         makeParams({
           OS_HANDOVER_URL: "",
-          COOKIE_HANDOVER_URL: "",
         }),
       );
 
@@ -75,16 +71,16 @@ describe("linkHandoverAdapter", () => {
       expect(mockCreateOutboundUrlDirect).not.toHaveBeenCalled();
     });
 
-    it("should go via auth handover when target is an OutSystems app and handover URLs are configured", () => {
+    it("should derive cookie handover URL from origin", () => {
       mockIsOutSystemsApp.mockReturnValue(true);
       mockCreateOutboundUrlDirect.mockReturnValue(
-        "https://cookie.example.com?r=https://handover.example.com?stage=os-cookie-return&r=https://os-app.com/page",
+        "https://polaris-qa-notprod.cps.gov.uk/polaris?r=https://handover.example.com?stage=os-cookie-return&r=https://os-app.com/page",
       );
 
       const adapt = linkHandoverAdapter(
         makeParams({
           OS_HANDOVER_URL: "https://handover.example.com",
-          COOKIE_HANDOVER_URL: "https://cookie.example.com",
+          origin: "https://polaris-qa-notprod.cps.gov.uk",
         }),
       );
 
@@ -92,12 +88,11 @@ describe("linkHandoverAdapter", () => {
 
       expect(mockIsOutSystemsApp).toHaveBeenCalledWith({ location: { href: "https://os-app.com/page" } });
       expect(mockCreateOutboundUrlDirect).toHaveBeenCalledWith({
-        cookieHandoverUrl: "https://cookie.example.com",
+        cookieHandoverUrl: "https://polaris-qa-notprod.cps.gov.uk/polaris",
         handoverUrl: "https://handover.example.com",
         targetUrl: "https://os-app.com/page",
       });
-      expect(result).toBe("https://cookie.example.com?r=https://handover.example.com?stage=os-cookie-return&r=https://os-app.com/page");
+      expect(result).toBe("https://polaris-qa-notprod.cps.gov.uk/polaris?r=https://handover.example.com?stage=os-cookie-return&r=https://os-app.com/page");
     });
-
-});
+  });
 });
