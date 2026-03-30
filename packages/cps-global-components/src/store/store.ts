@@ -7,7 +7,6 @@ import { ApplicationFlags } from "../services/application-flags/ApplicationFlags
 import { loggingSubscriptionFactory } from "./subscriptions/logging-subscription-factory";
 import { resetPreventionSubscriptionFactory } from "./subscriptions/reset-prevention-subscription-factory";
 import { Tags } from "../services/context/Tags";
-import { withLogging } from "../logging/with-logging";
 import { CorrelationIds } from "../services/correlation/CorrelationIds";
 import { tagsSubscriptionFactory } from "./subscriptions/tags-subscription-factory";
 import { applyOnChangeHandler, SubscriptionFactory } from "./subscriptions/SubscriptionFactory";
@@ -22,9 +21,6 @@ import { AuthHint } from "../services/state/auth-hint/initialise-auth-hint";
 import { MonitoringCodes } from "../services/data/MonitoringCode";
 import { RecentCases } from "../services/state/recent-cases/recent-cases";
 export { type ReadyStateHelper };
-
-const registerEventName = "cps-global-components-register";
-const mergeTagsEventName = "cps-global-components-merge-tags";
 
 // Helper type to extract keys of a specific type
 type KeysOfType<T, U> = {
@@ -127,11 +123,8 @@ export type StoredState = MakeUndefinable<State>;
 
 export type Register = (arg: Partial<StoredState>) => void;
 export type RegisterOnce = (arg: Partial<StoredState>) => void;
-class RegisterEvent extends CustomEvent<Parameters<Register>[0]> {}
 
 export type MergeTags = (arg: SingleKnownTypePropertyOf<TransientState, Tags>) => Tags;
-export type MergeTagFireAndForget = (arg: SingleKnownTypePropertyOf<TransientState, Tags>) => void;
-class MergeTagFireAndForgetEvent extends CustomEvent<Parameters<MergeTagFireAndForget>[0]> {}
 
 export type Subscribe = (...factories: SubscriptionFactory[]) => void;
 
@@ -145,6 +138,8 @@ const initialState: StoredState = {
   ...initialAggregateState,
   ...initialSummaryState,
 };
+
+let _mergeTags: MergeTags | undefined;
 
 export const initialiseStore = () => {
   const store: Store = createStore<StoredState>(
@@ -188,7 +183,7 @@ export const initialiseStore = () => {
 
   const register = (arg: Partial<StoredState>) => Object.keys(arg).forEach((key: keyof StoredState) => store.set(key, arg[key]));
 
-  const mergeTags: MergeTags = arg => {
+  const storeMergeTags: MergeTags = arg => {
     const key = Object.keys(arg)[0] as KeysOfType<TransientState, Tags>;
     const nextValue = { ...store.get(key), ...arg[key] } as Tags;
     store.set(key, nextValue);
@@ -206,7 +201,7 @@ export const initialiseStore = () => {
 
   const subscribe: Subscribe = (...subscriptionFactories: SubscriptionFactory[]) =>
     subscriptionFactories.map(factory => {
-      const { type, handler } = factory({ register, mergeTags, get: store.get });
+      const { type, handler } = factory({ register, mergeTags: storeMergeTags, get: store.get });
       if (type === "subscription") {
         store.use(handler);
       } else {
@@ -216,21 +211,16 @@ export const initialiseStore = () => {
 
   subscribe(resetPreventionSubscriptionFactory, loggingSubscriptionFactory, tagsSubscriptionFactory, caseIdentifiersSubscriptionFactory);
 
-  document.addEventListener(
-    registerEventName,
-    withLogging(registerEventName, (event: RegisterEvent) => register(event.detail)),
-  );
+  _mergeTags = storeMergeTags;
 
-  return { readyState, register, mergeTags, resetContextSpecificTags, subscribe, get: store.get };
+  return { readyState, register, mergeTags: storeMergeTags, resetContextSpecificTags, subscribe, get: store.get };
 };
 
-export const mergeTags: MergeTagFireAndForget = detail =>
-  document.dispatchEvent(
-    new MergeTagFireAndForgetEvent(mergeTagsEventName, {
-      detail,
-      bubbles: true,
-      cancelable: true,
-    }),
-  );
+export const mergeTags: MergeTags = arg => {
+  if (!_mergeTags) {
+    throw new Error("mergeTags called before store initialisation");
+  }
+  return _mergeTags(arg);
+};
 
 export let readyState: ReadyStateHelper;

@@ -2,43 +2,43 @@ import { initialiseNavigateCms, dispatchCmsNavigate } from "./initialise-navigat
 import { CmsNavigateEvent } from "./CmsNavigateEvent";
 
 describe("initialiseNavigateCms", () => {
-  let openSpy: jest.SpyInstance;
+  let mockWindow: Window;
+  let mockOpen: jest.Mock;
 
   beforeEach(() => {
-    openSpy = jest.spyOn(window, "open").mockImplementation(() => null);
-  });
-
-  afterEach(() => {
-    openSpy.mockRestore();
+    mockOpen = jest.fn();
+    mockWindow = { document: document.createElement("div"), open: mockOpen } as unknown as Window;
   });
 
   it("registers listener", () => {
-    const addEventSpy = jest.spyOn(document, "addEventListener");
+    const addEventSpy = jest.spyOn(mockWindow.document, "addEventListener");
     initialiseNavigateCms({
+      window: mockWindow,
       rootUrl: "https://example.com/global-components/test/cps-global-components.esm.js",
     });
     expect(addEventSpy).toHaveBeenCalledWith(CmsNavigateEvent.type, expect.anything());
-    addEventSpy.mockRestore();
   });
 
   it("opens correct URL for case action", () => {
     initialiseNavigateCms({
+      window: mockWindow,
       rootUrl: "https://example.com/global-components/test/cps-global-components.esm.js",
     });
 
-    document.dispatchEvent(new CmsNavigateEvent({ action: "case", caseId: 123 }));
+    mockWindow.document.dispatchEvent(new CmsNavigateEvent({ action: "case", caseId: 123 }));
 
-    expect(openSpy).toHaveBeenCalledWith("https://example.com/global-components/navigate-cms?caseId=123", "_blank", expect.stringContaining("width=500"));
+    expect(mockOpen).toHaveBeenCalledWith("https://example.com/global-components/navigate-cms?caseId=123", "_blank", expect.stringContaining("width=500"));
   });
 
   it("opens correct URL for task action", () => {
     initialiseNavigateCms({
+      window: mockWindow,
       rootUrl: "https://example.com/global-components/test/cps-global-components.esm.js",
     });
 
-    document.dispatchEvent(new CmsNavigateEvent({ action: "task", caseId: 123, taskId: 456 }));
+    mockWindow.document.dispatchEvent(new CmsNavigateEvent({ action: "task", caseId: 123, taskId: 456 }));
 
-    expect(openSpy).toHaveBeenCalledWith("https://example.com/global-components/navigate-cms?caseId=123&taskId=456", "_blank", expect.stringContaining("width=500"));
+    expect(mockOpen).toHaveBeenCalledWith("https://example.com/global-components/navigate-cms?caseId=123&taskId=456", "_blank", expect.stringContaining("width=500"));
   });
 });
 
