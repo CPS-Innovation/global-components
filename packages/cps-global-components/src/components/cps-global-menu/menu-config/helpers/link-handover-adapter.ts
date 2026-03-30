@@ -11,5 +11,5 @@ export const linkHandoverAdapter = ({ flags: { isOutSystems, origin }, config: {
       //  via the auth handover endpoint to ensure OS has CMS auth
       (targetUrl: string) => {
         const shouldGoViaAuthHandover = isOutSystemsApp({ location: { href: targetUrl } }) && OS_HANDOVER_URL && origin;
-        return shouldGoViaAuthHandover ? createOutboundUrlDirect({ cookieHandoverUrl: `${origin}/polaris`, handoverUrl: OS_HANDOVER_URL, targetUrl }) : targetUrl;
+        return shouldGoViaAuthHandover ? createOutboundUrlDirect({ cookieHandoverUrl: `${origin}/auth-refresh-outbound`, handoverUrl: OS_HANDOVER_URL, targetUrl }) : targetUrl;
       };

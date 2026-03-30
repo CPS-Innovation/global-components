@@ -19,7 +19,7 @@ const makeParams = (
   }>,
 ): AdapterParams =>
   ({
-    flags: { isOutSystems: overrides.isOutSystems ?? false, origin: overrides.origin ?? "https://polaris-qa-notprod.cps.gov.uk" },
+    flags: { isOutSystems: overrides.isOutSystems ?? false, origin: overrides.origin ?? "https://auth-refresh-outbound-qa-notprod.cps.gov.uk" },
     config: {
       OS_HANDOVER_URL: overrides.OS_HANDOVER_URL ?? "",
     },
@@ -74,13 +74,13 @@ describe("linkHandoverAdapter", () => {
     it("should derive cookie handover URL from origin", () => {
       mockIsOutSystemsApp.mockReturnValue(true);
       mockCreateOutboundUrlDirect.mockReturnValue(
-        "https://polaris-qa-notprod.cps.gov.uk/polaris?r=https://handover.example.com?stage=os-cookie-return&r=https://os-app.com/page",
+        "https://auth-refresh-outbound-qa-notprod.cps.gov.uk/auth-refresh-outbound?r=https://handover.example.com?stage=os-cookie-return&r=https://os-app.com/page",
       );
 
       const adapt = linkHandoverAdapter(
         makeParams({
           OS_HANDOVER_URL: "https://handover.example.com",
-          origin: "https://polaris-qa-notprod.cps.gov.uk",
+          origin: "https://auth-refresh-outbound-qa-notprod.cps.gov.uk",
         }),
       );
 
@@ -88,11 +88,11 @@ describe("linkHandoverAdapter", () => {
 
       expect(mockIsOutSystemsApp).toHaveBeenCalledWith({ location: { href: "https://os-app.com/page" } });
       expect(mockCreateOutboundUrlDirect).toHaveBeenCalledWith({
-        cookieHandoverUrl: "https://polaris-qa-notprod.cps.gov.uk/polaris",
+        cookieHandoverUrl: "https://auth-refresh-outbound-qa-notprod.cps.gov.uk/auth-refresh-outbound",
         handoverUrl: "https://handover.example.com",
         targetUrl: "https://os-app.com/page",
       });
-      expect(result).toBe("https://polaris-qa-notprod.cps.gov.uk/polaris?r=https://handover.example.com?stage=os-cookie-return&r=https://os-app.com/page");
+      expect(result).toBe("https://auth-refresh-outbound-qa-notprod.cps.gov.uk/auth-refresh-outbound?r=https://handover.example.com?stage=os-cookie-return&r=https://os-app.com/page");
     });
   });
 });

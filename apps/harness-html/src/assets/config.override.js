@@ -5,7 +5,9 @@ cps_global_components_config_jsonp_callback({
   SHOW_MENU: true,
   OS_HANDOVER_URL:
     "https://cps-dev.outsystemsenterprise.com/AuthHandover/index.html",
-CONTEXTS: [
+  TOKEN_HANDOVER_URL:
+    "https://polaris-qa-notprod.cps.gov.uk/auth-refresh-cms-modern-token",
+  CONTEXTS: [
     {
       paths: ["http://localhost:3333/cases/(?<caseId>\\d+)/materials"],
       contexts: "case materials",

@@ -1,11 +1,12 @@
 # OS Auth Handover
 
-When users navigate between CMS (proxied via Polaris) and OutSystems apps, authentication needs to be transferred. The proxy handles cookie collection and token refresh server-side; the client-side code stores the resulting auth in OS localStorage and redirects to the target.
+When users navigate between CMS (proxied via Polaris) and OutSystems apps, authentication needs to be transferred. The proxy handles cookie collection server-side; the client-side code manages token acquisition, stores the resulting auth in OS localStorage, and redirects to the target.
 
 ## Configuration
 
 - **`OS_HANDOVER_URL`** — the `auth-handover.html` page hosted on the OutSystems domain (e.g. `https://cps-dev.outsystemsenterprise.com/Casework_Patterns/auth-handover.html`)
-- **`origin`** — derived at runtime from the URL that `global-components.js` was loaded from (e.g. `https://polaris-qa-notprod.cps.gov.uk`). Used to construct `${origin}/polaris`, which hits the proxy's own polaris endpoint.
+- **`TOKEN_HANDOVER_URL`** — the proxy endpoint for acquiring a CMS modern token (e.g. `https://polaris-qa-notprod.cps.gov.uk/auth-refresh-cms-modern-token`). Injected into `auth-handover.js` at deploy time.
+- **`origin`** — derived at runtime from the URL that `global-components.js` was loaded from (e.g. `https://polaris-qa-notprod.cps.gov.uk`). Used to construct `${origin}/auth-refresh-outbound`, which hits the proxy's auth refresh endpoint. This endpoint examines the `Cms-Session-Hint` cookie to find the correct CMS `/polaris` endpoint to redirect to.
 
 ## Flow 1: Menu link navigation (non-OS to OS app)
 
@@ -17,28 +18,28 @@ When a user is on a proxied CMS page and clicks a menu link targeting OutSystems
 | linkHandoverAdapter detects target is OS app                        |
 |                                                                     |
 | createOutboundUrlDirect builds URL:                                 |
-|   {origin}/polaris?r={OS_HANDOVER_URL}?stage=os-cookie-return       |
-|                                       &r={targetUrl}                |
+|   {origin}/auth-refresh-outbound?r={OS_HANDOVER_URL}                |
+|              ?stage=os-cookie-return&r={targetUrl}                   |
 +----------------------------------+----------------------------------+
                                    |
                                    v
 +---------------------------------------------------------------------+
-| PROXY: /polaris                                                     |
+| PROXY: /auth-refresh-outbound                                       |
 |                                                                     |
-| The proxy's own polaris endpoint.                                   |
-| Collects CMS cookies, appends them as ?cc= param,                  |
-| redirects to /init                                                  |
+| Examines Cms-Session-Hint cookie to find handoverEndpoint.          |
+| Falls back to DEFAULT_UPSTREAM_CMS_DOMAIN_NAME.                     |
+| Redirects to {handoverEndpoint}?r={...} (the CMS /polaris endpoint) |
 +----------------------------------+----------------------------------+
                                    |
                                    v
 +---------------------------------------------------------------------+
-| PROXY: /init                                                        |
+| CMS: /polaris -> PROXY: /init                                       |
 |                                                                     |
-| Validates redirect URL against AUTH_HANDOVER_WHITELIST.             |
-| Appends cookies via ?cc= param.                                    |
-| Sets Cms-Session-Hint cookie.                                      |
-| Redirects to:                                                       |
-|   {OS_HANDOVER_URL}?stage=os-cookie-return&r={targetUrl}&cc={...}  |
+| Validates redirect URL against AUTH_HANDOVER_WHITELIST.              |
+| Appends cookies via ?cc= param.                                     |
+| Sets Cms-Session-Hint cookie.                                       |
+| Redirects to:                                                        |
+|   {OS_HANDOVER_URL}?stage=os-cookie-return&r={targetUrl}&cc={...}   |
 +----------------------------------+----------------------------------+
                                    |
                                    v
@@ -46,16 +47,35 @@ When a user is on a proxied CMS page and clicks a menu link targeting OutSystems
 | OS DOMAIN: auth-handover.html                                       |
 | Loads auth-handover.js -> handleOsRedirect()                        |
 |                                                                     |
-| Stage: os-cookie-return                                             |
-|  - Extracts cc (cookies), cms-modern-token, r (target) from URL    |
-|  - Stores auth in OS localStorage                                  |
-|  - Sets CmsSessionHint if target is /Casework_Blocks/              |
-|  - window.location.replace(targetUrl)                              |
+| Stage: os-cookie-return                                              |
+|  - Extracts cc (cookies) from URL                                   |
+|  - If cookies match localStorage: skip to target (auth still valid) |
+|  - If not: redirect to TOKEN_HANDOVER_URL with stage=os-token-return|
++----------------------------------+----------------------------------+
+                                   |
+                    (if token needed)
+                                   v
++---------------------------------------------------------------------+
+| PROXY: /auth-refresh-cms-modern-token                               |
+|                                                                     |
+| Proxies to DDEI's /api/cms-modern-token/                            |
+| Returns redirect with cms-modern-token param                        |
 +----------------------------------+----------------------------------+
                                    |
                                    v
 +---------------------------------------------------------------------+
-| TARGET: OutSystems app page                                         |
+| OS DOMAIN: auth-handover.html (second visit)                        |
+|                                                                     |
+| Stage: os-token-return                                               |
+|  - Extracts cc, cms-modern-token, r (target) from URL               |
+|  - Stores auth (cookies + token) in OS localStorage                 |
+|  - Sets CmsSessionHint if target is /Casework_Blocks/               |
+|  - window.location.replace(targetUrl)                               |
++----------------------------------+----------------------------------+
+                                   |
+                                   v
++---------------------------------------------------------------------+
+| TARGET: OutSystems app page                                          |
 | User arrives with CMS auth stored in localStorage                   |
 +---------------------------------------------------------------------+
 ```
@@ -78,24 +98,15 @@ When the proxy itself orchestrates navigation to CaseReview:
 +----------------------------------+----------------------------------+
                                    |
                                    v
-+---------------------------------------------------------------------+
-| PROXY: /auth-refresh-outbound                                       |
-|                                                                     |
-| Extracts handoverEndpoint from Cms-Session-Hint cookie.             |
-| Sets X-InternetExplorerMode: 1 header.                              |
-| Redirects to {handoverEndpoint}?r={encoded chain}                   |
-| (This hits the CMS /polaris endpoint to collect cookies)            |
-+----------------------------------+----------------------------------+
-                                   |
-                                   v
-              (same /polaris -> /init -> auth-handover.html
-               -> target flow as Flow 1)
+              (same /auth-refresh-outbound -> CMS /polaris -> /init
+               -> auth-handover.html flow as Flow 1)
 ```
 
 ## History
 
-Previously the client-side code had three stages (`os-outbound`, `os-cookie-return`, `os-token-return`) and required three config URLs (`OS_HANDOVER_URL`, `COOKIE_HANDOVER_URL`, `TOKEN_HANDOVER_URL`). The proxy now handles cookie collection and token refresh server-side, so the client only needs:
+Previously the client-side code had three stages (`os-outbound`, `os-cookie-return`, `os-token-return`) and required three config URLs (`OS_HANDOVER_URL`, `COOKIE_HANDOVER_URL`, `TOKEN_HANDOVER_URL`). `COOKIE_HANDOVER_URL` is now derived at runtime as `${origin}/auth-refresh-outbound` and `os-outbound` has been removed (it was already bypassed by `createOutboundUrlDirect`). This leaves:
 
 - **One config URL**: `OS_HANDOVER_URL` (the auth-handover.html page on the OS domain)
-- **One derived URL**: `${origin}/polaris` (the proxy's own polaris endpoint)
-- **One stage**: `os-cookie-return` (store auth and redirect to target)
+- **One deploy-time URL**: `TOKEN_HANDOVER_URL` (injected into auth-handover.js for token acquisition)
+- **One derived URL**: `${origin}/auth-refresh-outbound` (the proxy's auth refresh endpoint)
+- **Two stages**: `os-cookie-return` (cookie check, skip or fetch token) and `os-token-return` (store auth and redirect)

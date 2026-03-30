@@ -30,6 +30,7 @@ describe("menuConfig", () => {
     SURVEY_LINK: "https://example.com/survey",
     SHOW_MENU: true,
     OS_HANDOVER_URL: "",
+    TOKEN_HANDOVER_URL: "",
     LINKS: [
       {
         label: "Link 1",
