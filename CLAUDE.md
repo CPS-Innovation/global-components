@@ -95,11 +95,19 @@ Code and unit test files must build and be free of IDE build-preventing errors b
 change is complete. After making changes, **actually run** the relevant build/test command and verify it passes
 before reporting done. Do not assume changes compile — confirm it.
 
-**`pnpm build` runs all packages and can take a while.** Prefer targeted builds when possible:
-`pnpm -r --filter cps-global-components run build`. Do NOT use `run_in_background` for builds — run them
-in the foreground with a sufficient timeout (120000ms for single package, 300000ms for full build) so that
-build errors are immediately visible. Using background tasks for builds hides failures and leads to
-block-waiting on `TaskOutput` which hangs.
+**`pnpm build` runs all packages and can take a while.** Prefer targeted builds when possible.
+Do NOT use `run_in_background` for builds — run them in the foreground with a sufficient timeout
+(120000ms for single package, 300000ms for full build) so that build errors are immediately visible.
+Using background tasks for builds hides failures and leads to block-waiting on `TaskOutput` which hangs.
+
+When running targeted builds, prefer `cd`-ing into the package directory and using `pnpm exec` directly
+rather than `pnpm -r --filter`. For example:
+```bash
+cd packages/cps-global-os-handover && pnpm exec rollup -c rollup.config.mjs
+cd packages/cps-global-components && pnpm exec stencil build
+cd packages/cps-global-components && pnpm exec stencil test --spec -- --testPathPatterns="foo" --no-coverage
+```
+`pnpm -r --filter` can hang when multiple builds have run in the same session.
 
 ## Workflow
 

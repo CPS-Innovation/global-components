@@ -7,20 +7,7 @@ import { createUrlWithParams, setParams, stripParams } from "../core/params";
 import { paramKeys, stages } from "../core/constants";
 import { getCmsSessionHint } from "../core/get-cms-session-hint";
 
-declare global {
-  interface Window {
-    cps_global_components_token_handover_url: string;
-  }
-}
-
-export const handleOsRedirect = async (window: Window) => {
-  const tokenHandoverUrl = window.cps_global_components_token_handover_url;
-  if (!tokenHandoverUrl) {
-    throw new Error(
-      `window.cps_global_components_token_handover_url not specified`,
-    );
-  }
-
+export const handleOsRedirect = async (window: Window, tokenHandoverUrl: string) => {
   const { stage, nextUrl } = handleOsRedirectInternal({
     currentUrl: window.location.href,
     tokenHandoverUrl,

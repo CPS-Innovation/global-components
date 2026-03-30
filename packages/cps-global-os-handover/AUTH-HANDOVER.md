@@ -4,9 +4,10 @@ When users navigate between CMS (proxied via Polaris) and OutSystems apps, authe
 
 ## Configuration
 
-- **`OS_HANDOVER_URL`** — the `auth-handover.html` page hosted on the OutSystems domain (e.g. `https://cps-dev.outsystemsenterprise.com/Casework_Patterns/auth-handover.html`)
-- **`TOKEN_HANDOVER_URL`** — the proxy endpoint for acquiring a CMS modern token (e.g. `https://polaris-qa-notprod.cps.gov.uk/auth-refresh-cms-modern-token`). Injected into `auth-handover.js` at deploy time.
-- **`origin`** — derived at runtime from the URL that `global-components.js` was loaded from (e.g. `https://polaris-qa-notprod.cps.gov.uk`). Used to construct `${origin}/auth-refresh-outbound`, which hits the proxy's auth refresh endpoint. This endpoint examines the `Cms-Session-Hint` cookie to find the correct CMS `/polaris` endpoint to redirect to.
+- **`OS_HANDOVER_URL`** — the `auth-handover.html` page hosted on the OutSystems domain (e.g. `https://cps-dev.outsystemsenterprise.com/Casework_Patterns/auth-handover.html`). The only remaining per-environment config value for auth handover.
+- **script origin** — both `global-components.js` and `auth-handover.js` derive their origin at runtime from their own script URL (via `import.meta.url` / `document.currentScript.src`). This is used to construct:
+  - `${origin}/auth-refresh-outbound` — the proxy's auth refresh endpoint, which examines the `Cms-Session-Hint` cookie to find the correct CMS `/polaris` endpoint
+  - `${origin}/auth-refresh-cms-modern-token` — the proxy's token endpoint, which proxies to DDEI's `/api/cms-modern-token/`
 
 ## Flow 1: Menu link navigation (non-OS to OS app)
 
@@ -104,9 +105,8 @@ When the proxy itself orchestrates navigation to CaseReview:
 
 ## History
 
-Previously the client-side code had three stages (`os-outbound`, `os-cookie-return`, `os-token-return`) and required three config URLs (`OS_HANDOVER_URL`, `COOKIE_HANDOVER_URL`, `TOKEN_HANDOVER_URL`). `COOKIE_HANDOVER_URL` is now derived at runtime as `${origin}/auth-refresh-outbound` and `os-outbound` has been removed (it was already bypassed by `createOutboundUrlDirect`). This leaves:
+Previously the client-side code had three stages (`os-outbound`, `os-cookie-return`, `os-token-return`) and required three config URLs (`OS_HANDOVER_URL`, `COOKIE_HANDOVER_URL`, `TOKEN_HANDOVER_URL`). Both `COOKIE_HANDOVER_URL` and `TOKEN_HANDOVER_URL` are now derived at runtime from the script origin (`document.currentScript.src`), and `os-outbound` has been removed (it was already bypassed by `createOutboundUrlDirect`). The deploy script no longer injects any values into `auth-handover.js`. This leaves:
 
 - **One config URL**: `OS_HANDOVER_URL` (the auth-handover.html page on the OS domain)
-- **One deploy-time URL**: `TOKEN_HANDOVER_URL` (injected into auth-handover.js for token acquisition)
-- **One derived URL**: `${origin}/auth-refresh-outbound` (the proxy's auth refresh endpoint)
+- **Two derived URLs**: `${origin}/auth-refresh-outbound` and `${origin}/auth-refresh-cms-modern-token`
 - **Two stages**: `os-cookie-return` (cookie check, skip or fetch token) and `os-token-return` (store auth and redirect)

@@ -5,7 +5,6 @@ cps_global_components_config_jsonp_callback({
   SURVEY_LINK: "https://forms.office.com/e/8KM9A7aS0e",
   SHOW_MENU: true,
   OS_HANDOVER_URL: "https://cps-dev.outsystemsenterprise.com/AuthHandover/index.html",
-  TOKEN_HANDOVER_URL: "https://polaris-qa-notprod.cps.gov.uk/auth-refresh-cms-modern-token",
   CONTEXTS: [
     {
       msalRedirectUrl: "",
