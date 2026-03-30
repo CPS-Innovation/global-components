@@ -28,8 +28,10 @@ import { initialiseAiAnalytics } from "./initialise-ai-analytics";
 
 const mockGet = jest.fn() as any;
 
+const makeMockWindow = () => Object.assign(document.createElement("div"), { location: { href: "" } }) as unknown as Window;
+
 const makeProps = (overrides?: Partial<{ window: Window; config: Config; build: Build }>) => ({
-  window: globalThis.window,
+  window: makeMockWindow(),
   config: { APP_INSIGHTS_CONNECTION_STRING: "InstrumentationKey=test", ENVIRONMENT: "test" } as Config,
   build: { version: "1.0.0" } as unknown as Build,
   get: mockGet,
@@ -143,12 +145,13 @@ describe("initialiseAiAnalytics", () => {
 
   describe("registerCorrelationIds", () => {
     it("should include correlation ids in analytics events after registering", () => {
-      const { registerCorrelationIds } = initialiseAiAnalytics(makeProps());
+      const mockWindow = makeMockWindow();
+      const { registerCorrelationIds } = initialiseAiAnalytics(makeProps({ window: mockWindow }));
 
       registerCorrelationIds(makeCorrelationIds());
 
       const event = new AnalyticsEvent({ name: "loaded", componentName: "test-component" });
-      window.dispatchEvent(event);
+      mockWindow.dispatchEvent(event);
 
       const properties = mockTrackEvent.mock.calls[0][0].properties;
       expect(properties).toMatchObject({
@@ -158,10 +161,11 @@ describe("initialiseAiAnalytics", () => {
     });
 
     it("should not include correlation ids in analytics events before registering", () => {
-      initialiseAiAnalytics(makeProps());
+      const mockWindow = makeMockWindow();
+      initialiseAiAnalytics(makeProps({ window: mockWindow }));
 
       const event = new AnalyticsEvent({ name: "loaded", componentName: "test-component" });
-      window.dispatchEvent(event);
+      mockWindow.dispatchEvent(event);
 
       const properties = mockTrackEvent.mock.calls[0][0].properties;
       expect(properties.correlationIds).toEqual({});

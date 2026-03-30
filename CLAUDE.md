@@ -40,15 +40,25 @@ pnpm -w test:e2e:log
 
 **Running a specific e2e test:**
 
-The e2e package uses plain Jest (not Stencil), so you can target tests with `--testPathPattern`:
+The e2e package uses plain Jest (not Stencil), so you can target tests with `--testPathPattern`.
+However, e2e tests run against a **built bundle copied into `e2e/harness/`**. The `test:e2e` script
+handles this automatically, but when running tests individually you must prepare the harness first:
 
 ```bash
-# Build first (required — e2e tests run against the built bundle)
+# Step 1: Full workspace build (skip if already done)
 pnpm -w build
 
-# Then run a specific test file
+# Step 2: Rollup the bundle with build metadata and copy to harness
+#   (this is what run-tests.sh does between build and test — without it, the harness serves a stale bundle)
+pnpm --filter cps-global-components rollup --intro 'window.cps_global_components_build = window.cps_global_components_build || {Sha: "local", RunId: 0, Timestamp: "2000-01-01T00:00:00Z" };'
+cp -r ./packages/cps-global-components/dist/cps-global-components.js ./e2e/harness
+
+# Step 3: Run a specific test file
 pnpm --filter e2e test -- --testPathPattern="menu"
 ```
+
+If you have already run `pnpm -w test:e2e` (or steps 1-2) recently and haven't changed source code,
+you can skip straight to step 3. The e2e tests themselves are fast (~20s); it's the build that takes time.
 
 **Diagnosing e2e failures:**
 

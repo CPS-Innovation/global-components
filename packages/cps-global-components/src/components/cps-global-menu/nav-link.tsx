@@ -1,12 +1,7 @@
 import { Component, Prop, h, Event, EventEmitter } from "@stencil/core";
-import { makeConsole } from "../../logging/makeConsole";
 import { WithLogging } from "../../logging/WithLogging";
 import { ContextsToUseEventNavigation } from "cps-global-configuration";
 import { newTab, updateAddressQuery } from "../../services/browser/navigation/navigation";
-
-const { _debug } = makeConsole("NavLink");
-
-window.addEventListener("cps-global-header-event", (event: Event & { detail: string }) => _debug("A navigation event has been fired: ", event));
 
 type LinkMode = "standard" | "new-tab" | "emit-event" | "emit-event-private" | "disabled";
 
