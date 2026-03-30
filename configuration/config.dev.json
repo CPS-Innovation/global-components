@@ -94,16 +94,16 @@
       "contexts": [
         {
           "path": "https://polaris-qa-notprod.cps.gov.uk/polaris-ui/case-details/(?<urn>[^/]+)/(?<caseId>\\d+)",
-          "contextIds": "case materials"
+          "contextIds": "case materials materials-cwa"
         },
         {
           "path": "https://polaris-qa-notprod.cps.gov.uk/polaris-ui/go\\?",
-          "contextIds": "redirect",
+          "contextIds": "redirect materials-cwa",
           "preventPageViewAnalytics": true
         },
         {
           "path": "https://polaris",
-          "contextIds": "cases"
+          "contextIds": "cases materials-cwa"
         }
       ]
     },

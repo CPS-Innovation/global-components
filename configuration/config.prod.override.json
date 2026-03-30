@@ -48,7 +48,10 @@
         {
           "path": "https://cps.outsystemsenterprise.com/CaseReview.*?[&?](?:CMS)?CaseId=(?<caseId>\\d+)",
           "contextIds": "case review",
-          "hostAppEventTargets": [{ "selector": "#b1-Resume", "action": "click" }, { "selector": "#b1-TaskCompleted2", "action": "appear" }]
+          "hostAppEventTargets": [
+            { "selector": "#b1-Resume", "action": "click" },
+            { "selector": "#b1-TaskCompleted2", "action": "appear" }
+          ]
         },
         {
           "path": "https://cps.outsystemsenterprise.com/CaseReview/RedirectCW",
@@ -98,16 +101,16 @@
       "contexts": [
         {
           "path": "https://polaris.cps.gov.uk/polaris-ui/case-details/(?<urn>[^/]+)/(?<caseId>\\d+)",
-          "contextIds": "case materials"
+          "contextIds": "case materials materials-cwa"
         },
         {
           "path": "https://polaris.cps.gov.uk/polaris-ui/go\\?",
-          "contextIds": "redirect",
+          "contextIds": "redirect materials-cwa",
           "preventPageViewAnalytics": true
         },
         {
           "path": "https://polaris",
-          "contextIds": "cases materials-search"
+          "contextIds": "cases materials-search materials-cwa"
         }
       ]
     },

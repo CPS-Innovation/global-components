@@ -49,7 +49,7 @@ describe("Global menu", () => {
   it("should should not show the menu if the user is not authenticated on a materials page", async () => {
     await arrange(
       typedDeepMerge(happySettings, {
-        config: { CONTEXTS: [{ msalRedirectUrl: "foo", contexts: [{ contextIds: "e2e materials", path: ".*" }] }] },
+        config: { CONTEXTS: [{ msalRedirectUrl: "foo", contexts: [{ contextIds: "e2e materials materials-cwa", path: ".*" }] }] },
         auth: { isAuthed: false },
       })
     );
@@ -64,7 +64,7 @@ describe("Global menu", () => {
   it("should should not show the menu if the user is not in an appropriate AD group on a materials page", async () => {
     await arrange(
       typedDeepMerge(happySettings, {
-        config: { CONTEXTS: [{ msalRedirectUrl: "foo", contexts: [{ contextIds: "e2e materials", path: ".*" }] }] },
+        config: { CONTEXTS: [{ msalRedirectUrl: "foo", contexts: [{ contextIds: "e2e materials materials-cwa", path: ".*" }] }] },
         auth: { isAuthed: true, adGroups: ["not-the-e2e-test-group"] },
       })
     );

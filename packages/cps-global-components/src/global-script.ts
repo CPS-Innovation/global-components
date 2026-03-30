@@ -56,6 +56,7 @@ const initialise = async (window: Window & typeof globalThis) => {
     contextChangePhase({ window, storeFns, ...startupServices });
 
     initialiseNavigationSubscription({
+      window,
       handler: () => contextChangePhase({ window, storeFns, ...startupServices }),
       handleError,
     });
@@ -71,7 +72,7 @@ const startupPhase = async ({ window, storeFns: { register, mergeTags, get } }: 
   const rootUrl = initialiseRootUrl();
   register({ rootUrl });
 
-  initialiseNavigateCms({ rootUrl });
+  initialiseNavigateCms({ window, rootUrl });
 
   const flags = getApplicationFlags({ window, rootUrl });
   register({ flags });
