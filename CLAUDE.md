@@ -15,6 +15,52 @@ npx stencil test --spec -- --testPathPatterns="replace-tags|extract-tags" --no-c
 
 **Do not** use `npx jest` directly — it will fail to parse TypeScript.
 
+## E2E Tests
+
+E2E tests live in `e2e/tests/` and use **Jest + Puppeteer** (not Stencil). They run a real browser
+against a local server (`e2e/helpers/server.ts`) serving the built component bundle.
+
+```bash
+# Run all e2e tests (builds all packages first, then runs tests)
+pnpm -w test:e2e
+
+# Run with logging to e2e.log
+pnpm -w test:e2e:log
+```
+
+**Important notes for running e2e tests:**
+
+- `test:e2e` calls `pnpm -w build` (full workspace build) before running tests. This takes a while
+  but does not hang — be patient and use a sufficient timeout (300000ms).
+- Do NOT use `run_in_background` for e2e tests. The full build + test pipeline produces output
+  continuously; background mode makes it look like it's hanging when it's just building.
+- Tests use `arrange()` to set up config/auth via HTTP headers, and `act()` to navigate the
+  Puppeteer page. Config is passed as an encoded JSON header; auth is injected via
+  `page.evaluateOnNewDocument`.
+
+**Running a specific e2e test:**
+
+The e2e package uses plain Jest (not Stencil), so you can target tests with `--testPathPattern`:
+
+```bash
+# Build first (required — e2e tests run against the built bundle)
+pnpm -w build
+
+# Then run a specific test file
+pnpm --filter e2e test -- --testPathPattern="menu"
+```
+
+**Diagnosing e2e failures:**
+
+- Test files are in `e2e/tests/*.test.ts` — read the failing test to understand the `arrange` setup
+  (config, auth, contextIds) and what assertions it makes.
+- The test server is in `e2e/helpers/server.ts` — it serves config from the `x-config` header and
+  has mock endpoints for cms-session-hint, case data, etc.
+- `e2e/helpers/arrange.ts` shows the base config that all tests merge into.
+- `e2e/helpers/constants.ts` has the DOM locators used in assertions.
+- If a test fails because the menu shows/hides unexpectedly, check whether the `contextIds` in the
+  test's `arrange` call match what `feature-flags.ts` expects.
+
 ## Available Skills
 
 ### `/renovate` - Consolidate Renovate PRs
