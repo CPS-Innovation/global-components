@@ -13,8 +13,6 @@
   "SHOW_RECENT_CASES": true,
   "SHOW_MONITORING_CODES": false,
   "OS_HANDOVER_URL": "https://cps.outsystemsenterprise.com/Casework_Patterns/auth-handover.html?src=https://polaris.cps.gov.uk/global-components/prod/auth-handover.js",
-  "COOKIE_HANDOVER_URL": "https://polaris.cps.gov.uk/auth-refresh-outbound",
-  "TOKEN_HANDOVER_URL": "https://polaris.cps.gov.uk/auth-refresh-cms-modern-token",
   "RECENT_CASES_NAVIGATE_URL": "https://cps.outsystemsenterprise.com/WorkManagementApp/CaseOverview?CaseId={caseId}",
   "RECENT_CASES_LIST_LENGTH": 5,
   "FEATURE_FLAG_MENU_USERS": {

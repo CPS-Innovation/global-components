@@ -46,16 +46,6 @@ jobs:
             cp ./configuration/config.${{ inputs.environment }}.override.json ${{ steps.download.outputs.download-path }}/config.override.json
           fi
 
-          # Read config values for the environment
-          CONFIG_FILE="./configuration/config.${{ inputs.environment }}.json"
-          COOKIE_HANDOVER_URL=$(jq -r '.COOKIE_HANDOVER_URL' "$CONFIG_FILE")
-          TOKEN_HANDOVER_URL=$(jq -r '.TOKEN_HANDOVER_URL' "$CONFIG_FILE")
-
-          # Substitute environment-specific URLs into auth-handover.js placeholders.
-          # Using substitution (rather than prepending) preserves source map line numbers.
-          sed -i "s|{{COOKIE_HANDOVER_URL}}|$COOKIE_HANDOVER_URL|g" "${{ steps.download.outputs.download-path }}/auth-handover.js"
-          sed -i "s|{{TOKEN_HANDOVER_URL}}|$TOKEN_HANDOVER_URL|g" "${{ steps.download.outputs.download-path }}/auth-handover.js"
-
           # Create a copy of cps-global-components.js as global-components.js
           cp "${{ steps.download.outputs.download-path }}/cps-global-components.js" "${{ steps.download.outputs.download-path }}/global-components.js"
           cp "${{ steps.download.outputs.download-path }}/cps-global-components.js.map" "${{ steps.download.outputs.download-path }}/global-components.js.map"
