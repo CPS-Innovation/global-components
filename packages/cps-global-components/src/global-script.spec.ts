@@ -1206,7 +1206,7 @@ describe("global-script", () => {
       });
     });
 
-    it("should pass rootUrl to initialiseNavigateCms", async () => {
+    it("should pass window and rootUrl to initialiseNavigateCms", async () => {
       const testRootUrl = "https://test.example.com/env/script.js";
       mockInitialiseRootUrl.mockReturnValue(testRootUrl);
 
@@ -1215,6 +1215,7 @@ describe("global-script", () => {
       await new Promise(resolve => setTimeout(resolve, 10));
 
       expect(mockInitialiseNavigateCms).toHaveBeenCalledWith({
+        window: expect.anything(),
         rootUrl: testRootUrl,
       });
     });
