@@ -19,42 +19,47 @@ export const initialiseDomObservation = (
     settings,
   }: { window: Window; register: Register; mergeTags: MergeTags; preview: Result<Preview>; settings: Result<Settings> },
   ...subscribers: DomMutationObserver[]
-) => ({
-  initialiseDomForContext: ({ context }: { context: FoundContext }) => {
-    let activeSubscriptions: Subscription[] = [];
+) => {
+  let activeSubscriptions: Subscription[] = [];
 
-    const log = (msg: string) => {
-      _debug("Dom observation", msg);
-      _debug("Dom observation", `There are ${activeSubscriptions.length} active DOM handlers: ${activeSubscriptions.map(h => h.cssSelector).join(", ")}.`);
-    };
+  const log = (msg: string) => {
+    _debug("Dom observation", msg);
+    _debug("Dom observation", `There are ${activeSubscriptions.length} active DOM handlers: ${activeSubscriptions.map(h => h.cssSelector).join(", ")}.`);
+  };
 
-    const bindHandler = (subscription: Subscription) => {
-      const { cssSelector, handler } = subscription;
-      log(`Activating for ${cssSelector}`);
-      document.arrive(cssSelector, { fireOnAttributesModification: true, existing: true }, el => {
-        const shouldUnBind = handler(el);
-        if (shouldUnBind) {
-          unBindHandler(subscription);
-        }
-      });
-      activeSubscriptions = [...activeSubscriptions, subscription];
-      log(`Activated for ${cssSelector}`);
-    };
-
-    const unBindHandler = (subscription: Subscription) => {
-      const { cssSelector, handler } = subscription;
-      log(`Deactivating for ${cssSelector}`);
-      document.unbindArrive(handler);
-      const subscriptionCount = activeSubscriptions.length;
-      activeSubscriptions = activeSubscriptions.filter(s => s !== subscription);
-      const wasDisposed = activeSubscriptions.length < subscriptionCount;
-      log(wasDisposed ? `Deactivated for ${cssSelector}.` : `${cssSelector} was not active.`);
-    };
-
-    subscribers.forEach(subscriber => {
-      const { isActiveForContext, subscriptions } = subscriber({ context, register, mergeTags, window, preview, settings });
-      subscriptions.forEach(subscription => (isActiveForContext ? bindHandler(subscription) : unBindHandler(subscription)));
+  const bindHandler = (subscription: Subscription) => {
+    const { cssSelector, handler } = subscription;
+    log(`Activating for ${cssSelector}`);
+    document.arrive(cssSelector, { fireOnAttributesModification: true, existing: true }, el => {
+      const shouldUnBind = handler(el);
+      if (shouldUnBind) {
+        unBindHandler(subscription);
+      }
     });
-    log("Subscriptions set up.");
-  },
-});
+    activeSubscriptions = [...activeSubscriptions, subscription];
+    log(`Activated for ${cssSelector}`);
+  };
+
+  const unBindHandler = (subscription: Subscription) => {
+    const { cssSelector, handler } = subscription;
+    log(`Deactivating for ${cssSelector}`);
+    document.unbindArrive(handler);
+    const subscriptionCount = activeSubscriptions.length;
+    activeSubscriptions = activeSubscriptions.filter(s => s !== subscription);
+    const wasDisposed = activeSubscriptions.length < subscriptionCount;
+    log(wasDisposed ? `Deactivated for ${cssSelector}.` : `${cssSelector} was not active.`);
+  };
+
+  return {
+    initialiseDomForContext: ({ context }: { context: FoundContext }) => {
+      // Unbind all previous subscriptions before re-evaluating for the new context
+      activeSubscriptions.forEach(subscription => unBindHandler(subscription));
+
+      subscribers.forEach(subscriber => {
+        const { isActiveForContext, subscriptions } = subscriber({ context, register, mergeTags, window, preview, settings });
+        subscriptions.forEach(subscription => (isActiveForContext ? bindHandler(subscription) : unBindHandler(subscription)));
+      });
+      log("Subscriptions set up.");
+    },
+  };
+};
