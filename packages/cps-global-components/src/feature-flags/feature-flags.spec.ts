@@ -93,7 +93,7 @@ describe("FEATURE_FLAGS", () => {
         objectId: overrides.objectId ?? "test-object-id",
       } as any,
       context: { found: overrides.contextFound ?? true, contextIds: overrides.contextIds } as any,
-      flags: { isLocalDevelopment: false, isOutSystems: false, e2eTestMode: { isE2eTestMode: false as const }, environment: overrides.environment ?? "test" },
+      flags: { isLocalDevelopment: false, isOutSystems: false, e2eTestMode: { isE2eTestMode: false as const }, environment: overrides.environment ?? "test", origin: "" },
     });
 
     it("should return 'hide-menu' when SHOW_MENU is false", () => {
