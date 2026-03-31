@@ -14,7 +14,7 @@ import { dispatchCmsNavigate } from "../../services/navigate-cms/initialise-navi
 export class CpsGlobalMenu {
   @WithLogging("CpsGlobalMenu")
   render() {
-    const { isReady, state } = readyState(["config", "tags", "flags", "context", "cmsSessionHint", "preview"], ["auth"]);
+    const { isReady, state } = readyState(["config", "tags", "flags", "context", "preview", "authHint"], ["auth"]);
     if (!isReady) {
       return null; // don't show menu until we are ready
     }

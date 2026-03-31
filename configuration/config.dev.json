@@ -13,8 +13,6 @@
   "SHOW_RECENT_CASES": true,
   "SHOW_MONITORING_CODES": true,
   "OS_HANDOVER_URL": "https://cps-dev.outsystemsenterprise.com/Casework_Patterns/auth-handover.html?src=https://polaris-qa-notprod.cps.gov.uk/global-components/dev/auth-handover.js",
-  "COOKIE_HANDOVER_URL": "https://polaris-qa-notprod.cps.gov.uk/polaris",
-  "TOKEN_HANDOVER_URL": "https://polaris-qa-notprod.cps.gov.uk/auth-refresh-cms-modern-token",
   "RECENT_CASES_NAVIGATE_URL": "https://cps-dev.outsystemsenterprise.com/WorkManagementApp/CaseOverview?CaseId={caseId}",
   "RECENT_CASES_LIST_LENGTH": 5,
   "FEATURE_FLAG_MENU_USERS": {
@@ -94,16 +92,16 @@
       "contexts": [
         {
           "path": "https://polaris-qa-notprod.cps.gov.uk/polaris-ui/case-details/(?<urn>[^/]+)/(?<caseId>\\d+)",
-          "contextIds": "case materials"
+          "contextIds": "case materials materials-cwa"
         },
         {
           "path": "https://polaris-qa-notprod.cps.gov.uk/polaris-ui/go\\?",
-          "contextIds": "redirect",
+          "contextIds": "redirect materials-cwa",
           "preventPageViewAnalytics": true
         },
         {
           "path": "https://polaris",
-          "contextIds": "cases"
+          "contextIds": "cases materials-cwa"
         }
       ]
     },

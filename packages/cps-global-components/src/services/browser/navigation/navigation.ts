@@ -19,13 +19,13 @@ export const updateAddressQuery = (params: Record<string, string | null>, replac
 
 export const newTab = (url: string) => window.open(url, "_blank", "noopener,noreferrer");
 
-export const onNavigation = (handler: () => void) => {
+export const onNavigation = (handler: () => void, win: Window & typeof globalThis = window) => {
   // If we just subscribe to navigatesuccess then we get instances when our host SPA apps
   //  triggering this event without an actual URL changing, causing duplicate analytics
   //  page views.
-  let lastUrl = window.location.href.split("#")[0];
-  window.navigation?.addEventListener("navigatesuccess", (ev) => {
-    const currentUrl = window.location.href.split("#")[0];
+  let lastUrl = win.location.href.split("#")[0];
+  win.navigation?.addEventListener("navigatesuccess", (ev) => {
+    const currentUrl = win.location.href.split("#")[0];
     if (currentUrl === lastUrl) return;
     lastUrl = currentUrl;
     _debug("navigation", ev);

@@ -42,6 +42,7 @@ describe("initialiseAnalytics", () => {
       isOutSystems: false,
       isLocalDevelopment: false,
       environment: "test",
+      origin: "",
     };
 
     it("should call initialiseMockAnalytics", () => {
@@ -83,6 +84,7 @@ describe("initialiseAnalytics", () => {
       isOutSystems: false,
       isLocalDevelopment: false,
       environment: "test",
+      origin: "",
     };
 
     it("should call initialiseAiAnalytics", () => {

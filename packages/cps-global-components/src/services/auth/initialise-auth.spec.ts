@@ -48,6 +48,7 @@ describe("initialiseAuth", () => {
       isOutSystems: false,
       isLocalDevelopment: false,
       environment: "test",
+      origin: "",
     };
 
     it("should call initialiseMockAuth", async () => {
@@ -82,6 +83,7 @@ describe("initialiseAuth", () => {
       isOutSystems: false,
       isLocalDevelopment: false,
       environment: "test",
+      origin: "",
     };
 
     it("should call initialiseAdAuth", async () => {

@@ -266,33 +266,64 @@ declare namespace LocalJSX {
         "openInNewTab"?: boolean;
         "selected"?: boolean;
     }
+
+    interface CpsGdsNotificationBannerAttributes {
+        "type": NotificationBannerType;
+        "titleText": string;
+        "titleId": string;
+        "titleHeadingLevel": number;
+        "role": string;
+        "disableAutoFocus": boolean;
+        "dismissKey": string;
+    }
+    interface CpsGlobalHeaderAttributes {
+        "isDcf": boolean;
+    }
+    interface CpsGlobalRecentCasesAttributes {
+        "listClass": string;
+        "itemClass": string;
+        "linkClass": string;
+        "itemTextTemplate": string;
+    }
+    interface CpsSkipLinkAttributes {
+        "isOutSystems": boolean;
+    }
+    interface NavLinkAttributes {
+        "label": string;
+        "href": string;
+        "selected": boolean;
+        "ariaSelected": boolean;
+        "disabled": boolean;
+        "openInNewTab": boolean;
+    }
+
     interface IntrinsicElements {
-        "cps-gds-notification-banner": CpsGdsNotificationBanner;
+        "cps-gds-notification-banner": Omit<CpsGdsNotificationBanner, keyof CpsGdsNotificationBannerAttributes> & { [K in keyof CpsGdsNotificationBanner & keyof CpsGdsNotificationBannerAttributes]?: CpsGdsNotificationBanner[K] } & { [K in keyof CpsGdsNotificationBanner & keyof CpsGdsNotificationBannerAttributes as `attr:${K}`]?: CpsGdsNotificationBannerAttributes[K] } & { [K in keyof CpsGdsNotificationBanner & keyof CpsGdsNotificationBannerAttributes as `prop:${K}`]?: CpsGdsNotificationBanner[K] };
         "cps-global-banner": CpsGlobalBanner;
         "cps-global-case-details": CpsGlobalCaseDetails;
         "cps-global-footer": CpsGlobalFooter;
-        "cps-global-header": CpsGlobalHeader;
+        "cps-global-header": Omit<CpsGlobalHeader, keyof CpsGlobalHeaderAttributes> & { [K in keyof CpsGlobalHeader & keyof CpsGlobalHeaderAttributes]?: CpsGlobalHeader[K] } & { [K in keyof CpsGlobalHeader & keyof CpsGlobalHeaderAttributes as `attr:${K}`]?: CpsGlobalHeaderAttributes[K] } & { [K in keyof CpsGlobalHeader & keyof CpsGlobalHeaderAttributes as `prop:${K}`]?: CpsGlobalHeader[K] };
         "cps-global-home-page-notification": CpsGlobalHomePageNotification;
         "cps-global-menu": CpsGlobalMenu;
-        "cps-global-recent-cases": CpsGlobalRecentCases;
-        "cps-skip-link": CpsSkipLink;
-        "nav-link": NavLink;
+        "cps-global-recent-cases": Omit<CpsGlobalRecentCases, keyof CpsGlobalRecentCasesAttributes> & { [K in keyof CpsGlobalRecentCases & keyof CpsGlobalRecentCasesAttributes]?: CpsGlobalRecentCases[K] } & { [K in keyof CpsGlobalRecentCases & keyof CpsGlobalRecentCasesAttributes as `attr:${K}`]?: CpsGlobalRecentCasesAttributes[K] } & { [K in keyof CpsGlobalRecentCases & keyof CpsGlobalRecentCasesAttributes as `prop:${K}`]?: CpsGlobalRecentCases[K] };
+        "cps-skip-link": Omit<CpsSkipLink, keyof CpsSkipLinkAttributes> & { [K in keyof CpsSkipLink & keyof CpsSkipLinkAttributes]?: CpsSkipLink[K] } & { [K in keyof CpsSkipLink & keyof CpsSkipLinkAttributes as `attr:${K}`]?: CpsSkipLinkAttributes[K] } & { [K in keyof CpsSkipLink & keyof CpsSkipLinkAttributes as `prop:${K}`]?: CpsSkipLink[K] };
+        "nav-link": Omit<NavLink, keyof NavLinkAttributes> & { [K in keyof NavLink & keyof NavLinkAttributes]?: NavLink[K] } & { [K in keyof NavLink & keyof NavLinkAttributes as `attr:${K}`]?: NavLinkAttributes[K] } & { [K in keyof NavLink & keyof NavLinkAttributes as `prop:${K}`]?: NavLink[K] };
     }
 }
 export { LocalJSX as JSX };
 declare module "@stencil/core" {
     export namespace JSX {
         interface IntrinsicElements {
-            "cps-gds-notification-banner": LocalJSX.CpsGdsNotificationBanner & JSXBase.HTMLAttributes<HTMLCpsGdsNotificationBannerElement>;
-            "cps-global-banner": LocalJSX.CpsGlobalBanner & JSXBase.HTMLAttributes<HTMLCpsGlobalBannerElement>;
-            "cps-global-case-details": LocalJSX.CpsGlobalCaseDetails & JSXBase.HTMLAttributes<HTMLCpsGlobalCaseDetailsElement>;
-            "cps-global-footer": LocalJSX.CpsGlobalFooter & JSXBase.HTMLAttributes<HTMLCpsGlobalFooterElement>;
-            "cps-global-header": LocalJSX.CpsGlobalHeader & JSXBase.HTMLAttributes<HTMLCpsGlobalHeaderElement>;
-            "cps-global-home-page-notification": LocalJSX.CpsGlobalHomePageNotification & JSXBase.HTMLAttributes<HTMLCpsGlobalHomePageNotificationElement>;
-            "cps-global-menu": LocalJSX.CpsGlobalMenu & JSXBase.HTMLAttributes<HTMLCpsGlobalMenuElement>;
-            "cps-global-recent-cases": LocalJSX.CpsGlobalRecentCases & JSXBase.HTMLAttributes<HTMLCpsGlobalRecentCasesElement>;
-            "cps-skip-link": LocalJSX.CpsSkipLink & JSXBase.HTMLAttributes<HTMLCpsSkipLinkElement>;
-            "nav-link": LocalJSX.NavLink & JSXBase.HTMLAttributes<HTMLNavLinkElement>;
+            "cps-gds-notification-banner": LocalJSX.IntrinsicElements["cps-gds-notification-banner"] & JSXBase.HTMLAttributes<HTMLCpsGdsNotificationBannerElement>;
+            "cps-global-banner": LocalJSX.IntrinsicElements["cps-global-banner"] & JSXBase.HTMLAttributes<HTMLCpsGlobalBannerElement>;
+            "cps-global-case-details": LocalJSX.IntrinsicElements["cps-global-case-details"] & JSXBase.HTMLAttributes<HTMLCpsGlobalCaseDetailsElement>;
+            "cps-global-footer": LocalJSX.IntrinsicElements["cps-global-footer"] & JSXBase.HTMLAttributes<HTMLCpsGlobalFooterElement>;
+            "cps-global-header": LocalJSX.IntrinsicElements["cps-global-header"] & JSXBase.HTMLAttributes<HTMLCpsGlobalHeaderElement>;
+            "cps-global-home-page-notification": LocalJSX.IntrinsicElements["cps-global-home-page-notification"] & JSXBase.HTMLAttributes<HTMLCpsGlobalHomePageNotificationElement>;
+            "cps-global-menu": LocalJSX.IntrinsicElements["cps-global-menu"] & JSXBase.HTMLAttributes<HTMLCpsGlobalMenuElement>;
+            "cps-global-recent-cases": LocalJSX.IntrinsicElements["cps-global-recent-cases"] & JSXBase.HTMLAttributes<HTMLCpsGlobalRecentCasesElement>;
+            "cps-skip-link": LocalJSX.IntrinsicElements["cps-skip-link"] & JSXBase.HTMLAttributes<HTMLCpsSkipLinkElement>;
+            "nav-link": LocalJSX.IntrinsicElements["nav-link"] & JSXBase.HTMLAttributes<HTMLNavLinkElement>;
         }
     }
 }

@@ -13,8 +13,6 @@
   "SHOW_RECENT_CASES": true,
   "SHOW_MONITORING_CODES": false,
   "OS_HANDOVER_URL": "https://cps.outsystemsenterprise.com/Casework_Patterns/auth-handover.html?src=https://polaris.cps.gov.uk/global-components/prod/auth-handover.js",
-  "COOKIE_HANDOVER_URL": "https://polaris.cps.gov.uk/auth-refresh-outbound",
-  "TOKEN_HANDOVER_URL": "https://polaris.cps.gov.uk/auth-refresh-cms-modern-token",
   "RECENT_CASES_NAVIGATE_URL": "https://cps.outsystemsenterprise.com/WorkManagementApp/CaseOverview?CaseId={caseId}",
   "RECENT_CASES_LIST_LENGTH": 5,
   "FEATURE_FLAG_MENU_USERS": {
@@ -48,7 +46,10 @@
         {
           "path": "https://cps.outsystemsenterprise.com/CaseReview.*?[&?](?:CMS)?CaseId=(?<caseId>\\d+)",
           "contextIds": "case review",
-          "hostAppEventTargets": [{ "selector": "#b1-Resume", "action": "click" }, { "selector": "#b1-TaskCompleted2", "action": "appear" }]
+          "hostAppEventTargets": [
+            { "selector": "#b1-Resume", "action": "click" },
+            { "selector": "#b1-TaskCompleted2", "action": "appear" }
+          ]
         },
         {
           "path": "https://cps.outsystemsenterprise.com/CaseReview/RedirectCW",
@@ -98,16 +99,16 @@
       "contexts": [
         {
           "path": "https://polaris.cps.gov.uk/polaris-ui/case-details/(?<urn>[^/]+)/(?<caseId>\\d+)",
-          "contextIds": "case materials"
+          "contextIds": "case materials materials-cwa"
         },
         {
           "path": "https://polaris.cps.gov.uk/polaris-ui/go\\?",
-          "contextIds": "redirect",
+          "contextIds": "redirect materials-cwa",
           "preventPageViewAnalytics": true
         },
         {
           "path": "https://polaris",
-          "contextIds": "cases materials-search"
+          "contextIds": "cases materials-search materials-cwa"
         }
       ]
     },

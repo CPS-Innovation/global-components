@@ -8,5 +8,5 @@ export const getApplicationFlags = ({ window, rootUrl }: { window: Window; rootU
   isOutSystems: isOutSystemsApp(window),
   e2eTestMode: isE2eTestMode(window),
   isLocalDevelopment: isLocalDevelopment(window),
-  environment: getEnvironment(rootUrl),
+  ...getEnvironment(rootUrl),
 });

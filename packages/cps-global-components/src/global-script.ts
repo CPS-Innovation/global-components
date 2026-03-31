@@ -24,6 +24,7 @@ import { initialiseOutSystemsReconcileAuth } from "./services/outsystems-shim/in
 import { initialiseOutSystemsShowAlert } from "./services/outsystems-shim/outsystems-show-alert";
 import { initialiseNavigateCms } from "./services/navigate-cms/initialise-navigate-cms";
 import { initialiseAuthHint } from "./services/state/auth-hint/initialise-auth-hint";
+import { createAdDiagnosticsCollector } from "./services/auth/ad-diagnostics-collector";
 
 const { _error } = makeConsole("global-script");
 
@@ -55,6 +56,7 @@ const initialise = async (window: Window & typeof globalThis) => {
     contextChangePhase({ window, storeFns, ...startupServices });
 
     initialiseNavigationSubscription({
+      window,
       handler: () => contextChangePhase({ window, storeFns, ...startupServices }),
       handleError,
     });
@@ -70,7 +72,7 @@ const startupPhase = async ({ window, storeFns: { register, mergeTags, get } }: 
   const rootUrl = initialiseRootUrl();
   register({ rootUrl });
 
-  initialiseNavigateCms({ rootUrl });
+  initialiseNavigateCms({ window, rootUrl });
 
   const flags = getApplicationFlags({ window, rootUrl });
   register({ flags });
@@ -95,8 +97,18 @@ const startupPhase = async ({ window, storeFns: { register, mergeTags, get } }: 
     register({ handoverTags: { caseId: String(caseId), ...(caseDetails?.urn && { urn: caseDetails.urn }) } });
   }
 
+  const diagnosticsCollector = createAdDiagnosticsCollector();
+
   const { setNextRecentCases } = initialiseRecentCases({ rootUrl, config, register });
-  const { trackPageView, trackEvent, trackException, registerAuth, registerCorrelationIds } = initialiseAnalytics({ window, config, build, flags, authHint, get });
+  const { trackPageView, trackEvent, trackException, registerAuthWithAnalytics, registerCorrelationIds } = initialiseAnalytics({
+    window,
+    config,
+    build,
+    flags,
+    authHint,
+    get,
+    diagnosticsCollector,
+  });
 
   const { initialiseDomForContext } = initialiseDomObservation(
     { window, register, mergeTags, preview, settings },
@@ -109,11 +121,12 @@ const startupPhase = async ({ window, storeFns: { register, mergeTags, get } }: 
 
   return {
     config,
+    diagnosticsCollector,
     initialiseDomForContext,
     trackPageView,
     trackEvent,
     trackException,
-    registerAuth,
+    registerAuthWithAnalytics,
     registerCorrelationIds,
     firstContext,
     flags,
@@ -128,11 +141,13 @@ const startupPhase = async ({ window, storeFns: { register, mergeTags, get } }: 
 const authPhase = ({
   storeFns: { register, subscribe, readyState },
   config,
+  diagnosticsCollector,
   firstContext,
   flags,
   trackEvent,
   trackException,
-  registerAuth,
+  registerAuthWithAnalytics,
+  authHint,
   setAuthHint,
   setNextHandover,
   setNextRecentCases,
@@ -141,13 +156,13 @@ const authPhase = ({
   // Positioning auth after many of the other setup stuff helps us not block the UI
   // (initialiseAuth can take a long time, especially if there is a problem)
   (async () => {
-    const { auth, getToken } = await initialiseAuth({ config, context: firstContext, flags, onError: trackException });
+    const { auth, getToken } = await initialiseAuth({ config, context: firstContext, flags, onError: trackException, diagnosticsCollector });
     register({ auth });
-    registerAuth(auth);
+    registerAuthWithAnalytics(auth);
     if (auth.isAuthed) {
       setAuthHint(auth);
     }
-    initialiseOutSystemsShowAlert({ context: firstContext, config, auth, preview });
+    initialiseOutSystemsShowAlert({ context: firstContext, config, auth, authHint, preview });
     if (!firstContext.preventADAndDataCalls) {
       initialiseCaseDetailsData({ config, context: firstContext, subscribe, setNextHandover, setNextRecentCases, getToken, readyState, trackEvent });
     }

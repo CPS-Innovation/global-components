@@ -8,7 +8,7 @@ global.fetch = mockFetch;
 describe("initialiseCmsSessionHint", () => {
   const rootUrl = "https://example.com/api/global-components/";
   const expectedUrl = "https://example.com/api/cms-session-hint";
-  const defaultFlags: ApplicationFlags = { isOutSystems: false, isLocalDevelopment: false, e2eTestMode: { isE2eTestMode: false }, environment: "test" };
+  const defaultFlags: ApplicationFlags = { isOutSystems: false, isLocalDevelopment: false, e2eTestMode: { isE2eTestMode: false }, environment: "test", origin: "" };
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -112,7 +112,7 @@ describe("initialiseCmsSessionHint", () => {
   });
 
   describe("when isOutSystems is truthy and environment is 'dev'", () => {
-    const devFlags: ApplicationFlags = { isOutSystems: true, isLocalDevelopment: false, e2eTestMode: { isE2eTestMode: false }, environment: "dev" };
+    const devFlags: ApplicationFlags = { isOutSystems: true, isLocalDevelopment: false, e2eTestMode: { isE2eTestMode: false }, environment: "dev", origin: "" };
 
     it("should return a mock result without calling fetch", async () => {
       const result = await initialiseCmsSessionHint({ rootUrl, flags: devFlags });

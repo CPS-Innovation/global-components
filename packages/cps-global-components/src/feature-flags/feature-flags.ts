@@ -10,14 +10,12 @@ const shouldShowGovUkRebrand = ({ preview }: Pick<State, "preview">): Preview["n
 
 const shouldShowRecentCases = ({ preview, flags }: Pick<State, "preview" | "flags">) => !!preview.result?.myRecentCasesOnHeader || flags.isLocalDevelopment;
 
-const shouldShowMenu = ({ config, auth, context, flags, cmsSessionHint }: Pick<State, "config" | "context" | "flags" | "cmsSessionHint"> & Pick<StoredState, "auth">) => {
+const shouldShowMenu = ({ config, auth, authHint, context, flags }: Pick<State, "config" | "context" | "flags"> & Pick<StoredState, "auth" | "authHint">) => {
   if (!config.SHOW_MENU) {
     return "hide-menu";
-  } else if (!context.contextIds?.includes("materials")) {
+  } else if (!context.contextIds?.includes("materials-cwa")) {
     return "show-menu";
-  } else if (cmsSessionHint.found && cmsSessionHint.result.cmsDomains.some(cmsDomain => cmsDomain?.toLowerCase().includes("cin5"))) {
-    return "show-menu";
-  } else if (isUserInFeatureGroup({ auth, config }, "FEATURE_FLAG_MENU_USERS")) {
+  } else if (isUserInFeatureGroup({ auth, authHint, config }, "FEATURE_FLAG_MENU_USERS")) {
     return "show-menu";
   } else if (flags.environment === "test") {
     return "show-hint";
@@ -30,8 +28,8 @@ const surveyLink = ({ config }: Pick<State, "config">) => ({ showLink: !!config.
 
 const reportIssueLink = ({ config }: Pick<State, "config">) => ({ showLink: !!config.REPORT_ISSUE_LINK, url: config.REPORT_ISSUE_LINK });
 
-const shouldShowHomePageNotification = ({ config, auth, preview }: Pick<State, "config" | "preview"> & Pick<StoredState, "auth">) =>
-  !!preview.result?.homePageNotification || !isUserInFeatureGroup({ auth, config }, "FEATURE_FLAG_MENU_USERS");
+const shouldShowHomePageNotification = ({ config, auth, authHint, preview }: Pick<State, "config" | "preview"> & Pick<StoredState, "auth" | "authHint">) =>
+  !!preview.result?.homePageNotification || !isUserInFeatureGroup({ auth, authHint, config }, "FEATURE_FLAG_MENU_USERS");
 
 export const FEATURE_FLAGS = {
   shouldShowCaseDetails,

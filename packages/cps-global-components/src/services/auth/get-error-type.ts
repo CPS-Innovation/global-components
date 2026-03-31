@@ -5,6 +5,8 @@ const MSAL_ERROR_CODES = {
   ConditionalAccessRule: "AADSTS53003",
   MultipleIdentities: "AADSTS16000",
   IframeTimeout: "monitor_window_timeout",
+  PostRequestFailed: "post_request_failed",
+  NoNetworkConnectivity: "no_network_connectivity",
 };
 
 export const getErrorType = (error: Error): KnownErrorType =>
@@ -14,4 +16,8 @@ export const getErrorType = (error: Error): KnownErrorType =>
       ? "ConditionalAccessRule"
       : error instanceof BrowserAuthError && error.message.includes(MSAL_ERROR_CODES.IframeTimeout)
         ? "SilentFlowProblem"
-        : "Unknown";
+        : error instanceof BrowserAuthError && error.message.includes(MSAL_ERROR_CODES.PostRequestFailed)
+          ? "PostRequestFailed"
+          : error instanceof BrowserAuthError && error.message.includes(MSAL_ERROR_CODES.NoNetworkConnectivity)
+            ? "NoNetworkConnectivity"
+            : "Unknown";

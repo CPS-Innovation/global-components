@@ -28,8 +28,10 @@ import { initialiseAiAnalytics } from "./initialise-ai-analytics";
 
 const mockGet = jest.fn() as any;
 
+const makeMockWindow = () => Object.assign(document.createElement("div"), { location: { href: "" } }) as unknown as Window;
+
 const makeProps = (overrides?: Partial<{ window: Window; config: Config; build: Build }>) => ({
-  window: globalThis.window,
+  window: makeMockWindow(),
   config: { APP_INSIGHTS_CONNECTION_STRING: "InstrumentationKey=test", ENVIRONMENT: "test" } as Config,
   build: { version: "1.0.0" } as unknown as Build,
   get: mockGet,
@@ -62,17 +64,17 @@ describe("initialiseAiAnalytics", () => {
       expect(result.trackPageView).toBeDefined();
       expect(result.trackException).toBeDefined();
       expect(result.trackEvent).toBeDefined();
-      expect(result.registerAuth).toBeDefined();
+      expect(result.registerAuthWithAnalytics).toBeDefined();
       expect(result.registerCorrelationIds).toBeDefined();
       expect(mockLoadAppInsights).not.toHaveBeenCalled();
     });
   });
 
-  describe("registerAuth", () => {
+  describe("registerAuthWithAnalytics", () => {
     it("should include auth values in trackPageView after registering an authenticated user", async () => {
-      const { registerAuth, trackPageView } = initialiseAiAnalytics(makeProps());
+      const { registerAuthWithAnalytics, trackPageView } = initialiseAiAnalytics(makeProps());
 
-      registerAuth({ isAuthed: true, username: "alice", name: "Alice", groups: [], objectId: "obj-1" });
+      registerAuthWithAnalytics({ isAuthed: true, username: "alice", name: "Alice", groups: [], objectId: "obj-1" });
       trackPageView({ context: makeContext() });
       await Promise.resolve();
 
@@ -81,9 +83,9 @@ describe("initialiseAiAnalytics", () => {
     });
 
     it("should include auth values in trackPageView after registering an unauthenticated user", async () => {
-      const { registerAuth, trackPageView } = initialiseAiAnalytics(makeProps());
+      const { registerAuthWithAnalytics, trackPageView } = initialiseAiAnalytics(makeProps());
 
-      registerAuth({ isAuthed: false, knownErrorType: "Unknown", reason: "test" } as AuthResult);
+      registerAuthWithAnalytics({ isAuthed: false, knownErrorType: "Unknown", reason: "test" } as AuthResult);
       trackPageView({ context: makeContext() });
       await Promise.resolve();
 
@@ -93,10 +95,13 @@ describe("initialiseAiAnalytics", () => {
     });
 
     it("should include username from authHint when auth fails and authHint is available", async () => {
-      const authHint = { found: true as const, result: { authResult: { isAuthed: true as const, username: "hint@example.com", name: "Hint User", objectId: "obj-hint", groups: [] }, timestamp: 12345 } };
-      const { registerAuth, trackPageView } = initialiseAiAnalytics({ ...makeProps(), authHint });
+      const authHint = {
+        found: true as const,
+        result: { authResult: { isAuthed: true as const, username: "hint@example.com", name: "Hint User", objectId: "obj-hint", groups: [] }, timestamp: 12345 },
+      };
+      const { registerAuthWithAnalytics, trackPageView } = initialiseAiAnalytics({ ...makeProps(), authHint });
 
-      registerAuth({ isAuthed: false, knownErrorType: "Unknown", reason: "test" } as AuthResult);
+      registerAuthWithAnalytics({ isAuthed: false, knownErrorType: "Unknown", reason: "test" } as AuthResult);
       trackPageView({ context: makeContext() });
       await Promise.resolve();
 
@@ -105,10 +110,13 @@ describe("initialiseAiAnalytics", () => {
     });
 
     it("should not include username from authHint when auth succeeds", async () => {
-      const authHint = { found: true as const, result: { authResult: { isAuthed: true as const, username: "hint@example.com", name: "Hint User", objectId: "obj-hint", groups: [] }, timestamp: 12345 } };
-      const { registerAuth, trackPageView } = initialiseAiAnalytics({ ...makeProps(), authHint });
+      const authHint = {
+        found: true as const,
+        result: { authResult: { isAuthed: true as const, username: "hint@example.com", name: "Hint User", objectId: "obj-hint", groups: [] }, timestamp: 12345 },
+      };
+      const { registerAuthWithAnalytics, trackPageView } = initialiseAiAnalytics({ ...makeProps(), authHint });
 
-      registerAuth({ isAuthed: true, username: "real@example.com", name: "Real User", groups: [], objectId: "obj-real" });
+      registerAuthWithAnalytics({ isAuthed: true, username: "real@example.com", name: "Real User", groups: [], objectId: "obj-real" });
       trackPageView({ context: makeContext() });
       await Promise.resolve();
 
@@ -116,14 +124,14 @@ describe("initialiseAiAnalytics", () => {
       expect(properties.Auth).toMatchObject({ IsAuthed: true, Username: "real@example.com", ObjectId: "obj-real" });
     });
 
-    it("should wait for registerAuth before sending trackPageView", async () => {
-      const { registerAuth, trackPageView } = initialiseAiAnalytics(makeProps());
+    it("should wait for registerAuthWithAnalytics before sending trackPageView", async () => {
+      const { registerAuthWithAnalytics, trackPageView } = initialiseAiAnalytics(makeProps());
 
       trackPageView({ context: makeContext() });
       await Promise.resolve();
       expect(mockTrackPageView).not.toHaveBeenCalled();
 
-      registerAuth({ isAuthed: true, username: "alice", name: "Alice", groups: [], objectId: "obj-1" });
+      registerAuthWithAnalytics({ isAuthed: true, username: "alice", name: "Alice", groups: [], objectId: "obj-1" });
       await Promise.resolve();
 
       expect(mockTrackPageView).toHaveBeenCalledTimes(1);
@@ -131,9 +139,9 @@ describe("initialiseAiAnalytics", () => {
     });
 
     it("should include auth values in trackException after registering", () => {
-      const { registerAuth, trackException } = initialiseAiAnalytics(makeProps());
+      const { registerAuthWithAnalytics, trackException } = initialiseAiAnalytics(makeProps());
 
-      registerAuth({ isAuthed: true, username: "bob", name: "Bob", groups: [], objectId: "obj-2" });
+      registerAuthWithAnalytics({ isAuthed: true, username: "bob", name: "Bob", groups: [], objectId: "obj-2" });
       trackException(new Error("boom"));
 
       const properties = mockTrackException.mock.calls[0][1].properties;
@@ -143,12 +151,13 @@ describe("initialiseAiAnalytics", () => {
 
   describe("registerCorrelationIds", () => {
     it("should include correlation ids in analytics events after registering", () => {
-      const { registerCorrelationIds } = initialiseAiAnalytics(makeProps());
+      const mockWindow = makeMockWindow();
+      const { registerCorrelationIds } = initialiseAiAnalytics(makeProps({ window: mockWindow }));
 
       registerCorrelationIds(makeCorrelationIds());
 
       const event = new AnalyticsEvent({ name: "loaded", componentName: "test-component" });
-      window.dispatchEvent(event);
+      mockWindow.dispatchEvent(event);
 
       const properties = mockTrackEvent.mock.calls[0][0].properties;
       expect(properties).toMatchObject({
@@ -158,19 +167,20 @@ describe("initialiseAiAnalytics", () => {
     });
 
     it("should not include correlation ids in analytics events before registering", () => {
-      initialiseAiAnalytics(makeProps());
+      const mockWindow = makeMockWindow();
+      initialiseAiAnalytics(makeProps({ window: mockWindow }));
 
       const event = new AnalyticsEvent({ name: "loaded", componentName: "test-component" });
-      window.dispatchEvent(event);
+      mockWindow.dispatchEvent(event);
 
       const properties = mockTrackEvent.mock.calls[0][0].properties;
       expect(properties.correlationIds).toEqual({});
     });
 
     it("should include correlation ids in trackPageView after registering", async () => {
-      const { registerAuth, registerCorrelationIds, trackPageView } = initialiseAiAnalytics(makeProps());
+      const { registerAuthWithAnalytics, registerCorrelationIds, trackPageView } = initialiseAiAnalytics(makeProps());
 
-      registerAuth({ isAuthed: true, username: "alice", name: "Alice", groups: [], objectId: "obj-1" });
+      registerAuthWithAnalytics({ isAuthed: true, username: "alice", name: "Alice", groups: [], objectId: "obj-1" });
       registerCorrelationIds(makeCorrelationIds());
       trackPageView({ context: makeContext() });
       await Promise.resolve();
@@ -185,9 +195,9 @@ describe("initialiseAiAnalytics", () => {
 
   describe("trackPageView", () => {
     it("should capitalize property keys", async () => {
-      const { registerAuth, trackPageView } = initialiseAiAnalytics(makeProps());
+      const { registerAuthWithAnalytics, trackPageView } = initialiseAiAnalytics(makeProps());
 
-      registerAuth({ isAuthed: true, username: "alice", name: "Alice", groups: [], objectId: "obj-1" });
+      registerAuthWithAnalytics({ isAuthed: true, username: "alice", name: "Alice", groups: [], objectId: "obj-1" });
       trackPageView({ context: makeContext() });
       await Promise.resolve();
 
@@ -211,7 +221,7 @@ describe("initialiseAiAnalytics", () => {
       expect(propsArg.properties).toHaveProperty("Build");
     });
 
-    it("should not include auth when registerAuth has not been called", () => {
+    it("should not include auth when registerAuthWithAnalytics has not been called", () => {
       const { trackException } = initialiseAiAnalytics(makeProps());
 
       trackException(new Error("boom"));
