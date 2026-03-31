@@ -163,9 +163,7 @@ const authPhase = ({
       setAuthHint(auth);
     }
     initialiseOutSystemsShowAlert({ context: firstContext, config, auth, authHint, preview });
-    if (!firstContext.preventADAndDataCalls) {
-      initialiseCaseDetailsData({ config, context: firstContext, subscribe, setNextHandover, setNextRecentCases, getToken, readyState, trackEvent });
-    }
+    initialiseCaseDetailsData({ config, context: firstContext, subscribe, setNextHandover, setNextRecentCases, getToken, readyState, trackEvent, preventDataCalls: firstContext.preventADAndDataCalls });
   })();
 };
 

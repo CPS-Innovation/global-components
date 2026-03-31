@@ -295,14 +295,15 @@ describe("caseDetailsSubscriptionFactory", () => {
       });
     });
 
-    it("should set next handover even when using handover data", async () => {
+    it("should not re-send handover when using handover data", async () => {
       const setNextHandover = jest.fn();
+      const setNextRecentCases = jest.fn();
       const handover = createMockHandoverFound(123, mockCaseDetails, mockMonitoringCodes);
 
       const factory = caseDetailsSubscriptionFactory({
         fetch: createMockFetch(),
         setNextHandover,
-        setNextRecentCases: jest.fn(),
+        setNextRecentCases,
         showMonitoringCodes: true,
       });
 
@@ -318,11 +319,8 @@ describe("caseDetailsSubscriptionFactory", () => {
 
       await flushPromises();
 
-      expect(setNextHandover).toHaveBeenCalledWith({
-        caseId: 123,
-        caseDetails: mockCaseDetails,
-        monitoringCodes: mockMonitoringCodes,
-      });
+      expect(setNextHandover).not.toHaveBeenCalled();
+      expect(setNextRecentCases).not.toHaveBeenCalled();
     });
   });
 });

@@ -21,6 +21,7 @@ export class CpsGlobalCaseDetails {
     // If there is a urn in our tags then use that while case details are being obtained
     const urn = caseDetails?.result?.urn || tags.urn;
     const headline = caseDetails?.result && getCaseDefendantHeadline(caseDetails.result);
+
     const monitoringCodes = caseMonitoringCodes?.result || [];
 
     return preview.result?.caseMarkers === "b" ? (
