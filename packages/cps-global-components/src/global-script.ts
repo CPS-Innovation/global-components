@@ -147,6 +147,7 @@ const authPhase = ({
   trackEvent,
   trackException,
   registerAuthWithAnalytics,
+  authHint,
   setAuthHint,
   setNextHandover,
   setNextRecentCases,
@@ -161,7 +162,7 @@ const authPhase = ({
     if (auth.isAuthed) {
       setAuthHint(auth);
     }
-    initialiseOutSystemsShowAlert({ context: firstContext, config, auth, preview });
+    initialiseOutSystemsShowAlert({ context: firstContext, config, auth, authHint, preview });
     if (!firstContext.preventADAndDataCalls) {
       initialiseCaseDetailsData({ config, context: firstContext, subscribe, setNextHandover, setNextRecentCases, getToken, readyState, trackEvent });
     }
