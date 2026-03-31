@@ -226,7 +226,7 @@ const setupDefaultMocks = () => {
     trackPageView: mockTrackPageView,
     trackEvent: mockTrackEvent,
     trackException: mockTrackException,
-    registerAuth: jest.fn(),
+    registerAuthWithAnalytics: jest.fn(),
     registerCorrelationIds: mockRegisterCorrelationIds,
   });
 
@@ -548,7 +548,10 @@ describe("global-script", () => {
     });
 
     it("should register authHint to store", async () => {
-      const testAuthHint = { found: true as const, result: { authResult: { isAuthed: true as const, username: "hint@example.com", name: "Hint User", objectId: "obj-hint", groups: [] }, timestamp: 12345 } };
+      const testAuthHint = {
+        found: true as const,
+        result: { authResult: { isAuthed: true as const, username: "hint@example.com", name: "Hint User", objectId: "obj-hint", groups: [] }, timestamp: 12345 },
+      };
       mockInitialiseAuthHint.mockResolvedValue({
         authHint: testAuthHint,
         setAuthHint: jest.fn(),
@@ -955,7 +958,7 @@ describe("global-script", () => {
         }),
         trackEvent: jest.fn(),
         trackException: mockTrackException,
-        registerAuth: jest.fn(),
+        registerAuthWithAnalytics: jest.fn(),
         registerCorrelationIds: jest.fn(),
       });
 
@@ -1234,7 +1237,7 @@ describe("global-script", () => {
         expect.objectContaining({
           rootUrl: testRootUrl,
           config: testConfig,
-        })
+        }),
       );
     });
 
@@ -1465,7 +1468,7 @@ describe("global-script", () => {
 
       mockInitialiseAnalytics.mockImplementation(() => {
         callOrder.push("analytics");
-        return { trackPageView: jest.fn(), trackEvent: jest.fn(), trackException: jest.fn(), registerAuth: jest.fn(), registerCorrelationIds: jest.fn() };
+        return { trackPageView: jest.fn(), trackEvent: jest.fn(), trackException: jest.fn(), registerAuthWithAnalytics: jest.fn(), registerCorrelationIds: jest.fn() };
       });
 
       const globalScript = require("./global-script").default;
@@ -1533,7 +1536,7 @@ describe("global-script", () => {
       mockInitialiseAnalytics.mockImplementation(() => {
         // Analytics should be called BEFORE auth is resolved (auth is non-blocking)
         expect(authResolved).toBe(false);
-        return { trackPageView: jest.fn(), trackEvent: jest.fn(), trackException: jest.fn(), registerAuth: jest.fn(), registerCorrelationIds: jest.fn() };
+        return { trackPageView: jest.fn(), trackEvent: jest.fn(), trackException: jest.fn(), registerAuthWithAnalytics: jest.fn(), registerCorrelationIds: jest.fn() };
       });
 
       const globalScript = require("./global-script").default;

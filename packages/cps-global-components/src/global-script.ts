@@ -100,7 +100,15 @@ const startupPhase = async ({ window, storeFns: { register, mergeTags, get } }: 
   const diagnosticsCollector = createAdDiagnosticsCollector();
 
   const { setNextRecentCases } = initialiseRecentCases({ rootUrl, config, register });
-  const { trackPageView, trackEvent, trackException, registerAuth, registerCorrelationIds } = initialiseAnalytics({ window, config, build, flags, authHint, get, diagnosticsCollector });
+  const { trackPageView, trackEvent, trackException, registerAuthWithAnalytics, registerCorrelationIds } = initialiseAnalytics({
+    window,
+    config,
+    build,
+    flags,
+    authHint,
+    get,
+    diagnosticsCollector,
+  });
 
   const { initialiseDomForContext } = initialiseDomObservation(
     { window, register, mergeTags, preview, settings },
@@ -118,7 +126,7 @@ const startupPhase = async ({ window, storeFns: { register, mergeTags, get } }: 
     trackPageView,
     trackEvent,
     trackException,
-    registerAuth,
+    registerAuthWithAnalytics,
     registerCorrelationIds,
     firstContext,
     flags,
@@ -138,7 +146,7 @@ const authPhase = ({
   flags,
   trackEvent,
   trackException,
-  registerAuth,
+  registerAuthWithAnalytics,
   setAuthHint,
   setNextHandover,
   setNextRecentCases,
@@ -149,7 +157,7 @@ const authPhase = ({
   (async () => {
     const { auth, getToken } = await initialiseAuth({ config, context: firstContext, flags, onError: trackException, diagnosticsCollector });
     register({ auth });
-    registerAuth(auth);
+    registerAuthWithAnalytics(auth);
     if (auth.isAuthed) {
       setAuthHint(auth);
     }
