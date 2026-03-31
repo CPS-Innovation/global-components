@@ -149,8 +149,6 @@ export const configBaseSchema = z.object({
   SHOW_MONITORING_CODES: z.boolean().optional(),
   SHOW_GOVUK_REBRAND: z.boolean().optional(),
   OS_HANDOVER_URL: z.string().optional(),
-  COOKIE_HANDOVER_URL: z.string().optional(),
-  TOKEN_HANDOVER_URL: z.string().optional(),
   FEATURE_FLAG_MENU_USERS: featureFlagUsersSchema.optional(),
   FEATURE_FLAG_ENABLE_INTRUSIVE_AD_LOGIN: z.boolean().optional(),
   COLLECT_AD_DIAGNOSTICS_IN_PAGE_VIEW: z.boolean().optional(),

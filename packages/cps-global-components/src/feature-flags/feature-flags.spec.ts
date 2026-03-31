@@ -84,6 +84,7 @@ describe("FEATURE_FLAGS", () => {
       contextIds?: string;
       contextFound?: boolean;
       environment?: string;
+      authHint?: any;
     }) => ({
       config: { SHOW_MENU: overrides.SHOW_MENU ?? true, FEATURE_FLAG_MENU_USERS: overrides.FEATURE_FLAG_MENU_USERS } as any,
       auth: {
@@ -92,8 +93,9 @@ describe("FEATURE_FLAGS", () => {
         username: overrides.username ?? "testuser",
         objectId: overrides.objectId ?? "test-object-id",
       } as any,
+      authHint: overrides.authHint ?? undefined,
       context: { found: overrides.contextFound ?? true, contextIds: overrides.contextIds } as any,
-      flags: { isLocalDevelopment: false, isOutSystems: false, e2eTestMode: { isE2eTestMode: false as const }, environment: overrides.environment ?? "test" },
+      flags: { isLocalDevelopment: false, isOutSystems: false, e2eTestMode: { isE2eTestMode: false as const }, environment: overrides.environment ?? "test", origin: "" },
     });
 
     it("should return 'hide-menu' when SHOW_MENU is false", () => {
@@ -143,6 +145,31 @@ describe("FEATURE_FLAGS", () => {
 
     it("should return 'hide-menu' on materials-cwa page in prod env when user is not authenticated", () => {
       const state = makeState({ contextIds: "case materials materials-cwa", FEATURE_FLAG_MENU_USERS: { adGroupIds: ["admin-group"] }, isAuthed: false, environment: "prod" });
+      expect(FEATURE_FLAGS.shouldShowMenu(state)).toBe("hide-menu");
+    });
+
+    it("should return 'show-menu' on materials-cwa page when auth is unavailable but authHint user is in AD group", () => {
+      const state = makeState({
+        contextIds: "case materials materials-cwa",
+        FEATURE_FLAG_MENU_USERS: { adGroupIds: ["admin-group"] },
+        isAuthed: false,
+        environment: "prod",
+        authHint: { found: true, result: { authResult: { isAuthed: true, groups: ["admin-group"], username: "hintuser", objectId: "hint-id" }, timestamp: 1 } },
+      });
+      // Override auth to undefined to simulate auth not yet resolved
+      (state as any).auth = undefined;
+      expect(FEATURE_FLAGS.shouldShowMenu(state)).toBe("show-menu");
+    });
+
+    it("should return 'hide-menu' on materials-cwa page in prod when auth is unavailable and authHint is not found", () => {
+      const state = makeState({
+        contextIds: "case materials materials-cwa",
+        FEATURE_FLAG_MENU_USERS: { adGroupIds: ["admin-group"] },
+        isAuthed: false,
+        environment: "prod",
+        authHint: { found: false, error: new Error("not found") },
+      });
+      (state as any).auth = undefined;
       expect(FEATURE_FLAGS.shouldShowMenu(state)).toBe("hide-menu");
     });
   });
@@ -204,6 +231,7 @@ describe("FEATURE_FLAGS", () => {
       groups?: string[];
       objectId?: string;
       homePageNotification?: boolean;
+      authHint?: any;
     }) => ({
       config: { FEATURE_FLAG_MENU_USERS: overrides.FEATURE_FLAG_MENU_USERS } as any,
       auth: {
@@ -212,6 +240,7 @@ describe("FEATURE_FLAGS", () => {
         username: "testuser",
         objectId: overrides.objectId ?? "test-object-id",
       } as any,
+      authHint: overrides.authHint ?? undefined,
       preview: { found: true, result: { homePageNotification: overrides.homePageNotification } } as any,
     });
 
