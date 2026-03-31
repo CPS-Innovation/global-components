@@ -10,18 +10,20 @@ export const initialiseOutSystemsShowAlert = ({
   context,
   config,
   auth,
+  authHint,
   preview,
 }: {
   context: FoundContext;
   config: Config;
   auth: StoredState["auth"];
+  authHint: StoredState["authHint"];
   preview: State["preview"];
 }) => {
   if (!context.found || !context.showNotification) {
     return;
   }
 
-  const showAlert = FEATURE_FLAGS.shouldShowHomePageNotification({ config, auth, preview });
+  const showAlert = FEATURE_FLAGS.shouldShowHomePageNotification({ config, auth, authHint, preview });
   localStorage.setItem(LOCALSTORAGE_KEY, JSON.stringify(showAlert));
   window.dispatchEvent(new CustomEvent(EVENT_NAME, { detail: { showAlert } }));
 };
