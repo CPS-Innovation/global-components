@@ -11,7 +11,7 @@ import { WithLogging } from "../../logging/WithLogging";
 export class CpsGlobalHomePageNotification {
   @WithLogging("CpsGlobalHomePageNotification")
   render() {
-    const { isReady, state } = readyState(["config", "context", "preview", "flags"], ["auth"]);
+    const { isReady, state } = readyState(["config", "context", "preview", "flags", "authHint"], ["auth"]);
 
     const shouldShowNotification = isReady && state.context.found && state.context.showNotification && FEATURE_FLAGS.shouldShowHomePageNotification(state);
 

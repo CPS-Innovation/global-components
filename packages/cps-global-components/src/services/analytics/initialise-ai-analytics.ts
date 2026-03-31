@@ -18,19 +18,29 @@ const STORAGE_PREFIX = "cps_global_components";
 
 type Props = { window: Window; config: Config; build: Build; authHint?: Result<AuthHint>; get: Getter<StoredState>; diagnosticsCollector?: AdDiagnosticsCollector };
 
-type AuthAnalyticsProps = undefined | { isAuthed: false; knownErrorType: KnownErrorType; username?: string; objectId?: string } | { isAuthed: true; username: string; objectId: string };
+type AuthAnalyticsProps =
+  | undefined
+  | { isAuthed: false; knownErrorType: KnownErrorType; username?: string; objectId?: string }
+  | { isAuthed: true; username: string; objectId: string };
 
 export type Analytics = ReturnType<typeof initialiseAiAnalytics>;
 
 const { _debug } = makeConsole("initialiseAnalytics");
 
-export const initialiseAiAnalytics = ({ window, config: { APP_INSIGHTS_CONNECTION_STRING, ENVIRONMENT, COLLECT_AD_DIAGNOSTICS_IN_PAGE_VIEW }, build, authHint, get, diagnosticsCollector }: Props) => {
+export const initialiseAiAnalytics = ({
+  window,
+  config: { APP_INSIGHTS_CONNECTION_STRING, ENVIRONMENT, COLLECT_AD_DIAGNOSTICS_IN_PAGE_VIEW },
+  build,
+  authHint,
+  get,
+  diagnosticsCollector,
+}: Props) => {
   if (!APP_INSIGHTS_CONNECTION_STRING) {
     return {
       trackPageView: () => {},
       trackException: (_: Error) => {},
       trackEvent: (_: AnalyticsEventData) => {},
-      registerAuth: (_: AuthResult) => {},
+      registerAuthWithAnalytics: (_: AuthResult) => {},
       registerCorrelationIds: (_: CorrelationIds) => {},
     };
   }
@@ -113,7 +123,7 @@ export const initialiseAiAnalytics = ({ window, config: { APP_INSIGHTS_CONNECTIO
     resolveAuthReady = resolve;
   });
 
-  const registerAuth = (auth: AuthResult) => {
+  const registerAuthWithAnalytics = (auth: AuthResult) => {
     if (auth.isAuthed) {
       authValues = { isAuthed: true, username: auth.username, objectId: auth.objectId };
     } else {
@@ -130,7 +140,17 @@ export const initialiseAiAnalytics = ({ window, config: { APP_INSIGHTS_CONNECTIO
       await authReady;
       const caseId = get("caseIdentifiers")?.caseId;
       const authDiagnostics = COLLECT_AD_DIAGNOSTICS_IN_PAGE_VIEW ? getDiagnostics() : undefined;
-      const arg = { properties: capitalizeKeys({ environment: ENVIRONMENT, auth: authValues, build: build, context: { found, contextIds }, correlationIds: correlationIdValues, ...(caseId && { caseId }), ...(authDiagnostics && { authDiagnostics }) }) };
+      const arg = {
+        properties: capitalizeKeys({
+          environment: ENVIRONMENT,
+          auth: authValues,
+          build: build,
+          context: { found, contextIds },
+          correlationIds: correlationIdValues,
+          ...(caseId && { caseId }),
+          ...(authDiagnostics && { authDiagnostics }),
+        }),
+      };
       _debug("trackPageView", arg);
       appInsights.trackPageView(arg);
       // Let's do our best to ensure our page view analytics gets registered before the page navigates away.
@@ -141,7 +161,10 @@ export const initialiseAiAnalytics = ({ window, config: { APP_INSIGHTS_CONNECTIO
 
   const trackException = (exception: Error) => {
     const authDiagnostics = getDiagnostics();
-    appInsights.trackException({ exception }, { source: STORAGE_PREFIX, properties: capitalizeKeys({ environment: ENVIRONMENT, ...(authValues && { auth: authValues }), build, authDiagnostics }) });
+    appInsights.trackException(
+      { exception },
+      { source: STORAGE_PREFIX, properties: capitalizeKeys({ environment: ENVIRONMENT, ...(authValues && { auth: authValues }), build, authDiagnostics }) },
+    );
   };
 
   window.addEventListener(AnalyticsEvent.type, (ev: AnalyticsEvent) => {
@@ -156,5 +179,5 @@ export const initialiseAiAnalytics = ({ window, config: { APP_INSIGHTS_CONNECTIO
     appInsights.trackEvent({ name: ev.type, properties: { ...ev.detail, correlationIds: correlationIdValues } });
   });
 
-  return { trackPageView, trackException, trackEvent, registerAuth, registerCorrelationIds };
+  return { trackPageView, trackException, trackEvent, registerAuthWithAnalytics, registerCorrelationIds };
 };
