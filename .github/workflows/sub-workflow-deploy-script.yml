@@ -51,6 +51,7 @@ jobs:
           cp "${{ steps.download.outputs.download-path }}/cps-global-components.js.map" "${{ steps.download.outputs.download-path }}/global-components.js.map"
 
           # If REDIRECT_SCRIPT_URL is set, replace cps-global-components.js with the redirect script
+          CONFIG_FILE="${{ steps.download.outputs.download-path }}/config.json"
           REDIRECT_SCRIPT_URL=$(jq -r '.REDIRECT_SCRIPT_URL // empty' "$CONFIG_FILE")
           if [ -n "$REDIRECT_SCRIPT_URL" ]; then
             echo "REDIRECT_SCRIPT_URL is set to: $REDIRECT_SCRIPT_URL"
