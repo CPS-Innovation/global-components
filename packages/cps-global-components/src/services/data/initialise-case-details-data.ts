@@ -19,6 +19,7 @@ export const initialiseCaseDetailsData = ({
   getToken,
   readyState,
   trackEvent,
+  preventDataCalls,
 }: {
   config: Config;
   context: FoundContext;
@@ -28,6 +29,7 @@ export const initialiseCaseDetailsData = ({
   getToken: GetToken;
   readyState: ReadyStateHelper;
   trackEvent: (detail: AnalyticsEventData) => void;
+  preventDataCalls?: boolean;
 }) => {
   const isDataAccessEnabled = !!config.GATEWAY_URL;
   if (!isDataAccessEnabled) {
@@ -39,7 +41,9 @@ export const initialiseCaseDetailsData = ({
       setNextHandover,
       setNextRecentCases,
       showMonitoringCodes: !!config.SHOW_MONITORING_CODES,
-      fetch: pipe(fetch, fetchWithCircuitBreaker({ config, trackEvent }), fetchWithAuthFactory({ config, context, getToken, readyState })),
+      fetch: preventDataCalls
+        ? undefined
+        : pipe(fetch, fetchWithCircuitBreaker({ config, trackEvent }), fetchWithAuthFactory({ config, context, getToken, readyState })),
     }),
   );
 };
