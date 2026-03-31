@@ -1,4 +1,4 @@
-let Cases = GloCo_PageViews_CaseReview
+let PerCase = GloCo_PageViews_CaseReview
 | where TimeGenerated > datetime(2026-03-09T12:00:01)
 | summarize
     Has_Review_First_Review       = countif(Is_Review_First_Review) > 0,
@@ -7,15 +7,18 @@ let Cases = GloCo_PageViews_CaseReview
     Has_Early_Advice_Subsequent   = countif(Is_Early_Advice_Subsequent) > 0,
     Has_Admin_Finalise            = countif(Is_Admin_Finalise) > 0,
     FirstSeen                     = min(bin(TimeGenerated, 1d))
-    by CaseId
-| project CaseId, FirstSeen,
-    F = case(
-        Has_Review_First_Review,       "First",
-        Has_Review_Subsequent_Review,  "Subsequent",
-        Has_Early_Advice_First_Review, "EAFirst",
-        Has_Early_Advice_Subsequent,   "EASubsequent",
-        Has_Admin_Finalise,            "QuickAdmin",
-        "Other");
+    by CaseId;
+let Cases = PerCase
+| mv-apply F = pack_array(
+    iff(Has_Review_First_Review,       "First", ""),
+    iff(Has_Review_Subsequent_Review,  "Subsequent", ""),
+    iff(Has_Early_Advice_First_Review, "EAFirst", ""),
+    iff(Has_Early_Advice_Subsequent,   "EASubsequent", ""),
+    iff(Has_Admin_Finalise,            "QuickAdmin", "")
+  ) to typeof(string) on (
+    where isnotempty(F)
+  )
+| project CaseId, FirstSeen, F;
 let NewCases = Cases
 | summarize NewCases = count() by Day = FirstSeen, F;
 let Spine = range Day from toscalar(Cases | summarize min(FirstSeen)) to toscalar(Cases | summarize max(FirstSeen)) step 1d
