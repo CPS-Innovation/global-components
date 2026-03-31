@@ -25,6 +25,7 @@ import { initialiseOutSystemsShowAlert } from "./services/outsystems-shim/outsys
 import { initialiseNavigateCms } from "./services/navigate-cms/initialise-navigate-cms";
 import { initialiseAuthHint } from "./services/state/auth-hint/initialise-auth-hint";
 import { createAdDiagnosticsCollector } from "./services/auth/ad-diagnostics-collector";
+import { tabTitleSubscriptionFactory } from "./services/browser/tab-title/tab-title-subscription-factory";
 
 const { _error } = makeConsole("global-script");
 
@@ -52,6 +53,7 @@ const initialise = async (window: Window & typeof globalThis) => {
   try {
     storeFns = initialiseStore();
     startupServices = await startupPhase({ window, storeFns });
+    storeFns.subscribe(tabTitleSubscriptionFactory({ document: window.document, preview: startupServices.preview }));
     authPhase({ storeFns, ...startupServices });
     contextChangePhase({ window, storeFns, ...startupServices });
 

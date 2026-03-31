@@ -105,19 +105,26 @@ Code and unit test files must build and be free of IDE build-preventing errors b
 change is complete. After making changes, **actually run** the relevant build/test command and verify it passes
 before reporting done. Do not assume changes compile — confirm it.
 
-**`pnpm build` runs all packages and can take a while.** Prefer targeted builds when possible.
-Do NOT use `run_in_background` for builds — run them in the foreground with a sufficient timeout
-(120000ms for single package, 300000ms for full build) so that build errors are immediately visible.
-Using background tasks for builds hides failures and leads to block-waiting on `TaskOutput` which hangs.
+**Before handing back to the user, always run the full unit test suite:**
+```bash
+cd packages/cps-global-components && pnpm exec stencil test --spec -- --no-coverage
+```
+Do not rely on only running targeted tests for the files you changed — your changes may break other tests.
 
-When running targeted builds, prefer `cd`-ing into the package directory and using `pnpm exec` directly
-rather than `pnpm -r --filter`. For example:
+**`pnpm -w build` and `pnpm -r --filter` WILL HANG.** Never use them. Always use targeted builds by
+`cd`-ing into the package directory and using `pnpm exec` directly:
 ```bash
 cd packages/cps-global-os-handover && pnpm exec rollup -c rollup.config.mjs
 cd packages/cps-global-components && pnpm exec stencil build
 cd packages/cps-global-components && pnpm exec stencil test --spec -- --testPathPatterns="foo" --no-coverage
 ```
-`pnpm -r --filter` can hang when multiple builds have run in the same session.
+
+Do NOT use `run_in_background` for builds — run them in the foreground with a sufficient timeout
+(120000ms for single package, 300000ms for full build) so that build errors are immediately visible.
+
+For e2e tests, ask the user to run `pnpm -w test:e2e` themselves (it requires a full workspace build
+which hangs when run from Claude). You can run individual e2e test files if the harness is already
+prepared — see the E2E Tests section above.
 
 ## Workflow
 
