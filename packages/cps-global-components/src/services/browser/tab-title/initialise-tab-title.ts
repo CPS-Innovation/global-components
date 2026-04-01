@@ -7,8 +7,7 @@ import "arrive";
 
 const URN_SEPARATOR = " \u2013 ";
 
-export const buildTitle = (baseTitle: string, urn: string | undefined): string =>
-  urn ? (baseTitle ? urn + URN_SEPARATOR + baseTitle : urn) : baseTitle;
+export const buildTitle = (baseTitle: string, urn: string | undefined): string => (urn ? (baseTitle ? urn + URN_SEPARATOR + baseTitle : urn) : baseTitle);
 
 export const initialiseTabTitle = ({ document, preview, subscribe }: { document: Document; preview: Result<Preview>; subscribe: Subscribe }) => {
   const isEnabled = () => !!preview.result?.tabTitleUrn;
@@ -50,7 +49,7 @@ export const initialiseTabTitle = ({ document, preview, subscribe }: { document:
 
   // Use arrive to get a reference to <title> whether it exists now or is created later,
   // then observe its text content for host app title changes.
-  document.arrive("title", { existing: true }, (titleElement) => {
+  document.arrive("title", { existing: true }, titleElement => {
     new MutationObserver(() => {
       if (settingTitle) return;
       applyUrn();
