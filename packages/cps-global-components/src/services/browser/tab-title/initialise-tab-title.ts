@@ -13,6 +13,7 @@ export const initialiseTabTitle = ({ document, preview, subscribe }: { document:
   const isEnabled = () => !!preview.result?.tabTitleUrn;
 
   let currentUrn: string | undefined;
+  let settingTitle = false;
 
   const getBaseTitle = () => {
     const raw = document.title;
@@ -23,6 +24,18 @@ export const initialiseTabTitle = ({ document, preview, subscribe }: { document:
     return raw;
   };
 
+  const setTitle = (desired: string) => {
+    if (document.title === desired) return;
+    settingTitle = true;
+    document.title = desired;
+    settingTitle = false;
+  };
+
+  const applyUrn = () => {
+    const urn = isEnabled() ? currentUrn : undefined;
+    setTitle(buildTitle(getBaseTitle(), urn));
+  };
+
   const onTagsChange = (tags: Tags | undefined) => {
     const nextUrn = tags?.urn;
     if (nextUrn === currentUrn) return;
@@ -31,9 +44,18 @@ export const initialiseTabTitle = ({ document, preview, subscribe }: { document:
     currentUrn = nextUrn;
 
     const urn = isEnabled() ? currentUrn : undefined;
-    const desired = buildTitle(baseTitle, urn);
-    if (document.title !== desired) document.title = desired;
+    setTitle(buildTitle(baseTitle, urn));
   };
+
+  // Watch for the host app changing document.title after us.
+  // Observe <head> with subtree so we catch both <title> being created
+  // and its text content changing.
+  if (document.head) {
+    new MutationObserver(() => {
+      if (settingTitle) return;
+      applyUrn();
+    }).observe(document.head, { childList: true, subtree: true, characterData: true });
+  }
 
   const factory: SubscriptionFactory = () => ({
     type: "onChange",
