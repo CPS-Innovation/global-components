@@ -125,13 +125,7 @@
           "path": "https://housekeeping",
           "contextIds": "case materials",
           "preventADAndDataCalls": true,
-          "takeTagsFromHandover": true,
-          "domTagDefinitions": [
-            {
-              "cssSelector": "a[href*='/polaris-ui/case-details/']",
-              "regex": "/polaris-ui/case-details/.*/(?<caseId>\\d+)\""
-            }
-          ]
+          "takeTagsFromHandover": true
         }
       ]
     },
