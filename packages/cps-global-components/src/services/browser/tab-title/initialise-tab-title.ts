@@ -5,7 +5,7 @@ import { SubscriptionFactory } from "../../../store/subscriptions/SubscriptionFa
 import { Tags } from "../../context/Tags";
 import "arrive";
 
-const URN_SEPARATOR = " \u2013 ";
+const URN_SEPARATOR = " ";
 
 export const buildTitle = (baseTitle: string, urn: string | undefined): string => (urn ? (baseTitle ? urn + URN_SEPARATOR + baseTitle : urn) : baseTitle);
 

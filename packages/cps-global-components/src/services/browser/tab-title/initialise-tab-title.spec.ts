@@ -6,7 +6,7 @@ import { Tags } from "../../context/Tags";
 
 describe("buildTitle", () => {
   it("prepends the URN to a title", () => {
-    expect(buildTitle("My Page", "URN123")).toBe("URN123 \u2013 My Page");
+    expect(buildTitle("My Page", "URN123")).toBe("URN123 My Page");
   });
 
   it("returns just the URN when base title is empty", () => {
@@ -77,7 +77,7 @@ describe("initialiseTabTitle", () => {
 
     onTagsChange({ urn: "URN123" });
 
-    expect(doc.title).toBe("URN123 \u2013 My Page");
+    expect(doc.title).toBe("URN123 My Page");
   });
 
   it("removes URN from the document title when tags lose the URN", () => {
@@ -85,7 +85,7 @@ describe("initialiseTabTitle", () => {
     const { onTagsChange } = setup(doc, true);
 
     onTagsChange({ urn: "URN123" });
-    expect(doc.title).toBe("URN123 \u2013 My Page");
+    expect(doc.title).toBe("URN123 My Page");
 
     onTagsChange({});
     expect(doc.title).toBe("My Page");
@@ -96,10 +96,10 @@ describe("initialiseTabTitle", () => {
     const { onTagsChange } = setup(doc, true);
 
     onTagsChange({ urn: "URN123" });
-    expect(doc.title).toBe("URN123 \u2013 My Page");
+    expect(doc.title).toBe("URN123 My Page");
 
     onTagsChange({ urn: "URN456" });
-    expect(doc.title).toBe("URN456 \u2013 My Page");
+    expect(doc.title).toBe("URN456 My Page");
   });
 
   it("does nothing when tags are undefined", () => {
@@ -131,10 +131,10 @@ describe("initialiseTabTitle", () => {
     const { onTagsChange } = setup(doc, true);
 
     onTagsChange({ urn: "URN123" });
-    expect(doc.title).toBe("URN123 \u2013 Page One");
+    expect(doc.title).toBe("URN123 Page One");
 
     simulateHostTitleChange("Page Two");
-    expect(doc.title).toBe("URN123 \u2013 Page Two");
+    expect(doc.title).toBe("URN123 Page Two");
   });
 
   it("does not re-apply URN after it has been removed", () => {
@@ -157,6 +157,6 @@ describe("initialiseTabTitle", () => {
     expect(doc.title).toBe("URN123");
 
     simulateHostTitleChange("Late Title");
-    expect(doc.title).toBe("URN123 \u2013 Late Title");
+    expect(doc.title).toBe("URN123 Late Title");
   });
 });
