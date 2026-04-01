@@ -90,6 +90,10 @@ jest.mock("./services/outsystems-shim/outsystems-shim-subscriber", () => ({
   outSystemsShimSubscribers: [],
 }));
 
+jest.mock("./services/browser/tab-title/initialise-tab-title", () => ({
+  initialiseTabTitle: jest.fn(),
+}));
+
 const mockInitialiseCaseDetailsData = jest.fn();
 jest.mock("./services/data/initialise-case-details-data", () => ({
   initialiseCaseDetailsData: mockInitialiseCaseDetailsData,
