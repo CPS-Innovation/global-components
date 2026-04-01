@@ -1,3 +1,5 @@
+jest.mock("arrive", () => {});
+
 import { initialiseTabTitle, buildTitle } from "./initialise-tab-title";
 import { SubscriptionFactory } from "../../../store/subscriptions/SubscriptionFactory";
 import { Tags } from "../../context/Tags";
@@ -18,15 +20,35 @@ describe("buildTitle", () => {
 
 const makeDocument = (initialTitle: string) => {
   let backingTitle = initialTitle;
+  let mutationCallback: MutationCallback | undefined;
 
-  return {
+  (global as any).MutationObserver = class {
+    constructor(cb: MutationCallback) {
+      mutationCallback = cb;
+    }
+    observe() {}
+    disconnect() {}
+  };
+
+  const doc = {
     get title() {
       return backingTitle;
     },
     set title(val: string) {
       backingTitle = val;
     },
+    // Mock arrive: capture the callback and fire it with a fake element
+    arrive: (_selector: string, _opts: any, cb: (el: Element) => void) => {
+      cb({} as Element);
+    },
   } as unknown as Document;
+
+  const simulateHostTitleChange = (newTitle: string) => {
+    backingTitle = newTitle;
+    mutationCallback?.([] as any, {} as any);
+  };
+
+  return { doc, simulateHostTitleChange };
 };
 
 type OnTagsChange = (tags: Tags | undefined) => void;
@@ -50,7 +72,7 @@ const setup = (doc: Document, previewEnabled: boolean) => {
 
 describe("initialiseTabTitle", () => {
   it("prepends URN to the document title when tags arrive", () => {
-    const doc = makeDocument("My Page");
+    const { doc } = makeDocument("My Page");
     const { onTagsChange } = setup(doc, true);
 
     onTagsChange({ urn: "URN123" });
@@ -59,7 +81,7 @@ describe("initialiseTabTitle", () => {
   });
 
   it("removes URN from the document title when tags lose the URN", () => {
-    const doc = makeDocument("My Page");
+    const { doc } = makeDocument("My Page");
     const { onTagsChange } = setup(doc, true);
 
     onTagsChange({ urn: "URN123" });
@@ -70,7 +92,7 @@ describe("initialiseTabTitle", () => {
   });
 
   it("swaps URN when navigating from one case to another", () => {
-    const doc = makeDocument("My Page");
+    const { doc } = makeDocument("My Page");
     const { onTagsChange } = setup(doc, true);
 
     onTagsChange({ urn: "URN123" });
@@ -80,21 +102,8 @@ describe("initialiseTabTitle", () => {
     expect(doc.title).toBe("URN456 \u2013 My Page");
   });
 
-  it("picks up host app title changes on next tags update", () => {
-    const doc = makeDocument("Page One");
-    const { onTagsChange } = setup(doc, true);
-
-    onTagsChange({ urn: "URN123" });
-    expect(doc.title).toBe("URN123 \u2013 Page One");
-
-    doc.title = "Page Two";
-
-    onTagsChange({ urn: "URN456" });
-    expect(doc.title).toBe("URN456 \u2013 Page Two");
-  });
-
   it("does nothing when tags are undefined", () => {
-    const doc = makeDocument("My Page");
+    const { doc } = makeDocument("My Page");
     const { onTagsChange } = setup(doc, true);
 
     onTagsChange(undefined);
@@ -102,7 +111,7 @@ describe("initialiseTabTitle", () => {
   });
 
   it("does not prepend URN when preview flag is disabled", () => {
-    const doc = makeDocument("My Page");
+    const { doc } = makeDocument("My Page");
     const { onTagsChange } = setup(doc, false);
 
     onTagsChange({ urn: "URN123" });
@@ -110,23 +119,44 @@ describe("initialiseTabTitle", () => {
   });
 
   it("handles empty base title without trailing separator", () => {
-    const doc = makeDocument("");
+    const { doc } = makeDocument("");
     const { onTagsChange } = setup(doc, true);
 
     onTagsChange({ urn: "URN123" });
     expect(doc.title).toBe("URN123");
   });
 
+  it("re-applies URN when host app changes the title", () => {
+    const { doc, simulateHostTitleChange } = makeDocument("Page One");
+    const { onTagsChange } = setup(doc, true);
+
+    onTagsChange({ urn: "URN123" });
+    expect(doc.title).toBe("URN123 \u2013 Page One");
+
+    simulateHostTitleChange("Page Two");
+    expect(doc.title).toBe("URN123 \u2013 Page Two");
+  });
+
+  it("does not re-apply URN after it has been removed", () => {
+    const { doc, simulateHostTitleChange } = makeDocument("Page One");
+    const { onTagsChange } = setup(doc, true);
+
+    onTagsChange({ urn: "URN123" });
+    onTagsChange({});
+    expect(doc.title).toBe("Page One");
+
+    simulateHostTitleChange("Page Two");
+    expect(doc.title).toBe("Page Two");
+  });
+
   it("picks up host app title set after initialisation", () => {
-    const doc = makeDocument("");
+    const { doc, simulateHostTitleChange } = makeDocument("");
     const { onTagsChange } = setup(doc, true);
 
     onTagsChange({ urn: "URN123" });
     expect(doc.title).toBe("URN123");
 
-    doc.title = "Late Title";
-
-    onTagsChange({ urn: "URN456" });
-    expect(doc.title).toBe("URN456 \u2013 Late Title");
+    simulateHostTitleChange("Late Title");
+    expect(doc.title).toBe("URN123 \u2013 Late Title");
   });
 });
