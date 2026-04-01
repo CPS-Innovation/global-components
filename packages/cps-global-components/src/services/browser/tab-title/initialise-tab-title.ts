@@ -1,3 +1,7 @@
+import { Preview } from "cps-global-configuration";
+import { Result } from "../../../utils/Result";
+import { Subscribe } from "../../../store/store";
+import { SubscriptionFactory } from "../../../store/subscriptions/SubscriptionFactory";
 import { Tags } from "../../context/Tags";
 
 const URN_SEPARATOR = " \u2013 ";
@@ -5,7 +9,9 @@ const URN_SEPARATOR = " \u2013 ";
 export const buildTitle = (baseTitle: string, urn: string | undefined): string =>
   urn ? (baseTitle ? urn + URN_SEPARATOR + baseTitle : urn) : baseTitle;
 
-export const initialiseTabTitle = ({ document, isEnabled }: { document: Document; isEnabled: () => boolean }) => {
+export const initialiseTabTitle = ({ document, preview, subscribe }: { document: Document; preview: Result<Preview>; subscribe: Subscribe }) => {
+  const isEnabled = () => !!preview.result?.tabTitleUrn;
+
   let currentUrn: string | undefined;
 
   const getBaseTitle = () => {
@@ -29,5 +35,13 @@ export const initialiseTabTitle = ({ document, isEnabled }: { document: Document
     if (document.title !== desired) document.title = desired;
   };
 
-  return { onTagsChange };
+  const factory: SubscriptionFactory = () => ({
+    type: "onChange",
+    handler: {
+      propName: "tags",
+      handler: onTagsChange,
+    },
+  });
+
+  subscribe(factory);
 };

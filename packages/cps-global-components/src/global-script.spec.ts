@@ -90,8 +90,8 @@ jest.mock("./services/outsystems-shim/outsystems-shim-subscriber", () => ({
   outSystemsShimSubscribers: [],
 }));
 
-jest.mock("./services/browser/tab-title/tab-title-subscription-factory", () => ({
-  tabTitleSubscriptionFactory: () => () => ({ type: "onChange", handler: { propName: "tags", handler: jest.fn() } }),
+jest.mock("./services/browser/tab-title/initialise-tab-title", () => ({
+  initialiseTabTitle: jest.fn(),
 }));
 
 const mockInitialiseCaseDetailsData = jest.fn();

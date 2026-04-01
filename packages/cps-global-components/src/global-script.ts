@@ -25,7 +25,7 @@ import { initialiseOutSystemsShowAlert } from "./services/outsystems-shim/outsys
 import { initialiseNavigateCms } from "./services/navigate-cms/initialise-navigate-cms";
 import { initialiseAuthHint } from "./services/state/auth-hint/initialise-auth-hint";
 import { createAdDiagnosticsCollector } from "./services/auth/ad-diagnostics-collector";
-import { tabTitleSubscriptionFactory } from "./services/browser/tab-title/tab-title-subscription-factory";
+import { initialiseTabTitle } from "./services/browser/tab-title/initialise-tab-title";
 
 const { _error } = makeConsole("global-script");
 
@@ -53,7 +53,6 @@ const initialise = async (window: Window & typeof globalThis) => {
   try {
     storeFns = initialiseStore();
     startupServices = await startupPhase({ window, storeFns });
-    storeFns.subscribe(tabTitleSubscriptionFactory({ document: window.document, preview: startupServices.preview }));
     authPhase({ storeFns, ...startupServices });
     contextChangePhase({ window, storeFns, ...startupServices });
 
@@ -67,7 +66,7 @@ const initialise = async (window: Window & typeof globalThis) => {
   }
 };
 
-const startupPhase = async ({ window, storeFns: { register, mergeTags, get } }: { window: Window & typeof globalThis; storeFns: ReturnType<typeof initialiseStore> }) => {
+const startupPhase = async ({ window, storeFns: { register, mergeTags, get, subscribe } }: { window: Window & typeof globalThis; storeFns: ReturnType<typeof initialiseStore> }) => {
   const build = window.cps_global_components_build;
   register({ build });
 
@@ -120,6 +119,8 @@ const startupPhase = async ({ window, storeFns: { register, mergeTags, get } }: 
     accessibilitySubscriber,
     ...outSystemsShimSubscribers,
   );
+
+  initialiseTabTitle({ document: window.document, preview, subscribe });
 
   return {
     config,
