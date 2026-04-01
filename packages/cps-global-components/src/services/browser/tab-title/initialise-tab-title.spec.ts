@@ -1,3 +1,5 @@
+jest.mock("arrive", () => {});
+
 import { initialiseTabTitle, buildTitle } from "./initialise-tab-title";
 import { SubscriptionFactory } from "../../../store/subscriptions/SubscriptionFactory";
 import { Tags } from "../../context/Tags";
@@ -18,11 +20,11 @@ describe("buildTitle", () => {
 
 const makeDocument = (initialTitle: string) => {
   let backingTitle = initialTitle;
-  let observerCallback: MutationCallback | undefined;
+  let mutationCallback: MutationCallback | undefined;
 
   (global as any).MutationObserver = class {
     constructor(cb: MutationCallback) {
-      observerCallback = cb;
+      mutationCallback = cb;
     }
     observe() {}
     disconnect() {}
@@ -35,12 +37,15 @@ const makeDocument = (initialTitle: string) => {
     set title(val: string) {
       backingTitle = val;
     },
-    head: {},
+    // Mock arrive: capture the callback and fire it with a fake element
+    arrive: (_selector: string, _opts: any, cb: (el: Element) => void) => {
+      cb({} as Element);
+    },
   } as unknown as Document;
 
   const simulateHostTitleChange = (newTitle: string) => {
     backingTitle = newTitle;
-    observerCallback?.([] as any, {} as any);
+    mutationCallback?.([] as any, {} as any);
   };
 
   return { doc, simulateHostTitleChange };

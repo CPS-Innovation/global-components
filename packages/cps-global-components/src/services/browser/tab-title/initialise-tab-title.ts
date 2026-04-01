@@ -3,6 +3,7 @@ import { Result } from "../../../utils/Result";
 import { Subscribe } from "../../../store/store";
 import { SubscriptionFactory } from "../../../store/subscriptions/SubscriptionFactory";
 import { Tags } from "../../context/Tags";
+import "arrive";
 
 const URN_SEPARATOR = " \u2013 ";
 
@@ -47,15 +48,14 @@ export const initialiseTabTitle = ({ document, preview, subscribe }: { document:
     setTitle(buildTitle(baseTitle, urn));
   };
 
-  // Watch for the host app changing document.title after us.
-  // Observe <head> with subtree so we catch both <title> being created
-  // and its text content changing.
-  if (document.head) {
+  // Use arrive to get a reference to <title> whether it exists now or is created later,
+  // then observe its text content for host app title changes.
+  document.arrive("title", { existing: true }, (titleElement) => {
     new MutationObserver(() => {
       if (settingTitle) return;
       applyUrn();
-    }).observe(document.head, { childList: true, subtree: true, characterData: true });
-  }
+    }).observe(titleElement, { childList: true, characterData: true, subtree: true });
+  });
 
   const factory: SubscriptionFactory = () => ({
     type: "onChange",
