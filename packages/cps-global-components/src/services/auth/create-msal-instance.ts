@@ -39,11 +39,21 @@ export const createMsalInstance = async ({ authority, clientId, redirectUri, dia
   await instance.initialize();
   const tInitDone = performance.now();
 
+  const tHandleRedirect = performance.now();
+  try {
+    await instance.handleRedirectPromise();
+  } catch (e) {
+    _debug("handleRedirectPromise error (non-fatal)", e);
+  }
+  const tHandleRedirectDone = performance.now();
+
   diagnosticsCollector?.add({
     msalConstructStartMs: Math.round(tConstruct),
     msalConstructDurationMs: Math.round(tInit - tConstruct),
     msalInitStartMs: Math.round(tInit),
     msalInitDurationMs: Math.round(tInitDone - tInit),
+    handleRedirectStartMs: Math.round(tHandleRedirect),
+    handleRedirectDurationMs: Math.round(tHandleRedirectDone - tHandleRedirect),
   });
 
   if (diagnosticsCollector) {
