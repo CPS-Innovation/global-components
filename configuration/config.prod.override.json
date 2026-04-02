@@ -119,19 +119,14 @@
           "path": "https://housekeeping.cps.gov.uk/init",
           "contextIds": "redirect",
           "preventADAndDataCalls": true,
-          "preventPageViewAnalytics": true
+          "preventPageViewAnalytics": true,
+          "takeTagsFromHandover": true
         },
         {
           "path": "https://housekeeping",
           "contextIds": "case materials",
           "preventADAndDataCalls": true,
-          "takeTagsFromHandover": true,
-          "domTagDefinitions": [
-            {
-              "cssSelector": "a[href*='/polaris-ui/case-details/']",
-              "regex": "/polaris-ui/case-details/.*/(?<caseId>\\d+)\""
-            }
-          ]
+          "takeTagsFromHandover": true
         }
       ]
     },

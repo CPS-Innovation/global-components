@@ -100,6 +100,13 @@ const FEATURES: Feature[] = [
       "Force the home page introductory sessions notification banner to appear, regardless of feature flag group membership.",
     disabled: false,
   },
+  {
+    key: "tabTitleUrn",
+    label: "Tab title URN",
+    description:
+      "Prepend the case URN to the browser tab title when viewing a case.",
+    disabled: false,
+  },
 ];
 
 const TACTICAL = [
