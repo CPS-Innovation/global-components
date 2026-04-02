@@ -39,21 +39,25 @@ export const createMsalInstance = async ({ authority, clientId, redirectUri, dia
   await instance.initialize();
   const tInitDone = performance.now();
 
-  const tHandleRedirect = performance.now();
-  try {
-    await instance.handleRedirectPromise();
-  } catch (e) {
-    _debug("handleRedirectPromise error (non-fatal)", e);
-  }
-  const tHandleRedirectDone = performance.now();
+  // FCT2-14290: handleRedirectPromise() was added here to clear dirty interaction_in_progress
+  //  flags left by aborted auth flows. However, as a guest component on host app pages, this
+  //  picks up and tries to process redirect state from the HOST APP's own MSAL flows (same
+  //  tenant, different client ID), causing AADSTS50196 redirect loops. Needs guards to check
+  //  that any pending redirect state belongs to our client ID before calling. Parked for now.
+  //
+  // const tHandleRedirect = performance.now();
+  // try {
+  //   await instance.handleRedirectPromise();
+  // } catch (e) {
+  //   _debug("handleRedirectPromise error (non-fatal)", e);
+  // }
+  // const tHandleRedirectDone = performance.now();
 
   diagnosticsCollector?.add({
     msalConstructStartMs: Math.round(tConstruct),
     msalConstructDurationMs: Math.round(tInit - tConstruct),
     msalInitStartMs: Math.round(tInit),
     msalInitDurationMs: Math.round(tInitDone - tInit),
-    handleRedirectStartMs: Math.round(tHandleRedirect),
-    handleRedirectDurationMs: Math.round(tHandleRedirectDone - tHandleRedirect),
   });
 
   if (diagnosticsCollector) {
