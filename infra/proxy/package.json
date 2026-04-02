@@ -12,6 +12,6 @@
     "esbuild": "^0.27.0",
     "njs-types": "^0.9.4",
     "ts-node": "^10.9.2",
-    "typescript": "^5.7.2"
+    "typescript": "^6.0.0"
   }
 }
