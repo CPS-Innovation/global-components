@@ -142,6 +142,23 @@ and consistency with the codebase. Don't rewrite — just flag issues.
 - Integration tests: `pnpm -w test:proxy` (runs via Docker — can hang; don't retry indefinitely)
 - When debugging proxy issues, ask for diagnostic output (HTTP responses, logs) rather than guessing
 
+## TypeScript Versions
+
+There are three TypeScript versions in play — be aware of all three:
+
+1. **Stencil's bundled TS** (check via `node -e "..." stencil.js`) — used for the actual
+   `stencil build`. This is what matters for CI. You cannot use tsconfig options newer than
+   this version (e.g. `ignoreDeprecations: "6.0"` will fail if Stencil bundles TS 5.x).
+2. **Workspace TS** (`typescript` devDependency in root `package.json`) — pinned to match
+   what the project supports. VS Code uses this when "Use Workspace Version" is selected.
+3. **VS Code's bundled TS** — ships with VS Code updates and can jump major versions without
+   warning. If IDE errors suddenly appear across the codebase, check whether VS Code is using
+   its bundled version instead of the workspace version (bottom-right status bar).
+
+When Stencil upgrades, check what TS version it bundles and consider aligning the workspace
+root `typescript` dependency accordingly. The per-package `typescript` versions in `package.json`
+files should also be kept in sync.
+
 ## Stencil Components
 
 - Components use shadow DOM — be aware of styling and slot constraints
