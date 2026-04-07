@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MSAL Redirect Repro</title>
+  <style>
+    body { font-family: monospace; max-width: 900px; margin: 2em auto; line-height: 1.6; }
+    h1 { font-size: 1.2em; }
+    .config { background: #f0f0f0; padding: 1em; margin: 1em 0; border-radius: 4px; }
+    .config label { display: flex; align-items: center; gap: 0.5em; margin: 0.5em 0; }
+    .config input[type="text"], .config input[type="number"], .config select { font-family: monospace; padding: 0.3em; flex: 1; }
+    .config input[type="checkbox"] { width: auto; margin: 0; }
+    #log { background: #1a1a1a; color: #0f0; padding: 1em; border-radius: 4px; max-height: 500px; overflow-y: auto; white-space: pre-wrap; font-size: 0.85em; }
+    button { font-family: monospace; padding: 0.5em 1em; margin: 0.3em; cursor: pointer; }
+    .controls { margin: 1em 0; }
+    .status { padding: 0.5em; margin: 0.5em 0; border-radius: 4px; }
+    .status.ok { background: #d4edda; }
+    .status.fail { background: #f8d7da; }
+    .status.pending { background: #fff3cd; }
+  </style>
+</head>
+<body>
+  <h1>MSAL Redirect Race Condition Repro</h1>
+  <p>Simulates the effect of a page redirect interrupting an MSAL ssoSilent flow.</p>
+
+  <div class="config">
+    <h3>Azure AD Config</h3>
+    <label>Client ID: <input type="text" id="clientId" value="" placeholder="your-client-id"></label>
+    <label>Authority: <input type="text" id="authority" value="https://login.microsoftonline.com/common" placeholder="https://login.microsoftonline.com/{tenant}"></label>
+    <label>Redirect URI: <input type="text" id="redirectUri" value="" placeholder="http://localhost:3000"></label>
+
+    <h3>Repro Config</h3>
+    <label>Redirect delay (ms): <input id="redirectDelay" type="number" value="500" min="0" max="30000" step="100"></label>
+    <label>Redirect target:
+      <select id="redirectTarget">
+        <option value="self">Same page (simulates /go reload)</option>
+        <option value="other">Other origin then back (simulates AD redirect chain)</option>
+      </select>
+    </label>
+    <label><input type="checkbox" id="enableRedirect" checked> Enable redirect (uncheck to let ssoSilent complete normally)</label>
+    <label><input type="checkbox" id="useAcquireTokenSilent"> Use acquireTokenSilent instead of ssoSilent (requires prior auth)</label>
+  </div>
+
+  <div class="controls">
+    <button onclick="startRepro()">Start Repro</button>
+    <button onclick="startAutoRepro()">Auto Repro (abort + redirect + retry)</button>
+    <button onclick="doLoginPopup()">Login via Popup (test config)</button>
+    <button onclick="checkState()">Check MSAL State</button>
+    <button onclick="clearState()">Clear MSAL localStorage</button>
+    <button onclick="clearLog()">Clear Log</button>
+  </div>
+
+  <div id="statusBar"></div>
+  <div id="log"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@azure/msal-browser@4.30.0/lib/msal-browser.min.js"></script>
+  <script>
+    const logEl = document.getElementById("log");
+    const statusEl = document.getElementById("statusBar");
+
+    const log = (msg) => {
+      const ts = new Date().toISOString().split("T")[1].slice(0, 12);
+      logEl.textContent += `[${ts}] ${msg}\n`;
+      logEl.scrollTop = logEl.scrollHeight;
+    };
+
+    const setStatus = (text, type) => {
+      statusEl.innerHTML = `<div class="status ${type}">${text}</div>`;
+    };
+
+    const clearLog = () => { logEl.textContent = ""; };
+
+    const getConfig = () => ({
+      clientId: document.getElementById("clientId").value,
+      authority: document.getElementById("authority").value,
+      redirectUri: document.getElementById("redirectUri").value || window.location.origin + window.location.pathname,
+      redirectDelay: parseInt(document.getElementById("redirectDelay").value),
+      redirectTarget: document.getElementById("redirectTarget").value,
+      enableRedirect: document.getElementById("enableRedirect").checked,
+      useAcquireTokenSilent: document.getElementById("useAcquireTokenSilent").checked,
+    });
+
+    const saveConfig = () => {
+      const config = getConfig();
+      localStorage.setItem("repro-tool-config", JSON.stringify(config));
+    };
+
+    const loadConfig = () => {
+      try {
+        const saved = JSON.parse(localStorage.getItem("repro-tool-config"));
+        if (saved) {
+          document.getElementById("clientId").value = saved.clientId || "";
+          document.getElementById("authority").value = saved.authority || "";
+          document.getElementById("redirectUri").value = saved.redirectUri || "";
+          document.getElementById("redirectDelay").value = saved.redirectDelay ?? 500;
+          document.getElementById("redirectTarget").value = saved.redirectTarget || "self";
+          document.getElementById("enableRedirect").checked = saved.enableRedirect ?? true;
+          document.getElementById("useAcquireTokenSilent").checked = saved.useAcquireTokenSilent ?? false;
+        }
+      } catch {}
+    };
+
+    // Save config on any change
+    document.querySelector(".config").addEventListener("input", saveConfig);
+
+    const checkState = () => {
+      log("--- MSAL State Check ---");
+      const keys = Object.keys(localStorage).filter(k => k.startsWith("msal."));
+      if (keys.length === 0) {
+        log("  No MSAL keys in localStorage");
+        setStatus("No MSAL state in localStorage", "fail");
+        return;
+      }
+      keys.forEach(k => {
+        const val = localStorage.getItem(k);
+        // Show key name and a meaningful summary, not raw encrypted tokens
+        if (k.includes("accesstoken") || k.includes("idtoken") || k.includes("refreshtoken")) {
+          log(`  ${k} = [token present, ${val.length} chars]`);
+        } else {
+          log(`  ${k} = ${val}`);
+        }
+      });
+
+      // Check ALL sessionStorage
+      const allSessionKeys = Object.keys(sessionStorage);
+      if (allSessionKeys.length > 0) {
+        log(`  --- sessionStorage (${allSessionKeys.length} keys) ---`);
+        allSessionKeys.forEach(k => {
+          const val = sessionStorage.getItem(k);
+          log(`  ${k} = ${val.length > 200 ? val.substring(0, 200) + "..." : val}`);
+        });
+      } else {
+        log("  --- sessionStorage: empty ---");
+      }
+      setStatus(`Found ${keys.length} MSAL keys in localStorage, ${allSessionKeys.length} in sessionStorage`, "ok");
+    };
+
+    const clearState = () => {
+      const keys = Object.keys(localStorage).filter(k => k.startsWith("msal.") || k.startsWith("server-telemetry"));
+      keys.forEach(k => localStorage.removeItem(k));
+      const sessionKeys = Object.keys(sessionStorage).filter(k => k.includes("interaction") || k.startsWith("msal."));
+      sessionKeys.forEach(k => sessionStorage.removeItem(k));
+      log(`Cleared ${keys.length} localStorage + ${sessionKeys.length} sessionStorage MSAL keys`);
+      setStatus("MSAL state cleared", "pending");
+    };
+
+    const startRepro = async () => {
+      const config = getConfig();
+      saveConfig();
+
+      if (!config.clientId) {
+        log("ERROR: Client ID is required");
+        setStatus("Client ID required", "fail");
+        return;
+      }
+
+      log("=== Starting MSAL Repro ===");
+      log(`  clientId: ${config.clientId}`);
+      log(`  authority: ${config.authority}`);
+      log(`  redirectUri: ${config.redirectUri}`);
+      log(`  redirectDelay: ${config.redirectDelay}ms`);
+      log(`  enableRedirect: ${config.enableRedirect}`);
+      log(`  useAcquireTokenSilent: ${config.useAcquireTokenSilent}`);
+
+      try {
+        // Create MSAL instance
+        const t0 = performance.now();
+        log("Creating PublicClientApplication...");
+        const msalInstance = new msal.PublicClientApplication({
+          auth: {
+            clientId: config.clientId,
+            authority: config.authority,
+            redirectUri: config.redirectUri,
+          },
+          cache: {
+            cacheLocation: "localStorage",
+          },
+          system: {
+            loggerOptions: {
+              loggerCallback: (level, message, containsPii) => {
+                if (level <= msal.LogLevel.Verbose) {
+                  log(`  [MSAL ${level}] ${message}`);
+                }
+              },
+              logLevel: msal.LogLevel.Verbose,
+            },
+          },
+        });
+
+        log(`  Created in ${Math.round(performance.now() - t0)}ms`);
+
+        // Initialize
+        const tInit = performance.now();
+        log("Initializing...");
+        await msalInstance.initialize();
+        log(`  Initialized in ${Math.round(performance.now() - tInit)}ms`);
+
+        // Check cache first
+        const activeAccount = msalInstance.getActiveAccount();
+        const allAccounts = msalInstance.getAllAccounts();
+        log(`  Active account: ${activeAccount ? activeAccount.username : "null"}`);
+        log(`  All accounts: ${allAccounts.length} (${allAccounts.map(a => a.username).join(", ")})`);
+
+        // Schedule redirect if enabled
+        let redirectTimer = null;
+        if (config.enableRedirect) {
+          log(`  Scheduling redirect in ${config.redirectDelay}ms...`);
+          redirectTimer = setTimeout(() => {
+            log(">>> REDIRECTING NOW <<<");
+            if (config.redirectTarget === "self") {
+              window.location.href = window.location.href.split("?")[0] + "?redirected=true&t=" + Date.now();
+            } else {
+              // Redirect to a different origin (e.g. httpbin) then manually come back
+              window.location.href = "https://httpbin.org/redirect-to?url=" + encodeURIComponent(window.location.href.split("?")[0] + "?redirected=true&t=" + Date.now());
+            }
+          }, config.redirectDelay);
+        }
+
+        // Attempt auth
+        const tAuth = performance.now();
+        setStatus("Auth in progress...", "pending");
+
+        if (config.useAcquireTokenSilent && activeAccount) {
+          log("Attempting acquireTokenSilent...");
+          try {
+            const result = await msalInstance.acquireTokenSilent({
+              scopes: ["User.Read"],
+              account: activeAccount,
+            });
+            if (redirectTimer) clearTimeout(redirectTimer);
+            log(`  SUCCESS (acquireTokenSilent) in ${Math.round(performance.now() - tAuth)}ms`);
+            log(`  Account: ${result.account.username}`);
+            log(`  From cache: ${result.fromCache}`);
+            log(`  Token expires: ${result.expiresOn}`);
+            setStatus(`Auth OK: ${result.account.username} (acquireTokenSilent, fromCache=${result.fromCache})`, "ok");
+          } catch (e) {
+            if (redirectTimer) clearTimeout(redirectTimer);
+            log(`  FAILED (acquireTokenSilent): ${e.errorCode} - ${e.message}`);
+            setStatus(`acquireTokenSilent failed: ${e.errorCode}`, "fail");
+          }
+        } else {
+          log("Attempting ssoSilent...");
+          try {
+            const result = await msalInstance.ssoSilent({
+              scopes: ["User.Read"],
+            });
+            if (redirectTimer) clearTimeout(redirectTimer);
+            log(`  SUCCESS (ssoSilent) in ${Math.round(performance.now() - tAuth)}ms`);
+            log(`  Account: ${result.account.username}`);
+            msalInstance.setActiveAccount(result.account);
+            log(`  Active account set`);
+            setStatus(`Auth OK: ${result.account.username} (ssoSilent)`, "ok");
+          } catch (e) {
+            if (redirectTimer) clearTimeout(redirectTimer);
+            log(`  FAILED (ssoSilent): ${e.errorCode} - ${e.message}`);
+            setStatus(`ssoSilent failed: ${e.errorCode}`, "fail");
+
+            // If this was an interaction_required, log it prominently
+            if (e.errorCode === "monitor_window_timeout") {
+              log("  !!! TIMEOUT - iframe did not complete in time");
+            } else if (e.errorCode === "interaction_in_progress") {
+              log("  !!! STUCK - interaction_in_progress flag is set!");
+            }
+          }
+        }
+
+      } catch (e) {
+        log(`ERROR: ${e.message}`);
+        setStatus(`Error: ${e.message}`, "fail");
+      }
+    };
+
+    const startAutoRepro = () => {
+      const config = getConfig();
+      saveConfig();
+
+      if (!config.clientId) { log("ERROR: Client ID required"); return; }
+
+      // Clear MSAL state first
+      clearState();
+      // Also clear server-telemetry keys
+      Object.keys(localStorage).filter(k => k.startsWith("server-telemetry")).forEach(k => localStorage.removeItem(k));
+
+      log("=== Auto Repro: double redirect + retry ===");
+      log(`  Will do: load+ssoSilent+redirect → load+ssoSilent+redirect → load+ssoSilent (let it play out)`);
+      log(`  Redirect delay: ${config.redirectDelay}ms, 1s pause before ssoSilent on each load`);
+
+      // Store phase counter: 1 = first redirect pending, 2 = second redirect pending, 3 = final attempt
+      sessionStorage.setItem("msal-repro-phase", "1");
+
+      // Start phase 1
+      startSsoSilentThenRedirect(config);
+    };
+
+    const startSsoSilentThenRedirect = (config) => {
+      const phase = sessionStorage.getItem("msal-repro-phase") || "1";
+      log(`  Phase ${phase}: Starting ssoSilent, will redirect after ${config.redirectDelay}ms...`);
+
+      (async () => {
+        const msalInstance = new msal.PublicClientApplication({
+          auth: { clientId: config.clientId, authority: config.authority, redirectUri: config.redirectUri },
+          cache: { cacheLocation: "localStorage" },
+        });
+        await msalInstance.initialize();
+
+        log(`  Phase ${phase}: ssoSilent starting...`);
+        setTimeout(() => {
+          const nextPhase = parseInt(phase) + 1;
+          sessionStorage.setItem("msal-repro-phase", String(nextPhase));
+          log(`  Phase ${phase}: >>> REDIRECTING <<<`);
+          window.location.href = window.location.pathname + "?auto-phase=" + nextPhase + "&t=" + Date.now();
+        }, config.redirectDelay);
+
+        try {
+          const result = await msalInstance.ssoSilent({ scopes: ["User.Read"] });
+          log(`  Phase ${phase}: ssoSilent completed before redirect`);
+        } catch (e) {
+          log(`  Phase ${phase}: ssoSilent error: ${e.errorCode}`);
+        }
+      })();
+    };
+
+    const doLoginPopup = async () => {
+      const config = getConfig();
+      if (!config.clientId) { log("ERROR: Client ID required"); return; }
+
+      log("=== Login via Popup ===");
+      try {
+        const msalInstance = new msal.PublicClientApplication({
+          auth: { clientId: config.clientId, authority: config.authority, redirectUri: config.redirectUri },
+          cache: { cacheLocation: "localStorage" },
+        });
+        await msalInstance.initialize();
+        const result = await msalInstance.loginPopup({ scopes: ["User.Read"] });
+        msalInstance.setActiveAccount(result.account);
+        log(`  SUCCESS: ${result.account.username}`);
+        log(`  Now try "Start Repro" with acquireTokenSilent checked`);
+        setStatus(`Logged in: ${result.account.username}`, "ok");
+      } catch (e) {
+        log(`  FAILED: ${e.errorCode} - ${e.message}`);
+        setStatus(`Popup login failed: ${e.errorCode}`, "fail");
+      }
+    };
+
+    // On load: check if we arrived via redirect
+    window.addEventListener("DOMContentLoaded", () => {
+      loadConfig();
+
+      const params = new URLSearchParams(window.location.search);
+
+      if (params.has("auto-phase")) {
+        const phase = params.get("auto-phase");
+        const config = getConfig();
+        history.replaceState(null, "", window.location.pathname);
+
+        log(`=== Landed after redirect — Phase ${phase} ===`);
+        checkState();
+
+        // Check server-telemetry for signs of trouble
+        const telemetryKeys = Object.keys(localStorage).filter(k => k.startsWith("server-telemetry"));
+        if (telemetryKeys.length > 0) {
+          log("  server-telemetry in localStorage:");
+          telemetryKeys.forEach(k => {
+            log(`    ${k} = ${localStorage.getItem(k)}`);
+          });
+        }
+
+        if (!config.clientId) {
+          log("  ERROR: Config lost! Re-enter values.");
+          setStatus("Config lost", "fail");
+          return;
+        }
+
+        if (phase === "3") {
+          // Final phase: wait 1s then attempt ssoSilent and let it play out
+          log("  Phase 3 (final): Waiting 1s then attempting ssoSilent (no redirect)...");
+          setTimeout(async () => {
+            log("  Phase 3: Starting ssoSilent...");
+            try {
+              const t0 = performance.now();
+              const msalInstance = new msal.PublicClientApplication({
+                auth: { clientId: config.clientId, authority: config.authority, redirectUri: config.redirectUri },
+                cache: { cacheLocation: "localStorage" },
+                system: {
+                  loggerOptions: {
+                    loggerCallback: (level, message) => {
+                      if (level <= msal.LogLevel.Verbose) {
+                        log(`    [MSAL ${level}] ${message}`);
+                      }
+                    },
+                    logLevel: msal.LogLevel.Verbose,
+                  },
+                },
+              });
+              await msalInstance.initialize();
+
+              const activeAccount = msalInstance.getActiveAccount();
+              const allAccounts = msalInstance.getAllAccounts();
+              log(`    Active account: ${activeAccount ? activeAccount.username : "null"}`);
+              log(`    All accounts: ${allAccounts.length}`);
+
+              const result = await msalInstance.ssoSilent({ scopes: ["User.Read"] });
+              log(`    SUCCESS (ssoSilent) in ${Math.round(performance.now() - t0)}ms`);
+              log(`    Account: ${result.account.username}`);
+              msalInstance.setActiveAccount(result.account);
+              setStatus(`Auto Repro PASSED: ${result.account.username}`, "ok");
+            } catch (e) {
+              log(`    FAILED (ssoSilent): ${e.errorCode} - ${e.message}`);
+              setStatus(`Auto Repro FAILED: ${e.errorCode}`, "fail");
+            }
+            sessionStorage.removeItem("msal-repro-phase");
+          }, 1000);
+        } else {
+          // Intermediate phase: wait 1s then fire ssoSilent + redirect
+          log(`  Phase ${phase}: Waiting 1s before ssoSilent + redirect...`);
+          setTimeout(() => {
+            startSsoSilentThenRedirect(config);
+          }, 1000);
+        }
+
+      } else if (params.has("redirected")) {
+        log("=== Page loaded after redirect ===");
+        log(`  URL: ${window.location.href}`);
+        checkState();
+        history.replaceState(null, "", window.location.pathname);
+      }
+    });
+  </script>
+</body>
+</html>

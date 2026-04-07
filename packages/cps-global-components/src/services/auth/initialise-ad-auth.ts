@@ -29,7 +29,7 @@ const failedAuth = (knownErrorType: KnownErrorType, reason: string): { auth: Fai
 const { _error } = makeConsole("initialiseAuth");
 
 const initialiseAdAuthInternal = async ({
-  config: { AD_TENANT_AUTHORITY: authority, AD_CLIENT_ID: clientId, FEATURE_FLAG_ENABLE_INTRUSIVE_AD_LOGIN },
+  config: { AD_TENANT_AUTHORITY: authority, AD_CLIENT_ID: clientId, FEATURE_FLAG_ENABLE_INTRUSIVE_AD_LOGIN, SSO_SILENT_DELAY_MS },
   context: { msalRedirectUrl: redirectUri, currentHref },
   onError,
   diagnosticsCollector,
@@ -49,7 +49,7 @@ const initialiseAdAuthInternal = async ({
 
   try {
     const instance = await createMsalInstance({ authority, clientId, redirectUri, diagnosticsCollector });
-    const account = await getAdUserAccount({ instance, config: { FEATURE_FLAG_ENABLE_INTRUSIVE_AD_LOGIN }, diagnosticsCollector });
+    const account = await getAdUserAccount({ instance, config: { FEATURE_FLAG_ENABLE_INTRUSIVE_AD_LOGIN, SSO_SILENT_DELAY_MS }, diagnosticsCollector });
     if (!account) {
       return failedAuth("NoAccountFound", "No AD account found");
     }

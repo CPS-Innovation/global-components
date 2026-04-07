@@ -25,7 +25,7 @@ describe("get-ad-user-account", () => {
 
   const defaultProps = {
     instance: mockInstance,
-    config: { FEATURE_FLAG_ENABLE_INTRUSIVE_AD_LOGIN: false },
+    config: { FEATURE_FLAG_ENABLE_INTRUSIVE_AD_LOGIN: false, SSO_SILENT_DELAY_MS: 0 },
   };
 
   beforeEach(() => {
@@ -122,7 +122,7 @@ describe("get-ad-user-account", () => {
 
       const props = {
         instance: mockInstance,
-        config: { FEATURE_FLAG_ENABLE_INTRUSIVE_AD_LOGIN: true },
+        config: { FEATURE_FLAG_ENABLE_INTRUSIVE_AD_LOGIN: true, SSO_SILENT_DELAY_MS: 0 },
       };
 
       const result = await getAdUserAccount(props);
@@ -151,7 +151,7 @@ describe("get-ad-user-account", () => {
 
       const props = {
         instance: mockInstance,
-        config: { FEATURE_FLAG_ENABLE_INTRUSIVE_AD_LOGIN: true },
+        config: { FEATURE_FLAG_ENABLE_INTRUSIVE_AD_LOGIN: true, SSO_SILENT_DELAY_MS: 0 },
       };
 
       await expect(getAdUserAccount(props)).rejects.toThrow(error);
@@ -167,7 +167,7 @@ describe("get-ad-user-account", () => {
 
       const props = {
         instance: mockInstance,
-        config: { FEATURE_FLAG_ENABLE_INTRUSIVE_AD_LOGIN: true },
+        config: { FEATURE_FLAG_ENABLE_INTRUSIVE_AD_LOGIN: true, SSO_SILENT_DELAY_MS: 0 },
       };
 
       const result = await getAdUserAccount(props);
@@ -186,7 +186,7 @@ describe("get-ad-user-account", () => {
 
       const props = {
         instance: mockInstance,
-        config: { FEATURE_FLAG_ENABLE_INTRUSIVE_AD_LOGIN: undefined },
+        config: { FEATURE_FLAG_ENABLE_INTRUSIVE_AD_LOGIN: undefined, SSO_SILENT_DELAY_MS: 0 },
       };
 
       await expect(getAdUserAccount(props)).rejects.toThrow(multipleIdentitiesError);
@@ -203,7 +203,7 @@ describe("get-ad-user-account", () => {
 
       const props = {
         instance: mockInstance,
-        config: { FEATURE_FLAG_ENABLE_INTRUSIVE_AD_LOGIN: true },
+        config: { FEATURE_FLAG_ENABLE_INTRUSIVE_AD_LOGIN: true, SSO_SILENT_DELAY_MS: 0 },
       };
 
       await expect(getAdUserAccount(props)).rejects.toThrow(popupError);
@@ -218,7 +218,7 @@ describe("get-ad-user-account", () => {
 
       const props = {
         instance: mockInstance,
-        config: { FEATURE_FLAG_ENABLE_INTRUSIVE_AD_LOGIN: true },
+        config: { FEATURE_FLAG_ENABLE_INTRUSIVE_AD_LOGIN: true, SSO_SILENT_DELAY_MS: 0 },
       };
 
       await getAdUserAccount(props);
@@ -238,7 +238,7 @@ describe("get-ad-user-account", () => {
 
       const props = {
         instance: mockInstance,
-        config: { FEATURE_FLAG_ENABLE_INTRUSIVE_AD_LOGIN: true },
+        config: { FEATURE_FLAG_ENABLE_INTRUSIVE_AD_LOGIN: true, SSO_SILENT_DELAY_MS: 0 },
       };
 
       const result = await getAdUserAccount(props);
