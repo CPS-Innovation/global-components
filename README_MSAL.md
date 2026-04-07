@@ -71,9 +71,13 @@ Why not `getActiveAccount()` first? It returns an account as long as the account
 - If expired, uses the refresh token to POST to `/token` — gets new access token + new refresh token (~200ms, no iframe)
 - If the refresh token is also expired — **fails cleanly without falling back to iframe**
 
-The refresh token is rejuvenated on each use, so it stays valid as long as the user visits within ~24 hours. The `getTokenFactory` (used for API calls) also calls `acquireTokenSilent` on every request, proactively refreshing tokens before they expire.
+On a cache hit, a **background refresh** is fired (fire-and-forget) using `CacheLookupPolicy.RefreshToken`. This skips the cache and goes straight to the `/token` endpoint with the refresh token. This keeps the refresh token alive even on pages that don't make API calls. The background refresh also never falls back to iframe — if the refresh token is expired, it fails silently.
 
-**Impact**: Eliminates the iframe for all returning users within the refresh token lifetime. Only truly cold starts (first visit ever, or after >24h absence) fall through to `ssoSilent`.
+The refresh token is rejuvenated on each use (~24h lifetime for SPAs), so it stays valid as long as the user visits within 24 hours. The background refresh on every page load means that even pages with no API calls keep the token chain alive.
+
+The `getTokenFactory` (used for API calls) also calls `acquireTokenSilent` (with `Default` policy) which includes proactive refresh with a 5-minute expiry buffer.
+
+**Impact**: Eliminates the iframe for all returning users within the refresh token lifetime. The background refresh ensures tokens stay alive across all page visits, not just those that make API calls. Only truly cold starts (first visit ever, or after >24h absence) fall through to `ssoSilent`.
 
 ### 2. Configurable delay before `ssoSilent`
 
