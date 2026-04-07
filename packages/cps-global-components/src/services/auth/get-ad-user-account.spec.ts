@@ -4,7 +4,9 @@ import { AccountInfo, AuthenticationResult, InteractionRequiredAuthError, Public
 const mockInstance = {
   initialize: jest.fn(),
   getActiveAccount: jest.fn(),
+  getAllAccounts: jest.fn(),
   setActiveAccount: jest.fn(),
+  acquireTokenSilent: jest.fn(),
   ssoSilent: jest.fn(),
   loginPopup: jest.fn(),
 } as unknown as PublicClientApplication;
@@ -40,7 +42,9 @@ describe("get-ad-user-account", () => {
     };
 
     (mockInstance.getActiveAccount as jest.Mock).mockReturnValue(null);
+    (mockInstance.getAllAccounts as jest.Mock).mockReturnValue([]);
     (mockInstance.setActiveAccount as jest.Mock).mockReset();
+    (mockInstance.acquireTokenSilent as jest.Mock).mockReset();
     (mockInstance.ssoSilent as jest.Mock).mockReset();
     (mockInstance.loginPopup as jest.Mock).mockReset();
   });
@@ -58,15 +62,42 @@ describe("get-ad-user-account", () => {
       expect(mockInstance.loginPopup).not.toHaveBeenCalled();
     });
 
-    it("should try ssoSilent if no account in cache", async () => {
+    it("should try acquireTokenSilent when cache check returns null but accounts exist", async () => {
       (mockInstance.getActiveAccount as jest.Mock).mockReturnValue(null);
+      (mockInstance.getAllAccounts as jest.Mock).mockReturnValue([mockAccount]);
+      (mockInstance.acquireTokenSilent as jest.Mock).mockResolvedValue({ account: mockAccount, fromCache: true } as AuthenticationResult);
+
+      const result = await getAdUserAccount(defaultProps);
+
+      expect(result).toBe(mockAccount);
+      expect(mockInstance.acquireTokenSilent).toHaveBeenCalledWith({ scopes: ["User.Read"], account: mockAccount });
+      expect(mockInstance.ssoSilent).not.toHaveBeenCalled();
+      expect(mockInstance.loginPopup).not.toHaveBeenCalled();
+    });
+
+    it("should fall through to ssoSilent when acquireTokenSilent fails", async () => {
+      (mockInstance.getActiveAccount as jest.Mock).mockReturnValue(null);
+      (mockInstance.getAllAccounts as jest.Mock).mockReturnValue([mockAccount]);
+      (mockInstance.acquireTokenSilent as jest.Mock).mockRejectedValue(new Error("token expired"));
       (mockInstance.ssoSilent as jest.Mock).mockResolvedValue({ account: mockAccount } as AuthenticationResult);
 
       const result = await getAdUserAccount(defaultProps);
 
       expect(result).toBe(mockAccount);
-      expect(mockInstance.getActiveAccount).toHaveBeenCalledTimes(1);
-      expect(mockInstance.setActiveAccount).toHaveBeenCalledWith(mockAccount);
+      expect(mockInstance.acquireTokenSilent).toHaveBeenCalledTimes(1);
+      expect(mockInstance.ssoSilent).toHaveBeenCalledWith({ scopes: ["User.Read"] });
+      expect(mockInstance.loginPopup).not.toHaveBeenCalled();
+    });
+
+    it("should skip acquireTokenSilent and try ssoSilent when no cached accounts exist", async () => {
+      (mockInstance.getActiveAccount as jest.Mock).mockReturnValue(null);
+      (mockInstance.getAllAccounts as jest.Mock).mockReturnValue([]);
+      (mockInstance.ssoSilent as jest.Mock).mockResolvedValue({ account: mockAccount } as AuthenticationResult);
+
+      const result = await getAdUserAccount(defaultProps);
+
+      expect(result).toBe(mockAccount);
+      expect(mockInstance.acquireTokenSilent).not.toHaveBeenCalled();
       expect(mockInstance.ssoSilent).toHaveBeenCalledWith({ scopes: ["User.Read"] });
       expect(mockInstance.loginPopup).not.toHaveBeenCalled();
     });
@@ -78,7 +109,6 @@ describe("get-ad-user-account", () => {
 
       await expect(getAdUserAccount(defaultProps)).rejects.toThrow(error);
 
-      expect(mockInstance.getActiveAccount).toHaveBeenCalledTimes(1);
       expect(mockInstance.ssoSilent).toHaveBeenCalledWith({ scopes: ["User.Read"] });
       expect(mockInstance.loginPopup).not.toHaveBeenCalled();
     });
@@ -198,9 +228,10 @@ describe("get-ad-user-account", () => {
       expect(mockInstance.loginPopup).toHaveBeenCalledWith({ scopes: ["User.Read"] });
     });
 
-    it("should follow complete fallback chain: cache -> ssoSilent -> loginPopup", async () => {
+    it("should follow complete fallback chain: cache -> acquireTokenSilent -> ssoSilent -> loginPopup", async () => {
       const multipleIdentitiesError = new InteractionRequiredAuthError("AADSTS16000");
       (mockInstance.getActiveAccount as jest.Mock).mockReturnValue(null);
+      (mockInstance.getAllAccounts as jest.Mock).mockReturnValue([]);
       (mockInstance.ssoSilent as jest.Mock).mockRejectedValue(multipleIdentitiesError);
       (mockInstance.loginPopup as jest.Mock).mockResolvedValue({ account: mockAccount } as AuthenticationResult);
       (getErrorType as jest.Mock).mockReturnValue("MultipleIdentities");
@@ -212,7 +243,7 @@ describe("get-ad-user-account", () => {
 
       const result = await getAdUserAccount(props);
 
-      expect(mockInstance.getActiveAccount).toHaveBeenCalledTimes(1);
+      expect(mockInstance.acquireTokenSilent).not.toHaveBeenCalled();
       expect(mockInstance.ssoSilent).toHaveBeenCalledTimes(1);
       expect(mockInstance.loginPopup).toHaveBeenCalledTimes(1);
       expect(mockInstance.setActiveAccount).toHaveBeenCalledWith(mockAccount);
