@@ -1,4 +1,4 @@
-import { AccountInfo, PublicClientApplication } from "@azure/msal-browser";
+import { AccountInfo, CacheLookupPolicy, PublicClientApplication } from "@azure/msal-browser";
 import { makeConsole } from "../../logging/makeConsole";
 import { getErrorType } from "./get-error-type";
 import { withLogging } from "../../logging/with-logging";
@@ -10,7 +10,7 @@ type Props = {
   diagnosticsCollector?: AdDiagnosticsCollector;
 };
 
-type AccountSource = "cache" | "acquireTokenSilent" | "silent" | "popup" | "failed";
+type AccountSource = "acquireTokenSilent" | "silent" | "popup" | "failed";
 
 type AccountRetrievalResult = Promise<{ source: AccountSource; account: AccountInfo } | null>;
 
@@ -37,23 +37,13 @@ const waitForPageStability = async (ssoSilentDelayMs: number, diagnosticsCollect
 const internalGetAdUserAccount = async ({ instance, config: { FEATURE_FLAG_ENABLE_INTRUSIVE_AD_LOGIN, SSO_SILENT_DELAY_MS }, diagnosticsCollector }: Props) => {
   const t0 = performance.now();
 
-  const tryGetAccountFromCache = async (): AccountRetrievalResult => {
-    const tCache = performance.now();
-    const account = instance.getActiveAccount();
-    diagnosticsCollector?.add({
-      cacheCheckStartMs: Math.round(tCache),
-      cacheCheckDurationMs: Math.round(performance.now() - tCache),
-    });
-    return account ? { source: "cache", account } : null;
-  };
-
   const tryAcquireTokenSilently = async (): AccountRetrievalResult => {
     const account = instance.getActiveAccount() || instance.getAllAccounts()[0];
     if (!account) return null;
 
     const tAcquire = performance.now();
     try {
-      const result = await instance.acquireTokenSilent({ ...loginRequest, account });
+      const result = await instance.acquireTokenSilent({ ...loginRequest, account, cacheLookupPolicy: CacheLookupPolicy.AccessTokenAndRefreshToken });
       diagnosticsCollector?.add({
         acquireTokenSilentStartMs: Math.round(tAcquire),
         acquireTokenSilentDurationMs: Math.round(performance.now() - tAcquire),
@@ -70,7 +60,7 @@ const internalGetAdUserAccount = async ({ instance, config: { FEATURE_FLAG_ENABL
     }
   };
 
-  const tryGetAccountSilently = async (): AccountRetrievalResult => {
+  const tryLoginAccountSilently = async (): AccountRetrievalResult => {
     await waitForPageStability(SSO_SILENT_DELAY_MS ?? DEFAULT_SSO_SILENT_DELAY_MS, diagnosticsCollector);
     const tSilent = performance.now();
     let pageHiddenDuringAuth = false;
@@ -118,13 +108,13 @@ const internalGetAdUserAccount = async ({ instance, config: { FEATURE_FLAG_ENABL
     }
   };
 
-  const tryGetAccountViaPopup = async (): AccountRetrievalResult => {
+  const tryLoginAccountViaPopup = async (): AccountRetrievalResult => {
     diagnosticsCollector?.add({ loginPopupStartMs: Math.round(performance.now()) });
     const { account } = await instance.loginPopup(loginRequest);
     return account ? { source: "popup", account } : null;
   };
 
-  const { account, source } = (await tryGetAccountFromCache()) || (await tryAcquireTokenSilently()) || (await tryGetAccountSilently()) || (await tryGetAccountViaPopup()) || { source: "failed" as AccountSource, account: null };
+  const { account, source } = (await tryAcquireTokenSilently()) || (await tryLoginAccountSilently()) || (await tryLoginAccountViaPopup()) || { source: "failed" as AccountSource, account: null };
   instance.setActiveAccount(account);
 
   diagnosticsCollector?.add({
