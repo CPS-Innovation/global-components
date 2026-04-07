@@ -165,3 +165,18 @@ files should also be kept in sync.
 - State management via `@stencil/store`
 - Config is validated with Zod schemas
 - GDS (GOV.UK Design System) CSS classes are used for styling (e.g. `govuk-body`, `govuk-notification-banner`)
+
+## MSAL / Auth — Guest Component Constraints
+
+This project is a **guest web component** that lives on host app pages we do not control. The host
+apps have their own MSAL instances (same Azure AD tenant, different client IDs) and their own
+redirect flows. This means standard MSAL guidance that assumes you own the page does not apply here.
+
+**Do NOT call `handleRedirectPromise()`.**  It picks up redirect state from the host app's MSAL
+flows (shared via sessionStorage), tries to process it with our client ID, and causes AADSTS50196
+redirect loops. This was deployed to test on 2026-04-02 and immediately broke auth for all users.
+See the commented-out code and explanation in `create-msal-instance.ts`.
+
+More broadly: any MSAL best-practice advice that assumes single-app-per-page ownership needs
+scrutiny before applying here. Shared browser state (localStorage, sessionStorage, cookies) is
+contested territory between our component and the host apps.
