@@ -50,19 +50,19 @@ describe("get-ad-user-account", () => {
   });
 
   describe("getAdUserAccount", () => {
-    it("should return account from cache if available", async () => {
+    it("should return account via acquireTokenSilent when active account exists", async () => {
       (mockInstance.getActiveAccount as jest.Mock).mockReturnValue(mockAccount);
+      (mockInstance.acquireTokenSilent as jest.Mock).mockResolvedValue({ account: mockAccount, fromCache: true } as AuthenticationResult);
 
       const result = await getAdUserAccount(defaultProps);
 
       expect(result).toBe(mockAccount);
-      expect(mockInstance.getActiveAccount).toHaveBeenCalledTimes(1);
-      expect(mockInstance.setActiveAccount).toHaveBeenCalledWith(mockAccount);
+      expect(mockInstance.acquireTokenSilent).toHaveBeenCalledWith({ scopes: ["User.Read"], account: mockAccount, cacheLookupPolicy: 2 });
       expect(mockInstance.ssoSilent).not.toHaveBeenCalled();
       expect(mockInstance.loginPopup).not.toHaveBeenCalled();
     });
 
-    it("should try acquireTokenSilent when cache check returns null but accounts exist", async () => {
+    it("should try acquireTokenSilent when getActiveAccount returns null but getAllAccounts has accounts", async () => {
       (mockInstance.getActiveAccount as jest.Mock).mockReturnValue(null);
       (mockInstance.getAllAccounts as jest.Mock).mockReturnValue([mockAccount]);
       (mockInstance.acquireTokenSilent as jest.Mock).mockResolvedValue({ account: mockAccount, fromCache: true } as AuthenticationResult);
@@ -70,7 +70,7 @@ describe("get-ad-user-account", () => {
       const result = await getAdUserAccount(defaultProps);
 
       expect(result).toBe(mockAccount);
-      expect(mockInstance.acquireTokenSilent).toHaveBeenCalledWith({ scopes: ["User.Read"], account: mockAccount });
+      expect(mockInstance.acquireTokenSilent).toHaveBeenCalledWith({ scopes: ["User.Read"], account: mockAccount, cacheLookupPolicy: 2 });
       expect(mockInstance.ssoSilent).not.toHaveBeenCalled();
       expect(mockInstance.loginPopup).not.toHaveBeenCalled();
     });

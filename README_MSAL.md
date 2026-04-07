@@ -56,30 +56,35 @@ Initial hypothesis was that browser cookie blocking prevented the iframe from co
 
 **File**: `get-ad-user-account.ts`
 
-Added `acquireTokenSilent` as a step between the cache check and `ssoSilent`:
+`acquireTokenSilent` is now the **primary** auth method, replacing the previous `getActiveAccount()` bare cache check:
 
 ```
-getActiveAccount()       -> instant cache check, no network
-acquireTokenSilent()     -> uses refresh token, POST to /token, no iframe
-ssoSilent()              -> iframe to /authorize (only if above both fail)
+acquireTokenSilent()     -> cache + refresh token (no iframe, validates tokens are viable)
+ssoSilent()              -> iframe to /authorize (only if above fails, with configurable delay)
 loginPopup()             -> user interaction (feature-flagged off in prod)
 ```
 
-`acquireTokenSilent` uses cached tokens or refresh tokens — no iframe, no `/authorize` request, no loop detection strike. The refresh token is rejuvenated on each use, so it stays valid as long as the user visits within ~24 hours.
+Why not `getActiveAccount()` first? It returns an account as long as the account entity exists in localStorage, regardless of whether the tokens are still valid. After a weekend (64h), it would return a stale account — the user appears "authed" but API calls fail because the refresh token is dead. `acquireTokenSilent` actually validates the tokens.
 
-**Impact**: Eliminates the iframe for all returning users within the refresh token lifetime. Only truly cold starts (first visit ever, or after >24h absence) need `ssoSilent`.
+`acquireTokenSilent` is called with `CacheLookupPolicy.AccessTokenAndRefreshToken` which:
+- Checks localStorage for a valid access token (with 5-minute expiry buffer) — if found, returns instantly (~7ms)
+- If expired, uses the refresh token to POST to `/token` — gets new access token + new refresh token (~200ms, no iframe)
+- If the refresh token is also expired — **fails cleanly without falling back to iframe**
+
+The refresh token is rejuvenated on each use, so it stays valid as long as the user visits within ~24 hours. The `getTokenFactory` (used for API calls) also calls `acquireTokenSilent` on every request, proactively refreshing tokens before they expire.
+
+**Impact**: Eliminates the iframe for all returning users within the refresh token lifetime. Only truly cold starts (first visit ever, or after >24h absence) fall through to `ssoSilent`.
 
 ### 2. Configurable delay before `ssoSilent`
 
-**File**: `get-ad-user-account.ts`  
+**File**: `get-ad-user-account.ts`
 **Config**: `SSO_SILENT_DELAY_MS` (default: 0, set to 2000 in all environments)
 
-When the cache and refresh token both fail (true cold start), the code waits until `performance.now()` exceeds `SSO_SILENT_DELAY_MS` before attempting `ssoSilent`. This gives redirecting pages time to navigate away before the iframe fires.
+When `acquireTokenSilent` fails (no cached account, or refresh token expired), the code waits until `performance.now()` exceeds `SSO_SILENT_DELAY_MS` before attempting `ssoSilent`. This gives redirecting pages time to navigate away before the iframe fires.
 
 ```
 Page loads at 0ms
   Host app bootstraps, our component loads...
-  getActiveAccount() at ~500ms -> miss
   acquireTokenSilent() at ~500ms -> no cached accounts, skip
   waitForPageStability() -> 1500ms remaining until 2000ms threshold
   ... if page redirects at 800ms, ssoSilent never fires ...
