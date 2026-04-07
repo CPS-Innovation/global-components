@@ -6,7 +6,7 @@ import type { AdDiagnosticsCollector } from "./ad-diagnostics-collector";
 
 type Props = {
   instance: PublicClientApplication;
-  config: { FEATURE_FLAG_ENABLE_INTRUSIVE_AD_LOGIN: boolean | undefined };
+  config: { FEATURE_FLAG_ENABLE_INTRUSIVE_AD_LOGIN: boolean | undefined; SSO_SILENT_DELAY_MS: number | undefined };
   diagnosticsCollector?: AdDiagnosticsCollector;
 };
 
@@ -18,7 +18,23 @@ const loginRequest = { scopes: ["User.Read"] };
 
 const { _debug } = makeConsole("getAdUserAccount");
 
-const internalGetAdUserAccount = async ({ instance, config: { FEATURE_FLAG_ENABLE_INTRUSIVE_AD_LOGIN }, diagnosticsCollector }: Props) => {
+const DEFAULT_SSO_SILENT_DELAY_MS = 0;
+
+const waitForPageStability = async (ssoSilentDelayMs: number, diagnosticsCollector?: AdDiagnosticsCollector) => {
+  const elapsed = Math.round(performance.now());
+  const remainingDelay = Math.max(0, ssoSilentDelayMs - elapsed);
+  diagnosticsCollector?.add({
+    ssoSilentDelayConfigMs: ssoSilentDelayMs,
+    ssoSilentDelayElapsedAtCheckMs: elapsed,
+    ssoSilentDelayActualWaitMs: remainingDelay,
+  });
+  if (remainingDelay > 0) {
+    _debug(`Waiting ${remainingDelay}ms before ssoSilent (${elapsed}ms elapsed since page load, threshold ${ssoSilentDelayMs}ms)`);
+    await new Promise((resolve) => setTimeout(resolve, remainingDelay));
+  }
+};
+
+const internalGetAdUserAccount = async ({ instance, config: { FEATURE_FLAG_ENABLE_INTRUSIVE_AD_LOGIN, SSO_SILENT_DELAY_MS }, diagnosticsCollector }: Props) => {
   const t0 = performance.now();
 
   const tryGetAccountFromCache = async (): AccountRetrievalResult => {
@@ -55,6 +71,7 @@ const internalGetAdUserAccount = async ({ instance, config: { FEATURE_FLAG_ENABL
   };
 
   const tryGetAccountSilently = async (): AccountRetrievalResult => {
+    await waitForPageStability(SSO_SILENT_DELAY_MS ?? DEFAULT_SSO_SILENT_DELAY_MS, diagnosticsCollector);
     const tSilent = performance.now();
     let pageHiddenDuringAuth = false;
     let beforeUnloadFired = false;
