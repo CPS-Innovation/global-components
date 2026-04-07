@@ -49,6 +49,13 @@ const internalGetAdUserAccount = async ({ instance, config: { FEATURE_FLAG_ENABL
         acquireTokenSilentDurationMs: Math.round(performance.now() - tAcquire),
         acquireTokenSilentFromCache: result.fromCache,
       });
+
+      // If we got a cache hit, proactively refresh in the background to keep the refresh token alive.
+      // This is fire-and-forget — we already have valid tokens to return.
+      if (result.fromCache) {
+        instance.acquireTokenSilent({ ...loginRequest, account, cacheLookupPolicy: CacheLookupPolicy.RefreshToken }).catch(() => {});
+      }
+
       return result.account ? { source: "acquireTokenSilent", account: result.account } : null;
     } catch {
       diagnosticsCollector?.add({
