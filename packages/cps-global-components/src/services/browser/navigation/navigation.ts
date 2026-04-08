@@ -32,3 +32,8 @@ export const onNavigation = (handler: () => void, win: Window & typeof globalThi
     handler();
   });
 };
+
+export const runNowAndOnNavigation = (handler: () => void, win: Window & typeof globalThis = window) => {
+  handler();
+  onNavigation(handler, win);
+};

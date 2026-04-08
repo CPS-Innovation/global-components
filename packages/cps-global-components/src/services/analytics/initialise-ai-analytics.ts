@@ -10,13 +10,11 @@ import { AuthResult, KnownErrorType } from "../auth/AuthResult";
 import { capitalizeKeys } from "../../utils/capitalize-keys";
 import { Result } from "../../utils/Result";
 import { AuthHint } from "../state/auth-hint/initialise-auth-hint";
-import { Getter } from "@stencil/store/dist/types";
-import { StoredState } from "../../store/store";
 import type { AdDiagnosticsCollector } from "../auth/ad-diagnostics-collector";
 
 const STORAGE_PREFIX = "cps_global_components";
 
-type Props = { window: Window; config: Config; build: Build; authHint?: Result<AuthHint>; get: Getter<StoredState>; diagnosticsCollector?: AdDiagnosticsCollector };
+type Props = { window: Window; config: Config; build: Build; authHint?: Result<AuthHint>; diagnosticsCollector?: AdDiagnosticsCollector };
 
 type AuthAnalyticsProps =
   | undefined
@@ -32,7 +30,6 @@ export const initialiseAiAnalytics = ({
   config: { APP_INSIGHTS_CONNECTION_STRING, ENVIRONMENT, COLLECT_AD_DIAGNOSTICS_IN_PAGE_VIEW },
   build,
   authHint,
-  get,
   diagnosticsCollector,
 }: Props) => {
   if (!APP_INSIGHTS_CONNECTION_STRING) {
@@ -42,6 +39,7 @@ export const initialiseAiAnalytics = ({
       trackEvent: (_: AnalyticsEventData) => {},
       registerAuthWithAnalytics: (_: AuthResult) => {},
       registerCorrelationIdsWithAnalytics: (_: CorrelationIds) => {},
+      registerCaseIdentifiersWithAnalytics: (_: string | undefined) => {},
     };
   }
 
@@ -135,6 +133,11 @@ export const initialiseAiAnalytics = ({
 
   const getDiagnostics = () => diagnosticsCollector?.get() ?? {};
 
+  let currentCaseId: string | undefined;
+  const registerCaseIdentifiersWithAnalytics = (caseId: string | undefined) => {
+    currentCaseId = caseId;
+  };
+
   const trackPageView = ({ context: { found, contextIds, preventPageViewAnalytics } }: { context: FoundContext }) => {
     if (preventPageViewAnalytics) {
       return;
@@ -142,7 +145,7 @@ export const initialiseAiAnalytics = ({
 
     (async () => {
       await authReady;
-      const caseId = get("caseIdentifiers")?.caseId;
+      const caseId = currentCaseId;
       const authDiagnostics = COLLECT_AD_DIAGNOSTICS_IN_PAGE_VIEW ? getDiagnostics() : undefined;
       const arg = {
         properties: capitalizeKeys({
@@ -183,5 +186,5 @@ export const initialiseAiAnalytics = ({
     appInsights.trackEvent({ name: ev.type, properties: { ...ev.detail, correlationIds: correlationIdValues } });
   });
 
-  return { trackPageView, trackException, trackEvent, registerAuthWithAnalytics, registerCorrelationIdsWithAnalytics };
+  return { trackPageView, trackException, trackEvent, registerAuthWithAnalytics, registerCorrelationIdsWithAnalytics, registerCaseIdentifiersWithAnalytics };
 };

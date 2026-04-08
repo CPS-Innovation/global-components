@@ -26,7 +26,7 @@ import { initialiseAuthHint } from "./services/state/auth-hint/initialise-auth-h
 import { createAdDiagnosticsCollector } from "./services/auth/ad-diagnostics-collector";
 import { initialiseTabTitle } from "./services/browser/tab-title/initialise-tab-title";
 import { initialiseBuild } from "./services/build/initialise-build";
-import { onNavigation } from "./services/browser/navigation/navigation";
+import { runNowAndOnNavigation } from "./services/browser/navigation/navigation";
 
 const { _error } = makeConsole("global-script");
 
@@ -42,24 +42,101 @@ export default () => {
 };
 
 const initialise = async (window: Window & typeof globalThis) => {
-  let storeFns: ReturnType<typeof initialiseStore>;
+  const { register, mergeTags, subscribe, resetContextSpecificTags, caseIdentifiersWaiter } = initialiseStore();
   let trackException: (exception: Error) => void = () => {};
 
   const handleError = (err: Error) => {
     trackException(err);
     _error(err);
-    storeFns.register({ fatalInitialisationError: err, initialisationStatus: "broken" });
+    register({ fatalInitialisationError: err, initialisationStatus: "broken" });
   };
 
   try {
-    storeFns = initialiseStore();
-    const startupServices = await startupPhase({ window, storeFns });
-    trackException = startupServices.trackException;
-    contextChangePhase({ window, storeFns, ...startupServices });
+    const build = initialiseBuild({ window, register });
+    const rootUrl = initialiseRootUrl({ register });
+    initialiseNavigateCms({ window, rootUrl });
 
-    onNavigation(() => {
+    const flags = initialiseApplicationFlags({ window, rootUrl, register });
+    initialiseOutSystemsReconcileAuth({ window, flags });
+
+    const [{ handover, setNextHandover }, preview, settings, { authHint, setAuthHint }] = await Promise.all([
+      initialiseHandover({ rootUrl, register }),
+      initialisePreview({ rootUrl, register }),
+      initialiseSettings({ rootUrl }),
+      initialiseAuthHint({ rootUrl, register }),
+      initialiseCmsSessionHint({ rootUrl, flags, register }),
+    ]);
+
+    const { initialiseDomForContext } = initialiseDomObservation(
+      { window, register, mergeTags, preview, settings },
+      domTagMutationSubscriber,
+      footerSubscriber,
+      hostAppEventSubscriber,
+      accessibilitySubscriber,
+      ...outSystemsShimSubscribers,
+    );
+
+    initialiseTabTitle({ window, preview, subscribe });
+
+    const config = await initialiseConfig({ rootUrl, flags, preview, register });
+    const { setNextRecentCases } = initialiseRecentCases({ rootUrl, config, register });
+
+    const diagnosticsCollector = createAdDiagnosticsCollector();
+
+    const {
+      trackPageView,
+      trackEvent,
+      trackException: _trackException,
+      registerAuthWithAnalytics,
+      registerCorrelationIdsWithAnalytics,
+      registerCaseIdentifiersWithAnalytics,
+    } = initialiseAnalytics({
+      window,
+      config,
+      build,
+      flags,
+      authHint,
+      diagnosticsCollector,
+    });
+    trackException = _trackException;
+
+    const { initialiseAuthForContext } = initialiseAuth({ config, flags, onError: trackException, diagnosticsCollector, register, registerAuthWithAnalytics, setAuthHint });
+    const { initialiseCaseDetailsDataForContext, initialiseCaseDetailsDataForContextOptimistic } = initialiseCaseDetailsData({
+      config,
+      handover,
+      setNextHandover,
+      setNextRecentCases,
+      trackEvent,
+      register,
+      mergeTags,
+    });
+    const { initialiseCorrelationIdsForContext } = initialiseCorrelationIds({ register, registerCorrelationIdsWithAnalytics });
+    const { initialiseContextForContext } = initialiseContext({ window, config, register, resetContextSpecificTags });
+    const { initialiseOutSystemsShowAlertForContext } = initialiseOutSystemsShowAlert({ config, authHint, preview });
+
+    runNowAndOnNavigation(() => {
       try {
-        contextChangePhase({ window, storeFns, ...startupServices });
+        const correlationIds = initialiseCorrelationIdsForContext();
+        caseIdentifiersWaiter.reset();
+
+        const context = initialiseContextForContext();
+        initialiseDomForContext({ context });
+        trackPageView({ context });
+
+        register({ initialisationStatus: "complete" });
+
+        const authPromise = initialiseAuthForContext(context);
+        authPromise.then(({ auth }) => initialiseOutSystemsShowAlertForContext({ context, auth }));
+
+        const caseIdentifiersPromise = caseIdentifiersWaiter.waitForChange();
+        caseIdentifiersPromise.then(caseIdentifiers => {
+          registerCaseIdentifiersWithAnalytics(caseIdentifiers?.caseId);
+          initialiseCaseDetailsDataForContextOptimistic(caseIdentifiers);
+        });
+
+        Promise.all([authPromise, caseIdentifiersPromise]).then(([{ getToken }, caseIdentifiers]) => {
+          initialiseCaseDetailsDataForContext({ context, caseIdentifiers, getToken, correlationIds });
+        });
       } catch (err) {
         handleError(err);
       }
@@ -67,126 +144,4 @@ const initialise = async (window: Window & typeof globalThis) => {
   } catch (err) {
     handleError(err);
   }
-};
-
-const startupPhase = async ({
-  window,
-  storeFns: { register, mergeTags, get, subscribe, readyState, resetContextSpecificTags },
-}: {
-  window: Window & typeof globalThis;
-  storeFns: ReturnType<typeof initialiseStore>;
-}) => {
-  const build = initialiseBuild({ window, register });
-  const rootUrl = initialiseRootUrl({ register });
-  initialiseNavigateCms({ window, rootUrl });
-  const flags = initialiseApplicationFlags({ window, rootUrl, register });
-  initialiseOutSystemsReconcileAuth({ flags, window });
-
-  const [{ setNextHandover }, preview, settings, { authHint, setAuthHint }] = await Promise.all([
-    initialiseHandover({ rootUrl, register }),
-    initialisePreview({ rootUrl, register }),
-    initialiseSettings({ rootUrl }),
-    initialiseAuthHint({ rootUrl, register }),
-    initialiseCmsSessionHint({ rootUrl, flags, register }),
-  ]);
-
-  const { initialiseDomForContext } = initialiseDomObservation(
-    { window, register, mergeTags, preview, settings },
-    domTagMutationSubscriber,
-    footerSubscriber,
-    hostAppEventSubscriber,
-    accessibilitySubscriber,
-    ...outSystemsShimSubscribers,
-  );
-
-  initialiseTabTitle({ window, preview, subscribe });
-
-  const config = await initialiseConfig({ rootUrl, flags, preview, register });
-  const { setNextRecentCases } = initialiseRecentCases({ rootUrl, config, register });
-
-  const diagnosticsCollector = createAdDiagnosticsCollector();
-
-  const { trackPageView, trackEvent, trackException, registerAuthWithAnalytics, registerCorrelationIdsWithAnalytics } = initialiseAnalytics({
-    window,
-    config,
-    build,
-    flags,
-    authHint,
-    get,
-    diagnosticsCollector,
-  });
-
-  // Create the first context to obtain the redirect URI for the MSAL instance.
-  // This context is used only for MSAL setup — auth itself runs per-context in contextChangePhase.
-  const { initialiseAuthForContext } = initialiseAuth({
-    config,
-    flags,
-    onError: trackException,
-    diagnosticsCollector,
-    register,
-    registerAuthWithAnalytics,
-    setAuthHint,
-  });
-
-  return {
-    config,
-    initialiseDomForContext,
-    trackPageView,
-    trackException,
-    registerCorrelationIdsWithAnalytics,
-    initialiseAuthForContext,
-    resetContextSpecificTags,
-    authHint,
-    preview,
-    setNextHandover,
-    setNextRecentCases,
-    subscribe,
-    readyState,
-    trackEvent,
-  };
-};
-
-const contextChangePhase = ({
-  config,
-  initialiseDomForContext,
-  trackPageView,
-  registerCorrelationIdsWithAnalytics,
-  initialiseAuthForContext,
-  storeFns: { register, resetContextSpecificTags },
-  window,
-  authHint,
-  preview,
-  setNextHandover,
-  setNextRecentCases,
-  subscribe,
-  readyState,
-  trackEvent,
-}: Awaited<ReturnType<typeof startupPhase>> & { storeFns: ReturnType<typeof initialiseStore>; window: Window & typeof globalThis }) => {
-  initialiseCorrelationIds({ register, registerCorrelationIdsWithAnalytics });
-  const context = initialiseContext({ window, config, register, resetContextSpecificTags });
-  initialiseDomForContext({ context });
-
-  trackPageView({ context });
-
-  // Auth is non-blocking — fire and forget. The concurrency guard inside
-  // initialiseAuthForContext handles rapid SPA navigation.
-  (async () => {
-    const { auth, getToken } = await initialiseAuthForContext(context);
-    initialiseOutSystemsShowAlert({ context, config, auth, authHint, preview });
-    // TODO: initialiseCaseDetailsData is called on every context change. The subscription
-    // factory inside it may set up duplicate subscriptions. Needs rethinking.
-    initialiseCaseDetailsData({
-      config,
-      context,
-      subscribe,
-      setNextHandover,
-      setNextRecentCases,
-      getToken,
-      readyState,
-      trackEvent,
-      preventDataCalls: context.preventADAndDataCalls,
-    });
-  })();
-
-  register({ initialisationStatus: "complete" });
 };

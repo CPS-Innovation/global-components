@@ -14,19 +14,22 @@ const clearCachedResultCache = () => {
 // Mock correlation IDs to return predictable values
 const mockInitialiseCorrelationIds = jest.fn();
 jest.mock("./services/correlation/initialise-correlation-ids", () => ({
-  initialiseCorrelationIds: ({ register, registerCorrelationIdsWithAnalytics }: any) => {
-    const result = mockInitialiseCorrelationIds();
-    register({ correlationIds: result });
-    registerCorrelationIdsWithAnalytics(result);
-    return result;
-  },
+  initialiseCorrelationIds: ({ register, registerCorrelationIdsWithAnalytics }: any) => ({
+    initialiseCorrelationIdsForContext: () => {
+      const result = mockInitialiseCorrelationIds();
+      register({ correlationIds: result });
+      registerCorrelationIdsWithAnalytics(result);
+      return result;
+    },
+  }),
 }));
 
-// Mock onNavigation - captures the handler so tests can trigger navigation
+// Mock runNowAndOnNavigation - runs handler immediately and captures it for future navigation triggers
 let capturedNavigationHandler: (() => void) | null = null;
 jest.mock("./services/browser/navigation/navigation", () => ({
-  onNavigation: (handler: () => void) => {
+  runNowAndOnNavigation: (handler: () => void) => {
     capturedNavigationHandler = handler;
+    handler(); // Run immediately (first context change)
   },
 }));
 
@@ -71,12 +74,14 @@ jest.mock("./services/config/initialise-config", () => ({
 
 const mockInitialiseContext = jest.fn();
 jest.mock("./services/context/initialise-context", () => ({
-  initialiseContext: ({ register, registerAs = "context", resetContextSpecificTags, ...rest }: any) => {
-    const result = mockInitialiseContext(rest);
-    resetContextSpecificTags?.(result);
-    register({ [registerAs]: result });
-    return result;
-  },
+  initialiseContext: ({ register, resetContextSpecificTags }: any) => ({
+    initialiseContextForContext: () => {
+      const result = mockInitialiseContext();
+      resetContextSpecificTags?.(result);
+      register({ context: result });
+      return result;
+    },
+  }),
 }));
 
 const mockGetApplicationFlags = jest.fn();
@@ -114,9 +119,13 @@ jest.mock("./services/browser/tab-title/initialise-tab-title", () => ({
   initialiseTabTitle: jest.fn(),
 }));
 
-const mockInitialiseCaseDetailsData = jest.fn();
+const mockInitialiseCaseDetailsDataForContext = jest.fn();
+const mockInitialiseCaseDetailsDataForContextOptimistic = jest.fn();
 jest.mock("./services/data/initialise-case-details-data", () => ({
-  initialiseCaseDetailsData: mockInitialiseCaseDetailsData,
+  initialiseCaseDetailsData: () => ({
+    initialiseCaseDetailsDataForContext: mockInitialiseCaseDetailsDataForContext,
+    initialiseCaseDetailsDataForContextOptimistic: mockInitialiseCaseDetailsDataForContextOptimistic,
+  }),
 }));
 
 const mockInitialiseCmsSessionHint = jest.fn();
@@ -273,6 +282,7 @@ const setupDefaultMocks = () => {
     trackException: mockTrackException,
     registerAuthWithAnalytics: jest.fn(),
     registerCorrelationIdsWithAnalytics: mockRegisterCorrelationIds,
+    registerCaseIdentifiersWithAnalytics: jest.fn(),
   });
 
   mockInitialiseRootUrl.mockReturnValue("https://example.com/env/components/script.js");
@@ -659,29 +669,27 @@ describe("global-script", () => {
   });
 
   describe("data access initialization", () => {
-    it("should call initialiseCaseDetailsData with correct parameters", async () => {
-      const testConfig = {
-        CONTEXTS: [],
-        GATEWAY_URL: "https://gateway.example.com/",
-      };
-      mockInitialiseConfig.mockResolvedValue(testConfig);
+    it("should call optimistic and full case details methods when caseIdentifiers are available", async () => {
+      // Context needs a caseId in pathTags so caseIdentifiers gets set and the waiter resolves
+      mockInitialiseContext.mockReturnValue({
+        found: true,
+        contextDefinition: { name: "test-context" },
+        pathTags: { caseId: "123" },
+      });
 
       const globalScript = require("./global-script").default;
 
       globalScript();
 
-      await new Promise(resolve => setTimeout(resolve, 10));
+      await new Promise(resolve => setTimeout(resolve, 50));
 
-      expect(mockInitialiseCaseDetailsData).toHaveBeenCalledWith(
+      expect(mockInitialiseCaseDetailsDataForContextOptimistic).toHaveBeenCalledWith({ caseId: "123" });
+      expect(mockInitialiseCaseDetailsDataForContext).toHaveBeenCalledWith(
         expect.objectContaining({
-          config: testConfig,
           context: expect.any(Object),
-          subscribe: expect.any(Function),
-          setNextHandover: expect.any(Function),
-          setNextRecentCases: expect.any(Function),
+          caseIdentifiers: { caseId: "123" },
           getToken: expect.any(Function),
-          readyState: expect.any(Function),
-          trackEvent: expect.any(Function),
+          correlationIds: expect.any(Object),
         }),
       );
     });
@@ -983,7 +991,8 @@ describe("global-script", () => {
         trackEvent: jest.fn(),
         trackException: mockTrackException,
         registerAuthWithAnalytics: jest.fn(),
-        registerCorrelationIds: jest.fn(),
+        registerCorrelationIdsWithAnalytics: jest.fn(),
+        registerCaseIdentifiersWithAnalytics: jest.fn(),
       });
 
       const globalScript = require("./global-script").default;
@@ -1299,10 +1308,7 @@ describe("global-script", () => {
       globalScript();
       await new Promise(resolve => setTimeout(resolve, 10));
 
-      expect(mockInitialiseContext).toHaveBeenCalledWith({
-        window: mockWindow,
-        config: testConfig,
-      });
+      expect(mockInitialiseContext).toHaveBeenCalled();
     });
 
     it("should pass config, context and flags to initialiseAuth", async () => {
@@ -1365,7 +1371,6 @@ describe("global-script", () => {
           build: testBuild,
           flags: testFlags,
           authHint: expect.anything(),
-          get: expect.any(Function),
         }),
       );
       // Verify auth is NOT passed directly
@@ -1393,37 +1398,21 @@ describe("global-script", () => {
       });
     });
 
-    it("should pass all required dependencies to initialiseCaseDetailsData", async () => {
-      const testConfig = { CONTEXTS: [], GATEWAY_URL: "https://gateway.test.com/" };
-      const testHandover = { caseId: "case-789", source: "test" };
-      const mockSetNextHandover = jest.fn();
-      const mockSetNextRecentCases = jest.fn();
-      const testContext = {
+    it("should call case details methods when caseIdentifiers are available", async () => {
+      mockInitialiseContext.mockReturnValue({
         found: true,
         contextDefinition: { name: "test-context" },
-        pathTags: { caseId: "123" },
-      };
-
-      mockInitialiseConfig.mockResolvedValue(testConfig);
-      mockInitialiseHandover.mockResolvedValue({
-        handover: testHandover,
-        setNextHandover: mockSetNextHandover,
+        pathTags: { caseId: "456" },
       });
-      mockInitialiseRecentCases.mockReturnValue({
-        setNextRecentCases: mockSetNextRecentCases,
-      });
-      mockInitialiseContext.mockReturnValue(testContext);
 
       const globalScript = require("./global-script").default;
       globalScript();
-      await new Promise(resolve => setTimeout(resolve, 10));
+      await new Promise(resolve => setTimeout(resolve, 50));
 
-      expect(mockInitialiseCaseDetailsData).toHaveBeenCalledWith(
+      expect(mockInitialiseCaseDetailsDataForContextOptimistic).toHaveBeenCalledWith({ caseId: "456" });
+      expect(mockInitialiseCaseDetailsDataForContext).toHaveBeenCalledWith(
         expect.objectContaining({
-          config: testConfig,
-          context: testContext,
-          setNextHandover: mockSetNextHandover,
-          setNextRecentCases: mockSetNextRecentCases,
+          caseIdentifiers: { caseId: "456" },
         }),
       );
     });
@@ -1492,7 +1481,7 @@ describe("global-script", () => {
 
       mockInitialiseAnalytics.mockImplementation(() => {
         callOrder.push("analytics");
-        return { trackPageView: jest.fn(), trackEvent: jest.fn(), trackException: jest.fn(), registerAuthWithAnalytics: jest.fn(), registerCorrelationIdsWithAnalytics: jest.fn() };
+        return { trackPageView: jest.fn(), trackEvent: jest.fn(), trackException: jest.fn(), registerAuthWithAnalytics: jest.fn(), registerCorrelationIdsWithAnalytics: jest.fn(), registerCaseIdentifiersWithAnalytics: jest.fn() };
       });
 
       const globalScript = require("./global-script").default;
@@ -1560,7 +1549,7 @@ describe("global-script", () => {
       mockInitialiseAnalytics.mockImplementation(() => {
         // Analytics should be called BEFORE auth is resolved (auth is non-blocking)
         expect(authResolved).toBe(false);
-        return { trackPageView: jest.fn(), trackEvent: jest.fn(), trackException: jest.fn(), registerAuthWithAnalytics: jest.fn(), registerCorrelationIdsWithAnalytics: jest.fn() };
+        return { trackPageView: jest.fn(), trackEvent: jest.fn(), trackException: jest.fn(), registerAuthWithAnalytics: jest.fn(), registerCorrelationIdsWithAnalytics: jest.fn(), registerCaseIdentifiersWithAnalytics: jest.fn() };
       });
 
       const globalScript = require("./global-script").default;

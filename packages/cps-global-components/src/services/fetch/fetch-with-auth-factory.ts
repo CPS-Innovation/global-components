@@ -1,9 +1,8 @@
 import { Config } from "cps-global-configuration";
 import { makeConsole } from "../../logging/makeConsole";
-import { ReadyStateHelper } from "../../store/ready-state-factory";
 import { typedDeepMerge } from "../../utils/typed-deep-merge";
 import { GetToken } from "../auth/GetToken";
-import { emptyCorrelationIds } from "../correlation/CorrelationIds";
+import { CorrelationIds } from "../correlation/CorrelationIds";
 import { FoundContext } from "../context/FoundContext";
 import { fullyQualifyRequest } from "../../utils/fully-qualify-request";
 
@@ -13,15 +12,14 @@ export type FetchWithAuthProps = {
   config: Config;
   context: FoundContext;
   getToken: GetToken;
-  readyState: ReadyStateHelper;
+  correlationIds: CorrelationIds;
 };
 
 export const fetchWithAuthFactory =
-  ({ getToken, readyState, config: { AD_GATEWAY_SCOPE, GATEWAY_URL }, context: { cmsAuth } }: FetchWithAuthProps) =>
+  ({ getToken, correlationIds, config: { AD_GATEWAY_SCOPE, GATEWAY_URL }, context: { cmsAuth } }: FetchWithAuthProps) =>
   (realFetch: typeof fetch) =>
   async (...args: Parameters<typeof fetch>) => {
-    const state = readyState("correlationIds");
-    const { navigationCorrelationId } = state.isReady ? state.state.correlationIds : emptyCorrelationIds;
+    const { navigationCorrelationId } = correlationIds;
 
     const baseRequestInit: RequestInit = {
       headers: {
