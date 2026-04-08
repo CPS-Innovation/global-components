@@ -9,7 +9,7 @@ const URN_SEPARATOR = " ";
 
 export const buildTitle = (baseTitle: string, urn: string | undefined): string => (urn ? (baseTitle ? urn + URN_SEPARATOR + baseTitle : urn) : baseTitle);
 
-export const initialiseTabTitle = ({ document, preview, subscribe }: { document: Document; preview: Result<Preview>; subscribe: Subscribe }) => {
+export const initialiseTabTitle = ({ window: { document }, preview, subscribe }: { window: { document: Document }; preview: Result<Preview>; subscribe: Subscribe }) => {
   const isEnabled = () => !!preview.result?.tabTitleUrn;
 
   let currentUrn: string | undefined;

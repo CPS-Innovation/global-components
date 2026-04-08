@@ -41,7 +41,7 @@ export const initialiseAiAnalytics = ({
       trackException: (_: Error) => {},
       trackEvent: (_: AnalyticsEventData) => {},
       registerAuthWithAnalytics: (_: AuthResult) => {},
-      registerCorrelationIds: (_: CorrelationIds) => {},
+      registerCorrelationIdsWithAnalytics: (_: CorrelationIds) => {},
     };
   }
 
@@ -113,7 +113,7 @@ export const initialiseAiAnalytics = ({
   appInsights.loadAppInsights();
 
   let correlationIdValues = {} as CorrelationIds | {};
-  const registerCorrelationIds = (ids: CorrelationIds) => {
+  const registerCorrelationIdsWithAnalytics = (ids: CorrelationIds) => {
     correlationIdValues = ids;
   };
 
@@ -135,7 +135,11 @@ export const initialiseAiAnalytics = ({
 
   const getDiagnostics = () => diagnosticsCollector?.get() ?? {};
 
-  const trackPageView = ({ context: { found, contextIds } }: { context: FoundContext }) => {
+  const trackPageView = ({ context: { found, contextIds, preventPageViewAnalytics } }: { context: FoundContext }) => {
+    if (preventPageViewAnalytics) {
+      return;
+    }
+
     (async () => {
       await authReady;
       const caseId = get("caseIdentifiers")?.caseId;
@@ -179,5 +183,5 @@ export const initialiseAiAnalytics = ({
     appInsights.trackEvent({ name: ev.type, properties: { ...ev.detail, correlationIds: correlationIdValues } });
   });
 
-  return { trackPageView, trackException, trackEvent, registerAuthWithAnalytics, registerCorrelationIds };
+  return { trackPageView, trackException, trackEvent, registerAuthWithAnalytics, registerCorrelationIdsWithAnalytics };
 };

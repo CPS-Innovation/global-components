@@ -31,7 +31,7 @@ describe("initialiseContext", () => {
     const contexts: Context[] = [];
     const mockWindow = createMockWindow("https://example.com/page");
 
-    const result = initialiseContext({ window: mockWindow, config: { CONTEXTS: contexts } });
+    const result = initialiseContext({ window: mockWindow, config: { CONTEXTS: contexts }, register: () => {} });
     expect(result).toEqual({
       found: false,
     });
@@ -49,7 +49,7 @@ describe("initialiseContext", () => {
     ];
     const mockWindow = createMockWindow("https://example.com/page");
 
-    const result = initialiseContext({ window: mockWindow, config: { CONTEXTS: contexts } });
+    const result = initialiseContext({ window: mockWindow, config: { CONTEXTS: contexts }, register: () => {} });
     expect(result).toEqual({
       contextIndex: 0,
       found: true,
@@ -80,7 +80,7 @@ describe("initialiseContext", () => {
     ];
     const mockWindow = createMockWindow("https://example.com/page3");
 
-    const result = initialiseContext({ window: mockWindow, config: { CONTEXTS: contexts } });
+    const result = initialiseContext({ window: mockWindow, config: { CONTEXTS: contexts }, register: () => {} });
     expect(result).toEqual({
       found: false,
     });
@@ -108,7 +108,7 @@ describe("initialiseContext", () => {
     ];
     const mockWindow = createMockWindow("https://example.com/with-dom-tags");
 
-    const result = initialiseContext({ window: mockWindow, config: { CONTEXTS: contexts } });
+    const result = initialiseContext({ window: mockWindow, config: { CONTEXTS: contexts }, register: () => {} });
     expect(result).toEqual({
       contextIndex: 0,
       found: true,
@@ -143,7 +143,7 @@ describe("initialiseContext", () => {
     ];
     const mockWindow = createMockWindow("https://example.com/no-dom-tags");
 
-    const result = initialiseContext({ window: mockWindow, config: { CONTEXTS: contexts } });
+    const result = initialiseContext({ window: mockWindow, config: { CONTEXTS: contexts }, register: () => {} });
     expect(result).toEqual({
       contextIndex: 0,
       found: true,
@@ -169,7 +169,7 @@ describe("initialiseContext", () => {
     ];
     const mockWindow = createMockWindow("https://example.com/page#section");
 
-    const result = initialiseContext({ window: mockWindow, config: { CONTEXTS: contexts } });
+    const result = initialiseContext({ window: mockWindow, config: { CONTEXTS: contexts }, register: () => {} });
     expect(result).toEqual({
       contextIndex: 0,
       found: true,
@@ -196,7 +196,7 @@ describe("initialiseContext", () => {
       ];
       const mockWindow = createMockWindow("https://example.com/mypage");
 
-      const result = initialiseContext({ window: mockWindow, config: { CONTEXTS: contexts } });
+      const result = initialiseContext({ window: mockWindow, config: { CONTEXTS: contexts }, register: () => {} });
       expect(result).toEqual({
         contextIndex: 0,
         found: true,
@@ -227,7 +227,7 @@ describe("initialiseContext", () => {
       ];
       const mockWindow = createMockWindow("https://example.com/users/123/posts/456");
 
-      const result = initialiseContext({ window: mockWindow, config: { CONTEXTS: contexts } });
+      const result = initialiseContext({ window: mockWindow, config: { CONTEXTS: contexts }, register: () => {} });
       expect(result).toEqual({
         contextIndex: 0,
         found: true,
@@ -243,6 +243,42 @@ describe("initialiseContext", () => {
         cmsAuth: "",
         currentHref: "https://example.com/users/123/posts/456",
       } as FoundContext);
+    });
+
+    it("should call resetContextSpecificTags with found context when provided", () => {
+      tryLocationMatchSpy.mockReturnValueOnce({ groups: { caseId: "123" } });
+
+      const contexts: Context[] = [
+        {
+          path: "https://example.com/case/(?<caseId>\\d+)",
+          contextIds: "case-context",
+          msalRedirectUrl: "foo",
+        },
+      ];
+      const mockWindow = createMockWindow("https://example.com/case/123");
+      const mockResetContextSpecificTags = jest.fn();
+
+      const result = initialiseContext({ window: mockWindow, config: { CONTEXTS: contexts }, register: () => {}, resetContextSpecificTags: mockResetContextSpecificTags });
+
+      expect(mockResetContextSpecificTags).toHaveBeenCalledWith(result);
+    });
+
+    it("should call resetContextSpecificTags with not-found context when no match", () => {
+      tryLocationMatchSpy.mockReturnValue(null);
+
+      const contexts: Context[] = [
+        {
+          path: "https://example.com/page",
+          contextIds: "page-context",
+          msalRedirectUrl: "foo",
+        },
+      ];
+      const mockWindow = createMockWindow("https://example.com/other");
+      const mockResetContextSpecificTags = jest.fn();
+
+      initialiseContext({ window: mockWindow, config: { CONTEXTS: contexts }, register: () => {}, resetContextSpecificTags: mockResetContextSpecificTags });
+
+      expect(mockResetContextSpecificTags).toHaveBeenCalledWith({ found: false });
     });
 
     it("should use pathTags in msalRedirectUrl substitution", () => {
@@ -261,7 +297,7 @@ describe("initialiseContext", () => {
       ];
       const mockWindow = createMockWindow("https://example.com:3000/page");
 
-      const result = initialiseContext({ window: mockWindow, config: { CONTEXTS: contexts } });
+      const result = initialiseContext({ window: mockWindow, config: { CONTEXTS: contexts }, register: () => {} });
       expect(result.msalRedirectUrl).toEqual("https://redirect.com:3000/callback");
     });
   });

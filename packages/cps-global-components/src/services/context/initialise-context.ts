@@ -4,14 +4,23 @@ import { replaceTagsInString } from "../../components/cps-global-menu/menu-confi
 import { withLogging } from "../../logging/with-logging";
 import { tryLocationMatch } from "./try-location-match";
 
+type Register = (arg: Record<string, FoundContext>) => void;
+type ResetContextSpecificTags = (context: FoundContext) => void;
+
 const initialiseContextInternal = ({
   window: {
     location: { href },
   },
   config: { CONTEXTS },
+  register,
+  registerAs = "context",
+  resetContextSpecificTags,
 }: {
   window: { location: { href: string }; sessionStorage: Storage; localStorage: Storage };
   config: Pick<Config, "CONTEXTS">;
+  register: Register;
+  registerAs?: string;
+  resetContextSpecificTags?: ResetContextSpecificTags;
 }): FoundContext => {
   for (let contextIndex = 0; contextIndex < CONTEXTS.length; contextIndex++) {
     const context = CONTEXTS[contextIndex];
@@ -27,7 +36,7 @@ const initialiseContextInternal = ({
 
     const cmsAuth = (context.cmsAuthFromStorageKey && (sessionStorage.getItem(context.cmsAuthFromStorageKey) || localStorage.getItem(context.cmsAuthFromStorageKey))) || "";
 
-    return {
+    const result: FoundContext = {
       ...context,
       // Special case: in development especially we can be running with an unknown port number. Our auth redirect endpoint
       //  would be dependant on that port number.  So lets do an immediate substitution of these tags, outside of the
@@ -39,8 +48,14 @@ const initialiseContextInternal = ({
       cmsAuth,
       currentHref: href,
     };
+    resetContextSpecificTags?.(result);
+    register({ [registerAs]: result });
+    return result;
   }
-  return { found: false };
+  const notFound: FoundContext = { found: false };
+  resetContextSpecificTags?.(notFound);
+  register({ [registerAs]: notFound });
+  return notFound;
 };
 
 export const initialiseContext = withLogging("initialiseContext", initialiseContextInternal);

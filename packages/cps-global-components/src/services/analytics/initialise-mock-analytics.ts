@@ -5,5 +5,5 @@ export const initialiseMockAnalytics = () => ({
   trackException: () => {},
   trackEvent: (_: AnalyticsEventData) => {},
   registerAuthWithAnalytics: () => {},
-  registerCorrelationIds: () => {},
+  registerCorrelationIdsWithAnalytics: () => {},
 });

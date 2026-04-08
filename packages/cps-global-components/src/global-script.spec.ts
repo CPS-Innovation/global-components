@@ -14,38 +14,41 @@ const clearCachedResultCache = () => {
 // Mock correlation IDs to return predictable values
 const mockInitialiseCorrelationIds = jest.fn();
 jest.mock("./services/correlation/initialise-correlation-ids", () => ({
-  initialiseCorrelationIds: () => mockInitialiseCorrelationIds(),
-}));
-
-// Mock navigation subscription - captures the handler so tests can trigger navigation
-const mockInitialiseNavigationSubscription = jest.fn();
-let capturedNavigationHandler: (() => void) | null = null;
-let capturedHandleError: ((err: Error) => void) | null = null;
-jest.mock("./services/browser/navigation/initialise-navigation-subscription", () => ({
-  initialiseNavigationSubscription: ({ handler, handleError }: { handler: () => void; handleError: (err: Error) => void }) => {
-    capturedNavigationHandler = handler;
-    capturedHandleError = handleError;
-    mockInitialiseNavigationSubscription({ handler, handleError });
+  initialiseCorrelationIds: ({ register, registerCorrelationIdsWithAnalytics }: any) => {
+    const result = mockInitialiseCorrelationIds();
+    register({ correlationIds: result });
+    registerCorrelationIdsWithAnalytics(result);
+    return result;
   },
 }));
 
-// Helper to trigger navigation in tests (mimics real behavior with error handling)
+// Mock onNavigation - captures the handler so tests can trigger navigation
+let capturedNavigationHandler: (() => void) | null = null;
+jest.mock("./services/browser/navigation/navigation", () => ({
+  onNavigation: (handler: () => void) => {
+    capturedNavigationHandler = handler;
+  },
+}));
+
+// Helper to trigger navigation in tests (handler has its own try/catch inside)
 const triggerNavigation = () => {
   if (capturedNavigationHandler) {
-    try {
-      capturedNavigationHandler();
-    } catch (err) {
-      if (capturedHandleError) {
-        capturedHandleError(err as Error);
-      }
-    }
+    capturedNavigationHandler();
   }
 };
 
 // Mock all the services - these return jest.fn() so we can inspect calls
 const mockInitialiseAuth = jest.fn();
 jest.mock("./services/auth/initialise-auth", () => ({
-  initialiseAuth: mockInitialiseAuth,
+  initialiseAuth: async ({ register, registerAuthWithAnalytics, setAuthHint, ...rest }: any) => {
+    const result = await mockInitialiseAuth(rest);
+    register({ auth: result.auth });
+    registerAuthWithAnalytics(result.auth);
+    if (result.auth.isAuthed) {
+      setAuthHint(result.auth);
+    }
+    return result;
+  },
 }));
 
 const mockInitialiseAnalytics = jest.fn();
@@ -55,17 +58,43 @@ jest.mock("./services/analytics/initialise-analytics", () => ({
 
 const mockInitialiseConfig = jest.fn();
 jest.mock("./services/config/initialise-config", () => ({
-  initialiseConfig: mockInitialiseConfig,
+  initialiseConfig: async ({ register, ...rest }: any) => {
+    const result = await mockInitialiseConfig(rest);
+    register({ config: result });
+    return result;
+  },
 }));
 
 const mockInitialiseContext = jest.fn();
 jest.mock("./services/context/initialise-context", () => ({
-  initialiseContext: mockInitialiseContext,
+  initialiseContext: ({ register, registerAs = "context", resetContextSpecificTags, ...rest }: any) => {
+    const result = mockInitialiseContext(rest);
+    resetContextSpecificTags?.(result);
+    register({ [registerAs]: result });
+    return result;
+  },
+}));
+
+const mockInitialiseFirstContext = jest.fn();
+jest.mock("./services/context/initialise-first-context", () => ({
+  initialiseFirstContext: ({ register, ...rest }: any) => {
+    const result = mockInitialiseFirstContext(rest);
+    register({ firstContext: result });
+    if (result.takeTagsFromHandover && rest.handover?.found) {
+      const { caseId, caseDetails } = rest.handover.result;
+      register({ handoverTags: { caseId: String(caseId), ...(caseDetails?.urn && { urn: caseDetails.urn }) } });
+    }
+    return result;
+  },
 }));
 
 const mockGetApplicationFlags = jest.fn();
-jest.mock("./services/application-flags/get-application-flags", () => ({
-  getApplicationFlags: mockGetApplicationFlags,
+jest.mock("./services/application-flags/initialise-application-flags", () => ({
+  initialiseApplicationFlags: ({ register }: { register: (arg: { flags: any }) => void }) => {
+    const flags = mockGetApplicationFlags();
+    register({ flags });
+    return flags;
+  },
 }));
 
 const mockInitialiseDomObservation = jest.fn();
@@ -101,22 +130,38 @@ jest.mock("./services/data/initialise-case-details-data", () => ({
 
 const mockInitialiseCmsSessionHint = jest.fn();
 jest.mock("./services/state/cms-session/initialise-cms-session-hint", () => ({
-  initialiseCmsSessionHint: mockInitialiseCmsSessionHint,
+  initialiseCmsSessionHint: async ({ register, ...rest }: any) => {
+    const result = await mockInitialiseCmsSessionHint(rest);
+    register({ cmsSessionHint: result, cmsSessionTags: { handoverEndpoint: result?.result?.handoverEndpoint || "" } });
+    return result;
+  },
 }));
 
 const mockInitialiseHandover = jest.fn();
 jest.mock("./services/state/handover/intialise-handover", () => ({
-  initialiseHandover: mockInitialiseHandover,
+  initialiseHandover: async ({ register, ...rest }: any) => {
+    const result = await mockInitialiseHandover(rest);
+    register({ handover: result.handover });
+    return result;
+  },
 }));
 
 const mockInitialiseRootUrl = jest.fn();
 jest.mock("./services/root-url/initialise-root-url", () => ({
-  initialiseRootUrl: () => mockInitialiseRootUrl(),
+  initialiseRootUrl: ({ register }: { register: (arg: { rootUrl: string }) => void }) => {
+    const rootUrl = mockInitialiseRootUrl();
+    register({ rootUrl });
+    return rootUrl;
+  },
 }));
 
 const mockInitialisePreview = jest.fn();
 jest.mock("./services/state/preview/initialise-preview", () => ({
-  initialisePreview: mockInitialisePreview,
+  initialisePreview: async ({ register, ...rest }: any) => {
+    const result = await mockInitialisePreview(rest);
+    register({ preview: result });
+    return result;
+  },
 }));
 
 const mockInitialiseSettings = jest.fn();
@@ -131,7 +176,11 @@ jest.mock("./services/state/recent-cases/initialise-recent-cases", () => ({
 
 const mockInitialiseAuthHint = jest.fn();
 jest.mock("./services/state/auth-hint/initialise-auth-hint", () => ({
-  initialiseAuthHint: mockInitialiseAuthHint,
+  initialiseAuthHint: async ({ register, ...rest }: any) => {
+    const result = await mockInitialiseAuthHint(rest);
+    register({ authHint: result.authHint });
+    return result;
+  },
 }));
 
 const mockInitialiseNavigateCms = jest.fn();
@@ -206,6 +255,12 @@ const setupDefaultMocks = () => {
     setNextHandover: jest.fn(),
   });
 
+  mockInitialiseFirstContext.mockReturnValue({
+    found: true,
+    contextDefinition: { name: "test-context" },
+    pathTags: { testTag: "testValue" },
+  });
+
   mockInitialiseContext.mockReturnValue({
     found: true,
     contextDefinition: { name: "test-context" },
@@ -231,7 +286,7 @@ const setupDefaultMocks = () => {
     trackEvent: mockTrackEvent,
     trackException: mockTrackException,
     registerAuthWithAnalytics: jest.fn(),
-    registerCorrelationIds: mockRegisterCorrelationIds,
+    registerCorrelationIdsWithAnalytics: mockRegisterCorrelationIds,
   });
 
   mockInitialiseRootUrl.mockReturnValue("https://example.com/env/components/script.js");
@@ -266,7 +321,6 @@ describe("global-script", () => {
     jest.resetAllMocks();
     clearCachedResultCache();
     capturedNavigationHandler = null;
-    capturedHandleError = null;
     mockWindow = createMockWindow();
     defaultMocks = setupDefaultMocks();
 
@@ -322,10 +376,7 @@ describe("global-script", () => {
       // Wait for async initialization to complete (listener is registered inside initialise())
       await new Promise(resolve => setTimeout(resolve, 10));
 
-      expect(mockInitialiseNavigationSubscription).toHaveBeenCalledWith({
-        handler: expect.any(Function),
-        handleError: expect.any(Function),
-      });
+      expect(capturedNavigationHandler).toBeDefined();
     });
 
     it("should register build info to store", async () => {
@@ -701,16 +752,17 @@ describe("global-script", () => {
 
       await new Promise(resolve => setTimeout(resolve, 10));
 
-      // On first load: called twice (once in loadPhase as firstContext, once in initialise as context)
-      expect(mockInitialiseContext).toHaveBeenCalledTimes(2);
+      // On first load: initialiseFirstContext called once (startupPhase), initialiseContext called once (contextChangePhase)
+      expect(mockInitialiseFirstContext).toHaveBeenCalledTimes(1);
+      expect(mockInitialiseContext).toHaveBeenCalledTimes(1);
 
       // Trigger SPA navigation
       triggerNavigation();
 
       await new Promise(resolve => setTimeout(resolve, 10));
 
-      // Context should be reinitialised on navigation (loadPhase cached, but initialise runs again)
-      expect(mockInitialiseContext).toHaveBeenCalledTimes(3);
+      // Context should be reinitialised on navigation
+      expect(mockInitialiseContext).toHaveBeenCalledTimes(2);
     });
 
     it("should NOT call getApplicationFlags again on navigation (cached)", async () => {
@@ -1305,7 +1357,7 @@ describe("global-script", () => {
       };
       mockGetApplicationFlags.mockReturnValue(testFlags);
       mockInitialiseConfig.mockResolvedValue(testConfig);
-      mockInitialiseContext.mockReturnValue(testContext);
+      mockInitialiseFirstContext.mockReturnValue(testContext);
 
       const globalScript = require("./global-script").default;
       globalScript();
@@ -1392,7 +1444,7 @@ describe("global-script", () => {
       mockInitialiseRecentCases.mockReturnValue({
         setNextRecentCases: mockSetNextRecentCases,
       });
-      mockInitialiseContext.mockReturnValue(testContext);
+      mockInitialiseFirstContext.mockReturnValue(testContext);
 
       const globalScript = require("./global-script").default;
       globalScript();
@@ -1460,6 +1512,11 @@ describe("global-script", () => {
         return { setNextRecentCases: jest.fn() };
       });
 
+      mockInitialiseFirstContext.mockImplementation(() => {
+        callOrder.push("firstContext");
+        return { found: true, contextDefinition: {}, pathTags: {} };
+      });
+
       mockInitialiseContext.mockImplementation(() => {
         callOrder.push("context");
         return { found: true, contextDefinition: {}, pathTags: {} };
@@ -1489,8 +1546,8 @@ describe("global-script", () => {
       expect(callOrder.indexOf("flags")).toBeLessThan(callOrder.indexOf("handover"));
       expect(callOrder.indexOf("flags")).toBeLessThan(callOrder.indexOf("preview"));
       expect(callOrder.indexOf("flags")).toBeLessThan(callOrder.indexOf("settings"));
-      expect(callOrder.indexOf("config")).toBeLessThan(callOrder.indexOf("context"));
-      expect(callOrder.indexOf("context")).toBeLessThan(callOrder.indexOf("recentCases"));
+      expect(callOrder.indexOf("config")).toBeLessThan(callOrder.indexOf("firstContext"));
+      expect(callOrder.indexOf("firstContext")).toBeLessThan(callOrder.indexOf("recentCases"));
       // Analytics is now initialized BEFORE auth (auth is non-blocking)
       expect(callOrder.indexOf("analytics")).toBeLessThan(callOrder.indexOf("auth"));
     });
@@ -1508,7 +1565,7 @@ describe("global-script", () => {
           }),
       );
 
-      mockInitialiseContext.mockImplementation(() => {
+      mockInitialiseFirstContext.mockImplementation(() => {
         // This should only be called after config is resolved
         expect(configResolved).toBe(true);
         return { found: true, contextDefinition: {}, pathTags: {} };
@@ -1518,7 +1575,7 @@ describe("global-script", () => {
       globalScript();
       await new Promise(resolve => setTimeout(resolve, 100));
 
-      expect(mockInitialiseContext).toHaveBeenCalled();
+      expect(mockInitialiseFirstContext).toHaveBeenCalled();
     });
 
     it("should NOT await auth before initialising analytics (auth is non-blocking)", async () => {
@@ -1593,14 +1650,15 @@ describe("global-script", () => {
         pathTags: { page: "details", caseId: "456" },
       };
 
-      // First call is in loadPhase (firstContext), second in initialise (context), third on navigation
-      mockInitialiseContext.mockReturnValueOnce(firstContext).mockReturnValueOnce(initialContext).mockReturnValueOnce(updatedContext);
+      // firstContext is from initialiseFirstContext (startupPhase), then initialiseContext handles contextChangePhase calls
+      mockInitialiseFirstContext.mockReturnValueOnce(firstContext);
+      mockInitialiseContext.mockReturnValueOnce(initialContext).mockReturnValueOnce(updatedContext);
 
       const globalScript = require("./global-script").default;
       globalScript();
       await new Promise(resolve => setTimeout(resolve, 10));
 
-      // First trackPageView uses context from initialise (second call to initialiseContext)
+      // First trackPageView uses context from initialise (first contextChangePhase call)
       expect(defaultMocks.mockTrackPageView).toHaveBeenNthCalledWith(1, {
         context: initialContext,
       });
@@ -1632,8 +1690,9 @@ describe("global-script", () => {
         pathTags: { newTag: "newValue" },
       };
 
-      // First call is in loadPhase (firstContext), second in initialise (context), third on navigation
-      mockInitialiseContext.mockReturnValueOnce(firstContext).mockReturnValueOnce(initialContext).mockReturnValueOnce(updatedContext);
+      // firstContext is from initialiseFirstContext (startupPhase), then initialiseContext handles contextChangePhase calls
+      mockInitialiseFirstContext.mockReturnValueOnce(firstContext);
+      mockInitialiseContext.mockReturnValueOnce(initialContext).mockReturnValueOnce(updatedContext);
 
       const globalScript = require("./global-script").default;
       globalScript();
@@ -1653,9 +1712,9 @@ describe("global-script", () => {
       const cachedConfig = { CONTEXTS: [], GATEWAY_URL: null, CACHED: true };
       mockInitialiseConfig.mockResolvedValue(cachedConfig);
 
-      // Return different contexts on each call (first in loadPhase, second in initialise, third on navigation)
+      // Return different contexts on each call (first via initialiseFirstContext, then initialiseContext for contextChangePhase)
+      mockInitialiseFirstContext.mockReturnValueOnce({ found: true, contextDefinition: { name: "firstCtx" }, pathTags: {} });
       mockInitialiseContext
-        .mockReturnValueOnce({ found: true, contextDefinition: { name: "firstCtx" }, pathTags: {} })
         .mockReturnValueOnce({ found: true, contextDefinition: { name: "ctx1" }, pathTags: {} })
         .mockReturnValueOnce({ found: true, contextDefinition: { name: "ctx2" }, pathTags: {} });
 
@@ -1663,22 +1722,22 @@ describe("global-script", () => {
       globalScript();
       await new Promise(resolve => setTimeout(resolve, 10));
 
-      // Config called once (in loadPhase)
+      // Config called once (in startupPhase)
       expect(mockInitialiseConfig).toHaveBeenCalledTimes(1);
 
       // Navigate
       triggerNavigation();
       await new Promise(resolve => setTimeout(resolve, 10));
 
-      // Config still only called once (cached via loadPhase)
+      // Config still only called once (cached via startupPhase)
       expect(mockInitialiseConfig).toHaveBeenCalledTimes(1);
 
-      // Context was called 3 times with the same cached config:
-      // 1st in loadPhase (firstContext), 2nd in initialise (context), 3rd on navigation (context)
-      expect(mockInitialiseContext).toHaveBeenCalledTimes(3);
+      // firstContext called once (startupPhase), initialiseContext called twice (contextChangePhase: initial + navigation)
+      expect(mockInitialiseFirstContext).toHaveBeenCalledTimes(1);
+      expect(mockInitialiseFirstContext).toHaveBeenCalledWith({ window: mockWindow, config: cachedConfig, handover: expect.anything() });
+      expect(mockInitialiseContext).toHaveBeenCalledTimes(2);
       expect(mockInitialiseContext).toHaveBeenNthCalledWith(1, { window: mockWindow, config: cachedConfig });
       expect(mockInitialiseContext).toHaveBeenNthCalledWith(2, { window: mockWindow, config: cachedConfig });
-      expect(mockInitialiseContext).toHaveBeenNthCalledWith(3, { window: mockWindow, config: cachedConfig });
     });
   });
 });
