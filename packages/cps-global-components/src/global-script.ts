@@ -56,8 +56,6 @@ const initialise = async (window: Window & typeof globalThis) => {
     storeFns = initialiseStore();
     const startupServices = await startupPhase({ window, storeFns });
     trackException = startupServices.trackException;
-
-    authPhase({ storeFns, ...startupServices });
     contextChangePhase({ window, storeFns, ...startupServices });
 
     onNavigation(() => {
@@ -74,7 +72,7 @@ const initialise = async (window: Window & typeof globalThis) => {
 
 const startupPhase = async ({
   window,
-  storeFns: { register, mergeTags, get, subscribe },
+  storeFns: { register, mergeTags, get, subscribe, readyState },
 }: {
   window: Window & typeof globalThis;
   storeFns: ReturnType<typeof initialiseStore>;
@@ -93,8 +91,18 @@ const startupPhase = async ({
     initialiseCmsSessionHint({ rootUrl, flags, register }),
   ]);
 
-  const config = await initialiseConfig({ rootUrl, flags, preview, register });
+  const { initialiseDomForContext } = initialiseDomObservation(
+    { window, register, mergeTags, preview, settings },
+    domTagMutationSubscriber,
+    footerSubscriber,
+    hostAppEventSubscriber,
+    accessibilitySubscriber,
+    ...outSystemsShimSubscribers,
+  );
 
+  initialiseTabTitle({ window, preview, subscribe });
+
+  const config = await initialiseConfig({ rootUrl, flags, preview, register });
   const firstContext = initialiseFirstContext({ window, config, handover, register });
   const { setNextRecentCases } = initialiseRecentCases({ rootUrl, config, register });
 
@@ -110,51 +118,6 @@ const startupPhase = async ({
     diagnosticsCollector,
   });
 
-  const { initialiseDomForContext } = initialiseDomObservation(
-    { window, register, mergeTags, preview, settings },
-    domTagMutationSubscriber,
-    footerSubscriber,
-    hostAppEventSubscriber,
-    accessibilitySubscriber,
-    ...outSystemsShimSubscribers,
-  );
-
-  initialiseTabTitle({ window, preview, subscribe });
-
-  return {
-    config,
-    diagnosticsCollector,
-    initialiseDomForContext,
-    trackPageView,
-    trackEvent,
-    trackException,
-    registerAuthWithAnalytics,
-    registerCorrelationIdsWithAnalytics,
-    firstContext,
-    flags,
-    authHint,
-    setAuthHint,
-    setNextHandover,
-    setNextRecentCases,
-    preview,
-  };
-};
-
-const authPhase = ({
-  storeFns: { register, subscribe, readyState },
-  config,
-  diagnosticsCollector,
-  firstContext,
-  flags,
-  trackEvent,
-  trackException,
-  registerAuthWithAnalytics,
-  authHint,
-  setAuthHint,
-  setNextHandover,
-  setNextRecentCases,
-  preview,
-}: Awaited<ReturnType<typeof startupPhase>> & { storeFns: ReturnType<typeof initialiseStore> }) => {
   // Positioning auth after many of the other setup stuff helps us not block the UI
   // (initialiseAuth can take a long time, especially if there is a problem)
   (async () => {
@@ -181,6 +144,14 @@ const authPhase = ({
       preventDataCalls: firstContext.preventADAndDataCalls,
     });
   })();
+
+  return {
+    config,
+    initialiseDomForContext,
+    trackPageView,
+    trackException,
+    registerCorrelationIdsWithAnalytics,
+  };
 };
 
 const contextChangePhase = ({
