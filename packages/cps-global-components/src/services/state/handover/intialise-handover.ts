@@ -6,8 +6,11 @@ import { StatePutResponseSchema } from "../StatePutResponse";
 
 const { _warn } = makeConsole("initialiseHandover");
 
-export const initialiseHandover = async ({ rootUrl }: { rootUrl: string }): Promise<{ handover: Result<Handover>; setNextHandover: (data: Handover) => void }> => {
+type Register = (arg: { handover: Result<Handover> }) => void;
+
+export const initialiseHandover = async ({ rootUrl, register }: { rootUrl: string; register: Register }): Promise<{ handover: Result<Handover>; setNextHandover: (data: Handover) => void }> => {
   const handover = await fetchState({ rootUrl, url: "../state/handover", schema: HandoverSchema });
+  register({ handover });
 
   const setNextHandover = (data: Handover) => {
     const isSameCaseAsBefore = handover.found && handover.result.caseId === data.caseId;

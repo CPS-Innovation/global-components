@@ -14,7 +14,7 @@ import { linkHandoverAdapter } from "../cps-global-menu/menu-config/helpers/link
 export class CpsGlobalBanner {
   @WithLogging("CpsGlobalBanner")
   render() {
-    const { isReady, state } = readyState(["config", "flags", "context", "preview", "rootUrl", "cmsSessionHint"], ["recentCases"]);
+    const { isReady, state } = readyState(["config", "flags", "context", "preview", "rootUrl"], ["recentCases"]);
 
     const resolveValues = () => {
       if (state.fatalInitialisationError) {

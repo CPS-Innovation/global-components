@@ -34,19 +34,19 @@ describe("initialiseHandover", () => {
     });
 
     it("should call fetch with correct URL and credentials", async () => {
-      await initialiseHandover({ rootUrl });
+      await initialiseHandover({ rootUrl, register: () => {} });
 
       expect(mockFetch).toHaveBeenCalledWith(expectedUrl, { credentials: "include", cache: "no-cache" });
     });
 
     it("should return handover with found: true and the result", async () => {
-      const { handover } = await initialiseHandover({ rootUrl });
+      const { handover } = await initialiseHandover({ rootUrl, register: () => {} });
 
       expect(handover).toEqual({ found: true, result: validHandover });
     });
 
     it("should return a setNextHandover function", async () => {
-      const { setNextHandover } = await initialiseHandover({ rootUrl });
+      const { setNextHandover } = await initialiseHandover({ rootUrl, register: () => {} });
 
       expect(typeof setNextHandover).toBe("function");
     });
@@ -61,7 +61,7 @@ describe("initialiseHandover", () => {
     });
 
     it("should return handover with found: false", async () => {
-      const { handover } = await initialiseHandover({ rootUrl });
+      const { handover } = await initialiseHandover({ rootUrl, register: () => {} });
 
       expect(handover.found).toBe(false);
       expect(handover.error?.message).toBe(`User has no state at ${expectedUrl}`);
@@ -78,7 +78,7 @@ describe("initialiseHandover", () => {
     });
 
     it("should return handover with found: false and response status error", async () => {
-      const { handover } = await initialiseHandover({ rootUrl });
+      const { handover } = await initialiseHandover({ rootUrl, register: () => {} });
 
       expect(handover.found).toBe(false);
       expect(handover.error?.message).toBe(`Call to ${expectedUrl} returned non-ok status code: 500 Internal Server Error`);
@@ -93,7 +93,7 @@ describe("initialiseHandover", () => {
     });
 
     it("should return handover with found: false and the error", async () => {
-      const { handover } = await initialiseHandover({ rootUrl });
+      const { handover } = await initialiseHandover({ rootUrl, register: () => {} });
 
       expect(handover.found).toBe(false);
       expect(handover.error).toBe(networkError);
@@ -114,7 +114,7 @@ describe("initialiseHandover", () => {
 
     describe("when case ID is different from current handover", () => {
       it("should call fetch with PUT method and new handover data", async () => {
-        const { setNextHandover } = await initialiseHandover({ rootUrl });
+        const { setNextHandover } = await initialiseHandover({ rootUrl, register: () => {} });
         mockFetch.mockClear();
         mockFetch.mockResolvedValue({
           ok: true,
@@ -138,7 +138,7 @@ describe("initialiseHandover", () => {
 
     describe("when case ID is the same as current handover", () => {
       it("should not call fetch", async () => {
-        const { setNextHandover } = await initialiseHandover({ rootUrl });
+        const { setNextHandover } = await initialiseHandover({ rootUrl, register: () => {} });
         mockFetch.mockClear();
 
         const sameHandover: Handover = { caseId: 12345 };
@@ -160,7 +160,7 @@ describe("initialiseHandover", () => {
       });
 
       it("should call fetch with PUT for any new handover", async () => {
-        const { setNextHandover } = await initialiseHandover({ rootUrl });
+        const { setNextHandover } = await initialiseHandover({ rootUrl, register: () => {} });
         mockFetch.mockClear();
         mockFetch.mockResolvedValue({
           ok: true,
@@ -184,7 +184,7 @@ describe("initialiseHandover", () => {
 
     describe("when PUT fetch fails", () => {
       it("should catch the error and not throw", async () => {
-        const { setNextHandover } = await initialiseHandover({ rootUrl });
+        const { setNextHandover } = await initialiseHandover({ rootUrl, register: () => {} });
         mockFetch.mockClear();
         mockFetch.mockRejectedValue(new Error("PUT failed"));
 

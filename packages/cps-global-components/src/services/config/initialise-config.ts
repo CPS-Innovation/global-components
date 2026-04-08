@@ -25,6 +25,8 @@ const tryConfigSources = async ([source, ...rest]: ConfigFetch[], configUrl: str
   return tryConfigSources(rest, configUrl);
 };
 
+type Register = (arg: { config: Config }) => void;
+
 export const initialiseConfig = async ({
   rootUrl,
   flags: {
@@ -32,10 +34,12 @@ export const initialiseConfig = async ({
     e2eTestMode: { isE2eTestMode },
   },
   preview,
+  register,
 }: {
   rootUrl: string;
   flags: ApplicationFlags;
   preview: Result<Preview>;
+  register: Register;
 }): Promise<Config> => {
   const configUrl = getArtifactUrl(rootUrl, "config.json");
 
@@ -56,6 +60,7 @@ export const initialiseConfig = async ({
   const configObject = await tryConfigSources(configSources, configUrl);
   const configResult: ValidationResult = transformAndValidateConfig(configObject);
   if (configResult.success === true) {
+    register({ config: configResult.config });
     return configResult.config;
   } else {
     throw new Error(`Config validation error: ${configResult.errorMsg}`);
