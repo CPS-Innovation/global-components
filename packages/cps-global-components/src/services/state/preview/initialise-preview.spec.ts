@@ -27,13 +27,13 @@ describe("initialisePreview", () => {
     });
 
     it("should call fetch with correct URL and credentials", async () => {
-      await initialisePreview({ rootUrl });
+      await initialisePreview({ rootUrl, register: () => {} });
 
       expect(mockFetch).toHaveBeenCalledWith(expectedUrl, { credentials: "include", cache: "no-cache" });
     });
 
     it("should return found: true with the parsed result", async () => {
-      const result = await initialisePreview({ rootUrl });
+      const result = await initialisePreview({ rootUrl, register: () => {} });
 
       expect(result).toEqual({ found: true, result: validPreview });
     });
@@ -48,7 +48,7 @@ describe("initialisePreview", () => {
     });
 
     it("should return found: false with an error", async () => {
-      const result = await initialisePreview({ rootUrl });
+      const result = await initialisePreview({ rootUrl, register: () => {} });
 
       expect(result.found).toBe(false);
       expect(result.error).toBeInstanceOf(Error);
@@ -66,7 +66,7 @@ describe("initialisePreview", () => {
     });
 
     it("should return found: false with response status error", async () => {
-      const result = await initialisePreview({ rootUrl });
+      const result = await initialisePreview({ rootUrl, register: () => {} });
 
       expect(result.found).toBe(false);
       expect(result.error?.message).toBe(`Call to ${expectedUrl} returned non-ok status code: 404 Not Found`);
@@ -81,7 +81,7 @@ describe("initialisePreview", () => {
     });
 
     it("should return found: false with the error", async () => {
-      const result = await initialisePreview({ rootUrl });
+      const result = await initialisePreview({ rootUrl, register: () => {} });
 
       expect(result.found).toBe(false);
       expect(result.error).toBe(networkError);
@@ -97,7 +97,7 @@ describe("initialisePreview", () => {
     });
 
     it("should return found: false with zod validation error", async () => {
-      const result = await initialisePreview({ rootUrl });
+      const result = await initialisePreview({ rootUrl, register: () => {} });
 
       expect(result.found).toBe(false);
       expect(result.error).toBeDefined();
@@ -116,7 +116,7 @@ describe("initialisePreview", () => {
         json: () => Promise.resolve(legacyPreview),
       });
 
-      const result = await initialisePreview({ rootUrl });
+      const result = await initialisePreview({ rootUrl, register: () => {} });
 
       expect(result.found).toBe(true);
       if (result.found) {

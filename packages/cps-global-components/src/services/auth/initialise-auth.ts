@@ -1,18 +1,26 @@
 import { Config } from "cps-global-configuration";
 import { FoundContext } from "../context/FoundContext";
-import { AuthResult, FailedAuth } from "./AuthResult";
+import { Auth, AuthResult, FailedAuth } from "./AuthResult";
 import { GetToken } from "./GetToken";
 import { ApplicationFlags } from "../application-flags/ApplicationFlags";
 import { initialiseMockAuth } from "./initialise-mock-auth";
 import { initialiseAdAuth } from "./initialise-ad-auth";
+import { createMsalInstance } from "./create-msal-instance";
 import type { AdDiagnosticsCollector } from "./ad-diagnostics-collector";
+import type { PublicClientApplication } from "@azure/msal-browser";
+
+type Register = (arg: { auth: AuthResult }) => void;
+type RegisterAuthWithAnalytics = (auth: AuthResult) => void;
+type SetAuthHint = (auth: Auth) => void;
 
 type Props = {
   config: Config;
-  context: FoundContext;
   flags: ApplicationFlags;
   onError?: (error: Error) => void;
   diagnosticsCollector?: AdDiagnosticsCollector;
+  register: Register;
+  registerAuthWithAnalytics: RegisterAuthWithAnalytics;
+  setAuthHint: SetAuthHint;
 };
 
 const noAuthResult: { auth: FailedAuth; getToken: GetToken } = {
@@ -20,7 +28,63 @@ const noAuthResult: { auth: FailedAuth; getToken: GetToken } = {
   getToken: () => Promise.resolve(null),
 };
 
-export const initialiseAuth = async ({ config, context, flags, onError, diagnosticsCollector }: Props): Promise<{ auth: AuthResult; getToken: GetToken }> => {
-  if (context.preventADAndDataCalls) return noAuthResult;
-  return flags.e2eTestMode.isE2eTestMode ? initialiseMockAuth({ flags }) : initialiseAdAuth({ config, context, onError, diagnosticsCollector });
+// The MSAL instance is created lazily on the first call to initialiseAuthForContext,
+// then reused for all subsequent calls. Assumption: SPA navigation does not change
+// the host app origin, so the redirect URI from the first context remains valid for
+// all contexts within the same page session.
+export const initialiseAuth = ({
+  config,
+  flags,
+  onError,
+  diagnosticsCollector,
+  register,
+  registerAuthWithAnalytics,
+  setAuthHint,
+}: Props): { initialiseAuthForContext: (context: FoundContext) => Promise<{ auth: AuthResult; getToken: GetToken }> } => {
+  const isE2e = flags.e2eTestMode.isE2eTestMode;
+  const { AD_TENANT_AUTHORITY: authority, AD_CLIENT_ID: clientId } = config;
+
+  let instance: PublicClientApplication | undefined;
+  let authInFlight: Promise<{ auth: AuthResult; getToken: GetToken }> | null = null;
+
+  const initialiseAuthForContext = async (ctx: FoundContext): Promise<{ auth: AuthResult; getToken: GetToken }> => {
+    // Guard against concurrent calls (e.g. rapid SPA navigation while auth is in-flight)
+    if (authInFlight) {
+      return authInFlight;
+    }
+
+    const doAuth = async (): Promise<{ auth: AuthResult; getToken: GetToken }> => {
+      if (ctx.preventADAndDataCalls) {
+        return noAuthResult;
+      }
+
+      if (isE2e) {
+        return initialiseMockAuth({ flags });
+      }
+
+      // Create the MSAL instance lazily on first real auth attempt
+      if (!instance && authority && clientId && ctx.msalRedirectUrl) {
+        instance = await createMsalInstance({ authority, clientId, redirectUri: ctx.msalRedirectUrl, diagnosticsCollector });
+      }
+
+      return initialiseAdAuth({ config, context: ctx, onError, diagnosticsCollector, instance });
+    };
+
+    authInFlight = doAuth()
+      .then(result => {
+        register({ auth: result.auth });
+        registerAuthWithAnalytics(result.auth);
+        if (result.auth.isAuthed) {
+          setAuthHint(result.auth);
+        }
+        return result;
+      })
+      .finally(() => {
+        authInFlight = null;
+      });
+
+    return authInFlight;
+  };
+
+  return { initialiseAuthForContext };
 };

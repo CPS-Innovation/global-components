@@ -1,6 +1,6 @@
 import { Config } from "cps-global-configuration";
 import { FoundContext } from "../context/FoundContext";
-import { ReadyStateHelper, Subscribe } from "../../store/store";
+import { MergeTags, Register } from "../../store/store";
 import { GetToken } from "../auth/GetToken";
 import { AnalyticsEventData } from "../analytics/analytics-event";
 
@@ -12,11 +12,6 @@ jest.mock("../fetch/fetch-with-circuit-breaker", () => ({
 const mockFetchWithAuthFactory = jest.fn();
 jest.mock("../fetch/fetch-with-auth-factory", () => ({
   fetchWithAuthFactory: (...args: unknown[]) => mockFetchWithAuthFactory(...args),
-}));
-
-const mockCaseDetailsSubscriptionFactory = jest.fn();
-jest.mock("./case-details-subscription-factory", () => ({
-  caseDetailsSubscriptionFactory: (...args: unknown[]) => mockCaseDetailsSubscriptionFactory(...args),
 }));
 
 describe("initialiseCaseDetailsData", () => {
@@ -35,64 +30,35 @@ describe("initialiseCaseDetailsData", () => {
       msalRedirectUrl: "https://test.com",
     } as unknown as FoundContext);
 
-  const createMockSubscribe = (): Subscribe => jest.fn() as Subscribe;
-
-  const createMockSetNextHandover = () => jest.fn();
-
-  const createMockSetNextRecentCases = () => jest.fn();
-
-  const createMockGetToken = (): GetToken => jest.fn().mockResolvedValue("mock-token");
-
-  const createMockReadyState = (): ReadyStateHelper => jest.fn() as unknown as ReadyStateHelper;
-
-  const createMockTrackEvent = () => jest.fn<void, [AnalyticsEventData]>();
+  const makeProps = (gatewayUrl: string | null = null) => ({
+    config: createMockConfig(gatewayUrl),
+    handover: { found: false, error: new Error("none") } as any,
+    setNextHandover: jest.fn(),
+    setNextRecentCases: jest.fn(),
+    trackEvent: jest.fn<void, [AnalyticsEventData]>(),
+    register: jest.fn() as Register,
+    mergeTags: jest.fn().mockReturnValue({}) as MergeTags,
+  });
 
   beforeEach(() => {
     jest.clearAllMocks();
     mockFetchWithCircuitBreaker.mockReturnValue((f: typeof fetch) => f);
     mockFetchWithAuthFactory.mockReturnValue((f: typeof fetch) => f);
-    mockCaseDetailsSubscriptionFactory.mockReturnValue(jest.fn());
   });
 
   describe("when GATEWAY_URL is not configured", () => {
-    it("should return early and not set up data access", () => {
+    it("should not fetch when initialiseCaseDetailsDataForContext is called", () => {
       const { initialiseCaseDetailsData } = require("./initialise-case-details-data");
-      const config = createMockConfig(null);
-      const subscribe = createMockSubscribe();
+      const { initialiseCaseDetailsDataForContext } = initialiseCaseDetailsData(makeProps(null));
 
-      initialiseCaseDetailsData({
-        config,
+      initialiseCaseDetailsDataForContext({
         context: createMockContext(),
-        subscribe,
-        setNextHandover: createMockSetNextHandover(),
-        setNextRecentCases: createMockSetNextRecentCases(),
-        getToken: createMockGetToken(),
-        readyState: createMockReadyState(),
-        trackEvent: createMockTrackEvent(),
+        caseIdentifiers: { caseId: "123" },
+        getToken: jest.fn().mockResolvedValue("token") as GetToken,
+        correlationIds: { scriptLoadCorrelationId: "s", navigationCorrelationId: "n" },
       });
 
-      expect(mockCaseDetailsSubscriptionFactory).not.toHaveBeenCalled();
-      expect(subscribe).not.toHaveBeenCalled();
-    });
-
-    it("should return early when GATEWAY_URL is empty string", () => {
-      const { initialiseCaseDetailsData } = require("./initialise-case-details-data");
-      const config = createMockConfig("");
-      const subscribe = createMockSubscribe();
-
-      initialiseCaseDetailsData({
-        config,
-        context: createMockContext(),
-        subscribe,
-        setNextHandover: createMockSetNextHandover(),
-        setNextRecentCases: createMockSetNextRecentCases(),
-        getToken: createMockGetToken(),
-        readyState: createMockReadyState(),
-        trackEvent: createMockTrackEvent(),
-      });
-
-      expect(mockCaseDetailsSubscriptionFactory).not.toHaveBeenCalled();
-      expect(subscribe).not.toHaveBeenCalled();
+      expect(mockFetchWithCircuitBreaker).not.toHaveBeenCalled();
     });
   });
 
@@ -101,99 +67,37 @@ describe("initialiseCaseDetailsData", () => {
 
     it("should set up fetch with circuit breaker", () => {
       const { initialiseCaseDetailsData } = require("./initialise-case-details-data");
-      const config = createMockConfig(gatewayUrl);
-      const trackEvent = createMockTrackEvent();
+      const props = makeProps(gatewayUrl);
+      const { initialiseCaseDetailsDataForContext } = initialiseCaseDetailsData(props);
 
-      initialiseCaseDetailsData({
-        config,
+      initialiseCaseDetailsDataForContext({
         context: createMockContext(),
-        subscribe: createMockSubscribe(),
-        setNextHandover: createMockSetNextHandover(),
-        setNextRecentCases: createMockSetNextRecentCases(),
-        getToken: createMockGetToken(),
-        readyState: createMockReadyState(),
-        trackEvent,
+        caseIdentifiers: { caseId: "123" },
+        getToken: jest.fn().mockResolvedValue("token") as GetToken,
+        correlationIds: { scriptLoadCorrelationId: "s", navigationCorrelationId: "n" },
       });
 
-      expect(mockFetchWithCircuitBreaker).toHaveBeenCalledWith({ config, trackEvent });
+      expect(mockFetchWithCircuitBreaker).toHaveBeenCalledWith({ config: props.config, trackEvent: props.trackEvent });
     });
 
     it("should set up fetch with auth factory", () => {
       const { initialiseCaseDetailsData } = require("./initialise-case-details-data");
-      const config = createMockConfig(gatewayUrl);
+      const props = makeProps(gatewayUrl);
+      const { initialiseCaseDetailsDataForContext } = initialiseCaseDetailsData(props);
       const context = createMockContext();
-      const getToken = createMockGetToken();
-      const readyState = createMockReadyState();
+      const getToken = jest.fn().mockResolvedValue("token") as GetToken;
+      const correlationIds = { scriptLoadCorrelationId: "s", navigationCorrelationId: "n" };
 
-      initialiseCaseDetailsData({
-        config,
-        context,
-        subscribe: createMockSubscribe(),
-        setNextHandover: createMockSetNextHandover(),
-        setNextRecentCases: createMockSetNextRecentCases(),
-        getToken,
-        readyState,
-        trackEvent: createMockTrackEvent(),
-      });
+      initialiseCaseDetailsDataForContext({ context, caseIdentifiers: { caseId: "123" }, getToken, correlationIds });
 
-      expect(mockFetchWithAuthFactory).toHaveBeenCalledWith({ config, context, getToken, readyState });
-    });
-
-    it("should call caseDetailsSubscriptionFactory with correct parameters", () => {
-      const { initialiseCaseDetailsData } = require("./initialise-case-details-data");
-      const config = createMockConfig(gatewayUrl);
-      const setNextHandover = createMockSetNextHandover();
-      const setNextRecentCases = createMockSetNextRecentCases();
-
-      initialiseCaseDetailsData({
-        config,
-        context: createMockContext(),
-        subscribe: createMockSubscribe(),
-        setNextHandover,
-        setNextRecentCases,
-        getToken: createMockGetToken(),
-        readyState: createMockReadyState(),
-        trackEvent: createMockTrackEvent(),
-      });
-
-      expect(mockCaseDetailsSubscriptionFactory).toHaveBeenCalledWith({
-        setNextHandover,
-        setNextRecentCases,
-        showMonitoringCodes: false,
-        fetch: expect.any(Function),
-      });
-    });
-
-    it("should subscribe to the case details subscription", () => {
-      const { initialiseCaseDetailsData } = require("./initialise-case-details-data");
-      const config = createMockConfig(gatewayUrl);
-      const subscribe = createMockSubscribe();
-      const mockSubscription = jest.fn();
-      mockCaseDetailsSubscriptionFactory.mockReturnValue(mockSubscription);
-
-      initialiseCaseDetailsData({
-        config,
-        context: createMockContext(),
-        subscribe,
-        setNextHandover: createMockSetNextHandover(),
-        setNextRecentCases: createMockSetNextRecentCases(),
-        getToken: createMockGetToken(),
-        readyState: createMockReadyState(),
-        trackEvent: createMockTrackEvent(),
-      });
-
-      expect(subscribe).toHaveBeenCalledWith(mockSubscription);
+      expect(mockFetchWithAuthFactory).toHaveBeenCalledWith({ config: props.config, context, getToken, correlationIds });
     });
 
     it("should pipe fetch through circuit breaker and auth factory", () => {
       const { initialiseCaseDetailsData } = require("./initialise-case-details-data");
-      const config = createMockConfig(gatewayUrl);
-      const context = createMockContext();
-      const getToken = createMockGetToken();
-      const readyState = createMockReadyState();
-      const trackEvent = createMockTrackEvent();
+      const props = makeProps(gatewayUrl);
+      const { initialiseCaseDetailsDataForContext } = initialiseCaseDetailsData(props);
 
-      // Track call order to verify pipe composition
       const callOrder: string[] = [];
       mockFetchWithCircuitBreaker.mockImplementation(() => {
         callOrder.push("circuitBreaker");
@@ -204,20 +108,55 @@ describe("initialiseCaseDetailsData", () => {
         return (f: typeof fetch) => f;
       });
 
-      initialiseCaseDetailsData({
-        config,
-        context,
-        subscribe: createMockSubscribe(),
-        setNextHandover: createMockSetNextHandover(),
-        setNextRecentCases: createMockSetNextRecentCases(),
-        getToken,
-        readyState,
-        trackEvent,
+      initialiseCaseDetailsDataForContext({
+        context: createMockContext(),
+        caseIdentifiers: { caseId: "123" },
+        getToken: jest.fn().mockResolvedValue("token") as GetToken,
+        correlationIds: { scriptLoadCorrelationId: "s", navigationCorrelationId: "n" },
       });
 
-      // Both should be called (order determined by pipe)
       expect(callOrder).toContain("circuitBreaker");
       expect(callOrder).toContain("authFactory");
+    });
+  });
+
+  describe("optimistic path", () => {
+    it("should set case details from handover when caseId matches", () => {
+      const { initialiseCaseDetailsData } = require("./initialise-case-details-data");
+      const mockRegister = jest.fn();
+      const mockMergeTags = jest.fn().mockReturnValue({});
+      const props = {
+        ...makeProps("https://gateway.example.com/"),
+        handover: { found: true, result: { caseId: 123, caseDetails: { urn: "test-urn" } } },
+        register: mockRegister,
+        mergeTags: mockMergeTags,
+      };
+      const { initialiseCaseDetailsDataForContextOptimistic } = initialiseCaseDetailsData(props);
+
+      initialiseCaseDetailsDataForContextOptimistic({ caseId: "123" });
+
+      expect(mockRegister).toHaveBeenCalledWith({ caseDetails: { found: true, result: { urn: "test-urn" } } });
+      expect(mockMergeTags).toHaveBeenCalled();
+    });
+
+    it("should skip full fetch if optimistic already handled the case", () => {
+      const { initialiseCaseDetailsData } = require("./initialise-case-details-data");
+      const props = {
+        ...makeProps("https://gateway.example.com/"),
+        handover: { found: true, result: { caseId: 123, caseDetails: { urn: "test-urn" } } },
+      };
+      const { initialiseCaseDetailsDataForContext, initialiseCaseDetailsDataForContextOptimistic } = initialiseCaseDetailsData(props);
+
+      initialiseCaseDetailsDataForContextOptimistic({ caseId: "123" });
+      initialiseCaseDetailsDataForContext({
+        context: createMockContext(),
+        caseIdentifiers: { caseId: "123" },
+        getToken: jest.fn().mockResolvedValue("token") as GetToken,
+        correlationIds: { scriptLoadCorrelationId: "s", navigationCorrelationId: "n" },
+      });
+
+      // Should not set up fetch since optimistic handled it
+      expect(mockFetchWithCircuitBreaker).not.toHaveBeenCalled();
     });
   });
 });
