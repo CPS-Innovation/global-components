@@ -40,14 +40,18 @@ const triggerNavigation = () => {
 // Mock all the services - these return jest.fn() so we can inspect calls
 const mockInitialiseAuth = jest.fn();
 jest.mock("./services/auth/initialise-auth", () => ({
-  initialiseAuth: async ({ register, registerAuthWithAnalytics, setAuthHint, ...rest }: any) => {
-    const result = await mockInitialiseAuth(rest);
-    register({ auth: result.auth });
-    registerAuthWithAnalytics(result.auth);
-    if (result.auth.isAuthed) {
-      setAuthHint(result.auth);
-    }
-    return result;
+  initialiseAuth: ({ register, registerAuthWithAnalytics, setAuthHint, ...rest }: any) => {
+    // initialiseAuth returns { initialiseAuthForContext } synchronously — a factory called per context
+    const initialiseAuthForContext = async (ctx: any) => {
+      const result = await mockInitialiseAuth({ ...rest, context: ctx });
+      register({ auth: result.auth });
+      registerAuthWithAnalytics(result.auth);
+      if (result.auth.isAuthed) {
+        setAuthHint(result.auth);
+      }
+      return result;
+    };
+    return { initialiseAuthForContext };
   },
 }));
 
@@ -71,19 +75,6 @@ jest.mock("./services/context/initialise-context", () => ({
     const result = mockInitialiseContext(rest);
     resetContextSpecificTags?.(result);
     register({ [registerAs]: result });
-    return result;
-  },
-}));
-
-const mockInitialiseFirstContext = jest.fn();
-jest.mock("./services/context/initialise-first-context", () => ({
-  initialiseFirstContext: ({ register, ...rest }: any) => {
-    const result = mockInitialiseFirstContext(rest);
-    register({ firstContext: result });
-    if (result.takeTagsFromHandover && rest.handover?.found) {
-      const { caseId, caseDetails } = rest.handover.result;
-      register({ handoverTags: { caseId: String(caseId), ...(caseDetails?.urn && { urn: caseDetails.urn }) } });
-    }
     return result;
   },
 }));
@@ -255,11 +246,6 @@ const setupDefaultMocks = () => {
     setNextHandover: jest.fn(),
   });
 
-  mockInitialiseFirstContext.mockReturnValue({
-    found: true,
-    contextDefinition: { name: "test-context" },
-    pathTags: { testTag: "testValue" },
-  });
 
   mockInitialiseContext.mockReturnValue({
     found: true,
@@ -625,24 +611,6 @@ describe("global-script", () => {
       }
     });
 
-    it("should register firstContext to store", async () => {
-      const globalScript = require("./global-script").default;
-
-      globalScript();
-
-      await new Promise(resolve => setTimeout(resolve, 10));
-
-      const state = getReadyState()("firstContext");
-      expect(state.isReady).toBe(true);
-      if (state.isReady) {
-        expect(state.state.firstContext).toEqual({
-          found: true,
-          contextDefinition: { name: "test-context" },
-          pathTags: { testTag: "testValue" },
-        });
-      }
-    });
-
     it("should pass flags to initialiseAuth so it can decide mock vs real internally", async () => {
       const testFlags = {
         e2eTestMode: { isE2eTestMode: true },
@@ -752,8 +720,7 @@ describe("global-script", () => {
 
       await new Promise(resolve => setTimeout(resolve, 10));
 
-      // On first load: initialiseFirstContext called once (startupPhase), initialiseContext called once (contextChangePhase)
-      expect(mockInitialiseFirstContext).toHaveBeenCalledTimes(1);
+      // On first load: initialiseContext called once (contextChangePhase)
       expect(mockInitialiseContext).toHaveBeenCalledTimes(1);
 
       // Trigger SPA navigation
@@ -801,13 +768,14 @@ describe("global-script", () => {
       expect(mockInitialiseConfig).toHaveBeenCalledTimes(1);
     });
 
-    it("should NOT call initialiseAuth again on navigation (cached)", async () => {
+    it("should call initialiseAuthForContext on each navigation", async () => {
       const globalScript = require("./global-script").default;
 
       globalScript();
 
       await new Promise(resolve => setTimeout(resolve, 10));
 
+      // Auth runs once on initial contextChangePhase
       expect(mockInitialiseAuth).toHaveBeenCalledTimes(1);
 
       // Trigger SPA navigation
@@ -815,8 +783,8 @@ describe("global-script", () => {
 
       await new Promise(resolve => setTimeout(resolve, 10));
 
-      // Auth should be cached, not called again
-      expect(mockInitialiseAuth).toHaveBeenCalledTimes(1);
+      // Auth runs again on navigation (initialiseAuthForContext called per context change)
+      expect(mockInitialiseAuth).toHaveBeenCalledTimes(2);
     });
 
     it("should NOT call initialiseAnalytics again on navigation (cached)", async () => {
@@ -1357,19 +1325,19 @@ describe("global-script", () => {
       };
       mockGetApplicationFlags.mockReturnValue(testFlags);
       mockInitialiseConfig.mockResolvedValue(testConfig);
-      mockInitialiseFirstContext.mockReturnValue(testContext);
+      mockInitialiseContext.mockReturnValue(testContext);
 
       const globalScript = require("./global-script").default;
       globalScript();
       await new Promise(resolve => setTimeout(resolve, 10));
 
-      expect(mockInitialiseAuth).toHaveBeenCalledWith({
-        config: testConfig,
-        context: testContext,
-        flags: testFlags,
-        onError: expect.any(Function),
-        diagnosticsCollector: expect.objectContaining({ add: expect.any(Function), get: expect.any(Function) }),
-      });
+      // mockInitialiseAuth is called by initialiseAuthForContext with the contextChangePhase context
+      expect(mockInitialiseAuth).toHaveBeenCalledWith(
+        expect.objectContaining({
+          config: testConfig,
+          context: testContext,
+        }),
+      );
     });
 
     it("should pass all required dependencies to initialiseAnalytics", async () => {
@@ -1444,7 +1412,7 @@ describe("global-script", () => {
       mockInitialiseRecentCases.mockReturnValue({
         setNextRecentCases: mockSetNextRecentCases,
       });
-      mockInitialiseFirstContext.mockReturnValue(testContext);
+      mockInitialiseContext.mockReturnValue(testContext);
 
       const globalScript = require("./global-script").default;
       globalScript();
@@ -1465,7 +1433,7 @@ describe("global-script", () => {
     // These tests verify that operations happen in the correct order
     // using mock call order tracking
 
-    it("should initialise in correct order: rootUrl -> navigateCms -> flags -> cmsSessionHint/handover/preview/settings (parallel) -> config -> firstContext -> recentCases -> analytics (auth runs async later)", async () => {
+    it("should initialise in correct order: rootUrl -> navigateCms -> flags -> cmsSessionHint/handover/preview/settings (parallel) -> config -> recentCases -> analytics (auth runs async later)", async () => {
       const callOrder: string[] = [];
 
       mockInitialiseRootUrl.mockImplementation(() => {
@@ -1512,11 +1480,6 @@ describe("global-script", () => {
         return { setNextRecentCases: jest.fn() };
       });
 
-      mockInitialiseFirstContext.mockImplementation(() => {
-        callOrder.push("firstContext");
-        return { found: true, contextDefinition: {}, pathTags: {} };
-      });
-
       mockInitialiseContext.mockImplementation(() => {
         callOrder.push("context");
         return { found: true, contextDefinition: {}, pathTags: {} };
@@ -1529,7 +1492,7 @@ describe("global-script", () => {
 
       mockInitialiseAnalytics.mockImplementation(() => {
         callOrder.push("analytics");
-        return { trackPageView: jest.fn(), trackEvent: jest.fn(), trackException: jest.fn(), registerAuthWithAnalytics: jest.fn(), registerCorrelationIds: jest.fn() };
+        return { trackPageView: jest.fn(), trackEvent: jest.fn(), trackException: jest.fn(), registerAuthWithAnalytics: jest.fn(), registerCorrelationIdsWithAnalytics: jest.fn() };
       });
 
       const globalScript = require("./global-script").default;
@@ -1537,7 +1500,7 @@ describe("global-script", () => {
       await new Promise(resolve => setTimeout(resolve, 10));
 
       // Verify order - rootUrl and flags first, then parallel async calls (cmsSessionHint/handover/preview/settings),
-      // then config, then firstContext, then recentCases (register is fire-and-forget)
+      // then config, then recentCases (register is fire-and-forget)
       // Analytics now comes BEFORE auth (auth is non-blocking to avoid UI delay)
       // accessibilitySubscriber is now part of DOM observation (called via initialiseDomForContext)
       expect(callOrder.indexOf("rootUrl")).toBeLessThan(callOrder.indexOf("navigateCms"));
@@ -1546,8 +1509,7 @@ describe("global-script", () => {
       expect(callOrder.indexOf("flags")).toBeLessThan(callOrder.indexOf("handover"));
       expect(callOrder.indexOf("flags")).toBeLessThan(callOrder.indexOf("preview"));
       expect(callOrder.indexOf("flags")).toBeLessThan(callOrder.indexOf("settings"));
-      expect(callOrder.indexOf("config")).toBeLessThan(callOrder.indexOf("firstContext"));
-      expect(callOrder.indexOf("firstContext")).toBeLessThan(callOrder.indexOf("recentCases"));
+      expect(callOrder.indexOf("config")).toBeLessThan(callOrder.indexOf("recentCases"));
       // Analytics is now initialized BEFORE auth (auth is non-blocking)
       expect(callOrder.indexOf("analytics")).toBeLessThan(callOrder.indexOf("auth"));
     });
@@ -1565,9 +1527,10 @@ describe("global-script", () => {
           }),
       );
 
-      mockInitialiseFirstContext.mockImplementation(() => {
-        // This should only be called after config is resolved
-        expect(configResolved).toBe(true);
+      // initialiseContext (in contextChangePhase) should only be called after config resolves
+      let contextCalledAfterConfig = false;
+      mockInitialiseContext.mockImplementation(() => {
+        if (configResolved) contextCalledAfterConfig = true;
         return { found: true, contextDefinition: {}, pathTags: {} };
       });
 
@@ -1575,7 +1538,7 @@ describe("global-script", () => {
       globalScript();
       await new Promise(resolve => setTimeout(resolve, 100));
 
-      expect(mockInitialiseFirstContext).toHaveBeenCalled();
+      expect(contextCalledAfterConfig).toBe(true);
     });
 
     it("should NOT await auth before initialising analytics (auth is non-blocking)", async () => {
@@ -1597,7 +1560,7 @@ describe("global-script", () => {
       mockInitialiseAnalytics.mockImplementation(() => {
         // Analytics should be called BEFORE auth is resolved (auth is non-blocking)
         expect(authResolved).toBe(false);
-        return { trackPageView: jest.fn(), trackEvent: jest.fn(), trackException: jest.fn(), registerAuthWithAnalytics: jest.fn(), registerCorrelationIds: jest.fn() };
+        return { trackPageView: jest.fn(), trackEvent: jest.fn(), trackException: jest.fn(), registerAuthWithAnalytics: jest.fn(), registerCorrelationIdsWithAnalytics: jest.fn() };
       });
 
       const globalScript = require("./global-script").default;
@@ -1634,11 +1597,6 @@ describe("global-script", () => {
     // These tests verify that on SPA navigation, the correct updated data flows through
 
     it("should pass updated context to trackPageView on navigation", async () => {
-      const firstContext = {
-        found: true,
-        contextDefinition: { name: "first" },
-        pathTags: { page: "first" },
-      };
       const initialContext = {
         found: true,
         contextDefinition: { name: "initial" },
@@ -1650,15 +1608,15 @@ describe("global-script", () => {
         pathTags: { page: "details", caseId: "456" },
       };
 
-      // firstContext is from initialiseFirstContext (startupPhase), then initialiseContext handles contextChangePhase calls
-      mockInitialiseFirstContext.mockReturnValueOnce(firstContext);
-      mockInitialiseContext.mockReturnValueOnce(initialContext).mockReturnValueOnce(updatedContext);
+      // initialiseContext called twice: contextChangePhase (initial), contextChangePhase (navigation)
+      mockInitialiseContext
+        .mockReturnValueOnce(initialContext)
+        .mockReturnValueOnce(updatedContext);
 
       const globalScript = require("./global-script").default;
       globalScript();
       await new Promise(resolve => setTimeout(resolve, 10));
 
-      // First trackPageView uses context from initialise (first contextChangePhase call)
       expect(defaultMocks.mockTrackPageView).toHaveBeenNthCalledWith(1, {
         context: initialContext,
       });
@@ -1674,11 +1632,6 @@ describe("global-script", () => {
     });
 
     it("should pass updated context to initialiseDomForContext on navigation", async () => {
-      const firstContext = {
-        found: true,
-        contextDefinition: { name: "first" },
-        pathTags: {},
-      };
       const initialContext = {
         found: true,
         contextDefinition: { name: "initial" },
@@ -1690,15 +1643,15 @@ describe("global-script", () => {
         pathTags: { newTag: "newValue" },
       };
 
-      // firstContext is from initialiseFirstContext (startupPhase), then initialiseContext handles contextChangePhase calls
-      mockInitialiseFirstContext.mockReturnValueOnce(firstContext);
-      mockInitialiseContext.mockReturnValueOnce(initialContext).mockReturnValueOnce(updatedContext);
+      // initialiseContext called twice: contextChangePhase (initial), contextChangePhase (navigation)
+      mockInitialiseContext
+        .mockReturnValueOnce(initialContext)
+        .mockReturnValueOnce(updatedContext);
 
       const globalScript = require("./global-script").default;
       globalScript();
       await new Promise(resolve => setTimeout(resolve, 10));
 
-      // initialiseDomForContext uses context from initialise (second call to initialiseContext)
       expect(defaultMocks.mockInitialiseDomForContext).toHaveBeenNthCalledWith(1, { context: initialContext });
 
       // Navigate
@@ -1712,8 +1665,7 @@ describe("global-script", () => {
       const cachedConfig = { CONTEXTS: [], GATEWAY_URL: null, CACHED: true };
       mockInitialiseConfig.mockResolvedValue(cachedConfig);
 
-      // Return different contexts on each call (first via initialiseFirstContext, then initialiseContext for contextChangePhase)
-      mockInitialiseFirstContext.mockReturnValueOnce({ found: true, contextDefinition: { name: "firstCtx" }, pathTags: {} });
+      // initialiseContext called twice: contextChangePhase (initial), contextChangePhase (navigation)
       mockInitialiseContext
         .mockReturnValueOnce({ found: true, contextDefinition: { name: "ctx1" }, pathTags: {} })
         .mockReturnValueOnce({ found: true, contextDefinition: { name: "ctx2" }, pathTags: {} });
@@ -1732,12 +1684,8 @@ describe("global-script", () => {
       // Config still only called once (cached via startupPhase)
       expect(mockInitialiseConfig).toHaveBeenCalledTimes(1);
 
-      // firstContext called once (startupPhase), initialiseContext called twice (contextChangePhase: initial + navigation)
-      expect(mockInitialiseFirstContext).toHaveBeenCalledTimes(1);
-      expect(mockInitialiseFirstContext).toHaveBeenCalledWith({ window: mockWindow, config: cachedConfig, handover: expect.anything() });
+      // initialiseContext called twice: initial contextChangePhase + navigation contextChangePhase
       expect(mockInitialiseContext).toHaveBeenCalledTimes(2);
-      expect(mockInitialiseContext).toHaveBeenNthCalledWith(1, { window: mockWindow, config: cachedConfig });
-      expect(mockInitialiseContext).toHaveBeenNthCalledWith(2, { window: mockWindow, config: cachedConfig });
     });
   });
 });

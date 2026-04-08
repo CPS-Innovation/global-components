@@ -3,7 +3,6 @@ import { initialiseStore } from "./store/store";
 import { initialiseAnalytics } from "./services/analytics/initialise-analytics";
 import { initialiseConfig } from "./services/config/initialise-config";
 import { initialiseContext } from "./services/context/initialise-context";
-import { initialiseFirstContext } from "./services/context/initialise-first-context";
 import { initialiseApplicationFlags } from "./services/application-flags/initialise-application-flags";
 import { makeConsole } from "./logging/makeConsole";
 import { initialiseDomObservation } from "./services/browser/dom/initialise-dom-observation";
@@ -72,7 +71,7 @@ const initialise = async (window: Window & typeof globalThis) => {
 
 const startupPhase = async ({
   window,
-  storeFns: { register, mergeTags, get, subscribe, readyState },
+  storeFns: { register, mergeTags, get, subscribe, readyState, resetContextSpecificTags },
 }: {
   window: Window & typeof globalThis;
   storeFns: ReturnType<typeof initialiseStore>;
@@ -83,7 +82,7 @@ const startupPhase = async ({
   const flags = initialiseApplicationFlags({ window, rootUrl, register });
   initialiseOutSystemsReconcileAuth({ flags, window });
 
-  const [{ handover, setNextHandover }, preview, settings, { authHint, setAuthHint }] = await Promise.all([
+  const [{ setNextHandover }, preview, settings, { authHint, setAuthHint }] = await Promise.all([
     initialiseHandover({ rootUrl, register }),
     initialisePreview({ rootUrl, register }),
     initialiseSettings({ rootUrl }),
@@ -103,7 +102,6 @@ const startupPhase = async ({
   initialiseTabTitle({ window, preview, subscribe });
 
   const config = await initialiseConfig({ rootUrl, flags, preview, register });
-  const firstContext = initialiseFirstContext({ window, config, handover, register });
   const { setNextRecentCases } = initialiseRecentCases({ rootUrl, config, register });
 
   const diagnosticsCollector = createAdDiagnosticsCollector();
@@ -118,32 +116,17 @@ const startupPhase = async ({
     diagnosticsCollector,
   });
 
-  // Positioning auth after many of the other setup stuff helps us not block the UI
-  // (initialiseAuth can take a long time, especially if there is a problem)
-  (async () => {
-    const { auth, getToken } = await initialiseAuth({
-      config,
-      context: firstContext,
-      flags,
-      onError: trackException,
-      diagnosticsCollector,
-      register,
-      registerAuthWithAnalytics,
-      setAuthHint,
-    });
-    initialiseOutSystemsShowAlert({ context: firstContext, config, auth, authHint, preview });
-    initialiseCaseDetailsData({
-      config,
-      context: firstContext,
-      subscribe,
-      setNextHandover,
-      setNextRecentCases,
-      getToken,
-      readyState,
-      trackEvent,
-      preventDataCalls: firstContext.preventADAndDataCalls,
-    });
-  })();
+  // Create the first context to obtain the redirect URI for the MSAL instance.
+  // This context is used only for MSAL setup — auth itself runs per-context in contextChangePhase.
+  const { initialiseAuthForContext } = initialiseAuth({
+    config,
+    flags,
+    onError: trackException,
+    diagnosticsCollector,
+    register,
+    registerAuthWithAnalytics,
+    setAuthHint,
+  });
 
   return {
     config,
@@ -151,6 +134,15 @@ const startupPhase = async ({
     trackPageView,
     trackException,
     registerCorrelationIdsWithAnalytics,
+    initialiseAuthForContext,
+    resetContextSpecificTags,
+    authHint,
+    preview,
+    setNextHandover,
+    setNextRecentCases,
+    subscribe,
+    readyState,
+    trackEvent,
   };
 };
 
@@ -159,14 +151,42 @@ const contextChangePhase = ({
   initialiseDomForContext,
   trackPageView,
   registerCorrelationIdsWithAnalytics,
+  initialiseAuthForContext,
   storeFns: { register, resetContextSpecificTags },
   window,
+  authHint,
+  preview,
+  setNextHandover,
+  setNextRecentCases,
+  subscribe,
+  readyState,
+  trackEvent,
 }: Awaited<ReturnType<typeof startupPhase>> & { storeFns: ReturnType<typeof initialiseStore>; window: Window & typeof globalThis }) => {
   initialiseCorrelationIds({ register, registerCorrelationIdsWithAnalytics });
   const context = initialiseContext({ window, config, register, resetContextSpecificTags });
   initialiseDomForContext({ context });
 
   trackPageView({ context });
+
+  // Auth is non-blocking — fire and forget. The concurrency guard inside
+  // initialiseAuthForContext handles rapid SPA navigation.
+  (async () => {
+    const { auth, getToken } = await initialiseAuthForContext(context);
+    initialiseOutSystemsShowAlert({ context, config, auth, authHint, preview });
+    // TODO: initialiseCaseDetailsData is called on every context change. The subscription
+    // factory inside it may set up duplicate subscriptions. Needs rethinking.
+    initialiseCaseDetailsData({
+      config,
+      context,
+      subscribe,
+      setNextHandover,
+      setNextRecentCases,
+      getToken,
+      readyState,
+      trackEvent,
+      preventDataCalls: context.preventADAndDataCalls,
+    });
+  })();
 
   register({ initialisationStatus: "complete" });
 };
