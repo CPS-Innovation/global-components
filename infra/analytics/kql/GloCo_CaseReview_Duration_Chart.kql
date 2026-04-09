@@ -1,3 +1,30 @@
+// GloCo_CaseReview_Duration
+// | extend HoursBucket = bin(min_of(HoursDiff, 11.75), 0.25)
+// | summarize Cases = count() by HoursBucket, ReviewType
+// | make-series Counts = sum(Cases) default=0 on HoursBucket from 0.0 to 13.75 step 0.25 by ReviewType
+// | extend SmoothedCounts = series_fir(Counts, dynamic([1,1,1,1,1,1,1]))  // 7-point moving avg
+// | mv-expand HoursBucket to typeof(real), SmoothedCases = SmoothedCounts to typeof(real)
+// | where HoursBucket <= 12.0
+// | project HoursBucket, ReviewType, SmoothedCases
+// | evaluate pivot(ReviewType, sum(SmoothedCases))
+// | render timechart with (
+//     xtitle = "Hours to submit",
+//     ytitle = "Cases",
+//     title  = "Distribution of review submission times (smoothed)"
+// )
+// GloCo_CaseReview_Duration
+// | extend HoursBucket = iff(HoursDiff > 12.0, 12.0, bin(HoursDiff, 0.25))
+// | summarize Cases = count() by HoursBucket, ReviewType
+// | extend BucketLabel = iff(HoursBucket == 12.0, ">12", strcat(tostring(HoursBucket), " - ", tostring(HoursBucket + 0.25)))
+// | evaluate pivot(ReviewType, sum(Cases))
+// | order by HoursBucket asc
+// | project-away HoursBucket
+// | render columnchart with (
+//     kind = unstacked,
+//     xtitle = "Hours to submit",
+//     ytitle = "Cases",
+//     title  = "Distribution of review submission times"
+// )
 let Data = GloCo_CaseReview_Duration
 | extend HoursBucket = iff(HoursDiff > 8.0, 8.0, bin(HoursDiff, 0.25))
 | summarize Cases = count() by HoursBucket, ReviewType;
