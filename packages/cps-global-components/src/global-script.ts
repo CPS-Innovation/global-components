@@ -126,17 +126,19 @@ const initialise = async (window: Window & typeof globalThis) => {
         register({ initialisationStatus: "complete" });
 
         const authPromise = initialiseAuthForContext(context);
-        authPromise.then(({ auth }) => initialiseOutSystemsShowAlertForContext({ context, auth }));
+        authPromise.then(({ auth }) => initialiseOutSystemsShowAlertForContext({ context, auth })).catch(handleError);
 
         const caseIdentifiersPromise = caseIdentifiersWaiter.waitForChange();
-        caseIdentifiersPromise.then(caseIdentifiers => {
-          registerCaseIdentifiersWithAnalytics(caseIdentifiers?.caseId);
-          initialiseCaseDetailsDataForContextOptimistic(caseIdentifiers);
-        });
+        caseIdentifiersPromise
+          .then(caseIdentifiers => {
+            registerCaseIdentifiersWithAnalytics(caseIdentifiers?.caseId);
+            initialiseCaseDetailsDataForContextOptimistic(caseIdentifiers);
+          })
+          .catch(handleError);
 
-        Promise.all([authPromise, caseIdentifiersPromise]).then(([{ getToken }, caseIdentifiers]) => {
-          initialiseCaseDetailsDataForContext({ context, caseIdentifiers, getToken, correlationIds });
-        });
+        Promise.all([authPromise, caseIdentifiersPromise])
+          .then(([{ getToken }, caseIdentifiers]) => initialiseCaseDetailsDataForContext({ context, caseIdentifiers, getToken, correlationIds }))
+          .catch(handleError);
       } catch (err) {
         handleError(err);
       }
