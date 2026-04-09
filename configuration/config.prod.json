@@ -24,6 +24,7 @@
   },
   "FEATURE_FLAG_ENABLE_INTRUSIVE_AD_LOGIN": false,
   "SSO_SILENT_DELAY_MS": 2000,
+  "COLLECT_AD_DIAGNOSTICS_IN_PAGE_VIEW": true,
   "CONTEXTS": [
     {
       "headerCustomCssClasses": "header",
