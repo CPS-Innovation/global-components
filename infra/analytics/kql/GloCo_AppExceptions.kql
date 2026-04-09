@@ -1,0 +1,14 @@
+AppExceptions
+| extend AuthFailureType = case(
+    ExceptionType == "InteractionRequiredAuthError" and OuterMessage startswith "InteractionRequiredAuthError: interaction_required: AADSTS16000", "Multiple AD accounts",
+    ExceptionType == "InteractionRequiredAuthError" and OuterMessage startswith "InteractionRequiredAuthError: interaction_required: AADSTS160021", "Requested session does not exist",
+    ExceptionType == "InteractionRequiredAuthError" and OuterMessage startswith "InteractionRequiredAuthError: login_required: AADSTS50058:", "User not logged in",
+    ExceptionType == "InteractionRequiredAuthError" and OuterMessage startswith "InteractionRequiredAuthError: interaction_required: AADSTS53003", "Failed access policies",
+    ExceptionType == "BrowserAuthError" and OuterMessage startswith "BrowserAuthError: post_request_failed", "Network request failed (BrowserAuthError)",
+    ExceptionType == "ClientAuthError" and OuterMessage startswith "ClientAuthError: network_error: Network request failed", "Network request failed (ClientAuthError)",
+    ExceptionType == "BrowserAuthError" and OuterMessage startswith "BrowserAuthError: failed_to_parse_response", "Failed to parse response",
+    ExceptionType == "BrowserAuthError" and OuterMessage startswith "BrowserAuthError: monitor_window_timeout", "Redirect Timeout",
+    ExceptionType == "BrowserAuthError" and OuterMessage startswith "BrowserAuthError: interaction_in_progress", "Interaction in progress",
+    "Unknown"
+)
+| extend Environment = tostring(parse_json(tostring(Properties.properties))["Environment"])

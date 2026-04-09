@@ -26,7 +26,9 @@ echo "Done: ${OUTFILE} (${COUNT} functions)"
 if [[ "${1:-}" == "--sync-kql" ]]; then
   echo "→ Rebuilding ${KQLDIR}/ from deployed functions..."
   rm -f "${KQLDIR}"/*.kql
-  jq -r '.[] | "\(.functionAlias)\t\(.query)"' "$OUTFILE" | while IFS=$'\t' read -r ALIAS QUERY; do
+  jq -c '.[]' "$OUTFILE" | while IFS= read -r ENTRY; do
+    ALIAS=$(echo "$ENTRY" | jq -r '.functionAlias')
+    QUERY=$(echo "$ENTRY" | jq -r '.query')
     KQLFILE="${KQLDIR}/${ALIAS}.kql"
     printf '%s\n' "$QUERY" > "$KQLFILE"
     echo "  → ${ALIAS}.kql"
