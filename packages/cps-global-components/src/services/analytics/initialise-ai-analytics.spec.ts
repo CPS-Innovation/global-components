@@ -65,7 +65,7 @@ describe("initialiseAiAnalytics", () => {
       expect(result.trackException).toBeDefined();
       expect(result.trackEvent).toBeDefined();
       expect(result.registerAuthWithAnalytics).toBeDefined();
-      expect(result.registerCorrelationIds).toBeDefined();
+      expect(result.registerCorrelationIdsWithAnalytics).toBeDefined();
       expect(mockLoadAppInsights).not.toHaveBeenCalled();
     });
   });
@@ -149,12 +149,12 @@ describe("initialiseAiAnalytics", () => {
     });
   });
 
-  describe("registerCorrelationIds", () => {
+  describe("registerCorrelationIdsWithAnalytics", () => {
     it("should include correlation ids in analytics events after registering", () => {
       const mockWindow = makeMockWindow();
-      const { registerCorrelationIds } = initialiseAiAnalytics(makeProps({ window: mockWindow }));
+      const { registerCorrelationIdsWithAnalytics } = initialiseAiAnalytics(makeProps({ window: mockWindow }));
 
-      registerCorrelationIds(makeCorrelationIds());
+      registerCorrelationIdsWithAnalytics(makeCorrelationIds());
 
       const event = new AnalyticsEvent({ name: "loaded", componentName: "test-component" });
       mockWindow.dispatchEvent(event);
@@ -178,10 +178,10 @@ describe("initialiseAiAnalytics", () => {
     });
 
     it("should include correlation ids in trackPageView after registering", async () => {
-      const { registerAuthWithAnalytics, registerCorrelationIds, trackPageView } = initialiseAiAnalytics(makeProps());
+      const { registerAuthWithAnalytics, registerCorrelationIdsWithAnalytics, trackPageView } = initialiseAiAnalytics(makeProps());
 
       registerAuthWithAnalytics({ isAuthed: true, username: "alice", name: "Alice", groups: [], objectId: "obj-1" });
-      registerCorrelationIds(makeCorrelationIds());
+      registerCorrelationIdsWithAnalytics(makeCorrelationIds());
       trackPageView({ context: makeContext() });
       await Promise.resolve();
 

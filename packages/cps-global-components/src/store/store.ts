@@ -54,7 +54,6 @@ type StartupState = {
   cmsSessionHint: Result<CmsSessionHint>;
   handover: Result<Handover>;
   recentCases: Result<RecentCases>;
-  firstContext: FoundContext;
 };
 
 const initialStartupState = {
@@ -68,7 +67,6 @@ const initialStartupState = {
   cmsSessionHint: undefined,
   handover: undefined,
   recentCases: undefined,
-  firstContext: undefined,
 };
 
 // This state could change (e.g. history-based non-full-refresh navigation or dom tags changing)
@@ -191,12 +189,15 @@ export const initialiseStore = () => {
     return nextValue;
   };
 
-  const resetContextSpecificTags = () => {
+  const resetContextSpecificTags = (context?: FoundContext) => {
     // Note: tags obtained from props passed from the host apps should not be cleared on context change.
     //  They are subject to being updated via @Watch so all good there, but we definitely do not want
     //  the tags from one context (e.g. caseId = 123) hanging around for the next context in an SPA
     //  navigation (e.g. caseId = 456).
     privateTagProperties.filter(key => !["propTags", "cmsSessionTags", "handoverTags"].includes(key)).forEach(key => store.set(key, {}));
+    if (context) {
+      register({ pathTags: context.pathTags });
+    }
   };
 
   const subscribe: Subscribe = (...subscriptionFactories: SubscriptionFactory[]) =>
@@ -211,9 +212,57 @@ export const initialiseStore = () => {
 
   subscribe(resetPreventionSubscriptionFactory, loggingSubscriptionFactory, tagsSubscriptionFactory, caseIdentifiersSubscriptionFactory);
 
+  // Promise-based mechanism for waiting on caseIdentifiers changes.
+  // contextChangePhase calls reset() to start watching, then awaits waitForChange().
+  // If caseIdentifiers are set synchronously (from pathTags in initialiseContext), the
+  // promise resolves immediately. If they come later (from DOM observation), it resolves
+  // when the store subscription fires.
+  const createCaseIdentifiersWaiter = () => {
+    let lastCaseId: string | undefined;
+    let pendingResolve: ((ids: CaseIdentifiers) => void) | null = null;
+    let pendingIds: CaseIdentifiers | null = null;
+
+    applyOnChangeHandler(store, {
+      propName: "caseIdentifiers",
+      handler: (ids: CaseIdentifiers | undefined) => {
+        if (!ids?.caseId || ids.caseId === lastCaseId) return;
+        lastCaseId = ids.caseId;
+        if (pendingResolve) {
+          pendingResolve(ids);
+          pendingResolve = null;
+          pendingIds = null;
+        } else {
+          // Store the value in case waitForChange() is called after the change
+          pendingIds = ids;
+        }
+      },
+    });
+
+    return {
+      reset: () => {
+        pendingResolve = null;
+        pendingIds = null;
+      },
+      waitForChange: (): Promise<CaseIdentifiers | undefined> => {
+        // If a change already happened since reset(), resolve immediately
+        if (pendingIds) {
+          const ids = pendingIds;
+          pendingIds = null;
+          return Promise.resolve(ids);
+        }
+        // Otherwise wait for the next change
+        return new Promise(resolve => {
+          pendingResolve = resolve;
+        });
+      },
+    };
+  };
+
+  const caseIdentifiersWaiter = createCaseIdentifiersWaiter();
+
   _mergeTags = storeMergeTags;
 
-  return { readyState, register, mergeTags: storeMergeTags, resetContextSpecificTags, subscribe, get: store.get };
+  return { readyState, register, mergeTags: storeMergeTags, resetContextSpecificTags, subscribe, get: store.get, caseIdentifiersWaiter };
 };
 
 export const mergeTags: MergeTags = arg => {

@@ -62,7 +62,7 @@ const setup = (doc: Document, previewEnabled: boolean) => {
   };
 
   initialiseTabTitle({
-    document: doc,
+    window: { document: doc } as any,
     preview: previewEnabled ? { found: true, result: { tabTitleUrn: true } } : { found: false, error: new Error("off") },
     subscribe: subscribe as any,
   });

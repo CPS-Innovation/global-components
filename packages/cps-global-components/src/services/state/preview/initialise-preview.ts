@@ -1,4 +1,11 @@
 import { fetchState } from "../fetch-state";
-import { PreviewSchema } from "cps-global-configuration";
+import { Preview, PreviewSchema } from "cps-global-configuration";
+import { Result } from "../../../utils/Result";
 
-export const initialisePreview = ({ rootUrl }: { rootUrl: string }) => fetchState({ rootUrl, url: "../state/preview", schema: PreviewSchema });
+type Register = (arg: { preview: Result<Preview> }) => void;
+
+export const initialisePreview = async ({ rootUrl, register }: { rootUrl: string; register: Register }): Promise<Result<Preview>> => {
+  const preview = await fetchState({ rootUrl, url: "../state/preview", schema: PreviewSchema });
+  register({ preview });
+  return preview;
+};

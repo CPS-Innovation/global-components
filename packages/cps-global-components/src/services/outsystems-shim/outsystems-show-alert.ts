@@ -7,23 +7,21 @@ const LOCALSTORAGE_KEY = "$OS_Users$Casework_Blocks$ClientVars$ShowAlert";
 const EVENT_NAME = "cps-global-show-alert";
 
 export const initialiseOutSystemsShowAlert = ({
-  context,
   config,
-  auth,
   authHint,
   preview,
 }: {
-  context: FoundContext;
   config: Config;
-  auth: StoredState["auth"];
   authHint: StoredState["authHint"];
   preview: State["preview"];
 }) => {
-  if (!context.found || !context.showNotification) {
-    return;
-  }
+  const initialiseOutSystemsShowAlertForContext = ({ context, auth }: { context: FoundContext; auth: StoredState["auth"] }) => {
+    if (!context.found || !context.showNotification) return;
 
-  const showAlert = FEATURE_FLAGS.shouldShowHomePageNotification({ config, auth, authHint, preview });
-  localStorage.setItem(LOCALSTORAGE_KEY, JSON.stringify(showAlert));
-  window.dispatchEvent(new CustomEvent(EVENT_NAME, { detail: { showAlert } }));
+    const showAlert = FEATURE_FLAGS.shouldShowHomePageNotification({ config, auth, authHint, preview });
+    localStorage.setItem(LOCALSTORAGE_KEY, JSON.stringify(showAlert));
+    window.dispatchEvent(new CustomEvent(EVENT_NAME, { detail: { showAlert } }));
+  };
+
+  return { initialiseOutSystemsShowAlertForContext };
 };

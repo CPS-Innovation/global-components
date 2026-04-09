@@ -14,8 +14,11 @@ export type AuthHint = z.infer<typeof AuthHintSchema>;
 
 const { _warn } = makeConsole("initialiseAuthHint");
 
-export const initialiseAuthHint = async ({ rootUrl }: { rootUrl: string }): Promise<{ authHint: Result<AuthHint>; setAuthHint: (auth: Auth) => void }> => {
+type Register = (arg: { authHint: Result<AuthHint> }) => void;
+
+export const initialiseAuthHint = async ({ rootUrl, register }: { rootUrl: string; register: Register }): Promise<{ authHint: Result<AuthHint>; setAuthHint: (auth: Auth) => void }> => {
   const authHint = await fetchState({ rootUrl, url: "../state/auth-hint", schema: AuthHintSchema });
+  register({ authHint });
 
   const setAuthHint = (auth: Auth) => {
     const data: AuthHint = { authResult: auth, timestamp: Date.now() };
