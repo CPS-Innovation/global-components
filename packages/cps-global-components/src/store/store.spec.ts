@@ -238,6 +238,24 @@ describe("store", () => {
           expect(result.state.tags).toEqual({});
         }
       });
+
+      it("should reset tags and register new pathTags when context is provided", () => {
+        const { register, resetContextSpecificTags } = initialiseStore();
+
+        register({
+          pathTags: { caseId: "123" },
+          domTags: { urn: "old" },
+          propTags: { appId: "app1" },
+        });
+
+        resetContextSpecificTags({ found: true, pathTags: { caseId: "456" } } as any);
+
+        const result = readyState("tags");
+        if (result.isReady) {
+          // propTags preserved, domTags reset, pathTags set to new context's values
+          expect(result.state.tags).toEqual({ appId: "app1", caseId: "456" });
+        }
+      });
     });
   });
 

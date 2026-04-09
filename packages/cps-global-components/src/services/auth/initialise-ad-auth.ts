@@ -5,16 +5,17 @@ import { makeConsole } from "../../logging/makeConsole";
 import { AuthResult, FailedAuth, KnownErrorType } from "./AuthResult";
 import { getAdUserAccount } from "./get-ad-user-account";
 import { getErrorType } from "./get-error-type";
-import { createMsalInstance } from "./create-msal-instance";
 import { getTokenFactory } from "./get-token-factory";
 import { GetToken } from "./GetToken";
 import type { AdDiagnosticsCollector } from "./ad-diagnostics-collector";
+import type { PublicClientApplication } from "@azure/msal-browser";
 
 type Props = {
   config: Config;
   context: FoundContext;
   onError?: (error: Error) => void;
   diagnosticsCollector?: AdDiagnosticsCollector;
+  instance?: PublicClientApplication;
 };
 
 const failedAuth = (knownErrorType: KnownErrorType, reason: string): { auth: FailedAuth; getToken: GetToken } => ({
@@ -29,10 +30,11 @@ const failedAuth = (knownErrorType: KnownErrorType, reason: string): { auth: Fai
 const { _error } = makeConsole("initialiseAuth");
 
 const initialiseAdAuthInternal = async ({
-  config: { AD_TENANT_AUTHORITY: authority, AD_CLIENT_ID: clientId, FEATURE_FLAG_ENABLE_INTRUSIVE_AD_LOGIN },
+  config: { AD_TENANT_AUTHORITY: authority, AD_CLIENT_ID: clientId, FEATURE_FLAG_ENABLE_INTRUSIVE_AD_LOGIN, SSO_SILENT_DELAY_MS },
   context: { msalRedirectUrl: redirectUri, currentHref },
   onError,
   diagnosticsCollector,
+  instance,
 }: Props): Promise<{ auth: AuthResult; getToken: GetToken }> => {
 
   if (!(authority && clientId && redirectUri)) {
@@ -47,9 +49,12 @@ const initialiseAdAuthInternal = async ({
     return failedAuth("RedirectLocationIsApp", "We think we are the MSAL AD redirectUri loading and hence not a real application");
   }
 
+  if (!instance) {
+    return failedAuth("ConfigurationIncomplete", "No MSAL instance available");
+  }
+
   try {
-    const instance = await createMsalInstance({ authority, clientId, redirectUri, diagnosticsCollector });
-    const account = await getAdUserAccount({ instance, config: { FEATURE_FLAG_ENABLE_INTRUSIVE_AD_LOGIN }, diagnosticsCollector });
+    const account = await getAdUserAccount({ instance, config: { FEATURE_FLAG_ENABLE_INTRUSIVE_AD_LOGIN, SSO_SILENT_DELAY_MS }, diagnosticsCollector });
     if (!account) {
       return failedAuth("NoAccountFound", "No AD account found");
     }
