@@ -9,12 +9,9 @@ OUTDIR="${SCRIPT_DIR}/output"
 QUERY="${1:?Usage: run-query.sh \"<query>\" [table|json|tsv]}"
 FORMAT="${2:-table}"
 
-# Sanitize first 100 chars of query into a safe filename
-SAFE=$(printf '%s' "$QUERY" \
-  | cut -c1-100 \
-  | tr -cs 'a-zA-Z0-9_-' '_' \
-  | sed 's/_\+/_/g; s/^_//; s/_$//')
-OUTFILE="${OUTDIR}/${SAFE}.txt"
+# Use a short hash of the query as the filename
+HASH=$(printf '%s' "$QUERY" | md5 -q 2>/dev/null || printf '%s' "$QUERY" | md5sum | cut -c1-8)
+OUTFILE="${OUTDIR}/query_${HASH:0:12}.txt"
 
 echo "→ ${AWS_REMOTE}"
 echo "→ ${OUTFILE}"

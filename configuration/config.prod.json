@@ -23,7 +23,7 @@
     ]
   },
   "FEATURE_FLAG_ENABLE_INTRUSIVE_AD_LOGIN": false,
-  "SSO_SILENT_DELAY_MS": 2000,
+  "SSO_SILENT_DELAY_MS": 0,
   "COLLECT_AD_DIAGNOSTICS_IN_PAGE_VIEW": true,
   "CONTEXTS": [
     {
@@ -52,7 +52,7 @@
         {
           "path": "https://cps.outsystemsenterprise.com/CaseReview/RedirectCW",
           "contextIds": "redirect",
-          "preventPageViewAnalytics": true
+          "preventADAndDataCalls": true
         },
         {
           "path": "https://cps.outsystemsenterprise.com/CaseReview/",
@@ -80,7 +80,7 @@
         {
           "path": "https://cps.outsystemsenterprise.com/WorkManagementApp/Redirect",
           "contextIds": "redirect",
-          "preventPageViewAnalytics": true
+          "preventADAndDataCalls": true
         },
         {
           "path": "https://cps.outsystemsenterprise.com/WorkManagementApp/SearchCase",
@@ -102,7 +102,7 @@
         {
           "path": "https://polaris.cps.gov.uk/polaris-ui/go\\?",
           "contextIds": "redirect materials-cwa",
-          "preventPageViewAnalytics": true
+          "preventADAndDataCalls": true
         },
         {
           "path": "https://polaris",

@@ -9,6 +9,7 @@ AppPageViews
 | where Url !startswith "https://polaris.cps.gov.uk/polaris-ui#code"
 | where Url !startswith "https://cps.outsystemsenterprise.com/CaseReview/RedirectCW"
 | where Url !startswith "https://cps.outsystemsenterprise.com/CaseReview/LoginPage"
+| where Url !startswith "https://housekeeping.cps.gov.uk/init"
 // Nested double-encoded objects — parse_json() again on each
 | extend Auth    = parse_json(tostring(parsed.Auth))
 | extend App = case(
