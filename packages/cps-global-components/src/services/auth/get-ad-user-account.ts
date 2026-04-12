@@ -20,16 +20,16 @@ const { _debug } = makeConsole("getAdUserAccount");
 
 const DEFAULT_SSO_SILENT_DELAY_MS = 0;
 
-const waitForPageStability = async (ssoSilentDelayMs: number, diagnosticsCollector?: AdDiagnosticsCollector) => {
-  const elapsed = Math.round(performance.now());
+const waitForPageStability = async (ssoSilentDelayMs: number, scriptStartMs: number, diagnosticsCollector?: AdDiagnosticsCollector) => {
+  const elapsed = Math.round(performance.now() - scriptStartMs);
   const remainingDelay = Math.max(0, ssoSilentDelayMs - elapsed);
   diagnosticsCollector?.add({
     ssoSilentDelayConfigMs: ssoSilentDelayMs,
-    ssoSilentDelayElapsedAtCheckMs: elapsed,
+    ssoSilentDelayElapsedSinceScriptStartMs: elapsed,
     ssoSilentDelayActualWaitMs: remainingDelay,
   });
   if (remainingDelay > 0) {
-    _debug(`Waiting ${remainingDelay}ms before ssoSilent (${elapsed}ms elapsed since page load, threshold ${ssoSilentDelayMs}ms)`);
+    _debug(`Waiting ${remainingDelay}ms before ssoSilent (${elapsed}ms elapsed since script start, threshold ${ssoSilentDelayMs}ms)`);
     await new Promise((resolve) => setTimeout(resolve, remainingDelay));
   }
 };
@@ -62,7 +62,7 @@ const internalGetAdUserAccount = async ({ instance, config: { FEATURE_FLAG_ENABL
   };
 
   const tryLoginAccountSilently = async (): AccountRetrievalResult => {
-    await waitForPageStability(SSO_SILENT_DELAY_MS ?? DEFAULT_SSO_SILENT_DELAY_MS, diagnosticsCollector);
+    await waitForPageStability(SSO_SILENT_DELAY_MS ?? DEFAULT_SSO_SILENT_DELAY_MS, t0, diagnosticsCollector);
     const tSilent = performance.now();
     let pageHiddenDuringAuth = false;
     let beforeUnloadFired = false;
@@ -77,8 +77,19 @@ const internalGetAdUserAccount = async ({ instance, config: { FEATURE_FLAG_ENABL
     document.addEventListener("visibilitychange", onVisibilityChange);
     window.addEventListener("beforeunload", onBeforeUnload);
 
+    // Pass loginHint to identify the user by UPN rather than by session.
+    // Without this, MSAL pulls the active account from cache and extracts
+    // its idTokenClaims.sid, sending it as `sid=<value>` on /authorize.
+    // If that session has been rotated server-side (by Polaris's own sign-in,
+    // CA policy, or session timeout), AD rejects with AADSTS160021.
+    // Passing loginHint causes MSAL to skip the account lookup entirely
+    // (initializeAuthorizationRequest returns early when loginHint is set),
+    // so no sid is ever extracted or sent.
+    const knownAccount = instance.getActiveAccount() || instance.getAllAccounts()[0];
+    const ssoSilentRequest = { ...loginRequest, ...(knownAccount?.username ? { loginHint: knownAccount.username } : {}) };
+
     try {
-      const { account } = await instance.ssoSilent(loginRequest);
+      const { account } = await instance.ssoSilent(ssoSilentRequest);
       diagnosticsCollector?.add({
         ssoSilentStartMs: Math.round(tSilent),
       });

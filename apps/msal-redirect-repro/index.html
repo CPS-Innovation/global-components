@@ -5,32 +5,88 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>MSAL Redirect Repro</title>
   <style>
-    body { font-family: monospace; max-width: 900px; margin: 2em auto; line-height: 1.6; }
+    body { font-family: monospace; max-width: 1100px; margin: 2em auto; line-height: 1.6; padding: 0 1em; }
     h1 { font-size: 1.2em; }
+    h2 { font-size: 1.05em; margin-top: 1.5em; }
+    h3 { font-size: 0.95em; margin: 0.5em 0; }
     .config { background: #f0f0f0; padding: 1em; margin: 1em 0; border-radius: 4px; }
+    .config.host { border-left: 4px solid #0066cc; }
+    .config.guest { border-left: 4px solid #cc6600; }
     .config label { display: flex; align-items: center; gap: 0.5em; margin: 0.5em 0; }
     .config input[type="text"], .config input[type="number"], .config select { font-family: monospace; padding: 0.3em; flex: 1; }
     .config input[type="checkbox"] { width: auto; margin: 0; }
+    .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 1em; }
     #log { background: #1a1a1a; color: #0f0; padding: 1em; border-radius: 4px; max-height: 500px; overflow-y: auto; white-space: pre-wrap; font-size: 0.85em; }
     button { font-family: monospace; padding: 0.5em 1em; margin: 0.3em; cursor: pointer; }
-    .controls { margin: 1em 0; }
+    button.host { background: #e6f0fa; border: 1px solid #0066cc; }
+    button.guest { background: #faf0e6; border: 1px solid #cc6600; }
+    button.danger { background: #fde6e6; border: 1px solid #cc0000; }
+    .controls { margin: 1em 0; padding: 0.5em; background: #fafafa; border-radius: 4px; }
+    .controls h3 { margin-top: 0; }
     .status { padding: 0.5em; margin: 0.5em 0; border-radius: 4px; }
     .status.ok { background: #d4edda; }
     .status.fail { background: #f8d7da; }
     .status.pending { background: #fff3cd; }
+    .hint { font-size: 0.85em; color: #666; margin: 0.3em 0; }
+    .scenarios { background: #f5f5f5; padding: 1em; margin: 1em 0; border-radius: 4px; border-left: 4px solid #4a4a4a; }
+    .scenarios h3 { margin-top: 0; }
+    .scenarios label { display: inline-flex; align-items: center; gap: 0.5em; margin: 0.3em 1em 0.3em 0; }
+    .scenarios input[type="number"] { width: 100px; padding: 0.3em; font-family: monospace; }
+    .scenarios button { background: #e8e8ff; border: 1px solid #4a4aaa; }
+    table.results { width: 100%; border-collapse: collapse; font-size: 0.85em; margin: 0.5em 0; }
+    table.results th, table.results td { padding: 0.4em 0.6em; text-align: left; border-bottom: 1px solid #ddd; }
+    table.results th { background: #f0f0f0; font-weight: bold; }
+    table.results tr.pass td { background: #e8f5e8; }
+    table.results tr.fail td { background: #fbe8e8; }
+    table.results td.outcome { font-weight: bold; }
+    table.results .empty { color: #888; font-style: italic; text-align: center; padding: 1em; }
   </style>
 </head>
 <body>
   <h1>MSAL Redirect Race Condition Repro</h1>
-  <p>Simulates the effect of a page redirect interrupting an MSAL ssoSilent flow.</p>
+  <p>Simulates cross-app MSAL interference: a host app doing a redirect flow while a guest component tries to auth silently.</p>
+
+  <div class="two-col">
+    <div class="config host">
+      <h3>Host App Config</h3>
+      <p class="hint">The "parent" application — simulates Polaris. Use its app-reg clientId and one of its SPA-type redirect URIs.</p>
+      <label>Client ID: <input type="text" id="hostClientId" value="" placeholder="host-app-client-id"></label>
+      <label>Authority: <input type="text" id="hostAuthority" value="https://login.microsoftonline.com/common" placeholder="https://login.microsoftonline.com/{tenant}"></label>
+      <label>Redirect URI: <input type="text" id="hostRedirectUri" value="" placeholder="defaults to this page's URL"></label>
+      <label>MSAL version:
+        <select id="hostMsalVersion">
+          <option value="v2">v2.39.0 (Polaris)</option>
+          <option value="v4">v4.30.0</option>
+        </select>
+      </label>
+    </div>
+
+    <div class="config guest">
+      <h3>Guest App Config</h3>
+      <p class="hint">The "child" application — simulates our global-components guest. Same tenant as host, different clientId.</p>
+      <label>Client ID: <input type="text" id="guestClientId" value="" placeholder="guest-app-client-id"></label>
+      <label>Authority: <input type="text" id="guestAuthority" value="https://login.microsoftonline.com/common" placeholder="https://login.microsoftonline.com/{tenant}"></label>
+      <label>Redirect URI: <input type="text" id="guestRedirectUri" value="" placeholder="defaults to this page's URL"></label>
+      <label>MSAL version:
+        <select id="guestMsalVersion">
+          <option value="v4">v4.30.0 (global-components)</option>
+          <option value="v2">v2.39.0</option>
+        </select>
+      </label>
+      <p class="hint" style="margin-top: 0.8em;"><strong>Prod flow config</strong> — used by "Run Prod Flow" and by S1 scenarios. Mirrors <code>get-ad-user-account.ts</code>.</p>
+      <label>SSO_SILENT_DELAY_MS: <input type="number" id="guestSsoSilentDelayMs" value="0" min="0" max="30000" step="100"></label>
+      <label><input type="checkbox" id="guestEnableIntrusiveAdLogin"> FEATURE_FLAG_ENABLE_INTRUSIVE_AD_LOGIN (allow MultipleIdentities fall-through)</label>
+      <label><input type="checkbox" id="guestAllowPopupFallback"> Allow loginPopup fallback on silent failure</label>
+      <label>Override SID: <input type="text" id="guestOverrideSid" value="" placeholder="blank = use account's cached sid (if any)"></label>
+      <label>Override loginHint: <input type="text" id="guestOverrideLoginHint" value="" placeholder="blank = none; e.g. user@tenant.onmicrosoft.com"></label>
+      <p class="hint"><strong>SID override</strong>: forces <code>sid=&lt;value&gt;</code> on silent flows. Garbage value reproduces <code>AADSTS160021</code>.<br>
+      <strong>loginHint override</strong>: forces <code>login_hint=&lt;value&gt;</code>. When set, MSAL skips the account lookup entirely (no sid extracted). This is the proposed fix for Mode 2.<br>
+      <strong>Both set</strong>: sid takes precedence in MSAL's parameter builder (sid is checked first). The fix must NOT pass sid.</p>
+    </div>
+  </div>
 
   <div class="config">
-    <h3>Azure AD Config</h3>
-    <label>Client ID: <input type="text" id="clientId" value="" placeholder="your-client-id"></label>
-    <label>Authority: <input type="text" id="authority" value="https://login.microsoftonline.com/common" placeholder="https://login.microsoftonline.com/{tenant}"></label>
-    <label>Redirect URI: <input type="text" id="redirectUri" value="" placeholder="http://localhost:3000"></label>
-
-    <h3>Repro Config</h3>
+    <h3>Repro Config (used by Host controls)</h3>
     <label>Redirect delay (ms): <input id="redirectDelay" type="number" value="500" min="0" max="30000" step="100"></label>
     <label>Redirect target:
       <select id="redirectTarget">
@@ -43,19 +99,103 @@
   </div>
 
   <div class="controls">
-    <button onclick="startRepro()">Start Repro</button>
-    <button onclick="startAutoRepro()">Auto Repro (abort + redirect + retry)</button>
-    <button onclick="doLoginPopup()">Login via Popup (test config)</button>
-    <button onclick="checkState()">Check MSAL State</button>
-    <button onclick="clearState()">Clear MSAL localStorage</button>
+    <h3>Host Controls (single-app rig, unchanged)</h3>
+    <button class="host" onclick="startRepro()">Host: Start Repro</button>
+    <button class="host" onclick="startAutoRepro()">Host: Auto Repro (abort + redirect + retry)</button>
+    <button class="host" onclick="doLoginPopup()">Host: Login via Popup</button>
+    <button class="host" onclick="checkHostState()">Host: Check State</button>
+    <button class="host" onclick="clearHostState()">Host: Clear State</button>
+  </div>
+
+  <div class="controls">
+    <h3>Guest Controls (cache manipulation — used to set up scenarios)</h3>
+    <button class="guest" onclick="seedGuestCache()">Guest: Seed Cache (popup login)</button>
+    <button class="guest" onclick="guestAcquireTokenSilent()">Guest: acquireTokenSilent</button>
+    <button class="guest" onclick="guestSilentLogin()">Guest: ssoSilent</button>
+    <button class="guest" onclick="guestRunProdFlow()">Guest: Run Prod Flow (getAdUserAccount)</button>
+    <button class="guest" onclick="checkGuestState()">Guest: Check State</button>
+    <button class="guest" onclick="deleteGuestRefreshToken()">Guest: Delete Refresh Token</button>
+    <button class="guest" onclick="deleteGuestAccessToken()">Guest: Delete Access Token</button>
+    <button class="guest" onclick="clearGuestState()">Guest: Clear All</button>
+  </div>
+
+  <div class="controls">
+    <h3>Global</h3>
+    <button class="danger" onclick="clearEverything()">Clear Everything (both clients + sessionStorage)</button>
     <button onclick="clearLog()">Clear Log</button>
   </div>
+
+  <div class="scenarios">
+    <h3>Scenarios</h3>
+    <p class="hint">Each scenario uses the full state machine (may redirect through AD or self) and records an outcome to the results table below.</p>
+
+    <h3>S0: Rapid-abort banning of guest ssoSilent (Mode 1)</h3>
+    <p class="hint">Fires guest <code>ssoSilent</code> and immediately redirects the page to self, aborting the in-flight iframe. Repeats N times, then a final attempt is allowed to complete. Tests whether AD's loop-detection throttling trips after repeated aborted silent flows — the failure mode <code>SSO_SILENT_DELAY_MS</code> is designed to mitigate.</p>
+    <label>Aborts before final attempt: <input id="s0Aborts" type="number" value="2" min="1" max="5"></label>
+    <label>Abort delay (ms): <input id="s0AbortDelay" type="number" value="500" min="0" max="5000" step="100"></label>
+    <br>
+    <button onclick="scenario0Start()">Run S0</button>
+    <p class="hint">Respects the guest's <code>SSO_SILENT_DELAY_MS</code> on the final attempt so you can A/B the mitigation. Set it to 0 to see the raw failure; set it to e.g. 2000 to verify the fix.</p>
+
+    <h3>S1: Host loginRedirect → (timing) → Guest Prod Flow (Mode 2)</h3>
+    <p class="hint">Host does a real interactive redirect. On return, the guest's production flow (<code>acquireTokenSilent → ssoSilent → loginPopup</code>) runs — but <strong>when</strong> it runs relative to the host's <code>handleRedirectPromise</code> is configurable, because production has these two racing in parallel on page boot.</p>
+    <label>Guest timing:
+      <select id="s1Timing">
+        <option value="after">After host handleRedirectPromise (safest)</option>
+        <option value="parallel">In parallel with host handleRedirectPromise</option>
+        <option value="before">Before host handleRedirectPromise</option>
+      </select>
+    </label>
+    <label>Gap (ms): <input id="s1Gap" type="number" value="0" min="0" max="30000" step="100"></label>
+    <label><input type="checkbox" id="s1PreDeleteGuestRT" checked> Pre-delete guest refresh token (forces iframe /authorize path)</label>
+    <br>
+    <button onclick="scenario1Start()">Run S1</button>
+    <p class="hint">Timing modes: <strong>after</strong> = host finishes processing its redirect, then guest runs (sequential, with optional gap between). <strong>parallel</strong> = host handleRedirectPromise and guest flow start concurrently via Promise.all — closest to production boot. <strong>before</strong> = guest flow runs first against in-flight redirect state (URL has <code>?code=...</code>, shared sessionStorage still dirty), then host handleRedirectPromise cleans up afterwards. The <em>gap</em> input inserts a delay between the two actions in "after" and "before" modes; in "parallel" mode it's ignored.</p>
+  </div>
+
+  <h3>Results</h3>
+  <table class="results" id="resultsTable">
+    <thead>
+      <tr>
+        <th>#</th>
+        <th>Scenario</th>
+        <th>Started</th>
+        <th>Params</th>
+        <th>Outcome</th>
+        <th>Error</th>
+        <th>CorrelationId</th>
+        <th>Duration</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+  <button onclick="clearResults()">Clear results</button>
 
   <div id="statusBar"></div>
   <div id="log"></div>
 
+  <!--
+    Load BOTH MSAL versions so we can simulate the production topology:
+    Polaris uses msal-browser@2.39.0, our component uses msal-browser@4.30.0.
+    Each script defines the global `msal`; we rename after each load so both
+    versions coexist on the page.
+  -->
+  <script src="https://cdn.jsdelivr.net/npm/@azure/msal-browser@2.39.0/lib/msal-browser.min.js"></script>
+  <script>
+    window.msalV2 = window.msal;
+    window.msal = undefined;
+  </script>
   <script src="https://cdn.jsdelivr.net/npm/@azure/msal-browser@4.30.0/lib/msal-browser.min.js"></script>
   <script>
+    window.msalV4 = window.msal;
+    // Keep window.msal pointing at v4 as a compatibility shim for any code
+    // that still references `msal.PublicClientApplication` directly.
+    window.msal = window.msalV4;
+  </script>
+  <script>
+    // ============================================================
+    // Logging & status
+    // ============================================================
     const logEl = document.getElementById("log");
     const statusEl = document.getElementById("statusBar");
 
@@ -71,91 +211,397 @@
 
     const clearLog = () => { logEl.textContent = ""; };
 
-    const getConfig = () => ({
-      clientId: document.getElementById("clientId").value,
-      authority: document.getElementById("authority").value,
-      redirectUri: document.getElementById("redirectUri").value || window.location.origin + window.location.pathname,
+    // ============================================================
+    // Config read / write — host and guest have separate inputs
+    // ============================================================
+    const getHostConfig = () => ({
+      role: "host",
+      msalVersion: document.getElementById("hostMsalVersion").value,
+      clientId: document.getElementById("hostClientId").value,
+      authority: document.getElementById("hostAuthority").value,
+      redirectUri: document.getElementById("hostRedirectUri").value || window.location.origin + window.location.pathname,
+      // repro knobs live in the shared section
       redirectDelay: parseInt(document.getElementById("redirectDelay").value),
       redirectTarget: document.getElementById("redirectTarget").value,
       enableRedirect: document.getElementById("enableRedirect").checked,
       useAcquireTokenSilent: document.getElementById("useAcquireTokenSilent").checked,
     });
 
+    const getGuestConfig = () => ({
+      role: "guest",
+      msalVersion: document.getElementById("guestMsalVersion").value,
+      clientId: document.getElementById("guestClientId").value,
+      authority: document.getElementById("guestAuthority").value,
+      redirectUri: document.getElementById("guestRedirectUri").value || window.location.origin + window.location.pathname,
+      ssoSilentDelayMs: parseInt(document.getElementById("guestSsoSilentDelayMs").value) || 0,
+      enableIntrusiveAdLogin: document.getElementById("guestEnableIntrusiveAdLogin").checked,
+      allowPopupFallback: document.getElementById("guestAllowPopupFallback").checked,
+      overrideSid: document.getElementById("guestOverrideSid").value.trim() || null,
+      overrideLoginHint: document.getElementById("guestOverrideLoginHint").value.trim() || null,
+    });
+
+    const getScenariosConfig = () => ({
+      s0Aborts: parseInt(document.getElementById("s0Aborts").value) || 2,
+      s0AbortDelay: parseInt(document.getElementById("s0AbortDelay").value) || 500,
+      s1Timing: document.getElementById("s1Timing").value,
+      s1Gap: parseInt(document.getElementById("s1Gap").value) || 0,
+      s1PreDeleteGuestRT: document.getElementById("s1PreDeleteGuestRT").checked,
+    });
+
+    let lastSaveLogged = 0;
     const saveConfig = () => {
-      const config = getConfig();
-      localStorage.setItem("repro-tool-config", JSON.stringify(config));
+      try {
+        localStorage.setItem("repro-tool-host-config", JSON.stringify(getHostConfig()));
+        localStorage.setItem("repro-tool-guest-config", JSON.stringify(getGuestConfig()));
+        localStorage.setItem("repro-tool-scenarios-config", JSON.stringify(getScenariosConfig()));
+        // Throttle log spam — only log once per ~2s even if keystrokes are fast
+        const now = Date.now();
+        if (now - lastSaveLogged > 2000) {
+          lastSaveLogged = now;
+          log(`[save] Config persisted to localStorage`);
+        }
+      } catch (e) {
+        log(`[save] ERROR: ${e.message}`);
+      }
     };
 
     const loadConfig = () => {
       try {
-        const saved = JSON.parse(localStorage.getItem("repro-tool-config"));
-        if (saved) {
-          document.getElementById("clientId").value = saved.clientId || "";
-          document.getElementById("authority").value = saved.authority || "";
-          document.getElementById("redirectUri").value = saved.redirectUri || "";
-          document.getElementById("redirectDelay").value = saved.redirectDelay ?? 500;
-          document.getElementById("redirectTarget").value = saved.redirectTarget || "self";
-          document.getElementById("enableRedirect").checked = saved.enableRedirect ?? true;
-          document.getElementById("useAcquireTokenSilent").checked = saved.useAcquireTokenSilent ?? false;
+        const host = JSON.parse(localStorage.getItem("repro-tool-host-config"));
+        if (host) {
+          document.getElementById("hostClientId").value = host.clientId || "";
+          document.getElementById("hostAuthority").value = host.authority || "https://login.microsoftonline.com/common";
+          document.getElementById("hostRedirectUri").value = host.redirectUri || "";
+          document.getElementById("hostMsalVersion").value = host.msalVersion || "v2";
+          document.getElementById("redirectDelay").value = host.redirectDelay ?? 500;
+          document.getElementById("redirectTarget").value = host.redirectTarget || "self";
+          document.getElementById("enableRedirect").checked = host.enableRedirect ?? true;
+          document.getElementById("useAcquireTokenSilent").checked = host.useAcquireTokenSilent ?? false;
+        }
+      } catch {}
+      try {
+        const guest = JSON.parse(localStorage.getItem("repro-tool-guest-config"));
+        if (guest) {
+          document.getElementById("guestClientId").value = guest.clientId || "";
+          document.getElementById("guestAuthority").value = guest.authority || "https://login.microsoftonline.com/common";
+          document.getElementById("guestRedirectUri").value = guest.redirectUri || "";
+          document.getElementById("guestMsalVersion").value = guest.msalVersion || "v4";
+          document.getElementById("guestSsoSilentDelayMs").value = guest.ssoSilentDelayMs ?? 0;
+          document.getElementById("guestEnableIntrusiveAdLogin").checked = guest.enableIntrusiveAdLogin ?? false;
+          document.getElementById("guestAllowPopupFallback").checked = guest.allowPopupFallback ?? false;
+          document.getElementById("guestOverrideSid").value = guest.overrideSid || "";
+          document.getElementById("guestOverrideLoginHint").value = guest.overrideLoginHint || "";
+        }
+      } catch {}
+      try {
+        const scenarios = JSON.parse(localStorage.getItem("repro-tool-scenarios-config"));
+        if (scenarios) {
+          document.getElementById("s0Aborts").value = scenarios.s0Aborts ?? 2;
+          document.getElementById("s0AbortDelay").value = scenarios.s0AbortDelay ?? 500;
+          document.getElementById("s1Timing").value = scenarios.s1Timing ?? "after";
+          document.getElementById("s1Gap").value = scenarios.s1Gap ?? 0;
+          document.getElementById("s1PreDeleteGuestRT").checked = scenarios.s1PreDeleteGuestRT ?? true;
         }
       } catch {}
     };
 
-    // Save config on any change
-    document.querySelector(".config").addEventListener("input", saveConfig);
+    // Save on any input/change across all config and scenarios sections.
+    // Belt-and-braces: listen for both event types and also persist on unload.
+    document.querySelectorAll(".config, .scenarios").forEach(el => {
+      el.addEventListener("input", saveConfig);
+      el.addEventListener("change", saveConfig);
+    });
+    window.addEventListener("beforeunload", saveConfig);
 
-    const checkState = () => {
-      log("--- MSAL State Check ---");
-      const keys = Object.keys(localStorage).filter(k => k.startsWith("msal."));
-      if (keys.length === 0) {
-        log("  No MSAL keys in localStorage");
-        setStatus("No MSAL state in localStorage", "fail");
-        return;
+    // ============================================================
+    // MSAL instance helper — creates an instance using either v2.39.0 or
+    // v4.30.0, matching whatever that role is configured to use.
+    //
+    // v2 and v4 differ in a couple of ways we care about here:
+    //   - v2 does NOT require (or have) PublicClientApplication.initialize().
+    //     Calling it would throw TypeError. v4 requires it.
+    //   - Cache key schemas are completely different (v2 uses msal.* keys,
+    //     v4 uses msal.2.* keys). That's the whole reason we're loading both.
+    //   - Log level constants are the same enum values in both, but referenced
+    //     from different globals (msalV2.LogLevel vs msalV4.LogLevel).
+    // ============================================================
+    const getMsalLib = (version) => {
+      if (version === "v2") {
+        if (!window.msalV2) throw new Error("msal v2.39.0 not loaded");
+        return window.msalV2;
       }
-      keys.forEach(k => {
-        const val = localStorage.getItem(k);
-        // Show key name and a meaningful summary, not raw encrypted tokens
-        if (k.includes("accesstoken") || k.includes("idtoken") || k.includes("refreshtoken")) {
-          log(`  ${k} = [token present, ${val.length} chars]`);
+      if (!window.msalV4) throw new Error("msal v4.30.0 not loaded");
+      return window.msalV4;
+    };
+
+    const createMsalInstance = async (config, { verbose = true } = {}) => {
+      if (!config.clientId) throw new Error(`${config.role}: Client ID is required`);
+      const version = config.msalVersion || "v4";
+      const lib = getMsalLib(version);
+      const prefix = `[${config.role} ${version}]`;
+
+      const msalInstance = new lib.PublicClientApplication({
+        auth: {
+          clientId: config.clientId,
+          authority: config.authority,
+          redirectUri: config.redirectUri,
+        },
+        cache: {
+          cacheLocation: "localStorage",
+        },
+        system: {
+          loggerOptions: {
+            loggerCallback: (level, message) => {
+              if (verbose && level <= lib.LogLevel.Verbose) {
+                log(`  ${prefix} [MSAL ${level}] ${message}`);
+              }
+            },
+            logLevel: lib.LogLevel.Verbose,
+          },
+        },
+      });
+
+      // v4 requires initialize(); v2 doesn't have it.
+      if (typeof msalInstance.initialize === "function") {
+        await msalInstance.initialize();
+      }
+      return msalInstance;
+    };
+
+    // ============================================================
+    // Cache manipulation — surgical deletes against localStorage
+    // ============================================================
+
+    // Return all msal-related localStorage keys for a given clientId
+    const getMsalKeysForClient = (clientId) => {
+      if (!clientId) return [];
+      return Object.keys(localStorage).filter(k => {
+        const lower = k.toLowerCase();
+        if (!lower.startsWith("msal.") && !lower.includes(clientId.toLowerCase())) return false;
+        return lower.includes(clientId.toLowerCase());
+      });
+    };
+
+    // Find the token index key for a client. MSAL 4.x uses a cache-version
+    // prefix like "msal.2.token.keys.<clientId>". Rather than hard-coding the
+    // version, pattern-match so this works across MSAL upgrades.
+    const findTokenIndexKey = (clientId) => {
+      if (!clientId) return null;
+      const suffix = `.token.keys.${clientId}`;
+      return Object.keys(localStorage).find(k => k.startsWith("msal") && k.endsWith(suffix)) || null;
+    };
+
+    // Delete token entries of a given credential type for a client.
+    // credentialType: "refreshtoken" | "accesstoken" | "idtoken" | null (all)
+    const deleteTokensForClient = (clientId, credentialType) => {
+      if (!clientId) { log("ERROR: clientId required"); return []; }
+      const allKeys = getMsalKeysForClient(clientId);
+      const deleted = [];
+      allKeys.forEach(k => {
+        const lower = k.toLowerCase();
+        // Skip the token index entry — handled separately below
+        if (lower.includes(".token.keys.")) return;
+        if (credentialType) {
+          if (lower.includes(credentialType)) {
+            localStorage.removeItem(k);
+            deleted.push(k);
+          }
         } else {
-          log(`  ${k} = ${val}`);
+          // null means all token entries (but NOT account / interaction state)
+          if (lower.includes("accesstoken") || lower.includes("idtoken") || lower.includes("refreshtoken")) {
+            localStorage.removeItem(k);
+            deleted.push(k);
+          }
         }
       });
 
-      // Check ALL sessionStorage
-      const allSessionKeys = Object.keys(sessionStorage);
-      if (allSessionKeys.length > 0) {
-        log(`  --- sessionStorage (${allSessionKeys.length} keys) ---`);
-        allSessionKeys.forEach(k => {
-          const val = sessionStorage.getItem(k);
-          log(`  ${k} = ${val.length > 200 ? val.substring(0, 200) + "..." : val}`);
-        });
+      // Update the token index so MSAL doesn't hold dangling references.
+      // The index key is found by pattern so we survive the msal.2. prefix
+      // (and any future cache version bumps).
+      const indexKey = findTokenIndexKey(clientId);
+      if (indexKey) {
+        const raw = localStorage.getItem(indexKey);
+        try {
+          const index = JSON.parse(raw);
+          if (credentialType) {
+            // Index field names are camelCase singular: idToken, accessToken, refreshToken
+            const map = { refreshtoken: "refreshToken", accesstoken: "accessToken", idtoken: "idToken" };
+            const field = map[credentialType];
+            if (field && Array.isArray(index[field])) index[field] = [];
+          } else {
+            if (Array.isArray(index.refreshToken)) index.refreshToken = [];
+            if (Array.isArray(index.accessToken)) index.accessToken = [];
+            if (Array.isArray(index.idToken)) index.idToken = [];
+          }
+          localStorage.setItem(indexKey, JSON.stringify(index));
+          log(`  Updated token index at ${indexKey}`);
+        } catch (e) {
+          // Shape surprise — blow it away, MSAL will rebuild
+          localStorage.removeItem(indexKey);
+          log(`  Token index had unexpected shape, removed: ${indexKey}`);
+        }
       } else {
-        log("  --- sessionStorage: empty ---");
+        log(`  (no token index key found for client ${clientId})`);
       }
-      setStatus(`Found ${keys.length} MSAL keys in localStorage, ${allSessionKeys.length} in sessionStorage`, "ok");
+      return deleted;
     };
 
-    const clearState = () => {
-      const keys = Object.keys(localStorage).filter(k => k.startsWith("msal.") || k.startsWith("server-telemetry"));
-      keys.forEach(k => localStorage.removeItem(k));
-      const sessionKeys = Object.keys(sessionStorage).filter(k => k.includes("interaction") || k.startsWith("msal."));
-      sessionKeys.forEach(k => sessionStorage.removeItem(k));
-      log(`Cleared ${keys.length} localStorage + ${sessionKeys.length} sessionStorage MSAL keys`);
-      setStatus("MSAL state cleared", "pending");
+    // Clear everything related to a clientId from both localStorage and sessionStorage
+    const clearAllForClient = (clientId) => {
+      if (!clientId) { log("ERROR: clientId required"); return 0; }
+      const lsKeys = Object.keys(localStorage).filter(k => k.toLowerCase().includes(clientId.toLowerCase()));
+      lsKeys.forEach(k => localStorage.removeItem(k));
+      const ssKeys = Object.keys(sessionStorage).filter(k => k.toLowerCase().includes(clientId.toLowerCase()));
+      ssKeys.forEach(k => sessionStorage.removeItem(k));
+      return lsKeys.length + ssKeys.length;
+    };
+
+    // Extract the credential type from an MSAL token entity key.
+    // MSAL 4.x: pipe-separated — msal.2|<home>|<env>|<credType>|<clientId>|...
+    // MSAL 2.x: dash-separated — <home>-<env>-<credType>-<clientId>-...
+    // So for v4 we look at pipe position 3, for v2 we scan for one of the
+    // known credential-type substrings.
+    const credTypeFromKey = (k) => {
+      const lower = k.toLowerCase();
+      if (k.includes("|")) {
+        const parts = k.split("|");
+        return parts.length >= 4 ? parts[3] : null;
+      }
+      if (lower.includes("accesstoken")) return "accesstoken";
+      if (lower.includes("refreshtoken")) return "refreshtoken";
+      if (lower.includes("idtoken")) return "idtoken";
+      return null;
+    };
+
+    // Dump the state of a particular client's MSAL entries to the log
+    const dumpClientState = (role, clientId) => {
+      log(`--- ${role} MSAL State (clientId=${clientId || "(not set)"}) ---`);
+      if (!clientId) { log("  (skipping — no clientId)"); return; }
+      const keys = getMsalKeysForClient(clientId);
+      if (keys.length === 0) { log("  No entries for this client"); return; }
+      keys.forEach(k => {
+        const val = localStorage.getItem(k);
+        const lower = k.toLowerCase();
+        const isTokenEntity =
+          lower.includes("accesstoken") || lower.includes("idtoken") || lower.includes("refreshtoken");
+
+        if (isTokenEntity) {
+          const keyCredType = credTypeFromKey(k);
+          // Attempt to parse value for extra info, and fall back to showing
+          // the raw shape so we can learn what's inside.
+          let valSummary;
+          try {
+            const obj = JSON.parse(val);
+            const topKeys = Object.keys(obj);
+            // v2 puts credentialType in the value; v4 hides it in encrypted data.
+            const credType = obj.credentialType || keyCredType || "?";
+            const bits = [`type=${credType}`, `len=${val.length}`];
+            // MSAL 4.x: tokens are encrypted in `data`. lastUpdatedAt is
+            // exposed in plaintext and tells us token freshness.
+            if (obj.lastUpdatedAt) {
+              const ts = parseInt(obj.lastUpdatedAt);
+              // lastUpdatedAt is in ms (length 13+) in recent MSAL; older versions used seconds
+              const ms = ts > 1e12 ? ts : ts * 1000;
+              bits.push(`lastUpdated=${new Date(ms).toISOString()}`);
+            }
+            if (obj.expiresOn) bits.push(`exp=${new Date(parseInt(obj.expiresOn) * 1000).toISOString()}`);
+            if (obj.extendedExpiresOn) bits.push(`extExp=${new Date(parseInt(obj.extendedExpiresOn) * 1000).toISOString()}`);
+            if (obj.realm) bits.push(`realm=${obj.realm}`);
+            if (obj.target) bits.push(`target="${obj.target}"`);
+            bits.push(`fields=[${topKeys.join(",")}]`);
+            valSummary = `{ ${bits.join(", ")} }`;
+          } catch {
+            valSummary = `[opaque, ${val.length} chars]`;
+          }
+          // If we couldn't pick a type from the key, still show one from the value
+          log(`  ${k}`);
+          log(`      ${valSummary}`);
+        } else {
+          log(`  ${k} = ${val.length > 300 ? val.substring(0, 300) + "..." : val}`);
+        }
+      });
+    };
+
+    // Dump the "shared" MSAL keys — ones that aren't scoped to a specific clientId
+    // (e.g. msal.account.keys, interaction status markers). These matter for
+    // understanding cross-client state.
+    //
+    // In MSAL v2 some of these keys don't even start with "msal" (e.g. the
+    // account entity itself, whose key is <homeAccountId>-<env>-<realm>), so
+    // we also pick up anything referenced from an `msal.*.keys` index.
+    const dumpSharedMsalState = () => {
+      const host = getHostConfig().clientId;
+      const guest = getGuestConfig().clientId;
+
+      // Start with obvious msal.* keys that aren't scoped to a known client
+      const candidateKeys = new Set(
+        Object.keys(localStorage).filter(k => {
+          if (!k.toLowerCase().startsWith("msal")) return false;
+          if (host && k.includes(host)) return false;
+          if (guest && k.includes(guest)) return false;
+          return true;
+        }),
+      );
+
+      // Follow any index-style keys (e.g. msal.account.keys, msal.2.account.keys)
+      // and include the entities they reference, even if those entity keys don't
+      // start with "msal" themselves (MSAL v2 account entities work this way).
+      const indexKeys = Object.keys(localStorage).filter(k => /msal(\.2)?\.account\.keys$/i.test(k));
+      for (const idx of indexKeys) {
+        try {
+          const arr = JSON.parse(localStorage.getItem(idx));
+          if (Array.isArray(arr)) {
+            arr.forEach(ref => {
+              if (host && ref.includes(host)) return;
+              if (guest && ref.includes(guest)) return;
+              candidateKeys.add(ref);
+            });
+          }
+        } catch {}
+      }
+
+      const keys = [...candidateKeys].filter(k => localStorage.getItem(k) !== null);
+      if (keys.length === 0) return;
+      log(`--- Shared MSAL keys (not scoped to host/guest) ---`);
+      keys.forEach(k => {
+        const val = localStorage.getItem(k);
+        log(`  ${k} = ${val && val.length > 300 ? val.substring(0, 300) + "..." : val}`);
+      });
+    };
+
+    // ============================================================
+    // Host controls (existing single-app rig — now labeled "Host")
+    // ============================================================
+    const checkHostState = () => {
+      const config = getHostConfig();
+      dumpClientState("Host", config.clientId);
+      dumpSharedMsalState();
+      setStatus(`Host state dumped to log`, "ok");
+    };
+
+    const clearHostState = () => {
+      const config = getHostConfig();
+      const n = clearAllForClient(config.clientId);
+      // Also clear the "shared" msal.* keys that aren't scoped to a clientId
+      const sharedKeys = Object.keys(localStorage).filter(k => k.startsWith("msal.") && !k.includes(config.clientId || "___nope___"));
+      sharedKeys.forEach(k => localStorage.removeItem(k));
+      const telemetryKeys = Object.keys(localStorage).filter(k => k.startsWith("server-telemetry"));
+      telemetryKeys.forEach(k => localStorage.removeItem(k));
+      log(`Cleared ${n} host-scoped + ${sharedKeys.length} shared + ${telemetryKeys.length} telemetry keys`);
+      setStatus("Host state cleared", "pending");
     };
 
     const startRepro = async () => {
-      const config = getConfig();
+      const config = getHostConfig();
       saveConfig();
 
       if (!config.clientId) {
-        log("ERROR: Client ID is required");
-        setStatus("Client ID required", "fail");
+        log("ERROR: Host Client ID is required");
+        setStatus("Host Client ID required", "fail");
         return;
       }
 
-      log("=== Starting MSAL Repro ===");
+      log("=== Starting Host MSAL Repro ===");
       log(`  clientId: ${config.clientId}`);
       log(`  authority: ${config.authority}`);
       log(`  redirectUri: ${config.redirectUri}`);
@@ -164,45 +610,16 @@
       log(`  useAcquireTokenSilent: ${config.useAcquireTokenSilent}`);
 
       try {
-        // Create MSAL instance
         const t0 = performance.now();
-        log("Creating PublicClientApplication...");
-        const msalInstance = new msal.PublicClientApplication({
-          auth: {
-            clientId: config.clientId,
-            authority: config.authority,
-            redirectUri: config.redirectUri,
-          },
-          cache: {
-            cacheLocation: "localStorage",
-          },
-          system: {
-            loggerOptions: {
-              loggerCallback: (level, message, containsPii) => {
-                if (level <= msal.LogLevel.Verbose) {
-                  log(`  [MSAL ${level}] ${message}`);
-                }
-              },
-              logLevel: msal.LogLevel.Verbose,
-            },
-          },
-        });
+        log("Creating Host PublicClientApplication...");
+        const msalInstance = await createMsalInstance(config);
+        log(`  Ready in ${Math.round(performance.now() - t0)}ms`);
 
-        log(`  Created in ${Math.round(performance.now() - t0)}ms`);
-
-        // Initialize
-        const tInit = performance.now();
-        log("Initializing...");
-        await msalInstance.initialize();
-        log(`  Initialized in ${Math.round(performance.now() - tInit)}ms`);
-
-        // Check cache first
         const activeAccount = msalInstance.getActiveAccount();
         const allAccounts = msalInstance.getAllAccounts();
         log(`  Active account: ${activeAccount ? activeAccount.username : "null"}`);
         log(`  All accounts: ${allAccounts.length} (${allAccounts.map(a => a.username).join(", ")})`);
 
-        // Schedule redirect if enabled
         let redirectTimer = null;
         if (config.enableRedirect) {
           log(`  Scheduling redirect in ${config.redirectDelay}ms...`);
@@ -211,23 +628,18 @@
             if (config.redirectTarget === "self") {
               window.location.href = window.location.href.split("?")[0] + "?redirected=true&t=" + Date.now();
             } else {
-              // Redirect to a different origin (e.g. httpbin) then manually come back
               window.location.href = "https://httpbin.org/redirect-to?url=" + encodeURIComponent(window.location.href.split("?")[0] + "?redirected=true&t=" + Date.now());
             }
           }, config.redirectDelay);
         }
 
-        // Attempt auth
         const tAuth = performance.now();
         setStatus("Auth in progress...", "pending");
 
         if (config.useAcquireTokenSilent && activeAccount) {
           log("Attempting acquireTokenSilent...");
           try {
-            const result = await msalInstance.acquireTokenSilent({
-              scopes: ["User.Read"],
-              account: activeAccount,
-            });
+            const result = await msalInstance.acquireTokenSilent({ scopes: ["User.Read"], account: activeAccount });
             if (redirectTimer) clearTimeout(redirectTimer);
             log(`  SUCCESS (acquireTokenSilent) in ${Math.round(performance.now() - tAuth)}ms`);
             log(`  Account: ${result.account.username}`);
@@ -242,21 +654,16 @@
         } else {
           log("Attempting ssoSilent...");
           try {
-            const result = await msalInstance.ssoSilent({
-              scopes: ["User.Read"],
-            });
+            const result = await msalInstance.ssoSilent({ scopes: ["User.Read"] });
             if (redirectTimer) clearTimeout(redirectTimer);
             log(`  SUCCESS (ssoSilent) in ${Math.round(performance.now() - tAuth)}ms`);
             log(`  Account: ${result.account.username}`);
             msalInstance.setActiveAccount(result.account);
-            log(`  Active account set`);
             setStatus(`Auth OK: ${result.account.username} (ssoSilent)`, "ok");
           } catch (e) {
             if (redirectTimer) clearTimeout(redirectTimer);
             log(`  FAILED (ssoSilent): ${e.errorCode} - ${e.message}`);
             setStatus(`ssoSilent failed: ${e.errorCode}`, "fail");
-
-            // If this was an interaction_required, log it prominently
             if (e.errorCode === "monitor_window_timeout") {
               log("  !!! TIMEOUT - iframe did not complete in time");
             } else if (e.errorCode === "interaction_in_progress") {
@@ -264,7 +671,6 @@
             }
           }
         }
-
       } catch (e) {
         log(`ERROR: ${e.message}`);
         setStatus(`Error: ${e.message}`, "fail");
@@ -272,24 +678,18 @@
     };
 
     const startAutoRepro = () => {
-      const config = getConfig();
+      const config = getHostConfig();
       saveConfig();
 
-      if (!config.clientId) { log("ERROR: Client ID required"); return; }
+      if (!config.clientId) { log("ERROR: Host Client ID required"); return; }
 
-      // Clear MSAL state first
-      clearState();
-      // Also clear server-telemetry keys
-      Object.keys(localStorage).filter(k => k.startsWith("server-telemetry")).forEach(k => localStorage.removeItem(k));
+      clearHostState();
 
       log("=== Auto Repro: double redirect + retry ===");
       log(`  Will do: load+ssoSilent+redirect → load+ssoSilent+redirect → load+ssoSilent (let it play out)`);
       log(`  Redirect delay: ${config.redirectDelay}ms, 1s pause before ssoSilent on each load`);
 
-      // Store phase counter: 1 = first redirect pending, 2 = second redirect pending, 3 = final attempt
       sessionStorage.setItem("msal-repro-phase", "1");
-
-      // Start phase 1
       startSsoSilentThenRedirect(config);
     };
 
@@ -298,12 +698,7 @@
       log(`  Phase ${phase}: Starting ssoSilent, will redirect after ${config.redirectDelay}ms...`);
 
       (async () => {
-        const msalInstance = new msal.PublicClientApplication({
-          auth: { clientId: config.clientId, authority: config.authority, redirectUri: config.redirectUri },
-          cache: { cacheLocation: "localStorage" },
-        });
-        await msalInstance.initialize();
-
+        const msalInstance = await createMsalInstance(config, { verbose: false });
         log(`  Phase ${phase}: ssoSilent starting...`);
         setTimeout(() => {
           const nextPhase = parseInt(phase) + 1;
@@ -313,7 +708,7 @@
         }, config.redirectDelay);
 
         try {
-          const result = await msalInstance.ssoSilent({ scopes: ["User.Read"] });
+          await msalInstance.ssoSilent({ scopes: ["User.Read"] });
           log(`  Phase ${phase}: ssoSilent completed before redirect`);
         } catch (e) {
           log(`  Phase ${phase}: ssoSilent error: ${e.errorCode}`);
@@ -322,48 +717,818 @@
     };
 
     const doLoginPopup = async () => {
-      const config = getConfig();
-      if (!config.clientId) { log("ERROR: Client ID required"); return; }
+      const config = getHostConfig();
+      if (!config.clientId) { log("ERROR: Host Client ID required"); return; }
 
-      log("=== Login via Popup ===");
+      log("=== Host Login via Popup ===");
       try {
-        const msalInstance = new msal.PublicClientApplication({
-          auth: { clientId: config.clientId, authority: config.authority, redirectUri: config.redirectUri },
-          cache: { cacheLocation: "localStorage" },
-        });
-        await msalInstance.initialize();
+        const msalInstance = await createMsalInstance(config, { verbose: false });
         const result = await msalInstance.loginPopup({ scopes: ["User.Read"] });
         msalInstance.setActiveAccount(result.account);
         log(`  SUCCESS: ${result.account.username}`);
-        log(`  Now try "Start Repro" with acquireTokenSilent checked`);
-        setStatus(`Logged in: ${result.account.username}`, "ok");
+        log(`  Now try "Host: Start Repro" with acquireTokenSilent checked`);
+        setStatus(`Host logged in: ${result.account.username}`, "ok");
       } catch (e) {
         log(`  FAILED: ${e.errorCode} - ${e.message}`);
-        setStatus(`Popup login failed: ${e.errorCode}`, "fail");
+        setStatus(`Host popup login failed: ${e.errorCode}`, "fail");
       }
     };
 
-    // On load: check if we arrived via redirect
-    window.addEventListener("DOMContentLoaded", () => {
+    // ============================================================
+    // Guest controls (cache manipulation only — scenarios land in Stage 2)
+    // ============================================================
+    const seedGuestCache = async () => {
+      const config = getGuestConfig();
+      saveConfig();
+      if (!config.clientId) { log("ERROR: Guest Client ID required"); return; }
+
+      log("=== Guest: Seed Cache via Popup Login ===");
+      try {
+        const msalInstance = await createMsalInstance(config, { verbose: false });
+        const result = await msalInstance.loginPopup({ scopes: ["User.Read"] });
+        msalInstance.setActiveAccount(result.account);
+        log(`  SUCCESS: Guest cache seeded with ${result.account.username}`);
+        log(`  Guest now has valid access token + refresh token + account in localStorage`);
+        setStatus(`Guest seeded: ${result.account.username}`, "ok");
+      } catch (e) {
+        log(`  FAILED: ${e.errorCode} - ${e.message}`);
+        setStatus(`Guest seed failed: ${e.errorCode}`, "fail");
+      }
+    };
+
+    const checkGuestState = () => {
+      const config = getGuestConfig();
+      dumpClientState("Guest", config.clientId);
+      dumpSharedMsalState();
+      setStatus(`Guest state dumped to log`, "ok");
+    };
+
+    // Ad-hoc Guest ssoSilent — does NOT modify cache, does NOT run the full
+    // scenario machinery. Useful for probing "what happens if I fire a guest
+    // silent right now with whatever state is in localStorage?"
+    const guestSilentLogin = async () => {
+      const config = getGuestConfig();
+      saveConfig();
+      if (!config.clientId) { log("ERROR: Guest Client ID required"); setStatus("Guest Client ID required", "fail"); return; }
+
+      log(`=== Guest: Silent Login (ssoSilent) ===`);
+      log(`  version: ${config.msalVersion}, clientId: ${config.clientId}`);
+      if (config.overrideSid) log(`  overrideSid: ${config.overrideSid}`);
+      if (config.overrideLoginHint) log(`  overrideLoginHint: ${config.overrideLoginHint}`);
+
+      const t0 = performance.now();
+      try {
+        const instance = await createMsalInstance(config, { verbose: false });
+        const ssoRequest = { scopes: ["User.Read"] };
+        if (config.overrideSid) ssoRequest.sid = config.overrideSid;
+        if (config.overrideLoginHint) ssoRequest.loginHint = config.overrideLoginHint;
+        const result = await instance.ssoSilent(ssoRequest);
+        const duration = Math.round(performance.now() - t0);
+        log(`  SUCCESS in ${duration}ms`);
+        log(`  Account: ${result.account?.username}`);
+        log(`  From cache: ${result.fromCache}`);
+        instance.setActiveAccount(result.account);
+        setStatus(`Guest ssoSilent OK: ${result.account?.username} (${duration}ms)`, "ok");
+      } catch (e) {
+        const duration = Math.round(performance.now() - t0);
+        const errorCode = e.errorCode || e.name || "unknown";
+        log(`  FAILED in ${duration}ms: ${errorCode}`);
+        log(`    message: ${e.message}`);
+        log(`    correlationId: ${e.correlationId || "(none)"}`);
+        setStatus(`Guest ssoSilent FAILED: ${errorCode}`, "fail");
+      }
+    };
+
+    // Ad-hoc Guest acquireTokenSilent — cache-first. Uses the production
+    // cacheLookupPolicy (AccessTokenAndRefreshToken) for v4, which disables
+    // iframe fallback and matches what get-ad-user-account.ts does.
+    const guestAcquireTokenSilent = async () => {
+      const config = getGuestConfig();
+      saveConfig();
+      if (!config.clientId) { log("ERROR: Guest Client ID required"); setStatus("Guest Client ID required", "fail"); return; }
+
+      log(`=== Guest: acquireTokenSilent ===`);
+      log(`  version: ${config.msalVersion}, clientId: ${config.clientId}`);
+
+      const t0 = performance.now();
+      try {
+        const instance = await createMsalInstance(config, { verbose: false });
+        const account = instance.getActiveAccount() || instance.getAllAccounts()[0];
+        if (!account) {
+          log(`  No account in MSAL storage — acquireTokenSilent cannot run (needs an account).`);
+          setStatus(`Guest acquireTokenSilent skipped: no account`, "fail");
+          return;
+        }
+        log(`  Using account: ${account.username}`);
+
+        // v4 exposes CacheLookupPolicy; v2 does not (added in v3).
+        // For v4 we use AccessTokenAndRefreshToken (matches production).
+        const lib = getMsalLib(config.msalVersion);
+        const req = { scopes: ["User.Read"], account };
+        if (lib.CacheLookupPolicy) {
+          req.cacheLookupPolicy = lib.CacheLookupPolicy.AccessTokenAndRefreshToken;
+          log(`  cacheLookupPolicy: AccessTokenAndRefreshToken (no iframe fallback)`);
+        }
+
+        const result = await instance.acquireTokenSilent(req);
+        const duration = Math.round(performance.now() - t0);
+        log(`  SUCCESS in ${duration}ms`);
+        log(`  Account: ${result.account?.username}`);
+        log(`  From cache: ${result.fromCache}`);
+        instance.setActiveAccount(result.account);
+        setStatus(`Guest acquireTokenSilent OK: ${result.account?.username} (fromCache=${result.fromCache}, ${duration}ms)`, "ok");
+      } catch (e) {
+        const duration = Math.round(performance.now() - t0);
+        const errorCode = e.errorCode || e.name || "unknown";
+        log(`  FAILED in ${duration}ms: ${errorCode}`);
+        log(`    message: ${e.message}`);
+        log(`    correlationId: ${e.correlationId || "(none)"}`);
+        setStatus(`Guest acquireTokenSilent FAILED: ${errorCode}`, "fail");
+      }
+    };
+
+    // Shared "production flow" runner — mirrors internalGetAdUserAccount in
+    // packages/cps-global-components/src/services/auth/get-ad-user-account.ts
+    //
+    // Sequence:
+    //   1. tryAcquireTokenSilently — uses the active account (or first in storage),
+    //      CacheLookupPolicy=AccessTokenAndRefreshToken on v4 (no iframe fallback).
+    //      Caught failures return null and fall through.
+    //   2. tryLoginAccountSilently — waits SSO_SILENT_DELAY_MS then calls ssoSilent.
+    //      On failure it THROWS in production (unless the intrusive AD login flag
+    //      is on and the error is MultipleIdentities, which then returns null).
+    //   3. tryLoginAccountViaPopup — only reached if step 2 returned null, and
+    //      only in the rig if allowPopupFallback is checked (prod has it always
+    //      enabled in the chain, but step 2 usually throws).
+    //
+    // Returns: { source, account, durationMs, fromCache?, error?, errorCode?, correlationId?, stage }
+    //   source: "acquireTokenSilent" | "silent" | "popup" | "failed"
+    //   stage: which step the flow ended at, for logging
+    const runGuestProdFlow = async (config, { logPrefix = "  " } = {}) => {
+      const t0 = performance.now();
+      const instance = await createMsalInstance(config, { verbose: false });
+
+      // ----- Step 1: tryAcquireTokenSilently -----
+      const step1Account = instance.getActiveAccount() || instance.getAllAccounts()[0];
+      if (step1Account) {
+        log(`${logPrefix}[1] acquireTokenSilent with account ${step1Account.username}`);
+        try {
+          const lib = getMsalLib(config.msalVersion);
+          const req = { scopes: ["User.Read"], account: step1Account };
+          if (lib.CacheLookupPolicy) {
+            req.cacheLookupPolicy = lib.CacheLookupPolicy.AccessTokenAndRefreshToken;
+          }
+          const result = await instance.acquireTokenSilent(req);
+          if (result.account) {
+            const duration = Math.round(performance.now() - t0);
+            log(`${logPrefix}    SUCCESS (fromCache=${result.fromCache}) in ${duration}ms`);
+            instance.setActiveAccount(result.account);
+            return {
+              source: "acquireTokenSilent",
+              account: result.account,
+              durationMs: duration,
+              fromCache: result.fromCache,
+              stage: "acquireTokenSilent-succeeded",
+            };
+          }
+          log(`${logPrefix}    returned no account, falling through`);
+        } catch (e) {
+          log(`${logPrefix}    caught: ${e.errorCode || e.name} — falling through`);
+        }
+      } else {
+        log(`${logPrefix}[1] acquireTokenSilent SKIPPED (no account in storage)`);
+      }
+
+      // ----- Step 2: tryLoginAccountSilently -----
+      if (config.ssoSilentDelayMs > 0) {
+        log(`${logPrefix}[2] waiting ${config.ssoSilentDelayMs}ms (SSO_SILENT_DELAY_MS) before ssoSilent`);
+        await new Promise((r) => setTimeout(r, config.ssoSilentDelayMs));
+      }
+      const ssoRequest = { scopes: ["User.Read"] };
+      if (config.overrideSid) ssoRequest.sid = config.overrideSid;
+      if (config.overrideLoginHint) ssoRequest.loginHint = config.overrideLoginHint;
+      const ssoHints = [
+        config.overrideSid ? `sid=${config.overrideSid}` : null,
+        config.overrideLoginHint ? `loginHint=${config.overrideLoginHint}` : null,
+      ].filter(Boolean);
+      log(`${logPrefix}[2] ssoSilent${ssoHints.length ? ` (${ssoHints.join(", ")})` : ""}`);
+      try {
+        const result = await instance.ssoSilent(ssoRequest);
+        if (result.account) {
+          const duration = Math.round(performance.now() - t0);
+          log(`${logPrefix}    SUCCESS in ${duration}ms`);
+          instance.setActiveAccount(result.account);
+          return {
+            source: "silent",
+            account: result.account,
+            durationMs: duration,
+            stage: "ssoSilent-succeeded",
+          };
+        }
+        log(`${logPrefix}    returned no account, falling through`);
+      } catch (e) {
+        const errorCode = e.errorCode || e.name || "unknown";
+        log(`${logPrefix}    FAILED: ${errorCode} - ${e.message}`);
+        log(`${logPrefix}    correlationId: ${e.correlationId || "(none)"}`);
+
+        // Production behavior: ssoSilent failure THROWS unless the intrusive flag
+        // is on AND the error is MultipleIdentities, in which case it returns null.
+        // We approximate this in the rig by treating all failures as the "throw"
+        // case unless the intrusive flag is on (for simplicity).
+        if (!config.enableIntrusiveAdLogin) {
+          const duration = Math.round(performance.now() - t0);
+          return {
+            source: "failed",
+            account: null,
+            durationMs: duration,
+            error: e,
+            errorCode,
+            errorMessage: e.message,
+            correlationId: e.correlationId,
+            stage: "ssoSilent-threw",
+          };
+        }
+        log(`${logPrefix}    intrusive AD login flag on — falling through to popup`);
+      }
+
+      // ----- Step 3: tryLoginAccountViaPopup -----
+      if (!config.allowPopupFallback) {
+        const duration = Math.round(performance.now() - t0);
+        log(`${logPrefix}[3] loginPopup SKIPPED (allowPopupFallback off)`);
+        return {
+          source: "failed",
+          account: null,
+          durationMs: duration,
+          stage: "popup-not-allowed",
+        };
+      }
+      log(`${logPrefix}[3] loginPopup`);
+      try {
+        const result = await instance.loginPopup({ scopes: ["User.Read"] });
+        const duration = Math.round(performance.now() - t0);
+        log(`${logPrefix}    SUCCESS in ${duration}ms`);
+        instance.setActiveAccount(result.account);
+        return {
+          source: "popup",
+          account: result.account,
+          durationMs: duration,
+          stage: "popup-succeeded",
+        };
+      } catch (e) {
+        const errorCode = e.errorCode || e.name || "unknown";
+        const duration = Math.round(performance.now() - t0);
+        log(`${logPrefix}    FAILED: ${errorCode} - ${e.message}`);
+        return {
+          source: "failed",
+          account: null,
+          durationMs: duration,
+          error: e,
+          errorCode,
+          errorMessage: e.message,
+          correlationId: e.correlationId,
+          stage: "popup-failed",
+        };
+      }
+    };
+
+    // Ad-hoc: run the full production flow against the current localStorage
+    const guestRunProdFlow = async () => {
+      const config = getGuestConfig();
+      saveConfig();
+      if (!config.clientId) { log("ERROR: Guest Client ID required"); setStatus("Guest Client ID required", "fail"); return; }
+
+      log(`=== Guest: Run Prod Flow (getAdUserAccount simulation) ===`);
+      log(`  version: ${config.msalVersion}, clientId: ${config.clientId}`);
+      log(`  SSO_SILENT_DELAY_MS: ${config.ssoSilentDelayMs}`);
+      log(`  FEATURE_FLAG_ENABLE_INTRUSIVE_AD_LOGIN: ${config.enableIntrusiveAdLogin}`);
+      log(`  allowPopupFallback: ${config.allowPopupFallback}`);
+
+      const result = await runGuestProdFlow(config);
+      log(`  --- result ---`);
+      log(`  source: ${result.source}`);
+      log(`  duration: ${result.durationMs}ms`);
+      log(`  stage: ${result.stage}`);
+      if (result.account) log(`  account: ${result.account.username}`);
+      if (result.errorCode) log(`  errorCode: ${result.errorCode}`);
+
+      if (result.source === "failed") {
+        setStatus(`Guest prod flow FAILED: ${result.errorCode || result.stage}`, "fail");
+      } else {
+        setStatus(`Guest prod flow OK via ${result.source} (${result.durationMs}ms)`, "ok");
+      }
+    };
+
+    const deleteGuestRefreshToken = () => {
+      const config = getGuestConfig();
+      if (!config.clientId) { log("ERROR: Guest Client ID required"); return; }
+      const deleted = deleteTokensForClient(config.clientId, "refreshtoken");
+      log(`Guest: deleted ${deleted.length} refresh token entries:`);
+      deleted.forEach(k => log(`  - ${k}`));
+      log(`  Access token left intact — guest can still serve cached access tokens.`);
+      log(`  When the access token expires, the refresh-token path will fail and MSAL will fall through to iframe /authorize.`);
+      setStatus(`Guest refresh token(s) deleted: ${deleted.length}`, "pending");
+    };
+
+    const deleteGuestAccessToken = () => {
+      const config = getGuestConfig();
+      if (!config.clientId) { log("ERROR: Guest Client ID required"); return; }
+      const deleted = deleteTokensForClient(config.clientId, "accesstoken");
+      log(`Guest: deleted ${deleted.length} access token entries:`);
+      deleted.forEach(k => log(`  - ${k}`));
+      log(`  Refresh token left intact — next acquireTokenSilent will hit /token to mint a fresh access token.`);
+      setStatus(`Guest access token(s) deleted: ${deleted.length}`, "pending");
+    };
+
+    const clearGuestState = () => {
+      const config = getGuestConfig();
+      if (!config.clientId) { log("ERROR: Guest Client ID required"); return; }
+      const n = clearAllForClient(config.clientId);
+      log(`Cleared ${n} guest-scoped keys (localStorage + sessionStorage)`);
+      setStatus("Guest state cleared", "pending");
+    };
+
+    // ============================================================
+    // Scenarios — Stage 2: first cross-app repro
+    // ============================================================
+
+    // Scenario state lives in sessionStorage because it needs to survive a
+    // top-level redirect to login.microsoftonline.com and back. Results go
+    // into localStorage so they persist across reloads and tab closes.
+
+    const ACTIVE_SCENARIO_KEY = "active-scenario";
+    const RESULTS_KEY = "scenario-results";
+
+    const getResults = () => {
+      try { return JSON.parse(localStorage.getItem(RESULTS_KEY) || "[]"); }
+      catch { return []; }
+    };
+
+    const recordScenarioResult = (result) => {
+      const results = getResults();
+      results.push({ ...result, recordedAt: new Date().toISOString() });
+      localStorage.setItem(RESULTS_KEY, JSON.stringify(results));
+      renderResults();
+    };
+
+    const renderResults = () => {
+      const tbody = document.querySelector("#resultsTable tbody");
+      if (!tbody) return;
+      const results = getResults();
+      if (results.length === 0) {
+        tbody.innerHTML = `<tr><td class="empty" colspan="8">No scenario runs yet</td></tr>`;
+        return;
+      }
+      tbody.innerHTML = results.map((r, i) => {
+        const started = r.startedAt ? new Date(r.startedAt).toLocaleTimeString() : "—";
+        const params = [];
+        if (r.hostVersion) params.push(`host=${r.hostVersion}`);
+        if (r.guestVersion) params.push(`guest=${r.guestVersion}`);
+        if (r.timing) params.push(`timing=${r.timing}`);
+        if (r.gap !== undefined) params.push(`gap=${r.gap}ms`);
+        if (r.preDeleteRT !== undefined) params.push(`preDelRT=${r.preDeleteRT}`);
+        if (r.guestSource) params.push(`via=${r.guestSource}`);
+        const rowClass = r.outcome === "PASS" ? "pass" : "fail";
+        return `
+          <tr class="${rowClass}">
+            <td>${i + 1}</td>
+            <td>${r.scenarioName || r.key || "?"}</td>
+            <td>${started}</td>
+            <td>${params.join(", ") || "—"}</td>
+            <td class="outcome">${r.outcome}</td>
+            <td>${r.errorCode || "—"}</td>
+            <td>${r.correlationId || "—"}</td>
+            <td>${r.durationMs != null ? r.durationMs + "ms" : "—"}</td>
+          </tr>`;
+      }).join("");
+    };
+
+    const clearResults = () => {
+      localStorage.removeItem(RESULTS_KEY);
+      renderResults();
+      log("Results table cleared");
+    };
+
+    // ----------- Scenario 0 ------------------------------------
+    //
+    // Reproduces Mode 1 (rapid-abort banning / AADSTS50196). Fires guest
+    // ssoSilent and deliberately navigates away before the iframe can
+    // complete, aborting it. Repeats N times, then does a final attempt
+    // and records the outcome. The final attempt respects the guest's
+    // SSO_SILENT_DELAY_MS so we can A/B-test the mitigation.
+    //
+    // State machine lives in sessionStorage so it survives each redirect.
+    // Each "phase" = one silent attempt. Phases 1..N are aborted; phase
+    // N+1 is the final, allowed-to-complete attempt.
+
+    const scenario0Start = async () => {
+      const guestConfig = getGuestConfig();
+      saveConfig();
+
+      if (!guestConfig.clientId) { log("ERROR: Guest Client ID required"); setStatus("Guest Client ID required", "fail"); return; }
+
+      const aborts = parseInt(document.getElementById("s0Aborts").value) || 2;
+      const abortDelay = parseInt(document.getElementById("s0AbortDelay").value) || 500;
+
+      log(`=== S0: Rapid-abort banning (${aborts} aborts + 1 final attempt) ===`);
+      log(`  guest: ${guestConfig.msalVersion} (${guestConfig.clientId})`);
+      log(`  abortDelay: ${abortDelay}ms`);
+      log(`  guest.SSO_SILENT_DELAY_MS: ${guestConfig.ssoSilentDelayMs} (applied on final attempt)`);
+
+      // Clear guest state so ssoSilent genuinely hits the network and the
+      // aborted iframes actually count against the loop-detection budget.
+      const cleared = clearAllForClient(guestConfig.clientId);
+      log(`  Cleared ${cleared} guest-scoped keys for clean baseline`);
+
+      const state = {
+        key: "scenario0",
+        scenarioName: "S0: Rapid-abort banning",
+        runId: Date.now().toString(),
+        phase: 1,
+        totalPhases: aborts + 1,
+        abortDelay,
+        guestVersion: guestConfig.msalVersion,
+        guestClientId: guestConfig.clientId,
+        guestSsoSilentDelayMs: guestConfig.ssoSilentDelayMs,
+        startedAt: new Date().toISOString(),
+      };
+      sessionStorage.setItem(ACTIVE_SCENARIO_KEY, JSON.stringify(state));
+
+      await runScenario0Phase(state, guestConfig);
+    };
+
+    const runScenario0Phase = async (state, guestConfig) => {
+      const { phase, totalPhases, abortDelay } = state;
+      const isFinal = phase === totalPhases;
+
+      log(`  Phase ${phase}/${totalPhases}${isFinal ? " (final)" : ""}: creating guest instance...`);
+      const guestInstance = await createMsalInstance(guestConfig, { verbose: false });
+
+      if (!isFinal) {
+        // Schedule the abort: navigate to self after abortDelay ms, killing
+        // whatever iframe ssoSilent has opened in the meantime.
+        const nextState = { ...state, phase: phase + 1 };
+        sessionStorage.setItem(ACTIVE_SCENARIO_KEY, JSON.stringify(nextState));
+        setTimeout(() => {
+          log(`  Phase ${phase}: >>> REDIRECTING (aborting silent flow) <<<`);
+          window.location.href = window.location.pathname;
+        }, abortDelay);
+
+        log(`  Phase ${phase}: firing ssoSilent, will be aborted in ${abortDelay}ms...`);
+        try {
+          await guestInstance.ssoSilent({ scopes: ["User.Read"] });
+          log(`  Phase ${phase}: ssoSilent completed BEFORE abort — increase abortDelay or reduce SSO_SILENT_DELAY_MS`);
+        } catch (e) {
+          log(`  Phase ${phase}: ssoSilent error: ${e.errorCode || e.name}`);
+        }
+        // We don't return — the setTimeout navigation will take us away
+        return;
+      }
+
+      // Final phase: respect SSO_SILENT_DELAY_MS then let ssoSilent run to completion
+      if (guestConfig.ssoSilentDelayMs > 0) {
+        log(`  Phase ${phase}: waiting ${guestConfig.ssoSilentDelayMs}ms (SSO_SILENT_DELAY_MS) before final ssoSilent`);
+        await new Promise((r) => setTimeout(r, guestConfig.ssoSilentDelayMs));
+      }
+
+      log(`  Phase ${phase}: firing final ssoSilent (will be allowed to complete)...`);
+      const t0 = performance.now();
+      try {
+        const result = await guestInstance.ssoSilent({ scopes: ["User.Read"] });
+        const duration = Math.round(performance.now() - t0);
+        log(`  Phase ${phase}: SUCCESS in ${duration}ms`);
+        log(`  Account: ${result.account?.username}`);
+        guestInstance.setActiveAccount(result.account);
+        recordScenarioResult({
+          ...state,
+          outcome: "PASS",
+          durationMs: duration,
+          stage: "final-ssoSilent-succeeded",
+          gap: abortDelay,
+          guestSource: "silent",
+        });
+        setStatus(`S0 PASSED (aborts=${totalPhases - 1}, abortDelay=${abortDelay}ms, delayMs=${guestConfig.ssoSilentDelayMs})`, "ok");
+      } catch (e) {
+        const duration = Math.round(performance.now() - t0);
+        const errorCode = e.errorCode || e.name || "unknown";
+        log(`  Phase ${phase}: FAILED in ${duration}ms: ${errorCode}`);
+        log(`    message: ${e.message}`);
+        log(`    correlationId: ${e.correlationId || "(none)"}`);
+        recordScenarioResult({
+          ...state,
+          outcome: "FAIL",
+          errorCode,
+          errorMessage: e.message,
+          correlationId: e.correlationId,
+          durationMs: duration,
+          stage: "final-ssoSilent-failed",
+          gap: abortDelay,
+          guestSource: "failed",
+        });
+        setStatus(`S0 FAILED: ${errorCode}`, "fail");
+      }
+
+      sessionStorage.removeItem(ACTIVE_SCENARIO_KEY);
+    };
+
+    const scenario0Resume = async () => {
+      const raw = sessionStorage.getItem(ACTIVE_SCENARIO_KEY);
+      if (!raw) return false;
+      let state;
+      try { state = JSON.parse(raw); } catch { sessionStorage.removeItem(ACTIVE_SCENARIO_KEY); return false; }
+      if (state.key !== "scenario0") return false;
+
+      log(`=== S0: Resumed at phase ${state.phase}/${state.totalPhases} ===`);
+      // Small settle delay so the page DOM is ready before we open another iframe
+      await new Promise((r) => setTimeout(r, 100));
+      await runScenario0Phase(state, getGuestConfig());
+      return true;
+    };
+
+    // ----------- Scenario 1 ------------------------------------
+
+    const scenario1Start = async () => {
+      const hostConfig = getHostConfig();
+      const guestConfig = getGuestConfig();
+      const timing = document.getElementById("s1Timing").value; // "after" | "parallel" | "before"
+      const gap = parseInt(document.getElementById("s1Gap").value) || 0;
+      const preDeleteRT = document.getElementById("s1PreDeleteGuestRT").checked;
+
+      saveConfig();
+
+      if (!hostConfig.clientId) { log("ERROR: Host Client ID required"); setStatus("Host Client ID required", "fail"); return; }
+      if (!guestConfig.clientId) { log("ERROR: Guest Client ID required"); setStatus("Guest Client ID required", "fail"); return; }
+
+      log(`=== S1: Host loginRedirect → [${timing}] → Guest Prod Flow ===`);
+      log(`  host: ${hostConfig.msalVersion} (${hostConfig.clientId})`);
+      log(`  guest: ${guestConfig.msalVersion} (${guestConfig.clientId})`);
+      log(`  timing: ${timing}, gap: ${gap}ms, preDeleteGuestRT: ${preDeleteRT}`);
+
+      // Pre-state: optionally simulate expired guest refresh token
+      if (preDeleteRT) {
+        const deleted = deleteTokensForClient(guestConfig.clientId, "refreshtoken");
+        log(`  Pre-deleted ${deleted.length} guest refresh token entries`);
+      }
+
+      // Record scenario state so we can resume after the host redirect returns
+      const state = {
+        key: "scenario1",
+        scenarioName: "S1: Host loginRedirect → Guest Prod Flow",
+        runId: Date.now().toString(),
+        phase: "awaiting-return",
+        timing,
+        gap,
+        preDeleteRT,
+        hostVersion: hostConfig.msalVersion,
+        guestVersion: guestConfig.msalVersion,
+        hostClientId: hostConfig.clientId,
+        guestClientId: guestConfig.clientId,
+        startedAt: new Date().toISOString(),
+      };
+      sessionStorage.setItem(ACTIVE_SCENARIO_KEY, JSON.stringify(state));
+
+      // Fire host loginRedirect — this navigates away
+      log(`  Firing host.loginRedirect()...`);
+      try {
+        const hostInstance = await createMsalInstance(hostConfig, { verbose: false });
+        // Important: call handleRedirectPromise before loginRedirect in case
+        // there's a stale redirect state from a previous abandoned run.
+        await hostInstance.handleRedirectPromise().catch(() => {});
+        await hostInstance.loginRedirect({ scopes: ["User.Read"] });
+        // Execution should not reach here — loginRedirect navigates away
+        log(`  loginRedirect did not navigate (unexpected)`);
+      } catch (e) {
+        log(`  loginRedirect threw: ${e.errorCode || e.name} - ${e.message}`);
+        sessionStorage.removeItem(ACTIVE_SCENARIO_KEY);
+        recordScenarioResult({
+          ...state,
+          outcome: "FAIL",
+          errorCode: e.errorCode || e.name || "unknown",
+          errorMessage: e.message,
+          stage: "host loginRedirect failed",
+        });
+        setStatus(`S1 failed at host loginRedirect: ${e.errorCode || e.message}`, "fail");
+      }
+    };
+
+    const scenario1Resume = async () => {
+      const raw = sessionStorage.getItem(ACTIVE_SCENARIO_KEY);
+      if (!raw) return false;
+      let state;
+      try { state = JSON.parse(raw); } catch { sessionStorage.removeItem(ACTIVE_SCENARIO_KEY); return false; }
+      if (state.key !== "scenario1") return false;
+
+      // Consume the scenario state so a reload doesn't re-run it
+      sessionStorage.removeItem(ACTIVE_SCENARIO_KEY);
+
+      log(`=== S1: Resumed after host redirect return (timing=${state.timing}) ===`);
+      log(`  runId: ${state.runId}, gap: ${state.gap}ms, preDeleteRT: ${state.preDeleteRT}`);
+
+      const hostConfig = getHostConfig();
+      const guestConfig = getGuestConfig();
+
+      // Helper: wrap host.handleRedirectPromise so it can be awaited or run in parallel
+      const runHostHandleRedirect = async () => {
+        try {
+          const instance = await createMsalInstance(hostConfig, { verbose: false });
+          const t0 = performance.now();
+          const response = await instance.handleRedirectPromise();
+          const duration = Math.round(performance.now() - t0);
+          if (response) {
+            log(`    host handleRedirectPromise resolved in ${duration}ms: ${response.account?.username || "(no account)"}`);
+            instance.setActiveAccount(response.account);
+          } else {
+            log(`    host handleRedirectPromise returned null in ${duration}ms`);
+          }
+          return { ok: true, duration };
+        } catch (e) {
+          log(`    host handleRedirectPromise FAILED: ${e.errorCode || e.name} - ${e.message}`);
+          return { ok: false, error: e };
+        }
+      };
+
+      // Helper: record the scenario result from a guest flow outcome
+      const recordGuestOutcome = (flowResult) => {
+        if (flowResult.source === "failed") {
+          recordScenarioResult({
+            ...state,
+            outcome: "FAIL",
+            errorCode: flowResult.errorCode || "no-source",
+            errorMessage: flowResult.errorMessage,
+            correlationId: flowResult.correlationId,
+            durationMs: flowResult.durationMs,
+            stage: `guest prod flow: ${flowResult.stage}`,
+            guestSource: flowResult.source,
+          });
+          setStatus(`S1 FAILED: ${flowResult.errorCode || flowResult.stage}`, "fail");
+        } else {
+          recordScenarioResult({
+            ...state,
+            outcome: "PASS",
+            durationMs: flowResult.durationMs,
+            stage: `guest prod flow: ${flowResult.stage}`,
+            guestSource: flowResult.source,
+          });
+          setStatus(`S1 PASSED via ${flowResult.source} (timing=${state.timing}, gap=${state.gap}ms)`, "ok");
+        }
+      };
+
+      log(`  guest.SSO_SILENT_DELAY_MS: ${guestConfig.ssoSilentDelayMs}`);
+      log(`  guest.FEATURE_FLAG_ENABLE_INTRUSIVE_AD_LOGIN: ${guestConfig.enableIntrusiveAdLogin}`);
+      log(`  guest.allowPopupFallback: ${guestConfig.allowPopupFallback}`);
+
+      // ------------------------------------------------------------
+      // Branch on timing mode
+      // ------------------------------------------------------------
+      if (state.timing === "after") {
+        // Current behaviour: host handles redirect first, then (optional gap), then guest flow
+        log(`  [A] host.handleRedirectPromise (sequential, awaited)`);
+        const hostResult = await runHostHandleRedirect();
+        if (!hostResult.ok) {
+          recordScenarioResult({
+            ...state,
+            outcome: "FAIL",
+            errorCode: hostResult.error.errorCode || hostResult.error.name || "unknown",
+            errorMessage: hostResult.error.message,
+            correlationId: hostResult.error.correlationId,
+            stage: "host handleRedirectPromise failed",
+          });
+          setStatus(`S1 failed at host return: ${hostResult.error.errorCode || hostResult.error.message}`, "fail");
+          return true;
+        }
+
+        if (state.gap > 0) {
+          log(`  [B] waiting ${state.gap}ms before guest prod flow`);
+          await new Promise((r) => setTimeout(r, state.gap));
+        }
+
+        log(`  [C] guest prod flow (getAdUserAccount simulation)`);
+        const flowResult = await runGuestProdFlow(guestConfig, { logPrefix: "      " });
+        recordGuestOutcome(flowResult);
+        return true;
+      }
+
+      if (state.timing === "parallel") {
+        // Fire both concurrently via Promise.all — closest to production boot timing
+        // where Polaris's handleRedirectPromise and our guest component's getAdUserAccount
+        // load in the same tick and race.
+        log(`  [A+B] host.handleRedirectPromise AND guest prod flow started concurrently (Promise.all)`);
+        const [hostResult, flowResult] = await Promise.all([
+          runHostHandleRedirect(),
+          runGuestProdFlow(guestConfig, { logPrefix: "      " }),
+        ]);
+        if (!hostResult.ok) {
+          // Host failing is a bit unusual but still worth noting — we still use the
+          // guest flow's outcome as the authoritative scenario result.
+          log(`  (host handleRedirectPromise failed but we treat guest flow as the test subject)`);
+        }
+        recordGuestOutcome(flowResult);
+        return true;
+      }
+
+      if (state.timing === "before") {
+        // Guest runs first against in-flight redirect state: URL still has ?code=...,
+        // host hasn't exchanged the code yet, shared sessionStorage still has the
+        // host's interaction-in-progress marker. Then (optionally after gap)
+        // host handleRedirectPromise runs to clean up.
+        //
+        // Gap semantics here are symmetric to "after" mode: gap is the wait
+        // BETWEEN the two actions, so it sits between guest finishing and host
+        // running. Putting it before the guest would defeat the point — by the
+        // time the guest fired, the redirect state would have had time to settle.
+        log(`  [A] guest prod flow (running BEFORE host handleRedirectPromise — URL still has ?code=...)`);
+        const flowResult = await runGuestProdFlow(guestConfig, { logPrefix: "      " });
+
+        if (state.gap > 0) {
+          log(`  [B] waiting ${state.gap}ms after guest flow before host handleRedirectPromise`);
+          await new Promise((r) => setTimeout(r, state.gap));
+        }
+
+        log(`  [C] host.handleRedirectPromise (cleanup, after guest flow)`);
+        await runHostHandleRedirect();
+
+        recordGuestOutcome(flowResult);
+        return true;
+      }
+
+      log(`  Unknown timing mode: ${state.timing}`);
+      recordScenarioResult({
+        ...state,
+        outcome: "FAIL",
+        errorCode: "unknown-timing",
+        stage: `unknown timing mode: ${state.timing}`,
+      });
+      return true;
+    };
+
+    // ============================================================
+    // Global
+    // ============================================================
+
+    // Keys we preserve across a "Clear Everything" click. Anything not in
+    // this set — including MSAL v2 account entities whose keys don't start
+    // with "msal." and don't embed any clientId — gets wiped.
+    const KEEP_LS_KEYS = new Set([
+      "repro-tool-host-config",
+      "repro-tool-guest-config",
+      "repro-tool-scenarios-config",
+      "scenario-results",
+    ]);
+    const KEEP_SS_KEYS = new Set([]);
+
+    const clearEverything = () => {
+      const lsKeys = Object.keys(localStorage).filter(k => !KEEP_LS_KEYS.has(k));
+      lsKeys.forEach(k => localStorage.removeItem(k));
+      const ssKeys = Object.keys(sessionStorage).filter(k => !KEEP_SS_KEYS.has(k));
+      ssKeys.forEach(k => sessionStorage.removeItem(k));
+      log(`Cleared ${lsKeys.length} localStorage + ${ssKeys.length} sessionStorage entries (config + results preserved)`);
+      setStatus("Everything cleared", "pending");
+    };
+
+    // ============================================================
+    // On load: config restore + auto-repro phase handling + scenario resume
+    // ============================================================
+    window.addEventListener("DOMContentLoaded", async () => {
       loadConfig();
+      renderResults();
+
+      // If we're resuming a scenario from a prior redirect, dispatch to the
+      // right resume handler based on which scenario's state is pending.
+      // Scenario resume takes priority over the older auto-phase handling.
+      if (sessionStorage.getItem(ACTIVE_SCENARIO_KEY)) {
+        let scenarioKey;
+        try { scenarioKey = JSON.parse(sessionStorage.getItem(ACTIVE_SCENARIO_KEY)).key; } catch {}
+
+        if (scenarioKey === "scenario0") {
+          await scenario0Resume();
+        } else if (scenarioKey === "scenario1") {
+          await scenario1Resume();
+        } else {
+          log(`Unknown scenario key in sessionStorage: ${scenarioKey} — clearing`);
+          sessionStorage.removeItem(ACTIVE_SCENARIO_KEY);
+        }
+
+        // Tidy up the URL so a refresh doesn't confuse MSAL (strips any
+        // #code=... fragments that MSAL may have written on return).
+        if (window.location.hash || window.location.search.includes("code=") || window.location.search.includes("state=")) {
+          history.replaceState(null, "", window.location.pathname);
+        }
+        return;
+      }
 
       const params = new URLSearchParams(window.location.search);
 
       if (params.has("auto-phase")) {
         const phase = params.get("auto-phase");
-        const config = getConfig();
+        const config = getHostConfig();
         history.replaceState(null, "", window.location.pathname);
 
         log(`=== Landed after redirect — Phase ${phase} ===`);
-        checkState();
+        checkHostState();
 
-        // Check server-telemetry for signs of trouble
         const telemetryKeys = Object.keys(localStorage).filter(k => k.startsWith("server-telemetry"));
         if (telemetryKeys.length > 0) {
           log("  server-telemetry in localStorage:");
-          telemetryKeys.forEach(k => {
-            log(`    ${k} = ${localStorage.getItem(k)}`);
-          });
+          telemetryKeys.forEach(k => log(`    ${k} = ${localStorage.getItem(k)}`));
         }
 
         if (!config.clientId) {
@@ -373,28 +1538,12 @@
         }
 
         if (phase === "3") {
-          // Final phase: wait 1s then attempt ssoSilent and let it play out
           log("  Phase 3 (final): Waiting 1s then attempting ssoSilent (no redirect)...");
           setTimeout(async () => {
             log("  Phase 3: Starting ssoSilent...");
             try {
               const t0 = performance.now();
-              const msalInstance = new msal.PublicClientApplication({
-                auth: { clientId: config.clientId, authority: config.authority, redirectUri: config.redirectUri },
-                cache: { cacheLocation: "localStorage" },
-                system: {
-                  loggerOptions: {
-                    loggerCallback: (level, message) => {
-                      if (level <= msal.LogLevel.Verbose) {
-                        log(`    [MSAL ${level}] ${message}`);
-                      }
-                    },
-                    logLevel: msal.LogLevel.Verbose,
-                  },
-                },
-              });
-              await msalInstance.initialize();
-
+              const msalInstance = await createMsalInstance(config);
               const activeAccount = msalInstance.getActiveAccount();
               const allAccounts = msalInstance.getAllAccounts();
               log(`    Active account: ${activeAccount ? activeAccount.username : "null"}`);
@@ -412,17 +1561,14 @@
             sessionStorage.removeItem("msal-repro-phase");
           }, 1000);
         } else {
-          // Intermediate phase: wait 1s then fire ssoSilent + redirect
           log(`  Phase ${phase}: Waiting 1s before ssoSilent + redirect...`);
-          setTimeout(() => {
-            startSsoSilentThenRedirect(config);
-          }, 1000);
+          setTimeout(() => startSsoSilentThenRedirect(config), 1000);
         }
 
       } else if (params.has("redirected")) {
         log("=== Page loaded after redirect ===");
         log(`  URL: ${window.location.href}`);
-        checkState();
+        checkHostState();
         history.replaceState(null, "", window.location.pathname);
       }
     });
