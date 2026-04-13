@@ -14,6 +14,8 @@ import { initialiseCaseDetailsData } from "./services/data/initialise-case-detai
 import { initialiseCorrelationIds } from "./services/correlation/initialise-correlation-ids";
 import { initialiseRootUrl } from "./services/root-url/initialise-root-url";
 import { initialisePreview } from "./services/state/preview/initialise-preview";
+import { initialiseNotifications } from "./services/notifications/initialise-notifications";
+import { handlers } from "./services/handlers/handlers";
 import { initialiseRecentCases } from "./services/state/recent-cases/initialise-recent-cases";
 import { footerSubscriber } from "./services/browser/dom/footer-subscriber";
 import { hostAppEventSubscriber } from "./services/browser/dom/host-app-event-subscriber";
@@ -65,6 +67,7 @@ const initialise = async (window: Window & typeof globalThis) => {
       initialiseSettings({ rootUrl }),
       initialiseAuthHint({ rootUrl, register }),
       initialiseCmsSessionHint({ rootUrl, flags, register }),
+      initialiseNotifications({ rootUrl, register, handlers }),
     ]);
 
     const { initialiseDomForContext } = initialiseDomObservation(

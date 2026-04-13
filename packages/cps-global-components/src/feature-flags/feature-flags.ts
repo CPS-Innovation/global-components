@@ -10,18 +10,14 @@ const shouldShowGovUkRebrand = ({ preview }: Pick<State, "preview">): Preview["n
 
 const shouldShowRecentCases = ({ preview, flags }: Pick<State, "preview" | "flags">) => !!preview.result?.myRecentCasesOnHeader || flags.isLocalDevelopment;
 
-const shouldShowMenu = ({ config, auth, authHint, context, flags }: Pick<State, "config" | "context" | "flags"> & Pick<StoredState, "auth" | "authHint">) => {
+const shouldShowMenu = ({ config, auth, authHint, context }: Pick<State, "config" | "context"> & Pick<StoredState, "auth" | "authHint">): boolean => {
   if (!config.SHOW_MENU) {
-    return "hide-menu";
-  } else if (!context.contextIds?.includes("materials-cwa")) {
-    return "show-menu";
-  } else if (isUserInFeatureGroup({ auth, authHint, config }, "FEATURE_FLAG_MENU_USERS")) {
-    return "show-menu";
-  } else if (flags.environment === "test") {
-    return "show-hint";
-  } else {
-    return "hide-menu";
+    return false;
   }
+  if (!context.contextIds?.includes("materials-cwa")) {
+    return true;
+  }
+  return isUserInFeatureGroup({ auth, authHint, config }, "FEATURE_FLAG_MENU_USERS");
 };
 
 const surveyLink = ({ config }: Pick<State, "config">) => ({ showLink: !!config.SURVEY_LINK, url: config.SURVEY_LINK });

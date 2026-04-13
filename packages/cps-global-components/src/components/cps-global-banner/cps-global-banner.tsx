@@ -100,6 +100,7 @@ export class CpsGlobalBanner {
           </div>
         </header>
         <div class={dividerCssClass}></div>
+        <cps-global-notifications></cps-global-notifications>
       </div>
     );
   }

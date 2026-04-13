@@ -97,6 +97,17 @@ Prefer `export const foo = () => ...` function declarations.
 Avoid `class` wherever possible.
 Functional is good - functions that "pipe" to other functions etc etc are easy to rationalise.
 
+**Always brace your `if` statements.** Never write `if (cond) doThing();` or `if (cond) return x;`
+on a single line — always use a block:
+```ts
+if (cond) {
+  return x;
+}
+```
+This applies to `else`, `else if`, `for`, and `while` too. The braces stay even when the body is
+a single statement — diff noise and footguns when adding a second statement aren't worth saving
+the line.
+
 ## Builds
 
 We use `pnpm` and not `npm`.

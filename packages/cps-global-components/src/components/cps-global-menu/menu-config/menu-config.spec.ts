@@ -121,6 +121,8 @@ beforeEach(() => {
       cmsSessionHint: { found: false, error: {} as Error },
       handover: { found: false, error: {} as Error },
       recentCases: { found: false, error: {} as Error },
+      notifications: [],
+      dismissedNotificationIds: [],
     };
 
     const result = menuConfig(mockState);
@@ -177,6 +179,8 @@ beforeEach(() => {
       cmsSessionHint: { found: false, error: {} as Error },
       handover: { found: false, error: {} as Error },
       recentCases: { found: false, error: {} as Error },
+      notifications: [],
+      dismissedNotificationIds: [],
     };
 
     // Mock shouldShowLink to filter out the second link

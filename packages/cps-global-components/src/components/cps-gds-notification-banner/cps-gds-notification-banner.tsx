@@ -1,4 +1,4 @@
-import { Component, h, Prop, State, Element } from "@stencil/core";
+import { Component, h, Prop, Element, Event, EventEmitter } from "@stencil/core";
 
 export type NotificationBannerType = "success";
 
@@ -28,20 +28,11 @@ export class CpsGdsNotificationBanner {
   /** Prevent the banner from being focused on page load (only relevant for success type). */
   @Prop() disableAutoFocus: boolean = false;
 
-  /** When set, enables dismiss behaviour. The full localStorage key is `cps-global-notification-dismiss-${dismissKey}`. */
-  @Prop() dismissKey?: string;
+  /** Renders the dismiss button. Persistence is the caller's responsibility via the `cpsDismissed` event. */
+  @Prop() dismissible: boolean = false;
 
-  @State() dismissed: boolean = false;
-
-  private get storageKey() {
-    return `cps-global-components-notification-dismiss-${this.dismissKey}`;
-  }
-
-  componentWillLoad() {
-    if (this.dismissKey && localStorage.getItem(this.storageKey)) {
-      this.dismissed = true;
-    }
-  }
+  /** Fired when the user clicks the dismiss button. */
+  @Event() cpsDismissed: EventEmitter<void>;
 
   componentDidLoad() {
     if (this.isSuccess && !this.disableAutoFocus) {
@@ -63,15 +54,10 @@ export class CpsGdsNotificationBanner {
   }
 
   private dismiss = () => {
-    localStorage.setItem(this.storageKey, "dismissed");
-    this.dismissed = true;
+    this.cpsDismissed.emit();
   };
 
   render() {
-    if (this.dismissed) {
-      return null;
-    }
-
     const HeadingTag = `h${this.titleHeadingLevel}` as any;
     const classes = ["govuk-notification-banner", this.isSuccess && "govuk-notification-banner--success"].filter(Boolean).join(" ");
 
@@ -90,7 +76,7 @@ export class CpsGdsNotificationBanner {
         </div>
         <div class="govuk-notification-banner__content">
           <slot />
-          {this.dismissKey && (
+          {this.dismissible && (
             <button class="govuk-button govuk-button--secondary" onClick={this.dismiss}>
               Dismiss permanently
             </button>

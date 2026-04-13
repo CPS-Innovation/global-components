@@ -19,22 +19,8 @@ export class CpsGlobalMenu {
       return null; // don't show menu until we are ready
     }
 
-    const menuShowStatus = FEATURE_FLAGS.shouldShowMenu(state);
-
-    if (menuShowStatus === "hide-menu") {
+    if (!FEATURE_FLAGS.shouldShowMenu(state)) {
       return null;
-    } else if (menuShowStatus === "show-hint") {
-      return (
-        <div style={{ marginTop: "1rem" }}>
-          <cps-gds-notification-banner dismissKey="qa-no-menu-hint-1" title-text="Feature flags in QA">
-            <p class="govuk-body">
-              When using the Casework App, the global navigation menu is only visible to users who are in one of the programme's designated feature flag AD/Entra groups. Please
-              arrange to be added to one of these groups if you want to see the menu on this page.
-            </p>
-            <p class="govuk-body">This message only appears in the QA environment. In production, the menu will not be visible and this notification will not appear.</p>
-          </cps-gds-notification-banner>
-        </div>
-      );
     }
     const menu = menuConfig(state);
 
