@@ -24,6 +24,7 @@ export const PreviewSchema = z.object({
   forceDcfHeader: z.boolean().optional(),
   homePageNotification: z.boolean().optional(),
   tabTitleUrn: z.boolean().optional(),
+  notifications: z.boolean().optional(),
 });
 
 export type Preview = z.infer<typeof PreviewSchema>;

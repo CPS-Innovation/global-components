@@ -14,6 +14,8 @@ import { initialiseCaseDetailsData } from "./services/data/initialise-case-detai
 import { initialiseCorrelationIds } from "./services/correlation/initialise-correlation-ids";
 import { initialiseRootUrl } from "./services/root-url/initialise-root-url";
 import { initialisePreview } from "./services/state/preview/initialise-preview";
+import { initialiseNotifications } from "./services/notifications/initialise-notifications";
+import { handlers } from "./services/handlers/handlers";
 import { initialiseRecentCases } from "./services/state/recent-cases/initialise-recent-cases";
 import { footerSubscriber } from "./services/browser/dom/footer-subscriber";
 import { hostAppEventSubscriber } from "./services/browser/dom/host-app-event-subscriber";
@@ -79,6 +81,8 @@ const initialise = async (window: Window & typeof globalThis) => {
     initialiseTabTitle({ window, preview, subscribe, flags });
 
     const config = await initialiseConfig({ rootUrl, flags, preview, register });
+    /* do not await this — notification fetches shouldn't block auth/analytics/etc. */
+    initialiseNotifications({ rootUrl, register, handlers, config });
     const { setNextRecentCases } = initialiseRecentCases({ rootUrl, config, register });
 
     const diagnosticsCollector = createAdDiagnosticsCollector();

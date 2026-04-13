@@ -3,6 +3,7 @@ import type { Preview } from "cps-global-configuration";
 import { diffLines } from "diff";
 
 const STATE_ENDPOINT = "/global-components/state/preview";
+const DISMISSED_NOTIFICATIONS_ENDPOINT = "/global-components/state/dismissed-notifications";
 const ENV_MATCH = window.location.pathname.match(/\/global-components\/([^/]+)\//);
 const ENV = ENV_MATCH?.[1] ?? "test";
 const CONFIG_ENDPOINT = `/global-components/${ENV}/config.json`;
@@ -286,6 +287,28 @@ export function App() {
     setState(newState);
     saveState(newState);
   };
+
+  const handleClearDismissedNotifications = useCallback(async () => {
+    try {
+      const response = await fetch(DISMISSED_NOTIFICATIONS_ENDPOINT, {
+        method: "PUT",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: "null",
+      });
+      if (!response.ok) {
+        throw new Error("Failed to clear dismissed notifications");
+      }
+      showStatus("Dismissed notifications cleared.", "success");
+    } catch (err) {
+      showStatus(
+        `Failed to clear dismissed notifications: ${
+          err instanceof Error ? err.message : "Unknown error"
+        }`,
+        "error"
+      );
+    }
+  }, [showStatus]);
 
   const getDiffResult = () => {
     if (!config?.loaded || !configOverride?.loaded) return null;
@@ -584,6 +607,25 @@ export function App() {
                 </div>
               ))}
             </div>
+          </fieldset>
+        </div>
+
+        <div className="govuk-form-group">
+          <fieldset className="govuk-fieldset">
+            <legend className="govuk-fieldset__legend govuk-fieldset__legend--m">
+              <h2 className="govuk-fieldset__heading">Notifications</h2>
+            </legend>
+            <p className="govuk-body govuk-!-font-size-16">
+              Clears the cookie recording which outage/maintenance notifications you have
+              dismissed. Active notifications will reappear on your next page load.
+            </p>
+            <button
+              type="button"
+              className="govuk-button govuk-button--secondary"
+              onClick={handleClearDismissedNotifications}
+            >
+              Clear dismissed notifications
+            </button>
           </fieldset>
         </div>
 

@@ -184,6 +184,16 @@ jest.mock("./services/state/auth-hint/initialise-auth-hint", () => ({
   },
 }));
 
+jest.mock("./services/notifications/initialise-notifications", () => ({
+  initialiseNotifications: async ({ register, handlers, config }: any) => {
+    if (!config?.SHOW_NOTIFICATIONS) {
+      return;
+    }
+    register({ notifications: [], dismissedNotificationIds: [] });
+    handlers.dismissNotification = () => {};
+  },
+}));
+
 const mockInitialiseNavigateCms = jest.fn();
 jest.mock("./services/navigate-cms/initialise-navigate-cms", () => ({
   initialiseNavigateCms: mockInitialiseNavigateCms,

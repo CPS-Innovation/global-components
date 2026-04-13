@@ -46,6 +46,10 @@ jobs:
             cp ./configuration/config.${{ inputs.environment }}.override.json ${{ steps.download.outputs.download-path }}/config.override.json
           fi
 
+          if [ -f "./configuration/notification.${{ inputs.environment }}.json" ]; then
+            cp ./configuration/notification.${{ inputs.environment }}.json ${{ steps.download.outputs.download-path }}/notification.json
+          fi
+
           # Create a copy of cps-global-components.js as global-components.js
           cp "${{ steps.download.outputs.download-path }}/cps-global-components.js" "${{ steps.download.outputs.download-path }}/global-components.js"
           cp "${{ steps.download.outputs.download-path }}/cps-global-components.js.map" "${{ steps.download.outputs.download-path }}/global-components.js.map"

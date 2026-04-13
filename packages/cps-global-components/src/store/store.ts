@@ -1,6 +1,6 @@
 import { createStore } from "@stencil/store";
 import { getRenderingRef, forceUpdate } from "@stencil/core";
-import { Config, Preview } from "cps-global-configuration";
+import { Config, Preview, Notification } from "cps-global-configuration";
 import { AuthResult } from "../services/auth/AuthResult";
 import { FoundContext } from "../services/context/FoundContext";
 import { ApplicationFlags } from "../services/application-flags/ApplicationFlags";
@@ -54,6 +54,8 @@ type StartupState = {
   cmsSessionHint: Result<CmsSessionHint>;
   handover: Result<Handover>;
   recentCases: Result<RecentCases>;
+  notifications: Notification[];
+  dismissedNotificationIds: string[];
 };
 
 const initialStartupState = {
@@ -67,6 +69,8 @@ const initialStartupState = {
   cmsSessionHint: undefined,
   handover: undefined,
   recentCases: undefined,
+  notifications: undefined,
+  dismissedNotificationIds: undefined,
 };
 
 // This state could change (e.g. history-based non-full-refresh navigation or dom tags changing)

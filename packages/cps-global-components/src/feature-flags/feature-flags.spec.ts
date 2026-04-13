@@ -98,57 +98,57 @@ describe("FEATURE_FLAGS", () => {
       flags: { isLocalDevelopment: false, isOutSystems: false, e2eTestMode: { isE2eTestMode: false as const }, environment: overrides.environment ?? "test", origin: "" },
     });
 
-    it("should return 'hide-menu' when SHOW_MENU is false", () => {
+    it("should return false when SHOW_MENU is false", () => {
       const state = makeState({ SHOW_MENU: false, FEATURE_FLAG_MENU_USERS: { adGroupIds: ["admin-group"] }, groups: ["admin-group"] });
-      expect(FEATURE_FLAGS.shouldShowMenu(state)).toBe("hide-menu");
+      expect(FEATURE_FLAGS.shouldShowMenu(state)).toBe(false);
     });
 
-    it("should return 'show-menu' when context does not include materials-cwa", () => {
+    it("should return true when context does not include materials-cwa", () => {
       const state = makeState({ contextIds: "case materials", FEATURE_FLAG_MENU_USERS: { adGroupIds: ["admin-group"] } });
-      expect(FEATURE_FLAGS.shouldShowMenu(state)).toBe("show-menu");
+      expect(FEATURE_FLAGS.shouldShowMenu(state)).toBe(true);
     });
 
-    it("should return 'show-menu' when context is not found (no contextIds)", () => {
+    it("should return true when context is not found (no contextIds)", () => {
       const state = makeState({ contextFound: false, FEATURE_FLAG_MENU_USERS: { adGroupIds: ["admin-group"] } });
-      expect(FEATURE_FLAGS.shouldShowMenu(state)).toBe("show-menu");
+      expect(FEATURE_FLAGS.shouldShowMenu(state)).toBe(true);
     });
 
-    it("should return 'show-menu' on materials-cwa page when user is in the required AD group", () => {
+    it("should return true on materials-cwa page when user is in the required AD group", () => {
       const state = makeState({ contextIds: "case materials materials-cwa", FEATURE_FLAG_MENU_USERS: { adGroupIds: ["admin-group"] }, groups: ["admin-group"] });
-      expect(FEATURE_FLAGS.shouldShowMenu(state)).toBe("show-menu");
+      expect(FEATURE_FLAGS.shouldShowMenu(state)).toBe(true);
     });
 
-    it("should return 'show-menu' on materials-cwa page when user is in one of multiple groups including the required group", () => {
+    it("should return true on materials-cwa page when user is in one of multiple groups including the required group", () => {
       const state = makeState({ contextIds: "case materials materials-cwa", FEATURE_FLAG_MENU_USERS: { adGroupIds: ["admin-group"] }, groups: ["user-group", "admin-group", "editor-group"] });
-      expect(FEATURE_FLAGS.shouldShowMenu(state)).toBe("show-menu");
+      expect(FEATURE_FLAGS.shouldShowMenu(state)).toBe(true);
     });
 
-    it("should return 'show-menu' on materials-cwa page when user is in adHocUsers list", () => {
+    it("should return true on materials-cwa page when user is in adHocUsers list", () => {
       const state = makeState({ contextIds: "case materials materials-cwa", FEATURE_FLAG_MENU_USERS: { adHocUserObjectIds: ["test-object-id"] }, objectId: "test-object-id" });
-      expect(FEATURE_FLAGS.shouldShowMenu(state)).toBe("show-menu");
+      expect(FEATURE_FLAGS.shouldShowMenu(state)).toBe(true);
     });
 
-    it("should return 'show-hint' on materials-cwa page in test env when user is not in feature group", () => {
+    it("should return false on materials-cwa page in test env when user is not in feature group", () => {
       const state = makeState({ contextIds: "case materials materials-cwa", FEATURE_FLAG_MENU_USERS: { adGroupIds: ["admin-group"] }, groups: ["other-group"], environment: "test" });
-      expect(FEATURE_FLAGS.shouldShowMenu(state)).toBe("show-hint");
+      expect(FEATURE_FLAGS.shouldShowMenu(state)).toBe(false);
     });
 
-    it("should return 'show-hint' on materials-cwa page in test env when user is not authenticated", () => {
+    it("should return false on materials-cwa page in test env when user is not authenticated", () => {
       const state = makeState({ contextIds: "case materials materials-cwa", FEATURE_FLAG_MENU_USERS: { adGroupIds: ["admin-group"] }, isAuthed: false, environment: "test" });
-      expect(FEATURE_FLAGS.shouldShowMenu(state)).toBe("show-hint");
+      expect(FEATURE_FLAGS.shouldShowMenu(state)).toBe(false);
     });
 
-    it("should return 'hide-menu' on materials-cwa page in prod env when user is not in feature group", () => {
+    it("should return false on materials-cwa page in prod env when user is not in feature group", () => {
       const state = makeState({ contextIds: "case materials materials-cwa", FEATURE_FLAG_MENU_USERS: { adGroupIds: ["admin-group"] }, groups: ["other-group"], environment: "prod" });
-      expect(FEATURE_FLAGS.shouldShowMenu(state)).toBe("hide-menu");
+      expect(FEATURE_FLAGS.shouldShowMenu(state)).toBe(false);
     });
 
-    it("should return 'hide-menu' on materials-cwa page in prod env when user is not authenticated", () => {
+    it("should return false on materials-cwa page in prod env when user is not authenticated", () => {
       const state = makeState({ contextIds: "case materials materials-cwa", FEATURE_FLAG_MENU_USERS: { adGroupIds: ["admin-group"] }, isAuthed: false, environment: "prod" });
-      expect(FEATURE_FLAGS.shouldShowMenu(state)).toBe("hide-menu");
+      expect(FEATURE_FLAGS.shouldShowMenu(state)).toBe(false);
     });
 
-    it("should return 'show-menu' on materials-cwa page when auth is unavailable but authHint user is in AD group", () => {
+    it("should return true on materials-cwa page when auth is unavailable but authHint user is in AD group", () => {
       const state = makeState({
         contextIds: "case materials materials-cwa",
         FEATURE_FLAG_MENU_USERS: { adGroupIds: ["admin-group"] },
@@ -158,10 +158,10 @@ describe("FEATURE_FLAGS", () => {
       });
       // Override auth to undefined to simulate auth not yet resolved
       (state as any).auth = undefined;
-      expect(FEATURE_FLAGS.shouldShowMenu(state)).toBe("show-menu");
+      expect(FEATURE_FLAGS.shouldShowMenu(state)).toBe(true);
     });
 
-    it("should return 'hide-menu' on materials-cwa page in prod when auth is unavailable and authHint is not found", () => {
+    it("should return false on materials-cwa page in prod when auth is unavailable and authHint is not found", () => {
       const state = makeState({
         contextIds: "case materials materials-cwa",
         FEATURE_FLAG_MENU_USERS: { adGroupIds: ["admin-group"] },
@@ -170,7 +170,7 @@ describe("FEATURE_FLAGS", () => {
         authHint: { found: false, error: new Error("not found") },
       });
       (state as any).auth = undefined;
-      expect(FEATURE_FLAGS.shouldShowMenu(state)).toBe("hide-menu");
+      expect(FEATURE_FLAGS.shouldShowMenu(state)).toBe(false);
     });
   });
 
