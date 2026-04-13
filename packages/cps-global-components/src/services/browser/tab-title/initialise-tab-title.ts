@@ -4,13 +4,24 @@ import { Subscribe } from "../../../store/store";
 import { SubscriptionFactory } from "../../../store/subscriptions/SubscriptionFactory";
 import { Tags } from "../../context/Tags";
 import "arrive";
+import { ApplicationFlags } from "../../application-flags/ApplicationFlags";
 
 const URN_SEPARATOR = " ";
 
 export const buildTitle = (baseTitle: string, urn: string | undefined): string => (urn ? (baseTitle ? urn + URN_SEPARATOR + baseTitle : urn) : baseTitle);
 
-export const initialiseTabTitle = ({ window: { document }, preview, subscribe }: { window: { document: Document }; preview: Result<Preview>; subscribe: Subscribe }) => {
-  const isEnabled = () => !!preview.result?.tabTitleUrn;
+export const initialiseTabTitle = ({
+  window: { document },
+  preview,
+  flags: { environment },
+  subscribe,
+}: {
+  window: { document: Document };
+  preview: Result<Preview>;
+  flags: ApplicationFlags;
+  subscribe: Subscribe;
+}) => {
+  const isEnabled = () => environment === "test" || !!preview.result?.tabTitleUrn;
 
   let currentUrn: string | undefined;
   let settingTitle = false;

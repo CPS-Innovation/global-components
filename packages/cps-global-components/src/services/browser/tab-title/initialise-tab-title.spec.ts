@@ -53,7 +53,7 @@ const makeDocument = (initialTitle: string) => {
 
 type OnTagsChange = (tags: Tags | undefined) => void;
 
-const setup = (doc: Document, previewEnabled: boolean) => {
+const setup = (doc: Document, previewEnabled: boolean, environment: string = "prod") => {
   let onTagsChange: OnTagsChange;
 
   const subscribe = (...factories: SubscriptionFactory[]) => {
@@ -64,6 +64,7 @@ const setup = (doc: Document, previewEnabled: boolean) => {
   initialiseTabTitle({
     window: { document: doc } as any,
     preview: previewEnabled ? { found: true, result: { tabTitleUrn: true } } : { found: false, error: new Error("off") },
+    flags: { environment } as any,
     subscribe: subscribe as any,
   });
 
@@ -116,6 +117,14 @@ describe("initialiseTabTitle", () => {
 
     onTagsChange({ urn: "URN123" });
     expect(doc.title).toBe("My Page");
+  });
+
+  it("prepends URN in test environment even when preview flag is disabled", () => {
+    const { doc } = makeDocument("My Page");
+    const { onTagsChange } = setup(doc, false, "test");
+
+    onTagsChange({ urn: "URN123" });
+    expect(doc.title).toBe("URN123 My Page");
   });
 
   it("handles empty base title without trailing separator", () => {
