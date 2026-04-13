@@ -115,7 +115,7 @@ afterEach(async () => {
 describe("Notifications", () => {
   it("renders only the notification that is in its date window and not preview-gated", async () => {
     await setupInterception();
-    await arrange({});
+    await arrange({ config: { SHOW_NOTIFICATIONS: true } });
 
     await act();
     await waitForNotifications();
@@ -129,7 +129,7 @@ describe("Notifications", () => {
 
   it("hides dismissed notifications on initial load", async () => {
     await setupInterception(["live-important"]);
-    await arrange({});
+    await arrange({ config: { SHOW_NOTIFICATIONS: true } });
 
     await act();
 
@@ -150,7 +150,7 @@ describe("Notifications", () => {
 
   it("PUTs the new dismissed list and removes the banner when the user dismisses it", async () => {
     await setupInterception();
-    await arrange({});
+    await arrange({ config: { SHOW_NOTIFICATIONS: true } });
 
     await act();
     await waitForNotifications();

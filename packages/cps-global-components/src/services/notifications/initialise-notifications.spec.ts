@@ -42,13 +42,24 @@ describe("initialiseNotifications", () => {
     fetchSpy.mockRestore();
   });
 
+  it("is a no-op when disabled — no fetches, no register, no handler rebind", async () => {
+    fetchSpy.mockImplementation(() => Promise.reject(new Error("should not fetch when disabled")));
+    const originalHandler = handlers.dismissNotification;
+
+    await initialiseNotifications({ rootUrl, register, handlers, config: { SHOW_NOTIFICATIONS: false } as any });
+
+    expect(fetchSpy).not.toHaveBeenCalled();
+    expect(register).not.toHaveBeenCalled();
+    expect(handlers.dismissNotification).toBe(originalHandler);
+  });
+
   it("fetches notifications and dismissed state in parallel and registers both", async () => {
     mockResponses({
       [notificationsUrl]: { body: { notifications: [{ id: "a", severity: "info", bodyHtml: "<p>a</p>" }] } },
       [stateUrl]: { body: ["a"] },
     });
 
-    await initialiseNotifications({ rootUrl, register, handlers });
+    await initialiseNotifications({ rootUrl, register, handlers, config: { SHOW_NOTIFICATIONS: true } as any });
 
     expect(register).toHaveBeenCalledWith({
       notifications: [{ id: "a", severity: "info", bodyHtml: "<p>a</p>" }],
@@ -62,7 +73,7 @@ describe("initialiseNotifications", () => {
       [stateUrl]: { body: [] },
     });
 
-    await initialiseNotifications({ rootUrl, register, handlers });
+    await initialiseNotifications({ rootUrl, register, handlers, config: { SHOW_NOTIFICATIONS: true } as any });
 
     expect(register).toHaveBeenCalledWith({ notifications: [], dismissedNotificationIds: [] });
   });
@@ -73,7 +84,7 @@ describe("initialiseNotifications", () => {
       [stateUrl]: { body: null },
     });
 
-    await initialiseNotifications({ rootUrl, register, handlers });
+    await initialiseNotifications({ rootUrl, register, handlers, config: { SHOW_NOTIFICATIONS: true } as any });
 
     expect(register).toHaveBeenCalledWith({
       notifications: [{ id: "a", severity: "info", bodyHtml: "<p>a</p>" }],
@@ -87,7 +98,7 @@ describe("initialiseNotifications", () => {
       [stateUrl]: { body: ["a", "stale"] },
     });
 
-    await initialiseNotifications({ rootUrl, register, handlers });
+    await initialiseNotifications({ rootUrl, register, handlers, config: { SHOW_NOTIFICATIONS: true } as any });
 
     expect(register).toHaveBeenCalledWith(expect.objectContaining({ dismissedNotificationIds: ["a"] }));
     const puts = getCalls().filter(c => c.method === "PUT" && c.url === stateUrl);
@@ -101,7 +112,7 @@ describe("initialiseNotifications", () => {
       [stateUrl]: { body: ["a"] },
     });
 
-    await initialiseNotifications({ rootUrl, register, handlers });
+    await initialiseNotifications({ rootUrl, register, handlers, config: { SHOW_NOTIFICATIONS: true } as any });
 
     expect(getCalls().some(c => c.method === "PUT")).toBe(false);
   });
@@ -113,7 +124,7 @@ describe("initialiseNotifications", () => {
         [stateUrl]: { body: [] },
       });
 
-      await initialiseNotifications({ rootUrl, register, handlers });
+      await initialiseNotifications({ rootUrl, register, handlers, config: { SHOW_NOTIFICATIONS: true } as any });
       register.mockClear();
 
       handlers.dismissNotification("a");
@@ -129,7 +140,7 @@ describe("initialiseNotifications", () => {
         [stateUrl]: { body: ["a"] },
       });
 
-      await initialiseNotifications({ rootUrl, register, handlers });
+      await initialiseNotifications({ rootUrl, register, handlers, config: { SHOW_NOTIFICATIONS: true } as any });
       register.mockClear();
       const putCountBefore = getCalls().filter(c => c.method === "PUT").length;
 

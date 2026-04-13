@@ -1,4 +1,4 @@
-import { Notification, notificationsFileSchema, dismissedNotificationIdsSchema } from "cps-global-configuration";
+import { Config, Notification, notificationsFileSchema, dismissedNotificationIdsSchema } from "cps-global-configuration";
 import { getArtifactUrl } from "../../utils/get-artifact-url";
 import { makeConsole } from "../../logging/makeConsole";
 import { Register } from "../../store/store";
@@ -28,7 +28,15 @@ const fetchNotificationsFile = async (rootUrl: string): Promise<Notification[]> 
   }
 };
 
-export const initialiseNotifications = async ({ rootUrl, register, handlers }: { rootUrl: string; register: Register; handlers: Handlers }): Promise<void> => {
+export const initialiseNotifications = async ({ rootUrl, register, handlers, config }: { rootUrl: string; register: Register; handlers: Handlers; config: Config }): Promise<void> => {
+  if (!config.SHOW_NOTIFICATIONS) {
+    // Feature gated off for this environment: skip all network, leave the `notifications` and
+    // `dismissedNotificationIds` store slots undefined. The controller's readyState gate
+    // covers both, so the banner never renders. No handler binding either — the no-op default
+    // in handlers.dismissNotification stays in place.
+    return;
+  }
+
   const [notifications, dismissedResult] = await Promise.all([
     fetchNotificationsFile(rootUrl),
     fetchState({ rootUrl, url: DISMISSED_STATE_URL, schema: dismissedNotificationIdsSchema, defaultResultWhenNull: [] as string[] }),

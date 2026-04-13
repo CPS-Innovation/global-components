@@ -148,6 +148,7 @@ export const configBaseSchema = z.object({
   SHOW_RECENT_CASES: z.boolean().optional(),
   SHOW_MONITORING_CODES: z.boolean().optional(),
   SHOW_GOVUK_REBRAND: z.boolean().optional(),
+  SHOW_NOTIFICATIONS: z.boolean().optional(),
   OS_HANDOVER_URL: z.string().optional(),
   FEATURE_FLAG_MENU_USERS: featureFlagUsersSchema.optional(),
   FEATURE_FLAG_ENABLE_INTRUSIVE_AD_LOGIN: z.boolean().optional(),

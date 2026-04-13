@@ -67,7 +67,6 @@ const initialise = async (window: Window & typeof globalThis) => {
       initialiseSettings({ rootUrl }),
       initialiseAuthHint({ rootUrl, register }),
       initialiseCmsSessionHint({ rootUrl, flags, register }),
-      initialiseNotifications({ rootUrl, register, handlers }),
     ]);
 
     const { initialiseDomForContext } = initialiseDomObservation(
@@ -82,6 +81,8 @@ const initialise = async (window: Window & typeof globalThis) => {
     initialiseTabTitle({ window, preview, subscribe, flags });
 
     const config = await initialiseConfig({ rootUrl, flags, preview, register });
+    /* do not await this — notification fetches shouldn't block auth/analytics/etc. */
+    initialiseNotifications({ rootUrl, register, handlers, config });
     const { setNextRecentCases } = initialiseRecentCases({ rootUrl, config, register });
 
     const diagnosticsCollector = createAdDiagnosticsCollector();
