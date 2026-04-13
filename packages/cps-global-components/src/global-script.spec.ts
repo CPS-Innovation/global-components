@@ -115,8 +115,9 @@ jest.mock("./services/outsystems-shim/outsystems-shim-subscriber", () => ({
   outSystemsShimSubscribers: [],
 }));
 
+const mockInitialiseTabTitle = jest.fn();
 jest.mock("./services/browser/tab-title/initialise-tab-title", () => ({
-  initialiseTabTitle: jest.fn(),
+  initialiseTabTitle: mockInitialiseTabTitle,
 }));
 
 const mockInitialiseCaseDetailsDataForContext = jest.fn();
@@ -661,6 +662,28 @@ describe("global-script", () => {
 
       // initialiseAnalytics receives flags and decides internally whether to use mock
       expect(mockInitialiseAnalytics).toHaveBeenCalledWith(
+        expect.objectContaining({
+          flags: testFlags,
+        }),
+      );
+    });
+
+    it("should pass flags to initialiseTabTitle so it can enable by default in the test environment", async () => {
+      const testFlags = {
+        e2eTestMode: { isE2eTestMode: true },
+        isLocalDevelopment: false,
+        isOutSystems: false,
+        environment: "test",
+      };
+      mockGetApplicationFlags.mockReturnValue(testFlags);
+
+      const globalScript = require("./global-script").default;
+
+      globalScript();
+
+      await new Promise(resolve => setTimeout(resolve, 10));
+
+      expect(mockInitialiseTabTitle).toHaveBeenCalledWith(
         expect.objectContaining({
           flags: testFlags,
         }),

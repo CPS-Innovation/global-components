@@ -76,7 +76,7 @@ const initialise = async (window: Window & typeof globalThis) => {
       ...outSystemsShimSubscribers,
     );
 
-    initialiseTabTitle({ window, preview, subscribe });
+    initialiseTabTitle({ window, preview, subscribe, flags });
 
     const config = await initialiseConfig({ rootUrl, flags, preview, register });
     const { setNextRecentCases } = initialiseRecentCases({ rootUrl, config, register });
