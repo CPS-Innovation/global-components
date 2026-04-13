@@ -85,7 +85,7 @@ describe("get-ad-user-account", () => {
 
       expect(result).toBe(mockAccount);
       expect(mockInstance.acquireTokenSilent).toHaveBeenCalledTimes(1);
-      expect(mockInstance.ssoSilent).toHaveBeenCalledWith({ scopes: ["User.Read"] });
+      expect(mockInstance.ssoSilent).toHaveBeenCalledWith({ scopes: ["User.Read"], loginHint: "test@example.com" });
       expect(mockInstance.loginPopup).not.toHaveBeenCalled();
     });
 
