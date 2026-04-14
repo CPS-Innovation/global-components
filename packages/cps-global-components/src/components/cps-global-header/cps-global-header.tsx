@@ -40,6 +40,7 @@ export class CpsGlobalHeader {
         <div data-internal-root data-initialisation-status={state.initialisationStatus} class={cssClass}>
           <cps-global-banner></cps-global-banner>
           {state.fatalInitialisationError ? renderError(state.fatalInitialisationError) : <cps-global-menu></cps-global-menu>}
+          <cps-global-notifications></cps-global-notifications>
         </div>
       </Host>
     );
