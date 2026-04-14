@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import type { Preview } from "cps-global-configuration";
+import type { Notification, Preview } from "cps-global-configuration";
 import { diffLines } from "diff";
 
 const STATE_ENDPOINT = "/global-components/state/preview";
@@ -8,6 +8,11 @@ const ENV_MATCH = window.location.pathname.match(/\/global-components\/([^/]+)\/
 const ENV = ENV_MATCH?.[1] ?? "test";
 const CONFIG_ENDPOINT = `/global-components/${ENV}/config.json`;
 const CONFIG_OVERRIDE_ENDPOINT = `/global-components/${ENV}/config.override.json`;
+const NOTIFICATIONS_ENDPOINT = `/global-components/${ENV}/notification.json`;
+
+type NotificationsResult =
+  | { loaded: true; notifications: Notification[] }
+  | { loaded: false; error: string };
 
 type ConfigResult =
   | { loaded: true; content: string }
@@ -120,6 +125,8 @@ export function App() {
   const [configOverride, setConfigOverride] = useState<ConfigResult | null>(
     null
   );
+  const [notificationsResult, setNotificationsResult] =
+    useState<NotificationsResult | null>(null);
 
   const showStatus = useCallback((message: string, type: StatusType) => {
     setStatus({ message, type });
@@ -210,6 +217,27 @@ export function App() {
   useEffect(() => {
     loadConfigs();
   }, [loadConfigs]);
+
+  const loadNotifications = useCallback(async () => {
+    try {
+      const response = await fetch(NOTIFICATIONS_ENDPOINT, { credentials: "include" });
+      if (!response.ok) {
+        setNotificationsResult({ loaded: false, error: `HTTP ${response.status}` });
+        return;
+      }
+      const json: { notifications?: Notification[] } = await response.json();
+      setNotificationsResult({ loaded: true, notifications: json.notifications ?? [] });
+    } catch (err) {
+      setNotificationsResult({
+        loaded: false,
+        error: err instanceof Error ? err.message : "Unknown error",
+      });
+    }
+  }, []);
+
+  useEffect(() => {
+    loadNotifications();
+  }, [loadNotifications]);
 
   const handleEnabledChange = (checked: boolean) => {
     const newState = { ...state, enabled: checked || undefined };
@@ -594,6 +622,104 @@ export function App() {
             >
               Clear dismissed notifications
             </button>
+
+            <h3 className="govuk-heading-s govuk-!-margin-top-6">Deployed notifications</h3>
+            <p className="govuk-body govuk-!-font-size-16">
+              Read-only view of <code>notification.json</code> loaded from blob storage
+              for the <strong>{ENV}</strong> environment. Edit the source file to change
+              what appears here.
+            </p>
+            {notificationsResult === null && (
+              <p className="govuk-body govuk-!-font-size-16">Loading&hellip;</p>
+            )}
+            {notificationsResult?.loaded === false && (
+              <p className="govuk-body govuk-!-font-size-16">
+                Could not load notifications: {notificationsResult.error}
+              </p>
+            )}
+            {notificationsResult?.loaded && notificationsResult.notifications.length === 0 && (
+              <p className="govuk-body govuk-!-font-size-16">
+                No notifications configured for this environment.
+              </p>
+            )}
+            {notificationsResult?.loaded &&
+              notificationsResult.notifications.map((n, index) => (
+                <fieldset
+                  key={n.id ?? index}
+                  className="govuk-fieldset govuk-!-margin-top-4 govuk-!-padding-3"
+                  style={{ border: "1px solid #b1b4b6" }}
+                >
+                  <legend className="govuk-fieldset__legend govuk-fieldset__legend--s">
+                    Notification {index + 1}
+                  </legend>
+                  {(
+                    [
+                      ["id", "ID", "text", n.id],
+                      ["severity", "Severity", "text", n.severity],
+                      ["titleText", "Title text", "text", n.titleText ?? ""],
+                      ["heading", "Heading", "text", n.heading ?? ""],
+                      ["from", "From", "text", n.from ?? ""],
+                      ["to", "To", "text", n.to ?? ""],
+                    ] as const
+                  ).map(([field, label, type, value]) => (
+                    <div className="govuk-form-group" key={field}>
+                      <label
+                        className="govuk-label govuk-!-font-size-16"
+                        htmlFor={`notif-${index}-${field}`}
+                      >
+                        {label}
+                      </label>
+                      <input
+                        id={`notif-${index}-${field}`}
+                        type={type}
+                        className="govuk-input govuk-!-font-size-16"
+                        value={value}
+                        disabled
+                      />
+                    </div>
+                  ))}
+                  <div className="govuk-form-group">
+                    <label
+                      className="govuk-label govuk-!-font-size-16"
+                      htmlFor={`notif-${index}-bodyHtml`}
+                    >
+                      Body HTML
+                    </label>
+                    <textarea
+                      id={`notif-${index}-bodyHtml`}
+                      className="govuk-textarea govuk-!-font-size-16"
+                      value={n.bodyHtml}
+                      rows={4}
+                      disabled
+                    />
+                  </div>
+                  <div className="govuk-checkboxes" data-module="govuk-checkboxes">
+                    {(
+                      [
+                        ["previewModeRequired", "Preview mode required", n.previewModeRequired],
+                        ["dismissible", "Dismissible", n.dismissible ?? true],
+                      ] as const
+                    ).map(([field, label, checked]) => (
+                      <div className="govuk-checkboxes__item" key={field}>
+                        <input
+                          className="govuk-checkboxes__input"
+                          id={`notif-${index}-${field}`}
+                          type="checkbox"
+                          checked={!!checked}
+                          disabled
+                          readOnly
+                        />
+                        <label
+                          className="govuk-label govuk-checkboxes__label"
+                          htmlFor={`notif-${index}-${field}`}
+                        >
+                          {label}
+                        </label>
+                      </div>
+                    ))}
+                  </div>
+                </fieldset>
+              ))}
           </fieldset>
         </div>
 
