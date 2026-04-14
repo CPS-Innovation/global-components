@@ -17,6 +17,7 @@ type Props = {
   onError?: (error: Error) => void;
   diagnosticsCollector?: AdDiagnosticsCollector;
   addSilentFlowDiagnostics?: (entry: SilentFlowDiagnostic) => void;
+  getOperationId?: () => string | undefined;
   instance?: PublicClientApplication;
 };
 
@@ -37,6 +38,7 @@ const initialiseAdAuthInternal = async ({
   onError,
   diagnosticsCollector,
   addSilentFlowDiagnostics,
+  getOperationId,
   instance,
 }: Props): Promise<{ auth: AuthResult; getToken: GetToken }> => {
 
@@ -57,7 +59,7 @@ const initialiseAdAuthInternal = async ({
   }
 
   try {
-    const account = await getAdUserAccount({ instance, config: { FEATURE_FLAG_ENABLE_INTRUSIVE_AD_LOGIN, SSO_SILENT_DELAY_MS }, diagnosticsCollector, addSilentFlowDiagnostics, onError });
+    const account = await getAdUserAccount({ instance, config: { FEATURE_FLAG_ENABLE_INTRUSIVE_AD_LOGIN, SSO_SILENT_DELAY_MS }, diagnosticsCollector, addSilentFlowDiagnostics, getOperationId, onError });
     if (!account) {
       return failedAuth("NoAccountFound", "No AD account found");
     }

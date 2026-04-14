@@ -49,6 +49,7 @@ export const initialiseAiAnalytics = ({
       registerAuthWithAnalytics: (_: AuthResult) => {},
       registerCorrelationIdsWithAnalytics: (_: CorrelationIds) => {},
       registerCaseIdentifiersWithAnalytics: (_: string | undefined) => {},
+      getOperationId: () => undefined as string | undefined,
     };
   }
 
@@ -195,5 +196,7 @@ export const initialiseAiAnalytics = ({
     appInsights.trackEvent({ name: ev.type, properties: { ...ev.detail, correlationIds: correlationIdValues } });
   });
 
-  return { trackPageView, trackException, trackEvent, registerAuthWithAnalytics, registerCorrelationIdsWithAnalytics, registerCaseIdentifiersWithAnalytics };
+  const getOperationId = (): string | undefined => appInsights.context?.telemetryTrace?.traceID;
+
+  return { trackPageView, trackException, trackEvent, registerAuthWithAnalytics, registerCorrelationIdsWithAnalytics, registerCaseIdentifiersWithAnalytics, getOperationId };
 };

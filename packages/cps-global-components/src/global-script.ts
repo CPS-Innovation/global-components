@@ -94,6 +94,7 @@ const initialise = async (window: Window & typeof globalThis) => {
       registerAuthWithAnalytics,
       registerCorrelationIdsWithAnalytics,
       registerCaseIdentifiersWithAnalytics,
+      getOperationId,
     } = initialiseAnalytics({
       window,
       config,
@@ -105,7 +106,7 @@ const initialise = async (window: Window & typeof globalThis) => {
     });
     trackException = _trackException;
 
-    const { initialiseAuthForContext } = initialiseAuth({ config, flags, onError: trackException, diagnosticsCollector, addSilentFlowDiagnostics, register, registerAuthWithAnalytics, setAuthHint });
+    const { initialiseAuthForContext } = initialiseAuth({ config, flags, onError: trackException, diagnosticsCollector, addSilentFlowDiagnostics, getOperationId, register, registerAuthWithAnalytics, setAuthHint });
     const { initialiseCaseDetailsDataForContext, initialiseCaseDetailsDataForContextOptimistic } = initialiseCaseDetailsData({
       config,
       handover,

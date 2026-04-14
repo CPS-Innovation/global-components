@@ -45,8 +45,13 @@ export const initialiseDiagnostics = ({ rootUrl, config, register }: { rootUrl: 
     }
 
     silentFlowDiagnosticsPromise.then(() => {
-      silentFlowDiagnostics.silentFlows.unshift(entry);
-      silentFlowDiagnostics.silentFlows.length = Math.min(silentFlowDiagnostics.silentFlows.length, silentFlowsLength);
+      const existingIndex = entry.operationId ? silentFlowDiagnostics.silentFlows.findIndex(f => f.operationId === entry.operationId) : -1;
+      if (existingIndex >= 0) {
+        silentFlowDiagnostics.silentFlows[existingIndex] = { ...silentFlowDiagnostics.silentFlows[existingIndex], ...entry };
+      } else {
+        silentFlowDiagnostics.silentFlows.unshift(entry);
+        silentFlowDiagnostics.silentFlows.length = Math.min(silentFlowDiagnostics.silentFlows.length, silentFlowsLength);
+      }
       put();
     });
   };

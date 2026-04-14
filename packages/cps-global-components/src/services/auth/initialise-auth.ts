@@ -14,6 +14,7 @@ type Register = (arg: { auth: AuthResult }) => void;
 type RegisterAuthWithAnalytics = (auth: AuthResult) => void;
 type SetAuthHint = (auth: Auth) => void;
 type AddSilentFlowDiagnostics = (entry: SilentFlowDiagnostic) => void;
+type GetOperationId = () => string | undefined;
 
 type Props = {
   config: Config;
@@ -21,6 +22,7 @@ type Props = {
   onError?: (error: Error) => void;
   diagnosticsCollector?: AdDiagnosticsCollector;
   addSilentFlowDiagnostics?: AddSilentFlowDiagnostics;
+  getOperationId?: GetOperationId;
   register: Register;
   registerAuthWithAnalytics: RegisterAuthWithAnalytics;
   setAuthHint: SetAuthHint;
@@ -41,6 +43,7 @@ export const initialiseAuth = ({
   onError,
   diagnosticsCollector,
   addSilentFlowDiagnostics,
+  getOperationId,
   register,
   registerAuthWithAnalytics,
   setAuthHint,
@@ -71,7 +74,7 @@ export const initialiseAuth = ({
         instance = await createMsalInstance({ authority, clientId, redirectUri: ctx.msalRedirectUrl, diagnosticsCollector });
       }
 
-      return initialiseAdAuth({ config, context: ctx, onError, diagnosticsCollector, addSilentFlowDiagnostics, instance });
+      return initialiseAdAuth({ config, context: ctx, onError, diagnosticsCollector, addSilentFlowDiagnostics, getOperationId, instance });
     };
 
     authInFlight = doAuth()
