@@ -7,25 +7,21 @@ import { HTTPRequest } from "puppeteer";
 const notificationsFile = {
   notifications: [
     {
-      id: "live-important",
-      severity: "important",
-      bodyHtml: "<p>Live important notification body.</p>",
+      id: "live",
+      bodyHtml: "<p>Live notification body.</p>",
     },
     {
-      id: "expired-info",
-      severity: "info",
+      id: "expired",
       bodyHtml: "<p>This one has expired.</p>",
       to: "2000-01-01T00:00:00Z",
     },
     {
-      id: "future-warning",
-      severity: "warning",
+      id: "future",
       bodyHtml: "<p>This one is scheduled for the future.</p>",
       from: "2099-01-01T00:00:00Z",
     },
     {
       id: "preview-only",
-      severity: "info",
       bodyHtml: "<p>Preview mode only.</p>",
       previewModeRequired: true,
     },
@@ -123,12 +119,12 @@ describe("Notifications", () => {
     const banners = await readNotificationState();
     expect(banners).toHaveLength(1);
     expect(banners[0].title).toBe("Important");
-    expect(banners[0].body).toContain("Live important notification body.");
+    expect(banners[0].body).toContain("Live notification body.");
     expect(banners[0].hasDismissButton).toBe(true);
   });
 
   it("hides dismissed notifications on initial load", async () => {
-    await setupInterception(["live-important"]);
+    await setupInterception(["live"]);
     await arrange({ config: { SHOW_NOTIFICATIONS: true } });
 
     await act();
@@ -177,6 +173,6 @@ describe("Notifications", () => {
 
     expect(capturedPuts).toHaveLength(1);
     expect(capturedPuts[0].url).toContain("/state/dismissed-notifications");
-    expect(capturedPuts[0].body).toEqual(["live-important"]);
+    expect(capturedPuts[0].body).toEqual(["live"]);
   });
 });

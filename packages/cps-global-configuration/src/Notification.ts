@@ -1,13 +1,7 @@
 import { z } from "zod";
 
-export const notificationSeveritySchema = z.enum(["info", "important", "warning"]);
-
-export type NotificationSeverity = z.infer<typeof notificationSeveritySchema>;
-
 export const notificationSchema = z.object({
   id: z.string().min(1).max(64),
-  severity: notificationSeveritySchema,
-  titleText: z.string().optional(),
   heading: z.string().optional(),
   bodyHtml: z.string(),
   from: z.string().datetime({ offset: true }).optional(),

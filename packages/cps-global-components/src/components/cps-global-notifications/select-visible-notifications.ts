@@ -1,11 +1,5 @@
 import { Notification } from "cps-global-configuration";
 
-const SEVERITY_WEIGHT: Record<Notification["severity"], number> = {
-  warning: 0,
-  important: 1,
-  info: 2,
-};
-
 type Input = {
   notifications: Notification[];
   dismissedIds: string[];
@@ -34,11 +28,6 @@ export const selectVisibleNotifications = ({ notifications, dismissedIds, previe
   });
 
   return matching.sort((a, b) => {
-    const severityDelta = SEVERITY_WEIGHT[a.severity] - SEVERITY_WEIGHT[b.severity];
-    if (severityDelta !== 0) {
-      return severityDelta;
-    }
-
     const fromA = a.from ? Date.parse(a.from) : -Infinity;
     const fromB = b.from ? Date.parse(b.from) : -Infinity;
     if (fromA !== fromB) {

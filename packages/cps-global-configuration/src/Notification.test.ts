@@ -8,7 +8,6 @@ import {
 describe("notificationSchema", () => {
   const base = {
     id: "maintenance-2026-04-20",
-    severity: "important" as const,
     bodyHtml: "<p>Planned maintenance</p>",
   };
 
@@ -19,7 +18,6 @@ describe("notificationSchema", () => {
   test("accepts the full shape", () => {
     const full = {
       ...base,
-      titleText: "Scheduled maintenance",
       heading: "Service unavailable",
       from: "2026-04-20T22:00:00Z",
       to: "2026-04-21T02:00:00Z",
@@ -33,10 +31,6 @@ describe("notificationSchema", () => {
     expect(() => notificationSchema.parse({ ...base, id: "" })).toThrow();
     const { id, ...withoutId } = base;
     expect(() => notificationSchema.parse(withoutId)).toThrow();
-  });
-
-  test("rejects unknown severity", () => {
-    expect(() => notificationSchema.parse({ ...base, severity: "catastrophic" })).toThrow();
   });
 
   test("rejects malformed from/to", () => {

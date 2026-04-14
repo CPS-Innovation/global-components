@@ -2,7 +2,6 @@ import { Notification } from "cps-global-configuration";
 import { selectVisibleNotifications } from "./select-visible-notifications";
 
 const n = (overrides: Partial<Notification> & Pick<Notification, "id">): Notification => ({
-  severity: "info",
   bodyHtml: "<p>x</p>",
   ...overrides,
 });
@@ -74,25 +73,11 @@ describe("selectVisibleNotifications", () => {
     expect(result.map(x => x.id)).toEqual(["a"]);
   });
 
-  it("orders by severity first (warning > important > info)", () => {
+  it("orders by from ascending", () => {
     const result = selectVisibleNotifications({
       notifications: [
-        n({ id: "c-info", severity: "info" }),
-        n({ id: "a-warning", severity: "warning" }),
-        n({ id: "b-important", severity: "important" }),
-      ],
-      dismissedIds: [],
-      previewNotificationsEnabled: false,
-      now,
-    });
-    expect(result.map(x => x.id)).toEqual(["a-warning", "b-important", "c-info"]);
-  });
-
-  it("orders by from ascending within a severity", () => {
-    const result = selectVisibleNotifications({
-      notifications: [
-        n({ id: "later", severity: "info", from: "2026-04-10T00:00:00Z" }),
-        n({ id: "earlier", severity: "info", from: "2026-04-01T00:00:00Z" }),
+        n({ id: "later", from: "2026-04-10T00:00:00Z" }),
+        n({ id: "earlier", from: "2026-04-01T00:00:00Z" }),
       ],
       dismissedIds: [],
       previewNotificationsEnabled: false,
