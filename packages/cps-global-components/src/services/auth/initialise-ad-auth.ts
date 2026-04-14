@@ -9,12 +9,14 @@ import { getTokenFactory } from "./get-token-factory";
 import { GetToken } from "./GetToken";
 import type { AdDiagnosticsCollector } from "./ad-diagnostics-collector";
 import type { PublicClientApplication } from "@azure/msal-browser";
+import type { SilentFlowDiagnostic } from "../diagnostics/silent-flow-diagnostics";
 
 type Props = {
   config: Config;
   context: FoundContext;
   onError?: (error: Error) => void;
   diagnosticsCollector?: AdDiagnosticsCollector;
+  addSilentFlowDiagnostics?: (entry: SilentFlowDiagnostic) => void;
   instance?: PublicClientApplication;
 };
 
@@ -34,6 +36,7 @@ const initialiseAdAuthInternal = async ({
   context: { msalRedirectUrl: redirectUri, currentHref },
   onError,
   diagnosticsCollector,
+  addSilentFlowDiagnostics,
   instance,
 }: Props): Promise<{ auth: AuthResult; getToken: GetToken }> => {
 
@@ -54,7 +57,7 @@ const initialiseAdAuthInternal = async ({
   }
 
   try {
-    const account = await getAdUserAccount({ instance, config: { FEATURE_FLAG_ENABLE_INTRUSIVE_AD_LOGIN, SSO_SILENT_DELAY_MS }, diagnosticsCollector });
+    const account = await getAdUserAccount({ instance, config: { FEATURE_FLAG_ENABLE_INTRUSIVE_AD_LOGIN, SSO_SILENT_DELAY_MS }, diagnosticsCollector, addSilentFlowDiagnostics });
     if (!account) {
       return failedAuth("NoAccountFound", "No AD account found");
     }

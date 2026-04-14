@@ -11,10 +11,18 @@ import { capitalizeKeys } from "../../utils/capitalize-keys";
 import { Result } from "../../utils/Result";
 import { AuthHint } from "../state/auth-hint/initialise-auth-hint";
 import type { AdDiagnosticsCollector } from "../auth/ad-diagnostics-collector";
+import type { SilentFlowDiagnostics } from "../diagnostics/silent-flow-diagnostics";
 
 const STORAGE_PREFIX = "cps_global_components";
 
-type Props = { window: Window; config: Config; build: Build; authHint?: Result<AuthHint>; diagnosticsCollector?: AdDiagnosticsCollector };
+type Props = {
+  window: Window;
+  config: Config;
+  build: Build;
+  authHint?: Result<AuthHint>;
+  diagnosticsCollector?: AdDiagnosticsCollector;
+  silentFlowDiagnostics?: SilentFlowDiagnostics;
+};
 
 type AuthAnalyticsProps =
   | undefined
@@ -31,6 +39,7 @@ export const initialiseAiAnalytics = ({
   build,
   authHint,
   diagnosticsCollector,
+  silentFlowDiagnostics,
 }: Props) => {
   if (!APP_INSIGHTS_CONNECTION_STRING) {
     return {
@@ -170,7 +179,7 @@ export const initialiseAiAnalytics = ({
     const authDiagnostics = getDiagnostics();
     appInsights.trackException(
       { exception },
-      { source: STORAGE_PREFIX, properties: capitalizeKeys({ environment: ENVIRONMENT, ...(authValues && { auth: authValues }), build, authDiagnostics }) },
+      { source: STORAGE_PREFIX, properties: capitalizeKeys({ environment: ENVIRONMENT, ...(authValues && { auth: authValues }), build, authDiagnostics, silentFlowDiagnostics: silentFlowDiagnostics ?? { silentFlows: [] } }) },
     );
   };
 

@@ -121,6 +121,7 @@ beforeEach(() => {
       cmsSessionHint: { found: false, error: {} as Error },
       handover: { found: false, error: {} as Error },
       recentCases: { found: false, error: {} as Error },
+      silentFlowDiagnostics: { found: false, error: {} as Error },
       notifications: [],
       dismissedNotificationIds: [],
     };
@@ -179,6 +180,7 @@ beforeEach(() => {
       cmsSessionHint: { found: false, error: {} as Error },
       handover: { found: false, error: {} as Error },
       recentCases: { found: false, error: {} as Error },
+      silentFlowDiagnostics: { found: false, error: {} as Error },
       notifications: [],
       dismissedNotificationIds: [],
     };
