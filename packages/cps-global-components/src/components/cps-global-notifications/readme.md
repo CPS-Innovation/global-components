@@ -9,7 +9,7 @@
 
 ### Used by
 
- - [cps-global-banner](../cps-global-banner)
+ - [cps-global-header](../cps-global-header)
 
 ### Depends on
 
@@ -19,7 +19,7 @@
 ```mermaid
 graph TD;
   cps-global-notifications --> cps-gds-notification-banner
-  cps-global-banner --> cps-global-notifications
+  cps-global-header --> cps-global-notifications
   style cps-global-notifications fill:#f9f,stroke:#333,stroke-width:4px
 ```
 
