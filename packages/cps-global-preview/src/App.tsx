@@ -615,7 +615,34 @@ export function App() {
             <legend className="govuk-fieldset__legend govuk-fieldset__legend--m">
               <h2 className="govuk-fieldset__heading">Notifications</h2>
             </legend>
-            <p className="govuk-body govuk-!-font-size-16">
+            <div className="govuk-checkboxes" data-module="govuk-checkboxes">
+              <div className="govuk-checkboxes__item">
+                <input
+                  className="govuk-checkboxes__input"
+                  id="notifications"
+                  name="notifications"
+                  type="checkbox"
+                  checked={state.notifications ?? false}
+                  disabled={loading}
+                  onChange={(e) => handleSubOptionChange("notifications", e.target.checked)}
+                />
+                <label
+                  className="govuk-label govuk-checkboxes__label"
+                  htmlFor="notifications"
+                >
+                  Preview outage notifications
+                </label>
+                <div
+                  id="notifications-hint"
+                  className="govuk-hint govuk-checkboxes__hint govuk-!-font-size-16"
+                >
+                  Show notifications marked <code>previewModeRequired: true</code> in{" "}
+                  <code>notification.json</code>. Use to verify an outage message before
+                  opening it up to all users.
+                </div>
+              </div>
+            </div>
+            <p className="govuk-body govuk-!-font-size-16 govuk-!-margin-top-4">
               Clears the cookie recording which outage/maintenance notifications you have
               dismissed. Active notifications will reappear on your next page load.
             </p>

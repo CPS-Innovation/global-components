@@ -27,7 +27,7 @@ export class CpsGlobalNotifications {
     const visible = selectVisibleNotifications({
       notifications: state.notifications,
       dismissedIds: state.dismissedNotificationIds,
-      previewEnabled: !!state.preview.result?.enabled,
+      previewNotificationsEnabled: !!state.preview.result?.notifications,
       now: new Date(),
     });
 

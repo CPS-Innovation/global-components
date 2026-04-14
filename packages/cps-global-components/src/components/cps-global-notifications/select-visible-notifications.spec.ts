@@ -11,14 +11,14 @@ const now = new Date("2026-04-13T12:00:00Z");
 
 describe("selectVisibleNotifications", () => {
   it("returns nothing when the list is empty", () => {
-    expect(selectVisibleNotifications({ notifications: [], dismissedIds: [], previewEnabled: false, now })).toEqual([]);
+    expect(selectVisibleNotifications({ notifications: [], dismissedIds: [], previewNotificationsEnabled: false, now })).toEqual([]);
   });
 
   it("excludes dismissed notifications", () => {
     const result = selectVisibleNotifications({
       notifications: [n({ id: "a" }), n({ id: "b" })],
       dismissedIds: ["a"],
-      previewEnabled: false,
+      previewNotificationsEnabled: false,
       now,
     });
     expect(result.map(x => x.id)).toEqual(["b"]);
@@ -28,7 +28,7 @@ describe("selectVisibleNotifications", () => {
     const result = selectVisibleNotifications({
       notifications: [n({ id: "a" }), n({ id: "b", previewModeRequired: true })],
       dismissedIds: [],
-      previewEnabled: false,
+      previewNotificationsEnabled: false,
       now,
     });
     expect(result.map(x => x.id)).toEqual(["a"]);
@@ -38,7 +38,7 @@ describe("selectVisibleNotifications", () => {
     const result = selectVisibleNotifications({
       notifications: [n({ id: "a", previewModeRequired: true })],
       dismissedIds: [],
-      previewEnabled: true,
+      previewNotificationsEnabled: true,
       now,
     });
     expect(result.map(x => x.id)).toEqual(["a"]);
@@ -48,7 +48,7 @@ describe("selectVisibleNotifications", () => {
     const result = selectVisibleNotifications({
       notifications: [n({ id: "future", from: "2026-05-01T00:00:00Z" }), n({ id: "live", from: "2026-04-01T00:00:00Z" })],
       dismissedIds: [],
-      previewEnabled: false,
+      previewNotificationsEnabled: false,
       now,
     });
     expect(result.map(x => x.id)).toEqual(["live"]);
@@ -58,7 +58,7 @@ describe("selectVisibleNotifications", () => {
     const result = selectVisibleNotifications({
       notifications: [n({ id: "expired", to: "2026-04-12T00:00:00Z" }), n({ id: "live", to: "2026-05-01T00:00:00Z" })],
       dismissedIds: [],
-      previewEnabled: false,
+      previewNotificationsEnabled: false,
       now,
     });
     expect(result.map(x => x.id)).toEqual(["live"]);
@@ -68,7 +68,7 @@ describe("selectVisibleNotifications", () => {
     const result = selectVisibleNotifications({
       notifications: [n({ id: "a" })],
       dismissedIds: [],
-      previewEnabled: false,
+      previewNotificationsEnabled: false,
       now,
     });
     expect(result.map(x => x.id)).toEqual(["a"]);
@@ -82,7 +82,7 @@ describe("selectVisibleNotifications", () => {
         n({ id: "b-important", severity: "important" }),
       ],
       dismissedIds: [],
-      previewEnabled: false,
+      previewNotificationsEnabled: false,
       now,
     });
     expect(result.map(x => x.id)).toEqual(["a-warning", "b-important", "c-info"]);
@@ -95,7 +95,7 @@ describe("selectVisibleNotifications", () => {
         n({ id: "earlier", severity: "info", from: "2026-04-01T00:00:00Z" }),
       ],
       dismissedIds: [],
-      previewEnabled: false,
+      previewNotificationsEnabled: false,
       now,
     });
     expect(result.map(x => x.id)).toEqual(["earlier", "later"]);
@@ -105,7 +105,7 @@ describe("selectVisibleNotifications", () => {
     const result = selectVisibleNotifications({
       notifications: [n({ id: "b" }), n({ id: "a" })],
       dismissedIds: [],
-      previewEnabled: false,
+      previewNotificationsEnabled: false,
       now,
     });
     expect(result.map(x => x.id)).toEqual(["a", "b"]);
