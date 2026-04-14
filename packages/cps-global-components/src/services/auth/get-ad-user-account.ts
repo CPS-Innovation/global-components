@@ -3,11 +3,15 @@ import { makeConsole } from "../../logging/makeConsole";
 import { getErrorType } from "./get-error-type";
 import { withLogging } from "../../logging/with-logging";
 import type { AdDiagnosticsCollector } from "./ad-diagnostics-collector";
+import type { SilentFlowDiagnostic } from "../diagnostics/silent-flow-diagnostics";
+
+type AddSilentFlowDiagnostics = (entry: SilentFlowDiagnostic) => void;
 
 type Props = {
   instance: PublicClientApplication;
   config: { FEATURE_FLAG_ENABLE_INTRUSIVE_AD_LOGIN: boolean | undefined; SSO_SILENT_DELAY_MS: number | undefined };
   diagnosticsCollector?: AdDiagnosticsCollector;
+  addSilentFlowDiagnostics?: AddSilentFlowDiagnostics;
 };
 
 type AccountSource = "acquireTokenSilent" | "silent" | "popup" | "failed";
@@ -34,7 +38,7 @@ const waitForPageStability = async (ssoSilentDelayMs: number, scriptStartMs: num
   }
 };
 
-const internalGetAdUserAccount = async ({ instance, config: { FEATURE_FLAG_ENABLE_INTRUSIVE_AD_LOGIN, SSO_SILENT_DELAY_MS }, diagnosticsCollector }: Props) => {
+const internalGetAdUserAccount = async ({ instance, config: { FEATURE_FLAG_ENABLE_INTRUSIVE_AD_LOGIN, SSO_SILENT_DELAY_MS }, diagnosticsCollector, addSilentFlowDiagnostics }: Props) => {
   const t0 = performance.now();
 
   const tryAcquireTokenSilently = async (): AccountRetrievalResult => {
@@ -88,6 +92,7 @@ const internalGetAdUserAccount = async ({ instance, config: { FEATURE_FLAG_ENABL
     const knownAccount = instance.getActiveAccount() || instance.getAllAccounts()[0];
     const ssoSilentRequest = { ...loginRequest, ...(knownAccount?.username ? { loginHint: knownAccount.username } : {}) };
 
+    addSilentFlowDiagnostics?.({ time: Date.now(), url: window.location.href });
     try {
       const { account } = await instance.ssoSilent(ssoSilentRequest);
       diagnosticsCollector?.add({

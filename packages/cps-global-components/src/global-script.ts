@@ -25,6 +25,7 @@ import { initialiseOutSystemsShowAlert } from "./services/outsystems-shim/outsys
 import { initialiseNavigateCms } from "./services/navigate-cms/initialise-navigate-cms";
 import { initialiseAuthHint } from "./services/state/auth-hint/initialise-auth-hint";
 import { createAdDiagnosticsCollector } from "./services/auth/ad-diagnostics-collector";
+import { initialiseDiagnostics } from "./services/diagnostics/initialise-diagnostics";
 import { initialiseTabTitle } from "./services/browser/tab-title/initialise-tab-title";
 import { initialiseBuild } from "./services/build/initialise-build";
 import { runNowAndOnNavigation } from "./services/browser/navigation/navigation";
@@ -82,6 +83,7 @@ const initialise = async (window: Window & typeof globalThis) => {
     /* do not await this — notification fetches shouldn't block auth/analytics/etc. */
     initialiseNotifications({ rootUrl, register, handlers, config });
     const { setNextRecentCases } = initialiseRecentCases({ rootUrl, config, register });
+    const { silentFlowDiagnostics, addSilentFlowDiagnostics } = initialiseDiagnostics({ rootUrl, config, register });
 
     const diagnosticsCollector = createAdDiagnosticsCollector();
 
@@ -99,10 +101,11 @@ const initialise = async (window: Window & typeof globalThis) => {
       flags,
       authHint,
       diagnosticsCollector,
+      silentFlowDiagnostics,
     });
     trackException = _trackException;
 
-    const { initialiseAuthForContext } = initialiseAuth({ config, flags, onError: trackException, diagnosticsCollector, register, registerAuthWithAnalytics, setAuthHint });
+    const { initialiseAuthForContext } = initialiseAuth({ config, flags, onError: trackException, diagnosticsCollector, addSilentFlowDiagnostics, register, registerAuthWithAnalytics, setAuthHint });
     const { initialiseCaseDetailsDataForContext, initialiseCaseDetailsDataForContextOptimistic } = initialiseCaseDetailsData({
       config,
       handover,

@@ -20,6 +20,7 @@ import { CmsSessionHint } from "cps-global-configuration";
 import { AuthHint } from "../services/state/auth-hint/initialise-auth-hint";
 import { MonitoringCodes } from "../services/data/MonitoringCode";
 import { RecentCases } from "../services/state/recent-cases/recent-cases";
+import { SilentFlowDiagnostics } from "../services/diagnostics/silent-flow-diagnostics";
 export { type ReadyStateHelper };
 
 // Helper type to extract keys of a specific type
@@ -54,6 +55,7 @@ type StartupState = {
   cmsSessionHint: Result<CmsSessionHint>;
   handover: Result<Handover>;
   recentCases: Result<RecentCases>;
+  silentFlowDiagnostics: Result<SilentFlowDiagnostics>;
   notifications: Notification[];
   dismissedNotificationIds: string[];
 };
@@ -69,6 +71,7 @@ const initialStartupState = {
   cmsSessionHint: undefined,
   handover: undefined,
   recentCases: undefined,
+  silentFlowDiagnostics: undefined,
   notifications: undefined,
   dismissedNotificationIds: undefined,
 };
