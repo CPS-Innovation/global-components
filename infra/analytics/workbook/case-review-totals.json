@@ -1,0 +1,22 @@
+{
+  "version": "Notebook/1.0",
+  "items": [
+    {
+      "type": 3,
+      "content": {
+        "version": "KqlItem/1.0",
+        "query": "GloCo_CaseReview_TotalStartedSubmitted()",
+        "size": 0,
+        "title": "Case review totals since launch",
+        "showExportToExcel": true,
+        "queryType": 0,
+        "resourceType": "microsoft.operationalinsights/workspaces"
+      },
+      "name": "query - 1"
+    }
+  ],
+  "isLocked": false,
+  "fallbackResourceIds": [
+    "/subscriptions/__SUBSCRIPTION_ID__/resourceGroups/rg-global-nav-dev/providers/Microsoft.OperationalInsights/workspaces/la-global-nav-dev"
+  ]
+}
