@@ -9,6 +9,27 @@
         "parts": [
           {
             "metadata": {
+              "inputs": [],
+              "settings": {
+                "content": {
+                  "content": "____\n\nThis dashboard is limited to showing data only from the last 30 days. [Click here](https://portal.azure.com/#view/AppInsightsExtension/WorkbookViewerBlade/ComponentId/%2Fsubscriptions%2F__SUBSCRIPTION_ID__%2FresourceGroups%2Frg-global-nav-dev%2Fproviders%2FMicrosoft.OperationalInsights%2Fworkspaces%2Fla-global-nav-dev/ConfigurationId/%2Fsubscriptions%2F__SUBSCRIPTION_ID__%2Fresourcegroups%2Frg-global-nav-dev%2Fproviders%2Fmicrosoft.insights%2Fworkbooks%2Fb9e1e051-ca8c-4f5e-9e9f-d6c8acaa1023/WorkbookTemplateName/MaCD%20global%20nav%20all-time%20analytics) to see analytics based on data accumulated from the launch of MaCD.\n",
+                  "markdownSource": 1,
+                  "markdownUri": "",
+                  "subtitle": ".",
+                  "title": "Analytics since launch"
+                }
+              },
+              "type": "Extension/HubsExtension/PartType/MarkdownPart"
+            },
+            "position": {
+              "colSpan": 24,
+              "rowSpan": 2,
+              "x": 0,
+              "y": 0
+            }
+          },
+          {
+            "metadata": {
               "inputs": [
                 {
                   "isOptional": true,
@@ -126,7 +147,7 @@
               "colSpan": 8,
               "rowSpan": 5,
               "x": 0,
-              "y": 0
+              "y": 2
             }
           },
           {
@@ -221,7 +242,7 @@
               "colSpan": 9,
               "rowSpan": 5,
               "x": 8,
-              "y": 0
+              "y": 2
             }
           },
           {
@@ -346,7 +367,7 @@
               "colSpan": 7,
               "rowSpan": 5,
               "x": 17,
-              "y": 0
+              "y": 2
             }
           },
           {
@@ -468,7 +489,7 @@
               "colSpan": 8,
               "rowSpan": 5,
               "x": 0,
-              "y": 5
+              "y": 7
             }
           },
           {
@@ -567,7 +588,7 @@
               "colSpan": 16,
               "rowSpan": 5,
               "x": 8,
-              "y": 5
+              "y": 7
             }
           },
           {
@@ -681,7 +702,7 @@
               "colSpan": 8,
               "rowSpan": 5,
               "x": 0,
-              "y": 10
+              "y": 12
             }
           },
           {
@@ -776,7 +797,7 @@
               "colSpan": 16,
               "rowSpan": 5,
               "x": 8,
-              "y": 10
+              "y": 12
             }
           },
           {
@@ -824,7 +845,7 @@
                 {
                   "isOptional": true,
                   "name": "Query",
-                  "value": "let PerCase = GloCo_PageViews_CaseReview\n| where TimeGenerated > datetime(2026-03-09T12:00:01)\n| summarize\n    Has_Review_First_Review         = countif(Is_Review_First_Review) > 0,\n    Has_Review_Subsequent_Review    = countif(Is_Review_Subsequent_Review) > 0,\n    Has_Early_Advice_First_Review   = countif(Is_Early_Advice_First_Review) > 0,\n    Has_Early_Advice_Subsequent     = countif(Is_Early_Advice_Subsequent) > 0,\n    Has_Submitted_First_Review      = countif(Is_Submitted_First_Review) > 0,\n    Has_Submitted_Subsequent_Review = countif(Is_Submitted_Subsequent_Review) > 0,\n    Has_Admin_Finalise              = countif(Is_Admin_Finalise) > 0,\n    Submitted_By                    = take_anyif(Auth_Username, (Is_Submitted_First_Review or Is_Submitted_Subsequent_Review or Is_Admin_Finalise) and isnotempty(Auth_Username))\n    by CaseId;\nlet Min_Date            = toscalar(GloCo_PageViews_CaseReview | where TimeGenerated > datetime(2026-03-09T12:00:01) | summarize min(TimeGenerated));\nlet First_Review_Users  = toscalar(PerCase | where Has_Submitted_First_Review      and isnotempty(Submitted_By) | distinct Submitted_By | count);\nlet Subsequent_Users    = toscalar(PerCase | where Has_Submitted_Subsequent_Review and isnotempty(Submitted_By) | distinct Submitted_By | count);\nlet EA_First_Users      = toscalar(PerCase | where Has_Early_Advice_First_Review   and isnotempty(Submitted_By) | distinct Submitted_By | count);\nlet EA_Subsequent_Users = toscalar(PerCase | where Has_Early_Advice_Subsequent     and isnotempty(Submitted_By) | distinct Submitted_By | count);\nlet Admin_Users         = toscalar(PerCase | where Has_Admin_Finalise              and isnotempty(Submitted_By) | distinct Submitted_By | count);\nlet Total_Users         = toscalar(PerCase | where isnotempty(Submitted_By) | distinct Submitted_By | count);\nlet Stats = PerCase\n| summarize\n    First_Review_Started    = countif(Has_Review_First_Review),\n    First_Review_Submitted  = countif(Has_Review_First_Review      and Has_Submitted_First_Review),\n    Subsequent_Started      = countif(Has_Review_Subsequent_Review),\n    Subsequent_Submitted    = countif(Has_Review_Subsequent_Review  and Has_Submitted_Subsequent_Review),\n    EA_First_Started        = countif(Has_Early_Advice_First_Review),\n    EA_First_Submitted      = countif(Has_Early_Advice_First_Review and Has_Submitted_First_Review),\n    EA_Subsequent_Started   = countif(Has_Early_Advice_Subsequent),\n    EA_Subsequent_Submitted = countif(Has_Early_Advice_Subsequent   and Has_Submitted_Subsequent_Review),\n    Admin_Finalised         = countif(Has_Admin_Finalise);\nlet Rows = Stats\n| project\n    Review_Type = pack_array(\"First review\", \"Subsequent review\", \"EA first review\", \"EA subsequent review\", \"Admin finalised\"),\n    Started     = pack_array(First_Review_Started,   Subsequent_Started,   EA_First_Started,   EA_Subsequent_Started,   Admin_Finalised),\n    Submitted   = pack_array(First_Review_Submitted, Subsequent_Submitted, EA_First_Submitted, EA_Subsequent_Submitted, Admin_Finalised),\n    Users       = pack_array(First_Review_Users,     Subsequent_Users,     EA_First_Users,     EA_Subsequent_Users,     Admin_Users)\n| mv-expand Review_Type to typeof(string), Started to typeof(long), Submitted to typeof(long), Users to typeof(long);\nlet TotalRow = Stats\n| project\n    Review_Type = \"Total\",\n    Started     = First_Review_Started + Subsequent_Started + EA_First_Started + EA_Subsequent_Started + Admin_Finalised,\n    Submitted   = First_Review_Submitted + Subsequent_Submitted + EA_First_Submitted + EA_Subsequent_Submitted + Admin_Finalised,\n    Users       = Total_Users;\nlet DateRow = print\n    Review_Type = \"Earliest date\",\n    Started     = tostring(format_datetime(Min_Date, 'yyyy-MM-dd HH:mm')),\n    Submitted   = \"\",\n    Users       = \"\",\n    SortKey     = 7;\nunion\n    (Rows     | extend SortKey = case(Review_Type == \"First review\", 1, Review_Type == \"Subsequent review\", 2, Review_Type == \"EA first review\", 3, Review_Type == \"EA subsequent review\", 4, Review_Type == \"Admin finalised\", 5, 7) | project Review_Type, Started = tostring(Started), Submitted = tostring(Submitted), Users = tostring(Users), SortKey),\n    (TotalRow | extend SortKey = 6 | project Review_Type, Started = tostring(Started), Submitted = tostring(Submitted), Users = tostring(Users), SortKey),\n    DateRow\n| order by SortKey asc\n| project-away SortKey\n"
+                  "value": "GloCo_CaseReview_TotalStartedSubmitted\n"
                 },
                 {
                   "isOptional": true,
@@ -859,18 +880,14 @@
                   "value": true
                 }
               ],
-              "settings": {
-                "content": {
-                  "PartTitle": "Cumulative case reviews"
-                }
-              },
+              "settings": {},
               "type": "Extension/Microsoft_OperationsManagementSuite_Workspace/PartType/LogsDashboardPart"
             },
             "position": {
-              "colSpan": 6,
-              "rowSpan": 4,
+              "colSpan": 8,
+              "rowSpan": 5,
               "x": 0,
-              "y": 15
+              "y": 17
             }
           },
           {
@@ -968,7 +985,7 @@
               "colSpan": 16,
               "rowSpan": 5,
               "x": 8,
-              "y": 15
+              "y": 17
             }
           }
         ]
@@ -987,15 +1004,15 @@
                 "value": "Past 30 days"
               },
               "filteredPartIds": [
-                "StartboardPart-LogsDashboardPart-fdbcde16-6302-4a9b-ba7e-34121a4dd08d",
-                "StartboardPart-LogsDashboardPart-fdbcde16-6302-4a9b-ba7e-34121a4dd08f",
-                "StartboardPart-LogsDashboardPart-fdbcde16-6302-4a9b-ba7e-34121a4dd091",
-                "StartboardPart-LogsDashboardPart-fdbcde16-6302-4a9b-ba7e-34121a4dd093",
-                "StartboardPart-LogsDashboardPart-fdbcde16-6302-4a9b-ba7e-34121a4dd095",
-                "StartboardPart-LogsDashboardPart-fdbcde16-6302-4a9b-ba7e-34121a4dd097",
-                "StartboardPart-LogsDashboardPart-fdbcde16-6302-4a9b-ba7e-34121a4dd099",
-                "StartboardPart-LogsDashboardPart-fdbcde16-6302-4a9b-ba7e-34121a4dd09d",
-                "StartboardPart-LogsDashboardPart-fdbcde16-6302-4a9b-ba7e-34121a4dd09b"
+                "StartboardPart-LogsDashboardPart-7a1af982-5efd-4dce-803f-a7df4057d258",
+                "StartboardPart-LogsDashboardPart-7a1af982-5efd-4dce-803f-a7df4057d25a",
+                "StartboardPart-LogsDashboardPart-7a1af982-5efd-4dce-803f-a7df4057d25c",
+                "StartboardPart-LogsDashboardPart-7a1af982-5efd-4dce-803f-a7df4057d25e",
+                "StartboardPart-LogsDashboardPart-7a1af982-5efd-4dce-803f-a7df4057d260",
+                "StartboardPart-LogsDashboardPart-7a1af982-5efd-4dce-803f-a7df4057d262",
+                "StartboardPart-LogsDashboardPart-7a1af982-5efd-4dce-803f-a7df4057d264",
+                "StartboardPart-LogsDashboardPart-7a1af982-5efd-4dce-803f-a7df4057d266",
+                "StartboardPart-LogsDashboardPart-7a1af982-5efd-4dce-803f-a7df4057d268"
               ],
               "model": {
                 "format": "utc",
@@ -1018,7 +1035,7 @@
     }
   },
   "tags": {
-    "hidden-title": "Global Components - preprod"
+    "hidden-title": "MaCD global nav - last 30 days"
   },
   "type": "Microsoft.Portal/dashboards"
 }
