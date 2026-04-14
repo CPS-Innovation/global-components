@@ -52,13 +52,6 @@ const featureFlagUsersSchema = z.object({
 
 export type FeatureFlagUsers = z.infer<typeof featureFlagUsersSchema>;
 
-const shimTypeSchema = z.union([
-  z.literal("force-global-menu"),
-  z.literal("force-recent-cases"),
-]);
-
-export type ShimType = z.infer<typeof shimTypeSchema>;
-
 const hostAppEventTargetSchema = z.object({
   selector: z.string(),
   action: z.enum(["click", "appear"]),
@@ -69,7 +62,6 @@ export type HostAppEventTarget = z.infer<typeof hostAppEventTargetSchema>;
 const contextPathsSchema = z.object({
   path: z.string(),
   contextIds: z.string(),
-  applyShim: shimTypeSchema.optional(),
   domTagDefinitions: z.array(domTagDefinitionsSchema).optional(),
   showNotification: z.boolean().optional(),
   preventADAndDataCalls: z.boolean().optional(),
@@ -106,7 +98,6 @@ const contextSchema = contextsBaseSchema.extend({
   path: z.string(),
   contextIds: z.string(),
   msalRedirectUrl: z.string(), // redefine as required, not optional in app config
-  applyShim: shimTypeSchema.optional(),
   showNotification: z.boolean().optional(),
   preventADAndDataCalls: z.boolean().optional(),
   preventPageViewAnalytics: z.boolean().optional(),

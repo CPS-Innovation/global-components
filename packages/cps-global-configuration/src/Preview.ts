@@ -9,9 +9,6 @@ export const PreviewSchema = z.object({
     z.union([z.literal("a"), z.literal("b")]).optional(),
   ),
   caseSearch: z.boolean().optional(),
-  myRecentCases: z.boolean().optional(),
-  myRecentCasesOnHome: z.boolean().optional(),
-  myRecentCasesOnCases: z.boolean().optional(),
   myRecentCasesOnHeader: z.boolean().optional(),
 
   // Backwards compatibility: migrate boolean true to "gds"
@@ -21,7 +18,6 @@ export const PreviewSchema = z.object({
   ),
   footer: z.boolean().optional(),
   accessibility: z.boolean().optional(),
-  forceDcfHeader: z.boolean().optional(),
   homePageNotification: z.boolean().optional(),
   tabTitleUrn: z.boolean().optional(),
   notifications: z.boolean().optional(),

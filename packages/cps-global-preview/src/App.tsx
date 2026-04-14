@@ -71,16 +71,11 @@ const FEATURES: Feature[] = [
     disabled: false,
   },
   {
-    key: "myRecentCases",
-    label: "My recent cases",
+    key: "myRecentCasesOnHeader",
+    label: "My recent cases on header",
     description:
-      "Track the user's most recently visited cases and display the list on the home and cases pages.",
+      "Show a dropdown of the user's most recently visited cases in the global header.",
     disabled: false,
-    subOptions: [
-      { key: "myRecentCasesOnHome", label: "Show on Home page" },
-      { key: "myRecentCasesOnCases", label: "Show on Cases page" },
-      { key: "myRecentCasesOnHeader", label: "Show on Header" },
-    ],
   },
   {
     key: "accessibility",
@@ -110,18 +105,7 @@ const FEATURES: Feature[] = [
   },
 ];
 
-const TACTICAL = [
-  {
-    key: "forceDcfHeader",
-    label: "Force DCF header",
-    description:
-      "Force DCF cases to have the global header. Use until the team implement the change to get rid of the custom menu",
-    disabled: false,
-  },
-] as const;
-
 type FeatureKey = Feature["key"];
-type TacticalKey = (typeof TACTICAL)[number]["key"];
 
 type StatusType = "info" | "error" | "success";
 
@@ -272,12 +256,6 @@ export function App() {
 
   const handleRadioChange = (key: keyof Preview, value: string) => {
     const newState = { ...state, [key]: value };
-    setState(newState);
-    saveState(newState);
-  };
-
-  const handleTacticalChange = (key: TacticalKey, checked: boolean) => {
-    const newState = { ...state, [key]: checked || undefined };
     setState(newState);
     saveState(newState);
   };
@@ -569,43 +547,6 @@ export function App() {
                   </div>
                 )
               )}
-            </div>
-          </fieldset>
-        </div>
-
-        <div className="govuk-form-group">
-          <fieldset className="govuk-fieldset">
-            <legend className="govuk-fieldset__legend govuk-fieldset__legend--m">
-              <h2 className="govuk-fieldset__heading">Tactical</h2>
-            </legend>
-            <div className="govuk-checkboxes" data-module="govuk-checkboxes">
-              {TACTICAL.map(({ key, label, description, disabled }) => (
-                <div key={key} className="govuk-checkboxes__item">
-                  <input
-                    className="govuk-checkboxes__input"
-                    id={key}
-                    name="tactical"
-                    type="checkbox"
-                    checked={state[key] ?? false}
-                    disabled={loading || disabled}
-                    onChange={(e) =>
-                      handleTacticalChange(key, e.target.checked)
-                    }
-                  />
-                  <label
-                    className="govuk-label govuk-checkboxes__label"
-                    htmlFor={key}
-                  >
-                    {label}
-                  </label>
-                  <div
-                    id={`${key}-hint`}
-                    className="govuk-hint govuk-checkboxes__hint govuk-!-font-size-16"
-                  >
-                    {description}
-                  </div>
-                </div>
-              ))}
             </div>
           </fieldset>
         </div>
