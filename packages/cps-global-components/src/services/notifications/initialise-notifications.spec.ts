@@ -55,14 +55,14 @@ describe("initialiseNotifications", () => {
 
   it("fetches notifications and dismissed state in parallel and registers both", async () => {
     mockResponses({
-      [notificationsUrl]: { body: { notifications: [{ id: "a", severity: "info", bodyHtml: "<p>a</p>" }] } },
+      [notificationsUrl]: { body: { notifications: [{ id: "a", bodyHtml: "<p>a</p>" }] } },
       [stateUrl]: { body: ["a"] },
     });
 
     await initialiseNotifications({ rootUrl, register, handlers, config: { SHOW_NOTIFICATIONS: true } as any });
 
     expect(register).toHaveBeenCalledWith({
-      notifications: [{ id: "a", severity: "info", bodyHtml: "<p>a</p>" }],
+      notifications: [{ id: "a", bodyHtml: "<p>a</p>" }],
       dismissedNotificationIds: ["a"],
     });
   });
@@ -80,21 +80,21 @@ describe("initialiseNotifications", () => {
 
   it("defaults to empty dismissed when state endpoint returns null", async () => {
     mockResponses({
-      [notificationsUrl]: { body: { notifications: [{ id: "a", severity: "info", bodyHtml: "<p>a</p>" }] } },
+      [notificationsUrl]: { body: { notifications: [{ id: "a", bodyHtml: "<p>a</p>" }] } },
       [stateUrl]: { body: null },
     });
 
     await initialiseNotifications({ rootUrl, register, handlers, config: { SHOW_NOTIFICATIONS: true } as any });
 
     expect(register).toHaveBeenCalledWith({
-      notifications: [{ id: "a", severity: "info", bodyHtml: "<p>a</p>" }],
+      notifications: [{ id: "a", bodyHtml: "<p>a</p>" }],
       dismissedNotificationIds: [],
     });
   });
 
   it("prunes stale dismissed ids and PUTs the pruned list back", async () => {
     mockResponses({
-      [notificationsUrl]: { body: { notifications: [{ id: "a", severity: "info", bodyHtml: "<p>a</p>" }] } },
+      [notificationsUrl]: { body: { notifications: [{ id: "a", bodyHtml: "<p>a</p>" }] } },
       [stateUrl]: { body: ["a", "stale"] },
     });
 
@@ -108,7 +108,7 @@ describe("initialiseNotifications", () => {
 
   it("does not PUT when nothing was pruned", async () => {
     mockResponses({
-      [notificationsUrl]: { body: { notifications: [{ id: "a", severity: "info", bodyHtml: "<p>a</p>" }] } },
+      [notificationsUrl]: { body: { notifications: [{ id: "a", bodyHtml: "<p>a</p>" }] } },
       [stateUrl]: { body: ["a"] },
     });
 
@@ -120,7 +120,7 @@ describe("initialiseNotifications", () => {
   describe("handlers.dismissNotification", () => {
     it("appends the id, re-registers the store, and PUTs the new list", async () => {
       mockResponses({
-        [notificationsUrl]: { body: { notifications: [{ id: "a", severity: "info", bodyHtml: "<p>a</p>" }] } },
+        [notificationsUrl]: { body: { notifications: [{ id: "a", bodyHtml: "<p>a</p>" }] } },
         [stateUrl]: { body: [] },
       });
 
@@ -136,7 +136,7 @@ describe("initialiseNotifications", () => {
 
     it("is idempotent when the id is already dismissed", async () => {
       mockResponses({
-        [notificationsUrl]: { body: { notifications: [{ id: "a", severity: "info", bodyHtml: "<p>a</p>" }] } },
+        [notificationsUrl]: { body: { notifications: [{ id: "a", bodyHtml: "<p>a</p>" }] } },
         [stateUrl]: { body: ["a"] },
       });
 

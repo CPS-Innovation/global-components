@@ -13,10 +13,8 @@ export {
   notificationSchema,
   notificationsFileSchema,
   dismissedNotificationIdsSchema,
-  notificationSeveritySchema,
   type Notification,
   type NotificationsFile,
-  type NotificationSeverity,
 } from "./Notification";
 export { SettingsSchema, type Settings } from "./Settings";
 export { CmsSessionHintSchema, type CmsSessionHint } from "./CmsSessionHint";

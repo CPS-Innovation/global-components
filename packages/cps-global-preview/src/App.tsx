@@ -655,8 +655,6 @@ export function App() {
                   {(
                     [
                       ["id", "ID", "text", n.id],
-                      ["severity", "Severity", "text", n.severity],
-                      ["titleText", "Title text", "text", n.titleText ?? ""],
                       ["heading", "Heading", "text", n.heading ?? ""],
                       ["from", "From", "text", n.from ?? ""],
                       ["to", "To", "text", n.to ?? ""],

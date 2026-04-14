@@ -5,12 +5,6 @@ import { selectVisibleNotifications } from "./select-visible-notifications";
 import { sanitiseNotificationHtml } from "../../utils/sanitise-notification-html";
 import { handlers } from "../../services/handlers/handlers";
 
-const SEVERITY_DEFAULT_TITLE = {
-  info: "Information",
-  important: "Important",
-  warning: "Warning",
-} as const;
-
 @Component({
   tag: "cps-global-notifications",
   styleUrl: "cps-global-notifications.scss",
@@ -42,7 +36,6 @@ export class CpsGlobalNotifications {
           return (
             <cps-gds-notification-banner
               key={n.id}
-              titleText={n.titleText ?? SEVERITY_DEFAULT_TITLE[n.severity]}
               dismissible={dismissible}
               onCpsDismissed={() => handlers.dismissNotification(n.id)}
             >
