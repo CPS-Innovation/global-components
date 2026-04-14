@@ -12,6 +12,7 @@ type Props = {
   config: { FEATURE_FLAG_ENABLE_INTRUSIVE_AD_LOGIN: boolean | undefined; SSO_SILENT_DELAY_MS: number | undefined };
   diagnosticsCollector?: AdDiagnosticsCollector;
   addSilentFlowDiagnostics?: AddSilentFlowDiagnostics;
+  getOperationId?: () => string | undefined;
   onError?: (error: Error) => void;
 };
 
@@ -46,6 +47,7 @@ const internalGetAdUserAccount = async ({
   config: { FEATURE_FLAG_ENABLE_INTRUSIVE_AD_LOGIN, SSO_SILENT_DELAY_MS },
   diagnosticsCollector,
   addSilentFlowDiagnostics,
+  getOperationId,
   onError,
 }: Props) => {
   const t0 = performance.now();
@@ -102,12 +104,14 @@ const internalGetAdUserAccount = async ({
     const knownAccount = instance.getActiveAccount() || instance.getAllAccounts()[0];
     const ssoSilentRequest = { ...loginRequest, ...(knownAccount?.username ? { loginHint: knownAccount.username } : {}) };
 
-    addSilentFlowDiagnostics?.({ time: Date.now(), url: window.location.href });
+    const operationId = getOperationId?.();
+    addSilentFlowDiagnostics?.({ time: Date.now(), url: window.location.href, operationId });
     try {
       const { account } = await instance.ssoSilent(ssoSilentRequest);
       diagnosticsCollector?.add({
         ssoSilentStartMs: Math.round(tSilent),
       });
+      addSilentFlowDiagnostics?.({ time: Date.now(), url: window.location.href, operationId, completedTime: Date.now(), outcome: "complete" });
       return account ? { source: "silent", account } : null;
     } catch (error) {
       const errorType = getErrorType(error);
@@ -121,6 +125,16 @@ const internalGetAdUserAccount = async ({
         navigatorOnLineAtFailure: navigator.onLine,
         connectionType: (navigator as unknown as { connection?: { effectiveType?: string } }).connection?.effectiveType ?? null,
         connectionDownlink: (navigator as unknown as { connection?: { downlink?: number } }).connection?.downlink ?? null,
+      });
+
+      const rawErrorCode = (error as { errorCode?: unknown })?.errorCode;
+      addSilentFlowDiagnostics?.({
+        time: Date.now(),
+        url: window.location.href,
+        operationId,
+        completedTime: Date.now(),
+        outcome: "failure",
+        ...(typeof rawErrorCode === "string" && rawErrorCode ? { errorCode: rawErrorCode } : {}),
       });
 
       if (FEATURE_FLAG_ENABLE_INTRUSIVE_AD_LOGIN && errorType === "MultipleIdentities") {
