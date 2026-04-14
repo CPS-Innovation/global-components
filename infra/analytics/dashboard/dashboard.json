@@ -802,6 +802,100 @@
                 {
                   "isOptional": true,
                   "name": "PartId",
+                  "value": "45b638ca-515d-4276-ad12-46fe12d15f11"
+                },
+                {
+                  "isOptional": true,
+                  "name": "Version",
+                  "value": "2.0"
+                },
+                {
+                  "isOptional": true,
+                  "name": "TimeRange"
+                },
+                {
+                  "isOptional": true,
+                  "name": "DashboardId"
+                },
+                {
+                  "isOptional": true,
+                  "name": "DraftRequestParameters"
+                },
+                {
+                  "isOptional": true,
+                  "name": "Query",
+                  "value": "GloCo_CaseReview_TotalsStartedSubmitted\n"
+                },
+                {
+                  "isOptional": true,
+                  "name": "ControlType",
+                  "value": "AnalyticsGrid"
+                },
+                {
+                  "isOptional": true,
+                  "name": "SpecificChart"
+                },
+                {
+                  "isOptional": true,
+                  "name": "PartTitle",
+                  "value": "Analytics"
+                },
+                {
+                  "isOptional": true,
+                  "name": "PartSubTitle",
+                  "value": "la-global-nav-dev"
+                },
+                {
+                  "isOptional": true,
+                  "name": "Dimensions"
+                },
+                {
+                  "isOptional": true,
+                  "name": "LegendOptions"
+                },
+                {
+                  "isOptional": true,
+                  "name": "IsQueryContainTimeRange",
+                  "value": true
+                }
+              ],
+              "settings": {
+                "content": {
+                  "PartTitle": "Cumulative case reviews"
+                }
+              },
+              "type": "Extension/Microsoft_OperationsManagementSuite_Workspace/PartType/LogsDashboardPart"
+            },
+            "position": {
+              "colSpan": 6,
+              "rowSpan": 4,
+              "x": 0,
+              "y": 15
+            }
+          },
+          {
+            "metadata": {
+              "inputs": [
+                {
+                  "isOptional": true,
+                  "name": "resourceTypeMode"
+                },
+                {
+                  "isOptional": true,
+                  "name": "ComponentId"
+                },
+                {
+                  "isOptional": true,
+                  "name": "Scope",
+                  "value": {
+                    "resourceIds": [
+                      "/subscriptions/__SUBSCRIPTION_ID__/resourcegroups/rg-global-nav-dev/providers/microsoft.operationalinsights/workspaces/la-global-nav-dev"
+                    ]
+                  }
+                },
+                {
+                  "isOptional": true,
+                  "name": "PartId",
                   "value": "15a5c96e-1171-4a60-8d85-a4ff664101e7"
                 },
                 {
@@ -876,95 +970,6 @@
               "x": 8,
               "y": 15
             }
-          },
-          {
-            "metadata": {
-              "inputs": [
-                {
-                  "isOptional": true,
-                  "name": "resourceTypeMode"
-                },
-                {
-                  "isOptional": true,
-                  "name": "ComponentId"
-                },
-                {
-                  "isOptional": true,
-                  "name": "Scope",
-                  "value": {
-                    "resourceIds": [
-                      "/subscriptions/__SUBSCRIPTION_ID__/resourcegroups/rg-global-nav-dev/providers/microsoft.operationalinsights/workspaces/la-global-nav-dev"
-                    ]
-                  }
-                },
-                {
-                  "isOptional": true,
-                  "name": "PartId",
-                  "value": "45b638ca-515d-4276-ad12-46fe12d15f11"
-                },
-                {
-                  "isOptional": true,
-                  "name": "Version",
-                  "value": "2.0"
-                },
-                {
-                  "isOptional": true,
-                  "name": "TimeRange"
-                },
-                {
-                  "isOptional": true,
-                  "name": "DashboardId"
-                },
-                {
-                  "isOptional": true,
-                  "name": "DraftRequestParameters"
-                },
-                {
-                  "isOptional": true,
-                  "name": "Query",
-                  "value": "GloCo_CaseReview_TotalStartedSubmitted\n"
-                },
-                {
-                  "isOptional": true,
-                  "name": "ControlType",
-                  "value": "AnalyticsGrid"
-                },
-                {
-                  "isOptional": true,
-                  "name": "SpecificChart"
-                },
-                {
-                  "isOptional": true,
-                  "name": "PartTitle",
-                  "value": "Analytics"
-                },
-                {
-                  "isOptional": true,
-                  "name": "PartSubTitle",
-                  "value": "la-global-nav-dev"
-                },
-                {
-                  "isOptional": true,
-                  "name": "Dimensions"
-                },
-                {
-                  "isOptional": true,
-                  "name": "LegendOptions"
-                },
-                {
-                  "isOptional": true,
-                  "name": "IsQueryContainTimeRange",
-                  "value": true
-                }
-              ],
-              "type": "Extension/Microsoft_OperationsManagementSuite_Workspace/PartType/LogsDashboardPart"
-            },
-            "position": {
-              "colSpan": 6,
-              "rowSpan": 4,
-              "x": 0,
-              "y": 15
-            }
           }
         ]
       }
@@ -982,14 +987,15 @@
                 "value": "Past 30 days"
               },
               "filteredPartIds": [
-                "StartboardPart-LogsDashboardPart-84fc72dd-803d-4cc4-8691-aee8806a60c4",
-                "StartboardPart-LogsDashboardPart-84fc72dd-803d-4cc4-8691-aee8806a60c6",
-                "StartboardPart-LogsDashboardPart-84fc72dd-803d-4cc4-8691-aee8806a60c8",
-                "StartboardPart-LogsDashboardPart-84fc72dd-803d-4cc4-8691-aee8806a60ca",
-                "StartboardPart-LogsDashboardPart-84fc72dd-803d-4cc4-8691-aee8806a60cc",
-                "StartboardPart-LogsDashboardPart-84fc72dd-803d-4cc4-8691-aee8806a60ce",
-                "StartboardPart-LogsDashboardPart-84fc72dd-803d-4cc4-8691-aee8806a60d0",
-                "StartboardPart-LogsDashboardPart-84fc72dd-803d-4cc4-8691-aee8806a60d2"
+                "StartboardPart-LogsDashboardPart-fdbcde16-6302-4a9b-ba7e-34121a4dd08d",
+                "StartboardPart-LogsDashboardPart-fdbcde16-6302-4a9b-ba7e-34121a4dd08f",
+                "StartboardPart-LogsDashboardPart-fdbcde16-6302-4a9b-ba7e-34121a4dd091",
+                "StartboardPart-LogsDashboardPart-fdbcde16-6302-4a9b-ba7e-34121a4dd093",
+                "StartboardPart-LogsDashboardPart-fdbcde16-6302-4a9b-ba7e-34121a4dd095",
+                "StartboardPart-LogsDashboardPart-fdbcde16-6302-4a9b-ba7e-34121a4dd097",
+                "StartboardPart-LogsDashboardPart-fdbcde16-6302-4a9b-ba7e-34121a4dd099",
+                "StartboardPart-LogsDashboardPart-fdbcde16-6302-4a9b-ba7e-34121a4dd09d",
+                "StartboardPart-LogsDashboardPart-fdbcde16-6302-4a9b-ba7e-34121a4dd09b"
               ],
               "model": {
                 "format": "utc",

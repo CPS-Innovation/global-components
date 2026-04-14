@@ -1,8 +1,14 @@
 AppExceptions
+| extend Build = parse_json(parse_json(tostring(Properties.properties)).Build)
+| extend 
+    Build_Sha = tostring(Build.Sha),
+    Build_RunId = toint(Build.RunId),
+    Build_Timestamp = todatetime(Build.Timestamp)
+| project-away Build
 | extend AuthFailureType = case(
     ExceptionType == "InteractionRequiredAuthError" and OuterMessage startswith "InteractionRequiredAuthError: interaction_required: AADSTS16000", "Multiple AD accounts",
     ExceptionType == "InteractionRequiredAuthError" and OuterMessage startswith "InteractionRequiredAuthError: interaction_required: AADSTS160021", "Requested session does not exist",
-    ExceptionType == "InteractionRequiredAuthError" and OuterMessage startswith "InteractionRequiredAuthError: login_required: AADSTS50058:", "User not logged in",
+    ExceptionType == "InteractionRequiredAuthError" and OuterMessage startswith "InteractionRequiredAuthError: login_required: AADSTS50058:", "User not logged in (poss InPrivte)",
     ExceptionType == "InteractionRequiredAuthError" and OuterMessage startswith "InteractionRequiredAuthError: interaction_required: AADSTS53003", "Failed access policies",
     ExceptionType == "BrowserAuthError" and OuterMessage startswith "BrowserAuthError: post_request_failed", "Network request failed (BrowserAuthError)",
     ExceptionType == "ClientAuthError" and OuterMessage startswith "ClientAuthError: network_error: Network request failed", "Network request failed (ClientAuthError)",
