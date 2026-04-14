@@ -57,7 +57,7 @@ const initialiseAdAuthInternal = async ({
   }
 
   try {
-    const account = await getAdUserAccount({ instance, config: { FEATURE_FLAG_ENABLE_INTRUSIVE_AD_LOGIN, SSO_SILENT_DELAY_MS }, diagnosticsCollector, addSilentFlowDiagnostics });
+    const account = await getAdUserAccount({ instance, config: { FEATURE_FLAG_ENABLE_INTRUSIVE_AD_LOGIN, SSO_SILENT_DELAY_MS }, diagnosticsCollector, addSilentFlowDiagnostics, onError });
     if (!account) {
       return failedAuth("NoAccountFound", "No AD account found");
     }
@@ -75,7 +75,6 @@ const initialiseAdAuthInternal = async ({
   } catch (error) {
     const errorType = getErrorType(error);
     _error({ errorType, authority, clientId, redirectUri, error });
-    onError?.(error instanceof Error ? error : new Error(`${error}`));
     return failedAuth(errorType, `${error}`);
   }
 };
