@@ -12,7 +12,10 @@ type Props = {
   config: { FEATURE_FLAG_ENABLE_INTRUSIVE_AD_LOGIN: boolean | undefined; SSO_SILENT_DELAY_MS: number | undefined };
   diagnosticsCollector?: AdDiagnosticsCollector;
   addSilentFlowDiagnostics?: AddSilentFlowDiagnostics;
+  onError?: (error: Error) => void;
 };
+
+const asError = (value: unknown): Error => (value instanceof Error ? value : new Error(String(value)));
 
 type AccountSource = "acquireTokenSilent" | "silent" | "popup" | "failed";
 
@@ -34,11 +37,17 @@ const waitForPageStability = async (ssoSilentDelayMs: number, scriptStartMs: num
   });
   if (remainingDelay > 0) {
     _debug(`Waiting ${remainingDelay}ms before ssoSilent (${elapsed}ms elapsed since script start, threshold ${ssoSilentDelayMs}ms)`);
-    await new Promise((resolve) => setTimeout(resolve, remainingDelay));
+    await new Promise(resolve => setTimeout(resolve, remainingDelay));
   }
 };
 
-const internalGetAdUserAccount = async ({ instance, config: { FEATURE_FLAG_ENABLE_INTRUSIVE_AD_LOGIN, SSO_SILENT_DELAY_MS }, diagnosticsCollector, addSilentFlowDiagnostics }: Props) => {
+const internalGetAdUserAccount = async ({
+  instance,
+  config: { FEATURE_FLAG_ENABLE_INTRUSIVE_AD_LOGIN, SSO_SILENT_DELAY_MS },
+  diagnosticsCollector,
+  addSilentFlowDiagnostics,
+  onError,
+}: Props) => {
   const t0 = performance.now();
 
   const tryAcquireTokenSilently = async (): AccountRetrievalResult => {
@@ -55,12 +64,13 @@ const internalGetAdUserAccount = async ({ instance, config: { FEATURE_FLAG_ENABL
       });
 
       return result.account ? { source: "acquireTokenSilent", account: result.account } : null;
-    } catch {
+    } catch (error) {
       diagnosticsCollector?.add({
         acquireTokenSilentStartMs: Math.round(tAcquire),
         acquireTokenSilentDurationMs: Math.round(performance.now() - tAcquire),
         acquireTokenSilentFailed: true,
       });
+      onError?.(asError(error));
       return null;
     }
   };
@@ -113,11 +123,11 @@ const internalGetAdUserAccount = async ({ instance, config: { FEATURE_FLAG_ENABL
         connectionDownlink: (navigator as unknown as { connection?: { downlink?: number } }).connection?.downlink ?? null,
       });
 
-      if (FEATURE_FLAG_ENABLE_INTRUSIVE_AD_LOGIN) {
-        if (errorType === "MultipleIdentities") {
-          return null;
-        }
+      if (FEATURE_FLAG_ENABLE_INTRUSIVE_AD_LOGIN && errorType === "MultipleIdentities") {
+        return null;
       }
+
+      onError?.(asError(error));
       throw error;
     } finally {
       document.removeEventListener("visibilitychange", onVisibilityChange);
@@ -127,11 +137,18 @@ const internalGetAdUserAccount = async ({ instance, config: { FEATURE_FLAG_ENABL
 
   const tryLoginAccountViaPopup = async (): AccountRetrievalResult => {
     diagnosticsCollector?.add({ loginPopupStartMs: Math.round(performance.now()) });
-    const { account } = await instance.loginPopup(loginRequest);
-    return account ? { source: "popup", account } : null;
+    try {
+      const { account } = await instance.loginPopup(loginRequest);
+      return account ? { source: "popup", account } : null;
+    } catch (error) {
+      onError?.(asError(error));
+      throw error;
+    }
   };
 
-  const { account, source } = (await tryAcquireTokenSilently()) || (await tryLoginAccountSilently()) || (await tryLoginAccountViaPopup()) || { source: "failed" as AccountSource, account: null };
+  const { account, source } = (await tryAcquireTokenSilently()) ||
+    (await tryLoginAccountSilently()) ||
+    (await tryLoginAccountViaPopup()) || { source: "failed" as AccountSource, account: null };
   instance.setActiveAccount(account);
 
   diagnosticsCollector?.add({
