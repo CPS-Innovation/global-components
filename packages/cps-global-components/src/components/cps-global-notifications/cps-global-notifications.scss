@@ -1,8 +1,7 @@
 cps-global-notifications {
   display: block;
-  // Breathing room so the banner doesn't butt up against the menu divider.
-  // Explicit rather than relying on GDS's own .govuk-notification-banner margins,
-  // which only apply if the host app has loaded GDS CSS in scope.
+  // Top margin keeps the banner off the menu divider. No bottom margin — the host
+  // app already spaces its own content away from our header, and we inherit that
+  // gap whether the banner is present or not.
   margin-top: 20px;
-  margin-bottom: 20px;
 }
