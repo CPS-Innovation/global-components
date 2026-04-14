@@ -32,8 +32,7 @@
       "contexts": [
         {
           "path": "https://cps-dev.outsystemsenterprise.com/casework_blocks/home",
-          "contextIds": "home",
-          "applyShim": "force-recent-cases"
+          "contextIds": "home"
         },
         {
           "path": "https://cps-dev.outsystemsenterprise.com/casework_blocks",
@@ -66,8 +65,7 @@
         },
         {
           "path": "https://cps-dev.outsystemsenterprise.com/WorkManagementApp/Cases",
-          "contextIds": "cases",
-          "applyShim": "force-recent-cases"
+          "contextIds": "cases"
         },
         {
           "path": "https://cps-dev.outsystemsenterprise.com/WorkManagementApp/TaskList",

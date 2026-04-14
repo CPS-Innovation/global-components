@@ -111,10 +111,6 @@ jest.mock("./services/browser/accessibility/accessibility-subscriber", () => ({
   accessibilitySubscriber: mockAccessibilitySubscriber,
 }));
 
-jest.mock("./services/outsystems-shim/outsystems-shim-subscriber", () => ({
-  outSystemsShimSubscribers: [],
-}));
-
 const mockInitialiseTabTitle = jest.fn();
 jest.mock("./services/browser/tab-title/initialise-tab-title", () => ({
   initialiseTabTitle: mockInitialiseTabTitle,

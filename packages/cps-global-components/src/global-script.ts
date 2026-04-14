@@ -7,7 +7,6 @@ import { initialiseApplicationFlags } from "./services/application-flags/initial
 import { makeConsole } from "./logging/makeConsole";
 import { initialiseDomObservation } from "./services/browser/dom/initialise-dom-observation";
 import { domTagMutationSubscriber } from "./services/browser/dom/dom-tag-mutation-subscriber";
-import { outSystemsShimSubscribers } from "./services/outsystems-shim/outsystems-shim-subscriber";
 import { initialiseCmsSessionHint } from "./services/state/cms-session/initialise-cms-session-hint";
 import { initialiseHandover } from "./services/state/handover/intialise-handover";
 import { initialiseCaseDetailsData } from "./services/data/initialise-case-details-data";
@@ -75,7 +74,6 @@ const initialise = async (window: Window & typeof globalThis) => {
       footerSubscriber,
       hostAppEventSubscriber,
       accessibilitySubscriber,
-      ...outSystemsShimSubscribers,
     );
 
     initialiseTabTitle({ window, preview, subscribe, flags });

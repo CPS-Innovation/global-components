@@ -9,11 +9,11 @@ const SEVERITY_WEIGHT: Record<Notification["severity"], number> = {
 type Input = {
   notifications: Notification[];
   dismissedIds: string[];
-  previewEnabled: boolean;
+  previewNotificationsEnabled: boolean;
   now: Date;
 };
 
-export const selectVisibleNotifications = ({ notifications, dismissedIds, previewEnabled, now }: Input): Notification[] => {
+export const selectVisibleNotifications = ({ notifications, dismissedIds, previewNotificationsEnabled, now }: Input): Notification[] => {
   const dismissed = new Set(dismissedIds);
   const nowMs = now.getTime();
 
@@ -21,7 +21,7 @@ export const selectVisibleNotifications = ({ notifications, dismissedIds, previe
     if (dismissed.has(n.id)) {
       return false;
     }
-    if (n.previewModeRequired && !previewEnabled) {
+    if (n.previewModeRequired && !previewNotificationsEnabled) {
       return false;
     }
     if (n.from && Date.parse(n.from) > nowMs) {
