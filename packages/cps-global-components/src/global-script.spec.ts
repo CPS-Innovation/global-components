@@ -180,6 +180,20 @@ jest.mock("./services/state/auth-hint/initialise-auth-hint", () => ({
   },
 }));
 
+const mockInitialiseUserDataHint = jest.fn();
+jest.mock("./services/state/user-data/initialise-user-data-hint", () => ({
+  initialiseUserDataHint: async ({ register, ...rest }: any) => {
+    const result = await mockInitialiseUserDataHint(rest);
+    register({ userDataHint: result.userDataHint });
+    return result;
+  },
+}));
+
+const mockInitialiseUserData = jest.fn();
+jest.mock("./services/state/user-data/initialise-user-data", () => ({
+  initialiseUserData: (args: any) => mockInitialiseUserData(args),
+}));
+
 jest.mock("./services/notifications/initialise-notifications", () => ({
   initialiseNotifications: async ({ register, handlers, config }: any) => {
     if (!config?.SHOW_NOTIFICATIONS) {
@@ -305,6 +319,15 @@ const setupDefaultMocks = () => {
   mockInitialiseAuthHint.mockResolvedValue({
     authHint: { found: false, error: new Error("no hint") },
     setAuthHint: jest.fn(),
+  });
+
+  mockInitialiseUserDataHint.mockResolvedValue({
+    userDataHint: { found: false, error: new Error("no hint") },
+    setUserDataHint: jest.fn(),
+  });
+
+  mockInitialiseUserData.mockReturnValue({
+    initialiseUserDataForContext: jest.fn().mockResolvedValue(undefined),
   });
 
   return {

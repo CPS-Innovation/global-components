@@ -18,6 +18,7 @@ import { Handover } from "../services/state/handover/Handover";
 import { Result } from "../utils/Result";
 import { CmsSessionHint } from "cps-global-configuration";
 import { AuthHint } from "../services/state/auth-hint/initialise-auth-hint";
+import { UserDataHint } from "../services/state/user-data/UserData";
 import { MonitoringCodes } from "../services/data/MonitoringCode";
 import { RecentCases } from "../services/state/recent-cases/recent-cases";
 import { SilentFlowDiagnostics } from "../services/diagnostics/silent-flow-diagnostics";
@@ -51,6 +52,7 @@ type StartupState = {
   config: Config;
   auth: AuthResult;
   authHint: Result<AuthHint>;
+  userDataHint: Result<UserDataHint>;
   build: Build;
   cmsSessionHint: Result<CmsSessionHint>;
   handover: Result<Handover>;
@@ -67,6 +69,7 @@ const initialStartupState = {
   config: undefined,
   auth: undefined,
   authHint: undefined,
+  userDataHint: undefined,
   build: undefined,
   cmsSessionHint: undefined,
   handover: undefined,
