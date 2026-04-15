@@ -10,6 +10,7 @@ AppExceptions
     ExceptionType == "InteractionRequiredAuthError" and OuterMessage startswith "InteractionRequiredAuthError: interaction_required: AADSTS160021", "Requested session does not exist",
     ExceptionType == "InteractionRequiredAuthError" and OuterMessage startswith "InteractionRequiredAuthError: login_required: AADSTS50058:", "User not logged in (poss InPrivte)",
     ExceptionType == "InteractionRequiredAuthError" and OuterMessage startswith "InteractionRequiredAuthError: interaction_required: AADSTS53003", "Failed access policies",
+    ExceptionType == "InteractionRequiredAuthError" and OuterMessage startswith "InteractionRequiredAuthError: refresh_token_expired", "Refresh token expired",
     ExceptionType == "BrowserAuthError" and OuterMessage startswith "BrowserAuthError: post_request_failed", "Network request failed (BrowserAuthError)",
     ExceptionType == "ClientAuthError" and OuterMessage startswith "ClientAuthError: network_error: Network request failed", "Network request failed (ClientAuthError)",
     ExceptionType == "BrowserAuthError" and OuterMessage startswith "BrowserAuthError: failed_to_parse_response", "Failed to parse response",
