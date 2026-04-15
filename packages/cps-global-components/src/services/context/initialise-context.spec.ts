@@ -31,7 +31,7 @@ describe("initialiseContext", () => {
     const contexts: Context[] = [];
     const mockWindow = createMockWindow("https://example.com/page");
 
-    const result = initialiseContext({ window: mockWindow, config: { CONTEXTS: contexts }, register: () => {}, resetContextSpecificTags: () => {} }).initialiseContextForContext();
+    const result = initialiseContext({ window: mockWindow, config: { CONTEXTS: contexts }, handover: { found: false, error: new Error("not found") }, register: () => {}, resetContextSpecificTags: () => {} }).initialiseContextForContext();
     expect(result).toEqual({
       found: false,
     });
@@ -49,7 +49,7 @@ describe("initialiseContext", () => {
     ];
     const mockWindow = createMockWindow("https://example.com/page");
 
-    const result = initialiseContext({ window: mockWindow, config: { CONTEXTS: contexts }, register: () => {}, resetContextSpecificTags: () => {} }).initialiseContextForContext();
+    const result = initialiseContext({ window: mockWindow, config: { CONTEXTS: contexts }, handover: { found: false, error: new Error("not found") }, register: () => {}, resetContextSpecificTags: () => {} }).initialiseContextForContext();
     expect(result).toEqual({
       contextIndex: 0,
       found: true,
@@ -80,7 +80,7 @@ describe("initialiseContext", () => {
     ];
     const mockWindow = createMockWindow("https://example.com/page3");
 
-    const result = initialiseContext({ window: mockWindow, config: { CONTEXTS: contexts }, register: () => {}, resetContextSpecificTags: () => {} }).initialiseContextForContext();
+    const result = initialiseContext({ window: mockWindow, config: { CONTEXTS: contexts }, handover: { found: false, error: new Error("not found") }, register: () => {}, resetContextSpecificTags: () => {} }).initialiseContextForContext();
     expect(result).toEqual({
       found: false,
     });
@@ -108,7 +108,7 @@ describe("initialiseContext", () => {
     ];
     const mockWindow = createMockWindow("https://example.com/with-dom-tags");
 
-    const result = initialiseContext({ window: mockWindow, config: { CONTEXTS: contexts }, register: () => {}, resetContextSpecificTags: () => {} }).initialiseContextForContext();
+    const result = initialiseContext({ window: mockWindow, config: { CONTEXTS: contexts }, handover: { found: false, error: new Error("not found") }, register: () => {}, resetContextSpecificTags: () => {} }).initialiseContextForContext();
     expect(result).toEqual({
       contextIndex: 0,
       found: true,
@@ -143,7 +143,7 @@ describe("initialiseContext", () => {
     ];
     const mockWindow = createMockWindow("https://example.com/no-dom-tags");
 
-    const result = initialiseContext({ window: mockWindow, config: { CONTEXTS: contexts }, register: () => {}, resetContextSpecificTags: () => {} }).initialiseContextForContext();
+    const result = initialiseContext({ window: mockWindow, config: { CONTEXTS: contexts }, handover: { found: false, error: new Error("not found") }, register: () => {}, resetContextSpecificTags: () => {} }).initialiseContextForContext();
     expect(result).toEqual({
       contextIndex: 0,
       found: true,
@@ -169,7 +169,7 @@ describe("initialiseContext", () => {
     ];
     const mockWindow = createMockWindow("https://example.com/page#section");
 
-    const result = initialiseContext({ window: mockWindow, config: { CONTEXTS: contexts }, register: () => {}, resetContextSpecificTags: () => {} }).initialiseContextForContext();
+    const result = initialiseContext({ window: mockWindow, config: { CONTEXTS: contexts }, handover: { found: false, error: new Error("not found") }, register: () => {}, resetContextSpecificTags: () => {} }).initialiseContextForContext();
     expect(result).toEqual({
       contextIndex: 0,
       found: true,
@@ -196,7 +196,7 @@ describe("initialiseContext", () => {
       ];
       const mockWindow = createMockWindow("https://example.com/mypage");
 
-      const result = initialiseContext({ window: mockWindow, config: { CONTEXTS: contexts }, register: () => {}, resetContextSpecificTags: () => {} }).initialiseContextForContext();
+      const result = initialiseContext({ window: mockWindow, config: { CONTEXTS: contexts }, handover: { found: false, error: new Error("not found") }, register: () => {}, resetContextSpecificTags: () => {} }).initialiseContextForContext();
       expect(result).toEqual({
         contextIndex: 0,
         found: true,
@@ -227,7 +227,7 @@ describe("initialiseContext", () => {
       ];
       const mockWindow = createMockWindow("https://example.com/users/123/posts/456");
 
-      const result = initialiseContext({ window: mockWindow, config: { CONTEXTS: contexts }, register: () => {}, resetContextSpecificTags: () => {} }).initialiseContextForContext();
+      const result = initialiseContext({ window: mockWindow, config: { CONTEXTS: contexts }, handover: { found: false, error: new Error("not found") }, register: () => {}, resetContextSpecificTags: () => {} }).initialiseContextForContext();
       expect(result).toEqual({
         contextIndex: 0,
         found: true,
@@ -258,7 +258,7 @@ describe("initialiseContext", () => {
       const mockWindow = createMockWindow("https://example.com/case/123");
       const mockResetContextSpecificTags = jest.fn();
 
-      const result = initialiseContext({ window: mockWindow, config: { CONTEXTS: contexts }, register: () => {}, resetContextSpecificTags: mockResetContextSpecificTags }).initialiseContextForContext();
+      const result = initialiseContext({ window: mockWindow, config: { CONTEXTS: contexts }, handover: { found: false, error: new Error("not found") }, register: () => {}, resetContextSpecificTags: mockResetContextSpecificTags }).initialiseContextForContext();
 
       expect(mockResetContextSpecificTags).toHaveBeenCalledWith(result);
     });
@@ -276,7 +276,7 @@ describe("initialiseContext", () => {
       const mockWindow = createMockWindow("https://example.com/other");
       const mockResetContextSpecificTags = jest.fn();
 
-      initialiseContext({ window: mockWindow, config: { CONTEXTS: contexts }, register: () => {}, resetContextSpecificTags: mockResetContextSpecificTags }).initialiseContextForContext();
+      initialiseContext({ window: mockWindow, config: { CONTEXTS: contexts }, handover: { found: false, error: new Error("not found") }, register: () => {}, resetContextSpecificTags: mockResetContextSpecificTags }).initialiseContextForContext();
 
       expect(mockResetContextSpecificTags).toHaveBeenCalledWith({ found: false });
     });
@@ -297,8 +297,89 @@ describe("initialiseContext", () => {
       ];
       const mockWindow = createMockWindow("https://example.com:3000/page");
 
-      const result = initialiseContext({ window: mockWindow, config: { CONTEXTS: contexts }, register: () => {}, resetContextSpecificTags: () => {} }).initialiseContextForContext();
+      const result = initialiseContext({ window: mockWindow, config: { CONTEXTS: contexts }, handover: { found: false, error: new Error("not found") }, register: () => {}, resetContextSpecificTags: () => {} }).initialiseContextForContext();
       expect(result.msalRedirectUrl).toEqual("https://redirect.com:3000/callback");
+    });
+  });
+
+  describe("takeTagsFromHandover", () => {
+    it("registers handoverTags with caseId and urn when flag is set and handover is found", () => {
+      tryLocationMatchSpy.mockReturnValueOnce({ groups: {} });
+
+      const contexts: Context[] = [
+        {
+          path: "https://housekeeping",
+          contextIds: "case materials",
+          msalRedirectUrl: "foo",
+          takeTagsFromHandover: true,
+        },
+      ];
+      const mockWindow = createMockWindow("https://housekeeping/anything");
+      const register = jest.fn();
+      const handover = { found: true, result: { caseId: 123, caseDetails: { urn: "URN123" } } } as any;
+
+      initialiseContext({ window: mockWindow, config: { CONTEXTS: contexts }, handover, register, resetContextSpecificTags: () => {} }).initialiseContextForContext();
+
+      expect(register).toHaveBeenCalledWith({ handoverTags: { caseId: "123", urn: "URN123" } });
+    });
+
+    it("registers handoverTags without urn when handover has no urn", () => {
+      tryLocationMatchSpy.mockReturnValueOnce({ groups: {} });
+
+      const contexts: Context[] = [
+        {
+          path: "https://housekeeping",
+          contextIds: "case materials",
+          msalRedirectUrl: "foo",
+          takeTagsFromHandover: true,
+        },
+      ];
+      const mockWindow = createMockWindow("https://housekeeping/anything");
+      const register = jest.fn();
+      const handover = { found: true, result: { caseId: 123, caseDetails: {} } } as any;
+
+      initialiseContext({ window: mockWindow, config: { CONTEXTS: contexts }, handover, register, resetContextSpecificTags: () => {} }).initialiseContextForContext();
+
+      expect(register).toHaveBeenCalledWith({ handoverTags: { caseId: "123" } });
+    });
+
+    it("does not register handoverTags when flag is not set", () => {
+      tryLocationMatchSpy.mockReturnValueOnce({ groups: {} });
+
+      const contexts: Context[] = [
+        {
+          path: "https://housekeeping",
+          contextIds: "case materials",
+          msalRedirectUrl: "foo",
+        },
+      ];
+      const mockWindow = createMockWindow("https://housekeeping/anything");
+      const register = jest.fn();
+      const handover = { found: true, result: { caseId: 123, caseDetails: { urn: "URN123" } } } as any;
+
+      initialiseContext({ window: mockWindow, config: { CONTEXTS: contexts }, handover, register, resetContextSpecificTags: () => {} }).initialiseContextForContext();
+
+      expect(register).not.toHaveBeenCalledWith(expect.objectContaining({ handoverTags: expect.anything() }));
+    });
+
+    it("does not register handoverTags when handover is not found", () => {
+      tryLocationMatchSpy.mockReturnValueOnce({ groups: {} });
+
+      const contexts: Context[] = [
+        {
+          path: "https://housekeeping",
+          contextIds: "case materials",
+          msalRedirectUrl: "foo",
+          takeTagsFromHandover: true,
+        },
+      ];
+      const mockWindow = createMockWindow("https://housekeeping/anything");
+      const register = jest.fn();
+      const handover = { found: false, error: new Error("nope") } as any;
+
+      initialiseContext({ window: mockWindow, config: { CONTEXTS: contexts }, handover, register, resetContextSpecificTags: () => {} }).initialiseContextForContext();
+
+      expect(register).not.toHaveBeenCalledWith(expect.objectContaining({ handoverTags: expect.anything() }));
     });
   });
 });
