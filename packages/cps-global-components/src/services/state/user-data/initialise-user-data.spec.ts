@@ -12,7 +12,7 @@ global.fetch = mockFetch;
 const validUserData: UserData = {
   userId: 42,
   selectedCpsAreaId: 7,
-  homeUnit: { unitId: 10, unit: "UnitX", areaId: 3, area: "AreaY", areaIsSensitive: false, areaGroupId: 1, areaGroup: "GroupZ" },
+  homeUnit: { unitId: 10, unit: "UnitX", areaId: 3, area: "AreaY", areaGroupId: 1, areaGroup: "GroupZ" },
 };
 
 const baseConfig: Partial<Config> = {
@@ -107,6 +107,41 @@ describe("initialiseUserData", () => {
     expect(String(url)).toContain("/api/global-components/user-data");
     expect(setUserDataHint).toHaveBeenCalledWith(validUserData);
     expect(register).toHaveBeenCalledWith({ userDataHint: { found: true, result: expect.objectContaining({ userData: validUserData }) } });
+  });
+
+  it("should store only schema-defined fields, stripping any extras from the API response", async () => {
+    const apiResponse = {
+      userId: 42,
+      selectedCpsAreaId: 7,
+      homeUnit: {
+        unitId: 10,
+        unit: "UnitX",
+        areaId: 3,
+        area: "AreaY",
+        areaGroupId: 1,
+        areaGroup: "GroupZ",
+        extraUnitField: "leaked",
+      },
+      email: "user@example.com",
+      displayName: "Alice",
+    };
+    mockFetch.mockResolvedValue({ ok: true, json: () => Promise.resolve(apiResponse) });
+
+    const { initialiseUserDataForContext } = initialiseUserData({
+      config: baseConfig as Config,
+      userDataHint: { found: false, error: new Error("no hint") },
+      setUserDataHint,
+      trackEvent,
+      register,
+    });
+
+    await initialiseUserDataForContext({ context, getToken, correlationIds });
+
+    expect(setUserDataHint).toHaveBeenCalledWith(validUserData);
+    const stored = setUserDataHint.mock.calls[0][0];
+    expect(stored).not.toHaveProperty("email");
+    expect(stored).not.toHaveProperty("displayName");
+    expect(stored.homeUnit).not.toHaveProperty("extraUnitField");
   });
 
   it("should fetch when there is no hint", async () => {

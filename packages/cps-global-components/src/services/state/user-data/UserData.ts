@@ -1,19 +1,18 @@
 import { z } from "zod";
 
 export const HomeUnitSchema = z.object({
-  unitId: z.number(),
-  unit: z.string(),
-  areaId: z.number(),
-  area: z.string(),
-  areaIsSensitive: z.boolean(),
-  areaGroupId: z.number(),
-  areaGroup: z.string(),
+  unitId: z.number().optional(),
+  unit: z.string().optional(),
+  areaId: z.number().optional(),
+  area: z.string().optional(),
+  areaGroupId: z.number().nullable().optional(),
+  areaGroup: z.string().nullable().optional(),
 });
 
 export const UserDataSchema = z.object({
-  userId: z.number(),
-  selectedCpsAreaId: z.number(),
-  homeUnit: HomeUnitSchema,
+  userId: z.number().optional(),
+  selectedCpsAreaId: z.number().optional(),
+  homeUnit: HomeUnitSchema.default({}),
 });
 
 export const UserDataHintSchema = z.object({

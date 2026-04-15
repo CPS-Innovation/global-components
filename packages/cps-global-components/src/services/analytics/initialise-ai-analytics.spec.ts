@@ -216,7 +216,7 @@ describe("initialiseAiAnalytics", () => {
           userData: {
             userId: 42,
             selectedCpsAreaId: 9,
-            homeUnit: { unitId: 10, unit: "UnitX", areaId: 3, area: "AreaY", areaIsSensitive: false, areaGroupId: 1, areaGroup: "GroupZ" },
+            homeUnit: { unitId: 10, unit: "UnitX", areaId: 3, area: "AreaY", areaGroupId: 1, areaGroup: "GroupZ" },
           },
         },
       };

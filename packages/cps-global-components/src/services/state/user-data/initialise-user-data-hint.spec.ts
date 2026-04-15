@@ -9,12 +9,12 @@ const mockRegister = jest.fn();
 const validUserData: UserData = {
   userId: 42,
   selectedCpsAreaId: 7,
-  homeUnit: { unitId: 10, unit: "UnitX", areaId: 3, area: "AreaY", areaIsSensitive: false, areaGroupId: 1, areaGroup: "GroupZ" },
+  homeUnit: { unitId: 10, unit: "UnitX", areaId: 3, area: "AreaY", areaGroupId: 1, areaGroup: "GroupZ" },
 };
 
 describe("initialiseUserDataHint", () => {
   const rootUrl = "https://example.com/api/global-components/";
-  const expectedUrl = "https://example.com/api/state/user-data";
+  const expectedUrl = "https://example.com/api/state/user-data-hint";
 
   beforeEach(() => {
     jest.clearAllMocks();

@@ -15,12 +15,12 @@ export const initialiseUserDataHint = async ({
   rootUrl: string;
   register: Register;
 }): Promise<{ userDataHint: Result<UserDataHint>; setUserDataHint: (userData: UserData) => void }> => {
-  const userDataHint = await fetchState({ rootUrl, url: "../state/user-data", schema: UserDataHintSchema });
+  const userDataHint = await fetchState({ rootUrl, url: "../state/user-data-hint", schema: UserDataHintSchema });
   register({ userDataHint });
 
   const setUserDataHint = (userData: UserData) => {
     const data: UserDataHint = { userData, timestamp: Date.now() };
-    fetchState({ rootUrl, url: "../state/user-data", schema: StatePutResponseSchema, data }).catch(error =>
+    fetchState({ rootUrl, url: "../state/user-data-hint", schema: StatePutResponseSchema, data }).catch(error =>
       _warn("Unexpected error setting user data hint", String(error)),
     );
   };

@@ -14,7 +14,7 @@ import { UserData, UserDataHint, UserDataSchema } from "./UserData";
 
 const DEFAULT_REFRESH_PERIOD_MINS = 24 * 60;
 
-const { _warn } = makeConsole("initialiseUserData");
+const { _error } = makeConsole("initialiseUserData");
 
 type Props = {
   config: Config;
@@ -63,7 +63,7 @@ export const initialiseUserData = ({ config, userDataHint, setUserDataHint, trac
         register({ userDataHint: { found: true, result: { userData, timestamp } } });
       })
       .catch(error => {
-        _warn("Unexpected error fetching user data", String(error));
+        _error("Unexpected error fetching user data", error);
       })
       .finally(() => {
         inFlight = undefined;
