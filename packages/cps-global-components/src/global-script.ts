@@ -7,13 +7,14 @@ import { initialiseApplicationFlags } from "./services/application-flags/initial
 import { makeConsole } from "./logging/makeConsole";
 import { initialiseDomObservation } from "./services/browser/dom/initialise-dom-observation";
 import { domTagMutationSubscriber } from "./services/browser/dom/dom-tag-mutation-subscriber";
-import { outSystemsShimSubscribers } from "./services/outsystems-shim/outsystems-shim-subscriber";
 import { initialiseCmsSessionHint } from "./services/state/cms-session/initialise-cms-session-hint";
 import { initialiseHandover } from "./services/state/handover/intialise-handover";
 import { initialiseCaseDetailsData } from "./services/data/initialise-case-details-data";
 import { initialiseCorrelationIds } from "./services/correlation/initialise-correlation-ids";
 import { initialiseRootUrl } from "./services/root-url/initialise-root-url";
 import { initialisePreview } from "./services/state/preview/initialise-preview";
+import { initialiseNotifications } from "./services/notifications/initialise-notifications";
+import { handlers } from "./services/handlers/handlers";
 import { initialiseRecentCases } from "./services/state/recent-cases/initialise-recent-cases";
 import { footerSubscriber } from "./services/browser/dom/footer-subscriber";
 import { hostAppEventSubscriber } from "./services/browser/dom/host-app-event-subscriber";
@@ -23,7 +24,10 @@ import { initialiseOutSystemsReconcileAuth } from "./services/outsystems-shim/in
 import { initialiseOutSystemsShowAlert } from "./services/outsystems-shim/outsystems-show-alert";
 import { initialiseNavigateCms } from "./services/navigate-cms/initialise-navigate-cms";
 import { initialiseAuthHint } from "./services/state/auth-hint/initialise-auth-hint";
+import { initialiseUserDataHint } from "./services/state/user-data/initialise-user-data-hint";
+import { initialiseUserData } from "./services/state/user-data/initialise-user-data";
 import { createAdDiagnosticsCollector } from "./services/auth/ad-diagnostics-collector";
+import { initialiseDiagnostics } from "./services/diagnostics/initialise-diagnostics";
 import { initialiseTabTitle } from "./services/browser/tab-title/initialise-tab-title";
 import { initialiseBuild } from "./services/build/initialise-build";
 import { runNowAndOnNavigation } from "./services/browser/navigation/navigation";
@@ -59,11 +63,12 @@ const initialise = async (window: Window & typeof globalThis) => {
     const flags = initialiseApplicationFlags({ window, rootUrl, register });
     initialiseOutSystemsReconcileAuth({ window, flags });
 
-    const [{ handover, setNextHandover }, preview, settings, { authHint, setAuthHint }] = await Promise.all([
+    const [{ handover, setNextHandover }, preview, settings, { authHint, setAuthHint }, { userDataHint, setUserDataHint }] = await Promise.all([
       initialiseHandover({ rootUrl, register }),
       initialisePreview({ rootUrl, register }),
       initialiseSettings({ rootUrl }),
       initialiseAuthHint({ rootUrl, register }),
+      initialiseUserDataHint({ rootUrl, register }),
       initialiseCmsSessionHint({ rootUrl, flags, register }),
     ]);
 
@@ -73,13 +78,15 @@ const initialise = async (window: Window & typeof globalThis) => {
       footerSubscriber,
       hostAppEventSubscriber,
       accessibilitySubscriber,
-      ...outSystemsShimSubscribers,
     );
 
     initialiseTabTitle({ window, preview, subscribe, flags });
 
     const config = await initialiseConfig({ rootUrl, flags, preview, register });
+    /* do not await this — notification fetches shouldn't block auth/analytics/etc. */
+    initialiseNotifications({ rootUrl, register, handlers, config });
     const { setNextRecentCases } = initialiseRecentCases({ rootUrl, config, register });
+    const { silentFlowDiagnostics, addSilentFlowDiagnostics } = initialiseDiagnostics({ rootUrl, config, register });
 
     const diagnosticsCollector = createAdDiagnosticsCollector();
 
@@ -90,17 +97,20 @@ const initialise = async (window: Window & typeof globalThis) => {
       registerAuthWithAnalytics,
       registerCorrelationIdsWithAnalytics,
       registerCaseIdentifiersWithAnalytics,
+      getOperationId,
     } = initialiseAnalytics({
       window,
       config,
       build,
       flags,
       authHint,
+      userDataHint,
       diagnosticsCollector,
+      silentFlowDiagnostics,
     });
     trackException = _trackException;
 
-    const { initialiseAuthForContext } = initialiseAuth({ config, flags, onError: trackException, diagnosticsCollector, register, registerAuthWithAnalytics, setAuthHint });
+    const { initialiseAuthForContext } = initialiseAuth({ config, flags, onError: trackException, diagnosticsCollector, addSilentFlowDiagnostics, getOperationId, register, registerAuthWithAnalytics, setAuthHint });
     const { initialiseCaseDetailsDataForContext, initialiseCaseDetailsDataForContextOptimistic } = initialiseCaseDetailsData({
       config,
       handover,
@@ -113,6 +123,7 @@ const initialise = async (window: Window & typeof globalThis) => {
     const { initialiseCorrelationIdsForContext } = initialiseCorrelationIds({ register, registerCorrelationIdsWithAnalytics });
     const { initialiseContextForContext } = initialiseContext({ window, config, register, resetContextSpecificTags });
     const { initialiseOutSystemsShowAlertForContext } = initialiseOutSystemsShowAlert({ config, authHint, preview });
+    const { initialiseUserDataForContext } = initialiseUserData({ config, userDataHint, setUserDataHint, trackEvent, register });
 
     runNowAndOnNavigation(() => {
       try {
@@ -127,6 +138,7 @@ const initialise = async (window: Window & typeof globalThis) => {
 
         const authPromise = initialiseAuthForContext(context);
         authPromise.then(({ auth }) => initialiseOutSystemsShowAlertForContext({ context, auth })).catch(handleError);
+        authPromise.then(({ getToken }) => initialiseUserDataForContext({ context, getToken, correlationIds })).catch(handleError);
 
         const caseIdentifiersPromise = caseIdentifiersWaiter.waitForChange();
         caseIdentifiersPromise

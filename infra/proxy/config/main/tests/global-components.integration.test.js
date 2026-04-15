@@ -83,6 +83,29 @@ async function testUpstreamProxy() {
       "Should strip Authorization header"
     )
   })
+
+  await test("proxies arbitrary path under /global-components/api/*", async () => {
+    const response = await fetch(`${PROXY_BASE}/global-components/api/user-data`, {
+      headers: { "Cms-Auth-Values": "userId=42" },
+    })
+    assertEqual(response.status, 200, "Should proxy arbitrary path to upstream")
+    const json = await response.json()
+    assertEqual(json.path, "user-data", "Should pass the path through to upstream")
+    assert(json.headers["x-functions-key"] !== null, "Should inject x-functions-key")
+    assertEqual(json.headers["cms-auth-values"], "userId=42", "Should pass cms-auth-values")
+  })
+
+  await test("forwards query string to upstream", async () => {
+    const response = await fetch(
+      `${PROXY_BASE}/global-components/api/cases/123/monitoring-codes?assignedOnly=true&limit=10`
+    )
+    assertEqual(response.status, 200, "Should return 200")
+    const json = await response.json()
+    assert(
+      json.originalUrl?.includes("assignedOnly=true"),
+      "Should forward query string to upstream"
+    )
+  })
 }
 
 // =============================================================================

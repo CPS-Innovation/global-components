@@ -12,6 +12,7 @@
   "SHOW_MENU": true,
   "SHOW_RECENT_CASES": true,
   "SHOW_MONITORING_CODES": true,
+  "SHOW_NOTIFICATIONS": true,
   "OS_HANDOVER_URL": "https://cps-tst.outsystemsenterprise.com/Casework_Patterns/auth-handover.html?src=https://polaris-qa-notprod.cps.gov.uk/global-components/test/auth-handover.js",
   "RECENT_CASES_NAVIGATE_URL": "https://cps-tst.outsystemsenterprise.com/WorkManagementApp/CaseOverview?CaseId={caseId}",
   "RECENT_CASES_LIST_LENGTH": 5,
@@ -37,7 +38,6 @@
         {
           "path": "https://cps-tst.outsystemsenterprise.com/casework_blocks/home",
           "contextIds": "home",
-          "applyShim": "force-recent-cases",
           "showNotification": true
         },
         {
@@ -63,18 +63,15 @@
         },
         {
           "path": "https://cps-tst.outsystemsenterprise.com/WorkManagementApp.*?(?=.*[&?]CaseId=(?<caseId>\\d+))(?=.*[&?]IsOpenMaterials=true)",
-          "contextIds": "case materials",
-          "applyShim": "force-global-menu"
+          "contextIds": "case materials"
         },
         {
           "path": "https://cps-tst.outsystemsenterprise.com/WorkManagementApp.*[&?]CaseId=(?<caseId>\\d+)",
-          "contextIds": "case details",
-          "applyShim": "force-global-menu"
+          "contextIds": "case details"
         },
         {
           "path": "https://cps-tst.outsystemsenterprise.com/WorkManagementApp/Cases",
-          "contextIds": "cases",
-          "applyShim": "force-recent-cases"
+          "contextIds": "cases"
         },
         {
           "path": "https://cps-tst.outsystemsenterprise.com/WorkManagementApp/TaskList",

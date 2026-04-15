@@ -3,12 +3,20 @@ import { makeConsole } from "../../logging/makeConsole";
 import { getErrorType } from "./get-error-type";
 import { withLogging } from "../../logging/with-logging";
 import type { AdDiagnosticsCollector } from "./ad-diagnostics-collector";
+import type { SilentFlowDiagnostic } from "../diagnostics/silent-flow-diagnostics";
+
+type AddSilentFlowDiagnostics = (entry: SilentFlowDiagnostic) => void;
 
 type Props = {
   instance: PublicClientApplication;
   config: { FEATURE_FLAG_ENABLE_INTRUSIVE_AD_LOGIN: boolean | undefined; SSO_SILENT_DELAY_MS: number | undefined };
   diagnosticsCollector?: AdDiagnosticsCollector;
+  addSilentFlowDiagnostics?: AddSilentFlowDiagnostics;
+  getOperationId?: () => string | undefined;
+  onError?: (error: Error) => void;
 };
+
+const asError = (value: unknown): Error => (value instanceof Error ? value : new Error(String(value)));
 
 type AccountSource = "acquireTokenSilent" | "silent" | "popup" | "failed";
 
@@ -30,11 +38,18 @@ const waitForPageStability = async (ssoSilentDelayMs: number, scriptStartMs: num
   });
   if (remainingDelay > 0) {
     _debug(`Waiting ${remainingDelay}ms before ssoSilent (${elapsed}ms elapsed since script start, threshold ${ssoSilentDelayMs}ms)`);
-    await new Promise((resolve) => setTimeout(resolve, remainingDelay));
+    await new Promise(resolve => setTimeout(resolve, remainingDelay));
   }
 };
 
-const internalGetAdUserAccount = async ({ instance, config: { FEATURE_FLAG_ENABLE_INTRUSIVE_AD_LOGIN, SSO_SILENT_DELAY_MS }, diagnosticsCollector }: Props) => {
+const internalGetAdUserAccount = async ({
+  instance,
+  config: { FEATURE_FLAG_ENABLE_INTRUSIVE_AD_LOGIN, SSO_SILENT_DELAY_MS },
+  diagnosticsCollector,
+  addSilentFlowDiagnostics,
+  getOperationId,
+  onError,
+}: Props) => {
   const t0 = performance.now();
 
   const tryAcquireTokenSilently = async (): AccountRetrievalResult => {
@@ -51,12 +66,13 @@ const internalGetAdUserAccount = async ({ instance, config: { FEATURE_FLAG_ENABL
       });
 
       return result.account ? { source: "acquireTokenSilent", account: result.account } : null;
-    } catch {
+    } catch (error) {
       diagnosticsCollector?.add({
         acquireTokenSilentStartMs: Math.round(tAcquire),
         acquireTokenSilentDurationMs: Math.round(performance.now() - tAcquire),
         acquireTokenSilentFailed: true,
       });
+      onError?.(asError(error));
       return null;
     }
   };
@@ -88,11 +104,14 @@ const internalGetAdUserAccount = async ({ instance, config: { FEATURE_FLAG_ENABL
     const knownAccount = instance.getActiveAccount() || instance.getAllAccounts()[0];
     const ssoSilentRequest = { ...loginRequest, ...(knownAccount?.username ? { loginHint: knownAccount.username } : {}) };
 
+    const operationId = getOperationId?.();
+    addSilentFlowDiagnostics?.({ time: Date.now(), url: window.location.href, operationId });
     try {
       const { account } = await instance.ssoSilent(ssoSilentRequest);
       diagnosticsCollector?.add({
         ssoSilentStartMs: Math.round(tSilent),
       });
+      addSilentFlowDiagnostics?.({ time: Date.now(), url: window.location.href, operationId, completedTime: Date.now(), outcome: "complete" });
       return account ? { source: "silent", account } : null;
     } catch (error) {
       const errorType = getErrorType(error);
@@ -108,11 +127,21 @@ const internalGetAdUserAccount = async ({ instance, config: { FEATURE_FLAG_ENABL
         connectionDownlink: (navigator as unknown as { connection?: { downlink?: number } }).connection?.downlink ?? null,
       });
 
-      if (FEATURE_FLAG_ENABLE_INTRUSIVE_AD_LOGIN) {
-        if (errorType === "MultipleIdentities") {
-          return null;
-        }
+      const rawErrorCode = (error as { errorCode?: unknown })?.errorCode;
+      addSilentFlowDiagnostics?.({
+        time: Date.now(),
+        url: window.location.href,
+        operationId,
+        completedTime: Date.now(),
+        outcome: "failure",
+        ...(typeof rawErrorCode === "string" && rawErrorCode ? { errorCode: rawErrorCode } : {}),
+      });
+
+      if (FEATURE_FLAG_ENABLE_INTRUSIVE_AD_LOGIN && errorType === "MultipleIdentities") {
+        return null;
       }
+
+      onError?.(asError(error));
       throw error;
     } finally {
       document.removeEventListener("visibilitychange", onVisibilityChange);
@@ -122,11 +151,18 @@ const internalGetAdUserAccount = async ({ instance, config: { FEATURE_FLAG_ENABL
 
   const tryLoginAccountViaPopup = async (): AccountRetrievalResult => {
     diagnosticsCollector?.add({ loginPopupStartMs: Math.round(performance.now()) });
-    const { account } = await instance.loginPopup(loginRequest);
-    return account ? { source: "popup", account } : null;
+    try {
+      const { account } = await instance.loginPopup(loginRequest);
+      return account ? { source: "popup", account } : null;
+    } catch (error) {
+      onError?.(asError(error));
+      throw error;
+    }
   };
 
-  const { account, source } = (await tryAcquireTokenSilently()) || (await tryLoginAccountSilently()) || (await tryLoginAccountViaPopup()) || { source: "failed" as AccountSource, account: null };
+  const { account, source } = (await tryAcquireTokenSilently()) ||
+    (await tryLoginAccountSilently()) ||
+    (await tryLoginAccountViaPopup()) || { source: "failed" as AccountSource, account: null };
   instance.setActiveAccount(account);
 
   diagnosticsCollector?.add({

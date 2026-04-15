@@ -112,6 +112,7 @@ beforeEach(() => {
       tags: {},
       auth: {} as AuthResult,
       authHint: { found: false, error: {} as Error },
+      userDataHint: { found: false, error: {} as Error },
       fatalInitialisationError: undefined as any,
       initialisationStatus: "complete",
       correlationIds: {} as CorrelationIds,
@@ -121,6 +122,9 @@ beforeEach(() => {
       cmsSessionHint: { found: false, error: {} as Error },
       handover: { found: false, error: {} as Error },
       recentCases: { found: false, error: {} as Error },
+      silentFlowDiagnostics: { found: false, error: {} as Error },
+      notifications: [],
+      dismissedNotificationIds: [],
     };
 
     const result = menuConfig(mockState);
@@ -168,6 +172,7 @@ beforeEach(() => {
       tags: {},
       auth: {} as AuthResult,
       authHint: { found: false, error: {} as Error },
+      userDataHint: { found: false, error: {} as Error },
       fatalInitialisationError: undefined as any,
       initialisationStatus: "complete",
       correlationIds: {} as CorrelationIds,
@@ -177,6 +182,9 @@ beforeEach(() => {
       cmsSessionHint: { found: false, error: {} as Error },
       handover: { found: false, error: {} as Error },
       recentCases: { found: false, error: {} as Error },
+      silentFlowDiagnostics: { found: false, error: {} as Error },
+      notifications: [],
+      dismissedNotificationIds: [],
     };
 
     // Mock shouldShowLink to filter out the second link

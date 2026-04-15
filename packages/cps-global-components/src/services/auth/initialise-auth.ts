@@ -8,16 +8,21 @@ import { initialiseAdAuth } from "./initialise-ad-auth";
 import { createMsalInstance } from "./create-msal-instance";
 import type { AdDiagnosticsCollector } from "./ad-diagnostics-collector";
 import type { PublicClientApplication } from "@azure/msal-browser";
+import type { SilentFlowDiagnostic } from "../diagnostics/silent-flow-diagnostics";
 
 type Register = (arg: { auth: AuthResult }) => void;
 type RegisterAuthWithAnalytics = (auth: AuthResult) => void;
 type SetAuthHint = (auth: Auth) => void;
+type AddSilentFlowDiagnostics = (entry: SilentFlowDiagnostic) => void;
+type GetOperationId = () => string | undefined;
 
 type Props = {
   config: Config;
   flags: ApplicationFlags;
   onError?: (error: Error) => void;
   diagnosticsCollector?: AdDiagnosticsCollector;
+  addSilentFlowDiagnostics?: AddSilentFlowDiagnostics;
+  getOperationId?: GetOperationId;
   register: Register;
   registerAuthWithAnalytics: RegisterAuthWithAnalytics;
   setAuthHint: SetAuthHint;
@@ -37,6 +42,8 @@ export const initialiseAuth = ({
   flags,
   onError,
   diagnosticsCollector,
+  addSilentFlowDiagnostics,
+  getOperationId,
   register,
   registerAuthWithAnalytics,
   setAuthHint,
@@ -67,7 +74,7 @@ export const initialiseAuth = ({
         instance = await createMsalInstance({ authority, clientId, redirectUri: ctx.msalRedirectUrl, diagnosticsCollector });
       }
 
-      return initialiseAdAuth({ config, context: ctx, onError, diagnosticsCollector, instance });
+      return initialiseAdAuth({ config, context: ctx, onError, diagnosticsCollector, addSilentFlowDiagnostics, getOperationId, instance });
     };
 
     authInFlight = doAuth()

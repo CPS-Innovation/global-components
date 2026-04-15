@@ -1,0 +1,7 @@
+cps-global-notifications {
+  display: block;
+  // Top margin keeps the banner off the menu divider. No bottom margin — the host
+  // app already spaces its own content away from our header, and we inherit that
+  // gap whether the banner is present or not.
+  margin-top: 20px;
+}

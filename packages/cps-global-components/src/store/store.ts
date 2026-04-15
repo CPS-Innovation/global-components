@@ -1,6 +1,6 @@
 import { createStore } from "@stencil/store";
 import { getRenderingRef, forceUpdate } from "@stencil/core";
-import { Config, Preview } from "cps-global-configuration";
+import { Config, Preview, Notification } from "cps-global-configuration";
 import { AuthResult } from "../services/auth/AuthResult";
 import { FoundContext } from "../services/context/FoundContext";
 import { ApplicationFlags } from "../services/application-flags/ApplicationFlags";
@@ -18,8 +18,10 @@ import { Handover } from "../services/state/handover/Handover";
 import { Result } from "../utils/Result";
 import { CmsSessionHint } from "cps-global-configuration";
 import { AuthHint } from "../services/state/auth-hint/initialise-auth-hint";
+import { UserDataHint } from "../services/state/user-data/UserData";
 import { MonitoringCodes } from "../services/data/MonitoringCode";
 import { RecentCases } from "../services/state/recent-cases/recent-cases";
+import { SilentFlowDiagnostics } from "../services/diagnostics/silent-flow-diagnostics";
 export { type ReadyStateHelper };
 
 // Helper type to extract keys of a specific type
@@ -50,10 +52,14 @@ type StartupState = {
   config: Config;
   auth: AuthResult;
   authHint: Result<AuthHint>;
+  userDataHint: Result<UserDataHint>;
   build: Build;
   cmsSessionHint: Result<CmsSessionHint>;
   handover: Result<Handover>;
   recentCases: Result<RecentCases>;
+  silentFlowDiagnostics: Result<SilentFlowDiagnostics>;
+  notifications: Notification[];
+  dismissedNotificationIds: string[];
 };
 
 const initialStartupState = {
@@ -63,10 +69,14 @@ const initialStartupState = {
   config: undefined,
   auth: undefined,
   authHint: undefined,
+  userDataHint: undefined,
   build: undefined,
   cmsSessionHint: undefined,
   handover: undefined,
   recentCases: undefined,
+  silentFlowDiagnostics: undefined,
+  notifications: undefined,
+  dismissedNotificationIds: undefined,
 };
 
 // This state could change (e.g. history-based non-full-refresh navigation or dom tags changing)

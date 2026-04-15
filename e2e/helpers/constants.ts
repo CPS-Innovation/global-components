@@ -21,4 +21,8 @@ export const locators = {
   RECENT_CASES_WAITING_SLOT: 'slot[name="waiting"]',
   RECENT_CASES_NO_CASES_DEFAULT: "p.govuk-body",
   RECENT_CASES_ERROR_MSG: "p.govuk-body",
+  NOTIFICATIONS_CONTAINER: "cps-global-notifications",
+  NOTIFICATION_BANNER: "cps-gds-notification-banner",
+  NOTIFICATION_TITLE: ".govuk-notification-banner__title",
+  NOTIFICATION_DISMISS_BUTTON: "button.govuk-button.govuk-button--secondary",
 };

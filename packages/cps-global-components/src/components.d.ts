@@ -17,9 +17,10 @@ export namespace Components {
          */
         "disableAutoFocus": boolean;
         /**
-          * When set, enables dismiss behaviour. The full localStorage key is `cps-global-notification-dismiss-${dismissKey}`.
+          * Renders the dismiss button. Persistence is the caller's responsibility via the `cpsDismissed` event.
+          * @default false
          */
-        "dismissKey"?: string;
+        "dismissible": boolean;
         /**
           * Override the ARIA role. Defaults to "region" (or "alert" for success type).
          */
@@ -59,6 +60,8 @@ export namespace Components {
     }
     interface CpsGlobalMenu {
     }
+    interface CpsGlobalNotifications {
+    }
     interface CpsGlobalRecentCases {
         /**
           * @default ""
@@ -93,12 +96,27 @@ export namespace Components {
         "selected": boolean;
     }
 }
+export interface CpsGdsNotificationBannerCustomEvent<T> extends CustomEvent<T> {
+    detail: T;
+    target: HTMLCpsGdsNotificationBannerElement;
+}
 export interface NavLinkCustomEvent<T> extends CustomEvent<T> {
     detail: T;
     target: HTMLNavLinkElement;
 }
 declare global {
+    interface HTMLCpsGdsNotificationBannerElementEventMap {
+        "cpsDismissed": void;
+    }
     interface HTMLCpsGdsNotificationBannerElement extends Components.CpsGdsNotificationBanner, HTMLStencilElement {
+        addEventListener<K extends keyof HTMLCpsGdsNotificationBannerElementEventMap>(type: K, listener: (this: HTMLCpsGdsNotificationBannerElement, ev: CpsGdsNotificationBannerCustomEvent<HTMLCpsGdsNotificationBannerElementEventMap[K]>) => any, options?: boolean | AddEventListenerOptions): void;
+        addEventListener<K extends keyof DocumentEventMap>(type: K, listener: (this: Document, ev: DocumentEventMap[K]) => any, options?: boolean | AddEventListenerOptions): void;
+        addEventListener<K extends keyof HTMLElementEventMap>(type: K, listener: (this: HTMLElement, ev: HTMLElementEventMap[K]) => any, options?: boolean | AddEventListenerOptions): void;
+        addEventListener(type: string, listener: EventListenerOrEventListenerObject, options?: boolean | AddEventListenerOptions): void;
+        removeEventListener<K extends keyof HTMLCpsGdsNotificationBannerElementEventMap>(type: K, listener: (this: HTMLCpsGdsNotificationBannerElement, ev: CpsGdsNotificationBannerCustomEvent<HTMLCpsGdsNotificationBannerElementEventMap[K]>) => any, options?: boolean | EventListenerOptions): void;
+        removeEventListener<K extends keyof DocumentEventMap>(type: K, listener: (this: Document, ev: DocumentEventMap[K]) => any, options?: boolean | EventListenerOptions): void;
+        removeEventListener<K extends keyof HTMLElementEventMap>(type: K, listener: (this: HTMLElement, ev: HTMLElementEventMap[K]) => any, options?: boolean | EventListenerOptions): void;
+        removeEventListener(type: string, listener: EventListenerOrEventListenerObject, options?: boolean | EventListenerOptions): void;
     }
     var HTMLCpsGdsNotificationBannerElement: {
         prototype: HTMLCpsGdsNotificationBannerElement;
@@ -140,6 +158,12 @@ declare global {
         prototype: HTMLCpsGlobalMenuElement;
         new (): HTMLCpsGlobalMenuElement;
     };
+    interface HTMLCpsGlobalNotificationsElement extends Components.CpsGlobalNotifications, HTMLStencilElement {
+    }
+    var HTMLCpsGlobalNotificationsElement: {
+        prototype: HTMLCpsGlobalNotificationsElement;
+        new (): HTMLCpsGlobalNotificationsElement;
+    };
     interface HTMLCpsGlobalRecentCasesElement extends Components.CpsGlobalRecentCases, HTMLStencilElement {
     }
     var HTMLCpsGlobalRecentCasesElement: {
@@ -177,6 +201,7 @@ declare global {
         "cps-global-header": HTMLCpsGlobalHeaderElement;
         "cps-global-home-page-notification": HTMLCpsGlobalHomePageNotificationElement;
         "cps-global-menu": HTMLCpsGlobalMenuElement;
+        "cps-global-notifications": HTMLCpsGlobalNotificationsElement;
         "cps-global-recent-cases": HTMLCpsGlobalRecentCasesElement;
         "cps-skip-link": HTMLCpsSkipLinkElement;
         "nav-link": HTMLNavLinkElement;
@@ -190,9 +215,14 @@ declare namespace LocalJSX {
          */
         "disableAutoFocus"?: boolean;
         /**
-          * When set, enables dismiss behaviour. The full localStorage key is `cps-global-notification-dismiss-${dismissKey}`.
+          * Renders the dismiss button. Persistence is the caller's responsibility via the `cpsDismissed` event.
+          * @default false
          */
-        "dismissKey"?: string;
+        "dismissible"?: boolean;
+        /**
+          * Fired when the user clicks the dismiss button.
+         */
+        "onCpsDismissed"?: (event: CpsGdsNotificationBannerCustomEvent<void>) => void;
         /**
           * Override the ARIA role. Defaults to "region" (or "alert" for success type).
          */
@@ -231,6 +261,8 @@ declare namespace LocalJSX {
     interface CpsGlobalHomePageNotification {
     }
     interface CpsGlobalMenu {
+    }
+    interface CpsGlobalNotifications {
     }
     interface CpsGlobalRecentCases {
         /**
@@ -274,7 +306,7 @@ declare namespace LocalJSX {
         "titleHeadingLevel": number;
         "role": string;
         "disableAutoFocus": boolean;
-        "dismissKey": string;
+        "dismissible": boolean;
     }
     interface CpsGlobalHeaderAttributes {
         "isDcf": boolean;
@@ -305,6 +337,7 @@ declare namespace LocalJSX {
         "cps-global-header": Omit<CpsGlobalHeader, keyof CpsGlobalHeaderAttributes> & { [K in keyof CpsGlobalHeader & keyof CpsGlobalHeaderAttributes]?: CpsGlobalHeader[K] } & { [K in keyof CpsGlobalHeader & keyof CpsGlobalHeaderAttributes as `attr:${K}`]?: CpsGlobalHeaderAttributes[K] } & { [K in keyof CpsGlobalHeader & keyof CpsGlobalHeaderAttributes as `prop:${K}`]?: CpsGlobalHeader[K] };
         "cps-global-home-page-notification": CpsGlobalHomePageNotification;
         "cps-global-menu": CpsGlobalMenu;
+        "cps-global-notifications": CpsGlobalNotifications;
         "cps-global-recent-cases": Omit<CpsGlobalRecentCases, keyof CpsGlobalRecentCasesAttributes> & { [K in keyof CpsGlobalRecentCases & keyof CpsGlobalRecentCasesAttributes]?: CpsGlobalRecentCases[K] } & { [K in keyof CpsGlobalRecentCases & keyof CpsGlobalRecentCasesAttributes as `attr:${K}`]?: CpsGlobalRecentCasesAttributes[K] } & { [K in keyof CpsGlobalRecentCases & keyof CpsGlobalRecentCasesAttributes as `prop:${K}`]?: CpsGlobalRecentCases[K] };
         "cps-skip-link": Omit<CpsSkipLink, keyof CpsSkipLinkAttributes> & { [K in keyof CpsSkipLink & keyof CpsSkipLinkAttributes]?: CpsSkipLink[K] } & { [K in keyof CpsSkipLink & keyof CpsSkipLinkAttributes as `attr:${K}`]?: CpsSkipLinkAttributes[K] } & { [K in keyof CpsSkipLink & keyof CpsSkipLinkAttributes as `prop:${K}`]?: CpsSkipLink[K] };
         "nav-link": Omit<NavLink, keyof NavLinkAttributes> & { [K in keyof NavLink & keyof NavLinkAttributes]?: NavLink[K] } & { [K in keyof NavLink & keyof NavLinkAttributes as `attr:${K}`]?: NavLinkAttributes[K] } & { [K in keyof NavLink & keyof NavLinkAttributes as `prop:${K}`]?: NavLink[K] };
@@ -321,6 +354,7 @@ declare module "@stencil/core" {
             "cps-global-header": LocalJSX.IntrinsicElements["cps-global-header"] & JSXBase.HTMLAttributes<HTMLCpsGlobalHeaderElement>;
             "cps-global-home-page-notification": LocalJSX.IntrinsicElements["cps-global-home-page-notification"] & JSXBase.HTMLAttributes<HTMLCpsGlobalHomePageNotificationElement>;
             "cps-global-menu": LocalJSX.IntrinsicElements["cps-global-menu"] & JSXBase.HTMLAttributes<HTMLCpsGlobalMenuElement>;
+            "cps-global-notifications": LocalJSX.IntrinsicElements["cps-global-notifications"] & JSXBase.HTMLAttributes<HTMLCpsGlobalNotificationsElement>;
             "cps-global-recent-cases": LocalJSX.IntrinsicElements["cps-global-recent-cases"] & JSXBase.HTMLAttributes<HTMLCpsGlobalRecentCasesElement>;
             "cps-skip-link": LocalJSX.IntrinsicElements["cps-skip-link"] & JSXBase.HTMLAttributes<HTMLCpsSkipLinkElement>;
             "nav-link": LocalJSX.IntrinsicElements["nav-link"] & JSXBase.HTMLAttributes<HTMLNavLinkElement>;

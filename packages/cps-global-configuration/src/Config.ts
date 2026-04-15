@@ -52,13 +52,6 @@ const featureFlagUsersSchema = z.object({
 
 export type FeatureFlagUsers = z.infer<typeof featureFlagUsersSchema>;
 
-const shimTypeSchema = z.union([
-  z.literal("force-global-menu"),
-  z.literal("force-recent-cases"),
-]);
-
-export type ShimType = z.infer<typeof shimTypeSchema>;
-
 const hostAppEventTargetSchema = z.object({
   selector: z.string(),
   action: z.enum(["click", "appear"]),
@@ -69,7 +62,6 @@ export type HostAppEventTarget = z.infer<typeof hostAppEventTargetSchema>;
 const contextPathsSchema = z.object({
   path: z.string(),
   contextIds: z.string(),
-  applyShim: shimTypeSchema.optional(),
   domTagDefinitions: z.array(domTagDefinitionsSchema).optional(),
   showNotification: z.boolean().optional(),
   preventADAndDataCalls: z.boolean().optional(),
@@ -106,7 +98,6 @@ const contextSchema = contextsBaseSchema.extend({
   path: z.string(),
   contextIds: z.string(),
   msalRedirectUrl: z.string(), // redefine as required, not optional in app config
-  applyShim: shimTypeSchema.optional(),
   showNotification: z.boolean().optional(),
   preventADAndDataCalls: z.boolean().optional(),
   preventPageViewAnalytics: z.boolean().optional(),
@@ -148,6 +139,7 @@ export const configBaseSchema = z.object({
   SHOW_RECENT_CASES: z.boolean().optional(),
   SHOW_MONITORING_CODES: z.boolean().optional(),
   SHOW_GOVUK_REBRAND: z.boolean().optional(),
+  SHOW_NOTIFICATIONS: z.boolean().optional(),
   OS_HANDOVER_URL: z.string().optional(),
   FEATURE_FLAG_MENU_USERS: featureFlagUsersSchema.optional(),
   FEATURE_FLAG_ENABLE_INTRUSIVE_AD_LOGIN: z.boolean().optional(),
@@ -157,6 +149,8 @@ export const configBaseSchema = z.object({
   FETCH_CIRCUIT_BREAKER_CONFIG: fetchCircuitBreakerConfigSchema.optional(),
   RECENT_CASES_NAVIGATE_URL: z.string().optional(),
   RECENT_CASES_LIST_LENGTH: z.number().optional(),
+  SILENT_FLOW_DIAGNOSTICS_LENGTH: z.number().int().min(0).optional(),
+  USER_DATA_REFRESH_PERIOD_MINS: z.number().int().min(0).optional(),
 });
 
 export const configStorageSchema = configBaseSchema.extend({

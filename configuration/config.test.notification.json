@@ -1,0 +1,12 @@
+{
+  "notifications": [
+    {
+      "id": "fct2-15518-demo-2026-04",
+      "heading": "The Replacing CMS apps will be unavailable on Saturday 25 April 2026, 20:00\u201323:00 BST.",
+      "bodyHtml": "<p class=\"govuk-body\">A scheduled deployment will take the casework applications offline for up to three hours. Please save your work before the window begins.</p><p class=\"govuk-body\">If you need support during the outage, contact the <a href=\"https://cpsprod1.service-now.com\" target=\"_blank\">service desk</a>.</p>",
+      "from": "2026-04-01T00:00:00Z",
+      "to": "2026-05-31T23:59:59Z",
+      "previewModeRequired": true
+    }
+  ]
+}

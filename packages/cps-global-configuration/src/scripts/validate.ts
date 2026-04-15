@@ -3,17 +3,44 @@
 import * as fs from "fs";
 import * as path from "path";
 import { transformAndValidateConfig } from "../validator";
+import { notificationsFileSchema } from "../Notification";
+
+const NOTIFICATION_FILENAME_REGEX = /^config\..*\.notification\.json$/;
 
 function findConfigFiles(folderPath: string): string[] {
   const files = fs.readdirSync(folderPath);
   return files.filter((file) => file.match(/^config\..*\.json$/));
 }
 
-function validateFile(filePath: string): boolean {
+function validateNotificationFile(filePath: string, filename: string): boolean {
   try {
     const fileContent = fs.readFileSync(filePath, "utf-8");
     const jsonData = JSON.parse(fileContent);
-    const filename = path.basename(filePath);
+    const result = notificationsFileSchema.safeParse(jsonData);
+    if (result.success) {
+      console.log(`✅ ${filename} is valid`);
+      return true;
+    }
+    console.error(`❌ ${filename} is invalid:`);
+    console.error(result.error.message);
+    return false;
+  } catch (error) {
+    console.error(`❌ Error reading or parsing ${filename}:`);
+    console.error(error instanceof Error ? error.message : "Unknown error");
+    return false;
+  }
+}
+
+function validateFile(filePath: string): boolean {
+  const filename = path.basename(filePath);
+
+  if (NOTIFICATION_FILENAME_REGEX.test(filename)) {
+    return validateNotificationFile(filePath, filename);
+  }
+
+  try {
+    const fileContent = fs.readFileSync(filePath, "utf-8");
+    const jsonData = JSON.parse(fileContent);
 
     const result = transformAndValidateConfig(jsonData, filename);
 
@@ -26,7 +53,7 @@ function validateFile(filePath: string): boolean {
       return false;
     }
   } catch (error) {
-    console.error(`❌ Error reading or parsing ${path.basename(filePath)}:`);
+    console.error(`❌ Error reading or parsing ${filename}:`);
     console.error(error instanceof Error ? error.message : "Unknown error");
     return false;
   }

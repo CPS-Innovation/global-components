@@ -1,7 +1,6 @@
 # Base docker-compose - main nginx config with global-components
 # Use with overrides for additional layers:
 #   docker-compose -f docker-compose.yml -f docker-compose.vnext.yml up
-#   docker-compose -f docker-compose.yml -f docker-compose.vnext.yml -f docker-compose.vnever.yml up
 #
 # IMPORTANT: Run `pnpm build` before starting docker to populate dist/
 

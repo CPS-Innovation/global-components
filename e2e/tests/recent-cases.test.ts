@@ -35,7 +35,7 @@ let interceptListener: ((req: HTTPRequest) => void) | null = null;
 let heldRequest: HTTPRequest | null = null;
 
 const setupInterception = async ({
-  previewResponse = { myRecentCases: true },
+  previewResponse = { myRecentCasesOnHeader: true },
   recentCasesResponse = MOCK_CASES,
   recentCasesStatus = 200,
   holdRecentCases = false,

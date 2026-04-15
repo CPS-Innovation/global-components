@@ -18,16 +18,18 @@
 
 - [cps-global-banner](../cps-global-banner)
 - [cps-global-menu](../cps-global-menu)
+- [cps-global-notifications](../cps-global-notifications)
 
 ### Graph
 ```mermaid
 graph TD;
   cps-global-header --> cps-global-banner
   cps-global-header --> cps-global-menu
+  cps-global-header --> cps-global-notifications
   cps-global-banner --> cps-skip-link
-  cps-global-menu --> cps-gds-notification-banner
   cps-global-menu --> nav-link
   cps-global-menu --> cps-global-case-details
+  cps-global-notifications --> cps-gds-notification-banner
   style cps-global-header fill:#f9f,stroke:#333,stroke-width:4px
 ```
 
