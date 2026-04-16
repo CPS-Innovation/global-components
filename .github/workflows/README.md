@@ -26,6 +26,7 @@ other files are byte-identical across envs.
 | `global-components.js` (+ `.map`) | `packages/cps-global-components/dist/` | none — byte-identical |
 | `cps-global-components.js` | `packages/cps-global-script-redirect/dist/` | `script.src` substituted from `REDIRECT_SCRIPT_URL` at deploy time |
 | `auth-handover.js` (+ `.map`) | `packages/cps-global-os-handover/dist/` | none — byte-identical |
+| `global-components-msal-redirect.html` | `msal-support/` | none — byte-identical (same-origin termination page for silent MSAL flows; referenced from `msalRedirectUrl` in configs) |
 | `config.json` | `configuration/config.<env>.json` | entire contents |
 | `preview/` | `packages/cps-global-preview/dist/` | none — byte-identical |
 | `accessibility/` | `packages/cps-global-accessibility/dist/` | none — byte-identical |
