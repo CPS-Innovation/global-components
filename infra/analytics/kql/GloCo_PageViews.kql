@@ -23,6 +23,7 @@ AppPageViews
 | extend Build   = parse_json(tostring(parsed.Build))
 | extend Context = parse_json(tostring(parsed.Context))
 | extend CorrelationIds = parse_json(tostring(parsed.CorrelationIds))
+| extend User = parse_json(tostring(parsed.User))
 // Flatten to leaf columns
 | extend
     Auth_IsAuthed       = iff(isnotempty(Auth), tobool(Auth.IsAuthed), false),
@@ -39,5 +40,8 @@ AppPageViews
     CaseId = coalesce(
         tolong(parse_url(Url)["Query Parameters"]["CMSCaseId"]),
         tolong(extract(@"[/=](\d{8})(\D|$)", 1, Url)),
-        tolong(tostring(parsed.CaseId)))
-| project-away parsed, Build, Auth, Context, CorrelationIds
+        tolong(tostring(parsed.CaseId))),
+    User_UserId = User["UserId"],
+    User_AreaId = User["AreaId"],
+    User_Area = User["Area"]
+| project-away parsed, Build, Auth, Context, CorrelationIds, User
