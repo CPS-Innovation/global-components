@@ -9,10 +9,18 @@ export const HomeUnitSchema = z.object({
   areaGroup: z.string().nullable().optional(),
 });
 
+export const AllocatedUnitSchema = z.object({
+  areaIsSensitive: z.boolean().optional(),
+});
+
+export type AllocatedUnit = z.infer<typeof AllocatedUnitSchema>;
+
 export const UserDataSchema = z.object({
   userId: z.number().optional(),
   selectedCpsAreaId: z.number().optional(),
+  hasViewNationalChargingTasksRight: z.boolean().optional(),
   homeUnit: HomeUnitSchema.default({}),
+  allocatedUnits: z.array(AllocatedUnitSchema).default([]),
 });
 
 export const UserDataHintSchema = z.object({

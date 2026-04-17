@@ -165,6 +165,9 @@ export const initialiseAiAnalytics = ({
             userId: userDataHint.result.userData.userId,
             areaId: userDataHint.result.userData.homeUnit.areaId,
             area: userDataHint.result.userData.homeUnit.area,
+            hasViewNationalChargingTasksRight: userDataHint.result.userData.hasViewNationalChargingTasksRight,
+            countSensitiveUnits: userDataHint.result.userData.allocatedUnits?.filter(u => u.areaIsSensitive).length ?? 0,
+            countNotSensitiveUnits: userDataHint.result.userData.allocatedUnits?.filter(u => !u.areaIsSensitive).length ?? 0,
           }
         : undefined;
       const arg = {
@@ -191,7 +194,16 @@ export const initialiseAiAnalytics = ({
     const authDiagnostics = getDiagnostics();
     appInsights.trackException(
       { exception },
-      { source: STORAGE_PREFIX, properties: capitalizeKeys({ environment: ENVIRONMENT, ...(authValues && { auth: authValues }), build, authDiagnostics, silentFlowDiagnostics: silentFlowDiagnostics ?? { silentFlows: [] } }) },
+      {
+        source: STORAGE_PREFIX,
+        properties: capitalizeKeys({
+          environment: ENVIRONMENT,
+          ...(authValues && { auth: authValues }),
+          build,
+          authDiagnostics,
+          silentFlowDiagnostics: silentFlowDiagnostics ?? { silentFlows: [] },
+        }),
+      },
     );
   };
 

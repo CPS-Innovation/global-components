@@ -10,6 +10,7 @@ const validUserData: UserData = {
   userId: 42,
   selectedCpsAreaId: 7,
   homeUnit: { unitId: 10, unit: "UnitX", areaId: 3, area: "AreaY", areaGroupId: 1, areaGroup: "GroupZ" },
+  allocatedUnits: [],
 };
 
 describe("initialiseUserDataHint", () => {
