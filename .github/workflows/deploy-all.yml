@@ -23,6 +23,6 @@ jobs:
     needs: validate-branch
     uses: ./.github/workflows/sub-workflow-core-deploy.yml
     with:
-      environments: '["unstable", "accessibility", "dev", "test", "staging", "prod"]'
+      environments: '["accessibility", "dev", "test", "prod"]'
     secrets:
       BLOB_STORAGE_CONNECTION_STRING: ${{ secrets.BLOB_STORAGE_CONNECTION_STRING }}

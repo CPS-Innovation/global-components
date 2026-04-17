@@ -110,7 +110,17 @@ const initialise = async (window: Window & typeof globalThis) => {
     });
     trackException = _trackException;
 
-    const { initialiseAuthForContext } = initialiseAuth({ config, flags, onError: trackException, diagnosticsCollector, addSilentFlowDiagnostics, getOperationId, register, registerAuthWithAnalytics, setAuthHint });
+    const { initialiseAuthForContext } = initialiseAuth({
+      config,
+      flags,
+      onError: trackException,
+      diagnosticsCollector,
+      addSilentFlowDiagnostics,
+      getOperationId,
+      register,
+      registerAuthWithAnalytics,
+      setAuthHint,
+    });
     const { initialiseCaseDetailsDataForContext, initialiseCaseDetailsDataForContextOptimistic } = initialiseCaseDetailsData({
       config,
       handover,
@@ -121,7 +131,7 @@ const initialise = async (window: Window & typeof globalThis) => {
       mergeTags,
     });
     const { initialiseCorrelationIdsForContext } = initialiseCorrelationIds({ register, registerCorrelationIdsWithAnalytics });
-    const { initialiseContextForContext } = initialiseContext({ window, config, register, resetContextSpecificTags });
+    const { initialiseContextForContext } = initialiseContext({ window, config, handover, register, resetContextSpecificTags });
     const { initialiseOutSystemsShowAlertForContext } = initialiseOutSystemsShowAlert({ config, authHint, preview });
     const { initialiseUserDataForContext } = initialiseUserData({ config, userDataHint, setUserDataHint, trackEvent, register });
 

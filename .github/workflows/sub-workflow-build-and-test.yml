@@ -79,17 +79,18 @@ jobs:
           pnpm --filter cps-global-components run rollup --intro "$BUILD_INFO"
 
       - run: |
-          cp -r ./packages/cps-global-components/dist/cps-global-components.js ./e2e/harness
+          cp -r ./packages/cps-global-components/dist/global-components.js ./e2e/harness
           pnpm --filter e2e test
 
       - run: |
           rm -rf ./to-deploy
           mkdir -p ./to-deploy
-          cp ./packages/cps-global-components/dist/cps-global-components.js ./to-deploy
-          cp ./packages/cps-global-components/dist/cps-global-components.js.map ./to-deploy
+          cp ./packages/cps-global-components/dist/global-components.js ./to-deploy
+          cp ./packages/cps-global-components/dist/global-components.js.map ./to-deploy
+          cp ./packages/cps-global-script-redirect/dist/cps-global-components.js ./to-deploy
           cp ./packages/cps-global-os-handover/dist/auth-handover.js ./to-deploy
           cp ./packages/cps-global-os-handover/dist/auth-handover.js.map ./to-deploy
-          cp ./packages/cps-global-script-redirect/dist/script-redirect.js ./to-deploy
+          cp ./msal-support/global-components-msal-redirect.html ./to-deploy
           cp -r ./packages/cps-global-preview/dist ./to-deploy/preview
           cp -r ./packages/cps-global-accessibility/dist ./to-deploy/accessibility
 

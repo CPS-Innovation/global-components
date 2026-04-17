@@ -87,7 +87,7 @@
       ]
     },
     {
-      "msalRedirectUrl": "https://polaris-qa-notprod.cps.gov.uk/polaris-ui/build-version.txt",
+      "msalRedirectUrl": "https://polaris-qa-notprod.cps.gov.uk/global-components/dev/global-components-msal-redirect.html",
       "contexts": [
         {
           "path": "https://polaris-qa-notprod.cps.gov.uk/polaris-ui/case-details/(?<urn>[^/]+)/(?<caseId>\\d+)",
