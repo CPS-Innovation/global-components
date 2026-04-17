@@ -216,7 +216,13 @@ describe("initialiseAiAnalytics", () => {
           userData: {
             userId: 42,
             selectedCpsAreaId: 9,
+            hasViewNationalChargingTasksRight: true,
             homeUnit: { unitId: 10, unit: "UnitX", areaId: 3, area: "AreaY", areaGroupId: 1, areaGroup: "GroupZ" },
+            allocatedUnits: [
+              { areaIsSensitive: true },
+              { areaIsSensitive: true },
+              { areaIsSensitive: false },
+            ],
           },
         },
       };
@@ -227,7 +233,39 @@ describe("initialiseAiAnalytics", () => {
       await Promise.resolve();
 
       const properties = mockTrackPageView.mock.calls[0][0].properties;
-      expect(properties.User).toEqual({ UserId: 42, AreaId: 3, Area: "AreaY" });
+      expect(properties.User).toEqual({
+        UserId: 42,
+        AreaId: 3,
+        Area: "AreaY",
+        HasViewNationalChargingTasksRight: true,
+        CountSensitiveUnits: 2,
+        CountNotSensitiveUnits: 1,
+      });
+    });
+
+    it("should default counts to 0 when allocatedUnits is undefined", async () => {
+      const userDataHint = {
+        found: true as const,
+        result: {
+          timestamp: 123,
+          userData: {
+            userId: 42,
+            selectedCpsAreaId: 9,
+            homeUnit: { areaId: 3, area: "AreaY" },
+          },
+        },
+      };
+      const { registerAuthWithAnalytics, trackPageView } = initialiseAiAnalytics({ ...makeProps(), userDataHint: userDataHint as any });
+
+      registerAuthWithAnalytics({ isAuthed: true, username: "alice", name: "Alice", groups: [], objectId: "obj-1" });
+      trackPageView({ context: makeContext() });
+      await Promise.resolve();
+
+      const properties = mockTrackPageView.mock.calls[0][0].properties;
+      expect(properties.User).toMatchObject({
+        CountSensitiveUnits: 0,
+        CountNotSensitiveUnits: 0,
+      });
     });
 
     it("should omit User when userDataHint is absent", async () => {
