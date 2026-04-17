@@ -41,7 +41,10 @@ AppPageViews
         tolong(parse_url(Url)["Query Parameters"]["CMSCaseId"]),
         tolong(extract(@"[/=](\d{8})(\D|$)", 1, Url)),
         tolong(tostring(parsed.CaseId))),
-    User_UserId = User["UserId"],
-    User_AreaId = User["AreaId"],
-    User_Area = User["Area"]
+        User_UserId = toint(User["UserId"]),
+        User_AreaId = toint(User["AreaId"]),
+        User_Area = tostring(User["Area"]),
+        User_HasViewNationalChargingTasksRight = tobool(User["HasViewNationalChargingTasksRight"]),
+        User_CountSensitiveUnits = toint(User["CountSensitiveUnits"]),
+        User_CountNotSensitiveUnits = toint(User["CountNotSensitiveUnits"])
 | project-away parsed, Build, Auth, Context, CorrelationIds, User
