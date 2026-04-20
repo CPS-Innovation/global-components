@@ -5,6 +5,7 @@ import { initialiseMockAnalytics } from "./initialise-mock-analytics";
 import { initialiseAiAnalytics } from "./initialise-ai-analytics";
 import { Result } from "../../utils/Result";
 import { AuthHint } from "../state/auth-hint/initialise-auth-hint";
+import { UserDataHint } from "../state/user-data/UserData";
 import type { AdDiagnosticsCollector } from "../auth/ad-diagnostics-collector";
 import type { SilentFlowDiagnostics } from "../diagnostics/silent-flow-diagnostics";
 
@@ -14,11 +15,12 @@ type Props = {
   build: Build;
   flags: ApplicationFlags;
   authHint?: Result<AuthHint>;
+  userDataHint?: Result<UserDataHint>;
   diagnosticsCollector?: AdDiagnosticsCollector;
   silentFlowDiagnostics?: SilentFlowDiagnostics;
 };
 
 export type Analytics = ReturnType<typeof initialiseAnalytics>;
 
-export const initialiseAnalytics = ({ window, config, build, flags, authHint, diagnosticsCollector, silentFlowDiagnostics }: Props) =>
-  flags.e2eTestMode.isE2eTestMode ? initialiseMockAnalytics() : initialiseAiAnalytics({ window, config, build, authHint, diagnosticsCollector, silentFlowDiagnostics });
+export const initialiseAnalytics = ({ window, config, build, flags, authHint, userDataHint, diagnosticsCollector, silentFlowDiagnostics }: Props) =>
+  flags.e2eTestMode.isE2eTestMode ? initialiseMockAnalytics() : initialiseAiAnalytics({ window, config, build, authHint, userDataHint, diagnosticsCollector, silentFlowDiagnostics });

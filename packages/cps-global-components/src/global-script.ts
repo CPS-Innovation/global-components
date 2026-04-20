@@ -24,6 +24,8 @@ import { initialiseOutSystemsReconcileAuth } from "./services/outsystems-shim/in
 import { initialiseOutSystemsShowAlert } from "./services/outsystems-shim/outsystems-show-alert";
 import { initialiseNavigateCms } from "./services/navigate-cms/initialise-navigate-cms";
 import { initialiseAuthHint } from "./services/state/auth-hint/initialise-auth-hint";
+import { initialiseUserDataHint } from "./services/state/user-data/initialise-user-data-hint";
+import { initialiseUserData } from "./services/state/user-data/initialise-user-data";
 import { createAdDiagnosticsCollector } from "./services/auth/ad-diagnostics-collector";
 import { initialiseDiagnostics } from "./services/diagnostics/initialise-diagnostics";
 import { initialiseTabTitle } from "./services/browser/tab-title/initialise-tab-title";
@@ -61,11 +63,12 @@ const initialise = async (window: Window & typeof globalThis) => {
     const flags = initialiseApplicationFlags({ window, rootUrl, register });
     initialiseOutSystemsReconcileAuth({ window, flags });
 
-    const [{ handover, setNextHandover }, preview, settings, { authHint, setAuthHint }] = await Promise.all([
+    const [{ handover, setNextHandover }, preview, settings, { authHint, setAuthHint }, { userDataHint, setUserDataHint }] = await Promise.all([
       initialiseHandover({ rootUrl, register }),
       initialisePreview({ rootUrl, register }),
       initialiseSettings({ rootUrl }),
       initialiseAuthHint({ rootUrl, register }),
+      initialiseUserDataHint({ rootUrl, register }),
       initialiseCmsSessionHint({ rootUrl, flags, register }),
     ]);
 
@@ -101,12 +104,23 @@ const initialise = async (window: Window & typeof globalThis) => {
       build,
       flags,
       authHint,
+      userDataHint,
       diagnosticsCollector,
       silentFlowDiagnostics,
     });
     trackException = _trackException;
 
-    const { initialiseAuthForContext } = initialiseAuth({ config, flags, onError: trackException, diagnosticsCollector, addSilentFlowDiagnostics, getOperationId, register, registerAuthWithAnalytics, setAuthHint });
+    const { initialiseAuthForContext } = initialiseAuth({
+      config,
+      flags,
+      onError: trackException,
+      diagnosticsCollector,
+      addSilentFlowDiagnostics,
+      getOperationId,
+      register,
+      registerAuthWithAnalytics,
+      setAuthHint,
+    });
     const { initialiseCaseDetailsDataForContext, initialiseCaseDetailsDataForContextOptimistic } = initialiseCaseDetailsData({
       config,
       handover,
@@ -117,8 +131,9 @@ const initialise = async (window: Window & typeof globalThis) => {
       mergeTags,
     });
     const { initialiseCorrelationIdsForContext } = initialiseCorrelationIds({ register, registerCorrelationIdsWithAnalytics });
-    const { initialiseContextForContext } = initialiseContext({ window, config, register, resetContextSpecificTags });
+    const { initialiseContextForContext } = initialiseContext({ window, config, handover, register, resetContextSpecificTags });
     const { initialiseOutSystemsShowAlertForContext } = initialiseOutSystemsShowAlert({ config, authHint, preview });
+    const { initialiseUserDataForContext } = initialiseUserData({ config, userDataHint, setUserDataHint, trackEvent, register });
 
     runNowAndOnNavigation(() => {
       try {
@@ -133,6 +148,7 @@ const initialise = async (window: Window & typeof globalThis) => {
 
         const authPromise = initialiseAuthForContext(context);
         authPromise.then(({ auth }) => initialiseOutSystemsShowAlertForContext({ context, auth })).catch(handleError);
+        authPromise.then(({ getToken }) => initialiseUserDataForContext({ context, getToken, correlationIds })).catch(handleError);
 
         const caseIdentifiersPromise = caseIdentifiersWaiter.waitForChange();
         caseIdentifiersPromise

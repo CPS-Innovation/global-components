@@ -25,6 +25,7 @@
   "FEATURE_FLAG_ENABLE_INTRUSIVE_AD_LOGIN": false,
   "SSO_SILENT_DELAY_MS": 2000,
   "COLLECT_AD_DIAGNOSTICS_IN_PAGE_VIEW": true,
+  "USER_DATA_REFRESH_PERIOD_MINS": 120,
   "CONTEXTS": [
     {
       "headerCustomCssClasses": "header",
@@ -89,7 +90,7 @@
       ]
     },
     {
-      "msalRedirectUrl": "https://polaris.cps.gov.uk/polaris-ui/build-version.txt",
+      "msalRedirectUrl": "https://polaris.cps.gov.uk/global-components/prod/global-components-msal-redirect.html",
       "contexts": [
         {
           "path": "https://polaris.cps.gov.uk/polaris-ui/case-details/(?<urn>[^/]+)/(?<caseId>\\d+)",

@@ -10,6 +10,7 @@ import { AuthResult, KnownErrorType } from "../auth/AuthResult";
 import { capitalizeKeys } from "../../utils/capitalize-keys";
 import { Result } from "../../utils/Result";
 import { AuthHint } from "../state/auth-hint/initialise-auth-hint";
+import { UserDataHint } from "../state/user-data/UserData";
 import type { AdDiagnosticsCollector } from "../auth/ad-diagnostics-collector";
 import type { SilentFlowDiagnostics } from "../diagnostics/silent-flow-diagnostics";
 
@@ -20,6 +21,7 @@ type Props = {
   config: Config;
   build: Build;
   authHint?: Result<AuthHint>;
+  userDataHint?: Result<UserDataHint>;
   diagnosticsCollector?: AdDiagnosticsCollector;
   silentFlowDiagnostics?: SilentFlowDiagnostics;
 };
@@ -38,6 +40,7 @@ export const initialiseAiAnalytics = ({
   config: { APP_INSIGHTS_CONNECTION_STRING, ENVIRONMENT, COLLECT_AD_DIAGNOSTICS_IN_PAGE_VIEW },
   build,
   authHint,
+  userDataHint,
   diagnosticsCollector,
   silentFlowDiagnostics,
 }: Props) => {
@@ -157,6 +160,16 @@ export const initialiseAiAnalytics = ({
       await authReady;
       const caseId = currentCaseId;
       const authDiagnostics = COLLECT_AD_DIAGNOSTICS_IN_PAGE_VIEW ? getDiagnostics() : undefined;
+      const user = userDataHint?.found
+        ? {
+            userId: userDataHint.result.userData.userId,
+            areaId: userDataHint.result.userData.homeUnit.areaId,
+            area: userDataHint.result.userData.homeUnit.area,
+            hasViewNationalChargingTasksRight: userDataHint.result.userData.hasViewNationalChargingTasksRight,
+            countSensitiveUnits: userDataHint.result.userData.allocatedUnits?.filter(u => u.areaIsSensitive).length ?? 0,
+            countNotSensitiveUnits: userDataHint.result.userData.allocatedUnits?.filter(u => !u.areaIsSensitive).length ?? 0,
+          }
+        : undefined;
       const arg = {
         properties: capitalizeKeys({
           environment: ENVIRONMENT,
@@ -165,6 +178,7 @@ export const initialiseAiAnalytics = ({
           context: { found, contextIds },
           correlationIds: correlationIdValues,
           ...(caseId && { caseId }),
+          ...(user && { user }),
           ...(authDiagnostics && { authDiagnostics }),
         }),
       };
@@ -180,7 +194,16 @@ export const initialiseAiAnalytics = ({
     const authDiagnostics = getDiagnostics();
     appInsights.trackException(
       { exception },
-      { source: STORAGE_PREFIX, properties: capitalizeKeys({ environment: ENVIRONMENT, ...(authValues && { auth: authValues }), build, authDiagnostics, silentFlowDiagnostics: silentFlowDiagnostics ?? { silentFlows: [] } }) },
+      {
+        source: STORAGE_PREFIX,
+        properties: capitalizeKeys({
+          environment: ENVIRONMENT,
+          ...(authValues && { auth: authValues }),
+          build,
+          authDiagnostics,
+          silentFlowDiagnostics: silentFlowDiagnostics ?? { silentFlows: [] },
+        }),
+      },
     );
   };
 
