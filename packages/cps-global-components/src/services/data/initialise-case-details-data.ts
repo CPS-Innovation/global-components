@@ -14,6 +14,7 @@ import { MonitoringCodesSchema } from "./MonitoringCode";
 import { fetchAndValidate } from "../fetch/fetch-and-validate";
 import { CorrelationIds } from "../correlation/CorrelationIds";
 import { Result } from "../../utils/Result";
+import { ExceptionMeta } from "../analytics/ExceptionMeta";
 
 type Props = {
   config: Config;
@@ -21,6 +22,7 @@ type Props = {
   setNextHandover: (data: Handover) => void;
   setNextRecentCases: (caseDetails: CaseDetails | undefined) => void;
   trackEvent: (detail: AnalyticsEventData) => void;
+  trackException: (exception: Error, meta: ExceptionMeta) => void;
   register: Register;
   mergeTags: MergeTags;
 };
@@ -31,6 +33,7 @@ export const initialiseCaseDetailsData = ({
   setNextHandover,
   setNextRecentCases,
   trackEvent,
+  trackException,
   register,
   mergeTags,
 }: Props) => {
@@ -89,6 +92,7 @@ export const initialiseCaseDetailsData = ({
       .catch(error => {
         if (isStale()) return undefined;
         register({ caseDetails: { found: false, error } });
+        trackException(error instanceof Error ? error : new Error(String(error)), { type: "data", code: "case-details" });
         return undefined;
       });
 
@@ -103,6 +107,7 @@ export const initialiseCaseDetailsData = ({
           .catch(error => {
             if (isStale()) return undefined;
             register({ caseMonitoringCodes: { found: false, error } });
+            trackException(error instanceof Error ? error : new Error(String(error)), { type: "data", code: "case-monitoring-codes" });
             return undefined;
           });
 

@@ -31,12 +31,14 @@ const flushPromises = () => new Promise(resolve => setTimeout(resolve, 0));
 describe("initialiseUserData", () => {
   let setUserDataHint: jest.Mock;
   let trackEvent: jest.Mock;
+  let trackException: jest.Mock;
   let register: jest.Mock;
 
   beforeEach(() => {
     jest.clearAllMocks();
     setUserDataHint = jest.fn();
     trackEvent = jest.fn();
+    trackException = jest.fn();
     register = jest.fn();
   });
 
@@ -46,6 +48,7 @@ describe("initialiseUserData", () => {
       userDataHint: { found: false, error: new Error("no hint") },
       setUserDataHint,
       trackEvent,
+      trackException,
       register,
     });
 
@@ -61,6 +64,7 @@ describe("initialiseUserData", () => {
       userDataHint: { found: false, error: new Error("no hint") },
       setUserDataHint,
       trackEvent,
+      trackException,
       register,
     });
 
@@ -80,6 +84,7 @@ describe("initialiseUserData", () => {
       userDataHint: freshHint,
       setUserDataHint,
       trackEvent,
+      trackException,
       register,
     });
 
@@ -98,6 +103,7 @@ describe("initialiseUserData", () => {
       userDataHint: staleHint,
       setUserDataHint,
       trackEvent,
+      trackException,
       register,
     });
 
@@ -133,6 +139,7 @@ describe("initialiseUserData", () => {
       userDataHint: { found: false, error: new Error("no hint") },
       setUserDataHint,
       trackEvent,
+      trackException,
       register,
     });
 
@@ -153,6 +160,7 @@ describe("initialiseUserData", () => {
       userDataHint: { found: false, error: new Error("no hint") },
       setUserDataHint,
       trackEvent,
+      trackException,
       register,
     });
 
@@ -170,6 +178,7 @@ describe("initialiseUserData", () => {
       userDataHint: { found: false, error: new Error("no hint") },
       setUserDataHint,
       trackEvent,
+      trackException,
       register,
     });
 
@@ -193,6 +202,7 @@ describe("initialiseUserData", () => {
       userDataHint: { found: false, error: new Error("no hint") },
       setUserDataHint,
       trackEvent,
+      trackException,
       register,
     });
 

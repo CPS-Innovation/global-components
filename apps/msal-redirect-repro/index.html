@@ -59,6 +59,13 @@
           <option value="v4">v4.30.0</option>
         </select>
       </label>
+      <label>Cache location:
+        <select id="hostCacheLocation">
+          <option value="localStorage">localStorage (shared with guest)</option>
+          <option value="sessionStorage">sessionStorage (isolated from guest)</option>
+        </select>
+      </label>
+      <label>Iframe timeout (ms): <input type="number" id="hostIframeTimeout" value="6000" min="500" max="60000" step="500"></label>
     </div>
 
     <div class="config guest">
@@ -77,6 +84,8 @@
       <label>SSO_SILENT_DELAY_MS: <input type="number" id="guestSsoSilentDelayMs" value="0" min="0" max="30000" step="100"></label>
       <label><input type="checkbox" id="guestEnableIntrusiveAdLogin"> FEATURE_FLAG_ENABLE_INTRUSIVE_AD_LOGIN (allow MultipleIdentities fall-through)</label>
       <label><input type="checkbox" id="guestAllowPopupFallback"> Allow loginPopup fallback on silent failure</label>
+      <label>Iframe timeout (ms): <input type="number" id="guestIframeTimeout" value="10000" min="500" max="60000" step="500"></label>
+      <label><input type="checkbox" id="guestAllowTopNav"> Allow iframe top-navigation (patches sandbox with <code>allow-top-navigation</code>)</label>
       <label>Override SID: <input type="text" id="guestOverrideSid" value="" placeholder="blank = use account's cached sid (if any)"></label>
       <label>Override loginHint: <input type="text" id="guestOverrideLoginHint" value="" placeholder="blank = none; e.g. user@tenant.onmicrosoft.com"></label>
       <p class="hint"><strong>SID override</strong>: forces <code>sid=&lt;value&gt;</code> on silent flows. Garbage value reproduces <code>AADSTS160021</code>.<br>
@@ -102,7 +111,9 @@
     <h3>Host Controls (single-app rig, unchanged)</h3>
     <button class="host" onclick="startRepro()">Host: Start Repro</button>
     <button class="host" onclick="startAutoRepro()">Host: Auto Repro (abort + redirect + retry)</button>
+    <button class="host" onclick="hostAutoRepro2Start()">Host: Auto Repro 2 (redirect + guest silent)</button>
     <button class="host" onclick="doLoginPopup()">Host: Login via Popup</button>
+    <button class="host" onclick="hostLoginRedirect()">Host: loginRedirect (full-page)</button>
     <button class="host" onclick="checkHostState()">Host: Check State</button>
     <button class="host" onclick="clearHostState()">Host: Clear State</button>
   </div>
@@ -113,6 +124,8 @@
     <button class="guest" onclick="guestAcquireTokenSilent()">Guest: acquireTokenSilent</button>
     <button class="guest" onclick="guestSilentLogin()">Guest: ssoSilent</button>
     <button class="guest" onclick="guestRunProdFlow()">Guest: Run Prod Flow (getAdUserAccount)</button>
+    <button class="guest" onclick="guestLoginRedirect()">Guest: loginRedirect (full-page)</button>
+    <button class="guest" onclick="guestSsoSilentWithHostSid()">Guest: ssoSilent (using Host's sid)</button>
     <button class="guest" onclick="checkGuestState()">Guest: Check State</button>
     <button class="guest" onclick="deleteGuestRefreshToken()">Guest: Delete Refresh Token</button>
     <button class="guest" onclick="deleteGuestAccessToken()">Guest: Delete Access Token</button>
@@ -150,7 +163,22 @@
     <label><input type="checkbox" id="s1PreDeleteGuestRT" checked> Pre-delete guest refresh token (forces iframe /authorize path)</label>
     <br>
     <button onclick="scenario1Start()">Run S1</button>
+
+    <h3>S2: Abandoned silent flow diagnostic (guest only, no host)</h3>
+    <p class="hint">Fires a guest <code>ssoSilent</code>, aborts it mid-flight by redirecting to self, then fires one more attempt and reports the result. After S2 completes, manually click <strong>Guest: ssoSilent</strong> to test the third attempt yourself. Captures storage snapshots and diffs to isolate client-side vs server-side effects.</p>
+    <label>Abort delay (ms): <input id="s2AbortDelay" type="number" value="200" min="10" max="5000" step="50"></label>
+    <br>
+    <button onclick="scenario2Start()">Run S2</button>
+    <p class="hint"><strong>Flow:</strong> abort → attempt 2 (automated) → you click Guest: ssoSilent (attempt 3).<br>
+    <strong>What it captures:</strong> storage snapshots pre-abort, post-abort, and post-attempt-2 with diffs between each. For server-side diagnosis, capture a HAR while running.</p>
+
     <p class="hint">Timing modes: <strong>after</strong> = host finishes processing its redirect, then guest runs (sequential, with optional gap between). <strong>parallel</strong> = host handleRedirectPromise and guest flow start concurrently via Promise.all — closest to production boot. <strong>before</strong> = guest flow runs first against in-flight redirect state (URL has <code>?code=...</code>, shared sessionStorage still dirty), then host handleRedirectPromise cleans up afterwards. The <em>gap</em> input inserts a delay between the two actions in "after" and "before" modes; in "parallel" mode it's ignored.</p>
+
+    <h3>S3: Guest ssoSilent abort → host loginRedirect → guest ssoSilent retry</h3>
+    <p class="hint">Fires a guest <code>ssoSilent</code>, aborts it mid-flight (redirect to self), then on return the <strong>host</strong> does a full-page <code>loginRedirect</code> (simulating Polaris's AD flow), and on return from that the guest retries <code>ssoSilent</code>. Tests the full production sequence: our silent flow gets abandoned by a host-app redirect, the host completes its own AD flow, then we retry.</p>
+    <label>Abort delay (ms): <input id="s3AbortDelay" type="number" value="200" min="10" max="5000" step="50"></label>
+    <br>
+    <button onclick="scenario3Start()">Run S3</button>
   </div>
 
   <h3>Results</h3>
@@ -217,6 +245,8 @@
     const getHostConfig = () => ({
       role: "host",
       msalVersion: document.getElementById("hostMsalVersion").value,
+      cacheLocation: document.getElementById("hostCacheLocation").value,
+      iframeTimeout: parseInt(document.getElementById("hostIframeTimeout").value) || 6000,
       clientId: document.getElementById("hostClientId").value,
       authority: document.getElementById("hostAuthority").value,
       redirectUri: document.getElementById("hostRedirectUri").value || window.location.origin + window.location.pathname,
@@ -236,6 +266,8 @@
       ssoSilentDelayMs: parseInt(document.getElementById("guestSsoSilentDelayMs").value) || 0,
       enableIntrusiveAdLogin: document.getElementById("guestEnableIntrusiveAdLogin").checked,
       allowPopupFallback: document.getElementById("guestAllowPopupFallback").checked,
+      iframeTimeout: parseInt(document.getElementById("guestIframeTimeout").value) || 10000,
+      allowTopNav: document.getElementById("guestAllowTopNav").checked,
       overrideSid: document.getElementById("guestOverrideSid").value.trim() || null,
       overrideLoginHint: document.getElementById("guestOverrideLoginHint").value.trim() || null,
     });
@@ -246,6 +278,8 @@
       s1Timing: document.getElementById("s1Timing").value,
       s1Gap: parseInt(document.getElementById("s1Gap").value) || 0,
       s1PreDeleteGuestRT: document.getElementById("s1PreDeleteGuestRT").checked,
+      s2AbortDelay: parseInt(document.getElementById("s2AbortDelay").value) || 200,
+      s3AbortDelay: parseInt(document.getElementById("s3AbortDelay").value) || 200,
     });
 
     let lastSaveLogged = 0;
@@ -273,6 +307,8 @@
           document.getElementById("hostAuthority").value = host.authority || "https://login.microsoftonline.com/common";
           document.getElementById("hostRedirectUri").value = host.redirectUri || "";
           document.getElementById("hostMsalVersion").value = host.msalVersion || "v2";
+          document.getElementById("hostCacheLocation").value = host.cacheLocation || "localStorage";
+          document.getElementById("hostIframeTimeout").value = host.iframeTimeout ?? 6000;
           document.getElementById("redirectDelay").value = host.redirectDelay ?? 500;
           document.getElementById("redirectTarget").value = host.redirectTarget || "self";
           document.getElementById("enableRedirect").checked = host.enableRedirect ?? true;
@@ -289,6 +325,8 @@
           document.getElementById("guestSsoSilentDelayMs").value = guest.ssoSilentDelayMs ?? 0;
           document.getElementById("guestEnableIntrusiveAdLogin").checked = guest.enableIntrusiveAdLogin ?? false;
           document.getElementById("guestAllowPopupFallback").checked = guest.allowPopupFallback ?? false;
+          document.getElementById("guestIframeTimeout").value = guest.iframeTimeout ?? 10000;
+          document.getElementById("guestAllowTopNav").checked = guest.allowTopNav ?? false;
           document.getElementById("guestOverrideSid").value = guest.overrideSid || "";
           document.getElementById("guestOverrideLoginHint").value = guest.overrideLoginHint || "";
         }
@@ -301,6 +339,8 @@
           document.getElementById("s1Timing").value = scenarios.s1Timing ?? "after";
           document.getElementById("s1Gap").value = scenarios.s1Gap ?? 0;
           document.getElementById("s1PreDeleteGuestRT").checked = scenarios.s1PreDeleteGuestRT ?? true;
+          document.getElementById("s2AbortDelay").value = scenarios.s2AbortDelay ?? 200;
+          document.getElementById("s3AbortDelay").value = scenarios.s3AbortDelay ?? 200;
         }
       } catch {}
     };
@@ -347,9 +387,10 @@
           redirectUri: config.redirectUri,
         },
         cache: {
-          cacheLocation: "localStorage",
+          cacheLocation: config.cacheLocation || "localStorage",
         },
         system: {
+          loadFrameTimeout: config.iframeTimeout || undefined,
           loggerOptions: {
             loggerCallback: (level, message) => {
               if (verbose && level <= lib.LogLevel.Verbose) {
@@ -368,59 +409,112 @@
       return msalInstance;
     };
 
+    const patchIframeSandboxIfEnabled = () => {
+      const config = getGuestConfig();
+      if (!config.allowTopNav) {
+        return null;
+      }
+      const originalSetAttribute = HTMLIFrameElement.prototype.setAttribute;
+      HTMLIFrameElement.prototype.setAttribute = function (name, value) {
+        if (name === "sandbox" && typeof value === "string" && value.includes("allow-scripts") && !value.includes("allow-top-navigation")) {
+          const patched = value + " allow-top-navigation";
+          log(`  [sandbox-patch] intercepted setAttribute: "${value}" → "${patched}"`);
+          return originalSetAttribute.call(this, name, patched);
+        }
+        return originalSetAttribute.call(this, name, value);
+      };
+
+      // Block any top-level navigation with a beforeunload dialog.
+      // When AAD's iframe JS tries window.top.location = ..., the browser
+      // will show "Leave site?" — click "Cancel" to stay on the page, then
+      // check DevTools Network tab for the pending /authorize request URL
+      // (it shows what AAD was trying to redirect to, including prompt= etc).
+      const beforeUnloadHandler = (e) => {
+        log(`  [top-nav blocked] AAD triggered a top-level navigation — browser is showing Leave Site dialog`);
+        log(`  [top-nav blocked] Click CANCEL, then check the Network tab for the destination URL`);
+        e.preventDefault();
+        e.returnValue = "";
+      };
+      window.addEventListener("beforeunload", beforeUnloadHandler);
+      log(`  [sandbox-patch] beforeunload guard active — top-navigation will trigger Leave Site dialog`);
+
+      return {
+        disconnect: () => {
+          HTMLIFrameElement.prototype.setAttribute = originalSetAttribute;
+          window.removeEventListener("beforeunload", beforeUnloadHandler);
+        },
+      };
+    };
+
     // ============================================================
-    // Cache manipulation — surgical deletes against localStorage
+    // Cache manipulation — works across both localStorage and sessionStorage
+    // since MSAL can be configured to use either (see Host cacheLocation)
     // ============================================================
 
-    // Return all msal-related localStorage keys for a given clientId
+    // Pair of storage objects we inspect/manipulate, with names for logging
+    const STORAGES = [
+      { name: "localStorage", store: localStorage },
+      { name: "sessionStorage", store: sessionStorage },
+    ];
+
+    // Return all msal-related keys for a given clientId, across both storages.
+    // Returns [{ key, storage, store }] tuples.
     const getMsalKeysForClient = (clientId) => {
       if (!clientId) return [];
-      return Object.keys(localStorage).filter(k => {
-        const lower = k.toLowerCase();
-        if (!lower.startsWith("msal.") && !lower.includes(clientId.toLowerCase())) return false;
-        return lower.includes(clientId.toLowerCase());
-      });
+      const lower = clientId.toLowerCase();
+      const result = [];
+      for (const { name, store } of STORAGES) {
+        for (const k of Object.keys(store)) {
+          if (k.toLowerCase().includes(lower)) {
+            result.push({ key: k, storage: name, store });
+          }
+        }
+      }
+      return result;
     };
 
     // Find the token index key for a client. MSAL 4.x uses a cache-version
     // prefix like "msal.2.token.keys.<clientId>". Rather than hard-coding the
     // version, pattern-match so this works across MSAL upgrades.
+    // Returns { key, storage, store } or null.
     const findTokenIndexKey = (clientId) => {
       if (!clientId) return null;
       const suffix = `.token.keys.${clientId}`;
-      return Object.keys(localStorage).find(k => k.startsWith("msal") && k.endsWith(suffix)) || null;
+      for (const { name, store } of STORAGES) {
+        const hit = Object.keys(store).find(k => k.startsWith("msal") && k.endsWith(suffix));
+        if (hit) return { key: hit, storage: name, store };
+      }
+      return null;
     };
 
     // Delete token entries of a given credential type for a client.
     // credentialType: "refreshtoken" | "accesstoken" | "idtoken" | null (all)
     const deleteTokensForClient = (clientId, credentialType) => {
       if (!clientId) { log("ERROR: clientId required"); return []; }
-      const allKeys = getMsalKeysForClient(clientId);
+      const allEntries = getMsalKeysForClient(clientId);
       const deleted = [];
-      allKeys.forEach(k => {
-        const lower = k.toLowerCase();
+      allEntries.forEach(({ key, storage, store }) => {
+        const lower = key.toLowerCase();
         // Skip the token index entry — handled separately below
         if (lower.includes(".token.keys.")) return;
         if (credentialType) {
           if (lower.includes(credentialType)) {
-            localStorage.removeItem(k);
-            deleted.push(k);
+            store.removeItem(key);
+            deleted.push(`${key} [${storage}]`);
           }
         } else {
           // null means all token entries (but NOT account / interaction state)
           if (lower.includes("accesstoken") || lower.includes("idtoken") || lower.includes("refreshtoken")) {
-            localStorage.removeItem(k);
-            deleted.push(k);
+            store.removeItem(key);
+            deleted.push(`${key} [${storage}]`);
           }
         }
       });
 
       // Update the token index so MSAL doesn't hold dangling references.
-      // The index key is found by pattern so we survive the msal.2. prefix
-      // (and any future cache version bumps).
-      const indexKey = findTokenIndexKey(clientId);
-      if (indexKey) {
-        const raw = localStorage.getItem(indexKey);
+      const indexEntry = findTokenIndexKey(clientId);
+      if (indexEntry) {
+        const raw = indexEntry.store.getItem(indexEntry.key);
         try {
           const index = JSON.parse(raw);
           if (credentialType) {
@@ -433,12 +527,12 @@
             if (Array.isArray(index.accessToken)) index.accessToken = [];
             if (Array.isArray(index.idToken)) index.idToken = [];
           }
-          localStorage.setItem(indexKey, JSON.stringify(index));
-          log(`  Updated token index at ${indexKey}`);
+          indexEntry.store.setItem(indexEntry.key, JSON.stringify(index));
+          log(`  Updated token index at ${indexEntry.key} [${indexEntry.storage}]`);
         } catch (e) {
           // Shape surprise — blow it away, MSAL will rebuild
-          localStorage.removeItem(indexKey);
-          log(`  Token index had unexpected shape, removed: ${indexKey}`);
+          indexEntry.store.removeItem(indexEntry.key);
+          log(`  Token index had unexpected shape, removed: ${indexEntry.key} [${indexEntry.storage}]`);
         }
       } else {
         log(`  (no token index key found for client ${clientId})`);
@@ -477,10 +571,10 @@
     const dumpClientState = (role, clientId) => {
       log(`--- ${role} MSAL State (clientId=${clientId || "(not set)"}) ---`);
       if (!clientId) { log("  (skipping — no clientId)"); return; }
-      const keys = getMsalKeysForClient(clientId);
-      if (keys.length === 0) { log("  No entries for this client"); return; }
-      keys.forEach(k => {
-        const val = localStorage.getItem(k);
+      const entries = getMsalKeysForClient(clientId);
+      if (entries.length === 0) { log("  No entries for this client (checked both localStorage and sessionStorage)"); return; }
+      entries.forEach(({ key: k, storage, store }) => {
+        const val = store.getItem(k);
         const lower = k.toLowerCase();
         const isTokenEntity =
           lower.includes("accesstoken") || lower.includes("idtoken") || lower.includes("refreshtoken");
@@ -514,10 +608,10 @@
             valSummary = `[opaque, ${val.length} chars]`;
           }
           // If we couldn't pick a type from the key, still show one from the value
-          log(`  ${k}`);
+          log(`  [${storage}] ${k}`);
           log(`      ${valSummary}`);
         } else {
-          log(`  ${k} = ${val.length > 300 ? val.substring(0, 300) + "..." : val}`);
+          log(`  [${storage}] ${k} = ${val && val.length > 300 ? val.substring(0, 300) + "..." : val}`);
         }
       });
     };
@@ -533,39 +627,50 @@
       const host = getHostConfig().clientId;
       const guest = getGuestConfig().clientId;
 
-      // Start with obvious msal.* keys that aren't scoped to a known client
-      const candidateKeys = new Set(
-        Object.keys(localStorage).filter(k => {
-          if (!k.toLowerCase().startsWith("msal")) return false;
-          if (host && k.includes(host)) return false;
-          if (guest && k.includes(guest)) return false;
-          return true;
-        }),
-      );
+      // Collect candidate entries across BOTH storages.
+      // Entry shape: { key, storage, store }
+      const candidates = new Map(); // key `${storage}:${key}` → entry
 
-      // Follow any index-style keys (e.g. msal.account.keys, msal.2.account.keys)
-      // and include the entities they reference, even if those entity keys don't
-      // start with "msal" themselves (MSAL v2 account entities work this way).
-      const indexKeys = Object.keys(localStorage).filter(k => /msal(\.2)?\.account\.keys$/i.test(k));
-      for (const idx of indexKeys) {
-        try {
-          const arr = JSON.parse(localStorage.getItem(idx));
-          if (Array.isArray(arr)) {
-            arr.forEach(ref => {
-              if (host && ref.includes(host)) return;
-              if (guest && ref.includes(guest)) return;
-              candidateKeys.add(ref);
-            });
-          }
-        } catch {}
+      const addCandidate = (key, storage, store) => {
+        candidates.set(`${storage}:${key}`, { key, storage, store });
+      };
+
+      // Start with obvious msal.* keys that aren't scoped to a known client, in both storages
+      for (const { name, store } of STORAGES) {
+        for (const k of Object.keys(store)) {
+          if (!k.toLowerCase().startsWith("msal")) continue;
+          if (host && k.includes(host)) continue;
+          if (guest && k.includes(guest)) continue;
+          addCandidate(k, name, store);
+        }
       }
 
-      const keys = [...candidateKeys].filter(k => localStorage.getItem(k) !== null);
-      if (keys.length === 0) return;
+      // Follow any index-style keys (msal.account.keys, msal.2.account.keys) and
+      // include the entities they reference, even if those entity keys don't
+      // start with "msal" themselves (MSAL v2 account entities work this way).
+      for (const { name, store } of STORAGES) {
+        const indexKeys = Object.keys(store).filter(k => /msal(\.2)?\.account\.keys$/i.test(k));
+        for (const idx of indexKeys) {
+          try {
+            const arr = JSON.parse(store.getItem(idx));
+            if (Array.isArray(arr)) {
+              arr.forEach(ref => {
+                if (host && ref.includes(host)) return;
+                if (guest && ref.includes(guest)) return;
+                // Referenced entity lives in the same storage as the index
+                if (store.getItem(ref) !== null) addCandidate(ref, name, store);
+              });
+            }
+          } catch {}
+        }
+      }
+
+      const entries = [...candidates.values()];
+      if (entries.length === 0) return;
       log(`--- Shared MSAL keys (not scoped to host/guest) ---`);
-      keys.forEach(k => {
-        const val = localStorage.getItem(k);
-        log(`  ${k} = ${val && val.length > 300 ? val.substring(0, 300) + "..." : val}`);
+      entries.forEach(({ key, storage, store }) => {
+        const val = store.getItem(key);
+        log(`  [${storage}] ${key} = ${val && val.length > 300 ? val.substring(0, 300) + "..." : val}`);
       });
     };
 
@@ -734,6 +839,149 @@
       }
     };
 
+    const hostLoginRedirect = async () => {
+      const config = getHostConfig();
+      saveConfig();
+      if (!config.clientId) { log("ERROR: Host Client ID required"); setStatus("Host Client ID required", "fail"); return; }
+
+      const redirectUri = window.location.origin + window.location.pathname;
+      log(`=== Host: loginRedirect (full-page) ===`);
+      log(`  version: ${config.msalVersion}, clientId: ${config.clientId}`);
+      log(`  redirectUri: ${redirectUri}`);
+
+      try {
+        const instance = await createMsalInstance({ ...config, redirectUri }, { verbose: false });
+        await instance.handleRedirectPromise().catch(() => {});
+        sessionStorage.setItem(ACTIVE_SCENARIO_KEY, JSON.stringify({ key: "hostRedirect" }));
+        await instance.loginRedirect({ scopes: ["User.Read"] });
+      } catch (e) {
+        sessionStorage.removeItem(ACTIVE_SCENARIO_KEY);
+        log(`  FAILED: ${e.errorCode || e.name} - ${e.message}`);
+        setStatus(`Host loginRedirect failed: ${e.errorCode || e.name}`, "fail");
+      }
+    };
+
+    const hostRedirectResume = async () => {
+      sessionStorage.removeItem(ACTIVE_SCENARIO_KEY);
+      const config = getHostConfig();
+      const redirectUri = window.location.origin + window.location.pathname;
+      log(`=== Host: loginRedirect — resuming after redirect ===`);
+      log(`  version: ${config.msalVersion}, clientId: ${config.clientId}`);
+
+      const t0 = performance.now();
+      try {
+        const instance = await createMsalInstance({ ...config, redirectUri }, { verbose: false });
+        const result = await instance.handleRedirectPromise();
+        const duration = Math.round(performance.now() - t0);
+        if (result) {
+          instance.setActiveAccount(result.account);
+          log(`  SUCCESS in ${duration}ms — ${result.account?.username}`);
+          setStatus(`Host redirect OK: ${result.account?.username} (${duration}ms)`, "ok");
+        } else {
+          log(`  handleRedirectPromise returned null (${duration}ms)`);
+          setStatus(`Host redirect: no pending redirect (${duration}ms)`, "pending");
+        }
+      } catch (e) {
+        const duration = Math.round(performance.now() - t0);
+        log(`  FAILED in ${duration}ms: ${e.errorCode || e.name} - ${e.message}`);
+        setStatus(`Host redirect FAILED: ${e.errorCode || e.name}`, "fail");
+      }
+    };
+
+    // ============================================================
+    // Host: Auto Repro 2 — host loginRedirect → return → guest ssoSilent
+    // Simpler than S1: no timing modes, no pre-delete RT, no results table,
+    // no acquireTokenSilent step on the guest side. Pure "host does its
+    // interactive, then guest fires one silent, log the outcome."
+    // State machine survives the top-level redirect via sessionStorage.
+    // ============================================================
+    const hostAutoRepro2Start = async () => {
+      const hostConfig = getHostConfig();
+      const guestConfig = getGuestConfig();
+      saveConfig();
+
+      if (!hostConfig.clientId) { log("ERROR: Host Client ID required"); setStatus("Host Client ID required", "fail"); return; }
+      if (!guestConfig.clientId) { log("ERROR: Guest Client ID required"); setStatus("Guest Client ID required", "fail"); return; }
+
+      log(`=== Host: Auto Repro 2 (host redirect → guest silent) ===`);
+      log(`  host: ${hostConfig.msalVersion} (${hostConfig.clientId})`);
+      log(`  guest: ${guestConfig.msalVersion} (${guestConfig.clientId})`);
+
+      // Record state so we can resume after the top-level redirect returns
+      const state = {
+        key: "autoRepro2",
+        runId: Date.now().toString(),
+        startedAt: new Date().toISOString(),
+      };
+      sessionStorage.setItem(ACTIVE_SCENARIO_KEY, JSON.stringify(state));
+
+      log(`  Firing host.loginRedirect()...`);
+      try {
+        const hostInstance = await createMsalInstance(hostConfig, { verbose: false });
+        // Pre-flight handleRedirectPromise in case of stale state
+        await hostInstance.handleRedirectPromise().catch(() => {});
+        await hostInstance.loginRedirect({ scopes: ["User.Read"] });
+        log(`  loginRedirect did not navigate (unexpected)`);
+      } catch (e) {
+        log(`  loginRedirect threw: ${e.errorCode || e.name} - ${e.message}`);
+        sessionStorage.removeItem(ACTIVE_SCENARIO_KEY);
+        setStatus(`Auto Repro 2 failed at host redirect: ${e.errorCode || e.message}`, "fail");
+      }
+    };
+
+    const hostAutoRepro2Resume = async () => {
+      const raw = sessionStorage.getItem(ACTIVE_SCENARIO_KEY);
+      if (!raw) return false;
+      let state;
+      try { state = JSON.parse(raw); } catch { sessionStorage.removeItem(ACTIVE_SCENARIO_KEY); return false; }
+      if (state.key !== "autoRepro2") return false;
+
+      sessionStorage.removeItem(ACTIVE_SCENARIO_KEY);
+      log(`=== Host: Auto Repro 2 resumed after redirect return ===`);
+
+      const hostConfig = getHostConfig();
+      const guestConfig = getGuestConfig();
+
+      // Step 1: complete host redirect processing
+      try {
+        const hostInstance = await createMsalInstance(hostConfig, { verbose: false });
+        const tH = performance.now();
+        const redirectResponse = await hostInstance.handleRedirectPromise();
+        const hostMs = Math.round(performance.now() - tH);
+        if (redirectResponse) {
+          log(`  host handleRedirectPromise: ${redirectResponse.account?.username} (${hostMs}ms)`);
+          hostInstance.setActiveAccount(redirectResponse.account);
+        } else {
+          log(`  host handleRedirectPromise returned null (${hostMs}ms)`);
+        }
+      } catch (e) {
+        log(`  host handleRedirectPromise FAILED: ${e.errorCode || e.name} - ${e.message}`);
+        setStatus(`Auto Repro 2: host handleRedirectPromise failed`, "fail");
+        return true;
+      }
+
+      // Step 2: fire guest ssoSilent
+      log(`  Firing guest.ssoSilent()...`);
+      const guestInstance = await createMsalInstance(guestConfig, { verbose: false });
+      const t0 = performance.now();
+      try {
+        const result = await guestInstance.ssoSilent({ scopes: ["User.Read"] });
+        const duration = Math.round(performance.now() - t0);
+        log(`  guest ssoSilent SUCCESS in ${duration}ms`);
+        log(`  account: ${result.account?.username}`);
+        guestInstance.setActiveAccount(result.account);
+        setStatus(`Auto Repro 2 PASSED (${duration}ms)`, "ok");
+      } catch (e) {
+        const duration = Math.round(performance.now() - t0);
+        const errorCode = e.errorCode || e.name || "unknown";
+        log(`  guest ssoSilent FAILED in ${duration}ms: ${errorCode}`);
+        log(`    message: ${e.message}`);
+        log(`    correlationId: ${e.correlationId || "(none)"}`);
+        setStatus(`Auto Repro 2 FAILED: ${errorCode}`, "fail");
+      }
+      return true;
+    };
+
     // ============================================================
     // Guest controls (cache manipulation only — scenarios land in Stage 2)
     // ============================================================
@@ -773,9 +1021,11 @@
 
       log(`=== Guest: Silent Login (ssoSilent) ===`);
       log(`  version: ${config.msalVersion}, clientId: ${config.clientId}`);
+      if (config.allowTopNav) log(`  [sandbox-patch] allow-top-navigation ENABLED`);
       if (config.overrideSid) log(`  overrideSid: ${config.overrideSid}`);
       if (config.overrideLoginHint) log(`  overrideLoginHint: ${config.overrideLoginHint}`);
 
+      const sandboxObserver = patchIframeSandboxIfEnabled();
       const t0 = performance.now();
       try {
         const instance = await createMsalInstance(config, { verbose: false });
@@ -796,6 +1046,125 @@
         log(`    message: ${e.message}`);
         log(`    correlationId: ${e.correlationId || "(none)"}`);
         setStatus(`Guest ssoSilent FAILED: ${errorCode}`, "fail");
+      } finally {
+        sandboxObserver?.disconnect();
+      }
+    };
+
+    const guestSsoSilentWithHostSid = async () => {
+      const guestConfig = getGuestConfig();
+      const hostConfig = getHostConfig();
+      saveConfig();
+      if (!guestConfig.clientId) { log("ERROR: Guest Client ID required"); return; }
+      if (!hostConfig.clientId) { log("ERROR: Host Client ID required"); return; }
+
+      log(`=== Guest: ssoSilent using Host's sid ===`);
+
+      // Step 1: create host instance to read the host's cached account + sid
+      log(`  Reading host account (clientId: ${hostConfig.clientId})...`);
+      let hostSid;
+      try {
+        const hostInstance = await createMsalInstance(hostConfig, { verbose: false });
+        const hostAccount = hostInstance.getActiveAccount() || hostInstance.getAllAccounts()[0];
+        if (!hostAccount) {
+          log(`  ERROR: No host account found — login via Host first`);
+          setStatus("No host account — login via Host first", "fail");
+          return;
+        }
+        hostSid = hostAccount.idTokenClaims?.sid;
+        log(`  Host account: ${hostAccount.username}`);
+        log(`  Host sid: ${hostSid || "(none in claims)"}`);
+        if (!hostSid) {
+          log(`  ERROR: Host account has no sid claim — cannot proceed`);
+          setStatus("Host account has no sid claim", "fail");
+          return;
+        }
+      } catch (e) {
+        log(`  ERROR reading host account: ${e.message}`);
+        setStatus("Failed to read host account", "fail");
+        return;
+      }
+
+      // Step 2: fire guest ssoSilent with the host's sid
+      log(`  Firing guest ssoSilent with sid=${hostSid}`);
+      const sandboxObserver = patchIframeSandboxIfEnabled();
+      const t0 = performance.now();
+      try {
+        const guestInstance = await createMsalInstance(guestConfig, { verbose: false });
+        const result = await guestInstance.ssoSilent({ scopes: ["User.Read"], sid: hostSid });
+        const duration = Math.round(performance.now() - t0);
+        log(`  SUCCESS in ${duration}ms`);
+        log(`  Account: ${result.account?.username}`);
+        log(`  From cache: ${result.fromCache}`);
+        guestInstance.setActiveAccount(result.account);
+        setStatus(`Guest ssoSilent (host sid) OK: ${result.account?.username} (${duration}ms)`, "ok");
+      } catch (e) {
+        const duration = Math.round(performance.now() - t0);
+        const errorCode = e.errorCode || e.name || "unknown";
+        log(`  FAILED in ${duration}ms: ${errorCode}`);
+        log(`    message: ${e.message}`);
+        log(`    correlationId: ${e.correlationId || "(none)"}`);
+        setStatus(`Guest ssoSilent (host sid) FAILED: ${errorCode}`, "fail");
+      } finally {
+        sandboxObserver?.disconnect();
+      }
+    };
+
+    const guestLoginRedirect = async () => {
+      const config = getGuestConfig();
+      saveConfig();
+      if (!config.clientId) { log("ERROR: Guest Client ID required"); setStatus("Guest Client ID required", "fail"); return; }
+
+      const redirectUri = window.location.origin + window.location.pathname;
+      log(`=== Guest: loginRedirect (full-page) ===`);
+      log(`  version: ${config.msalVersion}, clientId: ${config.clientId}`);
+      log(`  redirectUri (overridden for full-page): ${redirectUri}`);
+
+      try {
+        const instance = await createMsalInstance({ ...config, redirectUri }, { verbose: false });
+        await instance.handleRedirectPromise().catch(() => {});
+        sessionStorage.setItem(ACTIVE_SCENARIO_KEY, JSON.stringify({ key: "guestRedirect" }));
+        await instance.loginRedirect({ scopes: ["User.Read"] });
+      } catch (e) {
+        sessionStorage.removeItem(ACTIVE_SCENARIO_KEY);
+        log(`  FAILED: ${e.errorCode || e.name} - ${e.message}`);
+        setStatus(`Guest loginRedirect failed: ${e.errorCode || e.name}`, "fail");
+      }
+    };
+
+    const guestRedirectResume = async () => {
+      sessionStorage.removeItem(ACTIVE_SCENARIO_KEY);
+      const config = getGuestConfig();
+      const redirectUri = window.location.origin + window.location.pathname;
+      log(`=== Guest: loginRedirect — resuming after redirect ===`);
+      log(`  version: ${config.msalVersion}, clientId: ${config.clientId}`);
+      log(`  redirectUri: ${redirectUri}`);
+      log(`  hash: ${window.location.hash.substring(0, 80)}${window.location.hash.length > 80 ? "..." : ""}`);
+
+      const t0 = performance.now();
+      try {
+        log(`  Creating MSAL instance...`);
+        const instance = await createMsalInstance({ ...config, redirectUri }, { verbose: true });
+        log(`  Calling handleRedirectPromise()...`);
+        const result = await instance.handleRedirectPromise();
+        const duration = Math.round(performance.now() - t0);
+        if (result) {
+          instance.setActiveAccount(result.account);
+          log(`  SUCCESS in ${duration}ms`);
+          log(`  Account: ${result.account?.username}`);
+          log(`  From cache: ${result.fromCache}`);
+          log(`  Token type: ${result.tokenType}`);
+          setStatus(`Guest redirect OK: ${result.account?.username} (${duration}ms)`, "ok");
+        } else {
+          log(`  handleRedirectPromise returned null (${duration}ms) — no pending redirect`);
+          setStatus(`Guest redirect: no pending redirect (${duration}ms)`, "pending");
+        }
+      } catch (e) {
+        const duration = Math.round(performance.now() - t0);
+        log(`  FAILED in ${duration}ms: ${e.errorCode || e.name}`);
+        log(`    message: ${e.message}`);
+        log(`    correlationId: ${e.correlationId || "(none)"}`);
+        setStatus(`Guest redirect FAILED: ${e.errorCode || e.name}`, "fail");
       }
     };
 
@@ -1002,8 +1371,11 @@
       log(`  SSO_SILENT_DELAY_MS: ${config.ssoSilentDelayMs}`);
       log(`  FEATURE_FLAG_ENABLE_INTRUSIVE_AD_LOGIN: ${config.enableIntrusiveAdLogin}`);
       log(`  allowPopupFallback: ${config.allowPopupFallback}`);
+      if (config.allowTopNav) log(`  [sandbox-patch] allow-top-navigation ENABLED`);
 
+      const sandboxObserver = patchIframeSandboxIfEnabled();
       const result = await runGuestProdFlow(config);
+      sandboxObserver?.disconnect();
       log(`  --- result ---`);
       log(`  source: ${result.source}`);
       log(`  duration: ${result.durationMs}ms`);
@@ -1460,6 +1832,409 @@
       return true;
     };
 
+    // ----------- Scenario 2 ------------------------------------
+    //
+    // "Abort → Doomed → Healed" diagnostic. Guest-only, no host involvement.
+    //
+    // Phase A (pre-redirect):
+    //   snap_0: capture all msal-related storage
+    //   fire guest ssoSilent (will be aborted)
+    //   after s2AbortDelay: snap_1: capture state after ssoSilent started
+    //   redirect to self → iframe aborted
+    //
+    // Phase B (after redirect):
+    //   snap_2: state after abandoned iframe
+    //   diff(snap_0 → snap_2): "what did the abandoned flow leave behind?"
+    //   attempt 2: fire guest ssoSilent, wait for result
+    //   snap_3: state after attempt 2
+    //   diff(snap_2 → snap_3): "what did the doomed attempt change?"
+    //   attempt 3: fire guest ssoSilent, wait for result
+    //   snap_4: state after attempt 3
+    //   diff(snap_3 → snap_4): "what did the healing attempt change?"
+
+    const S2_STATE_KEY = "s2-diagnostic-state";
+
+    // Capture all msal-related keys from both storages. Returns a plain
+    // object { localStorage: { key: value, ... }, sessionStorage: { ... } }
+    const captureStorageSnapshot = (guestClientId) => {
+      const snapshot = {};
+      for (const { name, store } of STORAGES) {
+        const entries = {};
+        for (const k of Object.keys(store)) {
+          const lower = k.toLowerCase();
+          if (lower.startsWith("msal") ||
+              lower.startsWith("server-telemetry") ||
+              (guestClientId && lower.includes(guestClientId.toLowerCase()))) {
+            entries[k] = store.getItem(k);
+          }
+        }
+        snapshot[name] = entries;
+      }
+      return snapshot;
+    };
+
+    // Diff two snapshots. Returns array of { storage, key, type, detail }
+    const diffSnapshots = (before, after) => {
+      const diffs = [];
+      const allStorageNames = new Set([...Object.keys(before), ...Object.keys(after)]);
+      for (const sName of allStorageNames) {
+        const b = before[sName] || {};
+        const a = after[sName] || {};
+        const allKeys = new Set([...Object.keys(b), ...Object.keys(a)]);
+        for (const k of allKeys) {
+          if (!(k in b)) {
+            diffs.push({ storage: sName, key: k, type: "ADDED", detail: truncate(a[k], 200) });
+          } else if (!(k in a)) {
+            diffs.push({ storage: sName, key: k, type: "REMOVED", detail: truncate(b[k], 200) });
+          } else if (b[k] !== a[k]) {
+            diffs.push({ storage: sName, key: k, type: "CHANGED",
+              detail: `before(${b[k]?.length}chars) → after(${a[k]?.length}chars)`,
+              beforeVal: truncate(b[k], 150),
+              afterVal: truncate(a[k], 150),
+            });
+          }
+        }
+      }
+      return diffs;
+    };
+
+    const truncate = (s, n) => {
+      if (!s) return "(null)";
+      return s.length <= n ? s : s.substring(0, n) + `...(${s.length} total)`;
+    };
+
+    const logDiffs = (label, diffs) => {
+      if (diffs.length === 0) {
+        log(`  ${label}: (no changes)`);
+        return;
+      }
+      log(`  ${label}: ${diffs.length} change(s):`);
+      for (const d of diffs) {
+        log(`    [${d.storage}] ${d.type}: ${d.key}`);
+        if (d.type === "CHANGED") {
+          log(`      before: ${d.beforeVal}`);
+          log(`      after:  ${d.afterVal}`);
+        } else {
+          log(`      ${d.detail}`);
+        }
+      }
+    };
+
+    const scenario2Start = async () => {
+      const guestConfig = getGuestConfig();
+      saveConfig();
+
+      if (!guestConfig.clientId) { log("ERROR: Guest Client ID required"); setStatus("Guest Client ID required", "fail"); return; }
+
+      const abortDelay = parseInt(document.getElementById("s2AbortDelay").value) || 200;
+
+      log(`=== S2: Abandoned silent flow diagnostic (guest only) ===`);
+      log(`  guest: ${guestConfig.msalVersion} (${guestConfig.clientId})`);
+      log(`  abortDelay: ${abortDelay}ms`);
+
+      // Clear guest state for a clean baseline
+      const cleared = clearAllForClient(guestConfig.clientId);
+      log(`  Cleared ${cleared} guest-scoped keys for clean baseline`);
+
+      // snap_0: initial state before anything happens
+      const snap_0 = captureStorageSnapshot(guestConfig.clientId);
+      log(`  snap_0 captured (${Object.keys(snap_0.localStorage).length} ls + ${Object.keys(snap_0.sessionStorage).length} ss keys)`);
+
+      // Save state for Phase B
+      const s2State = {
+        key: "scenario2",
+        runId: Date.now().toString(),
+        startedAt: new Date().toISOString(),
+        abortDelay,
+        guestClientId: guestConfig.clientId,
+        guestVersion: guestConfig.msalVersion,
+        snap_0,
+      };
+
+      // Watch for MSAL's iframe being added to the DOM — this tells us the
+      // /authorize request is being initiated, so we can abort at exactly the
+      // right moment instead of guessing with a fixed timeout.
+      log(`  Firing guest.ssoSilent() — watching for iframe, will abort ${abortDelay}ms after detection...`);
+      const guestInstance = await createMsalInstance(guestConfig, { verbose: false });
+
+      sessionStorage.setItem(ACTIVE_SCENARIO_KEY, JSON.stringify({ key: "scenario2" }));
+
+      const doAbort = () => {
+        const snap_1 = captureStorageSnapshot(guestConfig.clientId);
+        s2State.snap_1 = snap_1;
+        log(`  snap_1 captured (mid-flight, about to abort)`);
+        sessionStorage.setItem(S2_STATE_KEY, JSON.stringify(s2State));
+        log(`  >>> REDIRECTING (aborting silent flow) <<<`);
+        window.location.href = window.location.pathname;
+      };
+
+      // MutationObserver detects when MSAL adds the hidden iframe
+      const observer = new MutationObserver((mutations) => {
+        for (const mutation of mutations) {
+          for (const node of mutation.addedNodes) {
+            if (node.nodeName === "IFRAME" && node.src && node.src.includes("login.microsoftonline.com")) {
+              const iframeSrc = node.src.length > 120 ? node.src.substring(0, 120) + "..." : node.src;
+              log(`  Iframe detected in DOM: ${iframeSrc}`);
+              log(`  Waiting ${abortDelay}ms after detection before aborting...`);
+              observer.disconnect();
+              if (abortDelay <= 0) {
+                doAbort();
+              } else {
+                setTimeout(doAbort, abortDelay);
+              }
+            }
+          }
+        }
+      });
+      observer.observe(document.body, { childList: true, subtree: true });
+
+      try {
+        const result = await guestInstance.ssoSilent({ scopes: ["User.Read"] });
+        observer.disconnect();
+        log(`  ssoSilent completed BEFORE abort — iframe was too fast or abortDelay too long`);
+      } catch (e) {
+        log(`  ssoSilent error during abort: ${e.errorCode || e.name}`);
+      }
+    };
+
+    const scenario2Resume = async () => {
+      const raw = sessionStorage.getItem(ACTIVE_SCENARIO_KEY);
+      if (!raw) return false;
+      let marker;
+      try { marker = JSON.parse(raw); } catch { return false; }
+      if (marker.key !== "scenario2") return false;
+
+      sessionStorage.removeItem(ACTIVE_SCENARIO_KEY);
+
+      // Load persisted S2 state
+      const s2Raw = sessionStorage.getItem(S2_STATE_KEY);
+      if (!s2Raw) {
+        log("S2: No diagnostic state found in sessionStorage — scenario aborted?");
+        return true;
+      }
+      let s2State;
+      try { s2State = JSON.parse(s2Raw); } catch {
+        log("S2: Could not parse diagnostic state");
+        return true;
+      }
+      sessionStorage.removeItem(S2_STATE_KEY);
+
+      const guestConfig = getGuestConfig();
+      const { snap_0, snap_1 } = s2State;
+
+      log(`=== S2: Phase B — resumed after abort ===`);
+      log(`  runId: ${s2State.runId}, abortDelay: ${s2State.abortDelay}ms`);
+
+      // snap_2: state after the abandoned iframe
+      const snap_2 = captureStorageSnapshot(guestConfig.clientId);
+      log(`  snap_2 captured (post-abort state)`);
+
+      // Diff 1: what did the abandoned flow leave behind?
+      log(`\n  ======== DIFF: snap_0 (initial) → snap_2 (post-abort) ========`);
+      logDiffs("Abandoned flow residue", diffSnapshots(snap_0, snap_2));
+
+      if (snap_1) {
+        log(`\n  ======== DIFF: snap_1 (mid-flight) → snap_2 (post-abort) ========`);
+        logDiffs("Abort-specific changes", diffSnapshots(snap_1, snap_2));
+      }
+
+      // Attempt 2 — the first real attempt after the abort
+      log(`\n  -------- Attempt 2 (first real call after abort) --------`);
+      const snap_pre2 = captureStorageSnapshot(guestConfig.clientId);
+      const guest2 = await createMsalInstance(guestConfig, { verbose: false });
+      const t2 = performance.now();
+      let attempt2Result;
+      try {
+        const result = await guest2.ssoSilent({ scopes: ["User.Read"] });
+        const ms = Math.round(performance.now() - t2);
+        log(`  Attempt 2: SUCCESS in ${ms}ms — ${result.account?.username}`);
+        attempt2Result = { outcome: "PASS", ms, errorCode: null };
+      } catch (e) {
+        const ms = Math.round(performance.now() - t2);
+        const errorCode = e.errorCode || e.name || "unknown";
+        log(`  Attempt 2: FAILED in ${ms}ms — ${errorCode}`);
+        log(`    message: ${e.message}`);
+        log(`    correlationId: ${e.correlationId || "(none)"}`);
+        attempt2Result = { outcome: "FAIL", ms, errorCode };
+      }
+
+      const snap_post2 = captureStorageSnapshot(guestConfig.clientId);
+      log(`\n  ======== DIFF: snap_pre2 → snap_post2 (what attempt 2 changed) ========`);
+      logDiffs("Attempt 2 mutations", diffSnapshots(snap_pre2, snap_post2));
+
+      // Full diff: initial → post-attempt-2
+      log(`\n  ======== DIFF: snap_0 (initial) → snap_post2 (final) ========`);
+      logDiffs("Total state change", diffSnapshots(snap_0, snap_post2));
+
+      // Summary
+      log(`\n  ======== S2 SUMMARY ========`);
+      log(`  Attempt 1: ABORTED (by redirect after ${s2State.abortDelay}ms)`);
+      log(`  Attempt 2: ${attempt2Result.outcome} in ${attempt2Result.ms}ms ${attempt2Result.errorCode ? `(${attempt2Result.errorCode})` : ""}`);
+      log(`  → Now click Guest: ssoSilent manually to test attempt 3`);
+
+      if (attempt2Result.outcome === "FAIL") {
+        setStatus(`S2: abort → attempt 2 FAILED (${attempt2Result.errorCode}, ${attempt2Result.ms}ms) — now click Guest: ssoSilent`, "fail");
+      } else {
+        setStatus(`S2: abort → attempt 2 PASSED (${attempt2Result.ms}ms) — now click Guest: ssoSilent`, "ok");
+      }
+
+      return true;
+    };
+
+    // ----------- Scenario 3 ------------------------------------
+    // S3: Guest ssoSilent abort → host loginRedirect → guest ssoSilent retry
+    //
+    // Phase A (scenario3Start): fire guest ssoSilent, detect iframe, abort after delay → redirect to self
+    // Phase B (scenario3PhaseB): on return, do host loginRedirect → navigates to AAD
+    // Phase C (scenario3PhaseC): on return from AAD, host handleRedirectPromise, then guest ssoSilent retry
+
+    const S3_STATE_KEY = "s3-diagnostic-state";
+
+    const scenario3Start = async () => {
+      const guestConfig = getGuestConfig();
+      const hostConfig = getHostConfig();
+      saveConfig();
+
+      if (!guestConfig.clientId) { log("ERROR: Guest Client ID required"); return; }
+      if (!hostConfig.clientId) { log("ERROR: Host Client ID required"); return; }
+
+      const abortDelay = parseInt(document.getElementById("s3AbortDelay").value) || 200;
+
+      log(`=== S3: Guest ssoSilent abort → Host loginRedirect → Guest retry ===`);
+      log(`  guest: ${guestConfig.msalVersion} (${guestConfig.clientId})`);
+      log(`  host: ${hostConfig.msalVersion} (${hostConfig.clientId})`);
+      log(`  abortDelay: ${abortDelay}ms`);
+
+      const s3State = {
+        phase: "B",
+        abortDelay,
+        startedAt: new Date().toISOString(),
+      };
+
+      log(`  Firing guest.ssoSilent() — will abort ${abortDelay}ms after iframe detected...`);
+      const guestInstance = await createMsalInstance(guestConfig, { verbose: false });
+
+      sessionStorage.setItem(ACTIVE_SCENARIO_KEY, JSON.stringify({ key: "scenario3" }));
+      sessionStorage.setItem(S3_STATE_KEY, JSON.stringify(s3State));
+
+      const doAbort = () => {
+        log(`  >>> REDIRECTING (aborting guest silent flow) <<<`);
+        window.location.href = window.location.pathname;
+      };
+
+      const observer = new MutationObserver((mutations) => {
+        for (const mutation of mutations) {
+          for (const node of mutation.addedNodes) {
+            if (node.nodeName === "IFRAME" && node.src && node.src.includes("login.microsoftonline.com")) {
+              log(`  Iframe detected — aborting in ${abortDelay}ms...`);
+              observer.disconnect();
+              if (abortDelay <= 0) {
+                doAbort();
+              } else {
+                setTimeout(doAbort, abortDelay);
+              }
+            }
+          }
+        }
+      });
+      observer.observe(document.body, { childList: true, subtree: true });
+
+      try {
+        await guestInstance.ssoSilent({ scopes: ["User.Read"] });
+        observer.disconnect();
+        log(`  ssoSilent completed BEFORE abort — too fast or abortDelay too long`);
+      } catch (e) {
+        log(`  ssoSilent error during abort: ${e.errorCode || e.name}`);
+      }
+    };
+
+    const scenario3Resume = async () => {
+      const s3Raw = sessionStorage.getItem(S3_STATE_KEY);
+      if (!s3Raw) {
+        log("S3: No state found — scenario aborted?");
+        return true;
+      }
+      let s3State;
+      try { s3State = JSON.parse(s3Raw); } catch {
+        log("S3: Could not parse state");
+        return true;
+      }
+
+      if (s3State.phase === "B") {
+        // Phase B: guest was aborted, now do host loginRedirect
+        log(`=== S3: Phase B — guest was aborted, firing host loginRedirect ===`);
+        const hostConfig = getHostConfig();
+        const redirectUri = window.location.origin + window.location.pathname;
+
+        s3State.phase = "C";
+        sessionStorage.setItem(S3_STATE_KEY, JSON.stringify(s3State));
+        sessionStorage.setItem(ACTIVE_SCENARIO_KEY, JSON.stringify({ key: "scenario3" }));
+
+        try {
+          const hostInstance = await createMsalInstance({ ...hostConfig, redirectUri }, { verbose: false });
+          await hostInstance.handleRedirectPromise().catch(() => {});
+          log(`  Firing host.loginRedirect()...`);
+          await hostInstance.loginRedirect({ scopes: ["User.Read"] });
+        } catch (e) {
+          log(`  Host loginRedirect FAILED: ${e.errorCode || e.name} - ${e.message}`);
+          sessionStorage.removeItem(S3_STATE_KEY);
+          sessionStorage.removeItem(ACTIVE_SCENARIO_KEY);
+          setStatus(`S3: host redirect failed`, "fail");
+        }
+        return true;
+
+      } else if (s3State.phase === "C") {
+        // Phase C: returned from host loginRedirect, handle it, then guest retry
+        log(`=== S3: Phase C — returned from host AD redirect ===`);
+        sessionStorage.removeItem(S3_STATE_KEY);
+        sessionStorage.removeItem(ACTIVE_SCENARIO_KEY);
+
+        const hostConfig = getHostConfig();
+        const guestConfig = getGuestConfig();
+        const redirectUri = window.location.origin + window.location.pathname;
+
+        // Host: process the redirect
+        const t0 = performance.now();
+        try {
+          const hostInstance = await createMsalInstance({ ...hostConfig, redirectUri }, { verbose: false });
+          const hostResult = await hostInstance.handleRedirectPromise();
+          const hostMs = Math.round(performance.now() - t0);
+          if (hostResult) {
+            hostInstance.setActiveAccount(hostResult.account);
+            log(`  Host handleRedirectPromise: SUCCESS ${hostResult.account?.username} (${hostMs}ms)`);
+          } else {
+            log(`  Host handleRedirectPromise: null (${hostMs}ms)`);
+          }
+        } catch (e) {
+          log(`  Host handleRedirectPromise FAILED: ${e.errorCode || e.name}`);
+        }
+
+        // Guest: retry ssoSilent
+        log(`\n  -------- Guest: ssoSilent retry after host redirect --------`);
+        const sandboxObserver = patchIframeSandboxIfEnabled();
+        const t1 = performance.now();
+        try {
+          const guestInstance = await createMsalInstance(guestConfig, { verbose: false });
+          const ssoRequest = { scopes: ["User.Read"] };
+          if (guestConfig.overrideLoginHint) { ssoRequest.loginHint = guestConfig.overrideLoginHint; }
+          const result = await guestInstance.ssoSilent(ssoRequest);
+          const ms = Math.round(performance.now() - t1);
+          log(`  Guest retry: SUCCESS in ${ms}ms — ${result.account?.username}`);
+          setStatus(`S3: abort → host redirect → guest retry PASSED (${ms}ms)`, "ok");
+        } catch (e) {
+          const ms = Math.round(performance.now() - t1);
+          log(`  Guest retry: FAILED in ${ms}ms — ${e.errorCode || e.name}`);
+          log(`    message: ${e.message}`);
+          setStatus(`S3: guest retry FAILED (${e.errorCode}, ${ms}ms)`, "fail");
+        } finally {
+          sandboxObserver?.disconnect();
+        }
+        return true;
+      }
+
+      return false;
+    };
+
     // ============================================================
     // Global
     // ============================================================
@@ -1502,6 +2277,16 @@
           await scenario0Resume();
         } else if (scenarioKey === "scenario1") {
           await scenario1Resume();
+        } else if (scenarioKey === "autoRepro2") {
+          await hostAutoRepro2Resume();
+        } else if (scenarioKey === "scenario2") {
+          await scenario2Resume();
+        } else if (scenarioKey === "guestRedirect") {
+          try { await guestRedirectResume(); } catch (e) { log(`guestRedirectResume threw: ${e.message || e}`); }
+        } else if (scenarioKey === "hostRedirect") {
+          try { await hostRedirectResume(); } catch (e) { log(`hostRedirectResume threw: ${e.message || e}`); }
+        } else if (scenarioKey === "scenario3") {
+          try { await scenario3Resume(); } catch (e) { log(`scenario3Resume threw: ${e.message || e}`); }
         } else {
           log(`Unknown scenario key in sessionStorage: ${scenarioKey} — clearing`);
           sessionStorage.removeItem(ACTIVE_SCENARIO_KEY);

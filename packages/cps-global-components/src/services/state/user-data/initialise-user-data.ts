@@ -11,6 +11,7 @@ import { fetchAndValidate } from "../../fetch/fetch-and-validate";
 import { pipe } from "../../../utils/pipe";
 import { makeConsole } from "../../../logging/makeConsole";
 import { UserData, UserDataHint, UserDataSchema } from "./UserData";
+import { ExceptionMeta } from "../../analytics/ExceptionMeta";
 
 const DEFAULT_REFRESH_PERIOD_MINS = 24 * 60;
 
@@ -21,10 +22,11 @@ type Props = {
   userDataHint: Result<UserDataHint>;
   setUserDataHint: (userData: UserData) => void;
   trackEvent: (detail: AnalyticsEventData) => void;
+  trackException: (exception: Error, meta: ExceptionMeta) => void;
   register: Register;
 };
 
-export const initialiseUserData = ({ config, userDataHint, setUserDataHint, trackEvent, register }: Props) => {
+export const initialiseUserData = ({ config, userDataHint, setUserDataHint, trackEvent, trackException, register }: Props) => {
   const refreshPeriodMins = config.USER_DATA_REFRESH_PERIOD_MINS ?? DEFAULT_REFRESH_PERIOD_MINS;
   const refreshPeriodMs = refreshPeriodMins * 60 * 1000;
 
@@ -64,6 +66,7 @@ export const initialiseUserData = ({ config, userDataHint, setUserDataHint, trac
       })
       .catch(error => {
         _error("Unexpected error fetching user data", error);
+        trackException(error instanceof Error ? error : new Error(String(error)), { type: "data", code: "user-data" });
       })
       .finally(() => {
         inFlight = undefined;

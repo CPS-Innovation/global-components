@@ -31,6 +31,7 @@ import { initialiseDiagnostics } from "./services/diagnostics/initialise-diagnos
 import { initialiseTabTitle } from "./services/browser/tab-title/initialise-tab-title";
 import { initialiseBuild } from "./services/build/initialise-build";
 import { runNowAndOnNavigation } from "./services/browser/navigation/navigation";
+import { ExceptionMeta } from "./services/analytics/ExceptionMeta";
 
 const { _error } = makeConsole("global-script");
 
@@ -47,10 +48,10 @@ export default () => {
 
 const initialise = async (window: Window & typeof globalThis) => {
   const { register, mergeTags, subscribe, resetContextSpecificTags, caseIdentifiersWaiter } = initialiseStore();
-  let trackException: (exception: Error) => void = () => {};
+  let trackException: (exception: Error, meta: ExceptionMeta) => void = () => {};
 
   const handleError = (err: Error) => {
-    trackException(err);
+    trackException(err, { type: "init" });
     _error(err);
     register({ fatalInitialisationError: err, initialisationStatus: "broken" });
   };
@@ -105,16 +106,15 @@ const initialise = async (window: Window & typeof globalThis) => {
       flags,
       authHint,
       userDataHint,
-      diagnosticsCollector,
-      silentFlowDiagnostics,
     });
     trackException = _trackException;
 
     const { initialiseAuthForContext } = initialiseAuth({
       config,
       flags,
-      onError: trackException,
+      trackException,
       diagnosticsCollector,
+      silentFlowDiagnostics,
       addSilentFlowDiagnostics,
       getOperationId,
       register,
@@ -127,13 +127,14 @@ const initialise = async (window: Window & typeof globalThis) => {
       setNextHandover,
       setNextRecentCases,
       trackEvent,
+      trackException,
       register,
       mergeTags,
     });
     const { initialiseCorrelationIdsForContext } = initialiseCorrelationIds({ register, registerCorrelationIdsWithAnalytics });
     const { initialiseContextForContext } = initialiseContext({ window, config, handover, register, resetContextSpecificTags });
     const { initialiseOutSystemsShowAlertForContext } = initialiseOutSystemsShowAlert({ config, authHint, preview });
-    const { initialiseUserDataForContext } = initialiseUserData({ config, userDataHint, setUserDataHint, trackEvent, register });
+    const { initialiseUserDataForContext } = initialiseUserData({ config, userDataHint, setUserDataHint, trackEvent, trackException, register });
 
     runNowAndOnNavigation(() => {
       try {
@@ -142,7 +143,10 @@ const initialise = async (window: Window & typeof globalThis) => {
 
         const context = initialiseContextForContext();
         initialiseDomForContext({ context });
-        trackPageView({ context });
+        trackPageView({
+          context,
+          properties: config.COLLECT_AD_DIAGNOSTICS_IN_PAGE_VIEW ? { authDiagnostics: diagnosticsCollector.get() } : undefined,
+        });
 
         register({ initialisationStatus: "complete" });
 
