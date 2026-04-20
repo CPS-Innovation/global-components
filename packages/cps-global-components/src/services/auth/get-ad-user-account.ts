@@ -119,13 +119,14 @@ const internalGetAdUserAccount = async ({
     });
 
     const operationId = getOperationId?.();
-    addSilentFlowDiagnostics?.({ time: Date.now(), url: window.location.href, operationId });
+    const silentFlowStartTime = Date.now();
+    addSilentFlowDiagnostics?.({ time: silentFlowStartTime, url: window.location.href, operationId });
     try {
       const { account } = await instance.ssoSilent(ssoSilentRequest);
       diagnosticsCollector?.add({
         ssoSilentStartMs: Math.round(tSilent),
       });
-      addSilentFlowDiagnostics?.({ time: Date.now(), url: window.location.href, operationId, completedTime: Date.now(), outcome: "complete" });
+      addSilentFlowDiagnostics?.({ time: silentFlowStartTime, url: window.location.href, operationId, completedTime: Date.now(), outcome: "complete" });
       return account ? { source: "silent", account } : null;
     } catch (error) {
       const errorType = getErrorType(error);
@@ -143,7 +144,7 @@ const internalGetAdUserAccount = async ({
 
       const rawErrorCode = (error as { errorCode?: unknown })?.errorCode;
       addSilentFlowDiagnostics?.({
-        time: Date.now(),
+        time: silentFlowStartTime,
         url: window.location.href,
         operationId,
         completedTime: Date.now(),

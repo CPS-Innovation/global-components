@@ -32,6 +32,7 @@ export const initialiseUserData = ({ config, userDataHint, setUserDataHint, trac
 
   let lastKnownTimestamp = userDataHint.found ? userDataHint.result.timestamp : 0;
   let inFlight: Promise<void> | undefined;
+  let priorAttemptErrored = false;
 
   const initialiseUserDataForContext = ({
     context,
@@ -51,6 +52,9 @@ export const initialiseUserData = ({ config, userDataHint, setUserDataHint, trac
     if (Date.now() - lastKnownTimestamp < refreshPeriodMs) {
       return Promise.resolve();
     }
+    if (priorAttemptErrored && !config.USER_DATA_ATTEMPT_RETRY_ON_SPA_NAVIGATION) {
+      return Promise.resolve();
+    }
     if (inFlight) {
       return inFlight;
     }
@@ -61,10 +65,12 @@ export const initialiseUserData = ({ config, userDataHint, setUserDataHint, trac
       .then(userData => {
         const timestamp = Date.now();
         lastKnownTimestamp = timestamp;
+        priorAttemptErrored = false;
         setUserDataHint(userData);
         register({ userDataHint: { found: true, result: { userData, timestamp } } });
       })
       .catch(error => {
+        priorAttemptErrored = true;
         _error("Unexpected error fetching user data", error);
         trackException(error instanceof Error ? error : new Error(String(error)), { type: "data", code: "user-data" });
       })
