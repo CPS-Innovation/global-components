@@ -1,4 +1,7 @@
-export type AnalyticsEventData = { name: "loaded"; componentName: string } | { name: "fetch"; error: string };
+export type AnalyticsEventData =
+  | { name: "loaded"; componentName: string }
+  | { name: "fetch"; error: string }
+  | { name: "user-data-fetch"; outcome: "success" };
 
 export class AnalyticsEvent extends CustomEvent<AnalyticsEventData> {
   static type = "cps-global-components-analytics-event";

@@ -68,6 +68,7 @@ export const initialiseUserData = ({ config, userDataHint, setUserDataHint, trac
         priorAttemptErrored = false;
         setUserDataHint(userData);
         register({ userDataHint: { found: true, result: { userData, timestamp } } });
+        trackEvent({ name: "user-data-fetch", outcome: "success" });
       })
       .catch(error => {
         priorAttemptErrored = true;

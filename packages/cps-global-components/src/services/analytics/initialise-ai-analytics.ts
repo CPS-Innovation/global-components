@@ -12,6 +12,7 @@ import { Result } from "../../utils/Result";
 import { AuthHint } from "../state/auth-hint/initialise-auth-hint";
 import { UserDataHint } from "../state/user-data/UserData";
 import { ExceptionMeta } from "./ExceptionMeta";
+import { getPageState } from "./page-state";
 
 const STORAGE_PREFIX = "cps_global_components";
 
@@ -199,6 +200,7 @@ export const initialiseAiAnalytics = ({
           build,
           exceptionType: meta.type,
           ...(meta.code && { exceptionCode: meta.code }),
+          pageState: getPageState(),
           ...(meta.properties ?? {}),
         }),
       },
