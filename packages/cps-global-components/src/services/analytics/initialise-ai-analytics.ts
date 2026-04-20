@@ -158,6 +158,8 @@ export const initialiseAiAnalytics = ({
       return;
     }
 
+    trackEvent({ name: "page-view-initiated" });
+
     (async () => {
       await authReady;
       const caseId = currentCaseId;
