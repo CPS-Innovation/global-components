@@ -151,6 +151,7 @@ export const configBaseSchema = z.object({
   RECENT_CASES_LIST_LENGTH: z.number().optional(),
   SILENT_FLOW_DIAGNOSTICS_LENGTH: z.number().int().min(0).optional(),
   USER_DATA_REFRESH_PERIOD_MINS: z.number().int().min(0).optional(),
+  USER_DATA_ATTEMPT_RETRY_ON_SPA_NAVIGATION: z.boolean().optional(),
 });
 
 export const configStorageSchema = configBaseSchema.extend({
