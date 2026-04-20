@@ -2,8 +2,10 @@ import { ApplicationInsights } from "@microsoft/applicationinsights-web";
 import { Config } from "cps-global-configuration";
 import { FoundContext } from "../context/FoundContext";
 import { CorrelationIds } from "../correlation/CorrelationIds";
-import { AnalyticsEvent, AnalyticsEventData, trackEvent } from "./analytics-event";
+import { AnalyticsEventData, TrackEvent } from "./analytics-event";
 import { HostAppEvent } from "./host-app-event";
+
+const ANALYTICS_EVENT_NAME = "cps-global-components-analytics-event";
 import { makeConsole } from "../../logging/makeConsole";
 import { Build } from "../../store/store";
 import { AuthResult, KnownErrorType } from "../auth/AuthResult";
@@ -207,16 +209,21 @@ export const initialiseAiAnalytics = ({
     );
   };
 
-  window.addEventListener(AnalyticsEvent.type, (ev: AnalyticsEvent) => {
-    _debug("trackEvent", ev);
-    const { name, ...rest } = ev.detail;
-
-    appInsights.trackEvent({ name: ev.type, properties: { ...rest, correlationIds: correlationIdValues } });
+  const commonEventProperties = () => ({
+    environment: ENVIRONMENT,
+    build,
+    correlationIds: correlationIdValues,
+    ...(authValues && { auth: authValues }),
   });
+
+  const trackEvent: TrackEvent = (detail) => {
+    _debug("trackEvent", detail);
+    appInsights.trackEvent({ name: ANALYTICS_EVENT_NAME, properties: { ...detail, ...commonEventProperties() } });
+  };
 
   window.addEventListener(HostAppEvent.type, (ev: HostAppEvent) => {
     _debug("trackHostAppEvent", ev);
-    appInsights.trackEvent({ name: ev.type, properties: { ...ev.detail, correlationIds: correlationIdValues } });
+    appInsights.trackEvent({ name: ev.type, properties: { ...ev.detail, ...commonEventProperties() } });
   });
 
   const getOperationId = (): string | undefined => appInsights.context?.telemetryTrace?.traceID;
