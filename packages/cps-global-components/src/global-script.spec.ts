@@ -1053,7 +1053,7 @@ describe("global-script", () => {
 
       await new Promise(resolve => setTimeout(resolve, 10));
 
-      expect(mockTrackException).toHaveBeenCalledWith(expect.any(Error));
+      expect(mockTrackException).toHaveBeenCalledWith(expect.any(Error), { type: "init" });
     });
 
     it("should recover from navigation error and allow subsequent navigation", async () => {

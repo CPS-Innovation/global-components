@@ -44,12 +44,14 @@ describe("initialiseAuth", () => {
   const mockRegister = jest.fn();
   const mockRegisterAuthWithAnalytics = jest.fn();
   const mockSetAuthHint = jest.fn();
+  const mockTrackException = jest.fn();
 
   const makeProps = (overrides: Pick<Parameters<typeof initialiseAuth>[0], "flags"> & Partial<Parameters<typeof initialiseAuth>[0]>) => ({
     config: mockConfig,
     register: mockRegister,
     registerAuthWithAnalytics: mockRegisterAuthWithAnalytics,
     setAuthHint: mockSetAuthHint,
+    trackException: mockTrackException,
     ...overrides,
   });
 

@@ -142,7 +142,7 @@ describe("initialiseAiAnalytics", () => {
       const { registerAuthWithAnalytics, trackException } = initialiseAiAnalytics(makeProps());
 
       registerAuthWithAnalytics({ isAuthed: true, username: "bob", name: "Bob", groups: [], objectId: "obj-2" });
-      trackException(new Error("boom"));
+      trackException(new Error("boom"), { type: "auth" });
 
       const properties = mockTrackException.mock.calls[0][1].properties;
       expect(properties.Auth).toMatchObject({ IsAuthed: true, Username: "bob", ObjectId: "obj-2" });
@@ -284,7 +284,7 @@ describe("initialiseAiAnalytics", () => {
     it("should capitalize property keys", () => {
       const { trackException } = initialiseAiAnalytics(makeProps());
 
-      trackException(new Error("boom"));
+      trackException(new Error("boom"), { type: "auth" });
 
       const [exceptionArg, propsArg] = mockTrackException.mock.calls[0];
       expect(exceptionArg.exception.message).toBe("boom");
@@ -295,7 +295,7 @@ describe("initialiseAiAnalytics", () => {
     it("should not include auth when registerAuthWithAnalytics has not been called", () => {
       const { trackException } = initialiseAiAnalytics(makeProps());
 
-      trackException(new Error("boom"));
+      trackException(new Error("boom"), { type: "auth" });
 
       const properties = mockTrackException.mock.calls[0][1].properties;
       expect(properties).not.toHaveProperty("Auth");

@@ -36,6 +36,7 @@ describe("initialiseCaseDetailsData", () => {
     setNextHandover: jest.fn(),
     setNextRecentCases: jest.fn(),
     trackEvent: jest.fn<void, [AnalyticsEventData]>(),
+    trackException: jest.fn<void, [Error]>(),
     register: jest.fn() as Register,
     mergeTags: jest.fn().mockReturnValue({}) as MergeTags,
   });
