@@ -211,14 +211,11 @@ describe("initialiseAiAnalytics", () => {
           timestamp: 123,
           userData: {
             userId: 42,
-            selectedCpsAreaId: 9,
+            areaId: 3,
+            area: "AreaY",
             hasViewNationalChargingTasksRight: true,
-            homeUnit: { unitId: 10, unit: "UnitX", areaId: 3, area: "AreaY", areaGroupId: 1, areaGroup: "GroupZ" },
-            allocatedUnits: [
-              { areaIsSensitive: true },
-              { areaIsSensitive: true },
-              { areaIsSensitive: false },
-            ],
+            countSensitiveUnits: 2,
+            countNotSensitiveUnits: 1,
           },
         },
       };
@@ -239,19 +236,21 @@ describe("initialiseAiAnalytics", () => {
       });
     });
 
-    it("should default counts to 0 when allocatedUnits is undefined", async () => {
+    it("should surface zero counts when the stored hint has them", async () => {
       const userDataHint = {
         found: true as const,
         result: {
           timestamp: 123,
           userData: {
             userId: 42,
-            selectedCpsAreaId: 9,
-            homeUnit: { areaId: 3, area: "AreaY" },
+            areaId: 3,
+            area: "AreaY",
+            countSensitiveUnits: 0,
+            countNotSensitiveUnits: 0,
           },
         },
       };
-      const { registerAuthWithAnalytics, trackPageView } = initialiseAiAnalytics({ ...makeProps(), userDataHint: userDataHint as any });
+      const { registerAuthWithAnalytics, trackPageView } = initialiseAiAnalytics({ ...makeProps(), userDataHint });
 
       registerAuthWithAnalytics({ isAuthed: true, username: "alice", name: "Alice", groups: [], objectId: "obj-1" });
       trackPageView({ context: makeContext() });
