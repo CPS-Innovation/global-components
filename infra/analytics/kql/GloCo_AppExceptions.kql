@@ -1,11 +1,16 @@
 AppExceptions
-| extend Build = parse_json(parse_json(tostring(Properties.properties)).Build)
-| extend 
+| extend P = parse_json(tostring(Properties.properties))
+| extend Build = parse_json(tostring(P.Build))
+| extend
     Build_Sha = tostring(Build.Sha),
     Build_RunId = toint(Build.RunId),
     Build_Timestamp = todatetime(Build.Timestamp)
 | project-away Build
+| extend
+    Error_Type = tostring(P.ExceptionType),
+    Error_Code = tostring(P.ExceptionCode)
 | extend AuthFailureType = case(
+    isnotempty(Error_Type) and Error_Type != "auth", "",
     ExceptionType == "InteractionRequiredAuthError" and OuterMessage startswith "InteractionRequiredAuthError: interaction_required: AADSTS16000", "Multiple AD accounts",
     ExceptionType == "InteractionRequiredAuthError" and OuterMessage startswith "InteractionRequiredAuthError: interaction_required: AADSTS160021", "Requested session does not exist",
     ExceptionType == "InteractionRequiredAuthError" and OuterMessage startswith "InteractionRequiredAuthError: login_required: AADSTS50058:", "User not logged in (poss InPrivte)",
@@ -18,4 +23,5 @@ AppExceptions
     ExceptionType == "BrowserAuthError" and OuterMessage startswith "BrowserAuthError: interaction_in_progress", "Interaction in progress",
     "Unknown"
 )
-| extend Environment = tostring(parse_json(tostring(Properties.properties))["Environment"])
+| extend Environment = tostring(P.Environment)
+| project-away P

@@ -8,19 +8,21 @@ import { initialiseAdAuth } from "./initialise-ad-auth";
 import { createMsalInstance } from "./create-msal-instance";
 import type { AdDiagnosticsCollector } from "./ad-diagnostics-collector";
 import type { PublicClientApplication } from "@azure/msal-browser";
-import type { SilentFlowDiagnostic } from "../diagnostics/silent-flow-diagnostics";
+import type { SilentFlowDiagnostic, SilentFlowDiagnostics } from "../diagnostics/silent-flow-diagnostics";
+import { TrackException } from "../analytics/TrackException";
 
 type Register = (arg: { auth: AuthResult }) => void;
 type RegisterAuthWithAnalytics = (auth: AuthResult) => void;
-type SetAuthHint = (auth: Auth) => void;
+type SetAuthHint = (auth: Auth, trackException?: TrackException) => void;
 type AddSilentFlowDiagnostics = (entry: SilentFlowDiagnostic) => void;
 type GetOperationId = () => string | undefined;
 
 type Props = {
   config: Config;
   flags: ApplicationFlags;
-  onError?: (error: Error) => void;
+  trackException: TrackException;
   diagnosticsCollector?: AdDiagnosticsCollector;
+  silentFlowDiagnostics?: SilentFlowDiagnostics;
   addSilentFlowDiagnostics?: AddSilentFlowDiagnostics;
   getOperationId?: GetOperationId;
   register: Register;
@@ -40,8 +42,9 @@ const noAuthResult: { auth: FailedAuth; getToken: GetToken } = {
 export const initialiseAuth = ({
   config,
   flags,
-  onError,
+  trackException,
   diagnosticsCollector,
+  silentFlowDiagnostics,
   addSilentFlowDiagnostics,
   getOperationId,
   register,
@@ -50,6 +53,15 @@ export const initialiseAuth = ({
 }: Props): { initialiseAuthForContext: (context: FoundContext) => Promise<{ auth: AuthResult; getToken: GetToken }> } => {
   const isE2e = flags.e2eTestMode.isE2eTestMode;
   const { AD_TENANT_AUTHORITY: authority, AD_CLIENT_ID: clientId } = config;
+
+  const onError = (error: Error) =>
+    trackException(error, {
+      type: "auth",
+      properties: {
+        ...(diagnosticsCollector && { authDiagnostics: diagnosticsCollector.get() }),
+        ...(silentFlowDiagnostics && { silentFlowDiagnostics }),
+      },
+    });
 
   let instance: PublicClientApplication | undefined;
   let authInFlight: Promise<{ auth: AuthResult; getToken: GetToken }> | null = null;
@@ -82,7 +94,7 @@ export const initialiseAuth = ({
         register({ auth: result.auth });
         registerAuthWithAnalytics(result.auth);
         if (result.auth.isAuthed) {
-          setAuthHint(result.auth);
+          setAuthHint(result.auth, trackException);
         }
         return result;
       })

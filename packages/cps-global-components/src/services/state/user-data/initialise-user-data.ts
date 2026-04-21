@@ -11,6 +11,7 @@ import { fetchAndValidate } from "../../fetch/fetch-and-validate";
 import { pipe } from "../../../utils/pipe";
 import { makeConsole } from "../../../logging/makeConsole";
 import { UserData, UserDataHint, UserDataSchema } from "./UserData";
+import { TrackException } from "../../analytics/TrackException";
 
 const DEFAULT_REFRESH_PERIOD_MINS = 24 * 60;
 
@@ -19,27 +20,21 @@ const { _error } = makeConsole("initialiseUserData");
 type Props = {
   config: Config;
   userDataHint: Result<UserDataHint>;
-  setUserDataHint: (userData: UserData) => void;
+  setUserDataHint: (userData: UserData, trackException?: TrackException) => void;
   trackEvent: (detail: AnalyticsEventData) => void;
+  trackException: TrackException;
   register: Register;
 };
 
-export const initialiseUserData = ({ config, userDataHint, setUserDataHint, trackEvent, register }: Props) => {
+export const initialiseUserData = ({ config, userDataHint, setUserDataHint, trackEvent, trackException, register }: Props) => {
   const refreshPeriodMins = config.USER_DATA_REFRESH_PERIOD_MINS ?? DEFAULT_REFRESH_PERIOD_MINS;
   const refreshPeriodMs = refreshPeriodMins * 60 * 1000;
 
   let lastKnownTimestamp = userDataHint.found ? userDataHint.result.timestamp : 0;
   let inFlight: Promise<void> | undefined;
+  let priorAttemptErrored = false;
 
-  const initialiseUserDataForContext = ({
-    context,
-    getToken,
-    correlationIds,
-  }: {
-    context: FoundContext;
-    getToken: GetToken;
-    correlationIds: CorrelationIds;
-  }): Promise<void> => {
+  const initialiseUserDataForContext = ({ context, getToken, correlationIds }: { context: FoundContext; getToken: GetToken; correlationIds: CorrelationIds }): Promise<void> => {
     if (refreshPeriodMins === 0) {
       return Promise.resolve();
     }
@@ -47,6 +42,9 @@ export const initialiseUserData = ({ config, userDataHint, setUserDataHint, trac
       return Promise.resolve();
     }
     if (Date.now() - lastKnownTimestamp < refreshPeriodMs) {
+      return Promise.resolve();
+    }
+    if (priorAttemptErrored && !config.USER_DATA_ATTEMPT_RETRY_ON_SPA_NAVIGATION) {
       return Promise.resolve();
     }
     if (inFlight) {
@@ -59,11 +57,15 @@ export const initialiseUserData = ({ config, userDataHint, setUserDataHint, trac
       .then(userData => {
         const timestamp = Date.now();
         lastKnownTimestamp = timestamp;
-        setUserDataHint(userData);
+        priorAttemptErrored = false;
+        setUserDataHint(userData, trackException);
         register({ userDataHint: { found: true, result: { userData, timestamp } } });
+        trackEvent({ name: "user-data-fetch", outcome: "success" });
       })
       .catch(error => {
+        priorAttemptErrored = true;
         _error("Unexpected error fetching user data", error);
+        trackException(error instanceof Error ? error : new Error(String(error)), { type: "data", code: "user-data" });
       })
       .finally(() => {
         inFlight = undefined;

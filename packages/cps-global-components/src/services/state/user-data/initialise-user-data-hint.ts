@@ -3,6 +3,7 @@ import { StatePutResponseSchema } from "../StatePutResponse";
 import { makeConsole } from "../../../logging/makeConsole";
 import { Result } from "../../../utils/Result";
 import { UserData, UserDataHint, UserDataHintSchema } from "./UserData";
+import { TrackException } from "../../analytics/TrackException";
 
 const { _warn } = makeConsole("initialiseUserDataHint");
 
@@ -14,15 +15,18 @@ export const initialiseUserDataHint = async ({
 }: {
   rootUrl: string;
   register: Register;
-}): Promise<{ userDataHint: Result<UserDataHint>; setUserDataHint: (userData: UserData) => void }> => {
+}): Promise<{ userDataHint: Result<UserDataHint>; setUserDataHint: (userData: UserData, trackException: TrackException) => void }> => {
   const userDataHint = await fetchState({ rootUrl, url: "../state/user-data-hint", schema: UserDataHintSchema });
   register({ userDataHint });
 
-  const setUserDataHint = (userData: UserData) => {
+  const setUserDataHint = (userData: UserData, trackException: TrackException) => {
     const data: UserDataHint = { userData, timestamp: Date.now() };
-    fetchState({ rootUrl, url: "../state/user-data-hint", schema: StatePutResponseSchema, data }).catch(error =>
-      _warn("Unexpected error setting user data hint", String(error)),
-    );
+    fetchState({ rootUrl, url: "../state/user-data-hint", schema: StatePutResponseSchema, data }).then(r => {
+      if (!r.found) {
+        trackException(r.error instanceof Error ? r.error : new Error(String(r.error)), { type: "state", code: "state-user-data-hint-set" });
+        _warn("Unexpected error setting user data hint", String(r.error));
+      }
+    });
   };
 
   return { userDataHint, setUserDataHint };

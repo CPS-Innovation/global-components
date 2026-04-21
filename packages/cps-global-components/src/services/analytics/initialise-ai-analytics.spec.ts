@@ -3,7 +3,6 @@ import { Build } from "../../store/store";
 import { FoundContext } from "../context/FoundContext";
 import { CorrelationIds } from "../correlation/CorrelationIds";
 import { AuthResult } from "../auth/AuthResult";
-import { AnalyticsEvent } from "./analytics-event";
 
 const mockTrackPageView = jest.fn();
 const mockTrackException = jest.fn();
@@ -142,7 +141,7 @@ describe("initialiseAiAnalytics", () => {
       const { registerAuthWithAnalytics, trackException } = initialiseAiAnalytics(makeProps());
 
       registerAuthWithAnalytics({ isAuthed: true, username: "bob", name: "Bob", groups: [], objectId: "obj-2" });
-      trackException(new Error("boom"));
+      trackException(new Error("boom"), { type: "auth" });
 
       const properties = mockTrackException.mock.calls[0][1].properties;
       expect(properties.Auth).toMatchObject({ IsAuthed: true, Username: "bob", ObjectId: "obj-2" });
@@ -151,27 +150,24 @@ describe("initialiseAiAnalytics", () => {
 
   describe("registerCorrelationIdsWithAnalytics", () => {
     it("should include correlation ids in analytics events after registering", () => {
-      const mockWindow = makeMockWindow();
-      const { registerCorrelationIdsWithAnalytics } = initialiseAiAnalytics(makeProps({ window: mockWindow }));
+      const { registerCorrelationIdsWithAnalytics, trackEvent } = initialiseAiAnalytics(makeProps());
 
       registerCorrelationIdsWithAnalytics(makeCorrelationIds());
 
-      const event = new AnalyticsEvent({ name: "loaded", componentName: "test-component" });
-      mockWindow.dispatchEvent(event);
+      trackEvent({ name: "loaded", componentName: "test-component" });
 
       const properties = mockTrackEvent.mock.calls[0][0].properties;
       expect(properties).toMatchObject({
+        name: "loaded",
         componentName: "test-component",
         correlationIds: { scriptLoadCorrelationId: "script-123", navigationCorrelationId: "nav-456" },
       });
     });
 
     it("should not include correlation ids in analytics events before registering", () => {
-      const mockWindow = makeMockWindow();
-      initialiseAiAnalytics(makeProps({ window: mockWindow }));
+      const { trackEvent } = initialiseAiAnalytics(makeProps());
 
-      const event = new AnalyticsEvent({ name: "loaded", componentName: "test-component" });
-      mockWindow.dispatchEvent(event);
+      trackEvent({ name: "loaded", componentName: "test-component" });
 
       const properties = mockTrackEvent.mock.calls[0][0].properties;
       expect(properties.correlationIds).toEqual({});
@@ -284,7 +280,7 @@ describe("initialiseAiAnalytics", () => {
     it("should capitalize property keys", () => {
       const { trackException } = initialiseAiAnalytics(makeProps());
 
-      trackException(new Error("boom"));
+      trackException(new Error("boom"), { type: "auth" });
 
       const [exceptionArg, propsArg] = mockTrackException.mock.calls[0];
       expect(exceptionArg.exception.message).toBe("boom");
@@ -295,7 +291,7 @@ describe("initialiseAiAnalytics", () => {
     it("should not include auth when registerAuthWithAnalytics has not been called", () => {
       const { trackException } = initialiseAiAnalytics(makeProps());
 
-      trackException(new Error("boom"));
+      trackException(new Error("boom"), { type: "auth" });
 
       const properties = mockTrackException.mock.calls[0][1].properties;
       expect(properties).not.toHaveProperty("Auth");

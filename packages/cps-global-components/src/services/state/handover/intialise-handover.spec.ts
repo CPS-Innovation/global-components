@@ -122,7 +122,7 @@ describe("initialiseHandover", () => {
         });
 
         const newHandover: Handover = { caseId: 99999 };
-        setNextHandover(newHandover);
+        setNextHandover(newHandover, jest.fn());
 
         // Allow the async operation to complete
         await new Promise(resolve => setTimeout(resolve, 0));
@@ -142,7 +142,7 @@ describe("initialiseHandover", () => {
         mockFetch.mockClear();
 
         const sameHandover: Handover = { caseId: 12345 };
-        setNextHandover(sameHandover);
+        setNextHandover(sameHandover, jest.fn());
 
         // Allow any async operations to complete
         await new Promise(resolve => setTimeout(resolve, 0));
@@ -168,7 +168,7 @@ describe("initialiseHandover", () => {
         });
 
         const newHandover: Handover = { caseId: 11111 };
-        setNextHandover(newHandover);
+        setNextHandover(newHandover, jest.fn());
 
         // Allow the async operation to complete
         await new Promise(resolve => setTimeout(resolve, 0));
@@ -191,10 +191,36 @@ describe("initialiseHandover", () => {
         const newHandover: Handover = { caseId: 99999 };
 
         // Should not throw
-        expect(() => setNextHandover(newHandover)).not.toThrow();
+        expect(() => setNextHandover(newHandover, jest.fn())).not.toThrow();
 
         // Allow the async operation to complete
         await new Promise(resolve => setTimeout(resolve, 0));
+      });
+
+      it("should call trackException with the state-handover-set code", async () => {
+        const trackException = jest.fn();
+        const { setNextHandover } = await initialiseHandover({ rootUrl, register: () => {} });
+        mockFetch.mockClear();
+        mockFetch.mockRejectedValue(new Error("PUT failed"));
+
+        setNextHandover({ caseId: 99999 }, trackException);
+
+        await new Promise(resolve => setTimeout(resolve, 0));
+
+        expect(trackException).toHaveBeenCalledWith(expect.any(Error), { type: "state", code: "state-handover-set" });
+      });
+
+      it("should call trackException when the PUT returns a non-ok status", async () => {
+        const trackException = jest.fn();
+        const { setNextHandover } = await initialiseHandover({ rootUrl, register: () => {} });
+        mockFetch.mockClear();
+        mockFetch.mockResolvedValue({ ok: false, status: 500, statusText: "Server Error" });
+
+        setNextHandover({ caseId: 99999 }, trackException);
+
+        await new Promise(resolve => setTimeout(resolve, 0));
+
+        expect(trackException).toHaveBeenCalledWith(expect.any(Error), { type: "state", code: "state-handover-set" });
       });
     });
   });

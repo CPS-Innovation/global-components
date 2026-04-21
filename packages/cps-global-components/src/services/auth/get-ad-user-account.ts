@@ -104,14 +104,29 @@ const internalGetAdUserAccount = async ({
     const knownAccount = instance.getActiveAccount() || instance.getAllAccounts()[0];
     const ssoSilentRequest = { ...loginRequest, ...(knownAccount?.username ? { loginHint: knownAccount.username } : {}) };
 
+    // Diagnostics to prove/disprove the sid-staleness mechanism for chronically-broken users.
+    // If loginHint is set, MSAL's initializeAuthorizationRequest short-circuits and sid is never
+    // extracted. If loginHint is falsy but an account exists with idTokenClaims.sid, MSAL will
+    // attach the account and Authorize.mjs will emit sid on the /authorize request.
+    const cachedSid = (knownAccount?.idTokenClaims as { sid?: unknown } | undefined)?.sid;
+    diagnosticsCollector?.add({
+      ssoSilentLoginHintSet: "loginHint" in ssoSilentRequest,
+      ssoSilentKnownAccountPresent: !!knownAccount,
+      ssoSilentAccountSidPresent: typeof cachedSid === "string" && cachedSid.length > 0,
+      ssoSilentAccountUsernameLength: knownAccount?.username?.length ?? 0,
+      ssoSilentAccountHomeTenantId: knownAccount?.tenantId ?? null,
+      ssoSilentAccountIdTokenIat: (knownAccount?.idTokenClaims as { iat?: unknown } | undefined)?.iat ?? null,
+    });
+
     const operationId = getOperationId?.();
-    addSilentFlowDiagnostics?.({ time: Date.now(), url: window.location.href, operationId });
+    const silentFlowStartTime = Date.now();
+    addSilentFlowDiagnostics?.({ time: silentFlowStartTime, url: window.location.href, operationId });
     try {
       const { account } = await instance.ssoSilent(ssoSilentRequest);
       diagnosticsCollector?.add({
         ssoSilentStartMs: Math.round(tSilent),
       });
-      addSilentFlowDiagnostics?.({ time: Date.now(), url: window.location.href, operationId, completedTime: Date.now(), outcome: "complete" });
+      addSilentFlowDiagnostics?.({ time: silentFlowStartTime, url: window.location.href, operationId, completedTime: Date.now(), outcome: "complete" });
       return account ? { source: "silent", account } : null;
     } catch (error) {
       const errorType = getErrorType(error);
@@ -129,7 +144,7 @@ const internalGetAdUserAccount = async ({
 
       const rawErrorCode = (error as { errorCode?: unknown })?.errorCode;
       addSilentFlowDiagnostics?.({
-        time: Date.now(),
+        time: silentFlowStartTime,
         url: window.location.href,
         operationId,
         completedTime: Date.now(),

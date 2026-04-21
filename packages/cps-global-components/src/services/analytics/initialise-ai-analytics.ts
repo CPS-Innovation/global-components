@@ -2,7 +2,7 @@ import { ApplicationInsights } from "@microsoft/applicationinsights-web";
 import { Config } from "cps-global-configuration";
 import { FoundContext } from "../context/FoundContext";
 import { CorrelationIds } from "../correlation/CorrelationIds";
-import { AnalyticsEvent, AnalyticsEventData, trackEvent } from "./analytics-event";
+import { AnalyticsEventData, TrackEvent } from "./analytics-event";
 import { HostAppEvent } from "./host-app-event";
 import { makeConsole } from "../../logging/makeConsole";
 import { Build } from "../../store/store";
@@ -11,9 +11,11 @@ import { capitalizeKeys } from "../../utils/capitalize-keys";
 import { Result } from "../../utils/Result";
 import { AuthHint } from "../state/auth-hint/initialise-auth-hint";
 import { UserDataHint } from "../state/user-data/UserData";
-import type { AdDiagnosticsCollector } from "../auth/ad-diagnostics-collector";
-import type { SilentFlowDiagnostics } from "../diagnostics/silent-flow-diagnostics";
+import { ExceptionMeta } from "./ExceptionMeta";
+import { getPageState } from "./page-state";
+import { TrackException } from "./TrackException";
 
+const ANALYTICS_EVENT_NAME = "cps-global-components-analytics-event";
 const STORAGE_PREFIX = "cps_global_components";
 
 type Props = {
@@ -22,8 +24,6 @@ type Props = {
   build: Build;
   authHint?: Result<AuthHint>;
   userDataHint?: Result<UserDataHint>;
-  diagnosticsCollector?: AdDiagnosticsCollector;
-  silentFlowDiagnostics?: SilentFlowDiagnostics;
 };
 
 type AuthAnalyticsProps =
@@ -35,19 +35,11 @@ export type Analytics = ReturnType<typeof initialiseAiAnalytics>;
 
 const { _debug } = makeConsole("initialiseAnalytics");
 
-export const initialiseAiAnalytics = ({
-  window,
-  config: { APP_INSIGHTS_CONNECTION_STRING, ENVIRONMENT, COLLECT_AD_DIAGNOSTICS_IN_PAGE_VIEW },
-  build,
-  authHint,
-  userDataHint,
-  diagnosticsCollector,
-  silentFlowDiagnostics,
-}: Props) => {
+export const initialiseAiAnalytics = ({ window, config: { APP_INSIGHTS_CONNECTION_STRING, ENVIRONMENT }, build, authHint, userDataHint }: Props) => {
   if (!APP_INSIGHTS_CONNECTION_STRING) {
     return {
-      trackPageView: () => {},
-      trackException: (_: Error) => {},
+      trackPageView: (_: { context: FoundContext; properties?: Record<string, unknown> }) => {},
+      trackException: (_: Error, __: ExceptionMeta) => {},
       trackEvent: (_: AnalyticsEventData) => {},
       registerAuthWithAnalytics: (_: AuthResult) => {},
       registerCorrelationIdsWithAnalytics: (_: CorrelationIds) => {},
@@ -144,22 +136,27 @@ export const initialiseAiAnalytics = ({
     resolveAuthReady();
   };
 
-  const getDiagnostics = () => diagnosticsCollector?.get() ?? {};
-
   let currentCaseId: string | undefined;
   const registerCaseIdentifiersWithAnalytics = (caseId: string | undefined) => {
     currentCaseId = caseId;
   };
 
-  const trackPageView = ({ context: { found, contextIds, preventPageViewAnalytics } }: { context: FoundContext }) => {
+  const trackPageView = ({
+    context: { found, contextIds, preventPageViewAnalytics },
+    properties: extraProperties,
+  }: {
+    context: FoundContext;
+    properties?: Record<string, unknown>;
+  }) => {
     if (preventPageViewAnalytics) {
       return;
     }
 
+    trackEvent({ name: "page-view-initiated" });
+
     (async () => {
       await authReady;
       const caseId = currentCaseId;
-      const authDiagnostics = COLLECT_AD_DIAGNOSTICS_IN_PAGE_VIEW ? getDiagnostics() : undefined;
       const user = userDataHint?.found
         ? {
             userId: userDataHint.result.userData.userId,
@@ -179,7 +176,7 @@ export const initialiseAiAnalytics = ({
           correlationIds: correlationIdValues,
           ...(caseId && { caseId }),
           ...(user && { user }),
-          ...(authDiagnostics && { authDiagnostics }),
+          ...(extraProperties ?? {}),
         }),
       };
       _debug("trackPageView", arg);
@@ -190,8 +187,7 @@ export const initialiseAiAnalytics = ({
     })();
   };
 
-  const trackException = (exception: Error) => {
-    const authDiagnostics = getDiagnostics();
+  const trackException: TrackException = (exception: Error, meta: ExceptionMeta) => {
     appInsights.trackException(
       { exception },
       {
@@ -200,23 +196,30 @@ export const initialiseAiAnalytics = ({
           environment: ENVIRONMENT,
           ...(authValues && { auth: authValues }),
           build,
-          authDiagnostics,
-          silentFlowDiagnostics: silentFlowDiagnostics ?? { silentFlows: [] },
+          exceptionType: meta.type,
+          ...(meta.code && { exceptionCode: meta.code }),
+          pageState: getPageState(),
+          ...(meta.properties ?? {}),
         }),
       },
     );
   };
 
-  window.addEventListener(AnalyticsEvent.type, (ev: AnalyticsEvent) => {
-    _debug("trackEvent", ev);
-    const { name, ...rest } = ev.detail;
-
-    appInsights.trackEvent({ name: ev.type, properties: { ...rest, correlationIds: correlationIdValues } });
+  const commonEventProperties = () => ({
+    environment: ENVIRONMENT,
+    build,
+    correlationIds: correlationIdValues,
+    ...(authValues && { auth: authValues }),
   });
+
+  const trackEvent: TrackEvent = detail => {
+    _debug("trackEvent", detail);
+    appInsights.trackEvent({ name: ANALYTICS_EVENT_NAME, properties: { ...detail, ...commonEventProperties() } });
+  };
 
   window.addEventListener(HostAppEvent.type, (ev: HostAppEvent) => {
     _debug("trackHostAppEvent", ev);
-    appInsights.trackEvent({ name: ev.type, properties: { ...ev.detail, correlationIds: correlationIdValues } });
+    appInsights.trackEvent({ name: ev.type, properties: { ...ev.detail, ...commonEventProperties() } });
   });
 
   const getOperationId = (): string | undefined => appInsights.context?.telemetryTrace?.traceID;

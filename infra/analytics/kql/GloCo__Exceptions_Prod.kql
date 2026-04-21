@@ -1,0 +1,4 @@
+GloCo_AppExceptions
+| where Environment == "prod"
+| where AuthFailureType !in ("Refresh token expired", "Network request failed (ClientAuthError)")
+| summarize count() by AuthFailureType, bin(TimeGenerated, 1d)

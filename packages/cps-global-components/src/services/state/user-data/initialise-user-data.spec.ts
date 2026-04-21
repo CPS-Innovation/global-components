@@ -31,12 +31,14 @@ const flushPromises = () => new Promise(resolve => setTimeout(resolve, 0));
 describe("initialiseUserData", () => {
   let setUserDataHint: jest.Mock;
   let trackEvent: jest.Mock;
+  let trackException: jest.Mock;
   let register: jest.Mock;
 
   beforeEach(() => {
     jest.clearAllMocks();
     setUserDataHint = jest.fn();
     trackEvent = jest.fn();
+    trackException = jest.fn();
     register = jest.fn();
   });
 
@@ -46,6 +48,7 @@ describe("initialiseUserData", () => {
       userDataHint: { found: false, error: new Error("no hint") },
       setUserDataHint,
       trackEvent,
+      trackException,
       register,
     });
 
@@ -61,6 +64,7 @@ describe("initialiseUserData", () => {
       userDataHint: { found: false, error: new Error("no hint") },
       setUserDataHint,
       trackEvent,
+      trackException,
       register,
     });
 
@@ -80,6 +84,7 @@ describe("initialiseUserData", () => {
       userDataHint: freshHint,
       setUserDataHint,
       trackEvent,
+      trackException,
       register,
     });
 
@@ -98,6 +103,7 @@ describe("initialiseUserData", () => {
       userDataHint: staleHint,
       setUserDataHint,
       trackEvent,
+      trackException,
       register,
     });
 
@@ -106,7 +112,7 @@ describe("initialiseUserData", () => {
     expect(mockFetch).toHaveBeenCalledTimes(1);
     const url = mockFetch.mock.calls[0][0];
     expect(String(url)).toContain("/api/global-components/user-data");
-    expect(setUserDataHint).toHaveBeenCalledWith(validUserData);
+    expect(setUserDataHint).toHaveBeenCalledWith(validUserData, trackException);
     expect(register).toHaveBeenCalledWith({ userDataHint: { found: true, result: expect.objectContaining({ userData: validUserData }) } });
   });
 
@@ -133,12 +139,13 @@ describe("initialiseUserData", () => {
       userDataHint: { found: false, error: new Error("no hint") },
       setUserDataHint,
       trackEvent,
+      trackException,
       register,
     });
 
     await initialiseUserDataForContext({ context, getToken, correlationIds });
 
-    expect(setUserDataHint).toHaveBeenCalledWith(validUserData);
+    expect(setUserDataHint).toHaveBeenCalledWith(validUserData, trackException);
     const stored = setUserDataHint.mock.calls[0][0];
     expect(stored).not.toHaveProperty("email");
     expect(stored).not.toHaveProperty("displayName");
@@ -153,13 +160,14 @@ describe("initialiseUserData", () => {
       userDataHint: { found: false, error: new Error("no hint") },
       setUserDataHint,
       trackEvent,
+      trackException,
       register,
     });
 
     await initialiseUserDataForContext({ context, getToken, correlationIds });
 
     expect(mockFetch).toHaveBeenCalledTimes(1);
-    expect(setUserDataHint).toHaveBeenCalledWith(validUserData);
+    expect(setUserDataHint).toHaveBeenCalledWith(validUserData, trackException);
   });
 
   it("should not update the hint when the fetch fails", async () => {
@@ -170,6 +178,7 @@ describe("initialiseUserData", () => {
       userDataHint: { found: false, error: new Error("no hint") },
       setUserDataHint,
       trackEvent,
+      trackException,
       register,
     });
 
@@ -193,6 +202,7 @@ describe("initialiseUserData", () => {
       userDataHint: { found: false, error: new Error("no hint") },
       setUserDataHint,
       trackEvent,
+      trackException,
       register,
     });
 

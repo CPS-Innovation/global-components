@@ -44,12 +44,14 @@ describe("initialiseAuth", () => {
   const mockRegister = jest.fn();
   const mockRegisterAuthWithAnalytics = jest.fn();
   const mockSetAuthHint = jest.fn();
+  const mockTrackException = jest.fn();
 
   const makeProps = (overrides: Pick<Parameters<typeof initialiseAuth>[0], "flags"> & Partial<Parameters<typeof initialiseAuth>[0]>) => ({
     config: mockConfig,
     register: mockRegister,
     registerAuthWithAnalytics: mockRegisterAuthWithAnalytics,
     setAuthHint: mockSetAuthHint,
+    trackException: mockTrackException,
     ...overrides,
   });
 
@@ -165,7 +167,7 @@ describe("initialiseAuth", () => {
     it("should call setAuthHint when auth is successful", async () => {
       await setupAndAuth(makeProps({ flags: normalFlags }));
 
-      expect(mockSetAuthHint).toHaveBeenCalledWith(mockAuthResult.auth);
+      expect(mockSetAuthHint).toHaveBeenCalledWith(mockAuthResult.auth, mockTrackException);
     });
 
     it("should not call setAuthHint when auth fails", async () => {

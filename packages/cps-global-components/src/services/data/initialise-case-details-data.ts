@@ -14,26 +14,20 @@ import { MonitoringCodesSchema } from "./MonitoringCode";
 import { fetchAndValidate } from "../fetch/fetch-and-validate";
 import { CorrelationIds } from "../correlation/CorrelationIds";
 import { Result } from "../../utils/Result";
+import { TrackException } from "../analytics/TrackException";
 
 type Props = {
   config: Config;
   handover: Result<Handover>;
-  setNextHandover: (data: Handover) => void;
+  setNextHandover: (data: Handover, trackException: TrackException) => void;
   setNextRecentCases: (caseDetails: CaseDetails | undefined) => void;
   trackEvent: (detail: AnalyticsEventData) => void;
+  trackException: TrackException;
   register: Register;
   mergeTags: MergeTags;
 };
 
-export const initialiseCaseDetailsData = ({
-  config,
-  handover,
-  setNextHandover,
-  setNextRecentCases,
-  trackEvent,
-  register,
-  mergeTags,
-}: Props) => {
+export const initialiseCaseDetailsData = ({ config, handover, setNextHandover, setNextRecentCases, trackEvent, trackException, register, mergeTags }: Props) => {
   let optimisticCaseId: number | undefined;
   let generation = 0;
 
@@ -89,6 +83,7 @@ export const initialiseCaseDetailsData = ({
       .catch(error => {
         if (isStale()) return undefined;
         register({ caseDetails: { found: false, error } });
+        trackException(error instanceof Error ? error : new Error(String(error)), { type: "data", code: "case-details" });
         return undefined;
       });
 
@@ -103,13 +98,14 @@ export const initialiseCaseDetailsData = ({
           .catch(error => {
             if (isStale()) return undefined;
             register({ caseMonitoringCodes: { found: false, error } });
+            trackException(error instanceof Error ? error : new Error(String(error)), { type: "data", code: "case-monitoring-codes" });
             return undefined;
           });
 
     return Promise.all([caseDetailsPromise, monitoringCodesPromise]).then(([caseDetails, monitoringCodes]) => {
       if (isStale()) return;
       const handoverData = { caseId, caseDetails, monitoringCodes };
-      setNextHandover(handoverData);
+      setNextHandover(handoverData, trackException);
       register({ handover: { found: true, result: handoverData } });
       setNextRecentCases(caseDetails);
     });
