@@ -167,7 +167,7 @@ describe("initialiseAuth", () => {
     it("should call setAuthHint when auth is successful", async () => {
       await setupAndAuth(makeProps({ flags: normalFlags }));
 
-      expect(mockSetAuthHint).toHaveBeenCalledWith(mockAuthResult.auth);
+      expect(mockSetAuthHint).toHaveBeenCalledWith(mockAuthResult.auth, mockTrackException);
     });
 
     it("should not call setAuthHint when auth fails", async () => {

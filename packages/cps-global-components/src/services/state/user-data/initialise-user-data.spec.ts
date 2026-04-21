@@ -112,7 +112,7 @@ describe("initialiseUserData", () => {
     expect(mockFetch).toHaveBeenCalledTimes(1);
     const url = mockFetch.mock.calls[0][0];
     expect(String(url)).toContain("/api/global-components/user-data");
-    expect(setUserDataHint).toHaveBeenCalledWith(validUserData);
+    expect(setUserDataHint).toHaveBeenCalledWith(validUserData, trackException);
     expect(register).toHaveBeenCalledWith({ userDataHint: { found: true, result: expect.objectContaining({ userData: validUserData }) } });
   });
 
@@ -145,7 +145,7 @@ describe("initialiseUserData", () => {
 
     await initialiseUserDataForContext({ context, getToken, correlationIds });
 
-    expect(setUserDataHint).toHaveBeenCalledWith(validUserData);
+    expect(setUserDataHint).toHaveBeenCalledWith(validUserData, trackException);
     const stored = setUserDataHint.mock.calls[0][0];
     expect(stored).not.toHaveProperty("email");
     expect(stored).not.toHaveProperty("displayName");
@@ -167,7 +167,7 @@ describe("initialiseUserData", () => {
     await initialiseUserDataForContext({ context, getToken, correlationIds });
 
     expect(mockFetch).toHaveBeenCalledTimes(1);
-    expect(setUserDataHint).toHaveBeenCalledWith(validUserData);
+    expect(setUserDataHint).toHaveBeenCalledWith(validUserData, trackException);
   });
 
   it("should not update the hint when the fetch fails", async () => {

@@ -44,12 +44,13 @@ describe("initialiseUserDataHint", () => {
   it("setUserDataHint should PUT the wrapped hint with a fresh timestamp", async () => {
     mockFetch.mockResolvedValue({ ok: true, json: () => Promise.resolve(null) });
     const before = Date.now();
+    const trackException = jest.fn();
 
     const { setUserDataHint } = await initialiseUserDataHint({ rootUrl, register: mockRegister });
 
     mockFetch.mockClear();
-    mockFetch.mockResolvedValue({ ok: true, json: () => Promise.resolve({ success: true }) });
-    setUserDataHint(validUserData);
+    mockFetch.mockResolvedValue({ ok: true, json: () => Promise.resolve({ success: true, path: "/state/user-data-hint" }) });
+    setUserDataHint(validUserData, trackException);
 
     await new Promise(resolve => setTimeout(resolve, 0));
 
@@ -64,5 +65,36 @@ describe("initialiseUserDataHint", () => {
     const putBody = JSON.parse(mockFetch.mock.calls[0][1].body);
     expect(putBody.userData).toEqual(validUserData);
     expect(putBody.timestamp).toBeGreaterThanOrEqual(before);
+    expect(trackException).not.toHaveBeenCalled();
+  });
+
+  it("setUserDataHint should call trackException when the PUT fails", async () => {
+    mockFetch.mockResolvedValue({ ok: true, json: () => Promise.resolve(null) });
+    const trackException = jest.fn();
+
+    const { setUserDataHint } = await initialiseUserDataHint({ rootUrl, register: mockRegister });
+
+    mockFetch.mockClear();
+    mockFetch.mockRejectedValue(new Error("network boom"));
+    setUserDataHint(validUserData, trackException);
+
+    await new Promise(resolve => setTimeout(resolve, 0));
+
+    expect(trackException).toHaveBeenCalledWith(expect.any(Error), { type: "state", code: "state-user-data-hint-set" });
+  });
+
+  it("setUserDataHint should call trackException when the PUT returns a non-ok status", async () => {
+    mockFetch.mockResolvedValue({ ok: true, json: () => Promise.resolve(null) });
+    const trackException = jest.fn();
+
+    const { setUserDataHint } = await initialiseUserDataHint({ rootUrl, register: mockRegister });
+
+    mockFetch.mockClear();
+    mockFetch.mockResolvedValue({ ok: false, status: 500, statusText: "Server Error" });
+    setUserDataHint(validUserData, trackException);
+
+    await new Promise(resolve => setTimeout(resolve, 0));
+
+    expect(trackException).toHaveBeenCalledWith(expect.any(Error), { type: "state", code: "state-user-data-hint-set" });
   });
 });
