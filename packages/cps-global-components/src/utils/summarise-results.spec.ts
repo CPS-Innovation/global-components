@@ -2,7 +2,7 @@ import { summariseResults } from "./summarise-results";
 import { Result } from "./Result";
 
 const found = <T>(result: T): Result<T> => ({ found: true, result });
-const errored = (error: unknown): Result<never> => ({ found: false, error });
+const errored = (error: unknown): Result<never> => ({ found: false, error: error instanceof Error ? error : new Error(String(error)) });
 
 describe("summariseResults", () => {
   describe("status classification", () => {
