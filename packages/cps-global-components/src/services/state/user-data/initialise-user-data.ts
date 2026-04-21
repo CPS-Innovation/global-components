@@ -10,7 +10,7 @@ import { fetchWithCircuitBreaker } from "../../fetch/fetch-with-circuit-breaker"
 import { fetchAndValidate } from "../../fetch/fetch-and-validate";
 import { pipe } from "../../../utils/pipe";
 import { makeConsole } from "../../../logging/makeConsole";
-import { UserData, UserDataHint, UserDataSchema } from "./UserData";
+import { UserDataHint, UserDataSchema, toUserDataHintPayload } from "./UserData";
 import { TrackException } from "../../analytics/TrackException";
 
 const DEFAULT_REFRESH_PERIOD_MINS = 24 * 60;
@@ -20,7 +20,7 @@ const { _error } = makeConsole("initialiseUserData");
 type Props = {
   config: Config;
   userDataHint: Result<UserDataHint>;
-  setUserDataHint: (userData: UserData, trackException?: TrackException) => void;
+  setUserDataHint: (userData: ReturnType<typeof toUserDataHintPayload>, trackException?: TrackException) => void;
   trackEvent: (detail: AnalyticsEventData) => void;
   trackException: TrackException;
   register: Register;
@@ -58,8 +58,9 @@ export const initialiseUserData = ({ config, userDataHint, setUserDataHint, trac
         const timestamp = Date.now();
         lastKnownTimestamp = timestamp;
         priorAttemptErrored = false;
-        setUserDataHint(userData, trackException);
-        register({ userDataHint: { found: true, result: { userData, timestamp } } });
+        const compactUserData = toUserDataHintPayload(userData);
+        setUserDataHint(compactUserData, trackException);
+        register({ userDataHint: { found: true, result: { userData: compactUserData, timestamp } } });
         trackEvent({ name: "user-data-fetch", outcome: "success" });
       })
       .catch(error => {

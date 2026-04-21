@@ -4,7 +4,7 @@ import { CorrelationIds } from "../../correlation/CorrelationIds";
 import { GetToken } from "../../auth/GetToken";
 import { Result } from "../../../utils/Result";
 import { initialiseUserData } from "./initialise-user-data";
-import { UserData, UserDataHint } from "./UserData";
+import { UserData, UserDataHint, UserDataHintPayload } from "./UserData";
 
 const mockFetch = jest.fn();
 global.fetch = mockFetch;
@@ -14,6 +14,15 @@ const validUserData: UserData = {
   selectedCpsAreaId: 7,
   homeUnit: { unitId: 10, unit: "UnitX", areaId: 3, area: "AreaY", areaGroupId: 1, areaGroup: "GroupZ" },
   allocatedUnits: [],
+};
+
+const expectedHintPayload: UserDataHintPayload = {
+  userId: 42,
+  areaId: 3,
+  area: "AreaY",
+  hasViewNationalChargingTasksRight: undefined,
+  countSensitiveUnits: 0,
+  countNotSensitiveUnits: 0,
 };
 
 const baseConfig: Partial<Config> = {
@@ -78,7 +87,7 @@ describe("initialiseUserData", () => {
   });
 
   it("should skip fetching when hint timestamp is fresh", async () => {
-    const freshHint: Result<UserDataHint> = { found: true, result: { timestamp: Date.now(), userData: validUserData } };
+    const freshHint: Result<UserDataHint> = { found: true, result: { timestamp: Date.now(), userData: expectedHintPayload } };
     const { initialiseUserDataForContext } = initialiseUserData({
       config: baseConfig as Config,
       userDataHint: freshHint,
@@ -95,7 +104,7 @@ describe("initialiseUserData", () => {
   });
 
   it("should fetch user-data and call setUserDataHint when hint is stale", async () => {
-    const staleHint: Result<UserDataHint> = { found: true, result: { timestamp: 0, userData: validUserData } };
+    const staleHint: Result<UserDataHint> = { found: true, result: { timestamp: 0, userData: expectedHintPayload } };
     mockFetch.mockResolvedValue({ ok: true, json: () => Promise.resolve(validUserData) });
 
     const { initialiseUserDataForContext } = initialiseUserData({
@@ -112,11 +121,11 @@ describe("initialiseUserData", () => {
     expect(mockFetch).toHaveBeenCalledTimes(1);
     const url = mockFetch.mock.calls[0][0];
     expect(String(url)).toContain("/api/global-components/user-data");
-    expect(setUserDataHint).toHaveBeenCalledWith(validUserData, trackException);
-    expect(register).toHaveBeenCalledWith({ userDataHint: { found: true, result: expect.objectContaining({ userData: validUserData }) } });
+    expect(setUserDataHint).toHaveBeenCalledWith(expectedHintPayload, trackException);
+    expect(register).toHaveBeenCalledWith({ userDataHint: { found: true, result: expect.objectContaining({ userData: expectedHintPayload }) } });
   });
 
-  it("should store only schema-defined fields, stripping any extras from the API response", async () => {
+  it("should store only the compact hint payload, dropping all extras from the API response", async () => {
     const apiResponse = {
       userId: 42,
       selectedCpsAreaId: 7,
@@ -129,6 +138,7 @@ describe("initialiseUserData", () => {
         areaGroup: "GroupZ",
         extraUnitField: "leaked",
       },
+      allocatedUnits: [{ areaIsSensitive: true }, { areaIsSensitive: false }, { areaIsSensitive: false }],
       email: "user@example.com",
       displayName: "Alice",
     };
@@ -145,11 +155,17 @@ describe("initialiseUserData", () => {
 
     await initialiseUserDataForContext({ context, getToken, correlationIds });
 
-    expect(setUserDataHint).toHaveBeenCalledWith(validUserData, trackException);
     const stored = setUserDataHint.mock.calls[0][0];
+    expect(Object.keys(stored).sort()).toEqual(
+      ["area", "areaId", "countNotSensitiveUnits", "countSensitiveUnits", "hasViewNationalChargingTasksRight", "userId"].sort(),
+    );
+    expect(stored.countSensitiveUnits).toBe(1);
+    expect(stored.countNotSensitiveUnits).toBe(2);
+    expect(stored.areaId).toBe(3);
+    expect(stored.area).toBe("AreaY");
     expect(stored).not.toHaveProperty("email");
-    expect(stored).not.toHaveProperty("displayName");
-    expect(stored.homeUnit).not.toHaveProperty("extraUnitField");
+    expect(stored).not.toHaveProperty("homeUnit");
+    expect(stored).not.toHaveProperty("allocatedUnits");
   });
 
   it("should fetch when there is no hint", async () => {
@@ -167,7 +183,7 @@ describe("initialiseUserData", () => {
     await initialiseUserDataForContext({ context, getToken, correlationIds });
 
     expect(mockFetch).toHaveBeenCalledTimes(1);
-    expect(setUserDataHint).toHaveBeenCalledWith(validUserData, trackException);
+    expect(setUserDataHint).toHaveBeenCalledWith(expectedHintPayload, trackException);
   });
 
   it("should not update the hint when the fetch fails", async () => {
