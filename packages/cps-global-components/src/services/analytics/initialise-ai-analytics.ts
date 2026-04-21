@@ -157,16 +157,7 @@ export const initialiseAiAnalytics = ({ window, config: { APP_INSIGHTS_CONNECTIO
     (async () => {
       await authReady;
       const caseId = currentCaseId;
-      const user = userDataHint?.found
-        ? {
-            userId: userDataHint.result.userData.userId,
-            areaId: userDataHint.result.userData.homeUnit.areaId,
-            area: userDataHint.result.userData.homeUnit.area,
-            hasViewNationalChargingTasksRight: userDataHint.result.userData.hasViewNationalChargingTasksRight,
-            countSensitiveUnits: userDataHint.result.userData.allocatedUnits?.filter(u => u.areaIsSensitive).length ?? 0,
-            countNotSensitiveUnits: userDataHint.result.userData.allocatedUnits?.filter(u => !u.areaIsSensitive).length ?? 0,
-          }
-        : undefined;
+      const user = userDataHint?.found ? userDataHint.result.userData : undefined;
       const arg = {
         properties: capitalizeKeys({
           environment: ENVIRONMENT,

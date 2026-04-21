@@ -1,16 +1,18 @@
 import { initialiseUserDataHint } from "./initialise-user-data-hint";
-import { UserData, UserDataHint } from "./UserData";
+import { UserDataHint, UserDataHintPayload } from "./UserData";
 
 const mockFetch = jest.fn();
 global.fetch = mockFetch;
 
 const mockRegister = jest.fn();
 
-const validUserData: UserData = {
+const validHintPayload: UserDataHintPayload = {
   userId: 42,
-  selectedCpsAreaId: 7,
-  homeUnit: { unitId: 10, unit: "UnitX", areaId: 3, area: "AreaY", areaGroupId: 1, areaGroup: "GroupZ" },
-  allocatedUnits: [],
+  areaId: 3,
+  area: "AreaY",
+  hasViewNationalChargingTasksRight: false,
+  countSensitiveUnits: 0,
+  countNotSensitiveUnits: 0,
 };
 
 describe("initialiseUserDataHint", () => {
@@ -22,7 +24,7 @@ describe("initialiseUserDataHint", () => {
   });
 
   it("should GET the hint from state and register it", async () => {
-    const hint: UserDataHint = { timestamp: 123, userData: validUserData };
+    const hint: UserDataHint = { timestamp: 123, userData: validHintPayload };
     mockFetch.mockResolvedValue({ ok: true, json: () => Promise.resolve(hint) });
 
     const { userDataHint } = await initialiseUserDataHint({ rootUrl, register: mockRegister });
@@ -50,7 +52,7 @@ describe("initialiseUserDataHint", () => {
 
     mockFetch.mockClear();
     mockFetch.mockResolvedValue({ ok: true, json: () => Promise.resolve({ success: true, path: "/state/user-data-hint" }) });
-    setUserDataHint(validUserData, trackException);
+    setUserDataHint(validHintPayload, trackException);
 
     await new Promise(resolve => setTimeout(resolve, 0));
 
@@ -63,7 +65,7 @@ describe("initialiseUserDataHint", () => {
       }),
     );
     const putBody = JSON.parse(mockFetch.mock.calls[0][1].body);
-    expect(putBody.userData).toEqual(validUserData);
+    expect(putBody.userData).toEqual(validHintPayload);
     expect(putBody.timestamp).toBeGreaterThanOrEqual(before);
     expect(trackException).not.toHaveBeenCalled();
   });
@@ -76,7 +78,7 @@ describe("initialiseUserDataHint", () => {
 
     mockFetch.mockClear();
     mockFetch.mockRejectedValue(new Error("network boom"));
-    setUserDataHint(validUserData, trackException);
+    setUserDataHint(validHintPayload, trackException);
 
     await new Promise(resolve => setTimeout(resolve, 0));
 
@@ -91,7 +93,7 @@ describe("initialiseUserDataHint", () => {
 
     mockFetch.mockClear();
     mockFetch.mockResolvedValue({ ok: false, status: 500, statusText: "Server Error" });
-    setUserDataHint(validUserData, trackException);
+    setUserDataHint(validHintPayload, trackException);
 
     await new Promise(resolve => setTimeout(resolve, 0));
 

@@ -2,7 +2,7 @@ import { fetchState } from "../fetch-state";
 import { StatePutResponseSchema } from "../StatePutResponse";
 import { makeConsole } from "../../../logging/makeConsole";
 import { Result } from "../../../utils/Result";
-import { UserData, UserDataHint, UserDataHintSchema } from "./UserData";
+import { UserDataHint, UserDataHintPayload, UserDataHintSchema } from "./UserData";
 import { TrackException } from "../../analytics/TrackException";
 
 const { _warn } = makeConsole("initialiseUserDataHint");
@@ -15,11 +15,11 @@ export const initialiseUserDataHint = async ({
 }: {
   rootUrl: string;
   register: Register;
-}): Promise<{ userDataHint: Result<UserDataHint>; setUserDataHint: (userData: UserData, trackException: TrackException) => void }> => {
+}): Promise<{ userDataHint: Result<UserDataHint>; setUserDataHint: (userData: UserDataHintPayload, trackException: TrackException) => void }> => {
   const userDataHint = await fetchState({ rootUrl, url: "../state/user-data-hint", schema: UserDataHintSchema });
   register({ userDataHint });
 
-  const setUserDataHint = (userData: UserData, trackException: TrackException) => {
+  const setUserDataHint = (userData: UserDataHintPayload, trackException: TrackException) => {
     const data: UserDataHint = { userData, timestamp: Date.now() };
     fetchState({ rootUrl, url: "../state/user-data-hint", schema: StatePutResponseSchema, data }).then(r => {
       if (!r.found) {
