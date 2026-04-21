@@ -11,7 +11,7 @@ import { fetchAndValidate } from "../../fetch/fetch-and-validate";
 import { pipe } from "../../../utils/pipe";
 import { makeConsole } from "../../../logging/makeConsole";
 import { UserData, UserDataHint, UserDataSchema } from "./UserData";
-import { ExceptionMeta } from "../../analytics/ExceptionMeta";
+import { TrackException } from "../../analytics/TrackException";
 
 const DEFAULT_REFRESH_PERIOD_MINS = 24 * 60;
 
@@ -20,9 +20,9 @@ const { _error } = makeConsole("initialiseUserData");
 type Props = {
   config: Config;
   userDataHint: Result<UserDataHint>;
-  setUserDataHint: (userData: UserData) => void;
+  setUserDataHint: (userData: UserData, trackException?: TrackException) => void;
   trackEvent: (detail: AnalyticsEventData) => void;
-  trackException: (exception: Error, meta: ExceptionMeta) => void;
+  trackException: TrackException;
   register: Register;
 };
 
@@ -34,15 +34,7 @@ export const initialiseUserData = ({ config, userDataHint, setUserDataHint, trac
   let inFlight: Promise<void> | undefined;
   let priorAttemptErrored = false;
 
-  const initialiseUserDataForContext = ({
-    context,
-    getToken,
-    correlationIds,
-  }: {
-    context: FoundContext;
-    getToken: GetToken;
-    correlationIds: CorrelationIds;
-  }): Promise<void> => {
+  const initialiseUserDataForContext = ({ context, getToken, correlationIds }: { context: FoundContext; getToken: GetToken; correlationIds: CorrelationIds }): Promise<void> => {
     if (refreshPeriodMins === 0) {
       return Promise.resolve();
     }
@@ -66,7 +58,7 @@ export const initialiseUserData = ({ config, userDataHint, setUserDataHint, trac
         const timestamp = Date.now();
         lastKnownTimestamp = timestamp;
         priorAttemptErrored = false;
-        setUserDataHint(userData);
+        setUserDataHint(userData, trackException);
         register({ userDataHint: { found: true, result: { userData, timestamp } } });
         trackEvent({ name: "user-data-fetch", outcome: "success" });
       })

@@ -4,6 +4,7 @@ import { StatePutResponseSchema } from "../StatePutResponse";
 import { makeConsole } from "../../../logging/makeConsole";
 import { Result } from "../../../utils/Result";
 import { Auth, AuthSchema } from "../../auth/AuthResult";
+import { TrackException } from "../../analytics/TrackException";
 
 const AuthHintSchema = z.object({
   authResult: AuthSchema,
@@ -16,15 +17,24 @@ const { _warn } = makeConsole("initialiseAuthHint");
 
 type Register = (arg: { authHint: Result<AuthHint> }) => void;
 
-export const initialiseAuthHint = async ({ rootUrl, register }: { rootUrl: string; register: Register }): Promise<{ authHint: Result<AuthHint>; setAuthHint: (auth: Auth) => void }> => {
+export const initialiseAuthHint = async ({
+  rootUrl,
+  register,
+}: {
+  rootUrl: string;
+  register: Register;
+}): Promise<{ authHint: Result<AuthHint>; setAuthHint: (auth: Auth, trackException: TrackException) => void }> => {
   const authHint = await fetchState({ rootUrl, url: "../state/auth-hint", schema: AuthHintSchema });
   register({ authHint });
 
-  const setAuthHint = (auth: Auth) => {
+  const setAuthHint = (auth: Auth, trackException: TrackException) => {
     const data: AuthHint = { authResult: auth, timestamp: Date.now() };
-    fetchState({ rootUrl, url: "../state/auth-hint", schema: StatePutResponseSchema, data }).catch(error =>
-      _warn("Unexpected error setting auth hint", String(error)),
-    );
+    fetchState({ rootUrl, url: "../state/auth-hint", schema: StatePutResponseSchema, data }).then(r => {
+      if (!r.found) {
+        trackException(r.error instanceof Error ? r.error : new Error(String(r.error)), { type: "state", code: "state-auth-hint-set" });
+        _warn("Unexpected error setting auth hint", String(r.error));
+      }
+    });
   };
 
   return { authHint, setAuthHint };

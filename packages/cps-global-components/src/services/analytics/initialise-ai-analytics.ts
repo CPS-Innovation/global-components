@@ -4,8 +4,6 @@ import { FoundContext } from "../context/FoundContext";
 import { CorrelationIds } from "../correlation/CorrelationIds";
 import { AnalyticsEventData, TrackEvent } from "./analytics-event";
 import { HostAppEvent } from "./host-app-event";
-
-const ANALYTICS_EVENT_NAME = "cps-global-components-analytics-event";
 import { makeConsole } from "../../logging/makeConsole";
 import { Build } from "../../store/store";
 import { AuthResult, KnownErrorType } from "../auth/AuthResult";
@@ -15,7 +13,9 @@ import { AuthHint } from "../state/auth-hint/initialise-auth-hint";
 import { UserDataHint } from "../state/user-data/UserData";
 import { ExceptionMeta } from "./ExceptionMeta";
 import { getPageState } from "./page-state";
+import { TrackException } from "./TrackException";
 
+const ANALYTICS_EVENT_NAME = "cps-global-components-analytics-event";
 const STORAGE_PREFIX = "cps_global_components";
 
 type Props = {
@@ -35,13 +35,7 @@ export type Analytics = ReturnType<typeof initialiseAiAnalytics>;
 
 const { _debug } = makeConsole("initialiseAnalytics");
 
-export const initialiseAiAnalytics = ({
-  window,
-  config: { APP_INSIGHTS_CONNECTION_STRING, ENVIRONMENT },
-  build,
-  authHint,
-  userDataHint,
-}: Props) => {
+export const initialiseAiAnalytics = ({ window, config: { APP_INSIGHTS_CONNECTION_STRING, ENVIRONMENT }, build, authHint, userDataHint }: Props) => {
   if (!APP_INSIGHTS_CONNECTION_STRING) {
     return {
       trackPageView: (_: { context: FoundContext; properties?: Record<string, unknown> }) => {},
@@ -193,7 +187,7 @@ export const initialiseAiAnalytics = ({
     })();
   };
 
-  const trackException = (exception: Error, meta: ExceptionMeta) => {
+  const trackException: TrackException = (exception: Error, meta: ExceptionMeta) => {
     appInsights.trackException(
       { exception },
       {
@@ -218,7 +212,7 @@ export const initialiseAiAnalytics = ({
     ...(authValues && { auth: authValues }),
   });
 
-  const trackEvent: TrackEvent = (detail) => {
+  const trackEvent: TrackEvent = detail => {
     _debug("trackEvent", detail);
     appInsights.trackEvent({ name: ANALYTICS_EVENT_NAME, properties: { ...detail, ...commonEventProperties() } });
   };

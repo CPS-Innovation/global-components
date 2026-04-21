@@ -9,14 +9,13 @@ import { createMsalInstance } from "./create-msal-instance";
 import type { AdDiagnosticsCollector } from "./ad-diagnostics-collector";
 import type { PublicClientApplication } from "@azure/msal-browser";
 import type { SilentFlowDiagnostic, SilentFlowDiagnostics } from "../diagnostics/silent-flow-diagnostics";
-import type { ExceptionMeta } from "../analytics/ExceptionMeta";
+import { TrackException } from "../analytics/TrackException";
 
 type Register = (arg: { auth: AuthResult }) => void;
 type RegisterAuthWithAnalytics = (auth: AuthResult) => void;
-type SetAuthHint = (auth: Auth) => void;
+type SetAuthHint = (auth: Auth, trackException?: TrackException) => void;
 type AddSilentFlowDiagnostics = (entry: SilentFlowDiagnostic) => void;
 type GetOperationId = () => string | undefined;
-type TrackException = (exception: Error, meta: ExceptionMeta) => void;
 
 type Props = {
   config: Config;
@@ -95,7 +94,7 @@ export const initialiseAuth = ({
         register({ auth: result.auth });
         registerAuthWithAnalytics(result.auth);
         if (result.auth.isAuthed) {
-          setAuthHint(result.auth);
+          setAuthHint(result.auth, trackException);
         }
         return result;
       })
