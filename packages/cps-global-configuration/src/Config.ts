@@ -152,6 +152,7 @@ export const configBaseSchema = z.object({
   SILENT_FLOW_DIAGNOSTICS_LENGTH: z.number().int().min(0).optional(),
   PROBE_IFRAME_BASE_URL: z.string().optional(),
   PROBE_IFRAME_TIMEOUT_MS: z.number().int().min(0).optional(),
+  PROBE_IFRAME_REFRESH_PERIOD_MINS: z.number().int().min(0).optional(),
   USER_DATA_REFRESH_PERIOD_MINS: z.number().int().min(0).optional(),
   USER_DATA_ATTEMPT_RETRY_ON_SPA_NAVIGATION: z.boolean().optional(),
 });
