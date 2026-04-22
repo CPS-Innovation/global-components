@@ -10,6 +10,7 @@ import { ApplicationFlags } from "../application-flags/ApplicationFlags";
 
 const DEFAULT_SILENT_FLOW_DIAGNOSTICS_LENGTH = 5;
 const DEFAULT_PROBE_IFRAME_TIMEOUT_MS = 3000;
+const DEFAULT_PROBE_IFRAME_REFRESH_PERIOD_MINS = 15;
 
 export const initialiseDiagnostics = ({
   window,
@@ -83,7 +84,7 @@ export const initialiseDiagnostics = ({
 // The probe can't run on OutSystems-hosted pages because their CSP's frame-src
 // doesn't include blob.core.windows.net — iframe navigation is blocked and the
 // result would be a spurious "timeout-public" that we'd then cache indefinitely.
-const runProbeIframeLoadIfUnrecorded = ({
+const runProbeIframeLoadIfUnrecorded = async ({
   window,
   rootUrl,
   config,
@@ -96,34 +97,42 @@ const runProbeIframeLoadIfUnrecorded = ({
   flags: ApplicationFlags;
   trackEvent: TrackEvent;
 }) => {
-  if (flags.isOutSystems) {
-    return;
-  }
-  if (!config.PROBE_IFRAME_BASE_URL || !config.ENVIRONMENT) {
+  if (flags.isOutSystems || !config.PROBE_IFRAME_BASE_URL || !config.ENVIRONMENT) {
     return;
   }
 
-  fetchState({
+  const refreshPeriodMins = config.PROBE_IFRAME_REFRESH_PERIOD_MINS ?? DEFAULT_PROBE_IFRAME_REFRESH_PERIOD_MINS;
+  if (refreshPeriodMins === 0) {
+    return;
+  }
+  const refreshPeriodMs = refreshPeriodMins * 60 * 1000;
+
+  const existing = await fetchState({
     rootUrl,
     url: "../state/diagnostics/probe-iframe-load",
     schema: ProbeIframeLoadDiagnosticSchema,
-  }).then(existing => {
-    if (existing.found) {
-      return;
-    }
-
-    const url = `${config.PROBE_IFRAME_BASE_URL}/${config.ENVIRONMENT}/probe-iframe-load.html`;
-    const timeoutMs = config.PROBE_IFRAME_TIMEOUT_MS ?? DEFAULT_PROBE_IFRAME_TIMEOUT_MS;
-
-    probeIframeLoad({ window, url, timeoutMs }).then(({ outcome, durationMs }) => {
-      const diagnostic: ProbeIframeLoadDiagnostic = { outcome, durationMs, timestamp: Date.now() };
-      fetchState({
-        rootUrl,
-        url: "../state/diagnostics/probe-iframe-load",
-        schema: StatePutResponseSchema,
-        data: diagnostic,
-      });
-      trackEvent({ name: "iframe-load-probe", outcome, durationMs });
-    });
   });
+
+  if (existing.found && Date.now() - existing.result.timestamp < refreshPeriodMs) {
+    return;
+  }
+
+  const url = `${config.PROBE_IFRAME_BASE_URL}/${config.ENVIRONMENT}/probe-iframe-load.html`;
+  const timeoutMs = config.PROBE_IFRAME_TIMEOUT_MS ?? DEFAULT_PROBE_IFRAME_TIMEOUT_MS;
+
+  const [{ outcome, durationMs }, localNetworkAccessPermission] = await Promise.all([
+    probeIframeLoad({ window, url, timeoutMs }),
+    window.navigator.permissions.query({ name: "local-network-access" as PermissionName }).then(
+      status => status.state,
+      () => undefined,
+    ),
+  ]);
+  const diagnostic: ProbeIframeLoadDiagnostic = { outcome, durationMs, timestamp: Date.now(), localNetworkAccessPermission };
+  fetchState({
+    rootUrl,
+    url: "../state/diagnostics/probe-iframe-load",
+    schema: StatePutResponseSchema,
+    data: diagnostic,
+  });
+  trackEvent({ name: "iframe-load-probe", outcome, durationMs, localNetworkAccessPermission });
 };

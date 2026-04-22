@@ -213,6 +213,7 @@ describe("initialiseDiagnostics", () => {
 
   describe("probe-iframe-load", () => {
     let probeSpy: jest.SpyInstance;
+    let permissionsQuery: jest.Mock;
 
     const probeConfig = {
       ENVIRONMENT: "dev",
@@ -222,11 +223,14 @@ describe("initialiseDiagnostics", () => {
     beforeEach(() => {
       probeSpy = jest.spyOn(probeModule, "probeIframeLoad");
       jest.spyOn(Date, "now").mockReturnValue(1_700_000_000_000);
+      permissionsQuery = jest.fn().mockResolvedValue({ state: "granted" });
+      (window.navigator as any).permissions = { query: permissionsQuery };
     });
 
     afterEach(() => {
       probeSpy.mockRestore();
       (Date.now as jest.Mock).mockRestore?.();
+      delete (window.navigator as any).permissions;
     });
 
     it("does not run when PROBE_IFRAME_BASE_URL is missing", async () => {
@@ -256,10 +260,13 @@ describe("initialiseDiagnostics", () => {
       expect(mockFetch).not.toHaveBeenCalledWith(expectedProbeStateUrl, expect.anything());
     });
 
-    it("GETs the stored diagnostic, skips the probe and does not track when a value already exists", async () => {
+    it("GETs the stored diagnostic and skips the probe when the stored value is within the refresh window", async () => {
+      const now = 1_700_000_000_000;
+      (Date.now as jest.Mock).mockReturnValue(now);
+      const freshTimestamp = now - 5_000; // 5 seconds ago, well inside the default 15-minute window
       mockFetch.mockImplementation((url: string) => {
         if (url === expectedProbeStateUrl) {
-          return Promise.resolve({ ok: true, json: () => Promise.resolve({ outcome: "loaded", durationMs: 123, timestamp: 1 }) });
+          return Promise.resolve({ ok: true, json: () => Promise.resolve({ outcome: "loaded", durationMs: 123, timestamp: freshTimestamp }) });
         }
         return Promise.resolve({ ok: true, json: () => Promise.resolve({ silentFlows: [] }) });
       });
@@ -270,6 +277,47 @@ describe("initialiseDiagnostics", () => {
       expect(mockFetch).toHaveBeenCalledWith(expectedProbeStateUrl, { credentials: "include", cache: "no-cache" });
       expect(probeSpy).not.toHaveBeenCalled();
       expect(mockTrackEvent).not.toHaveBeenCalledWith(expect.objectContaining({ name: "iframe-load-probe" }));
+    });
+
+    it("re-runs the probe when the stored value is older than PROBE_IFRAME_REFRESH_PERIOD_MINS", async () => {
+      const now = 1_700_000_000_000;
+      (Date.now as jest.Mock).mockReturnValue(now);
+      const staleTimestamp = now - 5 * 60 * 1000; // 5 minutes ago, beyond a 1-minute refresh window
+      probeSpy.mockResolvedValue({ outcome: "loaded", durationMs: 200 });
+      mockFetch.mockImplementation((url: string, init?: any) => {
+        if (url === expectedProbeStateUrl && init?.method === "PUT") {
+          return Promise.resolve({ ok: true, json: () => Promise.resolve({ success: true, path: "/state/diagnostics/probe-iframe-load" }) });
+        }
+        if (url === expectedProbeStateUrl) {
+          return Promise.resolve({ ok: true, json: () => Promise.resolve({ outcome: "loaded", durationMs: 100, timestamp: staleTimestamp }) });
+        }
+        return Promise.resolve({ ok: true, json: () => Promise.resolve({ silentFlows: [] }) });
+      });
+
+      initialiseDiagnostics({ window, rootUrl, flags, config: { ...probeConfig, PROBE_IFRAME_REFRESH_PERIOD_MINS: 1 } as Config, register: mockRegister, trackEvent: mockTrackEvent });
+      await flushPromises();
+      await flushPromises();
+
+      expect(probeSpy).toHaveBeenCalled();
+      const putCall = mockFetch.mock.calls.find(([url, init]) => url === expectedProbeStateUrl && init?.method === "PUT");
+      expect(putCall).toBeDefined();
+    });
+
+    it("does not run when PROBE_IFRAME_REFRESH_PERIOD_MINS is 0 (kill switch)", async () => {
+      mockFetch.mockResolvedValue({ ok: true, json: () => Promise.resolve({ silentFlows: [] }) });
+
+      initialiseDiagnostics({
+        window,
+        rootUrl,
+        flags,
+        config: { ...probeConfig, PROBE_IFRAME_REFRESH_PERIOD_MINS: 0 } as Config,
+        register: mockRegister,
+        trackEvent: mockTrackEvent,
+      });
+      await flushPromises();
+
+      expect(probeSpy).not.toHaveBeenCalled();
+      expect(mockFetch).not.toHaveBeenCalledWith(expectedProbeStateUrl, expect.anything());
     });
 
     it("runs the probe, PUTs the result + timestamp, and tracks the event when no value is stored", async () => {
@@ -289,12 +337,13 @@ describe("initialiseDiagnostics", () => {
       await flushPromises();
 
       expect(probeSpy).toHaveBeenCalledWith({ window, url: "https://blob.example/global/dev/probe-iframe-load.html", timeoutMs: 3000 });
+      expect(permissionsQuery).toHaveBeenCalledWith({ name: "local-network-access" });
 
       const putCall = mockFetch.mock.calls.find(([url, init]) => url === expectedProbeStateUrl && init?.method === "PUT");
       expect(putCall).toBeDefined();
-      expect(JSON.parse(putCall![1].body)).toEqual({ outcome: "loaded", durationMs: 250, timestamp: 1_700_000_000_000 });
+      expect(JSON.parse(putCall![1].body)).toEqual({ outcome: "loaded", durationMs: 250, timestamp: 1_700_000_000_000, localNetworkAccessPermission: "granted" });
 
-      expect(mockTrackEvent).toHaveBeenCalledWith({ name: "iframe-load-probe", outcome: "loaded", durationMs: 250 });
+      expect(mockTrackEvent).toHaveBeenCalledWith({ name: "iframe-load-probe", outcome: "loaded", durationMs: 250, localNetworkAccessPermission: "granted" });
     });
 
     it("uses the configured PROBE_IFRAME_TIMEOUT_MS when provided", async () => {
@@ -321,7 +370,33 @@ describe("initialiseDiagnostics", () => {
       await flushPromises();
 
       expect(probeSpy).toHaveBeenCalledWith({ window, url: "https://blob.example/global/dev/probe-iframe-load.html", timeoutMs: 5000 });
-      expect(mockTrackEvent).toHaveBeenCalledWith({ name: "iframe-load-probe", outcome: "timeout-local", durationMs: 5000 });
+      expect(mockTrackEvent).toHaveBeenCalledWith({ name: "iframe-load-probe", outcome: "timeout-local", durationMs: 5000, localNetworkAccessPermission: "granted" });
+    });
+
+    it("tolerates the permissions API rejecting (e.g. browser doesn't recognise 'local-network-access') — stores and tracks without the field", async () => {
+      probeSpy.mockResolvedValue({ outcome: "loaded", durationMs: 100 });
+      permissionsQuery.mockRejectedValue(new TypeError("unknown permission"));
+      mockFetch.mockImplementation((url: string, init?: any) => {
+        if (url === expectedProbeStateUrl && init?.method === "PUT") {
+          return Promise.resolve({ ok: true, json: () => Promise.resolve({ success: true, path: "/state/diagnostics/probe-iframe-load" }) });
+        }
+        if (url === expectedProbeStateUrl) {
+          return Promise.resolve({ ok: true, json: () => Promise.resolve(null) });
+        }
+        return Promise.resolve({ ok: true, json: () => Promise.resolve({ silentFlows: [] }) });
+      });
+
+      initialiseDiagnostics({ window, rootUrl, flags, config: probeConfig, register: mockRegister, trackEvent: mockTrackEvent });
+      await flushPromises();
+      await flushPromises();
+
+      const putCall = mockFetch.mock.calls.find(([url, init]) => url === expectedProbeStateUrl && init?.method === "PUT");
+      expect(putCall).toBeDefined();
+      const body = JSON.parse(putCall![1].body);
+      expect(body).toEqual({ outcome: "loaded", durationMs: 100, timestamp: 1_700_000_000_000 });
+      expect(body.localNetworkAccessPermission).toBeUndefined();
+
+      expect(mockTrackEvent).toHaveBeenCalledWith({ name: "iframe-load-probe", outcome: "loaded", durationMs: 100, localNetworkAccessPermission: undefined });
     });
   });
 });

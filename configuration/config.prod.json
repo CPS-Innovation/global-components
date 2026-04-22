@@ -26,6 +26,7 @@
   "SSO_SILENT_DELAY_MS": 2000,
   "COLLECT_AD_DIAGNOSTICS_IN_PAGE_VIEW": true,
   "USER_DATA_REFRESH_PERIOD_MINS": 15,
+  "PROBE_IFRAME_REFRESH_PERIOD_MINS": 15,
   "CONTEXTS": [
     {
       "headerCustomCssClasses": "header",
