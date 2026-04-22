@@ -88,13 +88,15 @@ describe("probeIframeLoad", () => {
     expect(result.outcome).toBe("timeout-public");
   });
 
-  it("appends the iframe with the given URL as src and hides it", () => {
+  it("appends the iframe with the given URL as src, hides it, and delegates LNA permission", () => {
     probeIframeLoad({ window, url: PUBLIC_URL, timeoutMs: 10 });
 
     const iframe = document.querySelector("iframe");
     expect(iframe).not.toBeNull();
     expect(iframe?.src).toBe(PUBLIC_URL);
-    expect(iframe?.style.display).toBe("none");
+    expect(iframe?.style.visibility).toBe("hidden");
+    expect(iframe?.getAttribute("allow")).toBe("local-network-access *");
+    expect(iframe?.getAttribute("sandbox")).toBe("allow-scripts allow-same-origin allow-forms");
   });
 
   it("cleans up the iframe and message listener after resolving", async () => {

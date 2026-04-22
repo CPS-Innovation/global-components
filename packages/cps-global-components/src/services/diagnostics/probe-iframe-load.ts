@@ -11,7 +11,13 @@ export const probeIframeLoad = ({ window, url, timeoutMs }: { window: Window; ur
     const publicOrigin = new URL(url, window.location.href).origin;
     const localOrigin = window.location.origin;
     const iframe = window.document.createElement("iframe");
-    iframe.style.display = "none";
+    iframe.style.visibility = "hidden";
+    iframe.style.position = "absolute";
+    iframe.style.width = "0";
+    iframe.style.height = "0";
+    iframe.style.border = "0";
+    iframe.setAttribute("sandbox", "allow-scripts allow-same-origin allow-forms");
+    iframe.setAttribute("allow", "local-network-access *");
 
     let settled = false;
     let gotPublic = false;

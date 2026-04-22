@@ -39,6 +39,7 @@ fi
 #   cps-global-components.js            (redirect stub)
 #   auth-handover.js, auth-handover.js.map
 #   global-components-msal-redirect.html (silent-MSAL same-origin termination page)
+#   probe-iframe-load.html              (LNA diagnostic probe page)
 #   config.json                         (required)
 #   config.override.json                (optional; kept if present)
 #   notification.json                   (optional; kept if present)
@@ -52,6 +53,7 @@ is_kept() {
     cps-global-components.js) return 0 ;;
     auth-handover.js|auth-handover.js.map) return 0 ;;
     global-components-msal-redirect.html) return 0 ;;
+    probe-iframe-load.html) return 0 ;;
     config.json|config.override.json|notification.json) return 0 ;;
     preview/index.html|accessibility/index.html) return 0 ;;
     preview/assets/*|accessibility/assets/*) return 0 ;;

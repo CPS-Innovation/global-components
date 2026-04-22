@@ -6,11 +6,26 @@ import { SilentFlowDiagnostic, SilentFlowDiagnostics, SilentFlowDiagnosticsSchem
 import { ProbeIframeLoadDiagnostic, ProbeIframeLoadDiagnosticSchema } from "./probe-iframe-load-diagnostic";
 import { probeIframeLoad } from "./probe-iframe-load";
 import { TrackEvent } from "../analytics/analytics-event";
+import { ApplicationFlags } from "../application-flags/ApplicationFlags";
 
 const DEFAULT_SILENT_FLOW_DIAGNOSTICS_LENGTH = 5;
 const DEFAULT_PROBE_IFRAME_TIMEOUT_MS = 3000;
 
-export const initialiseDiagnostics = ({ window, rootUrl, config, register, trackEvent }: { window: Window; rootUrl: string; config: Config; register: Register; trackEvent: TrackEvent }) => {
+export const initialiseDiagnostics = ({
+  window,
+  rootUrl,
+  config,
+  flags,
+  register,
+  trackEvent,
+}: {
+  window: Window;
+  rootUrl: string;
+  config: Config;
+  flags: ApplicationFlags;
+  register: Register;
+  trackEvent: TrackEvent;
+}) => {
   const silentFlowsLength = config.SILENT_FLOW_DIAGNOSTICS_LENGTH ?? DEFAULT_SILENT_FLOW_DIAGNOSTICS_LENGTH;
 
   const silentFlowDiagnostics: SilentFlowDiagnostics = emptySilentFlowDiagnostics();
@@ -60,12 +75,30 @@ export const initialiseDiagnostics = ({ window, rootUrl, config, register, track
     });
   };
 
-  runProbeIframeLoadIfUnrecorded({ window, rootUrl, config, trackEvent });
+  runProbeIframeLoadIfUnrecorded({ window, rootUrl, config, flags, trackEvent });
 
   return { silentFlowDiagnostics, addSilentFlowDiagnostics };
 };
 
-const runProbeIframeLoadIfUnrecorded = ({ window, rootUrl, config, trackEvent }: { window: Window; rootUrl: string; config: Config; trackEvent: TrackEvent }) => {
+// The probe can't run on OutSystems-hosted pages because their CSP's frame-src
+// doesn't include blob.core.windows.net — iframe navigation is blocked and the
+// result would be a spurious "timeout-public" that we'd then cache indefinitely.
+const runProbeIframeLoadIfUnrecorded = ({
+  window,
+  rootUrl,
+  config,
+  flags,
+  trackEvent,
+}: {
+  window: Window;
+  rootUrl: string;
+  config: Config;
+  flags: ApplicationFlags;
+  trackEvent: TrackEvent;
+}) => {
+  if (flags.isOutSystems) {
+    return;
+  }
   if (!config.PROBE_IFRAME_BASE_URL || !config.ENVIRONMENT) {
     return;
   }
