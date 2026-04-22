@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>public ↔ local iframe probe</title>
+  <style>
+    body { font-family: monospace; max-width: 1100px; margin: 2em auto; line-height: 1.5; padding: 0 1em; color: #222; }
+    h1 { font-size: 1.2em; margin: 0 0 0.5em; }
+    h2 { font-size: 1.0em; margin: 1.5em 0 0.4em; }
+    .block { background: #f0f0f0; padding: 0.8em 1em; margin: 0.6em 0; border-radius: 4px; }
+    .status { padding: 0.6em 1em; border-radius: 4px; font-weight: bold; }
+    .status.pending { background: #fff3cd; border: 1px solid #ffc107; }
+    .status.ok      { background: #d4edda; border: 1px solid #28a745; }
+    .status.fail    { background: #f8d7da; border: 1px solid #dc3545; }
+    #log { background: #1a1a1a; color: #0f0; padding: 0.8em 1em; border-radius: 4px; white-space: pre-wrap; font-size: 0.85em; max-height: 300px; overflow-y: auto; }
+    iframe { width: 100%; height: 160px; border: 1px dashed #888; background: #fafafa; }
+    dl.kv { display: grid; grid-template-columns: max-content 1fr; gap: 0.2em 1em; margin: 0; }
+    dl.kv dt { font-weight: bold; }
+    dl.kv dd { margin: 0; word-break: break-all; }
+    .inner { background: #e6f2ff; padding: 1em; border-radius: 4px; }
+  </style>
+</head>
+<body>
+<script>
+const PUBLIC_URL = "https://sacpsglobalcomponents.blob.core.windows.net/dev/public-to-local-iframe-test.html";
+const LOCAL_URL  = "https://polaris-qa-notprod.cps.gov.uk/global-components/dev/public-to-local-iframe-test.html";
+const TIMEOUT_MS = 8000;
+
+const publicOrigin = new URL(PUBLIC_URL).origin;
+const localOrigin  = new URL(LOCAL_URL).origin;
+const isInnerIframe = new URLSearchParams(location.search).has("iframe");
+const currentOrigin = location.origin;
+
+const escape = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+
+if (isInnerIframe) {
+  document.body.innerHTML = `
+    <div class="inner">
+      <h1>Inner iframe — loaded successfully</h1>
+      <dl class="kv">
+        <dt>Origin:</dt><dd>${escape(currentOrigin)}</dd>
+        <dt>URL:</dt><dd>${escape(location.href)}</dd>
+        <dt>Time:</dt><dd>${new Date().toISOString()}</dd>
+      </dl>
+    </div>
+  `;
+  if (window.parent && window.parent !== window) {
+    try {
+      window.parent.postMessage(
+        { type: "iframe-loaded", origin: currentOrigin, url: location.href, at: Date.now() },
+        "*"
+      );
+    } catch (e) {}
+  }
+} else {
+  const currentIsPublic = currentOrigin === publicOrigin;
+  const currentIsLocal  = currentOrigin === localOrigin;
+  const targetUrl = currentIsPublic ? LOCAL_URL : currentIsLocal ? PUBLIC_URL : "";
+  const direction = currentIsPublic ? "public → local" : currentIsLocal ? "local → public" : "unknown (neither origin matched)";
+  const expectation = currentIsPublic
+    ? "Expected: Edge should BLOCK this iframe load with ERR_BLOCKED_BY_PRIVATE_NETWORK_ACCESS_CHECKS unless the top-frame origin is in LocalNetworkAccessAllowedForUrls. Timeout = block."
+    : currentIsLocal
+    ? "Expected: should load fine. LNA does not gate local → public."
+    : "No matching origin; load this page from either PUBLIC_URL or LOCAL_URL.";
+
+  document.body.innerHTML = `
+    <h1>public ↔ local iframe probe</h1>
+    <div class="block">
+      <dl class="kv">
+        <dt>Top-frame origin:</dt><dd>${escape(currentOrigin)}</dd>
+        <dt>Top-frame URL:</dt><dd>${escape(location.href)}</dd>
+        <dt>Iframe target:</dt><dd>${escape(targetUrl ? targetUrl + "?iframe" : "(none — origin not recognised)")}</dd>
+        <dt>Direction:</dt><dd>${escape(direction)}</dd>
+        <dt>Public URL:</dt><dd>${escape(PUBLIC_URL)}</dd>
+        <dt>Local URL:</dt><dd>${escape(LOCAL_URL)}</dd>
+      </dl>
+    </div>
+    <h2>Expectation</h2>
+    <div class="block">${escape(expectation)}</div>
+    <h2>Status</h2>
+    <div id="status" class="status pending">loading iframe…</div>
+    <h2>Iframe</h2>
+    <iframe id="probe" ${targetUrl ? `src="${escape(targetUrl)}?iframe"` : ""}></iframe>
+    <h2>Event log</h2>
+    <div id="log"></div>
+  `;
+
+  const status = document.getElementById("status");
+  const iframe = document.getElementById("probe");
+  const logEl = document.getElementById("log");
+  const log = (msg) => {
+    const t = new Date().toISOString().slice(11, 23);
+    logEl.textContent += `[${t}] ${msg}\n`;
+    logEl.scrollTop = logEl.scrollHeight;
+  };
+
+  if (!targetUrl) {
+    status.className = "status fail";
+    status.textContent = `Page loaded from unrecognised origin ${currentOrigin}. Expected ${publicOrigin} or ${localOrigin}.`;
+  } else {
+    log(`Direction: ${direction}`);
+    log(`Top-frame: ${currentOrigin}`);
+    log(`Iframe target: ${targetUrl}?iframe`);
+
+    let gotMessage = false;
+    iframe.addEventListener("load", () => log(`iframe: "load" event fired (fires for error pages too)`));
+    iframe.addEventListener("error", () => log(`iframe: "error" event fired`));
+
+    const timer = setTimeout(() => {
+      if (!gotMessage) {
+        status.className = "status fail";
+        status.textContent = `TIMEOUT after ${TIMEOUT_MS}ms — iframe never reported loading. Most likely LNA-blocked. Check DevTools → Network for ERR_BLOCKED_BY_PRIVATE_NETWORK_ACCESS_CHECKS (-385) and chrome://net-internals/#events for the "lna-permission-required" event.`;
+        log(`TIMEOUT: no postMessage from ${new URL(targetUrl).origin} within ${TIMEOUT_MS}ms`);
+      }
+    }, TIMEOUT_MS);
+
+    window.addEventListener("message", (ev) => {
+      if (!ev.data || ev.data.type !== "iframe-loaded") return;
+      if (ev.origin !== new URL(targetUrl).origin) {
+        log(`Ignoring message from unexpected origin: ${ev.origin}`);
+        return;
+      }
+      gotMessage = true;
+      clearTimeout(timer);
+      status.className = "status ok";
+      status.textContent = `SUCCESS. Iframe loaded and posted back from ${ev.data.origin}.`;
+      log(`postMessage received from ${ev.origin}`);
+    });
+  }
+}
+</script>
+</body>
+</html>

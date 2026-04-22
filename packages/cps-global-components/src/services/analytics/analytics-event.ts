@@ -5,6 +5,7 @@ export type AnalyticsEventData =
   | { name: "fetch"; error: string }
   | { name: "user-data-fetch"; outcome: "success" }
   | { name: "page-view-initiated" }
-  | { name: "state-summary"; summary: ResultsSummary };
+  | { name: "state-summary"; summary: ResultsSummary }
+  | { name: "iframe-load-probe"; outcome: "loaded" | "timeout-public" | "timeout-local"; durationMs: number };
 
 export type TrackEvent = (detail: AnalyticsEventData) => void;

@@ -1,17 +1,21 @@
 import { Config } from "cps-global-configuration";
 import { initialiseDiagnostics } from "./initialise-diagnostics";
 import { SilentFlowDiagnostics } from "./silent-flow-diagnostics";
+import * as probeModule from "./probe-iframe-load";
 
 const mockFetch = jest.fn();
 global.fetch = mockFetch;
 
 const mockRegister = jest.fn();
+const mockTrackEvent = jest.fn();
 
 const flushPromises = () => new Promise(resolve => setTimeout(resolve, 0));
 
 describe("initialiseDiagnostics", () => {
   const rootUrl = "https://example.com/api/global-components/";
   const expectedUrl = "https://example.com/api/state/diagnostics/silent-flow";
+  const expectedProbeStateUrl = "https://example.com/api/state/diagnostics/probe-iframe-load";
+  const baseConfig = {} as Config;
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -21,7 +25,7 @@ describe("initialiseDiagnostics", () => {
     it("calls fetch with correct URL and credentials", async () => {
       mockFetch.mockResolvedValue({ ok: true, json: () => Promise.resolve({ silentFlows: [] }) });
 
-      initialiseDiagnostics({ rootUrl, config: {} as Config, register: mockRegister });
+      initialiseDiagnostics({ rootUrl, config: baseConfig, register: mockRegister, trackEvent: mockTrackEvent });
       await flushPromises();
 
       expect(mockFetch).toHaveBeenCalledWith(expectedUrl, { credentials: "include", cache: "no-cache" });
@@ -36,7 +40,7 @@ describe("initialiseDiagnostics", () => {
       };
       mockFetch.mockResolvedValue({ ok: true, json: () => Promise.resolve(existing) });
 
-      initialiseDiagnostics({ rootUrl, config: {} as Config, register: mockRegister });
+      initialiseDiagnostics({ rootUrl, config: baseConfig, register: mockRegister, trackEvent: mockTrackEvent });
       await flushPromises();
 
       expect(mockRegister).toHaveBeenCalledWith({ silentFlowDiagnostics: { found: true, result: existing } });
@@ -45,7 +49,7 @@ describe("initialiseDiagnostics", () => {
     it("registers an empty silentFlowDiagnostics object when response is null", async () => {
       mockFetch.mockResolvedValue({ ok: true, json: () => Promise.resolve(null) });
 
-      initialiseDiagnostics({ rootUrl, config: {} as Config, register: mockRegister });
+      initialiseDiagnostics({ rootUrl, config: baseConfig, register: mockRegister, trackEvent: mockTrackEvent });
       await flushPromises();
 
       expect(mockRegister).toHaveBeenCalledWith({ silentFlowDiagnostics: { found: true, result: { silentFlows: [] } } });
@@ -54,7 +58,7 @@ describe("initialiseDiagnostics", () => {
     it("registers found: false when fetch fails", async () => {
       mockFetch.mockRejectedValue(new Error("network"));
 
-      initialiseDiagnostics({ rootUrl, config: {} as Config, register: mockRegister });
+      initialiseDiagnostics({ rootUrl, config: baseConfig, register: mockRegister, trackEvent: mockTrackEvent });
       await flushPromises();
 
       const registered = mockRegister.mock.calls[0][0].silentFlowDiagnostics;
@@ -65,7 +69,7 @@ describe("initialiseDiagnostics", () => {
       const sevenEntries = Array.from({ length: 7 }, (_, i) => ({ time: i, url: `u${i}` }));
       mockFetch.mockResolvedValue({ ok: true, json: () => Promise.resolve({ silentFlows: sevenEntries }) });
 
-      initialiseDiagnostics({ rootUrl, config: { SILENT_FLOW_DIAGNOSTICS_LENGTH: 3 } as Config, register: mockRegister });
+      initialiseDiagnostics({ rootUrl, config: { SILENT_FLOW_DIAGNOSTICS_LENGTH: 3 } as Config, register: mockRegister, trackEvent: mockTrackEvent });
       await flushPromises();
 
       const registered = mockRegister.mock.calls[0][0].silentFlowDiagnostics;
@@ -77,7 +81,7 @@ describe("initialiseDiagnostics", () => {
     it("PUTs the whole silentFlowDiagnostics object with the new entry prepended", async () => {
       mockFetch.mockResolvedValueOnce({ ok: true, json: () => Promise.resolve({ silentFlows: [{ time: 100, url: "u1" }] }) });
 
-      const { addSilentFlowDiagnostics } = initialiseDiagnostics({ rootUrl, config: {} as Config, register: mockRegister });
+      const { addSilentFlowDiagnostics } = initialiseDiagnostics({ rootUrl, config: baseConfig, register: mockRegister, trackEvent: mockTrackEvent });
       await flushPromises();
       mockFetch.mockClear();
       mockFetch.mockResolvedValue({ ok: true, json: () => Promise.resolve({ success: true, path: "/state/diagnostics/silent-flow" }) });
@@ -102,7 +106,7 @@ describe("initialiseDiagnostics", () => {
       const fiveEntries = Array.from({ length: 5 }, (_, i) => ({ time: i, url: `u${i}` }));
       mockFetch.mockResolvedValueOnce({ ok: true, json: () => Promise.resolve({ silentFlows: fiveEntries }) });
 
-      const { addSilentFlowDiagnostics } = initialiseDiagnostics({ rootUrl, config: {} as Config, register: mockRegister });
+      const { addSilentFlowDiagnostics } = initialiseDiagnostics({ rootUrl, config: baseConfig, register: mockRegister, trackEvent: mockTrackEvent });
       await flushPromises();
       mockFetch.mockClear();
       mockFetch.mockResolvedValue({ ok: true, json: () => Promise.resolve({ success: true, path: "/state/diagnostics/silent-flow" }) });
@@ -119,7 +123,7 @@ describe("initialiseDiagnostics", () => {
     it("accumulates added entries across calls", async () => {
       mockFetch.mockResolvedValueOnce({ ok: true, json: () => Promise.resolve({ silentFlows: [] }) });
 
-      const { addSilentFlowDiagnostics } = initialiseDiagnostics({ rootUrl, config: {} as Config, register: mockRegister });
+      const { addSilentFlowDiagnostics } = initialiseDiagnostics({ rootUrl, config: baseConfig, register: mockRegister, trackEvent: mockTrackEvent });
       await flushPromises();
       mockFetch.mockClear();
       mockFetch.mockResolvedValue({ ok: true, json: () => Promise.resolve({ success: true, path: "/state/diagnostics/silent-flow" }) });
@@ -141,7 +145,7 @@ describe("initialiseDiagnostics", () => {
     it("reflects the fetched data and subsequent additions via live mutation", async () => {
       mockFetch.mockResolvedValueOnce({ ok: true, json: () => Promise.resolve({ silentFlows: [{ time: 1, url: "a" }] }) });
 
-      const { silentFlowDiagnostics, addSilentFlowDiagnostics } = initialiseDiagnostics({ rootUrl, config: {} as Config, register: mockRegister });
+      const { silentFlowDiagnostics, addSilentFlowDiagnostics } = initialiseDiagnostics({ rootUrl, config: baseConfig, register: mockRegister, trackEvent: mockTrackEvent });
       await flushPromises();
 
       expect(silentFlowDiagnostics.silentFlows).toEqual([{ time: 1, url: "a" }]);
@@ -159,7 +163,7 @@ describe("initialiseDiagnostics", () => {
     it("starts with empty silentFlows before the startup GET resolves", () => {
       mockFetch.mockResolvedValue({ ok: true, json: () => Promise.resolve({ silentFlows: [{ time: 1, url: "a" }] }) });
 
-      const { silentFlowDiagnostics } = initialiseDiagnostics({ rootUrl, config: {} as Config, register: mockRegister });
+      const { silentFlowDiagnostics } = initialiseDiagnostics({ rootUrl, config: baseConfig, register: mockRegister, trackEvent: mockTrackEvent });
 
       expect(silentFlowDiagnostics.silentFlows).toEqual([]);
     });
@@ -169,7 +173,7 @@ describe("initialiseDiagnostics", () => {
     it("PUTs an empty silentFlows when the startup GET returned a non-empty list", async () => {
       mockFetch.mockResolvedValueOnce({ ok: true, json: () => Promise.resolve({ silentFlows: [{ time: 1, url: "a" }] }) });
 
-      initialiseDiagnostics({ rootUrl, config: { SILENT_FLOW_DIAGNOSTICS_LENGTH: 0 } as Config, register: mockRegister });
+      initialiseDiagnostics({ rootUrl, config: { SILENT_FLOW_DIAGNOSTICS_LENGTH: 0 } as Config, register: mockRegister, trackEvent: mockTrackEvent });
       await flushPromises();
 
       expect(mockFetch).toHaveBeenCalledWith(expectedUrl, {
@@ -183,7 +187,7 @@ describe("initialiseDiagnostics", () => {
     it("does not PUT when the startup GET returned an empty list", async () => {
       mockFetch.mockResolvedValueOnce({ ok: true, json: () => Promise.resolve({ silentFlows: [] }) });
 
-      initialiseDiagnostics({ rootUrl, config: { SILENT_FLOW_DIAGNOSTICS_LENGTH: 0 } as Config, register: mockRegister });
+      initialiseDiagnostics({ rootUrl, config: { SILENT_FLOW_DIAGNOSTICS_LENGTH: 0 } as Config, register: mockRegister, trackEvent: mockTrackEvent });
       await flushPromises();
 
       expect(mockFetch).toHaveBeenCalledTimes(1);
@@ -193,7 +197,7 @@ describe("initialiseDiagnostics", () => {
     it("addSilentFlowDiagnostics is a no-op", async () => {
       mockFetch.mockResolvedValueOnce({ ok: true, json: () => Promise.resolve({ silentFlows: [] }) });
 
-      const { addSilentFlowDiagnostics } = initialiseDiagnostics({ rootUrl, config: { SILENT_FLOW_DIAGNOSTICS_LENGTH: 0 } as Config, register: mockRegister });
+      const { addSilentFlowDiagnostics } = initialiseDiagnostics({ rootUrl, config: { SILENT_FLOW_DIAGNOSTICS_LENGTH: 0 } as Config, register: mockRegister, trackEvent: mockTrackEvent });
       await flushPromises();
       mockFetch.mockClear();
 
@@ -201,6 +205,101 @@ describe("initialiseDiagnostics", () => {
       await flushPromises();
 
       expect(mockFetch).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("probe-iframe-load", () => {
+    let probeSpy: jest.SpyInstance;
+
+    const probeConfig = {
+      ENVIRONMENT: "dev",
+      PROBE_IFRAME_BASE_URL: "https://blob.example/global",
+    } as Config;
+
+    beforeEach(() => {
+      probeSpy = jest.spyOn(probeModule, "probeIframeLoad");
+      jest.spyOn(Date, "now").mockReturnValue(1_700_000_000_000);
+    });
+
+    afterEach(() => {
+      probeSpy.mockRestore();
+      (Date.now as jest.Mock).mockRestore?.();
+    });
+
+    it("does not run when PROBE_IFRAME_BASE_URL is missing", async () => {
+      mockFetch.mockResolvedValue({ ok: true, json: () => Promise.resolve({ silentFlows: [] }) });
+
+      initialiseDiagnostics({ rootUrl, config: baseConfig, register: mockRegister, trackEvent: mockTrackEvent });
+      await flushPromises();
+
+      expect(probeSpy).not.toHaveBeenCalled();
+      expect(mockFetch).not.toHaveBeenCalledWith(expectedProbeStateUrl, expect.anything());
+    });
+
+    it("GETs the stored diagnostic, skips the probe and does not track when a value already exists", async () => {
+      mockFetch.mockImplementation((url: string) => {
+        if (url === expectedProbeStateUrl) {
+          return Promise.resolve({ ok: true, json: () => Promise.resolve({ outcome: "loaded", durationMs: 123, timestamp: 1 }) });
+        }
+        return Promise.resolve({ ok: true, json: () => Promise.resolve({ silentFlows: [] }) });
+      });
+
+      initialiseDiagnostics({ rootUrl, config: probeConfig, register: mockRegister, trackEvent: mockTrackEvent });
+      await flushPromises();
+
+      expect(mockFetch).toHaveBeenCalledWith(expectedProbeStateUrl, { credentials: "include", cache: "no-cache" });
+      expect(probeSpy).not.toHaveBeenCalled();
+      expect(mockTrackEvent).not.toHaveBeenCalledWith(expect.objectContaining({ name: "iframe-load-probe" }));
+    });
+
+    it("runs the probe, PUTs the result + timestamp, and tracks the event when no value is stored", async () => {
+      probeSpy.mockResolvedValue({ outcome: "loaded", durationMs: 250 });
+      mockFetch.mockImplementation((url: string, init?: any) => {
+        if (url === expectedProbeStateUrl && init?.method === "PUT") {
+          return Promise.resolve({ ok: true, json: () => Promise.resolve({ success: true, path: "/state/diagnostics/probe-iframe-load" }) });
+        }
+        if (url === expectedProbeStateUrl) {
+          return Promise.resolve({ ok: true, json: () => Promise.resolve(null) });
+        }
+        return Promise.resolve({ ok: true, json: () => Promise.resolve({ silentFlows: [] }) });
+      });
+
+      initialiseDiagnostics({ rootUrl, config: probeConfig, register: mockRegister, trackEvent: mockTrackEvent });
+      await flushPromises();
+      await flushPromises();
+
+      expect(probeSpy).toHaveBeenCalledWith({ url: "https://blob.example/global/dev/probe-iframe-load.html", timeoutMs: 3000 });
+
+      const putCall = mockFetch.mock.calls.find(([url, init]) => url === expectedProbeStateUrl && init?.method === "PUT");
+      expect(putCall).toBeDefined();
+      expect(JSON.parse(putCall![1].body)).toEqual({ outcome: "loaded", durationMs: 250, timestamp: 1_700_000_000_000 });
+
+      expect(mockTrackEvent).toHaveBeenCalledWith({ name: "iframe-load-probe", outcome: "loaded", durationMs: 250 });
+    });
+
+    it("uses the configured PROBE_IFRAME_TIMEOUT_MS when provided", async () => {
+      probeSpy.mockResolvedValue({ outcome: "timeout-local", durationMs: 5000 });
+      mockFetch.mockImplementation((url: string, init?: any) => {
+        if (url === expectedProbeStateUrl && init?.method === "PUT") {
+          return Promise.resolve({ ok: true, json: () => Promise.resolve({ success: true, path: "/state/diagnostics/probe-iframe-load" }) });
+        }
+        if (url === expectedProbeStateUrl) {
+          return Promise.resolve({ ok: true, json: () => Promise.resolve(null) });
+        }
+        return Promise.resolve({ ok: true, json: () => Promise.resolve({ silentFlows: [] }) });
+      });
+
+      initialiseDiagnostics({
+        rootUrl,
+        config: { ...probeConfig, PROBE_IFRAME_TIMEOUT_MS: 5000 } as Config,
+        register: mockRegister,
+        trackEvent: mockTrackEvent,
+      });
+      await flushPromises();
+      await flushPromises();
+
+      expect(probeSpy).toHaveBeenCalledWith({ url: "https://blob.example/global/dev/probe-iframe-load.html", timeoutMs: 5000 });
+      expect(mockTrackEvent).toHaveBeenCalledWith({ name: "iframe-load-probe", outcome: "timeout-local", durationMs: 5000 });
     });
   });
 });

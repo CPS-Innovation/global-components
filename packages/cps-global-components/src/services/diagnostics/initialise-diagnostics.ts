@@ -3,10 +3,14 @@ import { Register } from "../../store/store";
 import { fetchState } from "../state/fetch-state";
 import { StatePutResponseSchema } from "../state/StatePutResponse";
 import { SilentFlowDiagnostic, SilentFlowDiagnostics, SilentFlowDiagnosticsSchema, emptySilentFlowDiagnostics } from "./silent-flow-diagnostics";
+import { ProbeIframeLoadDiagnostic, ProbeIframeLoadDiagnosticSchema } from "./probe-iframe-load-diagnostic";
+import { probeIframeLoad } from "./probe-iframe-load";
+import { TrackEvent } from "../analytics/analytics-event";
 
 const DEFAULT_SILENT_FLOW_DIAGNOSTICS_LENGTH = 5;
+const DEFAULT_PROBE_IFRAME_TIMEOUT_MS = 3000;
 
-export const initialiseDiagnostics = ({ rootUrl, config, register }: { rootUrl: string; config: Config; register: Register }) => {
+export const initialiseDiagnostics = ({ rootUrl, config, register, trackEvent }: { rootUrl: string; config: Config; register: Register; trackEvent: TrackEvent }) => {
   const silentFlowsLength = config.SILENT_FLOW_DIAGNOSTICS_LENGTH ?? DEFAULT_SILENT_FLOW_DIAGNOSTICS_LENGTH;
 
   const silentFlowDiagnostics: SilentFlowDiagnostics = emptySilentFlowDiagnostics();
@@ -56,5 +60,37 @@ export const initialiseDiagnostics = ({ rootUrl, config, register }: { rootUrl: 
     });
   };
 
+  runProbeIframeLoadIfUnrecorded({ rootUrl, config, trackEvent });
+
   return { silentFlowDiagnostics, addSilentFlowDiagnostics };
+};
+
+const runProbeIframeLoadIfUnrecorded = ({ rootUrl, config, trackEvent }: { rootUrl: string; config: Config; trackEvent: TrackEvent }) => {
+  if (!config.PROBE_IFRAME_BASE_URL || !config.ENVIRONMENT) {
+    return;
+  }
+
+  fetchState({
+    rootUrl,
+    url: "../state/diagnostics/probe-iframe-load",
+    schema: ProbeIframeLoadDiagnosticSchema,
+  }).then(existing => {
+    if (existing.found) {
+      return;
+    }
+
+    const url = `${config.PROBE_IFRAME_BASE_URL}/${config.ENVIRONMENT}/probe-iframe-load.html`;
+    const timeoutMs = config.PROBE_IFRAME_TIMEOUT_MS ?? DEFAULT_PROBE_IFRAME_TIMEOUT_MS;
+
+    probeIframeLoad({ url, timeoutMs }).then(({ outcome, durationMs }) => {
+      const diagnostic: ProbeIframeLoadDiagnostic = { outcome, durationMs, timestamp: Date.now() };
+      fetchState({
+        rootUrl,
+        url: "../state/diagnostics/probe-iframe-load",
+        schema: StatePutResponseSchema,
+        data: diagnostic,
+      });
+      trackEvent({ name: "iframe-load-probe", outcome, durationMs });
+    });
+  });
 };

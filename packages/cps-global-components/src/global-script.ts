@@ -88,7 +88,6 @@ const initialise = async (window: Window & typeof globalThis) => {
     /* do not await this — notification fetches shouldn't block auth/analytics/etc. */
     initialiseNotifications({ rootUrl, register, handlers, config });
     const { setNextRecentCases } = initialiseRecentCases({ rootUrl, config, register });
-    const { silentFlowDiagnostics, addSilentFlowDiagnostics } = initialiseDiagnostics({ rootUrl, config, register });
 
     const diagnosticsCollector = createAdDiagnosticsCollector();
 
@@ -109,6 +108,8 @@ const initialise = async (window: Window & typeof globalThis) => {
       userDataHint,
     });
     trackException = _trackException;
+
+    const { silentFlowDiagnostics, addSilentFlowDiagnostics } = initialiseDiagnostics({ rootUrl, config, register, trackEvent });
 
     trackEvent({ name: "state-summary", summary: summariseResults({ handover, preview, settings, authHint, userDataHint, cmsSessionHint }) });
 

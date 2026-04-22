@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>probe-iframe-load</title>
+</head>
+<body>
+<script>
+(() => {
+  const parentOrigin = location.ancestorOrigins?.[0];
+  if (!parentOrigin) {
+    return;
+  }
+  if (location.origin === parentOrigin) {
+    window.parent.postMessage({ type: "iframe-loaded" }, parentOrigin);
+    return;
+  }
+  window.parent.postMessage({ type: "iframe-public-loaded" }, parentOrigin);
+  location.replace(parentOrigin + "/global-components" + location.pathname);
+})();
+</script>
+</body>
+</html>
