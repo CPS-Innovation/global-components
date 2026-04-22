@@ -91,6 +91,7 @@ jobs:
           cp ./packages/cps-global-os-handover/dist/auth-handover.js ./to-deploy
           cp ./packages/cps-global-os-handover/dist/auth-handover.js.map ./to-deploy
           cp ./msal-support/global-components-msal-redirect.html ./to-deploy
+          cp ./packages/cps-global-components/src/services/diagnostics/probe-iframe-load.html ./to-deploy
           cp -r ./packages/cps-global-preview/dist ./to-deploy/preview
           cp -r ./packages/cps-global-accessibility/dist ./to-deploy/accessibility
 
