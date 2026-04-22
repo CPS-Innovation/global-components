@@ -5,12 +5,12 @@ export type ProbeIframeLoadResult = {
   durationMs: number;
 };
 
-export const probeIframeLoad = ({ url, timeoutMs }: { url: string; timeoutMs?: number }): Promise<ProbeIframeLoadResult> =>
+export const probeIframeLoad = ({ window, url, timeoutMs }: { window: Window; url: string; timeoutMs?: number }): Promise<ProbeIframeLoadResult> =>
   new Promise(resolve => {
     const startedAt = Date.now();
-    const publicOrigin = new URL(url, location.href).origin;
-    const localOrigin = location.origin;
-    const iframe = document.createElement("iframe");
+    const publicOrigin = new URL(url, window.location.href).origin;
+    const localOrigin = window.location.origin;
+    const iframe = window.document.createElement("iframe");
     iframe.style.display = "none";
 
     let settled = false;
@@ -44,5 +44,5 @@ export const probeIframeLoad = ({ url, timeoutMs }: { url: string; timeoutMs?: n
     window.addEventListener("message", onMessage);
     timer = setTimeout(() => settle(gotPublic ? "timeout-local" : "timeout-public"), timeoutMs);
     iframe.src = url;
-    document.body.appendChild(iframe);
+    window.document.body.appendChild(iframe);
   });

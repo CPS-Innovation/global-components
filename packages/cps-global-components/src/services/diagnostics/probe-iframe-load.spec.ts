@@ -24,7 +24,7 @@ describe("probeIframeLoad", () => {
   });
 
   it("resolves 'loaded' when the iframe-loaded message arrives from the local origin", async () => {
-    const promise = probeIframeLoad({ url: PUBLIC_URL, timeoutMs: 1000 });
+    const promise = probeIframeLoad({ window, url: PUBLIC_URL, timeoutMs: 1000 });
 
     postMessageToProbe({ type: "iframe-public-loaded" }, PUBLIC_ORIGIN);
     postMessageToProbe({ type: "iframe-loaded" }, location.origin);
@@ -35,7 +35,7 @@ describe("probeIframeLoad", () => {
   });
 
   it("resolves 'loaded' even without an iframe-public-loaded message (e.g. when the iframe src is same-origin)", async () => {
-    const promise = probeIframeLoad({ url: PUBLIC_URL, timeoutMs: 1000 });
+    const promise = probeIframeLoad({ window, url: PUBLIC_URL, timeoutMs: 1000 });
 
     postMessageToProbe({ type: "iframe-loaded" }, location.origin);
 
@@ -44,14 +44,14 @@ describe("probeIframeLoad", () => {
   });
 
   it("resolves 'timeout-public' when no messages arrive at all (suspected deployment issue)", async () => {
-    const result = await probeIframeLoad({ url: PUBLIC_URL, timeoutMs: 10 });
+    const result = await probeIframeLoad({ window, url: PUBLIC_URL, timeoutMs: 10 });
 
     expect(result.outcome).toBe("timeout-public");
     expect(document.querySelector("iframe")).toBeNull();
   });
 
   it("resolves 'timeout-local' when public responded but local never did (suspected LNA block)", async () => {
-    const promise = probeIframeLoad({ url: PUBLIC_URL, timeoutMs: 20 });
+    const promise = probeIframeLoad({ window, url: PUBLIC_URL, timeoutMs: 20 });
 
     postMessageToProbe({ type: "iframe-public-loaded" }, PUBLIC_ORIGIN);
 
@@ -60,7 +60,7 @@ describe("probeIframeLoad", () => {
   });
 
   it("ignores an iframe-public-loaded message from an origin other than the configured URL", async () => {
-    const promise = probeIframeLoad({ url: PUBLIC_URL, timeoutMs: 10 });
+    const promise = probeIframeLoad({ window, url: PUBLIC_URL, timeoutMs: 10 });
 
     postMessageToProbe({ type: "iframe-public-loaded" }, "https://attacker.example");
 
@@ -69,7 +69,7 @@ describe("probeIframeLoad", () => {
   });
 
   it("ignores an iframe-loaded message from an origin other than the local origin", async () => {
-    const promise = probeIframeLoad({ url: PUBLIC_URL, timeoutMs: 10 });
+    const promise = probeIframeLoad({ window, url: PUBLIC_URL, timeoutMs: 10 });
 
     postMessageToProbe({ type: "iframe-public-loaded" }, PUBLIC_ORIGIN);
     postMessageToProbe({ type: "iframe-loaded" }, "https://attacker.example");
@@ -79,7 +79,7 @@ describe("probeIframeLoad", () => {
   });
 
   it("ignores messages that don't match the expected shape", async () => {
-    const promise = probeIframeLoad({ url: PUBLIC_URL, timeoutMs: 10 });
+    const promise = probeIframeLoad({ window, url: PUBLIC_URL, timeoutMs: 10 });
 
     postMessageToProbe({ type: "something-else" }, location.origin);
     postMessageToProbe(null, location.origin);
@@ -89,7 +89,7 @@ describe("probeIframeLoad", () => {
   });
 
   it("appends the iframe with the given URL as src and hides it", () => {
-    probeIframeLoad({ url: PUBLIC_URL, timeoutMs: 10 });
+    probeIframeLoad({ window, url: PUBLIC_URL, timeoutMs: 10 });
 
     const iframe = document.querySelector("iframe");
     expect(iframe).not.toBeNull();
@@ -98,7 +98,7 @@ describe("probeIframeLoad", () => {
   });
 
   it("cleans up the iframe and message listener after resolving", async () => {
-    const promise = probeIframeLoad({ url: PUBLIC_URL, timeoutMs: 1000 });
+    const promise = probeIframeLoad({ window, url: PUBLIC_URL, timeoutMs: 1000 });
     postMessageToProbe({ type: "iframe-loaded" }, location.origin);
     await promise;
 
@@ -109,7 +109,7 @@ describe("probeIframeLoad", () => {
   });
 
   it("does not double-resolve if a message arrives after the timeout", async () => {
-    const promise = probeIframeLoad({ url: PUBLIC_URL, timeoutMs: 10 });
+    const promise = probeIframeLoad({ window, url: PUBLIC_URL, timeoutMs: 10 });
     const result = await promise;
     expect(result.outcome).toBe("timeout-public");
 

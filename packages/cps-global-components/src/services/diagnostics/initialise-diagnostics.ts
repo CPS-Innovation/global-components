@@ -10,7 +10,7 @@ import { TrackEvent } from "../analytics/analytics-event";
 const DEFAULT_SILENT_FLOW_DIAGNOSTICS_LENGTH = 5;
 const DEFAULT_PROBE_IFRAME_TIMEOUT_MS = 3000;
 
-export const initialiseDiagnostics = ({ rootUrl, config, register, trackEvent }: { rootUrl: string; config: Config; register: Register; trackEvent: TrackEvent }) => {
+export const initialiseDiagnostics = ({ window, rootUrl, config, register, trackEvent }: { window: Window; rootUrl: string; config: Config; register: Register; trackEvent: TrackEvent }) => {
   const silentFlowsLength = config.SILENT_FLOW_DIAGNOSTICS_LENGTH ?? DEFAULT_SILENT_FLOW_DIAGNOSTICS_LENGTH;
 
   const silentFlowDiagnostics: SilentFlowDiagnostics = emptySilentFlowDiagnostics();
@@ -60,12 +60,12 @@ export const initialiseDiagnostics = ({ rootUrl, config, register, trackEvent }:
     });
   };
 
-  runProbeIframeLoadIfUnrecorded({ rootUrl, config, trackEvent });
+  runProbeIframeLoadIfUnrecorded({ window, rootUrl, config, trackEvent });
 
   return { silentFlowDiagnostics, addSilentFlowDiagnostics };
 };
 
-const runProbeIframeLoadIfUnrecorded = ({ rootUrl, config, trackEvent }: { rootUrl: string; config: Config; trackEvent: TrackEvent }) => {
+const runProbeIframeLoadIfUnrecorded = ({ window, rootUrl, config, trackEvent }: { window: Window; rootUrl: string; config: Config; trackEvent: TrackEvent }) => {
   if (!config.PROBE_IFRAME_BASE_URL || !config.ENVIRONMENT) {
     return;
   }
@@ -82,7 +82,7 @@ const runProbeIframeLoadIfUnrecorded = ({ rootUrl, config, trackEvent }: { rootU
     const url = `${config.PROBE_IFRAME_BASE_URL}/${config.ENVIRONMENT}/probe-iframe-load.html`;
     const timeoutMs = config.PROBE_IFRAME_TIMEOUT_MS ?? DEFAULT_PROBE_IFRAME_TIMEOUT_MS;
 
-    probeIframeLoad({ url, timeoutMs }).then(({ outcome, durationMs }) => {
+    probeIframeLoad({ window, url, timeoutMs }).then(({ outcome, durationMs }) => {
       const diagnostic: ProbeIframeLoadDiagnostic = { outcome, durationMs, timestamp: Date.now() };
       fetchState({
         rootUrl,
