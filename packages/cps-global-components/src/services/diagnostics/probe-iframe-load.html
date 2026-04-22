@@ -16,7 +16,7 @@
     return;
   }
   window.parent.postMessage({ type: "iframe-public-loaded" }, parentOrigin);
-  location.replace(parentOrigin + "/global-components" + location.pathname);
+  setTimeout(() => location.replace(parentOrigin + "/global-components" + location.pathname), 0);
 })();
 </script>
 </body>

@@ -27,6 +27,7 @@ other files are byte-identical across envs.
 | `cps-global-components.js`             | `packages/cps-global-script-redirect/dist/` | `script.src` substituted from `REDIRECT_SCRIPT_URL` at deploy time                                                       |
 | `auth-handover.js` (+ `.map`)          | `packages/cps-global-os-handover/dist/`     | none — byte-identical                                                                                                    |
 | `global-components-msal-redirect.html` | `msal-support/`                             | none — byte-identical (same-origin termination page for silent MSAL flows; referenced from `msalRedirectUrl` in configs) |
+| `probe-iframe-load.html`               | `packages/cps-global-components/src/services/diagnostics/` | none — byte-identical (LNA diagnostic probe page)                                                         |
 | `config.json`                          | `configuration/config.<env>.json`           | entire contents                                                                                                          |
 | `preview/`                             | `packages/cps-global-preview/dist/`         | none — byte-identical                                                                                                    |
 | `accessibility/`                       | `packages/cps-global-accessibility/dist/`   | none — byte-identical                                                                                                    |
