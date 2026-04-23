@@ -6,6 +6,7 @@ export type AnalyticsEventData =
   | { name: "user-data-fetch"; outcome: "success" }
   | { name: "page-view-initiated" }
   | { name: "state-summary"; summary: ResultsSummary }
-  | { name: "iframe-load-probe"; outcome: "loaded" | "timeout-public" | "timeout-local"; durationMs: number; localNetworkAccessPermission?: "granted" | "denied" | "prompt" };
+  | { name: "iframe-load-probe"; outcome: "loaded" | "timeout-public" | "timeout-local"; durationMs: number }
+  | { name: "probe-navigator-permissions"; hostname: string; timestamp: number; localNetworkAccessPermission?: "granted" | "denied" | "prompt" };
 
 export type TrackEvent = (detail: AnalyticsEventData) => void;

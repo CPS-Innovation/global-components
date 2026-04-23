@@ -213,7 +213,6 @@ describe("initialiseDiagnostics", () => {
 
   describe("probe-iframe-load", () => {
     let probeSpy: jest.SpyInstance;
-    let permissionsQuery: jest.Mock;
 
     const probeConfig = {
       ENVIRONMENT: "dev",
@@ -223,14 +222,11 @@ describe("initialiseDiagnostics", () => {
     beforeEach(() => {
       probeSpy = jest.spyOn(probeModule, "probeIframeLoad");
       jest.spyOn(Date, "now").mockReturnValue(1_700_000_000_000);
-      permissionsQuery = jest.fn().mockResolvedValue({ state: "granted" });
-      (window.navigator as any).permissions = { query: permissionsQuery };
     });
 
     afterEach(() => {
       probeSpy.mockRestore();
       (Date.now as jest.Mock).mockRestore?.();
-      delete (window.navigator as any).permissions;
     });
 
     it("does not run when PROBE_IFRAME_BASE_URL is missing", async () => {
@@ -337,13 +333,12 @@ describe("initialiseDiagnostics", () => {
       await flushPromises();
 
       expect(probeSpy).toHaveBeenCalledWith({ window, url: "https://blob.example/global/dev/probe-iframe-load.html", timeoutMs: 3000 });
-      expect(permissionsQuery).toHaveBeenCalledWith({ name: "local-network-access" });
 
       const putCall = mockFetch.mock.calls.find(([url, init]) => url === expectedProbeStateUrl && init?.method === "PUT");
       expect(putCall).toBeDefined();
-      expect(JSON.parse(putCall![1].body)).toEqual({ outcome: "loaded", durationMs: 250, timestamp: 1_700_000_000_000, localNetworkAccessPermission: "granted" });
+      expect(JSON.parse(putCall![1].body)).toEqual({ outcome: "loaded", durationMs: 250, timestamp: 1_700_000_000_000 });
 
-      expect(mockTrackEvent).toHaveBeenCalledWith({ name: "iframe-load-probe", outcome: "loaded", durationMs: 250, localNetworkAccessPermission: "granted" });
+      expect(mockTrackEvent).toHaveBeenCalledWith({ name: "iframe-load-probe", outcome: "loaded", durationMs: 250 });
     });
 
     it("uses the configured PROBE_IFRAME_TIMEOUT_MS when provided", async () => {
@@ -370,33 +365,160 @@ describe("initialiseDiagnostics", () => {
       await flushPromises();
 
       expect(probeSpy).toHaveBeenCalledWith({ window, url: "https://blob.example/global/dev/probe-iframe-load.html", timeoutMs: 5000 });
-      expect(mockTrackEvent).toHaveBeenCalledWith({ name: "iframe-load-probe", outcome: "timeout-local", durationMs: 5000, localNetworkAccessPermission: "granted" });
+      expect(mockTrackEvent).toHaveBeenCalledWith({ name: "iframe-load-probe", outcome: "timeout-local", durationMs: 5000 });
+    });
+  });
+
+  describe("probe-navigator-permissions", () => {
+    const hostname = "test-host.example";
+    const expectedNavPermsUrl = `https://example.com/api/state/diagnostics/probe-navigator-permissions/${hostname}`;
+
+    const navPermsConfig = {
+      PROBE_NAVIGATOR_PERMISSIONS_REFRESH_PERIOD_MINS: 120,
+    } as Config;
+
+    let permissionsQuery: jest.Mock;
+    let testWindow: Window;
+
+    beforeEach(() => {
+      jest.spyOn(Date, "now").mockReturnValue(1_700_000_000_000);
+      permissionsQuery = jest.fn().mockResolvedValue({ state: "granted" });
+      testWindow = {
+        location: { hostname },
+        navigator: { permissions: { query: permissionsQuery } },
+      } as unknown as Window;
     });
 
-    it("tolerates the permissions API rejecting (e.g. browser doesn't recognise 'local-network-access') — stores and tracks without the field", async () => {
-      probeSpy.mockResolvedValue({ outcome: "loaded", durationMs: 100 });
-      permissionsQuery.mockRejectedValue(new TypeError("unknown permission"));
-      mockFetch.mockImplementation((url: string, init?: any) => {
-        if (url === expectedProbeStateUrl && init?.method === "PUT") {
-          return Promise.resolve({ ok: true, json: () => Promise.resolve({ success: true, path: "/state/diagnostics/probe-iframe-load" }) });
+    afterEach(() => {
+      (Date.now as jest.Mock).mockRestore?.();
+    });
+
+    it("does not run when PROBE_NAVIGATOR_PERMISSIONS_REFRESH_PERIOD_MINS is unset", async () => {
+      mockFetch.mockResolvedValue({ ok: true, json: () => Promise.resolve({ silentFlows: [] }) });
+
+      initialiseDiagnostics({ window: testWindow, rootUrl, flags, config: baseConfig, register: mockRegister, trackEvent: mockTrackEvent });
+      await flushPromises();
+
+      expect(permissionsQuery).not.toHaveBeenCalled();
+      expect(mockFetch).not.toHaveBeenCalledWith(expectedNavPermsUrl, expect.anything());
+    });
+
+    it("does not run when PROBE_NAVIGATOR_PERMISSIONS_REFRESH_PERIOD_MINS is 0 (kill switch)", async () => {
+      mockFetch.mockResolvedValue({ ok: true, json: () => Promise.resolve({ silentFlows: [] }) });
+
+      initialiseDiagnostics({
+        window: testWindow,
+        rootUrl,
+        flags,
+        config: { PROBE_NAVIGATOR_PERMISSIONS_REFRESH_PERIOD_MINS: 0 } as Config,
+        register: mockRegister,
+        trackEvent: mockTrackEvent,
+      });
+      await flushPromises();
+
+      expect(permissionsQuery).not.toHaveBeenCalled();
+      expect(mockFetch).not.toHaveBeenCalledWith(expectedNavPermsUrl, expect.anything());
+    });
+
+    it("skips when the stored diagnostic is within the refresh window", async () => {
+      const now = 1_700_000_000_000;
+      (Date.now as jest.Mock).mockReturnValue(now);
+      const freshTimestamp = now - 5_000; // 5 seconds ago
+      mockFetch.mockImplementation((url: string) => {
+        if (url === expectedNavPermsUrl) {
+          return Promise.resolve({ ok: true, json: () => Promise.resolve({ timestamp: freshTimestamp, localNetworkAccessPermission: "granted" }) });
         }
-        if (url === expectedProbeStateUrl) {
+        return Promise.resolve({ ok: true, json: () => Promise.resolve({ silentFlows: [] }) });
+      });
+
+      initialiseDiagnostics({ window: testWindow, rootUrl, flags, config: navPermsConfig, register: mockRegister, trackEvent: mockTrackEvent });
+      await flushPromises();
+
+      expect(mockFetch).toHaveBeenCalledWith(expectedNavPermsUrl, { credentials: "include", cache: "no-cache" });
+      expect(permissionsQuery).not.toHaveBeenCalled();
+      expect(mockTrackEvent).not.toHaveBeenCalledWith(expect.objectContaining({ name: "probe-navigator-permissions" }));
+    });
+
+    it("re-runs when the stored diagnostic is older than the refresh window", async () => {
+      const now = 1_700_000_000_000;
+      (Date.now as jest.Mock).mockReturnValue(now);
+      const staleTimestamp = now - 121 * 60 * 1000; // beyond 120-minute window
+      mockFetch.mockImplementation((url: string, init?: any) => {
+        if (url === expectedNavPermsUrl && init?.method === "PUT") {
+          return Promise.resolve({ ok: true, json: () => Promise.resolve({ success: true, path: `/state/diagnostics/probe-navigator-permissions/${hostname}` }) });
+        }
+        if (url === expectedNavPermsUrl) {
+          return Promise.resolve({ ok: true, json: () => Promise.resolve({ timestamp: staleTimestamp, localNetworkAccessPermission: "granted" }) });
+        }
+        return Promise.resolve({ ok: true, json: () => Promise.resolve({ silentFlows: [] }) });
+      });
+
+      initialiseDiagnostics({ window: testWindow, rootUrl, flags, config: navPermsConfig, register: mockRegister, trackEvent: mockTrackEvent });
+      await flushPromises();
+      await flushPromises();
+
+      expect(permissionsQuery).toHaveBeenCalledWith({ name: "local-network-access" });
+      const putCall = mockFetch.mock.calls.find(([url, init]) => url === expectedNavPermsUrl && init?.method === "PUT");
+      expect(putCall).toBeDefined();
+    });
+
+    it("queries permissions, PUTs { timestamp, localNetworkAccessPermission } keyed by hostname, and fires the analytics event when no value is stored", async () => {
+      mockFetch.mockImplementation((url: string, init?: any) => {
+        if (url === expectedNavPermsUrl && init?.method === "PUT") {
+          return Promise.resolve({ ok: true, json: () => Promise.resolve({ success: true, path: `/state/diagnostics/probe-navigator-permissions/${hostname}` }) });
+        }
+        if (url === expectedNavPermsUrl) {
           return Promise.resolve({ ok: true, json: () => Promise.resolve(null) });
         }
         return Promise.resolve({ ok: true, json: () => Promise.resolve({ silentFlows: [] }) });
       });
 
-      initialiseDiagnostics({ window, rootUrl, flags, config: probeConfig, register: mockRegister, trackEvent: mockTrackEvent });
+      initialiseDiagnostics({ window: testWindow, rootUrl, flags, config: navPermsConfig, register: mockRegister, trackEvent: mockTrackEvent });
       await flushPromises();
       await flushPromises();
 
-      const putCall = mockFetch.mock.calls.find(([url, init]) => url === expectedProbeStateUrl && init?.method === "PUT");
+      expect(permissionsQuery).toHaveBeenCalledWith({ name: "local-network-access" });
+
+      const putCall = mockFetch.mock.calls.find(([url, init]) => url === expectedNavPermsUrl && init?.method === "PUT");
+      expect(putCall).toBeDefined();
+      expect(JSON.parse(putCall![1].body)).toEqual({ timestamp: 1_700_000_000_000, localNetworkAccessPermission: "granted" });
+
+      expect(mockTrackEvent).toHaveBeenCalledWith({
+        name: "probe-navigator-permissions",
+        hostname,
+        timestamp: 1_700_000_000_000,
+        localNetworkAccessPermission: "granted",
+      });
+    });
+
+    it("tolerates the permissions API rejecting (e.g. browser doesn't recognise 'local-network-access') — stores and tracks without the field", async () => {
+      permissionsQuery.mockRejectedValue(new TypeError("unknown permission"));
+      mockFetch.mockImplementation((url: string, init?: any) => {
+        if (url === expectedNavPermsUrl && init?.method === "PUT") {
+          return Promise.resolve({ ok: true, json: () => Promise.resolve({ success: true, path: `/state/diagnostics/probe-navigator-permissions/${hostname}` }) });
+        }
+        if (url === expectedNavPermsUrl) {
+          return Promise.resolve({ ok: true, json: () => Promise.resolve(null) });
+        }
+        return Promise.resolve({ ok: true, json: () => Promise.resolve({ silentFlows: [] }) });
+      });
+
+      initialiseDiagnostics({ window: testWindow, rootUrl, flags, config: navPermsConfig, register: mockRegister, trackEvent: mockTrackEvent });
+      await flushPromises();
+      await flushPromises();
+
+      const putCall = mockFetch.mock.calls.find(([url, init]) => url === expectedNavPermsUrl && init?.method === "PUT");
       expect(putCall).toBeDefined();
       const body = JSON.parse(putCall![1].body);
-      expect(body).toEqual({ outcome: "loaded", durationMs: 100, timestamp: 1_700_000_000_000 });
+      expect(body).toEqual({ timestamp: 1_700_000_000_000 });
       expect(body.localNetworkAccessPermission).toBeUndefined();
 
-      expect(mockTrackEvent).toHaveBeenCalledWith({ name: "iframe-load-probe", outcome: "loaded", durationMs: 100, localNetworkAccessPermission: undefined });
+      expect(mockTrackEvent).toHaveBeenCalledWith({
+        name: "probe-navigator-permissions",
+        hostname,
+        timestamp: 1_700_000_000_000,
+        localNetworkAccessPermission: undefined,
+      });
     });
   });
 });
