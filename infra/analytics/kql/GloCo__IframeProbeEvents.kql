@@ -1,0 +1,19 @@
+AppEvents
+| where Name == "cps-global-components-analytics-event"
+| where Properties["name"] == "probe-navigator-permissions"
+| project 
+    TimeGenerated, 
+    Environment = tostring(Properties["environment"]),
+    OperationId, 
+    UserId, 
+    Hostname = tostring(Properties["hostname"]),
+    LocalNetworkAccessPermission = tostring(Properties["localNetworkAccessPermission"])
+| where Environment == "prod"
+// | join kind=leftouter(
+//     AppPageViews 
+//     | project OperationId, Url, Auth = parse_json(tostring(Properties["Auth"]))
+//     | extend IsAuthed = toboolean(Auth["IsAuthed"])
+//     | extend Username = tostring(Auth["Username"])
+//     | extend KnownErrorType = tostring(Auth["KnownErrorType"])
+//     | project-away Auth
+//     ) on OperationId | project-away OperationId1

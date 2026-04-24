@@ -16,4 +16,18 @@ GloCo_PageViews
     Is_Saved_First_Review          = Page == "LandingPage" and IsSubmittedParam == false and SubmittedIsFirstReviewParam == true,
     Is_Saved_Subsequent_Review     = Page == "LandingPage" and IsSubmittedParam == false and SubmittedIsFirstReviewParam != true,
     Is_Admin_Finalise              = Page == "QuickAdminFinalise"
+| extend 
+    Is_Active_Visit = IsFirstReviewParam 
+        or IsSubmittedParam 
+        or SubmittedIsFirstReviewParam 
+        or Is_Review_First_Review 
+        or Is_Review_Subsequent_Review 
+        or Is_Early_Advice_First_Review 
+        or Is_Early_Advice_Subsequent 
+        or Is_Submitted_First_Review 
+        or Is_Submitted_Subsequent_Review
+        or Is_Saved_First_Review
+        or Is_Saved_Subsequent_Review
+        or Is_Admin_Finalise
+| where Is_Active_Visit
 | project-away Params
