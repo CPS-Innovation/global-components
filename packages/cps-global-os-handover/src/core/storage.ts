@@ -34,6 +34,18 @@ export const isStoredAuthCurrent = (cookies: string, storage: Storage) =>
     storage[localStorageKeys.HOME_COOKIES],
   );
 
+export const isStoredTokenSameAs = (token: string, storage: Storage): boolean => {
+  const json = storage[localStorageKeys.WMA_JSON];
+  if (!json) {
+    return false;
+  }
+  try {
+    return JSON.parse(json).Token === token;
+  } catch {
+    return false;
+  }
+};
+
 export const syncOsAuth = (currentUrl: string, storage: Storage) => {
   const app = new URLPattern({ pathname: "/:app{/*}?" }).exec(currentUrl)
     ?.pathname.groups["app"];

@@ -1,17 +1,24 @@
 import {
   isStoredAuthCurrent,
+  isStoredTokenSameAs,
   setCmsSessionHint,
   storeAuth,
 } from "../core/storage";
 import { createUrlWithParams, setParams, stripParams } from "../core/params";
 import { paramKeys, stages } from "../core/constants";
 import { getCmsSessionHint } from "../core/get-cms-session-hint";
+import { resetTasklistFilters } from "../application-logic/reset-tasklist-filters";
 
 export const handleOsRedirect = async (window: Window, tokenHandoverUrl: string) => {
-  const { stage, nextUrl } = handleOsRedirectInternal({
+  const { stage, nextUrl, didUpdateToken } = handleOsRedirectInternal({
     currentUrl: window.location.href,
     tokenHandoverUrl,
   });
+  if (didUpdateToken) {
+    // FCT2-16735: a fresh token means a fresh auth context — clear stale tasklist filters
+    // so the user lands in OS without inherited filter state from a previous session.
+    resetTasklistFilters(window);
+  }
   await handleSettingCmsSessionHint({ stage, nextUrl });
   window.location.replace(nextUrl);
 };
@@ -37,7 +44,7 @@ export const handleOsRedirectInternal = ({
         // The cookies we have in storage are the same as the ones we have been just given
         //  which means that our values as currently stored are still valid
         const [target] = stripParams(url, paramKeys.R);
-        return { stage, nextUrl: target };
+        return { stage, nextUrl: target, didUpdateToken: false };
       }
 
       setParams(url, { [paramKeys.STAGE]: stages.OS_TOKEN_RETURN });
@@ -46,7 +53,7 @@ export const handleOsRedirectInternal = ({
         [paramKeys.COOKIES]: cookies!,
       });
 
-      return { stage, nextUrl: nextUrl.toString() };
+      return { stage, nextUrl: nextUrl.toString(), didUpdateToken: false };
     }
     case stages.OS_TOKEN_RETURN: {
       const [target, cookies, token] = stripParams(
@@ -56,9 +63,10 @@ export const handleOsRedirectInternal = ({
         paramKeys.TOKEN,
       );
 
+      const didUpdateToken = !isStoredTokenSameAs(token, localStorage);
       storeAuth(cookies, token, localStorage);
 
-      return { stage, nextUrl: target };
+      return { stage, nextUrl: target, didUpdateToken };
     }
     default:
       throw new Error(

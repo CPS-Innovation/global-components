@@ -5,5 +5,6 @@
 
 import { handleOsRedirect } from ".";
 
-const scriptOrigin = new URL((document.currentScript as HTMLScriptElement).src).origin;
+const scriptOrigin = new URL((document.currentScript as HTMLScriptElement).src)
+  .origin;
 handleOsRedirect(window, `${scriptOrigin}/auth-refresh-cms-modern-token`);
