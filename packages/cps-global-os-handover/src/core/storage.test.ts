@@ -2,6 +2,7 @@ import { describe, test, expect, beforeEach } from "@jest/globals";
 import {
   storeAuth,
   isStoredAuthCurrent,
+  isStoredTokenSameAs,
   syncOsAuth,
   setCmsSessionHint,
 } from "./storage";
@@ -298,6 +299,52 @@ describe("storage", () => {
       expect(storage[CASE_REVIEW_COOKIES]).toBe(wmaCookies);
       expect(storage[HOME_JSON]).toBe(wmaJson);
       expect(storage[HOME_COOKIES]).toBe(wmaCookies);
+    });
+  });
+
+  describe("isStoredTokenSameAs", () => {
+    const WMA_JSON = "$OS_Users$WorkManagementApp$ClientVars$JSONString";
+
+    test("returns true when stored Token field matches incoming token", () => {
+      storage[WMA_JSON] = JSON.stringify({
+        Cookies: "c",
+        Token: "abc-123",
+        ExpiryTime: "2024-01-15T10:00:00.000Z",
+      });
+
+      expect(isStoredTokenSameAs("abc-123", storage as unknown as Storage)).toBe(true);
+    });
+
+    test("returns false when stored Token field differs from incoming token", () => {
+      storage[WMA_JSON] = JSON.stringify({
+        Cookies: "c",
+        Token: "old-token",
+        ExpiryTime: "2024-01-15T10:00:00.000Z",
+      });
+
+      expect(isStoredTokenSameAs("new-token", storage as unknown as Storage)).toBe(false);
+    });
+
+    test("returns false when no JSON has been stored yet", () => {
+      expect(isStoredTokenSameAs("anything", storage as unknown as Storage)).toBe(false);
+    });
+
+    test("returns false when stored JSON is malformed", () => {
+      storage[WMA_JSON] = "{not valid json";
+
+      expect(isStoredTokenSameAs("anything", storage as unknown as Storage)).toBe(false);
+    });
+
+    test("returns false when stored JSON has no Token field", () => {
+      storage[WMA_JSON] = JSON.stringify({ Cookies: "c", ExpiryTime: "x" });
+
+      expect(isStoredTokenSameAs("anything", storage as unknown as Storage)).toBe(false);
+    });
+
+    test("returns true when both incoming and stored token are empty strings", () => {
+      storage[WMA_JSON] = JSON.stringify({ Cookies: "c", Token: "", ExpiryTime: "x" });
+
+      expect(isStoredTokenSameAs("", storage as unknown as Storage)).toBe(true);
     });
   });
 
