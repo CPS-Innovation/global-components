@@ -58,7 +58,7 @@ export class CpsGlobalBanner {
 
     return (
       <div>
-        <cps-skip-link isOutSystems={state.flags?.isOutSystems}>Skip to main content</cps-skip-link>
+        <cps-skip-link isOutSystems={state.flags?.isOutSystems} skipLinkClassName={state.context?.skipLinkClassName}>Skip to main content</cps-skip-link>
         <header class={`govuk-header govuk-header--with-js-navigation ${backgroundColourClass}`} data-module="govuk-header" data-govuk-header-init="">
           <div class="govuk-header__container" style={{ display: "flex", flexDirection: "row" }}>
             <div class="govuk-header__logo">

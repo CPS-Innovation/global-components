@@ -85,6 +85,7 @@ export namespace Components {
           * @default false
          */
         "isOutSystems": boolean;
+        "skipLinkClassName"?: string;
     }
     interface NavLink {
         "ariaSelected"?: boolean;
@@ -287,6 +288,7 @@ declare namespace LocalJSX {
           * @default false
          */
         "isOutSystems"?: boolean;
+        "skipLinkClassName"?: string;
     }
     interface NavLink {
         "ariaSelected"?: boolean;
@@ -319,6 +321,7 @@ declare namespace LocalJSX {
     }
     interface CpsSkipLinkAttributes {
         "isOutSystems": boolean;
+        "skipLinkClassName": string;
     }
     interface NavLinkAttributes {
         "label": string;
