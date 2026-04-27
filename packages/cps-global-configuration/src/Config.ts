@@ -80,6 +80,7 @@ const contextsBaseSchema = z.object({
   headerCustomCssClasses: z.string().optional(),
   headerCustomCssStyles: z.record(z.string(), z.string().optional()).optional(),
   cmsAuthFromStorageKey: z.string().optional(),
+  skipLinkClassName: z.string().optional(),
 });
 
 const contextStorageSchema: z.ZodType<ContextStorageSchema> =

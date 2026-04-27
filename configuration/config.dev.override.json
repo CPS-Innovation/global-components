@@ -27,6 +27,7 @@
         "background-color": "transparent",
         "box-shadow": "none"
       },
+      "skipLinkClassName": "cps-skip-link__target",
       "msalRedirectUrl": "https://cps-dev.outsystemsenterprise.com/Casework_Patterns/auth-handover.html",
       "cmsAuthFromStorageKey": "$OS_Users$Casework_Blocks$ClientVars$JSONString",
       "contexts": [
