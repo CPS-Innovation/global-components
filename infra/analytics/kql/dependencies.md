@@ -24,5 +24,34 @@ GloCo_PageViews
   |
   |---> GloCo_Users_VisitsPerApp
   |
-  '---> GloCo_PageViews_ActiveUsers_Chart
+  |---> GloCo_PageViews_ActiveUsers_Chart
+  |
+  |---> GloCo__NotAuthedRates
+  |
+  |---> GloCo__UserAreaMapping
+  |
+  '---> GloCo__UserAuthStatus  (also joins GloCo__IframeProbeEvents)
+```
+
+```
+AppExceptions
+  |
+  v
+GloCo_AppExceptions
+  |
+  '---> GloCo__Exceptions_Prod
+```
+
+```
+AppEvents
+  |
+  v
+GloCo__IframeProbeEvents  (also feeds GloCo__UserAuthStatus above)
+```
+
+```
+StorageBlobLogs
+  |
+  v
+GloCo_BlobLogs
 ```
