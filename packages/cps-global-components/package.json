@@ -56,12 +56,12 @@
   },
   "license": "MIT",
   "dependencies": {
-    "@azure/msal-browser": "^4.0.0",
     "@dotenvx/dotenvx": "^1.41.0",
     "@microsoft/applicationinsights-web": "^3.3.6",
     "@types/arrive": "^2.4.4",
     "@types/proper-url-join": "^2.1.5",
     "arrive": "^2.5.2",
+    "cps-global-auth": "workspace:*",
     "cps-global-configuration": "workspace:*",
     "cps-global-os-handover": "workspace:*",
     "deepmerge-ts": "^7.1.5",

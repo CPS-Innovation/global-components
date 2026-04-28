@@ -8,7 +8,8 @@ jest.mock("./initialise-mock-auth", () => ({
 }));
 
 const mockInitialiseAdAuth = jest.fn();
-jest.mock("./initialise-ad-auth", () => ({
+jest.mock("cps-global-auth", () => ({
+  ...jest.requireActual("cps-global-auth"),
   initialiseAdAuth: (props: any) => mockInitialiseAdAuth(props),
 }));
 

@@ -1,10 +1,8 @@
 import { Config } from "cps-global-configuration";
+import { Auth, AuthResult, FailedAuth, GetToken, initialiseAdAuth } from "cps-global-auth";
 import { FoundContext } from "../context/FoundContext";
-import { Auth, AuthResult, FailedAuth } from "./AuthResult";
-import { GetToken } from "./GetToken";
 import { ApplicationFlags } from "../application-flags/ApplicationFlags";
 import { initialiseMockAuth } from "./initialise-mock-auth";
-import { initialiseAdAuth } from "./initialise-ad-auth";
 import type { SilentFlowDiagnostic, SilentFlowDiagnostics } from "../diagnostics/silent-flow-diagnostics";
 import { TrackException } from "../analytics/TrackException";
 

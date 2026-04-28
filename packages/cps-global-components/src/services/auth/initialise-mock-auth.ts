@@ -1,6 +1,5 @@
+import { AuthResult, GetToken } from "cps-global-auth";
 import { ApplicationFlags } from "../application-flags/ApplicationFlags";
-import { AuthResult } from "./AuthResult";
-import { GetToken } from "./GetToken";
 
 export const initialiseMockAuth = async ({ flags: { e2eTestMode } }: { flags: ApplicationFlags }): Promise<{ auth: AuthResult; getToken: GetToken }> =>
   e2eTestMode.isE2eTestMode && e2eTestMode.isAuthed

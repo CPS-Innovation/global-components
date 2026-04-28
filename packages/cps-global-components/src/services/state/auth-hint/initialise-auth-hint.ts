@@ -3,7 +3,7 @@ import { fetchState } from "../fetch-state";
 import { StatePutResponseSchema } from "../StatePutResponse";
 import { makeConsole } from "../../../logging/makeConsole";
 import { Result } from "../../../utils/Result";
-import { Auth, AuthSchema } from "../../auth/AuthResult";
+import { Auth, AuthSchema } from "cps-global-auth";
 import { TrackException } from "../../analytics/TrackException";
 
 const AuthHintSchema = z.object({

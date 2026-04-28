@@ -6,7 +6,7 @@ import { AnalyticsEventData, TrackEvent } from "./analytics-event";
 import { HostAppEvent } from "./host-app-event";
 import { makeConsole } from "../../logging/makeConsole";
 import { Build } from "../../store/store";
-import { AuthResult, KnownErrorType } from "../auth/AuthResult";
+import { AuthResult, KnownErrorType } from "cps-global-auth";
 import { capitalizeKeys } from "../../utils/capitalize-keys";
 import { Result } from "../../utils/Result";
 import { AuthHint } from "../state/auth-hint/initialise-auth-hint";

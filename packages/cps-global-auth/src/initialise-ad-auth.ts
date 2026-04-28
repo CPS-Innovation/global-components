@@ -1,18 +1,30 @@
-import { Config } from "cps-global-configuration";
 import { LogLevel, PublicClientApplication } from "@azure/msal-browser";
-import { FoundContext } from "../context/FoundContext";
-import { withLogging } from "../../logging/with-logging";
-import { makeConsole } from "../../logging/makeConsole";
+import { makeConsole, withLogging } from "./internal/logging";
 import { AuthResult, FailedAuth, KnownErrorType } from "./AuthResult";
 import { getAdUserAccount } from "./get-ad-user-account";
 import { getErrorType } from "./get-error-type";
 import { getTokenFactory } from "./get-token-factory";
 import { GetToken } from "./GetToken";
-import type { SilentFlowDiagnostic } from "../diagnostics/silent-flow-diagnostics";
+import type { SilentFlowDiagnostic } from "./silent-flow-diagnostic";
+
+// Structural shapes — narrow to just the bits we actually read. Lets the auth
+// library accept anything satisfying these without depending on the host's
+// Config / FoundContext types (which would create a workspace cycle).
+type AdAuthConfig = {
+  AD_TENANT_AUTHORITY?: string;
+  AD_CLIENT_ID?: string;
+  FEATURE_FLAG_ENABLE_INTRUSIVE_AD_LOGIN?: boolean;
+  SSO_SILENT_DELAY_MS?: number;
+};
+
+type AdAuthContext = {
+  msalRedirectUrl?: string;
+  currentHref?: string;
+};
 
 type Props = {
-  config: Config;
-  context: FoundContext;
+  config: AdAuthConfig;
+  context: AdAuthContext;
   onError?: (error: Error) => void;
   addSilentFlowDiagnostics?: (entry: SilentFlowDiagnostic) => void;
   getOperationId?: () => string | undefined;
@@ -71,8 +83,8 @@ const initialiseAdAuthInternal = async ({
   addSilentFlowDiagnostics,
   getOperationId,
 }: Props): Promise<{ auth: AuthResult; getToken: GetToken }> => {
-  if (!(authority && clientId && redirectUri)) {
-    return failedAuth("ConfigurationIncomplete", `Found configuration is: ${JSON.stringify({ authority, clientId, redirectUri })}`);
+  if (!(authority && clientId && redirectUri && currentHref)) {
+    return failedAuth("ConfigurationIncomplete", `Found configuration is: ${JSON.stringify({ authority, clientId, redirectUri, currentHref })}`);
   }
 
   // For development (possibly other instances) if we detect we are being launched on an

@@ -1,8 +1,7 @@
 import { AccountInfo, CacheLookupPolicy, PublicClientApplication } from "@azure/msal-browser";
-import { makeConsole } from "../../logging/makeConsole";
+import { makeConsole, withLogging } from "./internal/logging";
 import { getErrorType } from "./get-error-type";
-import { withLogging } from "../../logging/with-logging";
-import type { SilentFlowDiagnostic } from "../diagnostics/silent-flow-diagnostics";
+import type { SilentFlowDiagnostic } from "./silent-flow-diagnostic";
 
 type AddSilentFlowDiagnostics = (entry: SilentFlowDiagnostic) => void;
 

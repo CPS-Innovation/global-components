@@ -1,7 +1,7 @@
 import { Config } from "cps-global-configuration";
 import { makeConsole } from "../../logging/makeConsole";
 import { typedDeepMerge } from "../../utils/typed-deep-merge";
-import { GetToken } from "../auth/GetToken";
+import { GetToken } from "cps-global-auth";
 import { CorrelationIds } from "../correlation/CorrelationIds";
 import { FoundContext } from "../context/FoundContext";
 import { fullyQualifyRequest } from "../../utils/fully-qualify-request";

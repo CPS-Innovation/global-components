@@ -10,7 +10,7 @@ import { mapLinkConfig } from "./helpers/map-link-config";
 import { groupLinksByLevel } from "./helpers/group-links-by-level";
 import { ApplicationFlags } from "../../../services/application-flags/ApplicationFlags";
 import { Tags } from "@microsoft/applicationinsights-web";
-import { AuthResult } from "../../../services/auth/AuthResult";
+import { AuthResult } from "cps-global-auth";
 import { Build, State } from "../../../store/store";
 import { CorrelationIds } from "../../../services/correlation/CorrelationIds";
 import { CaseDetails } from "../../../services/data/CaseDetails";
