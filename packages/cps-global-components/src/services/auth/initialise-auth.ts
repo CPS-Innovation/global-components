@@ -5,9 +5,6 @@ import { GetToken } from "./GetToken";
 import { ApplicationFlags } from "../application-flags/ApplicationFlags";
 import { initialiseMockAuth } from "./initialise-mock-auth";
 import { initialiseAdAuth } from "./initialise-ad-auth";
-import { createMsalInstance } from "./create-msal-instance";
-import type { AdDiagnosticsCollector } from "./ad-diagnostics-collector";
-import type { PublicClientApplication } from "@azure/msal-browser";
 import type { SilentFlowDiagnostic, SilentFlowDiagnostics } from "../diagnostics/silent-flow-diagnostics";
 import { TrackException } from "../analytics/TrackException";
 
@@ -21,7 +18,6 @@ type Props = {
   config: Config;
   flags: ApplicationFlags;
   trackException: TrackException;
-  diagnosticsCollector?: AdDiagnosticsCollector;
   silentFlowDiagnostics?: SilentFlowDiagnostics;
   addSilentFlowDiagnostics?: AddSilentFlowDiagnostics;
   getOperationId?: GetOperationId;
@@ -35,15 +31,10 @@ const noAuthResult: { auth: FailedAuth; getToken: GetToken } = {
   getToken: () => Promise.resolve(null),
 };
 
-// The MSAL instance is created lazily on the first call to initialiseAuthForContext,
-// then reused for all subsequent calls. Assumption: SPA navigation does not change
-// the host app origin, so the redirect URI from the first context remains valid for
-// all contexts within the same page session.
 export const initialiseAuth = ({
   config,
   flags,
   trackException,
-  diagnosticsCollector,
   silentFlowDiagnostics,
   addSilentFlowDiagnostics,
   getOperationId,
@@ -52,18 +43,15 @@ export const initialiseAuth = ({
   setAuthHint,
 }: Props): { initialiseAuthForContext: (context: FoundContext) => Promise<{ auth: AuthResult; getToken: GetToken }> } => {
   const isE2e = flags.e2eTestMode.isE2eTestMode;
-  const { AD_TENANT_AUTHORITY: authority, AD_CLIENT_ID: clientId } = config;
 
   const onError = (error: Error) =>
     trackException(error, {
       type: "auth",
       properties: {
-        ...(diagnosticsCollector && { authDiagnostics: diagnosticsCollector.get() }),
         ...(silentFlowDiagnostics && { silentFlowDiagnostics }),
       },
     });
 
-  let instance: PublicClientApplication | undefined;
   let authInFlight: Promise<{ auth: AuthResult; getToken: GetToken }> | null = null;
 
   const initialiseAuthForContext = async (ctx: FoundContext): Promise<{ auth: AuthResult; getToken: GetToken }> => {
@@ -72,22 +60,12 @@ export const initialiseAuth = ({
       return authInFlight;
     }
 
-    const doAuth = async (): Promise<{ auth: AuthResult; getToken: GetToken }> => {
-      if (ctx.preventADAndDataCalls) {
-        return noAuthResult;
-      }
-
-      if (isE2e) {
-        return initialiseMockAuth({ flags });
-      }
-
-      // Create the MSAL instance lazily on first real auth attempt
-      if (!instance && authority && clientId && ctx.msalRedirectUrl) {
-        instance = await createMsalInstance({ authority, clientId, redirectUri: ctx.msalRedirectUrl, diagnosticsCollector });
-      }
-
-      return initialiseAdAuth({ config, context: ctx, onError, diagnosticsCollector, addSilentFlowDiagnostics, getOperationId, instance });
-    };
+    const doAuth = async (): Promise<{ auth: AuthResult; getToken: GetToken }> =>
+      ctx.preventADAndDataCalls
+        ? noAuthResult
+        : isE2e
+          ? initialiseMockAuth({ flags })
+          : initialiseAdAuth({ config, context: ctx, onError, addSilentFlowDiagnostics, getOperationId });
 
     authInFlight = doAuth()
       .then(result => {

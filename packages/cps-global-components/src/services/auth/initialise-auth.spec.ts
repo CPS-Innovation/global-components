@@ -2,7 +2,6 @@ import { Config } from "cps-global-configuration";
 import { FoundContext } from "../context/FoundContext";
 import { ApplicationFlags } from "../application-flags/ApplicationFlags";
 
-// Mock the dependencies
 const mockInitialiseMockAuth = jest.fn();
 jest.mock("./initialise-mock-auth", () => ({
   initialiseMockAuth: (props: any) => mockInitialiseMockAuth(props),
@@ -11,11 +10,6 @@ jest.mock("./initialise-mock-auth", () => ({
 const mockInitialiseAdAuth = jest.fn();
 jest.mock("./initialise-ad-auth", () => ({
   initialiseAdAuth: (props: any) => mockInitialiseAdAuth(props),
-}));
-
-const mockCreateMsalInstance = jest.fn();
-jest.mock("./create-msal-instance", () => ({
-  createMsalInstance: (props: any) => mockCreateMsalInstance(props),
 }));
 
 import { initialiseAuth } from "./initialise-auth";
@@ -57,7 +51,6 @@ describe("initialiseAuth", () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    mockCreateMsalInstance.mockResolvedValue({});
     mockInitialiseMockAuth.mockResolvedValue(mockAuthResult);
     mockInitialiseAdAuth.mockResolvedValue(mockAuthResult);
   });
@@ -118,14 +111,13 @@ describe("initialiseAuth", () => {
       expect(mockInitialiseMockAuth).not.toHaveBeenCalled();
     });
 
-    it("should pass config, context and instance to initialiseAdAuth", async () => {
+    it("should pass config and context to initialiseAdAuth", async () => {
       await setupAndAuth(makeProps({ flags: normalFlags }));
 
       expect(mockInitialiseAdAuth).toHaveBeenCalledWith(
         expect.objectContaining({
           config: mockConfig,
           context: mockContext,
-          instance: expect.anything(),
         }),
       );
     });
@@ -216,7 +208,6 @@ describe("initialiseAuth", () => {
       const { initialiseAuthForContext } = initialiseAuth(makeProps({ flags: normalFlags }));
 
       const promise1 = initialiseAuthForContext(mockContext);
-      // Allow createMsalInstance to resolve before making second call
       await new Promise(resolve => setTimeout(resolve, 0));
       const promise2 = initialiseAuthForContext(mockContext);
 

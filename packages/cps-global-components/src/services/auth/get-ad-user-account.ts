@@ -2,7 +2,6 @@ import { AccountInfo, CacheLookupPolicy, PublicClientApplication } from "@azure/
 import { makeConsole } from "../../logging/makeConsole";
 import { getErrorType } from "./get-error-type";
 import { withLogging } from "../../logging/with-logging";
-import type { AdDiagnosticsCollector } from "./ad-diagnostics-collector";
 import type { SilentFlowDiagnostic } from "../diagnostics/silent-flow-diagnostics";
 
 type AddSilentFlowDiagnostics = (entry: SilentFlowDiagnostic) => void;
@@ -10,7 +9,6 @@ type AddSilentFlowDiagnostics = (entry: SilentFlowDiagnostic) => void;
 type Props = {
   instance: PublicClientApplication;
   config: { FEATURE_FLAG_ENABLE_INTRUSIVE_AD_LOGIN: boolean | undefined; SSO_SILENT_DELAY_MS: number | undefined };
-  diagnosticsCollector?: AdDiagnosticsCollector;
   addSilentFlowDiagnostics?: AddSilentFlowDiagnostics;
   getOperationId?: () => string | undefined;
   onError?: (error: Error) => void;
@@ -28,14 +26,9 @@ const { _debug } = makeConsole("getAdUserAccount");
 
 const DEFAULT_SSO_SILENT_DELAY_MS = 0;
 
-const waitForPageStability = async (ssoSilentDelayMs: number, scriptStartMs: number, diagnosticsCollector?: AdDiagnosticsCollector) => {
+const waitForPageStability = async (ssoSilentDelayMs: number, scriptStartMs: number) => {
   const elapsed = Math.round(performance.now() - scriptStartMs);
   const remainingDelay = Math.max(0, ssoSilentDelayMs - elapsed);
-  diagnosticsCollector?.add({
-    ssoSilentDelayConfigMs: ssoSilentDelayMs,
-    ssoSilentDelayElapsedSinceScriptStartMs: elapsed,
-    ssoSilentDelayActualWaitMs: remainingDelay,
-  });
   if (remainingDelay > 0) {
     _debug(`Waiting ${remainingDelay}ms before ssoSilent (${elapsed}ms elapsed since script start, threshold ${ssoSilentDelayMs}ms)`);
     await new Promise(resolve => setTimeout(resolve, remainingDelay));
@@ -45,7 +38,6 @@ const waitForPageStability = async (ssoSilentDelayMs: number, scriptStartMs: num
 const internalGetAdUserAccount = async ({
   instance,
   config: { FEATURE_FLAG_ENABLE_INTRUSIVE_AD_LOGIN, SSO_SILENT_DELAY_MS },
-  diagnosticsCollector,
   addSilentFlowDiagnostics,
   getOperationId,
   onError,
@@ -56,42 +48,17 @@ const internalGetAdUserAccount = async ({
     const account = instance.getActiveAccount() || instance.getAllAccounts()[0];
     if (!account) return null;
 
-    const tAcquire = performance.now();
     try {
       const result = await instance.acquireTokenSilent({ ...loginRequest, account, cacheLookupPolicy: CacheLookupPolicy.AccessTokenAndRefreshToken });
-      diagnosticsCollector?.add({
-        acquireTokenSilentStartMs: Math.round(tAcquire),
-        acquireTokenSilentDurationMs: Math.round(performance.now() - tAcquire),
-        acquireTokenSilentFromCache: result.fromCache,
-      });
-
       return result.account ? { source: "acquireTokenSilent", account: result.account } : null;
     } catch (error) {
-      diagnosticsCollector?.add({
-        acquireTokenSilentStartMs: Math.round(tAcquire),
-        acquireTokenSilentDurationMs: Math.round(performance.now() - tAcquire),
-        acquireTokenSilentFailed: true,
-      });
       onError?.(asError(error));
       return null;
     }
   };
 
   const tryLoginAccountSilently = async (): AccountRetrievalResult => {
-    await waitForPageStability(SSO_SILENT_DELAY_MS ?? DEFAULT_SSO_SILENT_DELAY_MS, t0, diagnosticsCollector);
-    const tSilent = performance.now();
-    let pageHiddenDuringAuth = false;
-    let beforeUnloadFired = false;
-
-    const onVisibilityChange = () => {
-      if (document.hidden) pageHiddenDuringAuth = true;
-    };
-    const onBeforeUnload = () => {
-      beforeUnloadFired = true;
-    };
-
-    document.addEventListener("visibilitychange", onVisibilityChange);
-    window.addEventListener("beforeunload", onBeforeUnload);
+    await waitForPageStability(SSO_SILENT_DELAY_MS ?? DEFAULT_SSO_SILENT_DELAY_MS, t0);
 
     // Pass loginHint to identify the user by UPN rather than by session.
     // Without this, MSAL pulls the active account from cache and extracts
@@ -104,43 +71,15 @@ const internalGetAdUserAccount = async ({
     const knownAccount = instance.getActiveAccount() || instance.getAllAccounts()[0];
     const ssoSilentRequest = { ...loginRequest, ...(knownAccount?.username ? { loginHint: knownAccount.username } : {}) };
 
-    // Diagnostics to prove/disprove the sid-staleness mechanism for chronically-broken users.
-    // If loginHint is set, MSAL's initializeAuthorizationRequest short-circuits and sid is never
-    // extracted. If loginHint is falsy but an account exists with idTokenClaims.sid, MSAL will
-    // attach the account and Authorize.mjs will emit sid on the /authorize request.
-    const cachedSid = (knownAccount?.idTokenClaims as { sid?: unknown } | undefined)?.sid;
-    diagnosticsCollector?.add({
-      ssoSilentLoginHintSet: "loginHint" in ssoSilentRequest,
-      ssoSilentKnownAccountPresent: !!knownAccount,
-      ssoSilentAccountSidPresent: typeof cachedSid === "string" && cachedSid.length > 0,
-      ssoSilentAccountUsernameLength: knownAccount?.username?.length ?? 0,
-      ssoSilentAccountHomeTenantId: knownAccount?.tenantId ?? null,
-      ssoSilentAccountIdTokenIat: (knownAccount?.idTokenClaims as { iat?: unknown } | undefined)?.iat ?? null,
-    });
-
     const operationId = getOperationId?.();
     const silentFlowStartTime = Date.now();
     addSilentFlowDiagnostics?.({ time: silentFlowStartTime, url: window.location.href, operationId });
     try {
       const { account } = await instance.ssoSilent(ssoSilentRequest);
-      diagnosticsCollector?.add({
-        ssoSilentStartMs: Math.round(tSilent),
-      });
       addSilentFlowDiagnostics?.({ time: silentFlowStartTime, url: window.location.href, operationId, completedTime: Date.now(), outcome: "complete" });
       return account ? { source: "silent", account } : null;
     } catch (error) {
       const errorType = getErrorType(error);
-
-      diagnosticsCollector?.add({
-        ssoSilentStartMs: Math.round(tSilent),
-        pageHiddenDuringAuth,
-        beforeUnloadFired,
-        documentHiddenAtFailure: document.hidden,
-        visibilityStateAtFailure: document.visibilityState,
-        navigatorOnLineAtFailure: navigator.onLine,
-        connectionType: (navigator as unknown as { connection?: { effectiveType?: string } }).connection?.effectiveType ?? null,
-        connectionDownlink: (navigator as unknown as { connection?: { downlink?: number } }).connection?.downlink ?? null,
-      });
 
       const rawErrorCode = (error as { errorCode?: unknown })?.errorCode;
       addSilentFlowDiagnostics?.({
@@ -158,14 +97,10 @@ const internalGetAdUserAccount = async ({
 
       onError?.(asError(error));
       throw error;
-    } finally {
-      document.removeEventListener("visibilitychange", onVisibilityChange);
-      window.removeEventListener("beforeunload", onBeforeUnload);
     }
   };
 
   const tryLoginAccountViaPopup = async (): AccountRetrievalResult => {
-    diagnosticsCollector?.add({ loginPopupStartMs: Math.round(performance.now()) });
     try {
       const { account } = await instance.loginPopup(loginRequest);
       return account ? { source: "popup", account } : null;
@@ -179,11 +114,6 @@ const internalGetAdUserAccount = async ({
     (await tryLoginAccountSilently()) ||
     (await tryLoginAccountViaPopup()) || { source: "failed" as AccountSource, account: null };
   instance.setActiveAccount(account);
-
-  diagnosticsCollector?.add({
-    authSource: source,
-    authTotalDurationMs: Math.round(performance.now() - t0),
-  });
 
   _debug("Source", source);
   return account;
