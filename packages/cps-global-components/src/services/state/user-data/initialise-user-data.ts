@@ -1,7 +1,7 @@
 import { Config } from "cps-global-configuration";
 import { FoundContext } from "../../context/FoundContext";
 import { CorrelationIds } from "../../correlation/CorrelationIds";
-import { GetToken } from "cps-global-auth";
+import { GetToken } from "../../auth/GetToken";
 import { AnalyticsEventData } from "../../analytics/analytics-event";
 import { Register } from "../../../store/store";
 import { Result } from "../../../utils/Result";

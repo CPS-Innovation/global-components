@@ -1,7 +1,7 @@
 import { createStore } from "@stencil/store";
 import { getRenderingRef, forceUpdate } from "@stencil/core";
 import { Config, Preview, Notification } from "cps-global-configuration";
-import { AuthResult } from "cps-global-auth";
+import { AuthResult } from "../services/auth/AuthResult";
 import { FoundContext } from "../services/context/FoundContext";
 import { ApplicationFlags } from "../services/application-flags/ApplicationFlags";
 import { loggingSubscriptionFactory } from "./subscriptions/logging-subscription-factory";

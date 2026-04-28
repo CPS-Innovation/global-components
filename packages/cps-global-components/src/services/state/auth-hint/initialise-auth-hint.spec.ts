@@ -1,5 +1,5 @@
 import { initialiseAuthHint } from "./initialise-auth-hint";
-import { Auth } from "cps-global-auth";
+import { Auth } from "../../auth/AuthResult";
 
 const mockFetch = jest.fn();
 global.fetch = mockFetch;

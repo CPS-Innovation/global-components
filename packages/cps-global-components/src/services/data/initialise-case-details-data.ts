@@ -4,7 +4,7 @@ import { fetchWithAuthFactory } from "../fetch/fetch-with-auth-factory";
 import { FoundContext } from "../context/FoundContext";
 import { MergeTags, Register } from "../../store/store";
 import { Handover } from "../state/handover/Handover";
-import { GetToken } from "cps-global-auth";
+import { GetToken } from "../auth/GetToken";
 import { pipe } from "../../utils/pipe";
 import { AnalyticsEventData } from "../analytics/analytics-event";
 import { CaseDetails, CaseDetailsSchema } from "./CaseDetails";

@@ -1,5 +1,7 @@
 import { Config } from "cps-global-configuration";
-import { Auth, AuthResult, FailedAuth, GetToken, initialiseAdAuth } from "cps-global-auth";
+import { initialiseAdAuth } from "cps-global-auth";
+import { Auth, AuthResult, FailedAuth } from "./AuthResult";
+import { GetToken } from "./GetToken";
 import { FoundContext } from "../context/FoundContext";
 import { ApplicationFlags } from "../application-flags/ApplicationFlags";
 import { initialiseMockAuth } from "./initialise-mock-auth";
