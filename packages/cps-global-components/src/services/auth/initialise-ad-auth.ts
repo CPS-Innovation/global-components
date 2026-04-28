@@ -7,7 +7,6 @@ import { getAdUserAccount } from "./get-ad-user-account";
 import { getErrorType } from "./get-error-type";
 import { getTokenFactory } from "./get-token-factory";
 import { GetToken } from "./GetToken";
-import type { AdDiagnosticsCollector } from "./ad-diagnostics-collector";
 import type { PublicClientApplication } from "@azure/msal-browser";
 import type { SilentFlowDiagnostic } from "../diagnostics/silent-flow-diagnostics";
 
@@ -15,7 +14,6 @@ type Props = {
   config: Config;
   context: FoundContext;
   onError?: (error: Error) => void;
-  diagnosticsCollector?: AdDiagnosticsCollector;
   addSilentFlowDiagnostics?: (entry: SilentFlowDiagnostic) => void;
   getOperationId?: () => string | undefined;
   instance?: PublicClientApplication;
@@ -36,7 +34,6 @@ const initialiseAdAuthInternal = async ({
   config: { AD_TENANT_AUTHORITY: authority, AD_CLIENT_ID: clientId, FEATURE_FLAG_ENABLE_INTRUSIVE_AD_LOGIN, SSO_SILENT_DELAY_MS },
   context: { msalRedirectUrl: redirectUri, currentHref },
   onError,
-  diagnosticsCollector,
   addSilentFlowDiagnostics,
   getOperationId,
   instance,
@@ -59,7 +56,7 @@ const initialiseAdAuthInternal = async ({
   }
 
   try {
-    const account = await getAdUserAccount({ instance, config: { FEATURE_FLAG_ENABLE_INTRUSIVE_AD_LOGIN, SSO_SILENT_DELAY_MS }, diagnosticsCollector, addSilentFlowDiagnostics, getOperationId, onError });
+    const account = await getAdUserAccount({ instance, config: { FEATURE_FLAG_ENABLE_INTRUSIVE_AD_LOGIN, SSO_SILENT_DELAY_MS }, addSilentFlowDiagnostics, getOperationId, onError });
     if (!account) {
       return failedAuth("NoAccountFound", "No AD account found");
     }
