@@ -300,6 +300,7 @@ describe("handleOsRedirect", () => {
     ({
       location: {
         href: currentUrl,
+        hostname: new URL(currentUrl).hostname,
         replace: jest.fn(),
       },
     }) as unknown as Window;
@@ -425,15 +426,25 @@ describe("handleOsRedirect", () => {
   });
 
   describe("resetTasklistFilters trigger", () => {
-    test("calls resetTasklistFilters when token-return brings a new token", async () => {
+    test("calls resetTasklistFilters when token-return brings a new token on a cps-tst host", async () => {
       const win = makeWindow(
-        "https://cps-dev.outsystemsenterprise.com/AuthHandover/index.html?r=https://example.com/WorkManagementApp/page&stage=os-token-return&cc=test-cookies&cms-modern-token=fresh-token",
+        "https://cps-tst.outsystemsenterprise.com/AuthHandover/index.html?r=https://example.com/WorkManagementApp/page&stage=os-token-return&cc=test-cookies&cms-modern-token=fresh-token",
       );
 
       await handleOsRedirect(win, tokenHandoverUrl);
 
       expect(mockResetTasklistFilters).toHaveBeenCalledTimes(1);
       expect(mockResetTasklistFilters).toHaveBeenCalledWith(win);
+    });
+
+    test("does not call resetTasklistFilters when hostname is not cps-tst (temporary feature gate)", async () => {
+      const win = makeWindow(
+        "https://cps-dev.outsystemsenterprise.com/AuthHandover/index.html?r=https://example.com/WorkManagementApp/page&stage=os-token-return&cc=test-cookies&cms-modern-token=fresh-token",
+      );
+
+      await handleOsRedirect(win, tokenHandoverUrl);
+
+      expect(mockResetTasklistFilters).not.toHaveBeenCalled();
     });
 
     test("does not call resetTasklistFilters when token-return brings the same token already in storage", async () => {
@@ -444,7 +455,7 @@ describe("handleOsRedirect", () => {
       });
 
       const win = makeWindow(
-        "https://cps-dev.outsystemsenterprise.com/AuthHandover/index.html?r=https://example.com/WorkManagementApp/page&stage=os-token-return&cc=test-cookies&cms-modern-token=same-token",
+        "https://cps-tst.outsystemsenterprise.com/AuthHandover/index.html?r=https://example.com/WorkManagementApp/page&stage=os-token-return&cc=test-cookies&cms-modern-token=same-token",
       );
 
       await handleOsRedirect(win, tokenHandoverUrl);
@@ -454,7 +465,7 @@ describe("handleOsRedirect", () => {
 
     test("does not call resetTasklistFilters on os-cookie-return (no token written)", async () => {
       const win = makeWindow(
-        "https://cps-dev.outsystemsenterprise.com/AuthHandover/index.html?r=https://example.com/target&stage=os-cookie-return&cc=test-cookies",
+        "https://cps-tst.outsystemsenterprise.com/AuthHandover/index.html?r=https://example.com/target&stage=os-cookie-return&cc=test-cookies",
       );
 
       await handleOsRedirect(win, tokenHandoverUrl);

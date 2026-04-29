@@ -14,9 +14,10 @@ export const handleOsRedirect = async (window: Window, tokenHandoverUrl: string)
     currentUrl: window.location.href,
     tokenHandoverUrl,
   });
-  if (didUpdateToken) {
+  if (didUpdateToken && window.location.hostname.startsWith("cps-tst")) {
     // FCT2-16735: a fresh token means a fresh auth context — clear stale tasklist filters
     // so the user lands in OS without inherited filter state from a previous session.
+    // Hostname check is a temporary poor-man's feature flag to limit this to test envs.
     resetTasklistFilters(window);
   }
   await handleSettingCmsSessionHint({ stage, nextUrl });
