@@ -12,7 +12,8 @@ const mockInstance = {
 } as unknown as PublicClientApplication;
 
 jest.mock("./get-error-type");
-jest.mock("../../logging/with-logging", () => ({
+jest.mock("./internal/logging", () => ({
+  ...jest.requireActual("./internal/logging"),
   withLogging: jest.fn((_name, fn) => fn),
 }));
 
