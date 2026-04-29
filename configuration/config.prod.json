@@ -24,7 +24,6 @@
   },
   "FEATURE_FLAG_ENABLE_INTRUSIVE_AD_LOGIN": false,
   "SSO_SILENT_DELAY_MS": 2000,
-  "COLLECT_AD_DIAGNOSTICS_IN_PAGE_VIEW": true,
   "USER_DATA_REFRESH_PERIOD_MINS": 15,
   "PROBE_IFRAME_REFRESH_PERIOD_MINS": 0,
   "PROBE_NAVIGATOR_PERMISSIONS_REFRESH_PERIOD_MINS": 120,
@@ -35,6 +34,7 @@
         "background-color": "transparent",
         "box-shadow": "none"
       },
+      "skipLinkClassName": "cps-skip-link__target",
       "msalRedirectUrl": "https://cps.outsystemsenterprise.com/Casework_Patterns/auth-handover.html",
       "cmsAuthFromStorageKey": "$OS_Users$Casework_Blocks$ClientVars$JSONString",
       "contexts": [

@@ -9,7 +9,7 @@ const MSAL_ERROR_CODES = {
   NoNetworkConnectivity: "no_network_connectivity",
 };
 
-export const getErrorType = (error: Error): KnownErrorType =>
+export const getErrorType = (error: unknown): KnownErrorType =>
   error instanceof InteractionRequiredAuthError && error.message.includes(MSAL_ERROR_CODES.MultipleIdentities)
     ? "MultipleIdentities"
     : error instanceof InteractionRequiredAuthError && error.message.includes(MSAL_ERROR_CODES.ConditionalAccessRule)

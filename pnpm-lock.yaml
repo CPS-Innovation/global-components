@@ -133,11 +133,36 @@ importers:
         specifier: ^7.0.0
         version: 7.3.1(@types/node@24.12.0)(sass-embedded@1.98.0)(sass@1.98.0)(tsx@4.21.0)
 
-  packages/cps-global-components:
+  packages/cps-global-auth:
     dependencies:
       '@azure/msal-browser':
         specifier: ^4.0.0
         version: 4.30.0
+    devDependencies:
+      '@jest/globals':
+        specifier: ^29.7.0
+        version: 29.7.0
+      '@types/jest':
+        specifier: ^29.5.0
+        version: 29.5.14
+      '@types/node':
+        specifier: ^24.2.1
+        version: 24.12.0
+      jest:
+        specifier: ^29.7.0
+        version: 29.7.0(@types/node@24.12.0)
+      jest-environment-jsdom:
+        specifier: ^29.7.0
+        version: 29.7.0
+      ts-jest:
+        specifier: ^29.4.0
+        version: 29.4.6(@babel/core@7.29.0)(@jest/transform@30.3.0)(@jest/types@30.3.0)(babel-jest@30.3.0(@babel/core@7.29.0))(jest-util@30.3.0)(jest@29.7.0(@types/node@24.12.0))(typescript@5.9.3)
+      typescript:
+        specifier: ^5.0.0
+        version: 5.9.3
+
+  packages/cps-global-components:
+    dependencies:
       '@dotenvx/dotenvx':
         specifier: ^1.41.0
         version: 1.59.1
@@ -153,6 +178,9 @@ importers:
       arrive:
         specifier: ^2.5.2
         version: 2.5.3
+      cps-global-auth:
+        specifier: workspace:*
+        version: link:../cps-global-auth
       cps-global-configuration:
         specifier: workspace:*
         version: link:../cps-global-configuration

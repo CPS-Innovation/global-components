@@ -26,7 +26,6 @@ import { initialiseNavigateCms } from "./services/navigate-cms/initialise-naviga
 import { initialiseAuthHint } from "./services/state/auth-hint/initialise-auth-hint";
 import { initialiseUserDataHint } from "./services/state/user-data/initialise-user-data-hint";
 import { initialiseUserData } from "./services/state/user-data/initialise-user-data";
-import { createAdDiagnosticsCollector } from "./services/auth/ad-diagnostics-collector";
 import { initialiseDiagnostics } from "./services/diagnostics/initialise-diagnostics";
 import { initialiseTabTitle } from "./services/browser/tab-title/initialise-tab-title";
 import { initialiseBuild } from "./services/build/initialise-build";
@@ -89,8 +88,6 @@ const initialise = async (window: Window & typeof globalThis) => {
     initialiseNotifications({ rootUrl, register, handlers, config });
     const { setNextRecentCases } = initialiseRecentCases({ rootUrl, config, register });
 
-    const diagnosticsCollector = createAdDiagnosticsCollector();
-
     const {
       trackPageView,
       trackEvent,
@@ -117,7 +114,6 @@ const initialise = async (window: Window & typeof globalThis) => {
       config,
       flags,
       trackException,
-      diagnosticsCollector,
       silentFlowDiagnostics,
       addSilentFlowDiagnostics,
       getOperationId,
@@ -147,10 +143,7 @@ const initialise = async (window: Window & typeof globalThis) => {
 
         const context = initialiseContextForContext();
         initialiseDomForContext({ context });
-        trackPageView({
-          context,
-          properties: config.COLLECT_AD_DIAGNOSTICS_IN_PAGE_VIEW ? { authDiagnostics: diagnosticsCollector.get() } : undefined,
-        });
+        trackPageView({ context });
 
         register({ initialisationStatus: "complete" });
 

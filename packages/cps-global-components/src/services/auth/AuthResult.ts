@@ -1,3 +1,12 @@
+// Host-side definitions. Structurally compatible with the matching types in
+// cps-global-auth so values flow across the boundary via TS structural typing
+// — no explicit import dependency on the library's types.
+//
+// This union is a SUPERSET of the library's KnownErrorType: it also includes
+// "ADPreventedByContext", which is set host-side in initialise-auth.ts when
+// the context's preventADAndDataCalls flag is true (the library never
+// produces this value).
+
 import { z } from "zod";
 
 export type KnownErrorType =
