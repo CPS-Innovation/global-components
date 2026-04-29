@@ -7,6 +7,7 @@
   "SHOW_MENU": true,
   "SHOW_RECENT_CASES": true,
   "SHOW_MONITORING_CODES": true,
+  "SHOW_HEADER_REBRAND": "cps",
   "OS_HANDOVER_URL": "",
   "FEATURE_FLAG_MENU_USERS": {
     "adGroupIds": ["12377eca-b463-4a6c-80ea-95f678f09591"]

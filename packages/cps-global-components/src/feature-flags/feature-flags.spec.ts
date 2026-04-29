@@ -37,8 +37,9 @@ describe("FEATURE_FLAGS", () => {
 
   describe("shouldShowGovUkRebrand", () => {
     it("should return 'gds' when preview newHeader is 'gds'", () => {
-      const state: Pick<State, "preview"> = {
+      const state: Pick<State, "preview" | "config"> = {
         preview: { found: true, result: { newHeader: "gds" } },
+        config: {} as any,
       };
 
       const result = FEATURE_FLAGS.shouldShowGovUkRebrand(state);
@@ -46,30 +47,63 @@ describe("FEATURE_FLAGS", () => {
     });
 
     it("should return 'cps' when preview newHeader is 'cps'", () => {
-      const state: Pick<State, "preview"> = {
+      const state: Pick<State, "preview" | "config"> = {
         preview: { found: true, result: { newHeader: "cps" } },
+        config: {} as any,
       };
 
       const result = FEATURE_FLAGS.shouldShowGovUkRebrand(state);
       expect(result).toBe("cps");
     });
 
-    it("should return undefined when preview newHeader is undefined", () => {
-      const state: Pick<State, "preview"> = {
+    it("should return undefined when preview newHeader is undefined and config has no SHOW_HEADER_REBRAND", () => {
+      const state: Pick<State, "preview" | "config"> = {
         preview: { found: true, result: {} },
+        config: {} as any,
       };
 
       const result = FEATURE_FLAGS.shouldShowGovUkRebrand(state);
       expect(result).toBeUndefined();
     });
 
-    it("should return undefined when preview is not found", () => {
-      const state: Pick<State, "preview"> = {
+    it("should return undefined when preview is not found and config has no SHOW_HEADER_REBRAND", () => {
+      const state: Pick<State, "preview" | "config"> = {
         preview: { found: false, error: {} as Error },
+        config: {} as any,
       };
 
       const result = FEATURE_FLAGS.shouldShowGovUkRebrand(state);
       expect(result).toBeUndefined();
+    });
+
+    it("should fall back to config.SHOW_HEADER_REBRAND when preview newHeader is undefined", () => {
+      const state: Pick<State, "preview" | "config"> = {
+        preview: { found: true, result: {} },
+        config: { SHOW_HEADER_REBRAND: "cps" } as any,
+      };
+
+      const result = FEATURE_FLAGS.shouldShowGovUkRebrand(state);
+      expect(result).toBe("cps");
+    });
+
+    it("should fall back to config.SHOW_HEADER_REBRAND when preview is not found", () => {
+      const state: Pick<State, "preview" | "config"> = {
+        preview: { found: false, error: {} as Error },
+        config: { SHOW_HEADER_REBRAND: "gds" } as any,
+      };
+
+      const result = FEATURE_FLAGS.shouldShowGovUkRebrand(state);
+      expect(result).toBe("gds");
+    });
+
+    it("should let preview newHeader override config.SHOW_HEADER_REBRAND", () => {
+      const state: Pick<State, "preview" | "config"> = {
+        preview: { found: true, result: { newHeader: "gds" } },
+        config: { SHOW_HEADER_REBRAND: "cps" } as any,
+      };
+
+      const result = FEATURE_FLAGS.shouldShowGovUkRebrand(state);
+      expect(result).toBe("gds");
     });
   });
 

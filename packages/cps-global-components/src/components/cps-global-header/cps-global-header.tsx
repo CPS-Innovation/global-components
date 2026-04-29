@@ -27,7 +27,7 @@ export class CpsGlobalHeader {
 
   @WithLogging("CpsGlobalHeader")
   render() {
-    const { isReady, state } = readyState("context", "preview", "flags");
+    const { isReady, state } = readyState("config", "context", "preview", "flags");
 
     const { headerCustomCssClasses, headerCustomCssStyles } =
       isReady && state?.context.found ? state.context : { headerCustomCssClasses: undefined, headerCustomCssStyles: undefined };
