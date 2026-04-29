@@ -62,6 +62,14 @@ jobs:
           echo "Beacon URL: $BEACON_URL"
           sed -i "s|{{BEACON_URL}}|$BEACON_URL|g" ./to-deploy/cps-global-components.js
 
+          # global-components-msal-redirect.html: substitute the env's MSAL client ID and
+          # authority into the inline loader script. Empty-string fallback if the config
+          # does not set them — the bundle bails out in that case.
+          AD_CLIENT_ID=$(jq -r '.AD_CLIENT_ID // ""' ./to-deploy/config.json)
+          AD_TENANT_AUTHORITY=$(jq -r '.AD_TENANT_AUTHORITY // ""' ./to-deploy/config.json)
+          sed -i "s|{{AD_CLIENT_ID}}|$AD_CLIENT_ID|g" ./to-deploy/global-components-msal-redirect.html
+          sed -i "s|{{AD_TENANT_AUTHORITY}}|$AD_TENANT_AUTHORITY|g" ./to-deploy/global-components-msal-redirect.html
+
       - uses: azure/cli@v2
         with:
           azcliversion: latest

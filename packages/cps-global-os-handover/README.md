@@ -2,6 +2,25 @@
 
 When users navigate between CMS (proxied via Polaris) and OutSystems apps, authentication needs to be transferred. The proxy handles cookie collection server-side; the client-side code manages token acquisition, stores the resulting auth in OS localStorage, and redirects to the target.
 
+This package produces two artifacts:
+
+- **`dist/auth-handover.js`** — IIFE browser bundle, deployed via CI alongside `global-components.js` to the Polaris-hosted blob container. Loaded by `auth-handover.html` at runtime.
+- **`dist/index.js`** — workspace ES module, consumed by `cps-global-components` (`createOutboundUrlDirect`, `synchroniseOsAuth`).
+
+## `auth-handover.html` (manual deployment by OutSystems team)
+
+`auth-handover.html` lives in the root of this package and is **not** auto-deployed. The OutSystems team uploads it manually as a Resource into each OS environment, under the path embedded in `OS_HANDOVER_URL` in `configuration/config.{env}.json` (currently `Casework_Patterns/auth-handover.html`).
+
+The file is environment-agnostic — the same bytes ship to dev, test and prod. It accepts a `?src=` query parameter that must point to a whitelisted Polaris host (`polaris.cps.gov.uk` or `polaris-qa-notprod.cps.gov.uk`). When the host check passes, it injects `auth-handover.js` (the bundle this package builds) as a `<script>` tag.
+
+**To replace it in OutSystems:**
+
+1. In each environment's `Casework_Patterns` (or equivalent) module, upload the file to `Data` → `Resources`.
+2. Set `Public: Yes` and `Deploy Action: Deploy to Target Directory`.
+3. Publish.
+
+Updates to this HTML file are rare because it is just the host-side allowlist shim — the actual handover logic lives in `auth-handover.js`, which deploys via CI. See `outsystems-support/readme.md` for the full OS embedding instructions.
+
 ## Configuration
 
 - **`OS_HANDOVER_URL`** — the `auth-handover.html` page hosted on the OutSystems domain (e.g. `https://cps-dev.outsystemsenterprise.com/Casework_Patterns/auth-handover.html`). The only remaining per-environment config value for auth handover.
