@@ -6,7 +6,8 @@ const shouldShowCaseDetails = ({ preview, flags }: Pick<State, "preview" | "flag
 
 const shouldEnableAccessibilityMode = ({ preview, flags }: Pick<State, "preview" | "flags">) => !!(preview.result?.accessibility || flags.isLocalDevelopment);
 
-const shouldShowGovUkRebrand = ({ preview }: Pick<State, "preview">): Preview["newHeader"] => preview.result?.newHeader;
+const shouldShowGovUkRebrand = ({ preview, config }: Pick<State, "preview" | "config">): Preview["newHeader"] =>
+  preview.result?.newHeader ?? config.SHOW_HEADER_REBRAND;
 
 const shouldShowRecentCases = ({ preview, flags }: Pick<State, "preview" | "flags">) => !!preview.result?.myRecentCasesOnHeader || flags.isLocalDevelopment;
 
