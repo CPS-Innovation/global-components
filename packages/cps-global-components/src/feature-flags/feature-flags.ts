@@ -28,6 +28,17 @@ const reportIssueLink = ({ config }: Pick<State, "config">) => ({ showLink: !!co
 const shouldShowHomePageNotification = ({ config, auth, authHint, preview }: Pick<State, "config" | "preview"> & Pick<StoredState, "auth" | "authHint">) =>
   !!preview.result?.homePageNotification || !isUserInFeatureGroup({ auth, authHint, config }, "FEATURE_FLAG_MENU_USERS");
 
+// Whether to use full-page MSAL redirect (loginRedirect) instead of the
+// silent / popup cascade. Two paths to opt-in:
+//   - preview override (preview.result.useFullPageMsalRedirect) — for ad-hoc
+//     testing without a config push
+//   - membership of FEATURE_FLAG_USE_MSAL_FULL_REDIRECT_USERS — controlled rollout
+// Evaluated by the host before initialising auth; result is passed down to
+// cps-global-auth as a plain boolean so the auth library stays agnostic of
+// state shape.
+const shouldUseFullPageMsalRedirect = ({ config, preview, auth, authHint }: Pick<State, "config" | "preview"> & Pick<StoredState, "auth" | "authHint">) =>
+  !!preview.result?.useFullPageMsalRedirect || isUserInFeatureGroup({ auth, authHint, config }, "FEATURE_FLAG_USE_MSAL_FULL_REDIRECT_USERS");
+
 export const FEATURE_FLAGS = {
   shouldShowCaseDetails,
   shouldEnableAccessibilityMode,
@@ -37,4 +48,5 @@ export const FEATURE_FLAGS = {
   surveyLink,
   reportIssueLink,
   shouldShowHomePageNotification,
+  shouldUseFullPageMsalRedirect,
 };

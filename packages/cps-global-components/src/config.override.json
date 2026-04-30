@@ -10,7 +10,6 @@
   "SHOW_MONITORING_CODES": true,
   "OS_HANDOVER_URL": "https://cps-dev.outsystemsenterprise.com/AuthHandover/auth-handover.html",
   "FEATURE_FLAG_MENU_USERS": { "generallyAvailable": true },
-  "FEATURE_FLAG_ENABLE_INTRUSIVE_AD_LOGIN": true,
   "CONTEXTS": [
     {
       "msalRedirectUrl": "http://localhost:3333/auth",

@@ -1,21 +1,29 @@
 import { AccountInfo, CacheLookupPolicy, PublicClientApplication } from "@azure/msal-browser";
 import { makeConsole, withLogging } from "./internal/logging";
-import { getErrorType } from "./get-error-type";
 import type { SilentFlowDiagnostic } from "./silent-flow-diagnostic";
 
 type AddSilentFlowDiagnostics = (entry: SilentFlowDiagnostic) => void;
 
 type Props = {
   instance: PublicClientApplication;
-  config: { FEATURE_FLAG_ENABLE_INTRUSIVE_AD_LOGIN: boolean | undefined; SSO_SILENT_DELAY_MS: number | undefined };
+  config: { SSO_SILENT_DELAY_MS: number | undefined };
   addSilentFlowDiagnostics?: AddSilentFlowDiagnostics;
   getOperationId?: () => string | undefined;
   onError?: (error: Error) => void;
+  useFullPageRedirect?: boolean;
 };
 
 const asError = (value: unknown): Error => (value instanceof Error ? value : new Error(String(value)));
 
-type AccountSource = "acquireTokenSilent" | "silent" | "popup" | "failed";
+type AccountSource = "acquireTokenSilent" | "silent" | "redirect" | "failed";
+
+// Per-tab sessionStorage key set immediately before loginRedirect fires and
+// cleared by handleMsalTermination on a successful bounce-back. If the value
+// is present and < this many ms old we refuse to re-fire — protects against
+// tight loops if AAD bounces back with an error and acquireTokenSilent fails
+// again on the next page load.
+export const MSAL_REDIRECT_IN_FLIGHT_KEY = "cps_global_components_msal_redirect_in_flight_at";
+export const MSAL_REDIRECT_LOOP_GUARD_MS = 30_000;
 
 type AccountRetrievalResult = Promise<{ source: AccountSource; account: AccountInfo } | null>;
 
@@ -36,10 +44,11 @@ const waitForPageStability = async (ssoSilentDelayMs: number, scriptStartMs: num
 
 const internalGetAdUserAccount = async ({
   instance,
-  config: { FEATURE_FLAG_ENABLE_INTRUSIVE_AD_LOGIN, SSO_SILENT_DELAY_MS },
+  config: { SSO_SILENT_DELAY_MS },
   addSilentFlowDiagnostics,
   getOperationId,
   onError,
+  useFullPageRedirect,
 }: Props) => {
   const t0 = performance.now();
 
@@ -57,6 +66,10 @@ const internalGetAdUserAccount = async ({
   };
 
   const tryLoginAccountSilently = async (): AccountRetrievalResult => {
+    if (useFullPageRedirect) {
+      // Skipped — the redirect path is the active interactive recovery for this caller.
+      return null;
+    }
     await waitForPageStability(SSO_SILENT_DELAY_MS ?? DEFAULT_SSO_SILENT_DELAY_MS, t0);
 
     // Pass loginHint to identify the user by UPN rather than by session.
@@ -78,8 +91,6 @@ const internalGetAdUserAccount = async ({
       addSilentFlowDiagnostics?.({ time: silentFlowStartTime, url: window.location.href, operationId, completedTime: Date.now(), outcome: "complete" });
       return account ? { source: "silent", account } : null;
     } catch (error) {
-      const errorType = getErrorType(error);
-
       const rawErrorCode = (error as { errorCode?: unknown })?.errorCode;
       addSilentFlowDiagnostics?.({
         time: silentFlowStartTime,
@@ -90,28 +101,51 @@ const internalGetAdUserAccount = async ({
         ...(typeof rawErrorCode === "string" && rawErrorCode ? { errorCode: rawErrorCode } : {}),
       });
 
-      if (FEATURE_FLAG_ENABLE_INTRUSIVE_AD_LOGIN && errorType === "MultipleIdentities") {
-        return null;
-      }
-
       onError?.(asError(error));
       throw error;
     }
   };
 
-  const tryLoginAccountViaPopup = async (): AccountRetrievalResult => {
+  // Full-page redirect path. Never resolves in the success case — loginRedirect
+  // navigates the page away to AAD; this script context dies. The bounce-back
+  // lands on the registered redirect URI (the MSAL termination page) where
+  // handleMsalTermination calls handleRedirectPromise and then MSAL navigates
+  // back to the originating URL via navigateToLoginRequestUrl.
+  const tryLoginAccountViaRedirect = async (): AccountRetrievalResult => {
+    if (!useFullPageRedirect) {
+      // Skipped — the silent path is the active interactive recovery for this caller.
+      return null;
+    }
+    const guardValue = window.sessionStorage.getItem(MSAL_REDIRECT_IN_FLIGHT_KEY);
+    if (guardValue && Date.now() - Number(guardValue) < MSAL_REDIRECT_LOOP_GUARD_MS) {
+      const error = new Error(
+        `MSAL loginRedirect already in-flight (sentinel set ${Date.now() - Number(guardValue)}ms ago); refusing to re-fire to avoid a loop`,
+      );
+      onError?.(error);
+      throw error;
+    }
+    window.sessionStorage.setItem(MSAL_REDIRECT_IN_FLIGHT_KEY, String(Date.now()));
     try {
-      const { account } = await instance.loginPopup(loginRequest);
-      return account ? { source: "popup", account } : null;
+      await instance.loginRedirect(loginRequest);
     } catch (error) {
+      // Failed to even start the redirect (e.g. interaction_in_progress) —
+      // clear the sentinel so the next attempt can run, then surface.
+      window.sessionStorage.removeItem(MSAL_REDIRECT_IN_FLIGHT_KEY);
       onError?.(asError(error));
       throw error;
     }
+    // Unreachable: loginRedirect navigates the page away before its Promise resolves.
+    return null;
   };
 
+  // Each step decides internally whether it applies (gated on useFullPageRedirect)
+  // and returns null when it doesn't — the cascade stays a flat OR-chain. Order
+  // matters: redirect comes before silent so that when redirect fires it owns
+  // the page and the silent step is never reached.
   const { account, source } = (await tryAcquireTokenSilently()) ||
+    (await tryLoginAccountViaRedirect()) ||
     (await tryLoginAccountSilently()) ||
-    (await tryLoginAccountViaPopup()) || { source: "failed" as AccountSource, account: null };
+    { source: "failed" as AccountSource, account: null };
   instance.setActiveAccount(account);
 
   _debug("Source", source);

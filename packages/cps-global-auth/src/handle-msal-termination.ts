@@ -43,6 +43,10 @@ export const handleMsalTermination = async (
     const instance = createInstance({ ...msalConfig, redirectUri });
     await instance.initialize();
     await instance.handleRedirectPromise();
+    // Clear the per-tab loop guard set by tryLoginAccountViaRedirect — the
+    // round-trip completed successfully and the next page load is free to
+    // re-attempt loginRedirect if cached tokens have expired again.
+    win.sessionStorage.removeItem("cps_global_components_msal_redirect_in_flight_at");
     return "handled";
   } catch (err) {
     _error("handleRedirectPromise threw", err);

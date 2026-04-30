@@ -43,6 +43,8 @@ describe("initialiseAuth", () => {
 
   const makeProps = (overrides: Pick<Parameters<typeof initialiseAuth>[0], "flags"> & Partial<Parameters<typeof initialiseAuth>[0]>) => ({
     config: mockConfig,
+    preview: { found: false, error: new Error("not loaded") } as const,
+    authHint: { found: false, error: new Error("not loaded") } as const,
     register: mockRegister,
     registerAuthWithAnalytics: mockRegisterAuthWithAnalytics,
     setAuthHint: mockSetAuthHint,
