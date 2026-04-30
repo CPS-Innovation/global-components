@@ -23,7 +23,6 @@
       "1e5874e3-1c88-4506-8b9f-4f469acc1a42"
     ]
   },
-  "FEATURE_FLAG_ENABLE_INTRUSIVE_AD_LOGIN": true,
   "SSO_SILENT_DELAY_MS": 2000,
   "USER_DATA_REFRESH_PERIOD_MINS": 5,
   "PROBE_IFRAME_BASE_URL": "https://sacpsglobalcomponents.blob.core.windows.net",

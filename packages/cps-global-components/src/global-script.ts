@@ -112,6 +112,8 @@ const initialise = async (window: Window & typeof globalThis) => {
 
     const { initialiseAuthForContext } = initialiseAuth({
       config,
+      preview,
+      authHint,
       flags,
       trackException,
       silentFlowDiagnostics,

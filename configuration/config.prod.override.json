@@ -22,7 +22,6 @@
       "870b7ef9-5937-4eb6-9ea0-98158f522ed7"
     ]
   },
-  "FEATURE_FLAG_ENABLE_INTRUSIVE_AD_LOGIN": true,
   "SSO_SILENT_DELAY_MS": 2000,
   "CONTEXTS": [
     {

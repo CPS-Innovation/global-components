@@ -13,6 +13,7 @@ const makeWindow = ({
     self,
     top,
     location: { origin, pathname, search, hash, href: `${origin}${pathname}${search}${hash}` },
+    sessionStorage: { removeItem: jest.fn(), setItem: jest.fn(), getItem: jest.fn() },
   } as unknown as Window;
 };
 

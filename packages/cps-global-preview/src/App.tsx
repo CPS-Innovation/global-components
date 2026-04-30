@@ -108,6 +108,13 @@ const FEATURES: Feature[] = [
       "Prepend the case URN to the browser tab title when viewing a case.",
     disabled: false,
   },
+  {
+    key: "useFullPageMsalRedirect",
+    label: "Full-page MSAL redirect",
+    description:
+      "Replace the silent SSO cascade with a full-page loginRedirect when the cached token is exhausted. Use only as an opt-in test of the redirect flow — it will navigate the page to AAD on a cold cache.",
+    disabled: false,
+  },
 ];
 
 type FeatureKey = Feature["key"];

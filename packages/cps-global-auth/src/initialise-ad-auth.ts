@@ -13,7 +13,6 @@ import type { SilentFlowDiagnostic } from "./silent-flow-diagnostic";
 type AdAuthConfig = {
   AD_TENANT_AUTHORITY?: string;
   AD_CLIENT_ID?: string;
-  FEATURE_FLAG_ENABLE_INTRUSIVE_AD_LOGIN?: boolean;
   SSO_SILENT_DELAY_MS?: number;
 };
 
@@ -28,6 +27,10 @@ type Props = {
   onError?: (error: Error) => void;
   addSilentFlowDiagnostics?: (entry: SilentFlowDiagnostic) => void;
   getOperationId?: () => string | undefined;
+  // Whether to swap the silent/popup cascade for an acquireTokenSilent →
+  // loginRedirect cascade. Resolved by the host's feature-flag layer; the auth
+  // library treats it as an opaque on/off and stays agnostic of how it is set.
+  useFullPageRedirect?: boolean;
 };
 
 const failedAuth = (knownErrorType: KnownErrorType, reason: string): { auth: FailedAuth; getToken: GetToken } => ({
@@ -77,11 +80,12 @@ const createMsalInstance = async ({ authority, clientId, redirectUri }: { author
 let instance: PublicClientApplication | undefined;
 
 const initialiseAdAuthInternal = async ({
-  config: { AD_TENANT_AUTHORITY: authority, AD_CLIENT_ID: clientId, FEATURE_FLAG_ENABLE_INTRUSIVE_AD_LOGIN, SSO_SILENT_DELAY_MS },
+  config: { AD_TENANT_AUTHORITY: authority, AD_CLIENT_ID: clientId, SSO_SILENT_DELAY_MS },
   context: { msalRedirectUrl: redirectUri, currentHref },
   onError,
   addSilentFlowDiagnostics,
   getOperationId,
+  useFullPageRedirect,
 }: Props): Promise<{ auth: AuthResult; getToken: GetToken }> => {
   if (!(authority && clientId && redirectUri && currentHref)) {
     return failedAuth("ConfigurationIncomplete", `Found configuration is: ${JSON.stringify({ authority, clientId, redirectUri, currentHref })}`);
@@ -102,10 +106,11 @@ const initialiseAdAuthInternal = async ({
   try {
     const account = await getAdUserAccount({
       instance,
-      config: { FEATURE_FLAG_ENABLE_INTRUSIVE_AD_LOGIN, SSO_SILENT_DELAY_MS },
+      config: { SSO_SILENT_DELAY_MS },
       addSilentFlowDiagnostics,
       getOperationId,
       onError,
+      useFullPageRedirect,
     });
     if (!account) {
       return failedAuth("NoAccountFound", "No AD account found");

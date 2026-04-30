@@ -143,7 +143,7 @@ export const configBaseSchema = z.object({
   SHOW_NOTIFICATIONS: z.boolean().optional(),
   OS_HANDOVER_URL: z.string().optional(),
   FEATURE_FLAG_MENU_USERS: featureFlagUsersSchema.optional(),
-  FEATURE_FLAG_ENABLE_INTRUSIVE_AD_LOGIN: z.boolean().optional(),
+  FEATURE_FLAG_USE_MSAL_FULL_REDIRECT_USERS: featureFlagUsersSchema.optional(),
   SSO_SILENT_DELAY_MS: z.number().optional(),
   CACHE_CONFIG: cacheConfigSchema.optional(),
   FETCH_CIRCUIT_BREAKER_CONFIG: fetchCircuitBreakerConfigSchema.optional(),
