@@ -1,5 +1,6 @@
 import typescript from "@rollup/plugin-typescript";
 import { nodeResolve } from "@rollup/plugin-node-resolve";
+import commonjs from "@rollup/plugin-commonjs";
 
 export default [
   // ES and CJS builds with external dependencies
@@ -38,9 +39,13 @@ export default [
       nodeResolve({
         browser: true,
       }),
+      // commonjs plugin for transitive CJS deps brought in via @azure/msal-browser
+      // (folded MSAL termination path — handleMsalTermination from cps-global-auth).
+      commonjs(),
       typescript({
         tsconfig: "./tsconfig.json",
         declaration: false,
+        declarationMap: false,
         module: "esnext",
         inlineSources: true,
         sourceMap: true,

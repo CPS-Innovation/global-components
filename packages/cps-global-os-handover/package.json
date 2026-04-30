@@ -23,10 +23,12 @@
   ],
   "license": "MIT",
   "dependencies": {
+    "cps-global-auth": "workspace:*",
     "cps-global-configuration": "workspace:*"
   },
   "devDependencies": {
     "@jest/globals": "^29.7.0",
+    "@rollup/plugin-commonjs": "^28.0.0",
     "@rollup/plugin-node-resolve": "^16.0.1",
     "@rollup/plugin-typescript": "^12.1.4",
     "@testing-library/jest-dom": "^6.6.3",

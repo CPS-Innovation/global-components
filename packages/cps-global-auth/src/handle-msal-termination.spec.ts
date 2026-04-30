@@ -1,12 +1,18 @@
 import { handleMsalTermination } from "./handle-msal-termination";
 
-const makeWindow = ({ origin = "https://example.com", pathname = "/page.html", iframe = false } = {}) => {
+const makeWindow = ({
+  origin = "https://example.com",
+  pathname = "/page.html",
+  search = "",
+  hash = "",
+  iframe = false,
+} = {}) => {
   const top = {} as Window;
   const self = iframe ? ({} as Window) : top;
   return {
     self,
     top,
-    location: { origin, pathname },
+    location: { origin, pathname, search, hash, href: `${origin}${pathname}${search}${hash}` },
   } as unknown as Window;
 };
 
@@ -24,7 +30,7 @@ describe("handleMsalTermination", () => {
     expect(createInstance).not.toHaveBeenCalled();
   });
 
-  it("creates the MSAL instance with redirectUri = origin + pathname and calls initialize then handleRedirectPromise", async () => {
+  it("creates the MSAL instance with redirectUri = href minus hash and calls initialize then handleRedirectPromise", async () => {
     const initialize = jest.fn().mockResolvedValue(undefined);
     const handleRedirectPromise = jest.fn().mockResolvedValue(null);
     const createInstance = jest.fn().mockReturnValue({ initialize, handleRedirectPromise });
@@ -43,6 +49,30 @@ describe("handleMsalTermination", () => {
     expect(initialize).toHaveBeenCalledTimes(1);
     expect(handleRedirectPromise).toHaveBeenCalledTimes(1);
     expect(result).toBe("handled");
+  });
+
+  it("preserves query string in redirectUri (folded OS path: ?src=…&stage=…) but strips hash", async () => {
+    const initialize = jest.fn().mockResolvedValue(undefined);
+    const handleRedirectPromise = jest.fn().mockResolvedValue(null);
+    const createInstance = jest.fn().mockReturnValue({ initialize, handleRedirectPromise });
+
+    await handleMsalTermination(
+      makeWindow({
+        origin: "https://cps-tst.outsystemsenterprise.com",
+        pathname: "/Casework_Patterns/auth-handover.html",
+        search: "?src=https%3A%2F%2Fpolaris.example%2Fauth-handover.js&stage=os-ad-redirect",
+        hash: "#code=abc&state=xyz",
+      }),
+      { clientId: "c", authority: "a" },
+      createInstance,
+    );
+
+    expect(createInstance).toHaveBeenCalledWith({
+      clientId: "c",
+      authority: "a",
+      redirectUri:
+        "https://cps-tst.outsystemsenterprise.com/Casework_Patterns/auth-handover.html?src=https%3A%2F%2Fpolaris.example%2Fauth-handover.js&stage=os-ad-redirect",
+    });
   });
 
   it("returns 'handled-with-error' when handleRedirectPromise rejects, swallowing the error", async () => {

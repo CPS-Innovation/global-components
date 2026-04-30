@@ -3,9 +3,16 @@ import { handleOsRedirectInternal, handleOsRedirect } from "./handle-os-redirect
 
 jest.mock("../core/get-cms-session-hint");
 jest.mock("../application-logic/reset-tasklist-filters");
+jest.mock("cps-global-auth", () => ({
+  handleMsalTermination: jest.fn(),
+}));
 
 import { getCmsSessionHint } from "../core/get-cms-session-hint";
 import { resetTasklistFilters } from "../application-logic/reset-tasklist-filters";
+import { handleMsalTermination } from "cps-global-auth";
+
+const msalConfig = { clientId: "test-client", authority: "https://login.microsoftonline.com/test-tenant" };
+const fetchMsalConfig = jest.fn(async () => msalConfig);
 
 describe("handleOsRedirectInternal", () => {
   describe("os-cookie-return stage", () => {
@@ -292,6 +299,9 @@ const mockGetCmsSessionHint = getCmsSessionHint as jest.MockedFunction<
 const mockResetTasklistFilters = resetTasklistFilters as jest.MockedFunction<
   typeof resetTasklistFilters
 >;
+const mockHandleMsalTermination = handleMsalTermination as jest.MockedFunction<
+  typeof handleMsalTermination
+>;
 
 describe("handleOsRedirect", () => {
   const tokenHandoverUrl = "https://polaris-qa-notprod.cps.gov.uk/auth-handover-cms-modern-token";
@@ -309,7 +319,37 @@ describe("handleOsRedirect", () => {
     localStorage.clear();
     mockGetCmsSessionHint.mockReset();
     mockResetTasklistFilters.mockReset();
+    mockHandleMsalTermination.mockReset();
+    fetchMsalConfig.mockClear();
     jest.spyOn(console, "log").mockImplementation(() => {});
+  });
+
+  describe("os-ad-redirect stage (folded MSAL termination)", () => {
+    test("fetches MSAL config and dispatches to handleMsalTermination, with no OS-handover side effects", async () => {
+      const win = makeWindow(
+        "https://cps-tst.outsystemsenterprise.com/Casework_Patterns/auth-handover.html?src=https%3A%2F%2Fpolaris.example%2Fauth-handover.js&stage=os-ad-redirect#code=abc&state=xyz",
+      );
+
+      await handleOsRedirect(win, tokenHandoverUrl, fetchMsalConfig);
+
+      expect(fetchMsalConfig).toHaveBeenCalledTimes(1);
+      expect(mockHandleMsalTermination).toHaveBeenCalledTimes(1);
+      expect(mockHandleMsalTermination).toHaveBeenCalledWith(win, msalConfig);
+      expect(win.location.replace).not.toHaveBeenCalled();
+      expect(mockGetCmsSessionHint).not.toHaveBeenCalled();
+      expect(mockResetTasklistFilters).not.toHaveBeenCalled();
+    });
+
+    test("does not fetch MSAL config on cookie-return / token-return paths", async () => {
+      const win = makeWindow(
+        "https://cps-dev.outsystemsenterprise.com/AuthHandover/index.html?r=https://example.com/target&stage=os-cookie-return&cc=test-cookies",
+      );
+
+      await handleOsRedirect(win, tokenHandoverUrl, fetchMsalConfig);
+
+      expect(fetchMsalConfig).not.toHaveBeenCalled();
+      expect(mockHandleMsalTermination).not.toHaveBeenCalled();
+    });
   });
 
   describe("handleSettingCmsSessionHint", () => {
@@ -318,7 +358,7 @@ describe("handleOsRedirect", () => {
         "https://cps-dev.outsystemsenterprise.com/AuthHandover/index.html?r=https://example.com/target&stage=os-cookie-return&cc=test-cookies",
       );
 
-      await handleOsRedirect(win, tokenHandoverUrl);
+      await handleOsRedirect(win, tokenHandoverUrl, fetchMsalConfig);
 
       expect(mockGetCmsSessionHint).not.toHaveBeenCalled();
     });
@@ -328,7 +368,7 @@ describe("handleOsRedirect", () => {
         "https://cps-dev.outsystemsenterprise.com/AuthHandover/index.html?r=https://example.com/WorkManagementApp/page&stage=os-token-return&cc=test-cookies&cms-modern-token=test-token",
       );
 
-      await handleOsRedirect(win, tokenHandoverUrl);
+      await handleOsRedirect(win, tokenHandoverUrl, fetchMsalConfig);
 
       expect(mockGetCmsSessionHint).not.toHaveBeenCalled();
     });
@@ -345,7 +385,7 @@ describe("handleOsRedirect", () => {
         "https://cps-dev.outsystemsenterprise.com/AuthHandover/index.html?r=https://example.com/Casework_Blocks/Home&stage=os-token-return&cc=test-cookies&cms-modern-token=test-token",
       );
 
-      await handleOsRedirect(win, tokenHandoverUrl);
+      await handleOsRedirect(win, tokenHandoverUrl, fetchMsalConfig);
 
       expect(mockGetCmsSessionHint).toHaveBeenCalledTimes(1);
       expect(
@@ -365,7 +405,7 @@ describe("handleOsRedirect", () => {
         "https://cps-dev.outsystemsenterprise.com/AuthHandover/index.html?r=https://example.com/Casework_Blocks/Home&stage=os-token-return&cc=test-cookies&cms-modern-token=test-token",
       );
 
-      await handleOsRedirect(win, tokenHandoverUrl);
+      await handleOsRedirect(win, tokenHandoverUrl, fetchMsalConfig);
 
       expect(
         localStorage["$OS_Users$Casework_Blocks$ClientVars$IsFromProxy"],
@@ -379,7 +419,7 @@ describe("handleOsRedirect", () => {
         "https://cps-dev.outsystemsenterprise.com/AuthHandover/index.html?r=https://example.com/Casework_Blocks/Home&stage=os-token-return&cc=test-cookies&cms-modern-token=test-token",
       );
 
-      await handleOsRedirect(win, tokenHandoverUrl);
+      await handleOsRedirect(win, tokenHandoverUrl, fetchMsalConfig);
 
       expect(win.location.replace).toHaveBeenCalledWith(
         "https://example.com/Casework_Blocks/Home",
@@ -401,7 +441,7 @@ describe("handleOsRedirect", () => {
         "https://cps-dev.outsystemsenterprise.com/AuthHandover/index.html?r=https://example.com/casework_blocks/Home&stage=os-token-return&cc=test-cookies&cms-modern-token=test-token",
       );
 
-      await handleOsRedirect(win, tokenHandoverUrl);
+      await handleOsRedirect(win, tokenHandoverUrl, fetchMsalConfig);
 
       expect(mockGetCmsSessionHint).toHaveBeenCalledTimes(1);
     });
@@ -417,7 +457,7 @@ describe("handleOsRedirect", () => {
         "https://cps-dev.outsystemsenterprise.com/AuthHandover/index.html?r=https://example.com/Casework_Blocks/Home&stage=os-token-return&cc=test-cookies&cms-modern-token=test-token",
       );
 
-      await handleOsRedirect(win, tokenHandoverUrl);
+      await handleOsRedirect(win, tokenHandoverUrl, fetchMsalConfig);
 
       expect(win.location.replace).toHaveBeenCalledWith(
         "https://example.com/Casework_Blocks/Home",
@@ -431,7 +471,7 @@ describe("handleOsRedirect", () => {
         "https://cps-tst.outsystemsenterprise.com/AuthHandover/index.html?r=https://example.com/WorkManagementApp/page&stage=os-token-return&cc=test-cookies&cms-modern-token=fresh-token",
       );
 
-      await handleOsRedirect(win, tokenHandoverUrl);
+      await handleOsRedirect(win, tokenHandoverUrl, fetchMsalConfig);
 
       expect(mockResetTasklistFilters).toHaveBeenCalledTimes(1);
       expect(mockResetTasklistFilters).toHaveBeenCalledWith(win);
@@ -442,7 +482,7 @@ describe("handleOsRedirect", () => {
         "https://cps-dev.outsystemsenterprise.com/AuthHandover/index.html?r=https://example.com/WorkManagementApp/page&stage=os-token-return&cc=test-cookies&cms-modern-token=fresh-token",
       );
 
-      await handleOsRedirect(win, tokenHandoverUrl);
+      await handleOsRedirect(win, tokenHandoverUrl, fetchMsalConfig);
 
       expect(mockResetTasklistFilters).not.toHaveBeenCalled();
     });
@@ -458,7 +498,7 @@ describe("handleOsRedirect", () => {
         "https://cps-tst.outsystemsenterprise.com/AuthHandover/index.html?r=https://example.com/WorkManagementApp/page&stage=os-token-return&cc=test-cookies&cms-modern-token=same-token",
       );
 
-      await handleOsRedirect(win, tokenHandoverUrl);
+      await handleOsRedirect(win, tokenHandoverUrl, fetchMsalConfig);
 
       expect(mockResetTasklistFilters).not.toHaveBeenCalled();
     });
@@ -468,7 +508,7 @@ describe("handleOsRedirect", () => {
         "https://cps-tst.outsystemsenterprise.com/AuthHandover/index.html?r=https://example.com/target&stage=os-cookie-return&cc=test-cookies",
       );
 
-      await handleOsRedirect(win, tokenHandoverUrl);
+      await handleOsRedirect(win, tokenHandoverUrl, fetchMsalConfig);
 
       expect(mockResetTasklistFilters).not.toHaveBeenCalled();
     });

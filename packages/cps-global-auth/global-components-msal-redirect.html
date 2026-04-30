@@ -13,8 +13,6 @@
       if (window.self !== window.top) return;
       var s = document.createElement('script');
       s.src = './msal-redirect.js';
-      s.setAttribute('data-client-id', '{{AD_CLIENT_ID}}');
-      s.setAttribute('data-authority', '{{AD_TENANT_AUTHORITY}}');
       document.head.appendChild(s);
     })();
   </script>
@@ -27,13 +25,13 @@
     fetching the bundle — the parent MSAL instance reads the hash directly.
 
   - Full-page redirect (#FCT2-17451). Top frame IS this page after AAD bounces
-    back. The inline script injects msal-redirect.js, which calls
-    handleRedirectPromise() to consume the hash, after which MSAL navigates
-    back to the originating URL (navigateToLoginRequestUrl: true).
+    back. The inline script injects msal-redirect.js, which fetches its sibling
+    config.json to read AD_CLIENT_ID / AD_TENANT_AUTHORITY, then calls
+    handleRedirectPromise() to consume the hash. MSAL then navigates back to
+    the originating URL (navigateToLoginRequestUrl: true).
 
-  AD_CLIENT_ID and AD_TENANT_AUTHORITY are substituted per environment via
-  sed in sub-workflow-deploy-script.yml. Empty strings if a config does not
-  set them — the bundle bails out in that case.
+  The HTML and msal-redirect.js are byte-identical across environments — all
+  per-env values come from the sibling config.json.
 -->
 
 </html>
