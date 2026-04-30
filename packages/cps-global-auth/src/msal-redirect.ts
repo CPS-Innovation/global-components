@@ -10,13 +10,16 @@
 import { handleMsalTermination } from "./handle-msal-termination";
 
 const script = document.currentScript as HTMLScriptElement | null;
-const scriptOrigin = script
-  ? new URL(script.src).origin
-  : window.location.origin;
+// Sibling-relative resolution: <whatever-path>/msal-redirect.js → <same-path>/config.json
+// (NOT bare-root /config.json — that path 404s on the Polaris CDN and surfaces
+// as a CORS error when fetched cross-origin.)
+const configUrl = script
+  ? new URL("./config.json", script.src).href
+  : new URL("./config.json", window.location.href).href;
 
 void (async () => {
   try {
-    const res = await fetch(`${scriptOrigin}/config.json`);
+    const res = await fetch(configUrl);
     const config = (await res.json()) as {
       AD_CLIENT_ID?: string;
       AD_TENANT_AUTHORITY?: string;
