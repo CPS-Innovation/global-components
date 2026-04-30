@@ -8,19 +8,43 @@ import { createUrlWithParams, setParams, stripParams } from "../core/params";
 import { paramKeys, stages } from "../core/constants";
 import { getCmsSessionHint } from "../core/get-cms-session-hint";
 import { resetTasklistFilters } from "../application-logic/reset-tasklist-filters";
+import { handleMsalTermination } from "cps-global-auth";
 
-export const handleOsRedirect = async (window: Window, tokenHandoverUrl: string) => {
+export const handleOsRedirect = async (
+  window: Window,
+  tokenHandoverUrl: string,
+  fetchMsalConfig: () => Promise<{ clientId: string; authority: string }>,
+) => {
+  // The os-ad-redirect stage is the AAD bounce-back from a full-page MSAL
+  // loginRedirect. The registered redirect URI bakes ?src=…&stage=os-ad-redirect
+  // into itself; AAD preserves both on the bounce-back URL and appends the
+  // response in the hash. Dispatch straight to handleMsalTermination — MSAL
+  // navigates back to the originating URL on its own (navigateToLoginRequestUrl).
+  // fetchMsalConfig is invoked only on this branch — cookie/token return paths
+  // do not pay the network round-trip.
+  const incomingStage = new URL(window.location.href).searchParams.get(
+    paramKeys.STAGE,
+  );
+  if (incomingStage === stages.OS_AD_REDIRECT) {
+    const msalConfig = await fetchMsalConfig();
+    await handleMsalTermination(window, msalConfig);
+    return;
+  }
+
   const { stage, nextUrl, didUpdateToken } = handleOsRedirectInternal({
     currentUrl: window.location.href,
     tokenHandoverUrl,
   });
+
   if (didUpdateToken && window.location.hostname.startsWith("cps-tst")) {
     // FCT2-16735: a fresh token means a fresh auth context — clear stale tasklist filters
     // so the user lands in OS without inherited filter state from a previous session.
     // Hostname check is a temporary poor-man's feature flag to limit this to test envs.
     resetTasklistFilters(window);
   }
+
   await handleSettingCmsSessionHint({ stage, nextUrl });
+
   window.location.replace(nextUrl);
 };
 

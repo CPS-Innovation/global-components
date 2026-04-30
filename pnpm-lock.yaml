@@ -288,6 +288,9 @@ importers:
 
   packages/cps-global-os-handover:
     dependencies:
+      cps-global-auth:
+        specifier: workspace:*
+        version: link:../cps-global-auth
       cps-global-configuration:
         specifier: workspace:*
         version: link:../cps-global-configuration
@@ -295,6 +298,9 @@ importers:
       '@jest/globals':
         specifier: ^29.7.0
         version: 29.7.0
+      '@rollup/plugin-commonjs':
+        specifier: ^28.0.0
+        version: 28.0.9(rollup@4.60.1)
       '@rollup/plugin-node-resolve':
         specifier: ^16.0.1
         version: 16.0.3(rollup@4.60.1)

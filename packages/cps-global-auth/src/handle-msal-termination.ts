@@ -36,7 +36,10 @@ export const handleMsalTermination = async (
   }
 
   try {
-    const redirectUri = `${win.location.origin}${win.location.pathname}`;
+    // Preserve query string — strip only the hash. MSAL validates the response's
+    // redirectUri against the request's; if the request had `?src=…&stage=…` baked
+    // in (folded OS dispatch path) the termination instance must match exactly.
+    const redirectUri = win.location.href.split("#")[0]!;
     const instance = createInstance({ ...msalConfig, redirectUri });
     await instance.initialize();
     await instance.handleRedirectPromise();

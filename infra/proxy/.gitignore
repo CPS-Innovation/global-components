@@ -17,3 +17,8 @@ deploy/backups/
 # Environment config files (contain secrets)
 config/main/.env
 config/global-components.vnext/.env
+
+# Local mkcert output for the proxy dev stack — generated on demand by
+# whichever branch wires up the dockerised proxy. Lingering on disk after
+# branch switches; safe to ignore globally.
+docker/certs/
