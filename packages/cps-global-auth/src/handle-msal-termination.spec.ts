@@ -31,10 +31,9 @@ describe("handleMsalTermination", () => {
     expect(createInstance).not.toHaveBeenCalled();
   });
 
-  it("creates the MSAL instance with redirectUri = href minus hash and calls initialize then handleRedirectPromise", async () => {
-    const initialize = jest.fn().mockResolvedValue(undefined);
+  it("creates the MSAL instance with redirectUri = href minus hash and calls handleRedirectPromise", async () => {
     const handleRedirectPromise = jest.fn().mockResolvedValue(null);
-    const createInstance = jest.fn().mockReturnValue({ initialize, handleRedirectPromise });
+    const createInstance = jest.fn().mockResolvedValue({ handleRedirectPromise });
 
     const result = await handleMsalTermination(
       makeWindow({ origin: "https://app.example", pathname: "/sub/redirect.html" }),
@@ -47,15 +46,13 @@ describe("handleMsalTermination", () => {
       authority: "https://login.microsoftonline.com/tenant",
       redirectUri: "https://app.example/sub/redirect.html",
     });
-    expect(initialize).toHaveBeenCalledTimes(1);
     expect(handleRedirectPromise).toHaveBeenCalledTimes(1);
     expect(result).toBe("handled");
   });
 
   it("preserves query string in redirectUri (folded OS path: ?src=…&stage=…) but strips hash", async () => {
-    const initialize = jest.fn().mockResolvedValue(undefined);
     const handleRedirectPromise = jest.fn().mockResolvedValue(null);
-    const createInstance = jest.fn().mockReturnValue({ initialize, handleRedirectPromise });
+    const createInstance = jest.fn().mockResolvedValue({ handleRedirectPromise });
 
     await handleMsalTermination(
       makeWindow({
@@ -77,9 +74,8 @@ describe("handleMsalTermination", () => {
   });
 
   it("returns 'handled-with-error' when handleRedirectPromise rejects, swallowing the error", async () => {
-    const initialize = jest.fn().mockResolvedValue(undefined);
     const handleRedirectPromise = jest.fn().mockRejectedValue(new Error("boom"));
-    const createInstance = jest.fn().mockReturnValue({ initialize, handleRedirectPromise });
+    const createInstance = jest.fn().mockResolvedValue({ handleRedirectPromise });
 
     const result = await handleMsalTermination(
       makeWindow(),
@@ -90,10 +86,8 @@ describe("handleMsalTermination", () => {
     expect(result).toBe("handled-with-error");
   });
 
-  it("returns 'handled-with-error' when initialize rejects, swallowing the error", async () => {
-    const initialize = jest.fn().mockRejectedValue(new Error("init-fail"));
-    const handleRedirectPromise = jest.fn();
-    const createInstance = jest.fn().mockReturnValue({ initialize, handleRedirectPromise });
+  it("returns 'handled-with-error' when createInstance rejects (e.g. initialize() fails inside the factory)", async () => {
+    const createInstance = jest.fn().mockRejectedValue(new Error("init-fail"));
 
     const result = await handleMsalTermination(
       makeWindow(),
@@ -102,6 +96,5 @@ describe("handleMsalTermination", () => {
     );
 
     expect(result).toBe("handled-with-error");
-    expect(handleRedirectPromise).not.toHaveBeenCalled();
   });
 });

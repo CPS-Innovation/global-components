@@ -1,5 +1,5 @@
-import { PublicClientApplication } from "@azure/msal-browser";
 import { makeConsole } from "./internal/logging";
+import { createMsalInstance } from "./internal/create-msal-instance";
 
 const { _debug, _error } = makeConsole("handleMsalTermination");
 
@@ -9,26 +9,20 @@ type MsalConfig = {
 };
 
 type MsalLikeInstance = {
-  initialize: () => Promise<void>;
   handleRedirectPromise: () => Promise<unknown>;
 };
 
-type CreateInstance = (config: MsalConfig & { redirectUri: string }) => MsalLikeInstance;
-
-const defaultCreateInstance: CreateInstance = ({ clientId, authority, redirectUri }) =>
-  new PublicClientApplication({
-    auth: { clientId, authority, redirectUri },
-    // localStorage so tokens persist across the redirect bounce — the page
-    // that initiated the redirect is the one that ultimately consumes them.
-    cache: { cacheLocation: "localStorage" },
-  });
+// Async factory — must return an already-initialised instance (consistent with
+// createMsalInstance's contract). Tests inject a fake; production uses the
+// shared createMsalInstance factory.
+type CreateInstance = (config: MsalConfig & { redirectUri: string }) => Promise<MsalLikeInstance>;
 
 export type HandleMsalTerminationOutcome = "iframe-noop" | "handled" | "handled-with-error";
 
 export const handleMsalTermination = async (
   win: Window,
   msalConfig: MsalConfig,
-  createInstance: CreateInstance = defaultCreateInstance,
+  createInstance: CreateInstance = createMsalInstance,
 ): Promise<HandleMsalTerminationOutcome> => {
   if (win.self !== win.top) {
     _debug("running inside iframe — no-op");
@@ -40,8 +34,7 @@ export const handleMsalTermination = async (
     // redirectUri against the request's; if the request had `?src=…&stage=…` baked
     // in (folded OS dispatch path) the termination instance must match exactly.
     const redirectUri = win.location.href.split("#")[0]!;
-    const instance = createInstance({ ...msalConfig, redirectUri });
-    await instance.initialize();
+    const instance = await createInstance({ ...msalConfig, redirectUri });
     await instance.handleRedirectPromise();
     // Clear the per-tab loop guard set by tryLoginAccountViaRedirect — the
     // round-trip completed successfully and the next page load is free to
