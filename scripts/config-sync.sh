@@ -89,12 +89,8 @@ failed=0
 for local_file in "${config_files[@]}"; do
     filename=$(basename "$local_file")
 
-    # Extract environment name from filename
-    # config.{env}.json or config.{env}.override.json
-    if [[ $filename =~ ^config\.([^.]+)\.override\.json$ ]]; then
-        env_name="${BASH_REMATCH[1]}"
-        remote_filename="config.override.json"
-    elif [[ $filename =~ ^config\.([^.]+)\.json$ ]]; then
+    # Extract environment name from filename — config.{env}.json
+    if [[ $filename =~ ^config\.([^.]+)\.json$ ]]; then
         env_name="${BASH_REMATCH[1]}"
         remote_filename="config.json"
     else

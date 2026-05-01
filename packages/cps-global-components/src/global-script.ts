@@ -64,13 +64,16 @@ const initialise = async (window: Window & typeof globalThis) => {
     const flags = initialiseApplicationFlags({ window, rootUrl, register });
     initialiseOutSystemsReconcileAuth({ window, flags });
 
-    const [{ handover, setNextHandover }, preview, settings, { authHint, setAuthHint }, { userDataHint, setUserDataHint }, cmsSessionHint] = await Promise.all([
+    // Config no longer depends on preview (override-via-preview was removed in
+     // FCT2-17451 drop 4) so it joins the parallel set.
+    const [{ handover, setNextHandover }, preview, settings, { authHint, setAuthHint }, { userDataHint, setUserDataHint }, cmsSessionHint, config] = await Promise.all([
       initialiseHandover({ rootUrl, register }),
       initialisePreview({ rootUrl, register }),
       initialiseSettings({ rootUrl }),
       initialiseAuthHint({ rootUrl, register }),
       initialiseUserDataHint({ rootUrl, register }),
       initialiseCmsSessionHint({ rootUrl, flags, register }),
+      initialiseConfig({ rootUrl, flags, register }),
     ]);
 
     const { initialiseDomForContext } = initialiseDomObservation(
@@ -82,8 +85,6 @@ const initialise = async (window: Window & typeof globalThis) => {
     );
 
     initialiseTabTitle({ window, preview, subscribe, flags });
-
-    const config = await initialiseConfig({ rootUrl, flags, preview, register });
     /* do not await this — notification fetches shouldn't block auth/analytics/etc. */
     initialiseNotifications({ rootUrl, register, handlers, config });
     const { setNextRecentCases } = initialiseRecentCases({ rootUrl, config, register });

@@ -340,9 +340,6 @@ importers:
       cps-global-configuration:
         specifier: workspace:*
         version: link:../cps-global-configuration
-      diff:
-        specifier: ^8.0.3
-        version: 8.0.4
       react:
         specifier: ^19.0.0
         version: 19.2.4
@@ -350,9 +347,6 @@ importers:
         specifier: ^19.0.0
         version: 19.2.4(react@19.2.4)
     devDependencies:
-      '@types/diff':
-        specifier: ^8.0.0
-        version: 8.0.0
       '@types/react':
         specifier: ^19.0.0
         version: 19.2.14
@@ -1654,10 +1648,6 @@ packages:
   '@types/babel__traverse@7.28.0':
     resolution: {integrity: sha512-8PvcXf70gTDZBgt9ptxJ8elBeBjcLOAcOtoO/mPJjtji1+CdGbHgm77om1GrsPxsiE+uXIpNSK64UYaIwQXd4Q==}
 
-  '@types/diff@8.0.0':
-    resolution: {integrity: sha512-o7jqJM04gfaYrdCecCVMbZhNdG6T1MHg/oQoRFdERLV+4d+V7FijhiEAbFu0Usww84Yijk9yH58U4Jk4HbtzZw==}
-    deprecated: This is a stub types definition. diff provides its own type definitions, so you do not need this installed.
-
   '@types/estree@0.0.39':
     resolution: {integrity: sha512-EYNwp3bU+98cpU4lAWYYL7Zz+2gryWH1qbdDTidVd6hkiR6weksdbMadyXKXNPEkQFhXM+hVO9ZygomHXp+AIw==}
 
@@ -2335,10 +2325,6 @@ packages:
 
   diff@4.0.4:
     resolution: {integrity: sha512-X07nttJQkwkfKfvTPG/KSnE2OMdcUCao6+eXF3wmnIQRn2aPAHH3VxDbDOdegkd6JbPsXqShpvEOHfAT+nCNwQ==}
-    engines: {node: '>=0.3.1'}
-
-  diff@8.0.4:
-    resolution: {integrity: sha512-DPi0FmjiSU5EvQV0++GFDOJ9ASQUVFh5kD+OzOnYdi7n3Wpm9hWWGfB/O2blfHcMVTL5WkQXSnRiK9makhrcnw==}
     engines: {node: '>=0.3.1'}
 
   dom-accessibility-api@0.5.16:
@@ -5973,10 +5959,6 @@ snapshots:
     dependencies:
       '@babel/types': 7.29.0
 
-  '@types/diff@8.0.0':
-    dependencies:
-      diff: 8.0.4
-
   '@types/estree@0.0.39': {}
 
   '@types/estree@1.0.8': {}
@@ -6650,8 +6632,6 @@ snapshots:
   diff-sequences@29.6.3: {}
 
   diff@4.0.4: {}
-
-  diff@8.0.4: {}
 
   dom-accessibility-api@0.5.16: {}
 
