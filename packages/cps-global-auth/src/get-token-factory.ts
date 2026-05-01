@@ -1,11 +1,9 @@
 import { PublicClientApplication, SilentRequest } from "@azure/msal-browser";
-import { makeConsole, withLogging } from "./internal/logging";
 import { GetToken } from "./GetToken";
+import { LogError } from "./LogError";
 
-const { _error } = makeConsole("getTokenFactory");
-
-const getTokenFactoryInternal =
-  ({ instance }: { instance: PublicClientApplication }): GetToken =>
+export const getTokenFactory =
+  ({ instance, logError }: { instance: PublicClientApplication; logError: LogError }): GetToken =>
   async ({ config: { AD_GATEWAY_SCOPE } }) => {
     if (!AD_GATEWAY_SCOPE) return null;
     const request = {
@@ -16,9 +14,7 @@ const getTokenFactoryInternal =
       const { accessToken } = await instance.acquireTokenSilent(request);
       return accessToken;
     } catch (error) {
-      _error(error);
+      logError("getToken acquireTokenSilent failed", error);
       return null;
     }
   };
-
-export const getTokenFactory = withLogging("getTokenFactory", getTokenFactoryInternal);
