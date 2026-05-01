@@ -41,9 +41,6 @@ jobs:
 
       - run: |
           cp ./configuration/config.${{ inputs.environment }}.json ./to-deploy/config.json
-          if [ -f "./configuration/config.${{ inputs.environment }}.override.json" ]; then
-            cp ./configuration/config.${{ inputs.environment }}.override.json ./to-deploy/config.override.json
-          fi
 
           if [ -f "./configuration/config.${{ inputs.environment }}.notification.json" ]; then
             cp ./configuration/config.${{ inputs.environment }}.notification.json ./to-deploy/notification.json

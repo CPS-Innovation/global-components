@@ -35,19 +35,18 @@ other files are byte-identical across envs.
 
 Conditional — only uploaded when the source file exists:
 
-| File                   | Source                                         |
-| ---------------------- | ---------------------------------------------- |
-| `config.override.json` | `configuration/config.<env>.override.json`     |
-| `notification.json`    | `configuration/config.<env>.notification.json` |
+| File                | Source                                         |
+| ------------------- | ---------------------------------------------- |
+| `notification.json` | `configuration/config.<env>.notification.json` |
 
 Current source-file matrix:
 
-| Env           | `config.override.json` | `notification.json` |
-| ------------- | :--------------------: | :-----------------: |
-| accessibility |           —            |          —          |
-| dev           |           ✓            |          —          |
-| test          |           ✓            |          ✓          |
-| prod          |           ✓            |          —          |
+| Env           | `notification.json` |
+| ------------- | :-----------------: |
+| accessibility |          —          |
+| dev           |          —          |
+| test          |          ✓          |
+| prod          |          —          |
 
 ## Redirect stub (`cps-global-components.js`)
 

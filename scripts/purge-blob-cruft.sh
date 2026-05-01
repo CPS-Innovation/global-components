@@ -42,7 +42,6 @@ fi
 #   msal-redirect.js, msal-redirect.js.map (IIFE bundle loaded by the termination page)
 #   probe-iframe-load.html              (LNA diagnostic probe page)
 #   config.json                         (required)
-#   config.override.json                (optional; kept if present)
 #   notification.json                   (optional; kept if present)
 #
 # SPA bundles (Vite output — index.html + hashed assets only):
@@ -56,7 +55,7 @@ is_kept() {
     global-components-msal-redirect.html) return 0 ;;
     msal-redirect.js|msal-redirect.js.map) return 0 ;;
     probe-iframe-load.html) return 0 ;;
-    config.json|config.override.json|notification.json) return 0 ;;
+    config.json|notification.json) return 0 ;;
     preview/index.html|accessibility/index.html) return 0 ;;
     preview/assets/*|accessibility/assets/*) return 0 ;;
   esac
