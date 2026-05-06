@@ -10,11 +10,6 @@ const mockInstance = {
   loginRedirect: jest.fn(),
 } as unknown as PublicClientApplication;
 
-jest.mock("./internal/logging", () => ({
-  ...jest.requireActual("./internal/logging"),
-  withLogging: jest.fn((_name, fn) => fn),
-}));
-
 import { getAdUserAccount } from "./get-ad-user-account";
 
 describe("get-ad-user-account", () => {
@@ -23,6 +18,7 @@ describe("get-ad-user-account", () => {
   const defaultProps = {
     instance: mockInstance,
     config: { SSO_SILENT_DELAY_MS: 0 },
+    logError: jest.fn(),
   };
 
   beforeEach(() => {
