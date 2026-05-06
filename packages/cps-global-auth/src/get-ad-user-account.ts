@@ -1,7 +1,15 @@
-import { AccountInfo, CacheLookupPolicy, PublicClientApplication } from "@azure/msal-browser";
+import {
+  AccountInfo,
+  CacheLookupPolicy,
+  PublicClientApplication,
+} from "@azure/msal-browser";
 import { LogError } from "./LogError";
 import type { SilentFlowDiagnostic } from "./silent-flow-diagnostic";
-import { MSAL_REDIRECT_COMPLETION_ID_KEY, MSAL_REDIRECT_IN_FLIGHT_KEY, MSAL_REDIRECT_LOOP_GUARD_MS } from "./internal/redirect-storage-keys";
+import {
+  MSAL_REDIRECT_COMPLETION_ID_KEY,
+  MSAL_REDIRECT_IN_FLIGHT_KEY,
+  MSAL_REDIRECT_LOOP_GUARD_MS,
+} from "./internal/redirect-storage-keys";
 
 type AddSilentFlowDiagnostics = (entry: SilentFlowDiagnostic) => void;
 
@@ -16,7 +24,8 @@ type Props = {
   useFullPageRedirect?: boolean;
 };
 
-const asError = (value: unknown): Error => (value instanceof Error ? value : new Error(String(value)));
+const asError = (value: unknown): Error =>
+  value instanceof Error ? value : new Error(String(value));
 
 type AccountRetrievalResult = Promise<AccountInfo | null>;
 
@@ -24,7 +33,12 @@ type AccountRetrievalResult = Promise<AccountInfo | null>;
 // "redirect-failure" are inferred from the sessionStorage signals set by the
 // termination page (completion id) and by tryLoginAccountViaRedirect itself
 // (in-flight sentinel). See internal/redirect-storage-keys.ts.
-export type GetAdUserAccountMechanism = "cache" | "silent" | "redirect-success" | "redirect-failure" | null;
+export type GetAdUserAccountMechanism =
+  | "cache"
+  | "silent"
+  | "redirect-success"
+  | "redirect-failure"
+  | null;
 
 export type GetAdUserAccountResult = {
   account: AccountInfo | null;
@@ -36,11 +50,14 @@ const loginRequest = { scopes: ["User.Read"] };
 
 const DEFAULT_SSO_SILENT_DELAY_MS = 0;
 
-const waitForPageStability = async (ssoSilentDelayMs: number, scriptStartMs: number) => {
+const waitForPageStability = async (
+  ssoSilentDelayMs: number,
+  scriptStartMs: number,
+) => {
   const elapsed = Math.round(performance.now() - scriptStartMs);
   const remainingDelay = Math.max(0, ssoSilentDelayMs - elapsed);
   if (remainingDelay > 0) {
-    await new Promise(resolve => setTimeout(resolve, remainingDelay));
+    await new Promise((resolve) => setTimeout(resolve, remainingDelay));
   }
 };
 
@@ -60,12 +77,17 @@ export const getAdUserAccount = async ({
   // sentinel is left in place; tryLoginAccountViaRedirect re-reads it as the
   // loop guard, and we only consult our snapshot for the failure-mechanism
   // derivation at the end.
-  const redirectCompletionId = window.sessionStorage.getItem(MSAL_REDIRECT_COMPLETION_ID_KEY) ?? undefined;
+  const redirectCompletionId =
+    window.sessionStorage.getItem(MSAL_REDIRECT_COMPLETION_ID_KEY) ?? undefined;
   if (redirectCompletionId) {
     window.sessionStorage.removeItem(MSAL_REDIRECT_COMPLETION_ID_KEY);
   }
-  const inFlightAtEntry = window.sessionStorage.getItem(MSAL_REDIRECT_IN_FLIGHT_KEY);
-  const wasRedirectInFlightAtEntry = !!inFlightAtEntry && Date.now() - Number(inFlightAtEntry) < MSAL_REDIRECT_LOOP_GUARD_MS;
+  const inFlightAtEntry = window.sessionStorage.getItem(
+    MSAL_REDIRECT_IN_FLIGHT_KEY,
+  );
+  const wasRedirectInFlightAtEntry =
+    !!inFlightAtEntry &&
+    Date.now() - Number(inFlightAtEntry) < MSAL_REDIRECT_LOOP_GUARD_MS;
 
   // Set by whichever cascade step produces an account, used to discriminate
   // "cache" vs "silent" when no completion id is present.
@@ -76,7 +98,11 @@ export const getAdUserAccount = async ({
     if (!account) return null;
 
     try {
-      const result = await instance.acquireTokenSilent({ ...loginRequest, account, cacheLookupPolicy: CacheLookupPolicy.AccessTokenAndRefreshToken });
+      const result = await instance.acquireTokenSilent({
+        ...loginRequest,
+        account,
+        cacheLookupPolicy: CacheLookupPolicy.AccessTokenAndRefreshToken,
+      });
       const acquired = result.account ?? null;
       if (acquired) {
         producedBy = "cache";
@@ -93,7 +119,10 @@ export const getAdUserAccount = async ({
       // Skipped — the redirect path is the active interactive recovery for this caller.
       return null;
     }
-    await waitForPageStability(SSO_SILENT_DELAY_MS ?? DEFAULT_SSO_SILENT_DELAY_MS, t0);
+    await waitForPageStability(
+      SSO_SILENT_DELAY_MS ?? DEFAULT_SSO_SILENT_DELAY_MS,
+      t0,
+    );
 
     // Pass loginHint to identify the user by UPN rather than by session.
     // Without this, MSAL pulls the active account from cache and extracts
@@ -103,15 +132,29 @@ export const getAdUserAccount = async ({
     // Passing loginHint causes MSAL to skip the account lookup entirely
     // (initializeAuthorizationRequest returns early when loginHint is set),
     // so no sid is ever extracted or sent.
-    const knownAccount = instance.getActiveAccount() || instance.getAllAccounts()[0];
-    const ssoSilentRequest = { ...loginRequest, ...(knownAccount?.username ? { loginHint: knownAccount.username } : {}) };
+    const knownAccount =
+      instance.getActiveAccount() || instance.getAllAccounts()[0];
+    const ssoSilentRequest = {
+      ...loginRequest,
+      ...(knownAccount?.username ? { loginHint: knownAccount.username } : {}),
+    };
 
     const operationId = getOperationId?.();
     const silentFlowStartTime = Date.now();
-    addSilentFlowDiagnostics?.({ time: silentFlowStartTime, url: window.location.href, operationId });
+    addSilentFlowDiagnostics?.({
+      time: silentFlowStartTime,
+      url: window.location.href,
+      operationId,
+    });
     try {
       const { account } = await instance.ssoSilent(ssoSilentRequest);
-      addSilentFlowDiagnostics?.({ time: silentFlowStartTime, url: window.location.href, operationId, completedTime: Date.now(), outcome: "complete" });
+      addSilentFlowDiagnostics?.({
+        time: silentFlowStartTime,
+        url: window.location.href,
+        operationId,
+        completedTime: Date.now(),
+        outcome: "complete",
+      });
       if (account) {
         producedBy = "silent";
       }
@@ -124,7 +167,9 @@ export const getAdUserAccount = async ({
         operationId,
         completedTime: Date.now(),
         outcome: "failure",
-        ...(typeof rawErrorCode === "string" && rawErrorCode ? { errorCode: rawErrorCode } : {}),
+        ...(typeof rawErrorCode === "string" && rawErrorCode
+          ? { errorCode: rawErrorCode }
+          : {}),
       });
 
       logError("ssoSilent failed", asError(error));
@@ -142,15 +187,23 @@ export const getAdUserAccount = async ({
       // Skipped — the silent path is the active interactive recovery for this caller.
       return null;
     }
-    const guardValue = window.sessionStorage.getItem(MSAL_REDIRECT_IN_FLIGHT_KEY);
-    if (guardValue && Date.now() - Number(guardValue) < MSAL_REDIRECT_LOOP_GUARD_MS) {
+    const guardValue = window.sessionStorage.getItem(
+      MSAL_REDIRECT_IN_FLIGHT_KEY,
+    );
+    if (
+      guardValue &&
+      Date.now() - Number(guardValue) < MSAL_REDIRECT_LOOP_GUARD_MS
+    ) {
       const error = new Error(
         `MSAL loginRedirect already in-flight (sentinel set ${Date.now() - Number(guardValue)}ms ago); refusing to re-fire to avoid a loop`,
       );
       logError("loginRedirect loop guard tripped", error);
       throw error;
     }
-    window.sessionStorage.setItem(MSAL_REDIRECT_IN_FLIGHT_KEY, String(Date.now()));
+    window.sessionStorage.setItem(
+      MSAL_REDIRECT_IN_FLIGHT_KEY,
+      String(Date.now()),
+    );
     try {
       await instance.loginRedirect(loginRequest);
     } catch (error) {
