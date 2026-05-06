@@ -4,7 +4,7 @@
   "scripts": {
     "build": "./scripts/build.sh",
     "build:watch": "tsc --watch",
-    "test": "pnpm exec ts-node --project tsconfig.test.json config/main/tests/global-components.unit.test.ts && pnpm exec ts-node --project tsconfig.test.json config/global-components.vnext/tests/global-components.vnext.unit.test.ts && pnpm exec ts-node --project tsconfig.test.json config/main/tests/nginx.unit.test.ts",
+    "test": "pnpm exec ts-node --project tsconfig.test.json config/main/tests/global-components.unit.test.ts && pnpm exec ts-node --project tsconfig.test.json config/global-components.vnext/tests/global-components.vnext.unit.test.ts && pnpm exec ts-node --project tsconfig.test.json config/global-components.case-locking/tests/global-components.case-locking.unit.test.ts && pnpm exec ts-node --project tsconfig.test.json config/main/tests/nginx.unit.test.ts",
     "test:integration": "pnpm build && ./run-tests.sh"
   },
   "devDependencies": {

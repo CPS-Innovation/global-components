@@ -26,15 +26,18 @@ echo "Copying config files..."
 cp "$PROXY_DIR/config/main/nginx.conf" "$DIST_DIR/nginx.conf.template"
 cp "$PROXY_DIR/config/main/global-components.conf" "$DIST_DIR/global-components.conf.template"
 cp "$PROXY_DIR/config/global-components.vnext/global-components.vnext.conf" "$DIST_DIR/global-components.vnext.conf.template"
+cp "$PROXY_DIR/config/global-components.case-locking/global-components.case-locking.conf" "$DIST_DIR/global-components.case-locking.conf.template"
 
 # Flatten the compiled JS files (they're in subdirectories from tsc)
 echo "Flattening compiled JS files..."
 mv "$DIST_DIR/main/global-components.js" "$DIST_DIR/global-components.js"
 mv "$DIST_DIR/global-components.vnext/global-components.vnext.js" "$DIST_DIR/global-components.vnext.js"
+mv "$DIST_DIR/global-components.case-locking/global-components.case-locking.js" "$DIST_DIR/global-components.case-locking.js"
 
 # Remove empty directories
 rmdir "$DIST_DIR/main" 2>/dev/null || true
 rmdir "$DIST_DIR/global-components.vnext" 2>/dev/null || true
+rmdir "$DIST_DIR/global-components.case-locking" 2>/dev/null || true
 
 echo ""
 echo "Build complete! Contents of dist/:"

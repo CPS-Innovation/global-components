@@ -80,6 +80,12 @@ export namespace Components {
          */
         "listClass": string;
     }
+    interface CpsRegion {
+        /**
+          * Identifier passed to the central service when this region enters or leaves the DOM. Reflected so it's readable as an attribute.
+         */
+        "code": string;
+    }
     interface CpsSkipLink {
         /**
           * @default false
@@ -171,6 +177,12 @@ declare global {
         prototype: HTMLCpsGlobalRecentCasesElement;
         new (): HTMLCpsGlobalRecentCasesElement;
     };
+    interface HTMLCpsRegionElement extends Components.CpsRegion, HTMLStencilElement {
+    }
+    var HTMLCpsRegionElement: {
+        prototype: HTMLCpsRegionElement;
+        new (): HTMLCpsRegionElement;
+    };
     interface HTMLCpsSkipLinkElement extends Components.CpsSkipLink, HTMLStencilElement {
     }
     var HTMLCpsSkipLinkElement: {
@@ -204,11 +216,14 @@ declare global {
         "cps-global-menu": HTMLCpsGlobalMenuElement;
         "cps-global-notifications": HTMLCpsGlobalNotificationsElement;
         "cps-global-recent-cases": HTMLCpsGlobalRecentCasesElement;
+        "cps-region": HTMLCpsRegionElement;
         "cps-skip-link": HTMLCpsSkipLinkElement;
         "nav-link": HTMLNavLinkElement;
     }
 }
 declare namespace LocalJSX {
+    type OneOf<K extends string, PropT, AttrT = PropT> = { [P in K]: PropT } & { [P in `attr:${K}` | `prop:${K}`]?: never } | { [P in `attr:${K}`]: AttrT } & { [P in K | `prop:${K}`]?: never } | { [P in `prop:${K}`]: PropT } & { [P in K | `attr:${K}`]?: never };
+
     interface CpsGdsNotificationBanner {
         /**
           * Prevent the banner from being focused on page load (only relevant for success type).
@@ -283,6 +298,12 @@ declare namespace LocalJSX {
          */
         "listClass"?: string;
     }
+    interface CpsRegion {
+        /**
+          * Identifier passed to the central service when this region enters or leaves the DOM. Reflected so it's readable as an attribute.
+         */
+        "code": string;
+    }
     interface CpsSkipLink {
         /**
           * @default false
@@ -319,6 +340,9 @@ declare namespace LocalJSX {
         "linkClass": string;
         "itemTextTemplate": string;
     }
+    interface CpsRegionAttributes {
+        "code": string;
+    }
     interface CpsSkipLinkAttributes {
         "isOutSystems": boolean;
         "skipLinkClassName": string;
@@ -342,6 +366,7 @@ declare namespace LocalJSX {
         "cps-global-menu": CpsGlobalMenu;
         "cps-global-notifications": CpsGlobalNotifications;
         "cps-global-recent-cases": Omit<CpsGlobalRecentCases, keyof CpsGlobalRecentCasesAttributes> & { [K in keyof CpsGlobalRecentCases & keyof CpsGlobalRecentCasesAttributes]?: CpsGlobalRecentCases[K] } & { [K in keyof CpsGlobalRecentCases & keyof CpsGlobalRecentCasesAttributes as `attr:${K}`]?: CpsGlobalRecentCasesAttributes[K] } & { [K in keyof CpsGlobalRecentCases & keyof CpsGlobalRecentCasesAttributes as `prop:${K}`]?: CpsGlobalRecentCases[K] };
+        "cps-region": Omit<CpsRegion, keyof CpsRegionAttributes> & { [K in keyof CpsRegion & keyof CpsRegionAttributes]?: CpsRegion[K] } & { [K in keyof CpsRegion & keyof CpsRegionAttributes as `attr:${K}`]?: CpsRegionAttributes[K] } & { [K in keyof CpsRegion & keyof CpsRegionAttributes as `prop:${K}`]?: CpsRegion[K] } & OneOf<"code", CpsRegion["code"], CpsRegionAttributes["code"]>;
         "cps-skip-link": Omit<CpsSkipLink, keyof CpsSkipLinkAttributes> & { [K in keyof CpsSkipLink & keyof CpsSkipLinkAttributes]?: CpsSkipLink[K] } & { [K in keyof CpsSkipLink & keyof CpsSkipLinkAttributes as `attr:${K}`]?: CpsSkipLinkAttributes[K] } & { [K in keyof CpsSkipLink & keyof CpsSkipLinkAttributes as `prop:${K}`]?: CpsSkipLink[K] };
         "nav-link": Omit<NavLink, keyof NavLinkAttributes> & { [K in keyof NavLink & keyof NavLinkAttributes]?: NavLink[K] } & { [K in keyof NavLink & keyof NavLinkAttributes as `attr:${K}`]?: NavLinkAttributes[K] } & { [K in keyof NavLink & keyof NavLinkAttributes as `prop:${K}`]?: NavLink[K] };
     }
@@ -359,6 +384,7 @@ declare module "@stencil/core" {
             "cps-global-menu": LocalJSX.IntrinsicElements["cps-global-menu"] & JSXBase.HTMLAttributes<HTMLCpsGlobalMenuElement>;
             "cps-global-notifications": LocalJSX.IntrinsicElements["cps-global-notifications"] & JSXBase.HTMLAttributes<HTMLCpsGlobalNotificationsElement>;
             "cps-global-recent-cases": LocalJSX.IntrinsicElements["cps-global-recent-cases"] & JSXBase.HTMLAttributes<HTMLCpsGlobalRecentCasesElement>;
+            "cps-region": LocalJSX.IntrinsicElements["cps-region"] & JSXBase.HTMLAttributes<HTMLCpsRegionElement>;
             "cps-skip-link": LocalJSX.IntrinsicElements["cps-skip-link"] & JSXBase.HTMLAttributes<HTMLCpsSkipLinkElement>;
             "nav-link": LocalJSX.IntrinsicElements["nav-link"] & JSXBase.HTMLAttributes<HTMLNavLinkElement>;
         }
