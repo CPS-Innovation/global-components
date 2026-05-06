@@ -16,6 +16,7 @@ const makeWindow = ({
   search = "",
   hash = "",
   iframe = false,
+  uuid = "11111111-1111-4111-8111-111111111111",
 } = {}) => {
   const top = {} as Window;
   const self = iframe ? ({} as Window) : top;
@@ -24,6 +25,7 @@ const makeWindow = ({
     top,
     location: { origin, pathname, search, hash, href: `${origin}${pathname}${search}${hash}` },
     sessionStorage: { removeItem: jest.fn(), setItem: jest.fn(), getItem: jest.fn() },
+    crypto: { randomUUID: jest.fn(() => uuid) },
   } as unknown as Window;
 };
 
@@ -98,5 +100,29 @@ describe("handleMsalTermination", () => {
     const result = await handleMsalTermination(makeWindow(), { clientId: "c", authority: "a" }, createInstance);
 
     expect(result).toBe("handled-with-error");
+  });
+
+  it("on success writes a completion id UUID and clears the in-flight loop guard", async () => {
+    const handleRedirectPromise = jest.fn().mockResolvedValue(null);
+    const createInstance = jest.fn().mockResolvedValue({ handleRedirectPromise });
+    const win = makeWindow({ uuid: "abcdef01-2345-4678-89ab-cdef01234567" });
+
+    await handleMsalTermination(win, { clientId: "c", authority: "a" }, createInstance);
+
+    expect(win.sessionStorage.setItem).toHaveBeenCalledWith("cps_global_components_msal_redirect_completion_id", "abcdef01-2345-4678-89ab-cdef01234567");
+    expect(win.sessionStorage.removeItem).toHaveBeenCalledWith("cps_global_components_msal_redirect_in_flight_at");
+  });
+
+  it("does not write the completion id when handleRedirectPromise rejects (the failure path is caught upstream)", async () => {
+    const handleRedirectPromise = jest.fn().mockRejectedValue(new Error("boom"));
+    const createInstance = jest.fn().mockResolvedValue({ handleRedirectPromise });
+    const win = makeWindow();
+
+    await handleMsalTermination(win, { clientId: "c", authority: "a" }, createInstance);
+
+    expect(win.sessionStorage.setItem).not.toHaveBeenCalled();
+    // And the in-flight sentinel must NOT be cleared on failure — leaving it in
+    // place is what powers get-ad-user-account's "redirect-failure" inference.
+    expect(win.sessionStorage.removeItem).not.toHaveBeenCalled();
   });
 });
