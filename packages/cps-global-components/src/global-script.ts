@@ -29,6 +29,7 @@ import { initialiseUserData } from "./services/state/user-data/initialise-user-d
 import { initialiseDiagnostics } from "./services/diagnostics/initialise-diagnostics";
 import { initialiseTabTitle } from "./services/browser/tab-title/initialise-tab-title";
 import { initialiseBuild } from "./services/build/initialise-build";
+import { initialiseCaseLocking } from "./services/case-locking/initialise-case-locking";
 import { runNowAndOnNavigation } from "./services/browser/navigation/navigation";
 import { TrackException } from "./services/analytics/TrackException";
 import { summariseResults } from "./utils/summarise-results";
@@ -75,6 +76,8 @@ const initialise = async (window: Window & typeof globalThis) => {
       initialiseCmsSessionHint({ rootUrl, flags, register }),
       initialiseConfig({ rootUrl, flags, register }),
     ]);
+
+    initialiseCaseLocking({ window, rootUrl, config });
 
     const { initialiseDomForContext } = initialiseDomObservation(
       { window, register, mergeTags, preview, settings },
