@@ -1,5 +1,5 @@
 import { AccountInfo, CacheLookupPolicy, PublicClientApplication } from "@azure/msal-browser";
-import { makeConsole, withLogging } from "./internal/logging";
+import { LogError } from "./LogError";
 import type { SilentFlowDiagnostic } from "./silent-flow-diagnostic";
 
 type AddSilentFlowDiagnostics = (entry: SilentFlowDiagnostic) => void;
@@ -9,13 +9,13 @@ type Props = {
   config: { SSO_SILENT_DELAY_MS: number | undefined };
   addSilentFlowDiagnostics?: AddSilentFlowDiagnostics;
   getOperationId?: () => string | undefined;
-  onError?: (error: Error) => void;
+  // Single error delegate from the host. Implementations typically do both
+  // console-log AND telemetry tracking (e.g. trackException to App Insights).
+  logError: LogError;
   useFullPageRedirect?: boolean;
 };
 
 const asError = (value: unknown): Error => (value instanceof Error ? value : new Error(String(value)));
-
-type AccountSource = "acquireTokenSilent" | "silent" | "redirect" | "failed";
 
 // Per-tab sessionStorage key set immediately before loginRedirect fires and
 // cleared by handleMsalTermination on a successful bounce-back. If the value
@@ -25,11 +25,9 @@ type AccountSource = "acquireTokenSilent" | "silent" | "redirect" | "failed";
 export const MSAL_REDIRECT_IN_FLIGHT_KEY = "cps_global_components_msal_redirect_in_flight_at";
 export const MSAL_REDIRECT_LOOP_GUARD_MS = 30_000;
 
-type AccountRetrievalResult = Promise<{ source: AccountSource; account: AccountInfo } | null>;
+type AccountRetrievalResult = Promise<AccountInfo | null>;
 
 const loginRequest = { scopes: ["User.Read"] };
-
-const { _debug } = makeConsole("getAdUserAccount");
 
 const DEFAULT_SSO_SILENT_DELAY_MS = 0;
 
@@ -37,17 +35,16 @@ const waitForPageStability = async (ssoSilentDelayMs: number, scriptStartMs: num
   const elapsed = Math.round(performance.now() - scriptStartMs);
   const remainingDelay = Math.max(0, ssoSilentDelayMs - elapsed);
   if (remainingDelay > 0) {
-    _debug(`Waiting ${remainingDelay}ms before ssoSilent (${elapsed}ms elapsed since script start, threshold ${ssoSilentDelayMs}ms)`);
     await new Promise(resolve => setTimeout(resolve, remainingDelay));
   }
 };
 
-const internalGetAdUserAccount = async ({
+export const getAdUserAccount = async ({
   instance,
   config: { SSO_SILENT_DELAY_MS },
   addSilentFlowDiagnostics,
   getOperationId,
-  onError,
+  logError,
   useFullPageRedirect,
 }: Props) => {
   const t0 = performance.now();
@@ -58,9 +55,9 @@ const internalGetAdUserAccount = async ({
 
     try {
       const result = await instance.acquireTokenSilent({ ...loginRequest, account, cacheLookupPolicy: CacheLookupPolicy.AccessTokenAndRefreshToken });
-      return result.account ? { source: "acquireTokenSilent", account: result.account } : null;
+      return result.account ?? null;
     } catch (error) {
-      onError?.(asError(error));
+      logError("acquireTokenSilent failed", asError(error));
       return null;
     }
   };
@@ -89,7 +86,7 @@ const internalGetAdUserAccount = async ({
     try {
       const { account } = await instance.ssoSilent(ssoSilentRequest);
       addSilentFlowDiagnostics?.({ time: silentFlowStartTime, url: window.location.href, operationId, completedTime: Date.now(), outcome: "complete" });
-      return account ? { source: "silent", account } : null;
+      return account ?? null;
     } catch (error) {
       const rawErrorCode = (error as { errorCode?: unknown })?.errorCode;
       addSilentFlowDiagnostics?.({
@@ -101,7 +98,7 @@ const internalGetAdUserAccount = async ({
         ...(typeof rawErrorCode === "string" && rawErrorCode ? { errorCode: rawErrorCode } : {}),
       });
 
-      onError?.(asError(error));
+      logError("ssoSilent failed", asError(error));
       throw error;
     }
   };
@@ -121,7 +118,7 @@ const internalGetAdUserAccount = async ({
       const error = new Error(
         `MSAL loginRedirect already in-flight (sentinel set ${Date.now() - Number(guardValue)}ms ago); refusing to re-fire to avoid a loop`,
       );
-      onError?.(error);
+      logError("loginRedirect loop guard tripped", error);
       throw error;
     }
     window.sessionStorage.setItem(MSAL_REDIRECT_IN_FLIGHT_KEY, String(Date.now()));
@@ -131,7 +128,7 @@ const internalGetAdUserAccount = async ({
       // Failed to even start the redirect (e.g. interaction_in_progress) —
       // clear the sentinel so the next attempt can run, then surface.
       window.sessionStorage.removeItem(MSAL_REDIRECT_IN_FLIGHT_KEY);
-      onError?.(asError(error));
+      logError("loginRedirect threw before navigating", asError(error));
       throw error;
     }
     // Unreachable: loginRedirect navigates the page away before its Promise resolves.
@@ -142,14 +139,12 @@ const internalGetAdUserAccount = async ({
   // and returns null when it doesn't — the cascade stays a flat OR-chain. Order
   // matters: redirect comes before silent so that when redirect fires it owns
   // the page and the silent step is never reached.
-  const { account, source } = (await tryAcquireTokenSilently()) ||
+  const account =
+    (await tryAcquireTokenSilently()) ||
     (await tryLoginAccountViaRedirect()) ||
     (await tryLoginAccountSilently()) ||
-    { source: "failed" as AccountSource, account: null };
+    null;
   instance.setActiveAccount(account);
 
-  _debug("Source", source);
   return account;
 };
-
-export const getAdUserAccount = withLogging("getAdUserAccount", internalGetAdUserAccount);

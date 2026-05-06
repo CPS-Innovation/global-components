@@ -1,6 +1,6 @@
 import { Config, Preview } from "cps-global-configuration";
 import { initialiseAdAuth } from "cps-global-auth";
-import { Auth, AuthResult, FailedAuth } from "./AuthResult";
+import { AuthResult, FailedAuth } from "./AuthResult";
 import { GetToken } from "./GetToken";
 import { FoundContext } from "../context/FoundContext";
 import { ApplicationFlags } from "../application-flags/ApplicationFlags";
@@ -9,11 +9,11 @@ import type { SilentFlowDiagnostic, SilentFlowDiagnostics } from "../diagnostics
 import { TrackException } from "../analytics/TrackException";
 import { FEATURE_FLAGS } from "../../feature-flags/feature-flags";
 import { Result } from "../../utils/Result";
-import { AuthHint } from "../state/auth-hint/initialise-auth-hint";
+import { AuthHint, SetAuthHint } from "../state/auth-hint/initialise-auth-hint";
+import { makeConsole } from "../../logging/makeConsole";
 
 type Register = (arg: { auth: AuthResult }) => void;
 type RegisterAuthWithAnalytics = (auth: AuthResult) => void;
-type SetAuthHint = (auth: Auth, trackException?: TrackException) => void;
 type AddSilentFlowDiagnostics = (entry: SilentFlowDiagnostic) => void;
 type GetOperationId = () => string | undefined;
 
@@ -60,28 +60,37 @@ export const initialiseAuth = ({
   // preview-token override.
   const useFullPageRedirect = FEATURE_FLAGS.shouldUseFullPageMsalRedirect({ config, preview, auth: undefined, authHint });
 
-  const onError = (error: Error) =>
-    trackException(error, {
-      type: "auth",
-      properties: {
-        ...(silentFlowDiagnostics && { silentFlowDiagnostics }),
-      },
-    });
+  // Single error delegate handed down to cps-global-auth: console-log under
+  // our namespace AND telemetry-track to App Insights. The library hands every
+  // error it surfaces through this hook — no separate onError concept.
+  const { _error } = makeConsole("auth");
+  const logError = (...data: unknown[]) => {
+    _error(...data);
+    const error = data.find(d => d instanceof Error) as Error | undefined;
+    if (error) {
+      trackException(error, {
+        type: "auth",
+        properties: {
+          ...(silentFlowDiagnostics && { silentFlowDiagnostics }),
+        },
+      });
+    }
+  };
 
   let authInFlight: Promise<{ auth: AuthResult; getToken: GetToken }> | null = null;
 
-  const initialiseAuthForContext = async (ctx: FoundContext): Promise<{ auth: AuthResult; getToken: GetToken }> => {
+  const initialiseAuthForContext = async (context: FoundContext): Promise<{ auth: AuthResult; getToken: GetToken }> => {
     // Guard against concurrent calls (e.g. rapid SPA navigation while auth is in-flight)
     if (authInFlight) {
       return authInFlight;
     }
 
     const doAuth = async (): Promise<{ auth: AuthResult; getToken: GetToken }> =>
-      ctx.preventADAndDataCalls
+      context.preventADAndDataCalls
         ? noAuthResult
         : isE2e
           ? initialiseMockAuth({ flags })
-          : initialiseAdAuth({ config, context: ctx, onError, addSilentFlowDiagnostics, getOperationId, useFullPageRedirect });
+          : initialiseAdAuth({ config, context, logError, addSilentFlowDiagnostics, getOperationId, useFullPageRedirect });
 
     authInFlight = doAuth()
       .then(result => {

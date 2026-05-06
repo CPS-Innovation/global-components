@@ -1,11 +1,11 @@
 import { PublicClientApplication } from "@azure/msal-browser";
-import { makeConsole, withLogging } from "./internal/logging";
 import { createMsalInstance } from "./internal/create-msal-instance";
 import { AuthResult, FailedAuth, KnownErrorType } from "./AuthResult";
 import { getAdUserAccount } from "./get-ad-user-account";
 import { getErrorType } from "./get-error-type";
 import { getTokenFactory } from "./get-token-factory";
 import { GetToken } from "./GetToken";
+import { LogError } from "./LogError";
 import type { SilentFlowDiagnostic } from "./silent-flow-diagnostic";
 
 // Structural shapes — narrow to just the bits we actually read. Lets the auth
@@ -25,7 +25,10 @@ type AdAuthContext = {
 type Props = {
   config: AdAuthConfig;
   context: AdAuthContext;
-  onError?: (error: Error) => void;
+  // Single error delegate from the host. Implementations typically do both
+  // console-log AND telemetry tracking (e.g. trackException to App Insights).
+  // The library hands every error it surfaces through this one hook.
+  logError: LogError;
   addSilentFlowDiagnostics?: (entry: SilentFlowDiagnostic) => void;
   getOperationId?: () => string | undefined;
   // Whether to swap the silent/popup cascade for an acquireTokenSilent →
@@ -39,8 +42,6 @@ const failedAuth = (knownErrorType: KnownErrorType, reason: string): { auth: Fai
   getToken: () => Promise.resolve(null),
 });
 
-const { _error } = makeConsole("initialiseAdAuth");
-
 // Module-level: the MSAL instance is created lazily on the first call and reused
 // across subsequent calls so MSAL's internal token/account cache persists. The
 // module is loaded once per page (initialiseAuth's caller is guarded by
@@ -48,10 +49,10 @@ const { _error } = makeConsole("initialiseAdAuth");
 // scoped to the page.
 let instance: PublicClientApplication | undefined;
 
-const initialiseAdAuthInternal = async ({
+export const initialiseAdAuth = async ({
   config: { AD_TENANT_AUTHORITY: authority, AD_CLIENT_ID: clientId, SSO_SILENT_DELAY_MS },
   context: { msalRedirectUrl: redirectUri, currentHref },
-  onError,
+  logError,
   addSilentFlowDiagnostics,
   getOperationId,
   useFullPageRedirect,
@@ -78,7 +79,7 @@ const initialiseAdAuthInternal = async ({
       config: { SSO_SILENT_DELAY_MS },
       addSilentFlowDiagnostics,
       getOperationId,
-      onError,
+      logError,
       useFullPageRedirect,
     });
     if (!account) {
@@ -93,13 +94,11 @@ const initialiseAdAuthInternal = async ({
         objectId: account.localAccountId,
         groups: (account.idTokenClaims?.["groups"] as string[]) || [],
       },
-      getToken: getTokenFactory({ instance }),
+      getToken: getTokenFactory({ instance, logError }),
     };
   } catch (error) {
     const errorType = getErrorType(error);
-    _error({ errorType, authority, clientId, redirectUri, error });
+    logError("initialiseAdAuth failed", { errorType, authority, clientId, redirectUri, error });
     return failedAuth(errorType, `${error}`);
   }
 };
-
-export const initialiseAdAuth = withLogging("initialiseAdAuth", initialiseAdAuthInternal);

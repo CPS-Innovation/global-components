@@ -11,5 +11,6 @@ export { handleMsalTermination } from "./handle-msal-termination";
 
 export type { Auth, AuthResult, FailedAuth, KnownErrorType } from "./AuthResult";
 export type { GetToken } from "./GetToken";
+export type { LogError } from "./LogError";
 export type { SilentFlowDiagnostic } from "./silent-flow-diagnostic";
 export type { HandleMsalTerminationOutcome } from "./handle-msal-termination";

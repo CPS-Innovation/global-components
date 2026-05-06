@@ -1,5 +1,15 @@
 import { handleMsalTermination } from "./handle-msal-termination";
 
+// Silence console.error — the production code logs intentionally-rejected
+// errors in the "handled-with-error" tests, which would otherwise pollute the
+// test output with stack traces.
+beforeEach(() => {
+  jest.spyOn(console, "error").mockImplementation(() => {});
+});
+afterEach(() => {
+  jest.restoreAllMocks();
+});
+
 const makeWindow = ({
   origin = "https://example.com",
   pathname = "/page.html",
@@ -77,11 +87,7 @@ describe("handleMsalTermination", () => {
     const handleRedirectPromise = jest.fn().mockRejectedValue(new Error("boom"));
     const createInstance = jest.fn().mockResolvedValue({ handleRedirectPromise });
 
-    const result = await handleMsalTermination(
-      makeWindow(),
-      { clientId: "c", authority: "a" },
-      createInstance,
-    );
+    const result = await handleMsalTermination(makeWindow(), { clientId: "c", authority: "a" }, createInstance);
 
     expect(result).toBe("handled-with-error");
   });
@@ -89,11 +95,7 @@ describe("handleMsalTermination", () => {
   it("returns 'handled-with-error' when createInstance rejects (e.g. initialize() fails inside the factory)", async () => {
     const createInstance = jest.fn().mockRejectedValue(new Error("init-fail"));
 
-    const result = await handleMsalTermination(
-      makeWindow(),
-      { clientId: "c", authority: "a" },
-      createInstance,
-    );
+    const result = await handleMsalTermination(makeWindow(), { clientId: "c", authority: "a" }, createInstance);
 
     expect(result).toBe("handled-with-error");
   });

@@ -1,7 +1,4 @@
-import { makeConsole } from "./internal/logging";
 import { createMsalInstance } from "./internal/create-msal-instance";
-
-const { _debug, _error } = makeConsole("handleMsalTermination");
 
 type MsalConfig = {
   clientId: string;
@@ -25,7 +22,6 @@ export const handleMsalTermination = async (
   createInstance: CreateInstance = createMsalInstance,
 ): Promise<HandleMsalTerminationOutcome> => {
   if (win.self !== win.top) {
-    _debug("running inside iframe — no-op");
     return "iframe-noop";
   }
 
@@ -38,11 +34,15 @@ export const handleMsalTermination = async (
     await instance.handleRedirectPromise();
     // Clear the per-tab loop guard set by tryLoginAccountViaRedirect — the
     // round-trip completed successfully and the next page load is free to
-    // re-attempt loginRedirect if cached tokens have expired again.
+    // re-attempt loginRedirect if cached tokens have expired again. Note: this
+    // line is racing MSAL's window.location.assign navigation triggered by
+    // handleRedirectPromise (navigateToLoginRequestUrl: true, the default) —
+    // usually it fires (one microtask before unload) but the 30s loop-guard
+    // expiry in tryLoginAccountViaRedirect is the safety net if it doesn't.
     win.sessionStorage.removeItem("cps_global_components_msal_redirect_in_flight_at");
     return "handled";
   } catch (err) {
-    _error("handleRedirectPromise threw", err);
+    console.error("[CPS-GLOBAL-AUTH] handleMsalTermination: handleRedirectPromise threw", err);
     return "handled-with-error";
   }
 };
