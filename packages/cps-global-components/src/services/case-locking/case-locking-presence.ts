@@ -1,6 +1,7 @@
 import { HubConnection, HubConnectionBuilder, HttpTransportType } from "@microsoft/signalr";
 import { Register } from "../../store/store";
 import { CaseLockingPresence, CaseLockingPresenceUser } from "./CaseLockingPresence";
+import { makeConsole } from "../../logging/makeConsole";
 
 type HubFactory = (url: string) => HubConnection;
 
@@ -10,8 +11,9 @@ type Props = {
   appName: string;
   register: Register;
   hubFactory?: HubFactory;
-  log?: (...args: unknown[]) => void;
 };
+
+const { _debug, _warn, _error } = makeConsole("caseLockingPresence");
 
 const defaultHubFactory: HubFactory = url =>
   new HubConnectionBuilder()
@@ -25,14 +27,9 @@ export type CaseLockingPresenceService = {
   removeCode: (code: string) => void;
 };
 
-export const createCaseLockingPresence = ({
-  apiUrl,
-  username,
-  appName,
-  register,
-  hubFactory = defaultHubFactory,
-  log = () => {},
-}: Props): CaseLockingPresenceService => {
+export const createCaseLockingPresence = ({ apiUrl, username, appName, register, hubFactory = defaultHubFactory }: Props): CaseLockingPresenceService => {
+  _debug("creating presence service", { apiUrl, username, appName });
+
   let currentCaseId: string | undefined;
   const desiredCodes = new Set<string>();
   const connections = new Map<string, { caseId: string; connection: HubConnection }>();
@@ -43,7 +40,9 @@ export const createCaseLockingPresence = ({
   const buildSectionKey = (caseId: string, code: string) => `case-${caseId}-${code}`;
 
   const publishPresence = () => {
-    register({ caseLockingPresence: Object.fromEntries(presenceByCode) as CaseLockingPresence });
+    const next = Object.fromEntries(presenceByCode) as CaseLockingPresence;
+    _debug("publishing presence", next);
+    register({ caseLockingPresence: next });
   };
 
   const setPresenceForCode = (code: string, users: CaseLockingPresenceUser[]) => {
@@ -63,29 +62,36 @@ export const createCaseLockingPresence = ({
       return;
     }
     const sectionKey = buildSectionKey(caseId, code);
+    _debug("starting connection", { sectionKey, code, caseId });
     const connection = hubFactory(apiUrl);
     connections.set(code, { caseId, connection });
 
     connection.on("Notify", (users: CaseLockingPresenceUser[]) => {
+      _debug("Notify received", { code, sectionKey, users });
       const others = (users ?? []).filter(u => u.user !== username);
       setPresenceForCode(code, others);
     });
 
     connection.onreconnected(() => {
-      connection.invoke("Connect", sectionKey, username, appName).catch(err => log("reconnect invoke failed", err));
+      _debug("reconnected — re-invoking Connect", { sectionKey });
+      connection.invoke("Connect", sectionKey, username, appName).catch(err => _warn("reconnect invoke failed", { sectionKey }, err));
     });
 
     connection.onclose(err => {
       if (err) {
-        log("connection closed with error", err);
+        _warn("connection closed with error", { sectionKey }, err);
+      } else {
+        _debug("connection closed", { sectionKey });
       }
     });
 
     try {
       await connection.start();
+      _debug("connection started — invoking Connect", { sectionKey });
       await connection.invoke("Connect", sectionKey, username, appName);
+      _debug("Connect acknowledged", { sectionKey });
     } catch (err) {
-      log("start/invoke failed", err);
+      _error("start/invoke failed", { sectionKey }, err);
       connections.delete(code);
       try {
         await connection.stop();
@@ -100,18 +106,20 @@ export const createCaseLockingPresence = ({
     if (!entry) {
       return;
     }
+    _debug("stopping connection", { code, caseId: entry.caseId });
     connections.delete(code);
     clearPresenceForCode(code);
     try {
       await entry.connection.stop();
     } catch (err) {
-      log("stop failed", err);
+      _warn("stop failed", { code }, err);
     }
   };
 
   const reconcile = async () => {
     const caseId = currentCaseId;
     const desired = caseId ? new Set(desiredCodes) : new Set<string>();
+    _debug("reconciling", { caseId, desired: Array.from(desired), live: Array.from(connections.keys()) });
 
     for (const [code, entry] of Array.from(connections.entries())) {
       if (!desired.has(code) || entry.caseId !== caseId) {
@@ -138,6 +146,7 @@ export const createCaseLockingPresence = ({
       if (caseId === currentCaseId) {
         return;
       }
+      _debug("setCaseId", { from: currentCaseId, to: caseId });
       currentCaseId = caseId;
       queueReconcile();
     },
@@ -145,6 +154,7 @@ export const createCaseLockingPresence = ({
       if (desiredCodes.has(code)) {
         return;
       }
+      _debug("addCode", { code });
       desiredCodes.add(code);
       queueReconcile();
     },
@@ -152,6 +162,7 @@ export const createCaseLockingPresence = ({
       if (!desiredCodes.has(code)) {
         return;
       }
+      _debug("removeCode", { code });
       desiredCodes.delete(code);
       queueReconcile();
     },
