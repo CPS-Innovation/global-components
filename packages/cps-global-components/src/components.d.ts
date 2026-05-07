@@ -82,7 +82,7 @@ export namespace Components {
     }
     interface CpsRegion {
         /**
-          * Identifier passed to the central service when this region enters or leaves the DOM. Reflected so it's readable as an attribute.
+          * Identifier passed to the central service when this region enters or leaves "present" state. Reflected so it's readable as an attribute.
          */
         "code": string;
     }
@@ -300,7 +300,7 @@ declare namespace LocalJSX {
     }
     interface CpsRegion {
         /**
-          * Identifier passed to the central service when this region enters or leaves the DOM. Reflected so it's readable as an attribute.
+          * Identifier passed to the central service when this region enters or leaves "present" state. Reflected so it's readable as an attribute.
          */
         "code": string;
     }
