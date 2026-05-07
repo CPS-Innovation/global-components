@@ -19,7 +19,7 @@ export class CpsRegion {
    * Presence = mounted in DOM AND not display:none on self or any ancestor.
    */
   private isPresent = false;
-  private observer?: IntersectionObserver;
+  private observer?: ResizeObserver;
 
   connectedCallback() {
     // Defer to a microtask so a synchronous detach-then-reattach (DOM move)
@@ -28,6 +28,8 @@ export class CpsRegion {
       if (!this.el.isConnected) {
         return;
       }
+      // Re-attach on every (re)connect so that DOM moves rebind to the new parent.
+      this.detachObserver();
       this.attachObserver();
       this.evaluate();
     });
@@ -53,8 +55,12 @@ export class CpsRegion {
   }
 
   render() {
+    // Host is given a 1×1 inline-block presence so ResizeObserver has dimensions to
+    // observe even when no slot content is provided. This lets the component reliably
+    // detect ancestor display:none transitions on its own without walking the parent
+    // tree. Slot content (when present) grows beyond the minimum naturally.
     return (
-      <Host>
+      <Host style={{ display: 'inline-block', minWidth: '1px', minHeight: '1px' }}>
         <slot />
       </Host>
     );
@@ -64,12 +70,15 @@ export class CpsRegion {
     if (this.observer) {
       return;
     }
-    const ctor = (window as unknown as { IntersectionObserver?: typeof IntersectionObserver }).IntersectionObserver;
+    const ctor = (window as unknown as { ResizeObserver?: typeof ResizeObserver }).ResizeObserver;
     if (typeof ctor !== 'function') {
-      // No IO in this environment — best-effort: assume present while in DOM.
+      // No RO in this environment — best-effort: assume present while in DOM.
       this.applyPresence(true, this.code);
       return;
     }
+    // We observe self because the host's render() applies a 1×1 minimum size
+    // ensuring there's always a content box for RO to track. RO reports a 0×0
+    // box transition when the element (or any ancestor) becomes display:none.
     this.observer = new ctor(() => this.evaluate());
     this.observer.observe(this.el);
   }
