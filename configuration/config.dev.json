@@ -20,6 +20,9 @@
   "FEATURE_FLAG_MENU_USERS": {
     "generallyAvailable": true
   },
+  "FEATURE_FLAG_USE_MSAL_FULL_REDIRECT_USERS": {
+    "variants": { "useRedirect": 1 }
+  },
   "SSO_SILENT_DELAY_MS": 2000,
   "CONTEXTS": [
     {
