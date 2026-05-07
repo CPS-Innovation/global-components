@@ -363,4 +363,75 @@ describe("FEATURE_FLAGS", () => {
       });
     });
   });
+
+  describe("shouldEnableCaseLocking", () => {
+    const makeState = (overrides: {
+      apiUrl?: string;
+      featureFlag?: any;
+      isAuthed?: boolean;
+      groups?: string[];
+      objectId?: string;
+      authHint?: any;
+      previewCaseLocking?: boolean;
+    }) => ({
+      config: {
+        CASE_LOCKING_API_URL: overrides.apiUrl,
+        FEATURE_FLAG_CASE_LOCKING_USERS: overrides.featureFlag,
+      } as any,
+      preview: { found: true, result: { caseLocking: overrides.previewCaseLocking } } as any,
+      auth: {
+        isAuthed: overrides.isAuthed ?? true,
+        groups: overrides.groups ?? [],
+        username: "testuser",
+        objectId: overrides.objectId ?? "test-object-id",
+      } as any,
+      authHint: overrides.authHint,
+    });
+
+    it("returns false when CASE_LOCKING_API_URL is not set", () => {
+      const state = makeState({ featureFlag: { generallyAvailable: true } });
+      expect(FEATURE_FLAGS.shouldEnableCaseLocking(state)).toBe(false);
+    });
+
+    it("returns false when feature flag is not configured and preview override is off", () => {
+      const state = makeState({ apiUrl: "https://example.test/api" });
+      expect(FEATURE_FLAGS.shouldEnableCaseLocking(state)).toBe(false);
+    });
+
+    it("returns true when generally available and api url is set", () => {
+      const state = makeState({ apiUrl: "https://example.test/api", featureFlag: { generallyAvailable: true } });
+      expect(FEATURE_FLAGS.shouldEnableCaseLocking(state)).toBe(true);
+    });
+
+    it("returns true when user is in feature flag ad group", () => {
+      const state = makeState({ apiUrl: "https://example.test/api", featureFlag: { adGroupIds: ["case-locking-pilots"] }, groups: ["case-locking-pilots"] });
+      expect(FEATURE_FLAGS.shouldEnableCaseLocking(state)).toBe(true);
+    });
+
+    it("returns false when user is not in any allow list", () => {
+      const state = makeState({ apiUrl: "https://example.test/api", featureFlag: { adGroupIds: ["case-locking-pilots"] }, groups: ["other-group"] });
+      expect(FEATURE_FLAGS.shouldEnableCaseLocking(state)).toBe(false);
+    });
+
+    it("returns true when preview override is on (even without group membership)", () => {
+      const state = makeState({ apiUrl: "https://example.test/api", featureFlag: { adGroupIds: ["case-locking-pilots"] }, groups: ["other-group"], previewCaseLocking: true });
+      expect(FEATURE_FLAGS.shouldEnableCaseLocking(state)).toBe(true);
+    });
+
+    it("returns false when preview override is on but api url is missing", () => {
+      const state = makeState({ featureFlag: { adGroupIds: ["case-locking-pilots"] }, previewCaseLocking: true });
+      expect(FEATURE_FLAGS.shouldEnableCaseLocking(state)).toBe(false);
+    });
+
+    it("falls back to authHint when auth is unavailable", () => {
+      const state = makeState({
+        apiUrl: "https://example.test/api",
+        featureFlag: { adGroupIds: ["case-locking-pilots"] },
+        isAuthed: false,
+        authHint: { found: true, result: { authResult: { isAuthed: true, groups: ["case-locking-pilots"], username: "u", objectId: "o" }, timestamp: 1 } },
+      });
+      (state as any).auth = undefined;
+      expect(FEATURE_FLAGS.shouldEnableCaseLocking(state)).toBe(true);
+    });
+  });
 });

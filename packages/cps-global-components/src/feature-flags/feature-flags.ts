@@ -39,6 +39,9 @@ const shouldShowHomePageNotification = ({ config, auth, authHint, preview }: Pic
 const shouldUseFullPageMsalRedirect = ({ config, preview, auth, authHint }: Pick<State, "config" | "preview"> & Pick<StoredState, "auth" | "authHint">) =>
   !!preview.result?.useFullPageMsalRedirect || isUserInFeatureGroup({ auth, authHint, config }, "FEATURE_FLAG_USE_MSAL_FULL_REDIRECT_USERS");
 
+const shouldEnableCaseLocking = ({ config, preview, auth, authHint }: Pick<State, "config" | "preview"> & Pick<StoredState, "auth" | "authHint">) =>
+  !!config.CASE_LOCKING_API_URL && (!!preview.result?.caseLocking || isUserInFeatureGroup({ auth, authHint, config }, "FEATURE_FLAG_CASE_LOCKING_USERS"));
+
 export const FEATURE_FLAGS = {
   shouldShowCaseDetails,
   shouldEnableAccessibilityMode,
@@ -49,4 +52,5 @@ export const FEATURE_FLAGS = {
   reportIssueLink,
   shouldShowHomePageNotification,
   shouldUseFullPageMsalRedirect,
+  shouldEnableCaseLocking,
 };
