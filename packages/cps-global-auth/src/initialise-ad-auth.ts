@@ -74,7 +74,7 @@ export const initialiseAdAuth = async ({
   }
 
   try {
-    const account = await getAdUserAccount({
+    const { account } = await getAdUserAccount({
       instance,
       config: { SSO_SILENT_DELAY_MS },
       addSilentFlowDiagnostics,

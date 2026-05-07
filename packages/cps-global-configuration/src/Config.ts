@@ -41,13 +41,31 @@ const authorisationSchema = z.object({
 
 export type Authorisation = z.infer<typeof authorisationSchema>;
 
+// All four inclusion fields below are independent OR conditions: a user is
+// "in" if ANY one of them is satisfied. Combine freely — e.g. "test team
+// always on, plus 1% of everyone else" is `adGroupIds + variants`.
 const featureFlagUsersSchema = z.object({
+  // AD security group ids; user is in if their token has any of these.
   adGroupIds: z.array(z.string()).optional(),
-  // Lets use AD accounts UUID ObjectID rather than email address for ad-hoc user enrolment
-  //  into the feature flag.  At the time of writing we check config in to source
-  //  control, object ids do not convey personal data.
+  // AAD object ids (UUIDs) for ad-hoc enrolment — used for individual
+  // engineers who don't fit a group. Object ids don't convey personal data, so
+  // they're safe to commit to source control.
   adHocUserObjectIds: z.array(z.string()).optional(),
+  // Trump card: when true, everyone is in regardless of any other condition.
   generallyAvailable: z.boolean().optional(),
+  // A/B / canary bucketing. Authed users are bucketed deterministically by
+  // their objectId; landing on a non-control share puts them "in" AND tags the
+  // result with the variant name. The implicit residual is "control" — never
+  // name a variant "control" here. Salt defaults to the parent FEATURE_FLAG_*
+  // key; override via `variantSalt` if you ever rename the key and want the
+  // existing population to keep its assignments.
+  variants: z
+    .record(
+      z.string().refine(k => k !== "control", "variant name 'control' is reserved"),
+      z.number().min(0).max(100),
+    )
+    .optional(),
+  variantSalt: z.string().optional(),
 });
 
 export type FeatureFlagUsers = z.infer<typeof featureFlagUsersSchema>;
