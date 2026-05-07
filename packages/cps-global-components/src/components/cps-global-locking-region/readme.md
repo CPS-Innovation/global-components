@@ -7,9 +7,9 @@
 
 ## Properties
 
-| Property            | Attribute | Description                                                                                                                     | Type     | Default     |
-| ------------------- | --------- | ------------------------------------------------------------------------------------------------------------------------------- | -------- | ----------- |
-| `code` _(required)_ | `code`    | Identifier passed to the central service when this region enters or leaves the DOM. Reflected so it's readable as an attribute. | `string` | `undefined` |
+| Property            | Attribute | Description                                                                                                                             | Type     | Default     |
+| ------------------- | --------- | --------------------------------------------------------------------------------------------------------------------------------------- | -------- | ----------- |
+| `code` _(required)_ | `code`    | Identifier passed to the central service when this region enters or leaves "present" state. Reflected so it's readable as an attribute. | `string` | `undefined` |
 
 
 ----------------------------------------------

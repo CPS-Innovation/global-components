@@ -73,7 +73,7 @@ describe("witnessAreaSubscriber", () => {
       return subscriptions[0].handler;
     };
 
-    it("adds a cps-region when the div is visible and no region exists", () => {
+    it("injects a cps-region into the matched element", () => {
       const div = document.createElement("div");
       div.id = "WitnessIsActive";
       document.body.appendChild(div);
@@ -85,7 +85,7 @@ describe("witnessAreaSubscriber", () => {
       expect(region?.getAttribute("code")).toBe("witness");
     });
 
-    it("does not add a second cps-region when one already exists", () => {
+    it("is idempotent — does not double-inject if already present", () => {
       const div = document.createElement("div");
       div.id = "WitnessIsActive";
       document.body.appendChild(div);
@@ -96,43 +96,15 @@ describe("witnessAreaSubscriber", () => {
       expect(div.querySelectorAll("cps-region")).toHaveLength(1);
     });
 
-    it("removes the cps-region when the div becomes display:none", () => {
+    it("injects regardless of the host's visibility (presence is the region's job)", () => {
       const div = document.createElement("div");
       div.id = "WitnessIsActive";
+      div.style.display = "none";
       document.body.appendChild(div);
 
-      getHandler()(div);
-      expect(div.querySelector("cps-region")).not.toBeNull();
-
-      div.style.display = "none";
-      getHandler()(div);
-
-      expect(div.querySelector("cps-region")).toBeNull();
-    });
-
-    it("re-adds the cps-region when the div becomes visible again", () => {
-      const div = document.createElement("div");
-      div.id = "WitnessIsActive";
-      document.body.appendChild(div);
-
-      getHandler()(div);
-      div.style.display = "none";
-      getHandler()(div);
-      div.style.display = "";
       getHandler()(div);
 
       expect(div.querySelector("cps-region")).not.toBeNull();
-    });
-
-    it("does nothing when the div starts hidden and no region exists yet", () => {
-      const div = document.createElement("div");
-      div.id = "WitnessIsActive";
-      div.style.display = "none";
-      document.body.appendChild(div);
-
-      getHandler()(div);
-
-      expect(div.querySelector("cps-region")).toBeNull();
     });
   });
 });

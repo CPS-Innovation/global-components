@@ -10,39 +10,44 @@ export class CpsRegion {
 
   /**
    * Identifier passed to the central service when this region
-   * enters or leaves the DOM. Reflected so it's readable as an attribute.
+   * enters or leaves "present" state. Reflected so it's readable as an attribute.
    */
   @Prop({ reflect: true }) code!: string;
 
   /**
-   * Tracks whether the registry currently considers this element "entered".
-   * Used to make enter/leave idempotent across DOM moves and code changes.
+   * Tracks whether the registry currently considers this element "present".
+   * Presence = mounted in DOM AND not display:none on self or any ancestor.
    */
-  private isRegistered = false;
+  private isPresent = false;
+  private observer?: IntersectionObserver;
 
   connectedCallback() {
-    // Defer to a microtask so a synchronous detach-then-reattach
-    // (DOM move) doesn't produce a spurious leave/enter pair.
+    // Defer to a microtask so a synchronous detach-then-reattach (DOM move)
+    // doesn't produce a spurious leave/enter pair.
     queueMicrotask(() => {
-      if (this.el.isConnected && !this.isRegistered) {
-        regionRegistry.enter(this.el, this.code);
-        this.isRegistered = true;
+      if (!this.el.isConnected) {
+        return;
       }
+      this.attachObserver();
+      this.evaluate();
     });
   }
 
   disconnectedCallback() {
     queueMicrotask(() => {
-      if (!this.el.isConnected && this.isRegistered) {
-        regionRegistry.leave(this.el, this.code);
-        this.isRegistered = false;
+      if (this.el.isConnected) {
+        return;
       }
+      this.detachObserver();
+      this.applyPresence(false, this.code);
     });
   }
 
   @Watch('code')
   onCodeChange(newCode: string, oldCode: string) {
-    if (newCode === oldCode || !this.isRegistered) return;
+    if (newCode === oldCode || !this.isPresent) {
+      return;
+    }
     regionRegistry.leave(this.el, oldCode);
     regionRegistry.enter(this.el, newCode);
   }
@@ -53,5 +58,43 @@ export class CpsRegion {
         <slot />
       </Host>
     );
+  }
+
+  private attachObserver() {
+    if (this.observer) {
+      return;
+    }
+    const ctor = (window as unknown as { IntersectionObserver?: typeof IntersectionObserver }).IntersectionObserver;
+    if (typeof ctor !== 'function') {
+      // No IO in this environment — best-effort: assume present while in DOM.
+      this.applyPresence(true, this.code);
+      return;
+    }
+    this.observer = new ctor(() => this.evaluate());
+    this.observer.observe(this.el);
+  }
+
+  private detachObserver() {
+    this.observer?.disconnect();
+    this.observer = undefined;
+  }
+
+  private evaluate() {
+    // offsetParent is null when the element (or any ancestor) is display:none.
+    // Position:fixed also yields null but doesn't apply to us.
+    const isLaidOut = this.el.offsetParent !== null;
+    this.applyPresence(isLaidOut, this.code);
+  }
+
+  private applyPresence(present: boolean, code: string) {
+    if (present === this.isPresent) {
+      return;
+    }
+    this.isPresent = present;
+    if (present) {
+      regionRegistry.enter(this.el, code);
+    } else {
+      regionRegistry.leave(this.el, code);
+    }
   }
 }

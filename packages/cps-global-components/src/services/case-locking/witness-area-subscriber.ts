@@ -8,6 +8,10 @@ const URL_FRAGMENT = "/workmanagementapp/caseoverview";
 
 const { _debug } = makeConsole("witnessAreaSubscriber");
 
+// Inject a <cps-region> into div#WitnessIsActive once and walk away. The cps-region
+// component handles its own presence lifecycle (mount + visibility), so the subscriber
+// doesn't need to track display toggles or remove the region when hidden — the region
+// itself goes inactive when its host is display:none, and back active when un-hidden.
 export const createWitnessAreaSubscriber =
   (enabled: boolean): DomMutationObserver =>
   ({ context }) => {
@@ -20,17 +24,12 @@ export const createWitnessAreaSubscriber =
           cssSelector: TARGET_SELECTOR,
           handler: (element: Element) => {
             const htmlEl = element as HTMLElement;
-            const isVisible = htmlEl.style.display !== "none";
-            const existing = htmlEl.querySelector(`cps-region[code="${REGION_CODE}"]`);
-            _debug("handler firing", { isVisible, hasExisting: !!existing, inlineDisplay: htmlEl.style.display });
-
-            if (isVisible && !existing) {
-              htmlEl.insertAdjacentHTML("beforeend", `<cps-region code="${REGION_CODE}"></cps-region>`);
-              _debug("WitnessIsActive visible — added cps-region", REGION_CODE);
-            } else if (!isVisible && existing) {
-              existing.remove();
-              _debug("WitnessIsActive hidden — removed cps-region", REGION_CODE);
+            if (htmlEl.querySelector(`cps-region[code="${REGION_CODE}"]`)) {
+              _debug("cps-region already present — no-op");
+              return;
             }
+            htmlEl.insertAdjacentHTML("beforeend", `<cps-region code="${REGION_CODE}"></cps-region>`);
+            _debug("WitnessIsActive matched — added cps-region", REGION_CODE);
           },
         },
       ],
