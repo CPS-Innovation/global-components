@@ -108,6 +108,13 @@ const FEATURES: Feature[] = [
       "Replace the silent SSO cascade with a full-page loginRedirect when the cached token is exhausted. Use only as an opt-in test of the redirect flow — it will navigate the page to AAD on a cold cache.",
     disabled: false,
   },
+  {
+    key: "caseLocking",
+    label: "Case locking",
+    description:
+      "Enable the case-locking presence feature: register the user as present on the current case via the SignalR hub and notify when other users are working on the same case section.",
+    disabled: false,
+  },
 ];
 
 type FeatureKey = Feature["key"];
