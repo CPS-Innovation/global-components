@@ -4,9 +4,11 @@
   "CASE_LOCKING_POC_SCRIPT_BLOB_ADDRESS": "",
   "CASE_LOCKING_API_URL": "https://polaris-qa-notprod.cps.gov.uk/global-components/case-locking/api/section-view",
   "FEATURE_FLAG_CASE_LOCKING_USERS": {
-    "adGroupIds": [
-      "e9abbdb6-b6e9-4972-90fb-79d3140df840",
-      "1e5874e3-1c88-4506-8b9f-4f469acc1a42"
+    "adHocUserObjectIds": [
+      "4faa102c-47fb-4631-80e8-6038d46de0b0",
+      "4acc9fb2-3e32-4109-b3d1-5fcd3a253e4e",
+      "87a7b627-cbac-4fcc-a452-371142bd7ac3",
+      "d900ce0d-5dc1-4800-9a6c-72cbc01005fa"
     ]
   },
   "BANNER_TITLE_HREF": "https://cps-tst.outsystemsenterprise.com/Casework_Blocks/home",
