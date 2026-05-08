@@ -25,7 +25,7 @@ const { _debug, _warn, _error } = makeConsole("caseLockingPresence");
 
 const defaultHubFactory: HubFactory = url =>
   new HubConnectionBuilder()
-    .withUrl(url, { transport: HttpTransportType.ServerSentEvents | HttpTransportType.LongPolling })
+    .withUrl(url, { transport: HttpTransportType.WebSockets | HttpTransportType.ServerSentEvents | HttpTransportType.LongPolling })
     .withAutomaticReconnect()
     .build();
 
