@@ -1,5 +1,5 @@
 import { createCaseLockingPresence } from "./case-locking-presence";
-import { CaseLockingPresence } from "./CaseLockingPresence";
+import { CaseLockingClash } from "./CaseLockingClash";
 
 type FakeHubConnection = {
   start: jest.Mock<Promise<void>, []>;
@@ -40,9 +40,9 @@ const flush = async () => {
 
 const setup = () => {
   const hubs: FakeHubConnection[] = [];
-  let presence: CaseLockingPresence | undefined;
-  const register = jest.fn((arg: { caseLockingPresence: CaseLockingPresence }) => {
-    presence = arg.caseLockingPresence;
+  let clash: CaseLockingClash;
+  const register = jest.fn((arg: { caseLockingClash: CaseLockingClash }) => {
+    clash = arg.caseLockingClash;
   });
   const service = createCaseLockingPresence({
     apiUrl: "https://example.test/api",
@@ -55,13 +55,13 @@ const setup = () => {
       return hub as any;
     },
   });
-  return { service, hubs, register, getPresence: () => presence };
+  return { service, hubs, register, getClash: () => clash };
 };
 
 describe("createCaseLockingPresence", () => {
   it("does not start any connection until both caseId and a code are present", async () => {
     const { service, hubs } = setup();
-    service.addCode("context-details");
+    service.addCode("witness");
     await flush();
     expect(hubs).toHaveLength(0);
 
@@ -69,7 +69,7 @@ describe("createCaseLockingPresence", () => {
     await flush();
     expect(hubs).toHaveLength(1);
     expect(hubs[0].start).toHaveBeenCalled();
-    expect(hubs[0].invoke).toHaveBeenCalledWith("Connect", "case-123-context-details", "alice", "test-app");
+    expect(hubs[0].invoke).toHaveBeenCalledWith("Connect", "case-123-witness", "alice", "test-app");
   });
 
   it("does not start a connection when caseId arrives but no codes are active", async () => {
@@ -103,10 +103,7 @@ describe("createCaseLockingPresence", () => {
     expect(hubs[0].stop).toHaveBeenCalled();
   });
 
-  it("ref-count: addCode twice + removeCode once keeps the connection up; removeCode twice stops it", async () => {
-    // Note: the service itself does not ref-count — that's the caller's responsibility.
-    // This test confirms idempotency of addCode (no second connection) and that a single
-    // removeCode tears down (since the service has only one notion of "desired").
+  it("addCode twice is idempotent (single connection)", async () => {
     const { service, hubs } = setup();
     service.setCaseId("123");
     service.addCode("a");
@@ -151,34 +148,6 @@ describe("createCaseLockingPresence", () => {
     expect(hubs[1].invoke).toHaveBeenCalledWith("Connect", "case-789-a", "alice", "test-app");
   });
 
-  it("Notify writes other users (excluding self) to presence under the code", async () => {
-    const { service, hubs, getPresence, register } = setup();
-    service.setCaseId("123");
-    service.addCode("a");
-    await flush();
-
-    hubs[0].__notifyHandler?.([
-      { user: "alice", appName: "test-app" },
-      { user: "bob", appName: "CMS" },
-    ]);
-
-    expect(register).toHaveBeenCalledWith({ caseLockingPresence: { a: [{ user: "bob", appName: "CMS" }] } });
-    expect(getPresence()).toEqual({ a: [{ user: "bob", appName: "CMS" }] });
-  });
-
-  it("clears presence for a code when that code is removed", async () => {
-    const { service, hubs, getPresence } = setup();
-    service.setCaseId("123");
-    service.addCode("a");
-    await flush();
-    hubs[0].__notifyHandler?.([{ user: "bob", appName: "CMS" }]);
-    expect(getPresence()).toEqual({ a: [{ user: "bob", appName: "CMS" }] });
-
-    service.removeCode("a");
-    await flush();
-    expect(getPresence()).toEqual({});
-  });
-
   it("on reconnect, re-invokes Connect with the same section key", async () => {
     const { service, hubs } = setup();
     service.setCaseId("123");
@@ -212,10 +181,99 @@ describe("createCaseLockingPresence", () => {
     service.addCode("a");
     await flush();
 
-    // a subsequent reconcile that re-asserts the same desired state should retry
     service.removeCode("a");
     service.addCode("a");
     await flush();
     expect(hubs.length).toBeGreaterThan(1);
+  });
+
+  describe("clash detection", () => {
+    it("first Notify with another user registers a clash and stops the connection", async () => {
+      const { service, hubs, getClash, register } = setup();
+      service.setCaseId("123");
+      service.addCode("witness");
+      await flush();
+
+      hubs[0].__notifyHandler?.([
+        { user: "alice", appName: "test-app" },
+        { user: "bob@cps.gov.uk", appName: "CMS" },
+      ]);
+      await flush();
+
+      expect(register).toHaveBeenCalledWith({ caseLockingClash: { upn: "bob@cps.gov.uk", code: "witness" } });
+      expect(getClash()).toEqual({ upn: "bob@cps.gov.uk", code: "witness" });
+      expect(hubs[0].stop).toHaveBeenCalled();
+    });
+
+    it("first Notify with no other users does NOT register a clash and keeps the connection", async () => {
+      const { service, hubs, getClash } = setup();
+      service.setCaseId("123");
+      service.addCode("witness");
+      await flush();
+
+      hubs[0].__notifyHandler?.([{ user: "alice", appName: "test-app" }]);
+      await flush();
+
+      expect(getClash()).toBeUndefined();
+      expect(hubs[0].stop).not.toHaveBeenCalled();
+    });
+
+    it("subsequent Notifys after a clean first do not re-trigger clash even if others appear later", async () => {
+      const { service, hubs, getClash, register } = setup();
+      service.setCaseId("123");
+      service.addCode("witness");
+      await flush();
+
+      hubs[0].__notifyHandler?.([{ user: "alice", appName: "test-app" }]);
+      await flush();
+      register.mockClear();
+
+      // Simulate a late joiner — we already have the lock, so we should NOT clash.
+      hubs[0].__notifyHandler?.([
+        { user: "alice", appName: "test-app" },
+        { user: "carol@cps.gov.uk", appName: "CMS" },
+      ]);
+      await flush();
+
+      expect(getClash()).toBeUndefined();
+      expect(register).not.toHaveBeenCalled();
+      expect(hubs[0].stop).not.toHaveBeenCalled();
+    });
+
+    it("removing the clashing code clears the clash from the store", async () => {
+      const { service, hubs, getClash } = setup();
+      service.setCaseId("123");
+      service.addCode("witness");
+      await flush();
+
+      hubs[0].__notifyHandler?.([
+        { user: "alice", appName: "test-app" },
+        { user: "bob@cps.gov.uk", appName: "CMS" },
+      ]);
+      await flush();
+      expect(getClash()).toEqual({ upn: "bob@cps.gov.uk", code: "witness" });
+
+      service.removeCode("witness");
+      await flush();
+      expect(getClash()).toBeUndefined();
+    });
+
+    it("changing caseId clears a clash for the old caseId", async () => {
+      const { service, hubs, getClash } = setup();
+      service.setCaseId("123");
+      service.addCode("witness");
+      await flush();
+
+      hubs[0].__notifyHandler?.([
+        { user: "alice", appName: "test-app" },
+        { user: "bob@cps.gov.uk", appName: "CMS" },
+      ]);
+      await flush();
+      expect(getClash()).toEqual({ upn: "bob@cps.gov.uk", code: "witness" });
+
+      service.setCaseId("456");
+      await flush();
+      expect(getClash()).toBeUndefined();
+    });
   });
 });

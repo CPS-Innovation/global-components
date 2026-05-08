@@ -11,7 +11,7 @@ import { CorrelationIds } from "../services/correlation/CorrelationIds";
 import { tagsSubscriptionFactory } from "./subscriptions/tags-subscription-factory";
 import { applyOnChangeHandler, SubscriptionFactory } from "./subscriptions/SubscriptionFactory";
 import { CaseDetails } from "../services/data/CaseDetails";
-import { CaseLockingPresence } from "../services/case-locking/CaseLockingPresence";
+import { CaseLockingClash } from "../services/case-locking/CaseLockingClash";
 import { ReadyStateHelper, readyStateFactory } from "./ready-state-factory";
 import { CaseIdentifiers } from "../services/context/CaseIdentifiers";
 import { caseIdentifiersSubscriptionFactory } from "./subscriptions/case-identifiers-subscription-factory";
@@ -93,7 +93,7 @@ type TransientState = {
   caseIdentifiers: CaseIdentifiers;
   caseDetails: Result<CaseDetails>;
   caseMonitoringCodes: Result<MonitoringCodes>;
-  caseLockingPresence: CaseLockingPresence;
+  caseLockingClash: CaseLockingClash;
 };
 const initialTransientState = {
   context: undefined,
@@ -107,7 +107,7 @@ const initialTransientState = {
   caseIdentifiers: undefined,
   caseDetails: undefined,
   caseMonitoringCodes: undefined,
-  caseLockingPresence: undefined,
+  caseLockingClash: undefined,
 };
 
 type AggregateState = {
