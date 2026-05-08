@@ -48,6 +48,8 @@ export namespace Components {
     }
     interface CpsGlobalCaseDetails {
     }
+    interface CpsGlobalCaseLockingNotification {
+    }
     interface CpsGlobalFooter {
     }
     interface CpsGlobalHeader {
@@ -141,6 +143,12 @@ declare global {
         prototype: HTMLCpsGlobalCaseDetailsElement;
         new (): HTMLCpsGlobalCaseDetailsElement;
     };
+    interface HTMLCpsGlobalCaseLockingNotificationElement extends Components.CpsGlobalCaseLockingNotification, HTMLStencilElement {
+    }
+    var HTMLCpsGlobalCaseLockingNotificationElement: {
+        prototype: HTMLCpsGlobalCaseLockingNotificationElement;
+        new (): HTMLCpsGlobalCaseLockingNotificationElement;
+    };
     interface HTMLCpsGlobalFooterElement extends Components.CpsGlobalFooter, HTMLStencilElement {
     }
     var HTMLCpsGlobalFooterElement: {
@@ -210,6 +218,7 @@ declare global {
         "cps-gds-notification-banner": HTMLCpsGdsNotificationBannerElement;
         "cps-global-banner": HTMLCpsGlobalBannerElement;
         "cps-global-case-details": HTMLCpsGlobalCaseDetailsElement;
+        "cps-global-case-locking-notification": HTMLCpsGlobalCaseLockingNotificationElement;
         "cps-global-footer": HTMLCpsGlobalFooterElement;
         "cps-global-header": HTMLCpsGlobalHeaderElement;
         "cps-global-home-page-notification": HTMLCpsGlobalHomePageNotificationElement;
@@ -265,6 +274,8 @@ declare namespace LocalJSX {
     interface CpsGlobalBanner {
     }
     interface CpsGlobalCaseDetails {
+    }
+    interface CpsGlobalCaseLockingNotification {
     }
     interface CpsGlobalFooter {
     }
@@ -360,6 +371,7 @@ declare namespace LocalJSX {
         "cps-gds-notification-banner": Omit<CpsGdsNotificationBanner, keyof CpsGdsNotificationBannerAttributes> & { [K in keyof CpsGdsNotificationBanner & keyof CpsGdsNotificationBannerAttributes]?: CpsGdsNotificationBanner[K] } & { [K in keyof CpsGdsNotificationBanner & keyof CpsGdsNotificationBannerAttributes as `attr:${K}`]?: CpsGdsNotificationBannerAttributes[K] } & { [K in keyof CpsGdsNotificationBanner & keyof CpsGdsNotificationBannerAttributes as `prop:${K}`]?: CpsGdsNotificationBanner[K] };
         "cps-global-banner": CpsGlobalBanner;
         "cps-global-case-details": CpsGlobalCaseDetails;
+        "cps-global-case-locking-notification": CpsGlobalCaseLockingNotification;
         "cps-global-footer": CpsGlobalFooter;
         "cps-global-header": Omit<CpsGlobalHeader, keyof CpsGlobalHeaderAttributes> & { [K in keyof CpsGlobalHeader & keyof CpsGlobalHeaderAttributes]?: CpsGlobalHeader[K] } & { [K in keyof CpsGlobalHeader & keyof CpsGlobalHeaderAttributes as `attr:${K}`]?: CpsGlobalHeaderAttributes[K] } & { [K in keyof CpsGlobalHeader & keyof CpsGlobalHeaderAttributes as `prop:${K}`]?: CpsGlobalHeader[K] };
         "cps-global-home-page-notification": CpsGlobalHomePageNotification;
@@ -378,6 +390,7 @@ declare module "@stencil/core" {
             "cps-gds-notification-banner": LocalJSX.IntrinsicElements["cps-gds-notification-banner"] & JSXBase.HTMLAttributes<HTMLCpsGdsNotificationBannerElement>;
             "cps-global-banner": LocalJSX.IntrinsicElements["cps-global-banner"] & JSXBase.HTMLAttributes<HTMLCpsGlobalBannerElement>;
             "cps-global-case-details": LocalJSX.IntrinsicElements["cps-global-case-details"] & JSXBase.HTMLAttributes<HTMLCpsGlobalCaseDetailsElement>;
+            "cps-global-case-locking-notification": LocalJSX.IntrinsicElements["cps-global-case-locking-notification"] & JSXBase.HTMLAttributes<HTMLCpsGlobalCaseLockingNotificationElement>;
             "cps-global-footer": LocalJSX.IntrinsicElements["cps-global-footer"] & JSXBase.HTMLAttributes<HTMLCpsGlobalFooterElement>;
             "cps-global-header": LocalJSX.IntrinsicElements["cps-global-header"] & JSXBase.HTMLAttributes<HTMLCpsGlobalHeaderElement>;
             "cps-global-home-page-notification": LocalJSX.IntrinsicElements["cps-global-home-page-notification"] & JSXBase.HTMLAttributes<HTMLCpsGlobalHomePageNotificationElement>;

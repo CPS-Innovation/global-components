@@ -41,6 +41,7 @@ export class CpsGlobalHeader {
           <cps-global-banner></cps-global-banner>
           {state.fatalInitialisationError ? renderError(state.fatalInitialisationError) : <cps-global-menu></cps-global-menu>}
           <cps-global-notifications></cps-global-notifications>
+          <cps-global-case-locking-notification></cps-global-case-locking-notification>
         </div>
       </Host>
     );
