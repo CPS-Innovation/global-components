@@ -2,13 +2,13 @@
  * The OS auth-handover.html endpoint should reference this file via
  * a `script` tag reference.
  *
- * MSAL config (clientId, authority) is fetched lazily from
- * `${scriptOrigin}/config.json` only when the os-ad-redirect dispatch fires —
- * cookie-return / token-return paths pay no extra HTTP. We assume the only
- * properties consumed here are `AD_CLIENT_ID` and `AD_TENANT_AUTHORITY`; if
- * either is missing the termination logs and bails.
+ * config.json is fetched eagerly on every load so CMS_AUTH_STORAGE_KEYS
+ * is available for all dispatch branches (cookie-return, token-return, and
+ * os-ad-redirect). The MSAL fields (AD_CLIENT_ID, AD_TENANT_AUTHORITY) are
+ * still only consumed on the os-ad-redirect path via fetchMsalConfig.
  */
 
+import { CmsAuthStorageKeys } from "cps-global-configuration";
 import { handleOsRedirect } from ".";
 
 const scriptUrl = new URL((document.currentScript as HTMLScriptElement).src);
@@ -18,20 +18,28 @@ const scriptOrigin = scriptUrl.origin;
 // as a CORS error from the OS host page.)
 const configUrl = new URL("./config.json", scriptUrl).href;
 
+const configPromise = fetch(configUrl).then(
+  (res) =>
+    res.json() as Promise<{
+      AD_CLIENT_ID?: string;
+      AD_TENANT_AUTHORITY?: string;
+      CMS_AUTH_STORAGE_KEYS: CmsAuthStorageKeys;
+    }>,
+);
+
 const fetchMsalConfig = async () => {
-  const res = await fetch(configUrl);
-  const config = (await res.json()) as {
-    AD_CLIENT_ID?: string;
-    AD_TENANT_AUTHORITY?: string;
-  };
+  const config = await configPromise;
   return {
     clientId: config.AD_CLIENT_ID ?? "",
     authority: config.AD_TENANT_AUTHORITY ?? "",
   };
 };
 
-handleOsRedirect(
-  window,
-  `${scriptOrigin}/auth-refresh-cms-modern-token`,
-  fetchMsalConfig,
+configPromise.then((config) =>
+  handleOsRedirect(
+    window,
+    `${scriptOrigin}/auth-refresh-cms-modern-token`,
+    fetchMsalConfig,
+    config.CMS_AUTH_STORAGE_KEYS,
+  ),
 );

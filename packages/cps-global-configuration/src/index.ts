@@ -1,5 +1,6 @@
 export {
   configSchema,
+  type CmsAuthStorageKeys,
   type Config,
   type ConfigStorage,
   type Context,

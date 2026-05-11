@@ -18,6 +18,15 @@ const baseProps: ArrangeProps = {
     ],
     LINKS: [],
     BANNER_TITLE_HREF: "/",
+    CMS_AUTH_STORAGE_KEYS: {
+      WMA_JSON: "$OS_Users$Casework_Blocks$ClientVars$JSONString",
+      WMA_COOKIES: "$OS_Users$Casework_Blocks$ClientVars$Cookies",
+      CASE_REVIEW_JSON: "$OS_Users$CaseReview$ClientVars$CmsAuthValues",
+      CASE_REVIEW_COOKIES: "$OS_Users$CaseReview$ClientVars$Cookies",
+      HOME_JSON: "$OS_Users$Casework_Blocks$ClientVars$JSONString",
+      HOME_COOKIES: "$OS_Users$Casework_Blocks$ClientVars$Cookies",
+      HOME_IS_FROM_PROXY: "$OS_Users$Casework_Blocks$ClientVars$IsFromProxy",
+    },
   },
   auth: { isAuthed: true, adGroups: ["e2e-test-group"] },
 };

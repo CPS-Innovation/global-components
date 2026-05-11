@@ -1,5 +1,14 @@
 {
   "ENVIRONMENT": "test",
+  "CMS_AUTH_STORAGE_KEYS": {
+    "WMA_JSON": "$OS_Users$Casework_Blocks$ClientVars$JSONString",
+    "WMA_COOKIES": "$OS_Users$Casework_Blocks$ClientVars$Cookies",
+    "CASE_REVIEW_JSON": "$OS_Users$CaseReview$ClientVars$CmsAuthValues",
+    "CASE_REVIEW_COOKIES": "$OS_Users$CaseReview$ClientVars$Cookies",
+    "HOME_JSON": "$OS_Users$Casework_Blocks$ClientVars$JSONString",
+    "HOME_COOKIES": "$OS_Users$Casework_Blocks$ClientVars$Cookies",
+    "HOME_IS_FROM_PROXY": "$OS_Users$Casework_Blocks$ClientVars$IsFromProxy"
+  },
   "REDIRECT_SCRIPT_URL": "https://polaris-qa-notprod.cps.gov.uk/global-components/test/global-components.js",
   "CASE_LOCKING_POC_SCRIPT_BLOB_ADDRESS": "",
   "CASE_LOCKING_API_URL": "https://polaris-qa-notprod.cps.gov.uk/global-components/case-locking/api/section-view",

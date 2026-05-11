@@ -9,11 +9,13 @@ import { paramKeys, stages } from "../core/constants";
 import { getCmsSessionHint } from "../core/get-cms-session-hint";
 import { resetTasklistFilters } from "../application-logic/reset-tasklist-filters";
 import { handleMsalTermination } from "cps-global-auth";
+import { CmsAuthStorageKeys } from "cps-global-configuration";
 
 export const handleOsRedirect = async (
   window: Window,
   tokenHandoverUrl: string,
   fetchMsalConfig: () => Promise<{ clientId: string; authority: string }>,
+  cmsAuthStorageKeys: CmsAuthStorageKeys,
 ) => {
   // The os-ad-redirect stage is the AAD bounce-back from a full-page MSAL
   // loginRedirect. The registered redirect URI bakes ?src=…&stage=os-ad-redirect
@@ -34,6 +36,7 @@ export const handleOsRedirect = async (
   const { stage, nextUrl, didUpdateToken } = handleOsRedirectInternal({
     currentUrl: window.location.href,
     tokenHandoverUrl,
+    cmsAuthStorageKeys,
   });
 
   if (didUpdateToken && window.location.hostname.startsWith("cps-tst")) {
@@ -43,7 +46,7 @@ export const handleOsRedirect = async (
     resetTasklistFilters(window);
   }
 
-  await handleSettingCmsSessionHint({ stage, nextUrl });
+  await handleSettingCmsSessionHint({ stage, nextUrl, cmsAuthStorageKeys });
 
   window.location.replace(nextUrl);
 };
@@ -52,9 +55,11 @@ export const handleOsRedirect = async (
 export const handleOsRedirectInternal = ({
   currentUrl,
   tokenHandoverUrl,
+  cmsAuthStorageKeys,
 }: {
   currentUrl: string;
   tokenHandoverUrl: string;
+  cmsAuthStorageKeys: CmsAuthStorageKeys;
 }) => {
   const url = new URL(currentUrl);
   const [stage] = stripParams(url, paramKeys.STAGE);
@@ -63,7 +68,11 @@ export const handleOsRedirectInternal = ({
     case stages.OS_COOKIE_RETURN: {
       const [cookies] = stripParams(url, paramKeys.COOKIES);
 
-      const canGoStraightToTarget = isStoredAuthCurrent(cookies, localStorage);
+      const canGoStraightToTarget = isStoredAuthCurrent(
+        cookies,
+        localStorage,
+        cmsAuthStorageKeys,
+      );
 
       if (canGoStraightToTarget) {
         // The cookies we have in storage are the same as the ones we have been just given
@@ -88,8 +97,12 @@ export const handleOsRedirectInternal = ({
         paramKeys.TOKEN,
       );
 
-      const didUpdateToken = !isStoredTokenSameAs(token, localStorage);
-      storeAuth(cookies, token, localStorage);
+      const didUpdateToken = !isStoredTokenSameAs(
+        token,
+        localStorage,
+        cmsAuthStorageKeys,
+      );
+      storeAuth(cookies, token, localStorage, cmsAuthStorageKeys);
 
       return { stage, nextUrl: target, didUpdateToken };
     }
@@ -103,9 +116,11 @@ export const handleOsRedirectInternal = ({
 const handleSettingCmsSessionHint = async ({
   stage,
   nextUrl,
+  cmsAuthStorageKeys,
 }: {
   stage: string;
   nextUrl: string;
+  cmsAuthStorageKeys: CmsAuthStorageKeys;
 }) => {
   try {
     if (stage !== stages.OS_TOKEN_RETURN) {
@@ -121,7 +136,7 @@ const handleSettingCmsSessionHint = async ({
     }
 
     const cmsSessionHint = await getCmsSessionHint();
-    setCmsSessionHint(cmsSessionHint, localStorage);
+    setCmsSessionHint(cmsSessionHint, localStorage, cmsAuthStorageKeys);
   } catch (err) {
     console.log(`handleSettingCmsSessionHint error: ${err}`);
   }
