@@ -39,7 +39,7 @@ const shouldUseFullPageMsalRedirect = ({ config, preview, auth, authHint }: Pick
   !!preview.result?.useFullPageMsalRedirect || getFeatureFlagAssignment({ auth, authHint, config }, "FEATURE_FLAG_USE_MSAL_FULL_REDIRECT_USERS").result;
 
 const shouldEnableCaseLocking = ({ config, preview, auth, authHint }: Pick<State, "config" | "preview"> & Pick<StoredState, "auth" | "authHint">) =>
-  !!config.CASE_LOCKING_API_URL && (!!preview.result?.caseLocking || isUserInFeatureGroup({ auth, authHint, config }, "FEATURE_FLAG_CASE_LOCKING_USERS"));
+  !!config.CASE_LOCKING_API_URL && (!!preview.result?.caseLocking || getFeatureFlagAssignment({ auth, authHint, config }, "FEATURE_FLAG_CASE_LOCKING_USERS").result);
 
 export const FEATURE_FLAGS = {
   shouldShowCaseDetails,
