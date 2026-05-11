@@ -65,7 +65,7 @@ describe("handleMsalLogin", () => {
     expect(createInstance).not.toHaveBeenCalled();
   });
 
-  it("creates the MSAL instance with a redirectUri that strips both query and hash", async () => {
+  it("creates the MSAL instance with a redirectUri that strips both query and hash, and replaceOnNavigate=true", async () => {
     const loginRedirect = jest.fn().mockResolvedValue(undefined);
     const createInstance = jest.fn().mockResolvedValue({ loginRedirect });
 
@@ -84,6 +84,7 @@ describe("handleMsalLogin", () => {
       clientId: "client-id",
       authority: "https://login.microsoftonline.com/tenant",
       redirectUri: "https://app.example/sub/msal-redirect.html",
+      replaceOnNavigate: true,
     });
   });
 
