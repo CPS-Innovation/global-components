@@ -66,7 +66,10 @@ export const handleMsalTermination = async (
     const returnTo = win.sessionStorage.getItem(MSAL_REDIRECT_RETURN_TO_KEY);
     if (returnTo) {
       win.sessionStorage.removeItem(MSAL_REDIRECT_RETURN_TO_KEY);
-      win.location.assign(returnTo);
+      // replace, not assign — the bounce-back msal-redirect.html entry has no
+      // value to the user post-auth; without replace, hitting back lands them
+      // on a blank page (no hash, no action=login → bundle no-ops).
+      win.location.replace(returnTo);
     }
     return "handled";
   } catch (err) {
