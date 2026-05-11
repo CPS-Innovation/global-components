@@ -1,44 +1,44 @@
-import { CmsSessionHint } from "cps-global-configuration";
+import { CmsAuthStorageKeys, CmsSessionHint } from "cps-global-configuration";
 import { areAllCookieStringsEqual } from "./are-all-cookie-strings-equal";
 
-const localStorageKeys = {
-  WMA_JSON: "$OS_Users$Casework_Blocks$ClientVars$JSONString",
-  WMA_COOKIES: "$OS_Users$Casework_Blocks$ClientVars$Cookies",
-  CASE_REVIEW_JSON: "$OS_Users$CaseReview$ClientVars$CmsAuthValues",
-  CASE_REVIEW_COOKIES: "$OS_Users$CaseReview$ClientVars$Cookies",
-  HOME_JSON: "$OS_Users$Casework_Blocks$ClientVars$JSONString",
-  HOME_COOKIES: "$OS_Users$Casework_Blocks$ClientVars$Cookies",
-  HOME_IS_FROM_PROXY: "$OS_Users$Casework_Blocks$ClientVars$IsFromProxy",
-};
-
-export const storeAuth = (cookies: string, token: string, storage: Storage) => {
+export const storeAuth = (
+  cookies: string,
+  token: string,
+  storage: Storage,
+  keys: CmsAuthStorageKeys,
+) => {
   const cmsAuthValuesJson = JSON.stringify({
     Cookies: cookies,
     Token: token,
     ExpiryTime: new Date().toISOString(),
   });
 
-  storage[localStorageKeys.WMA_COOKIES] = cookies;
-  storage[localStorageKeys.CASE_REVIEW_COOKIES] = cookies;
-  storage[localStorageKeys.HOME_COOKIES] = cookies;
-  storage[localStorageKeys.WMA_JSON] = cmsAuthValuesJson;
-  storage[localStorageKeys.CASE_REVIEW_JSON] = cmsAuthValuesJson;
-  storage[localStorageKeys.HOME_JSON] = cmsAuthValuesJson;
+  storage[keys.WMA_COOKIES] = cookies;
+  storage[keys.CASE_REVIEW_COOKIES] = cookies;
+  storage[keys.HOME_COOKIES] = cookies;
+  storage[keys.WMA_JSON] = cmsAuthValuesJson;
+  storage[keys.CASE_REVIEW_JSON] = cmsAuthValuesJson;
+  storage[keys.HOME_JSON] = cmsAuthValuesJson;
 };
 
-export const isStoredAuthCurrent = (cookies: string, storage: Storage) =>
+export const isStoredAuthCurrent = (
+  cookies: string,
+  storage: Storage,
+  keys: CmsAuthStorageKeys,
+) =>
   areAllCookieStringsEqual(
     cookies,
-    storage[localStorageKeys.WMA_COOKIES],
-    storage[localStorageKeys.CASE_REVIEW_COOKIES],
-    storage[localStorageKeys.HOME_COOKIES],
+    storage[keys.WMA_COOKIES],
+    storage[keys.CASE_REVIEW_COOKIES],
+    storage[keys.HOME_COOKIES],
   );
 
 export const isStoredTokenSameAs = (
   token: string,
   storage: Storage,
+  keys: CmsAuthStorageKeys,
 ): boolean => {
-  const json = storage[localStorageKeys.WMA_JSON];
+  const json = storage[keys.WMA_JSON];
   if (!json) {
     return false;
   }
@@ -49,29 +49,33 @@ export const isStoredTokenSameAs = (
   }
 };
 
-export const syncOsAuth = (currentUrl: string, storage: Storage) => {
+export const syncOsAuth = (
+  currentUrl: string,
+  storage: Storage,
+  keys: CmsAuthStorageKeys,
+) => {
   const app = new URLPattern({ pathname: "/:app{/*}?" }).exec(currentUrl)
     ?.pathname.groups["app"];
 
   const copyToOtherApps = (
     jsonKey: keyof Pick<
-      typeof localStorageKeys,
+      CmsAuthStorageKeys,
       "WMA_JSON" | "CASE_REVIEW_JSON" | "HOME_JSON"
     >,
     cookiesKey: keyof Pick<
-      typeof localStorageKeys,
+      CmsAuthStorageKeys,
       "WMA_COOKIES" | "CASE_REVIEW_COOKIES" | "HOME_COOKIES"
     >,
   ) => {
-    storage[localStorageKeys.WMA_JSON] =
-      storage[localStorageKeys.CASE_REVIEW_JSON] =
-      storage[localStorageKeys.HOME_JSON] =
-        storage[localStorageKeys[jsonKey]];
+    storage[keys.WMA_JSON] =
+      storage[keys.CASE_REVIEW_JSON] =
+      storage[keys.HOME_JSON] =
+        storage[keys[jsonKey]];
 
-    storage[localStorageKeys.WMA_COOKIES] =
-      storage[localStorageKeys.CASE_REVIEW_COOKIES] =
-      storage[localStorageKeys.HOME_COOKIES] =
-        storage[localStorageKeys[cookiesKey]];
+    storage[keys.WMA_COOKIES] =
+      storage[keys.CASE_REVIEW_COOKIES] =
+      storage[keys.HOME_COOKIES] =
+        storage[keys[cookiesKey]];
   };
 
   switch (app) {
@@ -90,7 +94,6 @@ export const syncOsAuth = (currentUrl: string, storage: Storage) => {
 export const setCmsSessionHint = (
   cmsSessionHint: CmsSessionHint,
   storage: Storage,
+  keys: CmsAuthStorageKeys,
 ) =>
-  (storage[localStorageKeys.HOME_IS_FROM_PROXY] = String(
-    cmsSessionHint.isProxySession,
-  ));
+  (storage[keys.HOME_IS_FROM_PROXY] = String(cmsSessionHint.isProxySession));
