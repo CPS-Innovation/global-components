@@ -49,6 +49,7 @@ describe("initialiseAuth", () => {
     registerAuthWithAnalytics: mockRegisterAuthWithAnalytics,
     setAuthHint: mockSetAuthHint,
     trackException: mockTrackException,
+    window,
     ...overrides,
   });
 

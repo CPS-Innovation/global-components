@@ -1,4 +1,8 @@
 import { createMsalInstance } from "./internal/create-msal-instance";
+import {
+  MSAL_REDIRECT_COMPLETION_ID_KEY,
+  MSAL_REDIRECT_IN_FLIGHT_KEY,
+} from "./internal/redirect-storage-keys";
 
 type MsalConfig = {
   clientId: string;
@@ -12,9 +16,14 @@ type MsalLikeInstance = {
 // Async factory — must return an already-initialised instance (consistent with
 // createMsalInstance's contract). Tests inject a fake; production uses the
 // shared createMsalInstance factory.
-type CreateInstance = (config: MsalConfig & { redirectUri: string }) => Promise<MsalLikeInstance>;
+type CreateInstance = (
+  config: MsalConfig & { redirectUri: string },
+) => Promise<MsalLikeInstance>;
 
-export type HandleMsalTerminationOutcome = "iframe-noop" | "handled" | "handled-with-error";
+export type HandleMsalTerminationOutcome =
+  | "iframe-noop"
+  | "handled"
+  | "handled-with-error";
 
 export const handleMsalTermination = async (
   win: Window,
@@ -32,17 +41,26 @@ export const handleMsalTermination = async (
     const redirectUri = win.location.href.split("#")[0]!;
     const instance = await createInstance({ ...msalConfig, redirectUri });
     await instance.handleRedirectPromise();
-    // Clear the per-tab loop guard set by tryLoginAccountViaRedirect — the
-    // round-trip completed successfully and the next page load is free to
-    // re-attempt loginRedirect if cached tokens have expired again. Note: this
-    // line is racing MSAL's window.location.assign navigation triggered by
-    // handleRedirectPromise (navigateToLoginRequestUrl: true, the default) —
-    // usually it fires (one microtask before unload) but the 30s loop-guard
-    // expiry in tryLoginAccountViaRedirect is the safety net if it doesn't.
-    win.sessionStorage.removeItem("cps_global_components_msal_redirect_in_flight_at");
+    // Two synchronous writes before MSAL's window.location.assign navigation
+    // (triggered by navigateToLoginRequestUrl: true) pre-empts us:
+    //   1. Stamp a fresh UUID under COMPLETION_ID_KEY — get-ad-user-account
+    //      reads this on the bounce-back as the positive "redirect succeeded"
+    //      signal and uses the value as an analytics correlation token.
+    //   2. Clear the in-flight loop guard so the next page load is free to
+    //      re-attempt loginRedirect if cached tokens have expired again.
+    // Both racing the unload — usually they fire (one microtask before unload),
+    // and the 30s loop-guard TTL is the safety net if (2) doesn't.
+    win.sessionStorage.setItem(
+      MSAL_REDIRECT_COMPLETION_ID_KEY,
+      win.crypto.randomUUID(),
+    );
+    win.sessionStorage.removeItem(MSAL_REDIRECT_IN_FLIGHT_KEY);
     return "handled";
   } catch (err) {
-    console.error("[CPS-GLOBAL-AUTH] handleMsalTermination: handleRedirectPromise threw", err);
+    console.error(
+      "[CPS-GLOBAL-AUTH] handleMsalTermination: handleRedirectPromise threw",
+      err,
+    );
     return "handled-with-error";
   }
 };

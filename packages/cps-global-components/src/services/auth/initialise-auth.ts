@@ -32,6 +32,7 @@ type Props = {
   register: Register;
   registerAuthWithAnalytics: RegisterAuthWithAnalytics;
   setAuthHint: SetAuthHint;
+  window: Window;
 };
 
 const noAuthResult: { auth: FailedAuth; getToken: GetToken } = {
@@ -51,6 +52,7 @@ export const initialiseAuth = ({
   register,
   registerAuthWithAnalytics,
   setAuthHint,
+  window,
 }: Props): { initialiseAuthForContext: (context: FoundContext) => Promise<{ auth: AuthResult; getToken: GetToken }> } => {
   const isE2e = flags.e2eTestMode.isE2eTestMode;
 
@@ -90,7 +92,7 @@ export const initialiseAuth = ({
         ? noAuthResult
         : isE2e
           ? initialiseMockAuth({ flags })
-          : initialiseAdAuth({ config, context, logError, addSilentFlowDiagnostics, getOperationId, useFullPageRedirect });
+          : initialiseAdAuth({ config, context, logError, addSilentFlowDiagnostics, getOperationId, useFullPageRedirect, window });
 
     authInFlight = doAuth()
       .then(result => {

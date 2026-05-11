@@ -128,6 +128,7 @@ const initialise = async (window: Window & typeof globalThis) => {
       register,
       registerAuthWithAnalytics,
       setAuthHint,
+      window,
     });
     const { initialiseCaseDetailsDataForContext, initialiseCaseDetailsDataForContextOptimistic } = initialiseCaseDetailsData({
       config,
