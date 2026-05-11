@@ -19,7 +19,7 @@ type MsalLikeInstance = {
 };
 
 type CreateInstance = (
-  config: MsalConfig & { redirectUri: string },
+  config: MsalConfig & { redirectUri: string; replaceOnNavigate?: boolean },
 ) => Promise<MsalLikeInstance>;
 
 export type HandleMsalLoginOutcome =
@@ -82,7 +82,13 @@ export const handleMsalLogin = async (
   win.sessionStorage.setItem(MSAL_REDIRECT_RETURN_TO_KEY, validatedReturnTo);
 
   try {
-    const instance = await createInstance({ ...msalConfig, redirectUri });
+    const instance = await createInstance({
+      ...msalConfig,
+      redirectUri,
+      // Make MSAL's navigation to AAD use replace so the msal-redirect.html
+      // entry is not stacked on top of the host page entry in browser history.
+      replaceOnNavigate: true,
+    });
     await instance.loginRedirect({
       ...loginRequest,
       redirectStartPage: redirectUri,
