@@ -203,11 +203,12 @@ export const initialiseStore = () => {
   };
 
   const resetContextSpecificTags = (context?: FoundContext) => {
-    // Note: tags obtained from props passed from the host apps should not be cleared on context change.
-    //  They are subject to being updated via @Watch so all good there, but we definitely do not want
-    //  the tags from one context (e.g. caseId = 123) hanging around for the next context in an SPA
-    //  navigation (e.g. caseId = 456).
-    privateTagProperties.filter(key => !["propTags", "cmsSessionTags", "handoverTags"].includes(key)).forEach(key => store.set(key, {}));
+    // Note: tags sourced from outside the context — props (host-app driven, @Watch-refreshed),
+    //  cmsSession, handover, and caseDetails — are owned by their respective services and must
+    //  NOT be cleared here. caseDetailsTags in particular outlive context changes when the caseId
+    //  is unchanged, and are cleared/refreshed by initialiseCaseDetailsData when the case changes.
+    //  Only context-derived tags (path/dom) are cleared here.
+    privateTagProperties.filter(key => !["propTags", "cmsSessionTags", "handoverTags", "caseDetailsTags"].includes(key)).forEach(key => store.set(key, {}));
     if (context) {
       register({ pathTags: context.pathTags });
     }

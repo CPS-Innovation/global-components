@@ -160,4 +160,59 @@ describe("initialiseCaseDetailsData", () => {
       expect(mockFetchWithCircuitBreaker).not.toHaveBeenCalled();
     });
   });
+
+  describe("caseDetailsTags lifecycle", () => {
+    it("should clear caseDetailsTags on the first optimistic call (caseId goes from undefined to a value)", () => {
+      const { initialiseCaseDetailsData } = require("./initialise-case-details-data");
+      const mockRegister = jest.fn();
+      const props = { ...makeProps("https://gateway.example.com/"), register: mockRegister };
+      const { initialiseCaseDetailsDataForContextOptimistic } = initialiseCaseDetailsData(props);
+
+      initialiseCaseDetailsDataForContextOptimistic({ caseId: "123" });
+
+      expect(mockRegister).toHaveBeenCalledWith({ caseDetailsTags: {} });
+    });
+
+    it("should NOT clear caseDetailsTags when the caseId is unchanged across optimistic calls", () => {
+      const { initialiseCaseDetailsData } = require("./initialise-case-details-data");
+      const mockRegister = jest.fn();
+      const props = { ...makeProps("https://gateway.example.com/"), register: mockRegister };
+      const { initialiseCaseDetailsDataForContextOptimistic } = initialiseCaseDetailsData(props);
+
+      initialiseCaseDetailsDataForContextOptimistic({ caseId: "123" });
+      mockRegister.mockClear();
+
+      initialiseCaseDetailsDataForContextOptimistic({ caseId: "123" });
+
+      expect(mockRegister).not.toHaveBeenCalledWith({ caseDetailsTags: {} });
+    });
+
+    it("should clear caseDetailsTags when the caseId changes between optimistic calls", () => {
+      const { initialiseCaseDetailsData } = require("./initialise-case-details-data");
+      const mockRegister = jest.fn();
+      const props = { ...makeProps("https://gateway.example.com/"), register: mockRegister };
+      const { initialiseCaseDetailsDataForContextOptimistic } = initialiseCaseDetailsData(props);
+
+      initialiseCaseDetailsDataForContextOptimistic({ caseId: "123" });
+      mockRegister.mockClear();
+
+      initialiseCaseDetailsDataForContextOptimistic({ caseId: "456" });
+
+      expect(mockRegister).toHaveBeenCalledWith({ caseDetailsTags: {} });
+    });
+
+    it("should clear caseDetailsTags when caseIdentifiers go away after having had a case", () => {
+      const { initialiseCaseDetailsData } = require("./initialise-case-details-data");
+      const mockRegister = jest.fn();
+      const props = { ...makeProps("https://gateway.example.com/"), register: mockRegister };
+      const { initialiseCaseDetailsDataForContextOptimistic } = initialiseCaseDetailsData(props);
+
+      initialiseCaseDetailsDataForContextOptimistic({ caseId: "123" });
+      mockRegister.mockClear();
+
+      initialiseCaseDetailsDataForContextOptimistic(undefined);
+
+      expect(mockRegister).toHaveBeenCalledWith({ caseDetailsTags: {} });
+    });
+  });
 });
