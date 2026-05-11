@@ -19,6 +19,7 @@ describe("get-ad-user-account", () => {
     instance: mockInstance,
     config: { SSO_SILENT_DELAY_MS: 0 },
     logError: jest.fn(),
+    window,
   };
 
   beforeEach(() => {

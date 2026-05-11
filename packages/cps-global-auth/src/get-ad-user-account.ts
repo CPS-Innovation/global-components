@@ -22,6 +22,7 @@ type Props = {
   // console-log AND telemetry tracking (e.g. trackException to App Insights).
   logError: LogError;
   useFullPageRedirect?: boolean;
+  window: Window;
 };
 
 const asError = (value: unknown): Error =>
@@ -68,6 +69,7 @@ export const getAdUserAccount = async ({
   getOperationId,
   logError,
   useFullPageRedirect,
+  window,
 }: Props): Promise<GetAdUserAccountResult> => {
   const t0 = performance.now();
 
@@ -233,13 +235,19 @@ export const getAdUserAccount = async ({
   // analytics to know "this run sat at the back end of a redirect round-trip".
   // Failure mode: no account AND we either saw the completion id or the
   // in-flight sentinel was live at entry.
-  const mechanism: GetAdUserAccountMechanism = account
-    ? redirectCompletionId
-      ? "redirect-success"
-      : (producedBy ?? null)
-    : redirectCompletionId || wasRedirectInFlightAtEntry
-      ? "redirect-failure"
-      : null;
+  const deriveMechanism = (): GetAdUserAccountMechanism => {
+    if (account && redirectCompletionId) {
+      return "redirect-success";
+    }
+    if (account) {
+      return producedBy ?? null;
+    }
+    if (redirectCompletionId || wasRedirectInFlightAtEntry) {
+      return "redirect-failure";
+    }
+    return null;
+  };
+  const mechanism = deriveMechanism();
 
   return { account, mechanism, redirectCompletionId };
 };

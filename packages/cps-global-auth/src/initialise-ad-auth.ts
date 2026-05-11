@@ -35,6 +35,7 @@ type Props = {
   // loginRedirect cascade. Resolved by the host's feature-flag layer; the auth
   // library treats it as an opaque on/off and stays agnostic of how it is set.
   useFullPageRedirect?: boolean;
+  window: Window;
 };
 
 const failedAuth = (knownErrorType: KnownErrorType, reason: string): { auth: FailedAuth; getToken: GetToken } => ({
@@ -56,6 +57,7 @@ export const initialiseAdAuth = async ({
   addSilentFlowDiagnostics,
   getOperationId,
   useFullPageRedirect,
+  window,
 }: Props): Promise<{ auth: AuthResult; getToken: GetToken }> => {
   if (!(authority && clientId && redirectUri && currentHref)) {
     return failedAuth("ConfigurationIncomplete", `Found configuration is: ${JSON.stringify({ authority, clientId, redirectUri, currentHref })}`);
@@ -81,6 +83,7 @@ export const initialiseAdAuth = async ({
       getOperationId,
       logError,
       useFullPageRedirect,
+      window,
     });
     if (!account) {
       return failedAuth("NoAccountFound", "No AD account found");
