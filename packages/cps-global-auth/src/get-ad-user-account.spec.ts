@@ -30,12 +30,13 @@ describe("get-ad-user-account", () => {
     msalRedirectUrl,
   };
 
-  // The redirect path now calls window.location.assign rather than
-  // instance.loginRedirect. jsdom's Location.assign is non-writable so we
-  // redefine the whole location property with a stubbed assign. Restored after
-  // each test.
+  // The redirect path now calls window.location.replace rather than
+  // instance.loginRedirect. jsdom's Location.replace is non-writable so we
+  // redefine the whole location property with a stubbed replace (and assign,
+  // belt-and-braces for any incidental callers). Restored after each test.
   const originalLocation = window.location;
   let assignSpy: jest.Mock;
+  let replaceSpy: jest.Mock;
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -59,6 +60,7 @@ describe("get-ad-user-account", () => {
     window.sessionStorage.clear();
 
     assignSpy = jest.fn();
+    replaceSpy = jest.fn();
     Object.defineProperty(window, "location", {
       configurable: true,
       value: {
@@ -68,6 +70,7 @@ describe("get-ad-user-account", () => {
         search: originalLocation.search,
         hash: originalLocation.hash,
         assign: assignSpy,
+        replace: replaceSpy,
       },
     });
   });
@@ -197,6 +200,7 @@ describe("get-ad-user-account", () => {
 
       expect(result.account).toBe(mockAccount);
       expect(result.mechanism).toBe("cache");
+      expect(replaceSpy).not.toHaveBeenCalled();
       expect(assignSpy).not.toHaveBeenCalled();
       expect(mockInstance.loginRedirect).not.toHaveBeenCalled();
       expect(mockInstance.ssoSilent).not.toHaveBeenCalled();
@@ -208,7 +212,8 @@ describe("get-ad-user-account", () => {
 
       await getAdUserAccount({ ...defaultProps, useFullPageRedirect: true });
 
-      expect(assignSpy).toHaveBeenCalledTimes(1);
+      expect(replaceSpy).toHaveBeenCalledTimes(1);
+      expect(assignSpy).not.toHaveBeenCalled();
       // No MSAL interactive call on the host page — that's the whole point.
       expect(mockInstance.loginRedirect).not.toHaveBeenCalled();
       expect(mockInstance.ssoSilent).not.toHaveBeenCalled();
@@ -225,7 +230,7 @@ describe("get-ad-user-account", () => {
 
       await getAdUserAccount({ ...defaultProps, useFullPageRedirect: true });
 
-      const handedOff = new URL(assignSpy.mock.calls[0]![0] as string);
+      const handedOff = new URL(replaceSpy.mock.calls[0]![0] as string);
       expect(`${handedOff.origin}${handedOff.pathname}`).toBe(msalRedirectUrl);
       expect(handedOff.searchParams.get("action")).toBe("login");
       expect(handedOff.searchParams.get("returnTo")).toBe(window.location.href);
@@ -243,6 +248,7 @@ describe("get-ad-user-account", () => {
         getAdUserAccount({ ...defaultProps, useFullPageRedirect: true }),
       ).rejects.toThrow(/already in-flight/);
 
+      expect(replaceSpy).not.toHaveBeenCalled();
       expect(assignSpy).not.toHaveBeenCalled();
     });
 
@@ -256,7 +262,8 @@ describe("get-ad-user-account", () => {
 
       await getAdUserAccount({ ...defaultProps, useFullPageRedirect: true });
 
-      expect(assignSpy).toHaveBeenCalledTimes(1);
+      expect(replaceSpy).toHaveBeenCalledTimes(1);
+      expect(assignSpy).not.toHaveBeenCalled();
     });
 
     it("clears the loop-guard sentinel and surfaces if URL construction throws", async () => {

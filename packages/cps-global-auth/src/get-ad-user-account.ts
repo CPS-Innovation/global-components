@@ -225,7 +225,11 @@ export const getAdUserAccount = async ({
       const target = new URL(msalRedirectUrl);
       target.searchParams.set("action", "login");
       target.searchParams.set("returnTo", window.location.href);
-      window.location.assign(target.href);
+      // replace, not assign — we don't want the host page entry preserved in
+      // history under the msal-redirect.html?action=login entry. Hitting back
+      // through the auth flow would either re-fire loginRedirect or land the
+      // user on a blank msal-redirect.html. Treat the bounce as plumbing.
+      window.location.replace(target.href);
     } catch (error) {
       // assign normally cannot throw, but if URL construction fails or the
       // navigation is somehow rejected, clear the sentinel so the next attempt

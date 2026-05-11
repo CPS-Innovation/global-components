@@ -43,6 +43,7 @@ const makeWindow = ({
       hash,
       href: `${origin}${pathname}${search}${hash}`,
       assign: jest.fn(),
+      replace: jest.fn(),
     },
     sessionStorage: {
       removeItem: jest.fn((k: string) => {
@@ -162,7 +163,7 @@ describe("handleMsalTermination", () => {
   });
 
   describe("when a returnTo is stashed (initiated via handle-msal-login)", () => {
-    it("navigates window.location to the stashed returnTo after handleRedirectPromise resolves", async () => {
+    it("navigates window.location to the stashed returnTo (via replace) after handleRedirectPromise resolves", async () => {
       const handleRedirectPromise = jest.fn().mockResolvedValue(null);
       const createInstance = jest.fn().mockResolvedValue({ handleRedirectPromise });
       const win = makeWindow({ stashedReturnTo: "https://example.com/polaris-ui/case/123" });
@@ -170,9 +171,12 @@ describe("handleMsalTermination", () => {
       const result = await handleMsalTermination(win, { clientId: "c", authority: "a" }, createInstance);
 
       expect(result).toBe("handled");
-      expect((win.location as any).assign).toHaveBeenCalledWith(
+      // Use replace so the bounce-back msal-redirect.html entry is not left
+      // sitting in browser history.
+      expect((win.location as any).replace).toHaveBeenCalledWith(
         "https://example.com/polaris-ui/case/123",
       );
+      expect((win.location as any).assign).not.toHaveBeenCalled();
     });
 
     it("clears the stash before navigating so a re-entry to the page doesn't loop", async () => {
@@ -216,6 +220,7 @@ describe("handleMsalTermination", () => {
       await handleMsalTermination(win, { clientId: "c", authority: "a" }, createInstance);
 
       expect((win.location as any).assign).not.toHaveBeenCalled();
+      expect((win.location as any).replace).not.toHaveBeenCalled();
     });
   });
 });
