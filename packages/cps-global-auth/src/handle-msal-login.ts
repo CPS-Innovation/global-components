@@ -1,4 +1,5 @@
 import { createMsalInstance } from "./internal/create-msal-instance";
+import { MSAL_REDIRECT_RETURN_TO_KEY } from "./internal/redirect-storage-keys";
 
 // Origin-shared MSAL key. Hard-coded rather than imported because @azure/msal-browser
 // does not export it; it's defined as `${PREFIX}.${TemporaryCacheKeys.INTERACTION_STATUS_KEY}`
@@ -70,15 +71,27 @@ export const handleMsalLogin = async (
   const redirectUri = `${win.location.origin}${win.location.pathname}`;
   const validatedReturnTo = resolveReturnTo(returnTo, win.location.origin);
 
+  // Stash the returnTo so the termination handler can navigate to it after
+  // handleRedirectPromise resolves. We can't pass returnTo through
+  // redirectStartPage because we're using redirectStartPage = redirectUri
+  // to force MSAL's same-page (Branch A) processing on the bounce-back:
+  // if redirectStartPage != redirectUri, MSAL treats the redirect page as a
+  // staging post and defers token processing to the destination — but our
+  // destination (the host app) deliberately doesn't call handleRedirectPromise
+  // (AADSTS50196 trap), so the deferred response would never get processed.
+  win.sessionStorage.setItem(MSAL_REDIRECT_RETURN_TO_KEY, validatedReturnTo);
+
   try {
     const instance = await createInstance({ ...msalConfig, redirectUri });
     await instance.loginRedirect({
       ...loginRequest,
-      redirectStartPage: validatedReturnTo,
+      redirectStartPage: redirectUri,
     });
     // Unreachable: loginRedirect navigates the page away before its Promise resolves.
     return "initiated";
   } catch (err) {
+    // Clear the stash on failure — no termination handler will run to consume it.
+    win.sessionStorage.removeItem(MSAL_REDIRECT_RETURN_TO_KEY);
     console.error(
       "[CPS-GLOBAL-AUTH] handleMsalLogin: loginRedirect threw",
       err,
