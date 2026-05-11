@@ -17,14 +17,42 @@ const makeWindow = ({
   hash = "",
   iframe = false,
   uuid = "11111111-1111-4111-8111-111111111111",
+  stashedReturnTo,
+}: {
+  origin?: string;
+  pathname?: string;
+  search?: string;
+  hash?: string;
+  iframe?: boolean;
+  uuid?: string;
+  stashedReturnTo?: string;
 } = {}) => {
   const top = {} as Window;
   const self = iframe ? ({} as Window) : top;
+  const store: Record<string, string> = {};
+  if (stashedReturnTo) {
+    store["cps_global_components_msal_redirect_return_to"] = stashedReturnTo;
+  }
   return {
     self,
     top,
-    location: { origin, pathname, search, hash, href: `${origin}${pathname}${search}${hash}` },
-    sessionStorage: { removeItem: jest.fn(), setItem: jest.fn(), getItem: jest.fn() },
+    location: {
+      origin,
+      pathname,
+      search,
+      hash,
+      href: `${origin}${pathname}${search}${hash}`,
+      assign: jest.fn(),
+    },
+    sessionStorage: {
+      removeItem: jest.fn((k: string) => {
+        delete store[k];
+      }),
+      setItem: jest.fn((k: string, v: string) => {
+        store[k] = v;
+      }),
+      getItem: jest.fn((k: string) => store[k] ?? null),
+    },
     crypto: { randomUUID: jest.fn(() => uuid) },
   } as unknown as Window;
 };
@@ -121,8 +149,73 @@ describe("handleMsalTermination", () => {
     await handleMsalTermination(win, { clientId: "c", authority: "a" }, createInstance);
 
     expect(win.sessionStorage.setItem).not.toHaveBeenCalled();
-    // And the in-flight sentinel must NOT be cleared on failure — leaving it in
+    // The in-flight sentinel must NOT be cleared on failure — leaving it in
     // place is what powers get-ad-user-account's "redirect-failure" inference.
-    expect(win.sessionStorage.removeItem).not.toHaveBeenCalled();
+    expect(win.sessionStorage.removeItem).not.toHaveBeenCalledWith(
+      "cps_global_components_msal_redirect_in_flight_at",
+    );
+    // The returnTo stash IS cleared on failure — the flow is over and we don't
+    // want stale state polluting the next termination.
+    expect(win.sessionStorage.removeItem).toHaveBeenCalledWith(
+      "cps_global_components_msal_redirect_return_to",
+    );
+  });
+
+  describe("when a returnTo is stashed (initiated via handle-msal-login)", () => {
+    it("navigates window.location to the stashed returnTo after handleRedirectPromise resolves", async () => {
+      const handleRedirectPromise = jest.fn().mockResolvedValue(null);
+      const createInstance = jest.fn().mockResolvedValue({ handleRedirectPromise });
+      const win = makeWindow({ stashedReturnTo: "https://example.com/polaris-ui/case/123" });
+
+      const result = await handleMsalTermination(win, { clientId: "c", authority: "a" }, createInstance);
+
+      expect(result).toBe("handled");
+      expect((win.location as any).assign).toHaveBeenCalledWith(
+        "https://example.com/polaris-ui/case/123",
+      );
+    });
+
+    it("clears the stash before navigating so a re-entry to the page doesn't loop", async () => {
+      const handleRedirectPromise = jest.fn().mockResolvedValue(null);
+      const createInstance = jest.fn().mockResolvedValue({ handleRedirectPromise });
+      const win = makeWindow({ stashedReturnTo: "https://example.com/polaris-ui" });
+
+      await handleMsalTermination(win, { clientId: "c", authority: "a" }, createInstance);
+
+      expect(win.sessionStorage.removeItem).toHaveBeenCalledWith(
+        "cps_global_components_msal_redirect_return_to",
+      );
+    });
+
+    it("still stamps completion id and clears in-flight before navigating", async () => {
+      const handleRedirectPromise = jest.fn().mockResolvedValue(null);
+      const createInstance = jest.fn().mockResolvedValue({ handleRedirectPromise });
+      const win = makeWindow({
+        stashedReturnTo: "https://example.com/polaris-ui",
+        uuid: "abcdef01-2345-4678-89ab-cdef01234567",
+      });
+
+      await handleMsalTermination(win, { clientId: "c", authority: "a" }, createInstance);
+
+      expect(win.sessionStorage.setItem).toHaveBeenCalledWith(
+        "cps_global_components_msal_redirect_completion_id",
+        "abcdef01-2345-4678-89ab-cdef01234567",
+      );
+      expect(win.sessionStorage.removeItem).toHaveBeenCalledWith(
+        "cps_global_components_msal_redirect_in_flight_at",
+      );
+    });
+  });
+
+  describe("when no returnTo is stashed (OS handover folded path)", () => {
+    it("does not navigate window.location — MSAL's default handles it", async () => {
+      const handleRedirectPromise = jest.fn().mockResolvedValue(null);
+      const createInstance = jest.fn().mockResolvedValue({ handleRedirectPromise });
+      const win = makeWindow();
+
+      await handleMsalTermination(win, { clientId: "c", authority: "a" }, createInstance);
+
+      expect((win.location as any).assign).not.toHaveBeenCalled();
+    });
   });
 });

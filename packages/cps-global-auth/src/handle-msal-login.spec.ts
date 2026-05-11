@@ -87,12 +87,15 @@ describe("handleMsalLogin", () => {
     });
   });
 
-  it("calls loginRedirect with redirectStartPage set to the validated returnTo", async () => {
+  it("calls loginRedirect with redirectStartPage set to the redirectUri (forces same-page Branch A processing)", async () => {
     const loginRedirect = jest.fn().mockResolvedValue(undefined);
     const createInstance = jest.fn().mockResolvedValue({ loginRedirect });
 
     await handleMsalLogin(
-      makeWindow({ origin: "https://example.com" }),
+      makeWindow({
+        origin: "https://example.com",
+        pathname: "/sub/msal-redirect.html",
+      }),
       { clientId: "c", authority: "a" },
       "https://example.com/polaris-ui/case/123",
       createInstance,
@@ -100,8 +103,61 @@ describe("handleMsalLogin", () => {
 
     expect(loginRedirect).toHaveBeenCalledWith({
       scopes: ["User.Read"],
-      redirectStartPage: "https://example.com/polaris-ui/case/123",
+      redirectStartPage: "https://example.com/sub/msal-redirect.html",
     });
+  });
+
+  it("stashes the validated returnTo in sessionStorage for the termination handler", async () => {
+    const loginRedirect = jest.fn().mockResolvedValue(undefined);
+    const createInstance = jest.fn().mockResolvedValue({ loginRedirect });
+    const win = makeWindow({ origin: "https://example.com" });
+
+    await handleMsalLogin(
+      win,
+      { clientId: "c", authority: "a" },
+      "https://example.com/polaris-ui/case/123",
+      createInstance,
+    );
+
+    expect(win.sessionStorage.setItem).toHaveBeenCalledWith(
+      "cps_global_components_msal_redirect_return_to",
+      "https://example.com/polaris-ui/case/123",
+    );
+  });
+
+  it("stashes the fallback origin root when returnTo is cross-origin", async () => {
+    const loginRedirect = jest.fn().mockResolvedValue(undefined);
+    const createInstance = jest.fn().mockResolvedValue({ loginRedirect });
+    const win = makeWindow({ origin: "https://example.com" });
+
+    await handleMsalLogin(
+      win,
+      { clientId: "c", authority: "a" },
+      "https://evil.example.org/phishing",
+      createInstance,
+    );
+
+    expect(win.sessionStorage.setItem).toHaveBeenCalledWith(
+      "cps_global_components_msal_redirect_return_to",
+      "https://example.com/",
+    );
+  });
+
+  it("clears the stashed returnTo if loginRedirect rejects (no termination handler will consume it)", async () => {
+    const loginRedirect = jest.fn().mockRejectedValue(new Error("boom"));
+    const createInstance = jest.fn().mockResolvedValue({ loginRedirect });
+    const win = makeWindow({ origin: "https://example.com" });
+
+    await handleMsalLogin(
+      win,
+      { clientId: "c", authority: "a" },
+      "https://example.com/polaris-ui",
+      createInstance,
+    );
+
+    expect(win.sessionStorage.removeItem).toHaveBeenCalledWith(
+      "cps_global_components_msal_redirect_return_to",
+    );
   });
 
   it("clears a foreign msal.interaction.status before calling loginRedirect (so preflight passes)", async () => {
@@ -139,55 +195,40 @@ describe("handleMsalLogin", () => {
     expect(win.sessionStorage.removeItem).toHaveBeenCalledWith("msal.interaction.status");
   });
 
-  it("falls back to the redirect page's origin root when returnTo is cross-origin", async () => {
+  it("stashes the fallback origin root when returnTo is null", async () => {
     const loginRedirect = jest.fn().mockResolvedValue(undefined);
     const createInstance = jest.fn().mockResolvedValue({ loginRedirect });
+    const win = makeWindow({ origin: "https://example.com" });
 
     await handleMsalLogin(
-      makeWindow({ origin: "https://example.com" }),
-      { clientId: "c", authority: "a" },
-      "https://evil.example.org/phishing",
-      createInstance,
-    );
-
-    expect(loginRedirect).toHaveBeenCalledWith({
-      scopes: ["User.Read"],
-      redirectStartPage: "https://example.com/",
-    });
-  });
-
-  it("falls back to origin root when returnTo is null", async () => {
-    const loginRedirect = jest.fn().mockResolvedValue(undefined);
-    const createInstance = jest.fn().mockResolvedValue({ loginRedirect });
-
-    await handleMsalLogin(
-      makeWindow({ origin: "https://example.com" }),
+      win,
       { clientId: "c", authority: "a" },
       null,
       createInstance,
     );
 
-    expect(loginRedirect).toHaveBeenCalledWith({
-      scopes: ["User.Read"],
-      redirectStartPage: "https://example.com/",
-    });
+    expect(win.sessionStorage.setItem).toHaveBeenCalledWith(
+      "cps_global_components_msal_redirect_return_to",
+      "https://example.com/",
+    );
   });
 
-  it("falls back to origin root when returnTo is unparseable", async () => {
+  it("stashes the fallback origin root when returnTo is unparseable", async () => {
     const loginRedirect = jest.fn().mockResolvedValue(undefined);
     const createInstance = jest.fn().mockResolvedValue({ loginRedirect });
+    const win = makeWindow({ origin: "https://example.com" });
 
     await handleMsalLogin(
-      makeWindow({ origin: "https://example.com" }),
+      win,
       { clientId: "c", authority: "a" },
       "not a url",
       createInstance,
     );
 
-    expect(loginRedirect).toHaveBeenCalledWith({
-      scopes: ["User.Read"],
-      redirectStartPage: "https://example.com/",
-    });
+    expect(win.sessionStorage.setItem).toHaveBeenCalledWith(
+      "cps_global_components_msal_redirect_return_to",
+      "https://example.com/",
+    );
   });
 
   it("returns 'initiation-failed' when loginRedirect rejects, swallowing the error", async () => {

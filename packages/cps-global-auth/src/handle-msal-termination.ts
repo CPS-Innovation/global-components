@@ -2,6 +2,7 @@ import { createMsalInstance } from "./internal/create-msal-instance";
 import {
   MSAL_REDIRECT_COMPLETION_ID_KEY,
   MSAL_REDIRECT_IN_FLIGHT_KEY,
+  MSAL_REDIRECT_RETURN_TO_KEY,
 } from "./internal/redirect-storage-keys";
 
 type MsalConfig = {
@@ -55,8 +56,25 @@ export const handleMsalTermination = async (
       win.crypto.randomUUID(),
     );
     win.sessionStorage.removeItem(MSAL_REDIRECT_IN_FLIGHT_KEY);
+
+    // If handle-msal-login stashed a returnTo, this round-trip is our own
+    // (host-page → msal-redirect.html → AAD → msal-redirect.html → host-page).
+    // MSAL has processed the response inline (Branch A in handleRedirectPromise,
+    // forced by redirectStartPage = redirectUri); tokens are now in localStorage.
+    // Navigate the user back to where they came from. If absent (OS handover
+    // folded path), leave MSAL's default navigation to take over.
+    const returnTo = win.sessionStorage.getItem(MSAL_REDIRECT_RETURN_TO_KEY);
+    if (returnTo) {
+      win.sessionStorage.removeItem(MSAL_REDIRECT_RETURN_TO_KEY);
+      win.location.assign(returnTo);
+    }
     return "handled";
   } catch (err) {
+    // Clear the returnTo stash if present — flow is over and we don't want
+    // the next handleMsalTermination (different flow) to navigate stale.
+    // Leave the in-flight sentinel in place so get-ad-user-account on the
+    // next host-page entry can infer "redirect-failure".
+    win.sessionStorage.removeItem(MSAL_REDIRECT_RETURN_TO_KEY);
     console.error(
       "[CPS-GLOBAL-AUTH] handleMsalTermination: handleRedirectPromise threw",
       err,
