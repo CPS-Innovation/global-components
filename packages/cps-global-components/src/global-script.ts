@@ -63,10 +63,9 @@ const initialise = async (window: Window & typeof globalThis) => {
     initialiseNavigateCms({ window, rootUrl });
 
     const flags = initialiseApplicationFlags({ window, rootUrl, register });
-    initialiseOutSystemsReconcileAuth({ window, flags });
 
     // Config no longer depends on preview (override-via-preview was removed in
-     // FCT2-17451 drop 4) so it joins the parallel set.
+    // FCT2-17451 drop 4) so it joins the parallel set.
     const [{ handover, setNextHandover }, preview, settings, { authHint, setAuthHint }, { userDataHint, setUserDataHint }, cmsSessionHint, config] = await Promise.all([
       initialiseHandover({ rootUrl, register }),
       initialisePreview({ rootUrl, register }),
@@ -77,7 +76,9 @@ const initialise = async (window: Window & typeof globalThis) => {
       initialiseConfig({ rootUrl, flags, register }),
     ]);
 
-    initialiseCaseLocking({ window, rootUrl, config });
+    initialiseOutSystemsReconcileAuth({ window, flags, config });
+
+    const { initialiseCaseLockingForContext, witnessAreaSubscriber } = initialiseCaseLocking({ window, config, preview, register });
 
     const { initialiseDomForContext } = initialiseDomObservation(
       { window, register, mergeTags, preview, settings },
@@ -85,6 +86,7 @@ const initialise = async (window: Window & typeof globalThis) => {
       footerSubscriber,
       hostAppEventSubscriber,
       accessibilitySubscriber,
+      witnessAreaSubscriber,
     );
 
     initialiseTabTitle({ window, preview, subscribe, flags });
@@ -166,7 +168,10 @@ const initialise = async (window: Window & typeof globalThis) => {
           .catch(handleError);
 
         Promise.all([authPromise, caseIdentifiersPromise])
-          .then(([{ getToken }, caseIdentifiers]) => initialiseCaseDetailsDataForContext({ context, caseIdentifiers, getToken, correlationIds }))
+          .then(([{ getToken, auth }, caseIdentifiers]) => {
+            initialiseCaseDetailsDataForContext({ context, caseIdentifiers, getToken, correlationIds });
+            initialiseCaseLockingForContext({ auth, caseIdentifiers });
+          })
           .catch(handleError);
       } catch (err) {
         handleError(err);

@@ -1,8 +1,10 @@
-// PoC stub. Real implementation will broker enter/leave events across
-// regions and integrate with the case-locking SignalR hub. For now these are
-// no-ops so the component compiles and renders without depending on backend
-// state.
+import { RegionEnterEvent, RegionLeaveEvent } from "./region-events";
+
 export const regionRegistry = {
-  enter: (_el: HTMLElement, _code: string) => {},
-  leave: (_el: HTMLElement, _code: string) => {},
+  enter: (_el: HTMLElement, code: string) => {
+    document.dispatchEvent(new RegionEnterEvent({ code }));
+  },
+  leave: (_el: HTMLElement, code: string) => {
+    document.dispatchEvent(new RegionLeaveEvent({ code }));
+  },
 };

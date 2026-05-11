@@ -142,10 +142,23 @@ export type FetchCircuitBreakerConfig = z.infer<
   typeof fetchCircuitBreakerConfigSchema
 >;
 
+const cmsAuthStorageKeysSchema = z.object({
+  WMA_JSON: z.string(),
+  WMA_COOKIES: z.string(),
+  CASE_REVIEW_JSON: z.string(),
+  CASE_REVIEW_COOKIES: z.string(),
+  HOME_JSON: z.string(),
+  HOME_COOKIES: z.string(),
+  HOME_IS_FROM_PROXY: z.string(),
+});
+
+export type CmsAuthStorageKeys = z.infer<typeof cmsAuthStorageKeysSchema>;
+
 export const configBaseSchema = z.object({
   ENVIRONMENT: z.string(),
   REDIRECT_SCRIPT_URL: z.string().optional(),
   CASE_LOCKING_POC_SCRIPT_BLOB_ADDRESS: z.string().optional(),
+  CASE_LOCKING_API_URL: z.string().optional(),
   LINKS: z.array(linkSchema),
   BANNER_TITLE_HREF: z.string(),
   AD_TENANT_AUTHORITY: z.string().optional(),
@@ -163,6 +176,7 @@ export const configBaseSchema = z.object({
   OS_HANDOVER_URL: z.string().optional(),
   FEATURE_FLAG_MENU_USERS: featureFlagUsersSchema.optional(),
   FEATURE_FLAG_USE_MSAL_FULL_REDIRECT_USERS: featureFlagUsersSchema.optional(),
+  FEATURE_FLAG_CASE_LOCKING_USERS: featureFlagUsersSchema.optional(),
   SSO_SILENT_DELAY_MS: z.number().optional(),
   CACHE_CONFIG: cacheConfigSchema.optional(),
   FETCH_CIRCUIT_BREAKER_CONFIG: fetchCircuitBreakerConfigSchema.optional(),
@@ -175,6 +189,7 @@ export const configBaseSchema = z.object({
   PROBE_NAVIGATOR_PERMISSIONS_REFRESH_PERIOD_MINS: z.number().int().min(0).optional(),
   USER_DATA_REFRESH_PERIOD_MINS: z.number().int().min(0).optional(),
   USER_DATA_ATTEMPT_RETRY_ON_SPA_NAVIGATION: z.boolean().optional(),
+  CMS_AUTH_STORAGE_KEYS: cmsAuthStorageKeysSchema,
 });
 
 export const configStorageSchema = configBaseSchema.extend({

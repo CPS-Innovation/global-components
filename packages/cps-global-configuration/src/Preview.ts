@@ -22,6 +22,7 @@ export const PreviewSchema = z.object({
   tabTitleUrn: z.boolean().optional(),
   notifications: z.boolean().optional(),
   useFullPageMsalRedirect: z.boolean().optional(),
+  caseLocking: z.boolean().optional(),
 });
 
 export type Preview = z.infer<typeof PreviewSchema>;
