@@ -256,6 +256,23 @@ describe("store", () => {
           expect(result.state.tags).toEqual({ appId: "app1", caseId: "456" });
         }
       });
+
+      it("should preserve caseDetailsTags (owned by initialiseCaseDetailsData, not by context)", () => {
+        const { register, resetContextSpecificTags } = initialiseStore();
+
+        register({
+          pathTags: { caseId: "123" },
+          domTags: { urn: "old" },
+          caseDetailsTags: { isDcfCase: "true" },
+        });
+
+        resetContextSpecificTags({ found: true, pathTags: { caseId: "123" } } as any);
+
+        const result = readyState("tags");
+        if (result.isReady) {
+          expect(result.state.tags).toMatchObject({ caseId: "123", isDcfCase: "true" });
+        }
+      });
     });
   });
 
