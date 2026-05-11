@@ -1,0 +1,9 @@
+GloCo_PageViews
+//| where isnotempty(User_UserId)
+| where isnotempty(Auth_Username)
+| where isnotempty(User_CountNotSensitiveUnits)
+| summarize 
+    arg_max(TimeGenerated, User_AreaId, User_Area, User_HasViewNationalChargingTasksRight, User_CountSensitiveUnits, User_CountNotSensitiveUnits), UserIds = make_set(UserId) 
+by Auth_Username
+| extend User_AreaOrCPSD = iif(User_CountNotSensitiveUnits >= 120, "CPSD", User_Area)
+| project-away TimeGenerated
