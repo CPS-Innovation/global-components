@@ -15,12 +15,22 @@ import { getAdUserAccount } from "./get-ad-user-account";
 describe("get-ad-user-account", () => {
   let mockAccount: AccountInfo;
 
+  const msalRedirectUrl = "https://example.com/global-components/test/msal-redirect.html";
+
   const defaultProps = {
     instance: mockInstance,
     config: { SSO_SILENT_DELAY_MS: 0 },
     logError: jest.fn(),
     window,
+    msalRedirectUrl,
   };
+
+  // The redirect path now calls window.location.assign rather than
+  // instance.loginRedirect. jsdom's Location.assign is non-writable so we
+  // redefine the whole location property with a stubbed assign. Restored after
+  // each test.
+  const originalLocation = window.location;
+  let assignSpy: jest.Mock;
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -42,6 +52,26 @@ describe("get-ad-user-account", () => {
     (mockInstance.ssoSilent as jest.Mock).mockReset();
     (mockInstance.loginRedirect as jest.Mock).mockReset();
     window.sessionStorage.clear();
+
+    assignSpy = jest.fn();
+    Object.defineProperty(window, "location", {
+      configurable: true,
+      value: {
+        href: originalLocation.href,
+        origin: originalLocation.origin,
+        pathname: originalLocation.pathname,
+        search: originalLocation.search,
+        hash: originalLocation.hash,
+        assign: assignSpy,
+      },
+    });
+  });
+
+  afterEach(() => {
+    Object.defineProperty(window, "location", {
+      configurable: true,
+      value: originalLocation,
+    });
   });
 
   describe("default cascade (acquireTokenSilent → ssoSilent)", () => {
@@ -121,8 +151,8 @@ describe("get-ad-user-account", () => {
     });
   });
 
-  describe("useFullPageRedirect cascade (acquireTokenSilent → loginRedirect)", () => {
-    it("uses acquireTokenSilent from cache when available, never firing loginRedirect", async () => {
+  describe("useFullPageRedirect cascade (acquireTokenSilent → hand off to msal-redirect.html)", () => {
+    it("uses acquireTokenSilent from cache when available, never handing off to the redirect page", async () => {
       (mockInstance.getActiveAccount as jest.Mock).mockReturnValue(mockAccount);
       (mockInstance.acquireTokenSilent as jest.Mock).mockResolvedValue({ account: mockAccount } as AuthenticationResult);
 
@@ -130,57 +160,63 @@ describe("get-ad-user-account", () => {
 
       expect(result.account).toBe(mockAccount);
       expect(result.mechanism).toBe("cache");
+      expect(assignSpy).not.toHaveBeenCalled();
       expect(mockInstance.loginRedirect).not.toHaveBeenCalled();
       expect(mockInstance.ssoSilent).not.toHaveBeenCalled();
     });
 
-    it("fires loginRedirect when no cached account exists, skipping ssoSilent entirely", async () => {
+    it("hands off to msal-redirect.html when no cached account exists, skipping ssoSilent entirely", async () => {
       (mockInstance.getActiveAccount as jest.Mock).mockReturnValue(null);
       (mockInstance.getAllAccounts as jest.Mock).mockReturnValue([]);
-      (mockInstance.loginRedirect as jest.Mock).mockImplementation(() => new Promise(() => {})); // never resolves
 
-      // loginRedirect promise never resolves (page navigates away). Race against a timeout.
-      const racing = Promise.race([
-        getAdUserAccount({ ...defaultProps, useFullPageRedirect: true }),
-        new Promise(resolve => setTimeout(() => resolve("timeout"), 50)),
-      ]);
-      await expect(racing).resolves.toBe("timeout");
+      await getAdUserAccount({ ...defaultProps, useFullPageRedirect: true });
 
-      expect(mockInstance.loginRedirect).toHaveBeenCalledTimes(1);
+      expect(assignSpy).toHaveBeenCalledTimes(1);
+      // No MSAL interactive call on the host page — that's the whole point.
+      expect(mockInstance.loginRedirect).not.toHaveBeenCalled();
       expect(mockInstance.ssoSilent).not.toHaveBeenCalled();
       expect(window.sessionStorage.getItem("cps_global_components_msal_redirect_in_flight_at")).not.toBeNull();
     });
 
-    it("refuses to re-fire loginRedirect when the loop-guard sentinel is recent (<30s)", async () => {
+    it("hand-off URL is msalRedirectUrl with action=login and returnTo=current href", async () => {
+      (mockInstance.getActiveAccount as jest.Mock).mockReturnValue(null);
+      (mockInstance.getAllAccounts as jest.Mock).mockReturnValue([]);
+
+      await getAdUserAccount({ ...defaultProps, useFullPageRedirect: true });
+
+      const handedOff = new URL(assignSpy.mock.calls[0]![0] as string);
+      expect(`${handedOff.origin}${handedOff.pathname}`).toBe(msalRedirectUrl);
+      expect(handedOff.searchParams.get("action")).toBe("login");
+      expect(handedOff.searchParams.get("returnTo")).toBe(window.location.href);
+    });
+
+    it("refuses to hand off when the loop-guard sentinel is recent (<30s)", async () => {
       (mockInstance.getActiveAccount as jest.Mock).mockReturnValue(null);
       (mockInstance.getAllAccounts as jest.Mock).mockReturnValue([]);
       window.sessionStorage.setItem("cps_global_components_msal_redirect_in_flight_at", String(Date.now() - 1000));
 
       await expect(getAdUserAccount({ ...defaultProps, useFullPageRedirect: true })).rejects.toThrow(/already in-flight/);
 
-      expect(mockInstance.loginRedirect).not.toHaveBeenCalled();
+      expect(assignSpy).not.toHaveBeenCalled();
     });
 
-    it("re-fires loginRedirect when the loop-guard sentinel is stale (>30s)", async () => {
+    it("re-fires the hand-off when the loop-guard sentinel is stale (>30s)", async () => {
       (mockInstance.getActiveAccount as jest.Mock).mockReturnValue(null);
       (mockInstance.getAllAccounts as jest.Mock).mockReturnValue([]);
-      (mockInstance.loginRedirect as jest.Mock).mockImplementation(() => new Promise(() => {}));
       window.sessionStorage.setItem("cps_global_components_msal_redirect_in_flight_at", String(Date.now() - 60_000));
 
-      await Promise.race([
-        getAdUserAccount({ ...defaultProps, useFullPageRedirect: true }),
-        new Promise(resolve => setTimeout(resolve, 50)),
-      ]);
+      await getAdUserAccount({ ...defaultProps, useFullPageRedirect: true });
 
-      expect(mockInstance.loginRedirect).toHaveBeenCalledTimes(1);
+      expect(assignSpy).toHaveBeenCalledTimes(1);
     });
 
-    it("clears the loop-guard sentinel and surfaces if loginRedirect itself rejects", async () => {
+    it("clears the loop-guard sentinel and surfaces if URL construction throws", async () => {
       (mockInstance.getActiveAccount as jest.Mock).mockReturnValue(null);
       (mockInstance.getAllAccounts as jest.Mock).mockReturnValue([]);
-      (mockInstance.loginRedirect as jest.Mock).mockRejectedValue(new Error("interaction_in_progress"));
 
-      await expect(getAdUserAccount({ ...defaultProps, useFullPageRedirect: true })).rejects.toThrow("interaction_in_progress");
+      await expect(
+        getAdUserAccount({ ...defaultProps, useFullPageRedirect: true, msalRedirectUrl: "not a url" }),
+      ).rejects.toThrow();
 
       expect(window.sessionStorage.getItem("cps_global_components_msal_redirect_in_flight_at")).toBeNull();
     });

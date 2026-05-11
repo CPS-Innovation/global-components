@@ -84,6 +84,7 @@ export const initialiseAdAuth = async ({
       logError,
       useFullPageRedirect,
       window,
+      msalRedirectUrl: redirectUri,
     });
     if (!account) {
       return failedAuth("NoAccountFound", "No AD account found");

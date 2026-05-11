@@ -23,6 +23,12 @@ type Props = {
   logError: LogError;
   useFullPageRedirect?: boolean;
   window: Window;
+  // URL of the dedicated global-components-msal-redirect.html page. When
+  // useFullPageRedirect is true, the redirect path hands off to this URL with
+  // ?action=login rather than calling instance.loginRedirect() here — keeps
+  // our MSAL calls strictly on the host-code-free page so we never write
+  // msal.interaction.status into a sessionStorage shared with the host app.
+  msalRedirectUrl: string;
 };
 
 const asError = (value: unknown): Error =>
@@ -70,6 +76,7 @@ export const getAdUserAccount = async ({
   logError,
   useFullPageRedirect,
   window,
+  msalRedirectUrl,
 }: Props): Promise<GetAdUserAccountResult> => {
   const t0 = performance.now();
 
@@ -179,11 +186,19 @@ export const getAdUserAccount = async ({
     }
   };
 
-  // Full-page redirect path. Never resolves in the success case — loginRedirect
-  // navigates the page away to AAD; this script context dies. The bounce-back
-  // lands on the registered redirect URI (the MSAL termination page) where
-  // handleMsalTermination calls handleRedirectPromise and then MSAL navigates
-  // back to the originating URL via navigateToLoginRequestUrl.
+  // Full-page redirect path. Never resolves in the success case — the assign
+  // navigates the page away to the dedicated msal-redirect.html, which itself
+  // navigates to AAD; this script context dies. The bounce-back lands on
+  // msal-redirect.html (now with a response hash), where handleMsalTermination
+  // calls handleRedirectPromise and then MSAL navigates back to the originating
+  // URL we encoded as ?returnTo=.
+  //
+  // We deliberately do NOT call instance.loginRedirect() here. That would
+  // write MSAL state (msal.interaction.status, request.params, code.verifier)
+  // into a sessionStorage shared with the host app. If our navigation lost a
+  // race to the host app's own loginRedirect, our debris would jam the host
+  // app's MSAL preflight on the bounce-back (see FCT2-17451). Doing the assign
+  // bare leaves zero MSAL state on the host page in the lost-race case.
   const tryLoginAccountViaRedirect = async (): AccountRetrievalResult => {
     if (!useFullPageRedirect) {
       // Skipped — the silent path is the active interactive recovery for this caller.
@@ -207,15 +222,20 @@ export const getAdUserAccount = async ({
       String(Date.now()),
     );
     try {
-      await instance.loginRedirect(loginRequest);
+      const target = new URL(msalRedirectUrl);
+      target.searchParams.set("action", "login");
+      target.searchParams.set("returnTo", window.location.href);
+      window.location.assign(target.href);
     } catch (error) {
-      // Failed to even start the redirect (e.g. interaction_in_progress) —
-      // clear the sentinel so the next attempt can run, then surface.
+      // assign normally cannot throw, but if URL construction fails or the
+      // navigation is somehow rejected, clear the sentinel so the next attempt
+      // can run, then surface.
       window.sessionStorage.removeItem(MSAL_REDIRECT_IN_FLIGHT_KEY);
-      logError("loginRedirect threw before navigating", asError(error));
+      logError("redirect hand-off threw before navigating", asError(error));
       throw error;
     }
-    // Unreachable: loginRedirect navigates the page away before its Promise resolves.
+    // Unreachable in production: the assign above navigates the page away
+    // before the next microtask runs.
     return null;
   };
 
