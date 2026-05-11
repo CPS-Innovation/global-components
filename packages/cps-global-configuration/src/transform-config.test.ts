@@ -2,12 +2,23 @@ import { describe, test, expect } from "@jest/globals";
 import { transformConfig } from "./transform-config";
 import { ConfigStorage } from "./Config";
 
+const STORAGE_KEYS = {
+  WMA_JSON: "",
+  WMA_COOKIES: "",
+  CASE_REVIEW_JSON: "",
+  CASE_REVIEW_COOKIES: "",
+  HOME_JSON: "",
+  HOME_COOKIES: "",
+  HOME_IS_FROM_PROXY: "",
+};
+
 describe("transformConfig", () => {
   test("preserves order of paths in flat structure", () => {
     const input: ConfigStorage = {
       ENVIRONMENT: "test",
       LINKS: [],
       BANNER_TITLE_HREF: "https://example.com",
+      CMS_AUTH_STORAGE_KEYS: STORAGE_KEYS,
       CONTEXTS: [
         {
           contexts: [
@@ -32,6 +43,7 @@ describe("transformConfig", () => {
       ENVIRONMENT: "test",
       LINKS: [],
       BANNER_TITLE_HREF: "https://example.com",
+      CMS_AUTH_STORAGE_KEYS: STORAGE_KEYS,
       CONTEXTS: [
         {
           contexts: [
@@ -62,6 +74,7 @@ describe("transformConfig", () => {
       ENVIRONMENT: "test",
       LINKS: [],
       BANNER_TITLE_HREF: "https://example.com",
+      CMS_AUTH_STORAGE_KEYS: STORAGE_KEYS,
       CONTEXTS: [
         {
           contexts: [
@@ -100,6 +113,7 @@ describe("transformConfig", () => {
       ENVIRONMENT: "test",
       LINKS: [],
       BANNER_TITLE_HREF: "https://example.com",
+      CMS_AUTH_STORAGE_KEYS: STORAGE_KEYS,
       CONTEXTS: [
         {
           msalRedirectUrl: "https://redirect.example.com",
@@ -144,6 +158,7 @@ describe("transformConfig", () => {
       ENVIRONMENT: "test",
       LINKS: [],
       BANNER_TITLE_HREF: "https://example.com",
+      CMS_AUTH_STORAGE_KEYS: STORAGE_KEYS,
       CONTEXTS: [
         {
           msalRedirectUrl: "https://root.example.com",
@@ -178,6 +193,7 @@ describe("transformConfig", () => {
       ENVIRONMENT: "test",
       LINKS: [],
       BANNER_TITLE_HREF: "https://example.com",
+      CMS_AUTH_STORAGE_KEYS: STORAGE_KEYS,
       CONTEXTS: [
         {
           msalRedirectUrl: "https://group1.example.com",
@@ -222,6 +238,7 @@ describe("transformConfig", () => {
       ENVIRONMENT: "test",
       LINKS: [],
       BANNER_TITLE_HREF: "https://example.com",
+      CMS_AUTH_STORAGE_KEYS: STORAGE_KEYS,
       CONTEXTS: [
         {
           contexts: [],
@@ -247,6 +264,7 @@ describe("transformConfig", () => {
         },
       ],
       BANNER_TITLE_HREF: "https://example.com",
+      CMS_AUTH_STORAGE_KEYS: STORAGE_KEYS,
       AD_TENANT_AUTHORITY: "https://login.microsoftonline.com/tenant-id",
       AD_CLIENT_ID: "client-123",
       SHOW_MENU: true,
@@ -275,6 +293,7 @@ describe("transformConfig", () => {
       ENVIRONMENT: "test",
       LINKS: [],
       BANNER_TITLE_HREF: "https://example.com",
+      CMS_AUTH_STORAGE_KEYS: STORAGE_KEYS,
       CONTEXTS: [
         {
           contexts: [
@@ -314,6 +333,7 @@ describe("transformConfig", () => {
       ENVIRONMENT: "test",
       LINKS: [],
       BANNER_TITLE_HREF: "https://example.com",
+      CMS_AUTH_STORAGE_KEYS: STORAGE_KEYS,
       CONTEXTS: [
         {
           contexts: [

@@ -63,7 +63,6 @@ const initialise = async (window: Window & typeof globalThis) => {
     initialiseNavigateCms({ window, rootUrl });
 
     const flags = initialiseApplicationFlags({ window, rootUrl, register });
-    initialiseOutSystemsReconcileAuth({ window, flags });
 
     // Config no longer depends on preview (override-via-preview was removed in
     // FCT2-17451 drop 4) so it joins the parallel set.
@@ -76,6 +75,8 @@ const initialise = async (window: Window & typeof globalThis) => {
       initialiseCmsSessionHint({ rootUrl, flags, register }),
       initialiseConfig({ rootUrl, flags, register }),
     ]);
+
+    initialiseOutSystemsReconcileAuth({ window, flags, config });
 
     const { initialiseCaseLockingForContext, witnessAreaSubscriber } = initialiseCaseLocking({ window, config, preview, register });
 
