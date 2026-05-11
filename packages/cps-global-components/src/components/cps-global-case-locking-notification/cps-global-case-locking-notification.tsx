@@ -13,15 +13,16 @@ const friendlyName = (code: string) => FRIENDLY_NAMES[code] ?? code;
 })
 export class CpsGlobalCaseLockingNotification {
   render() {
-    const { isReady, state } = readyState("caseLockingClash");
-    if (!isReady || !state.caseLockingClash) {
+    const { isReady, state } = readyState("caseLockingPresentUsers");
+    if (!isReady || !state.caseLockingPresentUsers || state.caseLockingPresentUsers.users.length === 0) {
       return null;
     }
-    const { upn, code } = state.caseLockingClash;
+    const { code, users } = state.caseLockingPresentUsers;
+    const upns = users.map(u => u.user).join(", ");
     return (
       <cps-gds-notification-banner dismissible={false}>
         <p class="govuk-body">
-          {upn} has locked {friendlyName(code)} for this case
+          Viewing {friendlyName(code)} on this case: {upns}
         </p>
       </cps-gds-notification-banner>
     );
