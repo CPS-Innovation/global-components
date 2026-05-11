@@ -8,9 +8,9 @@ let Totals = Visits
 let GrandTotal = toscalar(Totals | summarize sum(Total_Visits));
 Visits
 | evaluate pivot(App, sum(Visits))
-| join kind=leftouter Totals on Auth_Username
-| project-away Auth_Username1
+| join kind=leftouter Totals on Auth_Username | project-away Auth_Username1
+| join kind=leftouter (GloCo_UserAreas | project Auth_Username, User_AreaOrCPSD) on Auth_Username | project-away Auth_Username1
 | order by Total_Visits desc
 | extend Rank = row_number()
 | extend Cumulative_Pct = round(100.0 * row_cumsum(Total_Visits) / GrandTotal, 1)
-| project-reorder *, Rank, Cumulative_Pct
+| project-reorder Auth_Username, User_AreaOrCPSD, *, Rank, Cumulative_Pct
