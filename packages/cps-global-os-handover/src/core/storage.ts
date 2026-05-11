@@ -2,8 +2,8 @@ import { CmsSessionHint } from "cps-global-configuration";
 import { areAllCookieStringsEqual } from "./are-all-cookie-strings-equal";
 
 const localStorageKeys = {
-  WMA_JSON: "$OS_Users$WorkManagementApp$ClientVars$JSONString",
-  WMA_COOKIES: "$OS_Users$WorkManagementApp$ClientVars$Cookies",
+  WMA_JSON: "$OS_Users$Casework_Blocks$ClientVars$JSONString",
+  WMA_COOKIES: "$OS_Users$Casework_Blocks$ClientVars$Cookies",
   CASE_REVIEW_JSON: "$OS_Users$CaseReview$ClientVars$CmsAuthValues",
   CASE_REVIEW_COOKIES: "$OS_Users$CaseReview$ClientVars$Cookies",
   HOME_JSON: "$OS_Users$Casework_Blocks$ClientVars$JSONString",
@@ -34,7 +34,10 @@ export const isStoredAuthCurrent = (cookies: string, storage: Storage) =>
     storage[localStorageKeys.HOME_COOKIES],
   );
 
-export const isStoredTokenSameAs = (token: string, storage: Storage): boolean => {
+export const isStoredTokenSameAs = (
+  token: string,
+  storage: Storage,
+): boolean => {
   const json = storage[localStorageKeys.WMA_JSON];
   if (!json) {
     return false;
