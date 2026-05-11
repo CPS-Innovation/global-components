@@ -1,5 +1,6 @@
 import { HubConnection, HubConnectionBuilder, HttpTransportType } from "@microsoft/signalr";
 import { Register } from "../../store/store";
+import { CaseLockingPresentUser } from "./CaseLockingPresentUsers";
 import { makeConsole } from "../../logging/makeConsole";
 
 type HubFactory = (url: string) => HubConnection;
@@ -12,13 +13,9 @@ type Props = {
   hubFactory?: HubFactory;
 };
 
-type NotifyUser = { user: string; appName: string };
-
 type ConnectionEntry = {
   caseId: string;
   connection: HubConnection;
-  firstNotifyHandled: boolean;
-  clashed: boolean;
 };
 
 const { _debug, _warn, _error } = makeConsole("caseLockingPresence");
@@ -41,29 +38,35 @@ export const createCaseLockingPresence = ({ apiUrl, username, appName, register,
   let currentCaseId: string | undefined;
   const desiredCodes = new Set<string>();
   const connections = new Map<string, ConnectionEntry>();
-  let clash: { upn: string; code: string; caseId: string } | undefined;
+  let publishedCode: string | undefined;
 
   let reconcilePromise: Promise<void> = Promise.resolve();
 
   const buildSectionKey = (caseId: string, code: string) => `case-${caseId}-${code}`;
 
-  const setClash = (upn: string, code: string, caseId: string) => {
-    clash = { upn, code, caseId };
-    _debug("clash detected", { upn, code, caseId });
-    register({ caseLockingClash: { upn, code } });
+  const publishPresentUsers = (code: string, users: CaseLockingPresentUser[]) => {
+    publishedCode = code;
+    _debug("publishing present users", { code, users });
+    register({ caseLockingPresentUsers: { code, users } });
   };
 
-  const clearClashIfStale = () => {
-    if (!clash) {
+  const clearPublishedPresence = () => {
+    if (!publishedCode) {
       return;
     }
-    const stillRelevant = clash.caseId === currentCaseId && desiredCodes.has(clash.code);
-    if (stillRelevant) {
+    _debug("clearing published presence", { code: publishedCode });
+    publishedCode = undefined;
+    register({ caseLockingPresentUsers: undefined });
+  };
+
+  const clearPublishedPresenceIfStale = () => {
+    if (!publishedCode) {
       return;
     }
-    _debug("clearing clash", { ...clash, currentCaseId, stillDesired: desiredCodes.has(clash.code) });
-    clash = undefined;
-    register({ caseLockingClash: undefined });
+    if (currentCaseId && desiredCodes.has(publishedCode) && connections.has(publishedCode)) {
+      return;
+    }
+    clearPublishedPresence();
   };
 
   const startConnection = async (caseId: string, code: string) => {
@@ -73,26 +76,11 @@ export const createCaseLockingPresence = ({ apiUrl, username, appName, register,
     const sectionKey = buildSectionKey(caseId, code);
     _debug("starting connection", { sectionKey, code, caseId });
     const connection = hubFactory(apiUrl);
-    const entry: ConnectionEntry = { caseId, connection, firstNotifyHandled: false, clashed: false };
-    connections.set(code, entry);
+    connections.set(code, { caseId, connection });
 
-    connection.on("Notify", (users: NotifyUser[]) => {
+    connection.on("Notify", (users: CaseLockingPresentUser[]) => {
       _debug("Notify received", { code, sectionKey, users });
-      const others = (users ?? []).filter(u => u.user !== username);
-
-      if (!entry.firstNotifyHandled) {
-        entry.firstNotifyHandled = true;
-        if (others.length > 0) {
-          // Another user got here first — release our registration and surface the clash.
-          entry.clashed = true;
-          setClash(others[0].user, code, caseId);
-          // Fire-and-forget the disconnect; reconcile will tidy up.
-          void stopConnection(code);
-        } else {
-          _debug("first Notify clean — lock acquired", { sectionKey });
-        }
-      }
-      // Subsequent Notifys are ignored: if we own the lock, late joiners are theirs to handle.
+      publishPresentUsers(code, users ?? []);
     });
 
     connection.onreconnected(() => {
@@ -131,6 +119,9 @@ export const createCaseLockingPresence = ({ apiUrl, username, appName, register,
     }
     _debug("stopping connection", { code, caseId: entry.caseId });
     connections.delete(code);
+    if (publishedCode === code) {
+      clearPublishedPresence();
+    }
     try {
       await entry.connection.stop();
     } catch (err) {
@@ -142,8 +133,6 @@ export const createCaseLockingPresence = ({ apiUrl, username, appName, register,
     const caseId = currentCaseId;
     const desired = caseId ? new Set(desiredCodes) : new Set<string>();
     _debug("reconciling", { caseId, desired: Array.from(desired), live: Array.from(connections.keys()) });
-
-    clearClashIfStale();
 
     for (const [code, entry] of Array.from(connections.entries())) {
       if (!desired.has(code) || entry.caseId !== caseId) {
@@ -158,6 +147,8 @@ export const createCaseLockingPresence = ({ apiUrl, username, appName, register,
         }
       }
     }
+
+    clearPublishedPresenceIfStale();
   };
 
   const queueReconcile = () => {
