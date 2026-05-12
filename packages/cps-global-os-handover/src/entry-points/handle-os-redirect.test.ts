@@ -6,11 +6,12 @@ jest.mock("../core/get-cms-session-hint");
 jest.mock("../application-logic/reset-tasklist-filters");
 jest.mock("cps-global-auth", () => ({
   handleMsalTermination: jest.fn(),
+  handleMsalLogin: jest.fn(),
 }));
 
 import { getCmsSessionHint } from "../core/get-cms-session-hint";
 import { resetTasklistFilters } from "../application-logic/reset-tasklist-filters";
-import { handleMsalTermination } from "cps-global-auth";
+import { handleMsalLogin, handleMsalTermination } from "cps-global-auth";
 
 const msalConfig = { clientId: "test-client", authority: "https://login.microsoftonline.com/test-tenant" };
 const fetchMsalConfig = jest.fn(async () => msalConfig);
@@ -328,24 +329,31 @@ const mockResetTasklistFilters = resetTasklistFilters as jest.MockedFunction<
 const mockHandleMsalTermination = handleMsalTermination as jest.MockedFunction<
   typeof handleMsalTermination
 >;
+const mockHandleMsalLogin = handleMsalLogin as jest.MockedFunction<
+  typeof handleMsalLogin
+>;
 
 describe("handleOsRedirect", () => {
   const tokenHandoverUrl = "https://polaris-qa-notprod.cps.gov.uk/auth-handover-cms-modern-token";
 
-  const makeWindow = (currentUrl: string) =>
-    ({
+  const makeWindow = (currentUrl: string) => {
+    const url = new URL(currentUrl);
+    return {
       location: {
         href: currentUrl,
-        hostname: new URL(currentUrl).hostname,
+        hostname: url.hostname,
+        hash: url.hash,
         replace: jest.fn(),
       },
-    }) as unknown as Window;
+    } as unknown as Window;
+  };
 
   beforeEach(() => {
     localStorage.clear();
     mockGetCmsSessionHint.mockReset();
     mockResetTasklistFilters.mockReset();
     mockHandleMsalTermination.mockReset();
+    mockHandleMsalLogin.mockReset();
     fetchMsalConfig.mockClear();
     jest.spyOn(console, "log").mockImplementation(() => {});
   });
@@ -361,9 +369,62 @@ describe("handleOsRedirect", () => {
       expect(fetchMsalConfig).toHaveBeenCalledTimes(1);
       expect(mockHandleMsalTermination).toHaveBeenCalledTimes(1);
       expect(mockHandleMsalTermination).toHaveBeenCalledWith(win, msalConfig);
+      expect(mockHandleMsalLogin).not.toHaveBeenCalled();
       expect(win.location.replace).not.toHaveBeenCalled();
       expect(mockGetCmsSessionHint).not.toHaveBeenCalled();
       expect(mockResetTasklistFilters).not.toHaveBeenCalled();
+    });
+
+    test("dispatches to handleMsalLogin when ?action=login is set and there is no response hash (host hand-off path)", async () => {
+      const win = makeWindow(
+        "https://cps-tst.outsystemsenterprise.com/Casework_Patterns/auth-handover.html?src=https%3A%2F%2Fpolaris.example%2Fauth-handover.js&stage=os-ad-redirect&action=login&returnTo=https%3A%2F%2Fcps-tst.outsystemsenterprise.com%2Fcasework_blocks%2Fhome",
+      );
+
+      await handleOsRedirect(win, tokenHandoverUrl, fetchMsalConfig, keys);
+
+      expect(fetchMsalConfig).toHaveBeenCalledTimes(1);
+      expect(mockHandleMsalLogin).toHaveBeenCalledTimes(1);
+      expect(mockHandleMsalLogin).toHaveBeenCalledWith(
+        win,
+        msalConfig,
+        "https://cps-tst.outsystemsenterprise.com/casework_blocks/home",
+      );
+      expect(mockHandleMsalTermination).not.toHaveBeenCalled();
+      expect(win.location.replace).not.toHaveBeenCalled();
+    });
+
+    test("prefers handleMsalTermination over handleMsalLogin when a response hash is present even with ?action=login (bounce-back wins)", async () => {
+      const win = makeWindow(
+        "https://cps-tst.outsystemsenterprise.com/Casework_Patterns/auth-handover.html?src=https%3A%2F%2Fpolaris.example%2Fauth-handover.js&stage=os-ad-redirect&action=login&returnTo=https%3A%2F%2Fcps-tst.outsystemsenterprise.com%2Fcasework_blocks%2Fhome#code=abc&state=xyz",
+      );
+
+      await handleOsRedirect(win, tokenHandoverUrl, fetchMsalConfig, keys);
+
+      expect(mockHandleMsalTermination).toHaveBeenCalledTimes(1);
+      expect(mockHandleMsalLogin).not.toHaveBeenCalled();
+    });
+
+    test("no-ops on os-ad-redirect with neither a response hash nor ?action=login (direct access / odd state)", async () => {
+      const win = makeWindow(
+        "https://cps-tst.outsystemsenterprise.com/Casework_Patterns/auth-handover.html?src=https%3A%2F%2Fpolaris.example%2Fauth-handover.js&stage=os-ad-redirect",
+      );
+
+      await handleOsRedirect(win, tokenHandoverUrl, fetchMsalConfig, keys);
+
+      expect(fetchMsalConfig).toHaveBeenCalledTimes(1);
+      expect(mockHandleMsalTermination).not.toHaveBeenCalled();
+      expect(mockHandleMsalLogin).not.toHaveBeenCalled();
+      expect(win.location.replace).not.toHaveBeenCalled();
+    });
+
+    test("passes returnTo=null to handleMsalLogin when ?action=login is set without ?returnTo", async () => {
+      const win = makeWindow(
+        "https://cps-tst.outsystemsenterprise.com/Casework_Patterns/auth-handover.html?src=https%3A%2F%2Fpolaris.example%2Fauth-handover.js&stage=os-ad-redirect&action=login",
+      );
+
+      await handleOsRedirect(win, tokenHandoverUrl, fetchMsalConfig, keys);
+
+      expect(mockHandleMsalLogin).toHaveBeenCalledWith(win, msalConfig, null);
     });
 
     test("does not fetch MSAL config on cookie-return / token-return paths", async () => {
@@ -375,6 +436,7 @@ describe("handleOsRedirect", () => {
 
       expect(fetchMsalConfig).not.toHaveBeenCalled();
       expect(mockHandleMsalTermination).not.toHaveBeenCalled();
+      expect(mockHandleMsalLogin).not.toHaveBeenCalled();
     });
   });
 
