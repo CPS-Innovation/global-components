@@ -58,6 +58,7 @@ describe("handleMsalLogin", () => {
       makeWindow({ iframe: true }),
       { clientId: "c", authority: "a" },
       "https://example.com/polaris-ui",
+      "https://example.com/msal-redirect.html",
       createInstance,
     );
 
@@ -65,7 +66,7 @@ describe("handleMsalLogin", () => {
     expect(createInstance).not.toHaveBeenCalled();
   });
 
-  it("creates the MSAL instance with a redirectUri that strips both query and hash, and replaceOnNavigate=true", async () => {
+  it("creates the MSAL instance with the redirectUri the caller supplied, and replaceOnNavigate=true", async () => {
     const loginRedirect = jest.fn().mockResolvedValue(undefined);
     const createInstance = jest.fn().mockResolvedValue({ loginRedirect });
 
@@ -77,6 +78,7 @@ describe("handleMsalLogin", () => {
       }),
       { clientId: "client-id", authority: "https://login.microsoftonline.com/tenant" },
       "https://app.example/home",
+      "https://app.example/sub/msal-redirect.html",
       createInstance,
     );
 
@@ -85,6 +87,35 @@ describe("handleMsalLogin", () => {
       authority: "https://login.microsoftonline.com/tenant",
       redirectUri: "https://app.example/sub/msal-redirect.html",
       replaceOnNavigate: true,
+    });
+  });
+
+  it("forwards a redirectUri with preserved query params (OS folded path: keeps ?src=&stage=)", async () => {
+    const loginRedirect = jest.fn().mockResolvedValue(undefined);
+    const createInstance = jest.fn().mockResolvedValue({ loginRedirect });
+
+    const redirectUri =
+      "https://cps-tst.outsystemsenterprise.com/Casework_Patterns/auth-handover.html?src=https%3A%2F%2Fpolaris.example%2Fauth-handover.js&stage=os-ad-redirect";
+
+    await handleMsalLogin(
+      makeWindow({
+        origin: "https://cps-tst.outsystemsenterprise.com",
+        pathname: "/Casework_Patterns/auth-handover.html",
+        search:
+          "?src=https%3A%2F%2Fpolaris.example%2Fauth-handover.js&stage=os-ad-redirect&action=login&returnTo=https%3A%2F%2Fcps-tst.outsystemsenterprise.com%2Fcasework_blocks%2Fhome",
+      }),
+      { clientId: "c", authority: "a" },
+      "https://cps-tst.outsystemsenterprise.com/casework_blocks/home",
+      redirectUri,
+      createInstance,
+    );
+
+    expect(createInstance).toHaveBeenCalledWith(
+      expect.objectContaining({ redirectUri }),
+    );
+    expect(loginRedirect).toHaveBeenCalledWith({
+      scopes: ["User.Read"],
+      redirectStartPage: redirectUri,
     });
   });
 
@@ -99,6 +130,7 @@ describe("handleMsalLogin", () => {
       }),
       { clientId: "c", authority: "a" },
       "https://example.com/polaris-ui/case/123",
+      "https://example.com/sub/msal-redirect.html",
       createInstance,
     );
 
@@ -117,6 +149,7 @@ describe("handleMsalLogin", () => {
       win,
       { clientId: "c", authority: "a" },
       "https://example.com/polaris-ui/case/123",
+      "https://example.com/msal-redirect.html",
       createInstance,
     );
 
@@ -135,6 +168,7 @@ describe("handleMsalLogin", () => {
       win,
       { clientId: "c", authority: "a" },
       "https://evil.example.org/phishing",
+      "https://example.com/msal-redirect.html",
       createInstance,
     );
 
@@ -153,6 +187,7 @@ describe("handleMsalLogin", () => {
       win,
       { clientId: "c", authority: "a" },
       "https://example.com/polaris-ui",
+      "https://example.com/msal-redirect.html",
       createInstance,
     );
 
@@ -172,6 +207,7 @@ describe("handleMsalLogin", () => {
       win,
       { clientId: "c", authority: "a" },
       "https://example.com/polaris-ui",
+      "https://example.com/msal-redirect.html",
       createInstance,
     );
 
@@ -190,6 +226,7 @@ describe("handleMsalLogin", () => {
       win,
       { clientId: "c", authority: "a" },
       "https://example.com/polaris-ui",
+      "https://example.com/msal-redirect.html",
       createInstance,
     );
 
@@ -205,6 +242,7 @@ describe("handleMsalLogin", () => {
       win,
       { clientId: "c", authority: "a" },
       null,
+      "https://example.com/msal-redirect.html",
       createInstance,
     );
 
@@ -223,6 +261,7 @@ describe("handleMsalLogin", () => {
       win,
       { clientId: "c", authority: "a" },
       "not a url",
+      "https://example.com/msal-redirect.html",
       createInstance,
     );
 
@@ -240,6 +279,7 @@ describe("handleMsalLogin", () => {
       makeWindow(),
       { clientId: "c", authority: "a" },
       "https://example.com/polaris-ui",
+      "https://example.com/msal-redirect.html",
       createInstance,
     );
 
@@ -253,6 +293,7 @@ describe("handleMsalLogin", () => {
       makeWindow(),
       { clientId: "c", authority: "a" },
       "https://example.com/polaris-ui",
+      "https://example.com/msal-redirect.html",
       createInstance,
     );
 
