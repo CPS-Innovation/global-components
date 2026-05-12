@@ -1,24 +1,18 @@
-let PerCase = GloCo_PageViews_CaseReview
-| where TimeGenerated > datetime(2026-03-09T12:00:01)
-| summarize
-    Has_Review_First_Review       = countif(Is_Review_First_Review) > 0,
-    Has_Review_Subsequent_Review  = countif(Is_Review_Subsequent_Review) > 0,
-    Has_Early_Advice_First_Review = countif(Is_Early_Advice_First_Review) > 0,
-    Has_Early_Advice_Subsequent   = countif(Is_Early_Advice_Subsequent) > 0,
-    Has_Admin_Finalise            = countif(Is_Admin_Finalise) > 0,
-    FirstSeen                     = min(bin(TimeGenerated, 1d))
-    by CaseId;
-let Cases = PerCase
-| mv-apply F = pack_array(
-    iff(Has_Review_First_Review,       "First", ""),
-    iff(Has_Review_Subsequent_Review,  "Subsequent", ""),
-    iff(Has_Early_Advice_First_Review, "EAFirst", ""),
-    iff(Has_Early_Advice_Subsequent,   "EASubsequent", ""),
-    iff(Has_Admin_Finalise,            "QuickAdmin", "")
-  ) to typeof(string) on (
-    where isnotempty(F)
-  )
-| project CaseId, FirstSeen, F;
+let TypedRows = GloCo_CaseReview_PerCase
+| where ReviewType in ("First", "Subsequent", "EA First", "EA Subsequent", "Admin Finalise")
+| where FirstSeen > datetime(2026-03-09T12:00:01);
+let CaseFirstSeen = TypedRows
+| summarize CaseFirstSeen = min(FirstSeen) by CaseId;
+let Cases = TypedRows
+| join kind=inner CaseFirstSeen on CaseId
+| extend F = case(
+    ReviewType == "First",          "First",
+    ReviewType == "Subsequent",     "Subsequent",
+    ReviewType == "EA First",       "EAFirst",
+    ReviewType == "EA Subsequent",  "EASubsequent",
+    ReviewType == "Admin Finalise", "QuickAdmin",
+    "")
+| project CaseId, FirstSeen = bin(CaseFirstSeen, 1d), F;
 let NewCases = Cases
 | summarize NewCases = count() by Day = FirstSeen, F;
 let Spine = range Day from toscalar(Cases | summarize min(FirstSeen)) to toscalar(Cases | summarize max(FirstSeen)) step 1d
