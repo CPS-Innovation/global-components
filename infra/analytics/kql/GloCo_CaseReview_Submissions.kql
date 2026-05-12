@@ -1,0 +1,16 @@
+// Row-level view of completed case-review actions (submissions + single-event
+// actions like Triage / Admin Finalise / Streamlined). TimeGenerated is aliased
+// to CompletionTime so the Log Analytics time-range picker filters on the
+// completion moment — StartTime is preserved separately so cross-boundary
+// reviews (started before the window, submitted inside it) remain visible
+// with their accurate start time and HoursToSubmit.
+GloCo_CaseReview_PerCase
+| where Status in ("Submitted", "Single-event")
+| extend CompletionTime = coalesce(SubmittedTime, FirstSeen)
+| extend TimeGenerated  = CompletionTime
+| project TimeGenerated, CaseId, ReviewType, Status, StartTime, CompletionTime,
+          HoursToSubmit = case(
+              Status == "Submitted" and isnotnull(StartTime),
+              round(datetime_diff("minute", SubmittedTime, StartTime) / 60.0, 1),
+              real(null)),
+          Auth_Username, User_AreaOrCPSD

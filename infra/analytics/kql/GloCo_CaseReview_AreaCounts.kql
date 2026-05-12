@@ -1,5 +1,5 @@
 GloCo__UserAreaMapping
-| project Auth_Username, Area = iif(User_CountNotSensitiveUnits + User_CountSensitiveUnits >= 120, "CPSD", User_Area)
+| project Auth_Username, Area = User_AreaOrCPSD
 | join kind=inner  
     (GloCo_PageViews_CaseReview | project TimeGenerated, CaseId, Auth_Username | where TimeGenerated > datetime(2026-03-09T12:00:01))
     on Auth_Username 

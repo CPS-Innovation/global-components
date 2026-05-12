@@ -1,0 +1,56 @@
+// Submission rows don't carry an EA flag — attribute them to "EA First" / "EA Subsequent"
+// only when the case has EA evidence and no full-review evidence; ambiguous cases
+// (both present) default to "First" / "Subsequent".
+let Events = GloCo_PageViews_CaseReview
+| extend IsStart = Is_Review_First_Review
+                or Is_Review_Subsequent_Review
+                or Is_Early_Advice_First_Review
+                or Is_Early_Advice_Subsequent
+                or Is_Triage_OD
+                or Is_Triage_ODPCDReview
+                or Is_Triage_DCP
+                or Is_StreamlinedThresholdTest
+| extend IsSubmit = Is_Submitted_First_Review
+                or Is_Submitted_Subsequent_Review
+                or Is_Admin_Finalise;
+let CaseFlags = Events
+| summarize Has_EA_First      = countif(Is_Early_Advice_First_Review) > 0,
+            Has_Review_First  = countif(Is_Review_First_Review) > 0,
+            Has_EA_Subsequent = countif(Is_Early_Advice_Subsequent) > 0,
+            Has_Review_Sub    = countif(Is_Review_Subsequent_Review) > 0
+    by CaseId;
+Events
+| join kind=leftouter CaseFlags on CaseId | project-away CaseId1
+| extend ReviewType = case(
+    Is_Review_First_Review,                                                         "First",
+    Is_Review_Subsequent_Review,                                                    "Subsequent",
+    Is_Early_Advice_First_Review,                                                   "EA First",
+    Is_Early_Advice_Subsequent,                                                     "EA Subsequent",
+    Is_Submitted_First_Review      and Has_EA_First      and not(Has_Review_First), "EA First",
+    Is_Submitted_Subsequent_Review and Has_EA_Subsequent and not(Has_Review_Sub),   "EA Subsequent",
+    Is_Submitted_First_Review,                                                      "First",
+    Is_Submitted_Subsequent_Review,                                                 "Subsequent",
+    Is_Admin_Finalise,                                                              "Admin Finalise",
+    Is_Triage_OD,                                                                   "Triage OD",
+    Is_Triage_ODPCDReview,                                                          "Triage ODPCDReview",
+    Is_Triage_DCP,                                                                  "Triage DCP",
+    Is_StreamlinedThresholdTest,                                                    "Streamlined Threshold Test",
+    "")
+| where isnotempty(ReviewType)
+| extend AuthSortTime = iff(isnotempty(Auth_Username) and isnotempty(User_AreaOrCPSD), TimeGenerated, datetime(9999-12-31))
+| summarize
+    FirstSeen     = min(TimeGenerated),
+    StartTime     = minif(TimeGenerated, IsStart),
+    SubmittedTime = maxif(TimeGenerated, IsSubmit),
+    StartCount    = countif(IsStart),
+    SubmitCount   = countif(IsSubmit),
+    EventCount    = count(),
+    arg_min(AuthSortTime, Auth_Username, User_AreaOrCPSD)
+    by CaseId, ReviewType
+| project-away AuthSortTime
+| extend HasSubmissionFlow = ReviewType in ("First", "Subsequent", "EA First", "EA Subsequent")
+| extend Status = case(
+    not(HasSubmissionFlow), "Single-event",
+    SubmitCount > 0,        "Submitted",
+    "Started")
+| project-away HasSubmissionFlow
