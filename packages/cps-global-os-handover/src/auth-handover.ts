@@ -18,6 +18,12 @@ const scriptOrigin = scriptUrl.origin;
 // as a CORS error from the OS host page.)
 const configUrl = new URL("./config.json", scriptUrl).href;
 
+console.log("[CPS-GLOBAL-AUTH] auth-handover boot", {
+  href: window.location.href,
+  hash: window.location.hash,
+  configUrl,
+});
+
 const configPromise = fetch(configUrl).then(
   (res) =>
     res.json() as Promise<{
@@ -35,11 +41,19 @@ const fetchMsalConfig = async () => {
   };
 };
 
-configPromise.then((config) =>
-  handleOsRedirect(
-    window,
-    `${scriptOrigin}/auth-refresh-cms-modern-token`,
-    fetchMsalConfig,
-    config.CMS_AUTH_STORAGE_KEYS,
-  ),
+configPromise.then(
+  (config) => {
+    console.log("[CPS-GLOBAL-AUTH] auth-handover config loaded", {
+      hasClientId: !!config.AD_CLIENT_ID,
+      hasAuthority: !!config.AD_TENANT_AUTHORITY,
+    });
+    return handleOsRedirect(
+      window,
+      `${scriptOrigin}/auth-refresh-cms-modern-token`,
+      fetchMsalConfig,
+      config.CMS_AUTH_STORAGE_KEYS,
+    );
+  },
+  (err) =>
+    console.error("[CPS-GLOBAL-AUTH] auth-handover config fetch failed", err),
 );

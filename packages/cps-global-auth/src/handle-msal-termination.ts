@@ -32,6 +32,7 @@ export const handleMsalTermination = async (
   createInstance: CreateInstance = createMsalInstance,
 ): Promise<HandleMsalTerminationOutcome> => {
   if (win.self !== win.top) {
+    console.log("[CPS-GLOBAL-AUTH] handleMsalTermination iframe-noop");
     return "iframe-noop";
   }
 
@@ -40,8 +41,24 @@ export const handleMsalTermination = async (
     // redirectUri against the request's; if the request had `?src=…&stage=…` baked
     // in (folded OS dispatch path) the termination instance must match exactly.
     const redirectUri = win.location.href.split("#")[0]!;
+    const hash = win.location.hash;
+    console.log("[CPS-GLOBAL-AUTH] handleMsalTermination start", {
+      redirectUri,
+      hash,
+      hasResponseHash: /[#&](code|error|id_token)=/.test(hash),
+      hasReturnToInStorage: !!win.sessionStorage.getItem(
+        MSAL_REDIRECT_RETURN_TO_KEY,
+      ),
+      hasInFlightSentinel: !!win.sessionStorage.getItem(
+        MSAL_REDIRECT_IN_FLIGHT_KEY,
+      ),
+    });
     const instance = await createInstance({ ...msalConfig, redirectUri });
-    await instance.handleRedirectPromise();
+    const result = await instance.handleRedirectPromise();
+    console.log(
+      "[CPS-GLOBAL-AUTH] handleMsalTermination handleRedirectPromise resolved",
+      { hasResult: !!result },
+    );
     // Two synchronous writes before MSAL's window.location.assign navigation
     // (triggered by navigateToLoginRequestUrl: true) pre-empts us:
     //   1. Stamp a fresh UUID under COMPLETION_ID_KEY — get-ad-user-account
@@ -64,6 +81,10 @@ export const handleMsalTermination = async (
     // Navigate the user back to where they came from. If absent (OS handover
     // folded path), leave MSAL's default navigation to take over.
     const returnTo = win.sessionStorage.getItem(MSAL_REDIRECT_RETURN_TO_KEY);
+    console.log("[CPS-GLOBAL-AUTH] handleMsalTermination complete", {
+      hasReturnTo: !!returnTo,
+      willNavigateExplicitly: !!returnTo,
+    });
     if (returnTo) {
       win.sessionStorage.removeItem(MSAL_REDIRECT_RETURN_TO_KEY);
       // replace, not assign — the bounce-back msal-redirect.html entry has no
