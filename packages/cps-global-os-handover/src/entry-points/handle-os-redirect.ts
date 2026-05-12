@@ -27,6 +27,13 @@ export const handleOsRedirect = async (
   const incomingStage = new URL(window.location.href).searchParams.get(
     paramKeys.STAGE,
   );
+  const hash = window.location.hash;
+  console.log("[CPS-GLOBAL-AUTH] handleOsRedirect dispatch", {
+    stage: incomingStage,
+    hash,
+    hasResponseHash: /[#&](code|error|id_token)=/.test(hash),
+    href: window.location.href,
+  });
   if (incomingStage === stages.OS_AD_REDIRECT) {
     const msalConfig = await fetchMsalConfig();
     await handleMsalTermination(window, msalConfig);
