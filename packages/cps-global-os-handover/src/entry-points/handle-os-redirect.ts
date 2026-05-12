@@ -8,7 +8,12 @@ import { createUrlWithParams, setParams, stripParams } from "../core/params";
 import { paramKeys, stages } from "../core/constants";
 import { getCmsSessionHint } from "../core/get-cms-session-hint";
 import { resetTasklistFilters } from "../application-logic/reset-tasklist-filters";
-import { handleMsalTermination } from "cps-global-auth";
+import { handleMsalLogin, handleMsalTermination } from "cps-global-auth";
+
+// AAD response hashes always carry one of these. Cheap pattern beats parsing
+// the whole hash, and avoids pulling MSAL just to ask "is this a response?".
+const hasAuthResponseHash = (hash: string): boolean =>
+  /[#&](code|error|id_token)=/.test(hash);
 import { CmsAuthStorageKeys } from "cps-global-configuration";
 
 export const handleOsRedirect = async (
@@ -24,19 +29,28 @@ export const handleOsRedirect = async (
   // navigates back to the originating URL on its own (navigateToLoginRequestUrl).
   // fetchMsalConfig is invoked only on this branch — cookie/token return paths
   // do not pay the network round-trip.
-  const incomingStage = new URL(window.location.href).searchParams.get(
-    paramKeys.STAGE,
-  );
+  const params = new URL(window.location.href).searchParams;
+  const incomingStage = params.get(paramKeys.STAGE);
   const hash = window.location.hash;
+  const action = params.get("action");
   console.log("[CPS-GLOBAL-AUTH] handleOsRedirect dispatch", {
     stage: incomingStage,
+    action,
     hash,
-    hasResponseHash: /[#&](code|error|id_token)=/.test(hash),
+    hasResponseHash: hasAuthResponseHash(hash),
     href: window.location.href,
   });
   if (incomingStage === stages.OS_AD_REDIRECT) {
     const msalConfig = await fetchMsalConfig();
-    await handleMsalTermination(window, msalConfig);
+    // Two roles share this URL — discriminate by URL shape.
+    //   - AAD bounce-back (response hash present) → terminate
+    //   - Host-initiated hand-off (?action=login&returnTo=…) → initiate loginRedirect
+    // Anything else (neither hash nor action) is direct access / odd state; no-op.
+    if (hasAuthResponseHash(hash)) {
+      await handleMsalTermination(window, msalConfig);
+    } else if (action === "login") {
+      await handleMsalLogin(window, msalConfig, params.get("returnTo"));
+    }
     return;
   }
 
