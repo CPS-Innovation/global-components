@@ -51,6 +51,15 @@ export const handleMsalLogin = async (
   win: Window,
   msalConfig: MsalConfig,
   returnTo: string | null,
+  // The caller decides what the redirectUri looks like. Two patterns in play:
+  //   - Polaris msal-redirect.html: `${origin}${pathname}` (strip everything) —
+  //     the page loads its bundle statically, so it doesn't need any query
+  //     params on the bounce-back.
+  //   - OS auth-handover.html: keep the OS-dispatch params (?src=…&stage=…)
+  //     because that page reads ?src= to script-inject the bundle on the
+  //     bounce-back. Without it, no bundle loads and the AAD response strands.
+  // Both forms must be registered as redirect URIs in the AAD app reg.
+  redirectUri: string,
   createInstance: CreateInstance = createMsalInstance,
 ): Promise<HandleMsalLoginOutcome> => {
   if (win.self !== win.top) {
@@ -65,10 +74,6 @@ export const handleMsalLogin = async (
   // non-null status (own clientId or foreign — see BrowserCacheManager.mjs).
   win.sessionStorage.removeItem(MSAL_INTERACTION_STATUS_KEY);
 
-  // Clean redirectUri — strip both query and hash. The query carries our own
-  // ?action=login&returnTo=… dispatch params which AAD won't preserve through
-  // the bounce-back and which would also fail strict AAD URI registration.
-  const redirectUri = `${win.location.origin}${win.location.pathname}`;
   const validatedReturnTo = resolveReturnTo(returnTo, win.location.origin);
 
   // Stash the returnTo so the termination handler can navigate to it after

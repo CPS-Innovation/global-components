@@ -54,7 +54,15 @@ void (async () => {
     if (hasAuthResponseHash(window.location.hash)) {
       await handleMsalTermination(window, msalConfig);
     } else if (params.get("action") === "login") {
-      await handleMsalLogin(window, msalConfig, params.get("returnTo"));
+      // Strip both query and hash — this page loads its bundle statically so
+      // no query params need to survive the AAD round-trip.
+      const redirectUri = `${window.location.origin}${window.location.pathname}`;
+      await handleMsalLogin(
+        window,
+        msalConfig,
+        params.get("returnTo"),
+        redirectUri,
+      );
     }
     // Else: direct access / unexpected state — no-op.
   } catch (err) {

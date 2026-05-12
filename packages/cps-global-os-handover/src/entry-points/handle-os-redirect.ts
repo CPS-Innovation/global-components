@@ -49,7 +49,22 @@ export const handleOsRedirect = async (
     if (hasAuthResponseHash(hash)) {
       await handleMsalTermination(window, msalConfig);
     } else if (action === "login") {
-      await handleMsalLogin(window, msalConfig, params.get("returnTo"));
+      // Keep ?src=…&stage=os-ad-redirect on the AAD redirect URI — the OS-served
+      // auth-handover.html reads ?src= to script-inject the bundle on the
+      // bounce-back. Strip only our own dispatch params (action/returnTo) and
+      // the hash. Both forms (with/without src+stage query tail) are registered
+      // in the AAD app reg.
+      const url = new URL(window.location.href);
+      url.searchParams.delete("action");
+      url.searchParams.delete("returnTo");
+      url.hash = "";
+      const redirectUri = url.href;
+      await handleMsalLogin(
+        window,
+        msalConfig,
+        params.get("returnTo"),
+        redirectUri,
+      );
     }
     return;
   }

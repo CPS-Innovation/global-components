@@ -384,10 +384,13 @@ describe("handleOsRedirect", () => {
 
       expect(fetchMsalConfig).toHaveBeenCalledTimes(1);
       expect(mockHandleMsalLogin).toHaveBeenCalledTimes(1);
+      // redirectUri keeps ?src=&stage= (needed by OS HTML to script-inject the
+      // bundle on the bounce-back) but strips our own action/returnTo dispatch.
       expect(mockHandleMsalLogin).toHaveBeenCalledWith(
         win,
         msalConfig,
         "https://cps-tst.outsystemsenterprise.com/casework_blocks/home",
+        "https://cps-tst.outsystemsenterprise.com/Casework_Patterns/auth-handover.html?src=https%3A%2F%2Fpolaris.example%2Fauth-handover.js&stage=os-ad-redirect",
       );
       expect(mockHandleMsalTermination).not.toHaveBeenCalled();
       expect(win.location.replace).not.toHaveBeenCalled();
@@ -424,7 +427,12 @@ describe("handleOsRedirect", () => {
 
       await handleOsRedirect(win, tokenHandoverUrl, fetchMsalConfig, keys);
 
-      expect(mockHandleMsalLogin).toHaveBeenCalledWith(win, msalConfig, null);
+      expect(mockHandleMsalLogin).toHaveBeenCalledWith(
+        win,
+        msalConfig,
+        null,
+        "https://cps-tst.outsystemsenterprise.com/Casework_Patterns/auth-handover.html?src=https%3A%2F%2Fpolaris.example%2Fauth-handover.js&stage=os-ad-redirect",
+      );
     });
 
     test("does not fetch MSAL config on cookie-return / token-return paths", async () => {
