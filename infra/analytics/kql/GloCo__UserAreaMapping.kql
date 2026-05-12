@@ -3,6 +3,6 @@ GloCo_PageViews
 | where isnotempty(Auth_Username)
 | where isnotempty(User_CountNotSensitiveUnits)
 | summarize 
-    arg_max(TimeGenerated, User_AreaId, User_Area, User_HasViewNationalChargingTasksRight, User_CountSensitiveUnits, User_CountNotSensitiveUnits), UserIds = make_set(UserId) 
+    arg_max(TimeGenerated, User_AreaId, User_Area, User_AreaOrCPSD, User_HasViewNationalChargingTasksRight, User_CountSensitiveUnits, User_CountNotSensitiveUnits), UserIds = make_set(UserId)
 by Auth_Username
 | project-away TimeGenerated

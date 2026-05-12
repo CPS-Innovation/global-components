@@ -19,7 +19,8 @@ GloCo_PageViews
     Is_Admin_Finalise              = App == "Case review" and Page == "QuickAdminFinalise",
     Is_Triage_OD                   = App == "Work management app" and Page == "Triage" and TriageType == "OD",
     Is_Triage_ODPCDReview          = App == "Work management app" and Page == "Triage" and TriageType == "ODPCDReview",
-    Is_Triage_DCP                  = App == "Work management app" and Page == "Triage" and TriageType == "DCP"
+    Is_Triage_DCP                  = App == "Work management app" and Page == "Triage" and TriageType == "DCP",
+    Is_StreamlinedThresholdTest    = App == "Case review" and Page == "StreamlinedThresholdTest"
 | extend
     Is_Active_Visit = IsFirstReviewParam
         or IsSubmittedParam
@@ -36,5 +37,6 @@ GloCo_PageViews
         or Is_Triage_OD
         or Is_Triage_ODPCDReview
         or Is_Triage_DCP
+        or Is_StreamlinedThresholdTest
 | where Is_Active_Visit
 | project-away Params, TriageType
