@@ -19,8 +19,11 @@ import { getAdUserAccount } from "./get-ad-user-account";
 describe("get-ad-user-account", () => {
   let mockAccount: AccountInfo;
 
+  // Mirrors what real config provides: full URI with ?src= + &stage= baked in,
+  // matching what's registered with AAD. tryLoginAccountViaRedirect just appends
+  // ?returnTo on top.
   const msalRedirectUrl =
-    "https://example.com/global-components/test/msal-redirect.html";
+    "https://example.com/global-components/test/auth-handover.html?src=https%3A%2F%2Fexample.com%2Fauth-handover.js&stage=ad-redirect";
 
   const defaultProps = {
     instance: mockInstance,
@@ -224,15 +227,21 @@ describe("get-ad-user-account", () => {
       ).not.toBeNull();
     });
 
-    it("hand-off URL is msalRedirectUrl with stage=ad-redirect and returnTo=current href", async () => {
+    it("hand-off URL is msalRedirectUrl with returnTo appended (stage + src already baked into config)", async () => {
       (mockInstance.getActiveAccount as jest.Mock).mockReturnValue(null);
       (mockInstance.getAllAccounts as jest.Mock).mockReturnValue([]);
 
       await getAdUserAccount({ ...defaultProps, useFullPageRedirect: true });
 
       const handedOff = new URL(replaceSpy.mock.calls[0]![0] as string);
-      expect(`${handedOff.origin}${handedOff.pathname}`).toBe(msalRedirectUrl);
+      const expected = new URL(msalRedirectUrl);
+      expect(`${handedOff.origin}${handedOff.pathname}`).toBe(
+        `${expected.origin}${expected.pathname}`,
+      );
+      // stage + src come straight from the configured msalRedirectUrl
       expect(handedOff.searchParams.get("stage")).toBe("ad-redirect");
+      expect(handedOff.searchParams.get("src")).toBe(expected.searchParams.get("src"));
+      // returnTo is the one dispatch param we add programmatically
       expect(handedOff.searchParams.get("returnTo")).toBe(window.location.href);
     });
 

@@ -43,7 +43,7 @@
         "box-shadow": "none"
       },
       "skipLinkClassName": "cps-skip-link__target",
-      "msalRedirectUrl": "https://cps.outsystemsenterprise.com/Casework_Patterns/auth-handover.html?src=https%3A%2F%2Fpolaris.cps.gov.uk%2Fglobal-components%2Fprod%2Fauth-handover.js",
+      "msalRedirectUrl": "https://cps.outsystemsenterprise.com/Casework_Patterns/auth-handover.html?src=https%3A%2F%2Fpolaris.cps.gov.uk%2Fglobal-components%2Fprod%2Fauth-handover.js&stage=ad-redirect",
       "cmsAuthFromStorageKey": "$OS_Users$Casework_Blocks$ClientVars$JSONString",
       "contexts": [
         {
@@ -100,7 +100,7 @@
       ]
     },
     {
-      "msalRedirectUrl": "https://polaris.cps.gov.uk/global-components/prod/auth-handover.html?src=https%3A%2F%2Fpolaris.cps.gov.uk%2Fglobal-components%2Fprod%2Fauth-handover.js",
+      "msalRedirectUrl": "https://polaris.cps.gov.uk/global-components/prod/auth-handover.html?src=https%3A%2F%2Fpolaris.cps.gov.uk%2Fglobal-components%2Fprod%2Fauth-handover.js&stage=ad-redirect",
       "contexts": [
         {
           "path": "https://polaris.cps.gov.uk/polaris-ui/case-details/(?<urn>[^/]+)/(?<caseId>\\d+)",
