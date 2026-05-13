@@ -1,7 +1,6 @@
 import { createStore } from "@stencil/store";
 import { getRenderingRef, forceUpdate } from "@stencil/core";
-import { CmsSessionHint, Config, Notification, Preview } from "cps-global-configuration";
-import { AuthResult } from "../services/auth/AuthResult";
+import { AuthHint, AuthResult, CmsSessionHint, Config, Notification, Preview } from "cps-global-configuration";
 import { FoundContext } from "../services/context/FoundContext";
 import { ApplicationFlags } from "../services/application-flags/ApplicationFlags";
 import { loggingSubscriptionFactory } from "./subscriptions/logging-subscription-factory";
@@ -17,7 +16,6 @@ import { CaseIdentifiers } from "../services/context/CaseIdentifiers";
 import { caseIdentifiersSubscriptionFactory } from "./subscriptions/case-identifiers-subscription-factory";
 import { Handover } from "../services/state/handover/Handover";
 import { Result } from "../utils/Result";
-import { AuthHint } from "../services/state/auth-hint/initialise-auth-hint";
 import { UserDataHint } from "../services/state/user-data/UserData";
 import { MonitoringCodes } from "../services/data/MonitoringCode";
 import { RecentCases } from "../services/state/recent-cases/recent-cases";

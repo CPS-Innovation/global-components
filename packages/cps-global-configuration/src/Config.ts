@@ -177,6 +177,12 @@ export const configBaseSchema = z.object({
   FEATURE_FLAG_MENU_USERS: featureFlagUsersSchema.optional(),
   FEATURE_FLAG_USE_MSAL_FULL_REDIRECT_USERS: featureFlagUsersSchema.optional(),
   FEATURE_FLAG_CASE_LOCKING_USERS: featureFlagUsersSchema.optional(),
+  // Short-lived AD-redirect beacons (drop 8). Both default off; flip per env to
+  // enable. Beacon URL is derived at runtime from script.src (sibling of the
+  // handover bundle), so no separate config entry. Independent kill-switches
+  // so success / failure can be enabled / disabled independently.
+  BEACON_AD_REDIRECT_SUCCESSES_ENABLED: z.boolean().optional(),
+  BEACON_AD_REDIRECT_FAILURES_ENABLED: z.boolean().optional(),
   SSO_SILENT_DELAY_MS: z.number().optional(),
   CACHE_CONFIG: cacheConfigSchema.optional(),
   FETCH_CIRCUIT_BREAKER_CONFIG: fetchCircuitBreakerConfigSchema.optional(),

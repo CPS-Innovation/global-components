@@ -1,17 +1,8 @@
-import { z } from "zod";
-import { fetchState } from "cps-global-configuration";
+import { Auth, AuthHint, AuthHintSchema, fetchState } from "cps-global-configuration";
 import { StatePutResponseSchema } from "../StatePutResponse";
 import { makeConsole } from "../../../logging/makeConsole";
 import { Result } from "../../../utils/Result";
-import { Auth, AuthSchema } from "../../auth/AuthResult";
 import { TrackException } from "../../analytics/TrackException";
-
-const AuthHintSchema = z.object({
-  authResult: AuthSchema,
-  timestamp: z.number(),
-});
-
-export type AuthHint = z.infer<typeof AuthHintSchema>;
 
 const { _warn } = makeConsole("initialiseAuthHint");
 

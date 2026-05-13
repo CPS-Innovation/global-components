@@ -68,7 +68,7 @@ describe("handleMsalTermination", () => {
       createInstance,
     );
 
-    expect(result).toBe("iframe-noop");
+    expect(result.outcome).toBe("iframe-noop");
     expect(createInstance).not.toHaveBeenCalled();
   });
 
@@ -88,7 +88,7 @@ describe("handleMsalTermination", () => {
       redirectUri: "https://app.example/sub/redirect.html",
     });
     expect(handleRedirectPromise).toHaveBeenCalledTimes(1);
-    expect(result).toBe("handled");
+    expect(result.outcome).toBe("handled");
   });
 
   it("preserves query string in redirectUri (folded OS path: ?src=…&stage=…) but strips hash", async () => {
@@ -120,7 +120,7 @@ describe("handleMsalTermination", () => {
 
     const result = await handleMsalTermination(makeWindow(), { clientId: "c", authority: "a" }, createInstance);
 
-    expect(result).toBe("handled-with-error");
+    expect(result.outcome).toBe("handled-with-error");
   });
 
   it("returns 'handled-with-error' when createInstance rejects (e.g. initialize() fails inside the factory)", async () => {
@@ -128,7 +128,7 @@ describe("handleMsalTermination", () => {
 
     const result = await handleMsalTermination(makeWindow(), { clientId: "c", authority: "a" }, createInstance);
 
-    expect(result).toBe("handled-with-error");
+    expect(result.outcome).toBe("handled-with-error");
   });
 
   it("on success writes a completion id UUID and clears the in-flight loop guard", async () => {
@@ -163,23 +163,21 @@ describe("handleMsalTermination", () => {
   });
 
   describe("when a returnTo is stashed (initiated via handle-msal-login)", () => {
-    it("navigates window.location to the stashed returnTo (via replace) after handleRedirectPromise resolves", async () => {
+    it("returns the stashed returnTo for the caller to navigate to (handleMsalTermination itself does not navigate)", async () => {
       const handleRedirectPromise = jest.fn().mockResolvedValue(null);
       const createInstance = jest.fn().mockResolvedValue({ handleRedirectPromise });
       const win = makeWindow({ stashedReturnTo: "https://example.com/polaris-ui/case/123" });
 
       const result = await handleMsalTermination(win, { clientId: "c", authority: "a" }, createInstance);
 
-      expect(result).toBe("handled");
-      // Use replace so the bounce-back msal-redirect.html entry is not left
-      // sitting in browser history.
-      expect((win.location as any).replace).toHaveBeenCalledWith(
-        "https://example.com/polaris-ui/case/123",
-      );
+      expect(result.outcome).toBe("handled");
+      expect(result.returnTo).toBe("https://example.com/polaris-ui/case/123");
+      // The caller is responsible for navigation — no direct call from this fn.
+      expect((win.location as any).replace).not.toHaveBeenCalled();
       expect((win.location as any).assign).not.toHaveBeenCalled();
     });
 
-    it("clears the stash before navigating so a re-entry to the page doesn't loop", async () => {
+    it("clears the stash on success so a re-entry to the page doesn't pick up stale state", async () => {
       const handleRedirectPromise = jest.fn().mockResolvedValue(null);
       const createInstance = jest.fn().mockResolvedValue({ handleRedirectPromise });
       const win = makeWindow({ stashedReturnTo: "https://example.com/polaris-ui" });
@@ -211,16 +209,44 @@ describe("handleMsalTermination", () => {
     });
   });
 
-  describe("when no returnTo is stashed (OS handover folded path)", () => {
-    it("does not navigate window.location — MSAL's default handles it", async () => {
+  describe("when no returnTo is stashed", () => {
+    it("returns undefined returnTo and does not navigate", async () => {
       const handleRedirectPromise = jest.fn().mockResolvedValue(null);
       const createInstance = jest.fn().mockResolvedValue({ handleRedirectPromise });
       const win = makeWindow();
 
-      await handleMsalTermination(win, { clientId: "c", authority: "a" }, createInstance);
+      const result = await handleMsalTermination(win, { clientId: "c", authority: "a" }, createInstance);
 
+      expect(result.returnTo).toBeUndefined();
       expect((win.location as any).assign).not.toHaveBeenCalled();
       expect((win.location as any).replace).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("account info surfaced for telemetry", () => {
+    it("returns the AccountInfo from handleRedirectPromise when present", async () => {
+      const account = {
+        homeAccountId: "abc",
+        localAccountId: "def",
+        username: "user@example.com",
+        idTokenClaims: { oid: "11111111-2222-3333-4444-555555555555" },
+      };
+      const handleRedirectPromise = jest.fn().mockResolvedValue({ account });
+      const createInstance = jest.fn().mockResolvedValue({ handleRedirectPromise });
+
+      const result = await handleMsalTermination(makeWindow(), { clientId: "c", authority: "a" }, createInstance);
+
+      expect(result.outcome).toBe("handled");
+      expect(result.account).toBe(account);
+    });
+
+    it("returns account=null when handleRedirectPromise resolves null (e.g. no AAD response on the URL)", async () => {
+      const handleRedirectPromise = jest.fn().mockResolvedValue(null);
+      const createInstance = jest.fn().mockResolvedValue({ handleRedirectPromise });
+
+      const result = await handleMsalTermination(makeWindow(), { clientId: "c", authority: "a" }, createInstance);
+
+      expect(result.account).toBeNull();
     });
   });
 });

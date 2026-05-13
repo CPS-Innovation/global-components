@@ -1,3 +1,4 @@
+import type { AccountInfo, AuthenticationResult } from "@azure/msal-browser";
 import { createMsalInstance } from "./internal/create-msal-instance";
 import {
   MSAL_REDIRECT_COMPLETION_ID_KEY,
@@ -11,7 +12,7 @@ type MsalConfig = {
 };
 
 type MsalLikeInstance = {
-  handleRedirectPromise: () => Promise<unknown>;
+  handleRedirectPromise: () => Promise<AuthenticationResult | null>;
 };
 
 // Async factory — must return an already-initialised instance (consistent with
@@ -26,14 +27,28 @@ export type HandleMsalTerminationOutcome =
   | "handled"
   | "handled-with-error";
 
+export type HandleMsalTerminationResult = {
+  outcome: HandleMsalTerminationOutcome;
+  // The MSAL account from the bounce-back response. Populated only on the
+  // "handled" path when AAD returned an id_token. Consumers (drop 8 beacon)
+  // read idTokenClaims.oid off this for telemetry.
+  account?: AccountInfo | null;
+  // The post-termination navigation target, drained from sessionStorage on
+  // success. Caller is responsible for performing the navigation (via
+  // win.location.replace) once any pre-navigation work — e.g. firing the
+  // success beacon — has completed. Returning rather than navigating
+  // internally lets the caller sequence work without racing the unload.
+  returnTo?: string;
+};
+
 export const handleMsalTermination = async (
   win: Window,
   msalConfig: MsalConfig,
   createInstance: CreateInstance = createMsalInstance,
-): Promise<HandleMsalTerminationOutcome> => {
+): Promise<HandleMsalTerminationResult> => {
   if (win.self !== win.top) {
     console.log("[CPS-GLOBAL-AUTH] handleMsalTermination iframe-noop");
-    return "iframe-noop";
+    return { outcome: "iframe-noop" };
   }
 
   try {
@@ -59,40 +74,34 @@ export const handleMsalTermination = async (
       "[CPS-GLOBAL-AUTH] handleMsalTermination handleRedirectPromise resolved",
       { hasResult: !!result },
     );
-    // Two synchronous writes before MSAL's window.location.assign navigation
-    // (triggered by navigateToLoginRequestUrl: true) pre-empts us:
+    // Two synchronous writes before any pending navigation pre-empts us:
     //   1. Stamp a fresh UUID under COMPLETION_ID_KEY — get-ad-user-account
     //      reads this on the bounce-back as the positive "redirect succeeded"
     //      signal and uses the value as an analytics correlation token.
     //   2. Clear the in-flight loop guard so the next page load is free to
     //      re-attempt loginRedirect if cached tokens have expired again.
-    // Both racing the unload — usually they fire (one microtask before unload),
-    // and the 30s loop-guard TTL is the safety net if (2) doesn't.
     win.sessionStorage.setItem(
       MSAL_REDIRECT_COMPLETION_ID_KEY,
       win.crypto.randomUUID(),
     );
     win.sessionStorage.removeItem(MSAL_REDIRECT_IN_FLIGHT_KEY);
 
-    // If handle-msal-login stashed a returnTo, this round-trip is our own
-    // (host-page → msal-redirect.html → AAD → msal-redirect.html → host-page).
-    // MSAL has processed the response inline (Branch A in handleRedirectPromise,
-    // forced by redirectStartPage = redirectUri); tokens are now in localStorage.
-    // Navigate the user back to where they came from. If absent (OS handover
-    // folded path), leave MSAL's default navigation to take over.
+    // Drain the returnTo stash and surface it to the caller. The caller is
+    // responsible for the actual navigation — lets us interleave a beacon
+    // call (drop 8) between termination and unload without racing.
     const returnTo = win.sessionStorage.getItem(MSAL_REDIRECT_RETURN_TO_KEY);
-    console.log("[CPS-GLOBAL-AUTH] handleMsalTermination complete", {
-      hasReturnTo: !!returnTo,
-      willNavigateExplicitly: !!returnTo,
-    });
     if (returnTo) {
       win.sessionStorage.removeItem(MSAL_REDIRECT_RETURN_TO_KEY);
-      // replace, not assign — the bounce-back msal-redirect.html entry has no
-      // value to the user post-auth; without replace, hitting back lands them
-      // on a blank page (no hash, no action=login → bundle no-ops).
-      win.location.replace(returnTo);
     }
-    return "handled";
+    console.log("[CPS-GLOBAL-AUTH] handleMsalTermination complete", {
+      hasAccount: !!result?.account,
+      hasReturnTo: !!returnTo,
+    });
+    return {
+      outcome: "handled",
+      account: result?.account ?? null,
+      returnTo: returnTo ?? undefined,
+    };
   } catch (err) {
     // Clear the returnTo stash if present — flow is over and we don't want
     // the next handleMsalTermination (different flow) to navigate stale.
@@ -103,6 +112,6 @@ export const handleMsalTermination = async (
       "[CPS-GLOBAL-AUTH] handleMsalTermination: handleRedirectPromise threw",
       err,
     );
-    return "handled-with-error";
+    return { outcome: "handled-with-error" };
   }
 };
