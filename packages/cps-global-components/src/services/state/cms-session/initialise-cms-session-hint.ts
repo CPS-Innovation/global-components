@@ -1,5 +1,5 @@
 import { CmsSessionHint, CmsSessionHintSchema } from "cps-global-configuration";
-import { fetchState } from "../fetch-state";
+import { fetchState } from "cps-global-configuration";
 import { ApplicationFlags } from "../../application-flags/ApplicationFlags";
 import { Result } from "../../../utils/Result";
 

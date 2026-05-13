@@ -1,4 +1,4 @@
-import { fetchState } from "../fetch-state";
+import { fetchState } from "cps-global-configuration";
 import { Preview, PreviewSchema } from "cps-global-configuration";
 import { Result } from "../../../utils/Result";
 

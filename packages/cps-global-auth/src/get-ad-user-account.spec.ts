@@ -224,7 +224,7 @@ describe("get-ad-user-account", () => {
       ).not.toBeNull();
     });
 
-    it("hand-off URL is msalRedirectUrl with action=login and returnTo=current href", async () => {
+    it("hand-off URL is msalRedirectUrl with stage=ad-redirect and returnTo=current href", async () => {
       (mockInstance.getActiveAccount as jest.Mock).mockReturnValue(null);
       (mockInstance.getAllAccounts as jest.Mock).mockReturnValue([]);
 
@@ -232,7 +232,7 @@ describe("get-ad-user-account", () => {
 
       const handedOff = new URL(replaceSpy.mock.calls[0]![0] as string);
       expect(`${handedOff.origin}${handedOff.pathname}`).toBe(msalRedirectUrl);
-      expect(handedOff.searchParams.get("action")).toBe("login");
+      expect(handedOff.searchParams.get("stage")).toBe("ad-redirect");
       expect(handedOff.searchParams.get("returnTo")).toBe(window.location.href);
     });
 

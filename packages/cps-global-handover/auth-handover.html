@@ -1,19 +1,24 @@
 <html>
 <!--
-  Manually deployed on the OutSystems domain (Casework_Patterns/auth-handover.html).
-  Loads the env-specific auth-handover.js bundle from a whitelisted Polaris host
-  via the ?src= query parameter. That bundle then handles OS handover stages
-  (cookie return, token return) and the os-ad-redirect MSAL termination path.
+  Single auth-handover endpoint, deployed to:
+  - Polaris CDN (automatic via CI) at /global-components/{env}/auth-handover.html
+  - OutSystems domains (manual upload by OS team) at /Casework_Patterns/auth-handover.html
 
-  See packages/cps-global-os-handover/README.md for the full embedding flow and
+  Loads the env-specific auth-handover.js bundle from a whitelisted Polaris host
+  via the ?src= query parameter. That bundle dispatches by ?stage= to:
+  - os-cookie-return / os-token-return (CMS → OS auth handover, OS variant only)
+  - ad-redirect (host-initiated MSAL full-page redirect + AAD bounce-back)
+
+  See packages/cps-global-handover/README.md for the full embedding flow and
   per-environment URLs.
 
   Defence in depth — both layers below must agree before any remote script runs:
 
   1. Meta CSP restricts what the browser will fetch / connect to / submit to.
-     Note: meta CSP can only TIGHTEN any HTTP-header CSP the OS server sets for
-     this path — it cannot loosen — so if MSAL endpoints aren't already allowed
-     at the header layer, login.microsoftonline.com calls will silently fail.
+     Note: meta CSP can only TIGHTEN any HTTP-header CSP the host server sets
+     for this path — it cannot loosen — so if MSAL endpoints aren't already
+     allowed at the header layer, login.microsoftonline.com calls will silently
+     fail.
   2. Runtime hostname allowlist (the `allowed` Set below) is the human-readable
      intent and runs first; CSP catches anything that bypasses or post-dates it.
 -->

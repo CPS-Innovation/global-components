@@ -1,8 +1,7 @@
-import { Config, Notification, notificationsFileSchema, dismissedNotificationIdsSchema } from "cps-global-configuration";
+import { Config, Notification, notificationsFileSchema, dismissedNotificationIdsSchema, fetchConfig, fetchState } from "cps-global-configuration";
 import { getArtifactUrl } from "../../utils/get-artifact-url";
 import { makeConsole } from "../../logging/makeConsole";
 import { Register } from "../../store/store";
-import { fetchState } from "../state/fetch-state";
 import { StatePutResponseSchema } from "../state/StatePutResponse";
 import { Handlers } from "../handlers/handlers";
 
@@ -13,7 +12,7 @@ const DISMISSED_STATE_URL = "../state/dismissed-notifications";
 const fetchNotificationsFile = async (rootUrl: string): Promise<Notification[]> => {
   const url = getArtifactUrl(rootUrl, "notification.json");
   try {
-    const response = await fetch(url, { cache: "no-cache" });
+    const response = await fetchConfig(url);
     if (!response.ok) {
       throw new Error(`notification.json fetch not ok: ${response.status}`);
     }

@@ -1,5 +1,4 @@
-import { Config, transformAndValidateConfig, ValidationResult } from "cps-global-configuration";
-import { ConfigFetch } from "./ConfigFetch";
+import { Config, ConfigFetch, fetchConfig, transformAndValidateConfig, ValidationResult } from "cps-global-configuration";
 import { getArtifactUrl } from "../../utils/get-artifact-url";
 import { fetchDevelopmentConfig } from "../override-mode/fetch-development-config";
 import { ApplicationFlags } from "../application-flags/ApplicationFlags";
@@ -38,10 +37,6 @@ export const initialiseConfig = async ({
   register: Register;
 }): Promise<Config> => {
   const configUrl = getArtifactUrl(rootUrl, "config.json");
-
-  // "no-cache" is important. If a user does a hard-refresh and a new version has been released, the behaviour
-  //  of fetch means that it will still go with the stale json config. This can lead to config validation fails.
-  const fetchConfig: ConfigFetch = async (configUrl: string) => await fetch(configUrl, { cache: "no-cache" });
 
   // Local-dev override (fetches config.development.json) tried first; falls
   // through to the deployed config.json. Override-via-preview is gone — see

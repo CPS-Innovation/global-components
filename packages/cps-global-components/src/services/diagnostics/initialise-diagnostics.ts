@@ -1,6 +1,6 @@
 import { Config } from "cps-global-configuration";
 import { Register } from "../../store/store";
-import { fetchState } from "../state/fetch-state";
+import { fetchState } from "cps-global-configuration";
 import { StatePutResponseSchema } from "../state/StatePutResponse";
 import { SilentFlowDiagnostic, SilentFlowDiagnostics, SilentFlowDiagnosticsSchema, emptySilentFlowDiagnostics } from "./silent-flow-diagnostics";
 import { ProbeIframeLoadDiagnostic, ProbeIframeLoadDiagnosticSchema } from "./probe-iframe-load-diagnostic";
