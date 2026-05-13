@@ -15,7 +15,7 @@ describe("buildBeaconUrl", () => {
     const url = buildBeaconUrl(
       new URL("https://polaris-qa-notprod.cps.gov.uk/global-components/test/auth-handover.js"),
       "success",
-      { authHintObjectId: "abc" },
+      { "auth-hint-object-id": "abc" },
     );
 
     expect(new URL(url).origin + new URL(url).pathname).toBe(
@@ -27,13 +27,13 @@ describe("buildBeaconUrl", () => {
     const url = buildBeaconUrl(
       new URL("https://polaris.cps.gov.uk/global-components/prod/auth-handover.js"),
       "failure",
-      { authHintObjectId: "obj-123", errorCode: "AADSTS50011", reason: "redirect_uri mismatch" },
+      { "auth-hint-object-id": "obj-123", "error-code": "AADSTS50011", reason: "redirect_uri mismatch" },
     );
 
     const parsed = new URL(url);
     expect(parsed.searchParams.get("outcome")).toBe("failure");
-    expect(parsed.searchParams.get("authHintObjectId")).toBe("obj-123");
-    expect(parsed.searchParams.get("errorCode")).toBe("AADSTS50011");
+    expect(parsed.searchParams.get("auth-hint-object-id")).toBe("obj-123");
+    expect(parsed.searchParams.get("error-code")).toBe("AADSTS50011");
     expect(parsed.searchParams.get("reason")).toBe("redirect_uri mismatch");
   });
 
@@ -41,10 +41,10 @@ describe("buildBeaconUrl", () => {
     const url = buildBeaconUrl(
       new URL("https://polaris.cps.gov.uk/global-components/prod/auth-handover.js"),
       "success",
-      { authHintObjectId: "obj-1", errorCode: undefined },
+      { "auth-hint-object-id": "obj-1", "error-code": undefined },
     );
 
-    expect(new URL(url).searchParams.has("errorCode")).toBe(false);
+    expect(new URL(url).searchParams.has("error-code")).toBe(false);
   });
 });
 
@@ -55,7 +55,7 @@ describe("beaconAdRedirect", () => {
     await beaconAdRedirect(
       new URL("https://polaris.cps.gov.uk/global-components/prod/auth-handover.js"),
       "success",
-      { authHintObjectId: "obj-1" },
+      { "auth-hint-object-id": "obj-1" },
     );
 
     expect(mockFetch).toHaveBeenCalledTimes(1);
@@ -71,7 +71,7 @@ describe("beaconAdRedirect", () => {
       beaconAdRedirect(
         new URL("https://polaris.cps.gov.uk/global-components/prod/auth-handover.js"),
         "failure",
-        { authHintObjectId: "obj-1" },
+        { "auth-hint-object-id": "obj-1" },
       ),
     ).resolves.toBeUndefined();
   });

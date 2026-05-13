@@ -118,7 +118,7 @@ export const dispatchHandover = async (
             (result.account?.idTokenClaims as { oid?: string } | undefined)
               ?.oid ?? "unknown";
           await beaconAdRedirect(scriptUrl, "success", {
-            authHintObjectId: oid,
+            "auth-hint-object-id": oid,
           });
         } else if (
           result.outcome === "handled-with-error" &&
@@ -126,7 +126,7 @@ export const dispatchHandover = async (
         ) {
           const oid = await tryFetchAuthHintObjectId(scriptUrl);
           await beaconAdRedirect(scriptUrl, "failure", {
-            authHintObjectId: oid,
+            "auth-hint-object-id": oid,
           });
         }
 

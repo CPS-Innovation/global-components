@@ -12,10 +12,12 @@
 
 export type BeaconOutcome = "success" | "failure";
 
+// Query-string keys are hyphen-cased (kebab-case), not camelCase — keeps the
+// log lines easy to grep and consistent with how URL params usually read.
 export type BeaconPayload = {
-  authHintObjectId: string;
+  "auth-hint-object-id": string;
   // Free-form telemetry fields, all optional. Anything serialisable to a
-  // query string param. Common keys: errorCode, errorName, reason.
+  // query string param. Common keys: "error-code", "error-name", "reason".
   [key: string]: string | undefined;
 };
 
