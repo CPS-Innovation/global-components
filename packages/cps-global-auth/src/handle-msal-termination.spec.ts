@@ -131,6 +131,30 @@ describe("handleMsalTermination", () => {
     expect(result.outcome).toBe("handled-with-error");
   });
 
+  it("on failure, surfaces the stashed returnTo so the caller can navigate the user back to the host", async () => {
+    const handleRedirectPromise = jest.fn().mockRejectedValue(new Error("boom"));
+    const createInstance = jest.fn().mockResolvedValue({ handleRedirectPromise });
+    const win = makeWindow({ stashedReturnTo: "https://example.com/polaris-ui/case/123" });
+
+    const result = await handleMsalTermination(win, { clientId: "c", authority: "a" }, createInstance);
+
+    expect(result.outcome).toBe("handled-with-error");
+    expect(result.returnTo).toBe("https://example.com/polaris-ui/case/123");
+    // The stash is still cleared — we surface but don't leave stale state.
+    expect(win.sessionStorage.removeItem).toHaveBeenCalledWith(
+      "cps_global_components_msal_redirect_return_to",
+    );
+  });
+
+  it("on failure with no stashed returnTo, returns returnTo=undefined (caller stays put)", async () => {
+    const handleRedirectPromise = jest.fn().mockRejectedValue(new Error("boom"));
+    const createInstance = jest.fn().mockResolvedValue({ handleRedirectPromise });
+
+    const result = await handleMsalTermination(makeWindow(), { clientId: "c", authority: "a" }, createInstance);
+
+    expect(result.returnTo).toBeUndefined();
+  });
+
   it("on success writes a completion id UUID and clears the in-flight loop guard", async () => {
     const handleRedirectPromise = jest.fn().mockResolvedValue(null);
     const createInstance = jest.fn().mockResolvedValue({ handleRedirectPromise });
