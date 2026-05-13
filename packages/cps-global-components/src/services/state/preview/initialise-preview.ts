@@ -1,5 +1,4 @@
-import { fetchState } from "cps-global-configuration";
-import { Preview, PreviewSchema } from "cps-global-configuration";
+import { fetchState, Preview, PreviewSchema } from "cps-global-configuration";
 import { Result } from "../../../utils/Result";
 
 type Register = (arg: { preview: Result<Preview> }) => void;
