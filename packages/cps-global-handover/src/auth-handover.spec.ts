@@ -197,10 +197,29 @@ describe("dispatchHandover", () => {
       );
     });
 
-    test("on failed termination, does NOT navigate (caller stays on the handover page)", async () => {
+    test("on failed termination with a surfaced returnTo, navigates back to the host page", async () => {
+      // Termination surfaces returnTo on the failure path so the user lands on
+      // the host's FailedAuth UI rather than a blank handover page. See
+      // packages/cps-global-handover/AD-FAILURE-MODES.md.
+      mockHandleMsalTermination.mockResolvedValue({
+        outcome: "handled-with-error",
+        returnTo: "https://cps-tst.outsystemsenterprise.com/casework_blocks/home",
+      });
+      const win = makeWindow(
+        "https://cps-tst.outsystemsenterprise.com/Casework_Patterns/auth-handover.html?src=x&stage=ad-redirect#error=invalid",
+      );
+
+      await dispatchHandover(win, config, scriptUrl);
+
+      expect(win.location.replace).toHaveBeenCalledWith(
+        "https://cps-tst.outsystemsenterprise.com/casework_blocks/home",
+      );
+    });
+
+    test("on failed termination with no returnTo, does not navigate (user left on handover page)", async () => {
       mockHandleMsalTermination.mockResolvedValue({ outcome: "handled-with-error" });
       const win = makeWindow(
-        "https://cps-tst.outsystemsenterprise.com/Casework_Patterns/auth-handover.html?src=x&stage=ad-redirect#code=abc",
+        "https://cps-tst.outsystemsenterprise.com/Casework_Patterns/auth-handover.html?src=x&stage=ad-redirect#error=invalid",
       );
 
       await dispatchHandover(win, config, scriptUrl);
@@ -234,7 +253,7 @@ describe("dispatchHandover", () => {
       const parsed = new URL(String(calledUrl));
       expect(parsed.pathname).toMatch(/\/ad-redirect-beacon$/);
       expect(parsed.searchParams.get("outcome")).toBe("success");
-      expect(parsed.searchParams.get("authHintObjectId")).toBe("obj-success-123");
+      expect(parsed.searchParams.get("auth-hint-object-id")).toBe("obj-success-123");
     });
 
     test("does NOT fire success beacon when SUCCESSES_ENABLED is false (default)", async () => {
@@ -263,7 +282,7 @@ describe("dispatchHandover", () => {
       await dispatchHandover(win, { ...config, BEACON_AD_REDIRECT_SUCCESSES_ENABLED: true } as Config, scriptUrl);
 
       const [calledUrl] = mockFetch.mock.calls[0]!;
-      expect(new URL(String(calledUrl)).searchParams.get("authHintObjectId")).toBe("unknown");
+      expect(new URL(String(calledUrl)).searchParams.get("auth-hint-object-id")).toBe("unknown");
     });
 
     test("fires failure beacon when FAILURES_ENABLED and authHint fetch returns an objectId", async () => {
@@ -292,7 +311,7 @@ describe("dispatchHandover", () => {
       expect(mockFetch).toHaveBeenCalledTimes(2);
       const beaconUrl = new URL(String(mockFetch.mock.calls[1]![0]));
       expect(beaconUrl.searchParams.get("outcome")).toBe("failure");
-      expect(beaconUrl.searchParams.get("authHintObjectId")).toBe("obj-failure-456");
+      expect(beaconUrl.searchParams.get("auth-hint-object-id")).toBe("obj-failure-456");
     });
 
     test("failure beacon falls back to 'unknown' when authHint fetch fails", async () => {
@@ -307,7 +326,7 @@ describe("dispatchHandover", () => {
       await dispatchHandover(win, { ...config, BEACON_AD_REDIRECT_FAILURES_ENABLED: true } as Config, scriptUrl);
 
       const beaconUrl = new URL(String(mockFetch.mock.calls[1]![0]));
-      expect(beaconUrl.searchParams.get("authHintObjectId")).toBe("unknown");
+      expect(beaconUrl.searchParams.get("auth-hint-object-id")).toBe("unknown");
     });
 
     test("does NOT fire failure beacon when FAILURES_ENABLED is false (default)", async () => {

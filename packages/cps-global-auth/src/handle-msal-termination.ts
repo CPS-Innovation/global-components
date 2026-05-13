@@ -103,15 +103,21 @@ export const handleMsalTermination = async (
       returnTo: returnTo ?? undefined,
     };
   } catch (err) {
-    // Clear the returnTo stash if present — flow is over and we don't want
-    // the next handleMsalTermination (different flow) to navigate stale.
-    // Leave the in-flight sentinel in place so get-ad-user-account on the
-    // next host-page entry can infer "redirect-failure".
+    // Drain the returnTo stash and surface it so the caller can navigate the
+    // user back to the host page — leaving them stuck on a blank auth-handover
+    // page after a failed AAD round-trip is worse than dropping them at the
+    // host's FailedAuth UI. The 30s in-flight loop guard (left in place)
+    // prevents a tight re-attempt loop from the host on the next page load.
+    // See packages/cps-global-handover/AD-FAILURE-MODES.md.
+    const returnTo = win.sessionStorage.getItem(MSAL_REDIRECT_RETURN_TO_KEY);
     win.sessionStorage.removeItem(MSAL_REDIRECT_RETURN_TO_KEY);
     console.error(
       "[CPS-GLOBAL-AUTH] handleMsalTermination: handleRedirectPromise threw",
       err,
     );
-    return { outcome: "handled-with-error" };
+    return {
+      outcome: "handled-with-error",
+      returnTo: returnTo ?? undefined,
+    };
   }
 };
