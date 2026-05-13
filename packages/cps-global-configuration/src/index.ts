@@ -20,6 +20,14 @@ export {
 export { SettingsSchema, type Settings } from "./Settings";
 export { CmsSessionHintSchema, type CmsSessionHint } from "./CmsSessionHint";
 export { transformAndValidateConfig, type ValidationResult } from "./validator";
+export {
+  AuthSchema,
+  type Auth,
+  type AuthResult,
+  type FailedAuth,
+  type KnownErrorType,
+} from "./AuthResult";
+export { AuthHintSchema, type AuthHint } from "./AuthHint";
 export { fetchState } from "./fetch-state";
 export { fetchConfig, type ConfigFetch } from "./fetch-config";
 export {

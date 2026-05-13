@@ -1,6 +1,5 @@
-import { Config, Preview } from "cps-global-configuration";
+import { AuthHint, AuthResult, Config, FailedAuth, Preview } from "cps-global-configuration";
 import { initialiseAdAuth } from "cps-global-auth";
-import { AuthResult, FailedAuth } from "./AuthResult";
 import { GetToken } from "./GetToken";
 import { FoundContext } from "../context/FoundContext";
 import { ApplicationFlags } from "../application-flags/ApplicationFlags";
@@ -9,7 +8,7 @@ import type { SilentFlowDiagnostic, SilentFlowDiagnostics } from "../diagnostics
 import { TrackException } from "../analytics/TrackException";
 import { FEATURE_FLAGS } from "../../feature-flags/feature-flags";
 import { Result } from "../../utils/Result";
-import { AuthHint, SetAuthHint } from "../state/auth-hint/initialise-auth-hint";
+import { SetAuthHint } from "../state/auth-hint/initialise-auth-hint";
 import { makeConsole } from "../../logging/makeConsole";
 
 type Register = (arg: { auth: AuthResult }) => void;

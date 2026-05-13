@@ -1,5 +1,5 @@
 import { describe, test, expect, beforeEach, jest } from "@jest/globals";
-import type { CmsAuthStorageKeys } from "cps-global-configuration";
+import type { CmsAuthStorageKeys, Config } from "cps-global-configuration";
 
 jest.mock("cps-global-auth", () => ({
   handleMsalLogin: jest.fn(),
@@ -10,12 +10,17 @@ jest.mock("cps-global-os-handover", () => ({
   handleOsTokenReturn: jest.fn(),
 }));
 
+// fetch mock — both for the beacon and for the authHint lookup on the
+// failure branch. Per-test setup decides what each call resolves to.
+const mockFetch = jest.fn<(input: unknown, init?: RequestInit) => Promise<unknown>>();
+global.fetch = mockFetch as unknown as typeof fetch;
+
 import { handleMsalLogin, handleMsalTermination } from "cps-global-auth";
 import {
   handleOsCookieReturn,
   handleOsTokenReturn,
 } from "cps-global-os-handover";
-import { dispatchHandover, type HandoverConfig } from "./auth-handover";
+import { dispatchHandover } from "./auth-handover";
 
 const mockHandleMsalLogin = handleMsalLogin as jest.MockedFunction<
   typeof handleMsalLogin
@@ -40,12 +45,16 @@ const cmsAuthStorageKeys: CmsAuthStorageKeys = {
   HOME_IS_FROM_PROXY: "home-is-from-proxy",
 };
 
-const config: HandoverConfig = {
+// Cast — Config has many optional fields we don't need to set here.
+const config = {
   AD_CLIENT_ID: "client-id",
   AD_TENANT_AUTHORITY: "https://login.microsoftonline.com/tenant",
   CMS_AUTH_STORAGE_KEYS: cmsAuthStorageKeys,
-  tokenHandoverUrl: "https://polaris.example/auth-handover-cms-modern-token",
-};
+} as Config;
+
+const scriptUrl = new URL(
+  "https://polaris.example/global-components/test/auth-handover.js",
+);
 
 const makeWindow = (currentUrl: string) => {
   const url = new URL(currentUrl);
@@ -64,6 +73,9 @@ describe("dispatchHandover", () => {
     jest.clearAllMocks();
     jest.spyOn(console, "log").mockImplementation(() => {});
     jest.spyOn(console, "warn").mockImplementation(() => {});
+    // Default success outcome with no account / no returnTo — sufficient for
+    // tests that don't care about the beacon / navigation paths.
+    mockHandleMsalTermination.mockResolvedValue({ outcome: "handled" });
   });
 
   describe("os-cookie-return stage", () => {
@@ -72,11 +84,12 @@ describe("dispatchHandover", () => {
         "https://cps-tst.outsystemsenterprise.com/Casework_Patterns/auth-handover.html?src=x&stage=os-cookie-return&cc=abc&r=https%3A%2F%2Fexample.com%2Ftarget",
       );
 
-      await dispatchHandover(win, config);
+      await dispatchHandover(win, config, scriptUrl);
 
       expect(mockHandleOsCookieReturn).toHaveBeenCalledTimes(1);
       expect(mockHandleOsCookieReturn).toHaveBeenCalledWith(win, {
-        tokenHandoverUrl: config.tokenHandoverUrl,
+        // Derived from scriptUrl.origin at dispatch time.
+        tokenHandoverUrl: "https://polaris.example/auth-refresh-cms-modern-token",
         cmsAuthStorageKeys,
       });
       expect(mockHandleOsTokenReturn).not.toHaveBeenCalled();
@@ -91,7 +104,7 @@ describe("dispatchHandover", () => {
         "https://cps-tst.outsystemsenterprise.com/Casework_Patterns/auth-handover.html?src=x&stage=os-token-return&cc=abc&cms-modern-token=tok&r=https%3A%2F%2Fexample.com%2Ftarget",
       );
 
-      await dispatchHandover(win, config);
+      await dispatchHandover(win, config, scriptUrl);
 
       expect(mockHandleOsTokenReturn).toHaveBeenCalledTimes(1);
       expect(mockHandleOsTokenReturn).toHaveBeenCalledWith(win, {
@@ -107,7 +120,7 @@ describe("dispatchHandover", () => {
         "https://cps-tst.outsystemsenterprise.com/Casework_Patterns/auth-handover.html?src=https%3A%2F%2Fpolaris.example%2Fauth-handover.js&stage=ad-redirect#code=abc&state=xyz",
       );
 
-      await dispatchHandover(win, config);
+      await dispatchHandover(win, config, scriptUrl);
 
       expect(mockHandleMsalTermination).toHaveBeenCalledTimes(1);
       expect(mockHandleMsalTermination).toHaveBeenCalledWith(win, {
@@ -126,7 +139,7 @@ describe("dispatchHandover", () => {
         )}`,
       );
 
-      await dispatchHandover(win, config);
+      await dispatchHandover(win, config, scriptUrl);
 
       expect(mockHandleMsalLogin).toHaveBeenCalledTimes(1);
       // redirectUri should keep ?src= and ?stage= but strip returnTo and any hash.
@@ -147,7 +160,7 @@ describe("dispatchHandover", () => {
         "https://cps-tst.outsystemsenterprise.com/Casework_Patterns/auth-handover.html?src=x&stage=ad-redirect&returnTo=https%3A%2F%2Fexample.com%2Fhome#code=abc&state=xyz",
       );
 
-      await dispatchHandover(win, config);
+      await dispatchHandover(win, config, scriptUrl);
 
       expect(mockHandleMsalTermination).toHaveBeenCalledTimes(1);
       expect(mockHandleMsalLogin).not.toHaveBeenCalled();
@@ -158,7 +171,7 @@ describe("dispatchHandover", () => {
         "https://cps-tst.outsystemsenterprise.com/Casework_Patterns/auth-handover.html?src=x&stage=ad-redirect",
       );
 
-      await dispatchHandover(win, config);
+      await dispatchHandover(win, config, scriptUrl);
 
       expect(mockHandleMsalLogin).toHaveBeenCalledWith(
         win,
@@ -166,6 +179,146 @@ describe("dispatchHandover", () => {
         null,
         expect.any(String),
       );
+    });
+
+    test("on successful termination, navigates to returnTo via location.replace", async () => {
+      mockHandleMsalTermination.mockResolvedValue({
+        outcome: "handled",
+        returnTo: "https://cps-tst.outsystemsenterprise.com/casework_blocks/home",
+      });
+      const win = makeWindow(
+        "https://cps-tst.outsystemsenterprise.com/Casework_Patterns/auth-handover.html?src=x&stage=ad-redirect#code=abc",
+      );
+
+      await dispatchHandover(win, config, scriptUrl);
+
+      expect(win.location.replace).toHaveBeenCalledWith(
+        "https://cps-tst.outsystemsenterprise.com/casework_blocks/home",
+      );
+    });
+
+    test("on failed termination, does NOT navigate (caller stays on the handover page)", async () => {
+      mockHandleMsalTermination.mockResolvedValue({ outcome: "handled-with-error" });
+      const win = makeWindow(
+        "https://cps-tst.outsystemsenterprise.com/Casework_Patterns/auth-handover.html?src=x&stage=ad-redirect#code=abc",
+      );
+
+      await dispatchHandover(win, config, scriptUrl);
+
+      expect(win.location.replace).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("ad-redirect beacon firing", () => {
+    test("fires success beacon when SUCCESSES_ENABLED and termination returns an account with oid", async () => {
+      mockHandleMsalTermination.mockResolvedValue({
+        outcome: "handled",
+        account: {
+          homeAccountId: "h",
+          environment: "e",
+          tenantId: "t",
+          username: "u",
+          localAccountId: "l",
+          idTokenClaims: { oid: "obj-success-123" },
+        } as never,
+        returnTo: "https://cps-tst.outsystemsenterprise.com/casework_blocks/home",
+      });
+      const win = makeWindow(
+        "https://cps-tst.outsystemsenterprise.com/Casework_Patterns/auth-handover.html?src=x&stage=ad-redirect#code=abc",
+      );
+
+      await dispatchHandover(win, { ...config, BEACON_AD_REDIRECT_SUCCESSES_ENABLED: true } as Config, scriptUrl);
+
+      expect(mockFetch).toHaveBeenCalledTimes(1);
+      const [calledUrl] = mockFetch.mock.calls[0]!;
+      const parsed = new URL(String(calledUrl));
+      expect(parsed.pathname).toMatch(/\/ad-redirect-beacon$/);
+      expect(parsed.searchParams.get("outcome")).toBe("success");
+      expect(parsed.searchParams.get("authHintObjectId")).toBe("obj-success-123");
+    });
+
+    test("does NOT fire success beacon when SUCCESSES_ENABLED is false (default)", async () => {
+      mockHandleMsalTermination.mockResolvedValue({
+        outcome: "handled",
+        account: { idTokenClaims: { oid: "obj-1" } } as never,
+      });
+      const win = makeWindow(
+        "https://cps-tst.outsystemsenterprise.com/Casework_Patterns/auth-handover.html?src=x&stage=ad-redirect#code=abc",
+      );
+
+      await dispatchHandover(win, config, scriptUrl);
+
+      expect(mockFetch).not.toHaveBeenCalled();
+    });
+
+    test("success beacon falls back to 'unknown' when account has no oid claim", async () => {
+      mockHandleMsalTermination.mockResolvedValue({
+        outcome: "handled",
+        account: { idTokenClaims: {} } as never,
+      });
+      const win = makeWindow(
+        "https://cps-tst.outsystemsenterprise.com/Casework_Patterns/auth-handover.html?src=x&stage=ad-redirect#code=abc",
+      );
+
+      await dispatchHandover(win, { ...config, BEACON_AD_REDIRECT_SUCCESSES_ENABLED: true } as Config, scriptUrl);
+
+      const [calledUrl] = mockFetch.mock.calls[0]!;
+      expect(new URL(String(calledUrl)).searchParams.get("authHintObjectId")).toBe("unknown");
+    });
+
+    test("fires failure beacon when FAILURES_ENABLED and authHint fetch returns an objectId", async () => {
+      mockHandleMsalTermination.mockResolvedValue({ outcome: "handled-with-error" });
+      // authHint fetch — full AuthHintSchema shape (AuthSchema requires isAuthed,
+      // username, objectId, groups).
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          authResult: {
+            isAuthed: true,
+            username: "user@example.com",
+            objectId: "obj-failure-456",
+            groups: [],
+          },
+          timestamp: 1,
+        }),
+      } as never);
+      const win = makeWindow(
+        "https://cps-tst.outsystemsenterprise.com/Casework_Patterns/auth-handover.html?src=x&stage=ad-redirect#error=invalid",
+      );
+
+      await dispatchHandover(win, { ...config, BEACON_AD_REDIRECT_FAILURES_ENABLED: true } as Config, scriptUrl);
+
+      // Two fetches: authHint lookup + the beacon itself
+      expect(mockFetch).toHaveBeenCalledTimes(2);
+      const beaconUrl = new URL(String(mockFetch.mock.calls[1]![0]));
+      expect(beaconUrl.searchParams.get("outcome")).toBe("failure");
+      expect(beaconUrl.searchParams.get("authHintObjectId")).toBe("obj-failure-456");
+    });
+
+    test("failure beacon falls back to 'unknown' when authHint fetch fails", async () => {
+      mockHandleMsalTermination.mockResolvedValue({ outcome: "handled-with-error" });
+      mockFetch.mockRejectedValueOnce(new Error("CORS blocked"));
+      // Second call (the beacon itself) — succeed silently
+      mockFetch.mockResolvedValueOnce({ ok: true } as never);
+      const win = makeWindow(
+        "https://cps-tst.outsystemsenterprise.com/Casework_Patterns/auth-handover.html?src=x&stage=ad-redirect#error=invalid",
+      );
+
+      await dispatchHandover(win, { ...config, BEACON_AD_REDIRECT_FAILURES_ENABLED: true } as Config, scriptUrl);
+
+      const beaconUrl = new URL(String(mockFetch.mock.calls[1]![0]));
+      expect(beaconUrl.searchParams.get("authHintObjectId")).toBe("unknown");
+    });
+
+    test("does NOT fire failure beacon when FAILURES_ENABLED is false (default)", async () => {
+      mockHandleMsalTermination.mockResolvedValue({ outcome: "handled-with-error" });
+      const win = makeWindow(
+        "https://cps-tst.outsystemsenterprise.com/Casework_Patterns/auth-handover.html?src=x&stage=ad-redirect#error=invalid",
+      );
+
+      await dispatchHandover(win, config, scriptUrl);
+
+      expect(mockFetch).not.toHaveBeenCalled();
     });
   });
 
@@ -175,7 +328,7 @@ describe("dispatchHandover", () => {
         "https://cps-tst.outsystemsenterprise.com/Casework_Patterns/auth-handover.html",
       );
 
-      await dispatchHandover(win, config);
+      await dispatchHandover(win, config, scriptUrl);
 
       expect(mockHandleOsCookieReturn).not.toHaveBeenCalled();
       expect(mockHandleOsTokenReturn).not.toHaveBeenCalled();
@@ -188,7 +341,7 @@ describe("dispatchHandover", () => {
         "https://cps-tst.outsystemsenterprise.com/Casework_Patterns/auth-handover.html?stage=something-else",
       );
 
-      await dispatchHandover(win, config);
+      await dispatchHandover(win, config, scriptUrl);
 
       expect(mockHandleOsCookieReturn).not.toHaveBeenCalled();
       expect(mockHandleOsTokenReturn).not.toHaveBeenCalled();

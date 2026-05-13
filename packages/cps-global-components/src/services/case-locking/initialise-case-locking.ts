@@ -1,7 +1,7 @@
 import { Config, Preview } from "cps-global-configuration";
 import { Register } from "../../store/store";
 import { Result } from "../../utils/Result";
-import { AuthResult } from "../auth/AuthResult";
+import { AuthResult } from "cps-global-configuration";
 import { RegionEnterEvent, RegionLeaveEvent, RegionDetail } from "../../components/cps-global-locking-region/region-events";
 import { CaseIdentifiers } from "../context/CaseIdentifiers";
 import { createCaseLockingPresence, CaseLockingPresenceService } from "./case-locking-presence";

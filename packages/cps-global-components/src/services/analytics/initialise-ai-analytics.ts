@@ -1,15 +1,13 @@
 import { ApplicationInsights } from "@microsoft/applicationinsights-web";
-import { Config } from "cps-global-configuration";
+import { AuthHint, AuthResult, Config, KnownErrorType } from "cps-global-configuration";
 import { FoundContext } from "../context/FoundContext";
 import { CorrelationIds } from "../correlation/CorrelationIds";
 import { AnalyticsEventData, TrackEvent } from "./analytics-event";
 import { HostAppEvent } from "./host-app-event";
 import { makeConsole } from "../../logging/makeConsole";
 import { Build } from "../../store/store";
-import { AuthResult, KnownErrorType } from "../auth/AuthResult";
 import { capitalizeKeys } from "../../utils/capitalize-keys";
 import { Result } from "../../utils/Result";
-import { AuthHint } from "../state/auth-hint/initialise-auth-hint";
 import { UserDataHint } from "../state/user-data/UserData";
 import { ExceptionMeta } from "./ExceptionMeta";
 import { getPageState } from "./page-state";
