@@ -1,9 +1,10 @@
 import typescript from "@rollup/plugin-typescript";
 import { nodeResolve } from "@rollup/plugin-node-resolve";
-import commonjs from "@rollup/plugin-commonjs";
 
+// Workspace ES module consumed by other packages (host bundle, cps-global-handover).
+// The browser bundle that used to live alongside (auth-handover.js) has moved to
+// the cps-global-handover package — see packages/cps-global-handover/rollup.config.mjs.
 export default [
-  // ES and CJS builds with external dependencies
   {
     input: "src/index.ts",
     output: [
@@ -25,31 +26,5 @@ export default [
       }),
     ],
     external: [],
-  },
-  // Browser build - bundle everything
-  {
-    input: "src/auth-handover.ts",
-    output: {
-      file: "dist/auth-handover.js",
-      format: "iife",
-      sourcemap: true,
-      sourcemapExcludeSources: false,
-    },
-    plugins: [
-      nodeResolve({
-        browser: true,
-      }),
-      // commonjs plugin for transitive CJS deps brought in via @azure/msal-browser
-      // (folded MSAL termination path — handleMsalTermination from cps-global-auth).
-      commonjs(),
-      typescript({
-        tsconfig: "./tsconfig.json",
-        declaration: false,
-        declarationMap: false,
-        module: "esnext",
-        inlineSources: true,
-        sourceMap: true,
-      }),
-    ],
   },
 ];

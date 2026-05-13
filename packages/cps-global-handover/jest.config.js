@@ -9,6 +9,8 @@ module.exports = {
   },
   moduleNameMapper: {
     "^cps-global-configuration$": "<rootDir>/../cps-global-configuration/src/index.ts",
+    "^cps-global-auth$": "<rootDir>/../cps-global-auth/src/index.ts",
+    "^cps-global-os-handover$": "<rootDir>/../cps-global-os-handover/src/index.ts",
   },
   collectCoverageFrom: [
     "src/**/*.ts",

@@ -8,13 +8,14 @@
     "dist"
   ],
   "scripts": {
-    "build": "tsc && pnpm exec rollup -c rollup.config.mjs",
+    "build": "tsc",
     "clean": "rm -rf dist",
     "test": "jest"
   },
   "license": "MIT",
   "dependencies": {
-    "@azure/msal-browser": "^4.0.0"
+    "@azure/msal-browser": "^4.0.0",
+    "cps-global-configuration": "workspace:*"
   },
   "devDependencies": {
     "@jest/globals": "^29.7.0",

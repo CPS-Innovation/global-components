@@ -3,6 +3,10 @@ import {
   CacheLookupPolicy,
   PublicClientApplication,
 } from "@azure/msal-browser";
+import {
+  HANDOVER_PARAM_KEYS,
+  HANDOVER_STAGES,
+} from "cps-global-configuration";
 import { LogError } from "./LogError";
 import type { SilentFlowDiagnostic } from "./silent-flow-diagnostic";
 import {
@@ -23,11 +27,11 @@ type Props = {
   logError: LogError;
   useFullPageRedirect?: boolean;
   window: Window;
-  // URL of the dedicated global-components-msal-redirect.html page. When
+  // URL of the auth-handover.html endpoint (cps-global-handover). When
   // useFullPageRedirect is true, the redirect path hands off to this URL with
-  // ?action=login rather than calling instance.loginRedirect() here — keeps
-  // our MSAL calls strictly on the host-code-free page so we never write
-  // msal.interaction.status into a sessionStorage shared with the host app.
+  // ?stage=ad-redirect rather than calling instance.loginRedirect() here —
+  // keeps our MSAL calls strictly on the host-code-free page so we never
+  // write msal.interaction.status into a sessionStorage shared with the host.
   msalRedirectUrl: string;
 };
 
@@ -223,12 +227,12 @@ export const getAdUserAccount = async ({
     );
     try {
       const target = new URL(msalRedirectUrl);
-      target.searchParams.set("action", "login");
-      target.searchParams.set("returnTo", window.location.href);
+      target.searchParams.set(HANDOVER_PARAM_KEYS.STAGE, HANDOVER_STAGES.AD_REDIRECT);
+      target.searchParams.set(HANDOVER_PARAM_KEYS.RETURN_TO, window.location.href);
       // replace, not assign — we don't want the host page entry preserved in
-      // history under the msal-redirect.html?action=login entry. Hitting back
-      // through the auth flow would either re-fire loginRedirect or land the
-      // user on a blank msal-redirect.html. Treat the bounce as plumbing.
+      // history under the auth-handover.html?stage=ad-redirect entry. Hitting
+      // back through the auth flow would either re-fire loginRedirect or land
+      // the user on a blank auth-handover.html. Treat the bounce as plumbing.
       window.location.replace(target.href);
     } catch (error) {
       // assign normally cannot throw, but if URL construction fails or the

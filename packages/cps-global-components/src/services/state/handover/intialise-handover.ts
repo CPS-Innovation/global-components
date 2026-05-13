@@ -1,7 +1,7 @@
 import { Handover, HandoverSchema } from "./Handover";
 import { makeConsole } from "../../../logging/makeConsole";
 import { Result } from "../../../utils/Result";
-import { fetchState } from "../fetch-state";
+import { fetchState } from "cps-global-configuration";
 import { StatePutResponseSchema } from "../StatePutResponse";
 import { TrackException } from "../../analytics/TrackException";
 

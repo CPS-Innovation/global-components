@@ -1,7 +1,6 @@
-import { Config } from "cps-global-configuration";
+import { Config, fetchState } from "cps-global-configuration";
 import { CaseDetails } from "../../data/CaseDetails";
 import { getCaseDefendantHeadline } from "../../data/get-case-defendant-headline";
-import { fetchState } from "../fetch-state";
 import { StatePutResponseSchema } from "../StatePutResponse";
 import { RecentCase, RecentCasesSchema } from "./recent-cases";
 import { Register } from "../../../store/store";
