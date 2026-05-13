@@ -3,10 +3,7 @@ import {
   CacheLookupPolicy,
   PublicClientApplication,
 } from "@azure/msal-browser";
-import {
-  HANDOVER_PARAM_KEYS,
-  HANDOVER_STAGES,
-} from "cps-global-configuration";
+import { HANDOVER_PARAM_KEYS } from "cps-global-configuration";
 import { LogError } from "./LogError";
 import type { SilentFlowDiagnostic } from "./silent-flow-diagnostic";
 import {
@@ -226,8 +223,11 @@ export const getAdUserAccount = async ({
       String(Date.now()),
     );
     try {
+      // msalRedirectUrl from config already bakes in ?src= and &stage=ad-redirect
+      // (silent SSO and full-page redirect must hit the same AAD-registered URI,
+      // so we don't add the stage here). Just append our own returnTo dispatch
+      // param for the bundle to consume on the bounce-back.
       const target = new URL(msalRedirectUrl);
-      target.searchParams.set(HANDOVER_PARAM_KEYS.STAGE, HANDOVER_STAGES.AD_REDIRECT);
       target.searchParams.set(HANDOVER_PARAM_KEYS.RETURN_TO, window.location.href);
       // replace, not assign — we don't want the host page entry preserved in
       // history under the auth-handover.html?stage=ad-redirect entry. Hitting
