@@ -4,6 +4,7 @@ import type { CmsAuthStorageKeys, Config } from "cps-global-configuration";
 jest.mock("cps-global-auth", () => ({
   handleMsalLogin: jest.fn(),
   handleMsalTermination: jest.fn(),
+  handleMsalEnsureAd: jest.fn(),
 }));
 jest.mock("cps-global-os-handover", () => ({
   handleOsCookieReturn: jest.fn(),
@@ -15,7 +16,11 @@ jest.mock("cps-global-os-handover", () => ({
 const mockFetch = jest.fn<(input: unknown, init?: RequestInit) => Promise<unknown>>();
 global.fetch = mockFetch as unknown as typeof fetch;
 
-import { handleMsalLogin, handleMsalTermination } from "cps-global-auth";
+import {
+  handleMsalEnsureAd,
+  handleMsalLogin,
+  handleMsalTermination,
+} from "cps-global-auth";
 import {
   handleOsCookieReturn,
   handleOsTokenReturn,
@@ -33,6 +38,9 @@ const mockHandleOsCookieReturn = handleOsCookieReturn as jest.MockedFunction<
 >;
 const mockHandleOsTokenReturn = handleOsTokenReturn as jest.MockedFunction<
   typeof handleOsTokenReturn
+>;
+const mockHandleMsalEnsureAd = handleMsalEnsureAd as jest.MockedFunction<
+  typeof handleMsalEnsureAd
 >;
 
 const cmsAuthStorageKeys: CmsAuthStorageKeys = {
@@ -111,6 +119,45 @@ describe("dispatchHandover", () => {
         cmsAuthStorageKeys,
       });
       expect(mockHandleOsCookieReturn).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("ensure-ad stage", () => {
+    test("delegates to handleMsalEnsureAd with the returnTo and an ad-redirect-shaped redirectUri", async () => {
+      const win = makeWindow(
+        "https://cps-tst.outsystemsenterprise.com/Casework_Patterns/auth-handover.html?src=https%3A%2F%2Fpolaris.example%2Fauth-handover.js&stage=ensure-ad&returnTo=https%3A%2F%2Fexample.com%2Fdeep%2Flink",
+      );
+
+      await dispatchHandover(win, config, scriptUrl);
+
+      expect(mockHandleMsalEnsureAd).toHaveBeenCalledTimes(1);
+      expect(mockHandleMsalEnsureAd).toHaveBeenCalledWith(
+        win,
+        {
+          clientId: "client-id",
+          authority: "https://login.microsoftonline.com/tenant",
+        },
+        "https://example.com/deep/link",
+        // stage swapped to ad-redirect for the AAD bounce-back routing, src/srcs preserved.
+        "https://cps-tst.outsystemsenterprise.com/Casework_Patterns/auth-handover.html?src=https%3A%2F%2Fpolaris.example%2Fauth-handover.js&stage=ad-redirect",
+      );
+      expect(mockHandleMsalLogin).not.toHaveBeenCalled();
+      expect(mockHandleMsalTermination).not.toHaveBeenCalled();
+    });
+
+    test("passes returnTo=null when ?returnTo is absent (handleMsalEnsureAd falls back to origin root)", async () => {
+      const win = makeWindow(
+        "https://cps-tst.outsystemsenterprise.com/Casework_Patterns/auth-handover.html?src=x&stage=ensure-ad",
+      );
+
+      await dispatchHandover(win, config, scriptUrl);
+
+      expect(mockHandleMsalEnsureAd).toHaveBeenCalledWith(
+        win,
+        expect.any(Object),
+        null,
+        expect.any(String),
+      );
     });
   });
 

@@ -19,7 +19,11 @@ import {
   HANDOVER_PARAM_KEYS,
   HANDOVER_STAGES,
 } from "cps-global-configuration";
-import { handleMsalLogin, handleMsalTermination } from "cps-global-auth";
+import {
+  handleMsalEnsureAd,
+  handleMsalLogin,
+  handleMsalTermination,
+} from "cps-global-auth";
 import {
   handleOsCookieReturn,
   handleOsTokenReturn,
@@ -98,6 +102,36 @@ export const dispatchHandover = async (
       return handleOsTokenReturn(win, {
         cmsAuthStorageKeys: config.CMS_AUTH_STORAGE_KEYS!,
       });
+
+    case HANDOVER_STAGES.ENSURE_AD: {
+      // Preemptive AD validation. External entities and the OS handover
+      // paths bounce here before letting the user reach the target page.
+      // Silent path: navigate to returnTo directly. Failure path: fall
+      // through to a full loginRedirect (handleMsalEnsureAd handles both).
+      const msalConfig = {
+        clientId: config.AD_CLIENT_ID ?? "",
+        authority: config.AD_TENANT_AUTHORITY ?? "",
+      };
+      // redirectUri is the same shape as the ad-redirect initiation builds —
+      // keeps ?src= (so the OS HTML can re-inject the bundle on the bounce-back)
+      // and swaps stage to ad-redirect (so the bounce-back routes through the
+      // termination branch above, not back into ensure-ad).
+      const url = new URL(win.location.href);
+      url.searchParams.set(
+        HANDOVER_PARAM_KEYS.STAGE,
+        HANDOVER_STAGES.AD_REDIRECT,
+      );
+      url.searchParams.delete(HANDOVER_PARAM_KEYS.RETURN_TO);
+      url.hash = "";
+      const redirectUri = url.href;
+      await handleMsalEnsureAd(
+        win,
+        msalConfig,
+        params.get(HANDOVER_PARAM_KEYS.RETURN_TO),
+        redirectUri,
+      );
+      return;
+    }
 
     case HANDOVER_STAGES.AD_REDIRECT: {
       const msalConfig = {

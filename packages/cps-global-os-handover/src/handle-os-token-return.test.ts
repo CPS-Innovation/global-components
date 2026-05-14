@@ -39,14 +39,28 @@ describe("handleOsTokenReturn", () => {
     jest.spyOn(console, "log").mockImplementation(() => {});
   });
 
-  test("stores auth and navigates to target", async () => {
+  test("stores auth and bounces through ensure-ad with returnTo=target", async () => {
     const win = makeWindow(
-      "https://cps-dev.outsystemsenterprise.com/AuthHandover/index.html?r=https%3A%2F%2Fexample.com%2Ftarget&stage=os-token-return&cc=test-cookies&cms-modern-token=test-token",
+      "https://cps-tst.outsystemsenterprise.com/Casework_Patterns/auth-handover.html?src=https%3A%2F%2Fpolaris.example%2Fauth-handover.js&r=https%3A%2F%2Fexample.com%2Ftarget&stage=os-token-return&cc=test-cookies&cms-modern-token=test-token",
     );
 
     await handleOsTokenReturn(win, { cmsAuthStorageKeys: keys });
 
-    expect(win.location.replace).toHaveBeenCalledWith("https://example.com/target");
+    expect(win.location.replace).toHaveBeenCalledTimes(1);
+    const next = new URL((win.location.replace as jest.Mock).mock.calls[0]![0] as string);
+    expect(next.origin + next.pathname).toBe(
+      "https://cps-tst.outsystemsenterprise.com/Casework_Patterns/auth-handover.html",
+    );
+    expect(next.searchParams.get("stage")).toBe("ensure-ad");
+    expect(next.searchParams.get("returnTo")).toBe("https://example.com/target");
+    // OS-handover params dropped, ?src= preserved.
+    expect(next.searchParams.get("src")).toBe(
+      "https://polaris.example/auth-handover.js",
+    );
+    expect(next.searchParams.has("cc")).toBe(false);
+    expect(next.searchParams.has("r")).toBe(false);
+    expect(next.searchParams.has("cms-modern-token")).toBe(false);
+
     expect(localStorage[keys.WMA_COOKIES]).toBe("test-cookies");
     expect(JSON.parse(localStorage[keys.WMA_JSON]!).Token).toBe("test-token");
   });
@@ -109,16 +123,21 @@ describe("handleOsTokenReturn", () => {
     expect(mockGetCmsSessionHint).not.toHaveBeenCalled();
   });
 
-  test("swallows getCmsSessionHint errors and still navigates", async () => {
+  test("swallows getCmsSessionHint errors and still navigates (via ensure-ad)", async () => {
     mockGetCmsSessionHint.mockRejectedValue(new Error("network down"));
 
     const win = makeWindow(
-      "https://cps-dev.outsystemsenterprise.com/AuthHandover/index.html?r=https%3A%2F%2Fexample.com%2FCasework_Blocks%2FHome&stage=os-token-return&cc=test-cookies&cms-modern-token=test-token",
+      "https://cps-dev.outsystemsenterprise.com/Casework_Patterns/auth-handover.html?r=https%3A%2F%2Fexample.com%2FCasework_Blocks%2FHome&stage=os-token-return&cc=test-cookies&cms-modern-token=test-token",
     );
 
     await expect(
       handleOsTokenReturn(win, { cmsAuthStorageKeys: keys }),
     ).resolves.not.toThrow();
-    expect(win.location.replace).toHaveBeenCalledWith("https://example.com/Casework_Blocks/Home");
+    expect(win.location.replace).toHaveBeenCalledTimes(1);
+    const next = new URL((win.location.replace as jest.Mock).mock.calls[0]![0] as string);
+    expect(next.searchParams.get("stage")).toBe("ensure-ad");
+    expect(next.searchParams.get("returnTo")).toBe(
+      "https://example.com/Casework_Blocks/Home",
+    );
   });
 });

@@ -3,6 +3,7 @@ import { isStoredTokenSameAs, setCmsSessionHint, storeAuth } from "./core/storag
 import { stripParams } from "./core/params";
 import { getCmsSessionHint } from "./core/get-cms-session-hint";
 import { resetTasklistFilters } from "./application-logic/reset-tasklist-filters";
+import { navigateViaEnsureAd } from "./navigate-via-ensure-ad";
 
 // Stage 2 of the CMS → OS auth handover. Token cookie just fetched; persist
 // the modern CMS auth into OS localStorage in the shape OS expects, optionally
@@ -40,7 +41,10 @@ export const handleOsTokenReturn = async (
 
   await maybeSetCmsSessionHint({ nextUrl: target, cmsAuthStorageKeys, storage: win.localStorage });
 
-  win.location.replace(target);
+  // Bounce through ensure-ad before reaching target — validates AD silently
+  // (or kicks a full redirect) so the OS app doesn't boot just to immediately
+  // redirect for AD.
+  navigateViaEnsureAd(win, target);
 };
 
 const maybeSetCmsSessionHint = async ({

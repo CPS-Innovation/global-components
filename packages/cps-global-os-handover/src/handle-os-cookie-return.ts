@@ -1,6 +1,7 @@
 import { CmsAuthStorageKeys, HANDOVER_PARAM_KEYS, HANDOVER_STAGES } from "cps-global-configuration";
 import { isStoredAuthCurrent } from "./core/storage";
 import { createUrlWithParams, setParams, stripParams } from "./core/params";
+import { navigateViaEnsureAd } from "./navigate-via-ensure-ad";
 
 // Stage 1 of the CMS → OS auth handover. The user arrives with the CMS cookies
 // in the URL (`?cc=…`). If our stored cookies already match, we can skip the
@@ -28,10 +29,11 @@ export const handleOsCookieReturn = (
   );
 
   if (canGoStraightToTarget) {
-    // Cookies in storage match what was just handed to us — proceed to the
-    // user's intended destination.
+    // Cookies in storage match what was just handed to us. Before letting the
+    // user reach the OS app, bounce through ensure-ad so the AD silent check
+    // happens on this endpoint rather than after the OS app has booted.
     const [target] = stripParams(url, HANDOVER_PARAM_KEYS.R);
-    win.location.replace(target);
+    navigateViaEnsureAd(win, target);
     return;
   }
 
