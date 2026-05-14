@@ -290,6 +290,8 @@ describe("dispatchHandover", () => {
 
       expect(mockHandleMsalLogin).toHaveBeenCalledTimes(1);
       // redirectUri should keep ?src= and ?stage= but strip returnTo and any hash.
+      // Trailing args: createInstance (defaults), lastKnownSid (undefined here —
+      // the authHint fetch is unmocked so resolves not-found).
       expect(mockHandleMsalLogin).toHaveBeenCalledWith(
         win,
         {
@@ -298,6 +300,8 @@ describe("dispatchHandover", () => {
         },
         returnTo,
         "https://cps-tst.outsystemsenterprise.com/Casework_Patterns/auth-handover.html?src=https%3A%2F%2Fpolaris.example%2Fauth-handover.js&stage=ad-redirect",
+        undefined,
+        undefined,
       );
       expect(mockHandleMsalTermination).not.toHaveBeenCalled();
     });
@@ -325,6 +329,8 @@ describe("dispatchHandover", () => {
         expect.any(Object),
         null,
         expect.any(String),
+        undefined,
+        undefined,
       );
     });
 
@@ -396,9 +402,14 @@ describe("dispatchHandover", () => {
       withConfigOverrides({ BEACON_AD_REDIRECT_SUCCESSES_ENABLED: true });
       await dispatchHandover(win, scriptUrl);
 
-      expect(mockFetch).toHaveBeenCalledTimes(1);
-      const [calledUrl] = mockFetch.mock.calls[0]!;
-      const parsed = new URL(String(calledUrl));
+      // Two fetches now: the auth-hint PUT write-back (drop 10) and the
+      // beacon itself. Pull out the beacon call by URL match rather than by
+      // index — the order between write-back and beacon is incidental.
+      const beaconCall = mockFetch.mock.calls.find((c) =>
+        String(c[0]).includes("ad-redirect-beacon"),
+      );
+      expect(beaconCall).toBeDefined();
+      const parsed = new URL(String(beaconCall![0]));
       expect(parsed.pathname).toMatch(/\/ad-redirect-beacon$/);
       expect(parsed.searchParams.get("outcome")).toBe("success");
       expect(parsed.searchParams.get("auth-hint-object-id")).toBe("obj-success-123");
@@ -489,6 +500,100 @@ describe("dispatchHandover", () => {
       await dispatchHandover(win, scriptUrl);
 
       expect(mockFetch).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("auth-hint write-back (drop 10)", () => {
+    test("on successful termination, PUTs a fresh AuthHint with the new sid", async () => {
+      mockHandleMsalTermination.mockResolvedValue({
+        outcome: "handled",
+        account: {
+          homeAccountId: "h",
+          environment: "e",
+          tenantId: "t",
+          username: "Stefan.Stachow@cps.gov.uk",
+          localAccountId: "obj-123",
+          idTokenClaims: { groups: ["g1", "g2"] },
+        } as never,
+        sid: "session-id-abc",
+        returnTo: "https://cps-tst.outsystemsenterprise.com/casework_blocks/home",
+      });
+      const win = makeWindow(
+        "https://cps-tst.outsystemsenterprise.com/Casework_Patterns/auth-handover.html?src=x&stage=ad-redirect#code=abc",
+      );
+
+      await dispatchHandover(win, scriptUrl);
+
+      const putCall = mockFetch.mock.calls.find(
+        (c) => (c[1] as RequestInit | undefined)?.method === "PUT",
+      );
+      expect(putCall).toBeDefined();
+      expect(String(putCall![0])).toMatch(/\/state\/auth-hint$/);
+      const init = putCall![1] as RequestInit;
+      expect(init.credentials).toBe("include");
+      const body = JSON.parse(init.body as string);
+      expect(body.authResult.username).toBe("stefan.stachow@cps.gov.uk");
+      expect(body.authResult.objectId).toBe("obj-123");
+      expect(body.authResult.groups).toEqual(["g1", "g2"]);
+      expect(body.lastKnownSid).toBe("session-id-abc");
+      expect(typeof body.timestamp).toBe("number");
+    });
+
+    test("on successful termination without sid, still PUTs but omits lastKnownSid", async () => {
+      mockHandleMsalTermination.mockResolvedValue({
+        outcome: "handled",
+        account: {
+          username: "u",
+          localAccountId: "l",
+          idTokenClaims: {},
+        } as never,
+        // sid intentionally undefined — tenant might not emit it
+      });
+      const win = makeWindow(
+        "https://cps-tst.outsystemsenterprise.com/Casework_Patterns/auth-handover.html?src=x&stage=ad-redirect#code=abc",
+      );
+
+      await dispatchHandover(win, scriptUrl);
+
+      const putCall = mockFetch.mock.calls.find(
+        (c) => (c[1] as RequestInit | undefined)?.method === "PUT",
+      );
+      expect(putCall).toBeDefined();
+      const body = JSON.parse((putCall![1] as RequestInit).body as string);
+      expect(body.lastKnownSid).toBeUndefined();
+    });
+
+    test("on failed termination, skips the write-back", async () => {
+      mockHandleMsalTermination.mockResolvedValue({
+        outcome: "handled-with-error",
+      });
+      const win = makeWindow(
+        "https://cps-tst.outsystemsenterprise.com/Casework_Patterns/auth-handover.html?src=x&stage=ad-redirect#error=invalid",
+      );
+
+      await dispatchHandover(win, scriptUrl);
+
+      const putCall = mockFetch.mock.calls.find(
+        (c) => (c[1] as RequestInit | undefined)?.method === "PUT",
+      );
+      expect(putCall).toBeUndefined();
+    });
+
+    test("skips the write-back when account is missing required fields", async () => {
+      mockHandleMsalTermination.mockResolvedValue({
+        outcome: "handled",
+        account: { idTokenClaims: {} } as never, // no username, no localAccountId
+      });
+      const win = makeWindow(
+        "https://cps-tst.outsystemsenterprise.com/Casework_Patterns/auth-handover.html?src=x&stage=ad-redirect#code=abc",
+      );
+
+      await dispatchHandover(win, scriptUrl);
+
+      const putCall = mockFetch.mock.calls.find(
+        (c) => (c[1] as RequestInit | undefined)?.method === "PUT",
+      );
+      expect(putCall).toBeUndefined();
     });
   });
 

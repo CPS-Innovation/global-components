@@ -4,6 +4,7 @@ import {
   PublicClientApplication,
 } from "@azure/msal-browser";
 import { HANDOVER_PARAM_KEYS } from "cps-global-configuration";
+import { getErrorType } from "./get-error-type";
 import { LogError } from "./LogError";
 import type { SilentFlowDiagnostic } from "./silent-flow-diagnostic";
 import {
@@ -30,6 +31,15 @@ type Props = {
   // keeps our MSAL calls strictly on the host-code-free page so we never
   // write msal.interaction.status into a sessionStorage shared with the host.
   msalRedirectUrl: string;
+  // Last-known AAD session id from a prior successful termination
+  // (AuthHint.lastKnownSid). When present, replayed as `sid` on ssoSilent —
+  // AAD treats the call as an SSO-continuation under the live session so the
+  // user skips the account picker / re-prompt entirely. See
+  // packages/cps-global-configuration/src/AuthHint.ts. If AAD rejects the
+  // sid (AADSTS160021 — session rotated since we last saw it) we transparently
+  // retry once with loginHint and the caller is expected to drop the stale
+  // hint on the next write-back.
+  lastKnownSid?: string;
 };
 
 const asError = (value: unknown): Error =>
@@ -78,6 +88,7 @@ export const getAdUserAccount = async ({
   useFullPageRedirect,
   window,
   msalRedirectUrl,
+  lastKnownSid,
 }: Props): Promise<GetAdUserAccountResult> => {
   const t0 = performance.now();
 
@@ -134,20 +145,23 @@ export const getAdUserAccount = async ({
       t0,
     );
 
-    // Pass loginHint to identify the user by UPN rather than by session.
-    // Without this, MSAL pulls the active account from cache and extracts
-    // its idTokenClaims.sid, sending it as `sid=<value>` on /authorize.
-    // If that session has been rotated server-side (by Polaris's own sign-in,
-    // CA policy, or session timeout), AD rejects with AADSTS160021.
-    // Passing loginHint causes MSAL to skip the account lookup entirely
-    // (initializeAuthorizationRequest returns early when loginHint is set),
-    // so no sid is ever extracted or sent.
+    // Two-arm request building. With `sid`, AAD treats the call as an
+    // SSO-continuation under the live session — user skips the picker and the
+    // re-prompt while the session lives. Without `sid`, we fall back to
+    // `loginHint` (UPN-keyed identification), which also tells MSAL to skip its
+    // cached-account lookup so no stale sid is auto-extracted and silently
+    // attached (the exact path that produced AADSTS160021 before this drop).
     const knownAccount =
       instance.getActiveAccount() || instance.getAllAccounts()[0];
-    const ssoSilentRequest = {
+    const loginHint = knownAccount?.username;
+    const buildRequest = (useSid: boolean) => ({
       ...loginRequest,
-      ...(knownAccount?.username ? { loginHint: knownAccount.username } : {}),
-    };
+      ...(useSid && lastKnownSid
+        ? { sid: lastKnownSid }
+        : loginHint
+          ? { loginHint }
+          : {}),
+    });
 
     const operationId = getOperationId?.();
     const silentFlowStartTime = Date.now();
@@ -156,8 +170,30 @@ export const getAdUserAccount = async ({
       url: window.location.href,
       operationId,
     });
+
+    const runOnce = async (useSid: boolean) =>
+      instance.ssoSilent(buildRequest(useSid));
+
     try {
-      const { account } = await instance.ssoSilent(ssoSilentRequest);
+      let response;
+      try {
+        response = await runOnce(true);
+      } catch (error) {
+        if (lastKnownSid && getErrorType(error) === "StaleSidHint") {
+          // Stored sid is stale — server-side session rotated. Retry once with
+          // loginHint so the user still gets a silent sign-in this load. The
+          // host's setAuthHint on success will overwrite the bad hint.
+          logError(
+            "ssoSilent: stale sid, retrying with loginHint",
+            asError(error),
+          );
+          response = await runOnce(false);
+        } else {
+          throw error;
+        }
+      }
+
+      const { account } = response;
       addSilentFlowDiagnostics?.({
         time: silentFlowStartTime,
         url: window.location.href,

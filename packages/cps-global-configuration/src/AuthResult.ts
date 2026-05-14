@@ -31,6 +31,7 @@ export type KnownErrorType =
   | "SilentFlowProblem"
   | "PostRequestFailed"
   | "NoNetworkConnectivity"
+  | "StaleSidHint"
   | "Unknown";
 
 export type FailedAuth = {

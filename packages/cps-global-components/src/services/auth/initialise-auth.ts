@@ -31,6 +31,14 @@ type Props = {
   window: Window;
 };
 
+type AuthOutcome = {
+  auth: AuthResult;
+  getToken: GetToken;
+  // Populated by initialiseAdAuth on a successful cascade; absent for the
+  // mock path and the "prevented by context" path.
+  lastKnownSid?: string;
+};
+
 const noAuthResult: { auth: FailedAuth; getToken: GetToken } = {
   auth: { isAuthed: false, knownErrorType: "ADPreventedByContext", reason: "AD auth prevented by context configuration" },
   getToken: () => Promise.resolve(null),
@@ -49,7 +57,7 @@ export const initialiseAuth = ({
   registerAuthWithAnalytics,
   setAuthHint,
   window,
-}: Props): { initialiseAuthForContext: (context: FoundContext) => Promise<{ auth: AuthResult; getToken: GetToken }> } => {
+}: Props): { initialiseAuthForContext: (context: FoundContext) => Promise<AuthOutcome> } => {
   const isE2e = flags.e2eTestMode.isE2eTestMode;
 
   // Resolve the redirect-vs-silent decision once at startup. auth itself is
@@ -75,27 +83,30 @@ export const initialiseAuth = ({
     }
   };
 
-  let authInFlight: Promise<{ auth: AuthResult; getToken: GetToken }> | null = null;
+  let authInFlight: Promise<AuthOutcome> | null = null;
 
-  const initialiseAuthForContext = async (context: FoundContext): Promise<{ auth: AuthResult; getToken: GetToken }> => {
+  const initialiseAuthForContext = async (context: FoundContext): Promise<AuthOutcome> => {
     // Guard against concurrent calls (e.g. rapid SPA navigation while auth is in-flight)
     if (authInFlight) {
       return authInFlight;
     }
 
-    const doAuth = async (): Promise<{ auth: AuthResult; getToken: GetToken }> =>
+    const doAuth = async (): Promise<AuthOutcome> =>
       context.preventADAndDataCalls
         ? noAuthResult
         : isE2e
           ? initialiseMockAuth({ flags })
-          : initialiseAdAuth({ config, context, logError, addSilentFlowDiagnostics, getOperationId, useFullPageRedirect, window });
+          : initialiseAdAuth({ config, context, logError, addSilentFlowDiagnostics, getOperationId, useFullPageRedirect, window, lastKnownSid: authHint.found ? authHint.result.lastKnownSid : undefined });
 
     authInFlight = doAuth()
       .then(result => {
         register({ auth: result.auth });
         registerAuthWithAnalytics(result.auth);
         if (result.auth.isAuthed) {
-          setAuthHint(result.auth, trackException);
+          // Forward the fresh sid (if any) so the persisted hint stays in
+          // sync — without this, every successful cascade would overwrite the
+          // hint and drop the sid the bundle just wrote back.
+          setAuthHint(result.auth, trackException, result.lastKnownSid);
         }
         return result;
       })
