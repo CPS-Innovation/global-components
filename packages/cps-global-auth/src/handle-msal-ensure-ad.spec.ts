@@ -96,12 +96,11 @@ describe("handleMsalEnsureAd", () => {
       expect.objectContaining({ scopes: ["User.Read"], account }),
     );
     expect(loginRedirect).not.toHaveBeenCalled();
-    expect((win.location as any).replace).toHaveBeenCalledWith(
-      "https://example.com/target/page",
-    );
+    // No direct navigation — the mediator (caller) routes the user onward.
+    expect((win.location as any).replace).not.toHaveBeenCalled();
   });
 
-  it("falls back to origin root on silent success when returnTo is cross-origin", async () => {
+  it("returns 'silent-success' even with a cross-origin returnTo (caller is responsible for same-origin validation)", async () => {
     const acquireTokenSilent = jest.fn().mockResolvedValue({ account });
     const createInstance = jest.fn().mockResolvedValue({
       getActiveAccount: () => account,
@@ -111,7 +110,7 @@ describe("handleMsalEnsureAd", () => {
     });
     const win = makeWindow({ origin: "https://example.com" });
 
-    await handleMsalEnsureAd(
+    const result = await handleMsalEnsureAd(
       win,
       { clientId: "c", authority: "a" },
       "https://evil.example.org/phish",
@@ -119,9 +118,8 @@ describe("handleMsalEnsureAd", () => {
       createInstance,
     );
 
-    expect((win.location as any).replace).toHaveBeenCalledWith(
-      "https://example.com/",
-    );
+    expect(result).toBe("silent-success");
+    expect((win.location as any).replace).not.toHaveBeenCalled();
   });
 
   it("falls through to loginRedirect when there is no cached account", async () => {

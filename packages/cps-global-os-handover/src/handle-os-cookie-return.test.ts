@@ -21,7 +21,6 @@ const makeWindow = (currentUrl: string) =>
       hostname: new URL(currentUrl).hostname,
       replace: jest.fn(),
     },
-    // jsdom-backed; handleOsCookieReturn reads via win.localStorage[key]
     localStorage,
   }) as unknown as Window;
 
@@ -30,7 +29,7 @@ describe("handleOsCookieReturn", () => {
     localStorage.clear();
   });
 
-  test("when stored cookies match incoming, bounces through ensure-ad with returnTo=target (preemptive AD check)", () => {
+  test("when stored cookies match incoming, returns kind:ready with target (mediator routes onward)", () => {
     localStorage[keys.WMA_COOKIES] = "matching-cookies";
     localStorage[keys.CASE_REVIEW_COOKIES] = "matching-cookies";
     localStorage[keys.HOME_COOKIES] = "matching-cookies";
@@ -39,25 +38,14 @@ describe("handleOsCookieReturn", () => {
       "https://cps-tst.outsystemsenterprise.com/Casework_Patterns/auth-handover.html?src=https%3A%2F%2Fpolaris.example%2Fauth-handover.js&stage=os-cookie-return&cc=matching-cookies&r=https%3A%2F%2Fexample.com%2Ftarget",
     );
 
-    handleOsCookieReturn(win, { tokenHandoverUrl, cmsAuthStorageKeys: keys });
+    const outcome = handleOsCookieReturn(win, { tokenHandoverUrl, cmsAuthStorageKeys: keys });
 
-    expect(win.location.replace).toHaveBeenCalledTimes(1);
-    const next = new URL((win.location.replace as jest.Mock).mock.calls[0]![0] as string);
-    expect(next.origin + next.pathname).toBe(
-      "https://cps-tst.outsystemsenterprise.com/Casework_Patterns/auth-handover.html",
-    );
-    expect(next.searchParams.get("stage")).toBe("ensure-ad");
-    expect(next.searchParams.get("returnTo")).toBe("https://example.com/target");
-    // ?src= preserved for the bundle injection on the bounce-back.
-    expect(next.searchParams.get("src")).toBe(
-      "https://polaris.example/auth-handover.js",
-    );
-    // OS-handover params dropped — no longer needed past this point.
-    expect(next.searchParams.has("cc")).toBe(false);
-    expect(next.searchParams.has("r")).toBe(false);
+    expect(outcome).toEqual({ kind: "ready", target: "https://example.com/target" });
+    // No direct navigation — caller (mediator) is responsible.
+    expect(win.location.replace).not.toHaveBeenCalled();
   });
 
-  test("redirects to tokenHandoverUrl with stage=os-token-return when stored cookies differ", () => {
+  test("when stored cookies differ, returns kind:needs-token with the token-handover href", () => {
     localStorage[keys.WMA_COOKIES] = "stale-cookies";
     localStorage[keys.CASE_REVIEW_COOKIES] = "stale-cookies";
     localStorage[keys.HOME_COOKIES] = "stale-cookies";
@@ -66,26 +54,26 @@ describe("handleOsCookieReturn", () => {
       "https://cps-tst.outsystemsenterprise.com/AuthHandover/index.html?r=https%3A%2F%2Fexample.com%2Ftarget&stage=os-cookie-return&cc=fresh-cookies",
     );
 
-    handleOsCookieReturn(win, { tokenHandoverUrl, cmsAuthStorageKeys: keys });
+    const outcome = handleOsCookieReturn(win, { tokenHandoverUrl, cmsAuthStorageKeys: keys });
 
-    expect(win.location.replace).toHaveBeenCalledTimes(1);
-    const next = new URL((win.location.replace as jest.Mock).mock.calls[0]![0] as string);
-    expect(next.origin + next.pathname).toBe(tokenHandoverUrl);
-    expect(next.searchParams.get("cc")).toBe("fresh-cookies");
-
-    const r = new URL(next.searchParams.get("r")!);
-    expect(r.searchParams.get("stage")).toBe("os-token-return");
+    expect(outcome.kind).toBe("needs-token");
+    if (outcome.kind === "needs-token") {
+      const next = new URL(outcome.href);
+      expect(next.origin + next.pathname).toBe(tokenHandoverUrl);
+      expect(next.searchParams.get("cc")).toBe("fresh-cookies");
+      const r = new URL(next.searchParams.get("r")!);
+      expect(r.searchParams.get("stage")).toBe("os-token-return");
+    }
+    expect(win.location.replace).not.toHaveBeenCalled();
   });
 
-  test("redirects to tokenHandoverUrl when no stored cookies exist", () => {
+  test("with no stored cookies, also returns kind:needs-token (mismatch counts as needs-token)", () => {
     const win = makeWindow(
       "https://cps-tst.outsystemsenterprise.com/AuthHandover/index.html?r=https%3A%2F%2Fexample.com%2Ftarget&stage=os-cookie-return&cc=incoming",
     );
 
-    handleOsCookieReturn(win, { tokenHandoverUrl, cmsAuthStorageKeys: keys });
+    const outcome = handleOsCookieReturn(win, { tokenHandoverUrl, cmsAuthStorageKeys: keys });
 
-    expect(win.location.replace).toHaveBeenCalledTimes(1);
-    const next = new URL((win.location.replace as jest.Mock).mock.calls[0]![0] as string);
-    expect(next.origin + next.pathname).toBe(tokenHandoverUrl);
+    expect(outcome.kind).toBe("needs-token");
   });
 });

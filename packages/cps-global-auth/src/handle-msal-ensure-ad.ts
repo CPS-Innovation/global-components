@@ -1,6 +1,6 @@
 import type { AccountInfo } from "@azure/msal-browser";
 import { createMsalInstance } from "./internal/create-msal-instance";
-import { handleMsalLogin, resolveReturnTo } from "./handle-msal-login";
+import { handleMsalLogin } from "./handle-msal-login";
 
 // Drop 9 entry point: validate AD auth and either let the user proceed
 // silently (no AAD round-trip) or kick off a full-page redirect.
@@ -62,6 +62,10 @@ export const handleMsalEnsureAd = async (
   // acquireTokenSilent completes via a back-channel POST — no /authorize hop,
   // no iframe, no user-facing flicker. This is the win the OS-handover
   // preemptive check is buying.
+  //
+  // On success we don't navigate here — the caller (mediator) drives all
+  // navigation within our estate. We just signal "silent worked" and let the
+  // mediator route the user on to returnTo.
   try {
     const instance = await createInstance({ ...msalConfig, redirectUri });
     const account =
@@ -69,11 +73,7 @@ export const handleMsalEnsureAd = async (
     if (account) {
       try {
         await instance.acquireTokenSilent({ ...loginRequest, account });
-        const validatedReturnTo = resolveReturnTo(returnTo, win.location.origin);
-        console.log("[CPS-GLOBAL-AUTH] handleMsalEnsureAd silent-success", {
-          validatedReturnTo,
-        });
-        win.location.replace(validatedReturnTo);
+        console.log("[CPS-GLOBAL-AUTH] handleMsalEnsureAd silent-success");
         return "silent-success";
       } catch (err) {
         console.log(

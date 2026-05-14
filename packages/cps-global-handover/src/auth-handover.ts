@@ -23,6 +23,7 @@ import {
   handleMsalEnsureAd,
   handleMsalLogin,
   handleMsalTermination,
+  resolveReturnTo,
 } from "cps-global-auth";
 import {
   handleOsCookieReturn,
@@ -67,6 +68,53 @@ const tryFetchAuthHintObjectId = async (scriptUrl: URL): Promise<string> => {
   return result.found ? result.result.authResult.objectId : "unknown";
 };
 
+// Shared AD-validation routine. Called from three places:
+//   1. The ENSURE_AD dispatch case (public entry point for external entities).
+//   2. The OS_COOKIE_RETURN case once cookies have been validated.
+//   3. The OS_TOKEN_RETURN case once the fresh token has been stored.
+// All three want the same thing: silent-acquire-or-redirect, then if silent
+// worked navigate the user to returnTo (same-origin validated). Calling this
+// in-process avoids a wasted ?stage=ensure-ad page-load from the OS branches.
+const runEnsureAd = async (
+  win: Window,
+  config: Config,
+  returnTo: string | null,
+): Promise<void> => {
+  const msalConfig = {
+    clientId: config.AD_CLIENT_ID ?? "",
+    authority: config.AD_TENANT_AUTHORITY ?? "",
+  };
+  // redirectUri is the same shape as the ad-redirect initiation builds —
+  // keeps ?src= (so the OS HTML can re-inject the bundle on the bounce-back)
+  // and swaps stage to ad-redirect (so the bounce-back routes through the
+  // termination branch, not back into ensure-ad). OS-handover params
+  // (r/cc/cms-modern-token) and our own returnTo are stripped — they have
+  // no meaning to AAD and the redirectUri must match what's registered.
+  const url = new URL(win.location.href);
+  url.searchParams.set(HANDOVER_PARAM_KEYS.STAGE, HANDOVER_STAGES.AD_REDIRECT);
+  url.searchParams.delete(HANDOVER_PARAM_KEYS.RETURN_TO);
+  url.searchParams.delete(HANDOVER_PARAM_KEYS.R);
+  url.searchParams.delete(HANDOVER_PARAM_KEYS.COOKIES);
+  url.searchParams.delete(HANDOVER_PARAM_KEYS.TOKEN);
+  url.hash = "";
+  const redirectUri = url.href;
+
+  const outcome = await handleMsalEnsureAd(
+    win,
+    msalConfig,
+    returnTo,
+    redirectUri,
+  );
+  if (outcome === "silent-success") {
+    // Silent path. Mediator owns this navigation; same-origin validated.
+    const validatedReturnTo = resolveReturnTo(returnTo, win.location.origin);
+    win.location.replace(validatedReturnTo);
+  }
+  // Other outcomes (redirect-initiated, redirect-initiation-failed,
+  // iframe-noop) — either MSAL has taken over or there's nothing further
+  // for us to do. No navigation here.
+};
+
 // Single dispatcher for the shared auth-handover endpoint. Branches by
 // `?stage=`; within `ad-redirect` it further branches on whether the URL
 // fragment carries an AAD response.
@@ -77,7 +125,6 @@ const tryFetchAuthHintObjectId = async (scriptUrl: URL): Promise<string> => {
 // endpoint lives.
 export const dispatchHandover = async (
   win: Window,
-  config: Config,
   scriptUrl: URL,
 ): Promise<void> => {
   const params = new URL(win.location.href).searchParams;
@@ -91,47 +138,48 @@ export const dispatchHandover = async (
     href: win.location.href,
   });
 
+  const config = await getConfig(scriptUrl);
+  console.log("[CPS-GLOBAL-HANDOVER] config loaded", {
+    hasClientId: !!config.AD_CLIENT_ID,
+    hasAuthority: !!config.AD_TENANT_AUTHORITY,
+  });
+
   switch (stage) {
-    case HANDOVER_STAGES.OS_COOKIE_RETURN:
-      return handleOsCookieReturn(win, {
+    case HANDOVER_STAGES.OS_COOKIE_RETURN: {
+      const outcome = handleOsCookieReturn(win, {
         tokenHandoverUrl: `${scriptUrl.origin}/auth-refresh-cms-modern-token`,
         cmsAuthStorageKeys: config.CMS_AUTH_STORAGE_KEYS!,
       });
-
-    case HANDOVER_STAGES.OS_TOKEN_RETURN:
-      return handleOsTokenReturn(win, {
-        cmsAuthStorageKeys: config.CMS_AUTH_STORAGE_KEYS!,
-      });
-
-    case HANDOVER_STAGES.ENSURE_AD: {
-      // Preemptive AD validation. External entities and the OS handover
-      // paths bounce here before letting the user reach the target page.
-      // Silent path: navigate to returnTo directly. Failure path: fall
-      // through to a full loginRedirect (handleMsalEnsureAd handles both).
-      const msalConfig = {
-        clientId: config.AD_CLIENT_ID ?? "",
-        authority: config.AD_TENANT_AUTHORITY ?? "",
-      };
-      // redirectUri is the same shape as the ad-redirect initiation builds —
-      // keeps ?src= (so the OS HTML can re-inject the bundle on the bounce-back)
-      // and swaps stage to ad-redirect (so the bounce-back routes through the
-      // termination branch above, not back into ensure-ad).
-      const url = new URL(win.location.href);
-      url.searchParams.set(
-        HANDOVER_PARAM_KEYS.STAGE,
-        HANDOVER_STAGES.AD_REDIRECT,
-      );
-      url.searchParams.delete(HANDOVER_PARAM_KEYS.RETURN_TO);
-      url.hash = "";
-      const redirectUri = url.href;
-      await handleMsalEnsureAd(
-        win,
-        msalConfig,
-        params.get(HANDOVER_PARAM_KEYS.RETURN_TO),
-        redirectUri,
-      );
+      if (outcome.kind === "ready") {
+        // Cookies fresh — preemptive AD check before delivering to target.
+        // We're already on the handover endpoint; just call the same function
+        // the ENSURE_AD stage uses, no page-load required.
+        return runEnsureAd(win, config, outcome.target);
+      }
+      // outcome.kind === "needs-token" — bounce off to the token-handover
+      // endpoint, which will return us at stage=os-token-return.
+      win.location.replace(outcome.href);
       return;
     }
+
+    case HANDOVER_STAGES.OS_TOKEN_RETURN: {
+      const outcome = await handleOsTokenReturn(win, {
+        cmsAuthStorageKeys: config.CMS_AUTH_STORAGE_KEYS!,
+      });
+      // Token stored — preemptive AD check before the user reaches target.
+      // In-process call, not a page navigation.
+      return runEnsureAd(win, config, outcome.target);
+    }
+
+    case HANDOVER_STAGES.ENSURE_AD:
+      // Public entry point. External entities navigate the user here to
+      // guarantee they land at the target with valid AD auth. Same
+      // implementation as the OS branches above use post-cleanup.
+      return runEnsureAd(
+        win,
+        config,
+        params.get(HANDOVER_PARAM_KEYS.RETURN_TO),
+      );
 
     case HANDOVER_STAGES.AD_REDIRECT: {
       const msalConfig = {
@@ -221,12 +269,7 @@ if (currentScript) {
 
   void (async () => {
     try {
-      const config = await getConfig(scriptUrl);
-      console.log("[CPS-GLOBAL-HANDOVER] config loaded", {
-        hasClientId: !!config.AD_CLIENT_ID,
-        hasAuthority: !!config.AD_TENANT_AUTHORITY,
-      });
-      await dispatchHandover(window, config, scriptUrl);
+      await dispatchHandover(window, scriptUrl);
     } catch (err) {
       console.error(
         "[CPS-GLOBAL-HANDOVER] auth-handover failed before dispatch",
