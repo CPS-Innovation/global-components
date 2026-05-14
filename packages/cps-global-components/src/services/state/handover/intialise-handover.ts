@@ -1,8 +1,7 @@
 import { Handover, HandoverSchema } from "./Handover";
 import { makeConsole } from "../../../logging/makeConsole";
 import { Result } from "../../../utils/Result";
-import { fetchState } from "cps-global-configuration";
-import { StatePutResponseSchema } from "../StatePutResponse";
+import { fetchState, StatePutResponseSchema } from "cps-global-configuration";
 import { TrackException } from "../../analytics/TrackException";
 
 const { _warn } = makeConsole("initialiseHandover");

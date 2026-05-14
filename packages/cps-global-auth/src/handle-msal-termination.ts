@@ -33,6 +33,14 @@ export type HandleMsalTerminationResult = {
   // "handled" path when AAD returned an id_token. Consumers (drop 8 beacon)
   // read idTokenClaims.oid off this for telemetry.
   account?: AccountInfo | null;
+  // AAD session id, extracted from account.idTokenClaims.sid on the "handled"
+  // path. Surfaced separately so callers don't have to know the claim name.
+  // The handover bundle persists this back to the auth-hint endpoint so the
+  // host cascade can replay it as the `sid` hint on the next ssoSilent /
+  // loginRedirect — turning subsequent calls into SSO-continuations under the
+  // live AAD session (no account-picker, no re-prompt). See
+  // [[project_sid_hint_rationale]].
+  sid?: string;
   // The post-termination navigation target, drained from sessionStorage on
   // success. Caller is responsible for performing the navigation (via
   // win.location.replace) once any pre-navigation work — e.g. firing the
@@ -93,13 +101,17 @@ export const handleMsalTermination = async (
     if (returnTo) {
       win.sessionStorage.removeItem(MSAL_REDIRECT_RETURN_TO_KEY);
     }
+    const sid = (result?.account?.idTokenClaims as { sid?: string } | undefined)
+      ?.sid;
     console.log("[CPS-GLOBAL-AUTH] handleMsalTermination complete", {
       hasAccount: !!result?.account,
+      hasSid: !!sid,
       hasReturnTo: !!returnTo,
     });
     return {
       outcome: "handled",
       account: result?.account ?? null,
+      sid,
       returnTo: returnTo ?? undefined,
     };
   } catch (err) {

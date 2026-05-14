@@ -1,8 +1,7 @@
-import { Config, Notification, notificationsFileSchema, dismissedNotificationIdsSchema, fetchConfig, fetchState } from "cps-global-configuration";
+import { Config, dismissedNotificationIdsSchema, fetchConfig, fetchState, Notification, notificationsFileSchema, StatePutResponseSchema } from "cps-global-configuration";
 import { getArtifactUrl } from "../../utils/get-artifact-url";
 import { makeConsole } from "../../logging/makeConsole";
 import { Register } from "../../store/store";
-import { StatePutResponseSchema } from "../state/StatePutResponse";
 import { Handlers } from "../handlers/handlers";
 
 const { _error, _warn } = makeConsole("initialise-notifications");

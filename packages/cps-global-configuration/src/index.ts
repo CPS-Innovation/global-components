@@ -28,6 +28,10 @@ export {
   type KnownErrorType,
 } from "./AuthResult";
 export { AuthHintSchema, type AuthHint } from "./AuthHint";
+export {
+  StatePutResponseSchema,
+  type StatePutResponse,
+} from "./StatePutResponse";
 export { type Tags } from "./Tags";
 export { type FoundContext } from "./FoundContext";
 export { type ApplicationFlags } from "./ApplicationFlags";

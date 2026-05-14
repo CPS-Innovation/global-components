@@ -15,6 +15,7 @@ type MsalLikeInstance = {
   loginRedirect: (request: {
     scopes: string[];
     redirectStartPage?: string;
+    sid?: string;
   }) => Promise<void>;
 };
 
@@ -61,6 +62,14 @@ export const handleMsalLogin = async (
   // Both forms must be registered as redirect URIs in the AAD app reg.
   redirectUri: string,
   createInstance: CreateInstance = createMsalInstance,
+  // Optional AAD session id (AuthHint.lastKnownSid). When provided, MSAL
+  // forwards it as the `sid` query parameter to /authorize so AAD picks the
+  // matching session and skips the account picker. If the session has rotated
+  // server-side since we last saw it, AAD rejects with AADSTS160021 — the
+  // bounce-back termination would see an error response and the caller would
+  // drop the stale hint on the next write-back. Unlike the silent path we
+  // can't retry inline here (loginRedirect navigates the page away).
+  lastKnownSid?: string,
 ): Promise<HandleMsalLoginOutcome> => {
   if (win.self !== win.top) {
     return "iframe-noop";
@@ -97,6 +106,7 @@ export const handleMsalLogin = async (
     await instance.loginRedirect({
       ...loginRequest,
       redirectStartPage: redirectUri,
+      ...(lastKnownSid ? { sid: lastKnownSid } : {}),
     });
     // Unreachable: loginRedirect navigates the page away before its Promise resolves.
     return "initiated";

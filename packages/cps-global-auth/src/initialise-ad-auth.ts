@@ -1,6 +1,6 @@
 import { PublicClientApplication } from "@azure/msal-browser";
 import { createMsalInstance } from "./internal/create-msal-instance";
-import { AuthResult, FailedAuth, KnownErrorType } from "./AuthResult";
+import { AuthResult, KnownErrorType } from "./AuthResult";
 import { getAdUserAccount } from "./get-ad-user-account";
 import { getErrorType } from "./get-error-type";
 import { getTokenFactory } from "./get-token-factory";
@@ -36,12 +36,25 @@ type Props = {
   // library treats it as an opaque on/off and stays agnostic of how it is set.
   useFullPageRedirect?: boolean;
   window: Window;
+  // Last-known AAD session id from AuthHint.lastKnownSid. Replayed by the
+  // silent step to skip the account picker / re-prompt under a live session.
+  lastKnownSid?: string;
+};
+
+export type InitialiseAdAuthResult = {
+  auth: AuthResult;
+  getToken: GetToken;
+  // Current AAD session id, extracted from the freshly-acquired account's
+  // idTokenClaims.sid. Surfaced so the host can persist it as
+  // AuthHint.lastKnownSid for replay on the next ssoSilent / loginRedirect.
+  // Absent when the AAD tenant doesn't emit sid, or when auth failed.
+  lastKnownSid?: string;
 };
 
 const failedAuth = (
   knownErrorType: KnownErrorType,
   reason: string,
-): { auth: FailedAuth; getToken: GetToken } => ({
+): InitialiseAdAuthResult => ({
   auth: { isAuthed: false, knownErrorType, reason },
   getToken: () => Promise.resolve(null),
 });
@@ -65,7 +78,8 @@ export const initialiseAdAuth = async ({
   getOperationId,
   useFullPageRedirect,
   window,
-}: Props): Promise<{ auth: AuthResult; getToken: GetToken }> => {
+  lastKnownSid,
+}: Props): Promise<InitialiseAdAuthResult> => {
   if (!(authority && clientId && redirectUri && currentHref)) {
     return failedAuth(
       "ConfigurationIncomplete",
@@ -98,11 +112,13 @@ export const initialiseAdAuth = async ({
       useFullPageRedirect,
       window,
       msalRedirectUrl: redirectUri,
+      lastKnownSid,
     });
     if (!account) {
       return failedAuth("NoAccountFound", "No AD account found");
     }
 
+    const sid = (account.idTokenClaims as { sid?: string } | undefined)?.sid;
     return {
       auth: {
         isAuthed: true,
@@ -112,6 +128,7 @@ export const initialiseAdAuth = async ({
         groups: (account.idTokenClaims?.["groups"] as string[]) || [],
       },
       getToken: getTokenFactory({ instance, logError }),
+      ...(sid ? { lastKnownSid: sid } : {}),
     };
   } catch (error) {
     const errorType = getErrorType(error);

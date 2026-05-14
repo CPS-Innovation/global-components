@@ -23,6 +23,7 @@ import {
   Preview,
   PreviewSchema,
   Result,
+  StatePutResponseSchema,
 } from "cps-global-configuration";
 import {
   handleMsalEnsureAd,
@@ -93,6 +94,54 @@ const tryFetchPreview = (scriptUrl: URL): Promise<Result<Preview>> =>
 
 const objectIdFromAuthHint = (authHint: Result<AuthHint>): string =>
   authHint.found ? authHint.result.authResult.objectId : "unknown";
+
+// Best-effort write-back to ../state/auth-hint after a successful termination.
+// Same fetchState PUT path the host's setAuthHint uses (single mechanism for
+// state writes across both bundles). Failure is swallowed: the host's normal
+// setAuthHint on the next page load will re-write a fresh hint regardless.
+const tryPutAuthHint = async (
+  scriptUrl: URL,
+  authHint: AuthHint,
+): Promise<void> => {
+  const result = await fetchState({
+    rootUrl: scriptUrl.href,
+    url: "../state/auth-hint",
+    schema: StatePutResponseSchema,
+    data: authHint,
+  });
+  if (!result.found) {
+    console.warn(
+      "[CPS-GLOBAL-HANDOVER] auth-hint write-back failed",
+      result.error,
+    );
+  }
+};
+
+// Build an AuthHint from a fresh termination's account + sid. Mirrors the
+// shape that the host's setAuthHint writes — same fields populated from the
+// same idTokenClaims paths — so a subsequent fetchState on the host reads a
+// valid hint regardless of which side wrote it. Returns undefined when the
+// account is missing the fields AuthHintSchema requires (username/objectId);
+// the caller then skips the write-back rather than poisoning the stored hint.
+const buildAuthHintFromAccount = (
+  account: { username?: string; name?: string; localAccountId?: string; idTokenClaims?: unknown },
+  sid: string | undefined,
+): AuthHint | undefined => {
+  if (!account.username || !account.localAccountId) {
+    return undefined;
+  }
+  return {
+    authResult: {
+      isAuthed: true,
+      username: account.username.toLowerCase(),
+      name: account.name,
+      objectId: account.localAccountId,
+      groups: ((account.idTokenClaims as { groups?: string[] } | undefined)?.groups) ?? [],
+    },
+    timestamp: Date.now(),
+    ...(sid ? { lastKnownSid: sid } : {}),
+  };
+};
 
 // Shared AD-validation routine. Called from three places:
 //   1. The ENSURE_AD dispatch case (public entry point for external entities).
@@ -250,6 +299,22 @@ export const dispatchHandover = async (
         // navigation, with keepalive carrying delivery across the unload.
         const result = await handleMsalTermination(win, msalConfig);
 
+        if (result.outcome === "handled" && result.account) {
+          // Write the fresh AuthHint (including the new sid) back BEFORE we
+          // navigate. The host's first cascade after the redirect will then
+          // read this hint and replay the new sid on ssoSilent — turning the
+          // very first post-login navigation into an SSO-continuation. Without
+          // this write-back, the host's first cascade uses whatever stale hint
+          // was there before the redirect cycle.
+          const freshHint = buildAuthHintFromAccount(
+            result.account,
+            result.sid,
+          );
+          if (freshHint) {
+            await tryPutAuthHint(scriptUrl, freshHint);
+          }
+        }
+
         if (
           result.outcome === "handled" &&
           config.BEACON_AD_REDIRECT_SUCCESSES_ENABLED
@@ -288,11 +353,23 @@ export const dispatchHandover = async (
       url.searchParams.delete(HANDOVER_PARAM_KEYS.RETURN_TO);
       url.hash = "";
       const redirectUri = url.href;
+      // Pull the persisted last-known sid from auth-hint and pass to MSAL so
+      // AAD picks the matching session (no account-picker, no re-prompt) while
+      // it's still alive. Stale-sid handling is best-effort: we can't retry
+      // inline because loginRedirect navigates away — a 160021 response would
+      // surface on the bounce-back as a handled-with-error termination and the
+      // next host-side write-back would drop the bad hint.
+      const authHintForLogin = await tryFetchAuthHint(scriptUrl);
+      const lastKnownSid = authHintForLogin.found
+        ? authHintForLogin.result.lastKnownSid
+        : undefined;
       await handleMsalLogin(
         win,
         msalConfig,
         params.get(HANDOVER_PARAM_KEYS.RETURN_TO),
         redirectUri,
+        undefined, // createInstance — use default factory
+        lastKnownSid,
       );
       return;
     }

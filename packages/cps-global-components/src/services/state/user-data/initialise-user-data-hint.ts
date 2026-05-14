@@ -1,5 +1,4 @@
-import { fetchState } from "cps-global-configuration";
-import { StatePutResponseSchema } from "../StatePutResponse";
+import { fetchState, StatePutResponseSchema } from "cps-global-configuration";
 import { makeConsole } from "../../../logging/makeConsole";
 import { Result } from "../../../utils/Result";
 import { UserDataHint, UserDataHintPayload, UserDataHintSchema } from "./UserData";
