@@ -127,12 +127,11 @@ describe("dispatchHandover", () => {
     } as never);
 
   describe("os-cookie-return stage", () => {
-    test("on kind:ready, calls handleMsalEnsureAd in-process with the target (no extra page-load to ensure-ad)", async () => {
+    test("on kind:ready, navigates straight to target — OS handover is decoupled from AD (kill switch off)", async () => {
       mockHandleOsCookieReturn.mockReturnValue({
         kind: "ready",
         target: "https://cps-tst.outsystemsenterprise.com/casework_blocks/home",
       });
-      mockHandleMsalEnsureAd.mockResolvedValue("silent-success");
       const win = makeWindow(
         "https://cps-tst.outsystemsenterprise.com/Casework_Patterns/auth-handover.html?src=https%3A%2F%2Fpolaris.example%2Fauth-handover.js&stage=os-cookie-return&cc=abc&r=https%3A%2F%2Fcps-tst.outsystemsenterprise.com%2Fcasework_blocks%2Fhome",
       );
@@ -143,21 +142,7 @@ describe("dispatchHandover", () => {
         tokenHandoverUrl: "https://polaris.example/auth-refresh-cms-modern-token",
         cmsAuthStorageKeys,
       });
-      // handleMsalEnsureAd called with target as returnTo and a clean redirectUri.
-      expect(mockHandleMsalEnsureAd).toHaveBeenCalledTimes(1);
-      const [, , returnToArg, redirectUriArg] = mockHandleMsalEnsureAd.mock.calls[0]!;
-      expect(returnToArg).toBe(
-        "https://cps-tst.outsystemsenterprise.com/casework_blocks/home",
-      );
-      // redirectUri carries src + stage=ad-redirect, OS handover params stripped.
-      const redirectUri = new URL(redirectUriArg);
-      expect(redirectUri.searchParams.get("stage")).toBe("ad-redirect");
-      expect(redirectUri.searchParams.get("src")).toBe(
-        "https://polaris.example/auth-handover.js",
-      );
-      expect(redirectUri.searchParams.has("cc")).toBe(false);
-      expect(redirectUri.searchParams.has("r")).toBe(false);
-      // Silent-success path → mediator navigates straight to the target.
+      expect(mockHandleMsalEnsureAd).not.toHaveBeenCalled();
       expect(win.location.replace).toHaveBeenCalledWith(
         "https://cps-tst.outsystemsenterprise.com/casework_blocks/home",
       );
@@ -182,12 +167,11 @@ describe("dispatchHandover", () => {
   });
 
   describe("os-token-return stage", () => {
-    test("calls handleMsalEnsureAd in-process with the stored-target (no extra page-load to ensure-ad)", async () => {
+    test("navigates straight to stored target — OS handover is decoupled from AD (kill switch off)", async () => {
       mockHandleOsTokenReturn.mockResolvedValue({
         kind: "ready",
         target: "https://cps-tst.outsystemsenterprise.com/casework_blocks/home",
       });
-      mockHandleMsalEnsureAd.mockResolvedValue("silent-success");
       const win = makeWindow(
         "https://cps-tst.outsystemsenterprise.com/Casework_Patterns/auth-handover.html?src=https%3A%2F%2Fpolaris.example%2Fauth-handover.js&stage=os-token-return&cc=abc&cms-modern-token=tok&r=https%3A%2F%2Fcps-tst.outsystemsenterprise.com%2Fcasework_blocks%2Fhome",
       );
@@ -197,11 +181,7 @@ describe("dispatchHandover", () => {
       expect(mockHandleOsTokenReturn).toHaveBeenCalledWith(win, {
         cmsAuthStorageKeys,
       });
-      expect(mockHandleMsalEnsureAd).toHaveBeenCalledTimes(1);
-      const [, , returnToArg] = mockHandleMsalEnsureAd.mock.calls[0]!;
-      expect(returnToArg).toBe(
-        "https://cps-tst.outsystemsenterprise.com/casework_blocks/home",
-      );
+      expect(mockHandleMsalEnsureAd).not.toHaveBeenCalled();
       expect(win.location.replace).toHaveBeenCalledWith(
         "https://cps-tst.outsystemsenterprise.com/casework_blocks/home",
       );
@@ -513,47 +493,9 @@ describe("dispatchHandover", () => {
   });
 
   describe("feature-flag gate (shouldUseFullPageMsalRedirect)", () => {
-    // The OS_COOKIE_RETURN / OS_TOKEN_RETURN / ENSURE_AD branches all route
-    // through runEnsureAd. Without the gate, ALL users passing through OS
-    // handover would get the preemptive AD cascade. The gate short-circuits
-    // for users not in the FF group: navigate straight to target, skip the
-    // silent-or-redirect attempt entirely.
-
-    test("os-cookie-return: when FF is off, navigates straight to target without calling handleMsalEnsureAd", async () => {
-      withConfigOverrides({ FEATURE_FLAG_USE_MSAL_FULL_REDIRECT_USERS: undefined });
-      mockHandleOsCookieReturn.mockReturnValue({
-        kind: "ready",
-        target: "https://cps-tst.outsystemsenterprise.com/casework_blocks/home",
-      });
-      const win = makeWindow(
-        "https://cps-tst.outsystemsenterprise.com/Casework_Patterns/auth-handover.html?src=x&stage=os-cookie-return&cc=abc&r=https%3A%2F%2Fcps-tst.outsystemsenterprise.com%2Fcasework_blocks%2Fhome",
-      );
-
-      await dispatchHandover(win, scriptUrl);
-
-      expect(mockHandleMsalEnsureAd).not.toHaveBeenCalled();
-      expect(win.location.replace).toHaveBeenCalledWith(
-        "https://cps-tst.outsystemsenterprise.com/casework_blocks/home",
-      );
-    });
-
-    test("os-token-return: when FF is off, navigates straight to target without calling handleMsalEnsureAd", async () => {
-      withConfigOverrides({ FEATURE_FLAG_USE_MSAL_FULL_REDIRECT_USERS: undefined });
-      mockHandleOsTokenReturn.mockResolvedValue({
-        kind: "ready",
-        target: "https://cps-tst.outsystemsenterprise.com/casework_blocks/home",
-      });
-      const win = makeWindow(
-        "https://cps-tst.outsystemsenterprise.com/Casework_Patterns/auth-handover.html?src=x&stage=os-token-return",
-      );
-
-      await dispatchHandover(win, scriptUrl);
-
-      expect(mockHandleMsalEnsureAd).not.toHaveBeenCalled();
-      expect(win.location.replace).toHaveBeenCalledWith(
-        "https://cps-tst.outsystemsenterprise.com/casework_blocks/home",
-      );
-    });
+    // Applies only to the ENSURE_AD branch. The OS handover branches no
+    // longer route through runEnsureAd at all (the kill switch keeps them
+    // decoupled from AD), so the FF gate is irrelevant there.
 
     test("ensure-ad: when FF is off, navigates straight to (validated) returnTo without calling handleMsalEnsureAd", async () => {
       withConfigOverrides({ FEATURE_FLAG_USE_MSAL_FULL_REDIRECT_USERS: undefined });
@@ -569,9 +511,8 @@ describe("dispatchHandover", () => {
       );
     });
 
-    test("preview override enables the AD cascade even when config flag is off", async () => {
+    test("ensure-ad: preview override enables the AD cascade even when config flag is off", async () => {
       withConfigOverrides({ FEATURE_FLAG_USE_MSAL_FULL_REDIRECT_USERS: undefined });
-      // Preview fetch — first response on this stage; auth-hint is the second.
       mockFetch.mockImplementation(async (input: unknown) => {
         const url = String(input);
         if (url.includes("/state/preview")) {
@@ -582,12 +523,8 @@ describe("dispatchHandover", () => {
         }
         return { ok: false, status: 404, statusText: "Not Found" } as never;
       });
-      mockHandleOsCookieReturn.mockReturnValue({
-        kind: "ready",
-        target: "https://cps-tst.outsystemsenterprise.com/casework_blocks/home",
-      });
       const win = makeWindow(
-        "https://cps-tst.outsystemsenterprise.com/Casework_Patterns/auth-handover.html?src=x&stage=os-cookie-return",
+        "https://cps-tst.outsystemsenterprise.com/Casework_Patterns/auth-handover.html?src=x&stage=ensure-ad&returnTo=https%3A%2F%2Fcps-tst.outsystemsenterprise.com%2Fcasework_blocks%2Fhome",
       );
 
       await dispatchHandover(win, scriptUrl);

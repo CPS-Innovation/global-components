@@ -36,6 +36,13 @@ import {
 } from "cps-global-os-handover";
 import { beaconAdRedirect } from "./beacon-ad-redirect";
 
+// Kill switch for the preemptive AD check on the OS handover branches.
+// When false, OS_COOKIE_RETURN and OS_TOKEN_RETURN navigate straight to their
+// target without fetching authHint/preview or running the silent-or-redirect
+// cascade — keeping the OS handover decoupled from AD entirely. The
+// ENSURE_AD branch is unaffected (that's the explicit AD entry point).
+const ENSURE_AD_ON_OS_HANDOVER = false;
+
 // AAD response hashes always carry one of these. Cheap pattern beats parsing
 // the whole hash, and avoids pulling MSAL just to ask "is this a response?".
 const hasAuthResponseHash = (hash: string): boolean =>
@@ -193,10 +200,14 @@ export const dispatchHandover = async (
         cmsAuthStorageKeys: config.CMS_AUTH_STORAGE_KEYS!,
       });
       if (outcome.kind === "ready") {
-        // Cookies fresh — preemptive AD check before delivering to target.
-        // We're already on the handover endpoint; just call the same function
-        // the ENSURE_AD stage uses, no page-load required.
-        return runEnsureAd(win, config, scriptUrl, outcome.target);
+        if (ENSURE_AD_ON_OS_HANDOVER) {
+          // Cookies fresh — preemptive AD check before delivering to target.
+          // We're already on the handover endpoint; just call the same function
+          // the ENSURE_AD stage uses, no page-load required.
+          return runEnsureAd(win, config, scriptUrl, outcome.target);
+        }
+        win.location.replace(outcome.target);
+        return;
       }
       // outcome.kind === "needs-token" — bounce off to the token-handover
       // endpoint, which will return us at stage=os-token-return.
@@ -208,9 +219,13 @@ export const dispatchHandover = async (
       const outcome = await handleOsTokenReturn(win, {
         cmsAuthStorageKeys: config.CMS_AUTH_STORAGE_KEYS!,
       });
-      // Token stored — preemptive AD check before the user reaches target.
-      // In-process call, not a page navigation.
-      return runEnsureAd(win, config, scriptUrl, outcome.target);
+      if (ENSURE_AD_ON_OS_HANDOVER) {
+        // Token stored — preemptive AD check before the user reaches target.
+        // In-process call, not a page navigation.
+        return runEnsureAd(win, config, scriptUrl, outcome.target);
+      }
+      win.location.replace(outcome.target);
+      return;
     }
 
     case HANDOVER_STAGES.ENSURE_AD:
