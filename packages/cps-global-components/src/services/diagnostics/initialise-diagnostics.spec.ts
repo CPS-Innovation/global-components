@@ -1,8 +1,7 @@
-import { Config } from "cps-global-configuration";
+import { ApplicationFlags, Config } from "cps-global-configuration";
 import { initialiseDiagnostics } from "./initialise-diagnostics";
 import { SilentFlowDiagnostics } from "./silent-flow-diagnostics";
 import * as probeModule from "./probe-iframe-load";
-import { ApplicationFlags } from "../application-flags/ApplicationFlags";
 
 const mockFetch = jest.fn();
 global.fetch = mockFetch;

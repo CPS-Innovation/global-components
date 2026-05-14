@@ -1,4 +1,4 @@
-import { Tags } from "./Tags";
+import { Tags } from "cps-global-configuration";
 
 export type CaseIdentifiers = {
   caseId: string;

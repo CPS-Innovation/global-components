@@ -1,11 +1,10 @@
-import { AuthResult, Config, Preview } from "cps-global-configuration";
+import { AuthResult, Config, FEATURE_FLAGS, Preview } from "cps-global-configuration";
 import { Register } from "../../store/store";
 import { Result } from "../../utils/Result";
 import { RegionEnterEvent, RegionLeaveEvent, RegionDetail } from "../../components/cps-global-locking-region/region-events";
 import { CaseIdentifiers } from "../context/CaseIdentifiers";
 import { createCaseLockingPresence, CaseLockingPresenceService } from "./case-locking-presence";
 import { createWitnessAreaSubscriber } from "./witness-area-subscriber";
-import { FEATURE_FLAGS } from "../../feature-flags/feature-flags";
 import { makeConsole } from "../../logging/makeConsole";
 
 type Props = {

@@ -69,10 +69,13 @@ const cmsAuthStorageKeys: CmsAuthStorageKeys = {
 };
 
 // Cast — Config has many optional fields we don't need to set here.
+// FEATURE_FLAG_USE_MSAL_FULL_REDIRECT_USERS defaults to generally-available so the
+// AD-cascade path is exercised; tests that need the short-circuit override it off.
 const config = {
   AD_CLIENT_ID: "client-id",
   AD_TENANT_AUTHORITY: "https://login.microsoftonline.com/tenant",
   CMS_AUTH_STORAGE_KEYS: cmsAuthStorageKeys,
+  FEATURE_FLAG_USE_MSAL_FULL_REDIRECT_USERS: { generallyAvailable: true },
 } as Config;
 
 const scriptUrl = new URL(
@@ -506,6 +509,90 @@ describe("dispatchHandover", () => {
       await dispatchHandover(win, scriptUrl);
 
       expect(mockFetch).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("feature-flag gate (shouldUseFullPageMsalRedirect)", () => {
+    // The OS_COOKIE_RETURN / OS_TOKEN_RETURN / ENSURE_AD branches all route
+    // through runEnsureAd. Without the gate, ALL users passing through OS
+    // handover would get the preemptive AD cascade. The gate short-circuits
+    // for users not in the FF group: navigate straight to target, skip the
+    // silent-or-redirect attempt entirely.
+
+    test("os-cookie-return: when FF is off, navigates straight to target without calling handleMsalEnsureAd", async () => {
+      withConfigOverrides({ FEATURE_FLAG_USE_MSAL_FULL_REDIRECT_USERS: undefined });
+      mockHandleOsCookieReturn.mockReturnValue({
+        kind: "ready",
+        target: "https://cps-tst.outsystemsenterprise.com/casework_blocks/home",
+      });
+      const win = makeWindow(
+        "https://cps-tst.outsystemsenterprise.com/Casework_Patterns/auth-handover.html?src=x&stage=os-cookie-return&cc=abc&r=https%3A%2F%2Fcps-tst.outsystemsenterprise.com%2Fcasework_blocks%2Fhome",
+      );
+
+      await dispatchHandover(win, scriptUrl);
+
+      expect(mockHandleMsalEnsureAd).not.toHaveBeenCalled();
+      expect(win.location.replace).toHaveBeenCalledWith(
+        "https://cps-tst.outsystemsenterprise.com/casework_blocks/home",
+      );
+    });
+
+    test("os-token-return: when FF is off, navigates straight to target without calling handleMsalEnsureAd", async () => {
+      withConfigOverrides({ FEATURE_FLAG_USE_MSAL_FULL_REDIRECT_USERS: undefined });
+      mockHandleOsTokenReturn.mockResolvedValue({
+        kind: "ready",
+        target: "https://cps-tst.outsystemsenterprise.com/casework_blocks/home",
+      });
+      const win = makeWindow(
+        "https://cps-tst.outsystemsenterprise.com/Casework_Patterns/auth-handover.html?src=x&stage=os-token-return",
+      );
+
+      await dispatchHandover(win, scriptUrl);
+
+      expect(mockHandleMsalEnsureAd).not.toHaveBeenCalled();
+      expect(win.location.replace).toHaveBeenCalledWith(
+        "https://cps-tst.outsystemsenterprise.com/casework_blocks/home",
+      );
+    });
+
+    test("ensure-ad: when FF is off, navigates straight to (validated) returnTo without calling handleMsalEnsureAd", async () => {
+      withConfigOverrides({ FEATURE_FLAG_USE_MSAL_FULL_REDIRECT_USERS: undefined });
+      const win = makeWindow(
+        "https://cps-tst.outsystemsenterprise.com/Casework_Patterns/auth-handover.html?src=x&stage=ensure-ad&returnTo=https%3A%2F%2Fcps-tst.outsystemsenterprise.com%2Fcasework_blocks%2Fhome",
+      );
+
+      await dispatchHandover(win, scriptUrl);
+
+      expect(mockHandleMsalEnsureAd).not.toHaveBeenCalled();
+      expect(win.location.replace).toHaveBeenCalledWith(
+        "https://cps-tst.outsystemsenterprise.com/casework_blocks/home",
+      );
+    });
+
+    test("preview override enables the AD cascade even when config flag is off", async () => {
+      withConfigOverrides({ FEATURE_FLAG_USE_MSAL_FULL_REDIRECT_USERS: undefined });
+      // Preview fetch — first response on this stage; auth-hint is the second.
+      mockFetch.mockImplementation(async (input: unknown) => {
+        const url = String(input);
+        if (url.includes("/state/preview")) {
+          return {
+            ok: true,
+            json: async () => ({ useFullPageMsalRedirect: true }),
+          } as never;
+        }
+        return { ok: false, status: 404, statusText: "Not Found" } as never;
+      });
+      mockHandleOsCookieReturn.mockReturnValue({
+        kind: "ready",
+        target: "https://cps-tst.outsystemsenterprise.com/casework_blocks/home",
+      });
+      const win = makeWindow(
+        "https://cps-tst.outsystemsenterprise.com/Casework_Patterns/auth-handover.html?src=x&stage=os-cookie-return",
+      );
+
+      await dispatchHandover(win, scriptUrl);
+
+      expect(mockHandleMsalEnsureAd).toHaveBeenCalledTimes(1);
     });
   });
 

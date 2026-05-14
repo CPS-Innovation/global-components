@@ -1,7 +1,6 @@
-import { Config, ConfigFetch, fetchConfig, transformAndValidateConfig, ValidationResult } from "cps-global-configuration";
+import { ApplicationFlags, Config, ConfigFetch, fetchConfig, transformAndValidateConfig, ValidationResult } from "cps-global-configuration";
 import { getArtifactUrl } from "../../utils/get-artifact-url";
 import { fetchDevelopmentConfig } from "../override-mode/fetch-development-config";
-import { ApplicationFlags } from "../application-flags/ApplicationFlags";
 
 const tryConfigSources = async ([source, ...rest]: ConfigFetch[], configUrl: string): Promise<any> => {
   try {

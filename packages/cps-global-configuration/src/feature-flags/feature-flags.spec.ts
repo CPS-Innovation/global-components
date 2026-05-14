@@ -1,13 +1,13 @@
 import { FEATURE_FLAGS } from "./feature-flags";
-import { State } from "../store/store";
-import { ApplicationFlags } from "../services/application-flags/ApplicationFlags";
+import type { ApplicationFlags } from "../ApplicationFlags";
 
 describe("FEATURE_FLAGS", () => {
   describe("shouldEnableAccessibilityMode", () => {
     it("should return true when preview accessibility is true", () => {
-      const state: Pick<State, "preview" | "flags"> = {
-        preview: { found: true, result: { accessibility: true } },
+      const state = {
+        preview: { found: true as const, result: { accessibility: true } },
         flags: {} as ApplicationFlags,
+        config: {} as any,
       };
 
       const result = FEATURE_FLAGS.shouldEnableAccessibilityMode(state);
@@ -15,9 +15,10 @@ describe("FEATURE_FLAGS", () => {
     });
 
     it("should return false when preview accessibility is falsy", () => {
-      const state: Pick<State, "preview" | "flags"> = {
-        preview: { found: true, result: {} },
+      const state = {
+        preview: { found: true as const, result: {} },
         flags: {} as ApplicationFlags,
+        config: {} as any,
       };
 
       const result = FEATURE_FLAGS.shouldEnableAccessibilityMode(state);
@@ -25,9 +26,10 @@ describe("FEATURE_FLAGS", () => {
     });
 
     it("should return false when preview is not found", () => {
-      const state: Pick<State, "preview" | "flags"> = {
-        preview: { found: false, error: {} as Error },
+      const state = {
+        preview: { found: false as const, error: {} as Error },
         flags: {} as ApplicationFlags,
+        config: {} as any,
       };
 
       const result = FEATURE_FLAGS.shouldEnableAccessibilityMode(state);
@@ -37,8 +39,8 @@ describe("FEATURE_FLAGS", () => {
 
   describe("shouldShowGovUkRebrand", () => {
     it("should return 'gds' when preview newHeader is 'gds'", () => {
-      const state: Pick<State, "preview" | "config"> = {
-        preview: { found: true, result: { newHeader: "gds" } },
+      const state = {
+        preview: { found: true as const, result: { newHeader: "gds" as const } },
         config: {} as any,
       };
 
@@ -47,8 +49,8 @@ describe("FEATURE_FLAGS", () => {
     });
 
     it("should return 'cps' when preview newHeader is 'cps'", () => {
-      const state: Pick<State, "preview" | "config"> = {
-        preview: { found: true, result: { newHeader: "cps" } },
+      const state = {
+        preview: { found: true as const, result: { newHeader: "cps" as const } },
         config: {} as any,
       };
 
@@ -57,8 +59,8 @@ describe("FEATURE_FLAGS", () => {
     });
 
     it("should return undefined when preview newHeader is undefined and config has no SHOW_HEADER_REBRAND", () => {
-      const state: Pick<State, "preview" | "config"> = {
-        preview: { found: true, result: {} },
+      const state = {
+        preview: { found: true as const, result: {} },
         config: {} as any,
       };
 
@@ -67,8 +69,8 @@ describe("FEATURE_FLAGS", () => {
     });
 
     it("should return undefined when preview is not found and config has no SHOW_HEADER_REBRAND", () => {
-      const state: Pick<State, "preview" | "config"> = {
-        preview: { found: false, error: {} as Error },
+      const state = {
+        preview: { found: false as const, error: {} as Error },
         config: {} as any,
       };
 
@@ -77,8 +79,8 @@ describe("FEATURE_FLAGS", () => {
     });
 
     it("should fall back to config.SHOW_HEADER_REBRAND when preview newHeader is undefined", () => {
-      const state: Pick<State, "preview" | "config"> = {
-        preview: { found: true, result: {} },
+      const state = {
+        preview: { found: true as const, result: {} },
         config: { SHOW_HEADER_REBRAND: "cps" } as any,
       };
 
@@ -87,8 +89,8 @@ describe("FEATURE_FLAGS", () => {
     });
 
     it("should fall back to config.SHOW_HEADER_REBRAND when preview is not found", () => {
-      const state: Pick<State, "preview" | "config"> = {
-        preview: { found: false, error: {} as Error },
+      const state = {
+        preview: { found: false as const, error: {} as Error },
         config: { SHOW_HEADER_REBRAND: "gds" } as any,
       };
 
@@ -97,8 +99,8 @@ describe("FEATURE_FLAGS", () => {
     });
 
     it("should let preview newHeader override config.SHOW_HEADER_REBRAND", () => {
-      const state: Pick<State, "preview" | "config"> = {
-        preview: { found: true, result: { newHeader: "gds" } },
+      const state = {
+        preview: { found: true as const, result: { newHeader: "gds" as const } },
         config: { SHOW_HEADER_REBRAND: "cps" } as any,
       };
 
@@ -190,7 +192,6 @@ describe("FEATURE_FLAGS", () => {
         environment: "prod",
         authHint: { found: true, result: { authResult: { isAuthed: true, groups: ["admin-group"], username: "hintuser", objectId: "hint-id" }, timestamp: 1 } },
       });
-      // Override auth to undefined to simulate auth not yet resolved
       (state as any).auth = undefined;
       expect(FEATURE_FLAGS.shouldShowMenu(state)).toBe(true);
     });
@@ -210,7 +211,7 @@ describe("FEATURE_FLAGS", () => {
 
   describe("surveyLink", () => {
     it("should return showLink true and url when SURVEY_LINK is set", () => {
-      const state: Pick<State, "config"> = {
+      const state = {
         config: { SURVEY_LINK: "https://example.com/survey" } as any,
       };
 
@@ -222,7 +223,7 @@ describe("FEATURE_FLAGS", () => {
     });
 
     it("should return showLink false and url undefined when SURVEY_LINK is not set", () => {
-      const state: Pick<State, "config"> = {
+      const state = {
         config: {} as any,
       };
 
@@ -234,7 +235,7 @@ describe("FEATURE_FLAGS", () => {
     });
 
     it("should return showLink false and url empty string when SURVEY_LINK is empty string", () => {
-      const state: Pick<State, "config"> = {
+      const state = {
         config: { SURVEY_LINK: "" } as any,
       };
 
@@ -246,7 +247,7 @@ describe("FEATURE_FLAGS", () => {
     });
 
     it("should return showLink true and url when SURVEY_LINK is a non-empty string", () => {
-      const state: Pick<State, "config"> = {
+      const state = {
         config: { SURVEY_LINK: "https://feedback.gov.uk" } as any,
       };
 
@@ -316,7 +317,7 @@ describe("FEATURE_FLAGS", () => {
 
   describe("reportIssueLink", () => {
     it("should return showLink true and url when REPORT_ISSUE_LINK is set", () => {
-      const state: Pick<State, "config"> = {
+      const state = {
         config: { REPORT_ISSUE_LINK: "https://example.com/report" } as any,
       };
 
@@ -328,7 +329,7 @@ describe("FEATURE_FLAGS", () => {
     });
 
     it("should return showLink false and url undefined when REPORT_ISSUE_LINK is not set", () => {
-      const state: Pick<State, "config"> = {
+      const state = {
         config: {} as any,
       };
 
@@ -340,7 +341,7 @@ describe("FEATURE_FLAGS", () => {
     });
 
     it("should return showLink false and url empty string when REPORT_ISSUE_LINK is empty string", () => {
-      const state: Pick<State, "config"> = {
+      const state = {
         config: { REPORT_ISSUE_LINK: "" } as any,
       };
 
@@ -352,7 +353,7 @@ describe("FEATURE_FLAGS", () => {
     });
 
     it("should return showLink true and url when REPORT_ISSUE_LINK is a non-empty string", () => {
-      const state: Pick<State, "config"> = {
+      const state = {
         config: { REPORT_ISSUE_LINK: "https://servicenow.example.com/report" } as any,
       };
 

@@ -1,5 +1,4 @@
-import { Config } from "cps-global-configuration";
-import { FoundContext } from "./FoundContext";
+import { Config, FoundContext } from "cps-global-configuration";
 import { replaceTagsInString } from "../../components/cps-global-menu/menu-config/helpers/replace-tags-in-string";
 import { tryLocationMatch } from "./try-location-match";
 import { makeConsole } from "../../logging/makeConsole";

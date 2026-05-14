@@ -1,4 +1,4 @@
-import { ApplicationFlags } from "./ApplicationFlags";
+import { ApplicationFlags } from "cps-global-configuration";
 
 declare global {
   interface Window {

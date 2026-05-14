@@ -1,10 +1,8 @@
-import { Preview } from "cps-global-configuration";
+import { ApplicationFlags, Preview, Tags } from "cps-global-configuration";
 import { Result } from "../../../utils/Result";
 import { Subscribe } from "../../../store/store";
 import { SubscriptionFactory } from "../../../store/subscriptions/SubscriptionFactory";
-import { Tags } from "../../context/Tags";
 import "arrive";
-import { ApplicationFlags } from "../../application-flags/ApplicationFlags";
 
 const URN_SEPARATOR = " ";
 

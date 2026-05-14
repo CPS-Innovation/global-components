@@ -12,12 +12,17 @@
  */
 
 import {
+  AuthHint,
   AuthHintSchema,
   Config,
+  FEATURE_FLAGS,
   fetchConfig,
   fetchState,
   HANDOVER_PARAM_KEYS,
   HANDOVER_STAGES,
+  Preview,
+  PreviewSchema,
+  Result,
 } from "cps-global-configuration";
 import {
   handleMsalEnsureAd,
@@ -53,20 +58,34 @@ export const getConfig = async (scriptUrl: URL): Promise<Config> => {
   return (await response.json()) as Config;
 };
 
-// Best-effort fetch of the authHint to extract the user's object id for the
-// failure beacon. Same-origin relative to the bundle URL (resolves the same
-// way as the host's `../state/auth-hint` lookup) — works for the Polaris
-// variant; on the OS variant it's a cross-origin request to polaris-api and
-// will typically fail unless CORS is configured. Either way, swallow and
-// return "unknown" so the beacon still fires.
-const tryFetchAuthHintObjectId = async (scriptUrl: URL): Promise<string> => {
-  const result = await fetchState({
+// Best-effort fetch of the authHint. Same-origin relative to the bundle URL
+// (resolves the same way as the host's `../state/auth-hint` lookup) — works
+// for the Polaris variant; on the OS variant it's a cross-origin request to
+// polaris-api and will typically fail unless CORS is configured. Either way
+// the Result discriminator lets callers proceed when not-found.
+//
+// Used for two things downstream: feature-flag bucketing (we need the user's
+// identity to decide whether to do the preemptive AD cascade) and the
+// failure-beacon objectId.
+const tryFetchAuthHint = (scriptUrl: URL): Promise<Result<AuthHint>> =>
+  fetchState({
     rootUrl: scriptUrl.href,
     url: "../state/auth-hint",
     schema: AuthHintSchema,
   });
-  return result.found ? result.result.authResult.objectId : "unknown";
-};
+
+// Best-effort fetch of the preview override. Same shape and same caveats as
+// the authHint fetch — the preview file lets us flip the flag for ad-hoc
+// testing without a config push.
+const tryFetchPreview = (scriptUrl: URL): Promise<Result<Preview>> =>
+  fetchState({
+    rootUrl: scriptUrl.href,
+    url: "../state/preview",
+    schema: PreviewSchema,
+  });
+
+const objectIdFromAuthHint = (authHint: Result<AuthHint>): string =>
+  authHint.found ? authHint.result.authResult.objectId : "unknown";
 
 // Shared AD-validation routine. Called from three places:
 //   1. The ENSURE_AD dispatch case (public entry point for external entities).
@@ -75,11 +94,34 @@ const tryFetchAuthHintObjectId = async (scriptUrl: URL): Promise<string> => {
 // All three want the same thing: silent-acquire-or-redirect, then if silent
 // worked navigate the user to returnTo (same-origin validated). Calling this
 // in-process avoids a wasted ?stage=ensure-ad page-load from the OS branches.
+//
+// Gated on FEATURE_FLAGS.shouldUseFullPageMsalRedirect — without this gate,
+// every user passing through the OS handover would get the preemptive AD
+// cascade (and a redirect on silent-fail). Bucketing uses authHint (the
+// persisted identity from a prior session) since auth itself hasn't run yet.
 const runEnsureAd = async (
   win: Window,
   config: Config,
+  scriptUrl: URL,
   returnTo: string | null,
 ): Promise<void> => {
+  const [authHint, preview] = await Promise.all([
+    tryFetchAuthHint(scriptUrl),
+    tryFetchPreview(scriptUrl),
+  ]);
+  const inFlag = FEATURE_FLAGS.shouldUseFullPageMsalRedirect({
+    config,
+    preview,
+    auth: undefined,
+    authHint,
+  });
+  if (!inFlag) {
+    // Non-FF user — skip the AD cascade and deliver them straight to target.
+    const validatedReturnTo = resolveReturnTo(returnTo, win.location.origin);
+    win.location.replace(validatedReturnTo);
+    return;
+  }
+
   const msalConfig = {
     clientId: config.AD_CLIENT_ID ?? "",
     authority: config.AD_TENANT_AUTHORITY ?? "",
@@ -154,7 +196,7 @@ export const dispatchHandover = async (
         // Cookies fresh — preemptive AD check before delivering to target.
         // We're already on the handover endpoint; just call the same function
         // the ENSURE_AD stage uses, no page-load required.
-        return runEnsureAd(win, config, outcome.target);
+        return runEnsureAd(win, config, scriptUrl, outcome.target);
       }
       // outcome.kind === "needs-token" — bounce off to the token-handover
       // endpoint, which will return us at stage=os-token-return.
@@ -168,7 +210,7 @@ export const dispatchHandover = async (
       });
       // Token stored — preemptive AD check before the user reaches target.
       // In-process call, not a page navigation.
-      return runEnsureAd(win, config, outcome.target);
+      return runEnsureAd(win, config, scriptUrl, outcome.target);
     }
 
     case HANDOVER_STAGES.ENSURE_AD:
@@ -178,6 +220,7 @@ export const dispatchHandover = async (
       return runEnsureAd(
         win,
         config,
+        scriptUrl,
         params.get(HANDOVER_PARAM_KEYS.RETURN_TO),
       );
 
@@ -206,7 +249,7 @@ export const dispatchHandover = async (
           result.outcome === "handled-with-error" &&
           config.BEACON_AD_REDIRECT_FAILURES_ENABLED
         ) {
-          const oid = await tryFetchAuthHintObjectId(scriptUrl);
+          const oid = objectIdFromAuthHint(await tryFetchAuthHint(scriptUrl));
           await beaconAdRedirect(scriptUrl, "failure", {
             "auth-hint-object-id": oid,
           });

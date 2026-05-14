@@ -3,12 +3,10 @@ jest.mock("./helpers/map-link-config");
 jest.mock("./helpers/group-links-by-level");
 
 import { menuConfig } from "./menu-config";
-import { AuthResult, Config } from "cps-global-configuration";
-import { FoundContext } from "../../../services/context/FoundContext";
+import { ApplicationFlags, AuthResult, Config, FoundContext } from "cps-global-configuration";
 import { shouldShowLink } from "./helpers/should-show-link";
 import { mapLinkConfig } from "./helpers/map-link-config";
 import { groupLinksByLevel } from "./helpers/group-links-by-level";
-import { ApplicationFlags } from "../../../services/application-flags/ApplicationFlags";
 import { Tags } from "@microsoft/applicationinsights-web";
 import { Build, State } from "../../../store/store";
 import { CorrelationIds } from "../../../services/correlation/CorrelationIds";

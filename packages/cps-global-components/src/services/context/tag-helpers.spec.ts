@@ -1,5 +1,5 @@
 import { areAllTagsFound, getPlaceHolders } from "./tag-helpers";
-import { Tags } from "./Tags";
+import { Tags } from "cps-global-configuration";
 
 describe("tag-helpers", () => {
   describe("getPlaceHolders", () => {

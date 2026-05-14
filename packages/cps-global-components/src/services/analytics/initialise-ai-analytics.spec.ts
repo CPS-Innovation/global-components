@@ -1,6 +1,5 @@
-import { AuthResult, Config } from "cps-global-configuration";
+import { AuthResult, Config, FoundContext } from "cps-global-configuration";
 import { Build } from "../../store/store";
-import { FoundContext } from "../context/FoundContext";
 import { CorrelationIds } from "../correlation/CorrelationIds";
 
 const mockTrackPageView = jest.fn();

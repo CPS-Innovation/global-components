@@ -1,5 +1,4 @@
-import { Config } from "cps-global-configuration";
-import { FoundContext } from "../context/FoundContext";
+import { Config, FoundContext } from "cps-global-configuration";
 import { MergeTags, Register } from "../../store/store";
 import { GetToken } from "../auth/GetToken";
 import { AnalyticsEventData } from "../analytics/analytics-event";
