@@ -38,7 +38,7 @@
     ]
   },
   "FEATURE_FLAG_USE_MSAL_FULL_REDIRECT_USERS": {
-    "variants": { "useRedirect": 1 }
+    "generallyAvailable": true
   },
   "BEACON_AD_REDIRECT_SUCCESSES_ENABLED": true,
   "BEACON_AD_REDIRECT_FAILURES_ENABLED": true,

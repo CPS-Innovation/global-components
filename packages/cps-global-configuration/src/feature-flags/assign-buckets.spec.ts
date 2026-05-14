@@ -1,5 +1,26 @@
 import { assignBuckets } from "./assign-buckets";
 
+// Deterministic v4-shaped UUID generator backed by Mulberry32. Lets the
+// distribution tests below run against realistic subject IDs (Entra `oid`
+// values are UUIDs) without committing a fixture file.
+const mulberry32 = (seed: number) => () => {
+  let t = (seed += 0x6d2b79f5);
+  t = Math.imul(t ^ (t >>> 15), t | 1);
+  t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+  return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+};
+
+const generateUuids = (count: number, seed = 1): string[] => {
+  const rand = mulberry32(seed);
+  return Array.from({ length: count }, () => {
+    const bytes = Array.from({ length: 16 }, () => Math.floor(rand() * 256));
+    bytes[6] = (bytes[6]! & 0x0f) | 0x40;
+    bytes[8] = (bytes[8]! & 0x3f) | 0x80;
+    const hex = bytes.map(b => b.toString(16).padStart(2, "0")).join("");
+    return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20, 32)}`;
+  });
+};
+
 describe("assignBuckets", () => {
   it("returns 'control' when there are no variants", () => {
     const result = assignBuckets({ subjectId: "user-1", salt: "exp", variants: {} });
@@ -76,5 +97,44 @@ describe("assignBuckets", () => {
       }
     }
     expect(controlCount).toBeGreaterThan(450);
+  });
+
+  describe("distribution against UUID subjects", () => {
+    // Sample size & tolerance are tuned together: at n=10000 the 95% CI for a
+    // single proportion is ~±1pp at the centre and tighter at the edges. A
+    // ±1.5pp band absorbs that comfortably while still catching gross bias.
+    const UUIDS = generateUuids(10000);
+    const TOLERANCE = 150;
+
+    const countOn = (weight: number): number => {
+      let on = 0;
+      for (const subjectId of UUIDS) {
+        if (assignBuckets({ subjectId, salt: "dist-uuid", variants: { on: weight } }) === "on") {
+          on++;
+        }
+      }
+      return on;
+    };
+
+    it.each([
+      [1, 100],
+      [5, 500],
+      [25, 2500],
+      [50, 5000],
+      [75, 7500],
+      [99, 9900],
+    ])("buckets ~%i%% of UUID subjects into the variant", (percent, expected) => {
+      const on = countOn(percent);
+      expect(on).toBeGreaterThanOrEqual(expected - TOLERANCE);
+      expect(on).toBeLessThanOrEqual(expected + TOLERANCE);
+    });
+
+    it("buckets exactly 100% when the variant spans the whole range", () => {
+      expect(countOn(100)).toBe(UUIDS.length);
+    });
+
+    it("buckets exactly 0% when the variant has no weight", () => {
+      expect(countOn(0)).toBe(0);
+    });
   });
 });
