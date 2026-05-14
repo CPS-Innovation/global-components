@@ -2,7 +2,7 @@ jest.mock("arrive", () => {});
 
 import { initialiseTabTitle, buildTitle } from "./initialise-tab-title";
 import { SubscriptionFactory } from "../../../store/subscriptions/SubscriptionFactory";
-import { Tags } from "../../context/Tags";
+import { Tags } from "cps-global-configuration";
 
 describe("buildTitle", () => {
   it("prepends the URN to a title", () => {

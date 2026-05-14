@@ -1,7 +1,6 @@
-import { getFeatureFlagAssignment } from "./get-feature-flag-assignment";
-import { State, StoredState } from "../store/store";
+import { getFeatureFlagAssignment, type FeatureFlagInputs } from "./get-feature-flag-assignment";
 
-type AssignmentState = Pick<State, "config"> & Pick<StoredState, "auth" | "authHint">;
+type AssignmentState = FeatureFlagInputs;
 
 const out = { result: false };
 const inNoVariant = { result: true };

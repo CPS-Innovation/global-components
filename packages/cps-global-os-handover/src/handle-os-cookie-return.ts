@@ -4,9 +4,22 @@ import { createUrlWithParams, setParams, stripParams } from "./core/params";
 
 // Stage 1 of the CMS → OS auth handover. The user arrives with the CMS cookies
 // in the URL (`?cc=…`). If our stored cookies already match, we can skip the
-// expensive token-fetch leg and go straight to the target URL. Otherwise we
-// hop to the tokenHandoverUrl (a Polaris endpoint that fetches the modern
-// CMS token cookie-side and bounces us back at stage=os-token-return).
+// expensive token-fetch leg and signal "ready" — the mediator will route the
+// user on. Otherwise we ask the mediator to navigate to the tokenHandoverUrl
+// (a Polaris endpoint that fetches the modern CMS token cookie-side and
+// bounces back at stage=os-token-return).
+//
+// This function does not write to `win.location`. The mediator owns all our
+// in-estate navigation; we just return an intent.
+
+export type OsCookieReturnOutcome =
+  // Cookies match what's in storage — caller should route the user on to
+  // `target` (typically via the ensure-ad preemptive AD check).
+  | { kind: "ready"; target: string }
+  // Cookies have changed — caller should navigate to `href`, which is a
+  // pre-built URL pointing at the token-handover endpoint with our return
+  // shape baked in.
+  | { kind: "needs-token"; href: string };
 
 export const handleOsCookieReturn = (
   win: Window,
@@ -17,7 +30,7 @@ export const handleOsCookieReturn = (
     tokenHandoverUrl: string;
     cmsAuthStorageKeys: CmsAuthStorageKeys;
   },
-): void => {
+): OsCookieReturnOutcome => {
   const url = new URL(win.location.href);
   const [cookies] = stripParams(url, HANDOVER_PARAM_KEYS.COOKIES);
 
@@ -28,19 +41,16 @@ export const handleOsCookieReturn = (
   );
 
   if (canGoStraightToTarget) {
-    // Cookies in storage match what was just handed to us — proceed to the
-    // user's intended destination.
     const [target] = stripParams(url, HANDOVER_PARAM_KEYS.R);
-    win.location.replace(target);
-    return;
+    return { kind: "ready", target };
   }
 
   // Cookies have changed — route through the token-handover endpoint, which
   // returns us at stage=os-token-return with the modern CMS token attached.
   setParams(url, { [HANDOVER_PARAM_KEYS.STAGE]: HANDOVER_STAGES.OS_TOKEN_RETURN });
-  const nextUrl = createUrlWithParams(tokenHandoverUrl, {
+  const next = createUrlWithParams(tokenHandoverUrl, {
     [HANDOVER_PARAM_KEYS.R]: url.toString(),
     [HANDOVER_PARAM_KEYS.COOKIES]: cookies!,
   });
-  win.location.replace(nextUrl.toString());
+  return { kind: "needs-token", href: next.toString() };
 };

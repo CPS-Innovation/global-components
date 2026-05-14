@@ -1,4 +1,4 @@
-import { Config, fetchState } from "cps-global-configuration";
+import { ApplicationFlags, Config, fetchState } from "cps-global-configuration";
 import { Register } from "../../store/store";
 import { StatePutResponseSchema } from "../state/StatePutResponse";
 import { SilentFlowDiagnostic, SilentFlowDiagnostics, SilentFlowDiagnosticsSchema, emptySilentFlowDiagnostics } from "./silent-flow-diagnostics";
@@ -6,7 +6,6 @@ import { ProbeIframeLoadDiagnostic, ProbeIframeLoadDiagnosticSchema } from "./pr
 import { ProbeNavigatorPermissionsDiagnostic, ProbeNavigatorPermissionsDiagnosticSchema } from "./probe-navigator-permissions-diagnostic";
 import { probeIframeLoad } from "./probe-iframe-load";
 import { TrackEvent } from "../analytics/analytics-event";
-import { ApplicationFlags } from "../application-flags/ApplicationFlags";
 
 const DEFAULT_SILENT_FLOW_DIAGNOSTICS_LENGTH = 5;
 const DEFAULT_PROBE_IFRAME_TIMEOUT_MS = 3000;

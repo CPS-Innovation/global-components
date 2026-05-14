@@ -1,5 +1,4 @@
-import { CmsSessionHint, CmsSessionHintSchema, fetchState } from "cps-global-configuration";
-import { ApplicationFlags } from "../../application-flags/ApplicationFlags";
+import { ApplicationFlags, CmsSessionHint, CmsSessionHintSchema, fetchState } from "cps-global-configuration";
 import { Result } from "../../../utils/Result";
 
 type Register = (arg: { cmsSessionHint: Result<CmsSessionHint>; cmsSessionTags: { handoverEndpoint: string } }) => void;

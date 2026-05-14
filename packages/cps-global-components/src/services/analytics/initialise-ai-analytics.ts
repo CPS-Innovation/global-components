@@ -1,6 +1,5 @@
 import { ApplicationInsights } from "@microsoft/applicationinsights-web";
-import { AuthHint, AuthResult, Config, KnownErrorType } from "cps-global-configuration";
-import { FoundContext } from "../context/FoundContext";
+import { AuthHint, AuthResult, Config, FoundContext, KnownErrorType } from "cps-global-configuration";
 import { CorrelationIds } from "../correlation/CorrelationIds";
 import { AnalyticsEventData, TrackEvent } from "./analytics-event";
 import { HostAppEvent } from "./host-app-event";

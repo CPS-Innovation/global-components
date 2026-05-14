@@ -39,16 +39,18 @@ describe("handleOsTokenReturn", () => {
     jest.spyOn(console, "log").mockImplementation(() => {});
   });
 
-  test("stores auth and navigates to target", async () => {
+  test("stores auth in OS-shape localStorage and returns kind:ready with target", async () => {
     const win = makeWindow(
-      "https://cps-dev.outsystemsenterprise.com/AuthHandover/index.html?r=https%3A%2F%2Fexample.com%2Ftarget&stage=os-token-return&cc=test-cookies&cms-modern-token=test-token",
+      "https://cps-tst.outsystemsenterprise.com/Casework_Patterns/auth-handover.html?src=x&r=https%3A%2F%2Fexample.com%2Ftarget&stage=os-token-return&cc=test-cookies&cms-modern-token=test-token",
     );
 
-    await handleOsTokenReturn(win, { cmsAuthStorageKeys: keys });
+    const outcome = await handleOsTokenReturn(win, { cmsAuthStorageKeys: keys });
 
-    expect(win.location.replace).toHaveBeenCalledWith("https://example.com/target");
+    expect(outcome).toEqual({ kind: "ready", target: "https://example.com/target" });
     expect(localStorage[keys.WMA_COOKIES]).toBe("test-cookies");
     expect(JSON.parse(localStorage[keys.WMA_JSON]!).Token).toBe("test-token");
+    // No direct navigation — mediator's job.
+    expect(win.location.replace).not.toHaveBeenCalled();
   });
 
   test("calls resetTasklistFilters when new token differs from stored AND host is cps-tst", async () => {
@@ -109,16 +111,15 @@ describe("handleOsTokenReturn", () => {
     expect(mockGetCmsSessionHint).not.toHaveBeenCalled();
   });
 
-  test("swallows getCmsSessionHint errors and still navigates", async () => {
+  test("swallows getCmsSessionHint errors and still returns kind:ready with target", async () => {
     mockGetCmsSessionHint.mockRejectedValue(new Error("network down"));
 
     const win = makeWindow(
-      "https://cps-dev.outsystemsenterprise.com/AuthHandover/index.html?r=https%3A%2F%2Fexample.com%2FCasework_Blocks%2FHome&stage=os-token-return&cc=test-cookies&cms-modern-token=test-token",
+      "https://cps-dev.outsystemsenterprise.com/Casework_Patterns/auth-handover.html?r=https%3A%2F%2Fexample.com%2FCasework_Blocks%2FHome&stage=os-token-return&cc=test-cookies&cms-modern-token=test-token",
     );
 
-    await expect(
-      handleOsTokenReturn(win, { cmsAuthStorageKeys: keys }),
-    ).resolves.not.toThrow();
-    expect(win.location.replace).toHaveBeenCalledWith("https://example.com/Casework_Blocks/Home");
+    const outcome = await handleOsTokenReturn(win, { cmsAuthStorageKeys: keys });
+
+    expect(outcome).toEqual({ kind: "ready", target: "https://example.com/Casework_Blocks/Home" });
   });
 });

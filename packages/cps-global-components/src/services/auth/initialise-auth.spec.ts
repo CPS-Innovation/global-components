@@ -1,6 +1,4 @@
-import { Config } from "cps-global-configuration";
-import { FoundContext } from "../context/FoundContext";
-import { ApplicationFlags } from "../application-flags/ApplicationFlags";
+import { ApplicationFlags, Config, FoundContext } from "cps-global-configuration";
 
 const mockInitialiseMockAuth = jest.fn();
 jest.mock("./initialise-mock-auth", () => ({

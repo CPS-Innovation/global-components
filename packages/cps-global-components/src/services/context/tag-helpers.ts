@@ -1,4 +1,4 @@
-import { Tags } from "./Tags";
+import { Tags } from "cps-global-configuration";
 
 const extractNamedGroups = (regexString: string): string[] => {
   // Pattern to match named groups: (?<name>) or (?'name') syntax

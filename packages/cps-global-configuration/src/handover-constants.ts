@@ -26,6 +26,12 @@ export const HANDOVER_STAGES = {
   OS_COOKIE_RETURN: "os-cookie-return",
   OS_TOKEN_RETURN: "os-token-return",
   AD_REDIRECT: "ad-redirect",
+  // Preemptive AD validation. Bolts onto the OS cookie/token return paths so
+  // the AD check happens on the handover endpoint instead of after the host
+  // app has booted. Also the public entry point for external entities that
+  // want to land the user on a host page with valid AD auth already in place.
+  // See packages/cps-global-handover/EXTERNAL-ENTRY.md.
+  ENSURE_AD: "ensure-ad",
 } as const;
 
 export type HandoverStage = (typeof HANDOVER_STAGES)[keyof typeof HANDOVER_STAGES];

@@ -1,7 +1,6 @@
-import { Config } from "cps-global-configuration";
+import { Config, FoundContext } from "cps-global-configuration";
 import { fetchWithCircuitBreaker } from "../fetch/fetch-with-circuit-breaker";
 import { fetchWithAuthFactory } from "../fetch/fetch-with-auth-factory";
-import { FoundContext } from "../context/FoundContext";
 import { MergeTags, Register } from "../../store/store";
 import { Handover } from "../state/handover/Handover";
 import { GetToken } from "../auth/GetToken";

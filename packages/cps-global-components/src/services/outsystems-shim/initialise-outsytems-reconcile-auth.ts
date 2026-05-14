@@ -1,6 +1,5 @@
 import { synchroniseOsAuth } from "cps-global-os-handover";
-import { Config } from "cps-global-configuration";
-import { ApplicationFlags } from "../application-flags/ApplicationFlags";
+import { ApplicationFlags, Config } from "cps-global-configuration";
 
 export const initialiseOutSystemsReconcileAuth = ({
   flags: { isOutSystems, environment },

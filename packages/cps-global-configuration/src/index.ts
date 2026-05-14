@@ -28,6 +28,9 @@ export {
   type KnownErrorType,
 } from "./AuthResult";
 export { AuthHintSchema, type AuthHint } from "./AuthHint";
+export { type Tags } from "./Tags";
+export { type FoundContext } from "./FoundContext";
+export { type ApplicationFlags } from "./ApplicationFlags";
 export { fetchState } from "./fetch-state";
 export { fetchConfig, type ConfigFetch } from "./fetch-config";
 export {
@@ -36,3 +39,11 @@ export {
   type HandoverStage,
 } from "./handover-constants";
 export type { Result } from "./Result";
+export { FEATURE_FLAGS } from "./feature-flags/feature-flags";
+export {
+  getFeatureFlagAssignment,
+  type FeatureFlagAssignment,
+  type FeatureFlagInputs,
+  type FeatureFlagUsersKeys,
+} from "./feature-flags/get-feature-flag-assignment";
+export { assignBuckets } from "./feature-flags/assign-buckets";

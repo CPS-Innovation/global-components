@@ -1,6 +1,6 @@
 import { Component, h } from "@stencil/core";
 import { readyState } from "../../store/store";
-import { FEATURE_FLAGS } from "../../feature-flags/feature-flags";
+import { FEATURE_FLAGS } from "cps-global-configuration";
 import { WithLogging } from "../../logging/WithLogging";
 
 @Component({

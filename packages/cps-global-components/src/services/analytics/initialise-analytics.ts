@@ -1,6 +1,5 @@
-import { AuthHint, Config } from "cps-global-configuration";
+import { ApplicationFlags, AuthHint, Config } from "cps-global-configuration";
 import { Build } from "../../store/store";
-import { ApplicationFlags } from "../application-flags/ApplicationFlags";
 import { initialiseMockAnalytics } from "./initialise-mock-analytics";
 import { initialiseAiAnalytics } from "./initialise-ai-analytics";
 import { Result } from "../../utils/Result";
