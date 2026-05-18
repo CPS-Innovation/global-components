@@ -13,6 +13,7 @@ type MsalConfig = {
 
 type MsalLikeInstance = {
   handleRedirectPromise: () => Promise<AuthenticationResult | null>;
+  setActiveAccount(account: AccountInfo | null): void;
 };
 
 // Async factory — must return an already-initialised instance (consistent with
@@ -77,10 +78,18 @@ export const handleMsalTermination = async (
       ),
     });
     const instance = await createInstance({ ...msalConfig, redirectUri });
-    const result = await instance.handleRedirectPromise();
+    const response = await instance.handleRedirectPromise();
+
+    const hasResult = !!response;
+    const account = response?.account ?? null;
+
+    if (account) {
+      instance.setActiveAccount(account);
+    }
+
     console.log(
       "[CPS-GLOBAL-AUTH] handleMsalTermination handleRedirectPromise resolved",
-      { hasResult: !!result },
+      { hasResult },
     );
     // Two synchronous writes before any pending navigation pre-empts us:
     //   1. Stamp a fresh UUID under COMPLETION_ID_KEY — get-ad-user-account
@@ -97,22 +106,22 @@ export const handleMsalTermination = async (
     // Drain the returnTo stash and surface it to the caller. The caller is
     // responsible for the actual navigation — lets us interleave a beacon
     // call (drop 8) between termination and unload without racing.
-    const returnTo = win.sessionStorage.getItem(MSAL_REDIRECT_RETURN_TO_KEY);
+    const returnTo =
+      win.sessionStorage.getItem(MSAL_REDIRECT_RETURN_TO_KEY) ?? undefined;
     if (returnTo) {
       win.sessionStorage.removeItem(MSAL_REDIRECT_RETURN_TO_KEY);
     }
-    const sid = (result?.account?.idTokenClaims as { sid?: string } | undefined)
-      ?.sid;
+    const sid = (account?.idTokenClaims as { sid?: string } | undefined)?.sid;
     console.log("[CPS-GLOBAL-AUTH] handleMsalTermination complete", {
-      hasAccount: !!result?.account,
+      hasAccount: !!account,
       hasSid: !!sid,
       hasReturnTo: !!returnTo,
     });
     return {
       outcome: "handled",
-      account: result?.account ?? null,
+      account: account,
       sid,
-      returnTo: returnTo ?? undefined,
+      returnTo,
     };
   } catch (err) {
     // Drain the returnTo stash and surface it so the caller can navigate the
@@ -121,7 +130,8 @@ export const handleMsalTermination = async (
     // host's FailedAuth UI. The 30s in-flight loop guard (left in place)
     // prevents a tight re-attempt loop from the host on the next page load.
     // See packages/cps-global-handover/AD-FAILURE-MODES.md.
-    const returnTo = win.sessionStorage.getItem(MSAL_REDIRECT_RETURN_TO_KEY);
+    const returnTo =
+      win.sessionStorage.getItem(MSAL_REDIRECT_RETURN_TO_KEY) ?? undefined;
     win.sessionStorage.removeItem(MSAL_REDIRECT_RETURN_TO_KEY);
     console.error(
       "[CPS-GLOBAL-AUTH] handleMsalTermination: handleRedirectPromise threw",
@@ -129,7 +139,7 @@ export const handleMsalTermination = async (
     );
     return {
       outcome: "handled-with-error",
-      returnTo: returnTo ?? undefined,
+      returnTo,
     };
   }
 };

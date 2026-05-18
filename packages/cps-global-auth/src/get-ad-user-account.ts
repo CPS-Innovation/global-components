@@ -204,6 +204,9 @@ export const getAdUserAccount = async ({
       if (account) {
         producedBy = "silent";
       }
+
+      instance.setActiveAccount(account);
+
       return account ?? null;
     } catch (error) {
       const rawErrorCode = (error as { errorCode?: unknown })?.errorCode;
@@ -264,7 +267,10 @@ export const getAdUserAccount = async ({
       // so we don't add the stage here). Just append our own returnTo dispatch
       // param for the bundle to consume on the bounce-back.
       const target = new URL(msalRedirectUrl);
-      target.searchParams.set(HANDOVER_PARAM_KEYS.RETURN_TO, window.location.href);
+      target.searchParams.set(
+        HANDOVER_PARAM_KEYS.RETURN_TO,
+        window.location.href,
+      );
       // replace, not assign — we don't want the host page entry preserved in
       // history under the auth-handover.html?stage=ad-redirect entry. Hitting
       // back through the auth flow would either re-fire loginRedirect or land
@@ -292,7 +298,6 @@ export const getAdUserAccount = async ({
     (await tryLoginAccountViaRedirect()) ||
     (await tryLoginAccountSilently()) ||
     null;
-  instance.setActiveAccount(account);
 
   // Mechanism precedence: a present completion id (positive signal from the
   // termination page) wins over the producedBy hint, since either way we want

@@ -191,4 +191,62 @@ describe("handleMsalEnsureAd", () => {
 
     expect(result).toBe("redirect-initiation-failed");
   });
+
+  describe("lastKnownSid threading to loginRedirect fallback", () => {
+    // The dispatcher reconciles upstream and hands the resolved sid down so
+    // the redirect fallback's loginRedirect uses the same sid hint the
+    // dispatcher chose. Without threading, the fallback would use no sid hint
+    // (the previous behaviour) and AAD would have less to go on.
+
+    it("threads lastKnownSid to loginRedirect's extraQueryParameters.sid when provided", async () => {
+      const acquireTokenSilent = jest.fn().mockRejectedValue(new Error("rt-expired"));
+      const loginRedirect = jest.fn().mockResolvedValue(undefined);
+      const createInstance = jest.fn().mockResolvedValue({
+        getActiveAccount: () => account,
+        getAllAccounts: () => [account],
+        acquireTokenSilent,
+        loginRedirect,
+      });
+
+      await handleMsalEnsureAd(
+        makeWindow(),
+        { clientId: "c", authority: "a" },
+        "https://example.com/target",
+        "https://example.com/global-components/test/auth-handover.html?src=x&stage=ad-redirect",
+        createInstance,
+        "sid-from-dispatcher",
+      );
+
+      expect(loginRedirect).toHaveBeenCalledWith(
+        expect.objectContaining({
+          extraQueryParameters: { sid: "sid-from-dispatcher" },
+        }),
+      );
+    });
+
+    it("omits extraQueryParameters when lastKnownSid is undefined (preserves prior behaviour)", async () => {
+      const acquireTokenSilent = jest.fn().mockRejectedValue(new Error("rt-expired"));
+      const loginRedirect = jest.fn().mockResolvedValue(undefined);
+      const createInstance = jest.fn().mockResolvedValue({
+        getActiveAccount: () => account,
+        getAllAccounts: () => [account],
+        acquireTokenSilent,
+        loginRedirect,
+      });
+
+      await handleMsalEnsureAd(
+        makeWindow(),
+        { clientId: "c", authority: "a" },
+        "https://example.com/target",
+        "https://example.com/global-components/test/auth-handover.html?src=x&stage=ad-redirect",
+        createInstance,
+        // lastKnownSid omitted
+      );
+
+      const call = loginRedirect.mock.calls[0]![0] as {
+        extraQueryParameters?: unknown;
+      };
+      expect(call.extraQueryParameters).toBeUndefined();
+    });
+  });
 });

@@ -10,6 +10,7 @@ export { initialiseAdAuth } from "./initialise-ad-auth";
 export { handleMsalTermination } from "./handle-msal-termination";
 export { handleMsalLogin, resolveReturnTo } from "./handle-msal-login";
 export { handleMsalEnsureAd } from "./handle-msal-ensure-ad";
+export { reconcileForCascade } from "./reconcile-for-cascade";
 
 export type { Auth, AuthResult, FailedAuth, KnownErrorType } from "./AuthResult";
 export type { GetToken } from "./GetToken";
