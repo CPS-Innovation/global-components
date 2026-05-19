@@ -1,5 +1,14 @@
 {
   "ENVIRONMENT": "dev",
+  "CMS_AUTH_STORAGE_KEYS": {
+    "WMA_JSON": "$OS_Users$Casework_Blocks$ClientVars$JSONString",
+    "WMA_COOKIES": "$OS_Users$Casework_Blocks$ClientVars$Cookies",
+    "CASE_REVIEW_JSON": "$OS_Users$CaseReview$ClientVars$CmsAuthValues",
+    "CASE_REVIEW_COOKIES": "$OS_Users$CaseReview$ClientVars$Cookies",
+    "HOME_JSON": "$OS_Users$Casework_Blocks$ClientVars$JSONString",
+    "HOME_COOKIES": "$OS_Users$Casework_Blocks$ClientVars$Cookies",
+    "HOME_IS_FROM_PROXY": "$OS_Users$Casework_Blocks$ClientVars$IsFromProxy"
+  },
   "REDIRECT_SCRIPT_URL": "https://polaris-qa-notprod.cps.gov.uk/global-components/dev/global-components.js",
   "CASE_LOCKING_POC_SCRIPT_BLOB_ADDRESS": "",
   "CASE_LOCKING_API_URL": "https://polaris-qa-notprod.cps.gov.uk/global-components/case-locking/api/section-view",
@@ -29,6 +38,11 @@
   "FEATURE_FLAG_MENU_USERS": {
     "generallyAvailable": true
   },
+  "FEATURE_FLAG_USE_MSAL_FULL_REDIRECT_USERS": {
+    "variants": { "useRedirect": 1 }
+  },
+  "BEACON_AD_REDIRECT_SUCCESSES_ENABLED": true,
+  "BEACON_AD_REDIRECT_FAILURES_ENABLED": true,
   "SSO_SILENT_DELAY_MS": 2000,
   "CONTEXTS": [
     {
@@ -38,7 +52,7 @@
         "box-shadow": "none"
       },
       "skipLinkClassName": "cps-skip-link__target",
-      "msalRedirectUrl": "https://cps-dev.outsystemsenterprise.com/Casework_Patterns/auth-handover.html?src=https%3A%2F%2Fpolaris-qa-notprod.cps.gov.uk%2Fglobal-components%2Fdev%2Fauth-handover.js&stage=os-ad-redirect",
+      "msalRedirectUrl": "https://cps-dev.outsystemsenterprise.com/Casework_Patterns/auth-handover.html?src=https%3A%2F%2Fpolaris-qa-notprod.cps.gov.uk%2Fglobal-components%2Fdev%2Fauth-handover.js&stage=ad-redirect",
       "cmsAuthFromStorageKey": "$OS_Users$Casework_Blocks$ClientVars$JSONString",
       "contexts": [
         {
@@ -98,7 +112,7 @@
       ]
     },
     {
-      "msalRedirectUrl": "https://polaris-qa-notprod.cps.gov.uk/global-components/dev/global-components-msal-redirect.html",
+      "msalRedirectUrl": "https://polaris-qa-notprod.cps.gov.uk/global-components/dev/auth-handover.html?src=https%3A%2F%2Fpolaris-qa-notprod.cps.gov.uk%2Fglobal-components%2Fdev%2Fauth-handover.js&stage=ad-redirect",
       "contexts": [
         {
           "path": "https://polaris-qa-notprod.cps.gov.uk/polaris-ui/case-details/(?<urn>[^/]+)/(?<caseId>\\d+)",
@@ -133,7 +147,7 @@
       ]
     },
     {
-      "msalRedirectUrl": "https://lacc-app-ui-spa-dev.azurewebsites.net/global-components-msal-redirect.html",
+      "msalRedirectUrl": "https://lacc-app-ui-spa-dev.azurewebsites.net/auth-handover.html?src=https%3A%2F%2Fpolaris-qa-notprod.cps.gov.uk%2Fglobal-components%2Fdev%2Fauth-handover.js",
       "contexts": [
         {
           "path": "https://lacc-app-ui-spa",

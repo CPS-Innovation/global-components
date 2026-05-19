@@ -1,0 +1,68 @@
+<html>
+<!--
+  Single auth-handover endpoint, deployed to:
+  - Polaris CDN (automatic via CI) at /global-components/{env}/auth-handover.html
+  - OutSystems domains (manual upload by OS team) at /Casework_Patterns/auth-handover.html
+
+  Loads the env-specific auth-handover.js bundle from a whitelisted Polaris host
+  via the ?src= query parameter. That bundle dispatches by ?stage= to:
+  - os-cookie-return / os-token-return (CMS → OS auth handover, OS variant only)
+  - ad-redirect (host-initiated MSAL full-page redirect + AAD bounce-back)
+
+  See packages/cps-global-handover/README.md for the full embedding flow and
+  per-environment URLs.
+
+  Defence in depth — both layers below must agree before any remote script runs:
+
+  1. Meta CSP restricts what the browser will fetch / connect to / submit to.
+     Note: meta CSP can only TIGHTEN any HTTP-header CSP the host server sets
+     for this path — it cannot loosen — so if MSAL endpoints aren't already
+     allowed at the header layer, login.microsoftonline.com calls will silently
+     fail.
+  2. Runtime hostname allowlist (the `allowed` Set below) is the human-readable
+     intent and runs first; CSP catches anything that bypasses or post-dates it.
+-->
+
+<head>
+  <!--
+    script-src 'unsafe-inline' is acceptable here because the inline script
+    does no eval / new Function / dynamic code construction; it only injects a
+    remote <script> tag whose src is gated by both this CSP and the runtime
+    allowlist. connect-src covers auth-handover.js's fetch('config.json') and
+    MSAL token-endpoint XHRs; form-action covers MSAL's POST to AAD.
+  -->
+  <meta http-equiv="Content-Security-Policy"
+    content="script-src 'unsafe-inline' https://polaris.cps.gov.uk https://polaris-qa-notprod.cps.gov.uk; connect-src 'self' https://polaris.cps.gov.uk https://polaris-qa-notprod.cps.gov.uk https://login.microsoftonline.com; form-action https://login.microsoftonline.com;">
+
+  <script>
+    // Bail in iframe contexts (MSAL ssoSilent loads us in a hidden iframe to
+    // read the AAD response hash from the parent via same-origin DOM access —
+    // no code needs to run inside the iframe, so skipping the bundle fetch +
+    // sibling config.json fetch keeps every silent SSO cheap). The in-bundle
+    // iframe guard in handleMsalTermination is belt-and-braces.
+    if (window.self === window.top) {
+      // Hosts permitted to supply auth-handover.js via ?src=. Mirrors the
+      // script-src directive in the meta CSP above — keep these two in sync.
+      const allowed = new Set(['polaris.cps.gov.uk', 'polaris-qa-notprod.cps.gov.uk']);
+      const src = new URLSearchParams(window.location.search).get('src');
+      if (src) {
+        try {
+          if (allowed.has(new URL(src).hostname)) {
+            // createElement + appendChild rather than document.write — same effect
+            // without the Chrome "[Violation] Avoid using document.write" warning.
+            // document.currentScript is still set during execution of dynamically-
+            // inserted classic scripts (per HTML spec), which auth-handover.js
+            // relies on to derive its origin for the sibling config.json fetch.
+            const s = document.createElement('script');
+            s.src = src;
+            document.head.appendChild(s);
+          }
+        } catch (_) {
+          // Invalid src URL — ignore.
+        }
+      }
+    }
+  </script>
+</head>
+
+</html>

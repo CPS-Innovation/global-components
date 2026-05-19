@@ -1,6 +1,6 @@
 import { PublicClientApplication } from "@azure/msal-browser";
 import { createMsalInstance } from "./internal/create-msal-instance";
-import { AuthResult, FailedAuth, KnownErrorType } from "./AuthResult";
+import { AuthResult, KnownErrorType } from "./AuthResult";
 import { getAdUserAccount } from "./get-ad-user-account";
 import { getErrorType } from "./get-error-type";
 import { getTokenFactory } from "./get-token-factory";
@@ -35,9 +35,26 @@ type Props = {
   // loginRedirect cascade. Resolved by the host's feature-flag layer; the auth
   // library treats it as an opaque on/off and stays agnostic of how it is set.
   useFullPageRedirect?: boolean;
+  window: Window;
+  // Last-known AAD session id from AuthHint.lastKnownSid. Replayed by the
+  // silent step to skip the account picker / re-prompt under a live session.
+  lastKnownSid?: string;
 };
 
-const failedAuth = (knownErrorType: KnownErrorType, reason: string): { auth: FailedAuth; getToken: GetToken } => ({
+export type InitialiseAdAuthResult = {
+  auth: AuthResult;
+  getToken: GetToken;
+  // Current AAD session id, extracted from the freshly-acquired account's
+  // idTokenClaims.sid. Surfaced so the host can persist it as
+  // AuthHint.lastKnownSid for replay on the next ssoSilent / loginRedirect.
+  // Absent when the AAD tenant doesn't emit sid, or when auth failed.
+  lastKnownSid?: string;
+};
+
+const failedAuth = (
+  knownErrorType: KnownErrorType,
+  reason: string,
+): InitialiseAdAuthResult => ({
   auth: { isAuthed: false, knownErrorType, reason },
   getToken: () => Promise.resolve(null),
 });
@@ -50,15 +67,24 @@ const failedAuth = (knownErrorType: KnownErrorType, reason: string): { auth: Fai
 let instance: PublicClientApplication | undefined;
 
 export const initialiseAdAuth = async ({
-  config: { AD_TENANT_AUTHORITY: authority, AD_CLIENT_ID: clientId, SSO_SILENT_DELAY_MS },
+  config: {
+    AD_TENANT_AUTHORITY: authority,
+    AD_CLIENT_ID: clientId,
+    SSO_SILENT_DELAY_MS,
+  },
   context: { msalRedirectUrl: redirectUri, currentHref },
   logError,
   addSilentFlowDiagnostics,
   getOperationId,
   useFullPageRedirect,
-}: Props): Promise<{ auth: AuthResult; getToken: GetToken }> => {
+  window,
+  lastKnownSid,
+}: Props): Promise<InitialiseAdAuthResult> => {
   if (!(authority && clientId && redirectUri && currentHref)) {
-    return failedAuth("ConfigurationIncomplete", `Found configuration is: ${JSON.stringify({ authority, clientId, redirectUri, currentHref })}`);
+    return failedAuth(
+      "ConfigurationIncomplete",
+      `Found configuration is: ${JSON.stringify({ authority, clientId, redirectUri, currentHref })}`,
+    );
   }
 
   // For development (possibly other instances) if we detect we are being launched on an
@@ -66,7 +92,10 @@ export const initialiseAdAuth = async ({
   //  is not to spin up an app really - it is just somewhere for AD to land. Whatever we do,
   //  don't launch MSAL if it is the redirectUrl that we are launching
   if (currentHref.startsWith(redirectUri.toLowerCase())) {
-    return failedAuth("RedirectLocationIsApp", "We think we are the MSAL AD redirectUri loading and hence not a real application");
+    return failedAuth(
+      "RedirectLocationIsApp",
+      "We think we are the MSAL AD redirectUri loading and hence not a real application",
+    );
   }
 
   if (!instance) {
@@ -74,18 +103,22 @@ export const initialiseAdAuth = async ({
   }
 
   try {
-    const account = await getAdUserAccount({
+    const { account } = await getAdUserAccount({
       instance,
       config: { SSO_SILENT_DELAY_MS },
       addSilentFlowDiagnostics,
       getOperationId,
       logError,
       useFullPageRedirect,
+      window,
+      msalRedirectUrl: redirectUri,
+      lastKnownSid,
     });
     if (!account) {
       return failedAuth("NoAccountFound", "No AD account found");
     }
 
+    const sid = (account.idTokenClaims as { sid?: string } | undefined)?.sid;
     return {
       auth: {
         isAuthed: true,
@@ -95,10 +128,17 @@ export const initialiseAdAuth = async ({
         groups: (account.idTokenClaims?.["groups"] as string[]) || [],
       },
       getToken: getTokenFactory({ instance, logError }),
+      ...(sid ? { lastKnownSid: sid } : {}),
     };
   } catch (error) {
     const errorType = getErrorType(error);
-    logError("initialiseAdAuth failed", { errorType, authority, clientId, redirectUri, error });
+    logError("initialiseAdAuth failed", {
+      errorType,
+      authority,
+      clientId,
+      redirectUri,
+      error,
+    });
     return failedAuth(errorType, `${error}`);
   }
 };

@@ -2,7 +2,7 @@ import { z } from "zod";
 import { fetchState } from "./fetch-state";
 
 const mockFetch = jest.fn();
-global.fetch = mockFetch;
+global.fetch = mockFetch as unknown as typeof fetch;
 
 const TestSchema = z.object({ name: z.string(), value: z.number() });
 type TestData = z.infer<typeof TestSchema>;

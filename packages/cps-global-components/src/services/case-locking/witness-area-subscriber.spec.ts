@@ -1,4 +1,4 @@
-import { FoundContext } from "../context/FoundContext";
+import { FoundContext } from "cps-global-configuration";
 import { createWitnessAreaSubscriber } from "./witness-area-subscriber";
 
 const witnessAreaSubscriber = createWitnessAreaSubscriber(true);

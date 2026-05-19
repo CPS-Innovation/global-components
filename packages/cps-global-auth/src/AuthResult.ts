@@ -17,6 +17,11 @@ export type KnownErrorType =
   | "SilentFlowProblem"
   | "PostRequestFailed"
   | "NoNetworkConnectivity"
+  // The supplied `sid` hint no longer matches an active server-side session
+  // (rotated by another sign-in, CA policy, or session timeout). Silent flow
+  // can recover by retrying without the hint; surfacing it as a classified
+  // type lets callers branch on it and clear the persisted hint.
+  | "StaleSidHint"
   | "Unknown";
 
 export type Auth = {

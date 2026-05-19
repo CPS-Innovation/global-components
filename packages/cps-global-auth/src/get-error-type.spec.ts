@@ -12,6 +12,11 @@ describe("getErrorType", () => {
     expect(getErrorType(error)).toBe("ConditionalAccessRule");
   });
 
+  it("should return StaleSidHint for AADSTS160021", () => {
+    const error = new InteractionRequiredAuthError("AADSTS160021");
+    expect(getErrorType(error)).toBe("StaleSidHint");
+  });
+
   it("should return SilentFlowProblem for monitor_window_timeout", () => {
     const error = new BrowserAuthError("monitor_window_timeout");
     expect(getErrorType(error)).toBe("SilentFlowProblem");

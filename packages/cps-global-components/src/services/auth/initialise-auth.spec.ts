@@ -1,6 +1,4 @@
-import { Config } from "cps-global-configuration";
-import { FoundContext } from "../context/FoundContext";
-import { ApplicationFlags } from "../application-flags/ApplicationFlags";
+import { ApplicationFlags, Config, FoundContext } from "cps-global-configuration";
 
 const mockInitialiseMockAuth = jest.fn();
 jest.mock("./initialise-mock-auth", () => ({
@@ -49,6 +47,7 @@ describe("initialiseAuth", () => {
     registerAuthWithAnalytics: mockRegisterAuthWithAnalytics,
     setAuthHint: mockSetAuthHint,
     trackException: mockTrackException,
+    window,
     ...overrides,
   });
 
@@ -162,7 +161,7 @@ describe("initialiseAuth", () => {
     it("should call setAuthHint when auth is successful", async () => {
       await setupAndAuth(makeProps({ flags: normalFlags }));
 
-      expect(mockSetAuthHint).toHaveBeenCalledWith(mockAuthResult.auth, mockTrackException);
+      expect(mockSetAuthHint).toHaveBeenCalledWith(mockAuthResult.auth, mockTrackException, undefined);
     });
 
     it("should not call setAuthHint when auth fails", async () => {

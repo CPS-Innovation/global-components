@@ -1,0 +1,9 @@
+AppEvents
+| where Properties contains "probe-navigator-permissions"
+| extend P = parse_json(tostring(Properties))
+| project OperationId, Permission = tostring(P["localNetworkAccessPermission"])
+| where Permission != "granted"
+| join GloCo_PageViews on OperationId
+| project Auth_Username, Permission
+| where isnotempty(Auth_Username)
+| summarize Prompt = countif(Permission == "prompt"), Denied = countif(Permission == "denied") by Auth_Username

@@ -1,6 +1,5 @@
-import { Config } from "cps-global-configuration";
+import { ApplicationFlags, Config } from "cps-global-configuration";
 import { Build } from "../../store/store";
-import { ApplicationFlags } from "../application-flags/ApplicationFlags";
 
 // Mock the dependencies
 const mockInitialiseMockAnalytics = jest.fn();

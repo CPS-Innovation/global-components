@@ -47,4 +47,5 @@ AppPageViews
         User_HasViewNationalChargingTasksRight = tobool(User["HasViewNationalChargingTasksRight"]),
         User_CountSensitiveUnits = toint(User["CountSensitiveUnits"]),
         User_CountNotSensitiveUnits = toint(User["CountNotSensitiveUnits"])
+| extend User_AreaOrCPSD = iif(User_CountNotSensitiveUnits >= 120, "CPSD", User_Area)
 | project-away parsed, Build, Auth, Context, CorrelationIds, User

@@ -3,7 +3,7 @@ import { renderError } from "../common/render-error";
 import { readyState, mergeTags } from "../../store/store";
 import { WithLogging } from "../../logging/WithLogging";
 import { makeConsole } from "../../logging/makeConsole";
-import { FEATURE_FLAGS } from "../../feature-flags/feature-flags";
+import { FEATURE_FLAGS } from "cps-global-configuration";
 
 const { _debug } = makeConsole("CpsGlobalHeader");
 

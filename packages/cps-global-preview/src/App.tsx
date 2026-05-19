@@ -1,8 +1,9 @@
 import { useState, useEffect, useCallback } from "react";
-import type { Notification, Preview } from "cps-global-configuration";
+import type { AuthHint, Notification, Preview } from "cps-global-configuration";
 
 const STATE_ENDPOINT = "/global-components/state/preview";
 const DISMISSED_NOTIFICATIONS_ENDPOINT = "/global-components/state/dismissed-notifications";
+const AUTH_HINT_ENDPOINT = "/global-components/state/auth-hint";
 const ENV_MATCH = window.location.pathname.match(/\/global-components\/([^/]+)\//);
 const ENV = ENV_MATCH?.[1] ?? "test";
 const NOTIFICATIONS_ENDPOINT = `/global-components/${ENV}/notification.json`;
@@ -130,6 +131,8 @@ export function App() {
   } | null>(null);
   const [notificationsResult, setNotificationsResult] =
     useState<NotificationsResult | null>(null);
+  const [authHint, setAuthHint] = useState<AuthHint | null>(null);
+  const [sidInput, setSidInput] = useState<string>("");
 
   const showStatus = useCallback((message: string, type: StatusType) => {
     setStatus({ message, type });
@@ -266,6 +269,66 @@ export function App() {
     const newState = { ...state, [key]: value || undefined };
     setState(newState);
     saveState(newState);
+  };
+
+  const loadAuthHint = useCallback(async () => {
+    try {
+      const response = await fetch(AUTH_HINT_ENDPOINT, { credentials: "include" });
+      if (!response.ok) {
+        return;
+      }
+      const data: AuthHint | null = await response.json();
+      if (data) {
+        setAuthHint(data);
+        setSidInput(data.lastKnownSid ?? "");
+      }
+    } catch {
+      // best-effort; user will see "(no auth hint stored)" below
+    }
+  }, []);
+
+  useEffect(() => {
+    loadAuthHint();
+  }, [loadAuthHint]);
+
+  const writeAuthHint = useCallback(
+    async (next: AuthHint) => {
+      try {
+        const response = await fetch(AUTH_HINT_ENDPOINT, {
+          method: "PUT",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(next),
+        });
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}`);
+        }
+        setAuthHint(next);
+        setSidInput(next.lastKnownSid ?? "");
+        showStatus("Auth hint updated.", "success");
+      } catch (err) {
+        showStatus(
+          `Failed to update auth hint: ${
+            err instanceof Error ? err.message : "Unknown error"
+          }`,
+          "error"
+        );
+      }
+    },
+    [showStatus]
+  );
+
+  const handleSaveSid = () => {
+    if (!authHint) return;
+    const trimmed = sidInput.trim();
+    const { lastKnownSid: _, ...rest } = authHint;
+    writeAuthHint(trimmed ? { ...rest, lastKnownSid: trimmed } : rest);
+  };
+
+  const handleClearSid = () => {
+    if (!authHint) return;
+    const { lastKnownSid: _, ...rest } = authHint;
+    writeAuthHint(rest);
   };
 
   const handleClearDismissedNotifications = useCallback(async () => {
@@ -621,6 +684,64 @@ export function App() {
                   </div>
                 </fieldset>
               ))}
+          </fieldset>
+        </div>
+
+        <div className="govuk-form-group">
+          <fieldset className="govuk-fieldset">
+            <legend className="govuk-fieldset__legend govuk-fieldset__legend--m">
+              <h2 className="govuk-fieldset__heading">Auth hint</h2>
+            </legend>
+            <p className="govuk-body govuk-!-font-size-16">
+              Overwrite the <code>lastKnownSid</code> stored against your auth-hint cookie.
+              Use to drive testing of the stale-sid path (AADSTS160021 → retry without
+              hint) without waiting for AAD to rotate your real session. Requires that
+              you've already signed in via one of the apps so that an auth-hint cookie
+              exists.
+            </p>
+            {!authHint && (
+              <p className="govuk-body govuk-!-font-size-16">
+                <em>No auth hint stored — sign in via one of the apps first.</em>
+              </p>
+            )}
+            {authHint && (
+              <>
+                <div className="govuk-form-group">
+                  <label className="govuk-label govuk-!-font-size-16" htmlFor="lastKnownSid">
+                    Last known sid
+                  </label>
+                  <div
+                    id="lastKnownSid-hint"
+                    className="govuk-hint govuk-!-font-size-16"
+                  >
+                    Current value: <code>{authHint.lastKnownSid ?? "(unset)"}</code>
+                  </div>
+                  <input
+                    className="govuk-input govuk-!-font-size-16"
+                    id="lastKnownSid"
+                    name="lastKnownSid"
+                    type="text"
+                    value={sidInput}
+                    onChange={(e) => setSidInput(e.target.value)}
+                  />
+                </div>
+                <button
+                  type="button"
+                  className="govuk-button"
+                  onClick={handleSaveSid}
+                >
+                  Save sid
+                </button>
+                {" "}
+                <button
+                  type="button"
+                  className="govuk-button govuk-button--secondary"
+                  onClick={handleClearSid}
+                >
+                  Clear sid
+                </button>
+              </>
+            )}
           </fieldset>
         </div>
 

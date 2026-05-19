@@ -138,6 +138,9 @@ importers:
       '@azure/msal-browser':
         specifier: ^4.0.0
         version: 4.30.0
+      cps-global-configuration:
+        specifier: workspace:*
+        version: link:../cps-global-configuration
     devDependencies:
       '@jest/globals':
         specifier: ^29.7.0
@@ -287,6 +290,55 @@ importers:
         version: 29.4.6(@babel/core@7.29.0)(@jest/transform@30.3.0)(@jest/types@30.3.0)(babel-jest@30.3.0(@babel/core@7.29.0))(jest-util@30.3.0)(jest@30.3.0(@types/node@24.12.0)(ts-node@10.9.2(@types/node@24.12.0)(typescript@5.9.3)))(typescript@5.9.3)
       typescript:
         specifier: ^5.9.2
+        version: 5.9.3
+
+  packages/cps-global-handover:
+    dependencies:
+      cps-global-auth:
+        specifier: workspace:*
+        version: link:../cps-global-auth
+      cps-global-configuration:
+        specifier: workspace:*
+        version: link:../cps-global-configuration
+      cps-global-os-handover:
+        specifier: workspace:*
+        version: link:../cps-global-os-handover
+    devDependencies:
+      '@jest/globals':
+        specifier: ^29.7.0
+        version: 29.7.0
+      '@rollup/plugin-commonjs':
+        specifier: ^28.0.0
+        version: 28.0.9(rollup@4.60.1)
+      '@rollup/plugin-node-resolve':
+        specifier: ^16.0.1
+        version: 16.0.3(rollup@4.60.1)
+      '@rollup/plugin-typescript':
+        specifier: ^12.1.4
+        version: 12.3.0(rollup@4.60.1)(tslib@2.8.1)(typescript@5.9.3)
+      '@testing-library/jest-dom':
+        specifier: ^6.6.3
+        version: 6.9.1
+      '@types/jest':
+        specifier: ^29.5.0
+        version: 29.5.14
+      '@types/node':
+        specifier: ^24.2.1
+        version: 24.12.0
+      jest:
+        specifier: ^29.7.0
+        version: 29.7.0(@types/node@24.12.0)
+      jest-environment-jsdom:
+        specifier: ^29.7.0
+        version: 29.7.0
+      rollup:
+        specifier: ^4.59.0
+        version: 4.60.1
+      ts-jest:
+        specifier: ^29.4.0
+        version: 29.4.6(@babel/core@7.29.0)(@jest/transform@30.3.0)(@jest/types@30.3.0)(babel-jest@30.3.0(@babel/core@7.29.0))(jest-util@30.3.0)(jest@29.7.0(@types/node@24.12.0))(typescript@5.9.3)
+      typescript:
+        specifier: ^5.0.0
         version: 5.9.3
 
   packages/cps-global-os-handover:

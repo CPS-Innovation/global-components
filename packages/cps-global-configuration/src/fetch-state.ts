@@ -1,6 +1,10 @@
 import { ZodType, z } from "zod";
-import { Result } from "../../utils/Result";
-import { getArtifactUrl } from "../../utils/get-artifact-url";
+import { Result } from "./Result";
+
+// Generic state fetcher used by both the host bundle and the handover bundle.
+// GET (no `data`) sends credentials and disables HTTP cache; PUT sends a JSON body.
+// On success, validates the parsed response against the Zod schema (or accepts null
+// and substitutes `defaultResultWhenNull` if provided).
 
 export const fetchState = async <T extends ZodType>({
   rootUrl,
@@ -16,7 +20,7 @@ export const fetchState = async <T extends ZodType>({
   defaultResultWhenNull?: z.infer<T>;
 }): Promise<Result<z.infer<T>>> => {
   try {
-    const resolvedUrl = getArtifactUrl(rootUrl, url);
+    const resolvedUrl = new URL(url, rootUrl).href;
 
     const requestInit: RequestInit =
       data !== undefined
@@ -43,6 +47,6 @@ export const fetchState = async <T extends ZodType>({
 
     return { found: true, result };
   } catch (error) {
-    return { found: false, error };
+    return { found: false, error: error instanceof Error ? error : new Error(String(error)) };
   }
 };

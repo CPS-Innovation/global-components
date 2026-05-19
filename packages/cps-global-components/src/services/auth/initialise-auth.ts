@@ -1,15 +1,11 @@
-import { Config, Preview } from "cps-global-configuration";
+import { ApplicationFlags, AuthHint, AuthResult, Config, FailedAuth, FEATURE_FLAGS, FoundContext, Preview } from "cps-global-configuration";
 import { initialiseAdAuth } from "cps-global-auth";
-import { AuthResult, FailedAuth } from "./AuthResult";
 import { GetToken } from "./GetToken";
-import { FoundContext } from "../context/FoundContext";
-import { ApplicationFlags } from "../application-flags/ApplicationFlags";
 import { initialiseMockAuth } from "./initialise-mock-auth";
 import type { SilentFlowDiagnostic, SilentFlowDiagnostics } from "../diagnostics/silent-flow-diagnostics";
 import { TrackException } from "../analytics/TrackException";
-import { FEATURE_FLAGS } from "../../feature-flags/feature-flags";
 import { Result } from "../../utils/Result";
-import { AuthHint, SetAuthHint } from "../state/auth-hint/initialise-auth-hint";
+import { SetAuthHint } from "../state/auth-hint/initialise-auth-hint";
 import { makeConsole } from "../../logging/makeConsole";
 
 type Register = (arg: { auth: AuthResult }) => void;
@@ -32,6 +28,15 @@ type Props = {
   register: Register;
   registerAuthWithAnalytics: RegisterAuthWithAnalytics;
   setAuthHint: SetAuthHint;
+  window: Window;
+};
+
+type AuthOutcome = {
+  auth: AuthResult;
+  getToken: GetToken;
+  // Populated by initialiseAdAuth on a successful cascade; absent for the
+  // mock path and the "prevented by context" path.
+  lastKnownSid?: string;
 };
 
 const noAuthResult: { auth: FailedAuth; getToken: GetToken } = {
@@ -51,7 +56,8 @@ export const initialiseAuth = ({
   register,
   registerAuthWithAnalytics,
   setAuthHint,
-}: Props): { initialiseAuthForContext: (context: FoundContext) => Promise<{ auth: AuthResult; getToken: GetToken }> } => {
+  window,
+}: Props): { initialiseAuthForContext: (context: FoundContext) => Promise<AuthOutcome> } => {
   const isE2e = flags.e2eTestMode.isE2eTestMode;
 
   // Resolve the redirect-vs-silent decision once at startup. auth itself is
@@ -77,27 +83,30 @@ export const initialiseAuth = ({
     }
   };
 
-  let authInFlight: Promise<{ auth: AuthResult; getToken: GetToken }> | null = null;
+  let authInFlight: Promise<AuthOutcome> | null = null;
 
-  const initialiseAuthForContext = async (context: FoundContext): Promise<{ auth: AuthResult; getToken: GetToken }> => {
+  const initialiseAuthForContext = async (context: FoundContext): Promise<AuthOutcome> => {
     // Guard against concurrent calls (e.g. rapid SPA navigation while auth is in-flight)
     if (authInFlight) {
       return authInFlight;
     }
 
-    const doAuth = async (): Promise<{ auth: AuthResult; getToken: GetToken }> =>
+    const doAuth = async (): Promise<AuthOutcome> =>
       context.preventADAndDataCalls
         ? noAuthResult
         : isE2e
           ? initialiseMockAuth({ flags })
-          : initialiseAdAuth({ config, context, logError, addSilentFlowDiagnostics, getOperationId, useFullPageRedirect });
+          : initialiseAdAuth({ config, context, logError, addSilentFlowDiagnostics, getOperationId, useFullPageRedirect, window, lastKnownSid: authHint.found ? authHint.result.lastKnownSid : undefined });
 
     authInFlight = doAuth()
       .then(result => {
         register({ auth: result.auth });
         registerAuthWithAnalytics(result.auth);
         if (result.auth.isAuthed) {
-          setAuthHint(result.auth, trackException);
+          // Forward the fresh sid (if any) so the persisted hint stays in
+          // sync — without this, every successful cascade would overwrite the
+          // hint and drop the sid the bundle just wrote back.
+          setAuthHint(result.auth, trackException, result.lastKnownSid);
         }
         return result;
       })

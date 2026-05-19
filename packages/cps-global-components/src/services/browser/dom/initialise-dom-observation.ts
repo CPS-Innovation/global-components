@@ -1,7 +1,6 @@
-import { Preview, Settings } from "cps-global-configuration";
+import { FoundContext, Preview, Settings } from "cps-global-configuration";
 import { makeConsole } from "../../../logging/makeConsole";
 import { MergeTags, Register } from "../../../store/store";
-import { FoundContext } from "../../context/FoundContext";
 import { DomMutationObserver } from "./DomMutationObserver";
 import "arrive";
 import { Result } from "../../../utils/Result";

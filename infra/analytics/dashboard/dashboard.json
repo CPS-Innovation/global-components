@@ -482,7 +482,12 @@
                   "value": false
                 }
               ],
-              "settings": {},
+              "settings": {
+                "content": {
+                  "ControlType": "AnalyticsGrid",
+                  "Query": "GloCo_Users_UsageDistribution\n| evaluate pivot(App, sum(Pct_of_App_Visits), BucketNum, Bucket)\n| order by BucketNum asc\n| project-away BucketNum\n"
+                }
+              },
               "type": "Extension/Microsoft_OperationsManagementSuite_Workspace/PartType/LogsDashboardPart"
             },
             "position": {
@@ -880,7 +885,15 @@
                   "value": true
                 }
               ],
-              "settings": {},
+              "partHeader": {
+                "subtitle": "",
+                "title": "Case review totals"
+              },
+              "settings": {
+                "content": {
+                  "Query": "GloCo_CaseReview_WithTriageTotalStartedSubmitted\n\n"
+                }
+              },
               "type": "Extension/Microsoft_OperationsManagementSuite_Workspace/PartType/LogsDashboardPart"
             },
             "position": {
@@ -987,6 +1000,101 @@
               "x": 8,
               "y": 17
             }
+          },
+          {
+            "metadata": {
+              "inputs": [
+                {
+                  "isOptional": true,
+                  "name": "resourceTypeMode"
+                },
+                {
+                  "isOptional": true,
+                  "name": "ComponentId"
+                },
+                {
+                  "isOptional": true,
+                  "name": "Scope",
+                  "value": {
+                    "resourceIds": [
+                      "/subscriptions/__SUBSCRIPTION_ID__/resourcegroups/rg-global-nav-dev/providers/microsoft.operationalinsights/workspaces/la-global-nav-dev"
+                    ]
+                  }
+                },
+                {
+                  "isOptional": true,
+                  "name": "PartId",
+                  "value": "15521c57-3a32-4cd2-8f3a-26feba158f66"
+                },
+                {
+                  "isOptional": true,
+                  "name": "Version",
+                  "value": "2.0"
+                },
+                {
+                  "isOptional": true,
+                  "name": "TimeRange",
+                  "value": "P1D"
+                },
+                {
+                  "isOptional": true,
+                  "name": "DashboardId"
+                },
+                {
+                  "isOptional": true,
+                  "name": "DraftRequestParameters"
+                },
+                {
+                  "isOptional": true,
+                  "name": "Query",
+                  "value": "GloCo__Users_EdgePolicyCorrupt"
+                },
+                {
+                  "isOptional": true,
+                  "name": "ControlType",
+                  "value": "AnalyticsGrid"
+                },
+                {
+                  "isOptional": true,
+                  "name": "SpecificChart"
+                },
+                {
+                  "isOptional": true,
+                  "name": "PartTitle",
+                  "value": "Analytics"
+                },
+                {
+                  "isOptional": true,
+                  "name": "PartSubTitle",
+                  "value": "la-global-nav-dev"
+                },
+                {
+                  "isOptional": true,
+                  "name": "Dimensions"
+                },
+                {
+                  "isOptional": true,
+                  "name": "LegendOptions"
+                },
+                {
+                  "isOptional": true,
+                  "name": "IsQueryContainTimeRange",
+                  "value": false
+                }
+              ],
+              "partHeader": {
+                "subtitle": "",
+                "title": "Users with broken Edge policy"
+              },
+              "settings": {},
+              "type": "Extension/Microsoft_OperationsManagementSuite_Workspace/PartType/LogsDashboardPart"
+            },
+            "position": {
+              "colSpan": 16,
+              "rowSpan": 4,
+              "x": 8,
+              "y": 22
+            }
           }
         ]
       }
@@ -1004,15 +1112,16 @@
                 "value": "Past 30 days"
               },
               "filteredPartIds": [
-                "StartboardPart-LogsDashboardPart-7a1af982-5efd-4dce-803f-a7df4057d258",
-                "StartboardPart-LogsDashboardPart-7a1af982-5efd-4dce-803f-a7df4057d25a",
-                "StartboardPart-LogsDashboardPart-7a1af982-5efd-4dce-803f-a7df4057d25c",
-                "StartboardPart-LogsDashboardPart-7a1af982-5efd-4dce-803f-a7df4057d25e",
-                "StartboardPart-LogsDashboardPart-7a1af982-5efd-4dce-803f-a7df4057d260",
-                "StartboardPart-LogsDashboardPart-7a1af982-5efd-4dce-803f-a7df4057d262",
-                "StartboardPart-LogsDashboardPart-7a1af982-5efd-4dce-803f-a7df4057d264",
-                "StartboardPart-LogsDashboardPart-7a1af982-5efd-4dce-803f-a7df4057d266",
-                "StartboardPart-LogsDashboardPart-7a1af982-5efd-4dce-803f-a7df4057d268"
+                "StartboardPart-LogsDashboardPart-089e23f1-c442-4a2f-b0e4-b80e64afc010",
+                "StartboardPart-LogsDashboardPart-089e23f1-c442-4a2f-b0e4-b80e64afc012",
+                "StartboardPart-LogsDashboardPart-089e23f1-c442-4a2f-b0e4-b80e64afc014",
+                "StartboardPart-LogsDashboardPart-089e23f1-c442-4a2f-b0e4-b80e64afc016",
+                "StartboardPart-LogsDashboardPart-089e23f1-c442-4a2f-b0e4-b80e64afc018",
+                "StartboardPart-LogsDashboardPart-089e23f1-c442-4a2f-b0e4-b80e64afc01a",
+                "StartboardPart-LogsDashboardPart-089e23f1-c442-4a2f-b0e4-b80e64afc01c",
+                "StartboardPart-LogsDashboardPart-089e23f1-c442-4a2f-b0e4-b80e64afc01e",
+                "StartboardPart-LogsDashboardPart-089e23f1-c442-4a2f-b0e4-b80e64afc020",
+                "StartboardPart-LogsDashboardPart-089e23f1-c442-4a2f-b0e4-b80e64afc022"
               ],
               "model": {
                 "format": "utc",
