@@ -18,11 +18,16 @@ export class CpsGlobalNotifications {
       return null;
     }
 
+    // urlRegex is evaluated once at render time against window.location.href.
+    // At the time of writing this is not re-assessed on SPA navigation — if a
+    // host app routes between pages without a full reload, the banner stays
+    // shown/hidden based on the URL at first render.
     const visible = selectVisibleNotifications({
       notifications: state.notifications,
       dismissedIds: state.dismissedNotificationIds,
       previewNotificationsEnabled: !!state.preview.result?.notifications,
       now: new Date(),
+      currentUrl: window.location.href,
     });
 
     if (!visible.length) {
