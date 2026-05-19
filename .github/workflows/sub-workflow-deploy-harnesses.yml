@@ -25,7 +25,7 @@ jobs:
           ACCOUNT_NAME=$(echo "${{secrets.BLOB_STORAGE_CONNECTION_STRING}}" | grep -oP 'AccountName=\K[^;]+')
 
           # Both harnesses look to env variables for the location of the global script
-          GLOBAL_SCRIPT_URL="https://$ACCOUNT_NAME.blob.core.windows.net/${{ inputs.environment }}/cps-global-components.js"
+          GLOBAL_SCRIPT_URL="https://$ACCOUNT_NAME.blob.core.windows.net/${{ inputs.environment }}/global-components.js"
           echo "GLOBAL_SCRIPT_URL=$GLOBAL_SCRIPT_URL" >> $GITHUB_ENV
           echo "VITE_GLOBAL_SCRIPT_URL=$GLOBAL_SCRIPT_URL" >> $GITHUB_ENV
 

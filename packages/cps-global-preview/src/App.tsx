@@ -1,21 +1,15 @@
 import { useState, useEffect, useCallback } from "react";
-import type { Notification, Preview } from "cps-global-configuration";
-import { diffLines } from "diff";
+import type { AuthHint, Notification, Preview } from "cps-global-configuration";
 
 const STATE_ENDPOINT = "/global-components/state/preview";
 const DISMISSED_NOTIFICATIONS_ENDPOINT = "/global-components/state/dismissed-notifications";
+const AUTH_HINT_ENDPOINT = "/global-components/state/auth-hint";
 const ENV_MATCH = window.location.pathname.match(/\/global-components\/([^/]+)\//);
 const ENV = ENV_MATCH?.[1] ?? "test";
-const CONFIG_ENDPOINT = `/global-components/${ENV}/config.json`;
-const CONFIG_OVERRIDE_ENDPOINT = `/global-components/${ENV}/config.override.json`;
 const NOTIFICATIONS_ENDPOINT = `/global-components/${ENV}/notification.json`;
 
 type NotificationsResult =
   | { loaded: true; notifications: Notification[] }
-  | { loaded: false; error: string };
-
-type ConfigResult =
-  | { loaded: true; content: string }
   | { loaded: false; error: string };
 
 type TextInput = {
@@ -108,6 +102,20 @@ const FEATURES: Feature[] = [
       "Prepend the case URN to the browser tab title when viewing a case.",
     disabled: false,
   },
+  {
+    key: "useFullPageMsalRedirect",
+    label: "Full-page MSAL redirect",
+    description:
+      "Replace the silent SSO cascade with a full-page loginRedirect when the cached token is exhausted. Use only as an opt-in test of the redirect flow — it will navigate the page to AAD on a cold cache.",
+    disabled: false,
+  },
+  {
+    key: "caseLocking",
+    label: "Case locking",
+    description:
+      "Enable the case-locking presence feature: register the user as present on the current case via the SignalR hub and notify when other users are working on the same case section.",
+    disabled: false,
+  },
 ];
 
 type FeatureKey = Feature["key"];
@@ -121,12 +129,10 @@ export function App() {
     message: string;
     type: StatusType;
   } | null>(null);
-  const [config, setConfig] = useState<ConfigResult | null>(null);
-  const [configOverride, setConfigOverride] = useState<ConfigResult | null>(
-    null
-  );
   const [notificationsResult, setNotificationsResult] =
     useState<NotificationsResult | null>(null);
+  const [authHint, setAuthHint] = useState<AuthHint | null>(null);
+  const [sidInput, setSidInput] = useState<string>("");
 
   const showStatus = useCallback((message: string, type: StatusType) => {
     setStatus({ message, type });
@@ -188,35 +194,6 @@ export function App() {
   useEffect(() => {
     loadState();
   }, [loadState]);
-
-  const loadConfigs = useCallback(async () => {
-    const fetchConfig = async (url: string): Promise<ConfigResult> => {
-      try {
-        const response = await fetch(url, { credentials: "include" });
-        if (!response.ok) {
-          return { loaded: false, error: `HTTP ${response.status}` };
-        }
-        const json = await response.json();
-        return { loaded: true, content: JSON.stringify(json, null, 2) };
-      } catch (err) {
-        return {
-          loaded: false,
-          error: err instanceof Error ? err.message : "Unknown error",
-        };
-      }
-    };
-
-    const [configResult, overrideResult] = await Promise.all([
-      fetchConfig(CONFIG_ENDPOINT),
-      fetchConfig(CONFIG_OVERRIDE_ENDPOINT),
-    ]);
-    setConfig(configResult);
-    setConfigOverride(overrideResult);
-  }, []);
-
-  useEffect(() => {
-    loadConfigs();
-  }, [loadConfigs]);
 
   const loadNotifications = useCallback(async () => {
     try {
@@ -294,6 +271,66 @@ export function App() {
     saveState(newState);
   };
 
+  const loadAuthHint = useCallback(async () => {
+    try {
+      const response = await fetch(AUTH_HINT_ENDPOINT, { credentials: "include" });
+      if (!response.ok) {
+        return;
+      }
+      const data: AuthHint | null = await response.json();
+      if (data) {
+        setAuthHint(data);
+        setSidInput(data.lastKnownSid ?? "");
+      }
+    } catch {
+      // best-effort; user will see "(no auth hint stored)" below
+    }
+  }, []);
+
+  useEffect(() => {
+    loadAuthHint();
+  }, [loadAuthHint]);
+
+  const writeAuthHint = useCallback(
+    async (next: AuthHint) => {
+      try {
+        const response = await fetch(AUTH_HINT_ENDPOINT, {
+          method: "PUT",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(next),
+        });
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}`);
+        }
+        setAuthHint(next);
+        setSidInput(next.lastKnownSid ?? "");
+        showStatus("Auth hint updated.", "success");
+      } catch (err) {
+        showStatus(
+          `Failed to update auth hint: ${
+            err instanceof Error ? err.message : "Unknown error"
+          }`,
+          "error"
+        );
+      }
+    },
+    [showStatus]
+  );
+
+  const handleSaveSid = () => {
+    if (!authHint) return;
+    const trimmed = sidInput.trim();
+    const { lastKnownSid: _, ...rest } = authHint;
+    writeAuthHint(trimmed ? { ...rest, lastKnownSid: trimmed } : rest);
+  };
+
+  const handleClearSid = () => {
+    if (!authHint) return;
+    const { lastKnownSid: _, ...rest } = authHint;
+    writeAuthHint(rest);
+  };
+
   const handleClearDismissedNotifications = useCallback(async () => {
     try {
       const response = await fetch(DISMISSED_NOTIFICATIONS_ENDPOINT, {
@@ -316,13 +353,6 @@ export function App() {
     }
   }, [showStatus]);
 
-  const getDiffResult = () => {
-    if (!config?.loaded || !configOverride?.loaded) return null;
-    return diffLines(config.content, configOverride.content);
-  };
-
-  const diffResult = getDiffResult();
-
   return (
     <div className="preview-container">
       <style>{`
@@ -330,70 +360,6 @@ export function App() {
           max-width: 1200px;
           margin: 0;
           padding: 20px;
-        }
-        .config-diff {
-          margin-top: 20px;
-          background: #f3f2f1;
-          border: 1px solid #b1b4b6;
-          border-radius: 4px;
-          overflow: hidden;
-        }
-        .config-diff-header {
-          background: #1d70b8;
-          color: white;
-          padding: 8px 12px;
-          font-weight: bold;
-          font-family: "GDS Transport", arial, sans-serif;
-        }
-        .config-diff-content {
-          padding: 0;
-          margin: 0;
-          font-family: monospace;
-          font-size: 12px;
-          overflow-x: auto;
-          max-height: 600px;
-          overflow-y: auto;
-        }
-        .diff-line {
-          padding: 2px 8px;
-          white-space: pre-wrap;
-          word-break: break-all;
-        }
-        .diff-added {
-          background: #cce2d8;
-          border-left: 3px solid #00703c;
-        }
-        .diff-removed {
-          background: #f8d7da;
-          border-left: 3px solid #d4351c;
-        }
-        .diff-unchanged {
-          color: #505a5f;
-        }
-        .config-error {
-          padding: 12px;
-          color: #d4351c;
-        }
-        .config-loading {
-          padding: 12px;
-          color: #505a5f;
-        }
-        .diff-legend {
-          display: flex;
-          gap: 16px;
-          margin-bottom: 8px;
-          font-size: 14px;
-          font-family: "GDS Transport", arial, sans-serif;
-        }
-        .diff-legend-item {
-          display: flex;
-          align-items: center;
-          gap: 4px;
-        }
-        .diff-legend-color {
-          width: 16px;
-          height: 16px;
-          border-radius: 2px;
         }
       `}</style>
 
@@ -724,6 +690,64 @@ export function App() {
         <div className="govuk-form-group">
           <fieldset className="govuk-fieldset">
             <legend className="govuk-fieldset__legend govuk-fieldset__legend--m">
+              <h2 className="govuk-fieldset__heading">Auth hint</h2>
+            </legend>
+            <p className="govuk-body govuk-!-font-size-16">
+              Overwrite the <code>lastKnownSid</code> stored against your auth-hint cookie.
+              Use to drive testing of the stale-sid path (AADSTS160021 → retry without
+              hint) without waiting for AAD to rotate your real session. Requires that
+              you've already signed in via one of the apps so that an auth-hint cookie
+              exists.
+            </p>
+            {!authHint && (
+              <p className="govuk-body govuk-!-font-size-16">
+                <em>No auth hint stored — sign in via one of the apps first.</em>
+              </p>
+            )}
+            {authHint && (
+              <>
+                <div className="govuk-form-group">
+                  <label className="govuk-label govuk-!-font-size-16" htmlFor="lastKnownSid">
+                    Last known sid
+                  </label>
+                  <div
+                    id="lastKnownSid-hint"
+                    className="govuk-hint govuk-!-font-size-16"
+                  >
+                    Current value: <code>{authHint.lastKnownSid ?? "(unset)"}</code>
+                  </div>
+                  <input
+                    className="govuk-input govuk-!-font-size-16"
+                    id="lastKnownSid"
+                    name="lastKnownSid"
+                    type="text"
+                    value={sidInput}
+                    onChange={(e) => setSidInput(e.target.value)}
+                  />
+                </div>
+                <button
+                  type="button"
+                  className="govuk-button"
+                  onClick={handleSaveSid}
+                >
+                  Save sid
+                </button>
+                {" "}
+                <button
+                  type="button"
+                  className="govuk-button govuk-button--secondary"
+                  onClick={handleClearSid}
+                >
+                  Clear sid
+                </button>
+              </>
+            )}
+          </fieldset>
+        </div>
+
+        <div className="govuk-form-group">
+          <fieldset className="govuk-fieldset">
+            <legend className="govuk-fieldset__legend govuk-fieldset__legend--m">
               <h2 className="govuk-fieldset__heading">Override mode</h2>
             </legend>
             <div className="govuk-checkboxes" data-module="govuk-checkboxes">
@@ -758,66 +782,6 @@ export function App() {
         </div>
       </form>
 
-      <hr className="govuk-section-break govuk-section-break--l govuk-section-break--visible" />
-
-      <h2 className="govuk-heading-m">Configuration Comparison</h2>
-      <p className="govuk-body govuk-!-font-size-16">
-        Comparing config.json with config.override.json.
-      </p>
-
-      <div className="diff-legend">
-        <div className="diff-legend-item">
-          <div
-            className="diff-legend-color"
-            style={{ background: "#cce2d8", borderLeft: "3px solid #00703c" }}
-          />
-          <span>Added in override</span>
-        </div>
-        <div className="diff-legend-item">
-          <div
-            className="diff-legend-color"
-            style={{ background: "#f8d7da", borderLeft: "3px solid #d4351c" }}
-          />
-          <span>Removed from base</span>
-        </div>
-      </div>
-
-      <div className="config-diff">
-        <div className="config-diff-header">
-          config.json → config.override.json
-        </div>
-        <div className="config-diff-content">
-          {(config === null || configOverride === null) && (
-            <div className="config-loading">Loading...</div>
-          )}
-          {config?.loaded === false && (
-            <div className="config-error">
-              Error loading config.json: {config.error}
-            </div>
-          )}
-          {configOverride?.loaded === false && (
-            <div className="config-error">
-              Error loading config.override.json: {configOverride.error}
-            </div>
-          )}
-          {diffResult &&
-            diffResult.map((part, i) => {
-              const className = part.added
-                ? "diff-line diff-added"
-                : part.removed
-                ? "diff-line diff-removed"
-                : "diff-line diff-unchanged";
-              return part.value.split("\n").map((line, j) =>
-                line || j < part.value.split("\n").length - 1 ? (
-                  <div key={`${i}-${j}`} className={className}>
-                    {part.added ? "+ " : part.removed ? "- " : "  "}
-                    {line}
-                  </div>
-                ) : null
-              );
-            })}
-        </div>
-      </div>
     </div>
   );
 }

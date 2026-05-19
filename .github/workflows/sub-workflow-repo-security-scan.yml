@@ -24,8 +24,8 @@ jobs:
           cache: "pnpm"
 
       - run: pnpm install --frozen-lockfile
-
-      - run: pnpm audit --audit-level high --prod
+      # Temporary fix for https://github.com/pnpm/pnpm/issues/11265. Remove --ignore-registry-errors asap.
+      - run: pnpm audit --audit-level high --prod --ignore-registry-errors
 
       - uses: actions/dependency-review-action@v4
         with:

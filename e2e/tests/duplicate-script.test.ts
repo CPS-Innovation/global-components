@@ -15,7 +15,7 @@ describe("Duplicate script load", () => {
       // Inject a second script tag for the same bundle
       const script = document.createElement("script");
       script.type = "module";
-      script.src = "/cps-global-components.js";
+      script.src = "/global-components.js";
       document.head.appendChild(script);
 
       // Give it time to load and (not) re-execute

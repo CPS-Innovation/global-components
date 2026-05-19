@@ -1,0 +1,7 @@
+StorageBlobLogs
+| where OperationName == "GetBlob"
+| extend IpAddress = tostring(split(CallerIpAddress, ":")[0])
+| extend Environment = tostring(split(Uri, "/")[3])
+| extend IsProd = Environment == "prod"
+| extend IsFromProdProxy = IpAddress == "10.7.204.126"
+| extend IsFromQaProxy = IpAddress == "10.7.198.126"

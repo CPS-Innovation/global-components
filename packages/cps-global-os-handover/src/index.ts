@@ -1,3 +1,5 @@
 export { createOutboundUrlDirect } from "./entry-points/create-outbound-url-direct";
-export { handleOsRedirect } from "./entry-points/handle-os-redirect";
 export { synchroniseOsAuth } from "./entry-points/synchronise-os-auth";
+export { resetTasklistFilters } from "./application-logic/reset-tasklist-filters";
+export { handleOsCookieReturn } from "./handle-os-cookie-return";
+export { handleOsTokenReturn } from "./handle-os-token-return";

@@ -56,7 +56,7 @@ jobs:
     needs: identify-commits
     uses: ./.github/workflows/sub-workflow-core-deploy.yml
     with:
-      environments: '["unstable", "accessibility", "dev", "test", "staging"]'
+      environments: '["accessibility", "dev", "test"]'
       ref: ${{ needs.identify-commits.outputs.good_sha }}
     secrets:
       BLOB_STORAGE_CONNECTION_STRING: ${{ secrets.BLOB_STORAGE_CONNECTION_STRING }}
@@ -110,7 +110,7 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "## Rollback Complete" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "The previous version has been deployed to: unstable, accessibility, dev, test, staging" >> $GITHUB_STEP_SUMMARY
+          echo "The previous version has been deployed to: accessibility, dev, test" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Developer Instructions" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY

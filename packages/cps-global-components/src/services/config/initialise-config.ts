@@ -1,10 +1,6 @@
-import { Config, Preview, transformAndValidateConfig, ValidationResult } from "cps-global-configuration";
-import { ConfigFetch } from "./ConfigFetch";
+import { ApplicationFlags, Config, ConfigFetch, fetchConfig, transformAndValidateConfig, ValidationResult } from "cps-global-configuration";
 import { getArtifactUrl } from "../../utils/get-artifact-url";
-import { fetchOverrideConfig } from "../../services/override-mode/fetch-override-config";
 import { fetchDevelopmentConfig } from "../override-mode/fetch-development-config";
-import { ApplicationFlags } from "../application-flags/ApplicationFlags";
-import { Result } from "../../utils/Result";
 
 const tryConfigSources = async ([source, ...rest]: ConfigFetch[], configUrl: string): Promise<any> => {
   try {
@@ -33,26 +29,21 @@ export const initialiseConfig = async ({
     isLocalDevelopment,
     e2eTestMode: { isE2eTestMode },
   },
-  preview,
   register,
 }: {
   rootUrl: string;
   flags: ApplicationFlags;
-  preview: Result<Preview>;
   register: Register;
 }): Promise<Config> => {
   const configUrl = getArtifactUrl(rootUrl, "config.json");
 
-  // "no-cache" is important. If a user does a hard-refresh and a new version has been released, the behaviour
-  //  of fetch means that it will still go with the stale json config. This can lead to config validation fails.
-  const fetchConfig: ConfigFetch = async (configUrl: string) => await fetch(configUrl, { cache: "no-cache" });
-
-  let configSources = [
+  // Local-dev override (fetches config.development.json) tried first; falls
+  // through to the deployed config.json. Override-via-preview is gone — see
+  // FCT2-17451 drop 4 cleanup; preview no longer drives a config swap so
+  // initialiseConfig doesn't need to wait for preview to load.
+  const configSources = [
     isLocalDevelopment && !isE2eTestMode //
       ? fetchDevelopmentConfig
-      : undefined,
-    preview.result?.enabled //
-      ? fetchOverrideConfig
       : undefined,
     fetchConfig,
   ].filter(config => !!config) as ConfigFetch[];

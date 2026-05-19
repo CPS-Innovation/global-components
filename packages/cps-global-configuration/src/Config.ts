@@ -41,13 +41,31 @@ const authorisationSchema = z.object({
 
 export type Authorisation = z.infer<typeof authorisationSchema>;
 
+// All four inclusion fields below are independent OR conditions: a user is
+// "in" if ANY one of them is satisfied. Combine freely — e.g. "test team
+// always on, plus 1% of everyone else" is `adGroupIds + variants`.
 const featureFlagUsersSchema = z.object({
+  // AD security group ids; user is in if their token has any of these.
   adGroupIds: z.array(z.string()).optional(),
-  // Lets use AD accounts UUID ObjectID rather than email address for ad-hoc user enrolment
-  //  into the feature flag.  At the time of writing we check config in to source
-  //  control, object ids do not convey personal data.
+  // AAD object ids (UUIDs) for ad-hoc enrolment — used for individual
+  // engineers who don't fit a group. Object ids don't convey personal data, so
+  // they're safe to commit to source control.
   adHocUserObjectIds: z.array(z.string()).optional(),
+  // Trump card: when true, everyone is in regardless of any other condition.
   generallyAvailable: z.boolean().optional(),
+  // A/B / canary bucketing. Authed users are bucketed deterministically by
+  // their objectId; landing on a non-control share puts them "in" AND tags the
+  // result with the variant name. The implicit residual is "control" — never
+  // name a variant "control" here. Salt defaults to the parent FEATURE_FLAG_*
+  // key; override via `variantSalt` if you ever rename the key and want the
+  // existing population to keep its assignments.
+  variants: z
+    .record(
+      z.string().refine(k => k !== "control", "variant name 'control' is reserved"),
+      z.number().min(0).max(100),
+    )
+    .optional(),
+  variantSalt: z.string().optional(),
 });
 
 export type FeatureFlagUsers = z.infer<typeof featureFlagUsersSchema>;
@@ -80,6 +98,7 @@ const contextsBaseSchema = z.object({
   headerCustomCssClasses: z.string().optional(),
   headerCustomCssStyles: z.record(z.string(), z.string().optional()).optional(),
   cmsAuthFromStorageKey: z.string().optional(),
+  skipLinkClassName: z.string().optional(),
 });
 
 const contextStorageSchema: z.ZodType<ContextStorageSchema> =
@@ -123,9 +142,23 @@ export type FetchCircuitBreakerConfig = z.infer<
   typeof fetchCircuitBreakerConfigSchema
 >;
 
+const cmsAuthStorageKeysSchema = z.object({
+  WMA_JSON: z.string(),
+  WMA_COOKIES: z.string(),
+  CASE_REVIEW_JSON: z.string(),
+  CASE_REVIEW_COOKIES: z.string(),
+  HOME_JSON: z.string(),
+  HOME_COOKIES: z.string(),
+  HOME_IS_FROM_PROXY: z.string(),
+});
+
+export type CmsAuthStorageKeys = z.infer<typeof cmsAuthStorageKeysSchema>;
+
 export const configBaseSchema = z.object({
   ENVIRONMENT: z.string(),
   REDIRECT_SCRIPT_URL: z.string().optional(),
+  CASE_LOCKING_POC_SCRIPT_BLOB_ADDRESS: z.string().optional(),
+  CASE_LOCKING_API_URL: z.string().optional(),
   LINKS: z.array(linkSchema),
   BANNER_TITLE_HREF: z.string(),
   AD_TENANT_AUTHORITY: z.string().optional(),
@@ -138,17 +171,31 @@ export const configBaseSchema = z.object({
   SHOW_MENU: z.boolean().optional(),
   SHOW_RECENT_CASES: z.boolean().optional(),
   SHOW_MONITORING_CODES: z.boolean().optional(),
-  SHOW_GOVUK_REBRAND: z.boolean().optional(),
+  SHOW_HEADER_REBRAND: z.union([z.literal("cps"), z.literal("gds")]).optional(),
   SHOW_NOTIFICATIONS: z.boolean().optional(),
   OS_HANDOVER_URL: z.string().optional(),
   FEATURE_FLAG_MENU_USERS: featureFlagUsersSchema.optional(),
-  FEATURE_FLAG_ENABLE_INTRUSIVE_AD_LOGIN: z.boolean().optional(),
+  FEATURE_FLAG_USE_MSAL_FULL_REDIRECT_USERS: featureFlagUsersSchema.optional(),
+  FEATURE_FLAG_CASE_LOCKING_USERS: featureFlagUsersSchema.optional(),
+  // Short-lived AD-redirect beacons (drop 8). Both default off; flip per env to
+  // enable. Beacon URL is derived at runtime from script.src (sibling of the
+  // handover bundle), so no separate config entry. Independent kill-switches
+  // so success / failure can be enabled / disabled independently.
+  BEACON_AD_REDIRECT_SUCCESSES_ENABLED: z.boolean().optional(),
+  BEACON_AD_REDIRECT_FAILURES_ENABLED: z.boolean().optional(),
   SSO_SILENT_DELAY_MS: z.number().optional(),
-  COLLECT_AD_DIAGNOSTICS_IN_PAGE_VIEW: z.boolean().optional(),
   CACHE_CONFIG: cacheConfigSchema.optional(),
   FETCH_CIRCUIT_BREAKER_CONFIG: fetchCircuitBreakerConfigSchema.optional(),
   RECENT_CASES_NAVIGATE_URL: z.string().optional(),
   RECENT_CASES_LIST_LENGTH: z.number().optional(),
+  SILENT_FLOW_DIAGNOSTICS_LENGTH: z.number().int().min(0).optional(),
+  PROBE_IFRAME_BASE_URL: z.string().optional(),
+  PROBE_IFRAME_TIMEOUT_MS: z.number().int().min(0).optional(),
+  PROBE_IFRAME_REFRESH_PERIOD_MINS: z.number().int().min(0).optional(),
+  PROBE_NAVIGATOR_PERMISSIONS_REFRESH_PERIOD_MINS: z.number().int().min(0).optional(),
+  USER_DATA_REFRESH_PERIOD_MINS: z.number().int().min(0).optional(),
+  USER_DATA_ATTEMPT_RETRY_ON_SPA_NAVIGATION: z.boolean().optional(),
+  CMS_AUTH_STORAGE_KEYS: cmsAuthStorageKeysSchema,
 });
 
 export const configStorageSchema = configBaseSchema.extend({

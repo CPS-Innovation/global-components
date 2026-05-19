@@ -128,7 +128,7 @@ If no dependency changes, say "No dependency changes."
 
 ### Config Changes
 
-If any files in `configuration/` changed, show **which environments** are affected and what changed. The config files follow the pattern `config.<environment>.json` where environments are: unstable, accessibility, dev, test, staging, prod.
+If any files in `configuration/` changed, show **which environments** are affected and what changed. The config files follow the pattern `config.<environment>.json` where environments are: accessibility, dev, test, prod.
 
 Highlight specifically:
 - Changes that affect **prod** (these deserve extra attention)

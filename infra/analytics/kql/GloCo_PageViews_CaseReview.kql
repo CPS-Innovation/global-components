@@ -1,19 +1,42 @@
 GloCo_PageViews
-| where App == "Case review"
+| where App in ("Case review", "Work management app")
 | where isnotnull(CaseId)
 | extend Params = parse_url(Url)["Query Parameters"]
 | extend Page                        = tostring(split(parse_url(Url)["Path"], "/")[-1])
 | extend IsFirstReviewParam          = tobool(Params["IsFirstReview"])
 | extend IsSubmittedParam            = tobool(Params["IsSubmitted"])
 | extend SubmittedIsFirstReviewParam = tobool(Params["SubmittedIsFirstReview"])
+| extend TriageType                  = tostring(Params["TriageType"])
 | extend
-    Is_Review_First_Review         = Page == "CaseReview_V2" and IsFirstReviewParam,
-    Is_Review_Subsequent_Review    = (Page == "CaseReview_V2" and IsFirstReviewParam != true) or Page == "PCDSubsequentCustomReview",
-    Is_Early_Advice_First_Review   = Page == "CaseReviewEA" and IsFirstReviewParam,
-    Is_Early_Advice_Subsequent     = Page == "CaseReviewEA" and IsFirstReviewParam != true,
-    Is_Submitted_First_Review      = Page == "LandingPage" and SubmittedIsFirstReviewParam == true,
-    Is_Submitted_Subsequent_Review = Page == "LandingPage" and IsSubmittedParam == true and SubmittedIsFirstReviewParam != true,
-    Is_Saved_First_Review          = Page == "LandingPage" and IsSubmittedParam == false and SubmittedIsFirstReviewParam == true,
-    Is_Saved_Subsequent_Review     = Page == "LandingPage" and IsSubmittedParam == false and SubmittedIsFirstReviewParam != true,
-    Is_Admin_Finalise              = Page == "QuickAdminFinalise"
-| project-away Params
+    Is_Review_First_Review         = App == "Case review" and Page == "CaseReview_V2" and IsFirstReviewParam,
+    Is_Review_Subsequent_Review    = App == "Case review" and ((Page == "CaseReview_V2" and IsFirstReviewParam != true) or Page == "PCDSubsequentCustomReview"),
+    Is_Early_Advice_First_Review   = App == "Case review" and Page == "CaseReviewEA" and IsFirstReviewParam,
+    Is_Early_Advice_Subsequent     = App == "Case review" and Page == "CaseReviewEA" and IsFirstReviewParam != true,
+    Is_Submitted_First_Review      = App == "Case review" and Page == "LandingPage" and SubmittedIsFirstReviewParam == true,
+    Is_Submitted_Subsequent_Review = App == "Case review" and Page == "LandingPage" and IsSubmittedParam == true and SubmittedIsFirstReviewParam != true,
+    Is_Saved_First_Review          = App == "Case review" and Page == "LandingPage" and IsSubmittedParam == false and SubmittedIsFirstReviewParam == true,
+    Is_Saved_Subsequent_Review     = App == "Case review" and Page == "LandingPage" and IsSubmittedParam == false and SubmittedIsFirstReviewParam != true,
+    Is_Admin_Finalise              = App == "Case review" and Page == "QuickAdminFinalise",
+    Is_Triage_OD                   = App == "Work management app" and Page == "Triage" and TriageType == "OD",
+    Is_Triage_ODPCDReview          = App == "Work management app" and Page == "Triage" and TriageType == "ODPCDReview",
+    Is_Triage_DCP                  = App == "Work management app" and Page == "Triage" and TriageType == "DCP",
+    Is_StreamlinedThresholdTest    = App == "Case review" and Page == "StreamlinedThresholdTest"
+| extend
+    Is_Active_Visit = IsFirstReviewParam
+        or IsSubmittedParam
+        or SubmittedIsFirstReviewParam
+        or Is_Review_First_Review
+        or Is_Review_Subsequent_Review
+        or Is_Early_Advice_First_Review
+        or Is_Early_Advice_Subsequent
+        or Is_Submitted_First_Review
+        or Is_Submitted_Subsequent_Review
+        or Is_Saved_First_Review
+        or Is_Saved_Subsequent_Review
+        or Is_Admin_Finalise
+        or Is_Triage_OD
+        or Is_Triage_ODPCDReview
+        or Is_Triage_DCP
+        or Is_StreamlinedThresholdTest
+| where Is_Active_Visit
+| project-away Params, TriageType

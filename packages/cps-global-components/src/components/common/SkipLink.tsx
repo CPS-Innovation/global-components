@@ -13,6 +13,9 @@ export class SkipLink {
   @Element() el: HTMLElement;
 
   @Prop() isOutSystems: boolean = false;
+  @Prop() skipLinkClassName?: string;
+
+  private createdTarget = false;
 
   componentDidLoad() {
     if (document.getElementById(TARGET_ID)) return;
@@ -24,23 +27,39 @@ export class SkipLink {
     target.id = TARGET_ID;
     target.tabIndex = -1;
     host.insertAdjacentElement("afterend", target);
+    this.createdTarget = true;
   }
 
   disconnectedCallback() {
+    if (!this.createdTarget) return;
     document.getElementById(TARGET_ID)?.remove();
+    this.createdTarget = false;
   }
 
   // #FCT2-11717 - OS does not allow the usual <a href="#some-id"> skip to work as (I think) it listens for
   //  history pushState events and does other conflicting page load stuff on those events.
   render() {
+    const resolveTarget = (): HTMLElement | null => {
+      if (this.skipLinkClassName) {
+        const byClass = document.getElementsByClassName(this.skipLinkClassName)[0];
+        if (byClass instanceof HTMLElement) {
+          if (byClass.tabIndex < 0 && !byClass.hasAttribute("tabindex")) {
+            byClass.tabIndex = -1;
+          }
+          return byClass;
+        }
+      }
+      return document.getElementById(TARGET_ID);
+    };
+
     const navigateToAnchor = (e: Event) => {
       e.preventDefault(); // CRITICAL: Prevents hash change
 
       const anchor = e.currentTarget as HTMLAnchorElement;
-      const target = document.getElementById(TARGET_ID);
+      const target = resolveTarget();
       if (!target) return;
 
-      _debug("Scrolling to", `#${TARGET_ID}`);
+      _debug("Scrolling to", target);
       target.scrollIntoView({ behavior: "instant" });
       target.focus({ preventScroll: true });
       // Important to lose focus so GDS css hides the yellow bar
@@ -53,7 +72,8 @@ export class SkipLink {
       }
     };
 
-    const jsHandlers = this.isOutSystems ? { onClick: navigateToAnchor, onKeyDown: handleKeyDown } : {};
+    const useJsHandlers = this.isOutSystems || !!this.skipLinkClassName;
+    const jsHandlers = useJsHandlers ? { onClick: navigateToAnchor, onKeyDown: handleKeyDown } : {};
 
     return (
       <a href={`#${TARGET_ID}`} class="govuk-skip-link skip-link" data-module="govuk-skip-link" {...jsHandlers}>

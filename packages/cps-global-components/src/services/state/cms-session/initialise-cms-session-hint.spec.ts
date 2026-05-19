@@ -1,6 +1,5 @@
-import { CmsSessionHint } from "cps-global-configuration";
+import { ApplicationFlags, CmsSessionHint } from "cps-global-configuration";
 import { initialiseCmsSessionHint } from "./initialise-cms-session-hint";
-import { ApplicationFlags } from "../../application-flags/ApplicationFlags";
 
 const mockFetch = jest.fn();
 global.fetch = mockFetch;

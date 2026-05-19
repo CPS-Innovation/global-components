@@ -1,0 +1,59 @@
+{
+  "version": "Notebook/1.0",
+  "items": [
+    {
+      "type": 3,
+      "content": {
+        "version": "KqlItem/1.0",
+        "query": "GloCo_CaseReview_WithTriageTotalStartedSubmitted()",
+        "size": 0,
+        "title": "Case review totals since launch",
+        "showExportToExcel": true,
+        "queryType": 0,
+        "resourceType": "microsoft.operationalinsights/workspaces"
+      },
+      "name": "query - 1"
+    },
+    {
+      "type": 3,
+      "content": {
+        "version": "KqlItem/1.0",
+        "query": "GloCo_CaseReview_AreaCounts\n",
+        "size": 2,
+        "title": "Case reviews by area by week",
+        "queryType": 0,
+        "resourceType": "microsoft.operationalinsights/workspaces"
+      },
+      "name": "query - 1"
+    },
+    {
+      "type": 3,
+      "content": {
+        "version": "KqlItem/1.0",
+        "query": "GloCo_Users_VisitsPerApp\n\n",
+        "size": 2,
+        "title": "Top users by visit",
+        "queryType": 0,
+        "resourceType": "microsoft.operationalinsights/workspaces"
+      },
+      "name": "query - 3"
+    },
+    {
+      "type": 3,
+      "content": {
+        "version": "KqlItem/1.0",
+        "query": "let UserActivity = \n    GloCo_PageViews_CaseReview\n    | where TimeGenerated > datetime(2026-03-09T12:00:01)\n    | summarize FirstSeen = bin(min(TimeGenerated), 1d), \n                LastSeen = bin(max(TimeGenerated), 1d) \n              by Auth_Username;\nlet FirstSeenCounts = \n    UserActivity \n    | summarize FirstSeenCount = count() by Day = FirstSeen;\nlet LastSeenCounts = \n    UserActivity \n    | summarize LastSeenCount = count() by Day = LastSeen;\nFirstSeenCounts\n| join kind=fullouter LastSeenCounts on Day\n| project Day = coalesce(Day, Day1), \n          FirstSeenCount = coalesce(FirstSeenCount, 0), \n          LastSeenCount = coalesce(LastSeenCount, 0)\n| order by Day asc",
+        "size": 2,
+        "title": "Case review: user count first seen and last seen by day",
+        "queryType": 0,
+        "resourceType": "microsoft.operationalinsights/workspaces",
+        "visualization": "barchart"
+      },
+      "name": "query - 2"
+    }
+  ],
+  "isLocked": true,
+  "fallbackResourceIds": [
+    "/subscriptions/__SUBSCRIPTION_ID__/resourcegroups/rg-global-nav-dev/providers/microsoft.operationalinsights/workspaces/la-global-nav-dev"
+  ]
+}

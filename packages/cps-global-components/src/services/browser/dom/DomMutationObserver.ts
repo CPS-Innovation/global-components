@@ -1,7 +1,6 @@
-import { Preview, Settings } from "cps-global-configuration";
+import { FoundContext, Preview, Settings } from "cps-global-configuration";
 import { MergeTags, Register } from "../../../store/store";
 import { Result } from "../../../utils/Result";
-import { FoundContext } from "../../context/FoundContext";
 
 export type DomMutationObserver = ({
   context,

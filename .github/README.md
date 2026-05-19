@@ -86,7 +86,7 @@ If your feature was rolled back:
 Timeline:
 1. Developer merges feature branch "add-widget" to main
 2. CI/CD deploys to pre-prod environments
-3. Bug discovered in staging
+3. Bug discovered in test
 
 Rollback:
 4. Maintainer runs "Rollback" workflow

@@ -1,8 +1,8 @@
 {
   "name": "cps-global-script-redirect",
   "version": "1.0.0",
-  "description": "Injects a script tag into the document head with a configurable src URL",
-  "main": "dist/script-redirect.js",
+  "description": "Redirect stub served at the legacy cps-global-components.js URL; the target URL is substituted in at deploy time from each env's REDIRECT_SCRIPT_URL config",
+  "main": "dist/cps-global-components.js",
   "types": "dist/index.d.ts",
   "type": "module",
   "files": [

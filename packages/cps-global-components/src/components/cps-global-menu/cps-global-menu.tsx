@@ -1,7 +1,7 @@
 import { Component, h, Fragment } from "@stencil/core";
 import { menuConfig } from "./menu-config/menu-config";
 import { readyState } from "../../store/store";
-import { FEATURE_FLAGS } from "../../feature-flags/feature-flags";
+import { FEATURE_FLAGS } from "cps-global-configuration";
 import { renderError } from "../common/render-error";
 import { WithLogging } from "../../logging/WithLogging";
 import { dispatchCmsNavigate } from "../../services/navigate-cms/initialise-navigate-cms";

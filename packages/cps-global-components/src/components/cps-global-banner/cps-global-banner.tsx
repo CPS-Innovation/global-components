@@ -1,6 +1,6 @@
 import { Component, h, Fragment } from "@stencil/core";
 import { readyState } from "../../store/store";
-import { FEATURE_FLAGS } from "../../feature-flags/feature-flags";
+import { FEATURE_FLAGS } from "cps-global-configuration";
 import { WithLogging } from "../../logging/WithLogging";
 import { replaceTagsInString } from "../cps-global-menu/menu-config/helpers/replace-tags-in-string";
 import { getArtifactUrl } from "../../utils/get-artifact-url";
@@ -58,7 +58,7 @@ export class CpsGlobalBanner {
 
     return (
       <div>
-        <cps-skip-link isOutSystems={state.flags?.isOutSystems}>Skip to main content</cps-skip-link>
+        <cps-skip-link isOutSystems={state.flags?.isOutSystems} skipLinkClassName={state.context?.skipLinkClassName}>Skip to main content</cps-skip-link>
         <header class={`govuk-header govuk-header--with-js-navigation ${backgroundColourClass}`} data-module="govuk-header" data-govuk-header-init="">
           <div class="govuk-header__container" style={{ display: "flex", flexDirection: "row" }}>
             <div class="govuk-header__logo">

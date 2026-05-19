@@ -1,0 +1,36 @@
+
+
+GloCo_PageViews
+| where TimeGenerated >= startofmonth(datetime(2026-04-01))
+| where Auth_KnownErrorType != "ADPreventedByContext"
+| where UserId != "8Min41xE/O6WPw2sGPoFME"
+| summarize 
+    Auth_Username = max(Auth_Username),
+    arg_max(TimeGenerated, IsCurrentlyAuthed = Auth_IsAuthed),
+    EarliestVisit = min(TimeGenerated),
+    EarliestKnownAuthnameVisit = minif(TimeGenerated, isnotempty(Auth_Username)), 
+    LatestVisit = max(TimeGenerated),
+    KnownAuthnameCount = countif(isnotempty(Auth_Username)), 
+    NotKnownAuthnameCount = countif(isempty(Auth_Username)),
+    NotIsAuthedCount = countif(not(Auth_IsAuthed)),
+    SilentFlowProblemCount = countif(Auth_KnownErrorType == "SilentFlowProblem"),
+    MultipleIdentitiesCount = countif(Auth_KnownErrorType == "MultipleIdentities")
+by UserId
+| project-away TimeGenerated
+| join kind=leftouter (
+    GloCo_PageViews
+    | extend Domain = tostring(parse_url(Url).Host)
+    | summarize DomainCount = count() by UserId, Domain
+    | summarize DomainCounts = make_bag(pack(Domain, DomainCount)) by UserId
+) on UserId | project-away UserId1
+| join kind=leftouter (GloCo__IframeProbeEvents
+    | where Environment == "prod"
+    | where UserId != "8Min41xE/O6WPw2sGPoFME"
+    | where Hostname !startswith "house"
+    | summarize 
+        CountGranted = countif(LocalNetworkAccessPermission == "granted"),
+        CountDenied = countif(LocalNetworkAccessPermission == "denied"),  
+        CountPrompt = countif(LocalNetworkAccessPermission == "prompt"), 
+        CountOther = countif(LocalNetworkAccessPermission !in("granted", "denied", "prompt"))
+    by UserId
+) on UserId | project-away UserId1

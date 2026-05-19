@@ -1,4 +1,4 @@
-import { Tags } from "../context/Tags";
+import { Tags } from "cps-global-configuration";
 import { CaseDetails, caseDetailsTagFields } from "./CaseDetails";
 
 export const extractTagsFromCaseDetails = (caseDetails: Partial<CaseDetails>): { allTagsArePresent: boolean; tags: Tags } => {

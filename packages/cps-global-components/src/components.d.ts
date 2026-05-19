@@ -48,6 +48,8 @@ export namespace Components {
     }
     interface CpsGlobalCaseDetails {
     }
+    interface CpsGlobalCaseLockingNotification {
+    }
     interface CpsGlobalFooter {
     }
     interface CpsGlobalHeader {
@@ -80,11 +82,18 @@ export namespace Components {
          */
         "listClass": string;
     }
+    interface CpsRegion {
+        /**
+          * Identifier passed to the central service when this region enters or leaves "present" state. Reflected so it's readable as an attribute.
+         */
+        "code": string;
+    }
     interface CpsSkipLink {
         /**
           * @default false
          */
         "isOutSystems": boolean;
+        "skipLinkClassName"?: string;
     }
     interface NavLink {
         "ariaSelected"?: boolean;
@@ -134,6 +143,12 @@ declare global {
         prototype: HTMLCpsGlobalCaseDetailsElement;
         new (): HTMLCpsGlobalCaseDetailsElement;
     };
+    interface HTMLCpsGlobalCaseLockingNotificationElement extends Components.CpsGlobalCaseLockingNotification, HTMLStencilElement {
+    }
+    var HTMLCpsGlobalCaseLockingNotificationElement: {
+        prototype: HTMLCpsGlobalCaseLockingNotificationElement;
+        new (): HTMLCpsGlobalCaseLockingNotificationElement;
+    };
     interface HTMLCpsGlobalFooterElement extends Components.CpsGlobalFooter, HTMLStencilElement {
     }
     var HTMLCpsGlobalFooterElement: {
@@ -170,6 +185,12 @@ declare global {
         prototype: HTMLCpsGlobalRecentCasesElement;
         new (): HTMLCpsGlobalRecentCasesElement;
     };
+    interface HTMLCpsRegionElement extends Components.CpsRegion, HTMLStencilElement {
+    }
+    var HTMLCpsRegionElement: {
+        prototype: HTMLCpsRegionElement;
+        new (): HTMLCpsRegionElement;
+    };
     interface HTMLCpsSkipLinkElement extends Components.CpsSkipLink, HTMLStencilElement {
     }
     var HTMLCpsSkipLinkElement: {
@@ -197,17 +218,21 @@ declare global {
         "cps-gds-notification-banner": HTMLCpsGdsNotificationBannerElement;
         "cps-global-banner": HTMLCpsGlobalBannerElement;
         "cps-global-case-details": HTMLCpsGlobalCaseDetailsElement;
+        "cps-global-case-locking-notification": HTMLCpsGlobalCaseLockingNotificationElement;
         "cps-global-footer": HTMLCpsGlobalFooterElement;
         "cps-global-header": HTMLCpsGlobalHeaderElement;
         "cps-global-home-page-notification": HTMLCpsGlobalHomePageNotificationElement;
         "cps-global-menu": HTMLCpsGlobalMenuElement;
         "cps-global-notifications": HTMLCpsGlobalNotificationsElement;
         "cps-global-recent-cases": HTMLCpsGlobalRecentCasesElement;
+        "cps-region": HTMLCpsRegionElement;
         "cps-skip-link": HTMLCpsSkipLinkElement;
         "nav-link": HTMLNavLinkElement;
     }
 }
 declare namespace LocalJSX {
+    type OneOf<K extends string, PropT, AttrT = PropT> = { [P in K]: PropT } & { [P in `attr:${K}` | `prop:${K}`]?: never } | { [P in `attr:${K}`]: AttrT } & { [P in K | `prop:${K}`]?: never } | { [P in `prop:${K}`]: PropT } & { [P in K | `attr:${K}`]?: never };
+
     interface CpsGdsNotificationBanner {
         /**
           * Prevent the banner from being focused on page load (only relevant for success type).
@@ -250,6 +275,8 @@ declare namespace LocalJSX {
     }
     interface CpsGlobalCaseDetails {
     }
+    interface CpsGlobalCaseLockingNotification {
+    }
     interface CpsGlobalFooter {
     }
     interface CpsGlobalHeader {
@@ -282,11 +309,18 @@ declare namespace LocalJSX {
          */
         "listClass"?: string;
     }
+    interface CpsRegion {
+        /**
+          * Identifier passed to the central service when this region enters or leaves "present" state. Reflected so it's readable as an attribute.
+         */
+        "code": string;
+    }
     interface CpsSkipLink {
         /**
           * @default false
          */
         "isOutSystems"?: boolean;
+        "skipLinkClassName"?: string;
     }
     interface NavLink {
         "ariaSelected"?: boolean;
@@ -317,8 +351,12 @@ declare namespace LocalJSX {
         "linkClass": string;
         "itemTextTemplate": string;
     }
+    interface CpsRegionAttributes {
+        "code": string;
+    }
     interface CpsSkipLinkAttributes {
         "isOutSystems": boolean;
+        "skipLinkClassName": string;
     }
     interface NavLinkAttributes {
         "label": string;
@@ -333,12 +371,14 @@ declare namespace LocalJSX {
         "cps-gds-notification-banner": Omit<CpsGdsNotificationBanner, keyof CpsGdsNotificationBannerAttributes> & { [K in keyof CpsGdsNotificationBanner & keyof CpsGdsNotificationBannerAttributes]?: CpsGdsNotificationBanner[K] } & { [K in keyof CpsGdsNotificationBanner & keyof CpsGdsNotificationBannerAttributes as `attr:${K}`]?: CpsGdsNotificationBannerAttributes[K] } & { [K in keyof CpsGdsNotificationBanner & keyof CpsGdsNotificationBannerAttributes as `prop:${K}`]?: CpsGdsNotificationBanner[K] };
         "cps-global-banner": CpsGlobalBanner;
         "cps-global-case-details": CpsGlobalCaseDetails;
+        "cps-global-case-locking-notification": CpsGlobalCaseLockingNotification;
         "cps-global-footer": CpsGlobalFooter;
         "cps-global-header": Omit<CpsGlobalHeader, keyof CpsGlobalHeaderAttributes> & { [K in keyof CpsGlobalHeader & keyof CpsGlobalHeaderAttributes]?: CpsGlobalHeader[K] } & { [K in keyof CpsGlobalHeader & keyof CpsGlobalHeaderAttributes as `attr:${K}`]?: CpsGlobalHeaderAttributes[K] } & { [K in keyof CpsGlobalHeader & keyof CpsGlobalHeaderAttributes as `prop:${K}`]?: CpsGlobalHeader[K] };
         "cps-global-home-page-notification": CpsGlobalHomePageNotification;
         "cps-global-menu": CpsGlobalMenu;
         "cps-global-notifications": CpsGlobalNotifications;
         "cps-global-recent-cases": Omit<CpsGlobalRecentCases, keyof CpsGlobalRecentCasesAttributes> & { [K in keyof CpsGlobalRecentCases & keyof CpsGlobalRecentCasesAttributes]?: CpsGlobalRecentCases[K] } & { [K in keyof CpsGlobalRecentCases & keyof CpsGlobalRecentCasesAttributes as `attr:${K}`]?: CpsGlobalRecentCasesAttributes[K] } & { [K in keyof CpsGlobalRecentCases & keyof CpsGlobalRecentCasesAttributes as `prop:${K}`]?: CpsGlobalRecentCases[K] };
+        "cps-region": Omit<CpsRegion, keyof CpsRegionAttributes> & { [K in keyof CpsRegion & keyof CpsRegionAttributes]?: CpsRegion[K] } & { [K in keyof CpsRegion & keyof CpsRegionAttributes as `attr:${K}`]?: CpsRegionAttributes[K] } & { [K in keyof CpsRegion & keyof CpsRegionAttributes as `prop:${K}`]?: CpsRegion[K] } & OneOf<"code", CpsRegion["code"], CpsRegionAttributes["code"]>;
         "cps-skip-link": Omit<CpsSkipLink, keyof CpsSkipLinkAttributes> & { [K in keyof CpsSkipLink & keyof CpsSkipLinkAttributes]?: CpsSkipLink[K] } & { [K in keyof CpsSkipLink & keyof CpsSkipLinkAttributes as `attr:${K}`]?: CpsSkipLinkAttributes[K] } & { [K in keyof CpsSkipLink & keyof CpsSkipLinkAttributes as `prop:${K}`]?: CpsSkipLink[K] };
         "nav-link": Omit<NavLink, keyof NavLinkAttributes> & { [K in keyof NavLink & keyof NavLinkAttributes]?: NavLink[K] } & { [K in keyof NavLink & keyof NavLinkAttributes as `attr:${K}`]?: NavLinkAttributes[K] } & { [K in keyof NavLink & keyof NavLinkAttributes as `prop:${K}`]?: NavLink[K] };
     }
@@ -350,12 +390,14 @@ declare module "@stencil/core" {
             "cps-gds-notification-banner": LocalJSX.IntrinsicElements["cps-gds-notification-banner"] & JSXBase.HTMLAttributes<HTMLCpsGdsNotificationBannerElement>;
             "cps-global-banner": LocalJSX.IntrinsicElements["cps-global-banner"] & JSXBase.HTMLAttributes<HTMLCpsGlobalBannerElement>;
             "cps-global-case-details": LocalJSX.IntrinsicElements["cps-global-case-details"] & JSXBase.HTMLAttributes<HTMLCpsGlobalCaseDetailsElement>;
+            "cps-global-case-locking-notification": LocalJSX.IntrinsicElements["cps-global-case-locking-notification"] & JSXBase.HTMLAttributes<HTMLCpsGlobalCaseLockingNotificationElement>;
             "cps-global-footer": LocalJSX.IntrinsicElements["cps-global-footer"] & JSXBase.HTMLAttributes<HTMLCpsGlobalFooterElement>;
             "cps-global-header": LocalJSX.IntrinsicElements["cps-global-header"] & JSXBase.HTMLAttributes<HTMLCpsGlobalHeaderElement>;
             "cps-global-home-page-notification": LocalJSX.IntrinsicElements["cps-global-home-page-notification"] & JSXBase.HTMLAttributes<HTMLCpsGlobalHomePageNotificationElement>;
             "cps-global-menu": LocalJSX.IntrinsicElements["cps-global-menu"] & JSXBase.HTMLAttributes<HTMLCpsGlobalMenuElement>;
             "cps-global-notifications": LocalJSX.IntrinsicElements["cps-global-notifications"] & JSXBase.HTMLAttributes<HTMLCpsGlobalNotificationsElement>;
             "cps-global-recent-cases": LocalJSX.IntrinsicElements["cps-global-recent-cases"] & JSXBase.HTMLAttributes<HTMLCpsGlobalRecentCasesElement>;
+            "cps-region": LocalJSX.IntrinsicElements["cps-region"] & JSXBase.HTMLAttributes<HTMLCpsRegionElement>;
             "cps-skip-link": LocalJSX.IntrinsicElements["cps-skip-link"] & JSXBase.HTMLAttributes<HTMLCpsSkipLinkElement>;
             "nav-link": LocalJSX.IntrinsicElements["nav-link"] & JSXBase.HTMLAttributes<HTMLNavLinkElement>;
         }

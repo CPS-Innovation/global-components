@@ -27,7 +27,7 @@ export default {
   input: "./dist/custom-elements/index.js",
   output: [
     {
-      file: "dist/cps-global-components.js",
+      file: "dist/global-components.js",
       format: "es",
       sourcemap: true,
       sourcemapExcludeSources: false,

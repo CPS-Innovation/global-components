@@ -1,7 +1,6 @@
-import { Config } from "cps-global-configuration";
+import { Config, FoundContext } from "cps-global-configuration";
 import { fetchWithCircuitBreaker } from "../fetch/fetch-with-circuit-breaker";
 import { fetchWithAuthFactory } from "../fetch/fetch-with-auth-factory";
-import { FoundContext } from "../context/FoundContext";
 import { MergeTags, Register } from "../../store/store";
 import { Handover } from "../state/handover/Handover";
 import { GetToken } from "../auth/GetToken";
@@ -14,27 +13,22 @@ import { MonitoringCodesSchema } from "./MonitoringCode";
 import { fetchAndValidate } from "../fetch/fetch-and-validate";
 import { CorrelationIds } from "../correlation/CorrelationIds";
 import { Result } from "../../utils/Result";
+import { TrackException } from "../analytics/TrackException";
 
 type Props = {
   config: Config;
   handover: Result<Handover>;
-  setNextHandover: (data: Handover) => void;
+  setNextHandover: (data: Handover, trackException: TrackException) => void;
   setNextRecentCases: (caseDetails: CaseDetails | undefined) => void;
   trackEvent: (detail: AnalyticsEventData) => void;
+  trackException: TrackException;
   register: Register;
   mergeTags: MergeTags;
 };
 
-export const initialiseCaseDetailsData = ({
-  config,
-  handover,
-  setNextHandover,
-  setNextRecentCases,
-  trackEvent,
-  register,
-  mergeTags,
-}: Props) => {
+export const initialiseCaseDetailsData = ({ config, handover, setNextHandover, setNextRecentCases, trackEvent, trackException, register, mergeTags }: Props) => {
   let optimisticCaseId: number | undefined;
+  let lastSeenCaseId: number | undefined;
   let generation = 0;
 
   // Called as soon as caseIdentifiers are known (before auth completes).
@@ -42,9 +36,21 @@ export const initialiseCaseDetailsData = ({
   const initialiseCaseDetailsDataForContextOptimistic = (caseIdentifiers: CaseIdentifiers | undefined) => {
     generation++;
     optimisticCaseId = undefined;
-    if (!caseIdentifiers) return;
 
-    const caseId = Number(caseIdentifiers.caseId);
+    const caseId = caseIdentifiers ? Number(caseIdentifiers.caseId) : undefined;
+
+    // caseDetailsTags are owned by this service: resetContextSpecificTags leaves them alone so
+    //  they survive same-case context changes. Clear them here when the case actually changes
+    //  (or goes away) so stale tags from a previous case can't bleed into the new one.
+    if (caseId !== lastSeenCaseId) {
+      register({ caseDetailsTags: {} });
+      lastSeenCaseId = caseId;
+    }
+
+    if (!caseIdentifiers || caseId === undefined) {
+      return;
+    }
+
     if (handover.found && handover.result.caseId === caseId && handover.result.caseDetails) {
       optimisticCaseId = caseId;
       mergeTags({ caseDetailsTags: extractTagsFromCaseDetails(handover.result.caseDetails).tags });
@@ -89,6 +95,7 @@ export const initialiseCaseDetailsData = ({
       .catch(error => {
         if (isStale()) return undefined;
         register({ caseDetails: { found: false, error } });
+        trackException(error instanceof Error ? error : new Error(String(error)), { type: "data", code: "case-details" });
         return undefined;
       });
 
@@ -103,13 +110,14 @@ export const initialiseCaseDetailsData = ({
           .catch(error => {
             if (isStale()) return undefined;
             register({ caseMonitoringCodes: { found: false, error } });
+            trackException(error instanceof Error ? error : new Error(String(error)), { type: "data", code: "case-monitoring-codes" });
             return undefined;
           });
 
     return Promise.all([caseDetailsPromise, monitoringCodesPromise]).then(([caseDetails, monitoringCodes]) => {
       if (isStale()) return;
       const handoverData = { caseId, caseDetails, monitoringCodes };
-      setNextHandover(handoverData);
+      setNextHandover(handoverData, trackException);
       register({ handover: { found: true, result: handoverData } });
       setNextRecentCases(caseDetails);
     });

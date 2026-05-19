@@ -10,12 +10,13 @@ let PerCase = GloCo_PageViews_CaseReview
     Has_Admin_Finalise              = countif(Is_Admin_Finalise) > 0,
     Submitted_By                    = take_anyif(Auth_Username, (Is_Submitted_First_Review or Is_Submitted_Subsequent_Review or Is_Admin_Finalise) and isnotempty(Auth_Username))
     by CaseId;
-let First_Review_Users      = toscalar(PerCase | where Has_Submitted_First_Review      and isnotempty(Submitted_By) | distinct Submitted_By | count);
-let Subsequent_Users        = toscalar(PerCase | where Has_Submitted_Subsequent_Review and isnotempty(Submitted_By) | distinct Submitted_By | count);
-let EA_First_Users          = toscalar(PerCase | where Has_Early_Advice_First_Review   and isnotempty(Submitted_By) | distinct Submitted_By | count);
-let EA_Subsequent_Users     = toscalar(PerCase | where Has_Early_Advice_Subsequent     and isnotempty(Submitted_By) | distinct Submitted_By | count);
-let Admin_Users             = toscalar(PerCase | where Has_Admin_Finalise              and isnotempty(Submitted_By) | distinct Submitted_By | count);
-let Total_Users             = toscalar(PerCase | where isnotempty(Submitted_By) | distinct Submitted_By | count);
+let Min_Date            = toscalar(GloCo_PageViews_CaseReview | where TimeGenerated > datetime(2026-03-09T12:00:01) | summarize min(TimeGenerated));
+let First_Review_Users  = toscalar(PerCase | where Has_Submitted_First_Review      and isnotempty(Submitted_By) | distinct Submitted_By | count);
+let Subsequent_Users    = toscalar(PerCase | where Has_Submitted_Subsequent_Review and isnotempty(Submitted_By) | distinct Submitted_By | count);
+let EA_First_Users      = toscalar(PerCase | where Has_Early_Advice_First_Review   and isnotempty(Submitted_By) | distinct Submitted_By | count);
+let EA_Subsequent_Users = toscalar(PerCase | where Has_Early_Advice_Subsequent     and isnotempty(Submitted_By) | distinct Submitted_By | count);
+let Admin_Users         = toscalar(PerCase | where Has_Admin_Finalise              and isnotempty(Submitted_By) | distinct Submitted_By | count);
+let Total_Users         = toscalar(PerCase | where isnotempty(Submitted_By) | distinct Submitted_By | count);
 let Stats = PerCase
 | summarize
     First_Review_Started    = countif(Has_Review_First_Review),
@@ -40,14 +41,15 @@ let TotalRow = Stats
     Started     = First_Review_Started + Subsequent_Started + EA_First_Started + EA_Subsequent_Started + Admin_Finalised,
     Submitted   = First_Review_Submitted + Subsequent_Submitted + EA_First_Submitted + EA_Subsequent_Submitted + Admin_Finalised,
     Users       = Total_Users;
-union Rows, TotalRow
-| extend SortKey = case(
-    Review_Type == "First review",       1,
-    Review_Type == "Subsequent review",  2,
-    Review_Type == "EA first review",    3,
-    Review_Type == "EA subsequent review", 4,
-    Review_Type == "Admin finalised",    5,
-    Review_Type == "Total",              6,
-    7)
+let DateRow = print
+    Review_Type = "Earliest date",
+    Started     = tostring(format_datetime(Min_Date, 'yyyy-MM-dd HH:mm')),
+    Submitted   = "",
+    Users       = "",
+    SortKey     = 7;
+union
+    (Rows     | extend SortKey = case(Review_Type == "First review", 1, Review_Type == "Subsequent review", 2, Review_Type == "EA first review", 3, Review_Type == "EA subsequent review", 4, Review_Type == "Admin finalised", 5, 7) | project Review_Type, Started = tostring(Started), Submitted = tostring(Submitted), Users = tostring(Users), SortKey),
+    (TotalRow | extend SortKey = 6 | project Review_Type, Started = tostring(Started), Submitted = tostring(Submitted), Users = tostring(Users), SortKey),
+    DateRow
 | order by SortKey asc
 | project-away SortKey

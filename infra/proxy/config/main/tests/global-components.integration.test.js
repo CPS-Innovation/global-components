@@ -83,6 +83,29 @@ async function testUpstreamProxy() {
       "Should strip Authorization header"
     )
   })
+
+  await test("proxies arbitrary path under /global-components/api/*", async () => {
+    const response = await fetch(`${PROXY_BASE}/global-components/api/user-data`, {
+      headers: { "Cms-Auth-Values": "userId=42" },
+    })
+    assertEqual(response.status, 200, "Should proxy arbitrary path to upstream")
+    const json = await response.json()
+    assertEqual(json.path, "user-data", "Should pass the path through to upstream")
+    assert(json.headers["x-functions-key"] !== null, "Should inject x-functions-key")
+    assertEqual(json.headers["cms-auth-values"], "userId=42", "Should pass cms-auth-values")
+  })
+
+  await test("forwards query string to upstream", async () => {
+    const response = await fetch(
+      `${PROXY_BASE}/global-components/api/cases/123/monitoring-codes?assignedOnly=true&limit=10`
+    )
+    assertEqual(response.status, 200, "Should return 200")
+    const json = await response.json()
+    assert(
+      json.originalUrl?.includes("assignedOnly=true"),
+      "Should forward query string to upstream"
+    )
+  })
 }
 
 // =============================================================================
@@ -792,6 +815,89 @@ async function testCaseReviewRedirect() {
 }
 
 // =============================================================================
+// Connection-Upgrade Shim Tests (/test/upgrade-shim/*)
+// =============================================================================
+// Exercises the `set $connection_upgrade ""; if ($http_upgrade) { ... }` shim
+// mounted from docker/test-only.upgrade-shim.conf. Same lines are used by the
+// case-locking SignalR proxy blocks in
+// config/global-components.case-locking/global-components.case-locking.conf
+// after we removed the http-context `map` from main/nginx.conf.
+
+const http = require("http")
+
+// `Connection` and `Upgrade` are forbidden header names per the Fetch spec, so
+// undici (Node's fetch) silently drops them. Drop down to http.request to send
+// them. Returns { status, headers, body } where body is the parsed JSON.
+const rawRequest = (urlString, headers = {}) =>
+  new Promise((resolve, reject) => {
+    const url = new URL(urlString)
+    const req = http.request(
+      {
+        hostname: url.hostname,
+        port: url.port,
+        path: url.pathname + url.search,
+        method: "GET",
+        headers,
+      },
+      (res) => {
+        const chunks = []
+        res.on("data", (c) => chunks.push(c))
+        res.on("end", () => {
+          const text = Buffer.concat(chunks).toString("utf8")
+          try {
+            resolve({
+              status: res.statusCode,
+              headers: res.headers,
+              body: JSON.parse(text),
+            })
+          } catch (e) {
+            reject(new Error(`non-JSON response: ${text}`))
+          }
+        })
+      }
+    )
+    req.on("error", reject)
+    req.end()
+  })
+
+async function testConnectionUpgradeShim() {
+  console.log("\nConnection-Upgrade Shim Tests (/test/upgrade-shim/*):")
+
+  await test("forwards Connection: upgrade upstream when client sends Upgrade header", async () => {
+    const response = await rawRequest(`${PROXY_BASE}/test/upgrade-shim/echo`, {
+      Upgrade: "websocket",
+      Connection: "Upgrade",
+      "Sec-WebSocket-Key": "dGhlIHNhbXBsZSBub25jZQ==",
+      "Sec-WebSocket-Version": "13",
+    })
+    assertEqual(response.status, 200, "Should reach upstream (mock returns 200)")
+    assertEqual(
+      response.body.headers.connection,
+      "upgrade",
+      "nginx should forward Connection: upgrade when the inbound request carried an Upgrade header"
+    )
+    assertEqual(
+      response.body.headers.upgrade,
+      "websocket",
+      "nginx should forward the original Upgrade header value"
+    )
+  })
+
+  await test("does NOT forward Connection: upgrade for a plain HTTP request", async () => {
+    const response = await rawRequest(`${PROXY_BASE}/test/upgrade-shim/echo`)
+    assertEqual(response.status, 200, "Should reach upstream")
+    assert(
+      response.body.headers.connection !== "upgrade",
+      `Connection header should not be "upgrade" for a non-WebSocket request; got: ${response.body.headers.connection}`
+    )
+    assert(
+      response.body.headers.upgrade === null || response.body.headers.upgrade === "",
+      `Upgrade header should be absent/empty for a non-WebSocket request; got: ${response.body.headers.upgrade}`
+    )
+  })
+}
+
+// =============================================================================
 // Main
 // =============================================================================
 
@@ -807,6 +913,7 @@ async function main() {
   await testNavigateCmsOpen()
   await testNavigateCmsClose()
   await testCaseReviewRedirect()
+  await testConnectionUpgradeShim()
 }
 
 module.exports = main

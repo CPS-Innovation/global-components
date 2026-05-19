@@ -1,21 +1,14 @@
-import { Config } from "cps-global-configuration";
-import { FoundContext } from "../context/FoundContext";
-import { ApplicationFlags } from "../application-flags/ApplicationFlags";
+import { ApplicationFlags, Config, FoundContext } from "cps-global-configuration";
 
-// Mock the dependencies
 const mockInitialiseMockAuth = jest.fn();
 jest.mock("./initialise-mock-auth", () => ({
   initialiseMockAuth: (props: any) => mockInitialiseMockAuth(props),
 }));
 
 const mockInitialiseAdAuth = jest.fn();
-jest.mock("./initialise-ad-auth", () => ({
+jest.mock("cps-global-auth", () => ({
+  ...jest.requireActual("cps-global-auth"),
   initialiseAdAuth: (props: any) => mockInitialiseAdAuth(props),
-}));
-
-const mockCreateMsalInstance = jest.fn();
-jest.mock("./create-msal-instance", () => ({
-  createMsalInstance: (props: any) => mockCreateMsalInstance(props),
 }));
 
 import { initialiseAuth } from "./initialise-auth";
@@ -44,18 +37,22 @@ describe("initialiseAuth", () => {
   const mockRegister = jest.fn();
   const mockRegisterAuthWithAnalytics = jest.fn();
   const mockSetAuthHint = jest.fn();
+  const mockTrackException = jest.fn();
 
   const makeProps = (overrides: Pick<Parameters<typeof initialiseAuth>[0], "flags"> & Partial<Parameters<typeof initialiseAuth>[0]>) => ({
     config: mockConfig,
+    preview: { found: false, error: new Error("not loaded") } as const,
+    authHint: { found: false, error: new Error("not loaded") } as const,
     register: mockRegister,
     registerAuthWithAnalytics: mockRegisterAuthWithAnalytics,
     setAuthHint: mockSetAuthHint,
+    trackException: mockTrackException,
+    window,
     ...overrides,
   });
 
   beforeEach(() => {
     jest.clearAllMocks();
-    mockCreateMsalInstance.mockResolvedValue({});
     mockInitialiseMockAuth.mockResolvedValue(mockAuthResult);
     mockInitialiseAdAuth.mockResolvedValue(mockAuthResult);
   });
@@ -116,14 +113,13 @@ describe("initialiseAuth", () => {
       expect(mockInitialiseMockAuth).not.toHaveBeenCalled();
     });
 
-    it("should pass config, context and instance to initialiseAdAuth", async () => {
+    it("should pass config and context to initialiseAdAuth", async () => {
       await setupAndAuth(makeProps({ flags: normalFlags }));
 
       expect(mockInitialiseAdAuth).toHaveBeenCalledWith(
         expect.objectContaining({
           config: mockConfig,
           context: mockContext,
-          instance: expect.anything(),
         }),
       );
     });
@@ -165,7 +161,7 @@ describe("initialiseAuth", () => {
     it("should call setAuthHint when auth is successful", async () => {
       await setupAndAuth(makeProps({ flags: normalFlags }));
 
-      expect(mockSetAuthHint).toHaveBeenCalledWith(mockAuthResult.auth);
+      expect(mockSetAuthHint).toHaveBeenCalledWith(mockAuthResult.auth, mockTrackException, undefined);
     });
 
     it("should not call setAuthHint when auth fails", async () => {
@@ -214,7 +210,6 @@ describe("initialiseAuth", () => {
       const { initialiseAuthForContext } = initialiseAuth(makeProps({ flags: normalFlags }));
 
       const promise1 = initialiseAuthForContext(mockContext);
-      // Allow createMsalInstance to resolve before making second call
       await new Promise(resolve => setTimeout(resolve, 0));
       const promise2 = initialiseAuthForContext(mockContext);
 

@@ -1,5 +1,5 @@
 AppPageViews
-| project TimeGenerated, OperationId, Id, Url, SessionId, UserId, parsed = parse_json(Properties)
+| project TimeGenerated, OperationId, Id, Url, SessionId, UserId, DurationMs, parsed = parse_json(Properties)
 | extend Environment = tostring(parsed.Environment)
 | where Environment == "prod"
 | where Url !startswith "https://cps.outsystemsenterprise.com/WorkManagementApp/Redirect"
@@ -9,7 +9,7 @@ AppPageViews
 | where Url !startswith "https://polaris.cps.gov.uk/polaris-ui#code"
 | where Url !startswith "https://cps.outsystemsenterprise.com/CaseReview/RedirectCW"
 | where Url !startswith "https://cps.outsystemsenterprise.com/CaseReview/LoginPage"
-| where Url !startswith "https://housekeeping.cps.gov.uk/init"
+| where Url !startswith "https://housekeeping.cps.gov.uk/init" 
 // Nested double-encoded objects — parse_json() again on each
 | extend Auth    = parse_json(tostring(parsed.Auth))
 | extend App = case(
@@ -23,6 +23,7 @@ AppPageViews
 | extend Build   = parse_json(tostring(parsed.Build))
 | extend Context = parse_json(tostring(parsed.Context))
 | extend CorrelationIds = parse_json(tostring(parsed.CorrelationIds))
+| extend User = parse_json(tostring(parsed.User))
 // Flatten to leaf columns
 | extend
     Auth_IsAuthed       = iff(isnotempty(Auth), tobool(Auth.IsAuthed), false),
@@ -39,5 +40,12 @@ AppPageViews
     CaseId = coalesce(
         tolong(parse_url(Url)["Query Parameters"]["CMSCaseId"]),
         tolong(extract(@"[/=](\d{8})(\D|$)", 1, Url)),
-        tolong(tostring(parsed.CaseId)))
-| project-away parsed, Build, Auth, Context, CorrelationIds
+        tolong(tostring(parsed.CaseId))),
+        User_UserId = toint(User["UserId"]),
+        User_AreaId = toint(User["AreaId"]),
+        User_Area = tostring(User["Area"]),
+        User_HasViewNationalChargingTasksRight = tobool(User["HasViewNationalChargingTasksRight"]),
+        User_CountSensitiveUnits = toint(User["CountSensitiveUnits"]),
+        User_CountNotSensitiveUnits = toint(User["CountNotSensitiveUnits"])
+| extend User_AreaOrCPSD = iif(User_CountNotSensitiveUnits >= 120, "CPSD", User_Area)
+| project-away parsed, Build, Auth, Context, CorrelationIds, User

@@ -3,14 +3,11 @@ jest.mock("./helpers/map-link-config");
 jest.mock("./helpers/group-links-by-level");
 
 import { menuConfig } from "./menu-config";
-import { Config } from "cps-global-configuration";
-import { FoundContext } from "../../../services/context/FoundContext";
+import { ApplicationFlags, AuthResult, Config, FoundContext } from "cps-global-configuration";
 import { shouldShowLink } from "./helpers/should-show-link";
 import { mapLinkConfig } from "./helpers/map-link-config";
 import { groupLinksByLevel } from "./helpers/group-links-by-level";
-import { ApplicationFlags } from "../../../services/application-flags/ApplicationFlags";
 import { Tags } from "@microsoft/applicationinsights-web";
-import { AuthResult } from "../../../services/auth/AuthResult";
 import { Build, State } from "../../../store/store";
 import { CorrelationIds } from "../../../services/correlation/CorrelationIds";
 import { CaseDetails } from "../../../services/data/CaseDetails";
@@ -112,15 +109,18 @@ beforeEach(() => {
       tags: {},
       auth: {} as AuthResult,
       authHint: { found: false, error: {} as Error },
+      userDataHint: { found: false, error: {} as Error },
       fatalInitialisationError: undefined as any,
       initialisationStatus: "complete",
       correlationIds: {} as CorrelationIds,
       caseIdentifiers: { caseId: "1" },
       caseMonitoringCodes: mockCaseMonitoringCodes,
+      caseLockingPresentUsers: undefined,
       build: {} as Build,
       cmsSessionHint: { found: false, error: {} as Error },
       handover: { found: false, error: {} as Error },
       recentCases: { found: false, error: {} as Error },
+      silentFlowDiagnostics: { found: false, error: {} as Error },
       notifications: [],
       dismissedNotificationIds: [],
     };
@@ -170,15 +170,18 @@ beforeEach(() => {
       tags: {},
       auth: {} as AuthResult,
       authHint: { found: false, error: {} as Error },
+      userDataHint: { found: false, error: {} as Error },
       fatalInitialisationError: undefined as any,
       initialisationStatus: "complete",
       correlationIds: {} as CorrelationIds,
       caseIdentifiers: { caseId: "1" },
       caseMonitoringCodes: mockCaseMonitoringCodes,
+      caseLockingPresentUsers: undefined,
       build: {} as Build,
       cmsSessionHint: { found: false, error: {} as Error },
       handover: { found: false, error: {} as Error },
       recentCases: { found: false, error: {} as Error },
+      silentFlowDiagnostics: { found: false, error: {} as Error },
       notifications: [],
       dismissedNotificationIds: [],
     };

@@ -30,9 +30,8 @@ export default function (eleventyConfig) {
   );
 
   eleventyConfig.addPassthroughCopy({
-    "src/assets/cps-global-components.js": "assets/cps-global-components.js",
-    "src/assets/cps-global-components.js.map":
-      "assets/cps-global-components.js.map",
+    "src/assets/global-components.js": "assets/global-components.js",
+    "src/assets/global-components.js.map": "assets/global-components.js.map",
     "src/assets/config.json": "assets/config.json",
     "src/assets/config.override.json": "assets/config.override.json",
   });

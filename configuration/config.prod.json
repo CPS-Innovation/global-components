@@ -1,5 +1,14 @@
 {
   "ENVIRONMENT": "prod",
+  "CMS_AUTH_STORAGE_KEYS": {
+    "WMA_JSON": "$OS_Users$WorkManagementApp$ClientVars$JSONString",
+    "WMA_COOKIES": "$OS_Users$WorkManagementApp$ClientVars$Cookies",
+    "CASE_REVIEW_JSON": "$OS_Users$CaseReview$ClientVars$CmsAuthValues",
+    "CASE_REVIEW_COOKIES": "$OS_Users$CaseReview$ClientVars$Cookies",
+    "HOME_JSON": "$OS_Users$Casework_Blocks$ClientVars$JSONString",
+    "HOME_COOKIES": "$OS_Users$Casework_Blocks$ClientVars$Cookies",
+    "HOME_IS_FROM_PROXY": "$OS_Users$Casework_Blocks$ClientVars$IsFromProxy"
+  },
   "REDIRECT_SCRIPT_URL": "https://polaris.cps.gov.uk/global-components/prod/global-components.js",
   "BANNER_TITLE_HREF": "https://cps.outsystemsenterprise.com/Casework_Blocks/home",
   "AD_TENANT_AUTHORITY": "https://login.microsoftonline.com/00dd0d1d-d7e6-4338-ac51-565339c7088c",
@@ -22,9 +31,12 @@
       "870b7ef9-5937-4eb6-9ea0-98158f522ed7"
     ]
   },
-  "FEATURE_FLAG_ENABLE_INTRUSIVE_AD_LOGIN": false,
+  "BEACON_AD_REDIRECT_SUCCESSES_ENABLED": true,
+  "BEACON_AD_REDIRECT_FAILURES_ENABLED": true,
   "SSO_SILENT_DELAY_MS": 2000,
-  "COLLECT_AD_DIAGNOSTICS_IN_PAGE_VIEW": true,
+  "USER_DATA_REFRESH_PERIOD_MINS": 15,
+  "PROBE_IFRAME_REFRESH_PERIOD_MINS": 0,
+  "PROBE_NAVIGATOR_PERMISSIONS_REFRESH_PERIOD_MINS": 120,
   "CONTEXTS": [
     {
       "headerCustomCssClasses": "header",
@@ -32,7 +44,8 @@
         "background-color": "transparent",
         "box-shadow": "none"
       },
-      "msalRedirectUrl": "https://cps.outsystemsenterprise.com/Casework_Patterns/auth-handover.html",
+      "skipLinkClassName": "cps-skip-link__target",
+      "msalRedirectUrl": "https://cps.outsystemsenterprise.com/Casework_Patterns/auth-handover.html?src=https%3A%2F%2Fpolaris.cps.gov.uk%2Fglobal-components%2Fprod%2Fauth-handover.js&stage=ad-redirect",
       "cmsAuthFromStorageKey": "$OS_Users$Casework_Blocks$ClientVars$JSONString",
       "contexts": [
         {
@@ -89,7 +102,7 @@
       ]
     },
     {
-      "msalRedirectUrl": "https://polaris.cps.gov.uk/polaris-ui/build-version.txt",
+      "msalRedirectUrl": "https://polaris.cps.gov.uk/global-components/prod/auth-handover.html?src=https%3A%2F%2Fpolaris.cps.gov.uk%2Fglobal-components%2Fprod%2Fauth-handover.js&stage=ad-redirect",
       "contexts": [
         {
           "path": "https://polaris.cps.gov.uk/polaris-ui/case-details/(?<urn>[^/]+)/(?<caseId>\\d+)",

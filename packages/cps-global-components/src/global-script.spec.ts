@@ -125,6 +125,15 @@ jest.mock("./services/data/initialise-case-details-data", () => ({
   }),
 }));
 
+const mockInitialiseCaseLockingForContext = jest.fn();
+const mockWitnessAreaSubscriber = jest.fn(() => ({ isActiveForContext: false, subscriptions: [] }));
+jest.mock("./services/case-locking/initialise-case-locking", () => ({
+  initialiseCaseLocking: () => ({
+    initialiseCaseLockingForContext: mockInitialiseCaseLockingForContext,
+    witnessAreaSubscriber: mockWitnessAreaSubscriber,
+  }),
+}));
+
 const mockInitialiseCmsSessionHint = jest.fn();
 jest.mock("./services/state/cms-session/initialise-cms-session-hint", () => ({
   initialiseCmsSessionHint: async ({ register, ...rest }: any) => {
@@ -178,6 +187,20 @@ jest.mock("./services/state/auth-hint/initialise-auth-hint", () => ({
     register({ authHint: result.authHint });
     return result;
   },
+}));
+
+const mockInitialiseUserDataHint = jest.fn();
+jest.mock("./services/state/user-data/initialise-user-data-hint", () => ({
+  initialiseUserDataHint: async ({ register, ...rest }: any) => {
+    const result = await mockInitialiseUserDataHint(rest);
+    register({ userDataHint: result.userDataHint });
+    return result;
+  },
+}));
+
+const mockInitialiseUserData = jest.fn();
+jest.mock("./services/state/user-data/initialise-user-data", () => ({
+  initialiseUserData: (args: any) => mockInitialiseUserData(args),
 }));
 
 jest.mock("./services/notifications/initialise-notifications", () => ({
@@ -305,6 +328,15 @@ const setupDefaultMocks = () => {
   mockInitialiseAuthHint.mockResolvedValue({
     authHint: { found: false, error: new Error("no hint") },
     setAuthHint: jest.fn(),
+  });
+
+  mockInitialiseUserDataHint.mockResolvedValue({
+    userDataHint: { found: false, error: new Error("no hint") },
+    setUserDataHint: jest.fn(),
+  });
+
+  mockInitialiseUserData.mockReturnValue({
+    initialiseUserDataForContext: jest.fn().mockResolvedValue(undefined),
   });
 
   return {
@@ -1030,7 +1062,7 @@ describe("global-script", () => {
 
       await new Promise(resolve => setTimeout(resolve, 10));
 
-      expect(mockTrackException).toHaveBeenCalledWith(expect.any(Error));
+      expect(mockTrackException).toHaveBeenCalledWith(expect.any(Error), { type: "init" });
     });
 
     it("should recover from navigation error and allow subsequent navigation", async () => {
@@ -1198,7 +1230,7 @@ describe("global-script", () => {
     // These tests verify that the correct data flows from one step to the next
     // A control flow refactor should not break these dependencies
 
-    it("should pass rootUrl, flags and preview to initialiseConfig", async () => {
+    it("should pass rootUrl and flags to initialiseConfig", async () => {
       const testFlags = {
         e2eTestMode: { isE2eTestMode: false },
         isLocalDevelopment: true,
@@ -1215,7 +1247,7 @@ describe("global-script", () => {
       globalScript();
       await new Promise(resolve => setTimeout(resolve, 10));
 
-      expect(mockInitialiseConfig).toHaveBeenCalledWith({ rootUrl: testRootUrl, flags: testFlags, preview: testPreview });
+      expect(mockInitialiseConfig).toHaveBeenCalledWith({ rootUrl: testRootUrl, flags: testFlags });
     });
 
     it("should pass rootUrl and flags to initialiseCmsSessionHint", async () => {

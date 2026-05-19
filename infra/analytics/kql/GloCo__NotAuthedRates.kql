@@ -1,0 +1,4 @@
+GloCo_PageViews
+| where Auth_KnownErrorType != "ADPreventedByContext"
+| summarize Percentage_Not_Authed = 100 * toreal(countif(not(Auth_IsAuthed))) / count() by bin(TimeGenerated, 12h)
+| render columnchart 

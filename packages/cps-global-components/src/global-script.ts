@@ -24,10 +24,15 @@ import { initialiseOutSystemsReconcileAuth } from "./services/outsystems-shim/in
 import { initialiseOutSystemsShowAlert } from "./services/outsystems-shim/outsystems-show-alert";
 import { initialiseNavigateCms } from "./services/navigate-cms/initialise-navigate-cms";
 import { initialiseAuthHint } from "./services/state/auth-hint/initialise-auth-hint";
-import { createAdDiagnosticsCollector } from "./services/auth/ad-diagnostics-collector";
+import { initialiseUserDataHint } from "./services/state/user-data/initialise-user-data-hint";
+import { initialiseUserData } from "./services/state/user-data/initialise-user-data";
+import { initialiseDiagnostics } from "./services/diagnostics/initialise-diagnostics";
 import { initialiseTabTitle } from "./services/browser/tab-title/initialise-tab-title";
 import { initialiseBuild } from "./services/build/initialise-build";
+import { initialiseCaseLocking } from "./services/case-locking/initialise-case-locking";
 import { runNowAndOnNavigation } from "./services/browser/navigation/navigation";
+import { TrackException } from "./services/analytics/TrackException";
+import { summariseResults } from "./utils/summarise-results";
 
 const { _error } = makeConsole("global-script");
 
@@ -44,10 +49,10 @@ export default () => {
 
 const initialise = async (window: Window & typeof globalThis) => {
   const { register, mergeTags, subscribe, resetContextSpecificTags, caseIdentifiersWaiter } = initialiseStore();
-  let trackException: (exception: Error) => void = () => {};
+  let trackException: TrackException = () => {};
 
   const handleError = (err: Error) => {
-    trackException(err);
+    trackException(err, { type: "init" });
     _error(err);
     register({ fatalInitialisationError: err, initialisationStatus: "broken" });
   };
@@ -58,15 +63,22 @@ const initialise = async (window: Window & typeof globalThis) => {
     initialiseNavigateCms({ window, rootUrl });
 
     const flags = initialiseApplicationFlags({ window, rootUrl, register });
-    initialiseOutSystemsReconcileAuth({ window, flags });
 
-    const [{ handover, setNextHandover }, preview, settings, { authHint, setAuthHint }] = await Promise.all([
+    // Config no longer depends on preview (override-via-preview was removed in
+    // FCT2-17451 drop 4) so it joins the parallel set.
+    const [{ handover, setNextHandover }, preview, settings, { authHint, setAuthHint }, { userDataHint, setUserDataHint }, cmsSessionHint, config] = await Promise.all([
       initialiseHandover({ rootUrl, register }),
       initialisePreview({ rootUrl, register }),
       initialiseSettings({ rootUrl }),
       initialiseAuthHint({ rootUrl, register }),
+      initialiseUserDataHint({ rootUrl, register }),
       initialiseCmsSessionHint({ rootUrl, flags, register }),
+      initialiseConfig({ rootUrl, flags, register }),
     ]);
+
+    initialiseOutSystemsReconcileAuth({ window, flags, config });
+
+    const { initialiseCaseLockingForContext, witnessAreaSubscriber } = initialiseCaseLocking({ window, config, preview, register });
 
     const { initialiseDomForContext } = initialiseDomObservation(
       { window, register, mergeTags, preview, settings },
@@ -74,16 +86,13 @@ const initialise = async (window: Window & typeof globalThis) => {
       footerSubscriber,
       hostAppEventSubscriber,
       accessibilitySubscriber,
+      witnessAreaSubscriber,
     );
 
     initialiseTabTitle({ window, preview, subscribe, flags });
-
-    const config = await initialiseConfig({ rootUrl, flags, preview, register });
     /* do not await this — notification fetches shouldn't block auth/analytics/etc. */
     initialiseNotifications({ rootUrl, register, handlers, config });
     const { setNextRecentCases } = initialiseRecentCases({ rootUrl, config, register });
-
-    const diagnosticsCollector = createAdDiagnosticsCollector();
 
     const {
       trackPageView,
@@ -92,29 +101,49 @@ const initialise = async (window: Window & typeof globalThis) => {
       registerAuthWithAnalytics,
       registerCorrelationIdsWithAnalytics,
       registerCaseIdentifiersWithAnalytics,
+      getOperationId,
     } = initialiseAnalytics({
       window,
       config,
       build,
       flags,
       authHint,
-      diagnosticsCollector,
+      userDataHint,
     });
     trackException = _trackException;
 
-    const { initialiseAuthForContext } = initialiseAuth({ config, flags, onError: trackException, diagnosticsCollector, register, registerAuthWithAnalytics, setAuthHint });
+    const { silentFlowDiagnostics, addSilentFlowDiagnostics } = initialiseDiagnostics({ window, rootUrl, config, flags, register, trackEvent });
+
+    trackEvent({ name: "state-summary", summary: summariseResults({ handover, preview, settings, authHint, userDataHint, cmsSessionHint }) });
+
+    const { initialiseAuthForContext } = initialiseAuth({
+      config,
+      preview,
+      authHint,
+      flags,
+      trackException,
+      silentFlowDiagnostics,
+      addSilentFlowDiagnostics,
+      getOperationId,
+      register,
+      registerAuthWithAnalytics,
+      setAuthHint,
+      window,
+    });
     const { initialiseCaseDetailsDataForContext, initialiseCaseDetailsDataForContextOptimistic } = initialiseCaseDetailsData({
       config,
       handover,
       setNextHandover,
       setNextRecentCases,
       trackEvent,
+      trackException,
       register,
       mergeTags,
     });
     const { initialiseCorrelationIdsForContext } = initialiseCorrelationIds({ register, registerCorrelationIdsWithAnalytics });
-    const { initialiseContextForContext } = initialiseContext({ window, config, register, resetContextSpecificTags });
+    const { initialiseContextForContext } = initialiseContext({ window, config, handover, register, resetContextSpecificTags });
     const { initialiseOutSystemsShowAlertForContext } = initialiseOutSystemsShowAlert({ config, authHint, preview });
+    const { initialiseUserDataForContext } = initialiseUserData({ config, userDataHint, setUserDataHint, trackEvent, trackException, register });
 
     runNowAndOnNavigation(() => {
       try {
@@ -129,6 +158,7 @@ const initialise = async (window: Window & typeof globalThis) => {
 
         const authPromise = initialiseAuthForContext(context);
         authPromise.then(({ auth }) => initialiseOutSystemsShowAlertForContext({ context, auth })).catch(handleError);
+        authPromise.then(({ getToken }) => initialiseUserDataForContext({ context, getToken, correlationIds })).catch(handleError);
 
         const caseIdentifiersPromise = caseIdentifiersWaiter.waitForChange();
         caseIdentifiersPromise
@@ -139,7 +169,10 @@ const initialise = async (window: Window & typeof globalThis) => {
           .catch(handleError);
 
         Promise.all([authPromise, caseIdentifiersPromise])
-          .then(([{ getToken }, caseIdentifiers]) => initialiseCaseDetailsDataForContext({ context, caseIdentifiers, getToken, correlationIds }))
+          .then(([{ getToken, auth }, caseIdentifiers]) => {
+            initialiseCaseDetailsDataForContext({ context, caseIdentifiers, getToken, correlationIds });
+            initialiseCaseLockingForContext({ auth, caseIdentifiers });
+          })
           .catch(handleError);
       } catch (err) {
         handleError(err);
