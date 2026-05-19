@@ -151,7 +151,11 @@ const server = http.createServer((req, res) => {
       headers: {
         'x-functions-key': functionsKey || null,
         'cms-auth-values': cmsAuthValues || null,
-        origin: req.headers.origin || null
+        origin: req.headers.origin || null,
+        // Echoed so connection-upgrade-shim integration tests can confirm what
+        // nginx forwarded after evaluating `set $connection_upgrade ""; if ($http_upgrade) { ... }`.
+        connection: req.headers.connection || null,
+        upgrade: req.headers.upgrade || null
       }
     }, null, 2));
   }
