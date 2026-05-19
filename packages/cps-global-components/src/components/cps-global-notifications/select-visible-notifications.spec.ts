@@ -7,10 +7,11 @@ const n = (overrides: Partial<Notification> & Pick<Notification, "id">): Notific
 });
 
 const now = new Date("2026-04-13T12:00:00Z");
+const currentUrl = "https://polaris.cps.gov.uk/case/123";
 
 describe("selectVisibleNotifications", () => {
   it("returns nothing when the list is empty", () => {
-    expect(selectVisibleNotifications({ notifications: [], dismissedIds: [], previewNotificationsEnabled: false, now })).toEqual([]);
+    expect(selectVisibleNotifications({ notifications: [], dismissedIds: [], previewNotificationsEnabled: false, now, currentUrl })).toEqual([]);
   });
 
   it("excludes dismissed notifications", () => {
@@ -19,6 +20,7 @@ describe("selectVisibleNotifications", () => {
       dismissedIds: ["a"],
       previewNotificationsEnabled: false,
       now,
+      currentUrl,
     });
     expect(result.map(x => x.id)).toEqual(["b"]);
   });
@@ -29,6 +31,7 @@ describe("selectVisibleNotifications", () => {
       dismissedIds: [],
       previewNotificationsEnabled: false,
       now,
+      currentUrl,
     });
     expect(result.map(x => x.id)).toEqual(["a"]);
   });
@@ -39,6 +42,7 @@ describe("selectVisibleNotifications", () => {
       dismissedIds: [],
       previewNotificationsEnabled: true,
       now,
+      currentUrl,
     });
     expect(result.map(x => x.id)).toEqual(["a"]);
   });
@@ -49,6 +53,7 @@ describe("selectVisibleNotifications", () => {
       dismissedIds: [],
       previewNotificationsEnabled: false,
       now,
+      currentUrl,
     });
     expect(result.map(x => x.id)).toEqual(["live"]);
   });
@@ -59,6 +64,7 @@ describe("selectVisibleNotifications", () => {
       dismissedIds: [],
       previewNotificationsEnabled: false,
       now,
+      currentUrl,
     });
     expect(result.map(x => x.id)).toEqual(["live"]);
   });
@@ -69,6 +75,7 @@ describe("selectVisibleNotifications", () => {
       dismissedIds: [],
       previewNotificationsEnabled: false,
       now,
+      currentUrl,
     });
     expect(result.map(x => x.id)).toEqual(["a"]);
   });
@@ -82,6 +89,7 @@ describe("selectVisibleNotifications", () => {
       dismissedIds: [],
       previewNotificationsEnabled: false,
       now,
+      currentUrl,
     });
     expect(result.map(x => x.id)).toEqual(["earlier", "later"]);
   });
@@ -92,7 +100,52 @@ describe("selectVisibleNotifications", () => {
       dismissedIds: [],
       previewNotificationsEnabled: false,
       now,
+      currentUrl,
     });
     expect(result.map(x => x.id)).toEqual(["a", "b"]);
+  });
+
+  it("includes notifications whose urlRegex matches the current URL", () => {
+    const result = selectVisibleNotifications({
+      notifications: [n({ id: "a", urlRegex: "/case/\\d+" })],
+      dismissedIds: [],
+      previewNotificationsEnabled: false,
+      now,
+      currentUrl,
+    });
+    expect(result.map(x => x.id)).toEqual(["a"]);
+  });
+
+  it("excludes notifications whose urlRegex does not match the current URL", () => {
+    const result = selectVisibleNotifications({
+      notifications: [n({ id: "a", urlRegex: "/admin" })],
+      dismissedIds: [],
+      previewNotificationsEnabled: false,
+      now,
+      currentUrl,
+    });
+    expect(result).toEqual([]);
+  });
+
+  it("treats absent urlRegex as no URL constraint", () => {
+    const result = selectVisibleNotifications({
+      notifications: [n({ id: "a" })],
+      dismissedIds: [],
+      previewNotificationsEnabled: false,
+      now,
+      currentUrl: "https://anywhere.example.com/foo",
+    });
+    expect(result.map(x => x.id)).toEqual(["a"]);
+  });
+
+  it("hides notifications whose urlRegex fails to compile (fail closed)", () => {
+    const result = selectVisibleNotifications({
+      notifications: [n({ id: "broken", urlRegex: "(" })],
+      dismissedIds: [],
+      previewNotificationsEnabled: false,
+      now,
+      currentUrl,
+    });
+    expect(result).toEqual([]);
   });
 });

@@ -37,6 +37,14 @@ describe("notificationSchema", () => {
     expect(() => notificationSchema.parse({ ...base, from: "yesterday" })).toThrow();
     expect(() => notificationSchema.parse({ ...base, to: "2026-13-40" })).toThrow();
   });
+
+  test("accepts a valid urlRegex", () => {
+    expect(notificationSchema.parse({ ...base, urlRegex: "^/case/\\d+$" })).toEqual({ ...base, urlRegex: "^/case/\\d+$" });
+  });
+
+  test("rejects a urlRegex that will not compile", () => {
+    expect(() => notificationSchema.parse({ ...base, urlRegex: "(" })).toThrow();
+  });
 });
 
 describe("notificationsFileSchema", () => {
