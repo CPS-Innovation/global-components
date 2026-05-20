@@ -103,7 +103,7 @@ export const initialiseAdAuth = async ({
   }
 
   try {
-    const { account } = await getAdUserAccount({
+    const { account, mechanism } = await getAdUserAccount({
       instance,
       config: { SSO_SILENT_DELAY_MS },
       addSilentFlowDiagnostics,
@@ -115,7 +115,16 @@ export const initialiseAdAuth = async ({
       lastKnownSid,
     });
     if (!account) {
-      return failedAuth("NoAccountFound", "No AD account found");
+      // Distinguish the outbound leg of a redirect (transient — page about to
+      // unload, next load will resolve via the bounce-back) from a true
+      // terminal failure. Without this, analytics conflates the two and every
+      // redirect initiation reads as a failed auth.
+      return mechanism === "redirect-initiated"
+        ? failedAuth(
+            "RedirectInFlight",
+            "loginRedirect fired; page about to unload",
+          )
+        : failedAuth("NoAccountFound", "No AD account found");
     }
 
     const sid = (account.idTokenClaims as { sid?: string } | undefined)?.sid;
