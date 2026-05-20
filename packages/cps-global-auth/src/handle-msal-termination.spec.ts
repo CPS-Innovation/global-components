@@ -256,7 +256,8 @@ describe("handleMsalTermination", () => {
         idTokenClaims: { oid: "11111111-2222-3333-4444-555555555555" },
       };
       const handleRedirectPromise = jest.fn().mockResolvedValue({ account });
-      const createInstance = jest.fn().mockResolvedValue({ handleRedirectPromise });
+      const setActiveAccount = jest.fn();
+      const createInstance = jest.fn().mockResolvedValue({ handleRedirectPromise, setActiveAccount });
 
       const result = await handleMsalTermination(makeWindow(), { clientId: "c", authority: "a" }, createInstance);
 
@@ -271,6 +272,59 @@ describe("handleMsalTermination", () => {
       const result = await handleMsalTermination(makeWindow(), { clientId: "c", authority: "a" }, createInstance);
 
       expect(result.account).toBeNull();
+    });
+  });
+
+  describe("active account reconciliation", () => {
+    // Closes the multi-account loop: after a redirect lands an account, the
+    // active-account pointer in MSAL cache must reflect that account so the
+    // host's next get-ad-user-account picks the same identity (rather than
+    // coin-flipping via getAllAccounts()[0]).
+    it("calls setActiveAccount with the account returned by handleRedirectPromise", async () => {
+      const account = {
+        homeAccountId: "h-1",
+        localAccountId: "oid-1",
+        username: "user@example.com",
+        idTokenClaims: { oid: "oid-1", sid: "sid-1" },
+      };
+      const handleRedirectPromise = jest.fn().mockResolvedValue({ account });
+      const setActiveAccount = jest.fn();
+      const createInstance = jest.fn().mockResolvedValue({ handleRedirectPromise, setActiveAccount });
+
+      await handleMsalTermination(makeWindow(), { clientId: "c", authority: "a" }, createInstance);
+
+      expect(setActiveAccount).toHaveBeenCalledTimes(1);
+      expect(setActiveAccount).toHaveBeenCalledWith(account);
+    });
+
+    it("does not call setActiveAccount when handleRedirectPromise resolves null (no AAD response)", async () => {
+      const handleRedirectPromise = jest.fn().mockResolvedValue(null);
+      const setActiveAccount = jest.fn();
+      const createInstance = jest.fn().mockResolvedValue({ handleRedirectPromise, setActiveAccount });
+
+      await handleMsalTermination(makeWindow(), { clientId: "c", authority: "a" }, createInstance);
+
+      expect(setActiveAccount).not.toHaveBeenCalled();
+    });
+
+    it("does not call setActiveAccount when handleRedirectPromise resolves with no account on the response", async () => {
+      const handleRedirectPromise = jest.fn().mockResolvedValue({ account: null });
+      const setActiveAccount = jest.fn();
+      const createInstance = jest.fn().mockResolvedValue({ handleRedirectPromise, setActiveAccount });
+
+      await handleMsalTermination(makeWindow(), { clientId: "c", authority: "a" }, createInstance);
+
+      expect(setActiveAccount).not.toHaveBeenCalled();
+    });
+
+    it("does not call setActiveAccount when handleRedirectPromise rejects", async () => {
+      const handleRedirectPromise = jest.fn().mockRejectedValue(new Error("boom"));
+      const setActiveAccount = jest.fn();
+      const createInstance = jest.fn().mockResolvedValue({ handleRedirectPromise, setActiveAccount });
+
+      await handleMsalTermination(makeWindow(), { clientId: "c", authority: "a" }, createInstance);
+
+      expect(setActiveAccount).not.toHaveBeenCalled();
     });
   });
 });
