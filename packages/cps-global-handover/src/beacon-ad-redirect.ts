@@ -12,29 +12,38 @@
 
 export type BeaconOutcome = "success" | "failure";
 
-// Query-string keys are hyphen-cased (kebab-case), not camelCase — keeps the
-// log lines easy to grep and consistent with how URL params usually read.
+// Keys are hyphen-cased (kebab-case), not camelCase — keeps the log lines easy
+// to grep.
 export type BeaconPayload = {
   "auth-hint-object-id": string;
-  // Free-form telemetry fields, all optional. Anything serialisable to a
-  // query string param. Common keys: "error-code", "error-name", "reason".
+  // Free-form telemetry fields, all optional. Common keys: "error-code",
+  // "error-name", "reason".
   [key: string]: string | undefined;
 };
 
 // Build the beacon URL from the bundle's script URL — sibling of the .js file.
+//
+// k/v pairs are encoded as PATH SEGMENTS, not query string parameters: the
+// Polaris nginx proxy's blob-storage `proxy_pass` block strips query strings
+// before forwarding to blob storage, so query params would never reach the
+// storage logs. Path segments are forwarded verbatim. Each segment is
+// encodeURIComponent'd so freeform values (e.g. reasons with spaces or slashes)
+// survive intact and can be decoded back at the consumer end.
+//
+// Example output:
+//   https://foo.com/global-components/test/ad-redirect-beacon/outcome/success/auth-hint-object-id/<oid>
 export const buildBeaconUrl = (
   scriptUrl: URL,
   outcome: BeaconOutcome,
   payload: BeaconPayload,
 ): string => {
-  const beaconUrl = new URL("./ad-redirect-beacon", scriptUrl);
-  beaconUrl.searchParams.set("outcome", outcome);
+  const segments = ["ad-redirect-beacon", "outcome", outcome];
   for (const [key, value] of Object.entries(payload)) {
     if (value !== undefined) {
-      beaconUrl.searchParams.set(key, value);
+      segments.push(encodeURIComponent(key), encodeURIComponent(value));
     }
   }
-  return beaconUrl.href;
+  return new URL("./" + segments.join("/"), scriptUrl).href;
 };
 
 // Awaited fetch. keepalive lets the request finish even if the page unloads

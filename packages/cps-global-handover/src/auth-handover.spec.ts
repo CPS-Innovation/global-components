@@ -422,9 +422,9 @@ describe("dispatchHandover", () => {
       );
       expect(beaconCall).toBeDefined();
       const parsed = new URL(String(beaconCall![0]));
-      expect(parsed.pathname).toMatch(/\/ad-redirect-beacon$/);
-      expect(parsed.searchParams.get("outcome")).toBe("success");
-      expect(parsed.searchParams.get("auth-hint-object-id")).toBe("obj-success-123");
+      expect(parsed.pathname).toContain("/ad-redirect-beacon/");
+      expect(parsed.pathname).toContain("/outcome/success");
+      expect(parsed.pathname).toContain("/auth-hint-object-id/obj-success-123");
     });
 
     test("does NOT fire success beacon when SUCCESSES_ENABLED is false (default)", async () => {
@@ -454,7 +454,7 @@ describe("dispatchHandover", () => {
       await dispatchHandover(win, scriptUrl);
 
       const [calledUrl] = mockFetch.mock.calls[0]!;
-      expect(new URL(String(calledUrl)).searchParams.get("auth-hint-object-id")).toBe("unknown");
+      expect(new URL(String(calledUrl)).pathname).toContain("/auth-hint-object-id/unknown");
     });
 
     test("fires failure beacon when FAILURES_ENABLED and authHint fetch returns an objectId", async () => {
@@ -483,8 +483,8 @@ describe("dispatchHandover", () => {
       // Two fetches: authHint lookup + the beacon itself
       expect(mockFetch).toHaveBeenCalledTimes(2);
       const beaconUrl = new URL(String(mockFetch.mock.calls[1]![0]));
-      expect(beaconUrl.searchParams.get("outcome")).toBe("failure");
-      expect(beaconUrl.searchParams.get("auth-hint-object-id")).toBe("obj-failure-456");
+      expect(beaconUrl.pathname).toContain("/outcome/failure");
+      expect(beaconUrl.pathname).toContain("/auth-hint-object-id/obj-failure-456");
     });
 
     test("failure beacon falls back to 'unknown' when authHint fetch fails", async () => {
@@ -500,7 +500,7 @@ describe("dispatchHandover", () => {
       await dispatchHandover(win, scriptUrl);
 
       const beaconUrl = new URL(String(mockFetch.mock.calls[1]![0]));
-      expect(beaconUrl.searchParams.get("auth-hint-object-id")).toBe("unknown");
+      expect(beaconUrl.pathname).toContain("/auth-hint-object-id/unknown");
     });
 
     test("does NOT fire failure beacon when FAILURES_ENABLED is false (default)", async () => {
