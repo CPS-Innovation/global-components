@@ -23,6 +23,11 @@ services:
       - ../config/main/nginx.js:/etc/nginx/nginx.js:ro
       - ../config/main/global-components.conf:/etc/nginx/templates/global-components.conf.template:ro
       - ../dist/global-components.js:/etc/nginx/templates/global-components.js:ro
+      # Test-only conf — exercises the $connection_upgrade `set`/`if` shim
+      # used by the case-locking SignalR proxy blocks. Mounted under a name
+      # matching the `global-components*.conf` include glob in nginx.conf so
+      # it gets loaded without changes to the main config.
+      - ./test-only.upgrade-shim.conf:/etc/nginx/global-components.test-upgrade-shim.conf:ro
       - ./global-components-deployment.mock.json:/etc/nginx/global-components-deployment.json:ro
     depends_on:
       - mock-upstream

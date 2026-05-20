@@ -21,6 +21,7 @@
   "SHOW_MENU": true,
   "SHOW_RECENT_CASES": true,
   "SHOW_MONITORING_CODES": false,
+  "SHOW_NOTIFICATIONS": true,
   "OS_HANDOVER_URL": "https://cps.outsystemsenterprise.com/Casework_Patterns/auth-handover.html?src=https://polaris.cps.gov.uk/global-components/prod/auth-handover.js",
   "RECENT_CASES_NAVIGATE_URL": "https://cps.outsystemsenterprise.com/WorkManagementApp/CaseOverview?CaseId={caseId}",
   "RECENT_CASES_LIST_LENGTH": 5,
@@ -34,7 +35,7 @@
   "BEACON_AD_REDIRECT_SUCCESSES_ENABLED": true,
   "BEACON_AD_REDIRECT_FAILURES_ENABLED": true,
   "SSO_SILENT_DELAY_MS": 2000,
-  "USER_DATA_REFRESH_PERIOD_MINS": 15,
+  "USER_DATA_REFRESH_PERIOD_MINS": 120,
   "PROBE_IFRAME_REFRESH_PERIOD_MINS": 0,
   "PROBE_NAVIGATOR_PERMISSIONS_REFRESH_PERIOD_MINS": 120,
   "CONTEXTS": [

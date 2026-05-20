@@ -624,6 +624,7 @@ export function App() {
                       ["heading", "Heading", "text", n.heading ?? ""],
                       ["from", "From", "text", n.from ?? ""],
                       ["to", "To", "text", n.to ?? ""],
+                      ["urlRegex", "URL regex", "text", n.urlRegex ?? ""],
                     ] as const
                   ).map(([field, label, type, value]) => (
                     <div className="govuk-form-group" key={field}>
