@@ -53,6 +53,11 @@ export const handleMsalEnsureAd = async (
   returnTo: string | null,
   redirectUri: string,
   createInstance: CreateInstance = createMsalInstance,
+  // Reconciled sid (from the dispatcher's reconcileForCascade call). Threaded
+  // straight to the redirect-fallback's loginRedirect so the fallback uses the
+  // same sid hint the dispatcher decided on. Undefined when the dispatcher had
+  // no incoming sid and no active account to derive one from.
+  lastKnownSid?: string,
 ): Promise<HandleMsalEnsureAdOutcome> => {
   if (win.self !== win.top) {
     return "iframe-noop";
@@ -102,6 +107,7 @@ export const handleMsalEnsureAd = async (
     returnTo,
     redirectUri,
     createInstance as unknown as Parameters<typeof handleMsalLogin>[4],
+    lastKnownSid,
   );
   if (loginOutcome === "iframe-noop") {
     return "iframe-noop";
