@@ -22,6 +22,11 @@ export type KnownErrorType =
   // can recover by retrying without the hint; surfacing it as a classified
   // type lets callers branch on it and clear the persisted hint.
   | "StaleSidHint"
+  // The cascade fired loginRedirect this call and the page is about to unload.
+  // Surfaced so analytics can distinguish "redirect outbound leg" (transient,
+  // resolves on bounce-back) from "NoAccountFound" (real terminal failure
+  // with no recovery path). Always paired with no account.
+  | "RedirectInFlight"
   | "Unknown";
 
 export type Auth = {

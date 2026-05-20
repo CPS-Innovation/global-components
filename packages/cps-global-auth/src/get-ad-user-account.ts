@@ -47,15 +47,22 @@ const asError = (value: unknown): Error =>
 
 type AccountRetrievalResult = Promise<AccountInfo | null>;
 
-// Four-state outcome derived at the end of the cascade. "redirect-success" /
-// "redirect-failure" are inferred from the sessionStorage signals set by the
-// termination page (completion id) and by tryLoginAccountViaRedirect itself
-// (in-flight sentinel). See internal/redirect-storage-keys.ts.
+// Five-state outcome derived at the end of the cascade. "redirect-success" /
+// "redirect-failure" / "redirect-initiated" are inferred from the
+// sessionStorage signals set by the termination page (completion id) and by
+// tryLoginAccountViaRedirect itself (in-flight sentinel + the local
+// redirectInitiatedThisCall flag). See internal/redirect-storage-keys.ts.
+//
+// "redirect-initiated" specifically means: this call fired loginRedirect and is
+// about to unload the page. Distinct from "redirect-failure" (which means a
+// PRIOR redirect didn't complete successfully) — surfacing the two separately
+// stops analytics treating the outbound leg of a healthy redirect as a failure.
 export type GetAdUserAccountMechanism =
   | "cache"
   | "silent"
   | "redirect-success"
   | "redirect-failure"
+  | "redirect-initiated"
   | null;
 
 export type GetAdUserAccountResult = {
@@ -113,6 +120,12 @@ export const getAdUserAccount = async ({
   // Set by whichever cascade step produces an account, used to discriminate
   // "cache" vs "silent" when no completion id is present.
   let producedBy: "cache" | "silent" | undefined;
+
+  // Set by tryLoginAccountViaRedirect just before window.location.replace().
+  // Drives the "redirect-initiated" mechanism reported back to the caller so
+  // analytics can distinguish the outbound leg of a redirect (transient, page
+  // about to unload) from a real "no account found" terminal failure.
+  let redirectInitiatedThisCall = false;
 
   const tryAcquireTokenSilently = async (): AccountRetrievalResult => {
     const account = instance.getActiveAccount() || instance.getAllAccounts()[0];
@@ -271,6 +284,12 @@ export const getAdUserAccount = async ({
         HANDOVER_PARAM_KEYS.RETURN_TO,
         window.location.href,
       );
+      // Mark the redirect as initiated BEFORE replace() so the cascade's
+      // deriveMechanism reports "redirect-initiated" rather than null on the
+      // brief window of script execution before the page actually unloads.
+      // If URL construction above had thrown, we'd never reach this and the
+      // catch below would clear the in-flight sentinel.
+      redirectInitiatedThisCall = true;
       // replace, not assign — we don't want the host page entry preserved in
       // history under the auth-handover.html?stage=ad-redirect entry. Hitting
       // back through the auth flow would either re-fire loginRedirect or land
@@ -302,14 +321,19 @@ export const getAdUserAccount = async ({
   // Mechanism precedence: a present completion id (positive signal from the
   // termination page) wins over the producedBy hint, since either way we want
   // analytics to know "this run sat at the back end of a redirect round-trip".
-  // Failure mode: no account AND we either saw the completion id or the
-  // in-flight sentinel was live at entry.
+  // For the account-null branch, "redirect-initiated" (the cascade fired the
+  // redirect this call) takes priority over "redirect-failure" (a prior
+  // redirect didn't complete) — they are mutually exclusive in practice anyway
+  // because the loop guard prevents re-firing while the sentinel is live.
   const deriveMechanism = (): GetAdUserAccountMechanism => {
     if (account && redirectCompletionId) {
       return "redirect-success";
     }
     if (account) {
       return producedBy ?? null;
+    }
+    if (redirectInitiatedThisCall) {
+      return "redirect-initiated";
     }
     if (redirectCompletionId || wasRedirectInFlightAtEntry) {
       return "redirect-failure";

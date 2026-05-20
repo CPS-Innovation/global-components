@@ -32,6 +32,10 @@ export type KnownErrorType =
   | "PostRequestFailed"
   | "NoNetworkConnectivity"
   | "StaleSidHint"
+  // The cascade fired loginRedirect this call and the page is about to unload.
+  // Distinct from "NoAccountFound" so analytics doesn't treat the outbound
+  // leg of a healthy redirect round-trip as a terminal auth failure.
+  | "RedirectInFlight"
   | "Unknown";
 
 export type FailedAuth = {

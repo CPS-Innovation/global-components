@@ -391,5 +391,49 @@ describe("get-ad-user-account", () => {
       expect(result.mechanism).toBeNull();
       expect(result.redirectCompletionId).toBeUndefined();
     });
+
+    it("returns mechanism 'redirect-initiated' on the outbound leg — useFullPageRedirect fired loginRedirect this call", async () => {
+      // No cache, no completion id, no prior in-flight sentinel. The cascade's
+      // tryLoginAccountViaRedirect step sets the sentinel itself and calls
+      // window.location.replace(). The cascade returns null because nothing
+      // produced an account in this script context — but analytics needs to
+      // distinguish "I just fired the redirect" from "no account at all".
+      (mockInstance.getActiveAccount as jest.Mock).mockReturnValue(null);
+      (mockInstance.getAllAccounts as jest.Mock).mockReturnValue([]);
+
+      const result = await getAdUserAccount({
+        ...defaultProps,
+        useFullPageRedirect: true,
+      });
+
+      expect(result.account).toBeNull();
+      expect(result.mechanism).toBe("redirect-initiated");
+      expect(result.redirectCompletionId).toBeUndefined();
+      // Sanity: replace() was actually called — the mechanism shouldn't fire
+      // if URL construction had thrown before navigation.
+      expect(replaceSpy).toHaveBeenCalledTimes(1);
+    });
+
+    it("'redirect-initiated' takes priority over 'redirect-failure' on a fresh load that fires a new redirect", async () => {
+      // Pathological but possible: a prior round-trip's in-flight sentinel
+      // expired (>30s) and we're on a fresh attempt that's about to fire
+      // loginRedirect. The expired sentinel should be ignored (it isn't
+      // "live at entry" — wasRedirectInFlightAtEntry is false past 30s), and
+      // the new initiation should produce "redirect-initiated".
+      window.sessionStorage.setItem(
+        "cps_global_components_msal_redirect_in_flight_at",
+        String(Date.now() - 60_000),
+      );
+      (mockInstance.getActiveAccount as jest.Mock).mockReturnValue(null);
+      (mockInstance.getAllAccounts as jest.Mock).mockReturnValue([]);
+
+      const result = await getAdUserAccount({
+        ...defaultProps,
+        useFullPageRedirect: true,
+      });
+
+      expect(result.account).toBeNull();
+      expect(result.mechanism).toBe("redirect-initiated");
+    });
   });
 });
