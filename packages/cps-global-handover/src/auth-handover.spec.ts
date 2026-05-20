@@ -5,7 +5,6 @@ jest.mock("cps-global-auth", () => ({
   handleMsalLogin: jest.fn(),
   handleMsalTermination: jest.fn(),
   handleMsalEnsureAd: jest.fn(),
-  reconcileForCascade: jest.fn(),
   // resolveReturnTo is a pure helper — keep its real implementation so the
   // mediator's same-origin validation actually runs in tests.
   resolveReturnTo: jest.requireActual<typeof import("cps-global-auth")>("cps-global-auth").resolveReturnTo,
@@ -34,7 +33,6 @@ import {
   handleMsalEnsureAd,
   handleMsalLogin,
   handleMsalTermination,
-  reconcileForCascade,
 } from "cps-global-auth";
 import {
   handleOsCookieReturn,
@@ -59,9 +57,6 @@ const mockHandleOsTokenReturn = handleOsTokenReturn as jest.MockedFunction<
 const mockHandleMsalEnsureAd = handleMsalEnsureAd as jest.MockedFunction<
   typeof handleMsalEnsureAd
 >;
-const mockReconcileForCascade = reconcileForCascade as jest.MockedFunction<
-  typeof reconcileForCascade
->;
 
 const cmsAuthStorageKeys: CmsAuthStorageKeys = {
   WMA_JSON: "wma-json",
@@ -79,6 +74,7 @@ const cmsAuthStorageKeys: CmsAuthStorageKeys = {
 const config = {
   AD_CLIENT_ID: "client-id",
   AD_TENANT_AUTHORITY: "https://login.microsoftonline.com/tenant",
+  AD_GATEWAY_SCOPES: ["User.Read"],
   CMS_AUTH_STORAGE_KEYS: cmsAuthStorageKeys,
   FEATURE_FLAG_USE_MSAL_FULL_REDIRECT_USERS: { generallyAvailable: true },
 } as Config;
@@ -116,9 +112,6 @@ describe("dispatchHandover", () => {
       target: "https://example.com/target",
     });
     mockHandleMsalEnsureAd.mockResolvedValue("silent-success");
-    // Default reconcile to "no sid resolved" — most tests don't care about the
-    // identity reconciliation; tests that do override.
-    mockReconcileForCascade.mockResolvedValue(null);
     // dispatchHandover fetches config internally; default it to the test config.
     mockFetchConfig.mockResolvedValue({
       ok: true,
@@ -213,8 +206,7 @@ describe("dispatchHandover", () => {
         "https://example.com/deep/link",
         // stage swapped to ad-redirect for the AAD bounce-back routing, src preserved.
         "https://cps-tst.outsystemsenterprise.com/Casework_Patterns/auth-handover.html?src=https%3A%2F%2Fpolaris.example%2Fauth-handover.js&stage=ad-redirect",
-        undefined, // createInstance — default factory
-        undefined, // reconciledSid — reconcile mocked to return null in beforeEach
+        ["User.Read"],
       );
     });
 
@@ -267,8 +259,7 @@ describe("dispatchHandover", () => {
         expect.any(Object),
         null,
         expect.any(String),
-        undefined,
-        undefined,
+        ["User.Read"],
       );
     });
   });
@@ -302,8 +293,6 @@ describe("dispatchHandover", () => {
 
       expect(mockHandleMsalLogin).toHaveBeenCalledTimes(1);
       // redirectUri should keep ?src= and ?stage= but strip returnTo and any hash.
-      // Trailing args: createInstance (defaults), lastKnownSid (undefined here —
-      // the authHint fetch is unmocked so resolves not-found).
       expect(mockHandleMsalLogin).toHaveBeenCalledWith(
         win,
         {
@@ -312,8 +301,7 @@ describe("dispatchHandover", () => {
         },
         returnTo,
         "https://cps-tst.outsystemsenterprise.com/Casework_Patterns/auth-handover.html?src=https%3A%2F%2Fpolaris.example%2Fauth-handover.js&stage=ad-redirect",
-        undefined,
-        undefined,
+        ["User.Read"],
       );
       expect(mockHandleMsalTermination).not.toHaveBeenCalled();
     });
@@ -341,8 +329,7 @@ describe("dispatchHandover", () => {
         expect.any(Object),
         null,
         expect.any(String),
-        undefined,
-        undefined,
+        ["User.Read"],
       );
     });
 
@@ -647,190 +634,6 @@ describe("dispatchHandover", () => {
       await dispatchHandover(win, scriptUrl);
 
       expect(mockHandleMsalEnsureAd).toHaveBeenCalledTimes(1);
-    });
-  });
-
-  describe("identity reconciliation (reconcileForCascade)", () => {
-    // Reconcile aligns active-account state in localStorage with the incoming
-    // sid before either silent or login fires, and returns the sid to use as
-    // the login hint. Lifted to the dispatcher so AD_REDIRECT host-initiated
-    // and ENSURE_AD share a single identity-resolution policy.
-
-    test("AD_REDIRECT host-initiated: calls reconcileForCascade with the authHint and threads the result to handleMsalLogin", async () => {
-      mockFetch.mockImplementation(async (input: unknown) => {
-        const url = String(input);
-        if (url.includes("/state/auth-hint")) {
-          return {
-            ok: true,
-            json: async () => ({
-              authResult: {
-                isAuthed: true,
-                username: "user@example.com",
-                objectId: "oid-1",
-                groups: [],
-              },
-              timestamp: 1,
-              lastKnownSid: "sid-from-hint",
-            }),
-          } as never;
-        }
-        return { ok: false, status: 404, statusText: "Not Found" } as never;
-      });
-      mockReconcileForCascade.mockResolvedValue("sid-from-hint");
-      const win = makeWindow(
-        "https://cps-tst.outsystemsenterprise.com/Casework_Patterns/auth-handover.html?src=x&stage=ad-redirect&returnTo=https%3A%2F%2Fexample.com%2Fhome",
-      );
-
-      await dispatchHandover(win, scriptUrl);
-
-      expect(mockReconcileForCascade).toHaveBeenCalledTimes(1);
-      expect(mockReconcileForCascade).toHaveBeenCalledWith({
-        msalConfig: {
-          clientId: "client-id",
-          authority: "https://login.microsoftonline.com/tenant",
-        },
-        redirectUri:
-          "https://cps-tst.outsystemsenterprise.com/Casework_Patterns/auth-handover.html?src=x&stage=ad-redirect",
-        authHint: {
-          found: true,
-          result: {
-            authResult: {
-              isAuthed: true,
-              username: "user@example.com",
-              objectId: "oid-1",
-              groups: [],
-            },
-            timestamp: 1,
-            lastKnownSid: "sid-from-hint",
-          },
-        },
-      });
-      // Reconciled sid is threaded as the lastKnownSid arg to handleMsalLogin.
-      expect(mockHandleMsalLogin).toHaveBeenCalledWith(
-        win,
-        expect.any(Object),
-        expect.any(String),
-        expect.any(String),
-        undefined,
-        "sid-from-hint",
-      );
-    });
-
-    test("AD_REDIRECT host-initiated: passes a not-found authHint to reconcile when the authHint fetch fails", async () => {
-      mockFetch.mockResolvedValue({
-        ok: false,
-        status: 404,
-        statusText: "Not Found",
-      } as never);
-      const win = makeWindow(
-        "https://cps-tst.outsystemsenterprise.com/Casework_Patterns/auth-handover.html?src=x&stage=ad-redirect",
-      );
-
-      await dispatchHandover(win, scriptUrl);
-
-      expect(mockReconcileForCascade).toHaveBeenCalledWith(
-        expect.objectContaining({
-          authHint: expect.objectContaining({ found: false }),
-        }),
-      );
-    });
-
-    test("AD_REDIRECT host-initiated: when reconcile returns null (no sid resolved), handleMsalLogin gets undefined as the lastKnownSid arg", async () => {
-      mockReconcileForCascade.mockResolvedValue(null);
-      const win = makeWindow(
-        "https://cps-tst.outsystemsenterprise.com/Casework_Patterns/auth-handover.html?src=x&stage=ad-redirect",
-      );
-
-      await dispatchHandover(win, scriptUrl);
-
-      expect(mockHandleMsalLogin).toHaveBeenCalledWith(
-        win,
-        expect.any(Object),
-        null,
-        expect.any(String),
-        undefined,
-        undefined,
-      );
-    });
-
-    test("AD_REDIRECT bounce-back (hash present): does NOT call reconcileForCascade — termination owns active-account state", async () => {
-      const win = makeWindow(
-        "https://cps-tst.outsystemsenterprise.com/Casework_Patterns/auth-handover.html?src=x&stage=ad-redirect#code=abc&state=xyz",
-      );
-
-      await dispatchHandover(win, scriptUrl);
-
-      expect(mockReconcileForCascade).not.toHaveBeenCalled();
-      expect(mockHandleMsalTermination).toHaveBeenCalledTimes(1);
-    });
-
-    test("ENSURE_AD: calls reconcileForCascade with the authHint and threads the result to handleMsalEnsureAd", async () => {
-      mockFetch.mockImplementation(async (input: unknown) => {
-        const url = String(input);
-        if (url.includes("/state/auth-hint")) {
-          return {
-            ok: true,
-            json: async () => ({
-              authResult: {
-                isAuthed: true,
-                username: "user@example.com",
-                objectId: "oid-1",
-                groups: [],
-              },
-              timestamp: 1,
-              lastKnownSid: "sid-ensure-ad",
-            }),
-          } as never;
-        }
-        return { ok: false, status: 404, statusText: "Not Found" } as never;
-      });
-      mockReconcileForCascade.mockResolvedValue("sid-ensure-ad");
-      const win = makeWindow(
-        "https://cps-tst.outsystemsenterprise.com/Casework_Patterns/auth-handover.html?src=x&stage=ensure-ad&returnTo=https%3A%2F%2Fexample.com%2Ftarget",
-      );
-
-      await dispatchHandover(win, scriptUrl);
-
-      expect(mockReconcileForCascade).toHaveBeenCalledWith({
-        msalConfig: {
-          clientId: "client-id",
-          authority: "https://login.microsoftonline.com/tenant",
-        },
-        redirectUri:
-          "https://cps-tst.outsystemsenterprise.com/Casework_Patterns/auth-handover.html?src=x&stage=ad-redirect",
-        authHint: {
-          found: true,
-          result: {
-            authResult: {
-              isAuthed: true,
-              username: "user@example.com",
-              objectId: "oid-1",
-              groups: [],
-            },
-            timestamp: 1,
-            lastKnownSid: "sid-ensure-ad",
-          },
-        },
-      });
-      expect(mockHandleMsalEnsureAd).toHaveBeenCalledWith(
-        win,
-        expect.any(Object),
-        expect.any(String),
-        expect.any(String),
-        undefined,
-        "sid-ensure-ad",
-      );
-    });
-
-    test("ENSURE_AD: when FF is off, reconcile is NOT called (gated by the bucket check)", async () => {
-      withConfigOverrides({ FEATURE_FLAG_USE_MSAL_FULL_REDIRECT_USERS: undefined });
-      const win = makeWindow(
-        "https://cps-tst.outsystemsenterprise.com/Casework_Patterns/auth-handover.html?src=x&stage=ensure-ad&returnTo=https%3A%2F%2Fcps-tst.outsystemsenterprise.com%2Fhome",
-      );
-
-      await dispatchHandover(win, scriptUrl);
-
-      expect(mockReconcileForCascade).not.toHaveBeenCalled();
     });
   });
 

@@ -29,6 +29,7 @@ type MsalConfig = {
 type SilentMsalLikeInstance = {
   getActiveAccount: () => AccountInfo | null;
   getAllAccounts: () => AccountInfo[];
+  setActiveAccount: (account: AccountInfo | null) => void;
   acquireTokenSilent: (request: {
     scopes: string[];
     account: AccountInfo;
@@ -45,19 +46,16 @@ export type HandleMsalEnsureAdOutcome =
   | "redirect-initiated"
   | "redirect-initiation-failed";
 
-const loginRequest = { scopes: ["User.Read"] };
-
 export const handleMsalEnsureAd = async (
   win: Window,
   msalConfig: MsalConfig,
   returnTo: string | null,
   redirectUri: string,
+  // Scopes to ask AAD for. Sourced from config.AD_GATEWAY_SCOPES so the cached
+  // token shares an entry with the gateway token-fetch. Empty array → MSAL
+  // falls back to OIDC defaults (no access-token cache short-circuit).
+  scopes: string[],
   createInstance: CreateInstance = createMsalInstance,
-  // Reconciled sid (from the dispatcher's reconcileForCascade call). Threaded
-  // straight to the redirect-fallback's loginRedirect so the fallback uses the
-  // same sid hint the dispatcher decided on. Undefined when the dispatcher had
-  // no incoming sid and no active account to derive one from.
-  lastKnownSid?: string,
 ): Promise<HandleMsalEnsureAdOutcome> => {
   if (win.self !== win.top) {
     return "iframe-noop";
@@ -73,11 +71,17 @@ export const handleMsalEnsureAd = async (
   // mediator route the user on to returnTo.
   try {
     const instance = await createInstance({ ...msalConfig, redirectUri });
-    const account =
-      instance.getActiveAccount() ?? instance.getAllAccounts()[0] ?? null;
+    // Active account is the contract. No getAllAccounts()[0] fallback —
+    // see get-ad-user-account.ts for the rationale (insertion-order [0] picks
+    // are unsafe in multi-account scenarios). If active is null, fall through
+    // to redirect.
+    const account = instance.getActiveAccount();
     if (account) {
       try {
-        await instance.acquireTokenSilent({ ...loginRequest, account });
+        await instance.acquireTokenSilent({ scopes, account });
+        // Lock the invariant in even though MSAL was already using this
+        // account — defensive against any code clearing active elsewhere.
+        instance.setActiveAccount(account);
         console.log("[CPS-GLOBAL-AUTH] handleMsalEnsureAd silent-success");
         return "silent-success";
       } catch (err) {
@@ -89,7 +93,7 @@ export const handleMsalEnsureAd = async (
       }
     } else {
       console.log(
-        "[CPS-GLOBAL-AUTH] handleMsalEnsureAd no cached account, falling through to redirect",
+        "[CPS-GLOBAL-AUTH] handleMsalEnsureAd no active account, falling through to redirect",
       );
     }
   } catch (err) {
@@ -106,8 +110,8 @@ export const handleMsalEnsureAd = async (
     msalConfig,
     returnTo,
     redirectUri,
-    createInstance as unknown as Parameters<typeof handleMsalLogin>[4],
-    lastKnownSid,
+    scopes,
+    createInstance as unknown as Parameters<typeof handleMsalLogin>[5],
   );
   if (loginOutcome === "iframe-noop") {
     return "iframe-noop";

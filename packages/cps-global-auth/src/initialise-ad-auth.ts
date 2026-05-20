@@ -6,7 +6,6 @@ import { getErrorType } from "./get-error-type";
 import { getTokenFactory } from "./get-token-factory";
 import { GetToken } from "./GetToken";
 import { LogError } from "./LogError";
-import type { SilentFlowDiagnostic } from "./silent-flow-diagnostic";
 
 // Structural shapes — narrow to just the bits we actually read. Lets the auth
 // library accept anything satisfying these without depending on the host's
@@ -15,6 +14,9 @@ type AdAuthConfig = {
   AD_TENANT_AUTHORITY?: string;
   AD_CLIENT_ID?: string;
   SSO_SILENT_DELAY_MS?: number;
+  // Scopes used on every MSAL call (silent, redirect, gateway token). Always
+  // an array; the schema defaults to [] when not configured.
+  AD_GATEWAY_SCOPES: string[];
 };
 
 type AdAuthContext = {
@@ -29,16 +31,11 @@ type Props = {
   // console-log AND telemetry tracking (e.g. trackException to App Insights).
   // The library hands every error it surfaces through this one hook.
   logError: LogError;
-  addSilentFlowDiagnostics?: (entry: SilentFlowDiagnostic) => void;
-  getOperationId?: () => string | undefined;
   // Whether to swap the silent/popup cascade for an acquireTokenSilent →
   // loginRedirect cascade. Resolved by the host's feature-flag layer; the auth
   // library treats it as an opaque on/off and stays agnostic of how it is set.
   useFullPageRedirect?: boolean;
   window: Window;
-  // Last-known AAD session id from AuthHint.lastKnownSid. Replayed by the
-  // silent step to skip the account picker / re-prompt under a live session.
-  lastKnownSid?: string;
 };
 
 export type InitialiseAdAuthResult = {
@@ -46,8 +43,9 @@ export type InitialiseAdAuthResult = {
   getToken: GetToken;
   // Current AAD session id, extracted from the freshly-acquired account's
   // idTokenClaims.sid. Surfaced so the host can persist it as
-  // AuthHint.lastKnownSid for replay on the next ssoSilent / loginRedirect.
-  // Absent when the AAD tenant doesn't emit sid, or when auth failed.
+  // AuthHint.lastKnownSid. The hint is currently in deep-freeze (not read for
+  // MSAL hint plumbing) but kept fresh in state so we can reactivate use of
+  // it without a backfill if needed.
   lastKnownSid?: string;
 };
 
@@ -71,14 +69,12 @@ export const initialiseAdAuth = async ({
     AD_TENANT_AUTHORITY: authority,
     AD_CLIENT_ID: clientId,
     SSO_SILENT_DELAY_MS,
+    AD_GATEWAY_SCOPES,
   },
   context: { msalRedirectUrl: redirectUri, currentHref },
   logError,
-  addSilentFlowDiagnostics,
-  getOperationId,
   useFullPageRedirect,
   window,
-  lastKnownSid,
 }: Props): Promise<InitialiseAdAuthResult> => {
   if (!(authority && clientId && redirectUri && currentHref)) {
     return failedAuth(
@@ -106,13 +102,11 @@ export const initialiseAdAuth = async ({
     const { account, mechanism } = await getAdUserAccount({
       instance,
       config: { SSO_SILENT_DELAY_MS },
-      addSilentFlowDiagnostics,
-      getOperationId,
       logError,
       useFullPageRedirect,
       window,
       msalRedirectUrl: redirectUri,
-      lastKnownSid,
+      scopes: AD_GATEWAY_SCOPES,
     });
     if (!account) {
       // Distinguish the outbound leg of a redirect (transient — page about to

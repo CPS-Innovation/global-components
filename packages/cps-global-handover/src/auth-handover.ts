@@ -29,7 +29,6 @@ import {
   handleMsalEnsureAd,
   handleMsalLogin,
   handleMsalTermination,
-  reconcileForCascade,
   resolveReturnTo,
 } from "cps-global-auth";
 import {
@@ -198,22 +197,12 @@ const runEnsureAd = async (
   url.hash = "";
   const redirectUri = url.href;
 
-  // Align active-account state with the incoming sid before either silent or
-  // login fires. Resolved sid threads downstream to handleMsalEnsureAd's login
-  // fallback so the cascade and the redirect agree on identity.
-  const reconciledSid = await reconcileForCascade({
-    msalConfig,
-    redirectUri,
-    authHint,
-  });
-
   const outcome = await handleMsalEnsureAd(
     win,
     msalConfig,
     returnTo,
     redirectUri,
-    undefined, // createInstance — use default factory
-    reconciledSid ?? undefined,
+    config.AD_GATEWAY_SCOPES,
   );
   if (outcome === "silent-success") {
     // Silent path. Mediator owns this navigation; same-origin validated.
@@ -365,28 +354,12 @@ export const dispatchHandover = async (
       url.searchParams.delete(HANDOVER_PARAM_KEYS.RETURN_TO);
       url.hash = "";
       const redirectUri = url.href;
-      // Pull the persisted auth-hint, then reconcile active-account state in
-      // localStorage so a subsequent host-side cascade lines up with the
-      // identity we're about to log in. Reconcile returns the sid we should
-      // hand to loginRedirect — incoming sid (from authHint) wins, else
-      // falls back to active account's snapshotted sid, else null.
-      // Stale-sid handling is best-effort: we can't retry inline because
-      // loginRedirect navigates away — a 160021 response would surface on
-      // the bounce-back as a handled-with-error termination and the next
-      // host-side write-back would drop the bad hint.
-      const authHintForLogin = await tryFetchAuthHint(scriptUrl);
-      const reconciledSid = await reconcileForCascade({
-        msalConfig,
-        redirectUri,
-        authHint: authHintForLogin,
-      });
       await handleMsalLogin(
         win,
         msalConfig,
         params.get(HANDOVER_PARAM_KEYS.RETURN_TO),
         redirectUri,
-        undefined, // createInstance — use default factory
-        reconciledSid ?? undefined,
+        config.AD_GATEWAY_SCOPES,
       );
       return;
     }

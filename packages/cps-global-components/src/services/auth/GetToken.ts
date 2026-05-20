@@ -3,4 +3,4 @@
 // at the call boundary without an explicit import dependency on the library's
 // type.
 
-export type GetToken = ({ config: { AD_GATEWAY_SCOPE } }: { config: { AD_GATEWAY_SCOPE: string | undefined } }) => Promise<string | null>;
+export type GetToken = ({ config: { AD_GATEWAY_SCOPES } }: { config: { AD_GATEWAY_SCOPES: string[] } }) => Promise<string | null>;

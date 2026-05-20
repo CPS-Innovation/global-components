@@ -2,7 +2,6 @@ import { ApplicationFlags, AuthHint, AuthResult, Config, FailedAuth, FEATURE_FLA
 import { initialiseAdAuth } from "cps-global-auth";
 import { GetToken } from "./GetToken";
 import { initialiseMockAuth } from "./initialise-mock-auth";
-import type { SilentFlowDiagnostic, SilentFlowDiagnostics } from "../diagnostics/silent-flow-diagnostics";
 import { TrackException } from "../analytics/TrackException";
 import { Result } from "../../utils/Result";
 import { SetAuthHint } from "../state/auth-hint/initialise-auth-hint";
@@ -10,8 +9,6 @@ import { makeConsole } from "../../logging/makeConsole";
 
 type Register = (arg: { auth: AuthResult }) => void;
 type RegisterAuthWithAnalytics = (auth: AuthResult) => void;
-type AddSilentFlowDiagnostics = (entry: SilentFlowDiagnostic) => void;
-type GetOperationId = () => string | undefined;
 
 type Props = {
   config: Config;
@@ -22,9 +19,6 @@ type Props = {
   authHint: Result<AuthHint>;
   flags: ApplicationFlags;
   trackException: TrackException;
-  silentFlowDiagnostics?: SilentFlowDiagnostics;
-  addSilentFlowDiagnostics?: AddSilentFlowDiagnostics;
-  getOperationId?: GetOperationId;
   register: Register;
   registerAuthWithAnalytics: RegisterAuthWithAnalytics;
   setAuthHint: SetAuthHint;
@@ -50,9 +44,6 @@ export const initialiseAuth = ({
   authHint,
   flags,
   trackException,
-  silentFlowDiagnostics,
-  addSilentFlowDiagnostics,
-  getOperationId,
   register,
   registerAuthWithAnalytics,
   setAuthHint,
@@ -74,12 +65,7 @@ export const initialiseAuth = ({
     _error(...data);
     const error = data.find(d => d instanceof Error) as Error | undefined;
     if (error) {
-      trackException(error, {
-        type: "auth",
-        properties: {
-          ...(silentFlowDiagnostics && { silentFlowDiagnostics }),
-        },
-      });
+      trackException(error, { type: "auth" });
     }
   };
 
@@ -96,7 +82,7 @@ export const initialiseAuth = ({
         ? noAuthResult
         : isE2e
           ? initialiseMockAuth({ flags })
-          : initialiseAdAuth({ config, context, logError, addSilentFlowDiagnostics, getOperationId, useFullPageRedirect, window, lastKnownSid: authHint.found ? authHint.result.lastKnownSid : undefined });
+          : initialiseAdAuth({ config, context, logError, useFullPageRedirect, window });
 
     authInFlight = doAuth()
       .then(result => {
