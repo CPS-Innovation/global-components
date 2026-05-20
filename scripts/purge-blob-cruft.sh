@@ -37,9 +37,8 @@ fi
 # Root-level files (exact match):
 #   global-components.js, global-components.js.map
 #   cps-global-components.js            (redirect stub)
+#   auth-handover.html                  (handover dispatcher entry HTML)
 #   auth-handover.js, auth-handover.js.map
-#   global-components-msal-redirect.html (silent-MSAL same-origin termination page)
-#   msal-redirect.js, msal-redirect.js.map (IIFE bundle loaded by the termination page)
 #   probe-iframe-load.html              (LNA diagnostic probe page)
 #   config.json                         (required)
 #   notification.json                   (optional; kept if present)
@@ -51,9 +50,8 @@ is_kept() {
   case "$1" in
     global-components.js|global-components.js.map) return 0 ;;
     cps-global-components.js) return 0 ;;
+    auth-handover.html) return 0 ;;
     auth-handover.js|auth-handover.js.map) return 0 ;;
-    global-components-msal-redirect.html) return 0 ;;
-    msal-redirect.js|msal-redirect.js.map) return 0 ;;
     probe-iframe-load.html) return 0 ;;
     config.json|notification.json) return 0 ;;
     preview/index.html|accessibility/index.html) return 0 ;;
