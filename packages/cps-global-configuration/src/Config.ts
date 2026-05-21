@@ -190,6 +190,12 @@ export const configBaseSchema = z.object({
   // so success / failure can be enabled / disabled independently.
   BEACON_AD_REDIRECT_SUCCESSES_ENABLED: z.boolean().optional(),
   BEACON_AD_REDIRECT_FAILURES_ENABLED: z.boolean().optional(),
+  // Broad on/off for the OutSystems Triage XHR observation shim. The shim
+  // also installs when the per-user preview flag is set, so flipping this off
+  // disables observation for everyone except preview-flag opt-ins (which is
+  // what we want: ops can cut the feature instantly while engineers can still
+  // exercise it in a "should-be-off" state).
+  OS_TRIAGE_REQUEST_OBSERVATION_ENABLED: z.boolean().optional(),
   SSO_SILENT_DELAY_MS: z.number().optional(),
   CACHE_CONFIG: cacheConfigSchema.optional(),
   FETCH_CIRCUIT_BREAKER_CONFIG: fetchCircuitBreakerConfigSchema.optional(),

@@ -77,8 +77,6 @@ const initialise = async (window: Window & typeof globalThis) => {
       initialiseConfig({ rootUrl, flags, register }),
     ]);
 
-    initialiseRequestObservationShim({ window, preview });
-
     initialiseOutSystemsReconcileAuth({ window, flags, config });
 
     const { initialiseCaseLockingForContext, witnessAreaSubscriber } = initialiseCaseLocking({ window, config, preview, register });
@@ -113,6 +111,8 @@ const initialise = async (window: Window & typeof globalThis) => {
       userDataHint,
     });
     trackException = _trackException;
+
+    initialiseRequestObservationShim({ window, config, preview, trackEvent });
 
     initialiseDiagnostics({ window, rootUrl, config, flags, trackEvent });
 
