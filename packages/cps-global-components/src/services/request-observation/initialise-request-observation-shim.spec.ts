@@ -87,6 +87,26 @@ describe("initialiseRequestObservationShim", () => {
 
       expect(FakeXHR.prototype.send).not.toBe(original);
     });
+
+    it("does not throw and leaves the prototype intact when XHR.prototype is locked", () => {
+      const { FakeXHR } = makeFakeXHR();
+      const originalOpen = FakeXHR.prototype.open;
+      const originalSend = FakeXHR.prototype.send;
+      Object.defineProperty(FakeXHR.prototype, "open", { value: originalOpen, writable: false, configurable: false });
+      Object.defineProperty(FakeXHR.prototype, "send", { value: originalSend, writable: false, configurable: false });
+      const window = makeFakeWindow(ACTIVATION_URL, "?CaseId=1", FakeXHR);
+      const trackEvent = jest.fn();
+
+      expect(() => initialiseRequestObservationShim({ window, config: configOn, preview: previewOn, trackEvent })).not.toThrow();
+
+      expect(FakeXHR.prototype.open).toBe(originalOpen);
+      expect(FakeXHR.prototype.send).toBe(originalSend);
+
+      const xhr: any = new FakeXHR();
+      xhr.open("POST", LISTEN_URL);
+      xhr.send(JSON.stringify({ inputParameters: { IsCPSD: true } }));
+      expect(trackEvent).not.toHaveBeenCalled();
+    });
   });
 
   describe("when shim is installed", () => {

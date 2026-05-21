@@ -59,7 +59,7 @@ export const initialiseRequestObservationShim = ({
   const originalSend = XHR.prototype.send as (...args: any[]) => void;
 
   // Use `function` (not arrow) so `this` is the XHR instance.
-  XHR.prototype.open = function (this: XMLHttpRequest, method: string, url: string | URL, ...rest: any[]) {
+  const patchedOpen = function (this: XMLHttpRequest, method: string, url: string | URL, ...rest: any[]) {
     try {
       observed.set(this, { method: String(method ?? "").toUpperCase(), url: String(url) });
     } catch {
@@ -68,7 +68,7 @@ export const initialiseRequestObservationShim = ({
     return originalOpen.apply(this, [method, url, ...rest]);
   };
 
-  XHR.prototype.send = function (this: XMLHttpRequest, body?: Document | XMLHttpRequestBodyInit | null) {
+  const patchedSend = function (this: XMLHttpRequest, body?: Document | XMLHttpRequestBodyInit | null) {
     try {
       const entry = observed.get(this);
       if (entry?.method === "POST" && LISTEN_URL_REGEX.test(entry.url)) {
@@ -79,6 +79,26 @@ export const initialiseRequestObservationShim = ({
     }
     return originalSend.apply(this, [body]);
   };
+
+  // Prototype assignment can throw if a host instrumentation has sealed the
+  // prototype or marked open/send as non-writable. If that happens we bail out
+  // and roll back any half-install, rather than letting the error propagate
+  // up to global-script's init catch and marking the whole bundle as broken.
+  try {
+    XHR.prototype.open = patchedOpen;
+    XHR.prototype.send = patchedSend;
+  } catch (err) {
+    _warn("XHR prototype is not writable; shim not installed", err);
+    try {
+      if (XHR.prototype.open === patchedOpen) {
+        XHR.prototype.open = originalOpen;
+      }
+    } catch {
+      // prototype locked both ways — our patchedOpen is a strict delegate so
+      // leaving it in place is functionally identical to the native method
+    }
+    return;
+  }
 
   _log("XHR shim installed on", window.location.href);
 };
