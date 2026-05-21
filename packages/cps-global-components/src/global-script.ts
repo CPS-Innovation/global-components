@@ -13,6 +13,7 @@ import { initialiseCaseDetailsData } from "./services/data/initialise-case-detai
 import { initialiseCorrelationIds } from "./services/correlation/initialise-correlation-ids";
 import { initialiseRootUrl } from "./services/root-url/initialise-root-url";
 import { initialisePreview } from "./services/state/preview/initialise-preview";
+import { initialiseRequestObservationShim } from "./services/request-observation/initialise-request-observation-shim";
 import { initialiseNotifications } from "./services/notifications/initialise-notifications";
 import { handlers } from "./services/handlers/handlers";
 import { initialiseRecentCases } from "./services/state/recent-cases/initialise-recent-cases";
@@ -75,6 +76,8 @@ const initialise = async (window: Window & typeof globalThis) => {
       initialiseCmsSessionHint({ rootUrl, flags, register }),
       initialiseConfig({ rootUrl, flags, register }),
     ]);
+
+    initialiseRequestObservationShim({ window, preview });
 
     initialiseOutSystemsReconcileAuth({ window, flags, config });
 
