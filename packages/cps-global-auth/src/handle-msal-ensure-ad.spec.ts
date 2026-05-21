@@ -65,6 +65,7 @@ describe("handleMsalEnsureAd", () => {
       { clientId: "c", authority: "a" },
       "https://example.com/target",
       "https://example.com/global-components/test/auth-handover.html?src=x&stage=ad-redirect",
+      ["User.Read"],
       createInstance,
     );
 
@@ -72,12 +73,10 @@ describe("handleMsalEnsureAd", () => {
     expect(createInstance).not.toHaveBeenCalled();
   });
 
-  it("navigates to validated returnTo on silent success and never calls loginRedirect", async () => {
+  it("returns 'silent-success' when acquireTokenSilent resolves; never calls loginRedirect", async () => {
     const acquireTokenSilent = jest.fn().mockResolvedValue({ account });
     const loginRedirect = jest.fn();
     const createInstance = jest.fn().mockResolvedValue({
-      getActiveAccount: () => account,
-      getAllAccounts: () => [account],
       acquireTokenSilent,
       loginRedirect,
     });
@@ -88,13 +87,12 @@ describe("handleMsalEnsureAd", () => {
       { clientId: "c", authority: "a" },
       "https://example.com/target/page",
       "https://example.com/global-components/test/auth-handover.html?src=x&stage=ad-redirect",
+      ["User.Read"],
       createInstance,
     );
 
     expect(result).toBe("silent-success");
-    expect(acquireTokenSilent).toHaveBeenCalledWith(
-      expect.objectContaining({ scopes: ["User.Read"], account }),
-    );
+    expect(acquireTokenSilent).toHaveBeenCalledWith({ scopes: ["User.Read"] });
     expect(loginRedirect).not.toHaveBeenCalled();
     // No direct navigation — the mediator (caller) routes the user onward.
     expect((win.location as any).replace).not.toHaveBeenCalled();
@@ -103,8 +101,6 @@ describe("handleMsalEnsureAd", () => {
   it("returns 'silent-success' even with a cross-origin returnTo (caller is responsible for same-origin validation)", async () => {
     const acquireTokenSilent = jest.fn().mockResolvedValue({ account });
     const createInstance = jest.fn().mockResolvedValue({
-      getActiveAccount: () => account,
-      getAllAccounts: () => [account],
       acquireTokenSilent,
       loginRedirect: jest.fn(),
     });
@@ -115,6 +111,7 @@ describe("handleMsalEnsureAd", () => {
       { clientId: "c", authority: "a" },
       "https://evil.example.org/phish",
       "https://example.com/global-components/test/auth-handover.html?src=x&stage=ad-redirect",
+      ["User.Read"],
       createInstance,
     );
 
@@ -122,12 +119,10 @@ describe("handleMsalEnsureAd", () => {
     expect((win.location as any).replace).not.toHaveBeenCalled();
   });
 
-  it("falls through to loginRedirect when there is no cached account", async () => {
-    const acquireTokenSilent = jest.fn();
+  it("falls through to loginRedirect when acquireTokenSilent rejects (no_account_error, expired refresh token, etc.)", async () => {
+    const acquireTokenSilent = jest.fn().mockRejectedValue(new Error("no_account_error"));
     const loginRedirect = jest.fn().mockResolvedValue(undefined);
     const createInstance = jest.fn().mockResolvedValue({
-      getActiveAccount: () => null,
-      getAllAccounts: () => [],
       acquireTokenSilent,
       loginRedirect,
     });
@@ -137,46 +132,19 @@ describe("handleMsalEnsureAd", () => {
       { clientId: "c", authority: "a" },
       "https://example.com/target",
       "https://example.com/global-components/test/auth-handover.html?src=x&stage=ad-redirect",
-      createInstance,
-    );
-
-    expect(result).toBe("redirect-initiated");
-    expect(acquireTokenSilent).not.toHaveBeenCalled();
-    expect(loginRedirect).toHaveBeenCalled();
-  });
-
-  it("falls through to loginRedirect when acquireTokenSilent rejects", async () => {
-    const acquireTokenSilent = jest.fn().mockRejectedValue(new Error("interaction_required"));
-    const loginRedirect = jest.fn().mockResolvedValue(undefined);
-    const createInstance = jest.fn().mockResolvedValue({
-      getActiveAccount: () => account,
-      getAllAccounts: () => [account],
-      acquireTokenSilent,
-      loginRedirect,
-    });
-    const win = makeWindow();
-
-    const result = await handleMsalEnsureAd(
-      win,
-      { clientId: "c", authority: "a" },
-      "https://example.com/target",
-      "https://example.com/global-components/test/auth-handover.html?src=x&stage=ad-redirect",
+      ["User.Read"],
       createInstance,
     );
 
     expect(result).toBe("redirect-initiated");
     expect(acquireTokenSilent).toHaveBeenCalledTimes(1);
     expect(loginRedirect).toHaveBeenCalled();
-    // Did NOT navigate to returnTo (silent failed).
-    expect((win.location as any).replace).not.toHaveBeenCalled();
   });
 
   it("returns 'redirect-initiation-failed' if loginRedirect itself rejects", async () => {
     const acquireTokenSilent = jest.fn().mockRejectedValue(new Error("bad"));
     const loginRedirect = jest.fn().mockRejectedValue(new Error("interaction_in_progress"));
     const createInstance = jest.fn().mockResolvedValue({
-      getActiveAccount: () => account,
-      getAllAccounts: () => [account],
       acquireTokenSilent,
       loginRedirect,
     });
@@ -186,67 +154,10 @@ describe("handleMsalEnsureAd", () => {
       { clientId: "c", authority: "a" },
       "https://example.com/target",
       "https://example.com/global-components/test/auth-handover.html?src=x&stage=ad-redirect",
+      ["User.Read"],
       createInstance,
     );
 
     expect(result).toBe("redirect-initiation-failed");
-  });
-
-  describe("lastKnownSid threading to loginRedirect fallback", () => {
-    // The dispatcher reconciles upstream and hands the resolved sid down so
-    // the redirect fallback's loginRedirect uses the same sid hint the
-    // dispatcher chose. Without threading, the fallback would use no sid hint
-    // (the previous behaviour) and AAD would have less to go on.
-
-    it("threads lastKnownSid to loginRedirect's extraQueryParameters.sid when provided", async () => {
-      const acquireTokenSilent = jest.fn().mockRejectedValue(new Error("rt-expired"));
-      const loginRedirect = jest.fn().mockResolvedValue(undefined);
-      const createInstance = jest.fn().mockResolvedValue({
-        getActiveAccount: () => account,
-        getAllAccounts: () => [account],
-        acquireTokenSilent,
-        loginRedirect,
-      });
-
-      await handleMsalEnsureAd(
-        makeWindow(),
-        { clientId: "c", authority: "a" },
-        "https://example.com/target",
-        "https://example.com/global-components/test/auth-handover.html?src=x&stage=ad-redirect",
-        createInstance,
-        "sid-from-dispatcher",
-      );
-
-      expect(loginRedirect).toHaveBeenCalledWith(
-        expect.objectContaining({
-          extraQueryParameters: { sid: "sid-from-dispatcher" },
-        }),
-      );
-    });
-
-    it("omits extraQueryParameters when lastKnownSid is undefined (preserves prior behaviour)", async () => {
-      const acquireTokenSilent = jest.fn().mockRejectedValue(new Error("rt-expired"));
-      const loginRedirect = jest.fn().mockResolvedValue(undefined);
-      const createInstance = jest.fn().mockResolvedValue({
-        getActiveAccount: () => account,
-        getAllAccounts: () => [account],
-        acquireTokenSilent,
-        loginRedirect,
-      });
-
-      await handleMsalEnsureAd(
-        makeWindow(),
-        { clientId: "c", authority: "a" },
-        "https://example.com/target",
-        "https://example.com/global-components/test/auth-handover.html?src=x&stage=ad-redirect",
-        createInstance,
-        // lastKnownSid omitted
-      );
-
-      const call = loginRedirect.mock.calls[0]![0] as {
-        extraQueryParameters?: unknown;
-      };
-      expect(call.extraQueryParameters).toBeUndefined();
-    });
   });
 });

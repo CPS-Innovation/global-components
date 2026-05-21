@@ -16,7 +16,6 @@ import { Result } from "../utils/Result";
 import { UserDataHint } from "../services/state/user-data/UserData";
 import { MonitoringCodes } from "../services/data/MonitoringCode";
 import { RecentCases } from "../services/state/recent-cases/recent-cases";
-import { SilentFlowDiagnostics } from "../services/diagnostics/silent-flow-diagnostics";
 export { type ReadyStateHelper };
 
 // Helper type to extract keys of a specific type
@@ -52,7 +51,6 @@ type StartupState = {
   cmsSessionHint: Result<CmsSessionHint>;
   handover: Result<Handover>;
   recentCases: Result<RecentCases>;
-  silentFlowDiagnostics: Result<SilentFlowDiagnostics>;
   notifications: Notification[];
   dismissedNotificationIds: string[];
 };
@@ -69,7 +67,6 @@ const initialStartupState = {
   cmsSessionHint: undefined,
   handover: undefined,
   recentCases: undefined,
-  silentFlowDiagnostics: undefined,
   notifications: undefined,
   dismissedNotificationIds: undefined,
 };

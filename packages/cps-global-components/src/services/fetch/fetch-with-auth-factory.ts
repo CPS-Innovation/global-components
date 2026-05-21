@@ -15,14 +15,14 @@ export type FetchWithAuthProps = {
 };
 
 export const fetchWithAuthFactory =
-  ({ getToken, correlationIds, config: { AD_GATEWAY_SCOPE, GATEWAY_URL }, context: { cmsAuth } }: FetchWithAuthProps) =>
+  ({ getToken, correlationIds, config: { AD_GATEWAY_SCOPES, GATEWAY_URL }, context: { cmsAuth } }: FetchWithAuthProps) =>
   (realFetch: typeof fetch) =>
   async (...args: Parameters<typeof fetch>) => {
     const { navigationCorrelationId } = correlationIds;
 
     const baseRequestInit: RequestInit = {
       headers: {
-        "Authorization": `Bearer ${await getToken({ config: { AD_GATEWAY_SCOPE } })}`,
+        "Authorization": `Bearer ${await getToken({ config: { AD_GATEWAY_SCOPES } })}`,
         "Correlation-Id": navigationCorrelationId,
         ...(cmsAuth ? { "Cms-Auth-Values": cmsAuth } : undefined),
       },

@@ -101,7 +101,6 @@ const initialise = async (window: Window & typeof globalThis) => {
       registerAuthWithAnalytics,
       registerCorrelationIdsWithAnalytics,
       registerCaseIdentifiersWithAnalytics,
-      getOperationId,
     } = initialiseAnalytics({
       window,
       config,
@@ -112,7 +111,7 @@ const initialise = async (window: Window & typeof globalThis) => {
     });
     trackException = _trackException;
 
-    const { silentFlowDiagnostics, addSilentFlowDiagnostics } = initialiseDiagnostics({ window, rootUrl, config, flags, register, trackEvent });
+    initialiseDiagnostics({ window, rootUrl, config, flags, trackEvent });
 
     trackEvent({ name: "state-summary", summary: summariseResults({ handover, preview, settings, authHint, userDataHint, cmsSessionHint }) });
 
@@ -122,9 +121,6 @@ const initialise = async (window: Window & typeof globalThis) => {
       authHint,
       flags,
       trackException,
-      silentFlowDiagnostics,
-      addSilentFlowDiagnostics,
-      getOperationId,
       register,
       registerAuthWithAnalytics,
       setAuthHint,

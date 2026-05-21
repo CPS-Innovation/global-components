@@ -4,11 +4,9 @@ import { LogError } from "./LogError";
 
 export const getTokenFactory =
   ({ instance, logError }: { instance: PublicClientApplication; logError: LogError }): GetToken =>
-  async ({ config: { AD_GATEWAY_SCOPE } }) => {
-    if (!AD_GATEWAY_SCOPE) return null;
-    const request = {
-      scopes: [AD_GATEWAY_SCOPE],
-    } as SilentRequest;
+  async ({ config: { AD_GATEWAY_SCOPES } }) => {
+    if (AD_GATEWAY_SCOPES.length === 0) return null;
+    const request: SilentRequest = { scopes: AD_GATEWAY_SCOPES };
 
     try {
       const { accessToken } = await instance.acquireTokenSilent(request);
