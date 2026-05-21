@@ -1,4 +1,3 @@
-import type { AccountInfo } from "@azure/msal-browser";
 import { createMsalInstance } from "./internal/create-msal-instance";
 import { handleMsalLogin } from "./handle-msal-login";
 
@@ -27,13 +26,7 @@ type MsalConfig = {
 };
 
 type SilentMsalLikeInstance = {
-  getActiveAccount: () => AccountInfo | null;
-  getAllAccounts: () => AccountInfo[];
-  setActiveAccount: (account: AccountInfo | null) => void;
-  acquireTokenSilent: (request: {
-    scopes: string[];
-    account: AccountInfo;
-  }) => Promise<unknown>;
+  acquireTokenSilent: (request: { scopes: string[] }) => Promise<unknown>;
 };
 
 type CreateInstance = (
@@ -61,40 +54,23 @@ export const handleMsalEnsureAd = async (
     return "iframe-noop";
   }
 
-  // Try silent first. If we have a cached account and a valid refresh token,
-  // acquireTokenSilent completes via a back-channel POST — no /authorize hop,
-  // no iframe, no user-facing flicker. This is the win the OS-handover
-  // preemptive check is buying.
-  //
-  // On success we don't navigate here — the caller (mediator) drives all
-  // navigation within our estate. We just signal "silent worked" and let the
-  // mediator route the user on to returnTo.
+  // Try silent first. MSAL uses its internal getActiveAccount() to pick the
+  // identity. If there's a valid refresh token, acquireTokenSilent completes
+  // via a back-channel POST — no /authorize hop, no iframe, no user-facing
+  // flicker. On success we don't navigate here — the caller (mediator) drives
+  // all navigation within our estate.
   try {
     const instance = await createInstance({ ...msalConfig, redirectUri });
-    // Active account is the contract. No getAllAccounts()[0] fallback —
-    // see get-ad-user-account.ts for the rationale (insertion-order [0] picks
-    // are unsafe in multi-account scenarios). If active is null, fall through
-    // to redirect.
-    const account = instance.getActiveAccount();
-    if (account) {
-      try {
-        await instance.acquireTokenSilent({ scopes, account });
-        // Lock the invariant in even though MSAL was already using this
-        // account — defensive against any code clearing active elsewhere.
-        instance.setActiveAccount(account);
-        console.log("[CPS-GLOBAL-AUTH] handleMsalEnsureAd silent-success");
-        return "silent-success";
-      } catch (err) {
-        console.log(
-          "[CPS-GLOBAL-AUTH] handleMsalEnsureAd silent failed, falling through to redirect",
-          err,
-        );
-        // Fall through to handleMsalLogin below.
-      }
-    } else {
+    try {
+      await instance.acquireTokenSilent({ scopes });
+      console.log("[CPS-GLOBAL-AUTH] handleMsalEnsureAd silent-success");
+      return "silent-success";
+    } catch (err) {
       console.log(
-        "[CPS-GLOBAL-AUTH] handleMsalEnsureAd no active account, falling through to redirect",
+        "[CPS-GLOBAL-AUTH] handleMsalEnsureAd silent failed, falling through to redirect",
+        err,
       );
+      // Fall through to handleMsalLogin below.
     }
   } catch (err) {
     // PCA construction itself failed (rare — config bad). Try the redirect

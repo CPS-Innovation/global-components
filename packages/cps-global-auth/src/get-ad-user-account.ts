@@ -114,31 +114,18 @@ export const getAdUserAccount = async ({
   let redirectInitiatedThisCall = false;
 
   const tryAcquireTokenSilently = async (): AccountRetrievalResult => {
-    // Active account is the contract: ssoSilent success and handleMsalTermination
-    // both call setActiveAccount on the freshly-authenticated account. If active
-    // is null here, we deliberately don't fall back to getAllAccounts()[0] —
-    // that path was a multi-account bleed risk (picking insertion-order [0] when
-    // the user might be expecting a different cached identity). Return null and
-    // let the cascade fall through to ssoSilent / redirect, where AAD becomes
-    // the authoritative source of identity.
-    const account = instance.getActiveAccount();
-    if (!account) return null;
-
+    // Don't pass account — MSAL falls back to getActiveAccount() internally,
+    // which is the contract anyway. If active is null, MSAL throws noAccountError
+    // and our catch returns null, letting the cascade fall through to ssoSilent.
     try {
-      const result = await instance.acquireTokenSilent({
+      const { account } = await instance.acquireTokenSilent({
         scopes,
-        account,
         cacheLookupPolicy: CacheLookupPolicy.AccessTokenAndRefreshToken,
       });
-      const acquired = result.account ?? null;
-      if (acquired) {
+      if (account) {
         producedBy = "cache";
-        // Belt-and-braces: lock the invariant in even though MSAL was already
-        // using this account. Cheap, defends against MSAL's internal active
-        // state getting cleared by an unrelated codepath.
-        instance.setActiveAccount(acquired);
       }
-      return acquired;
+      return account ?? null;
     } catch (error) {
       logError("acquireTokenSilent failed", asError(error));
       return null;
