@@ -1,4 +1,4 @@
-import { ApplicationFlags, Preview, Tags } from "cps-global-configuration";
+import { ApplicationFlags, Preview, Settings, Tags } from "cps-global-configuration";
 import { Result } from "../../../utils/Result";
 import { Subscribe } from "../../../store/store";
 import { SubscriptionFactory } from "../../../store/subscriptions/SubscriptionFactory";
@@ -11,15 +11,17 @@ export const buildTitle = (baseTitle: string, urn: string | undefined): string =
 export const initialiseTabTitle = ({
   window: { document },
   preview,
+  settings,
   flags: { environment },
   subscribe,
 }: {
   window: { document: Document };
   preview: Result<Preview>;
+  settings: Result<Settings>;
   flags: ApplicationFlags;
   subscribe: Subscribe;
 }) => {
-  const isEnabled = () => environment === "test" || !!preview.result?.tabTitleUrn;
+  const isEnabled = () => (environment === "test" || !!preview.result?.tabTitleUrn) && !settings.result?.preventUrnPrependInTabTitle;
 
   let currentUrn: string | undefined;
   let settingTitle = false;

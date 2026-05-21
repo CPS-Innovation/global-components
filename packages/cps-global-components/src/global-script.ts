@@ -89,7 +89,7 @@ const initialise = async (window: Window & typeof globalThis) => {
       witnessAreaSubscriber,
     );
 
-    initialiseTabTitle({ window, preview, subscribe, flags });
+    initialiseTabTitle({ window, preview, settings, subscribe, flags });
     /* do not await this — notification fetches shouldn't block auth/analytics/etc. */
     initialiseNotifications({ rootUrl, register, handlers, config });
     const { setNextRecentCases } = initialiseRecentCases({ rootUrl, config, register });
