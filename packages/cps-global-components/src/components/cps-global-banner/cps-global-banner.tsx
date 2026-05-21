@@ -30,7 +30,7 @@ export class CpsGlobalBanner {
         const showAccessibilityOption = FEATURE_FLAGS.shouldEnableAccessibilityMode(state);
         const showGovUkRebrand = FEATURE_FLAGS.shouldShowGovUkRebrand(state);
         const showRecentCases = FEATURE_FLAGS.shouldShowRecentCases(state);
-        return { showBanner: true, showAccessibilityOption, showGovUkRebrand, showRecentCases, href: state.config.BANNER_TITLE_HREF };
+        return { showBanner: true, showAccessibilityOption, showGovUkRebrand, showRecentCases, href: linkHandoverAdapter(state)(state.config.BANNER_TITLE_HREF) };
       }
     };
 
