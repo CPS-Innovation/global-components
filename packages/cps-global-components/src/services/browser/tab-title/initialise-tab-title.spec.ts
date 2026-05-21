@@ -53,7 +53,7 @@ const makeDocument = (initialTitle: string) => {
 
 type OnTagsChange = (tags: Tags | undefined) => void;
 
-const setup = (doc: Document, previewEnabled: boolean, environment: string = "prod") => {
+const setup = (doc: Document, previewEnabled: boolean, environment: string = "prod", preventUrnPrependInTabTitle: boolean = false) => {
   let onTagsChange: OnTagsChange;
 
   const subscribe = (...factories: SubscriptionFactory[]) => {
@@ -64,6 +64,7 @@ const setup = (doc: Document, previewEnabled: boolean, environment: string = "pr
   initialiseTabTitle({
     window: { document: doc } as any,
     preview: previewEnabled ? { found: true, result: { tabTitleUrn: true } } : { found: false, error: new Error("off") },
+    settings: { found: true, result: { preventUrnPrependInTabTitle: preventUrnPrependInTabTitle || undefined } },
     flags: { environment } as any,
     subscribe: subscribe as any,
   });
@@ -125,6 +126,22 @@ describe("initialiseTabTitle", () => {
 
     onTagsChange({ urn: "URN123" });
     expect(doc.title).toBe("URN123 My Page");
+  });
+
+  it("does not prepend URN when the accessibility setting opts out", () => {
+    const { doc } = makeDocument("My Page");
+    const { onTagsChange } = setup(doc, true, "prod", true);
+
+    onTagsChange({ urn: "URN123" });
+    expect(doc.title).toBe("My Page");
+  });
+
+  it("accessibility opt-out overrides the test environment force-on", () => {
+    const { doc } = makeDocument("My Page");
+    const { onTagsChange } = setup(doc, false, "test", true);
+
+    onTagsChange({ urn: "URN123" });
+    expect(doc.title).toBe("My Page");
   });
 
   it("handles empty base title without trailing separator", () => {
