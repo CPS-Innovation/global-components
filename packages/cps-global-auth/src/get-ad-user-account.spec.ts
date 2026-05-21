@@ -31,6 +31,7 @@ describe("get-ad-user-account", () => {
     logError: jest.fn(),
     window,
     msalRedirectUrl,
+    scopes: ["User.Read"],
   };
 
   // The redirect path now calls window.location.replace rather than
@@ -86,8 +87,7 @@ describe("get-ad-user-account", () => {
   });
 
   describe("default cascade (acquireTokenSilent → ssoSilent)", () => {
-    it("returns account via acquireTokenSilent when an active account exists", async () => {
-      (mockInstance.getActiveAccount as jest.Mock).mockReturnValue(mockAccount);
+    it("returns account via acquireTokenSilent on cache hit", async () => {
       (mockInstance.acquireTokenSilent as jest.Mock).mockResolvedValue({
         account: mockAccount,
         fromCache: true,
@@ -98,39 +98,17 @@ describe("get-ad-user-account", () => {
       expect(result.account).toBe(mockAccount);
       expect(result.mechanism).toBe("cache");
       expect(result.redirectCompletionId).toBeUndefined();
+      // No account passed — MSAL falls back to getActiveAccount() internally.
       expect(mockInstance.acquireTokenSilent).toHaveBeenCalledWith({
         scopes: ["User.Read"],
-        account: mockAccount,
         cacheLookupPolicy: 2,
       });
       expect(mockInstance.ssoSilent).not.toHaveBeenCalled();
     });
 
-    it("tries acquireTokenSilent when getActiveAccount returns null but getAllAccounts has an entry", async () => {
-      (mockInstance.getActiveAccount as jest.Mock).mockReturnValue(null);
-      (mockInstance.getAllAccounts as jest.Mock).mockReturnValue([mockAccount]);
-      (mockInstance.acquireTokenSilent as jest.Mock).mockResolvedValue({
-        account: mockAccount,
-        fromCache: true,
-      } as AuthenticationResult);
-
-      const result = await getAdUserAccount(defaultProps);
-
-      expect(result.account).toBe(mockAccount);
-      expect(result.mechanism).toBe("cache");
-      expect(mockInstance.acquireTokenSilent).toHaveBeenCalledWith({
-        scopes: ["User.Read"],
-        account: mockAccount,
-        cacheLookupPolicy: 2,
-      });
-      expect(mockInstance.ssoSilent).not.toHaveBeenCalled();
-    });
-
-    it("falls through to ssoSilent when acquireTokenSilent rejects", async () => {
-      (mockInstance.getActiveAccount as jest.Mock).mockReturnValue(null);
-      (mockInstance.getAllAccounts as jest.Mock).mockReturnValue([mockAccount]);
+    it("falls through to ssoSilent when acquireTokenSilent rejects (no active account, expired refresh token, etc.)", async () => {
       (mockInstance.acquireTokenSilent as jest.Mock).mockRejectedValue(
-        new Error("token expired"),
+        new Error("no_account_error"),
       );
       (mockInstance.ssoSilent as jest.Mock).mockResolvedValue({
         account: mockAccount,
@@ -141,24 +119,6 @@ describe("get-ad-user-account", () => {
       expect(result.account).toBe(mockAccount);
       expect(result.mechanism).toBe("silent");
       expect(mockInstance.acquireTokenSilent).toHaveBeenCalledTimes(1);
-      expect(mockInstance.ssoSilent).toHaveBeenCalledWith({
-        scopes: ["User.Read"],
-        loginHint: "test@example.com",
-      });
-    });
-
-    it("skips acquireTokenSilent and goes straight to ssoSilent when no cached accounts exist", async () => {
-      (mockInstance.getActiveAccount as jest.Mock).mockReturnValue(null);
-      (mockInstance.getAllAccounts as jest.Mock).mockReturnValue([]);
-      (mockInstance.ssoSilent as jest.Mock).mockResolvedValue({
-        account: mockAccount,
-      } as AuthenticationResult);
-
-      const result = await getAdUserAccount(defaultProps);
-
-      expect(result.account).toBe(mockAccount);
-      expect(result.mechanism).toBe("silent");
-      expect(mockInstance.acquireTokenSilent).not.toHaveBeenCalled();
       expect(mockInstance.ssoSilent).toHaveBeenCalledWith({
         scopes: ["User.Read"],
       });

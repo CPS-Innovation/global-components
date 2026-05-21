@@ -26,7 +26,7 @@ const expectedHintPayload: UserDataHintPayload = {
 
 const baseConfig: Partial<Config> = {
   GATEWAY_URL: "https://gateway.example.com",
-  AD_GATEWAY_SCOPE: "scope",
+  AD_GATEWAY_SCOPES: ["scope"],
   USER_DATA_REFRESH_PERIOD_MINS: 60,
 };
 

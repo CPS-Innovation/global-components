@@ -4,22 +4,16 @@ import {
   PublicClientApplication,
 } from "@azure/msal-browser";
 import { HANDOVER_PARAM_KEYS } from "cps-global-configuration";
-import { getErrorType } from "./get-error-type";
 import { LogError } from "./LogError";
-import type { SilentFlowDiagnostic } from "./silent-flow-diagnostic";
 import {
   MSAL_REDIRECT_COMPLETION_ID_KEY,
   MSAL_REDIRECT_IN_FLIGHT_KEY,
   MSAL_REDIRECT_LOOP_GUARD_MS,
 } from "./internal/redirect-storage-keys";
 
-type AddSilentFlowDiagnostics = (entry: SilentFlowDiagnostic) => void;
-
 type Props = {
   instance: PublicClientApplication;
   config: { SSO_SILENT_DELAY_MS: number | undefined };
-  addSilentFlowDiagnostics?: AddSilentFlowDiagnostics;
-  getOperationId?: () => string | undefined;
   // Single error delegate from the host. Implementations typically do both
   // console-log AND telemetry tracking (e.g. trackException to App Insights).
   logError: LogError;
@@ -31,15 +25,11 @@ type Props = {
   // keeps our MSAL calls strictly on the host-code-free page so we never
   // write msal.interaction.status into a sessionStorage shared with the host.
   msalRedirectUrl: string;
-  // Last-known AAD session id from a prior successful termination
-  // (AuthHint.lastKnownSid). When present, replayed as `sid` on ssoSilent —
-  // AAD treats the call as an SSO-continuation under the live session so the
-  // user skips the account picker / re-prompt entirely. See
-  // packages/cps-global-configuration/src/AuthHint.ts. If AAD rejects the
-  // sid (AADSTS160021 — session rotated since we last saw it) we transparently
-  // retry once with loginHint and the caller is expected to drop the stale
-  // hint on the next write-back.
-  lastKnownSid?: string;
+  // Scopes to ask AAD for on both the cache step and the ssoSilent step.
+  // Sourced from config.AD_GATEWAY_SCOPES so the login cascade and the gateway
+  // token-fetch share a cache entry. Empty array means "OIDC defaults only"
+  // (cascade still works, just loses the access-token cache short-circuit).
+  scopes: string[];
 };
 
 const asError = (value: unknown): Error =>
@@ -71,8 +61,6 @@ export type GetAdUserAccountResult = {
   redirectCompletionId: string | undefined;
 };
 
-const loginRequest = { scopes: ["User.Read"] };
-
 const DEFAULT_SSO_SILENT_DELAY_MS = 0;
 
 const waitForPageStability = async (
@@ -89,13 +77,11 @@ const waitForPageStability = async (
 export const getAdUserAccount = async ({
   instance,
   config: { SSO_SILENT_DELAY_MS },
-  addSilentFlowDiagnostics,
-  getOperationId,
   logError,
   useFullPageRedirect,
   window,
   msalRedirectUrl,
-  lastKnownSid,
+  scopes,
 }: Props): Promise<GetAdUserAccountResult> => {
   const t0 = performance.now();
 
@@ -128,20 +114,18 @@ export const getAdUserAccount = async ({
   let redirectInitiatedThisCall = false;
 
   const tryAcquireTokenSilently = async (): AccountRetrievalResult => {
-    const account = instance.getActiveAccount() || instance.getAllAccounts()[0];
-    if (!account) return null;
-
+    // Don't pass account — MSAL falls back to getActiveAccount() internally,
+    // which is the contract anyway. If active is null, MSAL throws noAccountError
+    // and our catch returns null, letting the cascade fall through to ssoSilent.
     try {
-      const result = await instance.acquireTokenSilent({
-        ...loginRequest,
-        account,
+      const { account } = await instance.acquireTokenSilent({
+        scopes,
         cacheLookupPolicy: CacheLookupPolicy.AccessTokenAndRefreshToken,
       });
-      const acquired = result.account ?? null;
-      if (acquired) {
+      if (account) {
         producedBy = "cache";
       }
-      return acquired;
+      return account ?? null;
     } catch (error) {
       logError("acquireTokenSilent failed", asError(error));
       return null;
@@ -158,82 +142,18 @@ export const getAdUserAccount = async ({
       t0,
     );
 
-    // Two-arm request building. With `sid`, AAD treats the call as an
-    // SSO-continuation under the live session — user skips the picker and the
-    // re-prompt while the session lives. Without `sid`, we fall back to
-    // `loginHint` (UPN-keyed identification), which also tells MSAL to skip its
-    // cached-account lookup so no stale sid is auto-extracted and silently
-    // attached (the exact path that produced AADSTS160021 before this drop).
-    const knownAccount =
-      instance.getActiveAccount() || instance.getAllAccounts()[0];
-    const loginHint = knownAccount?.username;
-    const buildRequest = (useSid: boolean) => ({
-      ...loginRequest,
-      ...(useSid && lastKnownSid
-        ? { sid: lastKnownSid }
-        : loginHint
-          ? { loginHint }
-          : {}),
-    });
-
-    const operationId = getOperationId?.();
-    const silentFlowStartTime = Date.now();
-    addSilentFlowDiagnostics?.({
-      time: silentFlowStartTime,
-      url: window.location.href,
-      operationId,
-    });
-
-    const runOnce = async (useSid: boolean) =>
-      instance.ssoSilent(buildRequest(useSid));
-
+    // No hints in the request — let MSAL/AAD do their default thing. MSAL
+    // auto-extracts a hint from the active account's claims (login_hint claim
+    // preferred, sid claim next, username last) when an active is set; with no
+    // active, AAD identifies the user via the browser session cookie alone.
     try {
-      let response;
-      try {
-        response = await runOnce(true);
-      } catch (error) {
-        if (lastKnownSid && getErrorType(error) === "StaleSidHint") {
-          // Stored sid is stale — server-side session rotated. Retry once with
-          // loginHint so the user still gets a silent sign-in this load. The
-          // host's setAuthHint on success will overwrite the bad hint.
-          logError(
-            "ssoSilent: stale sid, retrying with loginHint",
-            asError(error),
-          );
-          response = await runOnce(false);
-        } else {
-          throw error;
-        }
-      }
-
-      const { account } = response;
-      addSilentFlowDiagnostics?.({
-        time: silentFlowStartTime,
-        url: window.location.href,
-        operationId,
-        completedTime: Date.now(),
-        outcome: "complete",
-      });
+      const { account } = await instance.ssoSilent({ scopes });
       if (account) {
         producedBy = "silent";
+        instance.setActiveAccount(account);
       }
-
-      instance.setActiveAccount(account);
-
       return account ?? null;
     } catch (error) {
-      const rawErrorCode = (error as { errorCode?: unknown })?.errorCode;
-      addSilentFlowDiagnostics?.({
-        time: silentFlowStartTime,
-        url: window.location.href,
-        operationId,
-        completedTime: Date.now(),
-        outcome: "failure",
-        ...(typeof rawErrorCode === "string" && rawErrorCode
-          ? { errorCode: rawErrorCode }
-          : {}),
-      });
-
       logError("ssoSilent failed", asError(error));
       throw error;
     }

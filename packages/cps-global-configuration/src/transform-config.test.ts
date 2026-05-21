@@ -16,6 +16,7 @@ describe("transformConfig", () => {
   test("preserves order of paths in flat structure", () => {
     const input: ConfigStorage = {
       ENVIRONMENT: "test",
+      AD_GATEWAY_SCOPES: [],
       LINKS: [],
       BANNER_TITLE_HREF: "https://example.com",
       CMS_AUTH_STORAGE_KEYS: STORAGE_KEYS,
@@ -41,6 +42,7 @@ describe("transformConfig", () => {
   test("preserves order of paths in nested structure", () => {
     const input: ConfigStorage = {
       ENVIRONMENT: "test",
+      AD_GATEWAY_SCOPES: [],
       LINKS: [],
       BANNER_TITLE_HREF: "https://example.com",
       CMS_AUTH_STORAGE_KEYS: STORAGE_KEYS,
@@ -72,6 +74,7 @@ describe("transformConfig", () => {
   test("preserves order with deeply nested structure", () => {
     const input: ConfigStorage = {
       ENVIRONMENT: "test",
+      AD_GATEWAY_SCOPES: [],
       LINKS: [],
       BANNER_TITLE_HREF: "https://example.com",
       CMS_AUTH_STORAGE_KEYS: STORAGE_KEYS,
@@ -111,6 +114,7 @@ describe("transformConfig", () => {
   test("inherits properties from parent nodes", () => {
     const input: ConfigStorage = {
       ENVIRONMENT: "test",
+      AD_GATEWAY_SCOPES: [],
       LINKS: [],
       BANNER_TITLE_HREF: "https://example.com",
       CMS_AUTH_STORAGE_KEYS: STORAGE_KEYS,
@@ -156,6 +160,7 @@ describe("transformConfig", () => {
   test("overrides properties at deeper levels", () => {
     const input: ConfigStorage = {
       ENVIRONMENT: "test",
+      AD_GATEWAY_SCOPES: [],
       LINKS: [],
       BANNER_TITLE_HREF: "https://example.com",
       CMS_AUTH_STORAGE_KEYS: STORAGE_KEYS,
@@ -191,6 +196,7 @@ describe("transformConfig", () => {
   test("preserves order with multiple root-level context nodes", () => {
     const input: ConfigStorage = {
       ENVIRONMENT: "test",
+      AD_GATEWAY_SCOPES: [],
       LINKS: [],
       BANNER_TITLE_HREF: "https://example.com",
       CMS_AUTH_STORAGE_KEYS: STORAGE_KEYS,
@@ -236,6 +242,7 @@ describe("transformConfig", () => {
   test("handles empty contexts array", () => {
     const input: ConfigStorage = {
       ENVIRONMENT: "test",
+      AD_GATEWAY_SCOPES: [],
       LINKS: [],
       BANNER_TITLE_HREF: "https://example.com",
       CMS_AUTH_STORAGE_KEYS: STORAGE_KEYS,
@@ -254,6 +261,7 @@ describe("transformConfig", () => {
   test("preserves non-CONTEXTS properties", () => {
     const input: ConfigStorage = {
       ENVIRONMENT: "production",
+      AD_GATEWAY_SCOPES: [],
       LINKS: [
         {
           label: "Home",
@@ -291,6 +299,7 @@ describe("transformConfig", () => {
   test("preserves order with complex mixed nesting", () => {
     const input: ConfigStorage = {
       ENVIRONMENT: "test",
+      AD_GATEWAY_SCOPES: [],
       LINKS: [],
       BANNER_TITLE_HREF: "https://example.com",
       CMS_AUTH_STORAGE_KEYS: STORAGE_KEYS,
@@ -331,6 +340,7 @@ describe("transformConfig", () => {
   test("preserves domTagDefinitions on leaf nodes", () => {
     const input: ConfigStorage = {
       ENVIRONMENT: "test",
+      AD_GATEWAY_SCOPES: [],
       LINKS: [],
       BANNER_TITLE_HREF: "https://example.com",
       CMS_AUTH_STORAGE_KEYS: STORAGE_KEYS,
