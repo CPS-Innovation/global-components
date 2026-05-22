@@ -157,7 +157,17 @@ const initialise = async (window: Window & typeof globalThis) => {
 
         const authPromise = initialiseAuthForContext(context);
         authPromise.then(({ auth }) => initialiseOutSystemsShowAlertForContext({ context, auth })).catch(handleError);
-        authPromise.then(({ getToken }) => initialiseUserDataForContext({ context, getToken, correlationIds })).catch(handleError);
+        // Only fetch user data when auth actually succeeded. authPromise resolves
+        // (not rejects) even on a FailedAuth / redirect-in-flight outcome — without
+        // this gate we'd call getToken with no account (no_account_error) and the
+        // request would 401. The optimistic, no-token paths still run unconditionally.
+        authPromise
+          .then(({ getToken, auth }) => {
+            if (auth.isAuthed) {
+              initialiseUserDataForContext({ context, getToken, correlationIds });
+            }
+          })
+          .catch(handleError);
 
         const caseIdentifiersPromise = caseIdentifiersWaiter.waitForChange();
         caseIdentifiersPromise
@@ -169,7 +179,12 @@ const initialise = async (window: Window & typeof globalThis) => {
 
         Promise.all([authPromise, caseIdentifiersPromise])
           .then(([{ getToken, auth }, caseIdentifiers]) => {
-            initialiseCaseDetailsDataForContext({ context, caseIdentifiers, getToken, correlationIds });
+            // Same gate: the authed case-details fetch only makes sense with a
+            // token. The optimistic fetch above already surfaced handover data
+            // for the unauthed/in-flight case.
+            if (auth.isAuthed) {
+              initialiseCaseDetailsDataForContext({ context, caseIdentifiers, getToken, correlationIds });
+            }
             initialiseCaseLockingForContext({ auth, caseIdentifiers });
           })
           .catch(handleError);

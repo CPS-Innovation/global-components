@@ -41,7 +41,7 @@ type AccountRetrievalResult = Promise<AccountInfo | null>;
 // "redirect-failure" / "redirect-initiated" are inferred from the
 // sessionStorage signals set by the termination page (completion id) and by
 // tryLoginAccountViaRedirect itself (in-flight sentinel + the local
-// redirectInitiatedThisCall flag). See internal/redirect-storage-keys.ts.
+// redirectInFlight flag). See internal/redirect-storage-keys.ts.
 //
 // "redirect-initiated" specifically means: this call fired loginRedirect and is
 // about to unload the page. Distinct from "redirect-failure" (which means a
@@ -107,16 +107,27 @@ export const getAdUserAccount = async ({
   // "cache" vs "silent" when no completion id is present.
   let producedBy: "cache" | "silent" | undefined;
 
-  // Set by tryLoginAccountViaRedirect just before window.location.replace().
-  // Drives the "redirect-initiated" mechanism reported back to the caller so
-  // analytics can distinguish the outbound leg of a redirect (transient, page
-  // about to unload) from a real "no account found" terminal failure.
-  let redirectInitiatedThisCall = false;
+  // Set by tryLoginAccountViaRedirect either when it fires loginRedirect, or
+  // when the loop guard detects a redirect already in flight (and refuses to
+  // fire a second). Both mean "a redirect is in flight"; it drives the
+  // "redirect-initiated" mechanism so the caller classifies the pageview as
+  // RedirectInFlight (transient) rather than a real "no account found" failure.
+  let redirectInFlight = false;
 
   const tryAcquireTokenSilently = async (): AccountRetrievalResult => {
-    // Don't pass account — MSAL falls back to getActiveAccount() internally,
-    // which is the contract anyway. If active is null, MSAL throws noAccountError
-    // and our catch returns null, letting the cascade fall through to ssoSilent.
+    // Guard: if there's no active account there's nothing for the cache step to
+    // do. We skip rather than calling acquireTokenSilent, because MSAL throws
+    // no_account_error when no account is set — and that throw would hit our
+    // catch and get logged as an error on every cold-cache load (first visit,
+    // post-logout, cleared storage), which is normal-not-erroneous. The cascade
+    // falls through to ssoSilent quietly instead.
+    //
+    // We don't pass the account to acquireTokenSilent — MSAL re-resolves it from
+    // getActiveAccount() internally. The guard is a precondition check, not the
+    // account source.
+    if (!instance.getActiveAccount()) {
+      return null;
+    }
     try {
       const { account } = await instance.acquireTokenSilent({
         scopes,
@@ -184,11 +195,19 @@ export const getAdUserAccount = async ({
       guardValue &&
       Date.now() - Number(guardValue) < MSAL_REDIRECT_LOOP_GUARD_MS
     ) {
-      const error = new Error(
-        `MSAL loginRedirect already in-flight (sentinel set ${Date.now() - Number(guardValue)}ms ago); refusing to re-fire to avoid a loop`,
+      // A redirect is already in flight in this tab (sentinel set < the loop-
+      // guard window ago). Refuse to fire a second one. This is benign — almost
+      // always a host SPA re-evaluating context while the first redirect is
+      // navigating the page away — so console.warn (NOT logError → no
+      // trackException) and signal redirect-in-flight so the caller classifies
+      // this as RedirectInFlight rather than a hard auth failure. A genuinely
+      // failed prior redirect is captured by the termination-failure beacon,
+      // not by this guard.
+      console.warn(
+        `[CPS-GLOBAL-AUTH] loginRedirect already in-flight (sentinel set ${Date.now() - Number(guardValue)}ms ago); not re-firing`,
       );
-      logError("loginRedirect loop guard tripped", error);
-      throw error;
+      redirectInFlight = true;
+      return null;
     }
     window.sessionStorage.setItem(
       MSAL_REDIRECT_IN_FLIGHT_KEY,
@@ -204,12 +223,12 @@ export const getAdUserAccount = async ({
         HANDOVER_PARAM_KEYS.RETURN_TO,
         window.location.href,
       );
-      // Mark the redirect as initiated BEFORE replace() so the cascade's
+      // Mark redirect-in-flight BEFORE replace() so the cascade's
       // deriveMechanism reports "redirect-initiated" rather than null on the
       // brief window of script execution before the page actually unloads.
       // If URL construction above had thrown, we'd never reach this and the
       // catch below would clear the in-flight sentinel.
-      redirectInitiatedThisCall = true;
+      redirectInFlight = true;
       // replace, not assign — we don't want the host page entry preserved in
       // history under the auth-handover.html?stage=ad-redirect entry. Hitting
       // back through the auth flow would either re-fire loginRedirect or land
@@ -252,7 +271,7 @@ export const getAdUserAccount = async ({
     if (account) {
       return producedBy ?? null;
     }
-    if (redirectInitiatedThisCall) {
+    if (redirectInFlight) {
       return "redirect-initiated";
     }
     if (redirectCompletionId || wasRedirectInFlightAtEntry) {
