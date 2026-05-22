@@ -1,4 +1,4 @@
-import { Config, FoundContext } from "cps-global-configuration";
+import { AuthResult, Config, FoundContext } from "cps-global-configuration";
 import { CorrelationIds } from "../../correlation/CorrelationIds";
 import { GetToken } from "../../auth/GetToken";
 import { Result } from "../../../utils/Result";
@@ -33,6 +33,7 @@ const baseConfig: Partial<Config> = {
 const context: FoundContext = { found: true, preventADAndDataCalls: false } as FoundContext;
 const getToken: GetToken = async () => "token-123";
 const correlationIds: CorrelationIds = { navigationCorrelationId: "corr-1" } as CorrelationIds;
+const auth: AuthResult = { isAuthed: true, username: "u@example.com", objectId: "obj-1", groups: [] };
 
 const flushPromises = () => new Promise(resolve => setTimeout(resolve, 0));
 
@@ -60,7 +61,7 @@ describe("initialiseUserData", () => {
       register,
     });
 
-    await initialiseUserDataForContext({ context, getToken, correlationIds });
+    await initialiseUserDataForContext({ context, getToken, correlationIds, auth });
 
     expect(mockFetch).not.toHaveBeenCalled();
     expect(setUserDataHint).not.toHaveBeenCalled();
@@ -80,9 +81,32 @@ describe("initialiseUserData", () => {
       context: { ...context, preventADAndDataCalls: true } as FoundContext,
       getToken,
       correlationIds,
+      auth,
     });
 
     expect(mockFetch).not.toHaveBeenCalled();
+  });
+
+  it("should short-circuit (no fetch) when auth is not authed", async () => {
+    const staleHint: Result<UserDataHint> = { found: true, result: { timestamp: 0, userData: expectedHintPayload } };
+    const { initialiseUserDataForContext } = initialiseUserData({
+      config: baseConfig as Config,
+      userDataHint: staleHint,
+      setUserDataHint,
+      trackEvent,
+      trackException,
+      register,
+    });
+
+    await initialiseUserDataForContext({
+      context,
+      getToken,
+      correlationIds,
+      auth: { isAuthed: false, knownErrorType: "RedirectInFlight", reason: "redirect in flight" },
+    });
+
+    expect(mockFetch).not.toHaveBeenCalled();
+    expect(setUserDataHint).not.toHaveBeenCalled();
   });
 
   it("should skip fetching when hint timestamp is fresh", async () => {
@@ -96,7 +120,7 @@ describe("initialiseUserData", () => {
       register,
     });
 
-    await initialiseUserDataForContext({ context, getToken, correlationIds });
+    await initialiseUserDataForContext({ context, getToken, correlationIds, auth });
 
     expect(mockFetch).not.toHaveBeenCalled();
     expect(setUserDataHint).not.toHaveBeenCalled();
@@ -115,7 +139,7 @@ describe("initialiseUserData", () => {
       register,
     });
 
-    await initialiseUserDataForContext({ context, getToken, correlationIds });
+    await initialiseUserDataForContext({ context, getToken, correlationIds, auth });
 
     expect(mockFetch).toHaveBeenCalledTimes(1);
     const url = mockFetch.mock.calls[0][0];
@@ -152,7 +176,7 @@ describe("initialiseUserData", () => {
       register,
     });
 
-    await initialiseUserDataForContext({ context, getToken, correlationIds });
+    await initialiseUserDataForContext({ context, getToken, correlationIds, auth });
 
     const stored = setUserDataHint.mock.calls[0][0];
     expect(Object.keys(stored).sort()).toEqual(
@@ -179,7 +203,7 @@ describe("initialiseUserData", () => {
       register,
     });
 
-    await initialiseUserDataForContext({ context, getToken, correlationIds });
+    await initialiseUserDataForContext({ context, getToken, correlationIds, auth });
 
     expect(mockFetch).toHaveBeenCalledTimes(1);
     expect(setUserDataHint).toHaveBeenCalledWith(expectedHintPayload, trackException);
@@ -197,7 +221,7 @@ describe("initialiseUserData", () => {
       register,
     });
 
-    await initialiseUserDataForContext({ context, getToken, correlationIds });
+    await initialiseUserDataForContext({ context, getToken, correlationIds, auth });
 
     expect(setUserDataHint).not.toHaveBeenCalled();
     expect(register).not.toHaveBeenCalled();
@@ -221,9 +245,9 @@ describe("initialiseUserData", () => {
       register,
     });
 
-    const first = initialiseUserDataForContext({ context, getToken, correlationIds });
+    const first = initialiseUserDataForContext({ context, getToken, correlationIds, auth });
     await flushPromises();
-    const second = initialiseUserDataForContext({ context, getToken, correlationIds });
+    const second = initialiseUserDataForContext({ context, getToken, correlationIds, auth });
 
     expect(mockFetch).toHaveBeenCalledTimes(1);
 
@@ -232,7 +256,7 @@ describe("initialiseUserData", () => {
     await flushPromises();
 
     // Subsequent call while hint is fresh shouldn't hit the network again.
-    await initialiseUserDataForContext({ context, getToken, correlationIds });
+    await initialiseUserDataForContext({ context, getToken, correlationIds, auth });
     expect(mockFetch).toHaveBeenCalledTimes(1);
     expect(setUserDataHint).toHaveBeenCalledTimes(1);
   });

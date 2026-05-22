@@ -1478,27 +1478,26 @@ describe("global-script", () => {
       );
     });
 
-    it("does NOT fire the authed case-details fetch when auth failed (gated on auth.isAuthed), but the optimistic path still runs", async () => {
+    it("passes auth through to the data services so they make the fetch/no-fetch determination", async () => {
       mockInitialiseContext.mockReturnValue({
         found: true,
         contextDefinition: { name: "test-context" },
         pathTags: { caseId: "456" },
       });
-      // Auth resolves as a failure (e.g. redirect in flight) — the promise
-      // resolves, it doesn't reject, so the data layer would otherwise fire.
-      mockInitialiseAuth.mockResolvedValue({
-        auth: { isAuthed: false, knownErrorType: "RedirectInFlight", reason: "redirect in flight" },
-        getToken: jest.fn(),
-      });
+      const failedAuth = { isAuthed: false, knownErrorType: "RedirectInFlight", reason: "redirect in flight" };
+      mockInitialiseAuth.mockResolvedValue({ auth: failedAuth, getToken: jest.fn() });
 
       const globalScript = require("./global-script").default;
       globalScript();
       await new Promise(resolve => setTimeout(resolve, 50));
 
-      // Optimistic (no-token) path still runs so handover data shows.
+      // Optimistic (no-token) path still runs unconditionally.
       expect(mockInitialiseCaseDetailsDataForContextOptimistic).toHaveBeenCalledWith({ caseId: "456" });
-      // Authed fetch is gated out — no getToken/401 churn for an unauthed context.
-      expect(mockInitialiseCaseDetailsDataForContext).not.toHaveBeenCalled();
+      // global-script no longer gates — it always calls and passes auth through;
+      // the service decides whether to actually fetch (tested in the service spec).
+      expect(mockInitialiseCaseDetailsDataForContext).toHaveBeenCalledWith(
+        expect.objectContaining({ auth: failedAuth }),
+      );
     });
   });
 

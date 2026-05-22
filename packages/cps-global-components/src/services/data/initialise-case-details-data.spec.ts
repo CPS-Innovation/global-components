@@ -1,7 +1,9 @@
-import { Config, FoundContext } from "cps-global-configuration";
+import { AuthResult, Config, FoundContext } from "cps-global-configuration";
 import { MergeTags, Register } from "../../store/store";
 import { GetToken } from "../auth/GetToken";
 import { AnalyticsEventData } from "../analytics/analytics-event";
+
+const authed: AuthResult = { isAuthed: true, username: "u@example.com", objectId: "obj-1", groups: [] };
 
 const mockFetchWithCircuitBreaker = jest.fn();
 jest.mock("../fetch/fetch-with-circuit-breaker", () => ({
@@ -56,6 +58,7 @@ describe("initialiseCaseDetailsData", () => {
         caseIdentifiers: { caseId: "123" },
         getToken: jest.fn().mockResolvedValue("token") as GetToken,
         correlationIds: { scriptLoadCorrelationId: "s", navigationCorrelationId: "n" },
+        auth: authed,
       });
 
       expect(mockFetchWithCircuitBreaker).not.toHaveBeenCalled();
@@ -75,6 +78,7 @@ describe("initialiseCaseDetailsData", () => {
         caseIdentifiers: { caseId: "123" },
         getToken: jest.fn().mockResolvedValue("token") as GetToken,
         correlationIds: { scriptLoadCorrelationId: "s", navigationCorrelationId: "n" },
+        auth: authed,
       });
 
       expect(mockFetchWithCircuitBreaker).toHaveBeenCalledWith({ config: props.config, trackEvent: props.trackEvent });
@@ -88,7 +92,7 @@ describe("initialiseCaseDetailsData", () => {
       const getToken = jest.fn().mockResolvedValue("token") as GetToken;
       const correlationIds = { scriptLoadCorrelationId: "s", navigationCorrelationId: "n" };
 
-      initialiseCaseDetailsDataForContext({ context, caseIdentifiers: { caseId: "123" }, getToken, correlationIds });
+      initialiseCaseDetailsDataForContext({ context, caseIdentifiers: { caseId: "123" }, getToken, correlationIds, auth: authed });
 
       expect(mockFetchWithAuthFactory).toHaveBeenCalledWith({ config: props.config, context, getToken, correlationIds });
     });
@@ -113,10 +117,26 @@ describe("initialiseCaseDetailsData", () => {
         caseIdentifiers: { caseId: "123" },
         getToken: jest.fn().mockResolvedValue("token") as GetToken,
         correlationIds: { scriptLoadCorrelationId: "s", navigationCorrelationId: "n" },
+        auth: authed,
       });
 
       expect(callOrder).toContain("circuitBreaker");
       expect(callOrder).toContain("authFactory");
+    });
+
+    it("should NOT fetch when auth is not authed (service makes the determination)", () => {
+      const { initialiseCaseDetailsData } = require("./initialise-case-details-data");
+      const { initialiseCaseDetailsDataForContext } = initialiseCaseDetailsData(makeProps(gatewayUrl));
+
+      initialiseCaseDetailsDataForContext({
+        context: createMockContext(),
+        caseIdentifiers: { caseId: "123" },
+        getToken: jest.fn().mockResolvedValue("token") as GetToken,
+        correlationIds: { scriptLoadCorrelationId: "s", navigationCorrelationId: "n" },
+        auth: { isAuthed: false, knownErrorType: "RedirectInFlight", reason: "redirect in flight" },
+      });
+
+      expect(mockFetchWithCircuitBreaker).not.toHaveBeenCalled();
     });
   });
 
@@ -153,6 +173,7 @@ describe("initialiseCaseDetailsData", () => {
         caseIdentifiers: { caseId: "123" },
         getToken: jest.fn().mockResolvedValue("token") as GetToken,
         correlationIds: { scriptLoadCorrelationId: "s", navigationCorrelationId: "n" },
+        auth: authed,
       });
 
       // Should not set up fetch since optimistic handled it
