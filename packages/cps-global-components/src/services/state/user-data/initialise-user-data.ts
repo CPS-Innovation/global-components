@@ -1,4 +1,4 @@
-import { Config, FoundContext } from "cps-global-configuration";
+import { AuthResult, Config, FoundContext } from "cps-global-configuration";
 import { CorrelationIds } from "../../correlation/CorrelationIds";
 import { GetToken } from "../../auth/GetToken";
 import { AnalyticsEventData } from "../../analytics/analytics-event";
@@ -33,7 +33,13 @@ export const initialiseUserData = ({ config, userDataHint, setUserDataHint, trac
   let inFlight: Promise<void> | undefined;
   let priorAttemptErrored = false;
 
-  const initialiseUserDataForContext = ({ context, getToken, correlationIds }: { context: FoundContext; getToken: GetToken; correlationIds: CorrelationIds }): Promise<void> => {
+  const initialiseUserDataForContext = ({ context, getToken, correlationIds, auth }: { context: FoundContext; getToken: GetToken; correlationIds: CorrelationIds; auth: AuthResult }): Promise<void> => {
+    // No point fetching with no bearer token. auth resolves (not rejects) even on
+    // a FailedAuth / redirect-in-flight outcome, so the caller hands us the result
+    // and we decide here whether there's an identity to fetch for.
+    if (!auth.isAuthed) {
+      return Promise.resolve();
+    }
     if (refreshPeriodMins === 0) {
       return Promise.resolve();
     }

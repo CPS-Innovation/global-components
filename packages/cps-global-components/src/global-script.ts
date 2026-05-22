@@ -157,7 +157,9 @@ const initialise = async (window: Window & typeof globalThis) => {
 
         const authPromise = initialiseAuthForContext(context);
         authPromise.then(({ auth }) => initialiseOutSystemsShowAlertForContext({ context, auth })).catch(handleError);
-        authPromise.then(({ getToken }) => initialiseUserDataForContext({ context, getToken, correlationIds })).catch(handleError);
+        // auth is passed in; the service decides whether to fetch (it no-ops when
+        // not authed, so we don't call getToken with no account → no 401 churn).
+        authPromise.then(({ getToken, auth }) => initialiseUserDataForContext({ context, getToken, correlationIds, auth })).catch(handleError);
 
         const caseIdentifiersPromise = caseIdentifiersWaiter.waitForChange();
         caseIdentifiersPromise
@@ -169,7 +171,9 @@ const initialise = async (window: Window & typeof globalThis) => {
 
         Promise.all([authPromise, caseIdentifiersPromise])
           .then(([{ getToken, auth }, caseIdentifiers]) => {
-            initialiseCaseDetailsDataForContext({ context, caseIdentifiers, getToken, correlationIds });
+            // auth passed through; the service skips the authed fetch when not
+            // authed (the optimistic path already covered the unauthed case).
+            initialiseCaseDetailsDataForContext({ context, caseIdentifiers, getToken, correlationIds, auth });
             initialiseCaseLockingForContext({ auth, caseIdentifiers });
           })
           .catch(handleError);

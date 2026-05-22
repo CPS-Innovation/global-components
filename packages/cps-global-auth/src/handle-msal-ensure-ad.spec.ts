@@ -77,6 +77,7 @@ describe("handleMsalEnsureAd", () => {
     const acquireTokenSilent = jest.fn().mockResolvedValue({ account });
     const loginRedirect = jest.fn();
     const createInstance = jest.fn().mockResolvedValue({
+      getActiveAccount: () => account,
       acquireTokenSilent,
       loginRedirect,
     });
@@ -101,6 +102,7 @@ describe("handleMsalEnsureAd", () => {
   it("returns 'silent-success' even with a cross-origin returnTo (caller is responsible for same-origin validation)", async () => {
     const acquireTokenSilent = jest.fn().mockResolvedValue({ account });
     const createInstance = jest.fn().mockResolvedValue({
+      getActiveAccount: () => account,
       acquireTokenSilent,
       loginRedirect: jest.fn(),
     });
@@ -119,10 +121,34 @@ describe("handleMsalEnsureAd", () => {
     expect((win.location as any).replace).not.toHaveBeenCalled();
   });
 
-  it("falls through to loginRedirect when acquireTokenSilent rejects (no_account_error, expired refresh token, etc.)", async () => {
-    const acquireTokenSilent = jest.fn().mockRejectedValue(new Error("no_account_error"));
+  it("skips silent (no throw) and falls through to loginRedirect when there is no active account", async () => {
+    const acquireTokenSilent = jest.fn();
     const loginRedirect = jest.fn().mockResolvedValue(undefined);
     const createInstance = jest.fn().mockResolvedValue({
+      getActiveAccount: () => null,
+      acquireTokenSilent,
+      loginRedirect,
+    });
+
+    const result = await handleMsalEnsureAd(
+      makeWindow(),
+      { clientId: "c", authority: "a" },
+      "https://example.com/target",
+      "https://example.com/global-components/test/auth-handover.html?src=x&stage=ad-redirect",
+      ["User.Read"],
+      createInstance,
+    );
+
+    expect(result).toBe("redirect-initiated");
+    expect(acquireTokenSilent).not.toHaveBeenCalled();
+    expect(loginRedirect).toHaveBeenCalled();
+  });
+
+  it("falls through to loginRedirect when acquireTokenSilent rejects (expired refresh token etc.)", async () => {
+    const acquireTokenSilent = jest.fn().mockRejectedValue(new Error("interaction_required"));
+    const loginRedirect = jest.fn().mockResolvedValue(undefined);
+    const createInstance = jest.fn().mockResolvedValue({
+      getActiveAccount: () => account,
       acquireTokenSilent,
       loginRedirect,
     });
@@ -145,6 +171,7 @@ describe("handleMsalEnsureAd", () => {
     const acquireTokenSilent = jest.fn().mockRejectedValue(new Error("bad"));
     const loginRedirect = jest.fn().mockRejectedValue(new Error("interaction_in_progress"));
     const createInstance = jest.fn().mockResolvedValue({
+      getActiveAccount: () => account,
       acquireTokenSilent,
       loginRedirect,
     });

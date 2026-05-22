@@ -1,3 +1,4 @@
+import type { AccountInfo } from "@azure/msal-browser";
 import { createMsalInstance } from "./internal/create-msal-instance";
 import { handleMsalLogin } from "./handle-msal-login";
 
@@ -26,6 +27,7 @@ type MsalConfig = {
 };
 
 type SilentMsalLikeInstance = {
+  getActiveAccount: () => AccountInfo | null;
   acquireTokenSilent: (request: { scopes: string[] }) => Promise<unknown>;
 };
 
@@ -61,16 +63,25 @@ export const handleMsalEnsureAd = async (
   // all navigation within our estate.
   try {
     const instance = await createInstance({ ...msalConfig, redirectUri });
-    try {
-      await instance.acquireTokenSilent({ scopes });
-      console.log("[CPS-GLOBAL-AUTH] handleMsalEnsureAd silent-success");
-      return "silent-success";
-    } catch (err) {
+    // Guard: skip the silent step when there's no active account — acquireTokenSilent
+    // would throw no_account_error, which is normal-not-erroneous on a cold cache.
+    // Fall straight through to redirect instead.
+    if (!instance.getActiveAccount()) {
       console.log(
-        "[CPS-GLOBAL-AUTH] handleMsalEnsureAd silent failed, falling through to redirect",
-        err,
+        "[CPS-GLOBAL-AUTH] handleMsalEnsureAd no active account, falling through to redirect",
       );
-      // Fall through to handleMsalLogin below.
+    } else {
+      try {
+        await instance.acquireTokenSilent({ scopes });
+        console.log("[CPS-GLOBAL-AUTH] handleMsalEnsureAd silent-success");
+        return "silent-success";
+      } catch (err) {
+        console.log(
+          "[CPS-GLOBAL-AUTH] handleMsalEnsureAd silent failed, falling through to redirect",
+          err,
+        );
+        // Fall through to handleMsalLogin below.
+      }
     }
   } catch (err) {
     // PCA construction itself failed (rare — config bad). Try the redirect
