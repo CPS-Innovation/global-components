@@ -6,6 +6,10 @@ import { coerceValue, initialiseRequestObservationShim, readCoercedQueryParams }
 const ACTIVATION_URL = "https://acme.outsystemsenterprise.com/WorkManagementApp/Triage?CaseId=2170327&TaskId=2265639";
 const LISTEN_URL =
   "https://acme.outsystemsenterprise.com/WorkManagementApp/screenservices/WorkManagementApp/Triage/CheckDetails/ActionCompleteODReviewTask";
+const LISTEN_URL_OD_TASK =
+  "https://acme.outsystemsenterprise.com/WorkManagementApp/screenservices/WorkManagementApp/Triage/CheckDetails/ActionCompleteODTask";
+const LISTEN_URL_DCP_TASK =
+  "https://acme.outsystemsenterprise.com/WorkManagementApp/screenservices/WorkManagementApp/Triage/CheckDetails/ActionCompleteDCPTask";
 const OTHER_POST_URL = "https://acme.outsystemsenterprise.com/WorkManagementApp/screenservices/WorkManagementApp/Triage/CheckDetails/Something";
 
 const previewOn: Result<Preview> = { found: true, result: { requestObservationShim: true } };
@@ -172,26 +176,62 @@ describe("initialiseRequestObservationShim", () => {
       expect(trackEvent).not.toHaveBeenCalled();
     });
 
-    it("does not call trackEvent when the body is not valid JSON", () => {
+    it("emits without IsCPSD when the body is not valid JSON", () => {
       const trackEvent = jest.fn();
-      const { FakeXHR } = installShim(trackEvent);
+      const { FakeXHR } = installShim(trackEvent, "?CaseId=42");
 
       const xhr: any = new FakeXHR();
       xhr.open("POST", LISTEN_URL);
       xhr.send("not json");
 
-      expect(trackEvent).not.toHaveBeenCalled();
+      expect(trackEvent).toHaveBeenCalledWith({
+        name: "triage-submission",
+        CaseId: 42,
+      });
     });
 
-    it("does not call trackEvent when the body does not match the schema", () => {
+    it("emits without IsCPSD when the body does not match the schema", () => {
       const trackEvent = jest.fn();
-      const { FakeXHR } = installShim(trackEvent);
+      const { FakeXHR } = installShim(trackEvent, "?CaseId=42");
 
       const xhr: any = new FakeXHR();
       xhr.open("POST", LISTEN_URL);
       xhr.send(JSON.stringify({ inputParameters: { IsCPSD: "yes" } }));
 
-      expect(trackEvent).not.toHaveBeenCalled();
+      expect(trackEvent).toHaveBeenCalledWith({
+        name: "triage-submission",
+        CaseId: 42,
+      });
+    });
+
+    it("captures ODTask submissions even when the body is not our shape", () => {
+      const trackEvent = jest.fn();
+      const { FakeXHR } = installShim(trackEvent, "?CaseId=42&TaskType=OD");
+
+      const xhr: any = new FakeXHR();
+      xhr.open("POST", LISTEN_URL_OD_TASK);
+      xhr.send(JSON.stringify({ somethingElse: { nested: [1, 2, 3] } }));
+
+      expect(trackEvent).toHaveBeenCalledWith({
+        name: "triage-submission",
+        CaseId: 42,
+        TaskType: "OD",
+      });
+    });
+
+    it("captures DCPTask submissions even when the body is not JSON", () => {
+      const trackEvent = jest.fn();
+      const { FakeXHR } = installShim(trackEvent, "?CaseId=42&TaskType=DCP");
+
+      const xhr: any = new FakeXHR();
+      xhr.open("POST", LISTEN_URL_DCP_TASK);
+      xhr.send("<xml>whatever</xml>");
+
+      expect(trackEvent).toHaveBeenCalledWith({
+        name: "triage-submission",
+        CaseId: 42,
+        TaskType: "DCP",
+      });
     });
 
     it("still delegates to the original send when capture fails", () => {
