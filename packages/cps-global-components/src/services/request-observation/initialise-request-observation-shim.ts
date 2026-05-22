@@ -9,10 +9,12 @@ const { _log, _warn, _debug } = makeConsole("request-observation-shim");
 // Only activate on the OutSystems triage page.
 const ACTIVATION_URL_REGEX = /^https:\/\/[^/]+\.outsystemsenterprise\.com\/WorkManagementApp\/Triage(\/|$|\?)/i;
 
-// The OutSystems screenservice endpoint we want to capture submission bodies for.
-// Activation already restricts us to the Triage page, so an endsWith match on the
-// distinctive action name is enough — no need to pin the full module path.
-const LISTEN_URL_REGEX = /\/ActionCompleteODReviewTask$/i;
+// The OutSystems screenservice endpoints we capture submissions for. Activation
+// already restricts us to the Triage page, so an endsWith match on the distinctive
+// action name is enough — no need to pin the full module path. Only ODReviewTask
+// carries a body we can read (IsCPSD); ODTask/DCPTask bodies are arbitrary, so we
+// just record that the submission happened (see captureTriageSubmission).
+const LISTEN_URL_REGEX = /\/ActionComplete(ODReviewTask|ODTask|DCPTask)$/i;
 
 const TriageSubmissionBodySchema = z.object({
   inputParameters: z.object({
@@ -59,7 +61,7 @@ export const initialiseRequestObservationShim = ({
   const originalSend = XHR.prototype.send as (...args: any[]) => void;
 
   // Use `function` (not arrow) so `this` is the XHR instance.
-  XHR.prototype.open = function (this: XMLHttpRequest, method: string, url: string | URL, ...rest: any[]) {
+  const patchedOpen = function (this: XMLHttpRequest, method: string, url: string | URL, ...rest: any[]) {
     try {
       observed.set(this, { method: String(method ?? "").toUpperCase(), url: String(url) });
     } catch {
@@ -68,7 +70,7 @@ export const initialiseRequestObservationShim = ({
     return originalOpen.apply(this, [method, url, ...rest]);
   };
 
-  XHR.prototype.send = function (this: XMLHttpRequest, body?: Document | XMLHttpRequestBodyInit | null) {
+  const patchedSend = function (this: XMLHttpRequest, body?: Document | XMLHttpRequestBodyInit | null) {
     try {
       const entry = observed.get(this);
       if (entry?.method === "POST" && LISTEN_URL_REGEX.test(entry.url)) {
@@ -79,6 +81,26 @@ export const initialiseRequestObservationShim = ({
     }
     return originalSend.apply(this, [body]);
   };
+
+  // Prototype assignment can throw if a host instrumentation has sealed the
+  // prototype or marked open/send as non-writable. If that happens we bail out
+  // and roll back any half-install, rather than letting the error propagate
+  // up to global-script's init catch and marking the whole bundle as broken.
+  try {
+    XHR.prototype.open = patchedOpen;
+    XHR.prototype.send = patchedSend;
+  } catch (err) {
+    _warn("XHR prototype is not writable; shim not installed", err);
+    try {
+      if (XHR.prototype.open === patchedOpen) {
+        XHR.prototype.open = originalOpen;
+      }
+    } catch {
+      // prototype locked both ways — our patchedOpen is a strict delegate so
+      // leaving it in place is functionally identical to the native method
+    }
+    return;
+  }
 
   _log("XHR shim installed on", window.location.href);
 };
@@ -92,25 +114,13 @@ const captureTriageSubmission = ({
   trackEvent: TrackEvent;
   body: Document | XMLHttpRequestBodyInit | null | undefined;
 }) => {
-  if (typeof body !== "string") {
-    _debug("triage submission body not a string; skipping");
-    return;
-  }
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(body);
-  } catch {
-    _debug("triage submission body not valid JSON; skipping");
-    return;
-  }
-  const result = TriageSubmissionBodySchema.safeParse(parsed);
-  if (!result.success) {
-    _debug("triage submission body did not match schema; skipping");
-    return;
-  }
-
+  // A matched POST is, by definition, one of the triage tasks being completed, so
+  // we always record it. The body is best-effort only: ODReviewTask carries IsCPSD,
+  // but ODTask/DCPTask bodies are arbitrary and may not be JSON at all — we attach
+  // IsCPSD when we can read it and otherwise just note the submission happened. The
+  // captured query params (e.g. TaskType) already tell the tasks apart.
   const queryParams = readCoercedQueryParams(window);
-  const { IsCPSD } = result.data.inputParameters;
+  const IsCPSD = extractIsCPSD(body);
 
   trackEvent({
     name: "triage-submission",
@@ -118,6 +128,27 @@ const captureTriageSubmission = ({
     ...(IsCPSD !== undefined ? { IsCPSD } : {}),
   });
   _debug("triage submission tracked", { ...queryParams, IsCPSD });
+};
+
+// Best-effort read of IsCPSD from the submission body. Returns undefined for any
+// body we can't read — not a string, not JSON, or not our expected shape — so a
+// whacky ODTask/DCPTask body simply yields an event without IsCPSD rather than
+// being dropped.
+const extractIsCPSD = (body: Document | XMLHttpRequestBodyInit | null | undefined): boolean | undefined => {
+  if (typeof body !== "string") {
+    return undefined;
+  }
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(body);
+  } catch {
+    return undefined;
+  }
+  const result = TriageSubmissionBodySchema.safeParse(parsed);
+  if (!result.success) {
+    return undefined;
+  }
+  return result.data.inputParameters.IsCPSD;
 };
 
 export const readCoercedQueryParams = (window: Window): Record<string, string | number> => {
