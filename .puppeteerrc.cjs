@@ -13,19 +13,15 @@
  * cosmiconfig resolves this file globally (upward from the cwd), so it applies
  * to every Puppeteer instance in the workspace.
  *
- * The browser is still installed where it's needed:
- *  - CI (build-and-test): a dedicated workflow step runs
- *    `puppeteer browsers install chrome` with a step-level
- *    `PUPPETEER_SKIP_DOWNLOAD=false`, which overrides the skip here and downloads
- *    Chrome as a single serial step (no race). A GitHub Actions step env is
- *    reliably exported to the shell — an inline `VAR=val` prefix in a pnpm
- *    postinstall script is NOT, which is why the install lives in the workflow.
+ * A browser is still obtained where it's needed:
+ *  - CI (build-and-test): the e2e step points Puppeteer at the runner's
+ *    pre-installed Chrome via `PUPPETEER_EXECUTABLE_PATH`, so nothing is
+ *    downloaded — Puppeteer's own downloader is unreliable on the runner.
  *  - Local dev: the `e2e` package's `postinstall` runs an explicit
  *    `puppeteer browsers install chrome`; an explicit browser arg installs even
- *    with `skipDownload` set, so developers still get Chrome on install.
+ *    with `skipDownload` set here, so developers still get Chrome on install.
  *
- * e2e launches headless full Chrome (Puppeteer's default), so Chrome is the only
- * browser we need.
+ * e2e launches headless Chrome, so Chrome is the only browser we need.
  */
 module.exports = {
   skipDownload: true,
