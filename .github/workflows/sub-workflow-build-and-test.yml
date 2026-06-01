@@ -78,8 +78,28 @@ jobs:
           BUILD_INFO="${BUILD_INFO}};"
           pnpm --filter cps-global-components run rollup --intro "$BUILD_INFO"
 
-      - run: |
+      # Browser auto-download is disabled workspace-wide via .puppeteerrc.cjs
+      # (skipDownload) to stop the two concurrent puppeteer postinstalls racing on
+      # the shared cache. e2e needs a real Chrome, so install it here as one
+      # serial step. PUPPETEER_SKIP_DOWNLOAD=false (a step-level env, which is
+      # reliably exported to the shell — unlike an inline prefix in a pnpm script)
+      # overrides skipDownload so the install actually downloads. Verify before
+      # running the tests so any failure is unambiguous.
+      # Puppeteer's own browser downloader is unreliable on this runner: the
+      # setup-node pnpm cache is restored with `tar -P` (absolute paths) which
+      # recreates a partial ~/.cache/puppeteer, and a fresh `puppeteer browsers
+      # install` downloads the archive but leaves it un-extracted (folder present,
+      # executable missing). Rather than fight it, use the Chrome that ships on
+      # the GitHub ubuntu runner via PUPPETEER_EXECUTABLE_PATH — no download, no
+      # extract, no cache races. Setting that var also makes puppeteer skip any
+      # download. (.puppeteerrc skipDownload already stops the install-time race.)
+      - name: Run e2e tests against the runner's system Chrome
+        run: |
           cp -r ./packages/cps-global-components/dist/global-components.js ./e2e/harness
+          CHROME_BIN="$(command -v google-chrome || command -v google-chrome-stable || command -v chromium-browser || command -v chromium || true)"
+          echo "System Chrome: ${CHROME_BIN:-<none found>}"
+          [ -n "$CHROME_BIN" ] || { echo "No system Chrome on the runner; cannot run e2e tests"; exit 1; }
+          export PUPPETEER_EXECUTABLE_PATH="$CHROME_BIN"
           pnpm --filter e2e test
 
       - run: |
