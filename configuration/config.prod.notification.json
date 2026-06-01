@@ -1,3 +1,22 @@
 {
-  "notifications": []
+  "notifications": [
+    {
+      "id": "network-upgrade-2026-06-01",
+      "heading": "Planned network upgrade",
+      "bodyHtml": "<p class=\"govuk-body\">There are CPS wide upgrades happening tonight (Monday the 1st of June between 1900 and 2300). During this time period we are expecting a small number of brief interruptions to service. If you are working in these new tools please be aware that CMS Classic may disconnect whilst the upgrades are taking place. If you are logged out of CMS Classic you will not be able to progress in the new tools, so please keep checking the CMS Classic tab is still logged in.</p>",
+      "from": "2026-06-01T17:45:00Z",
+      "to": "2026-06-01T22:00:00Z",
+      "urlRegex": "^https://[^/]+\\.outsystemsenterprise\\.com/(CaseReview/LandingPage|Casework_Blocks/home)",
+      "dismissible": true
+    },
+    {
+      "id": "network-upgrade-2026-06-04",
+      "heading": "Planned network upgrade",
+      "bodyHtml": "<p class=\"govuk-body\">There are CPS wide upgrades happening tonight (Thursday the 4th of June between 1900 and 2300). During this time period we are expecting a small number of brief interruptions to service. If you are working in these new tools please be aware that CMS Classic may disconnect whilst the upgrades are taking place. If you are logged out of CMS Classic you will not be able to progress in the new tools, so please keep checking the CMS Classic tab is still logged in.</p>",
+      "from": "2026-06-04T17:45:00Z",
+      "to": "2026-06-04T22:00:00Z",
+      "urlRegex": "^https://[^/]+\\.outsystemsenterprise\\.com/(CaseReview/LandingPage|Casework_Blocks/home)",
+      "dismissible": true
+    }
+  ]
 }
