@@ -53,6 +53,14 @@ jobs:
           node-version-file: ".nvmrc"
           cache: "pnpm"
 
+      # The hosted runner image can ship a partial Puppeteer cache (a Chrome
+      # version folder with no executable inside). puppeteer's install.mjs sees
+      # the folder and skips the download, then e2e's `puppeteer browsers install`
+      # postinstall rejects the missing binary and fails the whole install. Wipe
+      # the cache so Chrome is always downloaded clean. No-op when it's empty.
+      - name: Reset Puppeteer browser cache
+        run: rm -rf ~/.cache/puppeteer
+
       - run: pnpm install
         env:
           CI: true
