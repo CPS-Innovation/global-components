@@ -10,6 +10,25 @@ beforeEach(() => {
   jest.spyOn(console, "warn").mockImplementation(() => {});
 });
 
+// Helper: parse the path-segment-encoded k/v pairs back into a record. Used by
+// the assertions below — mirrors what a log consumer would do to extract the
+// telemetry from the URL.
+const parseBeaconPath = (url: string): Record<string, string> => {
+  const path = new URL(url).pathname;
+  const match = path.match(/\/ad-redirect-beacon\/(.+)$/);
+  if (!match) {
+    return {};
+  }
+  const segments = match[1]!.split("/").map(decodeURIComponent);
+  const result: Record<string, string> = {};
+  for (let i = 0; i < segments.length; i += 2) {
+    if (segments[i + 1] !== undefined) {
+      result[segments[i]!] = segments[i + 1]!;
+    }
+  }
+  return result;
+};
+
 describe("buildBeaconUrl", () => {
   test("resolves the beacon endpoint as a sibling of the bundle's .js URL", () => {
     const url = buildBeaconUrl(
@@ -18,23 +37,23 @@ describe("buildBeaconUrl", () => {
       { "auth-hint-object-id": "abc" },
     );
 
-    expect(new URL(url).origin + new URL(url).pathname).toBe(
-      "https://polaris-qa-notprod.cps.gov.uk/global-components/test/ad-redirect-beacon",
+    expect(new URL(url).pathname).toMatch(
+      /^\/global-components\/test\/ad-redirect-beacon\//,
     );
   });
 
-  test("sets ?outcome= and folds payload keys into query string", () => {
+  test("encodes outcome and payload keys as path segments", () => {
     const url = buildBeaconUrl(
       new URL("https://polaris.cps.gov.uk/global-components/prod/auth-handover.js"),
       "failure",
       { "auth-hint-object-id": "obj-123", "error-code": "AADSTS50011", reason: "redirect_uri mismatch" },
     );
 
-    const parsed = new URL(url);
-    expect(parsed.searchParams.get("outcome")).toBe("failure");
-    expect(parsed.searchParams.get("auth-hint-object-id")).toBe("obj-123");
-    expect(parsed.searchParams.get("error-code")).toBe("AADSTS50011");
-    expect(parsed.searchParams.get("reason")).toBe("redirect_uri mismatch");
+    const params = parseBeaconPath(url);
+    expect(params.outcome).toBe("failure");
+    expect(params["auth-hint-object-id"]).toBe("obj-123");
+    expect(params["error-code"]).toBe("AADSTS50011");
+    expect(params.reason).toBe("redirect_uri mismatch");
   });
 
   test("skips undefined payload values rather than encoding them as 'undefined'", () => {
@@ -44,7 +63,7 @@ describe("buildBeaconUrl", () => {
       { "auth-hint-object-id": "obj-1", "error-code": undefined },
     );
 
-    expect(new URL(url).searchParams.has("error-code")).toBe(false);
+    expect(parseBeaconPath(url)["error-code"]).toBeUndefined();
   });
 });
 

@@ -31,6 +31,7 @@ describe("get-ad-user-account", () => {
     logError: jest.fn(),
     window,
     msalRedirectUrl,
+    scopes: ["User.Read"],
   };
 
   // The redirect path now calls window.location.replace rather than
@@ -43,6 +44,9 @@ describe("get-ad-user-account", () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    // The loop-guard trip path console.warns by design (benign, no trackException).
+    // Silence it so it doesn't clutter test output.
+    jest.spyOn(console, "warn").mockImplementation(() => {});
 
     mockAccount = {
       homeAccountId: "test-home-account-id",
@@ -86,7 +90,7 @@ describe("get-ad-user-account", () => {
   });
 
   describe("default cascade (acquireTokenSilent → ssoSilent)", () => {
-    it("returns account via acquireTokenSilent when an active account exists", async () => {
+    it("returns account via acquireTokenSilent on cache hit (active account present)", async () => {
       (mockInstance.getActiveAccount as jest.Mock).mockReturnValue(mockAccount);
       (mockInstance.acquireTokenSilent as jest.Mock).mockResolvedValue({
         account: mockAccount,
@@ -98,39 +102,34 @@ describe("get-ad-user-account", () => {
       expect(result.account).toBe(mockAccount);
       expect(result.mechanism).toBe("cache");
       expect(result.redirectCompletionId).toBeUndefined();
+      // No account passed — MSAL falls back to getActiveAccount() internally.
       expect(mockInstance.acquireTokenSilent).toHaveBeenCalledWith({
         scopes: ["User.Read"],
-        account: mockAccount,
         cacheLookupPolicy: 2,
       });
       expect(mockInstance.ssoSilent).not.toHaveBeenCalled();
     });
 
-    it("tries acquireTokenSilent when getActiveAccount returns null but getAllAccounts has an entry", async () => {
+    it("skips acquireTokenSilent (no throw, no log) when there is no active account, falling through to ssoSilent", async () => {
+      // Cold-cache case: no active account. The guard short-circuits the cache
+      // step rather than letting acquireTokenSilent throw no_account_error.
       (mockInstance.getActiveAccount as jest.Mock).mockReturnValue(null);
-      (mockInstance.getAllAccounts as jest.Mock).mockReturnValue([mockAccount]);
-      (mockInstance.acquireTokenSilent as jest.Mock).mockResolvedValue({
+      (mockInstance.ssoSilent as jest.Mock).mockResolvedValue({
         account: mockAccount,
-        fromCache: true,
       } as AuthenticationResult);
 
       const result = await getAdUserAccount(defaultProps);
 
       expect(result.account).toBe(mockAccount);
-      expect(result.mechanism).toBe("cache");
-      expect(mockInstance.acquireTokenSilent).toHaveBeenCalledWith({
-        scopes: ["User.Read"],
-        account: mockAccount,
-        cacheLookupPolicy: 2,
-      });
-      expect(mockInstance.ssoSilent).not.toHaveBeenCalled();
+      expect(result.mechanism).toBe("silent");
+      expect(mockInstance.acquireTokenSilent).not.toHaveBeenCalled();
+      expect(defaultProps.logError).not.toHaveBeenCalled();
     });
 
-    it("falls through to ssoSilent when acquireTokenSilent rejects", async () => {
-      (mockInstance.getActiveAccount as jest.Mock).mockReturnValue(null);
-      (mockInstance.getAllAccounts as jest.Mock).mockReturnValue([mockAccount]);
+    it("falls through to ssoSilent when acquireTokenSilent rejects (expired refresh token etc.)", async () => {
+      (mockInstance.getActiveAccount as jest.Mock).mockReturnValue(mockAccount);
       (mockInstance.acquireTokenSilent as jest.Mock).mockRejectedValue(
-        new Error("token expired"),
+        new Error("interaction_required"),
       );
       (mockInstance.ssoSilent as jest.Mock).mockResolvedValue({
         account: mockAccount,
@@ -141,24 +140,6 @@ describe("get-ad-user-account", () => {
       expect(result.account).toBe(mockAccount);
       expect(result.mechanism).toBe("silent");
       expect(mockInstance.acquireTokenSilent).toHaveBeenCalledTimes(1);
-      expect(mockInstance.ssoSilent).toHaveBeenCalledWith({
-        scopes: ["User.Read"],
-        loginHint: "test@example.com",
-      });
-    });
-
-    it("skips acquireTokenSilent and goes straight to ssoSilent when no cached accounts exist", async () => {
-      (mockInstance.getActiveAccount as jest.Mock).mockReturnValue(null);
-      (mockInstance.getAllAccounts as jest.Mock).mockReturnValue([]);
-      (mockInstance.ssoSilent as jest.Mock).mockResolvedValue({
-        account: mockAccount,
-      } as AuthenticationResult);
-
-      const result = await getAdUserAccount(defaultProps);
-
-      expect(result.account).toBe(mockAccount);
-      expect(result.mechanism).toBe("silent");
-      expect(mockInstance.acquireTokenSilent).not.toHaveBeenCalled();
       expect(mockInstance.ssoSilent).toHaveBeenCalledWith({
         scopes: ["User.Read"],
       });
@@ -245,7 +226,7 @@ describe("get-ad-user-account", () => {
       expect(handedOff.searchParams.get("returnTo")).toBe(window.location.href);
     });
 
-    it("refuses to hand off when the loop-guard sentinel is recent (<30s)", async () => {
+    it("refuses to hand off when the loop-guard sentinel is recent (<30s) — returns redirect-initiated, does not throw or log", async () => {
       (mockInstance.getActiveAccount as jest.Mock).mockReturnValue(null);
       (mockInstance.getAllAccounts as jest.Mock).mockReturnValue([]);
       window.sessionStorage.setItem(
@@ -253,12 +234,16 @@ describe("get-ad-user-account", () => {
         String(Date.now() - 1000),
       );
 
-      await expect(
-        getAdUserAccount({ ...defaultProps, useFullPageRedirect: true }),
-      ).rejects.toThrow(/already in-flight/);
+      const result = await getAdUserAccount({ ...defaultProps, useFullPageRedirect: true });
 
+      // Benign: a redirect is already in flight. No second redirect, no throw,
+      // no logError (→ no trackException). Classified as redirect-initiated so
+      // the caller surfaces RedirectInFlight.
+      expect(result.account).toBeNull();
+      expect(result.mechanism).toBe("redirect-initiated");
       expect(replaceSpy).not.toHaveBeenCalled();
       expect(assignSpy).not.toHaveBeenCalled();
+      expect(defaultProps.logError).not.toHaveBeenCalled();
     });
 
     it("re-fires the hand-off when the loop-guard sentinel is stale (>30s)", async () => {
@@ -390,6 +375,50 @@ describe("get-ad-user-account", () => {
       expect(result.account).toBeNull();
       expect(result.mechanism).toBeNull();
       expect(result.redirectCompletionId).toBeUndefined();
+    });
+
+    it("returns mechanism 'redirect-initiated' on the outbound leg — useFullPageRedirect fired loginRedirect this call", async () => {
+      // No cache, no completion id, no prior in-flight sentinel. The cascade's
+      // tryLoginAccountViaRedirect step sets the sentinel itself and calls
+      // window.location.replace(). The cascade returns null because nothing
+      // produced an account in this script context — but analytics needs to
+      // distinguish "I just fired the redirect" from "no account at all".
+      (mockInstance.getActiveAccount as jest.Mock).mockReturnValue(null);
+      (mockInstance.getAllAccounts as jest.Mock).mockReturnValue([]);
+
+      const result = await getAdUserAccount({
+        ...defaultProps,
+        useFullPageRedirect: true,
+      });
+
+      expect(result.account).toBeNull();
+      expect(result.mechanism).toBe("redirect-initiated");
+      expect(result.redirectCompletionId).toBeUndefined();
+      // Sanity: replace() was actually called — the mechanism shouldn't fire
+      // if URL construction had thrown before navigation.
+      expect(replaceSpy).toHaveBeenCalledTimes(1);
+    });
+
+    it("'redirect-initiated' takes priority over 'redirect-failure' on a fresh load that fires a new redirect", async () => {
+      // Pathological but possible: a prior round-trip's in-flight sentinel
+      // expired (>30s) and we're on a fresh attempt that's about to fire
+      // loginRedirect. The expired sentinel should be ignored (it isn't
+      // "live at entry" — wasRedirectInFlightAtEntry is false past 30s), and
+      // the new initiation should produce "redirect-initiated".
+      window.sessionStorage.setItem(
+        "cps_global_components_msal_redirect_in_flight_at",
+        String(Date.now() - 60_000),
+      );
+      (mockInstance.getActiveAccount as jest.Mock).mockReturnValue(null);
+      (mockInstance.getAllAccounts as jest.Mock).mockReturnValue([]);
+
+      const result = await getAdUserAccount({
+        ...defaultProps,
+        useFullPageRedirect: true,
+      });
+
+      expect(result.account).toBeNull();
+      expect(result.mechanism).toBe("redirect-initiated");
     });
   });
 });

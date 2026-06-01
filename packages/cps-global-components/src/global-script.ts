@@ -13,6 +13,7 @@ import { initialiseCaseDetailsData } from "./services/data/initialise-case-detai
 import { initialiseCorrelationIds } from "./services/correlation/initialise-correlation-ids";
 import { initialiseRootUrl } from "./services/root-url/initialise-root-url";
 import { initialisePreview } from "./services/state/preview/initialise-preview";
+import { initialiseRequestObservationShim } from "./services/request-observation/initialise-request-observation-shim";
 import { initialiseNotifications } from "./services/notifications/initialise-notifications";
 import { handlers } from "./services/handlers/handlers";
 import { initialiseRecentCases } from "./services/state/recent-cases/initialise-recent-cases";
@@ -89,7 +90,7 @@ const initialise = async (window: Window & typeof globalThis) => {
       witnessAreaSubscriber,
     );
 
-    initialiseTabTitle({ window, preview, subscribe, flags });
+    initialiseTabTitle({ window, preview, settings, subscribe, flags });
     /* do not await this — notification fetches shouldn't block auth/analytics/etc. */
     initialiseNotifications({ rootUrl, register, handlers, config });
     const { setNextRecentCases } = initialiseRecentCases({ rootUrl, config, register });
@@ -101,7 +102,6 @@ const initialise = async (window: Window & typeof globalThis) => {
       registerAuthWithAnalytics,
       registerCorrelationIdsWithAnalytics,
       registerCaseIdentifiersWithAnalytics,
-      getOperationId,
     } = initialiseAnalytics({
       window,
       config,
@@ -112,7 +112,9 @@ const initialise = async (window: Window & typeof globalThis) => {
     });
     trackException = _trackException;
 
-    const { silentFlowDiagnostics, addSilentFlowDiagnostics } = initialiseDiagnostics({ window, rootUrl, config, flags, register, trackEvent });
+    initialiseRequestObservationShim({ window, config, preview, trackEvent });
+
+    initialiseDiagnostics({ window, rootUrl, config, flags, trackEvent });
 
     trackEvent({ name: "state-summary", summary: summariseResults({ handover, preview, settings, authHint, userDataHint, cmsSessionHint }) });
 
@@ -122,9 +124,6 @@ const initialise = async (window: Window & typeof globalThis) => {
       authHint,
       flags,
       trackException,
-      silentFlowDiagnostics,
-      addSilentFlowDiagnostics,
-      getOperationId,
       register,
       registerAuthWithAnalytics,
       setAuthHint,
@@ -158,7 +157,9 @@ const initialise = async (window: Window & typeof globalThis) => {
 
         const authPromise = initialiseAuthForContext(context);
         authPromise.then(({ auth }) => initialiseOutSystemsShowAlertForContext({ context, auth })).catch(handleError);
-        authPromise.then(({ getToken }) => initialiseUserDataForContext({ context, getToken, correlationIds })).catch(handleError);
+        // auth is passed in; the service decides whether to fetch (it no-ops when
+        // not authed, so we don't call getToken with no account → no 401 churn).
+        authPromise.then(({ getToken, auth }) => initialiseUserDataForContext({ context, getToken, correlationIds, auth })).catch(handleError);
 
         const caseIdentifiersPromise = caseIdentifiersWaiter.waitForChange();
         caseIdentifiersPromise
@@ -170,7 +171,9 @@ const initialise = async (window: Window & typeof globalThis) => {
 
         Promise.all([authPromise, caseIdentifiersPromise])
           .then(([{ getToken, auth }, caseIdentifiers]) => {
-            initialiseCaseDetailsDataForContext({ context, caseIdentifiers, getToken, correlationIds });
+            // auth passed through; the service skips the authed fetch when not
+            // authed (the optimistic path already covered the unauthed case).
+            initialiseCaseDetailsDataForContext({ context, caseIdentifiers, getToken, correlationIds, auth });
             initialiseCaseLockingForContext({ auth, caseIdentifiers });
           })
           .catch(handleError);

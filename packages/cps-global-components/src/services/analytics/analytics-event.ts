@@ -7,6 +7,7 @@ export type AnalyticsEventData =
   | { name: "page-view-initiated" }
   | { name: "state-summary"; summary: ResultsSummary }
   | { name: "iframe-load-probe"; outcome: "loaded" | "timeout-public" | "timeout-local"; durationMs: number }
-  | { name: "probe-navigator-permissions"; hostname: string; timestamp: number; localNetworkAccessPermission?: "granted" | "denied" | "prompt" };
+  | { name: "probe-navigator-permissions"; hostname: string; timestamp: number; localNetworkAccessPermission?: "granted" | "denied" | "prompt" }
+  | { name: "triage-submission"; [key: string]: string | number | boolean | undefined };
 
 export type TrackEvent = (detail: AnalyticsEventData) => void;

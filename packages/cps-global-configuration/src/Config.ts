@@ -163,7 +163,14 @@ export const configBaseSchema = z.object({
   BANNER_TITLE_HREF: z.string(),
   AD_TENANT_AUTHORITY: z.string().optional(),
   AD_CLIENT_ID: z.string().optional(),
-  AD_GATEWAY_SCOPE: z.string().optional(),
+  // Scopes to request on every MSAL call (silent, redirect, gateway token).
+  // Used as the single source of truth so the login cascade and the gateway
+  // token-fetch share a cache entry rather than asking AAD for two unrelated
+  // access tokens. Defaults to `[]`, in which case MSAL falls back to OIDC
+  // defaults (openid, profile, offline_access) — the cascade still works but
+  // without the access-token cache short-circuit, so each silent step does a
+  // /token round-trip on cache miss.
+  AD_GATEWAY_SCOPES: z.array(z.string()).default([]),
   GATEWAY_URL: z.string().optional(),
   APP_INSIGHTS_CONNECTION_STRING: z.string().optional(),
   SURVEY_LINK: z.string().optional(),
@@ -183,12 +190,17 @@ export const configBaseSchema = z.object({
   // so success / failure can be enabled / disabled independently.
   BEACON_AD_REDIRECT_SUCCESSES_ENABLED: z.boolean().optional(),
   BEACON_AD_REDIRECT_FAILURES_ENABLED: z.boolean().optional(),
+  // Broad on/off for the OutSystems Triage XHR observation shim. The shim
+  // also installs when the per-user preview flag is set, so flipping this off
+  // disables observation for everyone except preview-flag opt-ins (which is
+  // what we want: ops can cut the feature instantly while engineers can still
+  // exercise it in a "should-be-off" state).
+  OS_TRIAGE_REQUEST_OBSERVATION_ENABLED: z.boolean().optional(),
   SSO_SILENT_DELAY_MS: z.number().optional(),
   CACHE_CONFIG: cacheConfigSchema.optional(),
   FETCH_CIRCUIT_BREAKER_CONFIG: fetchCircuitBreakerConfigSchema.optional(),
   RECENT_CASES_NAVIGATE_URL: z.string().optional(),
   RECENT_CASES_LIST_LENGTH: z.number().optional(),
-  SILENT_FLOW_DIAGNOSTICS_LENGTH: z.number().int().min(0).optional(),
   PROBE_IFRAME_BASE_URL: z.string().optional(),
   PROBE_IFRAME_TIMEOUT_MS: z.number().int().min(0).optional(),
   PROBE_IFRAME_REFRESH_PERIOD_MINS: z.number().int().min(0).optional(),

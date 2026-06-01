@@ -1477,6 +1477,28 @@ describe("global-script", () => {
         }),
       );
     });
+
+    it("passes auth through to the data services so they make the fetch/no-fetch determination", async () => {
+      mockInitialiseContext.mockReturnValue({
+        found: true,
+        contextDefinition: { name: "test-context" },
+        pathTags: { caseId: "456" },
+      });
+      const failedAuth = { isAuthed: false, knownErrorType: "RedirectInFlight", reason: "redirect in flight" };
+      mockInitialiseAuth.mockResolvedValue({ auth: failedAuth, getToken: jest.fn() });
+
+      const globalScript = require("./global-script").default;
+      globalScript();
+      await new Promise(resolve => setTimeout(resolve, 50));
+
+      // Optimistic (no-token) path still runs unconditionally.
+      expect(mockInitialiseCaseDetailsDataForContextOptimistic).toHaveBeenCalledWith({ caseId: "456" });
+      // global-script no longer gates — it always calls and passes auth through;
+      // the service decides whether to actually fetch (tested in the service spec).
+      expect(mockInitialiseCaseDetailsDataForContext).toHaveBeenCalledWith(
+        expect.objectContaining({ auth: failedAuth }),
+      );
+    });
   });
 
   describe("operation order", () => {

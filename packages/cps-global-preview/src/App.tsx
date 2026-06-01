@@ -116,6 +116,13 @@ const FEATURES: Feature[] = [
       "Enable the case-locking presence feature: register the user as present on the current case via the SignalR hub and notify when other users are working on the same case section.",
     disabled: false,
   },
+  {
+    key: "requestObservationShim",
+    label: "Request observation shim",
+    description:
+      "Hook XMLHttpRequest to log the URL and body length of POST requests to the console. Diagnostic only — does not capture bodies or interfere with requests. Used to confirm we share the host app's XHR.",
+    disabled: false,
+  },
 ];
 
 type FeatureKey = Feature["key"];

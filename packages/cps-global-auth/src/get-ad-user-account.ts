@@ -4,22 +4,16 @@ import {
   PublicClientApplication,
 } from "@azure/msal-browser";
 import { HANDOVER_PARAM_KEYS } from "cps-global-configuration";
-import { getErrorType } from "./get-error-type";
 import { LogError } from "./LogError";
-import type { SilentFlowDiagnostic } from "./silent-flow-diagnostic";
 import {
   MSAL_REDIRECT_COMPLETION_ID_KEY,
   MSAL_REDIRECT_IN_FLIGHT_KEY,
   MSAL_REDIRECT_LOOP_GUARD_MS,
 } from "./internal/redirect-storage-keys";
 
-type AddSilentFlowDiagnostics = (entry: SilentFlowDiagnostic) => void;
-
 type Props = {
   instance: PublicClientApplication;
   config: { SSO_SILENT_DELAY_MS: number | undefined };
-  addSilentFlowDiagnostics?: AddSilentFlowDiagnostics;
-  getOperationId?: () => string | undefined;
   // Single error delegate from the host. Implementations typically do both
   // console-log AND telemetry tracking (e.g. trackException to App Insights).
   logError: LogError;
@@ -31,15 +25,11 @@ type Props = {
   // keeps our MSAL calls strictly on the host-code-free page so we never
   // write msal.interaction.status into a sessionStorage shared with the host.
   msalRedirectUrl: string;
-  // Last-known AAD session id from a prior successful termination
-  // (AuthHint.lastKnownSid). When present, replayed as `sid` on ssoSilent —
-  // AAD treats the call as an SSO-continuation under the live session so the
-  // user skips the account picker / re-prompt entirely. See
-  // packages/cps-global-configuration/src/AuthHint.ts. If AAD rejects the
-  // sid (AADSTS160021 — session rotated since we last saw it) we transparently
-  // retry once with loginHint and the caller is expected to drop the stale
-  // hint on the next write-back.
-  lastKnownSid?: string;
+  // Scopes to ask AAD for on both the cache step and the ssoSilent step.
+  // Sourced from config.AD_GATEWAY_SCOPES so the login cascade and the gateway
+  // token-fetch share a cache entry. Empty array means "OIDC defaults only"
+  // (cascade still works, just loses the access-token cache short-circuit).
+  scopes: string[];
 };
 
 const asError = (value: unknown): Error =>
@@ -47,15 +37,22 @@ const asError = (value: unknown): Error =>
 
 type AccountRetrievalResult = Promise<AccountInfo | null>;
 
-// Four-state outcome derived at the end of the cascade. "redirect-success" /
-// "redirect-failure" are inferred from the sessionStorage signals set by the
-// termination page (completion id) and by tryLoginAccountViaRedirect itself
-// (in-flight sentinel). See internal/redirect-storage-keys.ts.
+// Five-state outcome derived at the end of the cascade. "redirect-success" /
+// "redirect-failure" / "redirect-initiated" are inferred from the
+// sessionStorage signals set by the termination page (completion id) and by
+// tryLoginAccountViaRedirect itself (in-flight sentinel + the local
+// redirectInFlight flag). See internal/redirect-storage-keys.ts.
+//
+// "redirect-initiated" specifically means: this call fired loginRedirect and is
+// about to unload the page. Distinct from "redirect-failure" (which means a
+// PRIOR redirect didn't complete successfully) — surfacing the two separately
+// stops analytics treating the outbound leg of a healthy redirect as a failure.
 export type GetAdUserAccountMechanism =
   | "cache"
   | "silent"
   | "redirect-success"
   | "redirect-failure"
+  | "redirect-initiated"
   | null;
 
 export type GetAdUserAccountResult = {
@@ -63,8 +60,6 @@ export type GetAdUserAccountResult = {
   mechanism: GetAdUserAccountMechanism;
   redirectCompletionId: string | undefined;
 };
-
-const loginRequest = { scopes: ["User.Read"] };
 
 const DEFAULT_SSO_SILENT_DELAY_MS = 0;
 
@@ -82,13 +77,11 @@ const waitForPageStability = async (
 export const getAdUserAccount = async ({
   instance,
   config: { SSO_SILENT_DELAY_MS },
-  addSilentFlowDiagnostics,
-  getOperationId,
   logError,
   useFullPageRedirect,
   window,
   msalRedirectUrl,
-  lastKnownSid,
+  scopes,
 }: Props): Promise<GetAdUserAccountResult> => {
   const t0 = performance.now();
 
@@ -114,21 +107,36 @@ export const getAdUserAccount = async ({
   // "cache" vs "silent" when no completion id is present.
   let producedBy: "cache" | "silent" | undefined;
 
-  const tryAcquireTokenSilently = async (): AccountRetrievalResult => {
-    const account = instance.getActiveAccount() || instance.getAllAccounts()[0];
-    if (!account) return null;
+  // Set by tryLoginAccountViaRedirect either when it fires loginRedirect, or
+  // when the loop guard detects a redirect already in flight (and refuses to
+  // fire a second). Both mean "a redirect is in flight"; it drives the
+  // "redirect-initiated" mechanism so the caller classifies the pageview as
+  // RedirectInFlight (transient) rather than a real "no account found" failure.
+  let redirectInFlight = false;
 
+  const tryAcquireTokenSilently = async (): AccountRetrievalResult => {
+    // Guard: if there's no active account there's nothing for the cache step to
+    // do. We skip rather than calling acquireTokenSilent, because MSAL throws
+    // no_account_error when no account is set — and that throw would hit our
+    // catch and get logged as an error on every cold-cache load (first visit,
+    // post-logout, cleared storage), which is normal-not-erroneous. The cascade
+    // falls through to ssoSilent quietly instead.
+    //
+    // We don't pass the account to acquireTokenSilent — MSAL re-resolves it from
+    // getActiveAccount() internally. The guard is a precondition check, not the
+    // account source.
+    if (!instance.getActiveAccount()) {
+      return null;
+    }
     try {
-      const result = await instance.acquireTokenSilent({
-        ...loginRequest,
-        account,
+      const { account } = await instance.acquireTokenSilent({
+        scopes,
         cacheLookupPolicy: CacheLookupPolicy.AccessTokenAndRefreshToken,
       });
-      const acquired = result.account ?? null;
-      if (acquired) {
+      if (account) {
         producedBy = "cache";
       }
-      return acquired;
+      return account ?? null;
     } catch (error) {
       logError("acquireTokenSilent failed", asError(error));
       return null;
@@ -145,82 +153,18 @@ export const getAdUserAccount = async ({
       t0,
     );
 
-    // Two-arm request building. With `sid`, AAD treats the call as an
-    // SSO-continuation under the live session — user skips the picker and the
-    // re-prompt while the session lives. Without `sid`, we fall back to
-    // `loginHint` (UPN-keyed identification), which also tells MSAL to skip its
-    // cached-account lookup so no stale sid is auto-extracted and silently
-    // attached (the exact path that produced AADSTS160021 before this drop).
-    const knownAccount =
-      instance.getActiveAccount() || instance.getAllAccounts()[0];
-    const loginHint = knownAccount?.username;
-    const buildRequest = (useSid: boolean) => ({
-      ...loginRequest,
-      ...(useSid && lastKnownSid
-        ? { sid: lastKnownSid }
-        : loginHint
-          ? { loginHint }
-          : {}),
-    });
-
-    const operationId = getOperationId?.();
-    const silentFlowStartTime = Date.now();
-    addSilentFlowDiagnostics?.({
-      time: silentFlowStartTime,
-      url: window.location.href,
-      operationId,
-    });
-
-    const runOnce = async (useSid: boolean) =>
-      instance.ssoSilent(buildRequest(useSid));
-
+    // No hints in the request — let MSAL/AAD do their default thing. MSAL
+    // auto-extracts a hint from the active account's claims (login_hint claim
+    // preferred, sid claim next, username last) when an active is set; with no
+    // active, AAD identifies the user via the browser session cookie alone.
     try {
-      let response;
-      try {
-        response = await runOnce(true);
-      } catch (error) {
-        if (lastKnownSid && getErrorType(error) === "StaleSidHint") {
-          // Stored sid is stale — server-side session rotated. Retry once with
-          // loginHint so the user still gets a silent sign-in this load. The
-          // host's setAuthHint on success will overwrite the bad hint.
-          logError(
-            "ssoSilent: stale sid, retrying with loginHint",
-            asError(error),
-          );
-          response = await runOnce(false);
-        } else {
-          throw error;
-        }
-      }
-
-      const { account } = response;
-      addSilentFlowDiagnostics?.({
-        time: silentFlowStartTime,
-        url: window.location.href,
-        operationId,
-        completedTime: Date.now(),
-        outcome: "complete",
-      });
+      const { account } = await instance.ssoSilent({ scopes });
       if (account) {
         producedBy = "silent";
+        instance.setActiveAccount(account);
       }
-
-      instance.setActiveAccount(account);
-
       return account ?? null;
     } catch (error) {
-      const rawErrorCode = (error as { errorCode?: unknown })?.errorCode;
-      addSilentFlowDiagnostics?.({
-        time: silentFlowStartTime,
-        url: window.location.href,
-        operationId,
-        completedTime: Date.now(),
-        outcome: "failure",
-        ...(typeof rawErrorCode === "string" && rawErrorCode
-          ? { errorCode: rawErrorCode }
-          : {}),
-      });
-
       logError("ssoSilent failed", asError(error));
       throw error;
     }
@@ -251,11 +195,19 @@ export const getAdUserAccount = async ({
       guardValue &&
       Date.now() - Number(guardValue) < MSAL_REDIRECT_LOOP_GUARD_MS
     ) {
-      const error = new Error(
-        `MSAL loginRedirect already in-flight (sentinel set ${Date.now() - Number(guardValue)}ms ago); refusing to re-fire to avoid a loop`,
+      // A redirect is already in flight in this tab (sentinel set < the loop-
+      // guard window ago). Refuse to fire a second one. This is benign — almost
+      // always a host SPA re-evaluating context while the first redirect is
+      // navigating the page away — so console.warn (NOT logError → no
+      // trackException) and signal redirect-in-flight so the caller classifies
+      // this as RedirectInFlight rather than a hard auth failure. A genuinely
+      // failed prior redirect is captured by the termination-failure beacon,
+      // not by this guard.
+      console.warn(
+        `[CPS-GLOBAL-AUTH] loginRedirect already in-flight (sentinel set ${Date.now() - Number(guardValue)}ms ago); not re-firing`,
       );
-      logError("loginRedirect loop guard tripped", error);
-      throw error;
+      redirectInFlight = true;
+      return null;
     }
     window.sessionStorage.setItem(
       MSAL_REDIRECT_IN_FLIGHT_KEY,
@@ -271,6 +223,12 @@ export const getAdUserAccount = async ({
         HANDOVER_PARAM_KEYS.RETURN_TO,
         window.location.href,
       );
+      // Mark redirect-in-flight BEFORE replace() so the cascade's
+      // deriveMechanism reports "redirect-initiated" rather than null on the
+      // brief window of script execution before the page actually unloads.
+      // If URL construction above had thrown, we'd never reach this and the
+      // catch below would clear the in-flight sentinel.
+      redirectInFlight = true;
       // replace, not assign — we don't want the host page entry preserved in
       // history under the auth-handover.html?stage=ad-redirect entry. Hitting
       // back through the auth flow would either re-fire loginRedirect or land
@@ -302,14 +260,19 @@ export const getAdUserAccount = async ({
   // Mechanism precedence: a present completion id (positive signal from the
   // termination page) wins over the producedBy hint, since either way we want
   // analytics to know "this run sat at the back end of a redirect round-trip".
-  // Failure mode: no account AND we either saw the completion id or the
-  // in-flight sentinel was live at entry.
+  // For the account-null branch, "redirect-initiated" (the cascade fired the
+  // redirect this call) takes priority over "redirect-failure" (a prior
+  // redirect didn't complete) — they are mutually exclusive in practice anyway
+  // because the loop guard prevents re-firing while the sentinel is live.
   const deriveMechanism = (): GetAdUserAccountMechanism => {
     if (account && redirectCompletionId) {
       return "redirect-success";
     }
     if (account) {
       return producedBy ?? null;
+    }
+    if (redirectInFlight) {
+      return "redirect-initiated";
     }
     if (redirectCompletionId || wasRedirectInFlightAtEntry) {
       return "redirect-failure";

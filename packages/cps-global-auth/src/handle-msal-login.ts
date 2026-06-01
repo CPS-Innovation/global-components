@@ -15,7 +15,6 @@ type MsalLikeInstance = {
   loginRedirect: (request: {
     scopes: string[];
     redirectStartPage?: string;
-    extraQueryParameters?: Record<string, string>;
   }) => Promise<void>;
 };
 
@@ -27,8 +26,6 @@ export type HandleMsalLoginOutcome =
   | "iframe-noop"
   | "initiated"
   | "initiation-failed";
-
-const loginRequest = { scopes: ["User.Read"] };
 
 // Same-origin only. Anything else (different origin, unparseable) falls back to
 // the root of the redirect page's own origin so we are never an open redirector.
@@ -61,17 +58,11 @@ export const handleMsalLogin = async (
   //     bounce-back. Without it, no bundle loads and the AAD response strands.
   // Both forms must be registered as redirect URIs in the AAD app reg.
   redirectUri: string,
+  // Scopes to request on /authorize. Sourced from config.AD_GATEWAY_SCOPES so
+  // the cached token shares an entry with the gateway token-fetch. Empty array
+  // → MSAL falls back to OIDC defaults.
+  scopes: string[],
   createInstance: CreateInstance = createMsalInstance,
-  // Optional AAD session id (AuthHint.lastKnownSid). Forwarded to AAD as the
-  // `sid` query parameter on /authorize so AAD reuses the matching session and
-  // skips the account picker. NOTE: MSAL.js v4 gates its built-in `sid` field
-  // on `prompt === "none"` and silently drops it on `loginRedirect` (see
-  // node_modules/@azure/msal-browser/.../getStandardAuthorizeRequestParameters
-  // — comment: "SessionID is only used in silent calls"). We sidestep that by
-  // injecting `sid` via `extraQueryParameters`, which MSAL forwards verbatim.
-  // If the session has rotated since we last saw it, AAD bounces back with an
-  // error and the next write-back drops the stale hint.
-  lastKnownSid?: string,
 ): Promise<HandleMsalLoginOutcome> => {
   if (win.self !== win.top) {
     return "iframe-noop";
@@ -106,9 +97,8 @@ export const handleMsalLogin = async (
       replaceOnNavigate: true,
     });
     await instance.loginRedirect({
-      ...loginRequest,
+      scopes,
       redirectStartPage: redirectUri,
-      ...(lastKnownSid ? { extraQueryParameters: { sid: lastKnownSid } } : {}),
     });
     // Unreachable: loginRedirect navigates the page away before its Promise resolves.
     return "initiated";

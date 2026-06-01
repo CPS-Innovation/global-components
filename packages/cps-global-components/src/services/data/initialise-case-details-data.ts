@@ -1,4 +1,4 @@
-import { Config, FoundContext } from "cps-global-configuration";
+import { AuthResult, Config, FoundContext } from "cps-global-configuration";
 import { fetchWithCircuitBreaker } from "../fetch/fetch-with-circuit-breaker";
 import { fetchWithAuthFactory } from "../fetch/fetch-with-auth-factory";
 import { MergeTags, Register } from "../../store/store";
@@ -67,13 +67,19 @@ export const initialiseCaseDetailsData = ({ config, handover, setNextHandover, s
     caseIdentifiers,
     getToken,
     correlationIds,
+    auth,
   }: {
     context: FoundContext;
     caseIdentifiers: CaseIdentifiers | undefined;
     getToken: GetToken;
     correlationIds: CorrelationIds;
+    auth: AuthResult;
   }) => {
-    if (!config.GATEWAY_URL || !caseIdentifiers || context.preventADAndDataCalls) return;
+    // The authed network fetch only makes sense with a token. auth resolves (not
+    // rejects) even on a FailedAuth / redirect-in-flight outcome — we make the
+    // call/no-call determination here rather than the caller. The optimistic
+    // (no-token) path is separate and already ran.
+    if (!auth.isAuthed || !config.GATEWAY_URL || !caseIdentifiers || context.preventADAndDataCalls) return;
 
     const caseId = Number(caseIdentifiers.caseId);
 

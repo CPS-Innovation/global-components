@@ -9,5 +9,4 @@ export const initialiseMockAnalytics = () => ({
   registerAuthWithAnalytics: () => {},
   registerCorrelationIdsWithAnalytics: () => {},
   registerCaseIdentifiersWithAnalytics: () => {},
-  getOperationId: (): string | undefined => undefined,
 });

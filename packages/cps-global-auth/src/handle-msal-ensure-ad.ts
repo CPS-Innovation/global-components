@@ -28,11 +28,7 @@ type MsalConfig = {
 
 type SilentMsalLikeInstance = {
   getActiveAccount: () => AccountInfo | null;
-  getAllAccounts: () => AccountInfo[];
-  acquireTokenSilent: (request: {
-    scopes: string[];
-    account: AccountInfo;
-  }) => Promise<unknown>;
+  acquireTokenSilent: (request: { scopes: string[] }) => Promise<unknown>;
 };
 
 type CreateInstance = (
@@ -45,39 +41,38 @@ export type HandleMsalEnsureAdOutcome =
   | "redirect-initiated"
   | "redirect-initiation-failed";
 
-const loginRequest = { scopes: ["User.Read"] };
-
 export const handleMsalEnsureAd = async (
   win: Window,
   msalConfig: MsalConfig,
   returnTo: string | null,
   redirectUri: string,
+  // Scopes to ask AAD for. Sourced from config.AD_GATEWAY_SCOPES so the cached
+  // token shares an entry with the gateway token-fetch. Empty array → MSAL
+  // falls back to OIDC defaults (no access-token cache short-circuit).
+  scopes: string[],
   createInstance: CreateInstance = createMsalInstance,
-  // Reconciled sid (from the dispatcher's reconcileForCascade call). Threaded
-  // straight to the redirect-fallback's loginRedirect so the fallback uses the
-  // same sid hint the dispatcher decided on. Undefined when the dispatcher had
-  // no incoming sid and no active account to derive one from.
-  lastKnownSid?: string,
 ): Promise<HandleMsalEnsureAdOutcome> => {
   if (win.self !== win.top) {
     return "iframe-noop";
   }
 
-  // Try silent first. If we have a cached account and a valid refresh token,
-  // acquireTokenSilent completes via a back-channel POST — no /authorize hop,
-  // no iframe, no user-facing flicker. This is the win the OS-handover
-  // preemptive check is buying.
-  //
-  // On success we don't navigate here — the caller (mediator) drives all
-  // navigation within our estate. We just signal "silent worked" and let the
-  // mediator route the user on to returnTo.
+  // Try silent first. MSAL uses its internal getActiveAccount() to pick the
+  // identity. If there's a valid refresh token, acquireTokenSilent completes
+  // via a back-channel POST — no /authorize hop, no iframe, no user-facing
+  // flicker. On success we don't navigate here — the caller (mediator) drives
+  // all navigation within our estate.
   try {
     const instance = await createInstance({ ...msalConfig, redirectUri });
-    const account =
-      instance.getActiveAccount() ?? instance.getAllAccounts()[0] ?? null;
-    if (account) {
+    // Guard: skip the silent step when there's no active account — acquireTokenSilent
+    // would throw no_account_error, which is normal-not-erroneous on a cold cache.
+    // Fall straight through to redirect instead.
+    if (!instance.getActiveAccount()) {
+      console.log(
+        "[CPS-GLOBAL-AUTH] handleMsalEnsureAd no active account, falling through to redirect",
+      );
+    } else {
       try {
-        await instance.acquireTokenSilent({ ...loginRequest, account });
+        await instance.acquireTokenSilent({ scopes });
         console.log("[CPS-GLOBAL-AUTH] handleMsalEnsureAd silent-success");
         return "silent-success";
       } catch (err) {
@@ -87,10 +82,6 @@ export const handleMsalEnsureAd = async (
         );
         // Fall through to handleMsalLogin below.
       }
-    } else {
-      console.log(
-        "[CPS-GLOBAL-AUTH] handleMsalEnsureAd no cached account, falling through to redirect",
-      );
     }
   } catch (err) {
     // PCA construction itself failed (rare — config bad). Try the redirect
@@ -106,8 +97,8 @@ export const handleMsalEnsureAd = async (
     msalConfig,
     returnTo,
     redirectUri,
-    createInstance as unknown as Parameters<typeof handleMsalLogin>[4],
-    lastKnownSid,
+    scopes,
+    createInstance as unknown as Parameters<typeof handleMsalLogin>[5],
   );
   if (loginOutcome === "iframe-noop") {
     return "iframe-noop";
