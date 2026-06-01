@@ -4,6 +4,7 @@ import { typedDeepMerge } from "../../utils/typed-deep-merge";
 import { GetToken } from "../auth/GetToken";
 import { CorrelationIds } from "../correlation/CorrelationIds";
 import { fullyQualifyRequest } from "../../utils/fully-qualify-request";
+import { isAbortError, navigationAbortSignal } from "../browser/navigation/page-lifecycle";
 
 const { _error } = makeConsole("fetchWithAuthFactory");
 
@@ -28,6 +29,12 @@ export const fetchWithAuthFactory =
       },
       credentials: "include",
       referrerPolicy: "no-referrer-when-downgrade",
+      // Cancel in-flight data fetches when the host navigates the page away
+      // (full-page redirect). Without this the abort surfaces as
+      // "TypeError: Failed to fetch" and gets tracked as a data error.
+      // See page-lifecycle.ts. Callers don't pass their own RequestInit, so this
+      // assignment isn't subject to the typedDeepMerge below.
+      signal: navigationAbortSignal(),
     };
 
     // Lets append our GatewayURL to the request urls...
@@ -38,7 +45,12 @@ export const fetchWithAuthFactory =
     try {
       return await realFetch(request, requestInit);
     } catch (error) {
-      _error(error);
+      // An AbortError here is an expected page-navigation cancel, not a fetch
+      // failure — don't log it. Rethrow regardless; the data service's catch
+      // decides (it also skips tracking AbortError).
+      if (!isAbortError(error)) {
+        _error(error);
+      }
       throw error;
     }
   };
