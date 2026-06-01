@@ -227,6 +227,49 @@ describe("initialiseUserData", () => {
     expect(register).not.toHaveBeenCalled();
   });
 
+  it("a navigation-abort does NOT block a later retry (abort is not an endpoint failure)", async () => {
+    const staleHint: Result<UserDataHint> = { found: true, result: { timestamp: 0, userData: expectedHintPayload } };
+    mockFetch.mockRejectedValueOnce(new DOMException("aborted", "AbortError"));
+    mockFetch.mockResolvedValueOnce({ ok: true, json: () => Promise.resolve(validUserData) });
+
+    const { initialiseUserDataForContext } = initialiseUserData({
+      config: baseConfig as Config,
+      userDataHint: staleHint,
+      setUserDataHint,
+      trackEvent,
+      trackException,
+      register,
+    });
+
+    await initialiseUserDataForContext({ context, getToken, correlationIds, auth });
+    await initialiseUserDataForContext({ context, getToken, correlationIds, auth });
+
+    // priorAttemptErrored was NOT set by the abort, so the second attempt fetches.
+    expect(mockFetch).toHaveBeenCalledTimes(2);
+    expect(setUserDataHint).toHaveBeenCalledTimes(1); // only the successful 2nd call
+  });
+
+  it("a genuine fetch failure DOES block a later retry (priorAttemptErrored set) and is tracked", async () => {
+    const staleHint: Result<UserDataHint> = { found: true, result: { timestamp: 0, userData: expectedHintPayload } };
+    mockFetch.mockRejectedValueOnce(new TypeError("Failed to fetch"));
+    mockFetch.mockResolvedValueOnce({ ok: true, json: () => Promise.resolve(validUserData) });
+
+    const { initialiseUserDataForContext } = initialiseUserData({
+      config: baseConfig as Config,
+      userDataHint: staleHint,
+      setUserDataHint,
+      trackEvent,
+      trackException,
+      register,
+    });
+
+    await initialiseUserDataForContext({ context, getToken, correlationIds, auth });
+    await initialiseUserDataForContext({ context, getToken, correlationIds, auth });
+
+    expect(mockFetch).toHaveBeenCalledTimes(1); // 2nd attempt blocked by priorAttemptErrored
+    expect(trackException).toHaveBeenCalledWith(expect.any(Error), { type: "data", code: "user-data" });
+  });
+
   it("should not fetch a second time while a call is in-flight, and skips after success", async () => {
     let resolveFetch: (value: any) => void = () => {};
     mockFetch.mockImplementation(

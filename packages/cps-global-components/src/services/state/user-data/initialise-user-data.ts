@@ -11,6 +11,7 @@ import { pipe } from "../../../utils/pipe";
 import { makeConsole } from "../../../logging/makeConsole";
 import { UserDataHint, UserDataSchema, toUserDataHintPayload } from "./UserData";
 import { TrackException } from "../../analytics/TrackException";
+import { isAbortError, isPageUnloading } from "../../browser/navigation/page-lifecycle";
 
 const DEFAULT_REFRESH_PERIOD_MINS = 24 * 60;
 
@@ -69,8 +70,14 @@ export const initialiseUserData = ({ config, userDataHint, setUserDataHint, trac
         trackEvent({ name: "user-data-fetch", outcome: "success" });
       })
       .catch(error => {
-        priorAttemptErrored = true;
-        _error("Unexpected error fetching user data", error);
+        // A navigation-abort (host moved the page) is not an endpoint failure, so
+        // don't flag priorAttemptErrored (which would suppress a later retry) or
+        // console-log it. The abort's telemetry is dropped centrally in
+        // trackException, so we call it unconditionally.
+        if (!isPageUnloading() && !isAbortError(error)) {
+          priorAttemptErrored = true;
+          _error("Unexpected error fetching user data", error);
+        }
         trackException(error instanceof Error ? error : new Error(String(error)), { type: "data", code: "user-data" });
       })
       .finally(() => {
