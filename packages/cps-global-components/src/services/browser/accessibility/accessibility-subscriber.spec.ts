@@ -143,17 +143,25 @@ describe("accessibilitySubscriber — text softening", () => {
 });
 
 describe("accessibilitySubscriber — injected stylesheet", () => {
-  it("injects a tone-aware style with a forced-colors override and tags the root", () => {
+  it("injects a tone-aware style with a forced-colors override and tags the root with the tone", () => {
     const { win, getAppendedStyle } = makeWindow();
-    const root = { toggleAttribute: jest.fn() } as any;
+    const root = { setAttribute: jest.fn() } as any;
     const done = htmlHandler(build(win))(root);
 
     expect(done).toBe(true);
-    expect(root.toggleAttribute).toHaveBeenCalledWith("data-grey-mode", true);
+    expect(root.setAttribute).toHaveBeenCalledWith("data-grey-mode", "soft-grey");
     const style = getAppendedStyle();
     expect(style?.id).toBe("grey-mode-styles");
     expect(style?.textContent).toContain(THEMES["soft-grey"].pageSurface);
     expect(style?.textContent).toContain("@media (forced-colors: active)");
+  });
+
+  it("tags the root with the warm tone so shadow-DOM components can react to it", () => {
+    const { win } = makeWindow();
+    const root = { setAttribute: jest.fn() } as any;
+    htmlHandler(build(win, { tone: "warm" }))(root);
+
+    expect(root.setAttribute).toHaveBeenCalledWith("data-grey-mode", "warm");
   });
 });
 

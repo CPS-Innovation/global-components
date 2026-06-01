@@ -116,7 +116,7 @@ export const accessibilitySubscriber: DomMutationObserver = ({ preview, window, 
       {
         cssSelector: "html",
         handler: (element: Element) => {
-          if (!theme || document.getElementById("grey-mode-styles")) {
+          if (!theme || !tone || document.getElementById("grey-mode-styles")) {
             return true;
           }
 
@@ -137,7 +137,10 @@ export const accessibilitySubscriber: DomMutationObserver = ({ preview, window, 
     }
   }`;
           document.head.appendChild(style);
-          element.toggleAttribute("data-grey-mode", true);
+          // Expose the tone so shadow-DOM components (e.g. the menu band) can react via
+          //  :host-context([data-grey-mode="warm"]). [data-grey-mode] presence still drives
+          //  the host-page surface rule above.
+          element.setAttribute("data-grey-mode", tone);
           return true;
         },
       },
