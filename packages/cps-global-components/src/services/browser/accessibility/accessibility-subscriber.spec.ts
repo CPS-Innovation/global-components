@@ -21,7 +21,7 @@ const makeWindow = ({ forcedColors = false }: { forcedColors?: boolean } = {}) =
     getComputedStyle: (el: unknown) => (el as MockEl).__computed,
     document: {
       getElementById: () => null,
-      createElement: () => ({} as { id?: string; textContent?: string }),
+      createElement: () => ({}) as { id?: string; textContent?: string },
       head: {
         appendChild: (el: { id?: string; textContent?: string }) => {
           appendedStyle = el;

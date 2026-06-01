@@ -12,7 +12,7 @@ type Theme = {
 // Starting values — validated to stay >= WCAG 7:1 against softText by the accompanying spec.
 export const THEMES: Record<Tone, Theme> = {
   "soft-grey": { pageSurface: "#f3f2f1", raisedSurface: "#e1e1e1", softText: "#0b0c0c" },
-  warm: { pageSurface: "#f5f0e6", raisedSurface: "#ece4d3", softText: "#0b0c0c" },
+  "warm": { pageSurface: "#f5f0e6", raisedSurface: "#ece4d3", softText: "#0b0c0c" },
 };
 
 // Luminance bands for classifying a computed colour.
