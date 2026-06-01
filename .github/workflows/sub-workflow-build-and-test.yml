@@ -53,23 +53,9 @@ jobs:
           node-version-file: ".nvmrc"
           cache: "pnpm"
 
-      # Two puppeteer@24.40.0 instances exist (resolved against typescript 5.9
-      # and 6.0). Each runs a postinstall that downloads the SAME Chrome into the
-      # shared ~/.cache/puppeteer concurrently — the downloads race and leave a
-      # corrupt browser dir (folder present, executable missing), which fails the
-      # whole install. Skip the auto-download here; we install the browser once,
-      # serially, in the next step.
       - run: pnpm install
         env:
           CI: true
-          PUPPETEER_SKIP_DOWNLOAD: "true"
-
-      # Single, serial browser install — no concurrent writers, so no race. The
-      # rm -rf guarantees a clean target even if a partial dir was left behind.
-      - name: Install Puppeteer browser
-        run: |
-          rm -rf ~/.cache/puppeteer
-          pnpm --filter e2e exec puppeteer browsers install
 
       - run: pnpm -w build
 
