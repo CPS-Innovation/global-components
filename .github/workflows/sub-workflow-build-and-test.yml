@@ -78,9 +78,21 @@ jobs:
           BUILD_INFO="${BUILD_INFO}};"
           pnpm --filter cps-global-components run rollup --intro "$BUILD_INFO"
 
-      - run: |
+      # Browser auto-download is disabled workspace-wide via .puppeteerrc.cjs
+      # (skipDownload) to stop the two concurrent puppeteer postinstalls racing on
+      # the shared cache. e2e needs a real Chrome, so install it here as one
+      # serial step. PUPPETEER_SKIP_DOWNLOAD=false (a step-level env, which is
+      # reliably exported to the shell — unlike an inline prefix in a pnpm script)
+      # overrides skipDownload so the install actually downloads. Verify before
+      # running the tests so any failure is unambiguous.
+      - name: Install Chrome and run e2e tests
+        run: |
           cp -r ./packages/cps-global-components/dist/global-components.js ./e2e/harness
+          pnpm --filter e2e exec puppeteer browsers install chrome
+          ls -d ~/.cache/puppeteer/chrome/* || { echo "Chrome was not installed into ~/.cache/puppeteer"; exit 1; }
           pnpm --filter e2e test
+        env:
+          PUPPETEER_SKIP_DOWNLOAD: "false"
 
       - run: |
           rm -rf ./to-deploy
