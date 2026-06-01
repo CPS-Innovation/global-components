@@ -91,8 +91,6 @@ const initialise = async (window: Window & typeof globalThis) => {
     );
 
     initialiseTabTitle({ window, preview, settings, subscribe, flags });
-    /* do not await this — notification fetches shouldn't block auth/analytics/etc. */
-    initialiseNotifications({ rootUrl, register, handlers, config });
     const { setNextRecentCases } = initialiseRecentCases({ rootUrl, config, register });
 
     const {
@@ -111,6 +109,9 @@ const initialise = async (window: Window & typeof globalThis) => {
       userDataHint,
     });
     trackException = _trackException;
+
+    /* do not await this — notification fetches shouldn't block auth/analytics/etc. */
+    initialiseNotifications({ rootUrl, register, handlers, config, trackEvent });
 
     initialiseRequestObservationShim({ window, config, preview, trackEvent });
 
