@@ -11,6 +11,7 @@ import { UserDataHint } from "../state/user-data/UserData";
 import { ExceptionMeta } from "./ExceptionMeta";
 import { getPageState } from "./page-state";
 import { TrackException } from "./TrackException";
+import { isAbortError, isPageUnloading } from "../browser/navigation/page-lifecycle";
 
 const ANALYTICS_EVENT_NAME = "cps-global-components-analytics-event";
 const STORAGE_PREFIX = "cps_global_components";
@@ -175,6 +176,16 @@ export const initialiseAiAnalytics = ({ window, config: { APP_INSIGHTS_CONNECTIO
   };
 
   const trackException: TrackException = (exception: Error, meta: ExceptionMeta) => {
+    // Centrally drop data-fetch noise from host navigations: when the host
+    // navigates the page away mid-fetch the request aborts ("Failed to fetch" /
+    // AbortError). That is expected, not a data-API failure — tracking it floods
+    // telemetry and masks genuine outages. Gated on type === "data" so it never
+    // suppresses auth/init/state exceptions. Callers don't have to think about
+    // it: any `trackException(err, { type: "data" })` is auto-safe. See
+    // services/browser/navigation/page-lifecycle.ts.
+    if (meta.type === "data" && (isPageUnloading() || isAbortError(exception))) {
+      return;
+    }
     appInsights.trackException(
       { exception },
       {

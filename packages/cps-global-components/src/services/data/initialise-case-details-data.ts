@@ -101,6 +101,7 @@ export const initialiseCaseDetailsData = ({ config, handover, setNextHandover, s
       .catch(error => {
         if (isStale()) return undefined;
         register({ caseDetails: { found: false, error } });
+        // trackException centrally drops navigation-abort noise for type:"data".
         trackException(error instanceof Error ? error : new Error(String(error)), { type: "data", code: "case-details" });
         return undefined;
       });

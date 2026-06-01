@@ -22,6 +22,7 @@ jest.mock("@microsoft/applicationinsights-web", () => ({
 }));
 
 import { initialiseAiAnalytics } from "./initialise-ai-analytics";
+import { __resetPageLifecycleForTests } from "../browser/navigation/page-lifecycle";
 
 const mockGet = jest.fn() as any;
 
@@ -292,6 +293,28 @@ describe("initialiseAiAnalytics", () => {
 
       const properties = mockTrackException.mock.calls[0][1].properties;
       expect(properties).not.toHaveProperty("Auth");
+    });
+
+    describe("navigation-abort suppression (type: data only)", () => {
+      beforeEach(() => __resetPageLifecycleForTests());
+
+      it("drops a type:data AbortError (host navigated the page away mid-fetch)", () => {
+        const { trackException } = initialiseAiAnalytics(makeProps());
+        trackException(new DOMException("aborted", "AbortError"), { type: "data", code: "case-details" });
+        expect(mockTrackException).not.toHaveBeenCalled();
+      });
+
+      it("still tracks a genuine type:data failure (non-abort, page not unloading)", () => {
+        const { trackException } = initialiseAiAnalytics(makeProps());
+        trackException(new TypeError("Failed to fetch"), { type: "data", code: "case-details" });
+        expect(mockTrackException).toHaveBeenCalledTimes(1);
+      });
+
+      it("does NOT suppress a non-data AbortError (only data-fetch noise is filtered)", () => {
+        const { trackException } = initialiseAiAnalytics(makeProps());
+        trackException(new DOMException("aborted", "AbortError"), { type: "auth" });
+        expect(mockTrackException).toHaveBeenCalledTimes(1);
+      });
     });
   });
 });

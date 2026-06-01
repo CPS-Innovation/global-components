@@ -32,6 +32,7 @@ import { initialiseTabTitle } from "./services/browser/tab-title/initialise-tab-
 import { initialiseBuild } from "./services/build/initialise-build";
 import { initialiseCaseLocking } from "./services/case-locking/initialise-case-locking";
 import { runNowAndOnNavigation } from "./services/browser/navigation/navigation";
+import { initialisePageLifecycle } from "./services/browser/navigation/page-lifecycle";
 import { TrackException } from "./services/analytics/TrackException";
 import { summariseResults } from "./utils/summarise-results";
 
@@ -59,6 +60,11 @@ const initialise = async (window: Window & typeof globalThis) => {
   };
 
   try {
+    // Register the page-unload listener early so its abort signal cancels any
+    // in-flight data fetch when the host navigates the page away (full-page
+    // redirect). See page-lifecycle.ts.
+    initialisePageLifecycle(window);
+
     const build = initialiseBuild({ window, register });
     const rootUrl = initialiseRootUrl({ register });
     initialiseNavigateCms({ window, rootUrl });
