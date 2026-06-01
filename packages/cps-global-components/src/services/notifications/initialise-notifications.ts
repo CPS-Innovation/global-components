@@ -3,6 +3,7 @@ import { getArtifactUrl } from "../../utils/get-artifact-url";
 import { makeConsole } from "../../logging/makeConsole";
 import { Register } from "../../store/store";
 import { Handlers } from "../handlers/handlers";
+import { TrackEvent } from "../analytics/analytics-event";
 
 const { _error, _warn } = makeConsole("initialise-notifications");
 
@@ -26,7 +27,7 @@ const fetchNotificationsFile = async (rootUrl: string): Promise<Notification[]> 
   }
 };
 
-export const initialiseNotifications = async ({ rootUrl, register, handlers, config }: { rootUrl: string; register: Register; handlers: Handlers; config: Config }): Promise<void> => {
+export const initialiseNotifications = async ({ rootUrl, register, handlers, config, trackEvent }: { rootUrl: string; register: Register; handlers: Handlers; config: Config; trackEvent: TrackEvent }): Promise<void> => {
   if (!config.SHOW_NOTIFICATIONS) {
     // Feature gated off for this environment: skip all network, leave the `notifications` and
     // `dismissedNotificationIds` store slots undefined. The controller's readyState gate
@@ -55,6 +56,7 @@ export const initialiseNotifications = async ({ rootUrl, register, handlers, con
     if (currentDismissed.includes(id)) {
       return;
     }
+    trackEvent({ name: "notification-dismissed", notificationId: id });
     currentDismissed = [...currentDismissed, id];
     register({ dismissedNotificationIds: currentDismissed });
     fetchState({ rootUrl, url: DISMISSED_STATE_URL, schema: StatePutResponseSchema, data: currentDismissed }).catch(error => _warn("Unexpected error setting dismissed notifications", String(error)));

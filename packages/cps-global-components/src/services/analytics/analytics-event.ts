@@ -8,6 +8,7 @@ export type AnalyticsEventData =
   | { name: "state-summary"; summary: ResultsSummary }
   | { name: "iframe-load-probe"; outcome: "loaded" | "timeout-public" | "timeout-local"; durationMs: number }
   | { name: "probe-navigator-permissions"; hostname: string; timestamp: number; localNetworkAccessPermission?: "granted" | "denied" | "prompt" }
+  | { name: "notification-dismissed"; notificationId: string }
   | { name: "triage-submission"; [key: string]: string | number | boolean | undefined };
 
 export type TrackEvent = (detail: AnalyticsEventData) => void;
