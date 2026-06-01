@@ -7,7 +7,7 @@
     "test": "jest",
     "test:log": "LOG=true jest --runInBand",
     "test:watch": "jest --watch",
-    "postinstall": "npx puppeteer browsers install chrome"
+    "postinstall": "PUPPETEER_SKIP_DOWNLOAD=false npx puppeteer browsers install chrome"
   },
   "devDependencies": {
     "@types/jest": "^29.5.12",
