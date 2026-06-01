@@ -1,14 +1,23 @@
 {
   "notifications": [
     {
-      "id": "outage-smoke-2026-05-19",
-      "heading": "Planned outage: Sunday 31st May",
-      "bodyHtml": "<p class=\"govuk-body\">The service will not be available on Sunday 31st May between 00:01 and 11:00.</p>",
-      "from": "2026-05-19T11:00:00Z",
-      "to": "2026-05-19T12:00:00Z",
-      "urlRegex": "^https://[^/]+\\.outsystemsenterprise\\.com/Casework_Blocks/home",
+      "id": "network-upgrade-2026-06-01",
+      "heading": "Planned network upgrade",
+      "bodyHtml": "<p class=\"govuk-body\">A planned network upgrade will take place on Monday 1 June from 19:00 to 23:00. We are expecting a small number of brief interruptions to the service during this window while the new network devices are installed and tested. If you need to work during this time, please save your work frequently.</p>",
+      "from": "2026-06-01T14:45:00Z",
+      "to": "2026-06-01T22:00:00Z",
+      "urlRegex": "(?i:^https://[^/]+\\.outsystemsenterprise\\.com/Casework_Blocks/)",
       "dismissible": true,
       "previewModeRequired": true
+    },
+    {
+      "id": "network-upgrade-2026-06-04",
+      "heading": "Planned network upgrade",
+      "bodyHtml": "<p class=\"govuk-body\">A planned network upgrade will take place on Thursday 4 June from 19:00 to 23:00. We are expecting a small number of brief interruptions to the service during this window while the new network devices are installed and tested. If you need to work during this time, please save your work frequently.</p>",
+      "from": "2026-06-04T17:45:00Z",
+      "to": "2026-06-04T22:00:00Z",
+      "urlRegex": "^https://[^/]+\\.outsystemsenterprise\\.com/(CaseReview/LandingPage|Casework_Blocks/home)",
+      "dismissible": true
     }
   ]
 }
