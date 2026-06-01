@@ -88,6 +88,12 @@ jobs:
       - name: Install Chrome and run e2e tests
         run: |
           cp -r ./packages/cps-global-components/dist/global-components.js ./e2e/harness
+          # The setup-node pnpm cache is restored with `tar -P` (absolute paths),
+          # which recreates a PARTIAL ~/.cache/puppeteer/chrome/<ver> folder (the
+          # dir without the executable). `puppeteer browsers install` refuses to
+          # repair a partial folder — it errors "folder exists but executable is
+          # missing" instead of re-downloading. Wipe it so the install starts clean.
+          rm -rf ~/.cache/puppeteer
           pnpm --filter e2e exec puppeteer browsers install chrome
           ls -d ~/.cache/puppeteer/chrome/* || { echo "Chrome was not installed into ~/.cache/puppeteer"; exit 1; }
           pnpm --filter e2e test
