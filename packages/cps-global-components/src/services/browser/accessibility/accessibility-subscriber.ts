@@ -12,7 +12,7 @@ type Theme = {
 // Starting values — validated to stay >= WCAG 7:1 against softText by the accompanying spec.
 export const THEMES: Record<Tone, Theme> = {
   "soft-grey": { pageSurface: "#f3f2f1", raisedSurface: "#e1e1e1", softText: "#0b0c0c" },
-  warm: { pageSurface: "#f5f0e6", raisedSurface: "#ece4d3", softText: "#0b0c0c" },
+  "warm": { pageSurface: "#f5f0e6", raisedSurface: "#ece4d3", softText: "#0b0c0c" },
 };
 
 // Luminance bands for classifying a computed colour.
@@ -116,7 +116,7 @@ export const accessibilitySubscriber: DomMutationObserver = ({ preview, window, 
       {
         cssSelector: "html",
         handler: (element: Element) => {
-          if (!theme || document.getElementById("grey-mode-styles")) {
+          if (!theme || !tone || document.getElementById("grey-mode-styles")) {
             return true;
           }
 
@@ -137,7 +137,10 @@ export const accessibilitySubscriber: DomMutationObserver = ({ preview, window, 
     }
   }`;
           document.head.appendChild(style);
-          element.toggleAttribute("data-grey-mode", true);
+          // Expose the tone so shadow-DOM components (e.g. the menu band) can react via
+          //  :host-context([data-grey-mode="warm"]). [data-grey-mode] presence still drives
+          //  the host-page surface rule above.
+          element.setAttribute("data-grey-mode", tone);
           return true;
         },
       },
