@@ -22,6 +22,10 @@ export type KnownErrorType =
   // can recover by retrying without the hint; surfacing it as a classified
   // type lets callers branch on it and clear the persisted hint.
   | "StaleSidHint"
+  // The cached refresh token has aged out — silent acquisition can't recover and
+  // the user needs a fresh interactive sign-in. A normal token-lifecycle event,
+  // surfaced as its own bucket so analytics doesn't lump it under "Unknown".
+  | "RefreshTokenExpired"
   // The cascade fired loginRedirect this call and the page is about to unload.
   // Surfaced so analytics can distinguish "redirect outbound leg" (transient,
   // resolves on bounce-back) from "NoAccountFound" (real terminal failure
