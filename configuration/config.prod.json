@@ -110,11 +110,11 @@
       "msalRedirectUrl": "https://polaris.cps.gov.uk/global-components/prod/auth-handover.html?src=https%3A%2F%2Fpolaris.cps.gov.uk%2Fglobal-components%2Fprod%2Fauth-handover.js&stage=ad-redirect",
       "contexts": [
         {
-          "path": "https://polaris.cps.gov.uk/polaris-ui/case-details/(?<urn>[^/]+)/(?<caseId>\\d+)",
+          "path": "https://polaris.cps.gov.uk/(?:polaris-ui/case-details|materials-ui)/(?<urn>[^/]+)/(?<caseId>\\d+)",
           "contextIds": "case materials materials-cwa"
         },
         {
-          "path": "https://polaris.cps.gov.uk/polaris-ui/go\\?",
+          "path": "https://polaris.cps.gov.uk/(?:polaris-ui|materials-ui)/go\\?",
           "contextIds": "redirect materials-cwa",
           "preventADAndDataCalls": true
         },
