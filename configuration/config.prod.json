@@ -54,12 +54,12 @@
       "cmsAuthFromStorageKey": "$OS_Users$Casework_Blocks$ClientVars$JSONString",
       "contexts": [
         {
-          "path": "https://cps.outsystemsenterprise.com/casework_blocks/home",
+          "path": "https://cps.outsystemsenterprise.com/casework(_blocks)?/home",
           "contextIds": "home",
           "showNotification": true
         },
         {
-          "path": "https://cps.outsystemsenterprise.com/casework_blocks",
+          "path": "https://cps.outsystemsenterprise.com/casework(_blocks)?",
           "contextIds": "unknown-home"
         },
         {

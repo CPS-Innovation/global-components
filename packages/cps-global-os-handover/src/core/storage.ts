@@ -86,6 +86,7 @@ export const syncOsAuth = (
       copyToOtherApps("CASE_REVIEW_JSON", "CASE_REVIEW_COOKIES");
       break;
     case "Casework_Blocks":
+    case "Casework":
       copyToOtherApps("HOME_JSON", "HOME_COOKIES");
       break;
   }
@@ -95,5 +96,4 @@ export const setCmsSessionHint = (
   cmsSessionHint: CmsSessionHint,
   storage: Storage,
   keys: CmsAuthStorageKeys,
-) =>
-  (storage[keys.HOME_IS_FROM_PROXY] = String(cmsSessionHint.isProxySession));
+) => (storage[keys.HOME_IS_FROM_PROXY] = String(cmsSessionHint.isProxySession));
