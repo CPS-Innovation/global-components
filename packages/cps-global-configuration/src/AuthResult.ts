@@ -32,6 +32,10 @@ export type KnownErrorType =
   | "PostRequestFailed"
   | "NoNetworkConnectivity"
   | "StaleSidHint"
+  // The cached refresh token has aged out — silent acquisition can't recover and
+  // the user needs a fresh interactive sign-in. A normal token-lifecycle event,
+  // surfaced as its own bucket so analytics doesn't lump it under "Unknown".
+  | "RefreshTokenExpired"
   // The cascade fired loginRedirect this call and the page is about to unload.
   // Distinct from "NoAccountFound" so analytics doesn't treat the outbound
   // leg of a healthy redirect round-trip as a terminal auth failure.
