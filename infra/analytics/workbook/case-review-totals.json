@@ -50,9 +50,25 @@
         "visualization": "barchart"
       },
       "name": "query - 2"
+    },
+    {
+      "type": 3,
+      "content": {
+        "version": "KqlItem/1.0",
+        "query": "GloCo_CaseReview_InvolvementByUser\n",
+        "size": 1,
+        "title": "Case review: user submitted count by review type",
+        "timeContext": {
+          "durationMs": 7344000099,
+          "endTime": "2026-06-02T13:53:49.099Z"
+        },
+        "queryType": 0,
+        "resourceType": "microsoft.operationalinsights/workspaces"
+      },
+      "name": "query - 4"
     }
   ],
-  "isLocked": true,
+  "isLocked": false,
   "fallbackResourceIds": [
     "/subscriptions/__SUBSCRIPTION_ID__/resourcegroups/rg-global-nav-dev/providers/microsoft.operationalinsights/workspaces/la-global-nav-dev"
   ]
