@@ -197,6 +197,22 @@ describe("storage", () => {
       expect(storage[keys.HOME_COOKIES]).toBe(homeCookies);
     });
 
+    test("copies Casework (new HOME location) auth values to all other apps", () => {
+      const homeJson = '{"Cookies":"home-cookies","Token":"home-token"}';
+      const homeCookies = "home-cookies";
+      storage[keys.HOME_JSON] = homeJson;
+      storage[keys.HOME_COOKIES] = homeCookies;
+
+      syncOsAuth("https://example.com/Casework/", storage as unknown as Storage, keys);
+
+      expect(storage[keys.WMA_JSON]).toBe(homeJson);
+      expect(storage[keys.CASE_REVIEW_JSON]).toBe(homeJson);
+      expect(storage[keys.HOME_JSON]).toBe(homeJson);
+      expect(storage[keys.WMA_COOKIES]).toBe(homeCookies);
+      expect(storage[keys.CASE_REVIEW_COOKIES]).toBe(homeCookies);
+      expect(storage[keys.HOME_COOKIES]).toBe(homeCookies);
+    });
+
     test("does not modify storage when URL does not match any known app", () => {
       storage[keys.WMA_JSON] = "wma-json";
       storage[keys.WMA_COOKIES] = "wma-cookies";

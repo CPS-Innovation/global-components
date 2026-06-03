@@ -15,7 +15,7 @@
   "FEATURE_FLAG_CASE_LOCKING_USERS": {
     "generallyAvailable": true
   },
-  "BANNER_TITLE_HREF": "https://cps-tst.outsystemsenterprise.com/Casework_Blocks/home",
+  "BANNER_TITLE_HREF": "https://cps-tst.outsystemsenterprise.com/Casework/home",
   "AD_TENANT_AUTHORITY": "https://login.microsoftonline.com/00dd0d1d-d7e6-4338-ac51-565339c7088c",
   "AD_CLIENT_ID": "8d6133af-9593-47c6-94d0-5c65e9e310f1",
   "AD_GATEWAY_SCOPES": ["User.Read"],
@@ -59,12 +59,12 @@
       "cmsAuthFromStorageKey": "$OS_Users$Casework_Blocks$ClientVars$JSONString",
       "contexts": [
         {
-          "path": "https://cps-tst.outsystemsenterprise.com/casework_blocks/home",
+          "path": "https://cps-tst.outsystemsenterprise.com/casework(_blocks)?/home",
           "contextIds": "home",
           "showNotification": true
         },
         {
-          "path": "https://cps-tst.outsystemsenterprise.com/casework_blocks",
+          "path": "https://cps-tst.outsystemsenterprise.com/casework(_blocks)?",
           "contextIds": "unknown-home"
         },
         {
@@ -174,7 +174,7 @@
     {
       "label": "Home",
       "level": 0,
-      "href": "https://cps-tst.outsystemsenterprise.com/Casework_Blocks/home",
+      "href": "https://cps-tst.outsystemsenterprise.com/Casework/home",
       "visibleContexts": "home tasks cases case unknown-wma",
       "activeContexts": "home"
     },

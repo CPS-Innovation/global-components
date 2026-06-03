@@ -1,5 +1,12 @@
-import { CmsAuthStorageKeys, HANDOVER_PARAM_KEYS } from "cps-global-configuration";
-import { isStoredTokenSameAs, setCmsSessionHint, storeAuth } from "./core/storage";
+import {
+  CmsAuthStorageKeys,
+  HANDOVER_PARAM_KEYS,
+} from "cps-global-configuration";
+import {
+  isStoredTokenSameAs,
+  setCmsSessionHint,
+  storeAuth,
+} from "./core/storage";
 import { stripParams } from "./core/params";
 import { getCmsSessionHint } from "./core/get-cms-session-hint";
 import { resetTasklistFilters } from "./application-logic/reset-tasklist-filters";
@@ -39,7 +46,11 @@ export const handleOsTokenReturn = async (
     resetTasklistFilters(win);
   }
 
-  await maybeSetCmsSessionHint({ nextUrl: target, cmsAuthStorageKeys, storage: win.localStorage });
+  await maybeSetCmsSessionHint({
+    nextUrl: target,
+    cmsAuthStorageKeys,
+    storage: win.localStorage,
+  });
 
   return { kind: "ready", target };
 };
@@ -54,7 +65,11 @@ const maybeSetCmsSessionHint = async ({
   storage: Storage;
 }): Promise<void> => {
   try {
-    if (!new URL(nextUrl).pathname.toLowerCase().startsWith("/casework_blocks/")) {
+    const path = new URL(nextUrl).pathname.toLowerCase();
+    if (
+      !path.startsWith("/casework_blocks/") &&
+      !path.startsWith("/casework/")
+    ) {
       // Only set the hint when handing the user back to the OS home page.
       return;
     }
