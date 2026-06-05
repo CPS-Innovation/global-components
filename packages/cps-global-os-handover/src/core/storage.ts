@@ -49,13 +49,25 @@ export const isStoredTokenSameAs = (
   }
 };
 
+// A source value is only worth propagating to the sibling apps if it actually
+// holds auth. OutSystems can re-persist an emptied ClientVar as the literal
+// string "undefined" (e.g. after a failed post-SSO CMS session check), and an
+// unset key reads back as the JS value undefined — neither must be fanned out.
+const isUsableValue = (value: string | undefined): value is string =>
+  !!value && value !== "undefined";
+
 export const syncOsAuth = (
   currentUrl: string,
   storage: Storage,
   keys: CmsAuthStorageKeys,
 ) => {
-  const app = new URLPattern({ pathname: "/:app{/*}?" }).exec(currentUrl)
-    ?.pathname.groups["app"];
+  // Match case-insensitively: OutSystems hands the same logical page back under
+  // different casing depending on the navigation (the CMS→OS handover returns to
+  // lowercase /casework/home, in-app links use /Casework/Home). A case-sensitive
+  // switch would silently no-op on the lowercase entry points.
+  const app = new URLPattern({ pathname: "/:app{/*}?" })
+    .exec(currentUrl)
+    ?.pathname.groups["app"]?.toLowerCase();
 
   const copyToOtherApps = (
     jsonKey: keyof Pick<
@@ -67,26 +79,35 @@ export const syncOsAuth = (
       "WMA_COOKIES" | "CASE_REVIEW_COOKIES" | "HOME_COOKIES"
     >,
   ) => {
-    storage[keys.WMA_JSON] =
-      storage[keys.CASE_REVIEW_JSON] =
-      storage[keys.HOME_JSON] =
-        storage[keys[jsonKey]];
+    // Guard each copy on its own source: never let a blank/"undefined" source
+    // overwrite a sibling app's still-valid auth. Without this, OutSystems
+    // blanking the active app's ClientVar would fan out and wipe the others.
+    const json = storage[keys[jsonKey]];
+    if (isUsableValue(json)) {
+      storage[keys.WMA_JSON] =
+        storage[keys.CASE_REVIEW_JSON] =
+        storage[keys.HOME_JSON] =
+          json;
+    }
 
-    storage[keys.WMA_COOKIES] =
-      storage[keys.CASE_REVIEW_COOKIES] =
-      storage[keys.HOME_COOKIES] =
-        storage[keys[cookiesKey]];
+    const cookies = storage[keys[cookiesKey]];
+    if (isUsableValue(cookies)) {
+      storage[keys.WMA_COOKIES] =
+        storage[keys.CASE_REVIEW_COOKIES] =
+        storage[keys.HOME_COOKIES] =
+          cookies;
+    }
   };
 
   switch (app) {
-    case "WorkManagementApp":
+    case "workmanagementapp":
       copyToOtherApps("WMA_JSON", "WMA_COOKIES");
       break;
-    case "CaseReview":
+    case "casereview":
       copyToOtherApps("CASE_REVIEW_JSON", "CASE_REVIEW_COOKIES");
       break;
-    case "Casework_Blocks":
-    case "Casework":
+    case "casework_blocks":
+    case "casework":
       copyToOtherApps("HOME_JSON", "HOME_COOKIES");
       break;
   }
