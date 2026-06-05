@@ -1,6 +1,23 @@
 import { CmsAuthStorageKeys, CmsSessionHint } from "cps-global-configuration";
 import { areAllCookieStringsEqual } from "./are-all-cookie-strings-equal";
 
+// Partially-redacted preview for diagnostics: enough to correlate a value
+// across page loads, never enough to leak the cookie/token. Deliberately
+// distinguishes the states we care about when chasing the auth-wipe — absent
+// vs empty vs the literal string "undefined" vs a real value (head + length).
+const redactedPreview = (value: string | null | undefined): string => {
+  if (value === null || value === undefined) {
+    return "<absent>";
+  }
+  if (value === "undefined") {
+    return '<literal "undefined">';
+  }
+  if (value === "") {
+    return "<empty>";
+  }
+  return `${value.slice(0, 6)}…(len ${value.length})`;
+};
+
 export const storeAuth = (
   cookies: string,
   token: string,
@@ -19,6 +36,12 @@ export const storeAuth = (
   storage[keys.WMA_JSON] = cmsAuthValuesJson;
   storage[keys.CASE_REVIEW_JSON] = cmsAuthValuesJson;
   storage[keys.HOME_JSON] = cmsAuthValuesJson;
+
+  console.log("[CPS-GLOBAL-OS-HANDOVER] storeAuth wrote auth values", {
+    cookies: redactedPreview(cookies),
+    token: redactedPreview(token),
+    jsonLen: cmsAuthValuesJson.length,
+  });
 };
 
 export const isStoredAuthCurrent = (
@@ -83,6 +106,16 @@ export const syncOsAuth = (
     // overwrite a sibling app's still-valid auth. Without this, OutSystems
     // blanking the active app's ClientVar would fan out and wipe the others.
     const json = storage[keys[jsonKey]];
+    const cookies = storage[keys[cookiesKey]];
+
+    console.log("[CPS-GLOBAL-OS-HANDOVER] syncOsAuth copy", {
+      app,
+      jsonSource: redactedPreview(json),
+      willCopyJson: isUsableValue(json),
+      cookiesSource: redactedPreview(cookies),
+      willCopyCookies: isUsableValue(cookies),
+    });
+
     if (isUsableValue(json)) {
       storage[keys.WMA_JSON] =
         storage[keys.CASE_REVIEW_JSON] =
@@ -90,7 +123,6 @@ export const syncOsAuth = (
           json;
     }
 
-    const cookies = storage[keys[cookiesKey]];
     if (isUsableValue(cookies)) {
       storage[keys.WMA_COOKIES] =
         storage[keys.CASE_REVIEW_COOKIES] =
@@ -98,6 +130,10 @@ export const syncOsAuth = (
           cookies;
     }
   };
+
+  if (!app || !["workmanagementapp", "casereview", "casework_blocks", "casework"].includes(app)) {
+    console.log("[CPS-GLOBAL-OS-HANDOVER] syncOsAuth no-op (app not matched)", { app });
+  }
 
   switch (app) {
     case "workmanagementapp":
