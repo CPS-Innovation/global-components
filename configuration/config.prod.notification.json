@@ -17,6 +17,33 @@
       "to": "2026-06-04T22:00:00Z",
       "urlRegex": "(?i:^https://[^/]+\\.outsystemsenterprise\\.com/(CaseReview/LandingPage|Casework_Blocks/home))",
       "dismissible": true
+    },
+    {
+      "id": "oracle-patching-outage-2026-06-07",
+      "heading": "Planned CMS and WMS outages",
+      "bodyHtml": "<p class=\"govuk-body\">Oracle database patching on Sunday 7 June 2026 will cause three brief CMS and WMS disruptions: 12:00 to 12:10, 14:00 to 14:10, and 16:00 to 16:10. During these periods CMS Classic may disconnect. If you are logged out of CMS Classic you will not be able to progress in the new tools, so please keep checking the CMS Classic tab is still logged in.</p>",
+      "from": "2026-06-07T10:45:00Z",
+      "to": "2026-06-07T15:10:00Z",
+      "urlRegex": "(?i:^https://[^/]+\\.outsystemsenterprise\\.com/(CaseReview/LandingPage|Casework_Blocks/home))",
+      "dismissible": true
+    },
+    {
+      "id": "cms-modern-outage-2026-06-08",
+      "heading": "Planned CMS Modern outage",
+      "bodyHtml": "<p class=\"govuk-body\">CMS Modern will be undergoing maintenance today between 19:15 and 21:15. During this time period we are expecting interruptions to this service.</p>",
+      "from": "2026-06-08T18:00:00Z",
+      "to": "2026-06-08T20:15:00Z",
+      "urlRegex": "(?i:^https://[^/]+\\.outsystemsenterprise\\.com/(CaseReview/LandingPage|Casework_Blocks/home))",
+      "dismissible": true
+    },
+    {
+      "id": "network-upgrade-2026-06-09",
+      "heading": "Planned network upgrade",
+      "bodyHtml": "<p class=\"govuk-body\">There are CPS wide upgrades happening tonight (Tuesday the 9th of June between 1900 and 2300). During this time period we are expecting a small number of brief interruptions to service. If you are working in these new tools please be aware that CMS Classic may disconnect whilst the upgrades are taking place. If you are logged out of CMS Classic you will not be able to progress in the new tools, so please keep checking the CMS Classic tab is still logged in.</p>",
+      "from": "2026-06-09T17:45:00Z",
+      "to": "2026-06-09T22:00:00Z",
+      "urlRegex": "(?i:^https://[^/]+\\.outsystemsenterprise\\.com/(CaseReview/LandingPage|Casework_Blocks/home))",
+      "dismissible": true
     }
   ]
 }
