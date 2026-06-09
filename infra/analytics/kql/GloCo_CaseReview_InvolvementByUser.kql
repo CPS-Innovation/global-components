@@ -1,0 +1,65 @@
+// Per-user pivot of case-review SUBMISSIONS: one row per user, one column per
+// review type, cell = distinct cases of that type the user submitted.
+//
+// "Submitted" mirrors GloCo_CaseReview_WithTriageTotalStartedSubmitted's Submitted
+// column, but per user (not collapsed to one submitter per case), so it surfaces
+// every distinct submitter:
+//  - Review rows: the user on the post-submission LandingPage (Is_Submitted_First_Review
+//    / Is_Submitted_Subsequent_Review) or the QuickAdminFinalise page. The LandingPage
+//    can't tell EA from standard, so that split is taken from the case's review pages
+//    (Has_Review_* vs Has_Early_Advice_*) — matching the OG report's row gates.
+//  - Triage rows: the submitter on the request-observation shim's "triage-submission"
+//    event (prod), gated on the case also having the matching triage page view — same
+//    gate the OG report uses, so the two reports' triage Submitted counts agree.
+//
+// Counts are exact (distinct tuples then countif, not the HLL dcount). Does NOT
+// reconcile to the OG report's per-row counts: a case submitted by >1 user counts
+// once per user (the OG report keeps one submitter per case via take_anyif), so
+// columns sum to >= the OG Submitted totals. Total is the user's submissions across
+// types.
+let ReviewPerCase = GloCo_PageViews_CaseReview
+| where TimeGenerated > datetime(2026-03-09T12:00:01)
+| summarize
+    FirstSubmitters               = make_set_if(Auth_Username, Is_Submitted_First_Review and isnotempty(Auth_Username)),
+    SubsequentSubmitters          = make_set_if(Auth_Username, Is_Submitted_Subsequent_Review and isnotempty(Auth_Username)),
+    AdminUsers                    = make_set_if(Auth_Username, Is_Admin_Finalise and isnotempty(Auth_Username)),
+    Has_Review_First_Review       = countif(Is_Review_First_Review) > 0,
+    Has_Early_Advice_First_Review = countif(Is_Early_Advice_First_Review) > 0,
+    Has_Review_Subsequent_Review  = countif(Is_Review_Subsequent_Review) > 0,
+    Has_Early_Advice_Subsequent   = countif(Is_Early_Advice_Subsequent) > 0,
+    Has_Triage_OD                 = countif(Is_Triage_OD) > 0,
+    Has_Triage_ODPCDReview        = countif(Is_Triage_ODPCDReview) > 0,
+    Has_Triage_DCP                = countif(Is_Triage_DCP) > 0
+    by CaseId;
+let ReviewSubs = union
+    (ReviewPerCase | where Has_Review_First_Review       | mv-expand User = FirstSubmitters      to typeof(string) | project CaseId, User, ReviewType = "First review"),
+    (ReviewPerCase | where Has_Early_Advice_First_Review | mv-expand User = FirstSubmitters      to typeof(string) | project CaseId, User, ReviewType = "EA first review"),
+    (ReviewPerCase | where Has_Review_Subsequent_Review  | mv-expand User = SubsequentSubmitters to typeof(string) | project CaseId, User, ReviewType = "Subsequent review"),
+    (ReviewPerCase | where Has_Early_Advice_Subsequent   | mv-expand User = SubsequentSubmitters to typeof(string) | project CaseId, User, ReviewType = "EA subsequent review"),
+    (ReviewPerCase                                       | mv-expand User = AdminUsers           to typeof(string) | project CaseId, User, ReviewType = "Admin finalised");
+let TriageSubs = AppEvents
+| where TimeGenerated > datetime(2026-03-09T12:00:01)
+| where Name == "cps-global-components-analytics-event"
+| where tostring(Properties["name"]) == "triage-submission"
+| where tostring(Properties["environment"]) == "prod"
+| extend CaseId = tolong(Properties["CaseId"]), TriageType = tostring(Properties["TriageType"]), User = tostring(parse_json(tostring(Properties["auth"]))["username"])
+| where isnotnull(CaseId) and isnotempty(User)
+| join kind=inner (ReviewPerCase | project CaseId, Has_Triage_OD, Has_Triage_ODPCDReview, Has_Triage_DCP) on CaseId
+| where (TriageType == "OD" and Has_Triage_OD) or (TriageType == "ODPCDReview" and Has_Triage_ODPCDReview) or (TriageType == "DCP" and Has_Triage_DCP)
+| project CaseId, User, ReviewType = strcat("Triage ", TriageType);
+union ReviewSubs, TriageSubs
+| where isnotempty(User)
+| distinct CaseId, User, ReviewType
+| summarize
+    ["First review"]         = countif(ReviewType == "First review"),
+    ["Subsequent review"]    = countif(ReviewType == "Subsequent review"),
+    ["EA first review"]      = countif(ReviewType == "EA first review"),
+    ["EA subsequent review"] = countif(ReviewType == "EA subsequent review"),
+    ["Admin finalised"]      = countif(ReviewType == "Admin finalised"),
+    ["Triage OD"]            = countif(ReviewType == "Triage OD"),
+    ["Triage ODPCDReview"]   = countif(ReviewType == "Triage ODPCDReview"),
+    ["Triage DCP"]           = countif(ReviewType == "Triage DCP")
+    by User
+| extend Total = ["First review"] + ["Subsequent review"] + ["EA first review"] + ["EA subsequent review"] + ["Admin finalised"] + ["Triage OD"] + ["Triage ODPCDReview"] + ["Triage DCP"]
+| project User, ["First review"], ["Subsequent review"], ["EA first review"], ["EA subsequent review"], ["Admin finalised"], ["Triage OD"], ["Triage ODPCDReview"], ["Triage DCP"], Total
+| order by Total desc

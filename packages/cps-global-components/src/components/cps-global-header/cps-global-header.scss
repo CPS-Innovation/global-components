@@ -22,3 +22,17 @@
   border-collapse: initial !important;
   border-spacing: initial !important;
 }
+
+// Warm low-contrast mode: harmonise the neutral level-1 menu band with the warm page.
+// The host page's <html> carries data-grey-mode="warm" (set by the accessibility subscriber);
+// :host-context lets these shadow-DOM styles react to that ancestor state. We override the
+// band classes directly (rather than the --brand-secondary-colour var, which a closer
+// .cps-theme ancestor can win) so the change is robust. Brand accent colours are left as-is —
+// only the neutral surface warms. #ece4d3 == the warm theme's "raised" surface.
+:host-context([data-grey-mode="warm"]) {
+  .background-light-blue, // rebranded theme
+  .background-grey {
+    // classic theme
+    @include background(#ece4d3);
+  }
+}

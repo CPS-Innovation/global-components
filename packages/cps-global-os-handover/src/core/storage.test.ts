@@ -197,6 +197,22 @@ describe("storage", () => {
       expect(storage[keys.HOME_COOKIES]).toBe(homeCookies);
     });
 
+    test("copies Casework (new HOME location) auth values to all other apps", () => {
+      const homeJson = '{"Cookies":"home-cookies","Token":"home-token"}';
+      const homeCookies = "home-cookies";
+      storage[keys.HOME_JSON] = homeJson;
+      storage[keys.HOME_COOKIES] = homeCookies;
+
+      syncOsAuth("https://example.com/Casework/", storage as unknown as Storage, keys);
+
+      expect(storage[keys.WMA_JSON]).toBe(homeJson);
+      expect(storage[keys.CASE_REVIEW_JSON]).toBe(homeJson);
+      expect(storage[keys.HOME_JSON]).toBe(homeJson);
+      expect(storage[keys.WMA_COOKIES]).toBe(homeCookies);
+      expect(storage[keys.CASE_REVIEW_COOKIES]).toBe(homeCookies);
+      expect(storage[keys.HOME_COOKIES]).toBe(homeCookies);
+    });
+
     test("does not modify storage when URL does not match any known app", () => {
       storage[keys.WMA_JSON] = "wma-json";
       storage[keys.WMA_COOKIES] = "wma-cookies";
@@ -263,6 +279,84 @@ describe("storage", () => {
       expect(storage[keys.WMA_COOKIES]).toBe(caseReviewCookies);
       expect(storage[keys.HOME_JSON]).toBe(caseReviewJson);
       expect(storage[keys.HOME_COOKIES]).toBe(caseReviewCookies);
+    });
+
+    test("syncs lowercase /casework/home (CMS→OS handover return URL)", () => {
+      // The handover always returns to a lowercase path; the match must be
+      // case-insensitive or sync silently no-ops on that entry point.
+      const homeJson = '{"Cookies":"home-cookies","Token":"home-token"}';
+      const homeCookies = "home-cookies";
+      storage[keys.HOME_JSON] = homeJson;
+      storage[keys.HOME_COOKIES] = homeCookies;
+
+      syncOsAuth("https://example.com/casework/home?IsFromCMS=True", storage as unknown as Storage, keys);
+
+      expect(storage[keys.CASE_REVIEW_JSON]).toBe(homeJson);
+      expect(storage[keys.CASE_REVIEW_COOKIES]).toBe(homeCookies);
+    });
+
+    test("syncs lowercase /workmanagementapp", () => {
+      const wmaJson = '{"Cookies":"wma-cookies","Token":"wma-token"}';
+      const wmaCookies = "wma-cookies";
+      storage[keys.WMA_JSON] = wmaJson;
+      storage[keys.WMA_COOKIES] = wmaCookies;
+
+      syncOsAuth("https://example.com/workmanagementapp/CaseOverview", storage as unknown as Storage, keys);
+
+      expect(storage[keys.CASE_REVIEW_JSON]).toBe(wmaJson);
+      expect(storage[keys.CASE_REVIEW_COOKIES]).toBe(wmaCookies);
+    });
+
+    test("syncs mixed-case /CaseReview regardless of casing", () => {
+      const caseReviewJson = '{"Cookies":"cr-cookies","Token":"cr-token"}';
+      const caseReviewCookies = "cr-cookies";
+      storage[keys.CASE_REVIEW_JSON] = caseReviewJson;
+      storage[keys.CASE_REVIEW_COOKIES] = caseReviewCookies;
+
+      syncOsAuth("https://example.com/CASEREVIEW/x", storage as unknown as Storage, keys);
+
+      expect(storage[keys.HOME_JSON]).toBe(caseReviewJson);
+      expect(storage[keys.HOME_COOKIES]).toBe(caseReviewCookies);
+    });
+
+    test("does not overwrite sibling apps when source JSON is the string 'undefined'", () => {
+      // Repro of the home-page-unauth wipe: OutSystems blanks the active app's
+      // ClientVar to "undefined" after a failed post-SSO session check; sync
+      // must not fan that blank out over CaseReview's still-valid auth.
+      storage[keys.HOME_JSON] = "undefined";
+      storage[keys.HOME_COOKIES] = "undefined";
+      storage[keys.CASE_REVIEW_JSON] = '{"Cookies":"cr-cookies","Token":"cr-token"}';
+      storage[keys.CASE_REVIEW_COOKIES] = "cr-cookies";
+
+      syncOsAuth("https://example.com/Casework/Home", storage as unknown as Storage, keys);
+
+      expect(storage[keys.CASE_REVIEW_JSON]).toBe('{"Cookies":"cr-cookies","Token":"cr-token"}');
+      expect(storage[keys.CASE_REVIEW_COOKIES]).toBe("cr-cookies");
+    });
+
+    test("does not overwrite sibling apps when source values are unset", () => {
+      storage[keys.CASE_REVIEW_JSON] = '{"Cookies":"cr-cookies","Token":"cr-token"}';
+      storage[keys.CASE_REVIEW_COOKIES] = "cr-cookies";
+
+      // app="WorkManagementApp" → source is WMA_JSON/WMA_COOKIES, both unset.
+      syncOsAuth("https://example.com/WorkManagementApp/", storage as unknown as Storage, keys);
+
+      expect(storage[keys.CASE_REVIEW_JSON]).toBe('{"Cookies":"cr-cookies","Token":"cr-token"}');
+      expect(storage[keys.CASE_REVIEW_COOKIES]).toBe("cr-cookies");
+    });
+
+    test("copies cookies even when source JSON is blank, and vice versa", () => {
+      // The two are guarded independently — a usable cookies source still
+      // propagates even if the JSON source happens to be blank.
+      storage[keys.WMA_JSON] = "undefined";
+      storage[keys.WMA_COOKIES] = "wma-cookies";
+
+      syncOsAuth("https://example.com/WorkManagementApp/", storage as unknown as Storage, keys);
+
+      expect(storage[keys.CASE_REVIEW_COOKIES]).toBe("wma-cookies");
+      expect(storage[keys.HOME_COOKIES]).toBe("wma-cookies");
+      // JSON source was blank → CaseReview JSON left untouched (undefined here).
+      expect(storage[keys.CASE_REVIEW_JSON]).toBeUndefined();
     });
 
     test("syncs WorkManagementApp with deep nested path and query params", () => {

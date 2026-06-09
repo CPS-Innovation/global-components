@@ -75,8 +75,8 @@ export function App() {
     loadState();
   }, [loadState]);
 
-  const handleBackgroundChange = async (checked: boolean) => {
-    const newState: Settings = { ...state, accessibilityBackground: checked ? "light-grey" : undefined };
+  const handleToneChange = async (tone: Settings["accessibilityBackground"]) => {
+    const newState: Settings = { ...state, accessibilityBackground: tone };
     setState(newState);
     const success = await saveState(newState);
     if (success) {
@@ -185,34 +185,42 @@ export function App() {
 
       {/* Section 2: Low Contrast Background */}
       <div className="govuk-form-group">
-        <fieldset className="govuk-fieldset">
+        <fieldset className="govuk-fieldset" aria-describedby="background-hint">
           <legend className="govuk-fieldset__legend govuk-fieldset__legend--m">
             <h2 className="govuk-fieldset__heading">Low contrast background</h2>
           </legend>
           <div id="background-hint" className="govuk-hint">
-            Reduces the contrast of the page background to make it easier on the eyes
-            when using the service for extended periods. This applies a subtle grey
-            background across CPS services.
+            Reduces the harsh glare of the bright white page background to make the service
+            easier on the eyes over long periods, while keeping text dark and readable.
+            Choose a tone below. For a full dark theme, see the browser options further down.
           </div>
-          <div className="govuk-checkboxes" data-module="govuk-checkboxes">
-            <div className="govuk-checkboxes__item">
-              <input
-                className="govuk-checkboxes__input"
-                id="accessibilityBackground"
-                name="accessibilityBackground"
-                type="checkbox"
-                checked={state.accessibilityBackground === "light-grey"}
-                disabled={loading}
-                onChange={(e) => handleBackgroundChange(e.target.checked)}
-                aria-describedby="background-hint"
-              />
-              <label
-                className="govuk-label govuk-checkboxes__label"
-                htmlFor="accessibilityBackground"
-              >
-                Enable low contrast background
-              </label>
-            </div>
+          <div className="govuk-radios" data-module="govuk-radios">
+            {(
+              [
+                { value: "off", label: "Off" },
+                { value: "soft-grey", label: "Soft grey" },
+                { value: "warm", label: "Warm (easier for long reading)" },
+              ] as const
+            ).map(({ value, label }) => (
+              <div className="govuk-radios__item" key={value}>
+                <input
+                  className="govuk-radios__input"
+                  id={`accessibilityBackground-${value}`}
+                  name="accessibilityBackground"
+                  type="radio"
+                  value={value}
+                  checked={(state.accessibilityBackground ?? "off") === value}
+                  disabled={loading}
+                  onChange={() => handleToneChange(value === "off" ? undefined : value)}
+                />
+                <label
+                  className="govuk-label govuk-radios__label"
+                  htmlFor={`accessibilityBackground-${value}`}
+                >
+                  {label}
+                </label>
+              </div>
+            ))}
           </div>
         </fieldset>
       </div>
