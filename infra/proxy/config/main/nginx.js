@@ -104,10 +104,123 @@ function setSessionHintCookie(r) {
   }
 }
 
+function _cookieName(segment) {
+  const eq = segment.indexOf("=")
+  return (eq === -1 ? segment : segment.slice(0, eq)).trim()
+}
+
+function _isBigIpCookie(name) {
+  return /^BIGipServer/i.test(name)
+}
+
+// Map the __CMSENV cookie value to its CINx token. The env-switch routes in nginx-full.conf
+// set __CMSENV=default for cin3 (not "cin3"), and __CMSENV=cinX for the others. We also accept
+// a literal "cin3" token defensively.
+function _cmsEnvToCin(value) {
+  const match = value.match(/cin\d+/i)
+  if (match) {
+    return match[0].toLowerCase()
+  }
+  if (value.trim().toLowerCase() === "default") {
+    return "cin3"
+  }
+  return null
+}
+
+function _makeShimCookie(cin) {
+  // cin is lowercase e.g. "cin3"
+  return `BIGipServer-shim-${cin.toUpperCase()}-${cin.toLowerCase()}.cps.gov.uk=1`
+}
+
+function _withCookie(args, cookieString) {
+  const clonedArgs = qs.parse(qs.stringify(args))
+  clonedArgs["cookie"] = cookieString
+  return clonedArgs
+}
+
+function _shimBigIpCookies(args) {
+  // HACK: The load balancer used to emit BIGipServer* cookies which the downstream
+  //  /auth-refresh-inbound endpoint (DDEI /api/init/) keys off to route a user's session.
+  //  Those have stopped appearing and are now replaced by cookies named like
+  //  C-CIN3-LBsessioncookie=...  We only care about the CINx token (e.g. CIN3).
+  //
+  //  Discrimination rules:
+  //   1. If a __CMSENV cookie is present it is authoritative: ensure a BIGipServer* cookie
+  //      exists for its CINx (synthesising a shim if absent) and drop any BIGipServer* cookies
+  //      that reference a different CINx.
+  //   2. Otherwise, if exactly one CINx is referenced by C- cookies and there is no
+  //      BIGipServer* cookie for it, synthesise a shim.
+  //   3. Otherwise pass through untouched.
+  const cookieString = args["cookie"]
+  if (!cookieString) {
+    return args
+  }
+
+  const segments = cookieString.split(/;\s*/).filter((s) => s.length > 0)
+
+  // Rule 1: __CMSENV is authoritative.
+  const cmsEnvSegment = segments.find((s) => _cookieName(s) === "__CMSENV")
+  if (cmsEnvSegment) {
+    const cmsEnvValue = cmsEnvSegment.slice(cmsEnvSegment.indexOf("=") + 1).trim()
+    const cin = _cmsEnvToCin(cmsEnvValue)
+    if (!cin) {
+      // Unrecognised __CMSENV value - we cannot determine the target environment, pass through.
+      return args
+    }
+
+    const kept = []
+    let hasBigIpForCin = false
+    segments.forEach((segment) => {
+      const name = _cookieName(segment)
+      if (_isBigIpCookie(name)) {
+        // Keep only BIGipServer* cookies that reference this CINx; drop the rest.
+        if (name.toLowerCase().includes(cin)) {
+          kept.push(segment)
+          hasBigIpForCin = true
+        }
+      } else {
+        kept.push(segment)
+      }
+    })
+
+    if (!hasBigIpForCin) {
+      kept.push(_makeShimCookie(cin))
+    }
+
+    return _withCookie(args, kept.join("; "))
+  }
+
+  // Rule 2: no __CMSENV - only act when a single CINx is referenced by C- cookies.
+  const cins = {}
+  segments.forEach((segment) => {
+    const match = _cookieName(segment).match(/^C-(CIN\d+)-/i)
+    if (match) {
+      cins[match[1].toLowerCase()] = true
+    }
+  })
+  const distinctCins = Object.keys(cins)
+
+  if (distinctCins.length === 1) {
+    const cin = distinctCins[0]
+    const hasBigIpForCin = segments.some(
+      (segment) =>
+        _isBigIpCookie(_cookieName(segment)) &&
+        _cookieName(segment).toLowerCase().includes(cin)
+    )
+    if (!hasBigIpForCin) {
+      return _withCookie(args, `${cookieString}; ${_makeShimCookie(cin)}`)
+    }
+  }
+
+  // Rule 3: pass through untouched.
+  return args
+}
+
 function appAuthRedirect(r) {
   setSessionHintCookie(r)
 
-  const args = _argsShim(r.args)
+  let args = _argsShim(r.args)
+  args = _shimBigIpCookies(args)
 
   const whitelistedUrls = process.env.AUTH_HANDOVER_WHITELIST ?? ""
   const redirectUrl = args["r"]

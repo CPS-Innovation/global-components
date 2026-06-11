@@ -245,6 +245,141 @@ async function testAuthRedirect() {
 }
 
 // =============================================================================
+// BIGipServer Cookie Shim Tests (/init endpoint)
+//
+// The downstream /auth-refresh-inbound endpoint keys off BIGipServer* cookies.
+// Those have stopped appearing and are replaced by C-CINx-* cookies. At /init we
+// discriminate: a __CMSENV cookie is authoritative (shim its CIN, drop other
+// BIGipServer* cookies); otherwise a single CINx C- cookie with no BIGipServer*
+// cookie gets a shim; anything ambiguous passes through. These tests drive the
+// real njs module and inspect the cc param on the 302 location.
+// =============================================================================
+
+async function testBigIpCookieShim() {
+  console.log("\nBIGipServer Cookie Shim Tests (/init endpoint):")
+
+  const INIT_ENDPOINT = `${PROXY_BASE}/init`
+
+  // Pull the cc param out of the 302 location header (URL-decoded).
+  const getCcFromInit = async (cookie) => {
+    const response = await fetch(
+      `${INIT_ENDPOINT}?r=/auth-refresh-inbound&cookie=${encodeURIComponent(cookie)}`,
+      {
+        redirect: "manual",
+        headers: {
+          "X-Forwarded-Proto": "https",
+          Host: "localhost:8080",
+        },
+      }
+    )
+    assertEqual(response.status, 302, "Should return 302 redirect")
+    const location = response.headers.get("location")
+    assert(location !== null, "Should have Location header")
+    return new URL(location).searchParams.get("cc")
+  }
+
+  await test("shims a BIGipServer cookie when only a C-CINx cookie is present", async () => {
+    const cc = await getCcFromInit("C-CIN3-LBsessioncookie=!Bxwnf3t34G9en8vZvooeZUooMAk8qkKBqK")
+    assert(
+      cc.includes("BIGipServer-shim-CIN3-cin3.cps.gov.uk=1"),
+      `Should append shim BIGipServer cookie, got: ${cc}`
+    )
+    assert(
+      cc.includes("C-CIN3-LBsessioncookie="),
+      `Should preserve original cookie, got: ${cc}`
+    )
+  })
+
+  await test("does not shim when a BIGipServer cookie already references that CIN", async () => {
+    const cc = await getCcFromInit(
+      "BIGipServer~ent-s221~CPSACP-LTM-CM-WAN-CIN3-cin3.cps.gov.uk_POOL=12345; C-CIN3-LBsessioncookie=!Bxw"
+    )
+    assert(
+      !cc.includes("BIGipServer-shim"),
+      `Should not append shim when real BIGipServer cookie present, got: ${cc}`
+    )
+  })
+
+  await test("matches CIN case-insensitively when deciding whether to shim", async () => {
+    const cc = await getCcFromInit(
+      "BIGipServer~ent-s221~something-cin3-x_POOL=12345; C-CIN3-LBsessioncookie=!Bxw"
+    )
+    assert(
+      !cc.includes("BIGipServer-shim"),
+      `Lowercase cin3 in existing BIGipServer cookie should suppress shim, got: ${cc}`
+    )
+  })
+
+  await test("treats two C-CINx cookies of the same CIN as a single CIN (shims once)", async () => {
+    const cc = await getCcFromInit("C-CIN3-LBsessioncookie=!a; C-CIN3-other=!c")
+    assert(
+      cc.includes("BIGipServer-shim-CIN3-cin3.cps.gov.uk=1"),
+      `Should shim CIN3, got: ${cc}`
+    )
+    const cin3Shims = cc.match(/BIGipServer-shim-CIN3/g) || []
+    assertEqual(cin3Shims.length, 1, "Should shim CIN3 only once despite two C-CIN3 cookies")
+  })
+
+  await test("passes through (no shim) when multiple distinct CINx C- cookies and no __CMSENV", async () => {
+    const cc = await getCcFromInit("C-CIN3-LBsessioncookie=!a; C-CIN4-LBsessioncookie=!b")
+    assert(
+      !cc.includes("BIGipServer-shim"),
+      `Ambiguous multi-CIN with no __CMSENV should pass through, got: ${cc}`
+    )
+    assertEqual(
+      cc,
+      "C-CIN3-LBsessioncookie=!a; C-CIN4-LBsessioncookie=!b",
+      "Should pass cookie through unchanged"
+    )
+  })
+
+  await test("__CMSENV shims its CIN and drops BIGipServer cookies for other CINs", async () => {
+    const cc = await getCcFromInit(
+      "BIGipServer~ent-s221~CPSACP-LTM-CM-WAN-CIN3-cin3.cps.gov.uk_POOL=12345; C-CIN4-LBsessioncookie=!b; __CMSENV=cin4"
+    )
+    assert(
+      cc.includes("BIGipServer-shim-CIN4-cin4.cps.gov.uk=1"),
+      `Should shim CIN4 for __CMSENV=cin4, got: ${cc}`
+    )
+    assert(
+      !cc.includes("CIN3-cin3.cps.gov.uk_POOL"),
+      `Should drop BIGipServer cookie for non-target CIN3, got: ${cc}`
+    )
+    assert(cc.includes("C-CIN4-LBsessioncookie="), `Should keep non-BIGipServer cookies, got: ${cc}`)
+  })
+
+  await test("__CMSENV keeps an existing BIGipServer cookie for its CIN and adds no shim", async () => {
+    const cc = await getCcFromInit(
+      "BIGipServer~ent-s221~CPSACP-LTM-CM-WAN-CIN4-cin4.cps.gov.uk_POOL=999; __CMSENV=cin4"
+    )
+    assert(!cc.includes("BIGipServer-shim"), `Should not shim when real BIGipServer present, got: ${cc}`)
+    assert(
+      cc.includes("CIN4-cin4.cps.gov.uk_POOL=999"),
+      `Should keep the matching BIGipServer cookie, got: ${cc}`
+    )
+  })
+
+  await test("__CMSENV=default maps to cin3 (real conf value for cin3)", async () => {
+    const cc = await getCcFromInit("C-CIN3-LBsessioncookie=!a; __CMSENV=default")
+    assert(
+      cc.includes("BIGipServer-shim-CIN3-cin3.cps.gov.uk=1"),
+      `__CMSENV=default should shim cin3, got: ${cc}`
+    )
+  })
+
+  await test("unrecognised __CMSENV value passes through untouched", async () => {
+    const cc = await getCcFromInit("C-CIN3-LBsessioncookie=!a; __CMSENV=garbage")
+    assert(!cc.includes("BIGipServer-shim"), `Unrecognised __CMSENV should not shim, got: ${cc}`)
+    assertEqual(cc, "C-CIN3-LBsessioncookie=!a; __CMSENV=garbage", "Should pass through unchanged")
+  })
+
+  await test("does not alter cookie when no C-CINx cookies present", async () => {
+    const cc = await getCcFromInit("session=abc123")
+    assertEqual(cc, "session=abc123", "Should leave cookie untouched")
+  })
+}
+
+// =============================================================================
 // Polaris Auth Redirect Tests (/polaris endpoint)
 // =============================================================================
 
@@ -381,6 +516,7 @@ async function main() {
   process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0"
 
   await testAuthRedirect()
+  await testBigIpCookieShim()
   await testPolarisRedirect()
   await testAuthRefreshOutbound()
 }

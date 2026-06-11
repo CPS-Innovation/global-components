@@ -379,6 +379,216 @@ async function runTests(): Promise<void> {
     )
   })
 
+  await test("shims a BIGipServer cookie when only a C-CINx cookie is present", async () => {
+    process.env.AUTH_HANDOVER_WHITELIST = "http://allowed.example.org"
+    const r = createMockRequest({
+      args: {
+        r: "http://allowed.example.org/callback",
+        cookie: "C-CIN3-LBsessioncookie=!Bxwnf3t34G9en8vZvooeZUooMAk8qkKBqK",
+      },
+      headersIn: {
+        "X-Forwarded-Proto": "https",
+        Host: "proxy.example.com",
+      },
+    })
+    nginx.appAuthRedirect(r)
+    const cc = new URL(r.returnBody!).searchParams.get("cc")
+    assert(
+      cc!.includes("BIGipServer-shim-CIN3-cin3.cps.gov.uk=1"),
+      `Should append shim BIGipServer cookie, got: ${cc}`
+    )
+    assert(
+      cc!.includes("C-CIN3-LBsessioncookie="),
+      `Should preserve original cookie, got: ${cc}`
+    )
+  })
+
+  await test("does not shim when a BIGipServer cookie already references that CIN", async () => {
+    process.env.AUTH_HANDOVER_WHITELIST = "http://allowed.example.org"
+    const r = createMockRequest({
+      args: {
+        r: "http://allowed.example.org/callback",
+        cookie:
+          "BIGipServer~ent-s221~CPSACP-LTM-CM-WAN-CIN3-cin3.cps.gov.uk_POOL=12345; C-CIN3-LBsessioncookie=!Bxw",
+      },
+      headersIn: {
+        "X-Forwarded-Proto": "https",
+        Host: "proxy.example.com",
+      },
+    })
+    nginx.appAuthRedirect(r)
+    const cc = new URL(r.returnBody!).searchParams.get("cc")
+    assert(
+      !cc!.includes("BIGipServer-shim"),
+      `Should not append shim when real BIGipServer cookie present, got: ${cc}`
+    )
+  })
+
+  await test("matches CIN case-insensitively when deciding whether to shim", async () => {
+    process.env.AUTH_HANDOVER_WHITELIST = "http://allowed.example.org"
+    const r = createMockRequest({
+      args: {
+        r: "http://allowed.example.org/callback",
+        cookie: "BIGipServer~ent-s221~something-cin3-x_POOL=12345; C-CIN3-LBsessioncookie=!Bxw",
+      },
+      headersIn: {
+        "X-Forwarded-Proto": "https",
+        Host: "proxy.example.com",
+      },
+    })
+    nginx.appAuthRedirect(r)
+    const cc = new URL(r.returnBody!).searchParams.get("cc")
+    assert(
+      !cc!.includes("BIGipServer-shim"),
+      `Lowercase cin3 in existing BIGipServer cookie should suppress shim, got: ${cc}`
+    )
+  })
+
+  await test("treats two C-CINx cookies of the same CIN as a single CIN (shims once)", async () => {
+    process.env.AUTH_HANDOVER_WHITELIST = "http://allowed.example.org"
+    const r = createMockRequest({
+      args: {
+        r: "http://allowed.example.org/callback",
+        cookie: "C-CIN3-LBsessioncookie=!a; C-CIN3-other=!c",
+      },
+      headersIn: {
+        "X-Forwarded-Proto": "https",
+        Host: "proxy.example.com",
+      },
+    })
+    nginx.appAuthRedirect(r)
+    const cc = new URL(r.returnBody!).searchParams.get("cc")!
+    assert(
+      cc.includes("BIGipServer-shim-CIN3-cin3.cps.gov.uk=1"),
+      `Should shim CIN3, got: ${cc}`
+    )
+    const cin3Shims = cc.match(/BIGipServer-shim-CIN3/g) || []
+    assertEqual(cin3Shims.length, 1, "Should shim CIN3 only once despite two C-CIN3 cookies")
+  })
+
+  await test("passes through (no shim) when multiple distinct CINx C- cookies and no __CMSENV", async () => {
+    process.env.AUTH_HANDOVER_WHITELIST = "http://allowed.example.org"
+    const r = createMockRequest({
+      args: {
+        r: "http://allowed.example.org/callback",
+        cookie: "C-CIN3-LBsessioncookie=!a; C-CIN4-LBsessioncookie=!b",
+      },
+      headersIn: {
+        "X-Forwarded-Proto": "https",
+        Host: "proxy.example.com",
+      },
+    })
+    nginx.appAuthRedirect(r)
+    const cc = new URL(r.returnBody!).searchParams.get("cc")
+    assert(
+      !cc!.includes("BIGipServer-shim"),
+      `Ambiguous multi-CIN with no __CMSENV should pass through, got: ${cc}`
+    )
+    assertEqual(cc, "C-CIN3-LBsessioncookie=!a; C-CIN4-LBsessioncookie=!b", "Should pass cookie through unchanged")
+  })
+
+  // --- __CMSENV is authoritative ---
+
+  await test("__CMSENV shims its CIN and drops BIGipServer cookies for other CINs", async () => {
+    process.env.AUTH_HANDOVER_WHITELIST = "http://allowed.example.org"
+    const r = createMockRequest({
+      args: {
+        r: "http://allowed.example.org/callback",
+        cookie:
+          "BIGipServer~ent-s221~CPSACP-LTM-CM-WAN-CIN3-cin3.cps.gov.uk_POOL=12345; C-CIN4-LBsessioncookie=!b; __CMSENV=cin4",
+      },
+      headersIn: {
+        "X-Forwarded-Proto": "https",
+        Host: "proxy.example.com",
+      },
+    })
+    nginx.appAuthRedirect(r)
+    const cc = new URL(r.returnBody!).searchParams.get("cc")!
+    assert(
+      cc.includes("BIGipServer-shim-CIN4-cin4.cps.gov.uk=1"),
+      `Should shim CIN4 for __CMSENV=cin4, got: ${cc}`
+    )
+    assert(
+      !cc.includes("CIN3-cin3.cps.gov.uk_POOL"),
+      `Should drop BIGipServer cookie for non-target CIN3, got: ${cc}`
+    )
+    assert(cc.includes("C-CIN4-LBsessioncookie="), `Should keep non-BIGipServer cookies, got: ${cc}`)
+  })
+
+  await test("__CMSENV keeps an existing BIGipServer cookie for its CIN and adds no shim", async () => {
+    process.env.AUTH_HANDOVER_WHITELIST = "http://allowed.example.org"
+    const r = createMockRequest({
+      args: {
+        r: "http://allowed.example.org/callback",
+        cookie:
+          "BIGipServer~ent-s221~CPSACP-LTM-CM-WAN-CIN4-cin4.cps.gov.uk_POOL=999; __CMSENV=cin4",
+      },
+      headersIn: {
+        "X-Forwarded-Proto": "https",
+        Host: "proxy.example.com",
+      },
+    })
+    nginx.appAuthRedirect(r)
+    const cc = new URL(r.returnBody!).searchParams.get("cc")!
+    assert(!cc.includes("BIGipServer-shim"), `Should not shim when real BIGipServer present, got: ${cc}`)
+    assert(cc.includes("CIN4-cin4.cps.gov.uk_POOL=999"), `Should keep the matching BIGipServer cookie, got: ${cc}`)
+  })
+
+  await test("__CMSENV=default maps to cin3 (real conf value for cin3)", async () => {
+    process.env.AUTH_HANDOVER_WHITELIST = "http://allowed.example.org"
+    const r = createMockRequest({
+      args: {
+        r: "http://allowed.example.org/callback",
+        cookie: "C-CIN3-LBsessioncookie=!a; __CMSENV=default",
+      },
+      headersIn: {
+        "X-Forwarded-Proto": "https",
+        Host: "proxy.example.com",
+      },
+    })
+    nginx.appAuthRedirect(r)
+    const cc = new URL(r.returnBody!).searchParams.get("cc")!
+    assert(
+      cc.includes("BIGipServer-shim-CIN3-cin3.cps.gov.uk=1"),
+      `__CMSENV=default should shim cin3, got: ${cc}`
+    )
+  })
+
+  await test("unrecognised __CMSENV value passes through untouched", async () => {
+    process.env.AUTH_HANDOVER_WHITELIST = "http://allowed.example.org"
+    const r = createMockRequest({
+      args: {
+        r: "http://allowed.example.org/callback",
+        cookie: "C-CIN3-LBsessioncookie=!a; __CMSENV=garbage",
+      },
+      headersIn: {
+        "X-Forwarded-Proto": "https",
+        Host: "proxy.example.com",
+      },
+    })
+    nginx.appAuthRedirect(r)
+    const cc = new URL(r.returnBody!).searchParams.get("cc")
+    assert(!cc!.includes("BIGipServer-shim"), `Unrecognised __CMSENV should not shim, got: ${cc}`)
+    assertEqual(cc, "C-CIN3-LBsessioncookie=!a; __CMSENV=garbage", "Should pass through unchanged")
+  })
+
+  await test("does not alter cookie when no C-CINx cookies present", async () => {
+    process.env.AUTH_HANDOVER_WHITELIST = "http://allowed.example.org"
+    const r = createMockRequest({
+      args: {
+        r: "http://allowed.example.org/callback",
+        cookie: "session=abc123",
+      },
+      headersIn: {
+        "X-Forwarded-Proto": "https",
+        Host: "proxy.example.com",
+      },
+    })
+    nginx.appAuthRedirect(r)
+    const cc = new URL(r.returnBody!).searchParams.get("cc")
+    assertEqual(cc, "session=abc123", "Should leave cookie untouched")
+  })
+
   // --- polarisAuthRedirect tests ---
   console.log("\npolarisAuthRedirect:")
 
