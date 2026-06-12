@@ -248,11 +248,10 @@ async function testAuthRedirect() {
 // BIGipServer Cookie Shim Tests (/init endpoint)
 //
 // The downstream /auth-refresh-inbound endpoint keys off BIGipServer* cookies.
-// Those have stopped appearing and are replaced by C-CINx-* cookies. At /init we
-// discriminate: a __CMSENV cookie is authoritative (shim its CIN, drop other
-// BIGipServer* cookies); otherwise a single CINx C- cookie with no BIGipServer*
-// cookie gets a shim; anything ambiguous passes through. These tests drive the
-// real njs module and inspect the cc param on the 302 location.
+// Those have stopped appearing and are replaced by a single new-style C-CINx-* cookie.
+// At /init we copy that cookie's CINx across to an old-style BIGipServer* cookie unless
+// one already exists for it. These tests drive the real njs module and inspect the cc
+// param on the 302 location.
 // =============================================================================
 
 async function testBigIpCookieShim() {
@@ -308,69 +307,6 @@ async function testBigIpCookieShim() {
       !cc.includes("BIGipServer-shim"),
       `Lowercase cin3 in existing BIGipServer cookie should suppress shim, got: ${cc}`
     )
-  })
-
-  await test("treats two C-CINx cookies of the same CIN as a single CIN (shims once)", async () => {
-    const cc = await getCcFromInit("C-CIN3-LBsessioncookie=!a; C-CIN3-other=!c")
-    assert(
-      cc.includes("BIGipServer-shim-CIN3-cin3.cps.gov.uk=1"),
-      `Should shim CIN3, got: ${cc}`
-    )
-    const cin3Shims = cc.match(/BIGipServer-shim-CIN3/g) || []
-    assertEqual(cin3Shims.length, 1, "Should shim CIN3 only once despite two C-CIN3 cookies")
-  })
-
-  await test("passes through (no shim) when multiple distinct CINx C- cookies and no __CMSENV", async () => {
-    const cc = await getCcFromInit("C-CIN3-LBsessioncookie=!a; C-CIN4-LBsessioncookie=!b")
-    assert(
-      !cc.includes("BIGipServer-shim"),
-      `Ambiguous multi-CIN with no __CMSENV should pass through, got: ${cc}`
-    )
-    assertEqual(
-      cc,
-      "C-CIN3-LBsessioncookie=!a; C-CIN4-LBsessioncookie=!b",
-      "Should pass cookie through unchanged"
-    )
-  })
-
-  await test("__CMSENV shims its CIN and drops BIGipServer cookies for other CINs", async () => {
-    const cc = await getCcFromInit(
-      "BIGipServer~ent-s221~CPSACP-LTM-CM-WAN-CIN3-cin3.cps.gov.uk_POOL=12345; C-CIN4-LBsessioncookie=!b; __CMSENV=cin4"
-    )
-    assert(
-      cc.includes("BIGipServer-shim-CIN4-cin4.cps.gov.uk=1"),
-      `Should shim CIN4 for __CMSENV=cin4, got: ${cc}`
-    )
-    assert(
-      !cc.includes("CIN3-cin3.cps.gov.uk_POOL"),
-      `Should drop BIGipServer cookie for non-target CIN3, got: ${cc}`
-    )
-    assert(cc.includes("C-CIN4-LBsessioncookie="), `Should keep non-BIGipServer cookies, got: ${cc}`)
-  })
-
-  await test("__CMSENV keeps an existing BIGipServer cookie for its CIN and adds no shim", async () => {
-    const cc = await getCcFromInit(
-      "BIGipServer~ent-s221~CPSACP-LTM-CM-WAN-CIN4-cin4.cps.gov.uk_POOL=999; __CMSENV=cin4"
-    )
-    assert(!cc.includes("BIGipServer-shim"), `Should not shim when real BIGipServer present, got: ${cc}`)
-    assert(
-      cc.includes("CIN4-cin4.cps.gov.uk_POOL=999"),
-      `Should keep the matching BIGipServer cookie, got: ${cc}`
-    )
-  })
-
-  await test("__CMSENV=default maps to cin3 (real conf value for cin3)", async () => {
-    const cc = await getCcFromInit("C-CIN3-LBsessioncookie=!a; __CMSENV=default")
-    assert(
-      cc.includes("BIGipServer-shim-CIN3-cin3.cps.gov.uk=1"),
-      `__CMSENV=default should shim cin3, got: ${cc}`
-    )
-  })
-
-  await test("unrecognised __CMSENV value passes through untouched", async () => {
-    const cc = await getCcFromInit("C-CIN3-LBsessioncookie=!a; __CMSENV=garbage")
-    assert(!cc.includes("BIGipServer-shim"), `Unrecognised __CMSENV should not shim, got: ${cc}`)
-    assertEqual(cc, "C-CIN3-LBsessioncookie=!a; __CMSENV=garbage", "Should pass through unchanged")
   })
 
   await test("does not alter cookie when no C-CINx cookies present", async () => {
