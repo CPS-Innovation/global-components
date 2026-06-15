@@ -7,15 +7,12 @@ function autoDefinePlugin() {
   return {
     name: "auto-define-custom-elements",
     renderChunk(code) {
-      // Find the `<internalName> as defineCustomElements` export alias and append a call to it so
-      //  the bundle self-registers its custom elements.
-      // We match only the alias fragment, NOT the surrounding `export { … }` block: a lazy
-      //  `[^}]*?` before the identifier capture overlaps the `[\w$]+` class ([^}] ⊇ [\w$]) and
-      //  causes catastrophic backtracking on failure (ReDoS / sonar S5852). The fragment below has
-      //  no overlapping quantifiers — `[\w$]+` and `\s+` are disjoint — so matching is linear.
-      // The internal name is a minified JS identifier, which can contain `$`/`_` (terser uses these
-      //  once it runs out of short names) — so match [\w$], not just \w.
-      const exportMatch = code.match(/([\w$]+)\s+as\s+defineCustomElements/);
+      // Find the `<internalName> as defineCustomElements` export alias and append a call to it so the
+      //  bundle self-registers its custom elements. The internal name is a minified JS identifier,
+      //  which can contain `$`/`_` (terser uses these once it runs out of short names) — so match
+      //  [\w$], not just \w. The identifier quantifier is bounded ({1,64}, far beyond any mangled
+      //  name) so the match is linear, with no super-linear backtracking (ReDoS / sonar S5852).
+      const exportMatch = code.match(/([\w$]{1,64})\s+as\s+defineCustomElements/);
       if (exportMatch) {
         const internalName = exportMatch[1];
         const s = new MagicString(code);
