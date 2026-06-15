@@ -20,6 +20,7 @@ import { initialiseRecentCases } from "./services/state/recent-cases/initialise-
 import { footerSubscriber } from "./services/browser/dom/footer-subscriber";
 import { hostAppEventSubscriber } from "./services/browser/dom/host-app-event-subscriber";
 import { accessibilitySubscriber } from "./services/browser/accessibility/accessibility-subscriber";
+import { skipLinkSubscriber } from "./services/browser/dom/skip-link-subscriber";
 import { initialiseSettings } from "./services/state/settings/initialise-settings";
 import { initialiseOutSystemsReconcileAuth } from "./services/outsystems-shim/initialise-outsytems-reconcile-auth";
 import { initialiseOutSystemsShowAlert } from "./services/outsystems-shim/outsystems-show-alert";
@@ -94,6 +95,7 @@ const initialise = async (window: Window & typeof globalThis) => {
       hostAppEventSubscriber,
       accessibilitySubscriber,
       witnessAreaSubscriber,
+      skipLinkSubscriber,
     );
 
     initialiseTabTitle({ window, preview, settings, subscribe, flags });

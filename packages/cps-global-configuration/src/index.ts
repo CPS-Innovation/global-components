@@ -8,6 +8,7 @@ export {
   type FeatureFlagUsers,
   type Link,
   type ContextsToUseEventNavigation,
+  type SkipLinks,
 } from "./Config";
 export { PreviewSchema, type Preview } from "./Preview";
 export {

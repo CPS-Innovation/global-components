@@ -92,8 +92,14 @@ export namespace Components {
         /**
           * @default false
          */
-        "isOutSystems": boolean;
-        "skipLinkClassName"?: string;
+        "createFallbackTarget": boolean;
+        "targetSelector"?: string;
+        /**
+          * @default false
+         */
+        "useScroll": boolean;
+    }
+    interface CpsSkipLinks {
     }
     interface NavLink {
         "ariaSelected"?: boolean;
@@ -197,6 +203,12 @@ declare global {
         prototype: HTMLCpsSkipLinkElement;
         new (): HTMLCpsSkipLinkElement;
     };
+    interface HTMLCpsSkipLinksElement extends Components.CpsSkipLinks, HTMLStencilElement {
+    }
+    var HTMLCpsSkipLinksElement: {
+        prototype: HTMLCpsSkipLinksElement;
+        new (): HTMLCpsSkipLinksElement;
+    };
     interface HTMLNavLinkElementEventMap {
         "cps-global-header-event": string;
     }
@@ -227,6 +239,7 @@ declare global {
         "cps-global-recent-cases": HTMLCpsGlobalRecentCasesElement;
         "cps-region": HTMLCpsRegionElement;
         "cps-skip-link": HTMLCpsSkipLinkElement;
+        "cps-skip-links": HTMLCpsSkipLinksElement;
         "nav-link": HTMLNavLinkElement;
     }
 }
@@ -319,8 +332,14 @@ declare namespace LocalJSX {
         /**
           * @default false
          */
-        "isOutSystems"?: boolean;
-        "skipLinkClassName"?: string;
+        "createFallbackTarget"?: boolean;
+        "targetSelector"?: string;
+        /**
+          * @default false
+         */
+        "useScroll"?: boolean;
+    }
+    interface CpsSkipLinks {
     }
     interface NavLink {
         "ariaSelected"?: boolean;
@@ -355,8 +374,9 @@ declare namespace LocalJSX {
         "code": string;
     }
     interface CpsSkipLinkAttributes {
-        "isOutSystems": boolean;
-        "skipLinkClassName": string;
+        "targetSelector": string;
+        "createFallbackTarget": boolean;
+        "useScroll": boolean;
     }
     interface NavLinkAttributes {
         "label": string;
@@ -380,6 +400,7 @@ declare namespace LocalJSX {
         "cps-global-recent-cases": Omit<CpsGlobalRecentCases, keyof CpsGlobalRecentCasesAttributes> & { [K in keyof CpsGlobalRecentCases & keyof CpsGlobalRecentCasesAttributes]?: CpsGlobalRecentCases[K] } & { [K in keyof CpsGlobalRecentCases & keyof CpsGlobalRecentCasesAttributes as `attr:${K}`]?: CpsGlobalRecentCasesAttributes[K] } & { [K in keyof CpsGlobalRecentCases & keyof CpsGlobalRecentCasesAttributes as `prop:${K}`]?: CpsGlobalRecentCases[K] };
         "cps-region": Omit<CpsRegion, keyof CpsRegionAttributes> & { [K in keyof CpsRegion & keyof CpsRegionAttributes]?: CpsRegion[K] } & { [K in keyof CpsRegion & keyof CpsRegionAttributes as `attr:${K}`]?: CpsRegionAttributes[K] } & { [K in keyof CpsRegion & keyof CpsRegionAttributes as `prop:${K}`]?: CpsRegion[K] } & OneOf<"code", CpsRegion["code"], CpsRegionAttributes["code"]>;
         "cps-skip-link": Omit<CpsSkipLink, keyof CpsSkipLinkAttributes> & { [K in keyof CpsSkipLink & keyof CpsSkipLinkAttributes]?: CpsSkipLink[K] } & { [K in keyof CpsSkipLink & keyof CpsSkipLinkAttributes as `attr:${K}`]?: CpsSkipLinkAttributes[K] } & { [K in keyof CpsSkipLink & keyof CpsSkipLinkAttributes as `prop:${K}`]?: CpsSkipLink[K] };
+        "cps-skip-links": CpsSkipLinks;
         "nav-link": Omit<NavLink, keyof NavLinkAttributes> & { [K in keyof NavLink & keyof NavLinkAttributes]?: NavLink[K] } & { [K in keyof NavLink & keyof NavLinkAttributes as `attr:${K}`]?: NavLinkAttributes[K] } & { [K in keyof NavLink & keyof NavLinkAttributes as `prop:${K}`]?: NavLink[K] };
     }
 }
@@ -399,6 +420,7 @@ declare module "@stencil/core" {
             "cps-global-recent-cases": LocalJSX.IntrinsicElements["cps-global-recent-cases"] & JSXBase.HTMLAttributes<HTMLCpsGlobalRecentCasesElement>;
             "cps-region": LocalJSX.IntrinsicElements["cps-region"] & JSXBase.HTMLAttributes<HTMLCpsRegionElement>;
             "cps-skip-link": LocalJSX.IntrinsicElements["cps-skip-link"] & JSXBase.HTMLAttributes<HTMLCpsSkipLinkElement>;
+            "cps-skip-links": LocalJSX.IntrinsicElements["cps-skip-links"] & JSXBase.HTMLAttributes<HTMLCpsSkipLinksElement>;
             "nav-link": LocalJSX.IntrinsicElements["nav-link"] & JSXBase.HTMLAttributes<HTMLNavLinkElement>;
         }
     }

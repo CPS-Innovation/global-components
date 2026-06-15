@@ -28,7 +28,8 @@ graph TD;
   cps-global-header --> cps-global-menu
   cps-global-header --> cps-global-notifications
   cps-global-header --> cps-global-case-locking-notification
-  cps-global-banner --> cps-skip-link
+  cps-global-banner --> cps-skip-links
+  cps-skip-links --> cps-skip-link
   cps-global-menu --> nav-link
   cps-global-menu --> cps-global-case-details
   cps-global-notifications --> cps-gds-notification-banner

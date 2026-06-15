@@ -12,12 +12,17 @@ const TARGET_ID = "cps-header-main-content";
 export class SkipLink {
   @Element() el: HTMLElement;
 
-  @Prop() isOutSystems: boolean = false;
-  @Prop() skipLinkClassName?: string;
+  // Raw CSS selector (class or id) for the target to skip to.
+  @Prop() targetSelector?: string;
+  // Only the main link with no configured selector creates/owns the #cps-header-main-content div.
+  @Prop() createFallbackTarget: boolean = false;
+  // Force JS scrollIntoView+focus handlers instead of native anchor navigation.
+  @Prop() useScroll: boolean = false;
 
   private createdTarget = false;
 
   componentDidLoad() {
+    if (!this.createFallbackTarget) return;
     if (document.getElementById(TARGET_ID)) return;
 
     const host = (this.el.getRootNode() as ShadowRoot).host;
@@ -36,20 +41,21 @@ export class SkipLink {
     this.createdTarget = false;
   }
 
-  // #FCT2-11717 - OS does not allow the usual <a href="#some-id"> skip to work as (I think) it listens for
-  //  history pushState events and does other conflicting page load stuff on those events.
+  // #FCT2-11717 - some host apps (e.g. OutSystems) do not allow the usual <a href="#some-id"> skip to
+  //  work as (I think) they listen for history pushState events and do other conflicting page load
+  //  stuff on those events. Such contexts opt into the JS scroll approach via `useScroll` in config.
   render() {
     const resolveTarget = (): HTMLElement | null => {
-      if (this.skipLinkClassName) {
-        const byClass = document.getElementsByClassName(this.skipLinkClassName)[0];
-        if (byClass instanceof HTMLElement) {
-          if (byClass.tabIndex < 0 && !byClass.hasAttribute("tabindex")) {
-            byClass.tabIndex = -1;
+      if (this.targetSelector) {
+        const found = document.querySelector(this.targetSelector);
+        if (found instanceof HTMLElement) {
+          if (found.tabIndex < 0 && !found.hasAttribute("tabindex")) {
+            found.tabIndex = -1;
           }
-          return byClass;
+          return found;
         }
       }
-      return document.getElementById(TARGET_ID);
+      return this.createFallbackTarget ? document.getElementById(TARGET_ID) : null;
     };
 
     const navigateToAnchor = (e: Event) => {
@@ -72,11 +78,23 @@ export class SkipLink {
       }
     };
 
-    const useJsHandlers = this.isOutSystems || !!this.skipLinkClassName;
+    // JS-ness is controlled purely by useScroll, NOT by the presence of a target selector.
+    const useJsHandlers = this.useScroll;
     const jsHandlers = useJsHandlers ? { onClick: navigateToAnchor, onKeyDown: handleKeyDown } : {};
 
+    // Native anchor nav can only jump to an id. Use an id-shaped selector directly; otherwise
+    //  fall back to the main target id.
+    const idSelector = this.targetSelector && /^#[A-Za-z][\w-]*$/.test(this.targetSelector) ? this.targetSelector : undefined;
+    const href = idSelector ?? `#${TARGET_ID}`;
+
+    // A class-based (non-id) target with native nav is a misconfiguration: native anchors can't
+    //  reach a class, and the host element won't get the tabindex=-1 the JS path applies.
+    if (!useJsHandlers && this.targetSelector && !idSelector) {
+      _debug("Class-based target selector", this.targetSelector, "requires useScroll: native anchor nav can only reach an id");
+    }
+
     return (
-      <a href={`#${TARGET_ID}`} class="govuk-skip-link skip-link" data-module="govuk-skip-link" {...jsHandlers}>
+      <a href={href} class="govuk-skip-link skip-link" data-module="govuk-skip-link" {...jsHandlers}>
         <slot />
       </a>
     );
