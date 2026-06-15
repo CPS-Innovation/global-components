@@ -1,12 +1,32 @@
+// "Cases submitted" = case-review domain submissions (first/subsequent review,
+// admin finalise — same set the Submitted column of GloCo_CaseReview_*_TotalStartedSubmitted
+// counts) UNION triage submissions from the request-observation shim (any TriageType).
+// Each row attributes a case to the submitter's area and the week of submission;
+// distinct (CaseId, Area, Week) is then counted per area/week. Caveat: triage
+// submissions only exist from 2026-06-01 (shim ship date) — pre-shim weeks under-count.
+let CaseReviewSubmissions = GloCo_PageViews_CaseReview
+    | where TimeGenerated > datetime(2026-03-09T12:00:01)
+    | where Is_Submitted_First_Review or Is_Submitted_Subsequent_Review or Is_Admin_Finalise
+    | project TimeGenerated, CaseId, Auth_Username;
+let TriageSubmissions = AppEvents
+    | where TimeGenerated > datetime(2026-03-09T12:00:01)
+    | where Name == "cps-global-components-analytics-event"
+    | where tostring(Properties["name"]) == "triage-submission"
+    | where tostring(Properties["environment"]) == "prod"
+    | extend CaseId = tolong(Properties["CaseId"])
+    | extend Auth = parse_json(tostring(Properties["auth"]))
+    | extend Auth_Username = tostring(Auth.username), Auth_ObjectId = tostring(Auth.objectId)
+    | where isnotnull(CaseId)
+    | where Auth_ObjectId !in ((GloCo_ExcludedUsers))
+    | project TimeGenerated, CaseId, Auth_Username;
+let AllSubmissions = union CaseReviewSubmissions, TriageSubmissions;
 GloCo__UserAreaMapping
 | project Auth_Username, Area = User_AreaOrCPSD
-| join kind=inner  
-    (GloCo_PageViews_CaseReview | project TimeGenerated, CaseId, Auth_Username | where TimeGenerated > datetime(2026-03-09T12:00:01))
-    on Auth_Username 
+| join kind=inner AllSubmissions on Auth_Username
 | project-away Auth_Username1
 | distinct CaseId, Area, Week = format_datetime(startofweek(TimeGenerated), "yyyy-MM-dd")
-| summarize CountCasesReviewed = count() by Area, Week
+| summarize CountCasesSubmitted = count() by Area, Week
 | as T
-| union (T | summarize CountCasesReviewed = sum(CountCasesReviewed) by Area | extend Week = "Total")
-| evaluate pivot(Week, sum(CountCasesReviewed), Area)
+| union (T | summarize CountCasesSubmitted = sum(CountCasesSubmitted) by Area | extend Week = "Total")
+| evaluate pivot(Week, sum(CountCasesSubmitted), Area)
 | order by Area asc
