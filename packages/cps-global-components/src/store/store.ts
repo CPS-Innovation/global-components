@@ -72,6 +72,8 @@ const initialStartupState = {
 };
 
 // This state could change (e.g. history-based non-full-refresh navigation or dom tags changing)
+export type SkipLinkTargets = { main: boolean; search: boolean; list: boolean };
+
 type TransientState = {
   context: FoundContext;
   propTags: Tags;
@@ -85,6 +87,7 @@ type TransientState = {
   caseDetails: Result<CaseDetails>;
   caseMonitoringCodes: Result<MonitoringCodes>;
   caseLockingPresentUsers: CaseLockingPresentUsers;
+  skipLinkTargets: SkipLinkTargets;
 };
 const initialTransientState = {
   context: undefined,
@@ -99,6 +102,7 @@ const initialTransientState = {
   caseDetails: undefined,
   caseMonitoringCodes: undefined,
   caseLockingPresentUsers: undefined,
+  skipLinkTargets: undefined,
 };
 
 type AggregateState = {

@@ -372,4 +372,45 @@ describe("transformConfig", () => {
     expect(result.CONTEXTS[1].path).toBe("/without-tags");
     expect(result.CONTEXTS[1].domTagDefinitions).toBeUndefined();
   });
+
+  test("inherits the skipLinks node from a parent and validates without it", () => {
+    const input: ConfigStorage = {
+      ENVIRONMENT: "test",
+      AD_GATEWAY_SCOPES: [],
+      LINKS: [],
+      BANNER_TITLE_HREF: "https://example.com",
+      CMS_AUTH_STORAGE_KEYS: STORAGE_KEYS,
+      CONTEXTS: [
+        {
+          skipLinks: {
+            mainSelector: ".main-target",
+            searchSelector: "#case-search",
+            listSelector: "#case-list",
+            useScroll: true,
+          },
+          contexts: [
+            { path: "/with-skip-links", contextIds: "ctx1" },
+          ],
+        },
+        {
+          contexts: [
+            { path: "/without-skip-links", contextIds: "ctx2" },
+          ],
+        },
+      ],
+    };
+
+    const result = transformConfig(input);
+
+    expect(result.CONTEXTS.length).toBe(2);
+    expect(result.CONTEXTS[0].path).toBe("/with-skip-links");
+    expect(result.CONTEXTS[0].skipLinks).toEqual({
+      mainSelector: ".main-target",
+      searchSelector: "#case-search",
+      listSelector: "#case-list",
+      useScroll: true,
+    });
+    expect(result.CONTEXTS[1].path).toBe("/without-skip-links");
+    expect(result.CONTEXTS[1].skipLinks).toBeUndefined();
+  });
 });

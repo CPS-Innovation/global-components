@@ -77,6 +77,15 @@ const hostAppEventTargetSchema = z.object({
 
 export type HostAppEventTarget = z.infer<typeof hostAppEventTargetSchema>;
 
+const skipLinksSchema = z.object({
+  mainSelector: z.string().optional(),
+  searchSelector: z.string().optional(),
+  listSelector: z.string().optional(),
+  useScroll: z.boolean().optional(),
+});
+
+export type SkipLinks = z.infer<typeof skipLinksSchema>;
+
 const contextPathsSchema = z.object({
   path: z.string(),
   contextIds: z.string(),
@@ -98,7 +107,7 @@ const contextsBaseSchema = z.object({
   headerCustomCssClasses: z.string().optional(),
   headerCustomCssStyles: z.record(z.string(), z.string().optional()).optional(),
   cmsAuthFromStorageKey: z.string().optional(),
-  skipLinkClassName: z.string().optional(),
+  skipLinks: skipLinksSchema.optional(),
 });
 
 const contextStorageSchema: z.ZodType<ContextStorageSchema> =

@@ -5,25 +5,22 @@
 <!-- Auto Generated Below -->
 
 
-## Properties
-
-| Property            | Attribute              | Description | Type                  | Default     |
-| ------------------- | ---------------------- | ----------- | --------------------- | ----------- |
-| `isOutSystems`      | `is-out-systems`       |             | `boolean`             | `false`     |
-| `skipLinkClassName` | `skip-link-class-name` |             | `string \| undefined` | `undefined` |
-
-
 ## Dependencies
 
 ### Used by
 
  - [cps-global-banner](../cps-global-banner)
 
+### Depends on
+
+- [cps-skip-link](.)
+
 ### Graph
 ```mermaid
 graph TD;
-  cps-global-banner --> cps-skip-link
-  style cps-skip-link fill:#f9f,stroke:#333,stroke-width:4px
+  cps-skip-links --> cps-skip-link
+  cps-global-banner --> cps-skip-links
+  style cps-skip-links fill:#f9f,stroke:#333,stroke-width:4px
 ```
 
 ----------------------------------------------
