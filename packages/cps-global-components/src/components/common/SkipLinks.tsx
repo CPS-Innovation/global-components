@@ -44,7 +44,7 @@ export class SkipLinks {
       const target = document.createElement("div");
       target.id = FALLBACK_TARGET_ID;
       target.tabIndex = -1;
-      host.insertAdjacentElement("afterend", target);
+      host.after(target);
       this.createdFallback = true;
     } else if (!this.fallbackNeeded && this.createdFallback) {
       existing?.remove();
