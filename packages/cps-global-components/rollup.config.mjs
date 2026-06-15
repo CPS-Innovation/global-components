@@ -7,8 +7,10 @@ function autoDefinePlugin() {
   return {
     name: "auto-define-custom-elements",
     renderChunk(code) {
-      // Find the defineCustomElements function and add a call to it
-      const exportMatch = code.match(/export\s*\{[^}]*?(\w+)\s+as\s+defineCustomElements[^}]*\}/);
+      // Find the defineCustomElements function and add a call to it.
+      // The captured internal name is a minified JS identifier, which can contain `$` and `_`
+      //  (terser uses these once it runs out of short names) — so match [\w$] not just \w.
+      const exportMatch = code.match(/export\s*\{[^}]*?([\w$]+)\s+as\s+defineCustomElements[^}]*\}/);
       if (exportMatch) {
         const internalName = exportMatch[1];
         const s = new MagicString(code);

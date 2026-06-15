@@ -15,9 +15,6 @@ export class SkipLink {
   // Force JS scrollIntoView+focus handlers instead of native anchor navigation.
   @Prop() useScroll: boolean = false;
 
-  // #FCT2-11717 - some host apps (e.g. OutSystems) do not allow the usual <a href="#some-id"> skip to
-  //  work as (I think) they listen for history pushState events and do other conflicting page load
-  //  stuff on those events. Such contexts opt into the JS scroll approach via `useScroll` in config.
   render() {
     const resolveTarget = (): HTMLElement | null => {
       if (!this.targetSelector) {
@@ -56,6 +53,9 @@ export class SkipLink {
     };
 
     // JS-ness is controlled purely by useScroll, NOT by the presence of a target selector.
+    // #FCT2-11717 - some host apps (e.g. OutSystems) do not allow the usual <a href="#some-id"> skip
+    //  to work as (I think) they listen for history pushState events and do other conflicting page
+    //  load stuff on those events. Such contexts opt into this JS scroll approach via `useScroll`.
     const useJsHandlers = this.useScroll;
     const jsHandlers = useJsHandlers ? { onClick: navigateToAnchor, onKeyDown: handleKeyDown } : {};
 
