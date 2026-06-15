@@ -25,6 +25,10 @@ const skipLinksSettings: DeepPartial<ArrangeProps> = {
 };
 
 const SKIP_LINK = "a.govuk-skip-link";
+const FALLBACK_TARGET_ID = "cps-header-main-content";
+
+// The synthesised fallback target lives in the top-level light DOM (after the header host).
+const fallbackTargetExists = () => page.evaluate(id => !!document.getElementById(id), FALLBACK_TARGET_ID);
 
 const getSkipLinkTexts = () =>
   page.evaluate(
@@ -76,6 +80,8 @@ describe("Skip links", () => {
     await new Promise(r => setTimeout(r, 300));
 
     expect(await getSkipLinkTexts()).toEqual(["Skip to main content"]);
+    // With no mainSelector, cps-skip-links synthesises the fallback target.
+    expect(await fallbackTargetExists()).toBe(true);
   });
 
   it("renders the search and list links once their targets appear in the DOM", async () => {
@@ -138,6 +144,8 @@ describe("Skip links (OutSystems-style shared-class selectors)", () => {
 
     // search/list selectors require their distinguishing classes, so they must not match this element.
     expect(await getSkipLinkTexts()).toEqual(["Skip to main content"]);
+    // A real mainSelector is configured, so no fallback target is synthesised.
+    expect(await fallbackTargetExists()).toBe(false);
   });
 
   it("shows all three links when the real search/list elements are present", async () => {

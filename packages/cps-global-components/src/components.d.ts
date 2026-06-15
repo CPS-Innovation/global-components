@@ -89,10 +89,6 @@ export namespace Components {
         "code": string;
     }
     interface CpsSkipLink {
-        /**
-          * @default false
-         */
-        "createFallbackTarget": boolean;
         "targetSelector"?: string;
         /**
           * @default false
@@ -329,10 +325,6 @@ declare namespace LocalJSX {
         "code": string;
     }
     interface CpsSkipLink {
-        /**
-          * @default false
-         */
-        "createFallbackTarget"?: boolean;
         "targetSelector"?: string;
         /**
           * @default false
@@ -375,7 +367,6 @@ declare namespace LocalJSX {
     }
     interface CpsSkipLinkAttributes {
         "targetSelector": string;
-        "createFallbackTarget": boolean;
         "useScroll": boolean;
     }
     interface NavLinkAttributes {
