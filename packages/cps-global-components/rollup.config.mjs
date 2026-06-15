@@ -7,10 +7,15 @@ function autoDefinePlugin() {
   return {
     name: "auto-define-custom-elements",
     renderChunk(code) {
-      // Find the defineCustomElements function and add a call to it.
-      // The captured internal name is a minified JS identifier, which can contain `$` and `_`
-      //  (terser uses these once it runs out of short names) — so match [\w$] not just \w.
-      const exportMatch = code.match(/export\s*\{[^}]*?([\w$]+)\s+as\s+defineCustomElements[^}]*\}/);
+      // Find the `<internalName> as defineCustomElements` export alias and append a call to it so
+      //  the bundle self-registers its custom elements.
+      // We match only the alias fragment, NOT the surrounding `export { … }` block: a lazy
+      //  `[^}]*?` before the identifier capture overlaps the `[\w$]+` class ([^}] ⊇ [\w$]) and
+      //  causes catastrophic backtracking on failure (ReDoS / sonar S5852). The fragment below has
+      //  no overlapping quantifiers — `[\w$]+` and `\s+` are disjoint — so matching is linear.
+      // The internal name is a minified JS identifier, which can contain `$`/`_` (terser uses these
+      //  once it runs out of short names) — so match [\w$], not just \w.
+      const exportMatch = code.match(/([\w$]+)\s+as\s+defineCustomElements/);
       if (exportMatch) {
         const internalName = exportMatch[1];
         const s = new MagicString(code);
