@@ -5,6 +5,12 @@
 // page's CaseId + TriageType, so we can now fill the Submitted column for the
 // Triage rows (previously hard-zero — there was no submission signal).
 //
+// ODReviewTask submissions also carry IsCPSD ("true"/"false"), which we use to
+// split the Triage ODPCDReview row three ways: CPSD, non-CPSD, and unknown
+// (cases that were started but never submitted via the shim, including pre-shim
+// submissions). The "unknown" bucket's Submitted column will always be 0 — if
+// the shim captured the submission, IsCPSD is known.
+//
 // Counted as DISTINCT CaseId, prod only:
 //  - the shim can fire more than once per task (e.g. a retried/re-submitted POST),
 //    so raw event count over-reports — dedupe to the case.
@@ -17,11 +23,12 @@ let TriageSubmissions = AppEvents
 | where Name == "cps-global-components-analytics-event"
 | where tostring(Properties["name"]) == "triage-submission"
 | where tostring(Properties["environment"]) == "prod"
-| extend CaseId = tolong(Properties["CaseId"]), TriageType = tostring(Properties["TriageType"])
+| extend CaseId = tolong(Properties["CaseId"]), TriageType = tostring(Properties["TriageType"]), IsCPSDStr = tostring(Properties["IsCPSD"])
 | where isnotnull(CaseId)
 | summarize
     Has_Triage_OD_Submitted          = countif(TriageType == "OD") > 0,
     Has_Triage_ODPCDReview_Submitted = countif(TriageType == "ODPCDReview") > 0,
+    Triage_ODPCDReview_IsCPSD        = take_anyif(IsCPSDStr, TriageType == "ODPCDReview" and IsCPSDStr in ("true", "false")),
     Has_Triage_DCP_Submitted         = countif(TriageType == "DCP") > 0
     by CaseId;
 let PerCase = GloCo_PageViews_CaseReview
@@ -47,17 +54,23 @@ let PerCase = GloCo_PageViews_CaseReview
 | extend
     Has_Triage_OD_Submitted          = coalesce(Has_Triage_OD_Submitted, false),
     Has_Triage_ODPCDReview_Submitted = coalesce(Has_Triage_ODPCDReview_Submitted, false),
-    Has_Triage_DCP_Submitted         = coalesce(Has_Triage_DCP_Submitted, false);
-let Min_Date                 = toscalar(GloCo_PageViews_CaseReview | where TimeGenerated > datetime(2026-03-09T12:00:01) | summarize min(TimeGenerated));
-let First_Review_Users       = toscalar(PerCase | where Has_Submitted_First_Review      and isnotempty(Submitted_By)          | distinct Submitted_By          | count);
-let Subsequent_Users         = toscalar(PerCase | where Has_Submitted_Subsequent_Review and isnotempty(Submitted_By)          | distinct Submitted_By          | count);
-let EA_First_Users           = toscalar(PerCase | where Has_Early_Advice_First_Review   and isnotempty(Submitted_By)          | distinct Submitted_By          | count);
-let EA_Subsequent_Users      = toscalar(PerCase | where Has_Early_Advice_Subsequent     and isnotempty(Submitted_By)          | distinct Submitted_By          | count);
-let Admin_Users              = toscalar(PerCase | where Has_Admin_Finalise              and isnotempty(Submitted_By)          | distinct Submitted_By          | count);
-let Triage_OD_Users          = toscalar(PerCase | where Has_Triage_OD                   and isnotempty(Triage_OD_By)          | distinct Triage_OD_By          | count);
-let Triage_ODPCDReview_Users = toscalar(PerCase | where Has_Triage_ODPCDReview          and isnotempty(Triage_ODPCDReview_By) | distinct Triage_ODPCDReview_By | count);
-let Triage_DCP_Users         = toscalar(PerCase | where Has_Triage_DCP                  and isnotempty(Triage_DCP_By)         | distinct Triage_DCP_By         | count);
-let Total_Users              = toscalar(
+    Has_Triage_DCP_Submitted         = coalesce(Has_Triage_DCP_Submitted, false),
+    Triage_ODPCDReview_Bucket        = case(
+        Triage_ODPCDReview_IsCPSD == "true",  "CPSD",
+        Triage_ODPCDReview_IsCPSD == "false", "non-CPSD",
+        "unknown");
+let Min_Date                         = toscalar(GloCo_PageViews_CaseReview | where TimeGenerated > datetime(2026-03-09T12:00:01) | summarize min(TimeGenerated));
+let First_Review_Users               = toscalar(PerCase | where Has_Submitted_First_Review      and isnotempty(Submitted_By) | distinct Submitted_By | count);
+let Subsequent_Users                 = toscalar(PerCase | where Has_Submitted_Subsequent_Review and isnotempty(Submitted_By) | distinct Submitted_By | count);
+let EA_First_Users                   = toscalar(PerCase | where Has_Early_Advice_First_Review   and isnotempty(Submitted_By) | distinct Submitted_By | count);
+let EA_Subsequent_Users              = toscalar(PerCase | where Has_Early_Advice_Subsequent     and isnotempty(Submitted_By) | distinct Submitted_By | count);
+let Admin_Users                      = toscalar(PerCase | where Has_Admin_Finalise              and isnotempty(Submitted_By) | distinct Submitted_By | count);
+let Triage_OD_Users                  = toscalar(PerCase | where Has_Triage_OD                   and isnotempty(Triage_OD_By) | distinct Triage_OD_By | count);
+let Triage_ODPCDReview_CPSD_Users    = toscalar(PerCase | where Has_Triage_ODPCDReview and Triage_ODPCDReview_Bucket == "CPSD"     and isnotempty(Triage_ODPCDReview_By) | distinct Triage_ODPCDReview_By | count);
+let Triage_ODPCDReview_NonCPSD_Users = toscalar(PerCase | where Has_Triage_ODPCDReview and Triage_ODPCDReview_Bucket == "non-CPSD" and isnotempty(Triage_ODPCDReview_By) | distinct Triage_ODPCDReview_By | count);
+let Triage_ODPCDReview_Unknown_Users = toscalar(PerCase | where Has_Triage_ODPCDReview and Triage_ODPCDReview_Bucket == "unknown"  and isnotempty(Triage_ODPCDReview_By) | distinct Triage_ODPCDReview_By | count);
+let Triage_DCP_Users                 = toscalar(PerCase | where Has_Triage_DCP                  and isnotempty(Triage_DCP_By) | distinct Triage_DCP_By | count);
+let Total_Users                      = toscalar(
     PerCase
     | extend All_By = pack_array(Submitted_By, Triage_OD_By, Triage_ODPCDReview_By, Triage_DCP_By)
     | mv-expand By = All_By to typeof(string)
@@ -69,7 +82,10 @@ let Total_Users              = toscalar(
 // the column sums to Total_Users. "Appears in a row" uses the SAME attribution as
 // the Users column (Submitted_By for the review rows, Triage_*_By for triage), so
 // the two columns stay consistent. Priority = the row's position (1 = First review
-// … 8 = Triage DCP); min(Priority) per user picks their topmost row.
+// … 10 = Triage DCP); min(Priority) per user picks their topmost row. The three
+// ODPCDReview sub-rows share Triage_ODPCDReview_By but split by the case's bucket,
+// so per case a user contributes to exactly one of priorities 7/8/9 — across cases
+// they may appear in multiple buckets.
 let Membership = union
     (PerCase | where Has_Submitted_First_Review      and isnotempty(Submitted_By)          | project User = Submitted_By,          Priority = 1),
     (PerCase | where Has_Submitted_Subsequent_Review and isnotempty(Submitted_By)          | project User = Submitted_By,          Priority = 2),
@@ -77,50 +93,58 @@ let Membership = union
     (PerCase | where Has_Early_Advice_Subsequent      and isnotempty(Submitted_By)          | project User = Submitted_By,          Priority = 4),
     (PerCase | where Has_Admin_Finalise               and isnotempty(Submitted_By)          | project User = Submitted_By,          Priority = 5),
     (PerCase | where Has_Triage_OD                    and isnotempty(Triage_OD_By)          | project User = Triage_OD_By,          Priority = 6),
-    (PerCase | where Has_Triage_ODPCDReview           and isnotempty(Triage_ODPCDReview_By) | project User = Triage_ODPCDReview_By, Priority = 7),
-    (PerCase | where Has_Triage_DCP                   and isnotempty(Triage_DCP_By)         | project User = Triage_DCP_By,         Priority = 8);
+    (PerCase | where Has_Triage_ODPCDReview and Triage_ODPCDReview_Bucket == "CPSD"     and isnotempty(Triage_ODPCDReview_By) | project User = Triage_ODPCDReview_By, Priority = 7),
+    (PerCase | where Has_Triage_ODPCDReview and Triage_ODPCDReview_Bucket == "non-CPSD" and isnotempty(Triage_ODPCDReview_By) | project User = Triage_ODPCDReview_By, Priority = 8),
+    (PerCase | where Has_Triage_ODPCDReview and Triage_ODPCDReview_Bucket == "unknown"  and isnotempty(Triage_ODPCDReview_By) | project User = Triage_ODPCDReview_By, Priority = 9),
+    (PerCase | where Has_Triage_DCP                   and isnotempty(Triage_DCP_By)         | project User = Triage_DCP_By,         Priority = 10);
 let FirstSeenByPriority = Membership
     | summarize FirstPriority = min(Priority) by User
     | summarize Users = count() by FirstPriority;
-let FirstSeen_First_Review       = coalesce(toscalar(FirstSeenByPriority | where FirstPriority == 1 | project Users), long(0));
-let FirstSeen_Subsequent         = coalesce(toscalar(FirstSeenByPriority | where FirstPriority == 2 | project Users), long(0));
-let FirstSeen_EA_First           = coalesce(toscalar(FirstSeenByPriority | where FirstPriority == 3 | project Users), long(0));
-let FirstSeen_EA_Subsequent      = coalesce(toscalar(FirstSeenByPriority | where FirstPriority == 4 | project Users), long(0));
-let FirstSeen_Admin              = coalesce(toscalar(FirstSeenByPriority | where FirstPriority == 5 | project Users), long(0));
-let FirstSeen_Triage_OD          = coalesce(toscalar(FirstSeenByPriority | where FirstPriority == 6 | project Users), long(0));
-let FirstSeen_Triage_ODPCDReview = coalesce(toscalar(FirstSeenByPriority | where FirstPriority == 7 | project Users), long(0));
-let FirstSeen_Triage_DCP         = coalesce(toscalar(FirstSeenByPriority | where FirstPriority == 8 | project Users), long(0));
-let FirstSeen_Total              = FirstSeen_First_Review + FirstSeen_Subsequent + FirstSeen_EA_First + FirstSeen_EA_Subsequent + FirstSeen_Admin + FirstSeen_Triage_OD + FirstSeen_Triage_ODPCDReview + FirstSeen_Triage_DCP;
+let FirstSeen_First_Review               = coalesce(toscalar(FirstSeenByPriority | where FirstPriority == 1  | project Users), long(0));
+let FirstSeen_Subsequent                 = coalesce(toscalar(FirstSeenByPriority | where FirstPriority == 2  | project Users), long(0));
+let FirstSeen_EA_First                   = coalesce(toscalar(FirstSeenByPriority | where FirstPriority == 3  | project Users), long(0));
+let FirstSeen_EA_Subsequent              = coalesce(toscalar(FirstSeenByPriority | where FirstPriority == 4  | project Users), long(0));
+let FirstSeen_Admin                      = coalesce(toscalar(FirstSeenByPriority | where FirstPriority == 5  | project Users), long(0));
+let FirstSeen_Triage_OD                  = coalesce(toscalar(FirstSeenByPriority | where FirstPriority == 6  | project Users), long(0));
+let FirstSeen_Triage_ODPCDReview_CPSD    = coalesce(toscalar(FirstSeenByPriority | where FirstPriority == 7  | project Users), long(0));
+let FirstSeen_Triage_ODPCDReview_NonCPSD = coalesce(toscalar(FirstSeenByPriority | where FirstPriority == 8  | project Users), long(0));
+let FirstSeen_Triage_ODPCDReview_Unknown = coalesce(toscalar(FirstSeenByPriority | where FirstPriority == 9  | project Users), long(0));
+let FirstSeen_Triage_DCP                 = coalesce(toscalar(FirstSeenByPriority | where FirstPriority == 10 | project Users), long(0));
+let FirstSeen_Total                      = FirstSeen_First_Review + FirstSeen_Subsequent + FirstSeen_EA_First + FirstSeen_EA_Subsequent + FirstSeen_Admin + FirstSeen_Triage_OD + FirstSeen_Triage_ODPCDReview_CPSD + FirstSeen_Triage_ODPCDReview_NonCPSD + FirstSeen_Triage_ODPCDReview_Unknown + FirstSeen_Triage_DCP;
 let Stats = PerCase
 | summarize
-    First_Review_Started         = countif(Has_Review_First_Review),
-    First_Review_Submitted       = countif(Has_Review_First_Review      and Has_Submitted_First_Review),
-    Subsequent_Started           = countif(Has_Review_Subsequent_Review),
-    Subsequent_Submitted         = countif(Has_Review_Subsequent_Review  and Has_Submitted_Subsequent_Review),
-    EA_First_Started             = countif(Has_Early_Advice_First_Review),
-    EA_First_Submitted           = countif(Has_Early_Advice_First_Review and Has_Submitted_First_Review),
-    EA_Subsequent_Started        = countif(Has_Early_Advice_Subsequent),
-    EA_Subsequent_Submitted      = countif(Has_Early_Advice_Subsequent   and Has_Submitted_Subsequent_Review),
-    Admin_Finalised              = countif(Has_Admin_Finalise),
-    Triage_OD_Started            = countif(Has_Triage_OD),
-    Triage_OD_Submitted          = countif(Has_Triage_OD          and Has_Triage_OD_Submitted),
-    Triage_ODPCDReview_Started   = countif(Has_Triage_ODPCDReview),
-    Triage_ODPCDReview_Submitted = countif(Has_Triage_ODPCDReview and Has_Triage_ODPCDReview_Submitted),
-    Triage_DCP_Started           = countif(Has_Triage_DCP),
-    Triage_DCP_Submitted         = countif(Has_Triage_DCP         and Has_Triage_DCP_Submitted);
+    First_Review_Started                 = countif(Has_Review_First_Review),
+    First_Review_Submitted               = countif(Has_Review_First_Review      and Has_Submitted_First_Review),
+    Subsequent_Started                   = countif(Has_Review_Subsequent_Review),
+    Subsequent_Submitted                 = countif(Has_Review_Subsequent_Review  and Has_Submitted_Subsequent_Review),
+    EA_First_Started                     = countif(Has_Early_Advice_First_Review),
+    EA_First_Submitted                   = countif(Has_Early_Advice_First_Review and Has_Submitted_First_Review),
+    EA_Subsequent_Started                = countif(Has_Early_Advice_Subsequent),
+    EA_Subsequent_Submitted              = countif(Has_Early_Advice_Subsequent   and Has_Submitted_Subsequent_Review),
+    Admin_Finalised                      = countif(Has_Admin_Finalise),
+    Triage_OD_Started                    = countif(Has_Triage_OD),
+    Triage_OD_Submitted                  = countif(Has_Triage_OD          and Has_Triage_OD_Submitted),
+    Triage_ODPCDReview_CPSD_Started      = countif(Has_Triage_ODPCDReview and Triage_ODPCDReview_Bucket == "CPSD"),
+    Triage_ODPCDReview_CPSD_Submitted    = countif(Has_Triage_ODPCDReview and Triage_ODPCDReview_Bucket == "CPSD"     and Has_Triage_ODPCDReview_Submitted),
+    Triage_ODPCDReview_NonCPSD_Started   = countif(Has_Triage_ODPCDReview and Triage_ODPCDReview_Bucket == "non-CPSD"),
+    Triage_ODPCDReview_NonCPSD_Submitted = countif(Has_Triage_ODPCDReview and Triage_ODPCDReview_Bucket == "non-CPSD" and Has_Triage_ODPCDReview_Submitted),
+    Triage_ODPCDReview_Unknown_Started   = countif(Has_Triage_ODPCDReview and Triage_ODPCDReview_Bucket == "unknown"),
+    Triage_ODPCDReview_Unknown_Submitted = countif(Has_Triage_ODPCDReview and Triage_ODPCDReview_Bucket == "unknown"  and Has_Triage_ODPCDReview_Submitted),
+    Triage_DCP_Started                   = countif(Has_Triage_DCP),
+    Triage_DCP_Submitted                 = countif(Has_Triage_DCP         and Has_Triage_DCP_Submitted);
 let Rows = Stats
 | project
-    Review_Type = pack_array("First review", "Subsequent review", "EA first review", "EA subsequent review", "Admin finalised", "Triage OD",         "Triage ODPCDReview",         "Triage DCP"),
-    Started     = pack_array(First_Review_Started,   Subsequent_Started,   EA_First_Started,   EA_Subsequent_Started,   Admin_Finalised, Triage_OD_Started,  Triage_ODPCDReview_Started,   Triage_DCP_Started),
-    Submitted   = pack_array(First_Review_Submitted, Subsequent_Submitted, EA_First_Submitted, EA_Subsequent_Submitted, Admin_Finalised, Triage_OD_Submitted, Triage_ODPCDReview_Submitted, Triage_DCP_Submitted),
-    Users       = pack_array(First_Review_Users,     Subsequent_Users,     EA_First_Users,     EA_Subsequent_Users,     Admin_Users,     Triage_OD_Users,    Triage_ODPCDReview_Users,     Triage_DCP_Users),
-    User_First_Seen = pack_array(FirstSeen_First_Review, FirstSeen_Subsequent, FirstSeen_EA_First, FirstSeen_EA_Subsequent, FirstSeen_Admin, FirstSeen_Triage_OD, FirstSeen_Triage_ODPCDReview, FirstSeen_Triage_DCP)
+    Review_Type = pack_array("First review", "Subsequent review", "EA first review", "EA subsequent review", "Admin finalised", "Triage OD",         "Triage ODPCDReview (CPSD)",           "Triage ODPCDReview (non-CPSD)",          "Triage ODPCDReview (unknown)",          "Triage DCP"),
+    Started     = pack_array(First_Review_Started,   Subsequent_Started,   EA_First_Started,   EA_Subsequent_Started,   Admin_Finalised, Triage_OD_Started,  Triage_ODPCDReview_CPSD_Started,       Triage_ODPCDReview_NonCPSD_Started,       Triage_ODPCDReview_Unknown_Started,       Triage_DCP_Started),
+    Submitted   = pack_array(First_Review_Submitted, Subsequent_Submitted, EA_First_Submitted, EA_Subsequent_Submitted, Admin_Finalised, Triage_OD_Submitted, Triage_ODPCDReview_CPSD_Submitted,     Triage_ODPCDReview_NonCPSD_Submitted,     Triage_ODPCDReview_Unknown_Submitted,     Triage_DCP_Submitted),
+    Users       = pack_array(First_Review_Users,     Subsequent_Users,     EA_First_Users,     EA_Subsequent_Users,     Admin_Users,     Triage_OD_Users,    Triage_ODPCDReview_CPSD_Users,         Triage_ODPCDReview_NonCPSD_Users,         Triage_ODPCDReview_Unknown_Users,         Triage_DCP_Users),
+    User_First_Seen = pack_array(FirstSeen_First_Review, FirstSeen_Subsequent, FirstSeen_EA_First, FirstSeen_EA_Subsequent, FirstSeen_Admin, FirstSeen_Triage_OD, FirstSeen_Triage_ODPCDReview_CPSD, FirstSeen_Triage_ODPCDReview_NonCPSD, FirstSeen_Triage_ODPCDReview_Unknown, FirstSeen_Triage_DCP)
 | mv-expand Review_Type to typeof(string), Started to typeof(long), Submitted to typeof(long), Users to typeof(long), User_First_Seen to typeof(long);
 let TotalRow = Stats
 | project
     Review_Type = "Total",
-    Started     = First_Review_Started + Subsequent_Started + EA_First_Started + EA_Subsequent_Started + Admin_Finalised + Triage_OD_Started + Triage_ODPCDReview_Started + Triage_DCP_Started,
-    Submitted   = First_Review_Submitted + Subsequent_Submitted + EA_First_Submitted + EA_Subsequent_Submitted + Admin_Finalised + Triage_OD_Submitted + Triage_ODPCDReview_Submitted + Triage_DCP_Submitted,
+    Started     = First_Review_Started + Subsequent_Started + EA_First_Started + EA_Subsequent_Started + Admin_Finalised + Triage_OD_Started + Triage_ODPCDReview_CPSD_Started + Triage_ODPCDReview_NonCPSD_Started + Triage_ODPCDReview_Unknown_Started + Triage_DCP_Started,
+    Submitted   = First_Review_Submitted + Subsequent_Submitted + EA_First_Submitted + EA_Subsequent_Submitted + Admin_Finalised + Triage_OD_Submitted + Triage_ODPCDReview_CPSD_Submitted + Triage_ODPCDReview_NonCPSD_Submitted + Triage_ODPCDReview_Unknown_Submitted + Triage_DCP_Submitted,
     Users       = Total_Users,
     User_First_Seen = FirstSeen_Total;
 let DateRow = print
@@ -129,10 +153,21 @@ let DateRow = print
     Submitted   = "",
     Users       = "",
     ["User first seen"] = "",
-    SortKey     = 10;
+    SortKey     = 12;
 union
-    (Rows     | extend SortKey = case(Review_Type == "First review", 1, Review_Type == "Subsequent review", 2, Review_Type == "EA first review", 3, Review_Type == "EA subsequent review", 4, Review_Type == "Admin finalised", 5, Review_Type == "Triage OD", 6, Review_Type == "Triage ODPCDReview", 7, Review_Type == "Triage DCP", 8, 10) | project Review_Type, Started = tostring(Started), Submitted = tostring(Submitted), Users = tostring(Users), ["User first seen"] = tostring(User_First_Seen), SortKey),
-    (TotalRow | extend SortKey = 9 | project Review_Type, Started = tostring(Started), Submitted = tostring(Submitted), Users = tostring(Users), ["User first seen"] = tostring(User_First_Seen), SortKey),
+    (Rows     | extend SortKey = case(
+        Review_Type == "First review", 1,
+        Review_Type == "Subsequent review", 2,
+        Review_Type == "EA first review", 3,
+        Review_Type == "EA subsequent review", 4,
+        Review_Type == "Admin finalised", 5,
+        Review_Type == "Triage OD", 6,
+        Review_Type == "Triage ODPCDReview (CPSD)", 7,
+        Review_Type == "Triage ODPCDReview (non-CPSD)", 8,
+        Review_Type == "Triage ODPCDReview (unknown)", 9,
+        Review_Type == "Triage DCP", 10,
+        12) | project Review_Type, Started = tostring(Started), Submitted = tostring(Submitted), Users = tostring(Users), ["User first seen"] = tostring(User_First_Seen), SortKey),
+    (TotalRow | extend SortKey = 11 | project Review_Type, Started = tostring(Started), Submitted = tostring(Submitted), Users = tostring(Users), ["User first seen"] = tostring(User_First_Seen), SortKey),
     DateRow
 | order by SortKey asc
 | project-away SortKey
