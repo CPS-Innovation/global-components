@@ -14,6 +14,7 @@ import { initialiseCorrelationIds } from "./services/correlation/initialise-corr
 import { initialiseRootUrl } from "./services/root-url/initialise-root-url";
 import { initialisePreview } from "./services/state/preview/initialise-preview";
 import { initialiseRequestObservationShim } from "./services/request-observation/initialise-request-observation-shim";
+import { initialiseDarkReaderDetection } from "./services/dark-reader-detection/initialise-dark-reader-detection";
 import { initialiseNotifications } from "./services/notifications/initialise-notifications";
 import { handlers } from "./services/handlers/handlers";
 import { initialiseRecentCases } from "./services/state/recent-cases/initialise-recent-cases";
@@ -122,6 +123,8 @@ const initialise = async (window: Window & typeof globalThis) => {
     initialiseNotifications({ rootUrl, register, handlers, config, trackEvent });
 
     initialiseRequestObservationShim({ window, config, preview, trackEvent });
+
+    initialiseDarkReaderDetection({ window, trackEvent });
 
     initialiseDiagnostics({ window, rootUrl, config, flags, trackEvent });
 
