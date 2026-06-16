@@ -20,6 +20,7 @@ AppPageViews
     Url startswith "https://cps.outsystemsenterprise.com/casework_blocks"
  or Url startswith "https://cps.outsystemsenterprise.com/Casework_Blocks",    "Home",
     "Unknown")
+| extend Feature = iff(App in ("Case review", "Work management app", "Casework app"), tostring(split(parse_url(Url)["Path"], "/")[2]), App)
 | extend Build   = parse_json(tostring(parsed.Build))
 | extend Context = parse_json(tostring(parsed.Context))
 | extend CorrelationIds = parse_json(tostring(parsed.CorrelationIds))
@@ -48,4 +49,5 @@ AppPageViews
         User_CountSensitiveUnits = toint(User["CountSensitiveUnits"]),
         User_CountNotSensitiveUnits = toint(User["CountNotSensitiveUnits"])
 | extend User_AreaOrCPSD = iif(User_CountNotSensitiveUnits >= 120, "CPSD", User_Area)
+| where Auth_ObjectId !in ((GloCo_ExcludedUsers))
 | project-away parsed, Build, Auth, Context, CorrelationIds, User

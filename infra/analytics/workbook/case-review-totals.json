@@ -20,7 +20,7 @@
         "version": "KqlItem/1.0",
         "query": "GloCo_CaseReview_AreaCounts\n",
         "size": 2,
-        "title": "Case reviews by area by week",
+        "title": "Case submissions by area by week",
         "queryType": 0,
         "resourceType": "microsoft.operationalinsights/workspaces"
       },
