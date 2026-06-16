@@ -26,8 +26,8 @@ type FlagInputs = {
   authHint?: Result<AuthHint>;
 };
 
-const shouldShowCaseDetails = ({ preview, flags }: FlagInputs) =>
-  !!preview?.result?.caseMarkers || !!flags?.isLocalDevelopment;
+const shouldShowCaseDetails = ({ preview, config, flags }: FlagInputs): Preview["caseMarkers"] =>
+  preview?.result?.caseMarkers ?? config.SHOW_CASE_DETAILS ?? (flags?.isLocalDevelopment ? "a" : undefined);
 
 const shouldEnableAccessibilityMode = ({ preview, flags }: FlagInputs) =>
   !!(preview?.result?.accessibility || flags?.isLocalDevelopment);
