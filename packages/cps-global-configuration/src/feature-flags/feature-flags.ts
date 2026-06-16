@@ -26,8 +26,14 @@ type FlagInputs = {
   authHint?: Result<AuthHint>;
 };
 
-const shouldShowCaseDetails = ({ preview, config, flags }: FlagInputs): Preview["caseMarkers"] =>
-  preview?.result?.caseMarkers ?? config.SHOW_CASE_DETAILS ?? (flags?.isLocalDevelopment ? "a" : undefined);
+// Resolution order: a preview value always wins (including "off", the explicit
+// "force hidden" override colleagues use to demo prod-like in QA), then the
+// per-env config, then the local-dev default. "off" collapses to undefined so
+// the menu's truthiness gate hides the panel rather than rendering layout "a".
+const shouldShowCaseDetails = ({ preview, config, flags }: FlagInputs): "a" | "b" | undefined => {
+  const resolved = preview?.result?.caseMarkers ?? config.SHOW_CASE_DETAILS ?? (flags?.isLocalDevelopment ? "a" : undefined);
+  return resolved === "off" ? undefined : resolved;
+};
 
 const shouldEnableAccessibilityMode = ({ preview, flags }: FlagInputs) =>
   !!(preview?.result?.accessibility || flags?.isLocalDevelopment);

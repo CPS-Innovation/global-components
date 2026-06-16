@@ -6,7 +6,7 @@ export const PreviewSchema = z.object({
   // Backwards compatibility: migrate boolean true to "a"
   caseMarkers: z.preprocess(
     (val) => (val === true ? "a" : val),
-    z.union([z.literal("a"), z.literal("b")]).optional(),
+    z.union([z.literal("a"), z.literal("b"), z.literal("off")]).optional(),
   ),
   caseSearch: z.boolean().optional(),
   myRecentCasesOnHeader: z.boolean().optional(),
