@@ -206,6 +206,11 @@ export const configBaseSchema = z.object({
   // what we want: ops can cut the feature instantly while engineers can still
   // exercise it in a "should-be-off" state).
   OS_TRIAGE_REQUEST_OBSERVATION_ENABLED: z.boolean().optional(),
+  // Broad on/off for the Dark Reader usage probe (one-shot analytics event when we spot the
+  // Dark Reader extension on <html>). Shipped enabled in every environment; flip to false to
+  // kill the probe en masse for an environment. Absent is treated as off by the consumer, so
+  // keep it set true in each env config.
+  PROBE_DARK_READER_USAGE: z.boolean().optional(),
   SSO_SILENT_DELAY_MS: z.number().optional(),
   CACHE_CONFIG: cacheConfigSchema.optional(),
   FETCH_CIRCUIT_BREAKER_CONFIG: fetchCircuitBreakerConfigSchema.optional(),

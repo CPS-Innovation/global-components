@@ -15,6 +15,7 @@
   "AD_CLIENT_ID": "8d6133af-9593-47c6-94d0-5c65e9e310f1",
   "AD_GATEWAY_SCOPES": ["https://CPSGOVUK.onmicrosoft.com/fa-polaris-qa-gateway/user_impersonation"],
   "SURVEY_LINK": "https://forms.office.com/e/8KM9A7aS0e",
+  "PROBE_DARK_READER_USAGE": true,
   "SHOW_MENU": true,
   "SHOW_RECENT_CASES": true,
   "SHOW_MONITORING_CODES": true,
