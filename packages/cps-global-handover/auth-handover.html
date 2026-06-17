@@ -32,7 +32,7 @@
     MSAL token-endpoint XHRs; form-action covers MSAL's POST to AAD.
   -->
   <meta http-equiv="Content-Security-Policy"
-    content="script-src 'unsafe-inline' https://polaris.cps.gov.uk https://polaris-qa-notprod.cps.gov.uk; connect-src 'self' https://polaris.cps.gov.uk https://polaris-qa-notprod.cps.gov.uk https://login.microsoftonline.com; form-action https://login.microsoftonline.com;">
+    content="script-src 'unsafe-inline' https://polaris.cps.gov.uk https://polaris-qa-notprod.cps.gov.uk https://polaris-uat-notprod.cps.gov.uk https://polaris-dev-notprod.cps.gov.uk; connect-src 'self' https://polaris.cps.gov.uk https://polaris-qa-notprod.cps.gov.uk https://polaris-uat-notprod.cps.gov.uk https://polaris-dev-notprod.cps.gov.uk https://login.microsoftonline.com; form-action https://login.microsoftonline.com;">
 
   <script>
     // Bail in iframe contexts (MSAL ssoSilent loads us in a hidden iframe to
@@ -43,7 +43,7 @@
     if (window.self === window.top) {
       // Hosts permitted to supply auth-handover.js via ?src=. Mirrors the
       // script-src directive in the meta CSP above — keep these two in sync.
-      const allowed = new Set(['polaris.cps.gov.uk', 'polaris-qa-notprod.cps.gov.uk']);
+      const allowed = new Set(['polaris.cps.gov.uk', 'polaris-qa-notprod.cps.gov.uk', 'polaris-uat-notprod.cps.gov.uk', 'polaris-dev-notprod.cps.gov.uk']);
       const src = new URLSearchParams(window.location.search).get('src');
       if (src) {
         try {
