@@ -72,6 +72,15 @@ const injectTarget = ({ className, id }: { className?: string; id?: string }) =>
     id,
   );
 
+// Appends a raw HTML fragment to the top-level document body (for nested ancestor chains
+// that descendant selectors resolve against).
+const injectHtml = (html: string) =>
+  page.evaluate(markup => {
+    const wrapper = document.createElement("div");
+    wrapper.innerHTML = markup;
+    document.body.appendChild(wrapper);
+  }, html);
+
 describe("Skip links", () => {
   it("renders only the main skip link when no targets are present", async () => {
     await arrange(skipLinksSettings);
@@ -113,18 +122,19 @@ describe("Skip links", () => {
   });
 });
 
-// Reproduces the real OutSystems config, where all three targets share `cps-skip-link__target`
-// and search/list additionally share `cps-filter-layout`. The main selector disambiguates via
-// :not(.cps-filter-layout); search/list pin the distinguishing class. This guards the actual
-// production selectors against querySelector / arrive edge cases with :not() and compound classes.
+// Reproduces the real OutSystems config: `cps-skip-link__target` is an ancestor of
+// `cps-filter-layout`, which is an ancestor of the actual `cps-search-form` / `cps-search-results`
+// targets. The selectors are descendant chains, so querySelector resolves each to the rightmost
+// (innermost) element. Main resolves to the outer container. This guards the production selectors
+// against querySelector / arrive edge cases with descendant combinators.
 const osStyleSettings: DeepPartial<ArrangeProps> = {
   config: {
     CONTEXTS: [
       {
         skipLinks: {
-          mainSelector: ".cps-skip-link__target:not(.cps-filter-layout)",
-          searchSelector: ".cps-skip-link__target.cps-filter-layout.cps-search-form",
-          listSelector: ".cps-skip-link__target.cps-filter-layout.cps-search-results",
+          mainSelector: ".cps-skip-link__target",
+          searchSelector: ".cps-skip-link__target .cps-filter-layout .cps-search-form",
+          listSelector: ".cps-skip-link__target .cps-filter-layout .cps-search-results",
           useScroll: true,
         },
       },
@@ -132,29 +142,34 @@ const osStyleSettings: DeepPartial<ArrangeProps> = {
   },
 };
 
-describe("Skip links (OutSystems-style shared-class selectors)", () => {
-  it("shows only the main link when just the bare cps-skip-link__target element is present", async () => {
+describe("Skip links (OutSystems-style nested-descendant selectors)", () => {
+  it("shows only the main link when the cps-skip-link__target container has no filter-layout descendants", async () => {
     await arrange(osStyleSettings);
     await act();
 
-    // The main target carries ONLY cps-skip-link__target (no cps-filter-layout).
-    await injectTarget({ className: "cps-skip-link__target" });
+    // The main container exists, but with no nested cps-filter-layout/search/list descendants.
+    await injectHtml(`<div class="cps-skip-link__target"></div>`);
     await waitForSkipLink("Skip to main content");
     await new Promise(r => setTimeout(r, 300));
 
-    // search/list selectors require their distinguishing classes, so they must not match this element.
+    // search/list selectors require the nested descendant chain, so they must not match.
     expect(await getSkipLinkTexts()).toEqual(["Skip to main content"]);
     // A real mainSelector is configured, so no fallback target is synthesised.
     expect(await fallbackTargetExists()).toBe(false);
   });
 
-  it("shows all three links when the real search/list elements are present", async () => {
+  it("shows all three links when the nested search/list elements are present", async () => {
     await arrange(osStyleSettings);
     await act();
 
-    await injectTarget({ className: "cps-skip-link__target" });
-    await injectTarget({ className: "cps-skip-link__target cps-filter-layout cps-search-form" });
-    await injectTarget({ className: "cps-skip-link__target cps-filter-layout cps-search-results" });
+    // Realistic tree: one outer target, a filter-layout, with the search + list targets nested inside.
+    await injectHtml(`
+      <div class="cps-skip-link__target">
+        <div class="cps-filter-layout">
+          <div class="cps-search-form"></div>
+          <div class="cps-search-results"></div>
+        </div>
+      </div>`);
 
     await waitForSkipLink("Skip to main content");
     await waitForSkipLink("Skip to case search");
