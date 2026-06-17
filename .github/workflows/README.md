@@ -1,6 +1,6 @@
 # Deploy workflows
 
-Each environment (`accessibility`, `dev`, `test`, `prod`) is deployed to its own Azure blob
+Each environment (`accessibility`, `dev`, `test`, `uat`, `prod`) is deployed to its own Azure blob
 container of the same name, plus a sibling static-web path under `$web/<env>/static/` for the
 HTML harness.
 
@@ -8,9 +8,9 @@ HTML harness.
 
 | Workflow                    | Trigger             | Environments                                |
 | --------------------------- | ------------------- | ------------------------------------------- |
-| `deploy-ci-cd-pre-prod.yml` | push to `main`      | accessibility, dev, test                    |
-| `deploy-all.yml`            | manual, from `main` | accessibility, dev, test, prod              |
-| `rollback.yml`              | manual, from `main` | accessibility, dev, test (HEAD^ redeployed) |
+| `deploy-ci-cd-pre-prod.yml` | push to `main`      | accessibility, dev, test, uat               |
+| `deploy-all.yml`            | manual, from `main` | accessibility, dev, test, uat, prod         |
+| `rollback.yml`              | manual, from `main` | accessibility, dev, test, uat (HEAD^ redeployed) |
 
 All three call `sub-workflow-core-deploy.yml`, which fans out over the env matrix into
 `sub-workflow-deploy-script.yml` (blob container) and `sub-workflow-deploy-harnesses.yml`
@@ -45,6 +45,7 @@ Current source-file matrix:
 | accessibility |          —          |
 | dev           |          —          |
 | test          |          ✓          |
+| uat           |          ✓          |
 | prod          |          —          |
 
 ## Redirect stub (`cps-global-components.js`)
@@ -61,6 +62,7 @@ in `config.json`. Fallback: `./global-components.js` (same-origin sibling).
 | ------------- | ----------------------------------------------------------------------------------- |
 | dev           | `https://polaris-qa-notprod.cps.gov.uk/global-components/dev/global-components.js`  |
 | test          | `https://polaris-qa-notprod.cps.gov.uk/global-components/test/global-components.js` |
+| uat           | `https://polaris-uat-notprod.cps.gov.uk/global-components/uat/global-components.js` |
 | prod          | `https://polaris.cps.gov.uk/global-components/prod/global-components.js`            |
 | accessibility | `./global-components.js` (default — no `REDIRECT_SCRIPT_URL` in config)             |
 
