@@ -10,6 +10,6 @@ export type AnalyticsEventData =
   | { name: "probe-navigator-permissions"; hostname: string; timestamp: number; localNetworkAccessPermission?: "granted" | "denied" | "prompt" }
   | { name: "notification-dismissed"; notificationId: string }
   | { name: "triage-submission"; [key: string]: string | number | boolean | undefined }
-  | { name: "dark-reader-detected" };
+  | { name: "dark-reader-detected"; detection: "sync" | "async" };
 
 export type TrackEvent = (detail: AnalyticsEventData) => void;

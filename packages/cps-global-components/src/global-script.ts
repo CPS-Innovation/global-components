@@ -124,7 +124,7 @@ const initialise = async (window: Window & typeof globalThis) => {
 
     initialiseRequestObservationShim({ window, config, preview, trackEvent });
 
-    initialiseDarkReaderDetection({ window, trackEvent });
+    initialiseDarkReaderDetection({ window, config, trackEvent });
 
     initialiseDiagnostics({ window, rootUrl, config, flags, trackEvent });
 
