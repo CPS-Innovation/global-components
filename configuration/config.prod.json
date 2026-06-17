@@ -50,9 +50,9 @@
         "box-shadow": "none"
       },
       "skipLinks": {
-        "mainSelector": ".cps-skip-link__target:not(.cps-filter-layout)",
-        "searchSelector": ".cps-skip-link__target.cps-filter-layout.cps-search-form",
-        "listSelector": ".cps-skip-link__target.cps-filter-layout.cps-search-results",
+        "mainSelector": ".cps-skip-link__target",
+        "searchSelector": ".cps-skip-link__target .cps-filter-layout .cps-search-form",
+        "listSelector": ".cps-skip-link__target .cps-filter-layout .cps-search-results",
         "useScroll": true
       },
       "msalRedirectUrl": "https://cps.outsystemsenterprise.com/Casework_Patterns/auth-handover.html?src=https%3A%2F%2Fpolaris.cps.gov.uk%2Fglobal-components%2Fprod%2Fauth-handover.js&stage=ad-redirect",

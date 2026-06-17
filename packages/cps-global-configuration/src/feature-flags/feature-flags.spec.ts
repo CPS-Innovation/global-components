@@ -109,6 +109,108 @@ describe("FEATURE_FLAGS", () => {
     });
   });
 
+  describe("shouldShowCaseDetails", () => {
+    it("should return 'a' when preview caseMarkers is 'a'", () => {
+      const state = {
+        preview: { found: true as const, result: { caseMarkers: "a" as const } },
+        config: {} as any,
+        flags: {} as ApplicationFlags,
+      };
+
+      expect(FEATURE_FLAGS.shouldShowCaseDetails(state)).toBe("a");
+    });
+
+    it("should return 'b' when preview caseMarkers is 'b'", () => {
+      const state = {
+        preview: { found: true as const, result: { caseMarkers: "b" as const } },
+        config: {} as any,
+        flags: {} as ApplicationFlags,
+      };
+
+      expect(FEATURE_FLAGS.shouldShowCaseDetails(state)).toBe("b");
+    });
+
+    it("should return undefined when nothing is configured", () => {
+      const state = {
+        preview: { found: true as const, result: {} },
+        config: {} as any,
+        flags: {} as ApplicationFlags,
+      };
+
+      expect(FEATURE_FLAGS.shouldShowCaseDetails(state)).toBeUndefined();
+    });
+
+    it("should fall back to config.SHOW_CASE_DETAILS when preview caseMarkers is undefined", () => {
+      const state = {
+        preview: { found: true as const, result: {} },
+        config: { SHOW_CASE_DETAILS: "b" } as any,
+        flags: {} as ApplicationFlags,
+      };
+
+      expect(FEATURE_FLAGS.shouldShowCaseDetails(state)).toBe("b");
+    });
+
+    it("should fall back to config.SHOW_CASE_DETAILS when preview is not found", () => {
+      const state = {
+        preview: { found: false as const, error: {} as Error },
+        config: { SHOW_CASE_DETAILS: "a" } as any,
+        flags: {} as ApplicationFlags,
+      };
+
+      expect(FEATURE_FLAGS.shouldShowCaseDetails(state)).toBe("a");
+    });
+
+    it("should let preview caseMarkers override config.SHOW_CASE_DETAILS", () => {
+      const state = {
+        preview: { found: true as const, result: { caseMarkers: "a" as const } },
+        config: { SHOW_CASE_DETAILS: "b" } as any,
+        flags: {} as ApplicationFlags,
+      };
+
+      expect(FEATURE_FLAGS.shouldShowCaseDetails(state)).toBe("a");
+    });
+
+    it("should return undefined when preview caseMarkers is 'off', hiding the panel", () => {
+      const state = {
+        preview: { found: true as const, result: { caseMarkers: "off" as const } },
+        config: {} as any,
+        flags: {} as ApplicationFlags,
+      };
+
+      expect(FEATURE_FLAGS.shouldShowCaseDetails(state)).toBeUndefined();
+    });
+
+    it("should let preview 'off' override config.SHOW_CASE_DETAILS so colleagues can demo prod-like in QA", () => {
+      const state = {
+        preview: { found: true as const, result: { caseMarkers: "off" as const } },
+        config: { SHOW_CASE_DETAILS: "b" } as any,
+        flags: {} as ApplicationFlags,
+      };
+
+      expect(FEATURE_FLAGS.shouldShowCaseDetails(state)).toBeUndefined();
+    });
+
+    it("should default to 'a' in local development when nothing else is configured", () => {
+      const state = {
+        preview: { found: true as const, result: {} },
+        config: {} as any,
+        flags: { isLocalDevelopment: true } as ApplicationFlags,
+      };
+
+      expect(FEATURE_FLAGS.shouldShowCaseDetails(state)).toBe("a");
+    });
+
+    it("should let preview 'off' override the local-development default", () => {
+      const state = {
+        preview: { found: true as const, result: { caseMarkers: "off" as const } },
+        config: {} as any,
+        flags: { isLocalDevelopment: true } as ApplicationFlags,
+      };
+
+      expect(FEATURE_FLAGS.shouldShowCaseDetails(state)).toBeUndefined();
+    });
+  });
+
   describe("shouldShowMenu", () => {
     const makeState = (overrides: {
       SHOW_MENU?: boolean;

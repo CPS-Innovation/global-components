@@ -40,6 +40,7 @@ type Feature = {
 const CASE_MARKERS_OPTIONS: RadioOption<string>[] = [
   { value: "a", label: "Design A" },
   { value: "b", label: "Design B" },
+  { value: "off", label: "Off (force hide)" },
 ];
 
 const COLOUR_PALETTE_OPTIONS: RadioOption<string>[] = [
