@@ -8,13 +8,20 @@ HTML harness.
 
 | Workflow                    | Trigger             | Environments                                |
 | --------------------------- | ------------------- | ------------------------------------------- |
-| `deploy-ci-cd-pre-prod.yml` | push to `main`      | accessibility, dev, test, uat               |
-| `deploy-all.yml`            | manual, from `main` | accessibility, dev, test, uat, prod         |
-| `rollback.yml`              | manual, from `main` | accessibility, dev, test, uat (HEAD^ redeployed) |
+| `deploy-ci-cd-pre-prod.yml`         | push to `main`      | accessibility, dev, test, uat               |
+| `deploy-all.yml`                    | manual, from `main` | accessibility, dev, test, uat, prod         |
+| `rollback.yml`                      | manual, from `main` | accessibility, dev, test, uat (HEAD^ redeployed) |
+| `deploy-accessibility-statement.yml`| manual, from `main` | accessibility, dev, test, uat, prod (statement only) |
 
-All three call `sub-workflow-core-deploy.yml`, which fans out over the env matrix into
+The first three call `sub-workflow-core-deploy.yml`, which fans out over the env matrix into
 `sub-workflow-deploy-script.yml` (blob container) and `sub-workflow-deploy-harnesses.yml`
 (static-web harness).
+
+`deploy-accessibility-statement.yml` is deliberately standalone: it does **no** build and does
+**not** call the core deploy. It uploads just `packages/cps-global-accessibility/statement.html`
+to `<env>/accessibility/statement.html` on every environment (prod included), so an accessibility
+statement content change can be pushed to all environments without shipping the rest of `main`.
+The file is a static page with no build step, so it is uploaded straight from the repo.
 
 ## Files deployed to `<env>/` blob container
 

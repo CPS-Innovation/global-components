@@ -1,0 +1,18 @@
+// Self-hosted GOV.UK Frontend stylesheet.
+//
+// We compile our own copy rather than loading from a public CDN so these pages
+// carry no third-party runtime dependency.
+//
+// GOV.UK's compiled CSS references font/image assets via $govuk-assets-path,
+// which defaults to "/assets/" — an ABSOLUTE path from the domain root. CSS
+// url() is resolved relative to the stylesheet, but an absolute path resolves
+// from the origin root regardless, i.e. https://<host>/assets/... That root is
+// owned by the host app, not us: on our blob/proxy layout these pages live at
+// /global-components/<env>/accessibility/, so the default would 404 every font
+// and image. We override the path so it is RELATIVE to the emitted stylesheet,
+// putting the assets right next to the CSS:
+//   public/govuk/govuk-frontend.min.css -> public/govuk/assets/{fonts,images}/
+// (build-govuk.mjs copies those asset folders into public/govuk/assets).
+$govuk-assets-path: "assets/";
+
+@import "govuk-frontend/dist/govuk/index";

@@ -4,9 +4,20 @@
 <head>
   <title>Accessibility Settings - CPS Global Components</title>
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/govuk-frontend@5.10.0/dist/govuk/govuk-frontend.min.css">
   <script>
     (function () {
+      // The self-hosted GOV.UK stylesheet (govuk/, built by build-govuk.mjs) and
+      // the global-components bundle (../global-components.js, built by another
+      // package) are artifacts deployed ALONGSIDE this page, not inputs to its
+      // Vite build. We inject them at runtime so Vite leaves the paths untouched
+      // — a static <link>/<script> would be treated as a build entry and
+      // bundled/hashed/rewritten. The stylesheet is added first so the browser
+      // starts fetching it immediately.
+      var link = document.createElement('link');
+      link.rel = 'stylesheet';
+      link.href = 'govuk/govuk-frontend.min.css';
+      document.head.appendChild(link);
+
       var s = document.createElement('script');
       s.type = 'module';
       s.src = '../global-components.js';
