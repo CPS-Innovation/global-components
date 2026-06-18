@@ -116,6 +116,10 @@ jest.mock("./services/browser/tab-title/initialise-tab-title", () => ({
   initialiseTabTitle: mockInitialiseTabTitle,
 }));
 
+jest.mock("./services/dark-reader-detection/initialise-dark-reader-detection", () => ({
+  initialiseDarkReaderDetection: jest.fn(),
+}));
+
 const mockInitialiseCaseDetailsDataForContext = jest.fn();
 const mockInitialiseCaseDetailsDataForContextOptimistic = jest.fn();
 jest.mock("./services/data/initialise-case-details-data", () => ({

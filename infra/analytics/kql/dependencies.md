@@ -4,14 +4,14 @@
 AppPageViews
   |
   v
-GloCo_PageViews
+GloCo_PageViews  (also joins GloCo_ExcludedUsers)
   |
   |---> GloCo_PageViews_CaseReview
   |       |
   |       |---> GloCo_CaseReview_TotalStartedSubmitted
   |       |---> GloCo_CaseReview_WithTriageTotalStartedSubmitted  (also joins AppEvents — triage-submission)
   |       |---> GloCo_CaseReview_InvolvementByUser                (also joins AppEvents — triage-submission)
-  |       |---> GloCo_CaseReview_AreaCounts  (also joins GloCo__UserAreaMapping)
+  |       |---> GloCo_CaseReview_AreaCounts  (also joins GloCo__UserAreaMapping; also unions AppEvents triage-submission)
   |       |
   |       '---> GloCo_CaseReview_PerCase
   |               |
