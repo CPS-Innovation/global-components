@@ -11,6 +11,9 @@ export class CpsGlobalFooter {
   render() {
     const { isReady, state } = readyState("config", "preview");
     const showGovUkRebrand = isReady && FEATURE_FLAGS.shouldShowGovUkRebrand(state);
+    const accessibilityStatement = isReady
+      ? FEATURE_FLAGS.accessibilityStatementLink(state)
+      : { showLink: false, url: undefined };
     const cssClass = `${showGovUkRebrand ? "govuk-template--rebranded" : ""} ${showGovUkRebrand === "cps" ? "cps-theme" : ""}`;
     return (
       <div class={cssClass}>
@@ -63,11 +66,13 @@ export class CpsGlobalFooter {
                       </a>
                     </li>
 
-                    <li class="govuk-footer__inline-list-item">
-                      <a class="govuk-footer__link" href="/accessibility">
-                        Accessibility
-                      </a>
-                    </li>
+                    {accessibilityStatement.showLink && (
+                      <li class="govuk-footer__inline-list-item">
+                        <a class="govuk-footer__link" href={accessibilityStatement.url}>
+                          Accessibility statement
+                        </a>
+                      </li>
+                    )}
                     <li class="govuk-footer__inline-list-item">
                       <a class="govuk-footer__link" href="/static">
                         Static pages

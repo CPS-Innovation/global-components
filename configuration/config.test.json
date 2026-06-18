@@ -23,6 +23,7 @@
   "APP_INSIGHTS_CONNECTION_STRING": "InstrumentationKey=e572c03c-8d38-4771-b193-962f13da1b1a;IngestionEndpoint=https://polaris-qa-notprod.cps.gov.uk/global-components/analytics/;ApplicationId=3dafc37d-8c9c-4480-90fc-532ac2b8bba2",
   "SURVEY_LINK": "https://forms.cloud.microsoft/Pages/ResponsePage.aspx?id=HQ3dAObXOEOsUVZTOccIjMYFiPHggxZNtgEAXRbAx2hUNjNWUDc0UEtVTERCMFpFMkI1QTVSSUxTVyQlQCN0PWcu&rc715f3f34a484d8eae0a1809b30c6c5a=%22Feedback%22&r67e8aaf2389e4b9d8aa0c01902281211=9&rf690462c782847db972938cb1c773bc2=%22Easy%22&r781f1b5b16b14f5689b788fa6d98287b=%22Make%20a%20Charging%20Decision%22",
   "REPORT_ISSUE_LINK": "https://cpsprod1.service-now.com/sp?id=sc_cat_item&sys_id=716b2e011bd66410d5b3dce3b24bcbbf",
+  "ACCESSIBILITY_STATEMENT_URL": "https://polaris-qa-notprod.cps.gov.uk/global-components/test/accessibility/statement.html",
   "SHOW_MENU": true,
   "SHOW_RECENT_CASES": true,
   "SHOW_MONITORING_CODES": true,

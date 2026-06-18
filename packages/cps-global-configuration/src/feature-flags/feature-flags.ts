@@ -58,6 +58,11 @@ const surveyLink = ({ config }: FlagInputs) => ({ showLink: !!config.SURVEY_LINK
 
 const reportIssueLink = ({ config }: FlagInputs) => ({ showLink: !!config.REPORT_ISSUE_LINK, url: config.REPORT_ISSUE_LINK });
 
+const accessibilityStatementLink = ({ config }: FlagInputs) => ({
+  showLink: !!config.ACCESSIBILITY_STATEMENT_URL,
+  url: config.ACCESSIBILITY_STATEMENT_URL,
+});
+
 const shouldShowHomePageNotification = ({ config, auth, authHint, preview }: FlagInputs) =>
   !!preview?.result?.homePageNotification ||
   !getFeatureFlagAssignment({ auth, authHint, config }, "FEATURE_FLAG_MENU_USERS").result;
@@ -86,6 +91,7 @@ export const FEATURE_FLAGS = {
   shouldShowMenu,
   surveyLink,
   reportIssueLink,
+  accessibilityStatementLink,
   shouldShowHomePageNotification,
   shouldUseFullPageMsalRedirect,
   shouldEnableCaseLocking,
