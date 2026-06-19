@@ -40,6 +40,7 @@ export class SkipLink {
       }
 
       _debug("Scrolling to", target);
+      anchor.blur(); // remove the yellow box FIRST so layout settles
       target.scrollIntoView({ behavior: "instant" });
       target.focus({ preventScroll: true });
       // Important to lose focus so GDS css hides the yellow bar

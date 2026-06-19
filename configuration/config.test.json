@@ -27,6 +27,8 @@
   "SHOW_RECENT_CASES": true,
   "SHOW_MONITORING_CODES": true,
   "SHOW_NOTIFICATIONS": true,
+  "SHOW_HEADER_REBRAND": "cps",
+  "SHOW_CASE_DETAILS": "b",
   "OS_HANDOVER_URL": "https://cps-tst.outsystemsenterprise.com/Casework_Patterns/auth-handover.html?src=https://polaris-qa-notprod.cps.gov.uk/global-components/test/auth-handover.js",
   "RECENT_CASES_NAVIGATE_URL": "https://cps-tst.outsystemsenterprise.com/WorkManagementApp/CaseOverview?CaseId={caseId}",
   "RECENT_CASES_LIST_LENGTH": 5,
@@ -42,6 +44,7 @@
   "BEACON_AD_REDIRECT_SUCCESSES_ENABLED": true,
   "BEACON_AD_REDIRECT_FAILURES_ENABLED": true,
   "OS_TRIAGE_REQUEST_OBSERVATION_ENABLED": true,
+  "PROBE_DARK_READER_USAGE": true,
   "SSO_SILENT_DELAY_MS": 2000,
   "USER_DATA_REFRESH_PERIOD_MINS": 5,
   "PROBE_IFRAME_BASE_URL": "https://sacpsglobalcomponents.blob.core.windows.net",
@@ -55,9 +58,9 @@
         "box-shadow": "none"
       },
       "skipLinks": {
-        "mainSelector": ".cps-skip-link__target:not(.cps-filter-layout)",
-        "searchSelector": ".cps-skip-link__target.cps-filter-layout.cps-search-form",
-        "listSelector": ".cps-skip-link__target.cps-filter-layout.cps-search-results",
+        "mainSelector": ".cps-skip-link__target",
+        "searchSelector": ".cps-skip-link__target .cps-filter-layout .cps-search-form",
+        "listSelector": ".cps-skip-link__target .cps-filter-layout .cps-search-results",
         "useScroll": true
       },
       "msalRedirectUrl": "https://cps-tst.outsystemsenterprise.com/Casework_Patterns/auth-handover.html?src=https%3A%2F%2Fpolaris-qa-notprod.cps.gov.uk%2Fglobal-components%2Ftest%2Fauth-handover.js&stage=ad-redirect",
