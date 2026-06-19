@@ -11,7 +11,7 @@ GloCo_PageViews  (also joins GloCo_ExcludedUsers)
   |       |---> GloCo_CaseReview_TotalStartedSubmitted
   |       |---> GloCo_CaseReview_WithTriageTotalStartedSubmitted  (also joins AppEvents — triage-submission)
   |       |---> GloCo_CaseReview_InvolvementByUser                (also joins AppEvents — triage-submission)
-  |       |---> GloCo_CaseReview_AreaCounts  (also joins GloCo__UserAreaMapping; also unions AppEvents triage-submission)
+  |       |---> GloCo_CaseReview_AreaCounts  (also joins GloCo__UserAreaMapping and GloCo__AreaRegionMapping; also unions AppEvents triage-submission)
   |       |
   |       '---> GloCo_CaseReview_PerCase
   |               |
@@ -69,3 +69,8 @@ StorageBlobLogs
   v
 GloCo_BlobLogs
 ```
+
+Standalone (no source table):
+
+- `GloCo_ExcludedUsers` — datatable of `Auth_ObjectId`s filtered out at the `GloCo_PageViews` source.
+- `GloCo__AreaRegionMapping` — datatable of `(User_AreaId, User_Area, Region)`; joinable to any function exposing those columns. Source: `configuration/Row Labels.md`.

@@ -4,6 +4,11 @@
 // Each row attributes a case to the submitter's area and the week of submission;
 // distinct (CaseId, Area, Week) is then counted per area/week. Caveat: triage
 // submissions only exist from 2026-06-01 (shim ship date) — pre-shim weeks under-count.
+//
+// Areas are grouped into Regions via GloCo__AreaRegionMapping (sourced from
+// configuration/Row Labels.md). Within each region the rows are listed alphabetically by
+// Area with a synthetic "{Region}, Total" row at the bottom that sums the region's areas
+// per week. Any Area without a Region entry falls into the "Unmapped" pseudo-region.
 let CaseReviewSubmissions = GloCo_PageViews_CaseReview
     | where TimeGenerated > datetime(2026-03-09T12:00:01)
     | where Is_Submitted_First_Review or Is_Submitted_Subsequent_Review or Is_Admin_Finalise
@@ -20,13 +25,20 @@ let TriageSubmissions = AppEvents
     | where Auth_ObjectId !in ((GloCo_ExcludedUsers))
     | project TimeGenerated, CaseId, Auth_Username;
 let AllSubmissions = union CaseReviewSubmissions, TriageSubmissions;
-GloCo__UserAreaMapping
-| project Auth_Username, Area = User_AreaOrCPSD
-| join kind=inner AllSubmissions on Auth_Username
-| project-away Auth_Username1
-| distinct CaseId, Area, Week = format_datetime(startofweek(TimeGenerated), "yyyy-MM-dd")
-| summarize CountCasesSubmitted = count() by Area, Week
-| as T
-| union (T | summarize CountCasesSubmitted = sum(CountCasesSubmitted) by Area | extend Week = "Total")
-| evaluate pivot(Week, sum(CountCasesSubmitted), Area)
-| order by Area asc
+let AreaCounts = GloCo__UserAreaMapping
+    | project Auth_Username, Area = User_AreaOrCPSD
+    | join kind=inner AllSubmissions on Auth_Username
+    | project-away Auth_Username1
+    | distinct CaseId, Area, Week = format_datetime(startofweek(TimeGenerated), "yyyy-MM-dd")
+    | summarize CountCasesSubmitted = count() by Area, Week
+    | join kind=leftouter (GloCo__AreaRegionMapping | distinct User_Area, Region) on $left.Area == $right.User_Area
+    | project Region = coalesce(Region, "Unmapped"), Area, Week, CountCasesSubmitted;
+let AreaTotal   = AreaCounts | summarize CountCasesSubmitted = sum(CountCasesSubmitted) by Region, Area | extend Week = "Total";
+let RegionWeek  = AreaCounts | summarize CountCasesSubmitted = sum(CountCasesSubmitted) by Region, Week | extend Area = strcat(Region, ", Total");
+let RegionTotal = AreaCounts | summarize CountCasesSubmitted = sum(CountCasesSubmitted) by Region        | extend Area = strcat(Region, ", Total"), Week = "Total";
+union AreaCounts, AreaTotal, RegionWeek, RegionTotal
+| evaluate pivot(Week, sum(CountCasesSubmitted), Region, Area)
+| extend SortKey = iff(Area endswith ", Total" and Area startswith Region, 1, 0)
+| order by Region asc, SortKey asc, Area asc
+| project-away SortKey
+| project-reorder Region, Area, Total, * desc
