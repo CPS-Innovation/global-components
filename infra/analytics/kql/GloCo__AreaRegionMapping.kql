@@ -1,0 +1,78 @@
+// Area → Region mapping per the Row Labels list in configuration/Row Labels.md.
+// Emits both User_AreaId (numeric, stable) and User_Area (string, as it appears in
+// GloCo_PageViews and the existing CountNotSensitiveUnits>=120 → "CPSD" rewrite),
+// so callers can join via whichever side is cleanest. A synthetic User_Area="CPSD"
+// row is included so reports that already use User_AreaOrCPSD as the Area column
+// (e.g. GloCo_CaseReview_AreaCounts, GloCo_Users_VisitsPerApp) can attach a Region
+// via a plain join on Area name.
+//
+// The only null User_AreaId is the synthetic "CPSD" row — it has no real id, it's
+// the label GloCo_PageViews emits via User_AreaOrCPSD when CountNotSensitiveUnits >= 120.
+datatable(User_AreaId: long, User_Area: string, Region: string) [
+    // CPSD (synthetic dashboard label + component units — covers both join paths)
+    long(null),  "CPSD",                          "CPSD",
+    1043,        "HMCPSI",                        "CPSD",
+    38610512,    "Counter Terrorism Division",    "CPSD",
+    38610515,    "Organised Crime Division",      "CPSD",
+    38610517,    "Special Crime Division",        "CPSD",
+    86292933,    "Proceeds of Crime",             "CPSD",
+    131790535,   "SEOCID Int London and SE Div",  "CPSD",
+    131790540,   "SEOCID Regional and Wales Div", "CPSD",
+    // Cyrmu Wales
+    1025,        "Dyfed Powys",                   "Cyrmu Wales",
+    1005,        "Gwent",                         "Cyrmu Wales",
+    1022,        "North Wales",                   "Cyrmu Wales",
+    1019,        "South Wales",                   "Cyrmu Wales",
+    // East Mids
+    1018,        "Derbyshire",                    "East Mids",
+    1037,        "Leicestershire",                "East Mids",
+    1034,        "Lincolnshire",                  "East Mids",
+    1033,        "Northamptonshire",              "East Mids",
+    1041,        "Nottinghamshire",               "East Mids",
+    // East of England
+    1008,        "Cambridgeshire",                "East of England",
+    1039,        "Essex",                         "East of England",
+    1042,        "Norfolk",                       "East of England",
+    1010,        "Suffolk",                       "East of England",
+    // London North
+    104992243,   "London North",                  "London North",
+    // London South
+    104992247,   "London South",                  "London South",
+    // Mersey Cheshire
+    1007,        "Cheshire",                      "Mersey Cheshire",
+    1026,        "Merseyside",                    "Mersey Cheshire",
+    // North East
+    1027,        "Cleveland",                     "North East",
+    1006,        "Durham",                        "North East",
+    1028,        "Northumbria",                   "North East",
+    // North West
+    1014,        "Cumbria",                       "North West",
+    1031,        "Greater Manchester",            "North West",
+    1023,        "Lancashire",                    "North West",
+    // South East
+    1017,        "Kent",                          "South East",
+    1001,        "Surrey",                        "South East",
+    1015,        "Sussex",                        "South East",
+    // South West
+    1035,        "Avon & Somerset",               "South West",
+    1016,        "Devon and Cornwall",            "South West",
+    1032,        "Gloucestershire",               "South West",
+    // Thames&Chiltern
+    1030,        "Bedfordshire",                  "Thames&Chiltern",
+    1024,        "Hertfordshire",                 "Thames&Chiltern",
+    1011,        "Thames Valley",                 "Thames&Chiltern",
+    // Wessex
+    1029,        "Dorset",                        "Wessex",
+    1020,        "Hampshire & IOW",               "Wessex",
+    1004,        "Wiltshire",                     "Wessex",
+    // West Mids
+    1002,        "Staffordshire",                 "West Mids",
+    1013,        "Warwickshire",                  "West Mids",
+    1038,        "West Mercia",                   "West Mids",
+    1009,        "West Midlands",                 "West Mids",
+    // Yorks & Hum
+    1040,        "Humberside",                    "Yorks & Hum",
+    1021,        "North Yorkshire",               "Yorks & Hum",
+    1036,        "South Yorkshire",               "Yorks & Hum",
+    1003,        "West Yorkshire",                "Yorks & Hum"
+]

@@ -30,6 +30,18 @@
       "type": 3,
       "content": {
         "version": "KqlItem/1.0",
+        "query": "GloCo__CaseReview_AreaCounts_Comparison\n",
+        "size": 2,
+        "title": "Cases by area by week — temporary before/after (started/submitted)",
+        "queryType": 0,
+        "resourceType": "microsoft.operationalinsights/workspaces"
+      },
+      "name": "query - area-counts-comparison"
+    },
+    {
+      "type": 3,
+      "content": {
+        "version": "KqlItem/1.0",
         "query": "GloCo_Users_VisitsPerApp\n\n",
         "size": 2,
         "title": "Top users by visit",
