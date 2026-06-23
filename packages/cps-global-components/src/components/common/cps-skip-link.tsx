@@ -1,7 +1,7 @@
 import { Component, h, Prop } from "@stencil/core";
 import { makeConsole } from "../../logging/makeConsole";
 
-const { _debug } = makeConsole("SkipLink");
+const { _debug } = makeConsole("CpsSkipLink");
 
 // A presentational skip link to a single target. It owns no DOM beyond its own anchor — the
 //  target (including any synthesised fallback) is the concern of the controlling cps-skip-links.
@@ -9,7 +9,7 @@ const { _debug } = makeConsole("SkipLink");
   tag: "cps-skip-link",
   shadow: false,
 })
-export class SkipLink {
+export class CpsSkipLink {
   // Raw CSS selector (class or id) for the target to skip to.
   @Prop() targetSelector?: string;
   // Force JS scrollIntoView+focus handlers instead of native anchor navigation.

@@ -100,7 +100,7 @@ export class CpsGlobalRecentCases {
           <ul class={this.listClass}>
             {state.data.map(({ caseId, urn, description }) => (
               <li class={this.itemClass || undefined}>
-                <a class={this.linkClass || undefined} href={buildCaseLink({ caseId, urn, urlTemplate: state.urlTemplate })}>
+                <a class={this.linkClass || undefined} href={buildCaseLink({ caseId, urn, urlTemplate: state.urlTemplate })} role="link">
                   {buildItemText(this.itemTextTemplate, { caseId, urn, description })}
                 </a>
               </li>
