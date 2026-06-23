@@ -1,8 +1,8 @@
 import { skipLinkSubscriber } from "./skip-link-subscriber";
 
-type SkipLinks = { mainSelector?: string; searchSelector?: string; listSelector?: string; useScroll?: boolean };
+type CpsSkipLinks = { mainSelector?: string; searchSelector?: string; listSelector?: string; useScroll?: boolean };
 
-const build = (skipLinks: SkipLinks | undefined) => {
+const build = (skipLinks: CpsSkipLinks | undefined) => {
   const writes: any[] = [];
   const register = (arg: any) => writes.push(arg);
   const sub = skipLinkSubscriber({ context: { skipLinks }, register } as any);
