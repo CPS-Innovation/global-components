@@ -1,0 +1,59 @@
+// Temporary reference for the started→submitted shift in GloCo_CaseReview_AreaCounts.
+// Each cell shows "<started>/<submitted>" so the business owner can eyeball the size
+// of the drop in each (Area, Week). Same shape as the old AreaCounts (Area + Week
+// columns + Total) — region grouping is intentionally not applied so the cell grid
+// matches the pre-change report 1:1. Delete this function once the new numbers have
+// been signed off.
+//
+// "Started" side: the pre-change logic — distinct CaseIds with ANY case review page
+// view, attributed to the viewer's area and the week of the view.
+// "Submitted" side: the post-change logic — case review submission landings
+// (first/subsequent/admin finalise) UNION triage-submission AppEvents, attributed to
+// the submitter's area and the week of the submission.
+let StartedCounts = GloCo__UserAreaMapping
+    | project Auth_Username, Area = User_AreaOrCPSD
+    | join kind=inner
+        (GloCo_PageViews_CaseReview
+         | where TimeGenerated > datetime(2026-03-09T12:00:01)
+         | project TimeGenerated, CaseId, Auth_Username)
+        on Auth_Username
+    | project-away Auth_Username1
+    | distinct CaseId, Area, Week = format_datetime(startofweek(TimeGenerated), "yyyy-MM-dd")
+    | summarize StartedCount = count() by Area, Week;
+let CaseReviewSubmissions = GloCo_PageViews_CaseReview
+    | where TimeGenerated > datetime(2026-03-09T12:00:01)
+    | where Is_Submitted_First_Review or Is_Submitted_Subsequent_Review or Is_Admin_Finalise
+    | project TimeGenerated, CaseId, Auth_Username;
+let TriageSubmissions = AppEvents
+    | where TimeGenerated > datetime(2026-03-09T12:00:01)
+    | where Name == "cps-global-components-analytics-event"
+    | where tostring(Properties["name"]) == "triage-submission"
+    | where tostring(Properties["environment"]) == "prod"
+    | extend CaseId = tolong(Properties["CaseId"])
+    | extend Auth = parse_json(tostring(Properties["auth"]))
+    | extend Auth_Username = tostring(Auth.username), Auth_ObjectId = tostring(Auth.objectId)
+    | where isnotnull(CaseId)
+    | where Auth_ObjectId !in ((GloCo_ExcludedUsers))
+    | project TimeGenerated, CaseId, Auth_Username;
+let AllSubmissions = union CaseReviewSubmissions, TriageSubmissions;
+let SubmittedCounts = GloCo__UserAreaMapping
+    | project Auth_Username, Area = User_AreaOrCPSD
+    | join kind=inner AllSubmissions on Auth_Username
+    | project-away Auth_Username1
+    | distinct CaseId, Area, Week = format_datetime(startofweek(TimeGenerated), "yyyy-MM-dd")
+    | summarize SubmittedCount = count() by Area, Week;
+let StartedWithTotal = StartedCounts
+    | as Ts
+    | union (Ts | summarize StartedCount = sum(StartedCount) by Area | extend Week = "Total");
+let SubmittedWithTotal = SubmittedCounts
+    | as Tu
+    | union (Tu | summarize SubmittedCount = sum(SubmittedCount) by Area | extend Week = "Total");
+StartedWithTotal
+| join kind=fullouter SubmittedWithTotal on Area, Week
+| project
+    Area = coalesce(Area, Area1),
+    Week = coalesce(Week, Week1),
+    Display = strcat(tostring(coalesce(StartedCount, long(0))), "/", tostring(coalesce(SubmittedCount, long(0))))
+| evaluate pivot(Week, take_any(Display), Area)
+| project-reorder Area, Total, * desc
+| order by Area asc
