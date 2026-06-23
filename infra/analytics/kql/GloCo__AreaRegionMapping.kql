@@ -12,12 +12,12 @@ datatable(User_AreaId: long, User_Area: string, Region: string) [
     // CPSD (synthetic dashboard label + component units — covers both join paths)
     long(null),  "CPSD",                          "CPSD",
     1043,        "HMCPSI",                        "CPSD",
-    38610512,    "Counter Terrorism Division",    "CPSD",
-    38610515,    "Organised Crime Division",      "CPSD",
-    38610517,    "Special Crime Division",        "CPSD",
-    86292933,    "Proceeds of Crime",             "CPSD",
-    131790535,   "SEOCID Int London and SE Div",  "CPSD",
-    131790540,   "SEOCID Regional and Wales Div", "CPSD",
+    38610512,    "Counter Terrorism Division",    "SEOCID",
+    38610515,    "Organised Crime Division",      "SEOCID",
+    38610517,    "Special Crime Division",        "SEOCID",
+    86292933,    "Proceeds of Crime",             "SEOCID",
+    131790535,   "SEOCID Int London and SE Div",  "SEOCID",
+    131790540,   "SEOCID Regional and Wales Div", "SEOCID",
     // Cyrmu Wales
     1025,        "Dyfed Powys",                   "Cyrmu Wales",
     1005,        "Gwent",                         "Cyrmu Wales",
