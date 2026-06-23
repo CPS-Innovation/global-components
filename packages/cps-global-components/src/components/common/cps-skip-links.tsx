@@ -3,7 +3,7 @@ import { readyState } from "../../store/store";
 import { WithLogging } from "../../logging/WithLogging";
 
 // The synthesised "Skip to main content" target, used when a host does not configure a mainSelector.
-//  SkipLinks (the controller) owns its create/destroy lifecycle; the main cps-skip-link simply
+//  CpsSkipLinks (the controller) owns its create/destroy lifecycle; the main cps-skip-link simply
 //  targets it by id like any other conventional anchor target.
 const FALLBACK_TARGET_ID = "cps-header-main-content";
 
@@ -20,7 +20,7 @@ const FALLBACK_TARGET_ID = "cps-header-main-content";
   tag: "cps-skip-links",
   shadow: false,
 })
-export class SkipLinks {
+export class CpsSkipLinks {
   @Element() el: HTMLElement;
 
   // Whether we are responsible for synthesising the fallback target. undefined until the context is
