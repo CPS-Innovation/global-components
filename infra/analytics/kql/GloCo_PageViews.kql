@@ -48,6 +48,23 @@ AppPageViews
         User_HasViewNationalChargingTasksRight = tobool(User["HasViewNationalChargingTasksRight"]),
         User_CountSensitiveUnits = toint(User["CountSensitiveUnits"]),
         User_CountNotSensitiveUnits = toint(User["CountNotSensitiveUnits"])
-| extend User_AreaOrCPSD = iif(User_CountNotSensitiveUnits >= 120, "CPSD", User_Area)
+// "CPSD" relabel applies when the user has >= 120 non-sensitive units AND their area
+// isn't already a named specialist division (the SEOCID component areas). Without the
+// SEOCID exemption those users would lose their real area name to the synthetic "CPSD"
+// bucket — but they have a real, distinct home and reports want them grouped under the
+// SEOCID region, not CPSD.
+//
+// The SEOCID AreaIds below are deliberately INLINED rather than looked up from
+// GloCo__AreaRegionMapping (which is the single source of truth for area→region).
+// The reason is a Kusto saved-search resolver bug: when GloCo_PageViews references
+// GloCo__AreaRegionMapping AND a downstream caller (e.g. GloCo_CaseReview_AreaCounts)
+// also references it, the resolver fails to resolve the helper at all. We explored
+// `!in (subquery)`, `join`, `let`-binding and `materialize` — none worked. Inlining
+// breaks the dual-reference cycle. Keep these AreaIds in sync with
+// GloCo__AreaRegionMapping's SEOCID region rows.
+| extend User_AreaOrCPSD = iif(
+    User_CountNotSensitiveUnits >= 120 and User_AreaId !in (38610512, 38610515, 38610517, 86292933, 131790535, 131790540),
+    "CPSD",
+    User_Area)
 | where Auth_ObjectId !in ((GloCo_ExcludedUsers))
 | project-away parsed, Build, Auth, Context, CorrelationIds, User
