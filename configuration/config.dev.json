@@ -31,7 +31,7 @@
   "ACCESSIBILITY_STATEMENT_URL": "https://cps-dev.outsystemsenterprise.com/Casework/accessibility",
   "SHOW_MENU": true,
   "SHOW_RECENT_CASES": true,
-  "SHOW_MONITORING_CODES": true,
+  "SHOW_MONITORING_CODES": false,
   "SHOW_HEADER_REBRAND": "cps",
   "SHOW_CASE_DETAILS": "b",
   "OS_HANDOVER_URL": "https://cps-dev.outsystemsenterprise.com/Casework_Patterns/auth-handover.html?src=https://polaris-qa-notprod.cps.gov.uk/global-components/dev/auth-handover.js",
