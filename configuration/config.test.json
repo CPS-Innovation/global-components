@@ -26,7 +26,7 @@
   "ACCESSIBILITY_STATEMENT_URL": "https://cps-tst.outsystemsenterprise.com/Casework/accessibility",
   "SHOW_MENU": true,
   "SHOW_RECENT_CASES": true,
-  "SHOW_MONITORING_CODES": true,
+  "SHOW_MONITORING_CODES": false,
   "SHOW_NOTIFICATIONS": true,
   "SHOW_HEADER_REBRAND": "cps",
   "SHOW_CASE_DETAILS": "b",
