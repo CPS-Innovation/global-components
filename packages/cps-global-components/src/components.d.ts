@@ -51,6 +51,7 @@ export namespace Components {
     interface CpsGlobalCaseLockingNotification {
     }
     interface CpsGlobalFooter {
+        "userEmail"?: string;
     }
     interface CpsGlobalHeader {
         /**
@@ -287,6 +288,7 @@ declare namespace LocalJSX {
     interface CpsGlobalCaseLockingNotification {
     }
     interface CpsGlobalFooter {
+        "userEmail"?: string;
     }
     interface CpsGlobalHeader {
         /**
@@ -353,6 +355,9 @@ declare namespace LocalJSX {
         "disableAutoFocus": boolean;
         "dismissible": boolean;
     }
+    interface CpsGlobalFooterAttributes {
+        "userEmail": string;
+    }
     interface CpsGlobalHeaderAttributes {
         "isDcf": boolean;
     }
@@ -383,7 +388,7 @@ declare namespace LocalJSX {
         "cps-global-banner": CpsGlobalBanner;
         "cps-global-case-details": CpsGlobalCaseDetails;
         "cps-global-case-locking-notification": CpsGlobalCaseLockingNotification;
-        "cps-global-footer": CpsGlobalFooter;
+        "cps-global-footer": Omit<CpsGlobalFooter, keyof CpsGlobalFooterAttributes> & { [K in keyof CpsGlobalFooter & keyof CpsGlobalFooterAttributes]?: CpsGlobalFooter[K] } & { [K in keyof CpsGlobalFooter & keyof CpsGlobalFooterAttributes as `attr:${K}`]?: CpsGlobalFooterAttributes[K] } & { [K in keyof CpsGlobalFooter & keyof CpsGlobalFooterAttributes as `prop:${K}`]?: CpsGlobalFooter[K] };
         "cps-global-header": Omit<CpsGlobalHeader, keyof CpsGlobalHeaderAttributes> & { [K in keyof CpsGlobalHeader & keyof CpsGlobalHeaderAttributes]?: CpsGlobalHeader[K] } & { [K in keyof CpsGlobalHeader & keyof CpsGlobalHeaderAttributes as `attr:${K}`]?: CpsGlobalHeaderAttributes[K] } & { [K in keyof CpsGlobalHeader & keyof CpsGlobalHeaderAttributes as `prop:${K}`]?: CpsGlobalHeader[K] };
         "cps-global-home-page-notification": CpsGlobalHomePageNotification;
         "cps-global-menu": CpsGlobalMenu;

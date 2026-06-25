@@ -184,6 +184,10 @@ export const configBaseSchema = z.object({
   APP_INSIGHTS_CONNECTION_STRING: z.string().optional(),
   SURVEY_LINK: z.string().optional(),
   REPORT_ISSUE_LINK: z.string().optional(),
+  // Absolute URL of the deployed accessibility statement page. Could be derived
+  // from rootUrl (the statement is a sibling artifact of the bundle), but kept
+  // here so we can repoint it at a different location without a code change.
+  ACCESSIBILITY_STATEMENT_URL: z.string().optional(),
   SHOW_MENU: z.boolean().optional(),
   SHOW_RECENT_CASES: z.boolean().optional(),
   SHOW_MONITORING_CODES: z.boolean().optional(),
