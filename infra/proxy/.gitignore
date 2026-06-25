@@ -7,6 +7,7 @@ dist/
 # Compiled JavaScript files (keep nginx.js which is not ours, and test files)
 config/**/*.js
 !config/main/nginx.js
+!config/main/cmsenv.js
 !config/**/tests/*.js
 !config/**/main-reference/*.js
 
