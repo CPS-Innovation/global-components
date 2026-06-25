@@ -23,6 +23,7 @@
   "APP_INSIGHTS_CONNECTION_STRING": "InstrumentationKey=e572c03c-8d38-4771-b193-962f13da1b1a;IngestionEndpoint=https://polaris-uat-notprod.cps.gov.uk/global-components/analytics/;ApplicationId=3dafc37d-8c9c-4480-90fc-532ac2b8bba2",
   "SURVEY_LINK": "https://forms.cloud.microsoft/Pages/ResponsePage.aspx?id=HQ3dAObXOEOsUVZTOccIjMYFiPHggxZNtgEAXRbAx2hUNjNWUDc0UEtVTERCMFpFMkI1QTVSSUxTVyQlQCN0PWcu&rc715f3f34a484d8eae0a1809b30c6c5a=%22Feedback%22&r67e8aaf2389e4b9d8aa0c01902281211=9&rf690462c782847db972938cb1c773bc2=%22Easy%22&r781f1b5b16b14f5689b788fa6d98287b=%22Make%20a%20Charging%20Decision%22",
   "REPORT_ISSUE_LINK": "https://cpsprod1.service-now.com/sp?id=sc_cat_item&sys_id=716b2e011bd66410d5b3dce3b24bcbbf",
+  "ACCESSIBILITY_STATEMENT_URL": "https://cps-tst1.outsystemsenterprise.com/Casework/accessibility",
   "SHOW_MENU": true,
   "SHOW_RECENT_CASES": true,
   "SHOW_MONITORING_CODES": true,
@@ -67,16 +68,16 @@
       "cmsAuthFromStorageKey": "$OS_Users$Casework_Blocks$ClientVars$JSONString",
       "contexts": [
         {
-          "path": "https://cps-tst1.outsystemsenterprise.com/casework(_blocks)?/home",
+          "path": "https://(?<host>cps-tst1|cpslon-tst1)\\.outsystemsenterprise\\.com/casework(_blocks)?/home",
           "contextIds": "home",
           "showNotification": true
         },
         {
-          "path": "https://cps-tst1.outsystemsenterprise.com/casework(_blocks)?",
+          "path": "https://(?<host>cps-tst1|cpslon-tst1)\\.outsystemsenterprise\\.com/casework(_blocks)?",
           "contextIds": "unknown-home"
         },
         {
-          "path": "https://cps-tst1.outsystemsenterprise.com/CaseReview.*?[&?](?:CMS)?CaseId=(?<caseId>\\d+)",
+          "path": "https://(?<host>cps-tst1|cpslon-tst1)\\.outsystemsenterprise\\.com/CaseReview.*?[&?](?:CMS)?CaseId=(?<caseId>\\d+)",
           "contextIds": "case review",
           "hostAppEventTargets": [
             { "selector": "#b1-Resume", "action": "click" },
@@ -84,41 +85,41 @@
           ]
         },
         {
-          "path": "https://cps-tst1.outsystemsenterprise.com/CaseReview/RedirectCW",
+          "path": "https://(?<host>cps-tst1|cpslon-tst1)\\.outsystemsenterprise\\.com/CaseReview/RedirectCW",
           "contextIds": "redirect",
           "preventPageViewAnalytics": true
         },
         {
-          "path": "https://cps-tst1.outsystemsenterprise.com/CaseReview/",
+          "path": "https://(?<host>cps-tst1|cpslon-tst1)\\.outsystemsenterprise\\.com/CaseReview/",
           "contextIds": "cases"
         },
         {
-          "path": "https://cps-tst1.outsystemsenterprise.com/WorkManagementApp.*?(?=.*[&?]CaseId=(?<caseId>\\d+))(?=.*[&?]IsOpenMaterials=true)",
+          "path": "https://(?<host>cps-tst1|cpslon-tst1)\\.outsystemsenterprise\\.com/WorkManagementApp.*?(?=.*[&?]CaseId=(?<caseId>\\d+))(?=.*[&?]IsOpenMaterials=true)",
           "contextIds": "case materials"
         },
         {
-          "path": "https://cps-tst1.outsystemsenterprise.com/WorkManagementApp.*[&?]CaseId=(?<caseId>\\d+)",
+          "path": "https://(?<host>cps-tst1|cpslon-tst1)\\.outsystemsenterprise\\.com/WorkManagementApp.*[&?]CaseId=(?<caseId>\\d+)",
           "contextIds": "case details"
         },
         {
-          "path": "https://cps-tst1.outsystemsenterprise.com/WorkManagementApp/Cases",
+          "path": "https://(?<host>cps-tst1|cpslon-tst1)\\.outsystemsenterprise\\.com/WorkManagementApp/Cases",
           "contextIds": "cases"
         },
         {
-          "path": "https://cps-tst1.outsystemsenterprise.com/WorkManagementApp/TaskList",
+          "path": "https://(?<host>cps-tst1|cpslon-tst1)\\.outsystemsenterprise\\.com/WorkManagementApp/TaskList",
           "contextIds": "tasks"
         },
         {
-          "path": "https://cps-tst1.outsystemsenterprise.com/WorkManagementApp/Redirect",
+          "path": "https://(?<host>cps-tst1|cpslon-tst1)\\.outsystemsenterprise\\.com/WorkManagementApp/Redirect",
           "contextIds": "redirect",
           "preventPageViewAnalytics": true
         },
         {
-          "path": "https://cps-tst1.outsystemsenterprise.com/WorkManagementApp/SearchCase",
+          "path": "https://(?<host>cps-tst1|cpslon-tst1)\\.outsystemsenterprise\\.com/WorkManagementApp/SearchCase",
           "contextIds": "cases"
         },
         {
-          "path": "https://cps-tst1.outsystemsenterprise.com/WorkManagementApp",
+          "path": "https://(?<host>cps-tst1|cpslon-tst1)\\.outsystemsenterprise\\.com/WorkManagementApp",
           "contextIds": "unknown-wma"
         }
       ]

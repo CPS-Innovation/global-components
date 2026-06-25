@@ -38,6 +38,12 @@ const shouldShowCaseDetails = ({ preview, config, flags }: FlagInputs): "a" | "b
 const shouldEnableAccessibilityMode = ({ preview, flags }: FlagInputs) =>
   !!(preview?.result?.accessibility || flags?.isLocalDevelopment);
 
+// Used by the DOM subscriber that swaps host <footer>s for cps-global-footer.
+// In prod the per-host opt-in comes via preview; in local dev we always want
+// the swap so the harness exercises it without preview wiring.
+const shouldShimFooter = ({ preview, flags }: Pick<FlagInputs, "preview" | "flags">) =>
+  !!preview?.result?.footer || !!flags?.isLocalDevelopment;
+
 const shouldShowGovUkRebrand = ({ preview, config }: FlagInputs): Preview["newHeader"] =>
   preview?.result?.newHeader ?? config.SHOW_HEADER_REBRAND;
 
@@ -57,6 +63,11 @@ const shouldShowMenu = ({ config, auth, authHint, context }: FlagInputs): boolea
 const surveyLink = ({ config }: FlagInputs) => ({ showLink: !!config.SURVEY_LINK, url: config.SURVEY_LINK });
 
 const reportIssueLink = ({ config }: FlagInputs) => ({ showLink: !!config.REPORT_ISSUE_LINK, url: config.REPORT_ISSUE_LINK });
+
+const accessibilityStatementLink = ({ config }: FlagInputs) => ({
+  showLink: !!config.ACCESSIBILITY_STATEMENT_URL,
+  url: config.ACCESSIBILITY_STATEMENT_URL,
+});
 
 const shouldShowHomePageNotification = ({ config, auth, authHint, preview }: FlagInputs) =>
   !!preview?.result?.homePageNotification ||
@@ -81,11 +92,13 @@ const shouldEnableCaseLocking = ({ config, preview, auth, authHint }: FlagInputs
 export const FEATURE_FLAGS = {
   shouldShowCaseDetails,
   shouldEnableAccessibilityMode,
+  shouldShimFooter,
   shouldShowGovUkRebrand,
   shouldShowRecentCases,
   shouldShowMenu,
   surveyLink,
   reportIssueLink,
+  accessibilityStatementLink,
   shouldShowHomePageNotification,
   shouldUseFullPageMsalRedirect,
   shouldEnableCaseLocking,
