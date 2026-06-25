@@ -21,7 +21,7 @@ export class CpsGlobalFooter {
     const cssClass = `${showGovUkRebrand ? "govuk-template--rebranded" : ""} ${showGovUkRebrand === "cps" ? "cps-theme" : ""}`;
     return (
       <div class={cssClass}>
-        <footer class="govuk-footer">
+        <footer class="govuk-footer" role="contentinfo">
           <h2 class="govuk-visually-hidden">Footer links</h2>
           <ul class="govuk-footer__inline-list">
             {accessibilityStatement.showLink && (
