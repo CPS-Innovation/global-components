@@ -49,39 +49,39 @@ describe("Footer", () => {
     expect(footerRendered).toBe(true);
   });
 
-  it("displays the crown copyright link", async () => {
-    await arrange({});
+  it("renders the accessibility statement link when ACCESSIBILITY_STATEMENT_URL is configured", async () => {
+    const accessibilityUrl = "https://example.test/accessibility";
+    await arrange({ config: { ACCESSIBILITY_STATEMENT_URL: accessibilityUrl } });
 
     await act();
     await waitForFooterReady();
 
-    const hasCopyrightLink = await page.evaluate((locators) => {
-      const footer = document.querySelector(locators.FOOTER_CONTAINER);
-      if (!footer?.shadowRoot) return false;
-      const link = footer.shadowRoot.querySelector(
-        "a.govuk-footer__copyright-logo"
-      );
-      return link?.textContent?.includes("Crown copyright") ?? false;
-    }, L);
+    const link = await page.evaluate(
+      (locators) => {
+        const footer = document.querySelector(locators.FOOTER_CONTAINER);
+        const anchor = footer?.shadowRoot?.querySelector<HTMLAnchorElement>("a.govuk-footer__link");
+        return anchor && { href: anchor.href, text: anchor.textContent?.trim(), target: anchor.getAttribute("target") };
+      },
+      L
+    );
 
-    expect(hasCopyrightLink).toBe(true);
+    expect(link).not.toBeNull();
+    expect(link?.href).toBe(accessibilityUrl);
+    expect(link?.text).toContain("Accessibility statement");
+    expect(link?.target).toBe("_blank");
   });
 
-  it("displays the Open Government Licence link", async () => {
+  it("omits the accessibility statement link when ACCESSIBILITY_STATEMENT_URL is not configured", async () => {
     await arrange({});
 
     await act();
     await waitForFooterReady();
 
-    const hasLicenceLink = await page.evaluate((locators) => {
+    const hasLink = await page.evaluate((locators) => {
       const footer = document.querySelector(locators.FOOTER_CONTAINER);
-      if (!footer?.shadowRoot) return false;
-      const link = footer.shadowRoot.querySelector(
-        'a[href*="open-government-licence"]'
-      );
-      return !!link;
+      return !!footer?.shadowRoot?.querySelector("a.govuk-footer__link");
     }, L);
 
-    expect(hasLicenceLink).toBe(true);
+    expect(hasLink).toBe(false);
   });
 });
