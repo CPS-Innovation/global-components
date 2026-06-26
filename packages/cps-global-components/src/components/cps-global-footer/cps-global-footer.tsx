@@ -1,6 +1,7 @@
-import { Component, h, Prop } from "@stencil/core";
+import { Component, Element, h, Prop } from "@stencil/core";
 import { readyState } from "../../store/store";
 import { FEATURE_FLAGS } from "cps-global-configuration";
+import { FOOTER_SKIP_TARGET_ID } from "./footer-skip-target";
 
 @Component({
   tag: "cps-global-footer",
@@ -8,11 +9,19 @@ import { FEATURE_FLAGS } from "cps-global-configuration";
   shadow: true,
 })
 export class CpsGlobalFooter {
+  @Element() el: HTMLElement;
+
   // Some host apps render the signed-in user's email in their native footer.
   // We replace that footer, but e2e tests still expect to find the email in
   // the DOM — so the subscriber that swaps the footer scrapes it across and
   // hands it to us as a prop, which we expose via a visually-hidden node.
   @Prop() userEmail?: string;
+
+  componentDidLoad() {
+    if (!this.el.id) {
+      this.el.id = FOOTER_SKIP_TARGET_ID;
+    }
+  }
 
   render() {
     const { isReady, state } = readyState("config", "preview");

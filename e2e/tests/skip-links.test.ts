@@ -88,7 +88,8 @@ describe("Skip links", () => {
     // Give the subscriber a moment; search/list targets are absent so they must stay hidden.
     await new Promise(r => setTimeout(r, 300));
 
-    expect(await getSkipLinkTexts()).toEqual(["Skip to main content"]);
+    // "Skip to footer" is always present when the shim flag is on (true under e2e/local-dev).
+    expect(await getSkipLinkTexts()).toEqual(["Skip to main content", "Skip to footer"]);
     // With no mainSelector, cps-skip-links synthesises the fallback target.
     expect(await fallbackTargetExists()).toBe(true);
   });
@@ -103,7 +104,7 @@ describe("Skip links", () => {
     await waitForSkipLink("Skip to case search");
     await waitForSkipLink("Skip to case list");
 
-    expect(await getSkipLinkTexts()).toEqual(["Skip to main content", "Skip to case search", "Skip to case list"]);
+    expect(await getSkipLinkTexts()).toEqual(["Skip to main content", "Skip to case search", "Skip to case list", "Skip to footer"]);
   });
 
   it("renders only the link whose target is present", async () => {
@@ -153,7 +154,7 @@ describe("Skip links (OutSystems-style nested-descendant selectors)", () => {
     await new Promise(r => setTimeout(r, 300));
 
     // search/list selectors require the nested descendant chain, so they must not match.
-    expect(await getSkipLinkTexts()).toEqual(["Skip to main content"]);
+    expect(await getSkipLinkTexts()).toEqual(["Skip to main content", "Skip to footer"]);
     // A real mainSelector is configured, so no fallback target is synthesised.
     expect(await fallbackTargetExists()).toBe(false);
   });
@@ -175,6 +176,6 @@ describe("Skip links (OutSystems-style nested-descendant selectors)", () => {
     await waitForSkipLink("Skip to case search");
     await waitForSkipLink("Skip to case list");
 
-    expect(await getSkipLinkTexts()).toEqual(["Skip to main content", "Skip to case search", "Skip to case list"]);
+    expect(await getSkipLinkTexts()).toEqual(["Skip to main content", "Skip to case search", "Skip to case list", "Skip to footer"]);
   });
 });
