@@ -29,7 +29,6 @@
   "SHOW_MONITORING_CODES": false,
   "SHOW_NOTIFICATIONS": true,
   "SHOW_HEADER_REBRAND": "cps",
-  "SHOW_CASE_DETAILS": "b",
   "OS_HANDOVER_URL": "https://cps-tst.outsystemsenterprise.com/Casework_Patterns/auth-handover.html?src=https://polaris-qa-notprod.cps.gov.uk/global-components/test/auth-handover.js",
   "RECENT_CASES_NAVIGATE_URL": "https://cps-tst.outsystemsenterprise.com/WorkManagementApp/CaseOverview?CaseId={caseId}",
   "RECENT_CASES_LIST_LENGTH": 5,
