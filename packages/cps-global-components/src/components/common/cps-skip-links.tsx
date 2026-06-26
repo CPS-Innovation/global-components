@@ -1,6 +1,8 @@
 import { Component, Element, h, Fragment } from "@stencil/core";
+import { FEATURE_FLAGS } from "cps-global-configuration";
 import { readyState } from "../../store/store";
 import { WithLogging } from "../../logging/WithLogging";
+import { FOOTER_SKIP_TARGET_ID } from "../cps-global-footer/footer-skip-target";
 
 // The synthesised "Skip to main content" target, used when a host does not configure a mainSelector.
 //  CpsSkipLinks (the controller) owns its create/destroy lifecycle; the main cps-skip-link simply
@@ -65,7 +67,7 @@ export class CpsSkipLinks {
 
   @WithLogging("CpsSkipLinks")
   render() {
-    const { isReady, state } = readyState(["context"], ["skipLinkTargets"]);
+    const { isReady, state } = readyState(["context", "preview", "flags"], ["skipLinkTargets"]);
     if (!isReady) {
       this.fallbackNeeded = undefined;
       return <></>;
@@ -85,6 +87,10 @@ export class CpsSkipLinks {
     const showMain = usingFallback || targets.main;
     const showSearch = !!skipLinks?.searchSelector && targets.search;
     const showList = !!skipLinks?.listSelector && targets.list;
+    // Footer: the cps-global-footer component owns its own skip-target id, so no per-context config
+    //  is needed. Gated on the shim flag because that's what guarantees a cps-global-footer is on
+    //  the page (shimmed by footer-subscriber, or visible because we're rendering this skip link).
+    const showFooter = FEATURE_FLAGS.shouldShimFooter(state);
 
     return (
       <Fragment>
@@ -101,6 +107,11 @@ export class CpsSkipLinks {
         {showList && (
           <cps-skip-link targetSelector={skipLinks?.listSelector} useScroll={useScroll}>
             Skip to case list
+          </cps-skip-link>
+        )}
+        {showFooter && (
+          <cps-skip-link targetSelector={`#${FOOTER_SKIP_TARGET_ID}`} useScroll={useScroll}>
+            Skip to footer
           </cps-skip-link>
         )}
       </Fragment>
