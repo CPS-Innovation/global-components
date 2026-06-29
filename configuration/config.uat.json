@@ -13,7 +13,7 @@
   "CASE_LOCKING_POC_SCRIPT_BLOB_ADDRESS": "",
   "CASE_LOCKING_API_URL": "https://polaris-uat-notprod.cps.gov.uk/global-components/case-locking/api/section-view",
   "FEATURE_FLAG_CASE_LOCKING_USERS": {
-    "generallyAvailable": true
+    "generallyAvailable": false
   },
   "BANNER_TITLE_HREF": "https://cps-tst1.outsystemsenterprise.com/Casework/home",
   "AD_TENANT_AUTHORITY": "https://login.microsoftonline.com/00dd0d1d-d7e6-4338-ac51-565339c7088c",
