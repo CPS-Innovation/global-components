@@ -53,6 +53,9 @@ export namespace Components {
     interface CpsGlobalFooter {
         "userEmail"?: string;
     }
+    interface CpsGlobalFooterContent {
+        "userEmail"?: string;
+    }
     interface CpsGlobalHeader {
         /**
           * @default false
@@ -158,6 +161,12 @@ declare global {
         prototype: HTMLCpsGlobalFooterElement;
         new (): HTMLCpsGlobalFooterElement;
     };
+    interface HTMLCpsGlobalFooterContentElement extends Components.CpsGlobalFooterContent, HTMLStencilElement {
+    }
+    var HTMLCpsGlobalFooterContentElement: {
+        prototype: HTMLCpsGlobalFooterContentElement;
+        new (): HTMLCpsGlobalFooterContentElement;
+    };
     interface HTMLCpsGlobalHeaderElement extends Components.CpsGlobalHeader, HTMLStencilElement {
     }
     var HTMLCpsGlobalHeaderElement: {
@@ -229,6 +238,7 @@ declare global {
         "cps-global-case-details": HTMLCpsGlobalCaseDetailsElement;
         "cps-global-case-locking-notification": HTMLCpsGlobalCaseLockingNotificationElement;
         "cps-global-footer": HTMLCpsGlobalFooterElement;
+        "cps-global-footer-content": HTMLCpsGlobalFooterContentElement;
         "cps-global-header": HTMLCpsGlobalHeaderElement;
         "cps-global-home-page-notification": HTMLCpsGlobalHomePageNotificationElement;
         "cps-global-menu": HTMLCpsGlobalMenuElement;
@@ -288,6 +298,9 @@ declare namespace LocalJSX {
     interface CpsGlobalCaseLockingNotification {
     }
     interface CpsGlobalFooter {
+        "userEmail"?: string;
+    }
+    interface CpsGlobalFooterContent {
         "userEmail"?: string;
     }
     interface CpsGlobalHeader {
@@ -358,6 +371,9 @@ declare namespace LocalJSX {
     interface CpsGlobalFooterAttributes {
         "userEmail": string;
     }
+    interface CpsGlobalFooterContentAttributes {
+        "userEmail": string;
+    }
     interface CpsGlobalHeaderAttributes {
         "isDcf": boolean;
     }
@@ -389,6 +405,7 @@ declare namespace LocalJSX {
         "cps-global-case-details": CpsGlobalCaseDetails;
         "cps-global-case-locking-notification": CpsGlobalCaseLockingNotification;
         "cps-global-footer": Omit<CpsGlobalFooter, keyof CpsGlobalFooterAttributes> & { [K in keyof CpsGlobalFooter & keyof CpsGlobalFooterAttributes]?: CpsGlobalFooter[K] } & { [K in keyof CpsGlobalFooter & keyof CpsGlobalFooterAttributes as `attr:${K}`]?: CpsGlobalFooterAttributes[K] } & { [K in keyof CpsGlobalFooter & keyof CpsGlobalFooterAttributes as `prop:${K}`]?: CpsGlobalFooter[K] };
+        "cps-global-footer-content": Omit<CpsGlobalFooterContent, keyof CpsGlobalFooterContentAttributes> & { [K in keyof CpsGlobalFooterContent & keyof CpsGlobalFooterContentAttributes]?: CpsGlobalFooterContent[K] } & { [K in keyof CpsGlobalFooterContent & keyof CpsGlobalFooterContentAttributes as `attr:${K}`]?: CpsGlobalFooterContentAttributes[K] } & { [K in keyof CpsGlobalFooterContent & keyof CpsGlobalFooterContentAttributes as `prop:${K}`]?: CpsGlobalFooterContent[K] };
         "cps-global-header": Omit<CpsGlobalHeader, keyof CpsGlobalHeaderAttributes> & { [K in keyof CpsGlobalHeader & keyof CpsGlobalHeaderAttributes]?: CpsGlobalHeader[K] } & { [K in keyof CpsGlobalHeader & keyof CpsGlobalHeaderAttributes as `attr:${K}`]?: CpsGlobalHeaderAttributes[K] } & { [K in keyof CpsGlobalHeader & keyof CpsGlobalHeaderAttributes as `prop:${K}`]?: CpsGlobalHeader[K] };
         "cps-global-home-page-notification": CpsGlobalHomePageNotification;
         "cps-global-menu": CpsGlobalMenu;
@@ -409,6 +426,7 @@ declare module "@stencil/core" {
             "cps-global-case-details": LocalJSX.IntrinsicElements["cps-global-case-details"] & JSXBase.HTMLAttributes<HTMLCpsGlobalCaseDetailsElement>;
             "cps-global-case-locking-notification": LocalJSX.IntrinsicElements["cps-global-case-locking-notification"] & JSXBase.HTMLAttributes<HTMLCpsGlobalCaseLockingNotificationElement>;
             "cps-global-footer": LocalJSX.IntrinsicElements["cps-global-footer"] & JSXBase.HTMLAttributes<HTMLCpsGlobalFooterElement>;
+            "cps-global-footer-content": LocalJSX.IntrinsicElements["cps-global-footer-content"] & JSXBase.HTMLAttributes<HTMLCpsGlobalFooterContentElement>;
             "cps-global-header": LocalJSX.IntrinsicElements["cps-global-header"] & JSXBase.HTMLAttributes<HTMLCpsGlobalHeaderElement>;
             "cps-global-home-page-notification": LocalJSX.IntrinsicElements["cps-global-home-page-notification"] & JSXBase.HTMLAttributes<HTMLCpsGlobalHomePageNotificationElement>;
             "cps-global-menu": LocalJSX.IntrinsicElements["cps-global-menu"] & JSXBase.HTMLAttributes<HTMLCpsGlobalMenuElement>;
