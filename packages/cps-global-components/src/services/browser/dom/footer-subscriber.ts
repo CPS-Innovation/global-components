@@ -21,6 +21,14 @@ export const footerSubscriber: DomMutationObserver = ({ preview, flags, window }
         let cpsGlobalFooter = element.ownerDocument.querySelector<HTMLCpsGlobalFooterElement>("cps-global-footer");
         if (!cpsGlobalFooter) {
           cpsGlobalFooter = window.document.createElement("cps-global-footer");
+        }
+        // Re-anchor on every fire (not just first creation). React-style host
+        // apps remount or relocate <footer> on SPA navigation and the existing
+        // cps-global-footer can be left orphaned at its old position (commonly:
+        // at the top of the new tree). From the top, the GDS footer's bleed
+        // (box-shadow + clip-path) floods the viewport downward and swallows
+        // the page content. Always pin it next to the matched host footer.
+        if (cpsGlobalFooter.previousElementSibling !== element) {
           element.after(cpsGlobalFooter);
         }
         const applyEmail = () => {
