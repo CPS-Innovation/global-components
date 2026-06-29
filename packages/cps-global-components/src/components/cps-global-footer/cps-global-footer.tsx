@@ -6,25 +6,29 @@ import { FOOTER_SKIP_TARGET_ID } from "./footer-skip-target";
 // does not pierce shadow boundaries) while the visible markup + styles still
 // live inside the inner partner's shadow root for host-CSS isolation.
 //
-// The wrapper itself is the focus target — not a hidden heading inside it.
-// History on this is worth keeping because the obvious fix tried previously
-// did not survive contact with JAWS:
+// The focus target is a plain <div> inside the wrapper, not the wrapper's
+// host element. Iteration history is worth keeping because the obvious shapes
+// all failed in distinct ways against JAWS:
 //
-//   - Focusing the wrapper without a role/name made JAWS report "line N"
-//     alone because there was no nameable focus target.
-//   - Focusing the wrapper with role=contentinfo + aria-label drifted to the
-//     inner partner's "Footer links" h2, because the partner's heading was a
-//     stronger anchor than the wrapper's ARIA naming.
-//   - Focusing a visually-hidden h2 inside the wrapper announced "Footer,
-//     heading level 2" correctly — but JAWS appended "line N" as a position
-//     fallback because a clipped 1px element has no visible footprint for
-//     JAWS to anchor "where am I?" against. Users whose JAWS verbosity has
-//     line-numbers off-by-default still hear it in this configuration.
+//   - Focusing the wrapper host with no role/name: JAWS reported "line N"
+//     alone — no nameable focus target.
+//   - Focusing the wrapper host with role=contentinfo + aria-label: JAWS
+//     drifted to the inner partner's "Footer links" h2 — a stronger anchor
+//     than the wrapper's ARIA naming.
+//   - Removing the inner h2 and focusing a visually-hidden h2 inside the
+//     wrapper: announced "Footer, heading level 2" but appended "line N"
+//     because a 1px clipped element has no visible footprint for JAWS to
+//     anchor "where am I?" against.
+//   - Focusing the wrapper host with role=contentinfo + aria-label and no
+//     competing inner h2: JAWS *still* skipped past the wrapper's ARIA and
+//     announced "move to line N, list" (reading the inner <ul>). ARIA on a
+//     custom-element host is not reliably respected.
 //
-// The current shape: wrapper is the focus target, role=contentinfo + aria-label
-// name the landmark, and the inner partner's content (no longer competing
-// with a redundant inner heading) gives JAWS a visible anchor — so the line-N
-// fallback no longer fires.
+// Current shape: wrapper is structural only (display:block for width-sync).
+// A plain <div> inside carries the focus target — JAWS handles role + aria-
+// label on a vanilla HTML element without the custom-element-host caveats,
+// and the visible footer content immediately below it provides the visual
+// anchor that suppresses the line-N positional fallback.
 @Component({
   tag: "cps-global-footer",
   shadow: false,
@@ -35,18 +39,11 @@ export class CpsGlobalFooter {
   // Forwarded straight through to cps-global-footer-content.
   @Prop() userEmail?: string;
 
-  // Pin id + tabindex on the host element so the "Skip to footer" link can
-  // resolve us by id and programmatically focus us. Each guard lets a host
-  // page override (a host-supplied id wins; an explicit display wins). Light-
-  // DOM custom elements default to inline — block is required for
-  // footer-subscriber's width / margin auto writes to apply.
+  // Light-DOM custom elements default to inline, which silently disables
+  // footer-subscriber's style.width and `margin: auto` writes. Pin to block
+  // once, here, so external width sync actually applies. Guarded so a host
+  // page's own inline display wins.
   componentDidLoad() {
-    if (!this.el.id) {
-      this.el.id = FOOTER_SKIP_TARGET_ID;
-    }
-    if (!this.el.hasAttribute("tabindex")) {
-      this.el.tabIndex = -1;
-    }
     if (!this.el.style.display) {
       this.el.style.display = "block";
     }
@@ -54,8 +51,10 @@ export class CpsGlobalFooter {
 
   render() {
     return (
-      <Host role="contentinfo" aria-label="Footer">
-        <cps-global-footer-content userEmail={this.userEmail} />
+      <Host>
+        <div role="contentinfo" aria-label="Footer" tabindex={-1} id={FOOTER_SKIP_TARGET_ID}>
+          <cps-global-footer-content userEmail={this.userEmail} />
+        </div>
       </Host>
     );
   }
