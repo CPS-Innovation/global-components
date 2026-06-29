@@ -25,7 +25,6 @@ export class CpsGlobalFooterContent {
     return (
       <div class={cssClass}>
         <footer class="govuk-footer">
-          <h2 class="govuk-visually-hidden">Footer links</h2>
           <ul class="govuk-footer__inline-list">
             {accessibilityStatement.showLink && (
               <li class="govuk-footer__inline-list-item">
