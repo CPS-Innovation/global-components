@@ -25,12 +25,21 @@ export class CpsGlobalFooter {
   // present, so the "Skip to footer" link can resolve us by id (querySelector
   // does not pierce shadow roots — keeping the target in light DOM is the
   // whole point of the split) and programmatically focus us.
+  //
+  // Also pin display to block: light-DOM custom elements default to inline,
+  // and footer-subscriber sets style.width / margin-left/right: auto — both
+  // of which are no-ops on an inline element. Setting it once here in JS
+  // rather than via a scoped stylesheet keeps this component CSS-free and
+  // ensures it lands before any external width writes.
   componentDidLoad() {
     if (!this.el.id) {
       this.el.id = FOOTER_SKIP_TARGET_ID;
     }
     if (!this.el.hasAttribute("tabindex")) {
       this.el.tabIndex = -1;
+    }
+    if (!this.el.style.display) {
+      this.el.style.display = "block";
     }
   }
 
