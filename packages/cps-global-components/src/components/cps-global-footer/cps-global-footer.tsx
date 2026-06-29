@@ -1,59 +1,48 @@
 import { Component, Element, h, Host, Prop } from "@stencil/core";
-import { readyState } from "../../store/store";
-import { FEATURE_FLAGS } from "cps-global-configuration";
 import { FOOTER_SKIP_TARGET_ID } from "./footer-skip-target";
 
+// Light-DOM wrapper around cps-global-footer-content. Splitting the footer
+// into a light-DOM shell + shadow-DOM partner lets us hand JAWS a focusable,
+// named landmark it can announce on skip-link arrival (a custom element with a
+// shadow root doesn't reliably announce its role/aria-label on focus — the
+// shadow boundary opacifies the focus position, and JAWS falls back to a buffer
+// line number). All the visible markup and style encapsulation still lives
+// inside cps-global-footer-content's shadow root, so host-app CSS can't bleed in.
+//
+// Host apps continue to consume `<cps-global-footer>` as before — the inner
+// partner is a private implementation detail.
 @Component({
   tag: "cps-global-footer",
-  styleUrl: "cps-global-footer.scss",
-  shadow: true,
+  shadow: false,
 })
 export class CpsGlobalFooter {
   @Element() el: HTMLElement;
 
-  // Some host apps render the signed-in user's email in their native footer.
-  // We replace that footer, but e2e tests still expect to find the email in
-  // the DOM — so the subscriber that swaps the footer scrapes it across and
-  // hands it to us as a prop, which we expose via a visually-hidden node.
+  // Forwarded straight through to cps-global-footer-content.
   @Prop() userEmail?: string;
 
+  // Set the skip-target id and tabindex on the host element if not already
+  // present, so the "Skip to footer" link can resolve us by id (querySelector
+  // does not pierce shadow roots — keeping the target in light DOM is the
+  // whole point of the split) and programmatically focus us.
   componentDidLoad() {
     if (!this.el.id) {
       this.el.id = FOOTER_SKIP_TARGET_ID;
     }
+    if (!this.el.hasAttribute("tabindex")) {
+      this.el.tabIndex = -1;
+    }
   }
 
   render() {
-    const { isReady, state } = readyState("config", "preview");
-    const showGovUkRebrand = isReady && FEATURE_FLAGS.shouldShowGovUkRebrand(state);
-    const accessibilityStatement = isReady ? FEATURE_FLAGS.accessibilityStatementLink(state) : { showLink: false, url: undefined };
-    const cssClass = `${showGovUkRebrand ? "govuk-template--rebranded" : ""} ${showGovUkRebrand === "cps" ? "cps-theme" : ""}`;
-    // role+aria-label on the host turn the focus target into a proper landmark
-    // so screen readers announce "Footer, content info" when the skip link
-    // moves focus here, rather than e.g. "move to line 44". Role lives on the
-    // host (not the inner <footer>) to avoid duplicate landmarks: the skip
-    // link focuses the host, so that's where the announcement must land.
+    // role+aria-label on the host turn this element into a proper landmark so
+    // screen readers announce "Footer, content info" when the skip link moves
+    // focus here, rather than e.g. "move to line 35". The inner partner
+    // intentionally does NOT also declare a contentinfo landmark — we want a
+    // single, focusable landmark, and it lives here on the light-DOM shell.
     return (
       <Host role="contentinfo" aria-label="Footer">
-        <div class={cssClass}>
-          <footer class="govuk-footer">
-            <h2 class="govuk-visually-hidden">Footer links</h2>
-            <ul class="govuk-footer__inline-list">
-              {accessibilityStatement.showLink && (
-                <li class="govuk-footer__inline-list-item">
-                  <a class="govuk-footer__link" href={accessibilityStatement.url} target="_blank" rel="noopener noreferrer">
-                    Accessibility statement (opens in new tab)
-                  </a>
-                </li>
-              )}
-            </ul>
-            {this.userEmail && (
-              <span class="govuk-visually-hidden" data-user-email aria-hidden="true">
-                {this.userEmail}
-              </span>
-            )}
-          </footer>
-        </div>
+        <cps-global-footer-content userEmail={this.userEmail} />
       </Host>
     );
   }
