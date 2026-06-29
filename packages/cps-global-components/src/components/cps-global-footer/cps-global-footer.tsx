@@ -1,27 +1,30 @@
 import { Component, Element, h, Host, Prop } from "@stencil/core";
 import { FOOTER_SKIP_TARGET_ID } from "./footer-skip-target";
 
-// Light-DOM wrapper around cps-global-footer-content. Splitting the footer
-// into a light-DOM shell + shadow-DOM partner lets us hand JAWS a focusable,
-// named element it can announce on skip-link arrival. The visible markup and
-// style encapsulation still live inside cps-global-footer-content's shadow
-// root, so host-app CSS can't bleed in.
+// Light-DOM wrapper around cps-global-footer-content. The split exists so the
+// skip-link target is queryable from outside any shadow root (querySelector
+// does not pierce shadow boundaries) while the visible markup + styles still
+// live inside the inner partner's shadow root for host-CSS isolation.
 //
-// The focus target itself is a visually-hidden <h2> inside the wrapper, not
-// the host element. Reasons:
-//   - JAWS announces headings extremely reliably (role + name + level), where
-//     a focusable custom-element host with role=contentinfo + aria-label often
-//     gets overlooked: AT support for ARIA on undefined-element hosts is
-//     inconsistent, and a heading inside the landmark is a stronger signal
-//     than a label on it. Without the heading focus target, JAWS reached for
-//     the next strongest name in scope — the inner partner's "Footer links"
-//     h2 — and announced that instead of moving to the footer.
-//   - querySelector doesn't pierce shadow roots, so a heading inside the
-//     inner partner is unreachable from cps-skip-link. Keeping the heading
-//     in the wrapper's light DOM is what makes the skip target queryable.
+// The wrapper itself is the focus target — not a hidden heading inside it.
+// History on this is worth keeping because the obvious fix tried previously
+// did not survive contact with JAWS:
 //
-// Host apps continue to consume `<cps-global-footer>` as before — the inner
-// partner is a private implementation detail.
+//   - Focusing the wrapper without a role/name made JAWS report "line N"
+//     alone because there was no nameable focus target.
+//   - Focusing the wrapper with role=contentinfo + aria-label drifted to the
+//     inner partner's "Footer links" h2, because the partner's heading was a
+//     stronger anchor than the wrapper's ARIA naming.
+//   - Focusing a visually-hidden h2 inside the wrapper announced "Footer,
+//     heading level 2" correctly — but JAWS appended "line N" as a position
+//     fallback because a clipped 1px element has no visible footprint for
+//     JAWS to anchor "where am I?" against. Users whose JAWS verbosity has
+//     line-numbers off-by-default still hear it in this configuration.
+//
+// The current shape: wrapper is the focus target, role=contentinfo + aria-label
+// name the landmark, and the inner partner's content (no longer competing
+// with a redundant inner heading) gives JAWS a visible anchor — so the line-N
+// fallback no longer fires.
 @Component({
   tag: "cps-global-footer",
   shadow: false,
@@ -32,46 +35,26 @@ export class CpsGlobalFooter {
   // Forwarded straight through to cps-global-footer-content.
   @Prop() userEmail?: string;
 
-  // Light-DOM custom elements default to inline, which silently disables
-  // footer-subscriber's style.width and `margin: auto` writes. Pin to block
-  // once, here, so external width sync actually applies. Guarded so a host
-  // page's own inline display wins.
+  // Pin id + tabindex on the host element so the "Skip to footer" link can
+  // resolve us by id and programmatically focus us. Each guard lets a host
+  // page override (a host-supplied id wins; an explicit display wins). Light-
+  // DOM custom elements default to inline — block is required for
+  // footer-subscriber's width / margin auto writes to apply.
   componentDidLoad() {
+    if (!this.el.id) {
+      this.el.id = FOOTER_SKIP_TARGET_ID;
+    }
+    if (!this.el.hasAttribute("tabindex")) {
+      this.el.tabIndex = -1;
+    }
     if (!this.el.style.display) {
       this.el.style.display = "block";
     }
   }
 
   render() {
-    // role=contentinfo + aria-label name the landmark for D-key landmark nav.
-    // The same label appears as the h2 text below; either could change first
-    // without breaking the other.
-    //
-    // Visually-hidden styles are inlined rather than relying on the GDS
-    // `govuk-visually-hidden` class: this h2 lives in the wrapper's light DOM
-    // (so cps-skip-link can find it via querySelector), and we cannot assume
-    // the host page has loaded govuk-frontend at document scope. Without the
-    // rule the h2 would render as a visible "Footer" heading above the
-    // content. The rule below is the standard WCAG visually-hidden recipe.
     return (
       <Host role="contentinfo" aria-label="Footer">
-        <h2
-          id={FOOTER_SKIP_TARGET_ID}
-          tabindex={-1}
-          style={{
-            position: "absolute",
-            width: "1px",
-            height: "1px",
-            margin: "0",
-            padding: "0",
-            overflow: "hidden",
-            clip: "rect(0 0 0 0)",
-            whiteSpace: "nowrap",
-            border: "0",
-          }}
-        >
-          Footer
-        </h2>
         <cps-global-footer-content userEmail={this.userEmail} />
       </Host>
     );
