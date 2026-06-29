@@ -1,4 +1,4 @@
-import { Component, Element, h, Prop } from "@stencil/core";
+import { Component, Element, h, Host, Prop } from "@stencil/core";
 import { readyState } from "../../store/store";
 import { FEATURE_FLAGS } from "cps-global-configuration";
 import { FOOTER_SKIP_TARGET_ID } from "./footer-skip-target";
@@ -28,26 +28,33 @@ export class CpsGlobalFooter {
     const showGovUkRebrand = isReady && FEATURE_FLAGS.shouldShowGovUkRebrand(state);
     const accessibilityStatement = isReady ? FEATURE_FLAGS.accessibilityStatementLink(state) : { showLink: false, url: undefined };
     const cssClass = `${showGovUkRebrand ? "govuk-template--rebranded" : ""} ${showGovUkRebrand === "cps" ? "cps-theme" : ""}`;
+    // role+aria-label on the host turn the focus target into a proper landmark
+    // so screen readers announce "Footer, content info" when the skip link
+    // moves focus here, rather than e.g. "move to line 44". Role lives on the
+    // host (not the inner <footer>) to avoid duplicate landmarks: the skip
+    // link focuses the host, so that's where the announcement must land.
     return (
-      <div class={cssClass}>
-        <footer class="govuk-footer" role="contentinfo">
-          <h2 class="govuk-visually-hidden">Footer links</h2>
-          <ul class="govuk-footer__inline-list">
-            {accessibilityStatement.showLink && (
-              <li class="govuk-footer__inline-list-item">
-                <a class="govuk-footer__link" href={accessibilityStatement.url} target="_blank" rel="noopener noreferrer">
-                  Accessibility statement (opens in new tab)
-                </a>
-              </li>
+      <Host role="contentinfo" aria-label="Footer">
+        <div class={cssClass}>
+          <footer class="govuk-footer">
+            <h2 class="govuk-visually-hidden">Footer links</h2>
+            <ul class="govuk-footer__inline-list">
+              {accessibilityStatement.showLink && (
+                <li class="govuk-footer__inline-list-item">
+                  <a class="govuk-footer__link" href={accessibilityStatement.url} target="_blank" rel="noopener noreferrer">
+                    Accessibility statement (opens in new tab)
+                  </a>
+                </li>
+              )}
+            </ul>
+            {this.userEmail && (
+              <span class="govuk-visually-hidden" data-user-email aria-hidden="true">
+                {this.userEmail}
+              </span>
             )}
-          </ul>
-          {this.userEmail && (
-            <span class="govuk-visually-hidden" data-user-email aria-hidden="true">
-              {this.userEmail}
-            </span>
-          )}
-        </footer>
-      </div>
+          </footer>
+        </div>
+      </Host>
     );
   }
 }
