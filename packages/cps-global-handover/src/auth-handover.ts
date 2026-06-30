@@ -20,6 +20,7 @@ import {
   fetchState,
   HANDOVER_PARAM_KEYS,
   HANDOVER_STAGES,
+  Me,
   Preview,
   PreviewSchema,
   Result,
@@ -126,6 +127,7 @@ const tryPutAuthHint = async (
 const buildAuthHintFromAccount = (
   account: { username?: string; name?: string; localAccountId?: string; idTokenClaims?: unknown },
   sid: string | undefined,
+  me: Me | undefined,
 ): AuthHint | undefined => {
   if (!account.username || !account.localAccountId) {
     return undefined;
@@ -137,6 +139,11 @@ const buildAuthHintFromAccount = (
       name: account.name,
       objectId: account.localAccountId,
       groups: ((account.idTokenClaims as { groups?: string[] } | undefined)?.groups) ?? [],
+      // Carry the freshly-fetched /me slice so the host reads department from
+      // the hint without re-hitting Graph. Omitted when getMe soft-failed —
+      // rather than persisting a stale value, we leave it out and the host
+      // re-fetches via its own !knownMe branch.
+      ...(me ? { me } : {}),
     },
     timestamp: Date.now(),
     ...(sid ? { lastKnownSid: sid } : {}),
@@ -310,6 +317,7 @@ export const dispatchHandover = async (
           const freshHint = buildAuthHintFromAccount(
             result.account,
             result.sid,
+            result.me,
           );
           if (freshHint) {
             await tryPutAuthHint(scriptUrl, freshHint);

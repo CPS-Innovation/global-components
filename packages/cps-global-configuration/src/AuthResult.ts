@@ -8,12 +8,24 @@ import { z } from "zod";
 //   "ADPreventedByContext"). The two are intentionally decoupled today so the
 //   library can stay free of an explicit dependency on this package.
 
+// Selected Microsoft Graph /me profile fields. Fetched once on the cold auth
+// establishment (see cps-global-auth get-me) and persisted via AuthHint so warm
+// loads reuse it without re-hitting Graph. Modelled as an object (rather than a
+// bare `department` string) so further /me fields can be added by extending the
+// $select and this schema, with no reshape.
+export const MeSchema = z.object({
+  department: z.string().optional(),
+});
+
+export type Me = z.infer<typeof MeSchema>;
+
 export const AuthSchema = z.object({
   isAuthed: z.literal(true),
   username: z.string(),
   name: z.string().optional(),
   objectId: z.string(),
   groups: z.array(z.string()),
+  me: MeSchema.optional(),
 });
 
 export type Auth = z.infer<typeof AuthSchema>;
