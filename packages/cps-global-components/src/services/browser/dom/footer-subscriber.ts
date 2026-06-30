@@ -93,8 +93,8 @@ const wireWidthSync = (cpsGlobalFooter: HTMLElement, doc: Document, win: Window)
   checkAndBindHeader();
 };
 
-export const footerSubscriber: DomMutationObserver = ({ preview, flags, window }) => ({
-  isActiveForContext: FEATURE_FLAGS.shouldShimFooter({ preview, flags }),
+export const footerSubscriber: DomMutationObserver = ({ preview, flags, config, window }) => ({
+  isActiveForContext: FEATURE_FLAGS.shouldShimFooter({ config, preview, flags }),
   subscriptions: [
     {
       cssSelector: "footer",

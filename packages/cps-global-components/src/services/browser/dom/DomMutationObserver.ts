@@ -1,4 +1,4 @@
-import { ApplicationFlags, FoundContext, Preview, Settings } from "cps-global-configuration";
+import { ApplicationFlags, Config, FoundContext, Preview, Settings } from "cps-global-configuration";
 import { MergeTags, Register } from "../../../store/store";
 import { Result } from "../../../utils/Result";
 
@@ -10,6 +10,7 @@ export type DomMutationObserver = ({
   preview,
   settings,
   flags,
+  config,
 }: {
   context: FoundContext;
   register: Register;
@@ -18,6 +19,7 @@ export type DomMutationObserver = ({
   preview: Result<Preview>;
   settings: Result<Settings>;
   flags: ApplicationFlags;
+  config: Config;
 }) => {
   isActiveForContext: boolean;
   subscriptions: {
