@@ -1,4 +1,4 @@
-import { ApplicationFlags, FoundContext, Preview, Settings } from "cps-global-configuration";
+import { ApplicationFlags, Config, FoundContext, Preview, Settings } from "cps-global-configuration";
 import { makeConsole } from "../../../logging/makeConsole";
 import { MergeTags, Register } from "../../../store/store";
 import { DomMutationObserver } from "./DomMutationObserver";
@@ -17,7 +17,8 @@ export const initialiseDomObservation = (
     preview,
     settings,
     flags,
-  }: { window: Window; register: Register; mergeTags: MergeTags; preview: Result<Preview>; settings: Result<Settings>; flags: ApplicationFlags },
+    config,
+  }: { window: Window; register: Register; mergeTags: MergeTags; preview: Result<Preview>; settings: Result<Settings>; flags: ApplicationFlags; config: Config },
   ...subscribers: DomMutationObserver[]
 ) => {
   let activeSubscriptions: Subscription[] = [];
@@ -56,7 +57,7 @@ export const initialiseDomObservation = (
       activeSubscriptions.forEach(subscription => unBindHandler(subscription));
 
       subscribers.forEach(subscriber => {
-        const { isActiveForContext, subscriptions } = subscriber({ context, register, mergeTags, window, preview, settings, flags });
+        const { isActiveForContext, subscriptions } = subscriber({ context, register, mergeTags, window, preview, settings, flags, config });
         subscriptions.forEach(subscription => (isActiveForContext ? bindHandler(subscription) : unBindHandler(subscription)));
       });
       log("Subscriptions set up.");

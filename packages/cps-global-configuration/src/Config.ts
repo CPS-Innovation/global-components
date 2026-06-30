@@ -215,6 +215,12 @@ export const configBaseSchema = z.object({
   // kill the probe en masse for an environment. Absent is treated as off by the consumer, so
   // keep it set true in each env config.
   PROBE_DARK_READER_USAGE: z.boolean().optional(),
+  // Broad on/off (GA gate) for the footer shim — the DOM surgery that hides the
+  // host <footer> and swaps in cps-global-footer. ORs with the per-user preview
+  // flag and local-dev: true switches the shim on for everyone, false reverts to
+  // preview opt-ins + local dev only. Kept as an env-config kill-switch so ops can
+  // cut the feature instantly if it misbehaves in prod, without a code change.
+  FOOTER_SHIM_ENABLED: z.boolean().optional(),
   SSO_SILENT_DELAY_MS: z.number().optional(),
   CACHE_CONFIG: cacheConfigSchema.optional(),
   FETCH_CIRCUIT_BREAKER_CONFIG: fetchCircuitBreakerConfigSchema.optional(),

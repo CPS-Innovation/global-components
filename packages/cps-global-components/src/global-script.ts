@@ -90,7 +90,7 @@ const initialise = async (window: Window & typeof globalThis) => {
     const { initialiseCaseLockingForContext, witnessAreaSubscriber } = initialiseCaseLocking({ window, config, preview, register });
 
     const { initialiseDomForContext } = initialiseDomObservation(
-      { window, register, mergeTags, preview, settings, flags },
+      { window, register, mergeTags, preview, settings, flags, config },
       domTagMutationSubscriber,
       footerSubscriber,
       hostAppEventSubscriber,

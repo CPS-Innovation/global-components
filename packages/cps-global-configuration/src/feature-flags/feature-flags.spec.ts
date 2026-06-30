@@ -109,6 +109,58 @@ describe("FEATURE_FLAGS", () => {
     });
   });
 
+  describe("shouldShimFooter", () => {
+    it("should return true when config.FOOTER_SHIM_ENABLED is true (GA gate, on for everyone)", () => {
+      const state = {
+        preview: { found: true as const, result: {} },
+        flags: {} as ApplicationFlags,
+        config: { FOOTER_SHIM_ENABLED: true } as any,
+      };
+
+      expect(FEATURE_FLAGS.shouldShimFooter(state)).toBe(true);
+    });
+
+    it("should return true when preview footer is set even though config gate is off", () => {
+      const state = {
+        preview: { found: true as const, result: { footer: true } },
+        flags: {} as ApplicationFlags,
+        config: { FOOTER_SHIM_ENABLED: false } as any,
+      };
+
+      expect(FEATURE_FLAGS.shouldShimFooter(state)).toBe(true);
+    });
+
+    it("should return true in local dev even though config gate is off and no preview opt-in", () => {
+      const state = {
+        preview: { found: true as const, result: {} },
+        flags: { isLocalDevelopment: true } as ApplicationFlags,
+        config: { FOOTER_SHIM_ENABLED: false } as any,
+      };
+
+      expect(FEATURE_FLAGS.shouldShimFooter(state)).toBe(true);
+    });
+
+    it("should return false when the config gate is off, no preview opt-in, and not local dev (emergency rollback)", () => {
+      const state = {
+        preview: { found: true as const, result: {} },
+        flags: {} as ApplicationFlags,
+        config: { FOOTER_SHIM_ENABLED: false } as any,
+      };
+
+      expect(FEATURE_FLAGS.shouldShimFooter(state)).toBe(false);
+    });
+
+    it("should return false when the config gate is absent, no preview opt-in, and not local dev", () => {
+      const state = {
+        preview: { found: true as const, result: {} },
+        flags: {} as ApplicationFlags,
+        config: {} as any,
+      };
+
+      expect(FEATURE_FLAGS.shouldShimFooter(state)).toBe(false);
+    });
+  });
+
   describe("shouldShowCaseDetails", () => {
     it("should return 'a' when preview caseMarkers is 'a'", () => {
       const state = {
