@@ -128,6 +128,11 @@
           "preventPageViewAnalytics": true
         },
         {
+          "path": "https://polaris-qa-notprod.cps.gov.uk/global-components/dev/accessibility/",
+          "contextIds": "accessibility-statement",
+          "preventADAndDataCalls": true
+        },
+        {
           "path": "https://polaris",
           "contextIds": "cases materials-cwa"
         }
