@@ -23,7 +23,9 @@ export { CmsSessionHintSchema, type CmsSessionHint } from "./CmsSessionHint";
 export { transformAndValidateConfig, type ValidationResult } from "./validator";
 export {
   AuthSchema,
+  MeSchema,
   type Auth,
+  type Me,
   type AuthResult,
   type FailedAuth,
   type KnownErrorType,
