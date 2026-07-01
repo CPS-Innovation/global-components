@@ -33,10 +33,7 @@
   "RECENT_CASES_NAVIGATE_URL": "https://cps-tst1.outsystemsenterprise.com/WorkManagementApp/CaseOverview?CaseId={caseId}",
   "RECENT_CASES_LIST_LENGTH": 5,
   "FEATURE_FLAG_MENU_USERS": {
-    "adGroupIds": [
-      "e9abbdb6-b6e9-4972-90fb-79d3140df840",
-      "1e5874e3-1c88-4506-8b9f-4f469acc1a42"
-    ]
+    "generallyAvailable": true
   },
   "FEATURE_FLAG_USE_MSAL_FULL_REDIRECT_USERS": {
     "generallyAvailable": true
