@@ -33,12 +33,20 @@ export type KnownErrorType =
   | "RedirectInFlight"
   | "Unknown";
 
+// Selected Microsoft Graph /me profile fields (see get-me). Structurally paired
+// with cps-global-configuration's MeSchema — kept as an object so further
+// fields can be added without reshaping the auth result.
+export type Me = {
+  department?: string;
+};
+
 export type Auth = {
   isAuthed: true;
   username: string;
   name?: string;
   objectId: string;
   groups: string[];
+  me?: Me;
 };
 
 export type FailedAuth = {
