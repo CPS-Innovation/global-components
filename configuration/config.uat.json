@@ -137,6 +137,11 @@
           "preventPageViewAnalytics": true
         },
         {
+          "path": "https://polaris-uat-notprod.cps.gov.uk/global-components/uat/accessibility/",
+          "contextIds": "accessibility-statement",
+          "preventADAndDataCalls": true
+        },
+        {
           "path": "https://polaris",
           "contextIds": "cases materials-search materials-cwa"
         }
