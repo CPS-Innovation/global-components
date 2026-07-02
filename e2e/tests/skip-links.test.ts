@@ -88,7 +88,7 @@ describe("Skip links", () => {
     // Give the subscriber a moment; search/list targets are absent so they must stay hidden.
     await new Promise(r => setTimeout(r, 300));
 
-    // "Skip to footer" is always present when the shim flag is on (true under e2e/local-dev).
+    // "Skip to footer" is always present — it is rendered unconditionally, not gated on any flag.
     expect(await getSkipLinkTexts()).toEqual(["Skip to main content", "Skip to footer"]);
     // With no mainSelector, cps-skip-links synthesises the fallback target.
     expect(await fallbackTargetExists()).toBe(true);
