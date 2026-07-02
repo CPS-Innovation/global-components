@@ -1,7 +1,8 @@
 import { PublicClientApplication } from "@azure/msal-browser";
 import { createMsalInstance } from "./internal/create-msal-instance";
-import { AuthResult, KnownErrorType } from "./AuthResult";
+import { AuthResult, KnownErrorType, Me } from "./AuthResult";
 import { getAdUserAccount } from "./get-ad-user-account";
+import { getMe } from "./get-me";
 import { getErrorType } from "./get-error-type";
 import { getTokenFactory } from "./get-token-factory";
 import { GetToken } from "./GetToken";
@@ -35,6 +36,11 @@ type Props = {
   // loginRedirect cascade. Resolved by the host's feature-flag layer; the auth
   // library treats it as an opaque on/off and stays agnostic of how it is set.
   useFullPageRedirect?: boolean;
+  // The last-known /me profile slice, replayed from the host's AuthHint. When
+  // present we skip the Graph /me call entirely (warm path); when absent (cold
+  // establishment, ~once a day) we fetch it. Graph never caches the /me
+  // response, so this is the only thing that keeps us off Graph on every load.
+  knownMe?: Me;
   window: Window;
 };
 
@@ -74,6 +80,7 @@ export const initialiseAdAuth = async ({
   context: { msalRedirectUrl: redirectUri, currentHref },
   logError,
   useFullPageRedirect,
+  knownMe,
   window,
 }: Props): Promise<InitialiseAdAuthResult> => {
   if (!(authority && clientId && redirectUri && currentHref)) {
@@ -122,6 +129,20 @@ export const initialiseAdAuth = async ({
     }
 
     const sid = (account.idTokenClaims as { sid?: string } | undefined)?.sid;
+    // Establish the /me slice here, alongside the account — not as a lazy
+    // callable like getToken (which is lazy only because a token refresh may be
+    // needed at call time). department is a fixed attribute, refreshed only on a
+    // genuine AD re-establishment: mechanism "silent" (ssoSilent — fires when
+    // the ~daily SPA refresh token has expired and AAD re-issues a fresh
+    // id_token). A "cache" mechanism (cached access token OR the routine ~hourly
+    // refresh-token→access-token exchange) reuses knownMe and never hits Graph.
+    // redirect-success likewise rides the hint — the handover refreshed /me on
+    // the bounce-back. `!knownMe` covers the very first load with nothing cached.
+    // On a failed refetch we keep the stale knownMe rather than dropping it.
+    const me =
+      mechanism === "silent" || !knownMe
+        ? ((await getMe({ instance, account, logError })) ?? knownMe)
+        : knownMe;
     return {
       auth: {
         isAuthed: true,
@@ -129,6 +150,7 @@ export const initialiseAdAuth = async ({
         name: account.name,
         objectId: account.localAccountId,
         groups: (account.idTokenClaims?.["groups"] as string[]) || [],
+        ...(me ? { me } : {}),
       },
       getToken: getTokenFactory({ instance, logError }),
       ...(sid ? { lastKnownSid: sid } : {}),

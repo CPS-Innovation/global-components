@@ -67,7 +67,7 @@ export class CpsSkipLinks {
 
   @WithLogging("CpsSkipLinks")
   render() {
-    const { isReady, state } = readyState(["context", "preview", "flags"], ["skipLinkTargets"]);
+    const { isReady, state } = readyState(["context", "preview", "flags", "config"], ["skipLinkTargets"]);
     if (!isReady) {
       this.fallbackNeeded = undefined;
       return <></>;

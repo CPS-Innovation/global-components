@@ -1,58 +1,59 @@
 import { Component, Element, h, Host, Prop } from "@stencil/core";
-import { readyState } from "../../store/store";
-import { FEATURE_FLAGS } from "cps-global-configuration";
 import { FOOTER_SKIP_TARGET_ID } from "./footer-skip-target";
 
+// Light-DOM wrapper around cps-global-footer-content. The split exists so the
+// skip-link target is queryable from outside any shadow root (querySelector
+// does not pierce shadow boundaries) while the visible markup + styles still
+// live inside the inner partner's shadow root for host-CSS isolation.
+//
+// The focus target is a plain <div> inside the wrapper, not the wrapper's
+// host element. Iteration history is worth keeping because the obvious shapes
+// all failed in distinct ways against JAWS:
+//
+//   - Focusing the wrapper host with no role/name: JAWS reported "line N"
+//     alone — no nameable focus target.
+//   - Focusing the wrapper host with role=contentinfo + aria-label: JAWS
+//     drifted to the inner partner's "Footer links" h2 — a stronger anchor
+//     than the wrapper's ARIA naming.
+//   - Removing the inner h2 and focusing a visually-hidden h2 inside the
+//     wrapper: announced "Footer, heading level 2" but appended "line N"
+//     because a 1px clipped element has no visible footprint for JAWS to
+//     anchor "where am I?" against.
+//   - Focusing the wrapper host with role=contentinfo + aria-label and no
+//     competing inner h2: JAWS *still* skipped past the wrapper's ARIA and
+//     announced "move to line N, list" (reading the inner <ul>). ARIA on a
+//     custom-element host is not reliably respected.
+//
+// Current shape: wrapper is structural only (display:block for width-sync).
+// A plain <div> inside carries the focus target — JAWS handles role + aria-
+// label on a vanilla HTML element without the custom-element-host caveats,
+// and the visible footer content immediately below it provides the visual
+// anchor that suppresses the line-N positional fallback.
 @Component({
   tag: "cps-global-footer",
-  styleUrl: "cps-global-footer.scss",
-  shadow: true,
+  shadow: false,
 })
 export class CpsGlobalFooter {
   @Element() el: HTMLElement;
 
-  // Some host apps render the signed-in user's email in their native footer.
-  // We replace that footer, but e2e tests still expect to find the email in
-  // the DOM — so the subscriber that swaps the footer scrapes it across and
-  // hands it to us as a prop, which we expose via a visually-hidden node.
+  // Forwarded straight through to cps-global-footer-content.
   @Prop() userEmail?: string;
 
+  // Light-DOM custom elements default to inline, which silently disables
+  // footer-subscriber's style.width and `margin: auto` writes. Pin to block
+  // once, here, so external width sync actually applies. Guarded so a host
+  // page's own inline display wins.
   componentDidLoad() {
-    if (!this.el.id) {
-      this.el.id = FOOTER_SKIP_TARGET_ID;
+    if (!this.el.style.display) {
+      this.el.style.display = "block";
     }
   }
 
   render() {
-    const { isReady, state } = readyState("config", "preview");
-    const showGovUkRebrand = isReady && FEATURE_FLAGS.shouldShowGovUkRebrand(state);
-    const accessibilityStatement = isReady ? FEATURE_FLAGS.accessibilityStatementLink(state) : { showLink: false, url: undefined };
-    const cssClass = `${showGovUkRebrand ? "govuk-template--rebranded" : ""} ${showGovUkRebrand === "cps" ? "cps-theme" : ""}`;
-    // role+aria-label on the host turn the focus target into a proper landmark
-    // so screen readers announce "Footer, content info" when the skip link
-    // moves focus here, rather than e.g. "move to line 44". Role lives on the
-    // host (not the inner <footer>) to avoid duplicate landmarks: the skip
-    // link focuses the host, so that's where the announcement must land.
     return (
-      <Host role="contentinfo" aria-label="Footer">
-        <div class={cssClass}>
-          <footer class="govuk-footer">
-            <h2 class="govuk-visually-hidden">Footer links</h2>
-            <ul class="govuk-footer__inline-list">
-              {accessibilityStatement.showLink && (
-                <li class="govuk-footer__inline-list-item">
-                  <a class="govuk-footer__link" href={accessibilityStatement.url} target="_blank" rel="noopener noreferrer">
-                    Accessibility statement (opens in new tab)
-                  </a>
-                </li>
-              )}
-            </ul>
-            {this.userEmail && (
-              <span class="govuk-visually-hidden" data-user-email aria-hidden="true">
-                {this.userEmail}
-              </span>
-            )}
-          </footer>
+      <Host>
+        <div role="contentinfo" aria-label="Footer" tabindex={-1} id={FOOTER_SKIP_TARGET_ID}>
+          <cps-global-footer-content userEmail={this.userEmail} />
         </div>
       </Host>
     );

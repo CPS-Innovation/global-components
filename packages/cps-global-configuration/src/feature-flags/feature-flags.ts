@@ -39,10 +39,12 @@ const shouldEnableAccessibilityMode = ({ preview, flags }: FlagInputs) =>
   !!(preview?.result?.accessibility || flags?.isLocalDevelopment);
 
 // Used by the DOM subscriber that swaps host <footer>s for cps-global-footer.
-// In prod the per-host opt-in comes via preview; in local dev we always want
-// the swap so the harness exercises it without preview wiring.
-const shouldShimFooter = ({ preview, flags }: Pick<FlagInputs, "preview" | "flags">) =>
-  !!preview?.result?.footer || !!flags?.isLocalDevelopment;
+// FOOTER_SHIM_ENABLED is the env-config GA gate (on for everyone); it ORs with
+// the per-user preview opt-in and the local-dev default, so flipping it to false
+// reverts to preview opt-ins + local dev only — the pre-GA behaviour — without a
+// code change.
+const shouldShimFooter = ({ config, preview, flags }: Pick<FlagInputs, "config" | "preview" | "flags">) =>
+  !!config.FOOTER_SHIM_ENABLED || !!preview?.result?.footer || !!flags?.isLocalDevelopment;
 
 const shouldShowGovUkRebrand = ({ preview, config }: FlagInputs): Preview["newHeader"] =>
   preview?.result?.newHeader ?? config.SHOW_HEADER_REBRAND;

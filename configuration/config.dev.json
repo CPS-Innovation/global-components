@@ -41,6 +41,7 @@
   "BEACON_AD_REDIRECT_FAILURES_ENABLED": true,
   "OS_TRIAGE_REQUEST_OBSERVATION_ENABLED": true,
   "PROBE_DARK_READER_USAGE": true,
+  "FOOTER_SHIM_ENABLED": true,
   "SSO_SILENT_DELAY_MS": 2000,
   "CONTEXTS": [
     {
@@ -125,6 +126,11 @@
           "path": "https://polaris-qa-notprod.cps.gov.uk/(?:polaris-ui|materials-ui)/go\\?",
           "contextIds": "redirect materials-cwa",
           "preventPageViewAnalytics": true
+        },
+        {
+          "path": "https://polaris-qa-notprod.cps.gov.uk/global-components/dev/accessibility/",
+          "contextIds": "accessibility-statement",
+          "preventADAndDataCalls": true
         },
         {
           "path": "https://polaris",

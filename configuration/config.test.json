@@ -33,10 +33,7 @@
   "RECENT_CASES_NAVIGATE_URL": "https://cps-tst.outsystemsenterprise.com/WorkManagementApp/CaseOverview?CaseId={caseId}",
   "RECENT_CASES_LIST_LENGTH": 5,
   "FEATURE_FLAG_MENU_USERS": {
-    "adGroupIds": [
-      "e9abbdb6-b6e9-4972-90fb-79d3140df840",
-      "1e5874e3-1c88-4506-8b9f-4f469acc1a42"
-    ]
+    "generallyAvailable": true
   },
   "FEATURE_FLAG_USE_MSAL_FULL_REDIRECT_USERS": {
     "generallyAvailable": true
@@ -45,6 +42,7 @@
   "BEACON_AD_REDIRECT_FAILURES_ENABLED": true,
   "OS_TRIAGE_REQUEST_OBSERVATION_ENABLED": true,
   "PROBE_DARK_READER_USAGE": true,
+  "FOOTER_SHIM_ENABLED": true,
   "SSO_SILENT_DELAY_MS": 2000,
   "USER_DATA_REFRESH_PERIOD_MINS": 5,
   "PROBE_IFRAME_BASE_URL": "https://sacpsglobalcomponents.blob.core.windows.net",
@@ -134,6 +132,11 @@
           "path": "https://polaris-qa-notprod.cps.gov.uk/(?:polaris-ui|materials-ui)/go\\?",
           "contextIds": "redirect materials-cwa",
           "preventPageViewAnalytics": true
+        },
+        {
+          "path": "https://polaris-qa-notprod.cps.gov.uk/global-components/test/accessibility/",
+          "contextIds": "accessibility-statement",
+          "preventADAndDataCalls": true
         },
         {
           "path": "https://polaris",

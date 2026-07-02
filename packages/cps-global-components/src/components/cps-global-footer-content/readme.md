@@ -1,4 +1,4 @@
-# cps-global-footer
+# cps-global-footer-content
 
 
 
@@ -14,15 +14,15 @@
 
 ## Dependencies
 
-### Depends on
+### Used by
 
-- [cps-global-footer-content](../cps-global-footer-content)
+ - [cps-global-footer](../cps-global-footer)
 
 ### Graph
 ```mermaid
 graph TD;
   cps-global-footer --> cps-global-footer-content
-  style cps-global-footer fill:#f9f,stroke:#333,stroke-width:4px
+  style cps-global-footer-content fill:#f9f,stroke:#333,stroke-width:4px
 ```
 
 ----------------------------------------------

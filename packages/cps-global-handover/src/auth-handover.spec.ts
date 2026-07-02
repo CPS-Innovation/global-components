@@ -515,6 +515,7 @@ describe("dispatchHandover", () => {
           idTokenClaims: { groups: ["g1", "g2"] },
         } as never,
         sid: "session-id-abc",
+        me: { department: "Innovation" },
         returnTo: "https://cps-tst.outsystemsenterprise.com/casework_blocks/home",
       });
       const win = makeWindow(
@@ -534,6 +535,9 @@ describe("dispatchHandover", () => {
       expect(body.authResult.username).toBe("stefan.stachow@cps.gov.uk");
       expect(body.authResult.objectId).toBe("obj-123");
       expect(body.authResult.groups).toEqual(["g1", "g2"]);
+      // The /me slice fetched on the bounce-back is baked into the written hint
+      // so the host reads department without re-hitting Graph.
+      expect(body.authResult.me).toEqual({ department: "Innovation" });
       expect(body.lastKnownSid).toBe("session-id-abc");
       expect(typeof body.timestamp).toBe("number");
     });

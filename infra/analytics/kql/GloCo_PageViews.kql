@@ -31,6 +31,10 @@ AppPageViews
     Auth_Username       = tostring(Auth.Username),
     Auth_ObjectId       = tostring(Auth.ObjectId),
     Auth_KnownErrorType = iff(isnotempty(Auth), tostring(Auth.KnownErrorType), "NoAuthObjectInAnalytics"),
+    // Entra department from Graph /me (nested under Auth.Me). Blank for events
+    // predating FCT2-20235, for users with no directory department, and until a
+    // genuine AD re-establishment has populated it into the auth hint.
+    Auth_Department     = tostring(Auth.Me.Department),
     Build_Sha       = tostring(Build.Sha),
     Build_RunId     = tostring(Build.RunId),
     Build_Timestamp = todatetime(Build.Timestamp),
