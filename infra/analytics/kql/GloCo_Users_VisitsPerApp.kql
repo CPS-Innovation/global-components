@@ -11,13 +11,29 @@ let CaseReviewsSubmitted = GloCo_PageViews_CaseReview
 | where Auth_IsAuthed
 | where Is_Submitted_First_Review or Is_Submitted_Subsequent_Review or Is_Admin_Finalise
 | summarize ["Case reviews submitted"] = count_distinct(CaseId) by Auth_Username;
+// Triage submissions come from the request-observation shim's "triage-submission"
+// AppEvents (prod only, since the 2026-06-01 shim ship). Counted as distinct
+// (CaseId, TriageType) — one per triage task submitted — deduped because the shim
+// can fire more than once per task on retries. Username is nested in the event's
+// auth object rather than a top-level column.
+let TriageSubmissions = AppEvents
+| where TimeGenerated > datetime(2026-03-09T12:00:01)
+| where Name == "cps-global-components-analytics-event"
+| where tostring(Properties["name"]) == "triage-submission"
+| where tostring(Properties["environment"]) == "prod"
+| extend CaseId = tolong(Properties["CaseId"]), TriageType = tostring(Properties["TriageType"])
+| extend Auth_Username = tostring(parse_json(tostring(Properties["auth"])).username)
+| where isnotnull(CaseId)
+| summarize ["Triage submissions"] = count_distinct(strcat(tostring(CaseId), "|", TriageType)) by Auth_Username;
 Visits
 | evaluate pivot(App, sum(Visits))
 | join kind=leftouter Totals on Auth_Username | project-away Auth_Username1
 | join kind=leftouter CaseReviewsSubmitted on Auth_Username | project-away Auth_Username1
 | extend ["Case reviews submitted"] = coalesce(["Case reviews submitted"], long(0))
+| join kind=leftouter TriageSubmissions on Auth_Username | project-away Auth_Username1
+| extend ["Triage submissions"] = coalesce(["Triage submissions"], long(0))
 | join kind=leftouter (GloCo_UserAreas | project Auth_Username, User_AreaOrCPSD) on Auth_Username | project-away Auth_Username1
 | order by Total_Visits desc
 | extend Rank = row_number()
 | extend Cumulative_Pct = round(100.0 * row_cumsum(Total_Visits) / GrandTotal, 1)
-| project-reorder Auth_Username, User_AreaOrCPSD, ["Case review"], ["Case reviews submitted"], *, Rank, Cumulative_Pct
+| project-reorder Auth_Username, User_AreaOrCPSD, ["Case review"], ["Case reviews submitted"], ["Triage submissions"], *, Rank, Cumulative_Pct

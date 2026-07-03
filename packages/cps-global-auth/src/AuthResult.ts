@@ -38,6 +38,7 @@ export type KnownErrorType =
 // fields can be added without reshaping the auth result.
 export type Me = {
   department?: string;
+  jobTitle?: string;
 };
 
 export type Auth = {
