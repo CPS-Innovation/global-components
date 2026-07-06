@@ -274,7 +274,7 @@ describe("handleMsalTermination", () => {
       expect(result.account).toBeNull();
     });
 
-    it("fetches and surfaces the /me slice (department) off the fresh account", async () => {
+    it("fetches and surfaces the /me slice (department + jobTitle) off the fresh account", async () => {
       const account = {
         homeAccountId: "abc",
         localAccountId: "def",
@@ -290,18 +290,18 @@ describe("handleMsalTermination", () => {
 
       const fetchMock = jest
         .fn()
-        .mockResolvedValue({ ok: true, json: async () => ({ department: "Innovation" }) });
+        .mockResolvedValue({ ok: true, json: async () => ({ department: "Innovation", jobTitle: "Head of Innovation" }) });
       const originalFetch = global.fetch;
       (global as unknown as { fetch: unknown }).fetch = fetchMock;
       try {
         const result = await handleMsalTermination(makeWindow(), { clientId: "c", authority: "a" }, createInstance);
 
-        expect(result.me).toEqual({ department: "Innovation" });
+        expect(result.me).toEqual({ department: "Innovation", jobTitle: "Head of Innovation" });
         expect(acquireTokenSilent).toHaveBeenCalledWith(
           expect.objectContaining({ account, scopes: ["https://graph.microsoft.com/User.Read"] }),
         );
         expect(fetchMock).toHaveBeenCalledWith(
-          "https://graph.microsoft.com/v1.0/me?$select=department",
+          "https://graph.microsoft.com/v1.0/me?$select=department,jobTitle",
           expect.objectContaining({ headers: { Authorization: "Bearer graph-token" } }),
         );
       } finally {

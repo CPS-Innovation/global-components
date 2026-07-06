@@ -36,7 +36,6 @@ import {
   handleOsCookieReturn,
   handleOsTokenReturn,
 } from "cps-global-os-handover";
-import { beaconAdRedirect } from "./beacon-ad-redirect";
 
 // Kill switch for the preemptive AD check on the OS handover branches.
 // When false, OS_COOKIE_RETURN and OS_TOKEN_RETURN navigate straight to their
@@ -92,9 +91,6 @@ const tryFetchPreview = (scriptUrl: URL): Promise<Result<Preview>> =>
     url: "../state/preview",
     schema: PreviewSchema,
   });
-
-const objectIdFromAuthHint = (authHint: Result<AuthHint>): string =>
-  authHint.found ? authHint.result.authResult.objectId : "unknown";
 
 // Best-effort write-back to ../state/auth-hint after a successful termination.
 // Same fetchState PUT path the host's setAuthHint uses (single mechanism for
@@ -303,8 +299,8 @@ export const dispatchHandover = async (
       };
       if (hasAuthResponseHash(hash)) {
         // AAD bounce-back. handleMsalTermination no longer navigates itself —
-        // we own the sequence so the beacon can fire between termination and
-        // navigation, with keepalive carrying delivery across the unload.
+        // we own the post-termination sequence here (write back the fresh
+        // AuthHint, then navigate).
         const result = await handleMsalTermination(win, msalConfig);
 
         if (result.outcome === "handled" && result.account) {
@@ -324,29 +320,9 @@ export const dispatchHandover = async (
           }
         }
 
-        if (
-          result.outcome === "handled" &&
-          config.BEACON_AD_REDIRECT_SUCCESSES_ENABLED
-        ) {
-          const oid =
-            (result.account?.idTokenClaims as { oid?: string } | undefined)
-              ?.oid ?? "unknown";
-          await beaconAdRedirect(scriptUrl, "success", {
-            "auth-hint-object-id": oid,
-          });
-        } else if (
-          result.outcome === "handled-with-error" &&
-          config.BEACON_AD_REDIRECT_FAILURES_ENABLED
-        ) {
-          const oid = objectIdFromAuthHint(await tryFetchAuthHint(scriptUrl));
-          await beaconAdRedirect(scriptUrl, "failure", {
-            "auth-hint-object-id": oid,
-          });
-        }
-
-        // Caller-driven navigation (lifted out of handleMsalTermination so the
-        // beacon above can complete first). Uses replace so the handover entry
-        // is not preserved in history.
+        // Caller-driven navigation (owned here rather than in
+        // handleMsalTermination). Uses replace so the handover entry is not
+        // preserved in history.
         if (result.returnTo) {
           win.location.replace(result.returnTo);
         }
@@ -392,6 +368,14 @@ const currentScript =
     : null;
 
 if (currentScript) {
+  // Accessibility: blank the title as early as possible, before we dispatch.
+  // This is a transient auth-bounce page — with no meaningful title, JAWS (and
+  // other screen readers) announce the document title on load, falling back to
+  // reading out the long, complex handover URL (?src=…&stage=…). A blank title
+  // stops that announcement. Do NOT remove — it looks inert but is load-bearing
+  // for screen-reader UX.
+  window.document.title = " ";
+
   const scriptUrl = new URL(currentScript.src);
 
   console.log("[CPS-GLOBAL-HANDOVER] auth-handover boot", {

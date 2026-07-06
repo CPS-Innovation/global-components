@@ -6,7 +6,7 @@ import { LogError } from "./LogError";
 // Already consented on the app registration, so acquireTokenSilent resolves it
 // from the MSAL cache (or a silent refresh) without interaction.
 const GRAPH_USER_READ_SCOPES = ["https://graph.microsoft.com/User.Read"];
-const GRAPH_ME_URL = "https://graph.microsoft.com/v1.0/me?$select=department";
+const GRAPH_ME_URL = "https://graph.microsoft.com/v1.0/me?$select=department,jobTitle";
 
 // Upper bound on the whole token-acquire + fetch. Errors already soft-fail via
 // the try/catch, but a *hung* (never-settling) network — acquireTokenSilent or
@@ -22,7 +22,7 @@ const GRAPH_ME_TIMEOUT_MS = 5000;
 // PublicClientApplication and the handover termination instance satisfy it.
 type TokenAcquirer = Pick<PublicClientApplication, "acquireTokenSilent">;
 
-// Establishes the user's /me profile slice (currently just department) from
+// Establishes the user's /me profile slice (department + jobTitle) from
 // Microsoft Graph. Called on a genuine AD refresh (ssoSilent on the host, or the
 // redirect termination on the handover) — never on a routine cached / access-
 // token-refresh lookup, which reuses the value persisted in AuthHint. Fully
@@ -66,8 +66,11 @@ export const getMe = async ({
         logError("getMe: graph /me returned non-ok", { status: response.status });
         return undefined;
       }
-      const body = (await response.json()) as { department?: unknown };
-      return { department: typeof body.department === "string" ? body.department : undefined };
+      const body = (await response.json()) as { department?: unknown; jobTitle?: unknown };
+      return {
+        department: typeof body.department === "string" ? body.department : undefined,
+        jobTitle: typeof body.jobTitle === "string" ? body.jobTitle : undefined,
+      };
     } catch (error) {
       // Includes the AbortError from a timeout-triggered abort — same soft-fail.
       logError("getMe failed", { error });
