@@ -198,12 +198,6 @@ export const configBaseSchema = z.object({
   FEATURE_FLAG_MENU_USERS: featureFlagUsersSchema.optional(),
   FEATURE_FLAG_USE_MSAL_FULL_REDIRECT_USERS: featureFlagUsersSchema.optional(),
   FEATURE_FLAG_CASE_LOCKING_USERS: featureFlagUsersSchema.optional(),
-  // Short-lived AD-redirect beacons (drop 8). Both default off; flip per env to
-  // enable. Beacon URL is derived at runtime from script.src (sibling of the
-  // handover bundle), so no separate config entry. Independent kill-switches
-  // so success / failure can be enabled / disabled independently.
-  BEACON_AD_REDIRECT_SUCCESSES_ENABLED: z.boolean().optional(),
-  BEACON_AD_REDIRECT_FAILURES_ENABLED: z.boolean().optional(),
   // Broad on/off for the OutSystems Triage XHR observation shim. The shim
   // also installs when the per-user preview flag is set, so flipping this off
   // disables observation for everyone except preview-flag opt-ins (which is
