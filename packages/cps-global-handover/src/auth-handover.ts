@@ -368,6 +368,14 @@ const currentScript =
     : null;
 
 if (currentScript) {
+  // Accessibility: blank the title as early as possible, before we dispatch.
+  // This is a transient auth-bounce page — with no meaningful title, JAWS (and
+  // other screen readers) announce the document title on load, falling back to
+  // reading out the long, complex handover URL (?src=…&stage=…). A blank title
+  // stops that announcement. Do NOT remove — it looks inert but is load-bearing
+  // for screen-reader UX.
+  window.document.title = " ";
+
   const scriptUrl = new URL(currentScript.src);
 
   console.log("[CPS-GLOBAL-HANDOVER] auth-handover boot", {
