@@ -16,32 +16,32 @@ describe("getMe", () => {
     global.fetch = originalFetch;
   });
 
-  it("returns the department from a successful /me response", async () => {
+  it("returns department and jobTitle from a successful /me response", async () => {
     const acquireTokenSilent = jest.fn().mockResolvedValue({ accessToken: "graph-token" });
     const fetchMock = jest
       .fn()
-      .mockResolvedValue({ ok: true, json: async () => ({ department: "Innovation" }) });
+      .mockResolvedValue({ ok: true, json: async () => ({ department: "Innovation", jobTitle: "Head of Innovation" }) });
     global.fetch = fetchMock as never;
 
     const result = await getMe({ instance: makeInstance(acquireTokenSilent), account });
 
-    expect(result).toEqual({ department: "Innovation" });
+    expect(result).toEqual({ department: "Innovation", jobTitle: "Head of Innovation" });
     expect(acquireTokenSilent).toHaveBeenCalledWith(
       expect.objectContaining({ account, scopes: ["https://graph.microsoft.com/User.Read"] }),
     );
     expect(fetchMock).toHaveBeenCalledWith(
-      "https://graph.microsoft.com/v1.0/me?$select=department",
+      "https://graph.microsoft.com/v1.0/me?$select=department,jobTitle",
       expect.objectContaining({ headers: { Authorization: "Bearer graph-token" } }),
     );
   });
 
-  it("returns department: undefined when the field is absent or non-string", async () => {
+  it("returns undefined fields when they are absent or non-string", async () => {
     const acquireTokenSilent = jest.fn().mockResolvedValue({ accessToken: "t" });
     global.fetch = jest.fn().mockResolvedValue({ ok: true, json: async () => ({}) }) as never;
 
     const result = await getMe({ instance: makeInstance(acquireTokenSilent), account });
 
-    expect(result).toEqual({ department: undefined });
+    expect(result).toEqual({ department: undefined, jobTitle: undefined });
   });
 
   it("returns undefined on a non-ok response", async () => {

@@ -15,6 +15,7 @@ import { z } from "zod";
 // $select and this schema, with no reshape.
 export const MeSchema = z.object({
   department: z.string().optional(),
+  jobTitle: z.string().optional(),
 });
 
 export type Me = z.infer<typeof MeSchema>;

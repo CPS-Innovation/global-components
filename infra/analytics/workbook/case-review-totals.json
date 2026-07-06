@@ -30,13 +30,13 @@
       "type": 3,
       "content": {
         "version": "KqlItem/1.0",
-        "query": "GloCo__CaseReview_AreaCounts_Comparison\n",
+        "query": "GloCo_CaseReview_TriageAreaCounts\n",
         "size": 2,
-        "title": "Cases by area by week — temporary before/after (started/submitted)",
+        "title": "Triage submissions by area by week",
         "queryType": 0,
         "resourceType": "microsoft.operationalinsights/workspaces"
       },
-      "name": "query - area-counts-comparison"
+      "name": "query - triage-area-counts"
     },
     {
       "type": 3,
