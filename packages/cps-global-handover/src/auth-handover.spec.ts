@@ -14,7 +14,7 @@ jest.mock("cps-global-os-handover", () => ({
   handleOsTokenReturn: jest.fn(),
 }));
 // Mock fetchConfig so tests can supply config directly without sharing
-// global.fetch with the authHint / beacon fetches. Everything else from
+// global.fetch with the authHint fetches. Everything else from
 // cps-global-configuration (schemas, constants, fetchState) is real.
 jest.mock("cps-global-configuration", () => {
   const actual = jest.requireActual<typeof import("cps-global-configuration")>(
@@ -23,7 +23,7 @@ jest.mock("cps-global-configuration", () => {
   return { ...actual, fetchConfig: jest.fn() };
 });
 
-// global.fetch mock — used only for the authHint lookup and the beacon
+// global.fetch mock — used only for the authHint lookup and write-back
 // (config fetching is mocked separately via fetchConfig).
 const mockFetch = jest.fn<(input: unknown, init?: RequestInit) => Promise<unknown>>();
 global.fetch = mockFetch as unknown as typeof fetch;
@@ -119,8 +119,8 @@ describe("dispatchHandover", () => {
     } as never);
   });
 
-  // Override the configured response for a single test (e.g. to flip a beacon
-  // kill-switch on). Affects only the next dispatchHandover invocation.
+  // Override the configured response for a single test (e.g. to flip a
+  // feature flag on). Affects only the next dispatchHandover invocation.
   const withConfigOverrides = (overrides: Partial<Config>) =>
     mockFetchConfig.mockResolvedValue({
       ok: true,
@@ -377,128 +377,6 @@ describe("dispatchHandover", () => {
       await dispatchHandover(win, scriptUrl);
 
       expect(win.location.replace).not.toHaveBeenCalled();
-    });
-  });
-
-  describe("ad-redirect beacon firing", () => {
-    test("fires success beacon when SUCCESSES_ENABLED and termination returns an account with oid", async () => {
-      mockHandleMsalTermination.mockResolvedValue({
-        outcome: "handled",
-        account: {
-          homeAccountId: "h",
-          environment: "e",
-          tenantId: "t",
-          username: "u",
-          localAccountId: "l",
-          idTokenClaims: { oid: "obj-success-123" },
-        } as never,
-        returnTo: "https://cps-tst.outsystemsenterprise.com/casework_blocks/home",
-      });
-      const win = makeWindow(
-        "https://cps-tst.outsystemsenterprise.com/Casework_Patterns/auth-handover.html?src=x&stage=ad-redirect#code=abc",
-      );
-
-      withConfigOverrides({ BEACON_AD_REDIRECT_SUCCESSES_ENABLED: true });
-      await dispatchHandover(win, scriptUrl);
-
-      // Two fetches now: the auth-hint PUT write-back (drop 10) and the
-      // beacon itself. Pull out the beacon call by URL match rather than by
-      // index — the order between write-back and beacon is incidental.
-      const beaconCall = mockFetch.mock.calls.find((c) =>
-        String(c[0]).includes("ad-redirect-beacon"),
-      );
-      expect(beaconCall).toBeDefined();
-      const parsed = new URL(String(beaconCall![0]));
-      expect(parsed.pathname).toContain("/ad-redirect-beacon/");
-      expect(parsed.pathname).toContain("/outcome/success");
-      expect(parsed.pathname).toContain("/auth-hint-object-id/obj-success-123");
-    });
-
-    test("does NOT fire success beacon when SUCCESSES_ENABLED is false (default)", async () => {
-      mockHandleMsalTermination.mockResolvedValue({
-        outcome: "handled",
-        account: { idTokenClaims: { oid: "obj-1" } } as never,
-      });
-      const win = makeWindow(
-        "https://cps-tst.outsystemsenterprise.com/Casework_Patterns/auth-handover.html?src=x&stage=ad-redirect#code=abc",
-      );
-
-      await dispatchHandover(win, scriptUrl);
-
-      expect(mockFetch).not.toHaveBeenCalled();
-    });
-
-    test("success beacon falls back to 'unknown' when account has no oid claim", async () => {
-      mockHandleMsalTermination.mockResolvedValue({
-        outcome: "handled",
-        account: { idTokenClaims: {} } as never,
-      });
-      const win = makeWindow(
-        "https://cps-tst.outsystemsenterprise.com/Casework_Patterns/auth-handover.html?src=x&stage=ad-redirect#code=abc",
-      );
-
-      withConfigOverrides({ BEACON_AD_REDIRECT_SUCCESSES_ENABLED: true });
-      await dispatchHandover(win, scriptUrl);
-
-      const [calledUrl] = mockFetch.mock.calls[0]!;
-      expect(new URL(String(calledUrl)).pathname).toContain("/auth-hint-object-id/unknown");
-    });
-
-    test("fires failure beacon when FAILURES_ENABLED and authHint fetch returns an objectId", async () => {
-      mockHandleMsalTermination.mockResolvedValue({ outcome: "handled-with-error" });
-      // authHint fetch — full AuthHintSchema shape (AuthSchema requires isAuthed,
-      // username, objectId, groups).
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({
-          authResult: {
-            isAuthed: true,
-            username: "user@example.com",
-            objectId: "obj-failure-456",
-            groups: [],
-          },
-          timestamp: 1,
-        }),
-      } as never);
-      const win = makeWindow(
-        "https://cps-tst.outsystemsenterprise.com/Casework_Patterns/auth-handover.html?src=x&stage=ad-redirect#error=invalid",
-      );
-
-      withConfigOverrides({ BEACON_AD_REDIRECT_FAILURES_ENABLED: true });
-      await dispatchHandover(win, scriptUrl);
-
-      // Two fetches: authHint lookup + the beacon itself
-      expect(mockFetch).toHaveBeenCalledTimes(2);
-      const beaconUrl = new URL(String(mockFetch.mock.calls[1]![0]));
-      expect(beaconUrl.pathname).toContain("/outcome/failure");
-      expect(beaconUrl.pathname).toContain("/auth-hint-object-id/obj-failure-456");
-    });
-
-    test("failure beacon falls back to 'unknown' when authHint fetch fails", async () => {
-      mockHandleMsalTermination.mockResolvedValue({ outcome: "handled-with-error" });
-      mockFetch.mockRejectedValueOnce(new Error("CORS blocked"));
-      // Second call (the beacon itself) — succeed silently
-      mockFetch.mockResolvedValueOnce({ ok: true } as never);
-      const win = makeWindow(
-        "https://cps-tst.outsystemsenterprise.com/Casework_Patterns/auth-handover.html?src=x&stage=ad-redirect#error=invalid",
-      );
-
-      withConfigOverrides({ BEACON_AD_REDIRECT_FAILURES_ENABLED: true });
-      await dispatchHandover(win, scriptUrl);
-
-      const beaconUrl = new URL(String(mockFetch.mock.calls[1]![0]));
-      expect(beaconUrl.pathname).toContain("/auth-hint-object-id/unknown");
-    });
-
-    test("does NOT fire failure beacon when FAILURES_ENABLED is false (default)", async () => {
-      mockHandleMsalTermination.mockResolvedValue({ outcome: "handled-with-error" });
-      const win = makeWindow(
-        "https://cps-tst.outsystemsenterprise.com/Casework_Patterns/auth-handover.html?src=x&stage=ad-redirect#error=invalid",
-      );
-
-      await dispatchHandover(win, scriptUrl);
-
-      expect(mockFetch).not.toHaveBeenCalled();
     });
   });
 
