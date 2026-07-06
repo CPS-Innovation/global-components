@@ -126,7 +126,7 @@ const initialise = async (window: Window & typeof globalThis) => {
 
     initialiseDarkReaderDetection({ window, config, trackEvent });
 
-    initialiseDiagnostics({ window, rootUrl, config, flags, trackEvent });
+    initialiseDiagnostics({ window, rootUrl, config, trackEvent });
 
     trackEvent({ name: "state-summary", summary: summariseResults({ handover, preview, settings, authHint, userDataHint, cmsSessionHint }) });
 

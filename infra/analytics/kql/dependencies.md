@@ -39,7 +39,7 @@ GloCo_PageViews  (also joins GloCo_ExcludedUsers)
   |
   |---> GloCo_UserAreas
   |
-  '---> GloCo__UserAuthStatus  (also joins GloCo__IframeProbeEvents)
+  '---> GloCo__UserAuthStatus  (also joins GloCo__NavigatorPermissionsEvents)
 ```
 
 ```
@@ -54,7 +54,7 @@ GloCo_AppExceptions
 ```
 AppEvents
   |
-  |---> GloCo__IframeProbeEvents  (also feeds GloCo__UserAuthStatus above)
+  |---> GloCo__NavigatorPermissionsEvents  (also feeds GloCo__UserAuthStatus above)
   |
   |---> GloCo__Users_EdgePolicyCorrupt  (also joins GloCo_PageViews above)
   |
