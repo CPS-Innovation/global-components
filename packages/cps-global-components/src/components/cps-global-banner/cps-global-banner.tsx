@@ -74,7 +74,7 @@ export class CpsGlobalBanner {
                     <ul id="navigation" class="govuk-header__navigation-list">
                       <li class="govuk-header__navigation-item">
                         <a class="govuk-header__link" href={getArtifactUrl(state.rootUrl, "accessibility/index.html")}>
-                          Accessibility
+                          Accessibility Preview
                         </a>
                       </li>
                     </ul>
