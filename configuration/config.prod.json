@@ -120,6 +120,11 @@
           "preventADAndDataCalls": true
         },
         {
+          "path": "https://polaris.cps.gov.uk/global-components/prod/accessibility/settings\\.html",
+          "contextIds": "accessibility-settings",
+          "preventADAndDataCalls": true
+        },
+        {
           "path": "https://polaris.cps.gov.uk/global-components/prod/accessibility/",
           "contextIds": "accessibility-statement",
           "preventADAndDataCalls": true
@@ -163,21 +168,21 @@
       "label": "Home",
       "level": 0,
       "href": "https://cps.outsystemsenterprise.com/Casework_Blocks/home",
-      "visibleContexts": "home tasks cases case unknown-wma",
+      "visibleContexts": "home tasks cases case unknown-wma accessibility-settings",
       "activeContexts": "home"
     },
     {
       "label": "Tasks",
       "level": 0,
       "href": "https://cps.outsystemsenterprise.com/WorkManagementApp/TaskList",
-      "visibleContexts": "home tasks cases case unknown-wma",
+      "visibleContexts": "home tasks cases case unknown-wma accessibility-settings",
       "activeContexts": "tasks"
     },
     {
       "label": "Cases",
       "level": 0,
       "href": "https://cps.outsystemsenterprise.com/WorkManagementApp/Cases?IsCasesNavigation=true",
-      "visibleContexts": "home tasks cases case unknown-wma",
+      "visibleContexts": "home tasks cases case unknown-wma accessibility-settings",
       "activeContexts": "cases case"
     },
     {
