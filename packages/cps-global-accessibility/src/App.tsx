@@ -84,15 +84,6 @@ export function App() {
     }
   };
 
-  const handlePreventUrnPrependChange = async (checked: boolean) => {
-    const newState: Settings = { ...state, preventUrnPrependInTabTitle: checked || undefined };
-    setState(newState);
-    const success = await saveState(newState);
-    if (success) {
-      window.location.reload();
-    }
-  };
-
   return (
     <div className="accessibility-container">
       <style>{`
@@ -125,7 +116,7 @@ export function App() {
         }
       `}</style>
 
-      <h1 className="govuk-heading-l">Accessibility Settings</h1>
+      <h1 className="govuk-heading-l">Accessibility Preview</h1>
 
       <p className="govuk-body">
         These settings help make the CPS services easier to use for extended periods.
@@ -144,46 +135,7 @@ export function App() {
       )}
 
 
-      {/* Section 1: Prevent URN prepend in tab title */}
-      <div className="govuk-form-group">
-        <fieldset className="govuk-fieldset">
-          <legend className="govuk-fieldset__legend govuk-fieldset__legend--m">
-            <h2 className="govuk-fieldset__heading">
-              Prevent URN being prepended to browser tab title on case pages
-            </h2>
-          </legend>
-          <div id="preventUrnPrependInTabTitle-hint" className="govuk-hint">
-            On case pages, the case URN is prepended to the browser tab title. For screen
-            reader users this can cause the URN to be announced repetitiously or
-            intrusively whenever the tab title is read aloud. Enable this option to keep
-            the host page's title unchanged.
-          </div>
-          <div className="govuk-checkboxes" data-module="govuk-checkboxes">
-            <div className="govuk-checkboxes__item">
-              <input
-                className="govuk-checkboxes__input"
-                id="preventUrnPrependInTabTitle"
-                name="preventUrnPrependInTabTitle"
-                type="checkbox"
-                checked={state.preventUrnPrependInTabTitle ?? false}
-                disabled={loading}
-                onChange={(e) => handlePreventUrnPrependChange(e.target.checked)}
-                aria-describedby="preventUrnPrependInTabTitle-hint"
-              />
-              <label
-                className="govuk-label govuk-checkboxes__label"
-                htmlFor="preventUrnPrependInTabTitle"
-              >
-                Prevent URN being prepended to browser tab title
-              </label>
-            </div>
-          </div>
-        </fieldset>
-      </div>
-
-      <hr className="govuk-section-break govuk-section-break--l govuk-section-break--visible" />
-
-      {/* Section 2: Low Contrast Background */}
+      {/* Section 1: Low Contrast Background */}
       <div className="govuk-form-group">
         <fieldset className="govuk-fieldset" aria-describedby="background-hint">
           <legend className="govuk-fieldset__legend govuk-fieldset__legend--m">
@@ -227,7 +179,7 @@ export function App() {
 
       <hr className="govuk-section-break govuk-section-break--l govuk-section-break--visible" />
 
-      {/* Section 3: Dark Reader Extension */}
+      {/* Section 2: Dark Reader Extension */}
       <div className="guidance-section">
         <h3 className="govuk-heading-m">Dark Reader browser extension</h3>
         <p className="govuk-body">
@@ -261,7 +213,7 @@ export function App() {
         </p>
       </div>
 
-      {/* Section 4: Edge Experimental Dark Mode */}
+      {/* Section 3: Edge Experimental Dark Mode */}
       <div className="guidance-section">
         <h3 className="govuk-heading-m">Edge experimental dark mode</h3>
         <p className="govuk-body">
