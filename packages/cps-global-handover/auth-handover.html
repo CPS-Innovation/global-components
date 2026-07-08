@@ -25,6 +25,17 @@
 
 <head>
   <!--
+    Accessibility: this is a transient auth-bounce page. With no <title>, JAWS
+    (and other screen readers) fall back to announcing the long, complex handover
+    URL (?src=…&stage=…) on load. A meaningful title in the static markup —
+    present at parse time, before any script runs and before the page is
+    announced — replaces that with something intelligible. Setting document.title
+    from JS was too late to prevent the URL announcement. Do NOT remove: it looks
+    inert but is load-bearing for screen-reader UX.
+  -->
+  <title>Application handover page</title>
+
+  <!--
     script-src 'unsafe-inline' is acceptable here because the inline script
     does no eval / new Function / dynamic code construction; it only injects a
     remote <script> tag whose src is gated by both this CSP and the runtime
