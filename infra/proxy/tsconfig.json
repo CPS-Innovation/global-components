@@ -13,5 +13,5 @@
   },
   "files": ["./node_modules/njs-types/ngx_http_js_module.d.ts"],
   "include": ["config/**/*.ts"],
-  "exclude": ["node_modules", "**/*.test.ts", "**/*.unit.test.ts", "**/*.integration.test.js"]
+  "exclude": ["node_modules", "**/*.test.ts", "**/*.unit.test.ts", "**/*.integration.test.js", "config/**/previous/**"]
 }

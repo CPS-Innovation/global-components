@@ -124,7 +124,7 @@ fi
 if run_layer "cms-auth-v2" \
   "-f docker-compose.yml -f docker-compose.cms-auth-v2.yml" \
   "/init-v2/error" \
-  "$SCRIPT_DIR/config/global-components.spike/tests/global-components.cms-auth-v2.integration.test.js"; then
+  "$SCRIPT_DIR/config/global-components.cms-auth-v2/tests/global-components.cms-auth-v2.integration.test.js"; then
   LAYER_RESULTS="${LAYER_RESULTS}  ${GREEN}✓${NC} cms-auth-v2\n"
 else
   LAYER_RESULTS="${LAYER_RESULTS}  ${RED}✗${NC} cms-auth-v2\n"

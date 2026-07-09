@@ -202,7 +202,7 @@ The njs `crypto` module (`import crypto from "crypto"`) provides `createHmac` fo
 ## Files To Create
 
 ```
-infra/proxy/config/global-components.spike/
+infra/proxy/config/global-components.cms-auth-v2/
 ├── spike.md                              # This plan (already exists)
 ├── global-components.spike.conf          # nginx location blocks
 ├── global-components.spike.ts            # njs handlers (TypeScript)
@@ -316,9 +316,9 @@ services:
     env_file:
       - global-components.spike.mock.env
     volumes:
-      - ../config/global-components.spike/global-components.spike.conf:/etc/nginx/templates/global-components.spike.conf.template:ro
+      - ../config/global-components.cms-auth-v2/previous/global-components.spike.conf:/etc/nginx/templates/global-components.spike.conf.template:ro
       - ../dist/global-components.spike.js:/etc/nginx/templates/global-components.spike.js:ro
-      - ../config/global-components.spike/spike.html:/etc/nginx/spike.html:ro
+      - ../config/global-components.cms-auth-v2/spike.html:/etc/nginx/spike.html:ro
       - ./certs/localhost.crt:/etc/nginx/certs/localhost.crt:ro
       - ./certs/localhost.key:/etc/nginx/certs/localhost.key:ro
 ```

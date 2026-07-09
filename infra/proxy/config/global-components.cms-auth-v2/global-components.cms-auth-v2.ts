@@ -32,8 +32,6 @@ const tenantId =
 const clientId =
   (process.env["CPS_GLOBAL_COMPONENTS_CMS_AUTH_CLIENT_ID"] as string) ||
   "8d6133af-9593-47c6-94d0-5c65e9e310f1";
-const clientSecret =
-  (process.env["CPS_GLOBAL_COMPONENTS_CMS_AUTH_CLIENT_SECRET"] as string) || "";
 const redirectUri =
   (process.env["CPS_GLOBAL_COMPONENTS_CMS_AUTH_REDIRECT_URI"] as string) ||
   "https://polaris-qa-notprod.cps.gov.uk/init-v2/callback";
@@ -41,28 +39,69 @@ const redirectUri =
 const storageAccount =
   (process.env["CPS_GLOBAL_COMPONENTS_CMS_AUTH_STORAGE_ACCOUNT"] as string) ||
   "sacpsglobalcomponents";
+
+// ---------------------------------------------------------------------------
+// Build-time templating dropzone — the two SECRETS
+//
+// The destination server has no app settings, so these two are injected at
+// DEPLOY time: the deploy script replaces the @@...@@ tokens below in the
+// COMPILED .js with values read from the local (gitignored) .env, then uploads.
+// The tokens survive tsc as plain string literals, so the substitution targets
+// the .js. Everything else above uses a baked-in QA default.
+//
+// Precedence is process.env FIRST — so docker integration tests (which set the
+// vars via env) work unchanged, and the committed source never holds a real
+// secret. An un-substituted token (still containing "@@") is treated as absent.
+// ---------------------------------------------------------------------------
+const BUILD_CLIENT_SECRET = "@@CPS_GLOBAL_COMPONENTS_CMS_AUTH_CLIENT_SECRET@@";
+const BUILD_STORAGE_KEY = "@@CPS_GLOBAL_COMPONENTS_CMS_AUTH_STORAGE_KEY@@";
+
+const _fromDropzone = (token: string): string =>
+  token.indexOf("@@") === -1 ? token : "";
+
+const clientSecret =
+  (process.env["CPS_GLOBAL_COMPONENTS_CMS_AUTH_CLIENT_SECRET"] as string) ||
+  _fromDropzone(BUILD_CLIENT_SECRET);
 const storageKey =
-  (process.env["CPS_GLOBAL_COMPONENTS_CMS_AUTH_STORAGE_KEY"] as string) || "";
+  (process.env["CPS_GLOBAL_COMPONENTS_CMS_AUTH_STORAGE_KEY"] as string) ||
+  _fromDropzone(BUILD_STORAGE_KEY);
 
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
 function _base64UrlDecode(str: string): string {
-  str = str.replace(/-/g, "+").replace(/_/g, "/");
-  while (str.length % 4) {
-    str += "=";
-  }
-  return atob(str);
+  // base64url -> utf-8. Buffer tolerates missing padding and decodes multibyte
+  // text correctly (atob would only give Latin1 bytes).
+  return Buffer.from(
+    str.replace(/-/g, "+").replace(/_/g, "/"),
+    "base64",
+  ).toString("utf8");
 }
 
 function _base64UrlEncode(str: string): string {
-  return btoa(str).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+  // utf-8 -> base64url via Buffer (NOT btoa). btoa throws on any char >= U+0100,
+  // and the state payload can hold non-Latin1 text from the CMS/GraphQL diag
+  // previews, so btoa("...") blows up with "invalid character (>= U+00FF)".
+  return Buffer.from(str, "utf8")
+    .toString("base64")
+    .replace(/\+/g, "-")
+    .replace(/\//g, "_")
+    .replace(/=+$/, "");
 }
 
 function _generateRandomString(length: number): string {
   const bytes = new Uint8Array(length);
-  crypto.getRandomValues(bytes);
+  try {
+    // Web Crypto global — not exposed by every njs build.
+    crypto.getRandomValues(bytes);
+  } catch {
+    // POC fallback: Math.random is NOT cryptographically secure. Fine for this
+    // diagnostic spike; revisit before any production use of state/nonce.
+    for (let i = 0; i < length; i++) {
+      bytes[i] = Math.floor(Math.random() * 256);
+    }
+  }
   return Array.from(bytes)
     .map(function (b) {
       return b.toString(16).padStart(2, "0");
@@ -118,6 +157,61 @@ function _htmlPage(title: string, body: string): string {
   ${body}
 </body>
 </html>`;
+}
+
+function _esc(s: string): string {
+  return String(s)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+}
+
+// Render an unhandled exception straight to the HTTP response so it is visible
+// in the browser (the deployed proxy's logs are not reachable). Never throws.
+function _renderException(r: NginxHTTPRequest, where: string, e: unknown): void {
+  const err = e as { message?: string; stack?: string; name?: string };
+  const name = (err && err.name) || "Error";
+  const msg = (err && err.message) || String(e);
+  const stack = (err && err.stack) || "(no stack available)";
+  try {
+    ngx.log(ngx.ERR, "cms-auth-v2 unhandled in " + where + ": " + name + ": " + msg);
+  } catch {
+    // ignore logging failures
+  }
+  try {
+    r.headersOut["Content-Type"] = "text/html; charset=utf-8";
+    r.return(
+      500,
+      _htmlPage(
+        "Unhandled error in " + where,
+        `<p class="fail">${_esc(name)}: ${_esc(msg)}</p>
+         <h2>Stack</h2>
+         <pre>${_esc(stack)}</pre>`,
+      ),
+    );
+  } catch {
+    // response already committed — nothing more we can do
+  }
+}
+
+// Build the <tr> rows for a timing table from the accumulated [label, ms] pairs.
+function _timingRows(timings: [string, number][]): string {
+  const t0 = timings.length ? timings[0][1] : 0;
+  return timings
+    .map(function (entry, i) {
+      const elapsed = entry[1] - t0;
+      const delta = i > 0 ? entry[1] - timings[i - 1][1] : 0;
+      return (
+        "<tr><td>" +
+        entry[0] +
+        "</td><td>" +
+        elapsed +
+        " ms</td><td>" +
+        (i > 0 ? "+" + delta + " ms" : "—") +
+        "</td></tr>"
+      );
+    })
+    .join("\n");
 }
 
 // ---------------------------------------------------------------------------
@@ -261,6 +355,22 @@ function handlePolarisV2(r: NginxHTTPRequest): void {
 // ---------------------------------------------------------------------------
 
 async function handleInitV2(r: NginxHTTPRequest): Promise<void> {
+  // Opt-in Edge revert for TOP-LEVEL testing. The default (framed) path stays IE so
+  // AD's third-party SSO cookie survives (see the conf) — but a top-level test needs
+  // Edge, or AD forces the tab to Edge and the IE-jar state cookie can't be read
+  // ("Missing State"). ?edge=1 flips to Edge here; only fires when the browser is
+  // IE + configurable, and after the flip the re-request is non-IE and falls through.
+  if (
+    _getQueryParam(r, "edge") === "1" &&
+    (r.variables["ieaction"] as string) === "ie+configurable+"
+  ) {
+    r.headersOut["X-InternetExplorerMode"] = "0";
+    const proto = (r.headersIn["X-Forwarded-Proto"] as string) || "https";
+    const host = (r.headersIn["Host"] as string) || "";
+    r.return(302, proto + "://" + host + (r.variables["request_uri"] as string));
+    return;
+  }
+
   const t0 = Date.now();
   const timings: [string, number][] = [["Init handler start", t0]];
 
@@ -272,16 +382,26 @@ async function handleInitV2(r: NginxHTTPRequest): Promise<void> {
   const rawCookies = decodeURIComponent(cookiesParam);
 
   // Whitelist cookie names to match the C# WhitelistedCookieNameRoots.
-  // Names are matched as prefixes to handle dynamic suffixes
-  // (e.g. CMSUSER246814, BIGipServer~ent-s221~...).
+  // Names are matched as prefixes to handle dynamic suffixes (e.g. CMSUSER246814).
   const cookieWhitelist = [
     "ASP.NET_SessionId",
     "UID",
     "WindowID",
     "CMSUSER",
     ".CMSAUTH",
-    "BIGipServer",
   ];
+
+  // The F5 load-balancer affinity cookie is required so the modern-token fetch
+  // lands on the CMS node that holds the session (otherwise CMS 302s to login).
+  // Its name embeds the datacentre + environment and has changed shape over time
+  // (was BIGipServer~ent-s221~...; now C-CIN3-LBsessioncookie / F-CIN3-LBsessioncookie),
+  // so match it by the stable "LBsessioncookie" suffix rather than a fixed prefix.
+  const isWhitelisted = (name: string): boolean => {
+    if (/LBsessioncookie$/i.test(name) || name.indexOf("BIGipServer") === 0) {
+      return true;
+    }
+    return cookieWhitelist.some((root) => name.indexOf(root) === 0);
+  };
 
   const cookies = rawCookies
     ? rawCookies
@@ -291,9 +411,7 @@ async function handleInitV2(r: NginxHTTPRequest): Promise<void> {
         })
         .filter(function (c) {
           const name = c.split("=")[0];
-          return cookieWhitelist.some(function (root) {
-            return name.indexOf(root) === 0;
-          });
+          return isWhitelisted(name);
         })
         .join("; ")
     : "";
@@ -393,6 +511,13 @@ async function handleInitV2(r: NginxHTTPRequest): Promise<void> {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          // CMS rejects the call with 400 "Wrong API version" without this.
+          "cms-api-version": "1",
+          // The modern session key is validated from this header — without it CMS
+          // returns 401 "User Session Key failed validation".
+          "cms-api-sessionid": modernToken,
+          // Forward the CMS session cookies so getUser is authenticated.
+          Cookie: fetchCookies,
           Host: host,
         },
         body: graphqlBody,
@@ -426,6 +551,58 @@ async function handleInitV2(r: NginxHTTPRequest): Promise<void> {
     }
   } else {
     graphqlDiag = "Skipped — no modern token";
+  }
+
+  // If we could not capture the modern token, halt here and show the full
+  // diagnostics rather than proceeding to Azure AD — the captured cookies, the
+  // upstream status/body, and the timings ARE the point of this failure mode.
+  if (!modernToken) {
+    timings.push(["Modern token missing — halted", Date.now()]);
+    r.headersOut["Content-Type"] = "text/html; charset=utf-8";
+    const maskedCookies = fetchCookies.replace(/=([^;]*)/g, "=...");
+    const rows = [
+      ["Correlation ID", correlation || "<em>(none)</em>"],
+      [
+        "Modern Token",
+        '<span class="fail">' +
+          (modernTokenError || "not captured") +
+          "</span>",
+      ],
+      [
+        "Cookies sent",
+        fetchCookies ? "<code>" + maskedCookies + "</code>" : "<em>(none)</em>",
+      ],
+      [
+        "Modern Token Diag",
+        modernTokenDiag ? "<code>" + modernTokenDiag + "</code>" : "<em>(none)</em>",
+      ],
+      [
+        "GraphQL Diag",
+        graphqlDiag ? "<code>" + graphqlDiag + "</code>" : "<em>(none)</em>",
+      ],
+      ["Landing URL (r)", (_getQueryParam(r, "r") || "") || "<em>(none)</em>"],
+    ]
+      .map(function (row) {
+        return `<tr><td><strong>${row[0]}</strong></td><td>${row[1]}</td></tr>`;
+      })
+      .join("\n");
+    r.return(
+      200,
+      _htmlPage(
+        "CMS Auth V2 — Modern token not captured",
+        `<p class="fail">Halted before Azure AD: no modern session token could be captured from CMS.</p>
+         <table>
+           <thead><tr><th>Field</th><th>Value</th></tr></thead>
+           <tbody>${rows}</tbody>
+         </table>
+         <h2>Timing</h2>
+         <table>
+           <thead><tr><th>Event</th><th>Elapsed</th><th>Delta</th></tr></thead>
+           <tbody>${_timingRows(timings)}</tbody>
+         </table>`,
+      ),
+    );
+    return;
   }
 
   // Step 3: Build state cookie payload
@@ -466,6 +643,13 @@ async function handleInitV2(r: NginxHTTPRequest): Promise<void> {
     "state=" + state,
     "nonce=" + nonce,
     "response_mode=query",
+    // Silent auth: the whole flow runs inside a hidden iframe on the CMS login
+    // page, and Azure AD sets X-Frame-Options: DENY on any rendered /authorize
+    // response ("This content cannot be displayed in a frame"). prompt=none makes
+    // AD return a bare 302 (code, or error=login_required) with no UI to render,
+    // so the framed navigation isn't blocked. CMS users already have an AAD
+    // session (same tenant), so this yields a code without interaction.
+    "prompt=none",
   ].join("&");
 
   r.return(302, authorizeUrl(tenantId) + "?" + params);
@@ -706,21 +890,7 @@ async function handleInitV2Callback(r: NginxHTTPRequest): Promise<void> {
 
   // Build timing table
   const t0 = timings[0][1];
-  const timingRows = timings
-    .map(function (entry, i) {
-      const elapsed = entry[1] - t0;
-      const delta = i > 0 ? entry[1] - timings[i - 1][1] : 0;
-      return (
-        "<tr><td>" +
-        entry[0] +
-        "</td><td>" +
-        elapsed +
-        " ms</td><td>" +
-        (i > 0 ? "+" + delta + " ms" : "—") +
-        "</td></tr>"
-      );
-    })
-    .join("\n");
+  const timingRows = _timingRows(timings);
 
   // Clear the state cookie
   const clearOpts =
@@ -782,6 +952,25 @@ async function handleInitV2Callback(r: NginxHTTPRequest): Promise<void> {
     })
     .join("\n");
 
+  // Write the id token to localStorage from the (same-origin) callback so the host
+  // CMS/Polaris context can read it. Minimal + guarded: a failure (e.g. DOM Storage
+  // disabled) can't touch the rest of the page. Runs in IE mode (where the framed
+  // flow stays), so it lands in the IE jar — the same context a CMS reader uses.
+  // JSON.stringify + <-escaping keep the JWT from breaking out of the <script>.
+  const idTokenJs = JSON.stringify(idToken).replace(/</g, "\\u003c");
+  // Prefer the TOP window's localStorage (the CMS page's store — that one works in
+  // IE and is where a same-origin reader looks). IE tends to deny localStorage for a
+  // NESTED frame ("SCRIPT5: Access is denied"), even caught, so we target top first
+  // and fall back to the frame's own. Both guarded so nothing can break the page.
+  const storageScript = `<script>(function(){var v=${idTokenJs};` +
+    // Write to the TOP window's localStorage (the CMS page's store). Same-origin
+    // cross-frame access works in every IE document mode (postMessage would be
+    // undefined in documentMode 5), and the nested frame's own context is restricted,
+    // so we target top. Guarded so a failure can't touch the page.
+    `var w;try{w=window.top||window;}catch(e){w=window;}` +
+    `try{w.localStorage.setItem("cms-auth-id-token",v);}catch(e){}` +
+    `})();</script>`;
+
   r.return(
     200,
     _htmlPage(
@@ -796,7 +985,8 @@ async function handleInitV2Callback(r: NginxHTTPRequest): Promise<void> {
          <thead><tr><th>Event</th><th>Elapsed</th><th>Delta</th></tr></thead>
          <tbody>${timingRows}</tbody>
        </table>
-       <p>Total: <strong>${timings[timings.length - 1][1] - t0} ms</strong></p>`,
+       <p>Total: <strong>${timings[timings.length - 1][1] - t0} ms</strong></p>
+       ${storageScript}`,
     ),
   );
 }
@@ -916,10 +1106,23 @@ async function handleCmsModernToken(r: NginxHTTPRequest): Promise<void> {
 // Exports
 // ---------------------------------------------------------------------------
 
+// Wrap each handler so any unhandled throw renders as a readable 500 page
+// (with name/message/stack) instead of a blank nginx 500. Works for both sync
+// and async handlers — awaiting a non-promise is a no-op.
+const _guard =
+  (name: string, fn: (r: NginxHTTPRequest) => void | Promise<void>) =>
+  async (r: NginxHTTPRequest): Promise<void> => {
+    try {
+      await fn(r);
+    } catch (e) {
+      _renderException(r, name, e);
+    }
+  };
+
 export default {
-  handlePolarisV2,
-  handleInitV2,
-  handleInitV2Callback,
-  handleInitV2Error,
-  handleCmsModernToken,
+  handlePolarisV2: _guard("handlePolarisV2", handlePolarisV2),
+  handleInitV2: _guard("handleInitV2", handleInitV2),
+  handleInitV2Callback: _guard("handleInitV2Callback", handleInitV2Callback),
+  handleInitV2Error: _guard("handleInitV2Error", handleInitV2Error),
+  handleCmsModernToken: _guard("handleCmsModernToken", handleCmsModernToken),
 };

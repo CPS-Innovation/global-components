@@ -232,9 +232,11 @@ carries several variants MSAL/OS produce. Key observations:
   **public client** ✓). Device-code + refresh-token flow used by
   `infra/analytics/scripts/teams-msg.sh` to post to a Teams chat. Provision if you
   Terraform the analytics tooling.
-- **`global-components.spike/` PoC** — a **superseded** auth spike in a
-  _different_ tenant (tenant + client ids in the gitignored `spike/.env`, storage
-  `saspike`). Vestigial — do **not** provision.
+- **`global-components.cms-auth-v2/` PoC** — a proxy-side CMS auth spike in a
+  _different_ tenant (tenant + client ids in the gitignored `.env`, storage
+  `saspike`). The current v2 approach is deployed **out-of-band** (by hand), not
+  via the main build; the earlier superseded variants are archived under
+  `global-components.cms-auth-v2/previous/`. Do **not** provision from the main flow.
 
 ---
 

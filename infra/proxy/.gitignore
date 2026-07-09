@@ -18,9 +18,12 @@ deploy/backups/
 # Environment config files (contain secrets)
 config/main/.env
 config/global-components.vnext/.env
-config/global-components.spike/.env
+config/global-components.cms-auth-v2/.env
 
 # Local mkcert output for the proxy dev stack — generated on demand by
 # whichever branch wires up the dockerised proxy. Lingering on disk after
 # branch switches; safe to ignore globally.
 docker/certs/
+
+# Personal, uncommitted deploy/helper scripts
+*.local.sh

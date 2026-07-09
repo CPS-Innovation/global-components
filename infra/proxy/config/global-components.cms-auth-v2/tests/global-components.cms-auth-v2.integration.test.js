@@ -92,12 +92,54 @@ async function testPolarisV2Endpoint() {
 }
 
 // =============================================================================
+// /CMS.24.0.01/User/uaulLogin.aspx — login-page shim (iframe injection)
+// =============================================================================
+
+async function testLoginShim() {
+  console.log("\nLogin Shim Tests (uaulLogin.aspx):")
+
+  await test("injects the /polaris-v2 capture iframe into the CMS login page (IE mode)", async () => {
+    const response = await fetch(
+      `${PROXY_BASE}/CMS.24.0.01/User/uaulLogin.aspx`,
+      {
+        // Trident UA => $ieaction = ie+... so the shim proxies the login page and
+        // sub_filters, rather than taking the nonie 402/302 IE-coercion branches.
+        headers: {
+          "User-Agent":
+            "Mozilla/5.0 (Windows NT 10.0; Trident/7.0; rv:11.0) like Gecko",
+        },
+      }
+    )
+    assertEqual(response.status, 200, "Should proxy the login page (200)")
+    const body = await response.text()
+    assert(
+      body.includes('_f.src="/polaris-v2"'),
+      "Should inject the hidden /polaris-v2 capture iframe"
+    )
+    assert(
+      body.includes("location.href = sNewHref;"),
+      "Should preserve the original login script after the injection"
+    )
+  })
+
+  await test("non-IE request is coerced to IE mode (402)", async () => {
+    const response = await fetch(
+      `${PROXY_BASE}/CMS.24.0.01/User/uaulLogin.aspx`,
+      { redirect: "manual" }
+    )
+    // Default (non-Trident, non-configurable) UA => $ieaction = nonie+nonconfigurable+
+    assertEqual(response.status, 402, "Should require IE mode")
+  })
+}
+
+// =============================================================================
 // Main
 // =============================================================================
 
 async function main() {
   await testErrorEndpoint()
   await testPolarisV2Endpoint()
+  await testLoginShim()
 }
 
 module.exports = main
