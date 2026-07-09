@@ -1,24 +1,45 @@
 {
   "ENVIRONMENT": "dev",
+  "CMS_AUTH_STORAGE_KEYS": {
+    "WMA_JSON": "$OS_Users$Casework_Blocks$ClientVars$JSONString",
+    "WMA_COOKIES": "$OS_Users$Casework_Blocks$ClientVars$Cookies",
+    "CASE_REVIEW_JSON": "$OS_Users$CaseReview$ClientVars$CmsAuthValues",
+    "CASE_REVIEW_COOKIES": "$OS_Users$CaseReview$ClientVars$Cookies",
+    "HOME_JSON": "$OS_Users$Casework_Blocks$ClientVars$JSONString",
+    "HOME_COOKIES": "$OS_Users$Casework_Blocks$ClientVars$Cookies",
+    "HOME_IS_FROM_PROXY": "$OS_Users$Casework_Blocks$ClientVars$IsFromProxy"
+  },
   "REDIRECT_SCRIPT_URL": "https://polaris-qa-notprod.cps.gov.uk/global-components/dev/global-components.js",
-  "BANNER_TITLE_HREF": "https://cps-dev.outsystemsenterprise.com/Casework_Blocks/home",
+  "CASE_LOCKING_POC_SCRIPT_BLOB_ADDRESS": "",
+  "CASE_LOCKING_API_URL": "https://polaris-qa-notprod.cps.gov.uk/global-components/case-locking/api/section-view",
+  "FEATURE_FLAG_CASE_LOCKING_USERS": {
+    "generallyAvailable": false
+  },
+  "BANNER_TITLE_HREF": "https://cps-dev.outsystemsenterprise.com/Casework/home",
   "AD_TENANT_AUTHORITY": "https://login.microsoftonline.com/00dd0d1d-d7e6-4338-ac51-565339c7088c",
   "AD_CLIENT_ID": "8d6133af-9593-47c6-94d0-5c65e9e310f1",
-  "AD_GATEWAY_SCOPE": "User.Read",
+  "AD_GATEWAY_SCOPES": ["User.Read"],
   "GATEWAY_URL": "https://polaris-qa-notprod.cps.gov.uk/",
   "APP_INSIGHTS_CONNECTION_STRING": "InstrumentationKey=e572c03c-8d38-4771-b193-962f13da1b1a;IngestionEndpoint=https://polaris-qa-notprod.cps.gov.uk/global-components/analytics/;ApplicationId=3dafc37d-8c9c-4480-90fc-532ac2b8bba2",
-  "SURVEY_LINK": "https://forms.office.com/e/8KM9A7aS0e",
-  "REPORT_ISSUE_LINK": "https://cpsprod1.service-now.com/sp?id=sc_cat_item&sys_id=716b2e011bd66410d5b3dce3b24bcbbf",
+  "SURVEY_LINK": "https://forms.cloud.microsoft/Pages/ResponsePage.aspx?id=HQ3dAObXOEOsUVZTOccIjMYFiPHggxZNtgEAXRbAx2hUNjNWUDc0UEtVTERCMFpFMkI1QTVSSUxTVyQlQCN0PWcu&rc715f3f34a484d8eae0a1809b30c6c5a=%22Feedback%22&r67e8aaf2389e4b9d8aa0c01902281211=9&rf690462c782847db972938cb1c773bc2=%22Easy%22&r781f1b5b16b14f5689b788fa6d98287b=%22Make%20a%20Charging%20Decision%22",
+  "REPORT_ISSUE_LINK": "https://forms.office.com/Pages/ResponsePage.aspx?id=HQ3dAObXOEOsUVZTOccIjJoWrYUO2RtKg-k_WWF_5qZUMFhXNTRVNkowWDhXSzFMOUc5SVhQQlVMSy4u",
+  "ACCESSIBILITY_STATEMENT_URL": "https://cps-dev.outsystemsenterprise.com/Casework/accessibility",
   "SHOW_MENU": true,
   "SHOW_RECENT_CASES": true,
-  "SHOW_MONITORING_CODES": true,
+  "SHOW_MONITORING_CODES": false,
+  "SHOW_HEADER_REBRAND": "cps",
   "OS_HANDOVER_URL": "https://cps-dev.outsystemsenterprise.com/Casework_Patterns/auth-handover.html?src=https://polaris-qa-notprod.cps.gov.uk/global-components/dev/auth-handover.js",
   "RECENT_CASES_NAVIGATE_URL": "https://cps-dev.outsystemsenterprise.com/WorkManagementApp/CaseOverview?CaseId={caseId}",
   "RECENT_CASES_LIST_LENGTH": 5,
   "FEATURE_FLAG_MENU_USERS": {
     "generallyAvailable": true
   },
-  "FEATURE_FLAG_ENABLE_INTRUSIVE_AD_LOGIN": false,
+  "FEATURE_FLAG_USE_MSAL_FULL_REDIRECT_USERS": {
+    "variants": { "useRedirect": 1 }
+  },
+  "OS_TRIAGE_REQUEST_OBSERVATION_ENABLED": true,
+  "PROBE_DARK_READER_USAGE": true,
+  "FOOTER_SHIM_ENABLED": true,
   "SSO_SILENT_DELAY_MS": 2000,
   "CONTEXTS": [
     {
@@ -27,16 +48,21 @@
         "background-color": "transparent",
         "box-shadow": "none"
       },
-      "skipLinkClassName": "cps-skip-link__target",
-      "msalRedirectUrl": "https://cps-dev.outsystemsenterprise.com/Casework_Patterns/auth-handover.html",
+      "skipLinks": {
+        "mainSelector": ".cps-skip-link__target",
+        "searchSelector": ".cps-skip-link__target .cps-filter-layout .cps-search-form",
+        "listSelector": ".cps-skip-link__target .cps-filter-layout .cps-search-results",
+        "useScroll": true
+      },
+      "msalRedirectUrl": "https://cps-dev.outsystemsenterprise.com/Casework_Patterns/auth-handover.html?src=https%3A%2F%2Fpolaris-qa-notprod.cps.gov.uk%2Fglobal-components%2Fdev%2Fauth-handover.js&stage=ad-redirect",
       "cmsAuthFromStorageKey": "$OS_Users$Casework_Blocks$ClientVars$JSONString",
       "contexts": [
         {
-          "path": "https://cps-dev.outsystemsenterprise.com/casework_blocks/home",
+          "path": "https://cps-dev.outsystemsenterprise.com/casework(_blocks)?/home",
           "contextIds": "home"
         },
         {
-          "path": "https://cps-dev.outsystemsenterprise.com/casework_blocks",
+          "path": "https://cps-dev.outsystemsenterprise.com/casework(_blocks)?",
           "contextIds": "unknown-home"
         },
         {
@@ -88,16 +114,21 @@
       ]
     },
     {
-      "msalRedirectUrl": "https://polaris-qa-notprod.cps.gov.uk/global-components/dev/global-components-msal-redirect.html",
+      "msalRedirectUrl": "https://polaris-qa-notprod.cps.gov.uk/global-components/dev/auth-handover.html?src=https%3A%2F%2Fpolaris-qa-notprod.cps.gov.uk%2Fglobal-components%2Fdev%2Fauth-handover.js&stage=ad-redirect",
       "contexts": [
         {
-          "path": "https://polaris-qa-notprod.cps.gov.uk/polaris-ui/case-details/(?<urn>[^/]+)/(?<caseId>\\d+)",
+          "path": "https://polaris-qa-notprod.cps.gov.uk/(?:polaris-ui/case-details|materials-ui)/(?<urn>[^/]+)/(?<caseId>\\d+)",
           "contextIds": "case materials materials-cwa"
         },
         {
-          "path": "https://polaris-qa-notprod.cps.gov.uk/polaris-ui/go\\?",
+          "path": "https://polaris-qa-notprod.cps.gov.uk/(?:polaris-ui|materials-ui)/go\\?",
           "contextIds": "redirect materials-cwa",
           "preventPageViewAnalytics": true
+        },
+        {
+          "path": "https://polaris-qa-notprod.cps.gov.uk/global-components/dev/accessibility/",
+          "contextIds": "accessibility-statement",
+          "preventADAndDataCalls": true
         },
         {
           "path": "https://polaris",
@@ -123,7 +154,7 @@
       ]
     },
     {
-      "msalRedirectUrl": "https://lacc-app-ui-spa-dev.azurewebsites.net/global-components-msal-redirect.html",
+      "msalRedirectUrl": "https://lacc-app-ui-spa-dev.azurewebsites.net/auth-handover.html?src=https%3A%2F%2Fpolaris-qa-notprod.cps.gov.uk%2Fglobal-components%2Fdev%2Fauth-handover.js",
       "contexts": [
         {
           "path": "https://lacc-app-ui-spa",
@@ -145,7 +176,7 @@
     {
       "label": "Home",
       "level": 0,
-      "href": "https://cps-dev.outsystemsenterprise.com/Casework_Blocks/home",
+      "href": "https://cps-dev.outsystemsenterprise.com/Casework/home",
       "visibleContexts": "home tasks cases case unknown-wma",
       "activeContexts": "home"
     },

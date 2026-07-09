@@ -1,29 +1,36 @@
-import { Config } from "cps-global-configuration";
+import { ApplicationFlags, AuthHint, AuthResult, Config, FailedAuth, FEATURE_FLAGS, FoundContext, Preview } from "cps-global-configuration";
 import { initialiseAdAuth } from "cps-global-auth";
-import { Auth, AuthResult, FailedAuth } from "./AuthResult";
 import { GetToken } from "./GetToken";
-import { FoundContext } from "../context/FoundContext";
-import { ApplicationFlags } from "../application-flags/ApplicationFlags";
 import { initialiseMockAuth } from "./initialise-mock-auth";
-import type { SilentFlowDiagnostic, SilentFlowDiagnostics } from "../diagnostics/silent-flow-diagnostics";
 import { TrackException } from "../analytics/TrackException";
+import { Result } from "../../utils/Result";
+import { SetAuthHint } from "../state/auth-hint/initialise-auth-hint";
+import { makeConsole } from "../../logging/makeConsole";
 
 type Register = (arg: { auth: AuthResult }) => void;
 type RegisterAuthWithAnalytics = (auth: AuthResult) => void;
-type SetAuthHint = (auth: Auth, trackException?: TrackException) => void;
-type AddSilentFlowDiagnostics = (entry: SilentFlowDiagnostic) => void;
-type GetOperationId = () => string | undefined;
 
 type Props = {
   config: Config;
+  // preview + authHint are read here only to evaluate
+  // FEATURE_FLAGS.shouldUseFullPageMsalRedirect — keeping the policy decision
+  // colocated with the auth wiring rather than scattering it through global-script.
+  preview: Result<Preview>;
+  authHint: Result<AuthHint>;
   flags: ApplicationFlags;
   trackException: TrackException;
-  silentFlowDiagnostics?: SilentFlowDiagnostics;
-  addSilentFlowDiagnostics?: AddSilentFlowDiagnostics;
-  getOperationId?: GetOperationId;
   register: Register;
   registerAuthWithAnalytics: RegisterAuthWithAnalytics;
   setAuthHint: SetAuthHint;
+  window: Window;
+};
+
+type AuthOutcome = {
+  auth: AuthResult;
+  getToken: GetToken;
+  // Populated by initialiseAdAuth on a successful cascade; absent for the
+  // mock path and the "prevented by context" path.
+  lastKnownSid?: string;
 };
 
 const noAuthResult: { auth: FailedAuth; getToken: GetToken } = {
@@ -33,46 +40,66 @@ const noAuthResult: { auth: FailedAuth; getToken: GetToken } = {
 
 export const initialiseAuth = ({
   config,
+  preview,
+  authHint,
   flags,
   trackException,
-  silentFlowDiagnostics,
-  addSilentFlowDiagnostics,
-  getOperationId,
   register,
   registerAuthWithAnalytics,
   setAuthHint,
-}: Props): { initialiseAuthForContext: (context: FoundContext) => Promise<{ auth: AuthResult; getToken: GetToken }> } => {
+  window,
+}: Props): { initialiseAuthForContext: (context: FoundContext) => Promise<AuthOutcome> } => {
   const isE2e = flags.e2eTestMode.isE2eTestMode;
 
-  const onError = (error: Error) =>
-    trackException(error, {
-      type: "auth",
-      properties: {
-        ...(silentFlowDiagnostics && { silentFlowDiagnostics }),
-      },
-    });
+  // Resolve the redirect-vs-silent decision once at startup. auth itself is
+  // not yet established here — the predicate falls back to authHint for
+  // identity, sufficient for both the AD-group rollout check and the
+  // preview-token override.
+  const useFullPageRedirect = FEATURE_FLAGS.shouldUseFullPageMsalRedirect({ config, preview, auth: undefined, authHint });
 
-  let authInFlight: Promise<{ auth: AuthResult; getToken: GetToken }> | null = null;
+  // Single error delegate handed down to cps-global-auth: console-log under
+  // our namespace AND telemetry-track to App Insights. The library hands every
+  // error it surfaces through this hook — no separate onError concept.
+  const { _error } = makeConsole("auth");
+  const logError = (...data: unknown[]) => {
+    _error(...data);
+    const error = data.find(d => d instanceof Error) as Error | undefined;
+    if (error) {
+      trackException(error, { type: "auth" });
+    }
+  };
 
-  const initialiseAuthForContext = async (ctx: FoundContext): Promise<{ auth: AuthResult; getToken: GetToken }> => {
+  let authInFlight: Promise<AuthOutcome> | null = null;
+
+  const initialiseAuthForContext = async (context: FoundContext): Promise<AuthOutcome> => {
     // Guard against concurrent calls (e.g. rapid SPA navigation while auth is in-flight)
     if (authInFlight) {
       return authInFlight;
     }
 
-    const doAuth = async (): Promise<{ auth: AuthResult; getToken: GetToken }> =>
-      ctx.preventADAndDataCalls
+    // Replay the last-known /me slice (department) from the persisted hint so
+    // initialiseAdAuth can skip the Graph call on warm loads — Graph never
+    // caches the /me response, so the hint is the only thing keeping us off
+    // Graph on every page load. Absent on the ~daily cold start, where the
+    // library fetches it fresh.
+    const knownMe = authHint.found ? authHint.result.authResult.me : undefined;
+
+    const doAuth = async (): Promise<AuthOutcome> =>
+      context.preventADAndDataCalls
         ? noAuthResult
         : isE2e
           ? initialiseMockAuth({ flags })
-          : initialiseAdAuth({ config, context: ctx, onError, addSilentFlowDiagnostics, getOperationId });
+          : initialiseAdAuth({ config, context, logError, useFullPageRedirect, knownMe, window });
 
     authInFlight = doAuth()
       .then(result => {
         register({ auth: result.auth });
         registerAuthWithAnalytics(result.auth);
         if (result.auth.isAuthed) {
-          setAuthHint(result.auth, trackException);
+          // Forward the fresh sid (if any) so the persisted hint stays in
+          // sync — without this, every successful cascade would overwrite the
+          // hint and drop the sid the bundle just wrote back.
+          setAuthHint(result.auth, trackException, result.lastKnownSid);
         }
         return result;
       })

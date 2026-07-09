@@ -5,9 +5,21 @@ type Input = {
   dismissedIds: string[];
   previewNotificationsEnabled: boolean;
   now: Date;
+  currentUrl: string;
 };
 
-export const selectVisibleNotifications = ({ notifications, dismissedIds, previewNotificationsEnabled, now }: Input): Notification[] => {
+const urlMatches = (urlRegex: string, currentUrl: string): boolean => {
+  try {
+    return new RegExp(urlRegex).test(currentUrl);
+  } catch {
+    // Fail closed: if the pattern won't compile, hide the notification rather
+    // than show it everywhere. The schema's refine() should catch this at load
+    // time; this is belt-and-braces.
+    return false;
+  }
+};
+
+export const selectVisibleNotifications = ({ notifications, dismissedIds, previewNotificationsEnabled, now, currentUrl }: Input): Notification[] => {
   const dismissed = new Set(dismissedIds);
   const nowMs = now.getTime();
 
@@ -22,6 +34,9 @@ export const selectVisibleNotifications = ({ notifications, dismissedIds, previe
       return false;
     }
     if (n.to && Date.parse(n.to) < nowMs) {
+      return false;
+    }
+    if (n.urlRegex && !urlMatches(n.urlRegex, currentUrl)) {
       return false;
     }
     return true;

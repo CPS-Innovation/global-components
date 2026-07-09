@@ -8,6 +8,20 @@ export const notificationSchema = z.object({
   to: z.string().datetime({ offset: true }).optional(),
   previewModeRequired: z.boolean().optional(),
   dismissible: z.boolean().optional(),
+  urlRegex: z
+    .string()
+    .refine(
+      value => {
+        try {
+          new RegExp(value);
+          return true;
+        } catch {
+          return false;
+        }
+      },
+      { message: "urlRegex must be a valid regular expression" },
+    )
+    .optional(),
 });
 
 export type Notification = z.infer<typeof notificationSchema>;

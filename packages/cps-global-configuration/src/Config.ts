@@ -41,13 +41,31 @@ const authorisationSchema = z.object({
 
 export type Authorisation = z.infer<typeof authorisationSchema>;
 
+// All four inclusion fields below are independent OR conditions: a user is
+// "in" if ANY one of them is satisfied. Combine freely — e.g. "test team
+// always on, plus 1% of everyone else" is `adGroupIds + variants`.
 const featureFlagUsersSchema = z.object({
+  // AD security group ids; user is in if their token has any of these.
   adGroupIds: z.array(z.string()).optional(),
-  // Lets use AD accounts UUID ObjectID rather than email address for ad-hoc user enrolment
-  //  into the feature flag.  At the time of writing we check config in to source
-  //  control, object ids do not convey personal data.
+  // AAD object ids (UUIDs) for ad-hoc enrolment — used for individual
+  // engineers who don't fit a group. Object ids don't convey personal data, so
+  // they're safe to commit to source control.
   adHocUserObjectIds: z.array(z.string()).optional(),
+  // Trump card: when true, everyone is in regardless of any other condition.
   generallyAvailable: z.boolean().optional(),
+  // A/B / canary bucketing. Authed users are bucketed deterministically by
+  // their objectId; landing on a non-control share puts them "in" AND tags the
+  // result with the variant name. The implicit residual is "control" — never
+  // name a variant "control" here. Salt defaults to the parent FEATURE_FLAG_*
+  // key; override via `variantSalt` if you ever rename the key and want the
+  // existing population to keep its assignments.
+  variants: z
+    .record(
+      z.string().refine(k => k !== "control", "variant name 'control' is reserved"),
+      z.number().min(0).max(100),
+    )
+    .optional(),
+  variantSalt: z.string().optional(),
 });
 
 export type FeatureFlagUsers = z.infer<typeof featureFlagUsersSchema>;
@@ -58,6 +76,15 @@ const hostAppEventTargetSchema = z.object({
 });
 
 export type HostAppEventTarget = z.infer<typeof hostAppEventTargetSchema>;
+
+const skipLinksSchema = z.object({
+  mainSelector: z.string().optional(),
+  searchSelector: z.string().optional(),
+  listSelector: z.string().optional(),
+  useScroll: z.boolean().optional(),
+});
+
+export type SkipLinks = z.infer<typeof skipLinksSchema>;
 
 const contextPathsSchema = z.object({
   path: z.string(),
@@ -80,7 +107,7 @@ const contextsBaseSchema = z.object({
   headerCustomCssClasses: z.string().optional(),
   headerCustomCssStyles: z.record(z.string(), z.string().optional()).optional(),
   cmsAuthFromStorageKey: z.string().optional(),
-  skipLinkClassName: z.string().optional(),
+  skipLinks: skipLinksSchema.optional(),
 });
 
 const contextStorageSchema: z.ZodType<ContextStorageSchema> =
@@ -124,38 +151,79 @@ export type FetchCircuitBreakerConfig = z.infer<
   typeof fetchCircuitBreakerConfigSchema
 >;
 
+const cmsAuthStorageKeysSchema = z.object({
+  WMA_JSON: z.string(),
+  WMA_COOKIES: z.string(),
+  CASE_REVIEW_JSON: z.string(),
+  CASE_REVIEW_COOKIES: z.string(),
+  HOME_JSON: z.string(),
+  HOME_COOKIES: z.string(),
+  HOME_IS_FROM_PROXY: z.string(),
+});
+
+export type CmsAuthStorageKeys = z.infer<typeof cmsAuthStorageKeysSchema>;
+
 export const configBaseSchema = z.object({
   ENVIRONMENT: z.string(),
   REDIRECT_SCRIPT_URL: z.string().optional(),
+  CASE_LOCKING_POC_SCRIPT_BLOB_ADDRESS: z.string().optional(),
+  CASE_LOCKING_API_URL: z.string().optional(),
   LINKS: z.array(linkSchema),
   BANNER_TITLE_HREF: z.string(),
   AD_TENANT_AUTHORITY: z.string().optional(),
   AD_CLIENT_ID: z.string().optional(),
-  AD_GATEWAY_SCOPE: z.string().optional(),
+  // Scopes to request on every MSAL call (silent, redirect, gateway token).
+  // Used as the single source of truth so the login cascade and the gateway
+  // token-fetch share a cache entry rather than asking AAD for two unrelated
+  // access tokens. Defaults to `[]`, in which case MSAL falls back to OIDC
+  // defaults (openid, profile, offline_access) — the cascade still works but
+  // without the access-token cache short-circuit, so each silent step does a
+  // /token round-trip on cache miss.
+  AD_GATEWAY_SCOPES: z.array(z.string()).default([]),
   GATEWAY_URL: z.string().optional(),
   APP_INSIGHTS_CONNECTION_STRING: z.string().optional(),
   SURVEY_LINK: z.string().optional(),
   REPORT_ISSUE_LINK: z.string().optional(),
+  // Absolute URL of the deployed accessibility statement page. Could be derived
+  // from rootUrl (the statement is a sibling artifact of the bundle), but kept
+  // here so we can repoint it at a different location without a code change.
+  ACCESSIBILITY_STATEMENT_URL: z.string().optional(),
   SHOW_MENU: z.boolean().optional(),
   SHOW_RECENT_CASES: z.boolean().optional(),
   SHOW_MONITORING_CODES: z.boolean().optional(),
-  SHOW_GOVUK_REBRAND: z.boolean().optional(),
+  SHOW_HEADER_REBRAND: z.union([z.literal("cps"), z.literal("gds")]).optional(),
+  SHOW_CASE_DETAILS: z.union([z.literal("a"), z.literal("b")]).optional(),
   SHOW_NOTIFICATIONS: z.boolean().optional(),
   OS_HANDOVER_URL: z.string().optional(),
   FEATURE_FLAG_MENU_USERS: featureFlagUsersSchema.optional(),
-  FEATURE_FLAG_ENABLE_INTRUSIVE_AD_LOGIN: z.boolean().optional(),
+  FEATURE_FLAG_USE_MSAL_FULL_REDIRECT_USERS: featureFlagUsersSchema.optional(),
+  FEATURE_FLAG_CASE_LOCKING_USERS: featureFlagUsersSchema.optional(),
+  // Broad on/off for the OutSystems Triage XHR observation shim. The shim
+  // also installs when the per-user preview flag is set, so flipping this off
+  // disables observation for everyone except preview-flag opt-ins (which is
+  // what we want: ops can cut the feature instantly while engineers can still
+  // exercise it in a "should-be-off" state).
+  OS_TRIAGE_REQUEST_OBSERVATION_ENABLED: z.boolean().optional(),
+  // Broad on/off for the Dark Reader usage probe (one-shot analytics event when we spot the
+  // Dark Reader extension on <html>). Shipped enabled in every environment; flip to false to
+  // kill the probe en masse for an environment. Absent is treated as off by the consumer, so
+  // keep it set true in each env config.
+  PROBE_DARK_READER_USAGE: z.boolean().optional(),
+  // Broad on/off (GA gate) for the footer shim — the DOM surgery that hides the
+  // host <footer> and swaps in cps-global-footer. ORs with the per-user preview
+  // flag and local-dev: true switches the shim on for everyone, false reverts to
+  // preview opt-ins + local dev only. Kept as an env-config kill-switch so ops can
+  // cut the feature instantly if it misbehaves in prod, without a code change.
+  FOOTER_SHIM_ENABLED: z.boolean().optional(),
   SSO_SILENT_DELAY_MS: z.number().optional(),
   CACHE_CONFIG: cacheConfigSchema.optional(),
   FETCH_CIRCUIT_BREAKER_CONFIG: fetchCircuitBreakerConfigSchema.optional(),
   RECENT_CASES_NAVIGATE_URL: z.string().optional(),
   RECENT_CASES_LIST_LENGTH: z.number().optional(),
-  SILENT_FLOW_DIAGNOSTICS_LENGTH: z.number().int().min(0).optional(),
-  PROBE_IFRAME_BASE_URL: z.string().optional(),
-  PROBE_IFRAME_TIMEOUT_MS: z.number().int().min(0).optional(),
-  PROBE_IFRAME_REFRESH_PERIOD_MINS: z.number().int().min(0).optional(),
   PROBE_NAVIGATOR_PERMISSIONS_REFRESH_PERIOD_MINS: z.number().int().min(0).optional(),
   USER_DATA_REFRESH_PERIOD_MINS: z.number().int().min(0).optional(),
   USER_DATA_ATTEMPT_RETRY_ON_SPA_NAVIGATION: z.boolean().optional(),
+  CMS_AUTH_STORAGE_KEYS: cmsAuthStorageKeysSchema,
 });
 
 export const configStorageSchema = configBaseSchema.extend({

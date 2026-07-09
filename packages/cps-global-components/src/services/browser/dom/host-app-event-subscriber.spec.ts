@@ -1,4 +1,4 @@
-import { FoundContext } from "../../context/FoundContext";
+import { FoundContext } from "cps-global-configuration";
 import { hostAppEventSubscriber } from "./host-app-event-subscriber";
 import { HostAppEvent } from "../../analytics/host-app-event";
 

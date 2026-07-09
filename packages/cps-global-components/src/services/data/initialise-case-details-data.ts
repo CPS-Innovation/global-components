@@ -1,7 +1,6 @@
-import { Config } from "cps-global-configuration";
+import { AuthResult, Config, FoundContext } from "cps-global-configuration";
 import { fetchWithCircuitBreaker } from "../fetch/fetch-with-circuit-breaker";
 import { fetchWithAuthFactory } from "../fetch/fetch-with-auth-factory";
-import { FoundContext } from "../context/FoundContext";
 import { MergeTags, Register } from "../../store/store";
 import { Handover } from "../state/handover/Handover";
 import { GetToken } from "../auth/GetToken";
@@ -29,6 +28,7 @@ type Props = {
 
 export const initialiseCaseDetailsData = ({ config, handover, setNextHandover, setNextRecentCases, trackEvent, trackException, register, mergeTags }: Props) => {
   let optimisticCaseId: number | undefined;
+  let lastSeenCaseId: number | undefined;
   let generation = 0;
 
   // Called as soon as caseIdentifiers are known (before auth completes).
@@ -36,9 +36,21 @@ export const initialiseCaseDetailsData = ({ config, handover, setNextHandover, s
   const initialiseCaseDetailsDataForContextOptimistic = (caseIdentifiers: CaseIdentifiers | undefined) => {
     generation++;
     optimisticCaseId = undefined;
-    if (!caseIdentifiers) return;
 
-    const caseId = Number(caseIdentifiers.caseId);
+    const caseId = caseIdentifiers ? Number(caseIdentifiers.caseId) : undefined;
+
+    // caseDetailsTags are owned by this service: resetContextSpecificTags leaves them alone so
+    //  they survive same-case context changes. Clear them here when the case actually changes
+    //  (or goes away) so stale tags from a previous case can't bleed into the new one.
+    if (caseId !== lastSeenCaseId) {
+      register({ caseDetailsTags: {} });
+      lastSeenCaseId = caseId;
+    }
+
+    if (!caseIdentifiers || caseId === undefined) {
+      return;
+    }
+
     if (handover.found && handover.result.caseId === caseId && handover.result.caseDetails) {
       optimisticCaseId = caseId;
       mergeTags({ caseDetailsTags: extractTagsFromCaseDetails(handover.result.caseDetails).tags });
@@ -55,13 +67,19 @@ export const initialiseCaseDetailsData = ({ config, handover, setNextHandover, s
     caseIdentifiers,
     getToken,
     correlationIds,
+    auth,
   }: {
     context: FoundContext;
     caseIdentifiers: CaseIdentifiers | undefined;
     getToken: GetToken;
     correlationIds: CorrelationIds;
+    auth: AuthResult;
   }) => {
-    if (!config.GATEWAY_URL || !caseIdentifiers || context.preventADAndDataCalls) return;
+    // The authed network fetch only makes sense with a token. auth resolves (not
+    // rejects) even on a FailedAuth / redirect-in-flight outcome — we make the
+    // call/no-call determination here rather than the caller. The optimistic
+    // (no-token) path is separate and already ran.
+    if (!auth.isAuthed || !config.GATEWAY_URL || !caseIdentifiers || context.preventADAndDataCalls) return;
 
     const caseId = Number(caseIdentifiers.caseId);
 
@@ -83,6 +101,7 @@ export const initialiseCaseDetailsData = ({ config, handover, setNextHandover, s
       .catch(error => {
         if (isStale()) return undefined;
         register({ caseDetails: { found: false, error } });
+        // trackException centrally drops navigation-abort noise for type:"data".
         trackException(error instanceof Error ? error : new Error(String(error)), { type: "data", code: "case-details" });
         return undefined;
       });

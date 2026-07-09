@@ -7,6 +7,7 @@ dist/
 # Compiled JavaScript files (keep nginx.js which is not ours, and test files)
 config/**/*.js
 !config/main/nginx.js
+!config/main/cmsenv.js
 !config/**/tests/*.js
 !config/**/main-reference/*.js
 
@@ -19,5 +20,7 @@ config/main/.env
 config/global-components.vnext/.env
 config/global-components.spike/.env
 
-# Self-signed certs for local HTTPS
+# Local mkcert output for the proxy dev stack — generated on demand by
+# whichever branch wires up the dockerised proxy. Lingering on disk after
+# branch switches; safe to ignore globally.
 docker/certs/

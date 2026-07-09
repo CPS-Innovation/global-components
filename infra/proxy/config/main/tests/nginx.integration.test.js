@@ -117,6 +117,77 @@ async function testAuthRedirect() {
     )
   })
 
+  await test("session hint derives cmsDomains from a new-style C-CINx cookie", async () => {
+    const response = await fetch(
+      `${INIT_ENDPOINT}?r=/auth-refresh-inbound&cookie=${encodeURIComponent(
+        "C-CIN3-LBsessioncookie=!Bxwnf3t34G9en8vZvooeZUooMAk8qkKBqK"
+      )}`,
+      {
+        redirect: "manual",
+        headers: {
+          "X-Forwarded-Proto": "https",
+          Host: "localhost:8080",
+        },
+      }
+    )
+    const setCookie = response.headers.get("set-cookie")
+    const match = setCookie.match(/Cms-Session-Hint=([^;]+)/)
+    const hint = JSON.parse(decodeURIComponent(match[1]))
+    assert(
+      JSON.stringify(hint.cmsDomains) === JSON.stringify(["cin3.cps.gov.uk"]),
+      `Should derive cin3.cps.gov.uk from the new-style cookie, got: ${JSON.stringify(hint.cmsDomains)}`
+    )
+    assertEqual(
+      hint.handoverEndpoint,
+      "https://cin3.cps.gov.uk/polaris",
+      "handoverEndpoint should use the new-style derived domain"
+    )
+  })
+
+  await test("session hint derives cmsDomains from an F- cookie with a non-CIN token", async () => {
+    const response = await fetch(
+      `${INIT_ENDPOINT}?r=/auth-refresh-inbound&cookie=${encodeURIComponent(
+        "F-FOO-LBsessioncookie=!Bxwnf3t34G9en8vZvooeZUooMAk8qkKBqK"
+      )}`,
+      {
+        redirect: "manual",
+        headers: {
+          "X-Forwarded-Proto": "https",
+          Host: "localhost:8080",
+        },
+      }
+    )
+    const setCookie = response.headers.get("set-cookie")
+    const match = setCookie.match(/Cms-Session-Hint=([^;]+)/)
+    const hint = JSON.parse(decodeURIComponent(match[1]))
+    assert(
+      JSON.stringify(hint.cmsDomains) === JSON.stringify(["foo.cps.gov.uk"]),
+      `Should derive foo.cps.gov.uk from the F-FOO cookie, got: ${JSON.stringify(hint.cmsDomains)}`
+    )
+  })
+
+  await test("session hint prefers the new-style cookie over an old-style cookie", async () => {
+    const response = await fetch(
+      `${INIT_ENDPOINT}?r=/auth-refresh-inbound&cookie=${encodeURIComponent(
+        "BIGipServer~ent-s221~CPSACP-LTM-CM-WAN-CIN4-foo.cps.gov.uk_POOL=value; C-CIN4-LBsessioncookie=!Bxw"
+      )}`,
+      {
+        redirect: "manual",
+        headers: {
+          "X-Forwarded-Proto": "https",
+          Host: "localhost:8080",
+        },
+      }
+    )
+    const setCookie = response.headers.get("set-cookie")
+    const match = setCookie.match(/Cms-Session-Hint=([^;]+)/)
+    const hint = JSON.parse(decodeURIComponent(match[1]))
+    assert(
+      JSON.stringify(hint.cmsDomains) === JSON.stringify(["cin4.cps.gov.uk"]),
+      `New-style cookie should win, got: ${JSON.stringify(hint.cmsDomains)}`
+    )
+  })
+
   await test("session hint cookie has isProxySession false by default", async () => {
     const response = await fetch(
       `${INIT_ENDPOINT}?r=/auth-refresh-inbound&cookie=PREFIX-foo.cps.gov.uk_POOL%3Dvalue`,
@@ -241,6 +312,91 @@ async function testAuthRedirect() {
       0,
       "cmsDomains should be empty array when no CMS cookies"
     )
+  })
+}
+
+// =============================================================================
+// BIGipServer Cookie Shim Tests (/init endpoint)
+//
+// The downstream /auth-refresh-inbound endpoint keys off BIGipServer* cookies.
+// Those have stopped appearing and are replaced by a single new-style C-CINx-* cookie.
+// At /init we copy that cookie's CINx across to an old-style BIGipServer* cookie unless
+// one already exists for it. These tests drive the real njs module and inspect the cc
+// param on the 302 location.
+// =============================================================================
+
+async function testBigIpCookieShim() {
+  console.log("\nBIGipServer Cookie Shim Tests (/init endpoint):")
+
+  const INIT_ENDPOINT = `${PROXY_BASE}/init`
+
+  // Pull the cc param out of the 302 location header (URL-decoded).
+  const getCcFromInit = async (cookie) => {
+    const response = await fetch(
+      `${INIT_ENDPOINT}?r=/auth-refresh-inbound&cookie=${encodeURIComponent(cookie)}`,
+      {
+        redirect: "manual",
+        headers: {
+          "X-Forwarded-Proto": "https",
+          Host: "localhost:8080",
+        },
+      }
+    )
+    assertEqual(response.status, 302, "Should return 302 redirect")
+    const location = response.headers.get("location")
+    assert(location !== null, "Should have Location header")
+    return new URL(location).searchParams.get("cc")
+  }
+
+  await test("shims a BIGipServer cookie when only a C-CINx cookie is present", async () => {
+    const cc = await getCcFromInit("C-CIN3-LBsessioncookie=!Bxwnf3t34G9en8vZvooeZUooMAk8qkKBqK")
+    assert(
+      cc.includes("BIGipServer-shim-CIN3-cin3.cps.gov.uk=1"),
+      `Should append shim BIGipServer cookie, got: ${cc}`
+    )
+    assert(
+      cc.includes("C-CIN3-LBsessioncookie="),
+      `Should preserve original cookie, got: ${cc}`
+    )
+  })
+
+  await test("shims from an F- prefixed LB cookie with a non-CIN token", async () => {
+    const cc = await getCcFromInit("F-FOO-LBsessioncookie=!Bxwnf3t34G9en8vZvooeZUooMAk8qkKBqK")
+    assert(
+      cc.includes("BIGipServer-shim-FOO-foo.cps.gov.uk=1"),
+      `Should derive the FOO token from an F- cookie, got: ${cc}`
+    )
+  })
+
+  await test("does not shim a C- cookie that is not an LBsessioncookie", async () => {
+    const cc = await getCcFromInit("C-CIN3-somethingelse=!Bxw")
+    assert(!cc.includes("BIGipServer-shim"), `Only -LBsessioncookie cookies should shim, got: ${cc}`)
+    assertEqual(cc, "C-CIN3-somethingelse=!Bxw", "Should pass through unchanged")
+  })
+
+  await test("does not shim when a BIGipServer cookie already references that CIN", async () => {
+    const cc = await getCcFromInit(
+      "BIGipServer~ent-s221~CPSACP-LTM-CM-WAN-CIN3-cin3.cps.gov.uk_POOL=12345; C-CIN3-LBsessioncookie=!Bxw"
+    )
+    assert(
+      !cc.includes("BIGipServer-shim"),
+      `Should not append shim when real BIGipServer cookie present, got: ${cc}`
+    )
+  })
+
+  await test("matches CIN case-insensitively when deciding whether to shim", async () => {
+    const cc = await getCcFromInit(
+      "BIGipServer~ent-s221~something-cin3-x_POOL=12345; C-CIN3-LBsessioncookie=!Bxw"
+    )
+    assert(
+      !cc.includes("BIGipServer-shim"),
+      `Lowercase cin3 in existing BIGipServer cookie should suppress shim, got: ${cc}`
+    )
+  })
+
+  await test("does not alter cookie when no C-CINx cookies present", async () => {
+    const cc = await getCcFromInit("session=abc123")
+    assertEqual(cc, "session=abc123", "Should leave cookie untouched")
   })
 }
 
@@ -381,6 +537,7 @@ async function main() {
   process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0"
 
   await testAuthRedirect()
+  await testBigIpCookieShim()
   await testPolarisRedirect()
   await testAuthRefreshOutbound()
 }

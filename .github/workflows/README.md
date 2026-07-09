@@ -1,6 +1,6 @@
 # Deploy workflows
 
-Each environment (`accessibility`, `dev`, `test`, `prod`) is deployed to its own Azure blob
+Each environment (`accessibility`, `dev`, `test`, `uat`, `prod`) is deployed to its own Azure blob
 container of the same name, plus a sibling static-web path under `$web/<env>/static/` for the
 HTML harness.
 
@@ -8,9 +8,9 @@ HTML harness.
 
 | Workflow                    | Trigger             | Environments                                |
 | --------------------------- | ------------------- | ------------------------------------------- |
-| `deploy-ci-cd-pre-prod.yml` | push to `main`      | accessibility, dev, test                    |
-| `deploy-all.yml`            | manual, from `main` | accessibility, dev, test, prod              |
-| `rollback.yml`              | manual, from `main` | accessibility, dev, test (HEAD^ redeployed) |
+| `deploy-ci-cd-pre-prod.yml` | push to `main`      | accessibility, dev, test, uat               |
+| `deploy-all.yml`            | manual, from `main` | accessibility, dev, test, uat, prod         |
+| `rollback.yml`              | manual, from `main` | accessibility, dev, test, uat (HEAD^ redeployed) |
 
 All three call `sub-workflow-core-deploy.yml`, which fans out over the env matrix into
 `sub-workflow-deploy-script.yml` (blob container) and `sub-workflow-deploy-harnesses.yml`
@@ -25,28 +25,27 @@ other files are byte-identical across envs.
 | -------------------------------------- | ------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
 | `global-components.js` (+ `.map`)      | `packages/cps-global-components/dist/`      | none — byte-identical                                                                                                    |
 | `cps-global-components.js`             | `packages/cps-global-script-redirect/dist/` | `script.src` substituted from `REDIRECT_SCRIPT_URL` at deploy time                                                       |
-| `auth-handover.js` (+ `.map`)          | `packages/cps-global-os-handover/dist/`     | none — byte-identical                                                                                                    |
-| `global-components-msal-redirect.html` | `msal-support/`                             | none — byte-identical (same-origin termination page for silent MSAL flows; referenced from `msalRedirectUrl` in configs) |
-| `probe-iframe-load.html`               | `packages/cps-global-components/src/services/diagnostics/` | none — byte-identical (LNA diagnostic probe page)                                                         |
+| `auth-handover.html`                   | `packages/cps-global-handover/`             | none — byte-identical (script-injection HTML loaded by both Polaris CDN and OS Casework_Patterns; reads `?src=` to inject the bundle) |
+| `auth-handover.js` (+ `.map`)          | `packages/cps-global-handover/dist/`        | none — byte-identical (unified mediator: dispatches by `?stage=` to OS cookie/token handover or AD redirect; reads AD_CLIENT_ID / AD_TENANT_AUTHORITY / CMS_AUTH_STORAGE_KEYS from sibling `config.json`) |
 | `config.json`                          | `configuration/config.<env>.json`           | entire contents                                                                                                          |
 | `preview/`                             | `packages/cps-global-preview/dist/`         | none — byte-identical                                                                                                    |
 | `accessibility/`                       | `packages/cps-global-accessibility/dist/`   | none — byte-identical                                                                                                    |
 
 Conditional — only uploaded when the source file exists:
 
-| File                   | Source                                         |
-| ---------------------- | ---------------------------------------------- |
-| `config.override.json` | `configuration/config.<env>.override.json`     |
-| `notification.json`    | `configuration/config.<env>.notification.json` |
+| File                | Source                                         |
+| ------------------- | ---------------------------------------------- |
+| `notification.json` | `configuration/config.<env>.notification.json` |
 
 Current source-file matrix:
 
-| Env           | `config.override.json` | `notification.json` |
-| ------------- | :--------------------: | :-----------------: |
-| accessibility |           —            |          —          |
-| dev           |           ✓            |          —          |
-| test          |           ✓            |          ✓          |
-| prod          |           ✓            |          —          |
+| Env           | `notification.json` |
+| ------------- | :-----------------: |
+| accessibility |          —          |
+| dev           |          —          |
+| test          |          ✓          |
+| uat           |          ✓          |
+| prod          |          —          |
 
 ## Redirect stub (`cps-global-components.js`)
 
@@ -62,6 +61,7 @@ in `config.json`. Fallback: `./global-components.js` (same-origin sibling).
 | ------------- | ----------------------------------------------------------------------------------- |
 | dev           | `https://polaris-qa-notprod.cps.gov.uk/global-components/dev/global-components.js`  |
 | test          | `https://polaris-qa-notprod.cps.gov.uk/global-components/test/global-components.js` |
+| uat           | `https://polaris-uat-notprod.cps.gov.uk/global-components/uat/global-components.js` |
 | prod          | `https://polaris.cps.gov.uk/global-components/prod/global-components.js`            |
 | accessibility | `./global-components.js` (default — no `REDIRECT_SCRIPT_URL` in config)             |
 

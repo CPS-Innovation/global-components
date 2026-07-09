@@ -31,6 +31,7 @@ cp "$PROXY_DIR/config/global-components.spike/global-components.cms-proxy-no-log
 cp "$PROXY_DIR/config/global-components.spike/global-components.cms-auth.conf" "$DIST_DIR/global-components.cms-auth.conf.template"
 cp "$PROXY_DIR/config/global-components.spike/global-components.cms-ping.conf" "$DIST_DIR/global-components.cms-ping.conf.template"
 cp "$PROXY_DIR/config/global-components.spike/global-components.cms-auth-v2.conf" "$DIST_DIR/global-components.cms-auth-v2.conf.template"
+cp "$PROXY_DIR/config/global-components.case-locking/global-components.case-locking.conf" "$DIST_DIR/global-components.case-locking.conf.template"
 
 # Flatten the compiled JS files (they're in subdirectories from tsc)
 echo "Flattening compiled JS files..."
@@ -42,11 +43,13 @@ mv "$DIST_DIR/global-components.spike/global-components.cms-proxy-no-logout.js" 
 mv "$DIST_DIR/global-components.spike/global-components.cms-auth.js" "$DIST_DIR/global-components.cms-auth.js"
 mv "$DIST_DIR/global-components.spike/global-components.cms-ping.js" "$DIST_DIR/global-components.cms-ping.js"
 mv "$DIST_DIR/global-components.spike/global-components.cms-auth-v2.js" "$DIST_DIR/global-components.cms-auth-v2.js"
+mv "$DIST_DIR/global-components.case-locking/global-components.case-locking.js" "$DIST_DIR/global-components.case-locking.js"
 
 # Remove empty directories
 rmdir "$DIST_DIR/main" 2>/dev/null || true
 rmdir "$DIST_DIR/global-components.vnext" 2>/dev/null || true
 rmdir "$DIST_DIR/global-components.spike" 2>/dev/null || true
+rmdir "$DIST_DIR/global-components.case-locking" 2>/dev/null || true
 
 echo ""
 echo "Build complete! Contents of dist/:"

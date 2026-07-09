@@ -1,6 +1,4 @@
-import { Config } from "cps-global-configuration";
-import { FoundContext } from "../context/FoundContext";
-import { FEATURE_FLAGS } from "../../feature-flags/feature-flags";
+import { Config, FEATURE_FLAGS, FoundContext } from "cps-global-configuration";
 import { State, StoredState } from "../../store/store";
 
 const LOCALSTORAGE_KEY = "$OS_Users$Casework_Blocks$ClientVars$ShowAlert";

@@ -1,0 +1,44 @@
+{
+  "name": "cps-global-handover",
+  "version": "1.0.0",
+  "description": "Unified handover endpoint mediator — dispatches by ?stage= to OS handover and AD redirect handlers",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "pnpm exec rollup -c rollup.config.mjs",
+    "dev": "tsc --watch",
+    "clean": "rm -rf dist",
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage",
+    "prepublishOnly": "npm run clean && npm run build"
+  },
+  "keywords": [
+    "cps",
+    "auth",
+    "handover"
+  ],
+  "license": "MIT",
+  "dependencies": {
+    "cps-global-auth": "workspace:*",
+    "cps-global-configuration": "workspace:*",
+    "cps-global-os-handover": "workspace:*"
+  },
+  "devDependencies": {
+    "@jest/globals": "^29.7.0",
+    "@rollup/plugin-commonjs": "^28.0.0",
+    "@rollup/plugin-node-resolve": "^16.0.1",
+    "@rollup/plugin-typescript": "^12.1.4",
+    "@testing-library/jest-dom": "^6.6.3",
+    "@types/jest": "^29.5.0",
+    "@types/node": "^24.2.1",
+    "jest": "^29.7.0",
+    "jest-environment-jsdom": "^29.7.0",
+    "rollup": "^4.59.0",
+    "ts-jest": "^29.4.0",
+    "typescript": "^5.0.0"
+  }
+}

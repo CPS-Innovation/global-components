@@ -80,11 +80,8 @@ Local files are mapped to Azure containers as follows:
 | Local File | Azure Container | Remote File |
 |------------|-----------------|-------------|
 | `config.dev.json` | `dev` | `config.json` |
-| `config.dev.override.json` | `dev` | `config.override.json` |
 | `config.test.json` | `test` | `config.json` |
-| `config.test.override.json` | `test` | `config.override.json` |
 | `config.prod.json` | `prod` | `config.json` |
-| `config.prod.override.json` | `prod` | `config.override.json` |
 | etc. | | |
 
 ## Alternative Authentication Methods

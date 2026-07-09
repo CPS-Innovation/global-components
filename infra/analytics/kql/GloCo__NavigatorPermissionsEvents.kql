@@ -1,0 +1,11 @@
+AppEvents
+| where Name == "cps-global-components-analytics-event"
+| where Properties["name"] == "probe-navigator-permissions"
+| project 
+    TimeGenerated, 
+    Environment = tostring(Properties["environment"]),
+    OperationId, 
+    UserId, 
+    Hostname = tostring(Properties["hostname"]),
+    LocalNetworkAccessPermission = tostring(Properties["localNetworkAccessPermission"])
+| where Environment == "prod"

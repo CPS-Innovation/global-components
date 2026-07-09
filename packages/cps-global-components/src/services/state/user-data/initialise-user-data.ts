@@ -1,5 +1,4 @@
-import { Config } from "cps-global-configuration";
-import { FoundContext } from "../../context/FoundContext";
+import { AuthResult, Config, FoundContext } from "cps-global-configuration";
 import { CorrelationIds } from "../../correlation/CorrelationIds";
 import { GetToken } from "../../auth/GetToken";
 import { AnalyticsEventData } from "../../analytics/analytics-event";
@@ -12,6 +11,7 @@ import { pipe } from "../../../utils/pipe";
 import { makeConsole } from "../../../logging/makeConsole";
 import { UserDataHint, UserDataSchema, toUserDataHintPayload } from "./UserData";
 import { TrackException } from "../../analytics/TrackException";
+import { isAbortError, isPageUnloading } from "../../browser/navigation/page-lifecycle";
 
 const DEFAULT_REFRESH_PERIOD_MINS = 24 * 60;
 
@@ -34,7 +34,13 @@ export const initialiseUserData = ({ config, userDataHint, setUserDataHint, trac
   let inFlight: Promise<void> | undefined;
   let priorAttemptErrored = false;
 
-  const initialiseUserDataForContext = ({ context, getToken, correlationIds }: { context: FoundContext; getToken: GetToken; correlationIds: CorrelationIds }): Promise<void> => {
+  const initialiseUserDataForContext = ({ context, getToken, correlationIds, auth }: { context: FoundContext; getToken: GetToken; correlationIds: CorrelationIds; auth: AuthResult }): Promise<void> => {
+    // No point fetching with no bearer token. auth resolves (not rejects) even on
+    // a FailedAuth / redirect-in-flight outcome, so the caller hands us the result
+    // and we decide here whether there's an identity to fetch for.
+    if (!auth.isAuthed) {
+      return Promise.resolve();
+    }
     if (refreshPeriodMins === 0) {
       return Promise.resolve();
     }
@@ -64,8 +70,14 @@ export const initialiseUserData = ({ config, userDataHint, setUserDataHint, trac
         trackEvent({ name: "user-data-fetch", outcome: "success" });
       })
       .catch(error => {
-        priorAttemptErrored = true;
-        _error("Unexpected error fetching user data", error);
+        // A navigation-abort (host moved the page) is not an endpoint failure, so
+        // don't flag priorAttemptErrored (which would suppress a later retry) or
+        // console-log it. The abort's telemetry is dropped centrally in
+        // trackException, so we call it unconditionally.
+        if (!isPageUnloading() && !isAbortError(error)) {
+          priorAttemptErrored = true;
+          _error("Unexpected error fetching user data", error);
+        }
         trackException(error instanceof Error ? error : new Error(String(error)), { type: "data", code: "user-data" });
       })
       .finally(() => {

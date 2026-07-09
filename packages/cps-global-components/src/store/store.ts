@@ -1,27 +1,21 @@
 import { createStore } from "@stencil/store";
 import { getRenderingRef, forceUpdate } from "@stencil/core";
-import { Config, Preview, Notification } from "cps-global-configuration";
-import { AuthResult } from "../services/auth/AuthResult";
-import { FoundContext } from "../services/context/FoundContext";
-import { ApplicationFlags } from "../services/application-flags/ApplicationFlags";
+import { ApplicationFlags, AuthHint, AuthResult, CmsSessionHint, Config, FoundContext, Notification, Preview, Tags } from "cps-global-configuration";
 import { loggingSubscriptionFactory } from "./subscriptions/logging-subscription-factory";
 import { resetPreventionSubscriptionFactory } from "./subscriptions/reset-prevention-subscription-factory";
-import { Tags } from "../services/context/Tags";
 import { CorrelationIds } from "../services/correlation/CorrelationIds";
 import { tagsSubscriptionFactory } from "./subscriptions/tags-subscription-factory";
 import { applyOnChangeHandler, SubscriptionFactory } from "./subscriptions/SubscriptionFactory";
 import { CaseDetails } from "../services/data/CaseDetails";
+import { CaseLockingPresentUsers } from "../services/case-locking/CaseLockingPresentUsers";
 import { ReadyStateHelper, readyStateFactory } from "./ready-state-factory";
 import { CaseIdentifiers } from "../services/context/CaseIdentifiers";
 import { caseIdentifiersSubscriptionFactory } from "./subscriptions/case-identifiers-subscription-factory";
 import { Handover } from "../services/state/handover/Handover";
 import { Result } from "../utils/Result";
-import { CmsSessionHint } from "cps-global-configuration";
-import { AuthHint } from "../services/state/auth-hint/initialise-auth-hint";
 import { UserDataHint } from "../services/state/user-data/UserData";
 import { MonitoringCodes } from "../services/data/MonitoringCode";
 import { RecentCases } from "../services/state/recent-cases/recent-cases";
-import { SilentFlowDiagnostics } from "../services/diagnostics/silent-flow-diagnostics";
 export { type ReadyStateHelper };
 
 // Helper type to extract keys of a specific type
@@ -57,7 +51,6 @@ type StartupState = {
   cmsSessionHint: Result<CmsSessionHint>;
   handover: Result<Handover>;
   recentCases: Result<RecentCases>;
-  silentFlowDiagnostics: Result<SilentFlowDiagnostics>;
   notifications: Notification[];
   dismissedNotificationIds: string[];
 };
@@ -74,12 +67,13 @@ const initialStartupState = {
   cmsSessionHint: undefined,
   handover: undefined,
   recentCases: undefined,
-  silentFlowDiagnostics: undefined,
   notifications: undefined,
   dismissedNotificationIds: undefined,
 };
 
 // This state could change (e.g. history-based non-full-refresh navigation or dom tags changing)
+export type SkipLinkTargets = { main: boolean; search: boolean; list: boolean };
+
 type TransientState = {
   context: FoundContext;
   propTags: Tags;
@@ -92,6 +86,8 @@ type TransientState = {
   caseIdentifiers: CaseIdentifiers;
   caseDetails: Result<CaseDetails>;
   caseMonitoringCodes: Result<MonitoringCodes>;
+  caseLockingPresentUsers: CaseLockingPresentUsers;
+  skipLinkTargets: SkipLinkTargets;
 };
 const initialTransientState = {
   context: undefined,
@@ -105,6 +101,8 @@ const initialTransientState = {
   caseIdentifiers: undefined,
   caseDetails: undefined,
   caseMonitoringCodes: undefined,
+  caseLockingPresentUsers: undefined,
+  skipLinkTargets: undefined,
 };
 
 type AggregateState = {
@@ -200,11 +198,12 @@ export const initialiseStore = () => {
   };
 
   const resetContextSpecificTags = (context?: FoundContext) => {
-    // Note: tags obtained from props passed from the host apps should not be cleared on context change.
-    //  They are subject to being updated via @Watch so all good there, but we definitely do not want
-    //  the tags from one context (e.g. caseId = 123) hanging around for the next context in an SPA
-    //  navigation (e.g. caseId = 456).
-    privateTagProperties.filter(key => !["propTags", "cmsSessionTags", "handoverTags"].includes(key)).forEach(key => store.set(key, {}));
+    // Note: tags sourced from outside the context — props (host-app driven, @Watch-refreshed),
+    //  cmsSession, handover, and caseDetails — are owned by their respective services and must
+    //  NOT be cleared here. caseDetailsTags in particular outlive context changes when the caseId
+    //  is unchanged, and are cleared/refreshed by initialiseCaseDetailsData when the case changes.
+    //  Only context-derived tags (path/dom) are cleared here.
+    privateTagProperties.filter(key => !["propTags", "cmsSessionTags", "handoverTags", "caseDetailsTags"].includes(key)).forEach(key => store.set(key, {}));
     if (context) {
       register({ pathTags: context.pathTags });
     }
@@ -227,23 +226,32 @@ export const initialiseStore = () => {
   // If caseIdentifiers are set synchronously (from pathTags in initialiseContext), the
   // promise resolves immediately. If they come later (from DOM observation), it resolves
   // when the store subscription fires.
+  //
+  // The waiter fires on any caseId transition — including 321 -> undefined (navigating
+  // away from a case). Downstream consumers (analytics, case-details fetch, case-locking,
+  // case-details tags lifecycle) all need to react to "case is gone", not just "case is
+  // here". A separate hasPending flag is used because `undefined` is now a valid pending value.
   const createCaseIdentifiersWaiter = () => {
     let lastCaseId: string | undefined;
-    let pendingResolve: ((ids: CaseIdentifiers) => void) | null = null;
-    let pendingIds: CaseIdentifiers | null = null;
+    let pendingResolve: ((ids: CaseIdentifiers | undefined) => void) | null = null;
+    let pendingIds: CaseIdentifiers | undefined;
+    let hasPending = false;
 
     applyOnChangeHandler(store, {
       propName: "caseIdentifiers",
       handler: (ids: CaseIdentifiers | undefined) => {
-        if (!ids?.caseId || ids.caseId === lastCaseId) return;
-        lastCaseId = ids.caseId;
+        const newCaseId = ids?.caseId;
+        if (newCaseId === lastCaseId) return;
+        lastCaseId = newCaseId;
         if (pendingResolve) {
           pendingResolve(ids);
           pendingResolve = null;
-          pendingIds = null;
+          pendingIds = undefined;
+          hasPending = false;
         } else {
           // Store the value in case waitForChange() is called after the change
           pendingIds = ids;
+          hasPending = true;
         }
       },
     });
@@ -251,13 +259,15 @@ export const initialiseStore = () => {
     return {
       reset: () => {
         pendingResolve = null;
-        pendingIds = null;
+        pendingIds = undefined;
+        hasPending = false;
       },
       waitForChange: (): Promise<CaseIdentifiers | undefined> => {
         // If a change already happened since reset(), resolve immediately
-        if (pendingIds) {
+        if (hasPending) {
           const ids = pendingIds;
-          pendingIds = null;
+          pendingIds = undefined;
+          hasPending = false;
           return Promise.resolve(ids);
         }
         // Otherwise wait for the next change

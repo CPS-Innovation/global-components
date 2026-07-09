@@ -1,6 +1,5 @@
-import { Context } from "cps-global-configuration";
+import { Context, FoundContext } from "cps-global-configuration";
 import { initialiseContext } from "./initialise-context";
-import { FoundContext } from "./FoundContext";
 import * as tryLocationMatchModule from "./try-location-match";
 
 const createMockWindow = (url: string): Window => {

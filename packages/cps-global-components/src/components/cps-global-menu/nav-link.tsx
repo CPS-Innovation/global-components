@@ -1,7 +1,7 @@
 import { Component, Prop, h, Event, EventEmitter } from "@stencil/core";
 import { WithLogging } from "../../logging/WithLogging";
 import { ContextsToUseEventNavigation } from "cps-global-configuration";
-import { newTab, updateAddressQuery } from "../../services/browser/navigation/navigation";
+import { newTab, navigateToHref, updateAddressQuery, isSamePageAsCurrent } from "../../services/browser/navigation/navigation";
 
 type LinkMode = "standard" | "new-tab" | "emit-event" | "emit-event-private" | "disabled";
 
@@ -29,8 +29,15 @@ export class NavLink {
   handleOsNavigation = () => {
     const { data, paramsToAddToQuery } = this.dcfContextsToUseEventNavigation || {};
     this.CpsGlobalHeaderEvent.emit(data);
-    if (paramsToAddToQuery) {
-      updateAddressQuery(paramsToAddToQuery, true);
+    // If the destination href is the page we're already on, just mutate query state
+    //  (preserves unrelated params, supports null-to-delete). Otherwise the destination
+    //  is a different page entirely — do a full navigation.
+    if (isSamePageAsCurrent(this.href)) {
+      if (paramsToAddToQuery) {
+        updateAddressQuery(paramsToAddToQuery, true);
+      }
+    } else {
+      navigateToHref(this.href);
     }
   };
 
@@ -42,7 +49,7 @@ export class NavLink {
 
     const coreProps = {
       "role": "link",
-      "aria-current": this.ariaSelected ? "page" : undefined,
+      "aria-current": this.ariaSelected ? "true" : this.selected ? "page" : undefined,
     };
     const renderLink = () => {
       switch (mode) {

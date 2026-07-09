@@ -1,41 +1,67 @@
-import { CmsSessionHint } from "cps-global-configuration";
+import { CmsAuthStorageKeys, CmsSessionHint } from "cps-global-configuration";
 import { areAllCookieStringsEqual } from "./are-all-cookie-strings-equal";
 
-const localStorageKeys = {
-  WMA_JSON: "$OS_Users$WorkManagementApp$ClientVars$JSONString",
-  WMA_COOKIES: "$OS_Users$WorkManagementApp$ClientVars$Cookies",
-  CASE_REVIEW_JSON: "$OS_Users$CaseReview$ClientVars$CmsAuthValues",
-  CASE_REVIEW_COOKIES: "$OS_Users$CaseReview$ClientVars$Cookies",
-  HOME_JSON: "$OS_Users$Casework_Blocks$ClientVars$JSONString",
-  HOME_COOKIES: "$OS_Users$Casework_Blocks$ClientVars$Cookies",
-  HOME_IS_FROM_PROXY: "$OS_Users$Casework_Blocks$ClientVars$IsFromProxy",
+// Partially-redacted preview for diagnostics: enough to correlate a value
+// across page loads, never enough to leak the cookie/token. Deliberately
+// distinguishes the states we care about when chasing the auth-wipe — absent
+// vs empty vs the literal string "undefined" vs a real value (head + length).
+const redactedPreview = (value: string | null | undefined): string => {
+  if (value === null || value === undefined) {
+    return "<absent>";
+  }
+  if (value === "undefined") {
+    return '<literal "undefined">';
+  }
+  if (value === "") {
+    return "<empty>";
+  }
+  return `${value.slice(0, 6)}…(len ${value.length})`;
 };
 
-export const storeAuth = (cookies: string, token: string, storage: Storage) => {
+export const storeAuth = (
+  cookies: string,
+  token: string,
+  storage: Storage,
+  keys: CmsAuthStorageKeys,
+) => {
   const cmsAuthValuesJson = JSON.stringify({
     Cookies: cookies,
     Token: token,
     ExpiryTime: new Date().toISOString(),
   });
 
-  storage[localStorageKeys.WMA_COOKIES] = cookies;
-  storage[localStorageKeys.CASE_REVIEW_COOKIES] = cookies;
-  storage[localStorageKeys.HOME_COOKIES] = cookies;
-  storage[localStorageKeys.WMA_JSON] = cmsAuthValuesJson;
-  storage[localStorageKeys.CASE_REVIEW_JSON] = cmsAuthValuesJson;
-  storage[localStorageKeys.HOME_JSON] = cmsAuthValuesJson;
+  storage[keys.WMA_COOKIES] = cookies;
+  storage[keys.CASE_REVIEW_COOKIES] = cookies;
+  storage[keys.HOME_COOKIES] = cookies;
+  storage[keys.WMA_JSON] = cmsAuthValuesJson;
+  storage[keys.CASE_REVIEW_JSON] = cmsAuthValuesJson;
+  storage[keys.HOME_JSON] = cmsAuthValuesJson;
+
+  console.log("[CPS-GLOBAL-OS-HANDOVER] storeAuth wrote auth values", {
+    cookies: redactedPreview(cookies),
+    token: redactedPreview(token),
+    jsonLen: cmsAuthValuesJson.length,
+  });
 };
 
-export const isStoredAuthCurrent = (cookies: string, storage: Storage) =>
+export const isStoredAuthCurrent = (
+  cookies: string,
+  storage: Storage,
+  keys: CmsAuthStorageKeys,
+) =>
   areAllCookieStringsEqual(
     cookies,
-    storage[localStorageKeys.WMA_COOKIES],
-    storage[localStorageKeys.CASE_REVIEW_COOKIES],
-    storage[localStorageKeys.HOME_COOKIES],
+    storage[keys.WMA_COOKIES],
+    storage[keys.CASE_REVIEW_COOKIES],
+    storage[keys.HOME_COOKIES],
   );
 
-export const isStoredTokenSameAs = (token: string, storage: Storage): boolean => {
-  const json = storage[localStorageKeys.WMA_JSON];
+export const isStoredTokenSameAs = (
+  token: string,
+  storage: Storage,
+  keys: CmsAuthStorageKeys,
+): boolean => {
+  const json = storage[keys.WMA_JSON];
   if (!json) {
     return false;
   }
@@ -46,39 +72,78 @@ export const isStoredTokenSameAs = (token: string, storage: Storage): boolean =>
   }
 };
 
-export const syncOsAuth = (currentUrl: string, storage: Storage) => {
-  const app = new URLPattern({ pathname: "/:app{/*}?" }).exec(currentUrl)
-    ?.pathname.groups["app"];
+// A source value is only worth propagating to the sibling apps if it actually
+// holds auth. OutSystems can re-persist an emptied ClientVar as the literal
+// string "undefined" (e.g. after a failed post-SSO CMS session check), and an
+// unset key reads back as the JS value undefined — neither must be fanned out.
+const isUsableValue = (value: string | undefined): value is string =>
+  !!value && value !== "undefined";
+
+export const syncOsAuth = (
+  currentUrl: string,
+  storage: Storage,
+  keys: CmsAuthStorageKeys,
+) => {
+  // Match case-insensitively: OutSystems hands the same logical page back under
+  // different casing depending on the navigation (the CMS→OS handover returns to
+  // lowercase /casework/home, in-app links use /Casework/Home). A case-sensitive
+  // switch would silently no-op on the lowercase entry points.
+  const app = new URLPattern({ pathname: "/:app{/*}?" })
+    .exec(currentUrl)
+    ?.pathname.groups["app"]?.toLowerCase();
 
   const copyToOtherApps = (
     jsonKey: keyof Pick<
-      typeof localStorageKeys,
+      CmsAuthStorageKeys,
       "WMA_JSON" | "CASE_REVIEW_JSON" | "HOME_JSON"
     >,
     cookiesKey: keyof Pick<
-      typeof localStorageKeys,
+      CmsAuthStorageKeys,
       "WMA_COOKIES" | "CASE_REVIEW_COOKIES" | "HOME_COOKIES"
     >,
   ) => {
-    storage[localStorageKeys.WMA_JSON] =
-      storage[localStorageKeys.CASE_REVIEW_JSON] =
-      storage[localStorageKeys.HOME_JSON] =
-        storage[localStorageKeys[jsonKey]];
+    // Guard each copy on its own source: never let a blank/"undefined" source
+    // overwrite a sibling app's still-valid auth. Without this, OutSystems
+    // blanking the active app's ClientVar would fan out and wipe the others.
+    const json = storage[keys[jsonKey]];
+    const cookies = storage[keys[cookiesKey]];
 
-    storage[localStorageKeys.WMA_COOKIES] =
-      storage[localStorageKeys.CASE_REVIEW_COOKIES] =
-      storage[localStorageKeys.HOME_COOKIES] =
-        storage[localStorageKeys[cookiesKey]];
+    console.log("[CPS-GLOBAL-OS-HANDOVER] syncOsAuth copy", {
+      app,
+      jsonSource: redactedPreview(json),
+      willCopyJson: isUsableValue(json),
+      cookiesSource: redactedPreview(cookies),
+      willCopyCookies: isUsableValue(cookies),
+    });
+
+    if (isUsableValue(json)) {
+      storage[keys.WMA_JSON] =
+        storage[keys.CASE_REVIEW_JSON] =
+        storage[keys.HOME_JSON] =
+          json;
+    }
+
+    if (isUsableValue(cookies)) {
+      storage[keys.WMA_COOKIES] =
+        storage[keys.CASE_REVIEW_COOKIES] =
+        storage[keys.HOME_COOKIES] =
+          cookies;
+    }
   };
 
+  if (!app || !["workmanagementapp", "casereview", "casework_blocks", "casework"].includes(app)) {
+    console.log("[CPS-GLOBAL-OS-HANDOVER] syncOsAuth no-op (app not matched)", { app });
+  }
+
   switch (app) {
-    case "WorkManagementApp":
+    case "workmanagementapp":
       copyToOtherApps("WMA_JSON", "WMA_COOKIES");
       break;
-    case "CaseReview":
+    case "casereview":
       copyToOtherApps("CASE_REVIEW_JSON", "CASE_REVIEW_COOKIES");
       break;
-    case "Casework_Blocks":
+    case "casework_blocks":
+    case "casework":
       copyToOtherApps("HOME_JSON", "HOME_COOKIES");
       break;
   }
@@ -87,7 +152,5 @@ export const syncOsAuth = (currentUrl: string, storage: Storage) => {
 export const setCmsSessionHint = (
   cmsSessionHint: CmsSessionHint,
   storage: Storage,
-) =>
-  (storage[localStorageKeys.HOME_IS_FROM_PROXY] = String(
-    cmsSessionHint.isProxySession,
-  ));
+  keys: CmsAuthStorageKeys,
+) => (storage[keys.HOME_IS_FROM_PROXY] = String(cmsSessionHint.isProxySession));

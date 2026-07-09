@@ -2,12 +2,24 @@ import { describe, test, expect } from "@jest/globals";
 import { transformConfig } from "./transform-config";
 import { ConfigStorage } from "./Config";
 
+const STORAGE_KEYS = {
+  WMA_JSON: "",
+  WMA_COOKIES: "",
+  CASE_REVIEW_JSON: "",
+  CASE_REVIEW_COOKIES: "",
+  HOME_JSON: "",
+  HOME_COOKIES: "",
+  HOME_IS_FROM_PROXY: "",
+};
+
 describe("transformConfig", () => {
   test("preserves order of paths in flat structure", () => {
     const input: ConfigStorage = {
       ENVIRONMENT: "test",
+      AD_GATEWAY_SCOPES: [],
       LINKS: [],
       BANNER_TITLE_HREF: "https://example.com",
+      CMS_AUTH_STORAGE_KEYS: STORAGE_KEYS,
       CONTEXTS: [
         {
           contexts: [
@@ -30,8 +42,10 @@ describe("transformConfig", () => {
   test("preserves order of paths in nested structure", () => {
     const input: ConfigStorage = {
       ENVIRONMENT: "test",
+      AD_GATEWAY_SCOPES: [],
       LINKS: [],
       BANNER_TITLE_HREF: "https://example.com",
+      CMS_AUTH_STORAGE_KEYS: STORAGE_KEYS,
       CONTEXTS: [
         {
           contexts: [
@@ -60,8 +74,10 @@ describe("transformConfig", () => {
   test("preserves order with deeply nested structure", () => {
     const input: ConfigStorage = {
       ENVIRONMENT: "test",
+      AD_GATEWAY_SCOPES: [],
       LINKS: [],
       BANNER_TITLE_HREF: "https://example.com",
+      CMS_AUTH_STORAGE_KEYS: STORAGE_KEYS,
       CONTEXTS: [
         {
           contexts: [
@@ -98,8 +114,10 @@ describe("transformConfig", () => {
   test("inherits properties from parent nodes", () => {
     const input: ConfigStorage = {
       ENVIRONMENT: "test",
+      AD_GATEWAY_SCOPES: [],
       LINKS: [],
       BANNER_TITLE_HREF: "https://example.com",
+      CMS_AUTH_STORAGE_KEYS: STORAGE_KEYS,
       CONTEXTS: [
         {
           msalRedirectUrl: "https://redirect.example.com",
@@ -142,8 +160,10 @@ describe("transformConfig", () => {
   test("overrides properties at deeper levels", () => {
     const input: ConfigStorage = {
       ENVIRONMENT: "test",
+      AD_GATEWAY_SCOPES: [],
       LINKS: [],
       BANNER_TITLE_HREF: "https://example.com",
+      CMS_AUTH_STORAGE_KEYS: STORAGE_KEYS,
       CONTEXTS: [
         {
           msalRedirectUrl: "https://root.example.com",
@@ -176,8 +196,10 @@ describe("transformConfig", () => {
   test("preserves order with multiple root-level context nodes", () => {
     const input: ConfigStorage = {
       ENVIRONMENT: "test",
+      AD_GATEWAY_SCOPES: [],
       LINKS: [],
       BANNER_TITLE_HREF: "https://example.com",
+      CMS_AUTH_STORAGE_KEYS: STORAGE_KEYS,
       CONTEXTS: [
         {
           msalRedirectUrl: "https://group1.example.com",
@@ -220,8 +242,10 @@ describe("transformConfig", () => {
   test("handles empty contexts array", () => {
     const input: ConfigStorage = {
       ENVIRONMENT: "test",
+      AD_GATEWAY_SCOPES: [],
       LINKS: [],
       BANNER_TITLE_HREF: "https://example.com",
+      CMS_AUTH_STORAGE_KEYS: STORAGE_KEYS,
       CONTEXTS: [
         {
           contexts: [],
@@ -237,6 +261,7 @@ describe("transformConfig", () => {
   test("preserves non-CONTEXTS properties", () => {
     const input: ConfigStorage = {
       ENVIRONMENT: "production",
+      AD_GATEWAY_SCOPES: [],
       LINKS: [
         {
           label: "Home",
@@ -247,6 +272,7 @@ describe("transformConfig", () => {
         },
       ],
       BANNER_TITLE_HREF: "https://example.com",
+      CMS_AUTH_STORAGE_KEYS: STORAGE_KEYS,
       AD_TENANT_AUTHORITY: "https://login.microsoftonline.com/tenant-id",
       AD_CLIENT_ID: "client-123",
       SHOW_MENU: true,
@@ -273,8 +299,10 @@ describe("transformConfig", () => {
   test("preserves order with complex mixed nesting", () => {
     const input: ConfigStorage = {
       ENVIRONMENT: "test",
+      AD_GATEWAY_SCOPES: [],
       LINKS: [],
       BANNER_TITLE_HREF: "https://example.com",
+      CMS_AUTH_STORAGE_KEYS: STORAGE_KEYS,
       CONTEXTS: [
         {
           contexts: [
@@ -312,8 +340,10 @@ describe("transformConfig", () => {
   test("preserves domTagDefinitions on leaf nodes", () => {
     const input: ConfigStorage = {
       ENVIRONMENT: "test",
+      AD_GATEWAY_SCOPES: [],
       LINKS: [],
       BANNER_TITLE_HREF: "https://example.com",
+      CMS_AUTH_STORAGE_KEYS: STORAGE_KEYS,
       CONTEXTS: [
         {
           contexts: [
@@ -341,5 +371,46 @@ describe("transformConfig", () => {
     ]);
     expect(result.CONTEXTS[1].path).toBe("/without-tags");
     expect(result.CONTEXTS[1].domTagDefinitions).toBeUndefined();
+  });
+
+  test("inherits the skipLinks node from a parent and validates without it", () => {
+    const input: ConfigStorage = {
+      ENVIRONMENT: "test",
+      AD_GATEWAY_SCOPES: [],
+      LINKS: [],
+      BANNER_TITLE_HREF: "https://example.com",
+      CMS_AUTH_STORAGE_KEYS: STORAGE_KEYS,
+      CONTEXTS: [
+        {
+          skipLinks: {
+            mainSelector: ".main-target",
+            searchSelector: "#case-search",
+            listSelector: "#case-list",
+            useScroll: true,
+          },
+          contexts: [
+            { path: "/with-skip-links", contextIds: "ctx1" },
+          ],
+        },
+        {
+          contexts: [
+            { path: "/without-skip-links", contextIds: "ctx2" },
+          ],
+        },
+      ],
+    };
+
+    const result = transformConfig(input);
+
+    expect(result.CONTEXTS.length).toBe(2);
+    expect(result.CONTEXTS[0].path).toBe("/with-skip-links");
+    expect(result.CONTEXTS[0].skipLinks).toEqual({
+      mainSelector: ".main-target",
+      searchSelector: "#case-search",
+      listSelector: "#case-list",
+      useScroll: true,
+    });
+    expect(result.CONTEXTS[1].path).toBe("/without-skip-links");
+    expect(result.CONTEXTS[1].skipLinks).toBeUndefined();
   });
 });

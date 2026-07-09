@@ -13,12 +13,15 @@ import { initialiseCaseDetailsData } from "./services/data/initialise-case-detai
 import { initialiseCorrelationIds } from "./services/correlation/initialise-correlation-ids";
 import { initialiseRootUrl } from "./services/root-url/initialise-root-url";
 import { initialisePreview } from "./services/state/preview/initialise-preview";
+import { initialiseRequestObservationShim } from "./services/request-observation/initialise-request-observation-shim";
+import { initialiseDarkReaderDetection } from "./services/dark-reader-detection/initialise-dark-reader-detection";
 import { initialiseNotifications } from "./services/notifications/initialise-notifications";
 import { handlers } from "./services/handlers/handlers";
 import { initialiseRecentCases } from "./services/state/recent-cases/initialise-recent-cases";
 import { footerSubscriber } from "./services/browser/dom/footer-subscriber";
 import { hostAppEventSubscriber } from "./services/browser/dom/host-app-event-subscriber";
 import { accessibilitySubscriber } from "./services/browser/accessibility/accessibility-subscriber";
+import { skipLinkSubscriber } from "./services/browser/dom/skip-link-subscriber";
 import { initialiseSettings } from "./services/state/settings/initialise-settings";
 import { initialiseOutSystemsReconcileAuth } from "./services/outsystems-shim/initialise-outsytems-reconcile-auth";
 import { initialiseOutSystemsShowAlert } from "./services/outsystems-shim/outsystems-show-alert";
@@ -29,7 +32,9 @@ import { initialiseUserData } from "./services/state/user-data/initialise-user-d
 import { initialiseDiagnostics } from "./services/diagnostics/initialise-diagnostics";
 import { initialiseTabTitle } from "./services/browser/tab-title/initialise-tab-title";
 import { initialiseBuild } from "./services/build/initialise-build";
+import { initialiseCaseLocking } from "./services/case-locking/initialise-case-locking";
 import { runNowAndOnNavigation } from "./services/browser/navigation/navigation";
+import { initialisePageLifecycle } from "./services/browser/navigation/page-lifecycle";
 import { TrackException } from "./services/analytics/TrackException";
 import { summariseResults } from "./utils/summarise-results";
 
@@ -57,35 +62,44 @@ const initialise = async (window: Window & typeof globalThis) => {
   };
 
   try {
+    // Register the page-unload listener early so its abort signal cancels any
+    // in-flight data fetch when the host navigates the page away (full-page
+    // redirect). See page-lifecycle.ts.
+    initialisePageLifecycle(window);
+
     const build = initialiseBuild({ window, register });
     const rootUrl = initialiseRootUrl({ register });
     initialiseNavigateCms({ window, rootUrl });
 
     const flags = initialiseApplicationFlags({ window, rootUrl, register });
-    initialiseOutSystemsReconcileAuth({ window, flags });
 
-    const [{ handover, setNextHandover }, preview, settings, { authHint, setAuthHint }, { userDataHint, setUserDataHint }, cmsSessionHint] = await Promise.all([
+    // Config no longer depends on preview (override-via-preview was removed in
+    // FCT2-17451 drop 4) so it joins the parallel set.
+    const [{ handover, setNextHandover }, preview, settings, { authHint, setAuthHint }, { userDataHint, setUserDataHint }, cmsSessionHint, config] = await Promise.all([
       initialiseHandover({ rootUrl, register }),
       initialisePreview({ rootUrl, register }),
       initialiseSettings({ rootUrl }),
       initialiseAuthHint({ rootUrl, register }),
       initialiseUserDataHint({ rootUrl, register }),
       initialiseCmsSessionHint({ rootUrl, flags, register }),
+      initialiseConfig({ rootUrl, flags, register }),
     ]);
 
+    initialiseOutSystemsReconcileAuth({ window, flags, config });
+
+    const { initialiseCaseLockingForContext, witnessAreaSubscriber } = initialiseCaseLocking({ window, config, preview, register });
+
     const { initialiseDomForContext } = initialiseDomObservation(
-      { window, register, mergeTags, preview, settings },
+      { window, register, mergeTags, preview, settings, flags, config },
       domTagMutationSubscriber,
       footerSubscriber,
       hostAppEventSubscriber,
       accessibilitySubscriber,
+      witnessAreaSubscriber,
+      skipLinkSubscriber,
     );
 
-    initialiseTabTitle({ window, preview, subscribe, flags });
-
-    const config = await initialiseConfig({ rootUrl, flags, preview, register });
-    /* do not await this — notification fetches shouldn't block auth/analytics/etc. */
-    initialiseNotifications({ rootUrl, register, handlers, config });
+    initialiseTabTitle({ window, preview, settings, subscribe, flags });
     const { setNextRecentCases } = initialiseRecentCases({ rootUrl, config, register });
 
     const {
@@ -95,7 +109,6 @@ const initialise = async (window: Window & typeof globalThis) => {
       registerAuthWithAnalytics,
       registerCorrelationIdsWithAnalytics,
       registerCaseIdentifiersWithAnalytics,
-      getOperationId,
     } = initialiseAnalytics({
       window,
       config,
@@ -106,20 +119,27 @@ const initialise = async (window: Window & typeof globalThis) => {
     });
     trackException = _trackException;
 
-    const { silentFlowDiagnostics, addSilentFlowDiagnostics } = initialiseDiagnostics({ window, rootUrl, config, flags, register, trackEvent });
+    /* do not await this — notification fetches shouldn't block auth/analytics/etc. */
+    initialiseNotifications({ rootUrl, register, handlers, config, trackEvent });
+
+    initialiseRequestObservationShim({ window, config, preview, trackEvent });
+
+    initialiseDarkReaderDetection({ window, config, trackEvent });
+
+    initialiseDiagnostics({ window, rootUrl, config, trackEvent });
 
     trackEvent({ name: "state-summary", summary: summariseResults({ handover, preview, settings, authHint, userDataHint, cmsSessionHint }) });
 
     const { initialiseAuthForContext } = initialiseAuth({
       config,
+      preview,
+      authHint,
       flags,
       trackException,
-      silentFlowDiagnostics,
-      addSilentFlowDiagnostics,
-      getOperationId,
       register,
       registerAuthWithAnalytics,
       setAuthHint,
+      window,
     });
     const { initialiseCaseDetailsDataForContext, initialiseCaseDetailsDataForContextOptimistic } = initialiseCaseDetailsData({
       config,
@@ -149,7 +169,9 @@ const initialise = async (window: Window & typeof globalThis) => {
 
         const authPromise = initialiseAuthForContext(context);
         authPromise.then(({ auth }) => initialiseOutSystemsShowAlertForContext({ context, auth })).catch(handleError);
-        authPromise.then(({ getToken }) => initialiseUserDataForContext({ context, getToken, correlationIds })).catch(handleError);
+        // auth is passed in; the service decides whether to fetch (it no-ops when
+        // not authed, so we don't call getToken with no account → no 401 churn).
+        authPromise.then(({ getToken, auth }) => initialiseUserDataForContext({ context, getToken, correlationIds, auth })).catch(handleError);
 
         const caseIdentifiersPromise = caseIdentifiersWaiter.waitForChange();
         caseIdentifiersPromise
@@ -160,7 +182,12 @@ const initialise = async (window: Window & typeof globalThis) => {
           .catch(handleError);
 
         Promise.all([authPromise, caseIdentifiersPromise])
-          .then(([{ getToken }, caseIdentifiers]) => initialiseCaseDetailsDataForContext({ context, caseIdentifiers, getToken, correlationIds }))
+          .then(([{ getToken, auth }, caseIdentifiers]) => {
+            // auth passed through; the service skips the authed fetch when not
+            // authed (the optimistic path already covered the unauthed case).
+            initialiseCaseDetailsDataForContext({ context, caseIdentifiers, getToken, correlationIds, auth });
+            initialiseCaseLockingForContext({ auth, caseIdentifiers });
+          })
           .catch(handleError);
       } catch (err) {
         handleError(err);

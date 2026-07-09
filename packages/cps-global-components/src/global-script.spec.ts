@@ -116,12 +116,25 @@ jest.mock("./services/browser/tab-title/initialise-tab-title", () => ({
   initialiseTabTitle: mockInitialiseTabTitle,
 }));
 
+jest.mock("./services/dark-reader-detection/initialise-dark-reader-detection", () => ({
+  initialiseDarkReaderDetection: jest.fn(),
+}));
+
 const mockInitialiseCaseDetailsDataForContext = jest.fn();
 const mockInitialiseCaseDetailsDataForContextOptimistic = jest.fn();
 jest.mock("./services/data/initialise-case-details-data", () => ({
   initialiseCaseDetailsData: () => ({
     initialiseCaseDetailsDataForContext: mockInitialiseCaseDetailsDataForContext,
     initialiseCaseDetailsDataForContextOptimistic: mockInitialiseCaseDetailsDataForContextOptimistic,
+  }),
+}));
+
+const mockInitialiseCaseLockingForContext = jest.fn();
+const mockWitnessAreaSubscriber = jest.fn(() => ({ isActiveForContext: false, subscriptions: [] }));
+jest.mock("./services/case-locking/initialise-case-locking", () => ({
+  initialiseCaseLocking: () => ({
+    initialiseCaseLockingForContext: mockInitialiseCaseLockingForContext,
+    witnessAreaSubscriber: mockWitnessAreaSubscriber,
   }),
 }));
 
@@ -1221,7 +1234,7 @@ describe("global-script", () => {
     // These tests verify that the correct data flows from one step to the next
     // A control flow refactor should not break these dependencies
 
-    it("should pass rootUrl, flags and preview to initialiseConfig", async () => {
+    it("should pass rootUrl and flags to initialiseConfig", async () => {
       const testFlags = {
         e2eTestMode: { isE2eTestMode: false },
         isLocalDevelopment: true,
@@ -1238,7 +1251,7 @@ describe("global-script", () => {
       globalScript();
       await new Promise(resolve => setTimeout(resolve, 10));
 
-      expect(mockInitialiseConfig).toHaveBeenCalledWith({ rootUrl: testRootUrl, flags: testFlags, preview: testPreview });
+      expect(mockInitialiseConfig).toHaveBeenCalledWith({ rootUrl: testRootUrl, flags: testFlags });
     });
 
     it("should pass rootUrl and flags to initialiseCmsSessionHint", async () => {
@@ -1466,6 +1479,28 @@ describe("global-script", () => {
         expect.objectContaining({
           caseIdentifiers: { caseId: "456" },
         }),
+      );
+    });
+
+    it("passes auth through to the data services so they make the fetch/no-fetch determination", async () => {
+      mockInitialiseContext.mockReturnValue({
+        found: true,
+        contextDefinition: { name: "test-context" },
+        pathTags: { caseId: "456" },
+      });
+      const failedAuth = { isAuthed: false, knownErrorType: "RedirectInFlight", reason: "redirect in flight" };
+      mockInitialiseAuth.mockResolvedValue({ auth: failedAuth, getToken: jest.fn() });
+
+      const globalScript = require("./global-script").default;
+      globalScript();
+      await new Promise(resolve => setTimeout(resolve, 50));
+
+      // Optimistic (no-token) path still runs unconditionally.
+      expect(mockInitialiseCaseDetailsDataForContextOptimistic).toHaveBeenCalledWith({ caseId: "456" });
+      // global-script no longer gates — it always calls and passes auth through;
+      // the service decides whether to actually fetch (tested in the service spec).
+      expect(mockInitialiseCaseDetailsDataForContext).toHaveBeenCalledWith(
+        expect.objectContaining({ auth: failedAuth }),
       );
     });
   });

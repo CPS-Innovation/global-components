@@ -1,5 +1,5 @@
 let Visits = GloCo_PageViews
-| where TimeGenerated > datetime(2026-03-09T12:00:01)
+// | where TimeGenerated > datetime(2026-03-09T12:00:01)
 | where App != "Casework app"
 | where Auth_IsAuthed
 | summarize Visits = count_distinct(CorrelationId_ScriptLoad) by Auth_Username, App;

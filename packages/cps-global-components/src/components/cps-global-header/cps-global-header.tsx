@@ -3,7 +3,7 @@ import { renderError } from "../common/render-error";
 import { readyState, mergeTags } from "../../store/store";
 import { WithLogging } from "../../logging/WithLogging";
 import { makeConsole } from "../../logging/makeConsole";
-import { FEATURE_FLAGS } from "../../feature-flags/feature-flags";
+import { FEATURE_FLAGS } from "cps-global-configuration";
 
 const { _debug } = makeConsole("CpsGlobalHeader");
 
@@ -27,7 +27,7 @@ export class CpsGlobalHeader {
 
   @WithLogging("CpsGlobalHeader")
   render() {
-    const { isReady, state } = readyState("context", "preview", "flags");
+    const { isReady, state } = readyState("config", "context", "preview", "flags");
 
     const { headerCustomCssClasses, headerCustomCssStyles } =
       isReady && state?.context.found ? state.context : { headerCustomCssClasses: undefined, headerCustomCssStyles: undefined };
@@ -41,6 +41,7 @@ export class CpsGlobalHeader {
           <cps-global-banner></cps-global-banner>
           {state.fatalInitialisationError ? renderError(state.fatalInitialisationError) : <cps-global-menu></cps-global-menu>}
           <cps-global-notifications></cps-global-notifications>
+          <cps-global-case-locking-notification></cps-global-case-locking-notification>
         </div>
       </Host>
     );

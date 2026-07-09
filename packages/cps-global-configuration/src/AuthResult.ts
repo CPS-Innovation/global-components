@@ -1,0 +1,64 @@
+import { z } from "zod";
+
+// Fundamental AD-auth state model. Used by:
+// - cps-global-components (host bundle) — derives AuthResult from MSAL output
+// - cps-global-handover (handover bundle) — reads via AuthHint on failure beacon
+// - cps-global-auth (MSAL library) — has its own structurally-compatible strict
+//   subset in packages/cps-global-auth/src/AuthResult.ts (never produces
+//   "ADPreventedByContext"). The two are intentionally decoupled today so the
+//   library can stay free of an explicit dependency on this package.
+
+// Selected Microsoft Graph /me profile fields. Fetched once on the cold auth
+// establishment (see cps-global-auth get-me) and persisted via AuthHint so warm
+// loads reuse it without re-hitting Graph. Modelled as an object (rather than a
+// bare `department` string) so further /me fields can be added by extending the
+// $select and this schema, with no reshape.
+export const MeSchema = z.object({
+  department: z.string().optional(),
+  jobTitle: z.string().optional(),
+});
+
+export type Me = z.infer<typeof MeSchema>;
+
+export const AuthSchema = z.object({
+  isAuthed: z.literal(true),
+  username: z.string(),
+  name: z.string().optional(),
+  objectId: z.string(),
+  groups: z.array(z.string()),
+  me: MeSchema.optional(),
+});
+
+export type Auth = z.infer<typeof AuthSchema>;
+
+// Superset of values produced by the host and the MSAL library.
+// "ADPreventedByContext" is host-only — set when the context's
+// preventADAndDataCalls flag disables AD calls entirely.
+export type KnownErrorType =
+  | "ConfigurationIncomplete"
+  | "RedirectLocationIsApp"
+  | "ADPreventedByContext"
+  | "NoAccountFound"
+  | "ConditionalAccessRule"
+  | "MultipleIdentities"
+  | "SilentFlowProblem"
+  | "PostRequestFailed"
+  | "NoNetworkConnectivity"
+  | "StaleSidHint"
+  // The cached refresh token has aged out — silent acquisition can't recover and
+  // the user needs a fresh interactive sign-in. A normal token-lifecycle event,
+  // surfaced as its own bucket so analytics doesn't lump it under "Unknown".
+  | "RefreshTokenExpired"
+  // The cascade fired loginRedirect this call and the page is about to unload.
+  // Distinct from "NoAccountFound" so analytics doesn't treat the outbound
+  // leg of a healthy redirect round-trip as a terminal auth failure.
+  | "RedirectInFlight"
+  | "Unknown";
+
+export type FailedAuth = {
+  isAuthed: false;
+  knownErrorType: KnownErrorType;
+  reason: string;
+};
+
+export type AuthResult = Auth | FailedAuth;

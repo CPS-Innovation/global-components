@@ -1,19 +1,17 @@
 import { ApplicationInsights } from "@microsoft/applicationinsights-web";
-import { Config } from "cps-global-configuration";
-import { FoundContext } from "../context/FoundContext";
+import { AuthHint, AuthResult, Config, FoundContext, KnownErrorType, Me } from "cps-global-configuration";
 import { CorrelationIds } from "../correlation/CorrelationIds";
 import { AnalyticsEventData, TrackEvent } from "./analytics-event";
 import { HostAppEvent } from "./host-app-event";
 import { makeConsole } from "../../logging/makeConsole";
 import { Build } from "../../store/store";
-import { AuthResult, KnownErrorType } from "../auth/AuthResult";
 import { capitalizeKeys } from "../../utils/capitalize-keys";
 import { Result } from "../../utils/Result";
-import { AuthHint } from "../state/auth-hint/initialise-auth-hint";
 import { UserDataHint } from "../state/user-data/UserData";
 import { ExceptionMeta } from "./ExceptionMeta";
 import { getPageState } from "./page-state";
 import { TrackException } from "./TrackException";
+import { isAbortError, isPageUnloading } from "../browser/navigation/page-lifecycle";
 
 const ANALYTICS_EVENT_NAME = "cps-global-components-analytics-event";
 const STORAGE_PREFIX = "cps_global_components";
@@ -28,8 +26,8 @@ type Props = {
 
 type AuthAnalyticsProps =
   | undefined
-  | { isAuthed: false; knownErrorType: KnownErrorType; username?: string; objectId?: string }
-  | { isAuthed: true; username: string; objectId: string };
+  | { isAuthed: false; knownErrorType: KnownErrorType; username?: string; objectId?: string; me?: Me }
+  | { isAuthed: true; username: string; objectId: string; me?: Me };
 
 export type Analytics = ReturnType<typeof initialiseAiAnalytics>;
 
@@ -44,7 +42,6 @@ export const initialiseAiAnalytics = ({ window, config: { APP_INSIGHTS_CONNECTIO
       registerAuthWithAnalytics: (_: AuthResult) => {},
       registerCorrelationIdsWithAnalytics: (_: CorrelationIds) => {},
       registerCaseIdentifiersWithAnalytics: (_: string | undefined) => {},
-      getOperationId: () => undefined as string | undefined,
     };
   }
 
@@ -128,10 +125,10 @@ export const initialiseAiAnalytics = ({ window, config: { APP_INSIGHTS_CONNECTIO
 
   const registerAuthWithAnalytics = (auth: AuthResult) => {
     if (auth.isAuthed) {
-      authValues = { isAuthed: true, username: auth.username, objectId: auth.objectId };
+      authValues = { isAuthed: true, username: auth.username, objectId: auth.objectId, ...(auth.me && { me: auth.me }) };
     } else {
       const hint = authHint?.found ? authHint.result.authResult : undefined;
-      authValues = { isAuthed: false, knownErrorType: auth.knownErrorType, ...(hint && { username: hint.username, objectId: hint.objectId }) };
+      authValues = { isAuthed: false, knownErrorType: auth.knownErrorType, ...(hint && { username: hint.username, objectId: hint.objectId, ...(hint.me && { me: hint.me }) }) };
     }
     resolveAuthReady();
   };
@@ -179,6 +176,16 @@ export const initialiseAiAnalytics = ({ window, config: { APP_INSIGHTS_CONNECTIO
   };
 
   const trackException: TrackException = (exception: Error, meta: ExceptionMeta) => {
+    // Centrally drop data-fetch noise from host navigations: when the host
+    // navigates the page away mid-fetch the request aborts ("Failed to fetch" /
+    // AbortError). That is expected, not a data-API failure — tracking it floods
+    // telemetry and masks genuine outages. Gated on type === "data" so it never
+    // suppresses auth/init/state exceptions. Callers don't have to think about
+    // it: any `trackException(err, { type: "data" })` is auto-safe. See
+    // services/browser/navigation/page-lifecycle.ts.
+    if (meta.type === "data" && (isPageUnloading() || isAbortError(exception))) {
+      return;
+    }
     appInsights.trackException(
       { exception },
       {
@@ -213,7 +220,5 @@ export const initialiseAiAnalytics = ({ window, config: { APP_INSIGHTS_CONNECTIO
     appInsights.trackEvent({ name: ev.type, properties: { ...ev.detail, ...commonEventProperties() } });
   });
 
-  const getOperationId = (): string | undefined => appInsights.context?.telemetryTrace?.traceID;
-
-  return { trackPageView, trackException, trackEvent, registerAuthWithAnalytics, registerCorrelationIdsWithAnalytics, registerCaseIdentifiersWithAnalytics, getOperationId };
+  return { trackPageView, trackException, trackEvent, registerAuthWithAnalytics, registerCorrelationIdsWithAnalytics, registerCaseIdentifiersWithAnalytics };
 };
