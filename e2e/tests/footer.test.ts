@@ -80,7 +80,9 @@ describe("Footer", () => {
     const link = await page.evaluate(
       (locators, innerHost) => {
         const inner = document.querySelector(`${locators.FOOTER_CONTAINER} ${innerHost}`);
-        const anchor = inner?.shadowRoot?.querySelector<HTMLAnchorElement>("a.govuk-footer__link");
+        // The accessibility settings link also uses a.govuk-footer__link (no target);
+        // the statement link is the one that opens in a new tab, so target it specifically.
+        const anchor = inner?.shadowRoot?.querySelector<HTMLAnchorElement>('a.govuk-footer__link[target="_blank"]');
         return anchor && { href: anchor.href, text: anchor.textContent?.trim(), target: anchor.getAttribute("target") };
       },
       L,
@@ -102,7 +104,7 @@ describe("Footer", () => {
     const hasLink = await page.evaluate(
       (locators, innerHost) => {
         const inner = document.querySelector(`${locators.FOOTER_CONTAINER} ${innerHost}`);
-        return !!inner?.shadowRoot?.querySelector("a.govuk-footer__link");
+        return !!inner?.shadowRoot?.querySelector('a.govuk-footer__link[target="_blank"]');
       },
       L,
       INNER_HOST,
