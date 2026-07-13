@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import type { Settings } from "cps-global-configuration";
 
 const STATE_ENDPOINT = "/global-components/state/settings";
@@ -25,6 +25,38 @@ export function SettingsApp() {
   const [showUrn, setShowUrn] = useState<ShowUrn>("yes");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Focus management. Each stage is an in-place React swap, not a page load, so
+  // nothing is announced automatically. Moving focus to the new stage's heading
+  // makes JAWS read it — the SPA equivalent of the navigation the GOV.UK
+  // multi-page flow relies on.
+  const headingRef = useRef<HTMLHeadingElement>(null);
+  const errorRef = useRef<HTMLDivElement>(null);
+  const isFirstRender = useRef(true);
+
+  const STAGE_TITLES: Record<Step, string> = {
+    form: "Accessibility settings",
+    check: "Check your answers",
+    confirmation: "Your accessibility settings have been updated",
+  };
+
+  useEffect(() => {
+    // Do not steal focus on the initial page load — only on stage changes.
+    if (isFirstRender.current) {
+      isFirstRender.current = false;
+      return;
+    }
+    headingRef.current?.focus();
+    document.title = `${STAGE_TITLES[step]} - CPS Global Components`;
+  }, [step]);
+
+  // When a problem appears, move focus to the error summary so it is announced
+  // and the user can act on it.
+  useEffect(() => {
+    if (error) {
+      errorRef.current?.focus();
+    }
+  }, [error]);
 
   const loadState = useCallback(async () => {
     try {
@@ -80,7 +112,7 @@ export function SettingsApp() {
   };
 
   const errorSummary = error && (
-    <div className="govuk-error-summary" data-module="govuk-error-summary">
+    <div className="govuk-error-summary" data-module="govuk-error-summary" ref={errorRef} tabIndex={-1}>
       <div role="alert">
         <h2 className="govuk-error-summary__title">There is a problem</h2>
         <div className="govuk-error-summary__body">
@@ -94,48 +126,57 @@ export function SettingsApp() {
     return (
       <div className="govuk-grid-row">
         <div className="govuk-grid-column-two-thirds">
-          <h1 className="govuk-heading-l">Accessibility settings</h1>
+          <h1 className="govuk-heading-l" ref={headingRef} tabIndex={-1}>
+            Accessibility settings
+          </h1>
           <p className="govuk-body">Use this page to define your accessibility settings.</p>
 
           {errorSummary}
 
-          <div className="govuk-form-group">
-            <fieldset className="govuk-fieldset">
-              <legend className="govuk-fieldset__legend govuk-fieldset__legend--m">
-                Show the URN at the beginning of the tab name
-              </legend>
-              <div className="govuk-radios govuk-radios--inline" data-module="govuk-radios">
-                {(
-                  [
-                    { value: "yes", label: "Yes" },
-                    { value: "no", label: "No" },
-                  ] as const
-                ).map(({ value, label }) => (
-                  <div className="govuk-radios__item" key={value}>
-                    <input
-                      className="govuk-radios__input"
-                      id={`show-urn-${value}`}
-                      name="show-urn"
-                      type="radio"
-                      value={value}
-                      checked={showUrn === value}
-                      disabled={loading}
-                      onChange={() => setShowUrn(value)}
-                    />
-                    <label className="govuk-label govuk-radios__label" htmlFor={`show-urn-${value}`}>
-                      {label}
-                    </label>
-                  </div>
-                ))}
-              </div>
-            </fieldset>
-          </div>
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              setStep("check");
+            }}
+          >
+            <div className="govuk-form-group">
+              <fieldset className="govuk-fieldset">
+                <legend className="govuk-fieldset__legend govuk-fieldset__legend--m">
+                  Show the URN at the beginning of the tab name
+                </legend>
+                <div className="govuk-radios govuk-radios--inline" data-module="govuk-radios">
+                  {(
+                    [
+                      { value: "yes", label: "Yes" },
+                      { value: "no", label: "No" },
+                    ] as const
+                  ).map(({ value, label }) => (
+                    <div className="govuk-radios__item" key={value}>
+                      <input
+                        className="govuk-radios__input"
+                        id={`show-urn-${value}`}
+                        name="show-urn"
+                        type="radio"
+                        value={value}
+                        checked={showUrn === value}
+                        disabled={loading}
+                        onChange={() => setShowUrn(value)}
+                      />
+                      <label className="govuk-label govuk-radios__label" htmlFor={`show-urn-${value}`}>
+                        {label}
+                      </label>
+                    </div>
+                  ))}
+                </div>
+              </fieldset>
+            </div>
 
-          <div className="govuk-button-group">
-            <button type="button" className="govuk-button" data-module="govuk-button" disabled={loading} onClick={() => setStep("check")}>
-              Continue
-            </button>
-          </div>
+            <div className="govuk-button-group">
+              <button type="submit" className="govuk-button" data-module="govuk-button" disabled={loading}>
+                Continue
+              </button>
+            </div>
+          </form>
         </div>
       </div>
     );
@@ -145,11 +186,9 @@ export function SettingsApp() {
     return (
       <div className="govuk-grid-row">
         <div className="govuk-grid-column-two-thirds">
-          <a href="#" className="govuk-back-link" onClick={(e) => { e.preventDefault(); setStep("form"); }}>
-            Back
-          </a>
-
-          <h1 className="govuk-heading-l">Check your answers</h1>
+          <h1 className="govuk-heading-l" ref={headingRef} tabIndex={-1}>
+            Check your answers
+          </h1>
 
           {errorSummary}
 
@@ -165,11 +204,18 @@ export function SettingsApp() {
             </div>
           </dl>
 
-          <div className="govuk-button-group">
-            <button type="button" className="govuk-button" data-module="govuk-button" onClick={handleSaveAndContinue}>
-              Save and continue
-            </button>
-          </div>
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              handleSaveAndContinue();
+            }}
+          >
+            <div className="govuk-button-group">
+              <button type="submit" className="govuk-button" data-module="govuk-button">
+                Save and continue
+              </button>
+            </div>
+          </form>
         </div>
       </div>
     );
@@ -179,7 +225,9 @@ export function SettingsApp() {
     <div className="govuk-grid-row">
       <div className="govuk-grid-column-two-thirds">
         <div className="govuk-panel govuk-panel--confirmation">
-          <h1 className="govuk-panel__title">Your accessibility settings have been updated</h1>
+          <h1 className="govuk-panel__title" ref={headingRef} tabIndex={-1}>
+            Your accessibility settings have been updated
+          </h1>
         </div>
       </div>
     </div>
