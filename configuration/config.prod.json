@@ -18,7 +18,7 @@
   "APP_INSIGHTS_CONNECTION_STRING": "InstrumentationKey=e572c03c-8d38-4771-b193-962f13da1b1a;IngestionEndpoint=https://polaris.cps.gov.uk/global-components/analytics/;ApplicationId=3dafc37d-8c9c-4480-90fc-532ac2b8bba2",
   "SURVEY_LINK": "https://forms.cloud.microsoft/Pages/ResponsePage.aspx?id=HQ3dAObXOEOsUVZTOccIjMYFiPHggxZNtgEAXRbAx2hUNjNWUDc0UEtVTERCMFpFMkI1QTVSSUxTVyQlQCN0PWcu&rc715f3f34a484d8eae0a1809b30c6c5a=%22Feedback%22&r67e8aaf2389e4b9d8aa0c01902281211=9&rf690462c782847db972938cb1c773bc2=%22Easy%22&r781f1b5b16b14f5689b788fa6d98287b=%22Make%20a%20Charging%20Decision%22",
   "REPORT_ISSUE_LINK": "https://forms.office.com/Pages/ResponsePage.aspx?id=HQ3dAObXOEOsUVZTOccIjJoWrYUO2RtKg-k_WWF_5qZUMFhXNTRVNkowWDhXSzFMOUc5SVhQQlVMSy4u",
-  "ACCESSIBILITY_STATEMENT_URL": "https://polaris.cps.gov.uk/global-components/prod/accessibility/statement.html",
+  "ACCESSIBILITY_STATEMENT_URL": "https://cps.outsystemsenterprise.com/Casework/accessibility",
   "SHOW_MENU": true,
   "SHOW_RECENT_CASES": true,
   "SHOW_MONITORING_CODES": false,
@@ -120,6 +120,11 @@
           "preventADAndDataCalls": true
         },
         {
+          "path": "https://polaris.cps.gov.uk/global-components/prod/accessibility/settings\\.html",
+          "contextIds": "accessibility-settings",
+          "preventADAndDataCalls": true
+        },
+        {
           "path": "https://polaris.cps.gov.uk/global-components/prod/accessibility/",
           "contextIds": "accessibility-statement",
           "preventADAndDataCalls": true
@@ -163,21 +168,21 @@
       "label": "Home",
       "level": 0,
       "href": "https://cps.outsystemsenterprise.com/Casework_Blocks/home",
-      "visibleContexts": "home tasks cases case unknown-wma",
+      "visibleContexts": "home tasks cases case unknown-wma accessibility-settings",
       "activeContexts": "home"
     },
     {
       "label": "Tasks",
       "level": 0,
       "href": "https://cps.outsystemsenterprise.com/WorkManagementApp/TaskList",
-      "visibleContexts": "home tasks cases case unknown-wma",
+      "visibleContexts": "home tasks cases case unknown-wma accessibility-settings",
       "activeContexts": "tasks"
     },
     {
       "label": "Cases",
       "level": 0,
       "href": "https://cps.outsystemsenterprise.com/WorkManagementApp/Cases?IsCasesNavigation=true",
-      "visibleContexts": "home tasks cases case unknown-wma",
+      "visibleContexts": "home tasks cases case unknown-wma accessibility-settings",
       "activeContexts": "cases case"
     },
     {
