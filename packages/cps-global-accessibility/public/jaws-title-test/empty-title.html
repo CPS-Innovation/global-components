@@ -16,7 +16,7 @@
     (function () {
       var params = new URLSearchParams(location.search);
       var parsed = parseInt(params.get('delay'), 10);
-      var delay = isNaN(parsed) ? 1500 : Math.max(0, parsed);
+      var delay = isNaN(parsed) ? 0 : Math.max(0, parsed);
       setTimeout(function () {
         location.replace('./index.html?from=' + encodeURIComponent('Empty title'));
       }, delay);
