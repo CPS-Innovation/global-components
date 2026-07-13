@@ -32,21 +32,21 @@ accessibility static site, and its access logs feed the analytics.
 
 Values confirmed via `az` (2026-07).
 
-| Property                | Terraform concern?      | Value / notes                                                                                                                                 |
-| ----------------------- | ----------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
-| Account name            | Yes                     | `sacpsglobalcomponents`                                                                                                                       |
-| Subscription / RG       | Yes                     | `<subscription-id>` / `rg-global-nav-dev` (uksouth)                                                                        |
-| Kind / SKU              | Yes                     | `StorageV2` / `Standard_LRS`                                                                                                                  |
-| TLS / HTTPS-only        | Yes                     | `TLS1_2` / HTTPS-only enabled                                                                                                                 |
-| `allowBlobPublicAccess` | Yes                     | **true** (anonymous access is enabled at the account level)                                                                                   |
-| Blob containers (live)  | No — CI-owned           | `dev`, `test`, `uat`, `prod`, `staging`, `unstable`, `prod-safe`, `accessibility`, `analytics`, `case-locking`, `msal-test`, `$web`           |
-| Container public access | No — CI-owned           | Most are **`container`** (anonymous blob read); **`analytics`** and **`prod-safe`** are **private**                                           |
-| Container provisioning  | No — CI-owned           | **Created on demand by CI, not pre-provisioned** — see note below                                                                             |
-| Served assets           | No — CI content         | `global-components.js`, `auth-handover.js`, `auth-handover.html`, `statement.html`                                                            |
-| Cache-Control on upload | No — CI, upload-time    | `max-age=20, stale-while-revalidate=3600, stale-if-error=3600`                                                                                |
-| Blob metadata           | No — CI, per-deploy     | `buildsha`, `buildrunid`, `buildtimestamp`, `branch` (stamped per deploy)                                                                     |
-| Static website ($web)   | Yes                     | Enabled — web endpoint `https://sacpsglobalcomponents.z33.web.core.windows.net/` (accessibility harness)                                      |
-| Diagnostic setting      | Yes                     | ✓ `la-global-nav-dev` on `blobServices/default` — `allLogs` + `Transaction` metrics → workspace `la-global-nav-dev` (feeds `StorageBlobLogs`) |
+| Property                | Terraform concern?   | Value / notes                                                                                                                                 |
+| ----------------------- | -------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| Account name            | Yes                  | `sacpsglobalcomponents`                                                                                                                       |
+| Subscription / RG       | Yes                  | `<subscription-id>` / `rg-global-nav-dev` (uksouth)                                                                                           |
+| Kind / SKU              | Yes                  | `StorageV2` / `Standard_LRS`                                                                                                                  |
+| TLS / HTTPS-only        | Yes                  | `TLS1_2` / HTTPS-only enabled                                                                                                                 |
+| `allowBlobPublicAccess` | Yes                  | **true** (anonymous access is enabled at the account level)                                                                                   |
+| Blob containers (live)  | No — CI-owned        | `dev`, `test`, `uat`, `prod`, `staging`, `unstable`, `prod-safe`, `accessibility`, `analytics`, `case-locking`, `msal-test`, `$web`           |
+| Container public access | No — CI-owned        | Most are **`container`** (anonymous blob read); **`analytics`** and **`prod-safe`** are **private**                                           |
+| Container provisioning  | No — CI-owned        | **Created on demand by CI, not pre-provisioned** — see note below                                                                             |
+| Served assets           | No — CI content      | `global-components.js`, `auth-handover.js`, `auth-handover.html`, `statement.html`                                                            |
+| Cache-Control on upload | No — CI, upload-time | `max-age=20, stale-while-revalidate=3600, stale-if-error=3600`                                                                                |
+| Blob metadata           | No — CI, per-deploy  | `buildsha`, `buildrunid`, `buildtimestamp`, `branch` (stamped per deploy)                                                                     |
+| Static website ($web)   | Yes                  | Enabled — web endpoint `https://sacpsglobalcomponents.z33.web.core.windows.net/` (accessibility harness)                                      |
+| Diagnostic setting      | Yes                  | ✓ `la-global-nav-dev` on `blobServices/default` — `allLogs` + `Transaction` metrics → workspace `la-global-nav-dev` (feeds `StorageBlobLogs`) |
 
 _Terraform concern? — **Yes** = a property/resource Terraform declares; **No** = not
 managed by Terraform (CI-set content, or a CI-owned resource like the containers)._
@@ -81,17 +81,17 @@ in the telemetry, not a separate resource). Only the **ingestion endpoint**
 differs per env — telemetry is routed through the Polaris proxy rather than sent
 direct to Azure.
 
-| Property                         | Value / notes                                                                                                                                                                                                                                                                                       |
-| -------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| App Insights Instrumentation Key | `e572c03c-8d38-4771-b193-962f13da1b1a` (identical in dev/test/uat/prod)                                                                                                                                                                                                                             |
-| App Insights Application ID      | `3dafc37d-8c9c-4480-90fc-532ac2b8bba2` (shared)                                                                                                                                                                                                                                                     |
-| Region                           | uksouth (SDK posts to `uksouth-1.in.applicationinsights.azure.com`)                                                                                                                                                                                                                                 |
-| Ingestion endpoint (per env)     | Proxied via `https://{polaris-host}/global-components/analytics/` → proxy `proxy_pass`es to `uksouth-1.in.applicationinsights.azure.com`. Accessibility mode posts **direct**.                                                                                                                      |
-| Log Analytics workspace          | `la-global-nav-dev` · RG `rg-global-nav-dev` · sub `<subscription-id>` · uksouth                                                                                                                                                                                                                            |
-| Workspace GUID (customerId)      | `<workspace-guid>`                                                                                                                                                                                                                                                              |
-| Workspace SKU / retention        | `pergb2018` / **30 days**, no daily cap; created 2025-04-29                                                                                                                                                                                                                                         |
+| Property                         | Value / notes                                                                                                                                                                                                                                                                                                        |
+| -------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| App Insights Instrumentation Key | `e572c03c-8d38-4771-b193-962f13da1b1a` (identical in dev/test/uat/prod)                                                                                                                                                                                                                                              |
+| App Insights Application ID      | `3dafc37d-8c9c-4480-90fc-532ac2b8bba2` (shared)                                                                                                                                                                                                                                                                      |
+| Region                           | uksouth (SDK posts to `uksouth-1.in.applicationinsights.azure.com`)                                                                                                                                                                                                                                                  |
+| Ingestion endpoint (per env)     | Proxied via `https://{polaris-host}/global-components/analytics/` → proxy `proxy_pass`es to `uksouth-1.in.applicationinsights.azure.com`. Accessibility mode posts **direct**.                                                                                                                                       |
+| Log Analytics workspace          | `la-global-nav-dev` · RG `rg-global-nav-dev` · sub `<subscription-id>` · uksouth                                                                                                                                                                                                                                     |
+| Workspace GUID (customerId)      | `<workspace-guid>`                                                                                                                                                                                                                                                                                                   |
+| Workspace SKU / retention        | `pergb2018` / **30 days**, no daily cap; created 2025-04-29                                                                                                                                                                                                                                                          |
 | **Network**                      | ⚠ `publicNetworkAccessForIngestion` **and** `…ForQuery` = **`SecuredByPerimeter`** — the workspace is inside an **Azure Monitor Private Link Scope** (`glob-ampls-uks-vft01`, in sub `<platform-subscription-id>` / RG `uks-rg-vft01`). Ingestion/query are network-restricted; TF must model the AMPLS association. |
-| App Insights component           | ✓ `ai-global-nav-dev` (RG `rg-global-nav-dev`, uksouth) — workspace-based; telemetry lands in the `App*` tables (`AppPageViews`/`AppEvents`/`AppExceptions`)                                                                                                                                        |
+| App Insights component           | ✓ `ai-global-nav-dev` (RG `rg-global-nav-dev`, uksouth) — workspace-based; telemetry lands in the `App*` tables (`AppPageViews`/`AppEvents`/`AppExceptions`)                                                                                                                                                         |
 
 **Terraform checklist**
 
@@ -135,87 +135,104 @@ egress IPs (`10.7.204.126` prod, `10.7.198.126` QA) — infra-coupled values.
 
 ## 4. Entra ID (Azure AD) — app registration
 
-**Single app registration, shared across all four environments** (same client ID
-and tenant in dev/test/uat/prod). Entra app registrations are Terraformable via
-the `azuread` provider (`azuread_application` / `azuread_application_redirect_uris`),
-though many orgs keep them out of TF — either way this is the authoritative record.
+**Two app registrations, split by environment tier** (same tenant). A **pre-prod**
+registration (`FCT Global Components (dev)`) backs dev/test/uat, and a dedicated
+**prod** registration (`FCT Global Components (prod)`) backs production. Entra app
+registrations are Terraformable via the `azuread` provider (`azuread_application` /
+`azuread_application_redirect_uris`), though many orgs keep them out of TF — either
+way this is the authoritative record.
 
-Values below are **confirmed from the live registration** (`az ad app show`, 2026-07).
+Values below are **confirmed from the live registrations** (`az ad app show`, 2026-07).
 
-| Property                | Value                                                                                                                              |
-| ----------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
-| Display name            | `FCT Global Components (dev)` (name is legacy; it's the shared reg for all envs)                                                   |
-| Tenant ID               | `00dd0d1d-d7e6-4338-ac51-565339c7088c`                                                                                             |
-| Authority               | `https://login.microsoftonline.com/00dd0d1d-d7e6-4338-ac51-565339c7088c`                                                           |
-| Client (application) ID | `8d6133af-9593-47c6-94d0-5c65e9e310f1`                                                                                             |
-| Object ID               | `8ced5c11-0b02-4923-b85e-a1ce3939ec7e`                                                                                             |
-| Sign-in audience        | `AzureADMyOrg` (single tenant) ✓                                                                                                   |
-| Platforms               | **SPA** (MSAL redirect flow, `cacheLocation: localStorage`) **and Web** (confidential client — CMS-auth OIDC, has a client secret) |
+| Property                | Pre-prod (dev/test/uat)                                                            | Prod                                   |
+| ----------------------- | --------------------------------------------------------------------------------- | -------------------------------------- |
+| Display name            | `FCT Global Components (dev)` (name is legacy; it covers dev/test/uat)             | `FCT Global Components (prod)`         |
+| Tenant ID               | `00dd0d1d-d7e6-4338-ac51-565339c7088c`                                             | _(same tenant)_                        |
+| Authority               | `https://login.microsoftonline.com/00dd0d1d-d7e6-4338-ac51-565339c7088c`          | _(same authority)_                     |
+| Client (application) ID | `8d6133af-9593-47c6-94d0-5c65e9e310f1`                                             | `295ecc3c-ae64-45c1-941d-b54b539b30aa` |
+| Object ID               | `8ced5c11-0b02-4923-b85e-a1ce3939ec7e`                                             | `c86509e4-bddb-4fc7-825c-45a4921d8605` |
+| Sign-in audience        | `AzureADMyOrg` (single tenant) ✓                                                   | `AzureADMyOrg` (single tenant) ✓       |
+| Platforms               | **SPA** (MSAL redirect flow, `cacheLocation: localStorage`) **and Web** (confidential client — CMS-auth OIDC, has a client secret) | **SPA** (MSAL redirect flow) |
 
 ### API permissions (registered)
 
-The registration requests **far more than the runtime code uses**. At runtime the
+Both registrations request **more than the runtime code uses**. At runtime the
 component only ever asks for Graph `User.Read` (`AD_GATEWAY_SCOPES`; `get-me.ts`
-calls Graph `/me` for department/jobTitle). But the app registration carries a
-broad, partly **privileged** grant — Terraform's `required_resource_access` must
-model **all** of it (resolved via `az`, 2026-07):
+calls Graph `/me` for department/jobTitle). The two regs carry **different** grants
+— Terraform's `required_resource_access` must model each (resolved via `az`, 2026-07).
 
-| API (`resourceAppId`)                                            | Type      | Permission                                    |
-| ---------------------------------------------------------------- | --------- | --------------------------------------------- |
-| Microsoft Graph (`00000003-…`)                                   | Delegated | **User.Read** ← the only one the runtime uses |
-| Microsoft Graph                                                  | Delegated | User.Read.All                                 |
-| Microsoft Graph                                                  | Delegated | GroupMember.Read.All                          |
-| Microsoft Graph                                                  | Delegated | GroupMember.ReadWrite.All                     |
-| Microsoft Graph                                                  | App role  | User.Read.All                                 |
-| Microsoft Graph                                                  | App role  | **GroupMember.ReadWrite.All**                 |
-| Polaris QA gateway (`6519fc51…`, `fa-polaris-qa-gateway-appreg`) | Delegated | `user_impersonation`                          |
+**Pre-prod reg (`8d6133af`)** — a broad, partly **privileged** grant, all against
+Microsoft Graph (`00000003-…`):
 
-**⚠ Over-permissioned — worth a review.** The component's code only uses
-`User.Read`, yet the registration holds `GroupMember.ReadWrite.All` and
-`User.Read.All` as **application roles** (require admin consent, usable via
+| Type      | Permission                                    |
+| --------- | --------------------------------------------- |
+| Delegated | **User.Read** ← the only one the runtime uses |
+| Delegated | User.Read.All                                 |
+| Delegated | GroupMember.Read.All                          |
+| Delegated | GroupMember.ReadWrite.All                     |
+| App role  | User.Read.All                                 |
+| App role  | **GroupMember.ReadWrite.All**                 |
+
+**Prod reg (`295ecc3c`)** — a minimal delegated set, Microsoft Graph only:
+
+| Type      | Permission           |
+| --------- | -------------------- |
+| Delegated | **User.Read**        |
+| Delegated | GroupMember.Read.All |
+
+> The Polaris gateway `user_impersonation` scope
+> (`…/fa-polaris-qa-gateway/user_impersonation`) is **not** declared on either
+> registration's `requiredResourceAccess` — it's requested dynamically at runtime
+> from the local `src/config.json` default only; the deployed configs set
+> `AD_GATEWAY_SCOPES: ["User.Read"]`, so no env asks for a gateway scope.
+
+**⚠ Pre-prod is over-permissioned — worth a review.** The component's code only
+uses `User.Read`, yet the pre-prod registration holds `GroupMember.ReadWrite.All`
+and `User.Read.All` as **application roles** (require admin consent, usable via
 client-credentials with no signed-in user) plus write-level group scopes. Either
 these back a flow not visible in this repo (case-locking? a backend job?) or
-they're stale over-grants that should be pruned. The `user_impersonation` scope
-on `fa-polaris-qa-gateway-appreg` is the component→Polaris-gateway call — note
-that's the **QA** gateway app reg; confirm prod uses the same or a sibling.
+they're stale over-grants that should be pruned. The prod reg deliberately keeps
+only the minimal delegated set.
 
 **Terraform checklist**
 
-- `azuread_application` — `sign_in_audience = "AzureADMyOrg"`, **SPA + Web**
-  platforms, full `required_resource_access` (Graph delegated + app roles + the
-  custom API scope above)
-- client secret (Web platform) → source from Key Vault, not inline
-- SPA redirect URIs — the **registered** list below
+- `azuread_application` ×2 — one per reg (pre-prod `8d6133af`, prod `295ecc3c`),
+  `sign_in_audience = "AzureADMyOrg"`; pre-prod is **SPA + Web** with the full
+  privileged `required_resource_access` (Graph delegated + app roles), prod is
+  **SPA** with the minimal delegated Graph set
+- client secret (pre-prod Web platform) → source from Key Vault, not inline
+- SPA redirect URIs — the **registered** lists below
 
 ### Registered redirect URIs (authoritative, from `az ad app show`)
 
-Entra matches redirect URIs by exact string, so the registration is the source of
-truth — **not** the config. The registered set is larger than config implies and
-carries several variants MSAL/OS produce. Key observations:
+Entra matches redirect URIs by exact string, so the registrations are the source of
+truth — **not** the config. Redirect URIs are **split by tier**: prod handovers on
+the prod reg (`295ecc3c`), dev/test/uat handovers on the pre-prod reg (`8d6133af`).
+Key observations:
 
-- **Both query and query-less forms are registered** for each `auth-handover.html`
-  (e.g. `…/prod/auth-handover.html` and `…/prod/auth-handover.html?src=…&stage=ad-redirect`).
-  So the query string being present is fine — both are covered.
 - **Two stage variants**: `&stage=ad-redirect` (MSAL/Polaris path) and
   `&stage=os-ad-redirect` (OutSystems path).
-- `global-components-msal-redirect.html` termination-page variants across
-  `polaris`, `lacc-app-ui-spa-*`, and `housekeeping*` hosts.
-- Local dev is `http://localhost:3000` (not `{scheme}://localhost`).
+- `global-components-msal-redirect.html` termination-page variants on `housekeeping*`
+  hosts appear on both regs (shared, env-less termination pages).
 
-**Web platform** (confidential client — CMS-auth OIDC): ✓ confirmed registered
+**Prod reg (`295ecc3c`) — SPA:**
+
+- `https://polaris.cps.gov.uk/global-components/prod/auth-handover.html?src=…%2Fprod%2Fauth-handover.js&stage=ad-redirect`
+- `https://cps.outsystemsenterprise.com/Casework_Patterns/auth-handover.html?src=…%2Fprod%2Fauth-handover.js&stage=ad-redirect`
+- `https://housekeeping.cps.gov.uk/global-components-msal-redirect.html`
+
+The prod reg has **no** Web-platform redirect URIs registered.
+
+**Pre-prod reg (`8d6133af`) — SPA:** the dev/test/uat handover hosts
+(`polaris-qa-notprod`, `polaris-uat-notprod`, `lacc-app-ui-spa-*`, and the `cps-dev` /
+`cps-tst` / `cps-tst1` OutSystems tenants), plus the `housekeeping*`
+`global-components-msal-redirect.html` termination pages.
+
+**Pre-prod reg (`8d6133af`) — Web platform** (confidential client — CMS-auth OIDC):
+✓ confirmed registered
 
 - `https://polaris-qa-notprod.cps.gov.uk/init-v2/callback`
 - `https://polaris-qa-notprod.cps.gov.uk/global-components/cms-auth/callback`
-
-**⚠ Two things to reconcile:**
-
-1. **No `polaris-uat-notprod` redirect URIs are registered at all**, despite
-   `config.uat.json` pointing MSAL there (`cps-tst1` OutSystems + `polaris-uat`).
-   Either UAT auth is broken/unused, UAT uses a different registration, or these
-   were never added. Worth confirming before relying on UAT.
-2. **Odd entry** `https://polaris.cps.gov.uk/polaris-ui/build-version.txt` is
-   registered as a redirect URI — looks like a stray/mistaken entry; verify and
-   probably remove.
 
 > Do **not** call `handleRedirectPromise()` in host context — as a guest
 > component it picks up the host app's redirect state (same tenant, different
@@ -232,9 +249,11 @@ carries several variants MSAL/OS produce. Key observations:
   **public client** ✓). Device-code + refresh-token flow used by
   `infra/analytics/scripts/teams-msg.sh` to post to a Teams chat. Provision if you
   Terraform the analytics tooling.
-- **`global-components.spike/` PoC** — a **superseded** auth spike in a
-  _different_ tenant (tenant + client ids in the gitignored `spike/.env`, storage
-  `saspike`). Vestigial — do **not** provision.
+- **`global-components.cms-auth-v2/` PoC** — a proxy-side CMS auth spike in a
+  _different_ tenant (tenant + client ids in the gitignored `.env`, storage
+  `saspike`). The current v2 approach is deployed **out-of-band** (by hand), not
+  via the main build; the earlier superseded variants are archived under
+  `global-components.cms-auth-v2/previous/`. Do **not** provision from the main flow.
 
 ---
 
@@ -271,16 +290,16 @@ and hand our changes to that team.
 
 **Routes it provides** (from `global-components.conf`):
 
-| Location                                    | Purpose                          | Upstream / handler                                     |
-| ------------------------------------------- | -------------------------------- | ------------------------------------------------------ |
-| `/global-components/cms-session-hint`       | which cin/cms env + proxied?     | njs `handleSessionHint`                                |
-| `/global-components/api/*`                  | MDS/DDEI API surface             | `${WM_MDS_BASE_URL}` (+ `x-functions-key`)             |
-| `/api/global-components/*`                  | legacy cookie-path clients       | rewrite → `/global-components/api/*`                   |
-| `/global-components/{dev,test,uat,prod}/*`  | static bundle assets             | blob `${CPS_GLOBAL_COMPONENTS_BLOB_STORAGE_DOMAIN}`    |
-| `/global-components/state/*`                | cookie-backed state (preview…)   | njs `handleState`                                      |
-| `/global-components/analytics/*`            | App Insights ingestion (§2)      | `uksouth-1.in.applicationinsights.azure.com`           |
-| `/global-components/navigate-cms`           | CMS navigation                   | njs `handleNavigateCms`                                |
-| `/case-review-redirect/`                    | Case Review auth-handover chain  | njs `handleCaseReviewRedirect`                         |
+| Location                                   | Purpose                         | Upstream / handler                                  |
+| ------------------------------------------ | ------------------------------- | --------------------------------------------------- |
+| `/global-components/cms-session-hint`      | which cin/cms env + proxied?    | njs `handleSessionHint`                             |
+| `/global-components/api/*`                 | MDS/DDEI API surface            | `${WM_MDS_BASE_URL}` (+ `x-functions-key`)          |
+| `/api/global-components/*`                 | legacy cookie-path clients      | rewrite → `/global-components/api/*`                |
+| `/global-components/{dev,test,uat,prod}/*` | static bundle assets            | blob `${CPS_GLOBAL_COMPONENTS_BLOB_STORAGE_DOMAIN}` |
+| `/global-components/state/*`               | cookie-backed state (preview…)  | njs `handleState`                                   |
+| `/global-components/analytics/*`           | App Insights ingestion (§2)     | `uksouth-1.in.applicationinsights.azure.com`        |
+| `/global-components/navigate-cms`          | CMS navigation                  | njs `handleNavigateCms`                             |
+| `/case-review-redirect/`                   | Case Review auth-handover chain | njs `handleCaseReviewRedirect`                      |
 
 **Runtime env vars the proxy needs** (supplied by the proxy App Service / its
 secrets — **not** by us): `WM_MDS_BASE_URL`, `WM_MDS_ACCESS_KEY`,
@@ -328,10 +347,11 @@ integrate with:
   `VALIDATE_TOKEN_AGAINST_AD = false`; would reject all tokens if enabled.
 - **Asset deploy uses a storage account key** (GitHub secret
   `BLOB_STORAGE_CONNECTION_STRING`), not a federated identity — see §5.
-- **App registration is over-permissioned** — holds `GroupMember.ReadWrite.All`
-  and `User.Read.All` (delegated **and** application roles) while the code only
-  uses `User.Read`. Review whether anything actually needs the group-write /
-  app-role grants; prune or justify before Terraforming (see §4).
+- **Pre-prod app registration is over-permissioned** — `8d6133af` holds
+  `GroupMember.ReadWrite.All` and `User.Read.All` (delegated **and** application
+  roles) while the code only uses `User.Read`. Review whether anything actually
+  needs the group-write / app-role grants; prune or justify before Terraforming.
+  The prod reg (`295ecc3c`) keeps only the minimal delegated set (see §4).
 
 ## Verifying against Azure — `az` commands
 
@@ -357,7 +377,9 @@ outstanding. To re-verify from scratch (e.g. after infra changes):
 az account set --subscription <subscription-id>  # storage + LA + AI live here
 
 az ad app show --id 8d6133af-9593-47c6-94d0-5c65e9e310f1 \
-  --query "{name:displayName, audience:signInAudience, spa:spa.redirectUris, web:web.redirectUris}" -o json
+  --query "{name:displayName, audience:signInAudience, spa:spa.redirectUris, web:web.redirectUris}" -o json  # pre-prod reg
+az ad app show --id 295ecc3c-ae64-45c1-941d-b54b539b30aa \
+  --query "{name:displayName, audience:signInAudience, spa:spa.redirectUris, web:web.redirectUris}" -o json  # prod reg
 az storage account show -n sacpsglobalcomponents -g rg-global-nav-dev -o json
 az storage container list --account-name sacpsglobalcomponents --auth-mode login -o table
 az monitor log-analytics workspace show -n la-global-nav-dev -g rg-global-nav-dev -o json
