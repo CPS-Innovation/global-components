@@ -28,8 +28,8 @@ Give a JAWS user that URL.
 
 1. Turn JAWS on and open the hub URL.
 2. (Optional) Change the **Redirect delay** — how long each redirect page lingers
-   before bouncing back. Longer gives JAWS more time to reach the title
-   announcement; `0` is an instant redirect. It applies to every link.
+   before bouncing back. It defaults to `0` (instant redirect); increase it to
+   give JAWS more time to reach the title announcement. It applies to every link.
 3. Activate a link. The redirect page loads, then immediately bounces you back to
    the hub (via `location.replace`, so there is no back-button trap). The hub
    shows a banner confirming which test you returned from.
@@ -43,7 +43,7 @@ Give a JAWS user that URL.
 | Empty title      | `<title></title>`                  | Does an empty title still trigger the URL fallback?        |
 | Whitespace title | `<title> </title>`                 | Does a blank-but-non-empty title suppress the URL?         |
 | Defocus title    | `<title>Loading</title>` + focus steal | Does stealing focus on load cut off the speech stream? |
-| Meaningful title | `<title>Application handover page</title>` | The shipped value — is it announced calmly?        |
+| Meaningful title | `<title>Redirecting</title>`       | A short, meaningful title — is it announced calmly?        |
 
 The redirect pages are identical apart from the title strategy (same body text,
 same redirect logic) so the title is the only variable.
