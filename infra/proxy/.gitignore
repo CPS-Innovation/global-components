@@ -10,6 +10,8 @@ config/**/*.js
 !config/main/cmsenv.js
 !config/**/tests/*.js
 !config/**/main-reference/*.js
+# Hand-written client asset (source, not compiled njs) — deployed to blob storage
+!config/global-components.cms-auth-v2/cms-auth-v2-client.js
 
 # Deployment secrets and backups
 deploy/secrets.env

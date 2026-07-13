@@ -1106,6 +1106,77 @@ async function handleCmsModernToken(r: NginxHTTPRequest): Promise<void> {
 // Exports
 // ---------------------------------------------------------------------------
 
+// Best-effort "clear every cookie the browser sent". We only see cookie NAMES
+// in the request Cookie header (never their Path/Domain), so for each name we
+// emit expiring Set-Cookie headers across the likely scopes: host-only (no
+// Domain), the exact host, and each parent domain (down to two labels). Path is
+// assumed "/" (the common case) — a cookie pinned to a deeper path can't be
+// cleared blind. Runs server-side, so HttpOnly cookies are cleared too. Both
+// Expires (which old IE honours) and Max-Age=0 are set.
+function handleClearCookies(r: NginxHTTPRequest): void {
+  const raw = r.headersIn["Cookie"] || "";
+  const host = (r.headersIn["Host"] || "").split(":")[0];
+
+  // Unique cookie names from the request header.
+  const names: string[] = [];
+  const seen: { [k: string]: boolean } = {};
+  const parts = raw.split(/; */);
+  for (let i = 0; i < parts.length; i++) {
+    if (parts[i] === "") {
+      continue;
+    }
+    const eq = parts[i].indexOf("=");
+    const name = eq === -1 ? parts[i] : parts[i].substring(0, eq);
+    if (name !== "" && !seen[name]) {
+      seen[name] = true;
+      names.push(name);
+    }
+  }
+
+  // Domain scopes to attempt: "" = host-only (omit the Domain attribute), the
+  // exact host, then each parent domain (drop the leftmost label) down to two
+  // labels. (.gov.uk etc. are public suffixes the browser rejects — harmless.)
+  const domains: string[] = ["", host];
+  let labels = host.split(".");
+  while (labels.length > 2) {
+    labels = labels.slice(1);
+    domains.push("." + labels.join("."));
+  }
+
+  const past = "Thu, 01 Jan 1970 00:00:00 GMT";
+  const setCookies: string[] = [];
+  for (let n = 0; n < names.length; n++) {
+    for (let d = 0; d < domains.length; d++) {
+      const domainAttr = domains[d] === "" ? "" : "; Domain=" + domains[d];
+      setCookies.push(
+        names[n] + "=; Path=/; Expires=" + past + "; Max-Age=0" + domainAttr,
+      );
+    }
+  }
+  r.headersOut["Set-Cookie"] = setCookies;
+  r.headersOut["Cache-Control"] = "no-store";
+  r.headersOut["Content-Type"] = "text/html; charset=utf-8";
+
+  const listHtml =
+    names.length === 0
+      ? "<p>No cookies were sent.</p>"
+      : "<ul>" +
+        names.map((n) => "<li><code>" + _esc(n) + "</code></li>").join("") +
+        "</ul>";
+
+  r.return(
+    200,
+    _htmlPage(
+      "Clear Cookies",
+      `<p>Expired <strong>${names.length}</strong> cookie name(s) across ${domains.length} scope(s) ` +
+        `(${setCookies.length} Set-Cookie header(s)), Path <code>/</code>.</p>` +
+        listHtml +
+        `<p>Reload, then check <a href="/global-components/diagnostic">/global-components/diagnostic</a> ` +
+        `to confirm what remains. Anything pinned to a deeper Path (not <code>/</code>) can't be cleared blind.</p>`,
+    ),
+  );
+}
+
 // Wrap each handler so any unhandled throw renders as a readable 500 page
 // (with name/message/stack) instead of a blank nginx 500. Works for both sync
 // and async handlers — awaiting a non-promise is a no-op.
@@ -1125,4 +1196,5 @@ export default {
   handleInitV2Callback: _guard("handleInitV2Callback", handleInitV2Callback),
   handleInitV2Error: _guard("handleInitV2Error", handleInitV2Error),
   handleCmsModernToken: _guard("handleCmsModernToken", handleCmsModernToken),
+  handleClearCookies: _guard("handleClearCookies", handleClearCookies),
 };
