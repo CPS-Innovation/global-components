@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex">
+  <!-- STRATEGY: a short, meaningful title. This is the exact value currently
+       shipped on the real auth-handover page. Tests whether JAWS announces it
+       calmly (acceptable) instead of reading out the URL. -->
+  <title>Application handover page</title>
+</head>
+
+<body>
+  <p>Redirecting back to the test rig&hellip;</p>
+  <script>
+    (function () {
+      var params = new URLSearchParams(location.search);
+      var parsed = parseInt(params.get('delay'), 10);
+      var delay = isNaN(parsed) ? 1500 : Math.max(0, parsed);
+      setTimeout(function () {
+        location.replace('./index.html?from=' + encodeURIComponent('Meaningful title'));
+      }, delay);
+    })();
+  </script>
+</body>
+
+</html>
