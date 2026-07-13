@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en" class="govuk-template">
+
+<head>
+  <meta charset="UTF-8">
+  <title>JAWS title test rig</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="robots" content="noindex">
+  <script>
+    // Pull in the self-hosted GOV.UK stylesheet that is deployed alongside this
+    // page (public/govuk -> /govuk at the deploy root). Injected at runtime for
+    // the same reason index.html does it: a static <link> would be treated as a
+    // Vite build input. If the stylesheet 404s the page still works, unstyled.
+    (function () {
+      var link = document.createElement('link');
+      link.rel = 'stylesheet';
+      link.href = '../govuk/govuk-frontend.min.css';
+      document.head.appendChild(link);
+    })();
+  </script>
+</head>
+
+<body class="govuk-template__body">
+  <div class="govuk-width-container">
+    <main class="govuk-main-wrapper" id="main-content" role="main">
+      <h1 class="govuk-heading-xl">JAWS title test rig</h1>
+
+      <!-- Populated by script when we arrive back here with ?from=<test name>. -->
+      <div id="return-banner" hidden></div>
+
+      <p class="govuk-body">
+        Each link below opens a page that <strong>immediately redirects you back
+        here</strong>. The redirect pages are identical except for how they set
+        (or suppress) the document <code>&lt;title&gt;</code>. Turn JAWS on,
+        activate a link, and note what &mdash; if anything &mdash; JAWS announces
+        during the brief redirect. This mirrors the real auth-handover page, which
+        is a transient page users bounce through on the way to sign-in.
+      </p>
+
+      <div class="govuk-form-group">
+        <label class="govuk-label" for="delay">Redirect delay (milliseconds)</label>
+        <div id="delay-hint" class="govuk-hint">
+          How long each redirect page stays before bouncing back. Longer gives JAWS
+          more time to reach the title announcement; set to 0 for an instant
+          redirect. Applies to every link below.
+        </div>
+        <input class="govuk-input govuk-input--width-5" id="delay" name="delay" type="number"
+          inputmode="numeric" value="0" min="0" step="100" aria-describedby="delay-hint">
+      </div>
+
+      <h2 class="govuk-heading-m">Tests</h2>
+      <ul class="govuk-list govuk-list--spaced">
+        <li>
+          <a class="govuk-link" data-base="empty-title.html" href="empty-title.html">Empty title</a>
+          <span class="govuk-hint">Redirect page has <code>&lt;title&gt;&lt;/title&gt;</code>.</span>
+        </li>
+        <li>
+          <a class="govuk-link" data-base="whitespace-title.html" href="whitespace-title.html">Whitespace title</a>
+          <span class="govuk-hint">Redirect page has <code>&lt;title&gt; &lt;/title&gt;</code> (a single space).</span>
+        </li>
+        <li>
+          <a class="govuk-link" data-base="defocus-title.html" href="defocus-title.html">Defocus title</a>
+          <span class="govuk-hint">Title is <code>Loading</code>, but focus is stolen to an off-screen node on load to cut off the speech stream.</span>
+        </li>
+        <li>
+          <a class="govuk-link" data-base="meaningful-title.html" href="meaningful-title.html">Meaningful title</a>
+          <span class="govuk-hint">Title is <code>Redirecting</code> &mdash; a short, meaningful title.</span>
+        </li>
+      </ul>
+
+      <div class="govuk-inset-text">
+        For each test, record: does JAWS say anything on the redirect page? If so,
+        does it read the URL, the title text, or stay silent? Compare across all
+        four, and try a few different delay values.
+      </div>
+    </main>
+  </div>
+
+  <script>
+    (function () {
+      var delayInput = document.getElementById('delay');
+      var links = Array.prototype.slice.call(document.querySelectorAll('a[data-base]'));
+
+      // Thread the chosen delay through to every redirect page via ?delay=.
+      function syncLinks() {
+        var d = delayInput.value.trim();
+        links.forEach(function (a) {
+          a.href = a.getAttribute('data-base') + (d !== '' ? '?delay=' + encodeURIComponent(d) : '');
+        });
+      }
+      delayInput.addEventListener('input', syncLinks);
+      syncLinks();
+
+      // Show which test we just returned from (redirect pages bounce to
+      // ?from=<name>). Set after a tick so the aria-live region registers it as a
+      // change and JAWS announces it.
+      var from = new URLSearchParams(location.search).get('from');
+      if (from) {
+        var safe = from.replace(/[<>&"]/g, '');
+        var banner = document.getElementById('return-banner');
+        banner.className = 'govuk-notification-banner';
+        banner.setAttribute('role', 'region');
+        banner.setAttribute('aria-live', 'polite');
+        banner.hidden = false;
+        setTimeout(function () {
+          banner.innerHTML =
+            '<div class="govuk-notification-banner__content">' +
+            '<p class="govuk-notification-banner__heading">Returned from the &ldquo;' + safe + '&rdquo; test.</p>' +
+            '</div>';
+        }, 100);
+      }
+    })();
+  </script>
+</body>
+
+</html>
