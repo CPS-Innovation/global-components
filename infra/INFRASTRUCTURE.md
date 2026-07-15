@@ -5,7 +5,7 @@
 
 ---
 
-## TL;DR — what DevOps needs to provision
+## TL;DR — what needs to be provisioned
 
 Build **two parallel stacks — one deployment per tier (pre-prod and prod).** For
 **each** tier, provision:
@@ -40,8 +40,8 @@ graph TB
     subgraph PREEX ["Preexisting"]
         direction LR
         UI["UI<br/>web component on host page"]
-        ENTRA["Entra App Reg<br/>pre-prod 8d6133af / prod 295ecc3c"]
-        PROXY["Polaris Proxy<br/>nginx + njs - Polaris team owns"]
+        ENTRA["Entra App Reg [4]<br/>pre-prod 8d6133af / prod 295ecc3c"]
+        PROXY["Polaris Proxy [6]<br/>nginx + njs - Polaris team owns"]
         UI -->|"MSAL.js"| ENTRA
         UI -->|"script / json / html (static bundle)"| PROXY
         UI -->|"analytics tracking calls"| PROXY
@@ -49,13 +49,13 @@ graph TB
 
     subgraph BUILD ["Storage: to be built"]
         direction LR
-        BLOB["Blob Storage<br/>static assets + static website"]
-        LA["Log Analytics + App Insights<br/>telemetry"]
+        BLOB["Blob Storage [1]<br/>static assets + static website"]
+        LA["Log Analytics + App Insights [2]<br/>telemetry"]
         BLOB -->|"blob access logs"| LA
     end
 
     subgraph CI ["CI/CD"]
-        CICD["CI/CD - GitHub Actions<br/>our deploy pipeline"]
+        CICD["CI/CD - GitHub Actions [5]<br/>our deploy pipeline"]
     end
 
     PROXY -->|"network visibility"| BLOB
@@ -70,6 +70,9 @@ graph TB
     style PREEX fill:#f8faff,stroke:#6366f1,stroke-width:2px,color:#1a1a1a;
     style CI fill:#f8faff,stroke:#6366f1,stroke-width:2px,color:#1a1a1a;
 ```
+
+_Bracketed numbers reference the sections below: Blob Storage **[1]**, Log Analytics +
+App Insights **[2]**, Entra App Reg **[4]**, CI/CD **[5]**, Polaris Proxy **[6]**._
 
 ---
 
