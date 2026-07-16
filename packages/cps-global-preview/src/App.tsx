@@ -25,6 +25,7 @@ type SubOption = {
 type RadioOption<T extends string> = {
   value: T;
   label: string;
+  disabled?: boolean;
 };
 
 type Feature = {
@@ -46,6 +47,16 @@ const CASE_MARKERS_OPTIONS: RadioOption<string>[] = [
 const COLOUR_PALETTE_OPTIONS: RadioOption<string>[] = [
   { value: "gds", label: "GDS" },
   { value: "cps", label: "CPS" },
+];
+
+// Unlike the feature radios above, this group stands alone rather than hanging
+// off a checkbox: "no override" is the default we want visible, not an unticked
+// box. The empty value maps to an absent `region` — the same thing — so the
+// cookie stays clean when nothing is overridden.
+const REGION_OPTIONS: RadioOption<string>[] = [
+  { value: "", label: "No override (Dublin)" },
+  { value: "london", label: "Use London" },
+  { value: "frontDoor", label: "Use front-door domain", disabled: true },
 ];
 
 const FEATURES: Feature[] = [
@@ -269,6 +280,15 @@ export function App() {
 
   const handleRadioChange = (key: keyof Preview, value: string) => {
     const newState = { ...state, [key]: value };
+    setState(newState);
+    saveState(newState);
+  };
+
+  const handleRegionChange = (value: string) => {
+    const newState = {
+      ...state,
+      region: (value || undefined) as Preview["region"],
+    };
     setState(newState);
     saveState(newState);
   };
@@ -751,6 +771,45 @@ export function App() {
                 </button>
               </>
             )}
+          </fieldset>
+        </div>
+
+        <div className="govuk-form-group">
+          <fieldset className="govuk-fieldset">
+            <legend className="govuk-fieldset__legend govuk-fieldset__legend--m">
+              <h2 className="govuk-fieldset__heading">Region</h2>
+            </legend>
+            <p className="govuk-body govuk-!-font-size-16">
+              Which OutSystems region the global components send you to. Applies
+              to the menu links, the banner title, and the auth handover — if you
+              are on the wrong host, the handover moves you across. Leave on{" "}
+              <strong>No override</strong> unless you are testing London.
+            </p>
+            <div
+              className="govuk-radios govuk-radios--small"
+              data-module="govuk-radios"
+            >
+              {REGION_OPTIONS.map((option) => (
+                <div key={option.value} className="govuk-radios__item">
+                  <input
+                    className="govuk-radios__input"
+                    id={`region-${option.value || "none"}`}
+                    name="region"
+                    type="radio"
+                    value={option.value}
+                    checked={(state.region ?? "") === option.value}
+                    disabled={loading || option.disabled}
+                    onChange={() => handleRegionChange(option.value)}
+                  />
+                  <label
+                    className="govuk-label govuk-radios__label"
+                    htmlFor={`region-${option.value || "none"}`}
+                  >
+                    {option.label}
+                  </label>
+                </div>
+              ))}
+            </div>
           </fieldset>
         </div>
 
