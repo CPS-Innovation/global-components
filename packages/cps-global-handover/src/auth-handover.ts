@@ -219,6 +219,14 @@ const runEnsureAd = async (
   // for us to do. No navigation here.
 };
 
+// Allowlist for the region-redirect sink. Today the host we redirect to is
+// derived from the origin we are already running on and never from the query
+// string, so this cannot fail — but that reasoning lives in
+// applyRegionToString, a module away, and it stops holding the moment a
+// region's host comes from config, which is exactly what the front-door option
+// will do. Asserting it at the sink keeps the constraint local and checkable.
+const ALLOWED_REDIRECT_HOST = /^cpslon(-[a-z0-9]+)?\.outsystemsenterprise\.com$/;
+
 // Region override (FCT2-20670). The handover sits in the navigation path of
 // every OS entry point, which makes it the natural place to catch a user who is
 // on the wrong OutSystems host and move them across before anything else runs.
@@ -248,6 +256,19 @@ const redirectToPreviewRegion = (
   target.host = new URL(targetOrigin).host;
   for (const [key, value] of [...target.searchParams]) {
     target.searchParams.set(key, applyRegionToString(value, region));
+  }
+
+  // Fails closed: a user who doesn't get moved to London is a broken test, not
+  // a broken app, so we carry on dispatching on the current host.
+  if (
+    target.protocol !== "https:" ||
+    !ALLOWED_REDIRECT_HOST.test(target.hostname)
+  ) {
+    console.warn(
+      "[CPS-GLOBAL-HANDOVER] refusing region redirect to unexpected host",
+      { host: target.hostname, protocol: target.protocol },
+    );
+    return false;
   }
 
   console.log("[CPS-GLOBAL-HANDOVER] region override redirect", {
