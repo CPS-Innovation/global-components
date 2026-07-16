@@ -24,6 +24,12 @@ export const PreviewSchema = z.object({
   useFullPageMsalRedirect: z.boolean().optional(),
   caseLocking: z.boolean().optional(),
   requestObservationShim: z.boolean().optional(),
+
+  // OutSystems region override (FCT2-20670). Absent means no override, i.e.
+  // Dublin — the domain every config already hardcodes. "frontDoor" is
+  // reserved for the eventual front-door domain; until we know it, selecting it
+  // is disabled in the preview UI and it maps to no rewrite.
+  region: z.union([z.literal("london"), z.literal("frontDoor")]).optional(),
 });
 
 export type Preview = z.infer<typeof PreviewSchema>;
