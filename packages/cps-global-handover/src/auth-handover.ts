@@ -12,12 +12,14 @@
  */
 
 import {
+  applyRegionToString,
   AuthHint,
   AuthHintSchema,
   Config,
   FEATURE_FLAGS,
   fetchConfig,
   fetchState,
+  getPreviewRegion,
   HANDOVER_PARAM_KEYS,
   HANDOVER_STAGES,
   Me,
@@ -39,9 +41,11 @@ import {
 
 // Kill switch for the preemptive AD check on the OS handover branches.
 // When false, OS_COOKIE_RETURN and OS_TOKEN_RETURN navigate straight to their
-// target without fetching authHint/preview or running the silent-or-redirect
-// cascade — keeping the OS handover decoupled from AD entirely. The
-// ENSURE_AD branch is unaffected (that's the explicit AD entry point).
+// target without fetching authHint or running the silent-or-redirect cascade —
+// keeping the OS handover decoupled from AD entirely. The ENSURE_AD branch is
+// unaffected (that's the explicit AD entry point). Preview is fetched by the
+// dispatcher regardless of this switch, since the region check needs it on
+// every branch.
 const ENSURE_AD_ON_OS_HANDOVER = false;
 
 // AAD response hashes always carry one of these. Cheap pattern beats parsing
@@ -163,11 +167,9 @@ const runEnsureAd = async (
   config: Config,
   scriptUrl: URL,
   returnTo: string | null,
+  preview: Result<Preview>,
 ): Promise<void> => {
-  const [authHint, preview] = await Promise.all([
-    tryFetchAuthHint(scriptUrl),
-    tryFetchPreview(scriptUrl),
-  ]);
+  const authHint = await tryFetchAuthHint(scriptUrl);
   const inFlag = FEATURE_FLAGS.shouldUseFullPageMsalRedirect({
     config,
     preview,
@@ -217,6 +219,66 @@ const runEnsureAd = async (
   // for us to do. No navigation here.
 };
 
+// Allowlist for the region-redirect sink. Today the host we redirect to is
+// derived from the origin we are already running on and never from the query
+// string, so this cannot fail — but that reasoning lives in
+// applyRegionToString, a module away, and it stops holding the moment a
+// region's host comes from config, which is exactly what the front-door option
+// will do. Asserting it at the sink keeps the constraint local and checkable.
+const ALLOWED_REDIRECT_HOST = /^cpslon(-[a-z0-9]+)?\.outsystemsenterprise\.com$/;
+
+// Region override (FCT2-20670). The handover sits in the navigation path of
+// every OS entry point, which makes it the natural place to catch a user who is
+// on the wrong OutSystems host and move them across before anything else runs.
+//
+// Loop-safety rests on the preview cookie living on the polaris origin: it
+// reads identically from either OS host, so the decision is stable across the
+// redirect. Every non-matching case — no override, already on London, or the
+// polaris-served handover variant (not an OS host at all) — leaves the origin
+// untouched and returns false.
+//
+// The redirect has to happen before the handover does its work, not after:
+// handover transfers CMS auth into the OS origin's own storage, and that does
+// not cross origins. Every param carrying an OS domain is transposed too —
+// returnTo in particular, which resolveReturnTo requires to be same-origin.
+const redirectToPreviewRegion = (
+  win: Window,
+  preview: Result<Preview>,
+): boolean => {
+  const region = getPreviewRegion(preview);
+  const url = new URL(win.location.href);
+  const targetOrigin = applyRegionToString(url.origin, region);
+  if (targetOrigin === url.origin) {
+    return false;
+  }
+
+  const target = new URL(url.href);
+  target.host = new URL(targetOrigin).host;
+  for (const [key, value] of [...target.searchParams]) {
+    target.searchParams.set(key, applyRegionToString(value, region));
+  }
+
+  // Fails closed: a user who doesn't get moved to London is a broken test, not
+  // a broken app, so we carry on dispatching on the current host.
+  if (
+    target.protocol !== "https:" ||
+    !ALLOWED_REDIRECT_HOST.test(target.hostname)
+  ) {
+    console.warn(
+      "[CPS-GLOBAL-HANDOVER] refusing region redirect to unexpected host",
+      { host: target.hostname, protocol: target.protocol },
+    );
+    return false;
+  }
+
+  console.log("[CPS-GLOBAL-HANDOVER] region override redirect", {
+    from: url.href,
+    to: target.href,
+  });
+  win.location.replace(target.href);
+  return true;
+};
+
 // Single dispatcher for the shared auth-handover endpoint. Branches by
 // `?stage=`; within `ad-redirect` it further branches on whether the URL
 // fragment carries an AAD response.
@@ -240,11 +302,21 @@ export const dispatchHandover = async (
     href: win.location.href,
   });
 
-  const config = await getConfig(scriptUrl);
+  // Preview rides alongside the config fetch rather than after it, so the
+  // region check costs no extra serial latency on a path that is already
+  // several redirects deep.
+  const [config, preview] = await Promise.all([
+    getConfig(scriptUrl),
+    tryFetchPreview(scriptUrl),
+  ]);
   console.log("[CPS-GLOBAL-HANDOVER] config loaded", {
     hasClientId: !!config.AD_CLIENT_ID,
     hasAuthority: !!config.AD_TENANT_AUTHORITY,
   });
+
+  if (redirectToPreviewRegion(win, preview)) {
+    return;
+  }
 
   switch (stage) {
     case HANDOVER_STAGES.OS_COOKIE_RETURN: {
@@ -257,7 +329,7 @@ export const dispatchHandover = async (
           // Cookies fresh — preemptive AD check before delivering to target.
           // We're already on the handover endpoint; just call the same function
           // the ENSURE_AD stage uses, no page-load required.
-          return runEnsureAd(win, config, scriptUrl, outcome.target);
+          return runEnsureAd(win, config, scriptUrl, outcome.target, preview);
         }
         win.location.replace(outcome.target);
         return;
@@ -275,7 +347,7 @@ export const dispatchHandover = async (
       if (ENSURE_AD_ON_OS_HANDOVER) {
         // Token stored — preemptive AD check before the user reaches target.
         // In-process call, not a page navigation.
-        return runEnsureAd(win, config, scriptUrl, outcome.target);
+        return runEnsureAd(win, config, scriptUrl, outcome.target, preview);
       }
       win.location.replace(outcome.target);
       return;
@@ -290,6 +362,7 @@ export const dispatchHandover = async (
         config,
         scriptUrl,
         params.get(HANDOVER_PARAM_KEYS.RETURN_TO),
+        preview,
       );
 
     case HANDOVER_STAGES.AD_REDIRECT: {

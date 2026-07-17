@@ -1,3 +1,4 @@
+import { applyRegionOverride } from "cps-global-configuration";
 import { initialiseAuth } from "./services/auth/initialise-auth";
 import { initialiseStore } from "./store/store";
 import { initialiseAnalytics } from "./services/analytics/initialise-analytics";
@@ -75,7 +76,7 @@ const initialise = async (window: Window & typeof globalThis) => {
 
     // Config no longer depends on preview (override-via-preview was removed in
     // FCT2-17451 drop 4) so it joins the parallel set.
-    const [{ handover, setNextHandover }, preview, settings, { authHint, setAuthHint }, { userDataHint, setUserDataHint }, cmsSessionHint, config] = await Promise.all([
+    const [{ handover, setNextHandover }, preview, settings, { authHint, setAuthHint }, { userDataHint, setUserDataHint }, cmsSessionHint, loadedConfig] = await Promise.all([
       initialiseHandover({ rootUrl, register }),
       initialisePreview({ rootUrl, register }),
       initialiseSettings({ rootUrl }),
@@ -84,6 +85,16 @@ const initialise = async (window: Window & typeof globalThis) => {
       initialiseCmsSessionHint({ rootUrl, flags, register }),
       initialiseConfig({ rootUrl, flags, register }),
     ]);
+
+    // Region override (FCT2-20670). Preview and config resolve together above,
+    // so the rewrite lands before anything reads either. initialiseConfig has
+    // already registered the un-overridden config, hence the re-register —
+    // applyRegionOverride returns the same reference when there's no override,
+    // so the identity check keeps the no-op case free.
+    const config = applyRegionOverride(loadedConfig, preview);
+    if (config !== loadedConfig) {
+      register({ config });
+    }
 
     initialiseOutSystemsReconcileAuth({ window, flags, config });
 

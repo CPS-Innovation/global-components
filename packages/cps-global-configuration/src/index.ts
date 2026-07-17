@@ -12,6 +12,11 @@ export {
 } from "./Config";
 export { PreviewSchema, type Preview } from "./Preview";
 export {
+  applyRegionOverride,
+  applyRegionToString,
+  getPreviewRegion,
+} from "./apply-region-override";
+export {
   notificationSchema,
   notificationsFileSchema,
   dismissedNotificationIdsSchema,
