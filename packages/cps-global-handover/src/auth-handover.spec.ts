@@ -108,6 +108,10 @@ const makeWindow = (currentUrl: string) => {
       hash: url.hash,
       replace: jest.fn(),
     },
+    localStorage: {
+      setItem: jest.fn(),
+      getItem: jest.fn(),
+    },
   } as unknown as Window;
 };
 
@@ -493,6 +497,62 @@ describe("dispatchHandover", () => {
         (c) => (c[1] as RequestInit | undefined)?.method === "PUT",
       );
       expect(putCall).toBeUndefined();
+    });
+  });
+
+  describe("entra-id OS ClientVar write (FCT2-21199)", () => {
+    const handledWithObjectId = (localAccountId: string) =>
+      mockHandleMsalTermination.mockResolvedValue({
+        outcome: "handled",
+        account: {
+          username: "u",
+          localAccountId,
+          idTokenClaims: {},
+        } as never,
+        returnTo: "https://cps-tst.outsystemsenterprise.com/casework_blocks/home",
+      });
+
+    test("writes the Entra objectId to the configured key on successful termination", async () => {
+      withConfigOverrides({
+        OS_ENTRA_ID_STORAGE_KEY: "$OS_Users$Casework_Blocks$ClientVars$EntraID",
+      });
+      handledWithObjectId("obj-123");
+      const win = makeWindow(
+        "https://cps-tst.outsystemsenterprise.com/Casework_Patterns/auth-handover.html?src=x&stage=ad-redirect#code=abc",
+      );
+
+      await dispatchHandover(win, scriptUrl);
+
+      expect(win.localStorage.setItem).toHaveBeenCalledWith(
+        "$OS_Users$Casework_Blocks$ClientVars$EntraID",
+        "obj-123",
+      );
+    });
+
+    test("no-op when the config key is absent (feature off)", async () => {
+      // Base config has no OS_ENTRA_ID_STORAGE_KEY.
+      handledWithObjectId("obj-123");
+      const win = makeWindow(
+        "https://cps-tst.outsystemsenterprise.com/Casework_Patterns/auth-handover.html?src=x&stage=ad-redirect#code=abc",
+      );
+
+      await dispatchHandover(win, scriptUrl);
+
+      expect(win.localStorage.setItem).not.toHaveBeenCalled();
+    });
+
+    test("no-op on failed termination (no account, so no objectId)", async () => {
+      withConfigOverrides({
+        OS_ENTRA_ID_STORAGE_KEY: "$OS_Users$Casework_Blocks$ClientVars$EntraID",
+      });
+      mockHandleMsalTermination.mockResolvedValue({ outcome: "handled-with-error" });
+      const win = makeWindow(
+        "https://cps-tst.outsystemsenterprise.com/Casework_Patterns/auth-handover.html?src=x&stage=ad-redirect#error=invalid",
+      );
+
+      await dispatchHandover(win, scriptUrl);
+
+      expect(win.localStorage.setItem).not.toHaveBeenCalled();
     });
   });
 
