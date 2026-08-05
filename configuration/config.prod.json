@@ -24,6 +24,7 @@
   "SHOW_MONITORING_CODES": false,
   "SHOW_NOTIFICATIONS": true,
   "OS_HANDOVER_URL": "https://cps.outsystemsenterprise.com/Casework_Patterns/auth-handover.html?src=https://polaris.cps.gov.uk/global-components/prod/auth-handover.js",
+  "OS_ENTRA_ID_STORAGE_KEY": "$OS_Users$Casework_Blocks$ClientVars$EntraID",
   "RECENT_CASES_NAVIGATE_URL": "https://cps.outsystemsenterprise.com/WorkManagementApp/CaseOverview?CaseId={caseId}",
   "RECENT_CASES_LIST_LENGTH": 5,
   "FEATURE_FLAG_MENU_USERS": {

@@ -150,6 +150,25 @@ const buildAuthHintFromAccount = (
   };
 };
 
+// Entra objectId → OS ClientVar (FCT2-21199, tactical). OutSystems reads this
+// localStorage key on its own origin; the ad-redirect termination for OS
+// full-page-redirect auth lands on the OS origin, so writing here puts the
+// objectId exactly where OS can pick it up. The key name comes from config —
+// blank/absent turns the feature off. Same objectId the AuthHint write-back
+// below carries (account.localAccountId). Harmless no-op on the polaris-served
+// variant (nothing reads it there); no host gate needed.
+const writeEntraIdClientVar = (
+  win: Window,
+  config: Config,
+  objectId: string | undefined,
+): void => {
+  const key = config.OS_ENTRA_ID_STORAGE_KEY;
+  if (!key || !objectId) {
+    return;
+  }
+  win.localStorage.setItem(key, objectId);
+};
+
 // Shared AD-validation routine. Called from three places:
 //   1. The ENSURE_AD dispatch case (public entry point for external entities).
 //   2. The OS_COOKIE_RETURN case once cookies have been validated.
@@ -377,6 +396,11 @@ export const dispatchHandover = async (
         const result = await handleMsalTermination(win, msalConfig);
 
         if (result.outcome === "handled" && result.account) {
+          // Publish the Entra objectId as an OS ClientVar (if enabled in
+          // config). Independent of the AuthHint write-back below — both derive
+          // from the same freshly-terminated account.
+          writeEntraIdClientVar(win, config, result.account.localAccountId);
+
           // Write the fresh AuthHint (including the new sid) back BEFORE we
           // navigate. The host's first cascade after the redirect will then
           // read this hint and replay the new sid on ssoSilent — turning the

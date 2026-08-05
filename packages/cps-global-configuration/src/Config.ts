@@ -195,6 +195,12 @@ export const configBaseSchema = z.object({
   SHOW_CASE_DETAILS: z.union([z.literal("a"), z.literal("b")]).optional(),
   SHOW_NOTIFICATIONS: z.boolean().optional(),
   OS_HANDOVER_URL: z.string().optional(),
+  // localStorage key (an OS ClientVar, e.g.
+  // "$OS_Users$Casework_Blocks$ClientVars$EntraID") that the auth-handover
+  // writes the user's Entra objectId into on the OS origin, so OutSystems can
+  // read it. Blank/absent turns the feature off — no write happens. Tactical
+  // bridge (FCT2-21199); the objectId is the same one the AuthHint carries.
+  OS_ENTRA_ID_STORAGE_KEY: z.string().optional(),
   FEATURE_FLAG_MENU_USERS: featureFlagUsersSchema.optional(),
   FEATURE_FLAG_USE_MSAL_FULL_REDIRECT_USERS: featureFlagUsersSchema.optional(),
   FEATURE_FLAG_CASE_LOCKING_USERS: featureFlagUsersSchema.optional(),
