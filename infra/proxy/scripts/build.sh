@@ -46,12 +46,16 @@ mv "$DIST_DIR/main/global-components.js" "$DIST_DIR/global-components.js"
 mv "$DIST_DIR/global-components.vnext/global-components.vnext.js" "$DIST_DIR/global-components.vnext.js"
 mv "$DIST_DIR/global-components.cms-auth-v2/global-components.cms-auth-v2.js" "$DIST_DIR/global-components.cms-auth-v2.js"
 mv "$DIST_DIR/global-components.case-locking/global-components.case-locking.js" "$DIST_DIR/global-components.case-locking.js"
+# polaris-non-ddei: another out-of-band POC (like cms-auth-v2) — flatten its
+# compiled .js so the hand-deploy can pick it up; its .conf is NOT bundled here.
+mv "$DIST_DIR/global-components.polaris-non-ddei/global-components.polaris-non-ddei.js" "$DIST_DIR/global-components.polaris-non-ddei.js"
 
 # Remove empty directories
 rmdir "$DIST_DIR/main" 2>/dev/null || true
 rmdir "$DIST_DIR/global-components.vnext" 2>/dev/null || true
 rmdir "$DIST_DIR/global-components.cms-auth-v2" 2>/dev/null || true
 rmdir "$DIST_DIR/global-components.case-locking" 2>/dev/null || true
+rmdir "$DIST_DIR/global-components.polaris-non-ddei" 2>/dev/null || true
 
 echo ""
 echo "Build complete! Contents of dist/:"
