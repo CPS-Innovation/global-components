@@ -892,10 +892,28 @@ async function handleInitV2Callback(r: NginxHTTPRequest): Promise<void> {
   const t0 = timings[0][1];
   const timingRows = _timingRows(timings);
 
-  // Clear the state cookie
+  // Two Set-Cookie headers in one array (njs emits each separately):
+  //   1. Clear the state cookie (flow finished).
+  //   2. Hand the id token to the CMS shell as a short-lived, cross-subdomain,
+  //      JS-readable cookie. In production this callback runs on our-domain, a
+  //      DIFFERENT subdomain from the CMS shell (main-system), so it cannot write
+  //      the shell's localStorage directly (the inline storageScript below only
+  //      works when same-origin, i.e. proxied dev). A cookie scoped to the shared
+  //      registrable domain (cps.gov.uk) lands in the shell's jar regardless. The
+  //      injected shell script (cms-auth-v2-client.js) polls for it, copies it to
+  //      localStorage, and deletes it immediately.
+  //      NOT HttpOnly (the script must read it via document.cookie). Max-Age is a
+  //      backstop so an unreaped cookie self-destructs rather than riding every
+  //      cps.gov.uk request indefinitely.
+  //      Name/Domain MUST match that script's COOKIE_NAME / COOKIE_DOMAIN.
   const clearOpts =
     "; Path=/init-v2; HttpOnly; Secure; SameSite=Lax; Max-Age=0";
-  r.headersOut["Set-Cookie"] = ["cms_auth_state=deleted" + clearOpts];
+  const idTokenCookieOpts =
+    "; Domain=cps.gov.uk; Path=/; Secure; SameSite=Lax; Max-Age=60";
+  r.headersOut["Set-Cookie"] = [
+    "cms_auth_state=deleted" + clearOpts,
+    "cms-auth-id-token=" + encodeURIComponent(idToken) + idTokenCookieOpts,
+  ];
 
   // Render diagnostic page
   const rows = [
@@ -952,10 +970,12 @@ async function handleInitV2Callback(r: NginxHTTPRequest): Promise<void> {
     })
     .join("\n");
 
-  // Write the id token to localStorage from the (same-origin) callback so the host
-  // CMS/Polaris context can read it. Minimal + guarded: a failure (e.g. DOM Storage
-  // disabled) can't touch the rest of the page. Runs in IE mode (where the framed
-  // flow stays), so it lands in the IE jar — the same context a CMS reader uses.
+  // Same-origin (dev/proxied) convenience: write the id token to the top window's
+  // localStorage directly. This ONLY works when the callback is same-origin with the
+  // shell — i.e. behind the dev proxy. In production the cross-subdomain cookie set
+  // above is the real handoff; this write silently no-ops (cross-origin, caught). Kept
+  // as a harmless fast-path for proxied dev. Minimal + guarded so a failure (e.g. DOM
+  // Storage disabled) can't touch the rest of the page.
   // JSON.stringify + <-escaping keep the JWT from breaking out of the <script>.
   const idTokenJs = JSON.stringify(idToken).replace(/</g, "\\u003c");
   // Prefer the TOP window's localStorage (the CMS page's store — that one works in
