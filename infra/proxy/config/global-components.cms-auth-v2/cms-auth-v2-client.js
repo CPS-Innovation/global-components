@@ -3,10 +3,13 @@
  * loads once per session and persists THROUGH login (the login page and the app
  * both load into the shell's frameMain). Two independent concerns, each its own
  * IIFE so a failure in one cannot affect the other:
- *   1. Contact-edit logger (immediately below) — observes the Witnesses &
- *      details screen and reports which contact is being edited.
- *   2. Login -> id-token handover (bottom of file) — on login, spawns the auth
- *      iframe and copies the resulting cross-subdomain cookie into localStorage.
+ *   1. Contact-edit logger + section presence (immediately below) — observes the
+ *      Witnesses & details screen, reports which contact is being edited, and (via
+ *      the polaris presence relay + a cps.gov.uk cookie bridge) shows an "also
+ *      viewing" banner when another user is in the same section.
+ *   2. Login -> auth iframe (bottom of file) — on login, spawns the /polaris auth
+ *      iframe; its AD callback stashes the id-token in POLARIS localStorage for the
+ *      relay to read same-origin. No cross-subdomain cookie hand-off.
  *
  * ---- Concern 1: contact-edit logger ----------------------------------------
  *
@@ -267,6 +270,15 @@
   function sendEvent(kind, rec) {
     log("[cc] " + kind + " " + describe(rec));
 
+    // Section presence (relay-driven) — isolated so it can never affect CMS.
+    try {
+      if (kind === "editing") {
+        presenceStart(rec);
+      } else if (kind === "closed") {
+        presenceStop();
+      }
+    } catch (e) {}
+
     // postEvent(kind, rec);   // <-- UNCOMMENT to POST (set ENDPOINT_URL first)
 
     // Runtime seam: lets a consumer hook in without editing this file.
@@ -288,6 +300,164 @@
       msg = msg + " role=" + rec.role;
     }
     return msg;
+  }
+
+  /* ===================================================================
+   * SECTION PRESENCE (expansion of concern 1) — relay-driven.
+   * -------------------------------------------------------------------
+   * The IE Internet zone forbids the CMS page making the cross-origin presence
+   * calls directly (prompt). So on "editing" we hand the sectionId to the polaris
+   * presence relay via a Domain=cps.gov.uk cookie; the relay (polaris origin) does
+   * the same-origin POST/heartbeat/poll and writes the member list back to a result
+   * cookie, which we poll. When more than one user is in the section we show a
+   * banner at the top of the edit frame. On "closed" we clear the command cookie
+   * (relay stops) and remove the banner. See cms-presence-relay.html and memory
+   * reference_cms_polaris_xorigin_zone.
+   * =================================================================== */
+
+  // TODO env-specific: polaris.cps.gov.uk in prod.
+  var PRESENCE_RELAY_URL = "https://polaris-qa-notprod.cps.gov.uk/global-components/test/cms-presence-relay.html";
+  var PRESENCE_CMD_COOKIE = "cc_presence_cmd";
+  var PRESENCE_RESULT_COOKIE = "cc_presence_result";
+  var PRESENCE_COOKIE_DOMAIN = "cps.gov.uk";
+  var PRESENCE_SECTION_KIND = "VICTIM_WITNESS";
+  var PRESENCE_POLL_MS = 2000;
+  var PRESENCE_BANNER_ID = "ccPresenceBanner";
+  // Show the banner when member count >= this. 1 = show even when it's only you
+  // (handy for dev/visibility). Set to 2 for production: only alert when ANOTHER
+  // user is also in the section (HEARTBEAT.md: "later this should be 2").
+  var PRESENCE_BANNER_MIN = 1;
+
+  var presenceRelayFrame = null; // hidden relay iframe (spawned once)
+  var presenceActiveSid = ""; // section we're currently registering
+  var presencePollTimer = null; // result-cookie poll
+
+  function presenceWriteCookie(name, val) {
+    try {
+      document.cookie = name + "=" + encodeURIComponent(val) + "; Domain=" + PRESENCE_COOKIE_DOMAIN + "; Path=/";
+    } catch (e) {}
+  }
+  function presenceReadCookie(name) {
+    var jar = "";
+    try { jar = document.cookie || ""; } catch (e) { return ""; }
+    var parts = jar.split(";"), i, s;
+    for (i = 0; i < parts.length; i++) {
+      s = parts[i]; while (s.charAt(0) === " ") { s = s.substring(1); }
+      if (s.substring(0, name.length + 1) === name + "=") {
+        var raw = s.substring(name.length + 1);
+        try { return decodeURIComponent(raw); } catch (e2) { return raw; }
+      }
+    }
+    return "";
+  }
+
+  function ensureRelayFrame() {
+    if (presenceRelayFrame) { return; }
+    try {
+      var f = document.createElement("iframe");
+      f.src = PRESENCE_RELAY_URL;
+      f.style.display = "none";
+      document.documentElement.appendChild(f);
+      presenceRelayFrame = f;
+      log("[cc] presence relay iframe spawned");
+    } catch (e) {}
+  }
+
+  // The victim/witness edit frame (same one the logger reads), for the banner.
+  function findContactFrameWin(win, depth) {
+    if (depth > MAXDEPTH) { return null; }
+    var frames = win.frames, i, child, href, found;
+    for (i = 0; i < frames.length; i++) {
+      child = frames[i];
+      href = "";
+      try { href = child.location.href; } catch (e) {}
+      if (href.indexOf(FRAGMENT) !== -1) { return child; }
+      found = findContactFrameWin(child, depth + 1);
+      if (found) { return found; }
+    }
+    return null;
+  }
+
+  function presenceShowBanner(emails) {
+    var win = findContactFrameWin(window, 0);
+    if (!win) { return; }
+    try {
+      var doc = win.document;
+      var b = doc.getElementById(PRESENCE_BANNER_ID);
+      if (!b) {
+        // Anchor INLINE, right after the "Show:" dropdown (cboNShow) in the RHP, so
+        // the banner never adds height at the top of the frame and pushes the
+        // OK/Cancel buttons out of reach. cboNShow exists whenever a vic/wit RHP is
+        // open, which is exactly when presence is active.
+        var anchor = doc.getElementById("cboNShow");
+        if (!anchor || !anchor.parentNode) { return; }
+        b = doc.createElement("span");
+        b.id = PRESENCE_BANNER_ID;
+        b.style.marginLeft = "10px";
+        b.style.padding = "2px 8px";
+        b.style.background = "#fff3cd";
+        b.style.border = "1px solid #d39e00";
+        b.style.color = "#664d03";
+        b.style.font = "bold 11px Arial";
+        b.style.whiteSpace = "nowrap";
+        if (anchor.nextSibling) {
+          anchor.parentNode.insertBefore(b, anchor.nextSibling);
+        } else {
+          anchor.parentNode.appendChild(b);
+        }
+      }
+      b.innerHTML = "\u26A0 Also viewing: " + emails;
+    } catch (e) {}
+  }
+
+  function presenceRemoveBanner() {
+    var win = findContactFrameWin(window, 0);
+    if (!win) { return; }
+    try {
+      var b = win.document.getElementById(PRESENCE_BANNER_ID);
+      if (b && b.parentNode) { b.parentNode.removeChild(b); }
+    } catch (e) {}
+  }
+
+  // Read the relay's result cookie "<sid>||<count>||<emails>" and show/hide banner.
+  function presencePoll() {
+    var r = presenceReadCookie(PRESENCE_RESULT_COOKIE);
+    if (!r) { return; }
+    var parts = r.split("||");
+    if (parts.length < 3) { return; } // "relay-ready" / not a result yet
+    if (parts[0] !== presenceActiveSid) { return; } // result for a different/old section
+    var count = parseInt(parts[1], 10);
+    if (!isNaN(count) && count >= PRESENCE_BANNER_MIN) {
+      presenceShowBanner(parts[2]);
+    } else {
+      presenceRemoveBanner();
+    }
+  }
+
+  function presenceStart(rec) {
+    if (!rec.caseId || !rec.personId) { return; }
+    var sid = rec.caseId + ":" + PRESENCE_SECTION_KIND + ":" + rec.personId;
+    if (sid === presenceActiveSid) { return; } // same section (e.g. victim<->witness row of one person)
+    ensureRelayFrame();
+    presenceActiveSid = sid;
+    presenceWriteCookie(PRESENCE_CMD_COOKIE, sid);
+    presenceRemoveBanner();
+    if (!presencePollTimer) {
+      presencePollTimer = window.setInterval(presencePoll, PRESENCE_POLL_MS);
+    }
+    log("[cc] presence start " + sid);
+  }
+
+  function presenceStop() {
+    if (!presenceActiveSid) { return; }
+    presenceActiveSid = "";
+    presenceWriteCookie(PRESENCE_CMD_COOKIE, "");
+    if (presencePollTimer) {
+      window.clearInterval(presencePollTimer);
+      presencePollTimer = null;
+    }
+    presenceRemoveBanner();
+    log("[cc] presence stop");
   }
 
   // ---- HTTP helpers (ready to use; only called if you uncomment above) ----
@@ -403,54 +573,37 @@
 })();
 
 /* ============================================================================
- * Concern 2: LOGIN -> ID-TOKEN HANDOVER
+ * Concern 2: LOGIN -> AUTH IFRAME SPAWN
  * ----------------------------------------------------------------------------
  * Independent of the logger above. Watches the CMS login flow from the shell and,
- * when the user has just logged in, spawns the /polaris auth iframe. That flow
- * (a co-equal, SERVER-SIDE part of this solution — NOT in this file) runs the AD
- * round-trip on our own domain and finishes by setting a cross-subdomain cookie:
- *     Set-Cookie: cms-auth-id-token=<jwt>; Domain=cps.gov.uk; Path=/; Secure
- * Because main-system.cps.gov.uk and our-domain.cps.gov.uk share the cps.gov.uk
- * registrable domain, that cookie lands in THIS page's jar. We poll for it, copy
- * it into localStorage (where the HTTP-sink and other consumers read it), then
- * DELETE the cookie immediately so it is not attached to further requests.
- *
- * Why the cookie and not a localStorage write from the iframe's end page? In
- * production the auth flow ends on our-domain — a different origin from
- * main-system — so it cannot touch main-system's localStorage. A Domain-scoped
- * cookie is the only channel that crosses the subdomain boundary with no landing
- * page on main-system. Delete-on-read keeps it alive for ~1s, so the
- * every-request overhead is negligible.
+ * when the user has just logged in, spawns the hidden /polaris auth iframe once.
+ * That flow (the AD round-trip, a SERVER-SIDE part of this solution — NOT in this
+ * file) runs on our own (polaris) origin and, in its final callback, stashes the
+ * id-token in POLARIS localStorage. The presence relay (also polaris-origin) reads
+ * it there same-origin — so there is NO cookie / cross-subdomain hand-off to the
+ * CMS domain any more; this file just triggers the flow. See memory
+ * reference_cms_polaris_xorigin_zone.
  *
  * Trigger: the shell's frameMain leaving uaulLogin.aspx (login -> app edge). It
- * re-fires if the site returns to login and leaves again (belt-and-braces N>=1);
- * one handover runs at a time. The shell boots ~seconds BEFORE login completes,
- * so we must wait for the edge, not fire on boot.
- *
- * Until the server-side Set-Cookie half is live, a handover just times out and
- * tears down harmlessly — so this can ship independently.
+ * re-fires if the site returns to login and leaves again. The shell boots ~seconds
+ * BEFORE login completes, so we must wait for the edge, not fire on boot.
  *
  * IE MODE / DOCUMENT-MODE 5 — same constraints as concern 1 (no JSON, no arrow
  * functions, var + function declarations, no trailing commas).
  * ==========================================================================*/
 (function () {
-  var BUILD = "diag1"; // bump on redeploy to confirm fresh bytes are live (cache!)
+  var BUILD = "spawn1"; // bump on redeploy to confirm fresh bytes are live (cache!)
   var DEBUG = true; // verbose per-tick logging; window.__ccAuthHandover.setDebug(false) to quiet
 
-  var POLARIS_PATH = "/polaris-v2"; // auth entry; resolves to THIS (main-system) origin then redirects to our domain. Change freely.
+  var POLARIS_PATH = "/polaris-v2"; // auth entry; resolves to THIS origin then redirects to our domain. Change freely.
   var LOGIN_FRAGMENT = "uaulLogin.aspx"; // frameMain is "on login" while its URL contains this
   var MAIN_FRAME = "frameMain"; // the shell frame login + app load into
-  var COOKIE_NAME = "cms-auth-id-token"; // MUST match the Set-Cookie name the auth callback emits
-  var COOKIE_DOMAIN = "cps.gov.uk"; // MUST match the Set-Cookie Domain (for delete-on-read)
-  var STORAGE_KEY = "cms-auth-id-token"; // localStorage key consumers read
 
   var WATCH_INTERVAL = 1000; // ms between login-state checks
-  var POLL_INTERVAL = 750; // ms between cookie checks during a handover
-  var POLL_TIMEOUT = 45000; // ms to wait for the cookie before giving up
 
   var wasOnLogin = false; // login-edge detector state
-  var handoverActive = false; // guard: one handover at a time
   var ticks = 0; // watch-loop counter (diagnostic)
+  var watchTimer = null; // the poll interval; cleared after the first spawn (single-shot)
 
   function log(msg) {
     if (typeof console !== "undefined" && console.log) {
@@ -464,7 +617,7 @@
   }
 
   // Enumerate this window's direct child frames (name = url), tolerating
-  // cross-origin children (our spawned auth iframe) which throw on access.
+  // cross-origin children (the spawned auth iframe) which throw on access.
   function listFrames() {
     var out = "";
     try {
@@ -493,34 +646,6 @@
     return out || "(none)";
   }
 
-  // Names of the cookies in this jar (NOT values — avoid logging the token).
-  function cookieNames() {
-    var jar = "";
-    try {
-      jar = document.cookie || "";
-    } catch (e) {
-      return "(cookie unreadable)";
-    }
-    var parts = jar.split(";");
-    var names = "";
-    var i;
-    var s;
-    var eq;
-    var nm;
-    for (i = 0; i < parts.length; i++) {
-      s = parts[i];
-      while (s.charAt(0) === " ") {
-        s = s.substring(1);
-      }
-      eq = s.indexOf("=");
-      nm = eq === -1 ? s : s.substring(0, eq);
-      if (nm) {
-        names = names + (names ? ", " : "") + nm;
-      }
-    }
-    return names || "(no cookies)";
-  }
-
   // The shell frame that login/app load into. Same-origin; guarded + logged.
   function mainFrameHref() {
     var f;
@@ -542,113 +667,26 @@
     }
   }
 
-  // Read a cookie value by name (no String.trim in document-mode 5).
-  function readCookie(name) {
-    var jar = "";
-    try {
-      jar = document.cookie || "";
-    } catch (e) {
-      return "";
-    }
-    var parts = jar.split(";");
-    var i;
-    var s;
-    for (i = 0; i < parts.length; i++) {
-      s = parts[i];
-      while (s.charAt(0) === " ") {
-        s = s.substring(1);
-      }
-      if (s.substring(0, name.length + 1) === name + "=") {
-        var raw = s.substring(name.length + 1);
-        try {
-          return decodeURIComponent(raw);
-        } catch (e2) {
-          return raw;
-        }
-      }
-    }
-    return "";
-  }
-
-  // Expire the cookie at both the shared registrable domain (where it was set)
-  // and the host-only default, so it can't linger on later requests.
-  function clearCookie(name) {
-    var past = "Thu, 01 Jan 1970 00:00:00 GMT";
-    try {
-      document.cookie = name + "=; Domain=" + COOKIE_DOMAIN + "; Path=/; expires=" + past;
-    } catch (e) {}
-    try {
-      document.cookie = name + "=; Path=/; expires=" + past;
-    } catch (e) {}
-  }
-
-  function writeStorage(value) {
-    try {
-      window.localStorage.setItem(STORAGE_KEY, value);
-      return true;
-    } catch (e) {
-      log("localStorage.setItem threw: " + e);
-      return false;
-    }
-  }
-
+  // Spawn the hidden auth iframe (fire-and-forget) and remove it once it settles.
+  // The AD flow runs inside it and its callback stashes the id-token in polaris
+  // localStorage; nothing to read back here.
   function spawnIframe() {
-    var f = null;
     try {
-      f = document.createElement("iframe");
+      var f = document.createElement("iframe");
       f.src = POLARIS_PATH;
       f.style.display = "none";
+      f.onload = function () {
+        try {
+          if (f.parentNode) {
+            f.parentNode.removeChild(f);
+          }
+        } catch (e) {}
+      };
       document.documentElement.appendChild(f);
       log("spawned auth iframe src=" + POLARIS_PATH);
     } catch (e) {
-      f = null;
       log("spawnIframe FAILED: " + e);
     }
-    return f;
-  }
-
-  function removeIframe(f) {
-    try {
-      if (f && f.parentNode) {
-        f.parentNode.removeChild(f);
-      }
-    } catch (e) {}
-  }
-
-  // Spawn the auth iframe, wait for the id-token cookie, copy it to localStorage,
-  // delete the cookie, tear down. One at a time; re-runnable across logins.
-  function runHandover() {
-    if (handoverActive) {
-      dlog("runHandover ignored — a handover is already active");
-      return;
-    }
-    handoverActive = true;
-    log("HANDOVER START — cookies now = " + cookieNames());
-
-    var iframe = spawnIframe();
-    var elapsed = 0;
-    var polls = 0;
-    var pollTimer = window.setInterval(function () {
-      elapsed = elapsed + POLL_INTERVAL;
-      polls = polls + 1;
-      var token = readCookie(COOKIE_NAME);
-      if (token) {
-        window.clearInterval(pollTimer);
-        var ok = writeStorage(token);
-        clearCookie(COOKIE_NAME);
-        removeIframe(iframe);
-        handoverActive = false;
-        log("id-token cookie found on poll " + polls + " — " + (ok ? "stored (" + token.length + " chars)" : "read but localStorage write FAILED"));
-        return;
-      }
-      dlog("poll " + polls + ": no " + COOKIE_NAME + " yet; cookies = " + cookieNames());
-      if (elapsed >= POLL_TIMEOUT) {
-        window.clearInterval(pollTimer);
-        removeIframe(iframe);
-        handoverActive = false;
-        log("GAVE UP after " + polls + " polls (~" + Math.round(elapsed / 1000) + "s) — no " + COOKIE_NAME + " cookie. The /polaris flow either did not run or did not Set-Cookie.");
-      }
-    }, POLL_INTERVAL);
   }
 
   // Fire on the login -> app edge: frameMain WAS on the login page and now isn't.
@@ -656,13 +694,31 @@
     ticks = ticks + 1;
     var href = mainFrameHref();
     var onLogin = href ? href.indexOf(LOGIN_FRAGMENT) !== -1 : false;
-    dlog("tick " + ticks + ": frameMain=" + (href || "(empty)") + " onLogin=" + onLogin + " wasOnLogin=" + wasOnLogin + " handoverActive=" + handoverActive);
+    dlog("tick " + ticks + ": frameMain=" + (href || "(empty)") + " onLogin=" + onLogin + " wasOnLogin=" + wasOnLogin);
     if (!href) {
       return; // can't read frameMain this tick — keep wasOnLogin as-is
     }
     if (wasOnLogin && !onLogin) {
-      log("LOGIN EDGE — frameMain left " + LOGIN_FRAGMENT + " -> " + href);
-      runHandover();
+      log("LOGIN EDGE — frameMain left " + LOGIN_FRAGMENT + " -> " + href + " — spawning auth iframe");
+      spawnIframe();
+      // SINGLE-SHOT: stop polling after the first spawn — one auth capture per shell
+      // (== per website) lifecycle.
+      //
+      // (a) This is possibly too simplistic. It does NOT handle re-authentication
+      //     within the same shell (log out + back in won't re-spawn), and if a shell
+      //     ever loads ALREADY authenticated (no login page shown) the edge never
+      //     fires — nothing is captured and, since this clear never runs, the poll
+      //     keeps going. Today's "full site reload on login" behaviour means fresh
+      //     sessions always pass through the login page so the edge does fire; revisit
+      //     if that ever changes.
+      // (b) A cleaner design would hook the frameMain element's onload event (no
+      //     polling at all) and spawn from there. Not done yet because the reliability
+      //     of frame onload in this IE-mode frameset has NOT been proved — the poll is
+      //     the known-good mechanism for now.
+      if (watchTimer) {
+        window.clearInterval(watchTimer);
+        watchTimer = null;
+      }
     }
     wasOnLogin = onLogin;
   }
@@ -670,16 +726,10 @@
   // On-demand state dump: window.__ccAuthHandover.debug()
   function debug() {
     log("=== debug snapshot [" + BUILD + "] ===");
-    log("POLARIS_PATH=" + POLARIS_PATH + "  COOKIE_NAME=" + COOKIE_NAME + "  MAIN_FRAME=" + MAIN_FRAME);
+    log("POLARIS_PATH=" + POLARIS_PATH + "  MAIN_FRAME=" + MAIN_FRAME);
     log("frameMain href = " + (mainFrameHref() || "(empty)"));
     log("child frames   = " + listFrames());
-    log("wasOnLogin=" + wasOnLogin + "  handoverActive=" + handoverActive + "  ticks=" + ticks);
-    log("cookies = " + cookieNames());
-    var stored = "(unreadable)";
-    try {
-      stored = window.localStorage.getItem(STORAGE_KEY) ? "present" : "absent";
-    } catch (e) {}
-    log("id-token in localStorage: " + stored);
+    log("wasOnLogin=" + wasOnLogin + "  ticks=" + ticks);
   }
 
   function setDebug(v) {
@@ -687,9 +737,9 @@
     log("DEBUG set to " + DEBUG);
   }
 
-  // Console handles: drive the handover, dump state, or quiet the logging.
-  window.__ccAuthHandover = { runNow: runHandover, debug: debug, setDebug: setDebug };
+  // Console handles: force a spawn, dump state, or quiet the logging.
+  window.__ccAuthHandover = { runNow: spawnIframe, debug: debug, setDebug: setDebug };
 
-  log("handover watcher booted [" + BUILD + "] DEBUG=" + DEBUG + " — watching frame '" + MAIN_FRAME + "' every " + WATCH_INTERVAL + "ms; POLARIS_PATH=" + POLARIS_PATH);
-  window.setInterval(watch, WATCH_INTERVAL);
+  log("auth-iframe watcher booted [" + BUILD + "] DEBUG=" + DEBUG + " — watching frame '" + MAIN_FRAME + "' every " + WATCH_INTERVAL + "ms; POLARIS_PATH=" + POLARIS_PATH);
+  watchTimer = window.setInterval(watch, WATCH_INTERVAL);
 })();

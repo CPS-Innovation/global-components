@@ -892,28 +892,14 @@ async function handleInitV2Callback(r: NginxHTTPRequest): Promise<void> {
   const t0 = timings[0][1];
   const timingRows = _timingRows(timings);
 
-  // Two Set-Cookie headers in one array (njs emits each separately):
-  //   1. Clear the state cookie (flow finished).
-  //   2. Hand the id token to the CMS shell as a short-lived, cross-subdomain,
-  //      JS-readable cookie. In production this callback runs on our-domain, a
-  //      DIFFERENT subdomain from the CMS shell (main-system), so it cannot write
-  //      the shell's localStorage directly (the inline storageScript below only
-  //      works when same-origin, i.e. proxied dev). A cookie scoped to the shared
-  //      registrable domain (cps.gov.uk) lands in the shell's jar regardless. The
-  //      injected shell script (cms-auth-v2-client.js) polls for it, copies it to
-  //      localStorage, and deletes it immediately.
-  //      NOT HttpOnly (the script must read it via document.cookie). Max-Age is a
-  //      backstop so an unreaped cookie self-destructs rather than riding every
-  //      cps.gov.uk request indefinitely.
-  //      Name/Domain MUST match that script's COOKIE_NAME / COOKIE_DOMAIN.
+  // Clear the state cookie (flow finished). We no longer set a cross-subdomain
+  // id-token cookie: the presence relay reads the id-token straight from THIS
+  // (polaris) origin's localStorage — stashed by storageScript below — so the old
+  // hand-off to the CMS-domain localStorage (cookie -> shell -> localStorage) is
+  // retired. See memory reference_cms_polaris_xorigin_zone.
   const clearOpts =
     "; Path=/init-v2; HttpOnly; Secure; SameSite=Lax; Max-Age=0";
-  const idTokenCookieOpts =
-    "; Domain=cps.gov.uk; Path=/; Secure; SameSite=Lax; Max-Age=60";
-  r.headersOut["Set-Cookie"] = [
-    "cms_auth_state=deleted" + clearOpts,
-    "cms-auth-id-token=" + encodeURIComponent(idToken) + idTokenCookieOpts,
-  ];
+  r.headersOut["Set-Cookie"] = ["cms_auth_state=deleted" + clearOpts];
 
   // Render diagnostic page
   const rows = [
@@ -970,25 +956,15 @@ async function handleInitV2Callback(r: NginxHTTPRequest): Promise<void> {
     })
     .join("\n");
 
-  // Same-origin (dev/proxied) convenience: write the id token to the top window's
-  // localStorage directly. This ONLY works when the callback is same-origin with the
-  // shell — i.e. behind the dev proxy. In production the cross-subdomain cookie set
-  // above is the real handoff; this write silently no-ops (cross-origin, caught). Kept
-  // as a harmless fast-path for proxied dev. Minimal + guarded so a failure (e.g. DOM
-  // Storage disabled) can't touch the rest of the page.
+  // Stash the id token in THIS callback's OWN (polaris) localStorage. The callback
+  // runs on the polaris origin, so this always succeeds; the presence relay iframe is
+  // also polaris-origin and shares this per-origin store (IE mode has no storage
+  // partitioning), so it reads the id-token here same-origin — no cross-origin
+  // transfer, no cookie hand-off. See memory reference_cms_polaris_xorigin_zone.
   // JSON.stringify + <-escaping keep the JWT from breaking out of the <script>.
   const idTokenJs = JSON.stringify(idToken).replace(/</g, "\\u003c");
-  // Prefer the TOP window's localStorage (the CMS page's store — that one works in
-  // IE and is where a same-origin reader looks). IE tends to deny localStorage for a
-  // NESTED frame ("SCRIPT5: Access is denied"), even caught, so we target top first
-  // and fall back to the frame's own. Both guarded so nothing can break the page.
   const storageScript = `<script>(function(){var v=${idTokenJs};` +
-    // Write to the TOP window's localStorage (the CMS page's store). Same-origin
-    // cross-frame access works in every IE document mode (postMessage would be
-    // undefined in documentMode 5), and the nested frame's own context is restricted,
-    // so we target top. Guarded so a failure can't touch the page.
-    `var w;try{w=window.top||window;}catch(e){w=window;}` +
-    `try{w.localStorage.setItem("cms-auth-id-token",v);}catch(e){}` +
+    `try{window.localStorage.setItem("cms-auth-id-token",v);}catch(e){}` +
     `})();</script>`;
 
   r.return(
