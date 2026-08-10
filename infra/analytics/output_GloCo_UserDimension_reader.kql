@@ -1,0 +1,13 @@
+// GloCo_UserDimension — reads the summary-rule snapshot table GloCo_UserSnapshot_CL
+// (one row per active user per day) and resolves the authoritative per-user values:
+// latest NON-BLANK area and department picked independently, plus region.
+// Cheap: reads the small snapshot table, not raw GloCo_PageViews.
+let Snap = GloCo_UserSnapshot_CL;
+let Area = Snap | where isnotempty(UserAreaOrCPSD) | summarize arg_max(TimeGenerated, UserArea, UserAreaOrCPSD) by ObjectId;
+let Dept = Snap | where isnotempty(Department)      | summarize arg_max(TimeGenerated, Department) by ObjectId;
+let Mail = Snap | where isnotempty(Email)           | summarize arg_max(TimeGenerated, Email) by ObjectId;
+Mail
+| join kind=leftouter Area on ObjectId | project-away ObjectId1
+| join kind=leftouter Dept on ObjectId | project-away ObjectId1
+| join kind=leftouter (GloCo__AreaRegionMapping | distinct User_Area, Region) on $left.UserAreaOrCPSD == $right.User_Area
+| project ObjectId, Email, UserArea, UserAreaOrCPSD, Department, Region = coalesce(Region, "")
