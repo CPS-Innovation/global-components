@@ -1,0 +1,67 @@
+// Per-area regional-email grid, split by review/triage type. One row per Area (with a
+// "{Region}, Total" row per region). Columns = distinct cases of each type submitted, attributed
+// to the submitter's area (User_AreaOrCPSD, backfilled at the GloCo_PageViews base).
+//
+// Window = (EndDate - SinceDays) .. EndDate.
+//   Ongoing:    GloCo_CaseReview_AreaByType(30)                         -> last 30 days to now
+//               GloCo_CaseReview_AreaByType(3650)                       -> all time to now
+//   Validation: GloCo_CaseReview_AreaByType(3650, datetime(2026-07-01)) -> launch .. 1 Jul
+// EndDate defaults to the far future; min_of(EndDate, now()) makes the default behave as "now".
+//
+// Review types: First / Subsequent / EA First / EA Subsequent / Admin finalise. Triage types:
+// OD, Red (ODPCDReview IsCPSD=false), DCP. GREEN (ODPCDReview IsCPSD=true) is EXCLUDED — it's
+// CPS-Direct work and never attributes to a geographic area. (ODPCDReview "unknown" excluded too.)
+//
+// Single materialized GloCo_PageViews_CaseReview base + AppEvents + one GloCo__AreaRegionMapping
+// join; no direct GloCo_UserDimension / GloCo_ExcludedUsers reference (excluded users dropped by
+// the inner join to UserAreas, built from the already-filtered base).
+let End = min_of(EndDate, now());
+let StartWin = End - SinceDays * 1d;
+let PVCR = materialize(GloCo_PageViews_CaseReview | where TimeGenerated between (StartWin .. End));
+let CaseFlags = PVCR
+    | summarize Has_EA_First = countif(Is_Early_Advice_First_Review) > 0,
+                Has_Review_First = countif(Is_Review_First_Review) > 0,
+                Has_EA_Sub = countif(Is_Early_Advice_Subsequent) > 0,
+                Has_Review_Sub = countif(Is_Review_Subsequent_Review) > 0
+      by CaseId;
+let Reviews = PVCR
+    | where Is_Submitted_First_Review or Is_Submitted_Subsequent_Review or Is_Admin_Finalise
+    | join kind=leftouter CaseFlags on CaseId | project-away CaseId1
+    | extend ReviewType = case(
+        Is_Admin_Finalise,                                                              "Admin finalise",
+        Is_Submitted_First_Review and Has_EA_First and not(Has_Review_First),           "EA first review",
+        Is_Submitted_Subsequent_Review and Has_EA_Sub and not(Has_Review_Sub),          "EA subsequent review",
+        Is_Submitted_First_Review,                                                      "First review",
+        Is_Submitted_Subsequent_Review,                                                 "Subsequent review",
+        "")
+    | where isnotempty(ReviewType)
+    | distinct CaseId, Area = User_AreaOrCPSD, ReviewType
+    | summarize Count = count() by Area, ReviewType;
+let UserAreas = PVCR
+    | where isnotempty(Auth_Username) and isnotempty(User_AreaOrCPSD)
+    | summarize arg_max(TimeGenerated, User_AreaOrCPSD) by Auth_Username
+    | project Auth_Username, Area = User_AreaOrCPSD;
+let Triage = AppEvents
+    | where TimeGenerated between (StartWin .. End)
+    | where Name == "cps-global-components-analytics-event"
+    | where tostring(Properties["name"]) == "triage-submission"
+    | where tostring(Properties["environment"]) == "prod"
+    | extend CaseId = tolong(Properties["CaseId"]), TT = tostring(Properties["TriageType"]), IsCPSD = tostring(Properties["IsCPSD"])
+    | extend Auth_Username = tostring(parse_json(tostring(Properties["auth"])).username)
+    | where isnotnull(CaseId)
+    | extend ReviewType = case(TT == "OD", "Triage OD", TT == "ODPCDReview" and IsCPSD == "false", "Triage red", TT == "DCP", "Triage DCP", "")
+    | where isnotempty(ReviewType)
+    | join kind=inner UserAreas on Auth_Username
+    | distinct CaseId, ReviewType, Area
+    | summarize Count = count() by Area, ReviewType;
+let All = union Reviews, Triage
+    | join kind=leftouter (GloCo__AreaRegionMapping | distinct User_Area, Region) on $left.Area == $right.User_Area
+    | extend Region = coalesce(Region, "Unmapped")
+    | project Region, Area, ReviewType, Count;
+let RegionTotals = All | summarize Count = sum(Count) by Region, ReviewType | extend Area = strcat(Region, ", Total");
+union All, RegionTotals
+| evaluate pivot(ReviewType, sum(Count), Region, Area)
+| extend SortKey = iff(Area endswith ", Total", 1, 0)
+| order by Region asc, SortKey asc, Area asc
+| project-away SortKey
+| project-reorder Region, Area, ["First review"], ["Subsequent review"], ["EA first review"], ["EA subsequent review"], ["Admin finalise"], ["Triage OD"], ["Triage red"], ["Triage DCP"]

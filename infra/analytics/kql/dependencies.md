@@ -4,7 +4,7 @@
 AppPageViews
   |
   v
-GloCo_PageViews  (also joins GloCo_ExcludedUsers)
+GloCo_PageViews  (also joins GloCo_ExcludedUsers; lookups GloCo_UserDimension for retrospective area/dept backfill)
   |
   |---> GloCo_PageViews_CaseReview
   |       |
@@ -12,6 +12,7 @@ GloCo_PageViews  (also joins GloCo_ExcludedUsers)
   |       |---> GloCo_CaseReview_WithTriageTotalStartedSubmitted  (also joins AppEvents — triage-submission)
   |       |---> GloCo_CaseReview_InvolvementByUser                (also joins AppEvents — triage-submission)
   |       |---> GloCo_CaseReview_AreaCounts  (also joins GloCo__UserAreaMapping and GloCo__AreaRegionMapping; also unions AppEvents triage-submission)
+  |       |---> GloCo_CaseReview_AreaByType(SinceDays, EndDate)  (regional-email grid: per-area review/triage TYPE breakdown, Green excluded; joins GloCo__AreaRegionMapping + AppEvents triage-submission. PARAMETERISED — deploy via `az rest` PUT with functionParameters, not functions-deploy.sh)
   |       |
   |       '---> GloCo_CaseReview_PerCase
   |               |
@@ -30,6 +31,8 @@ GloCo_PageViews  (also joins GloCo_ExcludedUsers)
   |       '---> GloCo_Users_UsageDistribution_Chart
   |
   |---> GloCo_Users_VisitsPerApp  (also joins GloCo_UserAreas)
+  |
+  |---> GloCo_Users_TopByRegion(SinceDays)  (regional-email: top-10 users/region + national rank + N; joins GloCo__AreaRegionMapping. PARAMETERISED — deploy via `az rest` PUT with functionParameters, not functions-deploy.sh)
   |
   |---> GloCo_PageViews_ActiveUsers_Chart
   |
@@ -74,6 +77,12 @@ Standalone (no source table):
 
 - `GloCo_ExcludedUsers` — datatable of `Auth_ObjectId`s filtered out at the `GloCo_PageViews` source.
 - `GloCo__AreaRegionMapping` — datatable of `(User_AreaId, User_Area, Region)`; joinable to any function exposing those columns. Source: `configuration/Row Labels.md`.
+- `GloCo_UserDimension` — DEPLOYED-ONLY, NOT in repo (contains emails/ObjectIds; the generated `.kql`
+  lives in gitignored `scripts/output/`). One-off all-history snapshot: `Auth_ObjectId → Email, UserArea,
+  UserAreaOrCPSD, Department, Region`. `GloCo_PageViews` `lookup`s it to backfill blank pre-July area/dept.
+  **Never reference it directly in a downstream function** — it's embedded in `GloCo_PageViews`; a direct
+  reference elsewhere recreates the embedded+direct resolver clash. Regenerate via `scripts/output/dim_rows.kql`
+  + deploy via `az … --saved-query '@file'` (too big for functions-deploy.sh / ARG_MAX).
 
 Temporary (delete once signed off):
 
