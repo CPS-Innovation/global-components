@@ -138,8 +138,19 @@
 
   function stopSession() {
     if (hbTimer) { window.clearInterval(hbTimer); hbTimer = null; }
-    // Spec: stopping the heartbeat is enough — no DELETE.
-    if (currentSid) { log("stopped session for " + currentSid); }
+    // Release the session immediately on leave via the backend DELETE, rather than
+    // waiting for the heartbeat-timeout (~10s) to expire it. The URL is built here
+    // (synchronously) before we clear sessionId below. Best-effort, fire-and-forget:
+    // the relay iframe is persistent so this normally completes, but the server-side
+    // TTL stays the backstop for the cases it can't (e.g. the shell/tab is closed).
+    if (sessionId) {
+      log("deleting session " + sessionId + " for " + currentSid);
+      apiReq("DELETE", "/sessions/" + sessionId, "", function (st) {
+        if (st < 200 || st >= 300) { log("delete status " + st); }
+      });
+    } else if (currentSid) {
+      log("stopped session for " + currentSid + " (no sessionId yet)");
+    }
     currentSid = "";
     sessionId = "";
   }

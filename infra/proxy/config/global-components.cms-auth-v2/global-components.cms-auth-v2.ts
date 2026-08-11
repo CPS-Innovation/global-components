@@ -1099,6 +1099,118 @@ async function handleCmsModernToken(r: NginxHTTPRequest): Promise<void> {
 }
 
 // ---------------------------------------------------------------------------
+// Presence JSONP adapter
+//
+// The injected CMS client reaches the presence API cross-origin, which the IE
+// Internet zone forbids for XHR — but NOT for <script src>. So the client fetches
+// via JSONP (script tags) and this handler shims each GET into the backend's real
+// REST call: it maps ?op= to POST/PUT/GET/DELETE, lifts the id-token out of the
+// HttpOnly cookie into an Authorization header (so the token is never in the URL),
+// and wraps the JSON response as callback(...). The API keeps its pure REST form.
+//
+// Upstream hop is the plain house pattern (server-level resolver + ngx.fetch), the
+// same as handleInitV2Callback — see the location in the .conf.
+// ---------------------------------------------------------------------------
+
+const _PRESENCE_API_BASE = "https://app-cms-presence-api.azurewebsites.net/api";
+
+// DEV fallback: the static alg:none Postman token the backend accepts today (the
+// same one the relay sends). NOT secret (unsigned dev token). Once the callback sets
+// the id-token as an HttpOnly cookie on this path, that cookie takes precedence (see
+// getToken below); this fallback just lets the flow round-trip before then.
+const _PRESENCE_DEV_BEARER =
+  "eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0.eyJzb3VyY2VfYXBwbGljYXRpb24iOiJQb3N0bWFuIiwiaHR0cDovL3NjaGVtYXMueG1sc29hcC5vcmcvd3MvMjAwNS8wNS9pZGVudGl0eS9jbGFpbXMvZW1haWxhZGRyZXNzIjoiZGV2LnVzZXJAY3BzLmdvdi51ayJ9.";
+
+const _PRESENCE_ID_TOKEN_COOKIE = "cms-auth-id-token";
+
+type _PresenceOp = {
+  method: string;
+  path: (a: Record<string, string>) => string;
+  body: (a: Record<string, string>) => string | null;
+};
+
+// Browser can only GET; ?op= selects the backend's real verb/path/body.
+const _PRESENCE_OPS: Record<string, _PresenceOp> = {
+  create: {
+    method: "POST",
+    path: () => "/sessions",
+    body: (a) => JSON.stringify({ sectionId: a.sectionId || "" }),
+  },
+  heartbeat: {
+    method: "PUT",
+    path: (a) => "/sessions/" + a.sid + "/heartbeat",
+    body: () => null,
+  },
+  poll: {
+    method: "GET",
+    path: (a) => "/sessions/" + a.sid,
+    body: () => null,
+  },
+  remove: {
+    method: "DELETE",
+    path: (a) => "/sessions/" + a.sid,
+    body: () => null,
+  },
+};
+
+async function handlePresenceJsonp(r: NginxHTTPRequest): Promise<void> {
+  const cb = _getQueryParam(r, "callback") || "";
+  // The one non-negotiable JSONP guard: the callback name is reflected verbatim
+  // into an executable script response, so it MUST be a bare identifier or it's XSS.
+  if (!/^[A-Za-z_$][A-Za-z0-9_$]*$/.test(cb)) {
+    r.headersOut["Content-Type"] = "text/plain; charset=utf-8";
+    r.return(400, "invalid callback");
+    return;
+  }
+
+  r.headersOut["Content-Type"] = "text/javascript; charset=utf-8";
+  r.headersOut["Cache-Control"] = "no-store";
+
+  const args: Record<string, string> = {
+    op: _getQueryParam(r, "op") || "",
+    sid: _getQueryParam(r, "sid") || "",
+    sectionId: decodeURIComponent(_getQueryParam(r, "sectionId") || ""),
+  };
+
+  const op = _PRESENCE_OPS[args.op];
+  if (!op) {
+    r.return(200, cb + "(" + JSON.stringify({ jsonpError: "unknown op: " + args.op }) + ")");
+    return;
+  }
+
+  const token = _getCookie(r, _PRESENCE_ID_TOKEN_COOKIE) || _PRESENCE_DEV_BEARER;
+
+  try {
+    const headers: Record<string, string> = { Authorization: "Bearer " + token };
+    const fetchOpts: { method: string; headers: Record<string, string>; body?: string } = {
+      method: op.method,
+      headers,
+    };
+    const body = op.body(args);
+    if (body) {
+      headers["Content-Type"] = "application/json";
+      fetchOpts.body = body;
+    }
+
+    const resp = await ngx.fetch(_PRESENCE_API_BASE + op.path(args), fetchOpts);
+    const text = await resp.text();
+
+    if (resp.status < 200 || resp.status >= 300) {
+      // Raw JSONP has no error channel; give the browser callback one.
+      r.return(
+        200,
+        cb + "(" + JSON.stringify({ jsonpError: "upstream " + resp.status, upstreamBody: text }) + ")",
+      );
+      return;
+    }
+    // text is already JSON (object for create, array for poll) — hand it back verbatim.
+    r.return(200, cb + "(" + (text && text.length ? text : "{}") + ")");
+  } catch (e) {
+    r.return(200, cb + "(" + JSON.stringify({ jsonpError: String(e) }) + ")");
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Exports
 // ---------------------------------------------------------------------------
 
@@ -1193,4 +1305,5 @@ export default {
   handleInitV2Error: _guard("handleInitV2Error", handleInitV2Error),
   handleCmsModernToken: _guard("handleCmsModernToken", handleCmsModernToken),
   handleClearCookies: _guard("handleClearCookies", handleClearCookies),
+  handlePresenceJsonp: _guard("handlePresenceJsonp", handlePresenceJsonp),
 };

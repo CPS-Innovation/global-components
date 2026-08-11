@@ -270,12 +270,13 @@
   function sendEvent(kind, rec) {
     log("[cc] " + kind + " " + describe(rec));
 
-    // Section presence (relay-driven) — isolated so it can never affect CMS.
+    // Section presence — isolated so it can never affect CMS. Routed to the
+    // selected transport (PRESENCE_METHOD); both share this detection + the banner.
     try {
       if (kind === "editing") {
-        presenceStart(rec);
+        presenceBegin(rec);
       } else if (kind === "closed") {
-        presenceStop();
+        presenceEnd();
       }
     } catch (e) {}
 
@@ -327,6 +328,14 @@
   // (handy for dev/visibility). Set to 2 for production: only alert when ANOTHER
   // user is also in the section (HEARTBEAT.md: "later this should be 2").
   var PRESENCE_BANNER_MIN = 1;
+
+  // Which presence TRANSPORT is active. Two parallel implementations that share the
+  // detection (this concern's editing/closed transitions) and the banner; only the
+  // wire mechanism differs. Flip this one line to switch:
+  //   "relay" - hidden polaris-origin iframe + cps.gov.uk cookie bridge (XHR).
+  //   "jsonp" - <script src> JSONP via the presence-jsonp adapter (no iframe, no
+  //             cookie bridge; DELETEs the session on leave). See presenceJsonp*.
+  var PRESENCE_METHOD = "jsonp";
 
   var presenceRelayFrame = null; // hidden relay iframe (spawned once)
   var presenceActiveSid = ""; // section we're currently registering
@@ -458,6 +467,181 @@
     }
     presenceRemoveBanner();
     log("[cc] presence stop");
+  }
+
+  // ---- Transport dispatch: route editing/closed to the selected method --------
+  function presenceBegin(rec) {
+    if (PRESENCE_METHOD === "jsonp") {
+      presenceJsonpStart(rec);
+    } else {
+      presenceStart(rec);
+    }
+  }
+  function presenceEnd() {
+    if (PRESENCE_METHOD === "jsonp") {
+      presenceJsonpStop();
+    } else {
+      presenceStop();
+    }
+  }
+
+  /* ---- JSONP transport (parallel to the relay above) ----------------------
+   * Same start/stop contract as the relay transport; selected by PRESENCE_METHOD.
+   * Uses <script src> (NOT gated by the IE cross-origin XHR zone), so there's no
+   * relay iframe and no cookie bridge — the adapter (handlePresenceJsonp) turns each
+   * GET into the backend's real REST call. The JSONP response executes as JS, so the
+   * callback receives a REAL object/array — no JSON parsing needed here (which the
+   * XHR relay could not do in document-mode 5). Shares the banner with the relay.
+   * ----------------------------------------------------------------------- */
+  var PRESENCE_JSONP_BASE = "/global-components/presence-jsonp"; // same-origin on the proxy
+  var PRESENCE_JSONP_TICK_MS = 3000; // heartbeat + poll cadence
+  var PRESENCE_JSONP_TIMEOUT_MS = 8000; // per-call watchdog (JSONP has no error event)
+
+  var presenceJsonpSeq = 0; // unique callback + cache-bust counter
+  var presenceJsonpSessionId = ""; // presence-API session id
+  var presenceJsonpActiveSid = ""; // section we're holding
+  var presenceJsonpHbTimer = null;
+
+  // Core JSONP call. onData(obj) with the executed object/array, or null on failure.
+  function presenceJsonp(op, params, onData) {
+    presenceJsonpSeq = presenceJsonpSeq + 1;
+    var cbName = "__ccpj_" + presenceJsonpSeq;
+    var done = false;
+    var script = null;
+    var timer = null;
+
+    function cleanup() {
+      if (timer) { window.clearTimeout(timer); timer = null; }
+      try { window[cbName] = undefined; } catch (e1) {}
+      try { if (script && script.parentNode) { script.parentNode.removeChild(script); } } catch (e2) {}
+    }
+
+    window[cbName] = function (data) {
+      if (done) { return; }
+      done = true;
+      cleanup();
+      onData(data);
+    };
+
+    var url = PRESENCE_JSONP_BASE + "?op=" + encodeURIComponent(op);
+    var k;
+    for (k in params) {
+      if (params.hasOwnProperty(k)) {
+        url = url + "&" + k + "=" + encodeURIComponent(params[k]);
+      }
+    }
+    url = url + "&callback=" + cbName + "&_=" + presenceJsonpSeq;
+
+    timer = window.setTimeout(function () {
+      if (done) { return; }
+      done = true;
+      cleanup();
+      log("[cc] presence jsonp timeout op=" + op);
+      onData(null);
+    }, PRESENCE_JSONP_TIMEOUT_MS);
+
+    try {
+      script = document.createElement("script");
+      script.type = "text/javascript";
+      script.src = url;
+      document.documentElement.appendChild(script);
+    } catch (e) {
+      if (!done) { done = true; cleanup(); onData(null); }
+    }
+  }
+
+  // Collect userEmail values ANYWHERE in the poll response, whatever its shape (a
+  // bare array of members, or a wrapper object like {members:[...]}). The XHR relay
+  // did this shape-agnostically with a regex over the raw text; document-mode 5 has
+  // no JSON, so we walk the parsed object instead.
+  function presenceCollectEmails(node, out, depth) {
+    if (!node || depth > 6 || typeof node !== "object") { return; }
+    var i, k;
+    if (typeof node.length === "number") {
+      for (i = 0; i < node.length; i++) { presenceCollectEmails(node[i], out, depth + 1); }
+      return;
+    }
+    for (k in node) {
+      if (node.hasOwnProperty(k)) {
+        if (k === "userEmail" && node[k]) { out[out.length] = node[k]; }
+        else { presenceCollectEmails(node[k], out, depth + 1); }
+      }
+    }
+  }
+  function presenceJsonpEmails(data) {
+    var out = [];
+    presenceCollectEmails(data, out, 0);
+    return out;
+  }
+
+  // Compact shape hint for logging: "array[N]" or "object{key,key}".
+  function presenceJsonpDescribe(data) {
+    if (data === null || typeof data !== "object") { return String(data); }
+    if (typeof data.length === "number") { return "array[" + data.length + "]"; }
+    var ks = [], k;
+    for (k in data) { if (data.hasOwnProperty(k)) { ks[ks.length] = k; } }
+    return "object{" + ks.join(",") + "}";
+  }
+
+  function presenceJsonpTick() {
+    if (!presenceJsonpSessionId) { return; }
+    // Heartbeat (PUT-mapped); response ignored.
+    presenceJsonp("heartbeat", { sid: presenceJsonpSessionId }, function () {});
+    // Poll (GET-mapped) -> members -> banner.
+    presenceJsonp("poll", { sid: presenceJsonpSessionId }, function (data) {
+      if (data === null) { log("[cc] presence jsonp poll: no response (timeout)"); return; }
+      if (data.jsonpError) { log("[cc] presence jsonp poll error: " + data.jsonpError); return; }
+      // An empty array = "no change since last poll" (backend delta protocol) — KEEP
+      // the last banner rather than clearing it. Mirrors the relay's "[]" handling.
+      if (typeof data.length === "number" && data.length === 0) {
+        log("[cc] presence jsonp poll: no change");
+        return;
+      }
+      var emails = presenceJsonpEmails(data);
+      log("[cc] presence jsonp poll: " + emails.length + " member(s) [" + emails.join(", ") + "] raw=" + presenceJsonpDescribe(data));
+      if (emails.length >= PRESENCE_BANNER_MIN) {
+        presenceShowBanner(emails.join(", "));
+      } else {
+        presenceRemoveBanner();
+      }
+    });
+  }
+
+  function presenceJsonpStart(rec) {
+    if (!rec.caseId || !rec.personId) { return; }
+    var sid = rec.caseId + ":" + PRESENCE_SECTION_KIND + ":" + rec.personId;
+    if (sid === presenceJsonpActiveSid) { return; } // same section (e.g. victim<->witness of one person)
+    presenceJsonpStop(); // clears any prior session (and fires its DELETE)
+    presenceJsonpActiveSid = sid;
+    presenceRemoveBanner();
+    log("[cc] presence jsonp create " + sid);
+    presenceJsonp("create", { sectionId: sid }, function (data) {
+      if (presenceJsonpActiveSid !== sid) { return; } // superseded while in flight
+      if (data === null || data.jsonpError || !data.sessionId) {
+        log("[cc] presence jsonp create failed for " + sid);
+        return;
+      }
+      presenceJsonpSessionId = data.sessionId;
+      log("[cc] presence jsonp session " + presenceJsonpSessionId + " for " + sid);
+      presenceJsonpTick();
+      presenceJsonpHbTimer = window.setInterval(presenceJsonpTick, PRESENCE_JSONP_TICK_MS);
+    });
+  }
+
+  function presenceJsonpStop() {
+    if (presenceJsonpHbTimer) {
+      window.clearInterval(presenceJsonpHbTimer);
+      presenceJsonpHbTimer = null;
+    }
+    if (presenceJsonpSessionId) {
+      log("[cc] presence jsonp delete " + presenceJsonpSessionId);
+      // Best-effort DELETE on leave. NOT guaranteed on tab-close (a script injected
+      // during unload may not run) — the server-side TTL stays the real backstop.
+      presenceJsonp("remove", { sid: presenceJsonpSessionId }, function () {});
+    }
+    presenceJsonpSessionId = "";
+    presenceJsonpActiveSid = "";
+    presenceRemoveBanner();
   }
 
   // ---- HTTP helpers (ready to use; only called if you uncomment above) ----
