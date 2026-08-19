@@ -656,6 +656,31 @@ async function handleInitV2(r: NginxHTTPRequest): Promise<void> {
 }
 
 // ---------------------------------------------------------------------------
+// Presence constants — declared here (before handleInitV2Callback, which references
+// _PRESENCE_USE_ID_TOKEN / _PRESENCE_DEV_BEARER) because njs TDZ-checks forward
+// references to module-level const. The JSONP adapter below uses them too.
+// ---------------------------------------------------------------------------
+
+const _PRESENCE_API_BASE = "https://app-cms-presence-api.azurewebsites.net/api";
+
+// DEV token: a synthetic test JWT (placeholder tenant/user, scope api.presence.user.
+// readwrite). The backend accepts it under its custom "Bearer-Test" auth scheme, which
+// does NOT validate the signature (hence the "dev-signature-not-validated-by-BearerTest-
+// scheme" segment). NOT a real credential. The auth callback stamps this into the id-token
+// cookie while _PRESENCE_USE_ID_TOKEN is false (the real id-token goes in when on); the
+// handler sends whatever the cookie holds — dev under "Bearer-Test", real under "Bearer".
+const _PRESENCE_DEV_BEARER =
+  "eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiIsImtpZCI6IlQxU3QtZUxHSGcxZ0o0d1RmZDl3Q3F6WnEtQjRvOFUiLCJ4NXQiOiJUMVN0LWVMR0hnMWdKNHdUZmQ5d0NxelpxLUI0bzhVIn0.eyJhdWQiOiJhcGk6Ly8xMTExMjIyMi0zMzMzLTQ0NDQtNTU1NS02NjY2Nzc3Nzg4ODgiLCJpc3MiOiJodHRwczovL2xvZ2luLm1pY3Jvc29mdG9ubGluZS5jb20vOTk5OTg4ODgtNzc3Ny02NjY2LTU1NTUtNDQ0NDMzMzMyMjIyL3YyLjAiLCJpYXQiOjE3MzU3MzI4MDAsIm5iZiI6MTczNTczMjgwMCwiZXhwIjoxNzM1NzM2NDAwLCJhaW8iOiJBV1FBbS84WEFBQUF0VjBtMFA3VnYxYnFVM3E0WWgxSncybjZtUThiMGs1cjN4Tj09IiwiYXpwIjoiYWFhYWJiYmItY2NjYy1kZGRkLWVlZWUtZmZmZjAwMDAxMTExIiwiYXpwYWNyIjoiMSIsIm5hbWUiOiJUZXN0IFVzZXIiLCJvaWQiOiI3YzlmNGUyYS0xYjZkLTRjM2UtOWYwYS0yZDViOGUxYTRjN2YiLCJwcmVmZXJyZWRfdXNlcm5hbWUiOiJ0ZXN0LXVzZXJAY3BzLmdvdi51ayIsImVtYWlsIjoidGVzdC11c2VyQGNwcy5nb3YudWsiLCJyaCI6IjAuQUFBQS5nWS4iLCJzY3AiOiJhcGkucHJlc2VuY2UudXNlci5yZWFkd3JpdGUiLCJzdWIiOiJBQWRqOGtRMnI3eDltTjNwTDV0WjF2QjZ3WDBjWTR1SDhzSzJlRjdnVDlhIiwidGlkIjoiOTk5OTg4ODgtNzc3Ny02NjY2LTU1NTUtNDQ0NDMzMzMyMjIyIiwidXRpIjoiYUIzY0Q0ZUY1Z0g2aUo3a0w4bU5BQSIsInZlciI6IjIuMCJ9.dev-signature-not-validated-by-BearerTest-scheme";
+
+const _PRESENCE_ID_TOKEN_COOKIE = "cms-auth-id-token";
+
+// Token switch — mirrors the relay's USE_ID_TOKEN. The presence API currently accepts
+// ONLY the static dev token, so this stays false: the callback SETS the id-token cookie
+// (ready for later), but we keep SENDING the dev bearer until the backend validates real
+// id-tokens. Flip to true then — the handler will prefer the cookie's id-token.
+const _PRESENCE_USE_ID_TOKEN = false;
+
+// ---------------------------------------------------------------------------
 // /init-v2/callback — Code exchange, validation, table storage, diagnostics
 // ---------------------------------------------------------------------------
 
@@ -892,14 +917,34 @@ async function handleInitV2Callback(r: NginxHTTPRequest): Promise<void> {
   const t0 = timings[0][1];
   const timingRows = _timingRows(timings);
 
-  // Clear the state cookie (flow finished). We no longer set a cross-subdomain
-  // id-token cookie: the presence relay reads the id-token straight from THIS
-  // (polaris) origin's localStorage — stashed by storageScript below — so the old
-  // hand-off to the CMS-domain localStorage (cookie -> shell -> localStorage) is
-  // retired. See memory reference_cms_polaris_xorigin_zone.
+  // Two Set-Cookie headers:
+  //  1. Clear the state cookie — the flow is finished.
+  //  2. Hand the id-token to the JSONP presence transport. The presence-jsonp adapter
+  //     (handlePresenceJsonp) reads this from the request Cookie header and lifts it
+  //     into an Authorization: Bearer, so the token is never in a URL or readable by
+  //     page JS. HttpOnly (JS can't touch it), Secure, and Path-scoped to the JSONP
+  //     endpoint so it rides ONLY those requests.
+  //     HOST-ONLY (no Domain attribute): the callback that sets this and the JSONP
+  //     endpoint that reads it are the SAME proxy host in the proxied-CMS model, so the
+  //     cookie never needs to cross subdomains — that cross-domain scope was the relay/
+  //     iframe topology, not this one. Host-only keeps it off every other *.cps.gov.uk
+  //     host and out of the shared registrable-domain cookie budget.
+  //     Max-Age ~8h matches the token-age grace window the backend accepts and a working
+  //     shift, so one login covers the day. Set UNCONDITIONALLY (framed or top-level).
+  //     The relay flavour instead uses the localStorage write in storageScript below.
   const clearOpts =
     "; Path=/init-v2; HttpOnly; Secure; SameSite=Lax; Max-Age=0";
-  r.headersOut["Set-Cookie"] = ["cms_auth_state=deleted" + clearOpts];
+  const idTokenCookieOpts =
+    "; Path=/global-components/presence-jsonp; HttpOnly; Secure; SameSite=Lax; Max-Age=28800";
+  // While _PRESENCE_USE_ID_TOKEN is off we stamp the DEV token into the cookie so the whole
+  // handover is exercised actively with a safe payload; flip it on and the real id-token
+  // goes in instead. The JSONP handler reads ONLY this cookie (no other token source), so a
+  // working banner proves this cookie handover end-to-end.
+  const cookieToken = _PRESENCE_USE_ID_TOKEN ? idToken : _PRESENCE_DEV_BEARER;
+  r.headersOut["Set-Cookie"] = [
+    "cms_auth_state=deleted" + clearOpts,
+    "cms-auth-id-token=" + encodeURIComponent(cookieToken) + idTokenCookieOpts,
+  ];
 
   // Render diagnostic page
   const rows = [
@@ -1112,16 +1157,9 @@ async function handleCmsModernToken(r: NginxHTTPRequest): Promise<void> {
 // same as handleInitV2Callback — see the location in the .conf.
 // ---------------------------------------------------------------------------
 
-const _PRESENCE_API_BASE = "https://app-cms-presence-api.azurewebsites.net/api";
-
-// DEV fallback: the static alg:none Postman token the backend accepts today (the
-// same one the relay sends). NOT secret (unsigned dev token). Once the callback sets
-// the id-token as an HttpOnly cookie on this path, that cookie takes precedence (see
-// getToken below); this fallback just lets the flow round-trip before then.
-const _PRESENCE_DEV_BEARER =
-  "eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0.eyJzb3VyY2VfYXBwbGljYXRpb24iOiJQb3N0bWFuIiwiaHR0cDovL3NjaGVtYXMueG1sc29hcC5vcmcvd3MvMjAwNS8wNS9pZGVudGl0eS9jbGFpbXMvZW1haWxhZGRyZXNzIjoiZGV2LnVzZXJAY3BzLmdvdi51ayJ9.";
-
-const _PRESENCE_ID_TOKEN_COOKIE = "cms-auth-id-token";
+// (The _PRESENCE_* scalar constants are declared ABOVE handleInitV2Callback — that
+// callback references _PRESENCE_USE_ID_TOKEN / _PRESENCE_DEV_BEARER, and njs TDZ-checks
+// forward references to module-level const, so they must precede their first use.)
 
 type _PresenceOp = {
   method: string;
@@ -1178,10 +1216,19 @@ async function handlePresenceJsonp(r: NginxHTTPRequest): Promise<void> {
     return;
   }
 
-  const token = _getCookie(r, _PRESENCE_ID_TOKEN_COOKIE) || _PRESENCE_DEV_BEARER;
+  // The token comes ONLY from the cookie (the auth callback stamps it there — dev token
+  // while _PRESENCE_USE_ID_TOKEN is off, real id-token when on). There is deliberately NO
+  // constant fallback: no cookie -> no Authorization -> the API 401s and no banner shows,
+  // so a working banner proves the whole cookie handover end-to-end. Scheme follows the
+  // switch: dev token uses "Bearer-Test" (signature not validated), real id-token "Bearer".
+  const cookieTok = _getCookie(r, _PRESENCE_ID_TOKEN_COOKIE);
+  const headers: Record<string, string> = {};
+  if (cookieTok) {
+    headers["Authorization"] =
+      (_PRESENCE_USE_ID_TOKEN ? "Bearer " : "Bearer-Test ") + decodeURIComponent(cookieTok);
+  }
 
   try {
-    const headers: Record<string, string> = { Authorization: "Bearer " + token };
     const fetchOpts: { method: string; headers: Record<string, string>; body?: string } = {
       method: op.method,
       headers,

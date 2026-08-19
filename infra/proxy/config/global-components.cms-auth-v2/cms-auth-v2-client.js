@@ -618,7 +618,8 @@
     presenceJsonp("create", { sectionId: sid }, function (data) {
       if (presenceJsonpActiveSid !== sid) { return; } // superseded while in flight
       if (data === null || data.jsonpError || !data.sessionId) {
-        log("[cc] presence jsonp create failed for " + sid);
+        var why = data === null ? "no response (timeout)" : (data.jsonpError || "no sessionId in response");
+        log("[cc] presence jsonp create failed for " + sid + " — " + why);
         return;
       }
       presenceJsonpSessionId = data.sessionId;
