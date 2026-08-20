@@ -13,6 +13,14 @@
 //   Casework app      = App == "Casework app".
 //   Non-casework app  = any other App (Case review, Work management, Home, Housekeeping, ...).
 //   Review submitted  = Case review LandingPage with IsSubmitted / SubmittedIsFirstReview URL params.
+//   Triage submitted  = a "triage-submission" app-event (Work management app; all triage types incl green).
+let TriageUsers = AppEvents
+    | where Name == "cps-global-components-analytics-event"
+    | where tostring(Properties["name"]) == "triage-submission"
+    | where tostring(Properties["environment"]) == "prod"
+    | extend Auth_Username = tostring(parse_json(tostring(Properties["auth"])).username)
+    | where isnotempty(Auth_Username)
+    | distinct Auth_Username;
 GloCo_PageViews
 | where isnotempty(Auth_Username)
 | extend Params = parse_url(Url)["Query Parameters"]
@@ -27,13 +35,14 @@ GloCo_PageViews
     Ever_Review      = countif(Is_Submitted_First or Is_Submitted_Subsequent) > 0,
     (LastTitled, LatestTitle) = arg_max(iff(isnotempty(Auth_JobTitle), TimeGenerated, datetime(null)), Auth_JobTitle)
   by Auth_Username
-| extend LawyerStatus = GloCo_LawyerStatus(LatestTitle)
+| extend LawyerStatus = GloCo_LawyerStatus(LatestTitle), Ever_Triage = Auth_Username in (TriageUsers)
 // Headcounts per lawyer status.
 | summarize
     ["Users"]                         = count(),
     ["Ever visited casework app"]     = countif(Ever_Casework),
     ["Ever visited non-casework app"] = countif(Ever_NonCasework),
-    ["Ever submitted a review"]       = countif(Ever_Review)
+    ["Ever submitted a review"]       = countif(Ever_Review),
+    ["Ever submitted a triage"]       = countif(Ever_Triage)
   by ["Lawyer status"] = LawyerStatus
 | extend SortKey = case(["Lawyer status"] == "Lawyer", 0, ["Lawyer status"] == "NotLawyer", 1, ["Lawyer status"] == "UnknownIfLawyer", 2, 3)
 | order by SortKey asc
