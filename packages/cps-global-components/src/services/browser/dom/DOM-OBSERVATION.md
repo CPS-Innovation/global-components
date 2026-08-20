@@ -19,7 +19,7 @@ library with `{ fireOnAttributesModification: true, existing: true }`.
 | 2 | **footerSubscriber** | `footer` | `!!preview.result?.footer` | Injects `<cps-global-footer>`, hides host footer | No (stays bound) |
 | 3 | **hostAppEventSubscriber** | per-context `target.selector`(s) | `!!context.hostAppEventTargets?.length` | `appear` → fire analytics now; else one-shot click → fire | Yes — per target after first match |
 | 4 | **accessibilitySubscriber** | `html` + `*:not(input)…:not(html):not(body)` | `!!preview.result?.accessibility && !!theme && !forcedColors` | Grey/warm mode: `#grey-mode-styles` + `data-grey-mode`, recolours surfaces/text | `html` sub: yes; per-element sub: no |
-| 5 | **witnessAreaSubscriber** | `div#WitnessIsActive` | `enabled && currentHref.includes("/workmanagementapp/caseoverview")` | Injects `<cps-region code="witness">` | No (no-ops if region present) |
+| 5 | **witnessAreaSubscriber** | `div[data-block="MainFlow.Witnesses"]` | `enabled && currentHref.includes("/workmanagementapp/caseoverview")` | Injects `<cps-region code="witness">` | No (no-ops if region present) |
 | 6 | **skipLinkSubscriber** | per-context `main`/`search`/`list` selectors | `watched.length > 0` (any skip-link selector set) | Records which skip-link targets exist → store | No (kept for SPA re-add) |
 
 ## The two-layer gating model
