@@ -1,0 +1,26 @@
+// dimension-generator.kql — produces the analytics-derived per-user rows for GloCo_UserDimension:
+// latest-known Email / Area / AreaOrCPSD / Department / Region / JobTitle per Auth_ObjectId across
+// ALL history. rebuild-dimension.sh runs this, then OVERLAYS authoritative job titles from Entra
+// (output/entra_jobtitles.jsonl) and assembles + deploys the GloCo_UserDimension datatable.
+//
+// Output is ONE column ("Row") — fields joined by the "~^~" sentinel so `az --output tsv` cannot
+// reorder columns (it alphabetises multi-column output) and so rebuild-dimension.sh can split it
+// back reliably. No PII in THIS file (it is committable); the assembled datatable is not.
+let PV = materialize(
+    GloCo_PageViews
+    | where isnotempty(Auth_ObjectId)
+    | project TimeGenerated, Auth_ObjectId, Auth_Username, User_Area, User_AreaOrCPSD, Auth_Department, Auth_JobTitle);
+let LatestEmail = PV | where isnotempty(Auth_Username)    | summarize arg_max(TimeGenerated, Auth_Username) by Auth_ObjectId | project Auth_ObjectId, Email = Auth_Username;
+let LatestArea  = PV | where isnotempty(User_AreaOrCPSD)  | summarize arg_max(TimeGenerated, User_Area, User_AreaOrCPSD) by Auth_ObjectId | project Auth_ObjectId, User_Area, User_AreaOrCPSD;
+let LatestDept  = PV | where isnotempty(Auth_Department)  | summarize arg_max(TimeGenerated, Auth_Department) by Auth_ObjectId | project Auth_ObjectId, Department = Auth_Department;
+// Reject junk titles that leaked from a past table-format parse (e.g. a tab-prefixed "PrimaryResult")
+// so the backfill ratchet can't keep re-baking them; a real earlier title (or Entra) then wins instead.
+let LatestJob   = PV | where isnotempty(Auth_JobTitle) and Auth_JobTitle !contains "\t" and Auth_JobTitle !contains "PrimaryResult" | summarize arg_max(TimeGenerated, Auth_JobTitle) by Auth_ObjectId | project Auth_ObjectId, JobTitle = Auth_JobTitle;
+LatestEmail
+| join kind=leftouter LatestArea on Auth_ObjectId | project-away Auth_ObjectId1
+| join kind=leftouter LatestDept on Auth_ObjectId | project-away Auth_ObjectId1
+| join kind=leftouter LatestJob  on Auth_ObjectId | project-away Auth_ObjectId1
+| join kind=leftouter (GloCo__AreaRegionMapping | distinct User_Area, Region) on $left.User_AreaOrCPSD == $right.User_Area
+| extend Email=coalesce(Email,""), User_Area=coalesce(User_Area,""), User_AreaOrCPSD=coalesce(User_AreaOrCPSD,""),
+         Department=coalesce(Department,""), Region=coalesce(Region,""), JobTitle=coalesce(JobTitle,"")
+| project Row = strcat(Auth_ObjectId, "~^~", Email, "~^~", User_Area, "~^~", User_AreaOrCPSD, "~^~", Department, "~^~", Region, "~^~", JobTitle)

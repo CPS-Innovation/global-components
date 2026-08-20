@@ -1,0 +1,40 @@
+// GloCo_Users_EverActivityByLawyerStatus — headcount of DISTINCT users who have EVER done each
+// activity, split by lawyer status. "Ever" = the thing happened at least once in the query window.
+//
+// Time window: respects the Log Analytics time-picker (no TimeGenerated filter here) — select
+// "all time" for the lifetime figure, or any range to ask "ever, within this window".
+//
+// Lawyer status: each user's LATEST non-blank job title (Auth_JobTitle, already area/job-title-
+// backfilled by GloCo_PageViews) classified on demand by the scalar GloCo_LawyerStatus -> one of
+// Lawyer / NotLawyer / UnknownIfLawyer / NoJobTitle. UnknownIfLawyer = a title not in the classifier
+// lists (flag to reclassify); NoJobTitle = user never had a job title captured.
+//
+// Activity definitions (match GloCo_Users_VisitsAndReviews):
+//   Casework app      = App == "Casework app".
+//   Non-casework app  = any other App (Case review, Work management, Home, Housekeeping, ...).
+//   Review submitted  = Case review LandingPage with IsSubmitted / SubmittedIsFirstReview URL params.
+GloCo_PageViews
+| where isnotempty(Auth_Username)
+| extend Params = parse_url(Url)["Query Parameters"]
+| extend Page = tostring(split(parse_url(Url)["Path"], "/")[-1])
+| extend IsSubmittedParam = tobool(Params["IsSubmitted"]), SubmittedIsFirstReviewParam = tobool(Params["SubmittedIsFirstReview"])
+| extend Is_Submitted_First = App == "Case review" and Page == "LandingPage" and SubmittedIsFirstReviewParam == true
+| extend Is_Submitted_Subsequent = App == "Case review" and Page == "LandingPage" and IsSubmittedParam == true and SubmittedIsFirstReviewParam != true
+// One row per user: did they EVER do each thing, plus their latest non-blank job title.
+| summarize
+    Ever_Casework    = countif(App == "Casework app") > 0,
+    Ever_NonCasework = countif(App != "Casework app") > 0,
+    Ever_Review      = countif(Is_Submitted_First or Is_Submitted_Subsequent) > 0,
+    (LastTitled, LatestTitle) = arg_max(iff(isnotempty(Auth_JobTitle), TimeGenerated, datetime(null)), Auth_JobTitle)
+  by Auth_Username
+| extend LawyerStatus = GloCo_LawyerStatus(LatestTitle)
+// Headcounts per lawyer status.
+| summarize
+    ["Users"]                         = count(),
+    ["Ever visited casework app"]     = countif(Ever_Casework),
+    ["Ever visited non-casework app"] = countif(Ever_NonCasework),
+    ["Ever submitted a review"]       = countif(Ever_Review)
+  by ["Lawyer status"] = LawyerStatus
+| extend SortKey = case(["Lawyer status"] == "Lawyer", 0, ["Lawyer status"] == "NotLawyer", 1, ["Lawyer status"] == "UnknownIfLawyer", 2, 3)
+| order by SortKey asc
+| project-away SortKey

@@ -1,0 +1,27 @@
+// Per-user activity summary for an AD-HOC time range: set the range in the Log Analytics time
+// picker — this function has NO hardcoded time floor, so the picker scopes it.
+//   User name                    = Auth_Username (the CPS email)
+//   Casework app page visits     = distinct script loads (page loads) in the Casework app (polaris)
+//   Non-casework app page visits = distinct script loads everywhere else (Case review, WMA, Home, ...)
+//   Reviews submitted            = distinct case reviews submitted (first/subsequent, incl Early
+//                                  Advice; NOT triage, NOT admin finalise)
+// A "page visit" = distinct CorrelationId_ScriptLoad (one per page load). Single GloCo_PageViews
+// reference; submitted-review detection inlined (mirrors GloCo_PageViews_CaseReview). Excluded
+// users and the area backfill are inherited from GloCo_PageViews.
+GloCo_PageViews
+| where isnotempty(Auth_Username)
+| extend Params = parse_url(Url)["Query Parameters"]
+| extend Page = tostring(split(parse_url(Url)["Path"], "/")[-1])
+| extend IsSubmittedParam = tobool(Params["IsSubmitted"]), SubmittedIsFirstReviewParam = tobool(Params["SubmittedIsFirstReview"])
+| extend Is_Submitted_First = App == "Case review" and Page == "LandingPage" and SubmittedIsFirstReviewParam == true
+| extend Is_Submitted_Subsequent = App == "Case review" and Page == "LandingPage" and IsSubmittedParam == true and SubmittedIsFirstReviewParam != true
+| summarize
+    Casework_Visits     = count_distinctif(CorrelationId_ScriptLoad, App == "Casework app"),
+    NonCasework_Visits  = count_distinctif(CorrelationId_ScriptLoad, App != "Casework app"),
+    Reviews_Submitted   = count_distinctif(CaseId, Is_Submitted_First or Is_Submitted_Subsequent)
+  by Auth_Username
+| project ["User name"] = Auth_Username,
+          ["Casework app page visits"] = Casework_Visits,
+          ["Non-casework app page visits"] = NonCasework_Visits,
+          ["Reviews submitted"] = Reviews_Submitted
+| order by ["Non-casework app page visits"] desc

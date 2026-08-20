@@ -59,8 +59,16 @@ let All = union Reviews, Triage
     | extend Region = coalesce(Region, "Unmapped")
     | project Region, Area, ReviewType, Count;
 let RegionTotals = All | summarize Count = sum(Count) by Region, ReviewType | extend Area = strcat(Region, ", Total");
-union All, RegionTotals
+// Seed one zero-row per type with a sentinel region/area, so pivot ALWAYS creates every type
+// column even when a type has no rows in the window (otherwise project-reorder fails, SEM0719).
+let Seed = datatable(Region: string, Area: string, ReviewType: string, Count: long) [
+    "_seed", "_seed", "First review", 0,   "_seed", "_seed", "Subsequent review", 0,
+    "_seed", "_seed", "EA first review", 0, "_seed", "_seed", "EA subsequent review", 0,
+    "_seed", "_seed", "Admin finalise", 0,  "_seed", "_seed", "Triage OD", 0,
+    "_seed", "_seed", "Triage red", 0,      "_seed", "_seed", "Triage DCP", 0 ];
+union All, RegionTotals, Seed
 | evaluate pivot(ReviewType, sum(Count), Region, Area)
+| where Area != "_seed"
 | extend SortKey = iff(Area endswith ", Total", 1, 0)
 | order by Region asc, SortKey asc, Area asc
 | project-away SortKey
