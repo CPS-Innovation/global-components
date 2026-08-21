@@ -46,12 +46,22 @@ export const createCaseLockingPresence = ({ apiUrl, username, appName, register,
 
   let reconcilePromise: Promise<void> = Promise.resolve();
 
-  const buildSectionKey = (caseId: string, code: string) => `case-${caseId}-${code}`;
+  // Wire format agreed with the presence API: "<caseId>:<SECTION_KIND>", e.g. "12345:CASE".
+  // Region codes are lower-case by local convention; the hub expects the kind upper-cased.
+  const buildSectionKey = (caseId: string, code: string) => `${caseId}:${code.toUpperCase()}`;
+
+  // The hub reports everyone in the section, ourselves included. Drop our own entry
+  // so the banner only appears when someone *else* is on the case — otherwise a lone
+  // user is told they are viewing the case they are looking at. Compared
+  // case-insensitively because the server derives the name from token claims, whose
+  // casing we don't control.
+  const isSelf = ({ user }: CaseLockingPresentUser) => !!user && user.toLowerCase() === username.toLowerCase();
 
   const publishPresentUsers = (code: string, users: CaseLockingPresentUser[]) => {
+    const others = users.filter(user => !isSelf(user));
     publishedCode = code;
-    _debug("publishing present users", { code, users });
-    register({ caseLockingPresentUsers: { code, users } });
+    _debug("publishing present users", { code, users, others });
+    register({ caseLockingPresentUsers: { code, users: others } });
   };
 
   const clearPublishedPresence = () => {
@@ -89,7 +99,7 @@ export const createCaseLockingPresence = ({ apiUrl, username, appName, register,
 
     connection.onreconnected(() => {
       _debug("reconnected — re-invoking Connect", { sectionKey });
-      connection.invoke("Connect", sectionKey, username, appName).catch(err => _warn("reconnect invoke failed", { sectionKey }, err));
+      connection.invoke("Connect", sectionKey, appName).catch(err => _warn("reconnect invoke failed", { sectionKey }, err));
     });
 
     connection.onclose(err => {
@@ -103,7 +113,7 @@ export const createCaseLockingPresence = ({ apiUrl, username, appName, register,
     try {
       await connection.start();
       _debug("connection started — invoking Connect", { sectionKey });
-      await connection.invoke("Connect", sectionKey, username, appName);
+      await connection.invoke("Connect", sectionKey, appName);
       _debug("Connect acknowledged", { sectionKey });
     } catch (err) {
       _error("start/invoke failed", { sectionKey }, err);
