@@ -1,7 +1,10 @@
 import { DomMutationObserver } from "../browser/dom/DomMutationObserver";
 import { makeConsole } from "../../logging/makeConsole";
 
-const REGION_CODE = "witness";
+// Presence is registered at CASE level, not witness level — the region code becomes
+// the section kind on the wire ("<caseId>:CASE"). The witness block is only the
+// trigger for *when* we register, not what we register against.
+const REGION_CODE = "case";
 const TARGET_SELECTOR = 'div[data-block="MainFlow.Witnesses"]';
 // cspell:disable-next-line
 const URL_FRAGMENT = "/workmanagementapp/caseoverview";
