@@ -7,7 +7,9 @@
     "CASE_REVIEW_COOKIES": "$OS_Users$CaseReview$ClientVars$Cookies",
     "HOME_JSON": "$OS_Users$Casework_Blocks$ClientVars$JSONString",
     "HOME_COOKIES": "$OS_Users$Casework_Blocks$ClientVars$Cookies",
-    "HOME_IS_FROM_PROXY": "$OS_Users$Casework_Blocks$ClientVars$IsFromProxy"
+    "HOME_IS_FROM_PROXY": "$OS_Users$Casework_Blocks$ClientVars$IsFromProxy",
+    "VCA_JSON": "$OS_Users$VictimsCaseApplication$ClientVars$JSONString",
+    "VCA_COOKIES": "$OS_Users$VictimsCaseApplication$ClientVars$Cookies"
   },
   "REDIRECT_SCRIPT_URL": "https://polaris-qa-notprod.cps.gov.uk/global-components/test/global-components.js",
   "CASE_LOCKING_API_URL": "https://polaris-qa-notprod.cps.gov.uk/global-components/case-locking/api/section-view",

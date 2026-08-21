@@ -10,6 +10,8 @@ const keys: CmsAuthStorageKeys = {
   HOME_JSON: "$OS_Users$Casework_Blocks$ClientVars$JSONString",
   HOME_COOKIES: "$OS_Users$Casework_Blocks$ClientVars$Cookies",
   HOME_IS_FROM_PROXY: "$OS_Users$Casework_Blocks$ClientVars$IsFromProxy",
+  VCA_JSON: "$OS_Users$VictimsCaseApplication$ClientVars$JSONString",
+  VCA_COOKIES: "$OS_Users$VictimsCaseApplication$ClientVars$Cookies",
 };
 
 const tokenHandoverUrl = "https://polaris-qa-notprod.cps.gov.uk/auth-handover-cms-modern-token";
@@ -33,6 +35,7 @@ describe("handleOsCookieReturn", () => {
     localStorage[keys.WMA_COOKIES] = "matching-cookies";
     localStorage[keys.CASE_REVIEW_COOKIES] = "matching-cookies";
     localStorage[keys.HOME_COOKIES] = "matching-cookies";
+    localStorage[keys.VCA_COOKIES] = "matching-cookies";
 
     const win = makeWindow(
       "https://cps-tst.outsystemsenterprise.com/Casework_Patterns/auth-handover.html?src=https%3A%2F%2Fpolaris.example%2Fauth-handover.js&stage=os-cookie-return&cc=matching-cookies&r=https%3A%2F%2Fexample.com%2Ftarget",
