@@ -22,7 +22,11 @@ const { _debug, _warn, _error } = makeConsole("caseLockingPresence");
 
 const defaultHubFactory: HubFactory = url =>
   new HubConnectionBuilder()
-    .withUrl(url, { transport: HttpTransportType.WebSockets | HttpTransportType.ServerSentEvents | HttpTransportType.LongPolling })
+    .withUrl(url, {
+      transport: HttpTransportType.WebSockets | HttpTransportType.ServerSentEvents | HttpTransportType.LongPolling,
+      accessTokenFactory: () =>
+        "eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiIsImtpZCI6IlQxU3QtZUxHSGcxZ0o0d1RmZDl3Q3F6WnEtQjRvOFUiLCJ4NXQiOiJUMVN0LWVMR0hnMWdKNHdUZmQ5d0NxelpxLUI0bzhVIn0.eyJhdWQiOiJhcGk6Ly8xMTExMjIyMi0zMzMzLTQ0NDQtNTU1NS02NjY2Nzc3Nzg4ODgiLCJpc3MiOiJodHRwczovL2xvZ2luLm1pY3Jvc29mdG9ubGluZS5jb20vOTk5OTg4ODgtNzc3Ny02NjY2LTU1NTUtNDQ0NDMzMzMyMjIyL3YyLjAiLCJpYXQiOjE3MzU3MzI4MDAsIm5iZiI6MTczNTczMjgwMCwiZXhwIjoxNzM1NzM2NDAwLCJhaW8iOiJBV1FBbS84WEFBQUF0VjBtMFA3VnYxYnFVM3E0WWgxSncybjZtUThiMGs1cjN4Tj09IiwiYXpwIjoiOGQ2MTMzYWYtOTU5My00N2M2LTk0ZDAtNWM2NWU5ZTMxMGYxIiwiYXpwYWNyIjoiMSIsIm5hbWUiOiJUZXN0IFVzZXIiLCJvaWQiOiI3YzlmNGUyYS0xYjZkLTRjM2UtOWYwYS0yZDViOGUxYTRjN2YiLCJwcmVmZXJyZWRfdXNlcm5hbWUiOiJ0ZXN0LXVzZXJAY3BzLmdvdi51ayIsImVtYWlsIjoic3RlZkBjcHMuZ292LnVrIiwicmgiOiIwLkFBQUEuZ1kuIiwic2NwIjoiYXBpLnByZXNlbmNlLnVzZXIucmVhZHdyaXRlIiwic3ViIjoiQUFkajhrUTJyN3g5bU4zcEw1dFoxdkI2d1gwY1k0dUg4c0syZUY3Z1Q5YSIsInRpZCI6Ijk5OTk4ODg4LTc3NzctNjY2Ni01NTU1LTQ0NDQzMzMzMjIyMiIsInV0aSI6ImFCM2NENGVGNWdINmlKN2tMOG1OQUEiLCJ2ZXIiOiIyLjAifQ.dev-signature-not-validated-by-BearerTest-scheme",
+    })
     .withAutomaticReconnect()
     .build();
 
