@@ -1242,6 +1242,11 @@ async function handlePresenceJsonp(r: NginxHTTPRequest): Promise<void> {
     const resp = await ngx.fetch(_PRESENCE_API_BASE + op.path(args), fetchOpts);
     const text = await resp.text();
 
+    if (resp.status == 410 && args.op == "heartbeat") {
+      r.return(200, cb + "(" + JSON.stringify({ jsonpError: "session expired" }) + ")");
+      return;
+    }
+
     if (resp.status < 200 || resp.status >= 300) {
       // Raw JSONP has no error channel; give the browser callback one.
       r.return(
