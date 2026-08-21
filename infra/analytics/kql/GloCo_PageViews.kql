@@ -81,6 +81,7 @@ AppPageViews
 | lookup kind=leftouter GloCo_UserDimension on Auth_ObjectId
 | extend User_Area       = iif(isnotempty(User_Area), User_Area, UserArea),
          User_AreaOrCPSD = iif(isnotempty(User_AreaOrCPSD), User_AreaOrCPSD, UserAreaOrCPSD),
-         Auth_Department = iif(isnotempty(Auth_Department), Auth_Department, Department)
-| project-away Email, UserArea, UserAreaOrCPSD, Department, Region
+         Auth_Department = iif(isnotempty(Auth_Department), Auth_Department, Department),
+         Auth_JobTitle   = iif(isnotempty(Auth_JobTitle), Auth_JobTitle, JobTitle)
+| project-away Email, UserArea, UserAreaOrCPSD, Department, Region, JobTitle
 | project-away parsed, Build, Auth, Context, CorrelationIds, User

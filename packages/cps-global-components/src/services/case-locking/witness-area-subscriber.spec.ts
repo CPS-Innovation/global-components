@@ -69,13 +69,13 @@ describe("witnessAreaSubscriber", () => {
     const getHandler = () => {
       const { subscriptions } = witnessAreaSubscriber(makeArgs(makeContext()));
       expect(subscriptions).toHaveLength(1);
-      expect(subscriptions[0].cssSelector).toBe("div#WitnessIsActive");
+      expect(subscriptions[0].cssSelector).toBe('div[data-block="MainFlow.Witnesses"]');
       return subscriptions[0].handler;
     };
 
     it("injects a cps-region into the matched element", () => {
       const div = document.createElement("div");
-      div.id = "WitnessIsActive";
+      div.setAttribute("data-block", "MainFlow.Witnesses");
       document.body.appendChild(div);
 
       getHandler()(div);
@@ -87,7 +87,7 @@ describe("witnessAreaSubscriber", () => {
 
     it("is idempotent — does not double-inject if already present", () => {
       const div = document.createElement("div");
-      div.id = "WitnessIsActive";
+      div.setAttribute("data-block", "MainFlow.Witnesses");
       document.body.appendChild(div);
 
       getHandler()(div);
@@ -98,7 +98,7 @@ describe("witnessAreaSubscriber", () => {
 
     it("injects regardless of the host's visibility (presence is the region's job)", () => {
       const div = document.createElement("div");
-      div.id = "WitnessIsActive";
+      div.setAttribute("data-block", "MainFlow.Witnesses");
       div.style.display = "none";
       document.body.appendChild(div);
 
