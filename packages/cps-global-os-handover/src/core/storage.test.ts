@@ -16,6 +16,8 @@ const keys: CmsAuthStorageKeys = {
   HOME_JSON: "$OS_Users$Casework_Blocks$ClientVars$JSONString",
   HOME_COOKIES: "$OS_Users$Casework_Blocks$ClientVars$Cookies",
   HOME_IS_FROM_PROXY: "$OS_Users$Casework_Blocks$ClientVars$IsFromProxy",
+  VCA_JSON: "$OS_Users$VictimsCaseApplication$ClientVars$JSONString",
+  VCA_COOKIES: "$OS_Users$VictimsCaseApplication$ClientVars$Cookies",
 };
 
 describe("storage", () => {
@@ -26,7 +28,7 @@ describe("storage", () => {
   });
 
   describe("storeAuth", () => {
-    test("stores cookies in WMA, CaseReview, and HOME localStorage keys", () => {
+    test("stores cookies in WMA, CaseReview, HOME, and VCA localStorage keys", () => {
       const cookies = "sessionid=abc123; auth=token456";
       const token = "jwt-token-789";
 
@@ -35,9 +37,10 @@ describe("storage", () => {
       expect(storage[keys.WMA_COOKIES]).toBe(cookies);
       expect(storage[keys.CASE_REVIEW_COOKIES]).toBe(cookies);
       expect(storage[keys.HOME_COOKIES]).toBe(cookies);
+      expect(storage[keys.VCA_COOKIES]).toBe(cookies);
     });
 
-    test("stores JSON auth values in WMA, CaseReview, and HOME localStorage keys", () => {
+    test("stores JSON auth values in WMA, CaseReview, HOME, and VCA localStorage keys", () => {
       const cookies = "sessionid=abc123";
       const token = "jwt-token";
 
@@ -55,6 +58,7 @@ describe("storage", () => {
       expect(storage[keys.WMA_JSON]).toBe(expectedJson);
       expect(storage[keys.CASE_REVIEW_JSON]).toBe(expectedJson);
       expect(storage[keys.HOME_JSON]).toBe(expectedJson);
+      expect(storage[keys.VCA_JSON]).toBe(expectedJson);
     });
 
     test("overwrites existing values", () => {
@@ -79,6 +83,7 @@ describe("storage", () => {
       storage[keys.WMA_COOKIES] = cookies;
       storage[keys.CASE_REVIEW_COOKIES] = cookies;
       storage[keys.HOME_COOKIES] = cookies;
+      storage[keys.VCA_COOKIES] = cookies;
 
       const result = isStoredAuthCurrent(cookies, storage as unknown as Storage, keys);
 
@@ -90,6 +95,7 @@ describe("storage", () => {
       storage[keys.WMA_COOKIES] = "sessionid=abc123; auth=token456";
       storage[keys.CASE_REVIEW_COOKIES] = "auth=token456; sessionid=abc123";
       storage[keys.HOME_COOKIES] = "sessionid=abc123; auth=token456";
+      storage[keys.VCA_COOKIES] = "auth=token456; sessionid=abc123";
 
       const result = isStoredAuthCurrent(incomingCookies, storage as unknown as Storage, keys);
 
@@ -146,6 +152,18 @@ describe("storage", () => {
 
       expect(result).toBe(false);
     });
+
+    test("returns false when VCA cookies don't match", () => {
+      const cookies = "sessionid=abc123";
+      storage[keys.WMA_COOKIES] = cookies;
+      storage[keys.CASE_REVIEW_COOKIES] = cookies;
+      storage[keys.HOME_COOKIES] = cookies;
+      storage[keys.VCA_COOKIES] = "different-cookie";
+
+      const result = isStoredAuthCurrent(cookies, storage as unknown as Storage, keys);
+
+      expect(result).toBe(false);
+    });
   });
 
   describe("syncOsAuth", () => {
@@ -160,9 +178,29 @@ describe("storage", () => {
       expect(storage[keys.WMA_JSON]).toBe(wmaJson);
       expect(storage[keys.CASE_REVIEW_JSON]).toBe(wmaJson);
       expect(storage[keys.HOME_JSON]).toBe(wmaJson);
+      expect(storage[keys.VCA_JSON]).toBe(wmaJson);
       expect(storage[keys.WMA_COOKIES]).toBe(wmaCookies);
       expect(storage[keys.CASE_REVIEW_COOKIES]).toBe(wmaCookies);
       expect(storage[keys.HOME_COOKIES]).toBe(wmaCookies);
+      expect(storage[keys.VCA_COOKIES]).toBe(wmaCookies);
+    });
+
+    test("copies VictimsCaseApplication (VCA) auth values to all other apps", () => {
+      const vcaJson = '{"Cookies":"vca-cookies","Token":"vca-token"}';
+      const vcaCookies = "vca-cookies";
+      storage[keys.VCA_JSON] = vcaJson;
+      storage[keys.VCA_COOKIES] = vcaCookies;
+
+      syncOsAuth("https://example.com/VictimsCaseApplication/", storage as unknown as Storage, keys);
+
+      expect(storage[keys.WMA_JSON]).toBe(vcaJson);
+      expect(storage[keys.CASE_REVIEW_JSON]).toBe(vcaJson);
+      expect(storage[keys.HOME_JSON]).toBe(vcaJson);
+      expect(storage[keys.VCA_JSON]).toBe(vcaJson);
+      expect(storage[keys.WMA_COOKIES]).toBe(vcaCookies);
+      expect(storage[keys.CASE_REVIEW_COOKIES]).toBe(vcaCookies);
+      expect(storage[keys.HOME_COOKIES]).toBe(vcaCookies);
+      expect(storage[keys.VCA_COOKIES]).toBe(vcaCookies);
     });
 
     test("copies CaseReview auth values to all other apps", () => {
@@ -176,9 +214,11 @@ describe("storage", () => {
       expect(storage[keys.WMA_JSON]).toBe(caseReviewJson);
       expect(storage[keys.CASE_REVIEW_JSON]).toBe(caseReviewJson);
       expect(storage[keys.HOME_JSON]).toBe(caseReviewJson);
+      expect(storage[keys.VCA_JSON]).toBe(caseReviewJson);
       expect(storage[keys.WMA_COOKIES]).toBe(caseReviewCookies);
       expect(storage[keys.CASE_REVIEW_COOKIES]).toBe(caseReviewCookies);
       expect(storage[keys.HOME_COOKIES]).toBe(caseReviewCookies);
+      expect(storage[keys.VCA_COOKIES]).toBe(caseReviewCookies);
     });
 
     test("copies Casework_Blocks (HOME) auth values to all other apps", () => {
@@ -192,9 +232,11 @@ describe("storage", () => {
       expect(storage[keys.WMA_JSON]).toBe(homeJson);
       expect(storage[keys.CASE_REVIEW_JSON]).toBe(homeJson);
       expect(storage[keys.HOME_JSON]).toBe(homeJson);
+      expect(storage[keys.VCA_JSON]).toBe(homeJson);
       expect(storage[keys.WMA_COOKIES]).toBe(homeCookies);
       expect(storage[keys.CASE_REVIEW_COOKIES]).toBe(homeCookies);
       expect(storage[keys.HOME_COOKIES]).toBe(homeCookies);
+      expect(storage[keys.VCA_COOKIES]).toBe(homeCookies);
     });
 
     test("copies Casework (new HOME location) auth values to all other apps", () => {
@@ -208,9 +250,11 @@ describe("storage", () => {
       expect(storage[keys.WMA_JSON]).toBe(homeJson);
       expect(storage[keys.CASE_REVIEW_JSON]).toBe(homeJson);
       expect(storage[keys.HOME_JSON]).toBe(homeJson);
+      expect(storage[keys.VCA_JSON]).toBe(homeJson);
       expect(storage[keys.WMA_COOKIES]).toBe(homeCookies);
       expect(storage[keys.CASE_REVIEW_COOKIES]).toBe(homeCookies);
       expect(storage[keys.HOME_COOKIES]).toBe(homeCookies);
+      expect(storage[keys.VCA_COOKIES]).toBe(homeCookies);
     });
 
     test("does not modify storage when URL does not match any known app", () => {

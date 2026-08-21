@@ -10,6 +10,8 @@ const STORAGE_KEYS = {
   HOME_JSON: "",
   HOME_COOKIES: "",
   HOME_IS_FROM_PROXY: "",
+  VCA_JSON: "",
+  VCA_COOKIES: "",
 };
 
 describe("transformConfig", () => {

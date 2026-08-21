@@ -33,9 +33,11 @@ export const storeAuth = (
   storage[keys.WMA_COOKIES] = cookies;
   storage[keys.CASE_REVIEW_COOKIES] = cookies;
   storage[keys.HOME_COOKIES] = cookies;
+  storage[keys.VCA_COOKIES] = cookies;
   storage[keys.WMA_JSON] = cmsAuthValuesJson;
   storage[keys.CASE_REVIEW_JSON] = cmsAuthValuesJson;
   storage[keys.HOME_JSON] = cmsAuthValuesJson;
+  storage[keys.VCA_JSON] = cmsAuthValuesJson;
 
   console.log("[CPS-GLOBAL-OS-HANDOVER] storeAuth wrote auth values", {
     cookies: redactedPreview(cookies),
@@ -54,6 +56,7 @@ export const isStoredAuthCurrent = (
     storage[keys.WMA_COOKIES],
     storage[keys.CASE_REVIEW_COOKIES],
     storage[keys.HOME_COOKIES],
+    storage[keys.VCA_COOKIES],
   );
 
 export const isStoredTokenSameAs = (
@@ -95,11 +98,11 @@ export const syncOsAuth = (
   const copyToOtherApps = (
     jsonKey: keyof Pick<
       CmsAuthStorageKeys,
-      "WMA_JSON" | "CASE_REVIEW_JSON" | "HOME_JSON"
+      "WMA_JSON" | "CASE_REVIEW_JSON" | "HOME_JSON" | "VCA_JSON"
     >,
     cookiesKey: keyof Pick<
       CmsAuthStorageKeys,
-      "WMA_COOKIES" | "CASE_REVIEW_COOKIES" | "HOME_COOKIES"
+      "WMA_COOKIES" | "CASE_REVIEW_COOKIES" | "HOME_COOKIES" | "VCA_COOKIES"
     >,
   ) => {
     // Guard each copy on its own source: never let a blank/"undefined" source
@@ -120,6 +123,7 @@ export const syncOsAuth = (
       storage[keys.WMA_JSON] =
         storage[keys.CASE_REVIEW_JSON] =
         storage[keys.HOME_JSON] =
+        storage[keys.VCA_JSON] =
           json;
     }
 
@@ -127,11 +131,12 @@ export const syncOsAuth = (
       storage[keys.WMA_COOKIES] =
         storage[keys.CASE_REVIEW_COOKIES] =
         storage[keys.HOME_COOKIES] =
+        storage[keys.VCA_COOKIES] =
           cookies;
     }
   };
 
-  if (!app || !["workmanagementapp", "casereview", "casework_blocks", "casework"].includes(app)) {
+  if (!app || !["workmanagementapp", "casereview", "casework_blocks", "casework", "victimscaseapplication"].includes(app)) {
     console.log("[CPS-GLOBAL-OS-HANDOVER] syncOsAuth no-op (app not matched)", { app });
   }
 
@@ -145,6 +150,9 @@ export const syncOsAuth = (
     case "casework_blocks":
     case "casework":
       copyToOtherApps("HOME_JSON", "HOME_COOKIES");
+      break;
+    case "victimscaseapplication":
+      copyToOtherApps("VCA_JSON", "VCA_COOKIES");
       break;
   }
 };

@@ -81,6 +81,8 @@ const cmsAuthStorageKeys: CmsAuthStorageKeys = {
   HOME_JSON: "home-json",
   HOME_COOKIES: "home-cookies",
   HOME_IS_FROM_PROXY: "home-is-from-proxy",
+  VCA_JSON: "vca-json",
+  VCA_COOKIES: "vca-cookies",
 };
 
 // Cast — Config has many optional fields we don't need to set here.
