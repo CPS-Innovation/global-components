@@ -159,6 +159,8 @@ const cmsAuthStorageKeysSchema = z.object({
   HOME_JSON: z.string(),
   HOME_COOKIES: z.string(),
   HOME_IS_FROM_PROXY: z.string(),
+  VCA_JSON: z.string(),
+  VCA_COOKIES: z.string(),
 });
 
 export type CmsAuthStorageKeys = z.infer<typeof cmsAuthStorageKeysSchema>;

@@ -14,7 +14,7 @@ type Props = {
   register: Register;
 };
 
-const APP_NAME = "Global Components";
+const APP_NAME = "Work Management App";
 
 const { _debug } = makeConsole("initialiseCaseLocking");
 

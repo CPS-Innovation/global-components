@@ -82,7 +82,7 @@ describe("witnessAreaSubscriber", () => {
 
       const region = div.querySelector("cps-region");
       expect(region).not.toBeNull();
-      expect(region?.getAttribute("code")).toBe("witness");
+      expect(region?.getAttribute("code")).toBe("case");
     });
 
     it("is idempotent — does not double-inject if already present", () => {

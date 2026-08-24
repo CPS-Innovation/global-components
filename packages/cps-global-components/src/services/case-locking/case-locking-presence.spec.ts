@@ -69,7 +69,7 @@ describe("createCaseLockingPresence", () => {
     await flush();
     expect(hubs).toHaveLength(1);
     expect(hubs[0].start).toHaveBeenCalled();
-    expect(hubs[0].invoke).toHaveBeenCalledWith("Connect", "case-123-witness", "alice", "test-app");
+    expect(hubs[0].invoke).toHaveBeenCalledWith("Connect", "123:WITNESS", "test-app");
   });
 
   it("does not start a connection when caseId arrives but no codes are active", async () => {
@@ -88,7 +88,7 @@ describe("createCaseLockingPresence", () => {
 
     expect(hubs).toHaveLength(2);
     const sectionKeys = hubs.map(h => h.invoke.mock.calls[0][1]).sort();
-    expect(sectionKeys).toEqual(["case-123-a", "case-123-b"]);
+    expect(sectionKeys).toEqual(["123:A", "123:B"]);
   });
 
   it("stops a connection when its code is removed", async () => {
@@ -122,13 +122,13 @@ describe("createCaseLockingPresence", () => {
     service.addCode("a");
     await flush();
     expect(hubs).toHaveLength(1);
-    expect(hubs[0].invoke).toHaveBeenCalledWith("Connect", "case-123-a", "alice", "test-app");
+    expect(hubs[0].invoke).toHaveBeenCalledWith("Connect", "123:A", "test-app");
 
     service.setCaseId("456");
     await flush();
     expect(hubs[0].stop).toHaveBeenCalled();
     expect(hubs).toHaveLength(2);
-    expect(hubs[1].invoke).toHaveBeenCalledWith("Connect", "case-456-a", "alice", "test-app");
+    expect(hubs[1].invoke).toHaveBeenCalledWith("Connect", "456:A", "test-app");
   });
 
   it("setting caseId to undefined tears down all connections without removing desired codes", async () => {
@@ -145,7 +145,7 @@ describe("createCaseLockingPresence", () => {
     service.setCaseId("789");
     await flush();
     expect(hubs).toHaveLength(2);
-    expect(hubs[1].invoke).toHaveBeenCalledWith("Connect", "case-789-a", "alice", "test-app");
+    expect(hubs[1].invoke).toHaveBeenCalledWith("Connect", "789:A", "test-app");
   });
 
   it("on reconnect, re-invokes Connect with the same section key", async () => {
@@ -158,7 +158,7 @@ describe("createCaseLockingPresence", () => {
     hubs[0].__reconnectedHandler?.();
     await flush();
     expect(hubs[0].invoke).toHaveBeenCalledTimes(2);
-    expect(hubs[0].invoke).toHaveBeenLastCalledWith("Connect", "case-123-a", "alice", "test-app");
+    expect(hubs[0].invoke).toHaveBeenLastCalledWith("Connect", "123:A", "test-app");
   });
 
   it("on start failure, drops the connection and does not leak it to the active set", async () => {
@@ -188,7 +188,7 @@ describe("createCaseLockingPresence", () => {
   });
 
   describe("presence publication", () => {
-    it("Notify publishes the full user list (including self) to the store", async () => {
+    it("Notify publishes the other present users, with self filtered out", async () => {
       const { service, hubs, getPresentUsers, register } = setup();
       service.setCaseId("123");
       service.addCode("witness");
@@ -203,19 +203,35 @@ describe("createCaseLockingPresence", () => {
       expect(register).toHaveBeenCalledWith({
         caseLockingPresentUsers: {
           code: "witness",
-          users: [
-            { user: "alice", appName: "test-app" },
-            { user: "bob@cps.gov.uk", appName: "CMS" },
-          ],
+          users: [{ user: "bob@cps.gov.uk", appName: "CMS" }],
         },
       });
       expect(getPresentUsers()).toEqual({
         code: "witness",
-        users: [
-          { user: "alice", appName: "test-app" },
-          { user: "bob@cps.gov.uk", appName: "CMS" },
-        ],
+        users: [{ user: "bob@cps.gov.uk", appName: "CMS" }],
       });
+    });
+
+    it("filters self case-insensitively (the hub echoes token-claim casing)", async () => {
+      const { service, hubs, getPresentUsers } = setup();
+      service.setCaseId("123");
+      service.addCode("witness");
+      await flush();
+
+      hubs[0].__notifyHandler?.([{ user: "ALICE", appName: "CMS" }]);
+      await flush();
+      expect(getPresentUsers()?.users).toEqual([]);
+    });
+
+    it("publishes an empty list when we are the only user present", async () => {
+      const { service, hubs, getPresentUsers } = setup();
+      service.setCaseId("123");
+      service.addCode("witness");
+      await flush();
+
+      hubs[0].__notifyHandler?.([{ user: "alice", appName: "test-app" }]);
+      await flush();
+      expect(getPresentUsers()?.users).toEqual([]);
     });
 
     it("subsequent Notifys overwrite the published list", async () => {
@@ -224,13 +240,13 @@ describe("createCaseLockingPresence", () => {
       service.addCode("witness");
       await flush();
 
-      hubs[0].__notifyHandler?.([{ user: "alice", appName: "test-app" }]);
+      hubs[0].__notifyHandler?.([{ user: "bob", appName: "CMS" }]);
       await flush();
       expect(getPresentUsers()?.users).toHaveLength(1);
 
       hubs[0].__notifyHandler?.([
-        { user: "alice", appName: "test-app" },
         { user: "bob", appName: "CMS" },
+        { user: "carol", appName: "CMS" },
       ]);
       await flush();
       expect(getPresentUsers()?.users).toHaveLength(2);
