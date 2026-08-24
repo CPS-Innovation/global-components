@@ -953,29 +953,32 @@
   }
 
   function presenceJsonpTick() {
-    if (!presenceJsonpSessionId) { return; }
-    // Heartbeat (PUT-mapped); response ignored.
-    presenceJsonp("heartbeat", { sid: presenceJsonpSessionId }, function () { });
-    // Poll (GET-mapped) -> reconcile -> banner.
-    presenceJsonp("poll", { sid: presenceJsonpSessionId }, function (data) {
-      if (data === null) { log("[cc] presence jsonp poll: no response (timeout)"); return; }
-      if (data.jsonpError) { log("[cc] presence jsonp poll error: " + data.jsonpError); return; }
-      // Reconcile this delta into the per-section version-checked roster cache, then
-      // recompute the banner. Show the icon whenever ANY section of the case has
-      // members (no threshold — even just you counts); the tooltip groups the roster
-      // BY SECTION (empty sections omitted). An empty poll array applies nothing and
-      // simply re-shows the unchanged rosters.
-      presenceApplyNotifications(data);
-      var caseId = presenceJsonpActiveSid ? presenceJsonpActiveSid.split(":")[0] : "";
-      var tip = presenceBuildTooltip(caseId); // grouped, formatted per-section roster ("" if nobody)
-      var count = presenceCountMembers(caseId); // total people across all sections -> "(N)" after the icon
-      log("[cc] presence jsonp poll: raw=" + presenceJsonpDescribe(data));
-      if (tip) {
-        presenceShowBanner(tip, count);
-      } else {
-        presenceRemoveBanner();
-      }
-    });
+    try {
+      if (!presenceJsonpSessionId) { return; }
+      // Heartbeat (PUT-mapped); response ignored.
+      presenceJsonp("heartbeat", { sid: presenceJsonpSessionId }, function () { });
+      // Poll (GET-mapped) -> reconcile -> banner.
+      presenceJsonp("poll", { sid: presenceJsonpSessionId }, function (data) {
+        if (data === null) { log("[cc] presence jsonp poll: no response (timeout)"); return; }
+        if (data.jsonpError) { log("[cc] presence jsonp poll error: " + data.jsonpError); return; }
+        // Reconcile this delta into the per-section version-checked roster cache, then
+        // recompute the banner. Show the icon whenever ANY section of the case has
+        // members (no threshold — even just you counts); the tooltip groups the roster
+        // BY SECTION (empty sections omitted). An empty poll array applies nothing and
+        // simply re-shows the unchanged rosters.
+        presenceApplyNotifications(data);
+        var caseId = presenceJsonpActiveSid ? presenceJsonpActiveSid.split(":")[0] : "";
+        var tip = presenceBuildTooltip(caseId); // grouped, formatted per-section roster ("" if nobody)
+        var count = presenceCountMembers(caseId); // total people across all sections -> "(N)" after the icon
+        log("[cc] presence jsonp poll: raw=" + presenceJsonpDescribe(data));
+        if (tip) {
+          presenceShowBanner(tip, count);
+        } else {
+          presenceRemoveBanner();
+        }
+      });
+    } catch (ex) {
+    }
   }
 
   function presenceJsonpStart(rec) {
