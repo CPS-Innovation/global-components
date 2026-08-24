@@ -90,6 +90,9 @@
   var FRAGMENT_CASE_REVIEW_CHARGE = "uapcPreChargeDecDetails.aspx";
   var SECTION_KIND_CASE_REVIEW = "CASE_REVIEW"; // case-wide (no subject)
 
+  var FRAGMENT_DEFS_CHARGES = "uadcDefsCharges.aspx"; // Defs & Charges tab (its own frame)
+  var SECTION_KIND_DEFENDANT = "DEFENDANT";           // subject-scoped (partyId)
+
   // Which frame HOSTS the hover popup for a section. Pages differ in structure:
   //   - Some sections (e.g. victim/witness) load a FRAMESET into frameMain, and the
   //     content lives in a child frame named "framePage" — so the popup is rendered
@@ -312,13 +315,43 @@
     return rec;
   }
 
+  function readOpenDefendant(win) {
+    if (fieldVal(win, "hidInEditMode") !== "Y") { return null; }
+
+    var mode = "";
+    try { mode = win.sMode ? String(win.sMode).toLowerCase() : ""; } catch (e2) { }
+    if (!mode || mode !== "editdefendant") { return null; }
+
+    var partyId = fieldVal(win, "hidPartyID");
+    if (!partyId || partyId === "0") { return null; }
+
+    var caseId = "";
+    try { caseId = win.iScreenCaseID ? String(win.iScreenCaseID) : ""; } catch (e) { }
+    if (!caseId) {
+      var href = ""; try { href = win.location.href; } catch (e2) { href = ""; }
+      caseId = queryParam(href, "intCaseID");
+    }
+    if (!caseId) { return null; }
+
+    var rec = {};
+    rec.sectionId = caseId + ":" + SECTION_KIND_DEFENDANT + ":" + partyId;
+    rec.key = caseId + "/" + partyId + "/defendant";
+    rec.caseId = caseId;
+    rec.personId = partyId;
+    rec.recorderId = "";
+    rec.name = "";
+    rec.role = "Defendant";
+    return rec;
+  }
+
   // The section registry: each entry maps a frame URL fragment to the detector that
   // reads its presence record. findActiveSection walks the frames and returns the
   // first active section it finds. Add new sections here.
   var SECTION_DETECTORS = [
     { fragment: FRAGMENT_CONTACTS, read: readOpenContact, popupFrame: POPUP_FRAME_PAGE },
     { fragment: FRAGMENT_CASE_REVIEW, read: readCaseReview, popupFrame: POPUP_FRAME_MAIN },
-    { fragment: FRAGMENT_CASE_REVIEW_CHARGE, read: readCaseReview, popupFrame: POPUP_FRAME_MAIN }
+    { fragment: FRAGMENT_CASE_REVIEW_CHARGE, read: readCaseReview, popupFrame: POPUP_FRAME_MAIN },
+    { fragment: FRAGMENT_DEFS_CHARGES, read: readOpenDefendant, popupFrame: POPUP_FRAME_PAGE }
   ];
 
   // Walk every nested frame; return the presence record from the first same-origin
@@ -847,6 +880,7 @@
     if (kind === "CASE") { return "Case"; }
     if (kind === "CASE_REVIEW") { return "Case Review"; }
     if (kind === "VICTIM_WITNESS") { return "Witness/Victim"; }
+    if (kind === "DEFENDANT") { return "Defendant"; }
     return kind ? kind : "Section";
   }
 
