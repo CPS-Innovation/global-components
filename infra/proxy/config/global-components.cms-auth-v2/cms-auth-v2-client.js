@@ -474,6 +474,10 @@
   var PRESENCE_POPUP_ID = "ccPresencePopup"; // the beige hover popup shown under the icon
   var PRESENCE_COUNT_ID = "ccPresenceCount"; // the bold "(N)" head-count shown right after the icon
   var PRESENCE_COUNT_COLOR = "#350066"; // CPS purple for the "(N)" head-count
+  var PRESENCE_CONNECTING_TIP = "Connecting to The Watchdog..."; // popup text shown while the session is being set up (pre-first-poll)
+  var PRESENCE_CONNECTING_DOTS = "..."; // shown in place of the "(N)" head-count while connecting
+  var PRESENCE_ERROR_TIP = "There was an error connecting to The Watchdog!"; // popup text on a non-recoverable connection error
+  var PRESENCE_ERROR_MARK = "!"; // shown in place of the "(N)" head-count on a non-recoverable error
   // Root-relative path of the meeting icon, referenced the same way as the padlock
   // (<HOST>/Noexpiry/Images/uaimcaselock1.gif). The absolute URL is built per-doc in
   // presenceIconUrl so it resolves against the menu bar's own CMS origin.
@@ -575,9 +579,12 @@
       // title/alt — the custom popup replaces the native tooltip. If the popup is open
       // right now, refresh its text in place.
       icon.ccTipText = tip ? tip : "Also viewing this case";
-      // Refresh the "(N)" head-count after the icon (blank when count < 1).
+      // Refresh the head-count after the icon: show it verbatim in brackets whether it's
+      // the numeric roster size ("(N)") or the connecting placeholder ("(...)"). There is
+      // no 0/negative case to guard — a real roster always has >= 1 (you), and the
+      // pre-roster connecting state is already handled by passing the "..." placeholder.
       var cntEl = doc.getElementById(PRESENCE_COUNT_ID);
-      if (cntEl) { cntEl.innerText = (count && count > 0) ? ("(" + count + ")") : ""; }
+      if (cntEl) { cntEl.innerText = count ? ("(" + count + ")") : ""; }
       if (presencePopupEl) { presenceShowPopup(icon); }
     } catch (e) { }
   }
@@ -952,13 +959,52 @@
     return "object{" + ks.join(",") + "}";
   }
 
+  // Session expired (a 410 on heartbeat: the Watchdog no longer knows this session, e.g. a
+  // heartbeat arrived too late to renew it). Without a session we can't poll, so tear the
+  // whole routine down and reconnect from scratch — same section id, same popup host frame.
+  function presenceJsonpRestart() {
+    var sid = presenceJsonpActiveSid; // capture before stop clears these
+    var frame = presencePopupFrameName;
+    presenceJsonpStop();
+    if (sid) {
+      presenceJsonpStart({ sectionId: sid, popupFrame: frame });
+    }
+  }
+
+  // Non-recoverable connection failure (any heartbeat jsonpError that is NOT a 410). Stop the
+  // routine — no auto-reconnect — and surface it to the user: "!" in place of the head-count
+  // and an error message in the hover popup. presenceJsonpStop clears the popup host frame, so
+  // restore it afterwards so the error popup can still render on hover.
+  function presenceJsonpFail() {
+    var frame = presencePopupFrameName;
+    presenceJsonpStop();
+    presencePopupFrameName = frame;
+    presenceShowBanner(PRESENCE_ERROR_TIP, PRESENCE_ERROR_MARK);
+  }
+
   function presenceJsonpTick() {
     try {
       if (!presenceJsonpSessionId) { return; }
-      // Heartbeat (PUT-mapped); response ignored.
-      presenceJsonp("heartbeat", { sid: presenceJsonpSessionId }, function () { });
+      var sid = presenceJsonpSessionId; // capture: ignore a callback whose session was superseded
+      // Heartbeat (PUT-mapped). Its outcome drives failure handling: a 410 means the session
+      // expired -> reconnect (restart); any other jsonpError -> stop and show the error. A
+      // plain timeout (data === null) is transient, so we just retry on the next tick.
+      presenceJsonp("heartbeat", { sid: sid }, function (data) {
+        if (presenceJsonpSessionId !== sid) { return; } // superseded (restart / stop / section switch)
+        if (data === null) { return; } // transient timeout -> just retry on the next tick
+        if (data.jsonpError) {
+          if (data.jsonpError.indexOf("410") > -1) {
+            log("[cc] presence jsonp heartbeat: session expired (410) — reconnecting");
+            presenceJsonpRestart();
+          } else {
+            log("[cc] presence jsonp heartbeat error: " + data.jsonpError);
+            presenceJsonpFail();
+          }
+        }
+      });
       // Poll (GET-mapped) -> reconcile -> banner.
-      presenceJsonp("poll", { sid: presenceJsonpSessionId }, function (data) {
+      presenceJsonp("poll", { sid: sid }, function (data) {
+        if (presenceJsonpSessionId !== sid) { return; } // superseded (restart / stop / section switch)
         if (data === null) { log("[cc] presence jsonp poll: no response (timeout)"); return; }
         if (data.jsonpError) { log("[cc] presence jsonp poll error: " + data.jsonpError); return; }
         // Reconcile this delta into the per-section version-checked roster cache, then
@@ -988,13 +1034,21 @@
     presenceJsonpStop(); // clears any prior session (and fires its DELETE)
     presenceJsonpActiveSid = sid;
     presencePopupFrameName = rec.popupFrame ? rec.popupFrame : null; // where to render the popup; null = don't render
-    presenceRemoveBanner();
+    // Show the icon immediately — the section IS supported — even though we don't yet
+    // know the roster (we are still creating the session + awaiting the first poll). The
+    // popup reads "Connecting to The Watchdog..." and the head-count shows "(...)"; both
+    // are replaced with the real roster / number on the first successful poll (see
+    // presenceJsonpTick). A prior session's banner was already cleared by presenceJsonpStop.
+    presenceShowBanner(PRESENCE_CONNECTING_TIP, PRESENCE_CONNECTING_DOTS);
     log("[cc] presence jsonp create " + sid);
     presenceJsonp("create", { sectionId: sid }, function (data) {
       if (presenceJsonpActiveSid !== sid) { return; } // superseded while in flight
       if (data === null || data.jsonpError || !data.sessionId) {
         var why = data === null ? "no response (timeout)" : (data.jsonpError || "no sessionId in response");
         log("[cc] presence jsonp create failed for " + sid + " — " + why);
+        // Could not establish the session -> non-recoverable. Surface it the same way as a
+        // heartbeat failure: "!" in place of the head-count and the error message in the popup.
+        presenceJsonpFail();
         return;
       }
       presenceJsonpSessionId = data.sessionId;
