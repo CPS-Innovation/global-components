@@ -5,11 +5,17 @@
 // cin2Upstream*, ...) that only nginx-full.conf defines; the test's nginx.conf does
 // not, so the real functions would return undefined. This mock returns the docker
 // mock-upstream instead, so the login-page shim (uaulLogin.aspx) can be exercised
-// locally. It only implements the four functions the shim's js_set calls use.
+// locally. It implements only the functions the conf's js_set calls use.
 //
 // NEVER deployed — the real cmsenv.js ships to the proxy.
 
 function proxyDestinationCorsham() {
+  return "http://mock-upstream:3000";
+}
+
+// Used by the presence-client injection locations (/viewer/landing, /dcf/review/*),
+// which proxy to the CMS *Modern* upstream rather than Classic.
+function proxyDestinationModernCorsham() {
   return "http://mock-upstream:3000";
 }
 
@@ -27,6 +33,7 @@ function upstreamCmsServicesDomainName() {
 
 export default {
   proxyDestinationCorsham,
+  proxyDestinationModernCorsham,
   upstreamCmsDomainName,
   upstreamCmsModernDomainName,
   upstreamCmsServicesDomainName,
