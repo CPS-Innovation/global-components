@@ -166,7 +166,20 @@ const writeEntraIdClientVar = (
   if (!key || !objectId) {
     return;
   }
-  win.localStorage.setItem(key, objectId);
+  // Best-effort, exactly like the AuthHint write-back. This sits on the
+  // AD-redirect return path immediately before the navigation to returnTo, so a
+  // throwing localStorage (disabled, full, or partitioned) must not escape: the
+  // dispatch entry point only logs what it catches, which would leave the user
+  // stranded on the handover page mid-auth. The ClientVar is a convenience for
+  // OutSystems, never something the handover itself depends on.
+  try {
+    win.localStorage.setItem(key, objectId);
+  } catch (err) {
+    console.warn(
+      "[CPS-GLOBAL-HANDOVER] could not write Entra objectId ClientVar",
+      err,
+    );
+  }
 };
 
 // Shared AD-validation routine. Called from three places:
