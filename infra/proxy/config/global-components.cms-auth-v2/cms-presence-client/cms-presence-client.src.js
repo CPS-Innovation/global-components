@@ -1,85 +1,67 @@
 /* cms-presence-client.src.js — presence client for CMS Modern and DCF.
  *
- * This is the HAND-WRITTEN part of the bundle. build.sh concatenates:
- *     vendor/es6-promise-4.2.8.auto.min.js   (IE11 has no native Promise)
- *   + vendor/signalr-3.1.31.min.js           (last SignalR line that supports IE11)
- *   + this file
- * into ../cms-presence-client.js, which is the single script the app maintainers
- * inject. Never edit the built file — edit this and re-run build.sh.
+ * The whole deployed script: no vendor code, no Promise polyfill, nothing
+ * patched onto the host page. build.sh emits it as ../cms-presence-client.js.
  *
- * !! DOCUMENT MODE 11 (Edge IE mode). The whole CMS estate is site-listed into
- * IE mode: /viewer/landing sends X-UA-Compatible IE=edge and /dcf/ sends
- * IE=EmulateIE11, both of which resolve to Trident document mode 11. Confirmed
- * empirically (document.documentMode === 11 in both apps).
+ * !! DOCUMENT MODE 11 (Edge IE mode). The CMS estate is site-listed into IE mode:
+ * /viewer/landing sends X-UA-Compatible IE=edge and /dcf/ sends IE=EmulateIE11,
+ * both resolving to Trident document mode 11 (confirmed: document.documentMode
+ * === 11 in both apps). So NO arrow functions, class, template literals, spread,
+ * async/await, fetch, Map/Set or Promise. Mode 11 DOES give us JSON,
+ * addEventListener, Object.keys and delete-on-window — a much softer constraint
+ * than cms-auth-v2-client.js, which runs in document mode 5.
  *
- * So: NO arrow functions, NO class, NO template literals, NO spread, NO
- * async/await, NO fetch, NO Object.assign, NO Map/Set, NO native Promise (the
- * polyfill above provides it). Mode 11 DOES give us JSON, addEventListener,
- * Object.keys and Array.prototype.forEach — a much softer constraint than
- * cms-auth-v2-client.js, which runs in document mode 5.
+ * WHY JSONP AND NOT SIGNALR
+ * The SignalR client works (see cms-presence-client.signalr.src.js, kept as a
+ * reference) but only where the page and the hub share an origin. Unproxied, the
+ * host page is on a different origin: SignalR's negotiate step is an XHR, and
+ * Windows zone setting 1406 answers a cross-domain XHR with a security dialog.
+ * Skipping negotiate removes the client from Azure SignalR Service's delivery
+ * path — you can invoke but never receive. JSONP uses <script src>, which the
+ * zone does NOT gate, so it works in both topologies; Classic already relies on
+ * it and must be supported long-term, so both legacy apps now share one
+ * transport. The current apps stay pure SignalR.
  *
- * WHAT IT DOES (observe only — no UI yet):
+ * WHAT IT DOES
  *   1. Works out which app it is in and which case is on screen, from the URL.
- *   2. Opens ONE SignalR connection and joins ONE section:
+ *   2. Holds ONE presence session for that screen's section:
  *        CMS Modern -> "<caseId>:CASE"          (on the case)
  *        DCF        -> "<caseId>:CASE_REVIEW"   (reviewing the case)
- *   3. Holds the session alive with KeepAlive, and rejoins if evicted.
- *   4. Applies ReceiveNotification snapshots and logs the deduped roster.
- *   5. Re-reconciles when the case changes — CMS Modern is hash-routed, so a
- *      case change never reloads the page.
+ *   3. Heartbeats and polls every 3s; recreates the session on a 410.
+ *   4. Reconciles poll deltas by section version and renders a bar naming who
+ *      else is here.
+ *   5. Re-reconciles when the case changes — Modern is hash-routed, so a case
+ *      change never reloads the page.
  *
- * ONE SESSION, deliberately. The presence API models a "region" as its own
- * session, and both Leave() and KeepAlive() take no arguments — they act on the
- * session, which implies one session per connection. These two apps each occupy
- * a single region, so one connection each is the whole story. The nested
- * ("russian doll") case — on a case AND editing a witness within it — is real
- * but belongs to the global-components refactor; if it turns out Connect ADDS a
- * section rather than replacing it, the roster layer below already copes,
- * because it is keyed by section rather than by connection.
+ * The wire contract mirrors cms-auth-v2-client.js (the Classic client), which is
+ * the reference implementation for this API. Ops go through the same njs adapter
+ * (handlePresenceJsonp), which lifts the bearer from the presence cookie and adds
+ * X-Watchdog-App-Name — so this script carries no credential.
  *
- * Everything is recorded on window.__ccPresence so you can inspect state from
- * the console even if the host app has stubbed console out.
+ * Everything is recorded on window.__ccPresence for inspection from the console,
+ * which matters here because the IE console cannot be relied on.
  */
 (function () {
   "use strict";
 
   // ---- configuration ------------------------------------------------------
 
-  // Same-origin when proxied; cross-origin but same-site otherwise. Either way
-  // the proxy injects Authorization from the presence cookie — this script
-  // carries no credential. See presenceBearer in global-components.case-locking.ts.
-  var HUB_PATH = "/global-components/case-locking/api/hubs/notifications";
+  var JSONP_PATH = "/global-components/presence-jsonp";
 
-  // Reported to the hub as the joining application. DCF and CMS Modern are one
-  // app in users' minds, so the presence API models them as a single name.
+  // Reported as the calling application. DCF and CMS Modern are one app in users'
+  // minds, so the presence API models them under a single name. MUST be sent: the
+  // njs adapter defaults a missing appName to "CMS Classic", which is right for
+  // Classic and wrong for us.
   var APP_NAME = "CMS Modern";
 
-  // The app name goes to the server TWICE, deliberately:
-  //   1. as the second argument to the Connect hub method — the real contract;
-  //   2. as ?appName= on the connect URL, which exists only so the proxy can lift
-  //      it into the X-Watchdog-App-Name header the API also wants. The hub
-  //      argument travels inside WebSocket frames, which the proxy cannot read.
-  // See watchdogAppName in global-components.case-locking.ts.
-  var HUB_URL = HUB_PATH + "?appName=" + encodeURIComponent(APP_NAME);
-
-  // Server evicts an idle session after 10s, so beat at 5s: one missed tick is
-  // survivable, two are not. Do not raise this without checking the server's
-  // window — an evicted session stops appearing to everyone else on the case.
-  var KEEPALIVE_MS = 5000;
-
-  // The hub's error text when our session has been reaped. Not a failure to
-  // retry blindly: the session is gone, so the cure is to Connect again.
-  var SESSION_EVICTED_CODE = "SESSION_EVICTED";
-
-  // ReceiveNotification carries a discriminator; 0 is the presence snapshot.
-  var NOTIFICATION_TYPE_PRESENCE = 0;
-
-  // How often to re-read the URL. Cheap, and simpler than hooking every router.
-  var POLL_MS = 2000;
+  var TICK_MS = 3000; // heartbeat + poll, matching the Classic client
+  var TIMEOUT_MS = 8000; // per-call watchdog — JSONP has no error event
+  var POLL_MS = 2000; // how often to re-read the URL
 
   // ---- logging ------------------------------------------------------------
 
   var messages = [];
+  var verbose = false;
 
   function log() {
     var args = Array.prototype.slice.call(arguments);
@@ -96,13 +78,41 @@
     }
   }
 
+  // ---- where do we call? --------------------------------------------------
+
+  // Proxied, the page and the adapter share an origin and a relative path works.
+  // UNPROXIED, the host page is on the CMS domain while we are served from the
+  // proxy — a relative path would resolve to the wrong host. So derive the base
+  // from our own <script src>, which is by definition the origin that served us.
+  // (document.currentScript does not exist at document mode 11, hence the scan.)
+  function jsonpBase() {
+    try {
+      var scripts = document.getElementsByTagName("script");
+      var i;
+      for (i = 0; i < scripts.length; i++) {
+        var src = scripts[i].src || "";
+        if (src.indexOf("cms-presence-client.js") !== -1) {
+          var match = /^(https?:\/\/[^/]+)/.exec(src);
+          if (match) {
+            return match[1] + JSONP_PATH;
+          }
+        }
+      }
+    } catch (e) {
+      // fall through to the relative path
+    }
+    return JSONP_PATH;
+  }
+
+  var BASE = jsonpBase();
+
   // ---- where are we? ------------------------------------------------------
 
   // DCF:    /dcf/review/<caseId>/<userGuid>?wid=MASTER
   // Modern: /viewer/landing#/case-summary/<caseId>/<userGuid>
   //         /viewer/landing#/disclosure/<caseId>/...
-  // The Modern caseId lives in the hash, which never reaches the server — the
-  // only way to see it is client-side, right here.
+  // Modern's caseId lives in the hash, which never reaches the server — the only
+  // place it can be read is here.
   function readContext() {
     var path = String(window.location.pathname || "");
     var hash = String(window.location.hash || "");
@@ -124,84 +134,190 @@
     return { app: null, screen: null, caseId: null, kind: null };
   }
 
+  // Case-wide kinds carry NO subject and NO trailing colon — "544545:CASE", not
+  // "544545:CASE:". Matches how the Classic client builds them.
   function sectionIdFor(context) {
     return context.caseId ? context.caseId + ":" + context.kind : null;
   }
 
+  // ---- the JSONP call -----------------------------------------------------
+
+  var seq = 0;
+
+  // onData receives the executed object/array, or null when the call timed out.
+  // JSONP has no error event, hence the watchdog.
+  function jsonp(op, params, onData) {
+    seq = seq + 1;
+    var cbName = "__ccpj_" + seq;
+    var done = false;
+    var script = null;
+    var timer = null;
+
+    function cleanup() {
+      if (timer) {
+        window.clearTimeout(timer);
+        timer = null;
+      }
+      try {
+        // Document mode 11 CAN delete a window expando, so unlike the Classic
+        // client (mode 5) we need no free-list of reusable callback names.
+        delete window[cbName];
+      } catch (e1) {
+        window[cbName] = undefined;
+      }
+      try {
+        if (script && script.parentNode) {
+          script.parentNode.removeChild(script);
+        }
+      } catch (e2) {
+        // the tag is inert either way
+      }
+    }
+
+    window[cbName] = function (data) {
+      if (done) {
+        return;
+      }
+      done = true;
+      cleanup();
+      onData(data);
+    };
+
+    var url = BASE + "?op=" + encodeURIComponent(op);
+    var key;
+    for (key in params) {
+      if (params.hasOwnProperty(key)) {
+        url = url + "&" + key + "=" + encodeURIComponent(params[key]);
+      }
+    }
+    url = url + "&appName=" + encodeURIComponent(APP_NAME);
+    url = url + "&callback=" + cbName + "&_=" + seq;
+
+    timer = window.setTimeout(function () {
+      if (done) {
+        return;
+      }
+      done = true;
+      cleanup();
+      if (verbose) {
+        log("jsonp timeout", op);
+      }
+      onData(null);
+    }, TIMEOUT_MS);
+
+    try {
+      script = document.createElement("script");
+      script.type = "text/javascript";
+      script.src = url;
+      document.documentElement.appendChild(script);
+    } catch (e) {
+      if (!done) {
+        done = true;
+        cleanup();
+        onData(null);
+      }
+    }
+  }
+
   // ---- roster: what the server has told us ---------------------------------
 
-  // Keyed by section so a snapshot for one region can never clobber another.
-  // Each entry keeps the server's version: snapshots can arrive out of order,
-  // and an older one must not overwrite a newer.
-  var latestBySection = {};
+  // Keyed by section identity, each entry { caseId, kind, subjectId, version,
+  // members }. Poll returns DELTAS and gives no ordering guarantee, so a
+  // snapshot replaces the cached roster only when its version is strictly newer.
+  // An empty members array at a newer version correctly clears that section.
+  var sections = {};
 
-  function snapshotKey(section) {
+  function sectionKey(section) {
     if (!section) {
       return "";
     }
-    return String(section.caseId) + ":" + String(section.kind) + ":" + String(section.subjectId || "");
-  }
-
-  function clearRoster() {
-    latestBySection = {};
-    // Function declaration below — hoisted, so this is safe; a no-op when the
-    // bar was never rendered.
-    removeBar();
-  }
-
-  // Returns true if anything actually changed, so we only log real news.
-  function applyNotification(payload) {
-    if (!payload || !payload.snapshots || typeof payload.snapshots.length !== "number") {
-      return false;
+    var caseId = section.caseId != null ? String(section.caseId) : "";
+    var kind = section.kind != null ? String(section.kind) : "";
+    var subjectId = section.subjectId != null ? String(section.subjectId) : "";
+    var key = caseId + ":" + kind;
+    if (subjectId !== "") {
+      key = key + ":" + subjectId;
     }
+    return key;
+  }
 
-    var changed = false;
+  function normaliseMembers(members) {
+    var out = [];
+    if (!members || typeof members.length !== "number") {
+      return out;
+    }
     var i;
-    for (i = 0; i < payload.snapshots.length; i++) {
-      var snapshot = payload.snapshots[i];
-      var key = snapshotKey(snapshot.section);
-      var existing = latestBySection[key];
-
-      if (existing && snapshot.version <= existing.version) {
-        continue; // stale — a newer snapshot for this section already applied
-      }
-
-      var members = [];
-      var raw = snapshot.members || [];
-      var j;
-      for (j = 0; j < raw.length; j++) {
-        members.push({
-          userEmail: raw[j].userEmail,
-          sourceApplication: raw[j].sourceApplication || "",
-          joinedAt: raw[j].joinedAt
+    for (i = 0; i < members.length; i++) {
+      var m = members[i];
+      if (m && m.userEmail) {
+        out.push({
+          userEmail: m.userEmail,
+          sourceApplication: m.sourceApplication ? m.sourceApplication : "",
+          joinedAt: m.joinedAt ? m.joinedAt : ""
         });
       }
-
-      latestBySection[key] = {
-        caseId: snapshot.section.caseId,
-        kind: snapshot.section.kind,
-        subjectId: snapshot.section.subjectId || null,
-        version: snapshot.version,
-        members: members
-      };
-      changed = true;
     }
+    return out;
+  }
 
+  // Apply one poll response. Returns true if anything changed, so we only redraw
+  // and log on real news.
+  function applyNotifications(data) {
+    if (!data || typeof data.length !== "number") {
+      return false;
+    }
+    var changed = false;
+    var n;
+    for (n = 0; n < data.length; n++) {
+      var notif = data[n];
+      if (!notif || !notif.payload) {
+        continue;
+      }
+      var snaps = notif.payload.snapshots;
+      if (!snaps || typeof snaps.length !== "number") {
+        continue;
+      }
+      var s;
+      for (s = 0; s < snaps.length; s++) {
+        var snap = snaps[s];
+        if (!snap) {
+          continue;
+        }
+        var key = sectionKey(snap.section);
+        if (!key) {
+          continue;
+        }
+        var version = snap.version;
+        if (typeof version !== "number") {
+          version = parseInt(version, 10);
+        }
+        var current = sections[key];
+        if (current && typeof current.version === "number" && !isNaN(version) && version <= current.version) {
+          continue; // stale / out-of-order — keep the newer cached roster
+        }
+        sections[key] = {
+          caseId: snap.section && snap.section.caseId != null ? String(snap.section.caseId) : "",
+          kind: snap.section && snap.section.kind != null ? String(snap.section.kind) : "",
+          subjectId: snap.section && snap.section.subjectId != null ? String(snap.section.subjectId) : "",
+          version: version,
+          members: normaliseMembers(snap.members)
+        };
+        changed = true;
+      }
+    }
     return changed;
   }
 
   // ONE PERSON, ONE ENTRY. Someone can be in several sections at once — on the
-  // case and editing a witness within it — and a UI must say that once, listing
-  // the regions, rather than showing them twice. This client has a single region
-  // today, but the deduping belongs here rather than in whatever renders it.
+  // case and editing a witness within it — and the UI must say that once, listing
+  // their regions, rather than showing them twice.
   function buildRoster() {
     var byUser = {};
     var order = [];
-    var keys = Object.keys(latestBySection);
+    var keys = Object.keys(sections);
     var i;
-
     for (i = 0; i < keys.length; i++) {
-      var entry = latestBySection[keys[i]];
+      var entry = sections[keys[i]];
       var j;
       for (j = 0; j < entry.members.length; j++) {
         var member = entry.members[j];
@@ -219,7 +335,6 @@
         }
       }
     }
-
     var people = [];
     for (i = 0; i < order.length; i++) {
       people.push(byUser[order[i]]);
@@ -229,7 +344,7 @@
 
   function describeRoster() {
     var people = buildRoster();
-    if (people.length === 0) {
+    if (!people.length) {
       return "(nobody)";
     }
     var parts = [];
@@ -250,7 +365,7 @@
   var BAR_ID = "ccPresenceBar";
 
   // Most specific region wins the wording: someone reviewing a case is also on
-  // the case, and "is reviewing" is the more useful of the two things to say.
+  // the case, and "is reviewing" is the more useful thing to say.
   function describePerson(person) {
     var reviewing = false;
     var i;
@@ -284,12 +399,10 @@
         removeBar();
         return;
       }
-
       var bar = document.getElementById(BAR_ID);
       if (!bar) {
         bar = document.createElement("div");
         bar.id = BAR_ID;
-        // Pinned bottom-right, half the viewport wide, above the host's chrome.
         bar.style.position = "fixed";
         bar.style.bottom = "0";
         bar.style.right = "0";
@@ -303,15 +416,14 @@
         bar.style.borderTop = "2px solid " + GDS_WHITE;
         document.body.appendChild(bar);
       }
-
-      // textContent rather than innerHTML: these strings carry server-supplied
-      // email addresses, and this page is not ours to inject markup into.
+      // textContent, never innerHTML: these strings carry server-supplied email
+      // addresses and this page is not ours to inject markup into.
       var lines = [];
       var i;
       for (i = 0; i < people.length; i++) {
         lines.push(describePerson(people[i]));
       }
-      bar.textContent = lines.join("  \u00b7  ");
+      bar.textContent = lines.join("  ·  ");
     } catch (e) {
       // never let presentation break the host page
     }
@@ -319,222 +431,136 @@
 
   // ---- the session --------------------------------------------------------
 
-  var connection = null;
-  var connectedSectionId = null;
-  var keepAliveTimer = null;
-  var busy = false;
+  var sessionId = "";
+  var activeSectionId = "";
+  var tickTimer = null;
+  var stats = { creates: 0, heartbeats: 0, polls: 0, errors: 0, restarts: 0, lastTickAt: null };
 
-  // A healthy keep-alive is deliberately SILENT: at one beat per 5s it would
-  // flush every interesting line out of the 200-entry buffer within twenty
-  // minutes. But silence and "not running" look identical from a console, so
-  // count the beats instead — __ccPresence.status() reports them — and offer an
-  // opt-in verbose mode for when you actually want to watch it tick.
-  var keepAliveCount = 0;
-  var keepAliveErrorCount = 0;
-  var keepAliveLastAt = null;
-  var verbose = false;
-
-  // SignalR's own log, routed into our buffer rather than the console — this
-  // environment's console is unreliable, and the library says useful things we
-  // would otherwise never see. In particular, when the hub invokes a client
-  // method we have not registered it logs "No client method with the name 'X'
-  // found", which is the only way to discover the real event name from outside.
-  //
-  // Warnings and errors are always kept (they are rare and always interesting).
-  // Everything else needs __ccPresence.setTrace(true), because Trace is a
-  // torrent — it logs every frame, including each keep-alive.
-  var trace = false;
-  var signalrLogged = 0;
-
-  function isSessionEvicted(error) {
-    var message = error && error.message ? String(error.message) : String(error || "");
-    return message.indexOf(SESSION_EVICTED_CODE) !== -1;
-  }
-
-  function stopKeepAlive() {
-    if (keepAliveTimer) {
-      window.clearInterval(keepAliveTimer);
-      keepAliveTimer = null;
+  function stopTicking() {
+    if (tickTimer) {
+      window.clearInterval(tickTimer);
+      tickTimer = null;
     }
   }
 
-  function startKeepAlive() {
-    stopKeepAlive();
-    var inFlight = false;
-
-    keepAliveTimer = window.setInterval(function () {
-      if (inFlight || !connection || connection.state !== "Connected" || !connectedSectionId) {
-        return; // a slow tick must not stack up behind itself
-      }
-      inFlight = true;
-      connection
-        .invoke("KeepAlive")
-        .then(function () {
-          keepAliveCount = keepAliveCount + 1;
-          keepAliveLastAt = new Date().toISOString();
-          if (verbose) {
-            log("KeepAlive ok", connectedSectionId, "#" + keepAliveCount);
-          }
-        })
-        .then(null, function (error) {
-          keepAliveErrorCount = keepAliveErrorCount + 1;
-          if (!isSessionEvicted(error)) {
-            log("KeepAlive failed", error && error.message ? error.message : error);
-            return null;
-          }
-          // Our session was reaped. Everything we hold is now fiction, so drop
-          // it and rejoin rather than carrying on with a dead session.
-          log("session evicted — rejoining", connectedSectionId);
-          clearRoster();
-          return connection.invoke("Connect", connectedSectionId, APP_NAME).then(
-            function () {
-              log("rejoined", connectedSectionId);
-            },
-            function (rejoinError) {
-              log("rejoin FAILED — will retry next tick", rejoinError && rejoinError.message ? rejoinError.message : rejoinError);
-            }
-          );
-        })
-        .then(function () {
-          inFlight = false;
-        }, function () {
-          inFlight = false;
-        });
-    }, KEEPALIVE_MS);
-  }
-
-  function buildConnection() {
-    return new window.signalR.HubConnectionBuilder()
-      .withUrl(HUB_URL, {
-        // NO accessTokenFactory. This script ships no credential at all: the auth
-        // callback puts the token in an HttpOnly cookie scoped to this path, and
-        // the proxy lifts it into an Authorization header on the way upstream
-        // (presenceBearer, in global-components.case-locking.ts). The token never
-        // reaches page JS and never appears in a URL.
-        //
-        // skipNegotiation + WebSockets is not an optimisation, it is REQUIRED.
-        // In the unproxied estate the host page is on a different origin from the
-        // hub, and SignalR's negotiate step is an XHR — which Windows zone setting
-        // 1406 ("Access data sources across domains" = Prompt, machine-locked)
-        // answers with a security dialog. WebSocket is not covered by 1406;
-        // confirmed empirically at document mode 11 (clean 1000 close, no dialog).
-        //
-        // COST: no transport fallback. Long-polling and SSE both need XHR, so if
-        // the WebSocket cannot be established there is no second chance — presence
-        // simply does not run for that user.
-        skipNegotiation: true,
-        transport: window.signalR.HttpTransportType.WebSockets
-      })
-      .withAutomaticReconnect()
-      .configureLogging({
-        // A custom ILogger receives every level; the filtering is ours to do.
-        log: function (logLevel, message) {
-          var isProblem = logLevel >= window.signalR.LogLevel.Warning;
-          if (!trace && !isProblem) {
-            return;
-          }
-          signalrLogged = signalrLogged + 1;
-          log("signalr", String(message));
-        }
-      })
-      .build();
-  }
-
-  function leaveAndStop() {
-    if (!connection) {
-      return window.Promise.resolve();
+  function stopSession() {
+    stopTicking();
+    if (sessionId) {
+      log("removing session", sessionId, activeSectionId);
+      // Best-effort DELETE on leave. NOT guaranteed on tab-close — the server's
+      // TTL is the real backstop, which is why the heartbeat exists at all.
+      jsonp("remove", { sid: sessionId }, function () {});
     }
-    var stopping = connection;
-    var was = connectedSectionId;
-    connection = null;
-    connectedSectionId = null;
-    stopKeepAlive();
-    clearRoster();
-    log("leaving", was);
-
-    // Leave first so the server drops us immediately rather than waiting for the
-    // 10s eviction; then close the socket. Both are best-effort — a killed tab
-    // does neither, which is exactly why the server has a timeout at all.
-    var finished = stopping.state === "Connected" ? stopping.invoke("Leave").then(null, function () {}) : window.Promise.resolve();
-    return finished.then(function () {
-      return stopping.stop().then(null, function (error) {
-        log("stop failed", was, error && error.message ? error.message : error);
-      });
-    });
+    sessionId = "";
+    activeSectionId = "";
+    sections = {}; // fresh reconciliation state per session
+    removeBar();
   }
 
-  function startSession(sectionId, context) {
-    var candidate = buildConnection();
+  // A 410 on heartbeat means the Watchdog no longer knows this session. Without a
+  // session we cannot poll, so tear down and rebuild on the same section.
+  function restartSession() {
+    var sid = activeSectionId;
+    stats.restarts = stats.restarts + 1;
+    stopSession();
+    if (sid) {
+      startSession(sid);
+    }
+  }
 
-    candidate.on("ReceiveNotification", function (notification) {
-      if (!notification || notification.type !== NOTIFICATION_TYPE_PRESENCE) {
+  function tick() {
+    try {
+      if (!sessionId) {
         return;
       }
-      if (applyNotification(notification.payload)) {
-        log("roster", sectionId, describeRoster());
-        renderBar();
-      }
-    });
+      var mine = sessionId; // capture: ignore callbacks whose session was superseded
+      stats.lastTickAt = new Date().toISOString();
 
-    candidate.onreconnected(function () {
-      // A new transport means a new session; the old roster describes a world
-      // that no longer exists.
-      log("reconnected — rejoining", sectionId);
-      clearRoster();
-      candidate.invoke("Connect", sectionId, APP_NAME).then(
-        function () {
-          log("rejoined after reconnect", sectionId);
-        },
-        function (error) {
-          log("rejoin after reconnect FAILED", error && error.message ? error.message : error);
+      jsonp("heartbeat", { sid: mine }, function (data) {
+        if (sessionId !== mine) {
+          return; // superseded by a restart, stop, or section switch
         }
-      );
-    });
-
-    candidate.onclose(function (error) {
-      log("connection closed", sectionId, error ? error.message || error : "(clean)");
-    });
-
-    log("starting session", sectionId, "host=" + context.app, "screen=" + context.screen, "reportedAs=" + APP_NAME);
-    return candidate
-      .start()
-      .then(function () {
-        log("connected — invoking Connect", sectionId, "as", APP_NAME);
-        return candidate.invoke("Connect", sectionId, APP_NAME);
-      })
-      .then(function () {
-        connection = candidate;
-        connectedSectionId = sectionId;
-        startKeepAlive();
-        log("Connect acknowledged", sectionId, "— keep-alive every " + KEEPALIVE_MS + "ms");
-      })
-      .then(null, function (error) {
-        log("start/invoke FAILED", sectionId, error && error.message ? error.message : error);
-        candidate.stop().then(null, function () {});
+        if (data === null) {
+          return; // transient timeout — just retry on the next tick
+        }
+        if (data.jsonpError) {
+          stats.errors = stats.errors + 1;
+          if (data.jsonpError.indexOf("410") > -1) {
+            log("heartbeat: session expired (410) — recreating");
+            restartSession();
+          } else {
+            log("heartbeat FAILED", data.jsonpError);
+          }
+          return;
+        }
+        stats.heartbeats = stats.heartbeats + 1;
+        if (verbose) {
+          log("heartbeat ok", "#" + stats.heartbeats);
+        }
       });
+
+      jsonp("poll", { sid: mine }, function (data) {
+        if (sessionId !== mine) {
+          return;
+        }
+        if (data === null) {
+          if (verbose) {
+            log("poll: no response (timeout)");
+          }
+          return;
+        }
+        if (data.jsonpError) {
+          stats.errors = stats.errors + 1;
+          log("poll FAILED", data.jsonpError);
+          return;
+        }
+        stats.polls = stats.polls + 1;
+        // An empty array applies nothing and leaves the current rosters standing.
+        if (applyNotifications(data)) {
+          log("roster", activeSectionId, describeRoster());
+          renderBar();
+        } else if (verbose) {
+          log("poll: no change", "#" + stats.polls);
+        }
+      });
+    } catch (e) {
+      // a throw here would kill the interval — never let that happen
+    }
+  }
+
+  function startSession(sectionId) {
+    activeSectionId = sectionId;
+    log("creating session", sectionId, "as", APP_NAME);
+    jsonp("create", { sectionId: sectionId }, function (data) {
+      if (activeSectionId !== sectionId) {
+        return; // superseded while in flight
+      }
+      if (data === null || data.jsonpError || !data.sessionId) {
+        var why = data === null ? "no response (timeout)" : data.jsonpError || "no sessionId in response";
+        stats.errors = stats.errors + 1;
+        log("create FAILED", sectionId, why);
+        return;
+      }
+      stats.creates = stats.creates + 1;
+      sessionId = data.sessionId;
+      log("session", sessionId, "for", sectionId);
+      tick();
+      tickTimer = window.setInterval(tick, TICK_MS);
+    });
   }
 
   function reconcile() {
-    if (busy) {
-      return;
-    }
     var context = readContext();
     var wanted = sectionIdFor(context);
-    if (wanted === connectedSectionId) {
+    if (wanted === activeSectionId || (!wanted && !activeSectionId)) {
       return;
     }
-
-    busy = true;
-    leaveAndStop()
-      .then(function () {
-        return wanted ? startSession(wanted, context) : null;
-      })
-      .then(function () {
-        busy = false;
-      }, function (error) {
-        log("reconcile failed", error && error.message ? error.message : error);
-        busy = false;
-      });
+    if (activeSectionId) {
+      stopSession();
+    }
+    if (wanted) {
+      startSession(wanted);
+    }
   }
 
   // ---- boot ---------------------------------------------------------------
@@ -544,65 +570,38 @@
     context: readContext,
     status: function () {
       return {
-        connectedSectionId: connectedSectionId,
-        connectionState: connection ? connection.state : "Disconnected",
-        busy: busy,
-        keepAlives: keepAliveCount,
-        keepAliveErrors: keepAliveErrorCount,
-        keepAliveLastAt: keepAliveLastAt,
-        keepAliveEveryMs: KEEPALIVE_MS,
+        base: BASE,
+        appName: APP_NAME,
+        activeSectionId: activeSectionId,
+        sessionId: sessionId,
+        tickEveryMs: TICK_MS,
+        stats: stats,
         context: readContext()
       };
     },
     roster: buildRoster,
     describeRoster: describeRoster,
     sections: function () {
-      return latestBySection;
+      return sections;
     },
     reconcile: reconcile,
-    leave: leaveAndStop,
-    // __ccPresence.setVerbose(true) to watch every beat; false to go quiet again.
+    leave: stopSession,
     setVerbose: function (on) {
       verbose = !!on;
       log("verbose", verbose ? "on" : "off");
       return verbose;
-    },
-    // __ccPresence.setTrace(true) then reconnect() to capture SignalR's full
-    // frame-by-frame log into .messages. Noisy by design — turn it off after.
-    setTrace: function (on) {
-      trace = !!on;
-      log("trace", trace ? "on" : "off");
-      return trace;
-    },
-    // Force a fresh session, e.g. after switching trace on.
-    reconnect: function () {
-      connectedSectionId = null;
-      return leaveAndStop().then(function () {
-        reconcile();
-        return "reconnecting";
-      });
-    },
-    signalrLogCount: function () {
-      return signalrLogged;
     }
   };
 
-  if (!window.signalR) {
-    log("FATAL: signalR global missing — was the bundle built with build.sh?");
-    return;
-  }
-
-  log("client loaded", window.location.href);
+  log("client loaded", window.location.href, "base=" + BASE);
   reconcile();
   window.setInterval(reconcile, POLL_MS);
 
-  // Belt and braces for Modern's hash router; the poll would catch it anyway.
   if (window.addEventListener) {
     window.addEventListener("hashchange", reconcile, false);
-    // Best-effort tidy-up: tell the server we've gone rather than making it wait
-    // out the eviction window. Not guaranteed — see the note in leaveAndStop.
+    // Best-effort tidy-up so the server need not wait out the TTL.
     window.addEventListener("unload", function () {
-      leaveAndStop();
+      stopSession();
     }, false);
   }
 })();
