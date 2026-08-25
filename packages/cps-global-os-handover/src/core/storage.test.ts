@@ -8,7 +8,11 @@ import {
   setCmsSessionHint,
 } from "./storage";
 
-const keys: CmsAuthStorageKeys = {
+// VCA is optional on CmsAuthStorageKeys (not every env has it). This fixture is
+// the VCA-enabled shape, so the VCA keys are narrowed back to required — it lets
+// the tests index storage by them without a non-null assertion at every use.
+const keys: CmsAuthStorageKeys &
+  Required<Pick<CmsAuthStorageKeys, "VCA_JSON" | "VCA_COOKIES">> = {
   WMA_JSON: "$OS_Users$Casework_Blocks$ClientVars$JSONString",
   WMA_COOKIES: "$OS_Users$Casework_Blocks$ClientVars$Cookies",
   CASE_REVIEW_JSON: "$OS_Users$CaseReview$ClientVars$CmsAuthValues",
@@ -19,6 +23,10 @@ const keys: CmsAuthStorageKeys = {
   VCA_JSON: "$OS_Users$VictimsCaseApplication$ClientVars$JSONString",
   VCA_COOKIES: "$OS_Users$VictimsCaseApplication$ClientVars$Cookies",
 };
+
+// An environment where VCA isn't live yet (prod, at time of writing) simply
+// omits the two keys — see cmsAuthStorageKeysSchema.
+const { VCA_JSON: _vcaJson, VCA_COOKIES: _vcaCookies, ...keysWithoutVca } = keys;
 
 describe("storage", () => {
   let storage: Record<string, string>;
@@ -38,6 +46,18 @@ describe("storage", () => {
       expect(storage[keys.CASE_REVIEW_COOKIES]).toBe(cookies);
       expect(storage[keys.HOME_COOKIES]).toBe(cookies);
       expect(storage[keys.VCA_COOKIES]).toBe(cookies);
+    });
+
+    test("writes no VCA keys, and no 'undefined' key, when the env has no VCA configured", () => {
+      const cookies = "sessionid=abc123; auth=token456";
+
+      storeAuth(cookies, "jwt-token-789", storage as unknown as Storage, keysWithoutVca);
+
+      expect(storage[keys.WMA_COOKIES]).toBe(cookies);
+      expect(storage[keys.VCA_COOKIES]).toBeUndefined();
+      expect(storage[keys.VCA_JSON]).toBeUndefined();
+      // An unguarded write would land here rather than failing loudly.
+      expect(storage["undefined"]).toBeUndefined();
     });
 
     test("stores JSON auth values in WMA, CaseReview, HOME, and VCA localStorage keys", () => {
@@ -163,6 +183,22 @@ describe("storage", () => {
       const result = isStoredAuthCurrent(cookies, storage as unknown as Storage, keys);
 
       expect(result).toBe(false);
+    });
+
+    // The regression this guards: adding VCA to an env makes every existing
+    // user's stored auth look stale (nobody has the key yet), pushing all of
+    // them through an extra token-handover hop on their next handover.
+    test("stays true for pre-VCA storage when the env has no VCA configured", () => {
+      const cookies = "sessionid=abc123";
+      storage[keys.WMA_COOKIES] = cookies;
+      storage[keys.CASE_REVIEW_COOKIES] = cookies;
+      storage[keys.HOME_COOKIES] = cookies;
+      // No VCA_COOKIES written — this is what every existing user's storage
+      // looks like.
+
+      const result = isStoredAuthCurrent(cookies, storage as unknown as Storage, keysWithoutVca);
+
+      expect(result).toBe(true);
     });
   });
 
