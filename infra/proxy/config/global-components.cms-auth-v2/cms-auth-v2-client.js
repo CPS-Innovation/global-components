@@ -93,6 +93,8 @@
   var FRAGMENT_DEFS_CHARGES = "uadcDefsCharges.aspx"; // Defs & Charges tab (its own frame)
   var SECTION_KIND_DEFENDANT = "DEFENDANT";           // subject-scoped (partyId)
 
+  var FRAGMENT_DOCUMENTS = "uacgSelectDocument.aspx";
+
   // Which frame HOSTS the hover popup for a section. Pages differ in structure:
   //   - Some sections (e.g. victim/witness) load a FRAMESET into frameMain, and the
   //     content lives in a child frame named "framePage" — so the popup is rendered
@@ -108,12 +110,6 @@
   var timer;
   var lastRec = null; // last reported contact; null means nothing open
   var lastKey = ""; // its key; "" means nothing open
-
-  function log(msg) {
-    if (typeof console !== "undefined" && console.log) {
-      console.log(msg);
-    }
-  }
 
   function trim(s) {
     return String(s == null ? "" : s).replace(/^\s+|\s+$/g, "");
@@ -281,6 +277,54 @@
     return rec;
   }
 
+  function readWitnessTab(win) {
+    var callMode = win.sCallMode;
+    if (!callMode || callMode !== "witness") {
+      return null;
+    }
+
+    var listMode = fieldVal(win, "cboNWitnessMode");
+    if (!{ "2": 1, "3": 1, "4": 1, "5": 1 }[listMode]) {
+      return null;
+    }
+
+    var el = getEl(win, "tblWitnessDetails");
+    if (!el || !el.currentStyle) {
+      return null;
+    }
+    var editPanelDisplay = el.currentStyle.display;
+    var showingEditPanel = editPanelDisplay !== "none";
+
+    var actionMode = fieldVal(win, "cboYAction");
+    var deleteOrMergeAction = !!{ "4": 1, "5": 1 }[actionMode];
+
+    if (!showingEditPanel && !deleteOrMergeAction) {
+      return null;
+    }
+
+    var href = ""; try { href = win.location.href; } catch (e2) { href = ""; }
+    var caseId = queryParam(href, "intCaseID");
+    if (!caseId) {
+      return null;
+    }
+
+    var witnessId = undefined;
+    var selectedWitnesses = win.document.getElementById("hidWitnessIdCSV").value;
+    if (!!selectedWitnesses && selectedWitnesses != "" && selectedWitnesses.indexOf(",") === -1) {
+      witnessId = selectedWitnesses;
+    }
+
+    var rec = {};
+    rec.sectionId = caseId + ":" + SECTION_KIND_VICTIM_WITNESS + (witnessId ? ":" + witnessId : "");
+    rec.key = rec.sectionId;
+    rec.caseId = caseId;
+    rec.personId = witnessId ? witnessId : "";
+    rec.recorderId = "";
+    rec.name = "";
+    rec.role = "";
+    return rec;
+  }
+
   // Case review is a CASE-WIDE section spanning MORE THAN ONE page: the review
   // analysis (uapcPreChargeCaseAnalysis.aspx) and the charge decision
   // (uapcPreChargeDecDetails.aspx) both live under the SAME section, so both must
@@ -351,7 +395,8 @@
     { fragment: FRAGMENT_CONTACTS, read: readOpenContact, popupFrame: POPUP_FRAME_PAGE },
     { fragment: FRAGMENT_CASE_REVIEW, read: readCaseReview, popupFrame: POPUP_FRAME_MAIN },
     { fragment: FRAGMENT_CASE_REVIEW_CHARGE, read: readCaseReview, popupFrame: POPUP_FRAME_MAIN },
-    { fragment: FRAGMENT_DEFS_CHARGES, read: readOpenDefendant, popupFrame: POPUP_FRAME_PAGE }
+    { fragment: FRAGMENT_DEFS_CHARGES, read: readOpenDefendant, popupFrame: POPUP_FRAME_PAGE },
+    { fragment: FRAGMENT_DOCUMENTS, read: readWitnessTab, popupFrame: POPUP_FRAME_PAGE }
   ];
 
   // Walk every nested frame; return the presence record from the first same-origin
@@ -425,8 +470,6 @@
   // THE SINK. kind is "editing" | "closed"; rec is
   // { key, caseId, personId, recorderId, name, role }.
   function sendEvent(kind, rec) {
-    log("[cc] " + kind + " " + describe(rec));
-
     // Section presence — isolated so it can never affect CMS. Uses the JSONP
     // transport (presenceJsonp*), which shares this detection + the banner.
     try {
@@ -787,7 +830,6 @@
       if (done) { return; }
       done = true;
       cleanup();
-      log("[cc] presence jsonp timeout op=" + op);
       onData(null);
     }, PRESENCE_JSONP_TIMEOUT_MS);
 
@@ -994,10 +1036,8 @@
         if (data === null) { return; } // transient timeout -> just retry on the next tick
         if (data.jsonpError) {
           if (data.jsonpError.indexOf("410") > -1) {
-            log("[cc] presence jsonp heartbeat: session expired (410) — reconnecting");
             presenceJsonpRestart();
           } else {
-            log("[cc] presence jsonp heartbeat error: " + data.jsonpError);
             presenceJsonpFail();
           }
         }
@@ -1005,8 +1045,8 @@
       // Poll (GET-mapped) -> reconcile -> banner.
       presenceJsonp("poll", { sid: sid }, function (data) {
         if (presenceJsonpSessionId !== sid) { return; } // superseded (restart / stop / section switch)
-        if (data === null) { log("[cc] presence jsonp poll: no response (timeout)"); return; }
-        if (data.jsonpError) { log("[cc] presence jsonp poll error: " + data.jsonpError); return; }
+        if (data === null) { return; } // transient timeout -> just retry on the next tick
+        if (data.jsonpError) { return; }
         // Reconcile this delta into the per-section version-checked roster cache, then
         // recompute the banner. Show the icon whenever ANY section of the case has
         // members (no threshold — even just you counts); the tooltip groups the roster
@@ -1016,7 +1056,6 @@
         var caseId = presenceJsonpActiveSid ? presenceJsonpActiveSid.split(":")[0] : "";
         var tip = presenceBuildTooltip(caseId); // grouped, formatted per-section roster ("" if nobody)
         var count = presenceCountMembers(caseId); // total people across all sections -> "(N)" after the icon
-        log("[cc] presence jsonp poll: raw=" + presenceJsonpDescribe(data));
         if (tip) {
           presenceShowBanner(tip, count);
         } else {
@@ -1040,19 +1079,16 @@
     // are replaced with the real roster / number on the first successful poll (see
     // presenceJsonpTick). A prior session's banner was already cleared by presenceJsonpStop.
     presenceShowBanner(PRESENCE_CONNECTING_TIP, PRESENCE_CONNECTING_DOTS);
-    log("[cc] presence jsonp create " + sid);
     presenceJsonp("create", { sectionId: sid }, function (data) {
       if (presenceJsonpActiveSid !== sid) { return; } // superseded while in flight
       if (data === null || data.jsonpError || !data.sessionId) {
         var why = data === null ? "no response (timeout)" : (data.jsonpError || "no sessionId in response");
-        log("[cc] presence jsonp create failed for " + sid + " — " + why);
         // Could not establish the session -> non-recoverable. Surface it the same way as a
         // heartbeat failure: "!" in place of the head-count and the error message in the popup.
         presenceJsonpFail();
         return;
       }
       presenceJsonpSessionId = data.sessionId;
-      log("[cc] presence jsonp session " + presenceJsonpSessionId + " for " + sid);
       presenceJsonpTick();
       presenceJsonpHbTimer = window.setInterval(presenceJsonpTick, PRESENCE_JSONP_TICK_MS);
     });
@@ -1064,7 +1100,6 @@
       presenceJsonpHbTimer = null;
     }
     if (presenceJsonpSessionId) {
-      log("[cc] presence jsonp delete " + presenceJsonpSessionId);
       // Best-effort DELETE on leave. NOT guaranteed on tab-close (a script injected
       // during unload may not run) — the server-side TTL stays the real backstop.
       presenceJsonp("remove", { sid: presenceJsonpSessionId }, function () { });
@@ -1221,17 +1256,6 @@
   var ticks = 0; // watch-loop counter (diagnostic)
   var watchTimer = null; // the poll interval; cleared after the first spawn (single-shot)
 
-  function log(msg) {
-    if (typeof console !== "undefined" && console.log) {
-      console.log("[cc-auth] " + msg);
-    }
-  }
-  function dlog(msg) {
-    if (DEBUG) {
-      log(msg);
-    }
-  }
-
   // Enumerate this window's direct child frames (name = url), tolerating
   // cross-origin children (the spawned auth iframe) which throw on access.
   function listFrames() {
@@ -1268,17 +1292,14 @@
     try {
       f = window.frames[MAIN_FRAME];
     } catch (e) {
-      dlog("frameMain lookup threw: " + e);
       return "";
     }
     if (!f) {
-      dlog("frameMain '" + MAIN_FRAME + "' not found. frames = " + listFrames());
       return "";
     }
     try {
       return f.location.href || "";
     } catch (e2) {
-      dlog("frameMain.location unreadable (x-origin?): " + e2);
       return "";
     }
   }
@@ -1299,9 +1320,7 @@
         } catch (e) { }
       };
       document.documentElement.appendChild(f);
-      log("spawned auth iframe src=" + POLARIS_PATH);
     } catch (e) {
-      log("spawnIframe FAILED: " + e);
     }
   }
 
@@ -1310,12 +1329,10 @@
     ticks = ticks + 1;
     var href = mainFrameHref();
     var onLogin = href ? href.indexOf(LOGIN_FRAGMENT) !== -1 : false;
-    dlog("tick " + ticks + ": frameMain=" + (href || "(empty)") + " onLogin=" + onLogin + " wasOnLogin=" + wasOnLogin);
     if (!href) {
       return; // can't read frameMain this tick — keep wasOnLogin as-is
     }
     if (wasOnLogin && !onLogin) {
-      log("LOGIN EDGE — frameMain left " + LOGIN_FRAGMENT + " -> " + href + " — spawning auth iframe");
       spawnIframe();
       // SINGLE-SHOT: stop polling after the first spawn — one auth capture per shell
       // (== per website) lifecycle.
@@ -1341,21 +1358,13 @@
 
   // On-demand state dump: window.__ccAuthHandover.debug()
   function debug() {
-    log("=== debug snapshot [" + BUILD + "] ===");
-    log("POLARIS_PATH=" + POLARIS_PATH + "  MAIN_FRAME=" + MAIN_FRAME);
-    log("frameMain href = " + (mainFrameHref() || "(empty)"));
-    log("child frames   = " + listFrames());
-    log("wasOnLogin=" + wasOnLogin + "  ticks=" + ticks);
   }
 
   function setDebug(v) {
     DEBUG = !!v;
-    log("DEBUG set to " + DEBUG);
   }
 
   // Console handles: force a spawn, dump state, or quiet the logging.
   window.__ccAuthHandover = { runNow: spawnIframe, debug: debug, setDebug: setDebug };
-
-  log("auth-iframe watcher booted [" + BUILD + "] DEBUG=" + DEBUG + " — watching frame '" + MAIN_FRAME + "' every " + WATCH_INTERVAL + "ms; POLARIS_PATH=" + POLARIS_PATH);
   watchTimer = window.setInterval(watch, WATCH_INTERVAL);
 })();
