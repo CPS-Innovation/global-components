@@ -12,11 +12,11 @@ config/**/*.js
 !config/**/main-reference/*.js
 # Hand-written client asset (source, not compiled njs) — deployed to blob storage
 !config/global-components.cms-auth-v2/cms-auth-v2-client.js
-# Presence POC (CMS Modern + DCF): keep the hand-written glue and the pinned
-# vendor libraries. The concatenated bundle cms-presence-client.js is GENERATED
-# by cms-presence-client/build.sh, so it stays ignored.
-!config/global-components.cms-auth-v2/cms-presence-client/cms-presence-client.src.js
-!config/global-components.cms-auth-v2/cms-presence-client/vendor/*.js
+# Presence client (CMS Modern + DCF): everything under cms-presence-client/ is
+# hand-written source — common/ (shared with Classic), modern/, the pinned vendor
+# libraries and the floor checker. Only the CONCATENATED bundle is generated, and
+# it lives one level up as cms-presence-client.js, so it stays ignored.
+!config/global-components.cms-auth-v2/cms-presence-client/**/*.js
 
 # Deployment secrets and backups
 deploy/secrets.env
@@ -25,7 +25,9 @@ deploy/backups/
 # Environment config files (contain secrets)
 config/main/.env
 config/global-components.vnext/.env
-config/global-components.cms-auth-v2/.env
+config/global-components.cms-auth-v2/.env*
+# .env.example is the committed documentation of those keys
+!config/global-components.cms-auth-v2/.env.example
 
 # Local mkcert output for the proxy dev stack — generated on demand by
 # whichever branch wires up the dockerised proxy. Lingering on disk after

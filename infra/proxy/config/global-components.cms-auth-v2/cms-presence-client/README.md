@@ -1,45 +1,170 @@
-# cms-presence-client — presence POC for CMS Modern and DCF
+# cms-presence-client — presence for CMS Modern and DCF
 
-A single injected script that joins the case-locking SignalR hub from **CMS Modern**
-(`/viewer/`) and **DCF** (`/dcf/`), reports "I am on this case", and logs everyone
-else the hub reports. Observe-only: no UI, no writes to the host page.
+A single injected script that registers presence for **CMS Modern** (`/viewer/`) and
+**DCF** (`/dcf/`) against the case-locking API, and shows who else is on the case in
+a bar pinned to the bottom of the viewport.
 
-## Why it is built this way
+Sections: `<caseId>:CASE` for Modern, `<caseId>:CASE_REVIEW` for DCF. The app name
+`"CMS Modern"` covers both — they are one app in users' minds — and **must** be sent,
+because the njs adapter defaults a missing `appName` to `"CMS Classic"`.
 
-Both apps run in **Edge IE mode at document mode 11** (confirmed: `document.documentMode === 11`
-in both). `/viewer/landing` sends `X-UA-Compatible: IE=edge` and `/dcf/` sends
-`IE=EmulateIE11`; under IE mode both resolve to Trident 11, not Chromium.
+## Layout
 
-That rules out the library global-components uses: `@microsoft/signalr` v8 is ES2015+
-and needs native `Promise`. **3.1.x is the last line that supports IE11**, and it ships a
-prebuilt ES5 browser bundle. So:
+```
+common/   shared with the Classic client — DOCUMENT MODE 5 floor
+  presence-sections.js   CCPSections: section id + key (they must agree)
+  presence-origin.js     CCPOrigin: which host serves our endpoints
+  presence-roster.js     CCPRoster: reconciliation by version, per-user dedupe
+  presence-jsonp.js      CCPJsonp: the JSONP call, with pooled callback names
+  *.test.js              unit tests, beside the file they test
+  types.d.ts             the API's wire shapes (hand-written: they describe the
+                         SERVER's contract, so there is nothing to infer them from)
+types/    GENERATED — do not edit
+  common.d.ts            tsc's output: our functions, inferred from the JSDoc
+  index.d.ts             THE PUBLISHED FILE: wire shapes + our functions, merged
+modern/   Modern/DCF only — document mode 11, ES5 floor
+  context.js             URL -> app / case / section, and the JSONP base
+  bar.js                 the GDS presence bar
+  main.js                session lifecycle, diagnostics, boot
+  *.test.js              unit tests, beside the file they test
+check-syntax.js          the floor gate (see below)
+test-harness.js          load() + assertions for the tests
+cms-presence-client.signalr.src.js   reference SignalR client, not shipped
+```
 
-| # | Part | Why |
-|---|---|---|
-| 1 | `es6-promise` 4.2.8 | IE11 has no `Promise`; SignalR requires one |
-| 2 | `@microsoft/signalr` 3.1.31 | last IE11-capable client, prebuilt ES5 |
-| 3 | `cms-presence-client.src.js` | our glue |
+`build.sh` concatenates `common/` then `modern/` into one IIFE. Each common module
+declares its own `CCP*` namespace — one per file, not one shared — because tsc
+infers expando properties within a file but not across files, and that inference is
+what generates the types below. Concatenation rather than modules because the
+injected script has no loader and document mode 5 has no module system, so **order
+matters**: `presence-sections` defines what the others use.
 
-The app maintainers want **one script**, so `build.sh` concatenates the three into
-`../cms-presence-client.js`. Plain `cat` — every input is already ES5, so there is
-nothing to transpile and no bundler to misconfigure. Both vendor files are UMD and
-self-register on `window`.
+## Types without a compile step
 
-The whole bundle is verified to parse as ES5:
+`common/` is plain JavaScript, but tsc type-checks it from its JSDoc (`checkJs`)
+and **generates** `types/common.d.ts` from it. Nothing is emitted into the shipping
+path — the deployed file is still the file you wrote, which matters when the only
+way to debug an IE-mode tab is to fetch the deployed bytes and read them.
 
 ```bash
-node -e "require('acorn').parse(require('fs').readFileSync('../cms-presence-client.js','utf8'),{ecmaVersion:5})"
+../../../../../node_modules/.bin/tsc -p .    # check + regenerate (build.sh does this)
 ```
+
+Two halves make up the published `types/index.d.ts`, and the split is not arbitrary:
+
+| | `common/types.d.ts` | `types/common.d.ts` |
+|---|---|---|
+| describes | the **server's** wire contract | **our** functions |
+| written by | hand | tsc, from the JSDoc |
+| why | nothing in our code constructs these shapes — we only consume them, so there is nothing to infer from | inferring beats maintaining |
+
+tsc's output *references* `CCPSection`, `CCPNotification` and `CCPPerson` without
+defining them, so it is not usable alone. `build.sh` concatenates the two into
+`types/index.d.ts` — one self-contained file for consumers.
+
+Generated rather than hand-written so the published surface cannot drift:
+
+```ts
+declare namespace CCPSections {
+    function sectionId(caseId: string|number|null|undefined, kind: string|null|undefined,
+                       subjectId?: (string|number|null)|undefined): string | null;
+    function sectionKey(section: CCPSection|null|undefined): string;
+}
+```
+
+It earns its keep already: it caught an unsound `window[name] = fn` (the DOM lib
+types a string index on `Window` as a named frame) and a real latent case where an
+unversioned snapshot reached `parseInt(undefined)`. Both are now explicit and
+commented rather than accidental.
+
+TypeScript *sources* were considered and rejected for this folder: `--target ES5`
+emit is mostly fine, but object spread pulls in `Object.assign` via `__assign` and
+accessors emit `Object.defineProperty` — neither exists at document mode 5 — and
+the emitted output is harder to read in the field. JSDoc gives the types without
+either cost.
+
+## The floor, and why it is enforced rather than compiled
+
+`common/` runs in Classic too, so it is held to **document mode 5** — old JScript.
+Nothing transpiles down that far: TypeScript **removed** its ES3 target (`TS5108`),
+esbuild's floor is a partial `es5`, and Babel can lower syntax but cannot conjure a
+missing `JSON`, `Array.prototype.forEach` or `Object.keys`. So the floor is written
+by hand and proven mechanically:
+
+```bash
+node check-syntax.js es3 common/*.js     # ES3 syntax + a denylist of the ES5 runtime
+node check-syntax.js es5 modern/*.js     # syntax only
+```
+
+`build.sh` runs both **before** assembling, so a violation fails the build naming
+the file and line, rather than surfacing as a blank page in an IE-mode tab. It uses
+acorn, already present for the existing ES5 gate — no new tooling, no config file.
+
+Transpiling *up* is free: ES3 is valid ES2022, so `common/` can be consumed as-is
+by a modern build. That is the route to sharing the reconciliation logic with
+global-components' TypeScript service — the same "who is present" rules, written
+once. Moving `common/` into `packages/` is then a lift-and-shift.
+
+## Tests
+
+```bash
+./test.sh          # every *.test.js, colocated with the file it tests
+node common/presence-roster.test.js   # or just one
+```
+
+Also run by `pnpm test` in `infra/proxy`, alongside the njs suites.
+
+Colocated deliberately: these are unit tests of small modules, and what you want
+when you open `presence-roster.js` is `presence-roster.test.js` beside it. The
+proxy's njs suites live under `tests/` because they need a bundler; these need
+nothing but node.
+
+`test-harness.js` rebuilds the concatenated scope exactly as `build.sh` does —
+same files, same order — so the tests exercise the real composition rather than a
+stand-in, and supplies the small `window`/`document` fakes the transport needs. If
+a test ever needs more of those fakes, treat it as a signal that the code is
+reaching further into the host page than a guest script should.
+
+`build.sh` does not run the tests: a build should not depend on a test pass, and
+the floor checks it *does* run answer a different question — whether the code can
+execute at all.
+
+## Relative URLs resolve against the PAGE, not the script
+
+Worth stating plainly, because it is the trap in this topology: a relative path in
+an injected script resolves against the host document. `"/global-components/presence-jsonp"`
+in a file fetched from `polaris-uat-notprod`, injected into a CMS page served by
+`polaris-qa-notprod`, resolves to **QA** — the page's origin. Deploying the script
+elsewhere changes nothing; the page decides.
+
+`CCPOrigin.resolve(marker, path)` finds our own `<script>` tag and takes its origin
+instead, falling back to the relative path when page and endpoints share a host.
+Both legacy clients need this the moment the UI and the API are on different
+domains — and the auth flow needs it most, because the callback sets the presence
+cookie HOST-ONLY, so the auth iframe must land on the same host as the API or the
+adapter never sees the cookie.
+
+## Why JSONP and not SignalR
+
+The SignalR client works proxied but cannot work unproxied: negotiate is an XHR,
+Windows zone setting 1406 answers a cross-domain XHR with a security dialog, and
+skipping negotiate removes the client from Azure SignalR Service's delivery path —
+you can invoke but never receive. JSONP uses `<script src>`, which the zone does
+not gate, so it works in both topologies. Classic already relies on it and must be
+supported long-term, so both legacy apps now share one transport, the injected
+script drops from ~154KB to ~24KB, and no end-of-life dependency ships to
+production. The current apps stay pure SignalR.
 
 ## Build
 
 ```bash
-./build.sh
+./build.sh           # the JSONP client — what ships
+./build.sh signalr   # the reference SignalR bundle
 ```
 
-Writes `../cms-presence-client.js`. The dev bearer token is lifted at build time from
-`packages/cps-global-components/src/services/case-locking/case-locking-presence.ts`,
-so there is one source of truth for it.
+Both write `../cms-presence-client.js`, so nginx and the deploy script never change.
+The client carries no credential: the njs adapter lifts the bearer from the presence
+cookie and adds `X-Watchdog-App-Name`.
 
 ## Deploy
 

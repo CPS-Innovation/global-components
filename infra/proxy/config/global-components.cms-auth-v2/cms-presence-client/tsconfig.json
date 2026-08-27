@@ -1,0 +1,43 @@
+{
+  "// why": [
+    "common/*.js is plain JavaScript held to the document mode 5 floor (see",
+    "check-syntax.js). This config does NOT compile it \u2014 nothing is emitted into",
+    "the shipping path. It type-checks the JSDoc (checkJs) and generates",
+    "types/*.d.ts from it, so the surface global-components would import cannot",
+    "drift from the code.",
+    "",
+    "types: [] matters \u2014 without it tsc pulls in @types/node and reports",
+    "unrelated errors from undici-types.",
+    "",
+    "lib is ES5 + DOM: common/ must not reach for anything newer, and the floor",
+    "checker enforces the runtime gaps ES5's lib does not describe.",
+    "",
+    "*.test.js and test-harness.js are Node, not browser code held to the",
+    "mode 5 floor, so they are excluded \u2014 tsc would otherwise follow the",
+    "requires and report on fs, __dirname and process."
+  ],
+  "compilerOptions": {
+    "allowJs": true,
+    "checkJs": true,
+    "declaration": true,
+    "emitDeclarationOnly": true,
+    "target": "ES5",
+    "lib": [
+      "ES5",
+      "DOM"
+    ],
+    "types": [],
+    "strict": true,
+    "noImplicitAny": false,
+    "outFile": "types/common.js",
+    "module": "none"
+  },
+  "include": [
+    "common/*.js",
+    "common/types.d.ts"
+  ],
+  "exclude": [
+    "**/*.test.js",
+    "test-harness.js"
+  ]
+}

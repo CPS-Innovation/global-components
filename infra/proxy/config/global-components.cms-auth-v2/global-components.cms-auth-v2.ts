@@ -32,9 +32,9 @@ const tenantId =
 const clientId =
   (process.env["CPS_GLOBAL_COMPONENTS_CMS_AUTH_CLIENT_ID"] as string) ||
   "8d6133af-9593-47c6-94d0-5c65e9e310f1";
-const redirectUri =
-  (process.env["CPS_GLOBAL_COMPONENTS_CMS_AUTH_REDIRECT_URI"] as string) ||
-  "https://polaris-qa-notprod.cps.gov.uk/init-v2/callback";
+// redirectUri is NOT here: it is build-time injected, so it has to be declared
+// below the dropzone block. njs TDZ-checks forward references to module-level
+// const, and this file has been bitten by that before.
 
 const storageAccount =
   (process.env["CPS_GLOBAL_COMPONENTS_CMS_AUTH_STORAGE_ACCOUNT"] as string) ||
@@ -96,6 +96,13 @@ function _scopeString(dropped: boolean): string {
 // ---------------------------------------------------------------------------
 const BUILD_CLIENT_SECRET = "@@CPS_GLOBAL_COMPONENTS_CMS_AUTH_CLIENT_SECRET@@";
 const BUILD_STORAGE_KEY = "@@CPS_GLOBAL_COMPONENTS_CMS_AUTH_STORAGE_KEY@@";
+// Not a secret, but injected the same way for the same reason: the deployed box
+// has no dependable app settings. Terraform owns those boxes and will clear
+// anything it does not manage, so an env var here is a setting that silently
+// disappears — and the failure mode is AADSTS50011 at runtime, on the redirect,
+// where nobody is looking. Baking it into the artefact makes the deployed js
+// self-describing: whatever callback it names is the one it will use.
+const BUILD_REDIRECT_URI = "@@CPS_GLOBAL_COMPONENTS_CMS_AUTH_REDIRECT_URI@@";
 
 const _fromDropzone = (token: string): string =>
   token.indexOf("@@") === -1 ? token : "";
@@ -106,6 +113,15 @@ const clientSecret =
 const storageKey =
   (process.env["CPS_GLOBAL_COMPONENTS_CMS_AUTH_STORAGE_KEY"] as string) ||
   _fromDropzone(BUILD_STORAGE_KEY);
+
+// The AAD callback. MUST match a redirectUri registered on the app registration
+// (web.redirectUris — this is a confidential-client code flow, so the spa list
+// does not count), or AAD refuses the round trip with AADSTS50011.
+// env -> build-time injection -> QA default, in that order.
+const redirectUri =
+  (process.env["CPS_GLOBAL_COMPONENTS_CMS_AUTH_REDIRECT_URI"] as string) ||
+  _fromDropzone(BUILD_REDIRECT_URI) ||
+  "https://polaris-qa-notprod.cps.gov.uk/init-v2/callback";
 
 // ---------------------------------------------------------------------------
 // Helpers
