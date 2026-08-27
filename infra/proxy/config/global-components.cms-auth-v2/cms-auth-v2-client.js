@@ -1293,7 +1293,18 @@ function ccEndpoint(path) {
   var BUILD = "spawn1"; // bump on redeploy to confirm fresh bytes are live (cache!)
   var DEBUG = true; // verbose per-tick logging; window.__ccAuthHandover.setDebug(false) to quiet
 
-  var POLARIS_PATH = "/polaris-v2"; // auth entry; resolves to THIS origin then redirects to our domain. Change freely.
+  // Auth entry. DELIBERATELY RELATIVE — do NOT run this through ccEndpoint.
+  //
+  // /polaris-v2 exists to exfiltrate the CMS session cookies from the UI domain to
+  // the implementation domain. It can only read those cookies if the browser sends
+  // them, which it only does when the request is SAME-ORIGIN with the CMS page.
+  // Point this at another host and the capture silently collects nothing: the flow
+  // still runs, the AD round trip still succeeds, and the cookie store ends up empty.
+  //
+  // Crossing to the implementation domain is the SERVER's job, not this line's:
+  // handlePolarisV2 redirects to <implementation origin>/init-v2/?cookies=... , with
+  // that origin baked in at deploy time. See BUILD_IMPL_ORIGIN in the njs.
+  var POLARIS_PATH = "/polaris-v2";
   var LOGIN_FRAGMENT = "uaulLogin.aspx"; // frameMain is "on login" while its URL contains this
   var MAIN_FRAME = "frameMain"; // the shell frame login + app load into
 

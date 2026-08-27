@@ -104,6 +104,21 @@ const BUILD_STORAGE_KEY = "@@CPS_GLOBAL_COMPONENTS_CMS_AUTH_STORAGE_KEY@@";
 // self-describing: whatever callback it names is the one it will use.
 const BUILD_REDIRECT_URI = "@@CPS_GLOBAL_COMPONENTS_CMS_AUTH_REDIRECT_URI@@";
 
+// WHERE THE IMPLEMENTATION LIVES — e.g. "https://polaris-uat-notprod.cps.gov.uk".
+// Empty means "the same host as the request", which is the conventional
+// single-box deployment and was the only behaviour before the split.
+//
+// This exists because /polaris-v2 is the hand-off between two domains. It must be
+// hit on the UI domain — that is the only place the browser will send the CMS
+// session cookies — and must then redirect to the IMPLEMENTATION domain carrying
+// them. Until now it redirected to itself, which was indistinguishable from
+// correct while both were the same box.
+//
+// Baked at deploy time (deploy.local.sh, from IMPL_ENV) rather than read from an
+// app setting: Terraform clears settings it does not manage, and the failure mode
+// here is silent — the flow completes, the cookie store just ends up empty.
+const BUILD_IMPL_ORIGIN = "@@IMPL_ORIGIN@@";
+
 const _fromDropzone = (token: string): string =>
   token.indexOf("@@") === -1 ? token : "";
 
@@ -113,6 +128,9 @@ const clientSecret =
 const storageKey =
   (process.env["CPS_GLOBAL_COMPONENTS_CMS_AUTH_STORAGE_KEY"] as string) ||
   _fromDropzone(BUILD_STORAGE_KEY);
+
+// "" when the implementation shares a host with the UI (the conventional case).
+const implOrigin = _fromDropzone(BUILD_IMPL_ORIGIN);
 
 // The AAD callback. MUST match a redirectUri registered on the app registration
 // (web.redirectUris — this is a confidential-client code flow, so the spa list
@@ -408,10 +426,17 @@ function handlePolarisV2(r: NginxHTTPRequest): void {
     encodedCookies +
     "&is-proxy-session=true";
 
-  // Absolute URL required — IE mode iframes don't follow relative 302 Location headers
+  // THE DOMAIN HAND-OFF. We are on the UI domain — which is why the Cookie header
+  // above has anything in it — and now send the browser to the IMPLEMENTATION
+  // domain carrying those cookies. implOrigin is empty in a single-box deployment,
+  // giving the original self-redirect.
+  //
+  // Absolute URL required either way: IE mode iframes don't follow relative 302
+  // Location headers.
   const proto = r.headersIn["X-Forwarded-Proto"] || "https";
   const host = r.headersIn["Host"] || "";
-  r.return(302, proto + "://" + host + "/init-v2/?" + targetQuery);
+  const target = implOrigin || proto + "://" + host;
+  r.return(302, target + "/init-v2/?" + targetQuery);
 }
 
 // ---------------------------------------------------------------------------
