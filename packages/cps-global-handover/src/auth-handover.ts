@@ -70,15 +70,18 @@ export const getConfig = async (scriptUrl: URL): Promise<Config> => {
   return (await response.json()) as Config;
 };
 
-// Best-effort fetch of the authHint. Same-origin relative to the bundle URL
-// (resolves the same way as the host's `../state/auth-hint` lookup) — works
-// for the Polaris variant; on the OS variant it's a cross-origin request to
-// polaris-api and will typically fail unless CORS is configured. Either way
-// the Result discriminator lets callers proceed when not-found.
+// Best-effort fetch of the authHint. Resolved relative to the bundle URL, so it
+// always points at the polaris state endpoint (the same `../state/auth-hint`
+// lookup the host does) regardless of which origin the handover HTML is served
+// from. On the OS variant that makes it a cross-origin credentialed GET, which
+// the state area is built for: the location block sends
+// Access-Control-Allow-Origin/-Credentials and handles the preflight, and the
+// state cookies are SameSite=None; Secure. The Result discriminator still lets
+// callers proceed when not-found.
 //
-// Used for two things downstream: feature-flag bucketing (we need the user's
-// identity to decide whether to do the preemptive AD cascade) and the
-// failure-beacon objectId.
+// Used for three things downstream: feature-flag bucketing (we need the user's
+// identity to decide whether to do the preemptive AD cascade), the
+// failure-beacon objectId, and the OS ClientVar re-publish on transfer-in.
 const tryFetchAuthHint = (scriptUrl: URL): Promise<Result<AuthHint>> =>
   fetchState({
     rootUrl: scriptUrl.href,
@@ -157,6 +160,9 @@ const buildAuthHintFromAccount = (
 // blank/absent turns the feature off. Same objectId the AuthHint write-back
 // below carries (account.localAccountId). Harmless no-op on the polaris-served
 // variant (nothing reads it there); no host gate needed.
+//
+// Also called from the OS transfer-in branches via republishEntraIdClientVar —
+// see the rationale there for why the termination write alone isn't enough.
 const writeEntraIdClientVar = (
   win: Window,
   config: Config,
@@ -180,6 +186,47 @@ const writeEntraIdClientVar = (
       err,
     );
   }
+};
+
+// Re-publish the objectId on every pass through the OS transfer-in, not only on
+// the ad-redirect termination.
+//
+// Two clocks are at play and they aren't coupled. The termination write fires
+// only when MSAL's localStorage cache on the OS origin goes cold — roughly once
+// a refresh-token lifetime. OutSystems clears its ClientVars wholesale on its
+// own, shorter cadence. So a user can lose the ClientVar and then keep working
+// for a long stretch with auth still warm, never tripping the one event that
+// would rewrite it. Transfer-in happens far more often than reauth, which makes
+// it the right clock to hang the write on.
+//
+// objectId comes from the persisted auth-hint rather than a live MSAL account:
+// no AD work happens on this path (see ENSURE_AD_ON_OS_HANDOVER) and we want to
+// keep it that way. `authResult.objectId` is required by AuthSchema, so a found
+// hint always carries one. The state endpoint is CORS-enabled with
+// SameSite=None cookies, so this read works from the OS origin.
+//
+// Ordering matters as much as frequency: this has to happen BEFORE we navigate
+// on to the OS app, so the value is in place by the time OS boots and reads its
+// ClientVars. Called once, at the top of the cookie-return stage — see there for
+// why that single site covers every transfer-in. A hint we can't fetch, or a
+// config with no key, writes nothing — writeEntraIdClientVar never clears or
+// blanks an existing value.
+const republishEntraIdClientVar = async (
+  win: Window,
+  config: Config,
+  scriptUrl: URL,
+): Promise<void> => {
+  if (!config.OS_ENTRA_ID_STORAGE_KEY) {
+    // Feature off — skip the fetch entirely rather than pay for a round trip
+    // whose result we would throw away.
+    return;
+  }
+  const authHint = await tryFetchAuthHint(scriptUrl);
+  writeEntraIdClientVar(
+    win,
+    config,
+    authHint.found ? authHint.result.authResult.objectId : undefined,
+  );
 };
 
 // Shared AD-validation routine. Called from three places:
@@ -352,6 +399,16 @@ export const dispatchHandover = async (
 
   switch (stage) {
     case HANDOVER_STAGES.OS_COOKIE_RETURN: {
+      // The single door into the OS handover — both producers of a handover URL
+      // (the menu's createOutboundUrlDirect and the njs redirect chain) enter
+      // here, and os-token-return is only ever reached from the needs-token
+      // branch below. So one write here covers every transfer-in, on both exits,
+      // and lands before any navigation on to the OS app — which is what
+      // matters, since OS reads its ClientVars at bootstrap. On the needs-token
+      // path the value simply persists across the token-handover bounce (same
+      // origin, and nothing on that leg touches the key).
+      await republishEntraIdClientVar(win, config, scriptUrl);
+
       const outcome = handleOsCookieReturn(win, {
         tokenHandoverUrl: `${scriptUrl.origin}/auth-refresh-cms-modern-token`,
         cmsAuthStorageKeys: config.CMS_AUTH_STORAGE_KEYS!,
@@ -376,6 +433,8 @@ export const dispatchHandover = async (
       const outcome = await handleOsTokenReturn(win, {
         cmsAuthStorageKeys: config.CMS_AUTH_STORAGE_KEYS!,
       });
+      // No ClientVar write here — we only arrive at this stage via the
+      // cookie-return needs-token branch, which has already written.
       if (ENSURE_AD_ON_OS_HANDOVER) {
         // Token stored — preemptive AD check before the user reaches target.
         // In-process call, not a page navigation.
