@@ -15,7 +15,7 @@ set -uo pipefail
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 failed=0
 
-for f in "$DIR"/common/*.test.js "$DIR"/modern/*.test.js; do
+for f in "$DIR"/common/*.test.js "$DIR"/classic/*.test.js "$DIR"/modern/*.test.js; do
   [ -f "$f" ] || continue
   echo
   echo "=== $(basename "$(dirname "$f")")/$(basename "$f") ==="

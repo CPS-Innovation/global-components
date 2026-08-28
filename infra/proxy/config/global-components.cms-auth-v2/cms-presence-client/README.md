@@ -1,12 +1,22 @@
-# cms-presence-client — presence for CMS Modern and DCF
+# cms-presence-client — presence for the legacy CMS apps
 
-A single injected script that registers presence for **CMS Modern** (`/viewer/`) and
-**DCF** (`/dcf/`) against the case-locking API, and shows who else is on the case in
-a bar pinned to the bottom of the viewport.
+Source for **both** injected clients. One build, two artefacts, one shared core:
 
-Sections: `<caseId>:CASE` for Modern, `<caseId>:CASE_REVIEW` for DCF. The app name
-`"CMS Modern"` covers both — they are one app in users' minds — and **must** be sent,
-because the njs adapter defaults a missing `appName` to `"CMS Classic"`.
+| artefact | injected into | engine | sections |
+|---|---|---|---|
+| `cms-presence-client.js` | CMS Modern (`/viewer/`), DCF (`/dcf/`) | document mode 11 | `<caseId>:CASE`, `<caseId>:CASE_REVIEW` |
+| `cms-auth-v2-client.js` | the CMS Classic frameset shell | document mode **5** | `:VICTIM_WITNESS:<id>`, `:CASE_REVIEW`, `:DEFENDANT:<id>` |
+
+Both register against the case-locking API over JSONP and show who else is on the
+case. The Classic artefact also carries the contact-edit event sink and the auth
+iframe hand-off, which have nothing to do with Modern.
+
+App names — `"CMS Modern"` (covering DCF too: one app in users' minds) and
+`"CMS Classic"` — **must** be sent, because the njs adapter defaults a missing
+`appName` to `"CMS Classic"` and would mislabel Modern.
+
+> `cms-auth-v2-client.js` one level up is **generated**. It was a hand-edited
+> single file until 2026-08-28; edit the sources here and run `./build.sh`.
 
 ## Layout
 
@@ -16,50 +26,69 @@ common/   shared with the Classic client — DOCUMENT MODE 5 floor
   presence-origin.js     CCPOrigin: which host serves our endpoints
   presence-roster.js     CCPRoster: reconciliation by version, per-user dedupe
   presence-jsonp.js      CCPJsonp: the JSONP call, with pooled callback names
+  presence-locator.js    CCPLocator: detectors in, active sections out
+  presence-sessions.js   CCPSessions: a session per active section, and the
+                         failure semantics (410, timeout, create retry)
   *.test.js              unit tests, beside the file they test
   types.d.ts             the API's wire shapes (hand-written: they describe the
                          SERVER's contract, so there is nothing to infer them from)
 types/    GENERATED — do not edit
   common.d.ts            tsc's output: our functions, inferred from the JSDoc
   index.d.ts             THE PUBLISHED FILE: wire shapes + our functions, merged
-modern/   Modern/DCF only — document mode 11, ES5 floor
-  context.js             URL -> app / case / section, and the JSONP base
-  bar.js                 the GDS presence bar
-  transport-jsonp.js     the shipping transport: create/heartbeat/poll/remove
-  transport-signalr.js   the other one: loads the bundle below on demand
-  main.js                roster, bar, transport selection, diagnostics, boot
+classic/  CMS Classic only — document mode 5, so the SAME floor as common/
+  dom.js                 reading CMS's own state: hidden fields, frame walking
+  sections.js            the frame readers, and the section registry
+  banner.js              the menu-bar icon, its popup, and the tooltip
+  event-sink.js          contact-edit events, and the parked HTTP helpers
+  main.js                the observation loop and wiring
+  auth.js                concern 2: the login -> auth iframe hand-off
   *.test.js              unit tests, beside the file they test
-signalr/  LAZILY LOADED — bundled with vendor into cms-presence-signalr.js
-  plugin.js              the SignalR connection lifecycle
+modern/   Modern/DCF only — document mode 11, ES5 floor
+  sections.js            the URL detectors, and the JSONP base
+  bar.js                 the GDS presence bar
+  main.js                wiring, diagnostics, boot
+  *.test.js              unit tests, beside the file they test
 check-syntax.js          the floor gate (see below)
 test-harness.js          load() + assertions for the tests
 cms-presence-client.signalr.src.js   reference SignalR client, not shipped
 ```
 
-## Two transports
+## How a client is put together
 
-The presence API sends the same snapshots down either pipe, so the roster, the bar
-and the URL watching are shared and only the talking differs:
+Four layers, and the middle two are shared with Classic:
 
-| | `jsonp` | `signalr` |
-|---|---|---|
-| ships | **yes**, the default | no — under evaluation |
-| how | `<script src>` polling, 3s | WebSocket push |
-| weight | in the bundle | +127KB of vendor, **fetched only when selected** |
-| cross-domain | works: zone 1406 does not gate script tags | its negotiate step is an XHR, which zone 1406 *does* gate |
-
-Switch at runtime in a console on the page:
-
-```js
-__ccPresence.setTransport("signalr")   // fetches cms-presence-signalr.js, then reconnects
-__ccPresence.status()                  // .transport, .stats — including how the load went
-__ccPresence.setTransport("jsonp")     // back
+```
+locator    "which sections am I in?"      app-specific detectors, shared runner
+sessions   "hold one session per section"  common/  — create, heartbeat, poll, remove
+roster     "who is present?"               common/  — reconciled by version, deduped
+UI         "show it"                       app-specific (a GDS bar here, a menu-bar
+                                           icon in Classic)
 ```
 
-`build.sh` emits **two** artefacts, and `deploy.local.sh` uploads both to the same
-container — the client finds its sibling by its own `<script src>`, so they must not
-be separated. See [SIGNALR-CROSS-DOMAIN.md](SIGNALR-CROSS-DOMAIN.md) for what the
-SignalR option is actually testing and how to read the result.
+**Transport is JSONP**, the same as Classic — one mechanism for both legacy apps.
+A working SignalR transport is archived, with rehydration instructions, under
+[`infra/proxy/reference/signalr-presence-transport/`](../../../reference/signalr-presence-transport/).
+It was retired on merit, not on feasibility: cross-origin SignalR is *proven* to
+work in this estate.
+
+**Sections are plural.** A user can be on a case review and have a defendant panel
+open at the same time, and both are reported. Both clients used to return the first
+match and stop.
+
+**To support a new section, add a detector.** In `modern/sections.js` that is a URL
+pattern and nothing else, because there the address is the whole context. In
+`classic/sections.js` it is a URL fragment (which frame) plus a reader (is it
+active, and for which subject), because Classic has no addressable state. Either
+way nothing else changes — not the sessions, not the roster, not the UI.
+
+**Detector order is priority.** Classic's banner is about one case and anchors its
+popup to one frame, so it follows the first section found.
+
+```js
+__ccPresence.status()          // location, active sections, session stats
+__ccPresence.describeRoster()  // who is present, across all sections
+__ccPresence.rosterBySection() // the same, grouped
+```
 
 ## Building
 

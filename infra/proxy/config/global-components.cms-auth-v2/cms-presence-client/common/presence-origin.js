@@ -75,8 +75,12 @@ CCPOrigin.resolve = function (marker, path) {
  * that the script cannot know and must not hard-code. Taking the directory from
  * our own tag means a bundle deployed anywhere finds its siblings.
  *
+ * NOT CURRENTLY CALLED by the shipping client: its only consumer was the on-demand
+ * SignalR bundle, now archived under reference/signalr-presence-transport/. Kept
+ * because any second artefact needs exactly this, and it is cheap and tested.
+ *
  * @param {string} marker a distinctive part of our own script's filename
- * @param {string} filename e.g. "cms-presence-signalr.js"
+ * @param {string} filename e.g. "cms-presence-extra.js"
  * @returns {string} the absolute URL, or `filename` unchanged when the tag is not found
  */
 CCPOrigin.sibling = function (marker, filename) {

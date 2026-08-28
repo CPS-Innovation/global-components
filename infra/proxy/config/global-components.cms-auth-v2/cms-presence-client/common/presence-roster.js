@@ -23,6 +23,7 @@ var CCPRoster = {};
  *   people: function(): CCPPerson[],
  *   describe: function(): string,
  *   sections: function(): Object,
+ *   forget: function(string): boolean,
  *   clear: function(): void
  * }}
  */
@@ -161,6 +162,31 @@ CCPRoster.createRoster = function () {
 
     sections: function () {
       return sections;
+    },
+
+    // Forget ONE section — its session has gone, so its roster is no longer
+    // evidence of anything. Distinct from clear(): the other sections a user is
+    // in are still live and their rosters still true.
+    // Rebuilt rather than deleted: `delete` is barred at the mode 5 floor (it
+    // cannot remove a window expando there, and the checker cannot tell a plain
+    // object from a window). A roster holds a handful of sections, so copying is
+    // free.
+    forget: function (sectionId) {
+      var next = {};
+      var key;
+      var found = false;
+      for (key in sections) {
+        if (!sections.hasOwnProperty(key)) {
+          continue;
+        }
+        if (key === sectionId) {
+          found = true;
+        } else {
+          next[key] = sections[key];
+        }
+      }
+      sections = next;
+      return found;
     },
 
     clear: function () {

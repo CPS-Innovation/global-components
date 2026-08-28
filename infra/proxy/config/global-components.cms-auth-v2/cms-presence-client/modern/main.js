@@ -1,40 +1,30 @@
-/* modern/main.js — boot and transport selection. MODERN/DCF ONLY.
+/* modern/main.js — boot and wiring. MODERN/DCF ONLY.
  *
- * Holds ONE presence session for the section the current screen represents:
- *   CMS Modern -> "<caseId>:CASE"          (on the case)
- *   DCF        -> "<caseId>:CASE_REVIEW"   (reviewing the case)
+ * Thin by design. Everything with a decision in it lives in a shared module:
+ *   modern/sections.js       which sections we are in (URL detectors)
+ *   common/presence-sessions which sessions to hold, and what to do when they fail
+ *   common/presence-roster   who is present, reconciled by version
+ *   modern/bar.js            what that looks like on screen
+ * This file owns only the loop that connects them, and the diagnostics surface.
  *
- * This file owns everything that does NOT depend on how we talk to the server:
- * reading the URL, the roster, the bar, and noticing when the user has moved to
- * another case. The talking itself belongs to a transport —
- *   modern/transport-jsonp.js     what ships
- *   modern/transport-signalr.js   loaded on demand, under evaluation
- * — which are interchangeable because the presence API sends the same snapshots
- * down either pipe. Switch at runtime:
- *
- *   __ccPresence.setTransport("signalr")
- *
- * and watch __ccPresence.status().
+ * TRANSPORT: JSONP, the same as Classic — one mechanism for both legacy apps. A
+ * working SignalR implementation is archived under
+ * infra/proxy/reference/signalr-presence-transport/ with instructions for bringing
+ * it back; it was retired on merit, not on feasibility.
  */
 
 var JSONP_PATH = "/global-components/presence-jsonp";
 
-// Reported to the hub as the joining application. DCF and CMS Modern are one app
-// in users' minds, so the presence API models them under a single name.
+// Reported to the presence API as the joining application. DCF and CMS Modern are
+// one app in users' minds, so the API models them under a single name.
 var APP_NAME = "CMS Modern";
 
-// JSONP shipping. SignalR is an experiment until we know whether its negotiate
-// XHR survives the cross-domain estate; see SIGNALR-CROSS-DOMAIN.md.
-var DEFAULT_TRANSPORT = "jsonp";
-
-var TICK_MS = 3000; // JSONP heartbeat + poll, matching the Classic client
+var TICK_MS = 3000; // heartbeat + poll, matching the Classic client
 var TIMEOUT_MS = 8000; // per-call watchdog
-var KEEPALIVE_MS = 5000; // SignalR: server evicts an idle session after 10s
 var POLL_MS = 2000; // how often to re-read the URL
 
 var messages = [];
 var verbose = false;
-var skipNegotiation = false;
 
 function log() {
   var args = Array.prototype.slice.call(arguments);
@@ -55,114 +45,73 @@ function isVerbose() {
   return verbose;
 }
 
-function isSkipNegotiation() {
-  return skipNegotiation;
-}
-
 var BASE = resolveJsonpBase(JSONP_PATH);
 var roster = CCPRoster.createRoster();
-
-var transportName = DEFAULT_TRANSPORT;
-var transport = null;
-var activeSectionId = "";
 
 function draw() {
   // An empty roster removes the bar rather than drawing an empty one.
   renderBar(roster.people(), APP_NAME);
 }
 
-// Every transport reports the same way: a list of notifications in, a redraw out
-// if anything actually changed. Version-guarded inside the roster, so an
-// out-of-order snapshot from either pipe is discarded rather than applied.
+// Snapshots arrive per section and are version-guarded inside the roster, so
+// polls from several sections merge without ordering assumptions.
 function onNotifications(list) {
   if (roster.apply(list)) {
-    log("roster", activeSectionId, roster.describe());
+    log("roster", roster.describe());
     draw();
   } else if (verbose) {
     log("no change");
   }
 }
 
-// "What you are holding is now fiction" — a dropped session, a reconnect, or a
-// deliberate leave. Never a partial update; the next snapshot rebuilds it.
-function onReset() {
-  roster.clear();
-  draw();
+// A section we no longer hold a session for — left, or evicted. Its roster
+// described a world we can no longer vouch for; the other sections stand.
+function onSectionDropped(sectionId) {
+  if (roster.forget(sectionId)) {
+    log("forgot section", sectionId);
+    draw();
+  }
 }
 
-function createTransport(name) {
-  if (name === "signalr") {
-    return CCPTransportSignalr.create({
-      appName: APP_NAME,
-      keepAliveMs: KEEPALIVE_MS,
-      log: log,
-      verbose: isVerbose,
-      skipNegotiation: isSkipNegotiation,
-      onNotifications: onNotifications,
-      onReset: onReset
-    });
-  }
-  return CCPTransportJsonp.create({
+var sessions = CCPSessions.createSessions({
+  call: CCPJsonp.createJsonp({
     base: BASE,
     appName: APP_NAME,
     timeoutMs: TIMEOUT_MS,
-    tickMs: TICK_MS,
-    log: log,
-    verbose: isVerbose,
-    onNotifications: onNotifications,
-    onReset: onReset
-  });
-}
+    log: log
+  }),
+  appName: APP_NAME,
+  tickMs: TICK_MS,
+  log: log,
+  verbose: isVerbose,
+  onNotifications: onNotifications,
+  onSectionDropped: onSectionDropped
+});
 
-function stopSession() {
-  if (transport) {
-    transport.stop();
-  }
-  activeSectionId = "";
-}
+var lastReported = "";
 
+// Called on a timer and on hashchange. setDesired is idempotent and cheap — a
+// section already held is left strictly alone — so this re-asserts the truth
+// every pass rather than trying to spot changes itself.
 function reconcile() {
-  var wanted = sectionIdForContext(readContext()) || "";
-  if (wanted === activeSectionId) {
-    return;
+  var ids = activeSectionIds();
+  var key = ids.join("|");
+  if (key !== lastReported) {
+    lastReported = key;
+    log("sections", key || "(none)");
   }
-  if (activeSectionId) {
-    transport.stop();
-  }
-  activeSectionId = wanted;
-  if (wanted) {
-    transport.start(wanted);
-  }
+  sessions.setDesired(ids);
 }
-
-// Tear the current transport down and rebuild on the same section. Used by both
-// setTransport and a bare reconnect(), because they are the same operation.
-function reconnect() {
-  var section = activeSectionId;
-  stopSession();
-  transport = createTransport(transportName);
-  log("transport", transportName);
-  if (section) {
-    activeSectionId = section;
-    transport.start(section);
-  }
-  return transportName;
-}
-
-transport = createTransport(transportName);
 
 window.__ccPresence = {
   messages: messages,
-  context: readContext,
   status: function () {
     return {
       base: BASE,
       appName: APP_NAME,
-      transport: transportName,
-      activeSectionId: activeSectionId,
-      tickEveryMs: TICK_MS,
-      stats: transport.stats(),
-      context: readContext()
+      location: describeLocation(),
+      sections: activeSections(),
+      sessions: sessions.stats()
     };
   },
   roster: function () {
@@ -172,37 +121,16 @@ window.__ccPresence = {
     return roster.describe();
   },
   sections: function () {
+    return activeSections();
+  },
+  rosterBySection: function () {
     return roster.sections();
   },
   reconcile: reconcile,
-  reconnect: reconnect,
-  leave: stopSession,
-  transportName: function () {
-    return transportName;
-  },
-  /**
-   * Switch transport and reconnect on the same section. "signalr" fetches its
-   * vendor bundle on first use, so give it a moment before judging status().
-   */
-  setTransport: function (name) {
-    var wanted = name === "signalr" ? "signalr" : "jsonp";
-    if (wanted === transportName) {
-      log("transport already", wanted);
-      return wanted;
-    }
-    transportName = wanted;
-    return reconnect();
-  },
-  /**
-   * SignalR only, and only for comparing the two failure modes: true avoids the
-   * negotiate XHR (so no zone-1406 dialog) at the price of never receiving a
-   * push, because negotiate is what puts a client in Azure SignalR Service's
-   * delivery path. Call reconnect() to apply.
-   */
-  setSkipNegotiation: function (on) {
-    skipNegotiation = !!on;
-    log("skipNegotiation", skipNegotiation, "— call reconnect() to apply");
-    return skipNegotiation;
+  leave: function () {
+    sessions.stop();
+    roster.clear();
+    draw();
   },
   setVerbose: function (on) {
     verbose = !!on;
@@ -211,7 +139,7 @@ window.__ccPresence = {
   }
 };
 
-log("client loaded", window.location.href, "base=" + BASE, "transport=" + transportName);
+log("client loaded", window.location.href, "base=" + BASE);
 reconcile();
 window.setInterval(reconcile, POLL_MS);
 
@@ -219,6 +147,6 @@ if (window.addEventListener) {
   window.addEventListener("hashchange", reconcile, false);
   // Best-effort tidy-up so the server need not wait out the TTL.
   window.addEventListener("unload", function () {
-    stopSession();
+    sessions.stop();
   }, false);
 }

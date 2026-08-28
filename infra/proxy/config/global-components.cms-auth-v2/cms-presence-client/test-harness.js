@@ -34,6 +34,7 @@ function load(files, names, env) {
 // page than a guest script should.
 function fakeWindow(location) {
   var timers = [];
+  var intervals = [];
   return {
     location: location || { pathname: "/", hash: "" },
     setTimeout: function (fn, ms) {
@@ -41,10 +42,26 @@ function fakeWindow(location) {
       return timers.length;
     },
     clearTimeout: function () {},
-    setInterval: function () {
-      return 0;
+    setInterval: function (fn, ms) {
+      intervals.push({ fn: fn, ms: ms });
+      return intervals.length;
     },
-    clearInterval: function () {},
+    clearInterval: function (id) {
+      if (id && intervals[id - 1]) {
+        intervals[id - 1] = null;
+      }
+    },
+    // Test hooks: the recurring pass (heartbeat/poll) is timer-driven, so tests
+    // have to be able to run one.
+    __intervals: intervals,
+    __tick: function () {
+      var i;
+      for (i = 0; i < intervals.length; i++) {
+        if (intervals[i]) {
+          intervals[i].fn();
+        }
+      }
+    },
     // Test hooks: inspect scheduled timers, or fire one by index.
     __timers: timers,
     __fire: function (i) {
