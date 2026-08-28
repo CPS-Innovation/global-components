@@ -64,9 +64,19 @@ function fakeDocument(scriptTags) {
       }
     },
     createElement: function () {
-      return { type: "", src: "", parentNode: null, style: {}, id: "" };
+      return { type: "", src: "", parentNode: null, style: {}, id: "", onload: null, onerror: null, onreadystatechange: null, readyState: "" };
     },
-    getElementsByTagName: function () {
+    getElementsByTagName: function (tag) {
+      // "head" is where lazily-loaded scripts go; everything else in these tests
+      // is asking for the page's <script> tags.
+      if (String(tag).toLowerCase() === "head") {
+        return [{
+          appendChild: function (node) {
+            appended.push(node);
+            return node;
+          }
+        }];
+      }
       return scriptTags || [];
     },
     getElementById: function () {

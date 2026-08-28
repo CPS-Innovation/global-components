@@ -25,12 +25,43 @@ types/    GENERATED — do not edit
 modern/   Modern/DCF only — document mode 11, ES5 floor
   context.js             URL -> app / case / section, and the JSONP base
   bar.js                 the GDS presence bar
-  main.js                session lifecycle, diagnostics, boot
+  transport-jsonp.js     the shipping transport: create/heartbeat/poll/remove
+  transport-signalr.js   the other one: loads the bundle below on demand
+  main.js                roster, bar, transport selection, diagnostics, boot
   *.test.js              unit tests, beside the file they test
+signalr/  LAZILY LOADED — bundled with vendor into cms-presence-signalr.js
+  plugin.js              the SignalR connection lifecycle
 check-syntax.js          the floor gate (see below)
 test-harness.js          load() + assertions for the tests
 cms-presence-client.signalr.src.js   reference SignalR client, not shipped
 ```
+
+## Two transports
+
+The presence API sends the same snapshots down either pipe, so the roster, the bar
+and the URL watching are shared and only the talking differs:
+
+| | `jsonp` | `signalr` |
+|---|---|---|
+| ships | **yes**, the default | no — under evaluation |
+| how | `<script src>` polling, 3s | WebSocket push |
+| weight | in the bundle | +127KB of vendor, **fetched only when selected** |
+| cross-domain | works: zone 1406 does not gate script tags | its negotiate step is an XHR, which zone 1406 *does* gate |
+
+Switch at runtime in a console on the page:
+
+```js
+__ccPresence.setTransport("signalr")   // fetches cms-presence-signalr.js, then reconnects
+__ccPresence.status()                  // .transport, .stats — including how the load went
+__ccPresence.setTransport("jsonp")     // back
+```
+
+`build.sh` emits **two** artefacts, and `deploy.local.sh` uploads both to the same
+container — the client finds its sibling by its own `<script src>`, so they must not
+be separated. See [SIGNALR-CROSS-DOMAIN.md](SIGNALR-CROSS-DOMAIN.md) for what the
+SignalR option is actually testing and how to read the result.
+
+## Building
 
 `build.sh` concatenates `common/` then `modern/` into one IIFE. Each common module
 declares its own `CCP*` namespace — one per file, not one shared — because tsc

@@ -60,4 +60,27 @@ h.test("works for any of our endpoints, not just the JSONP one", function () {
   h.assertEqual(o.resolve("cms-auth-v2-client.js", "/polaris-v2"), "https://polaris-uat-notprod.cps.gov.uk/polaris-v2");
 });
 
+h.describe("CCPOrigin.sibling");
+
+var BUNDLE = "cms-presence-signalr.js";
+
+h.test("keeps the directory as well as the host — the deploy prefix is per-environment", function () {
+  var o = withScripts([{ src: "https://polaris-uat-notprod.cps.gov.uk/global-components/uat/cms-presence-client.js" }]);
+  h.assertEqual(o.sibling(MARKER, BUNDLE), "https://polaris-uat-notprod.cps.gov.uk/global-components/uat/cms-presence-signalr.js");
+});
+
+h.test("a cache-busting query on our own tag does not end up in the sibling's path", function () {
+  var o = withScripts([{ src: "https://polaris-uat-notprod.cps.gov.uk/global-components/test/cms-presence-client.js?v=7" }]);
+  h.assertEqual(o.sibling(MARKER, BUNDLE), "https://polaris-uat-notprod.cps.gov.uk/global-components/test/cms-presence-signalr.js");
+});
+
+h.test("works at the root, where there is no directory to speak of", function () {
+  var o = withScripts([{ src: "https://polaris-uat-notprod.cps.gov.uk/cms-presence-client.js" }]);
+  h.assertEqual(o.sibling(MARKER, BUNDLE), "https://polaris-uat-notprod.cps.gov.uk/cms-presence-signalr.js");
+});
+
+h.test("falls back to the bare filename when our tag cannot be found", function () {
+  h.assertEqual(withScripts([]).sibling(MARKER, BUNDLE), BUNDLE);
+});
+
 h.summarise();

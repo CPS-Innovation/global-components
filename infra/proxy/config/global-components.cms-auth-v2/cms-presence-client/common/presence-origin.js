@@ -65,3 +65,36 @@ CCPOrigin.resolve = function (marker, path) {
   var origin = CCPOrigin.scriptOrigin(marker);
   return origin ? origin + path : path;
 };
+
+/**
+ * The URL of a file served ALONGSIDE this script — same host and same directory.
+ *
+ * `resolve` is for endpoints, whose paths are fixed and known. This is for our own
+ * sibling assets, whose directory is not: the client is deployed under a per-
+ * environment prefix ("/global-components/uat/…", "/global-components/test/…")
+ * that the script cannot know and must not hard-code. Taking the directory from
+ * our own tag means a bundle deployed anywhere finds its siblings.
+ *
+ * @param {string} marker a distinctive part of our own script's filename
+ * @param {string} filename e.g. "cms-presence-signalr.js"
+ * @returns {string} the absolute URL, or `filename` unchanged when the tag is not found
+ */
+CCPOrigin.sibling = function (marker, filename) {
+  var scripts, i, src, cut;
+  try {
+    scripts = document.getElementsByTagName("script");
+    for (i = 0; i < scripts.length; i++) {
+      src = scripts[i].src ? String(scripts[i].src) : "";
+      if (src.indexOf(marker) !== -1) {
+        src = src.replace(/[?#][\s\S]*$/, "");
+        cut = src.lastIndexOf("/");
+        if (cut !== -1) {
+          return src.substring(0, cut + 1) + filename;
+        }
+      }
+    }
+  } catch (e) {
+    // a hostile or unusual DOM must not stop the client loading
+  }
+  return filename;
+};

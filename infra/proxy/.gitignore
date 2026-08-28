@@ -15,7 +15,8 @@ config/**/*.js
 # Presence client (CMS Modern + DCF): everything under cms-presence-client/ is
 # hand-written source — common/ (shared with Classic), modern/, the pinned vendor
 # libraries and the floor checker. Only the CONCATENATED bundle is generated, and
-# it lives one level up as cms-presence-client.js, so it stays ignored.
+# it lives one level up — as cms-presence-client.js and, for the optional SignalR
+# transport, cms-presence-signalr.js — so both stay ignored.
 !config/global-components.cms-auth-v2/cms-presence-client/**/*.js
 
 # Deployment secrets and backups

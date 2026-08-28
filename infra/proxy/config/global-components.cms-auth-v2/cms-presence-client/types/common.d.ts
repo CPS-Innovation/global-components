@@ -36,6 +36,20 @@ declare namespace CCPOrigin {
      * @returns {string} the absolute URL, or `path` unchanged when the tag is not found
      */
     function resolve(marker: string, path: string): string;
+    /**
+     * The URL of a file served ALONGSIDE this script — same host and same directory.
+     *
+     * `resolve` is for endpoints, whose paths are fixed and known. This is for our own
+     * sibling assets, whose directory is not: the client is deployed under a per-
+     * environment prefix ("/global-components/uat/…", "/global-components/test/…")
+     * that the script cannot know and must not hard-code. Taking the directory from
+     * our own tag means a bundle deployed anywhere finds its siblings.
+     *
+     * @param {string} marker a distinctive part of our own script's filename
+     * @param {string} filename e.g. "cms-presence-signalr.js"
+     * @returns {string} the absolute URL, or `filename` unchanged when the tag is not found
+     */
+    function sibling(marker: string, filename: string): string;
 }
 declare namespace CCPRoster {
     /**

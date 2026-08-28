@@ -1,29 +1,40 @@
-/* modern/main.js — session lifecycle and boot. MODERN/DCF ONLY.
+/* modern/main.js — boot and transport selection. MODERN/DCF ONLY.
  *
  * Holds ONE presence session for the section the current screen represents:
  *   CMS Modern -> "<caseId>:CASE"          (on the case)
  *   DCF        -> "<caseId>:CASE_REVIEW"   (reviewing the case)
  *
- * Failure semantics follow the Classic client, which is the reference for this
- * API: a 410 on heartbeat means the Watchdog has forgotten the session, so
- * recreate it; a transient timeout (null) is retried on the next tick. We differ
- * on one point deliberately — Classic stops permanently on a non-410 heartbeat
- * error, whereas an observe-only bar is better off continuing to try than going
- * dark for the rest of the session.
+ * This file owns everything that does NOT depend on how we talk to the server:
+ * reading the URL, the roster, the bar, and noticing when the user has moved to
+ * another case. The talking itself belongs to a transport —
+ *   modern/transport-jsonp.js     what ships
+ *   modern/transport-signalr.js   loaded on demand, under evaluation
+ * — which are interchangeable because the presence API sends the same snapshots
+ * down either pipe. Switch at runtime:
+ *
+ *   __ccPresence.setTransport("signalr")
+ *
+ * and watch __ccPresence.status().
  */
 
 var JSONP_PATH = "/global-components/presence-jsonp";
 
-// DCF and CMS Modern are one app in users' minds, so the presence API models them
-// under a single name.
+// Reported to the hub as the joining application. DCF and CMS Modern are one app
+// in users' minds, so the presence API models them under a single name.
 var APP_NAME = "CMS Modern";
 
-var TICK_MS = 3000; // heartbeat + poll, matching the Classic client
+// JSONP shipping. SignalR is an experiment until we know whether its negotiate
+// XHR survives the cross-domain estate; see SIGNALR-CROSS-DOMAIN.md.
+var DEFAULT_TRANSPORT = "jsonp";
+
+var TICK_MS = 3000; // JSONP heartbeat + poll, matching the Classic client
 var TIMEOUT_MS = 8000; // per-call watchdog
+var KEEPALIVE_MS = 5000; // SignalR: server evicts an idle session after 10s
 var POLL_MS = 2000; // how often to re-read the URL
 
 var messages = [];
 var verbose = false;
+var skipNegotiation = false;
 
 function log() {
   var args = Array.prototype.slice.call(arguments);
@@ -40,145 +51,105 @@ function log() {
   }
 }
 
+function isVerbose() {
+  return verbose;
+}
+
+function isSkipNegotiation() {
+  return skipNegotiation;
+}
+
 var BASE = resolveJsonpBase(JSONP_PATH);
 var roster = CCPRoster.createRoster();
-var call = CCPJsonp.createJsonp({ base: BASE, appName: APP_NAME, timeoutMs: TIMEOUT_MS, log: log });
 
-var sessionId = "";
+var transportName = DEFAULT_TRANSPORT;
+var transport = null;
 var activeSectionId = "";
-var tickTimer = null;
-var stats = { creates: 0, heartbeats: 0, polls: 0, errors: 0, restarts: 0, lastTickAt: null };
 
 function draw() {
+  // An empty roster removes the bar rather than drawing an empty one.
   renderBar(roster.people(), APP_NAME);
 }
 
-function stopTicking() {
-  if (tickTimer) {
-    window.clearInterval(tickTimer);
-    tickTimer = null;
+// Every transport reports the same way: a list of notifications in, a redraw out
+// if anything actually changed. Version-guarded inside the roster, so an
+// out-of-order snapshot from either pipe is discarded rather than applied.
+function onNotifications(list) {
+  if (roster.apply(list)) {
+    log("roster", activeSectionId, roster.describe());
+    draw();
+  } else if (verbose) {
+    log("no change");
   }
 }
 
-function stopSession() {
-  stopTicking();
-  if (sessionId) {
-    log("removing session", sessionId, activeSectionId);
-    // Best-effort DELETE on leave. NOT guaranteed on tab-close — the server's TTL
-    // is the real backstop, which is why the heartbeat exists at all.
-    call("remove", { sid: sessionId }, function () {});
-  }
-  sessionId = "";
-  activeSectionId = "";
+// "What you are holding is now fiction" — a dropped session, a reconnect, or a
+// deliberate leave. Never a partial update; the next snapshot rebuilds it.
+function onReset() {
   roster.clear();
-  removeBar();
+  draw();
 }
 
-// A 410 means the Watchdog no longer knows this session. Without one we cannot
-// poll, so tear down and rebuild on the same section.
-function restartSession() {
-  var sid = activeSectionId;
-  stats.restarts = stats.restarts + 1;
-  stopSession();
-  if (sid) {
-    startSession(sid);
-  }
-}
-
-function tick() {
-  try {
-    if (!sessionId) {
-      return;
-    }
-    var mine = sessionId; // capture: ignore callbacks whose session was superseded
-    stats.lastTickAt = new Date().toISOString();
-
-    call("heartbeat", { sid: mine }, function (data) {
-      if (sessionId !== mine) {
-        return;
-      }
-      if (data === null) {
-        return; // transient timeout — retry next tick
-      }
-      if (data.jsonpError) {
-        stats.errors = stats.errors + 1;
-        if (data.jsonpError.indexOf("410") > -1) {
-          log("heartbeat: session expired (410) — recreating");
-          restartSession();
-        } else {
-          log("heartbeat FAILED", data.jsonpError);
-        }
-        return;
-      }
-      stats.heartbeats = stats.heartbeats + 1;
-      if (verbose) {
-        log("heartbeat ok", "#" + stats.heartbeats);
-      }
+function createTransport(name) {
+  if (name === "signalr") {
+    return CCPTransportSignalr.create({
+      appName: APP_NAME,
+      keepAliveMs: KEEPALIVE_MS,
+      log: log,
+      verbose: isVerbose,
+      skipNegotiation: isSkipNegotiation,
+      onNotifications: onNotifications,
+      onReset: onReset
     });
-
-    call("poll", { sid: mine }, function (data) {
-      if (sessionId !== mine) {
-        return;
-      }
-      if (data === null) {
-        if (verbose) {
-          log("poll: no response (timeout)");
-        }
-        return;
-      }
-      if (data.jsonpError) {
-        stats.errors = stats.errors + 1;
-        log("poll FAILED", data.jsonpError);
-        return;
-      }
-      stats.polls = stats.polls + 1;
-      // An empty array applies nothing and leaves the current rosters standing.
-      if (roster.apply(data)) {
-        log("roster", activeSectionId, roster.describe());
-        draw();
-      } else if (verbose) {
-        log("poll: no change", "#" + stats.polls);
-      }
-    });
-  } catch (e) {
-    // a throw here would kill the interval — never let that happen
   }
-}
-
-function startSession(sectionId) {
-  activeSectionId = sectionId;
-  log("creating session", sectionId, "as", APP_NAME);
-  call("create", { sectionId: sectionId }, function (data) {
-    if (activeSectionId !== sectionId) {
-      return; // superseded while in flight
-    }
-    if (data === null || data.jsonpError || !data.sessionId) {
-      var why = data === null ? "no response (timeout)" : data.jsonpError || "no sessionId in response";
-      stats.errors = stats.errors + 1;
-      log("create FAILED", sectionId, why);
-      return;
-    }
-    stats.creates = stats.creates + 1;
-    sessionId = data.sessionId;
-    log("session", sessionId, "for", sectionId);
-    tick();
-    tickTimer = window.setInterval(tick, TICK_MS);
+  return CCPTransportJsonp.create({
+    base: BASE,
+    appName: APP_NAME,
+    timeoutMs: TIMEOUT_MS,
+    tickMs: TICK_MS,
+    log: log,
+    verbose: isVerbose,
+    onNotifications: onNotifications,
+    onReset: onReset
   });
 }
 
+function stopSession() {
+  if (transport) {
+    transport.stop();
+  }
+  activeSectionId = "";
+}
+
 function reconcile() {
-  var context = readContext();
-  var wanted = sectionIdForContext(context);
-  if (wanted === activeSectionId || (!wanted && !activeSectionId)) {
+  var wanted = sectionIdForContext(readContext()) || "";
+  if (wanted === activeSectionId) {
     return;
   }
   if (activeSectionId) {
-    stopSession();
+    transport.stop();
   }
+  activeSectionId = wanted;
   if (wanted) {
-    startSession(wanted);
+    transport.start(wanted);
   }
 }
+
+// Tear the current transport down and rebuild on the same section. Used by both
+// setTransport and a bare reconnect(), because they are the same operation.
+function reconnect() {
+  var section = activeSectionId;
+  stopSession();
+  transport = createTransport(transportName);
+  log("transport", transportName);
+  if (section) {
+    activeSectionId = section;
+    transport.start(section);
+  }
+  return transportName;
+}
+
+transport = createTransport(transportName);
 
 window.__ccPresence = {
   messages: messages,
@@ -187,10 +158,10 @@ window.__ccPresence = {
     return {
       base: BASE,
       appName: APP_NAME,
+      transport: transportName,
       activeSectionId: activeSectionId,
-      sessionId: sessionId,
       tickEveryMs: TICK_MS,
-      stats: stats,
+      stats: transport.stats(),
       context: readContext()
     };
   },
@@ -204,7 +175,35 @@ window.__ccPresence = {
     return roster.sections();
   },
   reconcile: reconcile,
+  reconnect: reconnect,
   leave: stopSession,
+  transportName: function () {
+    return transportName;
+  },
+  /**
+   * Switch transport and reconnect on the same section. "signalr" fetches its
+   * vendor bundle on first use, so give it a moment before judging status().
+   */
+  setTransport: function (name) {
+    var wanted = name === "signalr" ? "signalr" : "jsonp";
+    if (wanted === transportName) {
+      log("transport already", wanted);
+      return wanted;
+    }
+    transportName = wanted;
+    return reconnect();
+  },
+  /**
+   * SignalR only, and only for comparing the two failure modes: true avoids the
+   * negotiate XHR (so no zone-1406 dialog) at the price of never receiving a
+   * push, because negotiate is what puts a client in Azure SignalR Service's
+   * delivery path. Call reconnect() to apply.
+   */
+  setSkipNegotiation: function (on) {
+    skipNegotiation = !!on;
+    log("skipNegotiation", skipNegotiation, "— call reconnect() to apply");
+    return skipNegotiation;
+  },
   setVerbose: function (on) {
     verbose = !!on;
     log("verbose", verbose ? "on" : "off");
@@ -212,7 +211,7 @@ window.__ccPresence = {
   }
 };
 
-log("client loaded", window.location.href, "base=" + BASE);
+log("client loaded", window.location.href, "base=" + BASE, "transport=" + transportName);
 reconcile();
 window.setInterval(reconcile, POLL_MS);
 
