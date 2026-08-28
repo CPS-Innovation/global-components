@@ -580,6 +580,177 @@ describe("dispatchHandover", () => {
     });
   });
 
+  // OS clears its ClientVars wholesale more often than our MSAL localStorage
+  // cache goes cold, so the termination write above leaves windows where the
+  // ClientVar is gone but auth stays warm and never rewrites it. Transfer-in is
+  // the frequent event, so we re-publish there off the persisted auth-hint.
+  describe("entra-id OS ClientVar re-publish on transfer-in (FCT2-21199)", () => {
+    const entraKey = "$OS_Users$Casework_Blocks$ClientVars$EntraID";
+
+    const isAuthHintGet = (input: unknown) =>
+      String(input).endsWith("/state/auth-hint");
+
+    // Only the auth-hint GET is answered; the dispatcher's preview lookup falls
+    // through to a 404 and resolves as not-found, which is what we want.
+    const withAuthHint = (objectId: string) =>
+      mockFetch.mockImplementation(async (input) =>
+        isAuthHintGet(input)
+          ? {
+              ok: true,
+              json: async () => ({
+                authResult: {
+                  isAuthed: true,
+                  username: "u@cps.gov.uk",
+                  objectId,
+                  groups: [],
+                },
+                timestamp: 1,
+              }),
+            }
+          : { ok: false, status: 404, statusText: "Not Found" },
+      );
+
+    const cookieReturnWindow = () =>
+      makeWindow(
+        "https://cps-tst.outsystemsenterprise.com/Casework_Patterns/auth-handover.html?src=x&stage=os-cookie-return&cc=abc&r=https%3A%2F%2Fcps-tst.outsystemsenterprise.com%2Fcasework_blocks%2Fhome",
+      );
+
+    const tokenReturnWindow = () =>
+      makeWindow(
+        "https://cps-tst.outsystemsenterprise.com/Casework_Patterns/auth-handover.html?src=x&stage=os-token-return&r=https%3A%2F%2Fcps-tst.outsystemsenterprise.com%2Fcasework_blocks%2Fhome",
+      );
+
+    test("os-cookie-return kind:ready writes the objectId from the auth-hint", async () => {
+      withConfigOverrides({ OS_ENTRA_ID_STORAGE_KEY: entraKey });
+      withAuthHint("obj-from-hint");
+      mockHandleOsCookieReturn.mockReturnValue({
+        kind: "ready",
+        target: "https://cps-tst.outsystemsenterprise.com/casework_blocks/home",
+      });
+      const win = cookieReturnWindow();
+
+      await dispatchHandover(win, scriptUrl);
+
+      expect(win.localStorage.setItem).toHaveBeenCalledWith(
+        entraKey,
+        "obj-from-hint",
+      );
+    });
+
+    // Cookie-return is the single door in, so it writes on both exits. The
+    // value then rides across the token-handover bounce (same origin) and is
+    // still in place when OS boots.
+    test("os-cookie-return kind:needs-token also writes, before bouncing off", async () => {
+      withConfigOverrides({ OS_ENTRA_ID_STORAGE_KEY: entraKey });
+      withAuthHint("obj-from-hint");
+      mockHandleOsCookieReturn.mockReturnValue({
+        kind: "needs-token",
+        href: "https://polaris.example/auth-refresh-cms-modern-token?cc=x&r=y",
+      });
+      const win = cookieReturnWindow();
+
+      await dispatchHandover(win, scriptUrl);
+
+      expect(win.localStorage.setItem).toHaveBeenCalledWith(
+        entraKey,
+        "obj-from-hint",
+      );
+      const writeOrder = (win.localStorage.setItem as jest.Mock).mock
+        .invocationCallOrder[0]!;
+      const navigateOrder = (win.location.replace as jest.Mock).mock
+        .invocationCallOrder[0]!;
+      expect(writeOrder).toBeLessThan(navigateOrder);
+    });
+
+    // os-token-return is reachable only from the needs-token branch above, which
+    // has already written — so this stage does no ClientVar work at all.
+    test("os-token-return neither writes nor fetches the hint", async () => {
+      withConfigOverrides({ OS_ENTRA_ID_STORAGE_KEY: entraKey });
+      withAuthHint("obj-from-hint");
+      const win = tokenReturnWindow();
+
+      await dispatchHandover(win, scriptUrl);
+
+      expect(win.localStorage.setItem).not.toHaveBeenCalled();
+      expect(
+        mockFetch.mock.calls.filter((c) => isAuthHintGet(c[0])),
+      ).toHaveLength(0);
+    });
+
+    // OS reads its ClientVars at bootstrap, so a write that landed after the
+    // navigation would miss the very load we are about to trigger.
+    test("writes before navigating on to the OS app", async () => {
+      withConfigOverrides({ OS_ENTRA_ID_STORAGE_KEY: entraKey });
+      withAuthHint("obj-from-hint");
+      const win = cookieReturnWindow();
+
+      await dispatchHandover(win, scriptUrl);
+
+      const writeOrder = (win.localStorage.setItem as jest.Mock).mock
+        .invocationCallOrder[0]!;
+      const navigateOrder = (win.location.replace as jest.Mock).mock
+        .invocationCallOrder[0]!;
+      expect(writeOrder).toBeLessThan(navigateOrder);
+    });
+
+    test("no key configured: no write, and no auth-hint round trip", async () => {
+      // Base config has no OS_ENTRA_ID_STORAGE_KEY.
+      withAuthHint("obj-from-hint");
+      const win = cookieReturnWindow();
+
+      await dispatchHandover(win, scriptUrl);
+
+      expect(win.localStorage.setItem).not.toHaveBeenCalled();
+      expect(
+        mockFetch.mock.calls.filter((c) => isAuthHintGet(c[0])),
+      ).toHaveLength(0);
+    });
+
+    // An unavailable hint must leave whatever OS already has alone — we never
+    // blank the ClientVar, only ever set a real objectId.
+    test("auth-hint not found: writes nothing rather than blanking", async () => {
+      withConfigOverrides({ OS_ENTRA_ID_STORAGE_KEY: entraKey });
+      mockFetch.mockResolvedValue({
+        ok: false,
+        status: 404,
+        statusText: "Not Found",
+      });
+      mockHandleOsCookieReturn.mockReturnValue({
+        kind: "ready",
+        target: "https://cps-tst.outsystemsenterprise.com/casework_blocks/home",
+      });
+      const win = cookieReturnWindow();
+
+      await dispatchHandover(win, scriptUrl);
+
+      expect(win.localStorage.setItem).not.toHaveBeenCalled();
+      expect(win.location.replace).toHaveBeenCalledWith(
+        "https://cps-tst.outsystemsenterprise.com/casework_blocks/home",
+      );
+    });
+
+    // Transfer-in is navigation-critical: an escaping storage error would
+    // strand the user on the handover page instead of delivering them to OS.
+    test("a throwing localStorage does not block the transfer-in navigation", async () => {
+      withConfigOverrides({ OS_ENTRA_ID_STORAGE_KEY: entraKey });
+      withAuthHint("obj-from-hint");
+      mockHandleOsCookieReturn.mockReturnValue({
+        kind: "ready",
+        target: "https://cps-tst.outsystemsenterprise.com/casework_blocks/home",
+      });
+      const win = cookieReturnWindow();
+      (win.localStorage.setItem as jest.Mock).mockImplementation(() => {
+        throw new Error("QuotaExceededError");
+      });
+
+      await expect(dispatchHandover(win, scriptUrl)).resolves.not.toThrow();
+
+      expect(win.location.replace).toHaveBeenCalledWith(
+        "https://cps-tst.outsystemsenterprise.com/casework_blocks/home",
+      );
+    });
+  });
+
   describe("feature-flag gate (shouldUseFullPageMsalRedirect)", () => {
     // Applies only to the ENSURE_AD branch. The OS handover branches no
     // longer route through runEnsureAd at all (the kill switch keeps them
