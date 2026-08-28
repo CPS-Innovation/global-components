@@ -2,7 +2,11 @@ import { describe, test, expect, beforeEach, jest } from "@jest/globals";
 import { CmsAuthStorageKeys } from "cps-global-configuration";
 import { handleOsCookieReturn } from "./handle-os-cookie-return";
 
-const keys: CmsAuthStorageKeys = {
+// VCA is optional on CmsAuthStorageKeys (not every env has it configured). This
+// fixture is the VCA-enabled shape, so the VCA keys are narrowed back to
+// required — otherwise indexing storage by them below is a TS2538 error.
+const keys: CmsAuthStorageKeys &
+  Required<Pick<CmsAuthStorageKeys, "VCA_JSON" | "VCA_COOKIES">> = {
   WMA_JSON: "$OS_Users$Casework_Blocks$ClientVars$JSONString",
   WMA_COOKIES: "$OS_Users$Casework_Blocks$ClientVars$Cookies",
   CASE_REVIEW_JSON: "$OS_Users$CaseReview$ClientVars$CmsAuthValues",

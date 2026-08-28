@@ -5,6 +5,16 @@ on:
     branches: [main]
 
 permissions:
+  # Declaring this block sets every unlisted scope to `none`, and a called
+  # workflow may not request more than its caller grants. The org-level
+  # security-scan workflow below added `actions: read` to its jobs on
+  # 2026-08-07, which made every run of this workflow fail at startup — taking
+  # build-and-test and proxy-tests down with it, so no PR was compiled or tested
+  # from then until this line was added. It is pinned at @main, so it can change
+  # under us again: if PR validation starts reporting `startup_failure` with no
+  # local change to explain it, compare this block against that workflow's job
+  # permissions first.
+  actions: read
   contents: read
   security-events: write
   statuses: write

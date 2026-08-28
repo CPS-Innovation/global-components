@@ -159,8 +159,15 @@ const cmsAuthStorageKeysSchema = z.object({
   HOME_JSON: z.string(),
   HOME_COOKIES: z.string(),
   HOME_IS_FROM_PROXY: z.string(),
-  VCA_JSON: z.string(),
-  VCA_COOKIES: z.string(),
+  // VCA (FCT2-21576) rolls out per environment, so its ClientVar keys are
+  // optional: an env where Victims Case Application isn't live yet simply omits
+  // them and every VCA read/write in os-handover/core/storage.ts no-ops. They
+  // are deliberately absent from prod until VCA goes live there — adding them
+  // makes isStoredAuthCurrent false for every existing user (nobody has the key
+  // yet), pushing all of them through an extra token-handover hop on their next
+  // CMS→OS handover.
+  VCA_JSON: z.string().optional(),
+  VCA_COOKIES: z.string().optional(),
 });
 
 export type CmsAuthStorageKeys = z.infer<typeof cmsAuthStorageKeysSchema>;

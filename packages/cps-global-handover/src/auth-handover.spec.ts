@@ -556,6 +556,28 @@ describe("dispatchHandover", () => {
 
       expect(win.localStorage.setItem).not.toHaveBeenCalled();
     });
+
+    // The write sits immediately before the navigation to returnTo, and the
+    // dispatch entry point only logs what it catches — so an escaping storage
+    // error would strand the user on the handover page mid-auth.
+    test("a throwing localStorage does not block the navigation to returnTo", async () => {
+      withConfigOverrides({
+        OS_ENTRA_ID_STORAGE_KEY: "$OS_Users$Casework_Blocks$ClientVars$EntraID",
+      });
+      handledWithObjectId("obj-123");
+      const win = makeWindow(
+        "https://cps-tst.outsystemsenterprise.com/Casework_Patterns/auth-handover.html?src=x&stage=ad-redirect#code=abc",
+      );
+      (win.localStorage.setItem as jest.Mock).mockImplementation(() => {
+        throw new Error("QuotaExceededError");
+      });
+
+      await expect(dispatchHandover(win, scriptUrl)).resolves.not.toThrow();
+
+      expect(win.location.replace).toHaveBeenCalledWith(
+        "https://cps-tst.outsystemsenterprise.com/casework_blocks/home",
+      );
+    });
   });
 
   describe("feature-flag gate (shouldUseFullPageMsalRedirect)", () => {
