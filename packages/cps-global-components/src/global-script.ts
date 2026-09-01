@@ -197,7 +197,7 @@ const initialise = async (window: Window & typeof globalThis) => {
             // auth passed through; the service skips the authed fetch when not
             // authed (the optimistic path already covered the unauthed case).
             initialiseCaseDetailsDataForContext({ context, caseIdentifiers, getToken, correlationIds, auth });
-            initialiseCaseLockingForContext({ auth, caseIdentifiers });
+            initialiseCaseLockingForContext({ auth, caseIdentifiers, getToken });
           })
           .catch(handleError);
       } catch (err) {

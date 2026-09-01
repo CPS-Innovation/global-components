@@ -91,6 +91,10 @@ export namespace Components {
           * Identifier passed to the central service when this region enters or leaves "present" state. Reflected so it's readable as an attribute.
          */
         "code": string;
+        /**
+          * Optional subject for kinds that are scoped to one — a witness, a defendant. With it the section is "<caseId>:KIND:<subjectId>"; without it the section is case-wide, "<caseId>:KIND". Must match the id the other clients use for the same person, or the two register different sections for one subject.
+         */
+        "subject"?: string;
     }
     interface CpsSkipLink {
         "targetSelector"?: string;
@@ -338,6 +342,10 @@ declare namespace LocalJSX {
           * Identifier passed to the central service when this region enters or leaves "present" state. Reflected so it's readable as an attribute.
          */
         "code": string;
+        /**
+          * Optional subject for kinds that are scoped to one — a witness, a defendant. With it the section is "<caseId>:KIND:<subjectId>"; without it the section is case-wide, "<caseId>:KIND". Must match the id the other clients use for the same person, or the two register different sections for one subject.
+         */
+        "subject"?: string;
     }
     interface CpsSkipLink {
         "targetSelector"?: string;
@@ -385,6 +393,7 @@ declare namespace LocalJSX {
     }
     interface CpsRegionAttributes {
         "code": string;
+        "subject": string;
     }
     interface CpsSkipLinkAttributes {
         "targetSelector": string;

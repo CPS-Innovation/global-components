@@ -8,7 +8,7 @@ type FakeHubConnection = {
   on: jest.Mock;
   onclose: jest.Mock;
   onreconnected: jest.Mock;
-  __notifyHandler?: (users: { user: string; appName: string }[]) => void;
+  __notify?: (notification: unknown) => void;
   __reconnectedHandler?: () => void;
 };
 
@@ -22,8 +22,8 @@ const makeFakeHub = (): FakeHubConnection => {
     onreconnected: jest.fn(),
   };
   hub.on.mockImplementation((event: string, handler: any) => {
-    if (event === "Notify") {
-      hub.__notifyHandler = handler;
+    if (event === "ReceiveNotification") {
+      hub.__notify = handler;
     }
   });
   hub.onreconnected.mockImplementation((handler: any) => {
@@ -32,11 +32,31 @@ const makeFakeHub = (): FakeHubConnection => {
   return hub;
 };
 
+// Drain the microtask queue. Generous on purpose: a teardown-then-restart now
+// awaits Leave and stop before the new connection's Connect, so a tight loop here
+// would report "Connect was never invoked" when it simply had not got there yet.
 const flush = async () => {
-  for (let i = 0; i < 5; i++) {
+  for (let i = 0; i < 30; i++) {
     await Promise.resolve();
   }
 };
+
+// The API sends versioned snapshots, not a flat user list. These tests were
+// written against the old shape, so this builds the real one around it — the
+// version increments so consecutive notifications are never discarded as stale.
+let snapshotVersion = 0;
+const presence = (users: { user: string; appName: string }[], { caseId = "123", kind = "WITNESS" } = {}) => ({
+  type: 0,
+  payload: {
+    snapshots: [
+      {
+        section: { caseId, kind },
+        version: ++snapshotVersion,
+        members: users.map(({ user, appName }) => ({ userEmail: user, sourceApplication: appName })),
+      },
+    ],
+  },
+});
 
 const setup = () => {
   const hubs: FakeHubConnection[] = [];
@@ -48,6 +68,9 @@ const setup = () => {
     apiUrl: "https://example.test/api",
     username: "alice",
     appName: "test-app",
+    // Unused here — every test injects a hubFactory, so the real one (which is
+    // what consumes this) is never built. Present because the type requires it.
+    getAccessToken: async () => "test-token",
     register,
     hubFactory: () => {
       const hub = makeFakeHub();
@@ -55,35 +78,84 @@ const setup = () => {
       return hub as any;
     },
   });
-  return { service, hubs, register, getPresentUsers: () => presentUsers };
+  // Find a hub by the section it invoked Connect for. Index-based lookup stopped
+  // being meaningful when the case section started opening its own connection.
+  const hubFor = (sectionId: string) =>
+    hubs.find(hub => hub.invoke.mock.calls.some(([method, section]) => method === "Connect" && section === sectionId));
+  return { service, hubs, register, hubFor, getPresentUsers: () => presentUsers };
 };
 
 describe("createCaseLockingPresence", () => {
-  it("does not start any connection until both caseId and a code are present", async () => {
-    const { service, hubs } = setup();
-    service.addCode("witness");
+  // The keep-alive is a setInterval per live connection, cleared when the
+  // connection stops. Tests that leave a connection open would otherwise leave a
+  // real timer running and jest would wait for it — fake timers keep the run
+  // honest and let the keep-alive tests drive the clock directly.
+  beforeEach(() => {
+    jest.useFakeTimers();
+  });
+
+  afterEach(() => {
+    jest.clearAllTimers();
+    jest.useRealTimers();
+  });
+
+  it("does not start any connection until both a caseId and a region are present", async () => {
+    const { service, hubs, hubFor } = setup();
+    service.addRegion("witness");
     await flush();
     expect(hubs).toHaveLength(0);
 
     service.setCaseId("123");
     await flush();
     expect(hubs).toHaveLength(1);
-    expect(hubs[0].start).toHaveBeenCalled();
-    expect(hubs[0].invoke).toHaveBeenCalledWith("Connect", "123:WITNESS", "test-app");
+    expect(hubFor("123:WITNESS")?.start).toHaveBeenCalled();
+    expect(hubFor("123:WITNESS")?.invoke).toHaveBeenCalledWith("Connect", "123:WITNESS", "test-app");
   });
 
-  it("does not start a connection when caseId arrives but no codes are active", async () => {
+  it("does not start a connection when a caseId arrives but no regions are active", async () => {
     const { service, hubs } = setup();
     service.setCaseId("123");
     await flush();
     expect(hubs).toHaveLength(0);
   });
 
+  it("builds a subject-scoped section id when a region names a subject", async () => {
+    const { service, hubFor } = setup();
+    service.setCaseId("123");
+    service.addRegion("victim_witness", "98765");
+    await flush();
+    expect(hubFor("123:VICTIM_WITNESS:98765")?.invoke).toHaveBeenCalledWith("Connect", "123:VICTIM_WITNESS:98765", "test-app");
+  });
+
+  it("treats two subjects of the same kind as two sections", async () => {
+    const { service, hubs, hubFor } = setup();
+    service.setCaseId("123");
+    service.addRegion("victim_witness", "111");
+    service.addRegion("victim_witness", "222");
+    await flush();
+
+    expect(hubs).toHaveLength(2);
+    expect(hubFor("123:VICTIM_WITNESS:111")).toBeDefined();
+    expect(hubFor("123:VICTIM_WITNESS:222")).toBeDefined();
+  });
+
+  it("treats a case-wide region and a subject-scoped one of the same kind as different sections", async () => {
+    const { service, hubs, hubFor } = setup();
+    service.setCaseId("123");
+    service.addRegion("victim_witness");
+    service.addRegion("victim_witness", "98765");
+    await flush();
+
+    expect(hubs).toHaveLength(2);
+    expect(hubFor("123:VICTIM_WITNESS")).toBeDefined();
+    expect(hubFor("123:VICTIM_WITNESS:98765")).toBeDefined();
+  });
+
   it("starts connections for each active code under the same caseId", async () => {
     const { service, hubs } = setup();
     service.setCaseId("123");
-    service.addCode("a");
-    service.addCode("b");
+    service.addRegion("a");
+    service.addRegion("b");
     await flush();
 
     expect(hubs).toHaveLength(2);
@@ -91,74 +163,73 @@ describe("createCaseLockingPresence", () => {
     expect(sectionKeys).toEqual(["123:A", "123:B"]);
   });
 
-  it("stops a connection when its code is removed", async () => {
-    const { service, hubs } = setup();
+  it("stops a connection when its region is removed", async () => {
+    const { service, hubFor } = setup();
     service.setCaseId("123");
-    service.addCode("a");
+    service.addRegion("a");
     await flush();
-    expect(hubs[0].start).toHaveBeenCalled();
+    expect(hubFor("123:A")?.start).toHaveBeenCalled();
 
-    service.removeCode("a");
+    service.removeRegion("a");
     await flush();
-    expect(hubs[0].stop).toHaveBeenCalled();
+    expect(hubFor("123:A")?.stop).toHaveBeenCalled();
   });
 
-  it("addCode twice is idempotent (single connection)", async () => {
-    const { service, hubs } = setup();
+  it("addRegion twice is idempotent (single connection)", async () => {
+    const { service, hubs, hubFor } = setup();
     service.setCaseId("123");
-    service.addCode("a");
-    service.addCode("a");
+    service.addRegion("a");
+    service.addRegion("a");
     await flush();
     expect(hubs).toHaveLength(1);
 
-    service.removeCode("a");
+    service.removeRegion("a");
     await flush();
-    expect(hubs[0].stop).toHaveBeenCalled();
+    expect(hubFor("123:A")?.stop).toHaveBeenCalled();
   });
 
-  it("changing caseId tears down old connections and starts new ones for active codes", async () => {
-    const { service, hubs } = setup();
+  it("changing caseId tears down the old connections and rebuilds on the new case", async () => {
+    const { service, hubFor } = setup();
     service.setCaseId("123");
-    service.addCode("a");
+    service.addRegion("a");
     await flush();
-    expect(hubs).toHaveLength(1);
-    expect(hubs[0].invoke).toHaveBeenCalledWith("Connect", "123:A", "test-app");
+    expect(hubFor("123:A")).toBeDefined();
 
     service.setCaseId("456");
     await flush();
-    expect(hubs[0].stop).toHaveBeenCalled();
-    expect(hubs).toHaveLength(2);
-    expect(hubs[1].invoke).toHaveBeenCalledWith("Connect", "456:A", "test-app");
+    expect(hubFor("123:A")?.stop).toHaveBeenCalled();
+    expect(hubFor("456:A")?.invoke).toHaveBeenCalledWith("Connect", "456:A", "test-app");
   });
 
-  it("setting caseId to undefined tears down all connections without removing desired codes", async () => {
-    const { service, hubs } = setup();
+  it("setting caseId to undefined tears down everything without forgetting the regions", async () => {
+    const { service, hubs, hubFor } = setup();
     service.setCaseId("123");
-    service.addCode("a");
+    service.addRegion("a");
     await flush();
     expect(hubs).toHaveLength(1);
 
     service.setCaseId(undefined);
     await flush();
-    expect(hubs[0].stop).toHaveBeenCalled();
+    expect(hubFor("123:A")?.stop).toHaveBeenCalled();
 
+    // The region was never removed, so a new case picks it up again.
     service.setCaseId("789");
     await flush();
-    expect(hubs).toHaveLength(2);
-    expect(hubs[1].invoke).toHaveBeenCalledWith("Connect", "789:A", "test-app");
+    expect(hubFor("789:A")?.invoke).toHaveBeenCalledWith("Connect", "789:A", "test-app");
   });
 
   it("on reconnect, re-invokes Connect with the same section key", async () => {
-    const { service, hubs } = setup();
+    const { service, hubFor } = setup();
     service.setCaseId("123");
-    service.addCode("a");
+    service.addRegion("a");
     await flush();
-    expect(hubs[0].invoke).toHaveBeenCalledTimes(1);
+    const hub = hubFor("123:A")!;
+    expect(hub.invoke).toHaveBeenCalledTimes(1);
 
-    hubs[0].__reconnectedHandler?.();
+    hub.__reconnectedHandler?.();
     await flush();
-    expect(hubs[0].invoke).toHaveBeenCalledTimes(2);
-    expect(hubs[0].invoke).toHaveBeenLastCalledWith("Connect", "123:A", "test-app");
+    expect(hub.invoke).toHaveBeenCalledTimes(2);
+    expect(hub.invoke).toHaveBeenLastCalledWith("Connect", "123:A", "test-app");
   });
 
   it("on start failure, drops the connection and does not leak it to the active set", async () => {
@@ -168,6 +239,9 @@ describe("createCaseLockingPresence", () => {
       apiUrl: "https://example.test/api",
       username: "alice",
       appName: "test-app",
+    // Unused here — every test injects a hubFactory, so the real one (which is
+    // what consumes this) is never built. Present because the type requires it.
+    getAccessToken: async () => "test-token",
       register,
       hubFactory: () => {
         const hub = makeFakeHub();
@@ -178,26 +252,26 @@ describe("createCaseLockingPresence", () => {
     });
 
     service.setCaseId("123");
-    service.addCode("a");
+    service.addRegion("a");
     await flush();
 
-    service.removeCode("a");
-    service.addCode("a");
+    service.removeRegion("a");
+    service.addRegion("a");
     await flush();
     expect(hubs.length).toBeGreaterThan(1);
   });
 
   describe("presence publication", () => {
     it("Notify publishes the other present users, with self filtered out", async () => {
-      const { service, hubs, getPresentUsers, register } = setup();
+      const { service, hubFor, getPresentUsers, register } = setup();
       service.setCaseId("123");
-      service.addCode("witness");
+      service.addRegion("witness");
       await flush();
 
-      hubs[0].__notifyHandler?.([
+      hubFor("123:WITNESS")!.__notify?.(presence([
         { user: "alice", appName: "test-app" },
         { user: "bob@cps.gov.uk", appName: "CMS" },
-      ]);
+      ]));
       await flush();
 
       expect(register).toHaveBeenCalledWith({
@@ -213,79 +287,218 @@ describe("createCaseLockingPresence", () => {
     });
 
     it("filters self case-insensitively (the hub echoes token-claim casing)", async () => {
-      const { service, hubs, getPresentUsers } = setup();
+      const { service, hubFor, getPresentUsers } = setup();
       service.setCaseId("123");
-      service.addCode("witness");
+      service.addRegion("witness");
       await flush();
 
-      hubs[0].__notifyHandler?.([{ user: "ALICE", appName: "CMS" }]);
+      hubFor("123:WITNESS")!.__notify?.(presence([{ user: "ALICE", appName: "CMS" }]));
       await flush();
       expect(getPresentUsers()?.users).toEqual([]);
     });
 
     it("publishes an empty list when we are the only user present", async () => {
-      const { service, hubs, getPresentUsers } = setup();
+      const { service, hubFor, getPresentUsers } = setup();
       service.setCaseId("123");
-      service.addCode("witness");
+      service.addRegion("witness");
       await flush();
 
-      hubs[0].__notifyHandler?.([{ user: "alice", appName: "test-app" }]);
+      hubFor("123:WITNESS")!.__notify?.(presence([{ user: "alice", appName: "test-app" }]));
       await flush();
       expect(getPresentUsers()?.users).toEqual([]);
     });
 
     it("subsequent Notifys overwrite the published list", async () => {
-      const { service, hubs, getPresentUsers } = setup();
+      const { service, hubFor, getPresentUsers } = setup();
       service.setCaseId("123");
-      service.addCode("witness");
+      service.addRegion("witness");
       await flush();
 
-      hubs[0].__notifyHandler?.([{ user: "bob", appName: "CMS" }]);
+      hubFor("123:WITNESS")!.__notify?.(presence([{ user: "bob", appName: "CMS" }]));
       await flush();
       expect(getPresentUsers()?.users).toHaveLength(1);
 
-      hubs[0].__notifyHandler?.([
+      hubFor("123:WITNESS")!.__notify?.(presence([
         { user: "bob", appName: "CMS" },
         { user: "carol", appName: "CMS" },
-      ]);
+      ]));
       await flush();
       expect(getPresentUsers()?.users).toHaveLength(2);
     });
 
     it("removing the active code clears the published list", async () => {
-      const { service, hubs, getPresentUsers } = setup();
+      const { service, hubFor, getPresentUsers } = setup();
       service.setCaseId("123");
-      service.addCode("witness");
+      service.addRegion("witness");
       await flush();
 
-      hubs[0].__notifyHandler?.([
+      hubFor("123:WITNESS")!.__notify?.(presence([
         { user: "alice", appName: "test-app" },
         { user: "bob", appName: "CMS" },
-      ]);
+      ]));
       await flush();
       expect(getPresentUsers()).toBeDefined();
 
-      service.removeCode("witness");
+      service.removeRegion("witness");
       await flush();
       expect(getPresentUsers()).toBeUndefined();
     });
 
     it("changing caseId clears the published list (until the new connection publishes its own)", async () => {
-      const { service, hubs, getPresentUsers } = setup();
+      const { service, hubFor, getPresentUsers } = setup();
       service.setCaseId("123");
-      service.addCode("witness");
+      service.addRegion("witness");
       await flush();
 
-      hubs[0].__notifyHandler?.([
+      hubFor("123:WITNESS")!.__notify?.(presence([
         { user: "alice", appName: "test-app" },
         { user: "bob", appName: "CMS" },
-      ]);
+      ]));
       await flush();
       expect(getPresentUsers()).toBeDefined();
 
       service.setCaseId("456");
       await flush();
       expect(getPresentUsers()).toBeUndefined();
+    });
+  });
+
+  describe("the wire contract", () => {
+    // Built explicitly rather than via presence() so the version and section are
+    // under each test's control — they are the two things being checked.
+    const notification = (version: number, users: string[], section = { caseId: "123", kind: "WITNESS" }) => ({
+      type: 0,
+      payload: {
+        snapshots: [{ section, version, members: users.map(user => ({ userEmail: user, sourceApplication: "CMS" })) }],
+      },
+    });
+
+    const onWitness = async () => {
+      const rig = setup();
+      rig.service.setCaseId("123");
+      rig.service.addRegion("witness");
+      await flush();
+      return { ...rig, hub: rig.hubFor("123:WITNESS")! };
+    };
+
+    it("applies a snapshot and publishes its members", async () => {
+      const { hub, getPresentUsers } = await onWitness();
+      hub.__notify?.(notification(1, ["bob@cps.gov.uk"]));
+      await flush();
+      expect(getPresentUsers()?.users).toEqual([{ user: "bob@cps.gov.uk", appName: "CMS" }]);
+    });
+
+    it("discards a snapshot older than one already applied — they arrive out of order", async () => {
+      const { hub, getPresentUsers } = await onWitness();
+      hub.__notify?.(notification(5, ["bob@cps.gov.uk"]));
+      await flush();
+      hub.__notify?.(notification(3, ["carol@cps.gov.uk", "dave@cps.gov.uk"]));
+      await flush();
+      // The late arrival must not resurrect a roster that has moved on.
+      expect(getPresentUsers()?.users).toEqual([{ user: "bob@cps.gov.uk", appName: "CMS" }]);
+    });
+
+    it("accepts a newer snapshot, including one that empties the section", async () => {
+      const { hub, getPresentUsers } = await onWitness();
+      hub.__notify?.(notification(1, ["bob@cps.gov.uk"]));
+      await flush();
+      // An empty members array is a valid update meaning everyone left.
+      hub.__notify?.(notification(2, []));
+      await flush();
+      expect(getPresentUsers()?.users).toEqual([]);
+    });
+
+    it("ignores a snapshot for a different section", async () => {
+      const { hub, getPresentUsers } = await onWitness();
+      hub.__notify?.(notification(1, ["bob@cps.gov.uk"], { caseId: "999", kind: "WITNESS" }));
+      hub.__notify?.(notification(1, ["bob@cps.gov.uk"], { caseId: "123", kind: "CASE" }));
+      await flush();
+      expect(getPresentUsers()).toBeUndefined();
+    });
+
+    it("ignores notifications that are not presence snapshots", async () => {
+      const { hub, getPresentUsers } = await onWitness();
+      hub.__notify?.({ ...notification(1, ["bob@cps.gov.uk"]), type: 1 });
+      await flush();
+      expect(getPresentUsers()).toBeUndefined();
+    });
+
+    it("survives a malformed notification", async () => {
+      const { hub, getPresentUsers } = await onWitness();
+      hub.__notify?.({ type: 0 });
+      hub.__notify?.({ type: 0, payload: {} });
+      hub.__notify?.({ type: 0, payload: { snapshots: [] } });
+      hub.__notify?.({ type: 0, payload: { snapshots: [{ version: 1 }] } });
+      await flush();
+      expect(getPresentUsers()).toBeUndefined();
+    });
+  });
+
+  describe("keeping the session alive", () => {
+    // The server evicts a session it has not heard from for 10 seconds. Without
+    // this the socket stays open while the session quietly dies, and presence
+    // disappears ten seconds after it appears.
+    it("beats inside the server's eviction window", async () => {
+      const { service, hubFor } = setup();
+      service.setCaseId("123");
+      service.addRegion("witness");
+      await flush();
+      const hub = hubFor("123:WITNESS")!;
+      hub.invoke.mockClear();
+
+      jest.advanceTimersByTime(5000);
+      await flush();
+      expect(hub.invoke).toHaveBeenCalledWith("KeepAlive");
+
+      jest.advanceTimersByTime(5000);
+      await flush();
+      expect(hub.invoke.mock.calls.filter(([method]) => method === "KeepAlive")).toHaveLength(2);
+    });
+
+    it("rejoins when the server says the session was evicted", async () => {
+      const { service, hubFor } = setup();
+      service.setCaseId("123");
+      service.addRegion("witness");
+      await flush();
+      const hub = hubFor("123:WITNESS")!;
+      hub.invoke.mockClear();
+      hub.invoke.mockImplementation((method: string) =>
+        method === "KeepAlive" ? Promise.reject(new Error("SESSION_EVICTED: gone")) : Promise.resolve(),
+      );
+
+      jest.advanceTimersByTime(5000);
+      await flush();
+      expect(hub.invoke).toHaveBeenCalledWith("Connect", "123:WITNESS", "test-app");
+    });
+
+    it("stops beating once the connection is torn down", async () => {
+      const { service, hubFor } = setup();
+      service.setCaseId("123");
+      service.addRegion("witness");
+      await flush();
+      service.removeRegion("witness");
+      await flush();
+      const hub = hubFor("123:WITNESS")!;
+      hub.invoke.mockClear();
+
+      jest.advanceTimersByTime(20000);
+      await flush();
+      expect(hub.invoke).not.toHaveBeenCalled();
+    });
+
+    it("leaves the section before closing the socket, so the server drops us at once", async () => {
+      const { service, hubFor } = setup();
+      service.setCaseId("123");
+      service.addRegion("witness");
+      await flush();
+      // Captured before teardown: hubFor identifies a hub by its Connect call.
+      const hub = hubFor("123:WITNESS")!;
+      service.removeRegion("witness");
+      await flush();
+
+      expect(hub.invoke).toHaveBeenCalledWith("Leave");
+      const leaveOrder = hub.invoke.mock.invocationCallOrder[hub.invoke.mock.calls.findIndex(([method]) => method === "Leave")];
+      expect(leaveOrder).toBeLessThan(hub.stop.mock.invocationCallOrder[0]);
     });
   });
 });
