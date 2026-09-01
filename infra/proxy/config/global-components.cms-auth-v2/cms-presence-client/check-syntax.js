@@ -43,6 +43,10 @@ var BANNED_MEMBERS = [
 ];
 var BANNED_GLOBALS = ["JSON", "Promise", "Map", "Set", "Symbol", "WeakMap", "MutationObserver", "Proxy", "Reflect"];
 
+function lineOf(src, index) {
+  return src.slice(0, index).split("\n").length;
+}
+
 function check(level, file) {
   var src = fs.readFileSync(file, "utf8");
   var problems = [];
@@ -54,6 +58,38 @@ function check(level, file) {
     var where = e.loc ? " (line " + e.loc.line + ")" : "";
     return [level.toUpperCase() + " syntax: " + e.message.replace(/ \(\d+:\d+\)$/, "") + where];
   }
+
+  // Trailing comma in an ARRAY literal. Legal ES3 grammar, so the parse above
+  // accepts it — but JScript 5 counts it as an extra element and puts `undefined`
+  // there. A registry that reads `entry.kind` in a loop then throws on the phantom
+  // entry, which kills the whole IIFE at load: no client, no error anyone will
+  // see, and every screen silently loses presence. Cost a live deployment
+  // on 2026-09-01.
+  //
+  // NOT detectable from the AST: ESTree drops a trailing comma entirely (only a
+  // true elision, [1,,2], yields a null element). So we read the source between
+  // the last element and the closing bracket.
+  walk.simple(ast, {
+    ArrayExpression: function (node) {
+      var i;
+      for (i = 0; i < node.elements.length; i++) {
+        if (node.elements[i] === null) {
+          problems.push("line " + lineOf(src, node.start) + ": hole in an array literal (elision) — JScript 5 handles these badly");
+          return;
+        }
+      }
+      if (!node.elements.length) {
+        return;
+      }
+      var tail = src.slice(node.elements[node.elements.length - 1].end, node.end);
+      if (tail.indexOf(",") !== -1) {
+        problems.push(
+          "line " + lineOf(src, node.elements[node.elements.length - 1].end) +
+          ": trailing comma in an array literal — JScript 5 adds a phantom `undefined` element"
+        );
+      }
+    }
+  });
 
   if (level !== "es3") {
     return problems;

@@ -42,6 +42,32 @@ var SECTION_KIND_DEFENDANT = "DEFENDANT";           // subject-scoped (partyId)
 
 var FRAGMENT_DOCUMENTS = "uacgSelectDocument.aspx";
 
+// The OUTER doll — and we ask CMS's own question rather than inventing one.
+// From the generated script CMS serves itself:
+//
+//     var sQString = top.frameMain.document.location.search;
+//     if (sQString.indexOf(QUERY_CASE_ID) > -1 &&
+//         top.frameMain.document.location.href.indexOf(SCREEN_DESTROYED_CASE) == -1)
+//
+// with QUERY_CASE_ID = "intCaseID" and SCREEN_DESTROYED_CASE = "uadsDestroyedCase".
+// So the canonical answer to "which case am I on" is frameMain's query string, and
+// we use the same frame and the same test.
+//
+// WHY ONE FRAME AND NOT ALL OF THEM. Both CMS worlds put the case in frameMain —
+// the case-details workspace (Case/uacdCaseDetails.aspx, itself a frameset holding
+// the blue action bar) and pre-charge (uapcPreChargeCaseAnalysis, PCDAllRequests,
+// PreChargeTriage, register/uarpRegisterPCDCase, all plain pages). Only the header
+// differs between them, which is why pre-charge looks like an outlier and is not.
+// Meanwhile a scan of every frame picks up things that are NOT where you are: the
+// captures show uaglCMSOnExit.aspx carrying the PREVIOUS session's case id at login.
+//
+// Still no page list: a case screen nobody has seen registers the case, as long as
+// CMS puts it in frameMain — which is how CMS finds it too.
+var FRAME_MAIN = "frameMain";
+var SCREEN_DESTROYED_CASE = "uadsDestroyedCase"; // carries a case id; is not one
+var SCREEN_ON_EXIT = "uaglCMSOnExit"; // ditto, from the session being torn down
+var SECTION_KIND_CASE = "CASE"; // case-wide, no subject
+
 // Which frame HOSTS the hover popup for a section. Pages differ in structure:
 //   - Some sections (e.g. victim/witness) load a FRAMESET into frameMain, and the
 //     content lives in a child frame named "framePage" — so the popup is rendered
@@ -192,10 +218,6 @@ function readOpenDefendant(win) {
   });
 }
 
-// The section registry: each entry maps a frame URL fragment to the detector that
-// reads its presence record. findActiveSection walks the frames and returns the
-// first active section it finds. Add new sections here.
-
 // The section registry. fragment -> the frame that shows it; read -> is it active;
 // popupFrame -> where that page renders, so the banner knows where to put the
 // popup (see banner.js: there is deliberately no default).
@@ -263,12 +285,61 @@ function classicDetector(spec) {
   };
 }
 
+// The shell's frameMain, which is the screen the user is actually on.
+function mainFrame(root) {
+  var found = null;
+  try {
+    found = root.frameMain; // a named frame of the shell: the direct route
+  } catch (e) {
+    found = null;
+  }
+  if (found) {
+    return found;
+  }
+  // Injected somewhere other than the shell, or the frame is not yet named.
+  return presenceFindFrameByName(root, FRAME_MAIN, 0);
+}
+
+// Anywhere in a case. Unlike the readers above this does NOT walk: it asks the one
+// canonical frame, so it cannot be fooled by a sibling frame that happens to name
+// a case. When a finer section is also active both are reported — a user editing a
+// witness is in that witness's section AND on the case.
+function readCaseContext(root) {
+  var main = mainFrame(root);
+  if (!main) {
+    return null;
+  }
+  var href = "";
+  try {
+    href = String(main.location.href || "");
+  } catch (e) {
+    return null; // cross-origin, or navigating
+  }
+  if (href.indexOf(SCREEN_DESTROYED_CASE) !== -1 || href.indexOf(SCREEN_ON_EXIT) !== -1) {
+    return null; // names a case without being on one
+  }
+  var caseId = queryParam(href, "intCaseID");
+  if (!caseId) {
+    return null;
+  }
+  // Where the banner anchors its popup, and it differs by world: the case-details
+  // workspace is a frameset whose own body never renders, so the popup goes to its
+  // content frame; pre-charge IS the content, so it goes to frameMain itself.
+  var popupFrame = href.indexOf("uacdCaseDetails.aspx") !== -1 ? POPUP_FRAME_PAGE : POPUP_FRAME_MAIN;
+  return CCPLocator.section(caseId, SECTION_KIND_CASE, null, { popupFrame: popupFrame });
+}
+
 function buildClassicLocator() {
   var detectors = [];
   var i;
   for (i = 0; i < CLASSIC_SECTIONS.length; i++) {
     detectors.push(classicDetector(CLASSIC_SECTIONS[i]));
   }
+  // LAST, and that matters: detector order is priority and the banner follows the
+  // first section found, so every finer section outranks the case around it. This
+  // one is not a walker — it asks frameMain directly — so it is added here rather
+  // than sitting in the registry above.
+  detectors.push({ kind: SECTION_KIND_CASE, detect: readCaseContext });
   return CCPLocator.createLocator(detectors);
 }
 

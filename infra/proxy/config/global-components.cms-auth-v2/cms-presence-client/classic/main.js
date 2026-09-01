@@ -65,6 +65,21 @@ function primarySection() {
   return sections.length ? sections[0] : null;
 }
 
+// The event sink means "a subject's edit panel opened / closed". Being on a case
+// is not that: since the case-wide section is active on every case screen, driving
+// the sink from it would turn a transition signal into a near-constant one and
+// change what a consumer of __ccContactLogger.onChange has been promised. So the
+// sink follows the finest section, and ignores the case around it.
+function subjectSection(sections) {
+  var i;
+  for (i = 0; i < sections.length; i++) {
+    if (sections[i].kind !== SECTION_KIND_CASE) {
+      return sections[i];
+    }
+  }
+  return null;
+}
+
 function drawBanner(caseId) {
   var sections = roster.sections();
   var tip = presenceBuildTooltip(caseId, sections); // "" when nobody is anywhere
@@ -179,7 +194,7 @@ function tick() {
   } catch (e2) { }
   var primary = sections.length ? sections[0] : null;
   updateBanner(primary);
-  updateEvents(primary);
+  updateEvents(subjectSection(sections));
 }
 
 function start() {
