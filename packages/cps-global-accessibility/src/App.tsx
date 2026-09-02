@@ -1,89 +1,17 @@
-import { useState, useEffect, useCallback } from "react";
-import type { Settings } from "cps-global-configuration";
-
-const STATE_ENDPOINT = "/global-components/state/settings";
-
-type StatusType = "info" | "error" | "success";
-
+// Accessibility Preview page.
+//
+// This page used to own the "Low contrast background" radios (the
+// `accessibilityBackground` setting). They now live on the Settings page
+// (SettingsApp.tsx), which puts them through the GOV.UK
+// form -> check your answers -> confirmation flow. If stakeholders want them
+// back here, the control is lifted straight out of TONE_OPTIONS / the fieldset
+// in SettingsApp — note that this page saved on every radio change and then
+// reloaded, whereas the Settings page batches the save behind the confirmation.
+//
+// The Edge experimental dark mode guidance has moved to the Settings page too,
+// as a collapsed details section. What remains here is the Dark Reader route,
+// which needs an extension install rather than a flag flip.
 export function App() {
-  const [state, setState] = useState<Settings>({});
-  const [loading, setLoading] = useState(true);
-  const [status, setStatus] = useState<{
-    message: string;
-    type: StatusType;
-  } | null>(null);
-
-  const showStatus = useCallback((message: string, type: StatusType) => {
-    setStatus({ message, type });
-    if (type !== "error") {
-      setTimeout(() => setStatus(null), 3000);
-    }
-  }, []);
-
-  const loadState = useCallback(async () => {
-    try {
-      const response = await fetch(STATE_ENDPOINT, { credentials: "include" });
-      if (!response.ok) {
-        throw new Error("Failed to load settings");
-      }
-      const data: Settings | null = await response.json();
-      if (data) {
-        setState(data);
-      }
-    } catch (err) {
-      showStatus(
-        `Failed to load settings: ${
-          err instanceof Error ? err.message : "Unknown error"
-        }`,
-        "error"
-      );
-    } finally {
-      setLoading(false);
-    }
-  }, [showStatus]);
-
-  const saveState = useCallback(
-    async (newState: Settings): Promise<boolean> => {
-      try {
-        const hasAnyValue = Object.values(newState).some((v) => v);
-        const body = hasAnyValue ? JSON.stringify(newState) : "null";
-
-        const response = await fetch(STATE_ENDPOINT, {
-          method: "PUT",
-          credentials: "include",
-          headers: { "Content-Type": "application/json" },
-          body,
-        });
-        if (!response.ok) {
-          throw new Error("Failed to save settings");
-        }
-        return true;
-      } catch (err) {
-        showStatus(
-          `Failed to save settings: ${
-            err instanceof Error ? err.message : "Unknown error"
-          }`,
-          "error"
-        );
-        return false;
-      }
-    },
-    [showStatus]
-  );
-
-  useEffect(() => {
-    loadState();
-  }, [loadState]);
-
-  const handleToneChange = async (tone: Settings["accessibilityBackground"]) => {
-    const newState: Settings = { ...state, accessibilityBackground: tone };
-    setState(newState);
-    const success = await saveState(newState);
-    if (success) {
-      window.location.reload();
-    }
-  };
-
   return (
     <div className="accessibility-container">
       <style>{`
@@ -107,79 +35,25 @@ export function App() {
         .guidance-section li {
           margin-bottom: 10px;
         }
-        .guidance-section code {
-          background: #fff;
-          padding: 2px 6px;
-          border: 1px solid #b1b4b6;
-          border-radius: 3px;
-          font-family: monospace;
-        }
       `}</style>
 
       <h1 className="govuk-heading-l">Accessibility Preview</h1>
 
       <p className="govuk-body">
-        These settings help make the CPS services easier to use for extended periods.
-        Choose the options that work best for you.
+        These options help make the CPS services easier to use for extended periods. Choose the ones that work best for
+        you.
       </p>
 
-      {status?.type === "error" && (
-        <div className="govuk-error-summary" data-module="govuk-error-summary">
-          <div role="alert">
-            <h2 className="govuk-error-summary__title">There is a problem</h2>
-            <div className="govuk-error-summary__body">
-              <p>{status.message}</p>
-            </div>
-          </div>
-        </div>
-      )}
-
-
-      {/* Section 1: Low Contrast Background */}
-      <div className="govuk-form-group">
-        <fieldset className="govuk-fieldset" aria-describedby="background-hint">
-          <legend className="govuk-fieldset__legend govuk-fieldset__legend--m">
-            <h2 className="govuk-fieldset__heading">Low contrast background</h2>
-          </legend>
-          <div id="background-hint" className="govuk-hint">
-            Reduces the harsh glare of the bright white page background to make the service
-            easier on the eyes over long periods, while keeping text dark and readable.
-            Choose a tone below. For a full dark theme, see the browser options further down.
-          </div>
-          <div className="govuk-radios" data-module="govuk-radios">
-            {(
-              [
-                { value: "off", label: "Off" },
-                { value: "soft-grey", label: "Soft grey" },
-                { value: "warm", label: "Warm (easier for long reading)" },
-              ] as const
-            ).map(({ value, label }) => (
-              <div className="govuk-radios__item" key={value}>
-                <input
-                  className="govuk-radios__input"
-                  id={`accessibilityBackground-${value}`}
-                  name="accessibilityBackground"
-                  type="radio"
-                  value={value}
-                  checked={(state.accessibilityBackground ?? "off") === value}
-                  disabled={loading}
-                  onChange={() => handleToneChange(value === "off" ? undefined : value)}
-                />
-                <label
-                  className="govuk-label govuk-radios__label"
-                  htmlFor={`accessibilityBackground-${value}`}
-                >
-                  {label}
-                </label>
-              </div>
-            ))}
-          </div>
-        </fieldset>
-      </div>
+      <p className="govuk-body">
+        To soften the bright white page background, or to turn on Microsoft Edge's built-in dark mode, see the{" "}
+        <a href="settings.html" className="govuk-link">
+          settings page
+        </a>
+        . For a dark theme that follows you across other websites too, the Dark Reader extension is described below.
+      </p>
 
       <hr className="govuk-section-break govuk-section-break--l govuk-section-break--visible" />
 
-      {/* Section 2: Dark Reader Extension */}
       <div className="guidance-section">
         <h3 className="govuk-heading-m">Dark Reader browser extension</h3>
         <p className="govuk-body">
@@ -210,37 +84,6 @@ export function App() {
         <p className="govuk-body govuk-!-font-size-16">
           <strong>Note:</strong> Dark Reader may affect page performance on complex pages.
           You can disable it for specific sites if needed.
-        </p>
-      </div>
-
-      {/* Section 3: Edge Experimental Dark Mode */}
-      <div className="guidance-section">
-        <h3 className="govuk-heading-m">Edge experimental dark mode</h3>
-        <p className="govuk-body">
-          Microsoft Edge has a built-in experimental feature that forces dark mode on
-          all websites. This achieves a similar effect to Dark Reader without needing
-          an extension.
-        </p>
-        <h4 className="govuk-heading-s">How to enable experimental dark mode:</h4>
-        <ol className="govuk-body">
-          <li>
-            Open a new tab and type <code>edge://flags/#enable-force-dark</code> in
-            the address bar, then press Enter
-          </li>
-          <li>
-            Find the setting labelled <strong>Auto Dark Mode for Web Contents</strong>
-          </li>
-          <li>
-            Change the dropdown from <strong>Default</strong> to <strong>Enabled</strong>
-          </li>
-          <li>
-            Click <strong>Restart</strong> at the bottom of the page to apply the changes
-          </li>
-        </ol>
-        <p className="govuk-body govuk-!-font-size-16">
-          <strong>Note:</strong> This is an experimental feature and may not work
-          perfectly on all websites. You can disable it by returning to the flags page
-          and setting it back to <strong>Default</strong>.
         </p>
       </div>
     </div>

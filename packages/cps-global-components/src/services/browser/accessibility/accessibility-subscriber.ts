@@ -1,4 +1,4 @@
-import { Settings } from "cps-global-configuration";
+import { FEATURE_FLAGS, Settings } from "cps-global-configuration";
 import { DomMutationObserver } from "../dom/DomMutationObserver";
 
 type Tone = NonNullable<Settings["accessibilityBackground"]>;
@@ -42,7 +42,7 @@ export const relativeLuminance = ({ r, g, b }: { r: number; g: number; b: number
   return 0.2126 * channel(r) + 0.7152 * channel(g) + 0.0722 * channel(b);
 };
 
-export const accessibilitySubscriber: DomMutationObserver = ({ preview, window, settings }) => {
+export const accessibilitySubscriber: DomMutationObserver = ({ preview, window, settings, flags, config, authHint }) => {
   const { document } = window;
 
   const tone = settings.result?.accessibilityBackground;
@@ -110,7 +110,7 @@ export const accessibilitySubscriber: DomMutationObserver = ({ preview, window, 
   };
 
   return {
-    isActiveForContext: !!preview.result?.accessibility && !!theme && !forcedColors,
+    isActiveForContext: FEATURE_FLAGS.shouldEnableAccessibilityMode({ config, preview, flags, authHint }) && !!theme && !forcedColors,
     subscriptions: [
       // Top-level CSS approach for document background.
       {

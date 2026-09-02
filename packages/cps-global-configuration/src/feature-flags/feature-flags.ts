@@ -35,8 +35,19 @@ const shouldShowCaseDetails = ({ preview, config, flags }: FlagInputs): "a" | "b
   return resolved === "off" ? undefined : resolved;
 };
 
-const shouldEnableAccessibilityMode = ({ preview, flags }: FlagInputs) =>
-  !!(preview?.result?.accessibility || flags?.isLocalDevelopment);
+// Gates the footer "Settings" link and the low-contrast background subscriber that
+// the settings page drives — the two must move together, or a user gets a link to a
+// control that silently does nothing. FEATURE_FLAG_ACCESSIBILITY_MODE_USERS carries the
+// env-wide switch (generallyAvailable, on across pre-prod) plus group/ad-hoc enrolment
+// for piloting in prod; it ORs with the per-user preview opt-in and the local-dev default.
+//
+// Note for the subscriber call site: the group/ad-hoc paths need an identity, and on a
+// cold first load there is neither `auth` nor `authHint` yet, so those users get no paint
+// until the next page load. generallyAvailable and preview need no identity at all.
+const shouldEnableAccessibilityMode = ({ config, preview, flags, auth, authHint }: FlagInputs) =>
+  !!preview?.result?.accessibility ||
+  !!flags?.isLocalDevelopment ||
+  getFeatureFlagAssignment({ auth, authHint, config }, "FEATURE_FLAG_ACCESSIBILITY_MODE_USERS").result;
 
 // Used by the DOM subscriber that swaps host <footer>s for cps-global-footer.
 // FOOTER_SHIM_ENABLED is the env-config GA gate (on for everyone); it ORs with

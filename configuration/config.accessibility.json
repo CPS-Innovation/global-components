@@ -24,6 +24,9 @@
   "OS_TRIAGE_REQUEST_OBSERVATION_ENABLED": true,
   "PROBE_DARK_READER_USAGE": true,
   "FOOTER_SHIM_ENABLED": true,
+  "FEATURE_FLAG_ACCESSIBILITY_MODE_USERS": {
+    "generallyAvailable": true
+  },
   "FEATURE_FLAG_MENU_USERS": {
     "adGroupIds": ["12377eca-b463-4a6c-80ea-95f678f09591"]
   },
