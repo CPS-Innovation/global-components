@@ -34,7 +34,7 @@ export class CpsGlobalFooterContent {
             {accessibilitySettingsUrl && (
               <li class="govuk-footer__inline-list-item">
                 <a class="govuk-footer__link" href={accessibilitySettingsUrl}>
-                  Accessibility settings
+                  Settings
                 </a>
               </li>
             )}
