@@ -35,7 +35,7 @@ export function SettingsApp() {
   const isFirstRender = useRef(true);
 
   const STAGE_TITLES: Record<Step, string> = {
-    form: "Accessibility settings",
+    form: "Settings",
     check: "Check your answers",
     confirmation: "Your accessibility settings have been updated",
   };
@@ -127,7 +127,7 @@ export function SettingsApp() {
       <div className="govuk-grid-row">
         <div className="govuk-grid-column-two-thirds">
           <h1 className="govuk-heading-l" ref={headingRef} tabIndex={-1}>
-            Accessibility settings
+            Settings
           </h1>
           <p className="govuk-body">Use this page to define your accessibility settings.</p>
 
