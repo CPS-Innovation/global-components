@@ -35,6 +35,85 @@ describe("FEATURE_FLAGS", () => {
       const result = FEATURE_FLAGS.shouldEnableAccessibilityMode(state);
       expect(result).toBe(false);
     });
+
+    it("should return true when generallyAvailable is set (env-wide switch)", () => {
+      const state = {
+        preview: { found: true as const, result: {} },
+        flags: {} as ApplicationFlags,
+        config: { FEATURE_FLAG_ACCESSIBILITY_MODE_USERS: { generallyAvailable: true } } as any,
+      };
+
+      const result = FEATURE_FLAGS.shouldEnableAccessibilityMode(state);
+      expect(result).toBe(true);
+    });
+
+    it("should return false when generallyAvailable is false and there is no other opt-in", () => {
+      const state = {
+        preview: { found: true as const, result: {} },
+        flags: {} as ApplicationFlags,
+        config: { FEATURE_FLAG_ACCESSIBILITY_MODE_USERS: { generallyAvailable: false } } as any,
+      };
+
+      const result = FEATURE_FLAGS.shouldEnableAccessibilityMode(state);
+      expect(result).toBe(false);
+    });
+
+    it("should return true for a user in an enrolled AD group, resolved from the auth hint alone", () => {
+      const state = {
+        preview: { found: true as const, result: {} },
+        flags: {} as ApplicationFlags,
+        authHint: { found: true as const, result: { authResult: { isAuthed: true, objectId: "obj-1", groups: ["group-a"] } } } as any,
+        config: { FEATURE_FLAG_ACCESSIBILITY_MODE_USERS: { generallyAvailable: false, adGroupIds: ["group-a"] } } as any,
+      };
+
+      const result = FEATURE_FLAGS.shouldEnableAccessibilityMode(state);
+      expect(result).toBe(true);
+    });
+
+    it("should return false for an identity outside the enrolled AD groups", () => {
+      const state = {
+        preview: { found: true as const, result: {} },
+        flags: {} as ApplicationFlags,
+        authHint: { found: true as const, result: { authResult: { isAuthed: true, objectId: "obj-1", groups: ["group-z"] } } } as any,
+        config: { FEATURE_FLAG_ACCESSIBILITY_MODE_USERS: { generallyAvailable: false, adGroupIds: ["group-a"] } } as any,
+      };
+
+      const result = FEATURE_FLAGS.shouldEnableAccessibilityMode(state);
+      expect(result).toBe(false);
+    });
+
+    it("should return false on a cold load with no identity yet, even for an AD-group-enrolled flag", () => {
+      const state = {
+        preview: { found: true as const, result: {} },
+        flags: {} as ApplicationFlags,
+        config: { FEATURE_FLAG_ACCESSIBILITY_MODE_USERS: { generallyAvailable: false, adGroupIds: ["group-a"] } } as any,
+      };
+
+      const result = FEATURE_FLAGS.shouldEnableAccessibilityMode(state);
+      expect(result).toBe(false);
+    });
+
+    it("should return true when the flag excludes the user but they have the preview opt-in", () => {
+      const state = {
+        preview: { found: true as const, result: { accessibility: true } },
+        flags: {} as ApplicationFlags,
+        config: { FEATURE_FLAG_ACCESSIBILITY_MODE_USERS: { generallyAvailable: false } } as any,
+      };
+
+      const result = FEATURE_FLAGS.shouldEnableAccessibilityMode(state);
+      expect(result).toBe(true);
+    });
+
+    it("should return true in local development", () => {
+      const state = {
+        preview: { found: true as const, result: {} },
+        flags: { isLocalDevelopment: true } as ApplicationFlags,
+        config: {} as any,
+      };
+
+      const result = FEATURE_FLAGS.shouldEnableAccessibilityMode(state);
+      expect(result).toBe(true);
+    });
   });
 
   describe("shouldShowGovUkRebrand", () => {

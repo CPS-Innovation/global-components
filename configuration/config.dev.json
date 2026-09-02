@@ -42,6 +42,9 @@
   "OS_TRIAGE_REQUEST_OBSERVATION_ENABLED": true,
   "PROBE_DARK_READER_USAGE": true,
   "FOOTER_SHIM_ENABLED": true,
+  "FEATURE_FLAG_ACCESSIBILITY_MODE_USERS": {
+    "generallyAvailable": true
+  },
   "SSO_SILENT_DELAY_MS": 2000,
   "CONTEXTS": [
     {

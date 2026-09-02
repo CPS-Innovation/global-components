@@ -19,10 +19,13 @@ export class CpsGlobalFooterContent {
   @Prop() userEmail?: string;
 
   render() {
-    const { isReady, state } = readyState(["config", "preview"], ["flags", "rootUrl"]);
+    const { isReady, state } = readyState(["config", "preview"], ["flags", "rootUrl", "authHint", "auth"]);
     const showGovUkRebrand = isReady && FEATURE_FLAGS.shouldShowGovUkRebrand(state);
     const accessibilityStatement = isReady ? FEATURE_FLAGS.accessibilityStatementLink(state) : { showLink: false, url: undefined };
-    // Accessibility settings link (moved here from the header) — same feature-flag gate.
+    // Accessibility settings link (moved here from the header). authHint/auth are optional
+    // state: they only matter for the group/ad-hoc enrolment paths of the flag, and keeping
+    // them out of the readiness gate means identity never delays the rest of the footer —
+    // the link just appears once the hint lands.
     // rootUrl is guarded so we never build the artifact URL against an undefined base.
     const accessibilitySettingsUrl =
       isReady && state.rootUrl && FEATURE_FLAGS.shouldEnableAccessibilityMode(state) ? getArtifactUrl(state.rootUrl, "accessibility/settings.html") : undefined;
