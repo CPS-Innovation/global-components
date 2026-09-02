@@ -176,6 +176,14 @@ export const configBaseSchema = z.object({
   ENVIRONMENT: z.string(),
   REDIRECT_SCRIPT_URL: z.string().optional(),
   CASE_LOCKING_API_URL: z.string().optional(),
+  // Scopes for the presence API access token. NOT the gateway scopes: one token
+  // has one audience, and AD_GATEWAY_SCOPES asks for Microsoft Graph, so a token
+  // acquired with those would be rejected by the presence API the moment it starts
+  // validating. The presence API is the SAME app registration the SPA signs in
+  // with (client and resource in one), which is why no consent grant is involved —
+  // see _PRESENCE_API_SCOPE in global-components.cms-auth-v2.ts, where the legacy
+  // clients request exactly the same scope. Empty means send no token at all.
+  CASE_LOCKING_SCOPES: z.array(z.string()).optional(),
   LINKS: z.array(linkSchema),
   BANNER_TITLE_HREF: z.string(),
   AD_TENANT_AUTHORITY: z.string().optional(),

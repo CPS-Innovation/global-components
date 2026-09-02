@@ -32,13 +32,54 @@ const tenantId =
 const clientId =
   (process.env["CPS_GLOBAL_COMPONENTS_CMS_AUTH_CLIENT_ID"] as string) ||
   "8d6133af-9593-47c6-94d0-5c65e9e310f1";
-const redirectUri =
-  (process.env["CPS_GLOBAL_COMPONENTS_CMS_AUTH_REDIRECT_URI"] as string) ||
-  "https://polaris-qa-notprod.cps.gov.uk/init-v2/callback";
+// redirectUri is NOT here: it is build-time injected, so it has to be declared
+// below the dropzone block. njs TDZ-checks forward references to module-level
+// const, and this file has been bitten by that before.
 
 const storageAccount =
   (process.env["CPS_GLOBAL_COMPONENTS_CMS_AUTH_STORAGE_ACCOUNT"] as string) ||
   "sacpsglobalcomponents";
+
+// ---------------------------------------------------------------------------
+// Scopes
+//
+// _OIDC_SCOPES alone yields an id_token (v2, from the /oauth2/v2.0/ endpoint)
+// plus an access_token for Microsoft GRAPH — and Graph always issues v1-format
+// access tokens (ver "1.0"), whatever endpoint you ask through.
+//
+// Adding _PRESENCE_API_SCOPE — a scope this very app exposes — makes the
+// access_token target US instead: ver "2.0", aud "api://<client-id>",
+// scp "api.presence.user.readwrite", i.e. the shape the presence API expects.
+// Requires "requestedAccessTokenVersion": 2 in the app registration manifest
+// (api block); without it AAD issues a v1 token for the same scope.
+//
+// It must be requested at BOTH /authorize and the token exchange: a code is
+// bound to the scopes consented at authorize, so asking only at redemption
+// gives AADSTS70011.
+//
+// Set to "" to fall back to OIDC-only (Graph access token). The callback also
+// drops it AUTOMATICALLY and retries once if AAD asks for consent — see
+// _CONSENT_ERRORS. Client and resource are the same app here, so consent
+// should not arise; the retry is a safety net for prompt=none, which turns any
+// consent requirement into a dead flow rather than a prompt.
+// ---------------------------------------------------------------------------
+const _OIDC_SCOPES = "openid profile email";
+const _PRESENCE_API_SCOPE =
+  (process.env["CPS_GLOBAL_COMPONENTS_CMS_AUTH_PRESENCE_SCOPE"] as string) ||
+  "api://8d6133af-9593-47c6-94d0-5c65e9e310f1/api.presence.user.readwrite";
+
+// AAD errors that mean "the extra API scope needs interactive consent". Anything
+// else (login_required, invalid_request, ...) is a real failure and is reported
+// as-is — retrying without the scope would not help and would hide the cause.
+const _CONSENT_ERRORS = ["consent_required", "interaction_required"];
+
+// The scope string actually sent. `dropped` is carried in the state cookie so the
+// token exchange asks for EXACTLY what /authorize consented to.
+function _scopeString(dropped: boolean): string {
+  return dropped || !_PRESENCE_API_SCOPE
+    ? _OIDC_SCOPES
+    : _OIDC_SCOPES + " " + _PRESENCE_API_SCOPE;
+}
 
 // ---------------------------------------------------------------------------
 // Build-time templating dropzone — the two SECRETS
@@ -55,6 +96,28 @@ const storageAccount =
 // ---------------------------------------------------------------------------
 const BUILD_CLIENT_SECRET = "@@CPS_GLOBAL_COMPONENTS_CMS_AUTH_CLIENT_SECRET@@";
 const BUILD_STORAGE_KEY = "@@CPS_GLOBAL_COMPONENTS_CMS_AUTH_STORAGE_KEY@@";
+// Not a secret, but injected the same way for the same reason: the deployed box
+// has no dependable app settings. Terraform owns those boxes and will clear
+// anything it does not manage, so an env var here is a setting that silently
+// disappears — and the failure mode is AADSTS50011 at runtime, on the redirect,
+// where nobody is looking. Baking it into the artefact makes the deployed js
+// self-describing: whatever callback it names is the one it will use.
+const BUILD_REDIRECT_URI = "@@CPS_GLOBAL_COMPONENTS_CMS_AUTH_REDIRECT_URI@@";
+
+// WHERE THE IMPLEMENTATION LIVES — e.g. "https://polaris-uat-notprod.cps.gov.uk".
+// Empty means "the same host as the request", which is the conventional
+// single-box deployment and was the only behaviour before the split.
+//
+// This exists because /polaris-v2 is the hand-off between two domains. It must be
+// hit on the UI domain — that is the only place the browser will send the CMS
+// session cookies — and must then redirect to the IMPLEMENTATION domain carrying
+// them. Until now it redirected to itself, which was indistinguishable from
+// correct while both were the same box.
+//
+// Baked at deploy time (deploy.local.sh, from IMPL_ENV) rather than read from an
+// app setting: Terraform clears settings it does not manage, and the failure mode
+// here is silent — the flow completes, the cookie store just ends up empty.
+const BUILD_IMPL_ORIGIN = "@@IMPL_ORIGIN@@";
 
 const _fromDropzone = (token: string): string =>
   token.indexOf("@@") === -1 ? token : "";
@@ -65,6 +128,18 @@ const clientSecret =
 const storageKey =
   (process.env["CPS_GLOBAL_COMPONENTS_CMS_AUTH_STORAGE_KEY"] as string) ||
   _fromDropzone(BUILD_STORAGE_KEY);
+
+// "" when the implementation shares a host with the UI (the conventional case).
+const implOrigin = _fromDropzone(BUILD_IMPL_ORIGIN);
+
+// The AAD callback. MUST match a redirectUri registered on the app registration
+// (web.redirectUris — this is a confidential-client code flow, so the spa list
+// does not count), or AAD refuses the round trip with AADSTS50011.
+// env -> build-time injection -> QA default, in that order.
+const redirectUri =
+  (process.env["CPS_GLOBAL_COMPONENTS_CMS_AUTH_REDIRECT_URI"] as string) ||
+  _fromDropzone(BUILD_REDIRECT_URI) ||
+  "https://polaris-qa-notprod.cps.gov.uk/init-v2/callback";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -168,13 +243,20 @@ function _esc(s: string): string {
 
 // Render an unhandled exception straight to the HTTP response so it is visible
 // in the browser (the deployed proxy's logs are not reachable). Never throws.
-function _renderException(r: NginxHTTPRequest, where: string, e: unknown): void {
+function _renderException(
+  r: NginxHTTPRequest,
+  where: string,
+  e: unknown,
+): void {
   const err = e as { message?: string; stack?: string; name?: string };
   const name = (err && err.name) || "Error";
   const msg = (err && err.message) || String(e);
   const stack = (err && err.stack) || "(no stack available)";
   try {
-    ngx.log(ngx.ERR, "cms-auth-v2 unhandled in " + where + ": " + name + ": " + msg);
+    ngx.log(
+      ngx.ERR,
+      "cms-auth-v2 unhandled in " + where + ": " + name + ": " + msg,
+    );
   } catch {
     // ignore logging failures
   }
@@ -344,10 +426,17 @@ function handlePolarisV2(r: NginxHTTPRequest): void {
     encodedCookies +
     "&is-proxy-session=true";
 
-  // Absolute URL required — IE mode iframes don't follow relative 302 Location headers
+  // THE DOMAIN HAND-OFF. We are on the UI domain — which is why the Cookie header
+  // above has anything in it — and now send the browser to the IMPLEMENTATION
+  // domain carrying those cookies. implOrigin is empty in a single-box deployment,
+  // giving the original self-redirect.
+  //
+  // Absolute URL required either way: IE mode iframes don't follow relative 302
+  // Location headers.
   const proto = r.headersIn["X-Forwarded-Proto"] || "https";
   const host = r.headersIn["Host"] || "";
-  r.return(302, proto + "://" + host + "/init-v2/?" + targetQuery);
+  const target = implOrigin || proto + "://" + host;
+  r.return(302, target + "/init-v2/?" + targetQuery);
 }
 
 // ---------------------------------------------------------------------------
@@ -367,7 +456,10 @@ async function handleInitV2(r: NginxHTTPRequest): Promise<void> {
     r.headersOut["X-InternetExplorerMode"] = "0";
     const proto = (r.headersIn["X-Forwarded-Proto"] as string) || "https";
     const host = (r.headersIn["Host"] as string) || "";
-    r.return(302, proto + "://" + host + (r.variables["request_uri"] as string));
+    r.return(
+      302,
+      proto + "://" + host + (r.variables["request_uri"] as string),
+    );
     return;
   }
 
@@ -574,13 +666,15 @@ async function handleInitV2(r: NginxHTTPRequest): Promise<void> {
       ],
       [
         "Modern Token Diag",
-        modernTokenDiag ? "<code>" + modernTokenDiag + "</code>" : "<em>(none)</em>",
+        modernTokenDiag
+          ? "<code>" + modernTokenDiag + "</code>"
+          : "<em>(none)</em>",
       ],
       [
         "GraphQL Diag",
         graphqlDiag ? "<code>" + graphqlDiag + "</code>" : "<em>(none)</em>",
       ],
-      ["Landing URL (r)", (_getQueryParam(r, "r") || "") || "<em>(none)</em>"],
+      ["Landing URL (r)", _getQueryParam(r, "r") || "" || "<em>(none)</em>"],
     ]
       .map(function (row) {
         return `<tr><td><strong>${row[0]}</strong></td><td>${row[1]}</td></tr>`;
@@ -617,6 +711,7 @@ async function handleInitV2(r: NginxHTTPRequest): Promise<void> {
   const statePayload = JSON.stringify({
     s: state,
     n: nonce,
+    ns: false, // API scope NOT dropped on this attempt (see _scopeString)
     r: redirectParam,
     cc: encodeURIComponent(fetchCookies),
     correlation: correlation,
@@ -639,7 +734,7 @@ async function handleInitV2(r: NginxHTTPRequest): Promise<void> {
     "client_id=" + encodeURIComponent(clientId),
     "response_type=code",
     "redirect_uri=" + encodeURIComponent(redirectUri),
-    "scope=" + encodeURIComponent("openid profile email"),
+    "scope=" + encodeURIComponent(_scopeString(false)),
     "state=" + state,
     "nonce=" + nonce,
     "response_mode=query",
@@ -657,7 +752,7 @@ async function handleInitV2(r: NginxHTTPRequest): Promise<void> {
 
 // ---------------------------------------------------------------------------
 // Presence constants — declared here (before handleInitV2Callback, which references
-// _PRESENCE_USE_ID_TOKEN / _PRESENCE_DEV_BEARER) because njs TDZ-checks forward
+// _PRESENCE_USE_REAL_TOKEN / _PRESENCE_DEV_BEARER) because njs TDZ-checks forward
 // references to module-level const. The JSONP adapter below uses them too.
 // ---------------------------------------------------------------------------
 
@@ -667,18 +762,58 @@ const _PRESENCE_API_BASE = "https://app-cms-presence-api.azurewebsites.net/api";
 // readwrite). The backend accepts it under its custom "Bearer-Test" auth scheme, which
 // does NOT validate the signature (hence the "dev-signature-not-validated-by-BearerTest-
 // scheme" segment). NOT a real credential. The auth callback stamps this into the id-token
-// cookie while _PRESENCE_USE_ID_TOKEN is false (the real id-token goes in when on); the
+// cookie while _PRESENCE_USE_REAL_TOKEN is false (a real token goes in when on); the
 // handler sends whatever the cookie holds — dev under "Bearer-Test", real under "Bearer".
 const _PRESENCE_DEV_BEARER =
   "eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiIsImtpZCI6IlQxU3QtZUxHSGcxZ0o0d1RmZDl3Q3F6WnEtQjRvOFUiLCJ4NXQiOiJUMVN0LWVMR0hnMWdKNHdUZmQ5d0NxelpxLUI0bzhVIn0.eyJhdWQiOiJhcGk6Ly8xMTExMjIyMi0zMzMzLTQ0NDQtNTU1NS02NjY2Nzc3Nzg4ODgiLCJpc3MiOiJodHRwczovL2xvZ2luLm1pY3Jvc29mdG9ubGluZS5jb20vOTk5OTg4ODgtNzc3Ny02NjY2LTU1NTUtNDQ0NDMzMzMyMjIyL3YyLjAiLCJpYXQiOjE3MzU3MzI4MDAsIm5iZiI6MTczNTczMjgwMCwiZXhwIjoxNzM1NzM2NDAwLCJhaW8iOiJBV1FBbS84WEFBQUF0VjBtMFA3VnYxYnFVM3E0WWgxSncybjZtUThiMGs1cjN4Tj09IiwiYXpwIjoiYWFhYWJiYmItY2NjYy1kZGRkLWVlZWUtZmZmZjAwMDAxMTExIiwiYXpwYWNyIjoiMSIsIm5hbWUiOiJUZXN0IFVzZXIiLCJvaWQiOiI3YzlmNGUyYS0xYjZkLTRjM2UtOWYwYS0yZDViOGUxYTRjN2YiLCJwcmVmZXJyZWRfdXNlcm5hbWUiOiJ0ZXN0LXVzZXJAY3BzLmdvdi51ayIsImVtYWlsIjoidGVzdC11c2VyQGNwcy5nb3YudWsiLCJyaCI6IjAuQUFBQS5nWS4iLCJzY3AiOiJhcGkucHJlc2VuY2UudXNlci5yZWFkd3JpdGUiLCJzdWIiOiJBQWRqOGtRMnI3eDltTjNwTDV0WjF2QjZ3WDBjWTR1SDhzSzJlRjdnVDlhIiwidGlkIjoiOTk5OTg4ODgtNzc3Ny02NjY2LTU1NTUtNDQ0NDMzMzMyMjIyIiwidXRpIjoiYUIzY0Q0ZUY1Z0g2aUo3a0w4bU5BQSIsInZlciI6IjIuMCJ9.dev-signature-not-validated-by-BearerTest-scheme";
 
-const _PRESENCE_ID_TOKEN_COOKIE = "cms-auth-id-token";
+// Cookie the auth callback stamps the presence token into, and the JSONP adapter reads
+// back out. Named for its PURPOSE, not its payload, because the payload is now selectable
+// (see _PRESENCE_TOKEN_KIND) — it may hold an access token, an id token, or the dev bearer.
+//
+// NB this is NOT the same thing as the "cms-auth-id-token" localStorage key written near
+// the end of the callback. That one is the RELAY transport's id-token and is read by
+// cms-auth-v2-client.js and cms-presence-relay.html; it stays as-is.
+const _PRESENCE_TOKEN_COOKIE = "cms-auth-presence-token";
 
-// Token switch — mirrors the relay's USE_ID_TOKEN. The presence API currently accepts
-// ONLY the static dev token, so this stays false: the callback SETS the id-token cookie
-// (ready for later), but we keep SENDING the dev bearer until the backend validates real
-// id-tokens. Flip to true then — the handler will prefer the cookie's id-token.
-const _PRESENCE_USE_ID_TOKEN = false;
+// The calling application, reported to the presence API as X-Watchdog-App-Name.
+// Over SignalR the name is a hub-method argument; this transport has no such
+// channel, so the client passes ?appName= and we transpose it here.
+//
+// DEFAULT: this endpoint is only ever called by the injected CMS Classic shell
+// script, so an absent arg means Classic. That default also means the client
+// need not change to start reporting — it can add ?appName= when convenient.
+//
+// Matched against the known set rather than sanitised: the value is a query arg
+// going into an outbound header, and an unrecognised app should be reported as
+// no app rather than as whatever was in the URL. Vocabulary per the presence API
+// README; extend here when it does.
+const _WATCHDOG_APP_NAMES = [
+  "Work Management App",
+  "Case Review App",
+  "Casework App",
+  "CMS Classic",
+  "CMS Modern", // covers DCF too — one app in users' minds
+];
+const _WATCHDOG_APP_DEFAULT = "CMS Classic";
+
+// Dev/real switch. False = stamp the static dev bearer into the cookie (sent as
+// "Bearer-Test", signature not validated by the backend); true = stamp the real token
+// chosen by _PRESENCE_TOKEN_KIND (sent as "Bearer"). Kept as a switch so the whole
+// handover can be exercised with a safe payload when needed.
+const _PRESENCE_USE_REAL_TOKEN = true;
+
+// WHICH real token goes in the cookie when _PRESENCE_USE_REAL_TOKEN is on.
+//   "access" — the access_token from the code exchange. The API side wants an
+//              access-token-shaped credential; it does no validation yet, so the
+//              audience (currently Microsoft Graph, from the openid/profile/email
+//              scopes) does not matter. When the API starts validating, request its
+//              own scope at BOTH /authorize and the token exchange — a code is bound
+//              to the scopes consented at authorize, so redemption-only gives
+//              AADSTS70011, and prompt=none turns a missing consent into a dead flow.
+//   "id"     — the id_token, i.e. the previous behaviour.
+// Falls back to the id token if AD returns no access_token; the diagnostic page says so.
+const _PRESENCE_TOKEN_KIND: "access" | "id" = "access";
 
 // ---------------------------------------------------------------------------
 // /init-v2/callback — Code exchange, validation, table storage, diagnostics
@@ -691,6 +826,47 @@ async function handleInitV2Callback(r: NginxHTTPRequest): Promise<void> {
   const error = _getQueryParam(r, "error");
   if (error) {
     const desc = _getQueryParam(r, "error_description") || "Unknown error";
+
+    // Self-heal: if AAD wants consent for the extra API scope, drop it and try
+    // once more with OIDC scopes only. prompt=none cannot show a consent screen,
+    // so without this the whole handover dies on a condition we can recover from.
+    // The captured context (CMS cookies, modern token, timings) lives in the state
+    // cookie, so we re-issue that payload rather than re-running /init-v2 — nothing
+    // is lost. `ns` marks the retry so it can only ever happen once.
+    if (_CONSENT_ERRORS.indexOf(error) !== -1 && _PRESENCE_API_SCOPE) {
+      const raw = _getCookie(r, "cms_auth_state");
+      let prior: Record<string, unknown> | null = null;
+      try {
+        prior = raw ? JSON.parse(_base64UrlDecode(raw)) : null;
+      } catch {
+        prior = null;
+      }
+      if (prior && !prior.ns) {
+        const retryState = _generateRandomString(16);
+        const retryNonce = _generateRandomString(16);
+        prior.s = retryState;
+        prior.n = retryNonce;
+        prior.ns = true;
+        r.headersOut["Set-Cookie"] = [
+          "cms_auth_state=" +
+            _base64UrlEncode(JSON.stringify(prior)) +
+            "; Path=/init-v2; HttpOnly; Secure; SameSite=Lax; Max-Age=300",
+        ];
+        const retryParams = [
+          "client_id=" + encodeURIComponent(clientId),
+          "response_type=code",
+          "redirect_uri=" + encodeURIComponent(redirectUri),
+          "scope=" + encodeURIComponent(_scopeString(true)),
+          "state=" + retryState,
+          "nonce=" + retryNonce,
+          "response_mode=query",
+          "prompt=none",
+        ].join("&");
+        r.return(302, authorizeUrl(tenantId) + "?" + retryParams);
+        return;
+      }
+    }
+
     r.return(
       400,
       _htmlPage("Auth Error", `<p><strong>${error}</strong></p><p>${desc}</p>`),
@@ -714,6 +890,7 @@ async function handleInitV2Callback(r: NginxHTTPRequest): Promise<void> {
   let statePayload: {
     s: string;
     n: string;
+    ns?: boolean;
     r: string;
     cc: string;
     correlation: string;
@@ -767,10 +944,16 @@ async function handleInitV2Callback(r: NginxHTTPRequest): Promise<void> {
     "code=" + encodeURIComponent(code),
     "redirect_uri=" + encodeURIComponent(redirectUri),
     "grant_type=authorization_code",
-    "scope=" + encodeURIComponent("openid profile email"),
+    // MUST match the /authorize scope — including the retry's dropped API scope,
+    // otherwise AAD rejects the redemption (AADSTS70011).
+    "scope=" + encodeURIComponent(_scopeString(!!statePayload.ns)),
   ].join("&");
 
   let idToken: string;
+  // The access_token that rides along with the id_token. With today's
+  // "openid profile email" scopes this is a Microsoft Graph token — a real, signed
+  // JWT, which is all the presence API needs while it does no validation.
+  let accessToken = "";
   let claims: Record<string, unknown>;
 
   timings.push(["Token exchange start", Date.now()]);
@@ -798,6 +981,7 @@ async function handleInitV2Callback(r: NginxHTTPRequest): Promise<void> {
 
     const data = JSON.parse(text);
     idToken = data.id_token;
+    accessToken = data.access_token || "";
     const decoded = _decodeJwtPayload(idToken);
     if (!decoded) {
       r.return(
@@ -903,13 +1087,31 @@ async function handleInitV2Callback(r: NginxHTTPRequest): Promise<void> {
     }
   }
 
-  // Truncate id_token for display
-  const tokenDisplay =
-    idToken.length > 80
-      ? idToken.substring(0, 40) +
-        "..." +
-        idToken.substring(idToken.length - 40)
-      : idToken;
+  // Tokens are shown IN FULL — this is a diagnostic page reached by running the flow
+  // by hand, and a truncated token can't be pasted into a request to try it. The table
+  // cells already carry word-break: break-all so they wrap. No escaping needed: a JWT is
+  // base64url + dots, so it has no HTML-significant characters.
+  // Decoded so the token's shape can be checked by eye: ver tells you whether the
+  // manifest's requestedAccessTokenVersion took effect, aud whether it targets us
+  // or Graph. Graph's v1 tokens decode fine; a failure just shows as (not decodable).
+  const accessClaims = accessToken ? _decodeJwtPayload(accessToken) : null;
+  const _claimsCell = (c: Record<string, unknown> | null) =>
+    c
+      ? "<code>ver=" +
+        String(c.ver ?? "?") +
+        " · aud=" +
+        String(c.aud ?? "?") +
+        " · scp=" +
+        String(c.scp ?? "-") +
+        " · appid=" +
+        String(c.appid ?? c.azp ?? "-") +
+        "</code>"
+      : "<em>(not decodable)</em>";
+
+  const _tokenCell = (tok: string) =>
+    tok
+      ? "<code>" + tok + "</code> <em>(" + tok.length + " chars)</em>"
+      : '<span class="fail">(none returned)</span>';
 
   timings.push(["Render page", Date.now()]);
 
@@ -934,16 +1136,50 @@ async function handleInitV2Callback(r: NginxHTTPRequest): Promise<void> {
   //     The relay flavour instead uses the localStorage write in storageScript below.
   const clearOpts =
     "; Path=/init-v2; HttpOnly; Secure; SameSite=Lax; Max-Age=0";
-  const idTokenCookieOpts =
+  const presenceCookieOpts =
     "; Path=/global-components/presence-jsonp; HttpOnly; Secure; SameSite=Lax; Max-Age=28800";
-  // While _PRESENCE_USE_ID_TOKEN is off we stamp the DEV token into the cookie so the whole
-  // handover is exercised actively with a safe payload; flip it on and the real id-token
-  // goes in instead. The JSONP handler reads ONLY this cookie (no other token source), so a
-  // working banner proves this cookie handover end-to-end.
-  const cookieToken = _PRESENCE_USE_ID_TOKEN ? idToken : _PRESENCE_DEV_BEARER;
+  // The SAME token, scoped to the case-locking hub routes, for the Modern/DCF
+  // SignalR client. That client ships no credential: presenceBearer (in
+  // global-components.case-locking.ts) lifts this cookie into an Authorization
+  // header on the way upstream, because a browser cannot set headers on a
+  // WebSocket handshake.
+  //
+  // Two narrow cookies rather than one broad Path=/global-components: the token
+  // then rides only on the two routes that need it, not on analytics, state and
+  // the data api.
+  //
+  // Cross-ORIGIN but same-SITE in the unproxied estate (a.cps.gov.uk page,
+  // b.cps.gov.uk hub, both under cps.gov.uk), so SameSite=Lax still sends it.
+  const caseLockingCookieOpts =
+    "; Path=/global-components/case-locking; HttpOnly; Secure; SameSite=Lax; Max-Age=28800";
+  // Which token rides in the cookie. Dev bearer when the real-token switch is off (safe
+  // payload, still exercises the whole handover); otherwise the kind named by
+  // _PRESENCE_TOKEN_KIND, falling back to the id token if AD returned no access_token.
+  // The JSONP handler reads ONLY this cookie (no constant fallback), so a working banner
+  // proves this handover end-to-end.
+  const wantAccess = _PRESENCE_TOKEN_KIND === "access";
+  const presenceTokenKind = !_PRESENCE_USE_REAL_TOKEN
+    ? "dev bearer"
+    : wantAccess && accessToken
+      ? "access token"
+      : wantAccess
+        ? "id token (no access_token returned)"
+        : "id token";
+  const cookieToken = !_PRESENCE_USE_REAL_TOKEN
+    ? _PRESENCE_DEV_BEARER
+    : wantAccess && accessToken
+      ? accessToken
+      : idToken;
   r.headersOut["Set-Cookie"] = [
     "cms_auth_state=deleted" + clearOpts,
-    "cms-auth-id-token=" + encodeURIComponent(cookieToken) + idTokenCookieOpts,
+    _PRESENCE_TOKEN_COOKIE +
+      "=" +
+      encodeURIComponent(cookieToken) +
+      presenceCookieOpts,
+    _PRESENCE_TOKEN_COOKIE +
+      "=" +
+      encodeURIComponent(cookieToken) +
+      caseLockingCookieOpts,
   ];
 
   // Render diagnostic page
@@ -985,7 +1221,30 @@ async function handleInitV2Callback(r: NginxHTTPRequest): Promise<void> {
         ? "<code>" + statePayload.graphqlDiag + "</code>"
         : "<em>(none)</em>",
     ],
-    ["ID Token", "<code>" + tokenDisplay + "</code>"],
+    [
+      "Scopes Requested",
+      "<code>" +
+        _scopeString(!!statePayload.ns) +
+        "</code>" +
+        (statePayload.ns
+          ? ' <span class="fail">(API scope dropped — AAD asked for consent, retried without it)</span>'
+          : ""),
+    ],
+    ["ID Token", _tokenCell(idToken)],
+    ["Access Token", _tokenCell(accessToken)],
+    ["Access Token Claims", _claimsCell(accessClaims)],
+    [
+      "Presence Cookie",
+      "<code>" +
+        _PRESENCE_TOKEN_COOKIE +
+        "</code> = " +
+        presenceTokenKind +
+        " <em>(" +
+        cookieToken.length +
+        " chars, sent as " +
+        (_PRESENCE_USE_REAL_TOKEN ? "Bearer" : "Bearer-Test") +
+        ")</em>",
+    ],
     ["OID", oid],
     ["Tenant ID", String(claims.tid || "")],
     ["Name", name],
@@ -1008,7 +1267,8 @@ async function handleInitV2Callback(r: NginxHTTPRequest): Promise<void> {
   // transfer, no cookie hand-off. See memory reference_cms_polaris_xorigin_zone.
   // JSON.stringify + <-escaping keep the JWT from breaking out of the <script>.
   const idTokenJs = JSON.stringify(idToken).replace(/</g, "\\u003c");
-  const storageScript = `<script>(function(){var v=${idTokenJs};` +
+  const storageScript =
+    `<script>(function(){var v=${idTokenJs};` +
     `try{window.localStorage.setItem("cms-auth-id-token",v);}catch(e){}` +
     `})();</script>`;
 
@@ -1158,7 +1418,7 @@ async function handleCmsModernToken(r: NginxHTTPRequest): Promise<void> {
 // ---------------------------------------------------------------------------
 
 // (The _PRESENCE_* scalar constants are declared ABOVE handleInitV2Callback — that
-// callback references _PRESENCE_USE_ID_TOKEN / _PRESENCE_DEV_BEARER, and njs TDZ-checks
+// callback references _PRESENCE_USE_REAL_TOKEN / _PRESENCE_DEV_BEARER, and njs TDZ-checks
 // forward references to module-level const, so they must precede their first use.)
 
 type _PresenceOp = {
@@ -1208,28 +1468,44 @@ async function handlePresenceJsonp(r: NginxHTTPRequest): Promise<void> {
     op: _getQueryParam(r, "op") || "",
     sid: _getQueryParam(r, "sid") || "",
     sectionId: decodeURIComponent(_getQueryParam(r, "sectionId") || ""),
+    appName: decodeURIComponent(_getQueryParam(r, "appName") || ""),
   };
 
   const op = _PRESENCE_OPS[args.op];
   if (!op) {
-    r.return(200, cb + "(" + JSON.stringify({ jsonpError: "unknown op: " + args.op }) + ")");
+    r.return(
+      200,
+      cb + "(" + JSON.stringify({ jsonpError: "unknown op: " + args.op }) + ")",
+    );
     return;
   }
 
-  // The token comes ONLY from the cookie (the auth callback stamps it there — dev token
-  // while _PRESENCE_USE_ID_TOKEN is off, real id-token when on). There is deliberately NO
-  // constant fallback: no cookie -> no Authorization -> the API 401s and no banner shows,
-  // so a working banner proves the whole cookie handover end-to-end. Scheme follows the
-  // switch: dev token uses "Bearer-Test" (signature not validated), real id-token "Bearer".
-  const cookieTok = _getCookie(r, _PRESENCE_ID_TOKEN_COOKIE);
+  // The token comes ONLY from the cookie (the auth callback stamps it there — dev bearer
+  // while _PRESENCE_USE_REAL_TOKEN is off, otherwise the real token chosen by
+  // _PRESENCE_TOKEN_KIND). There is deliberately NO constant fallback: no cookie -> no
+  // Authorization -> the API 401s and no banner shows, so a working banner proves the
+  // whole cookie handover end-to-end. Scheme follows the switch: the dev token goes as
+  // "Bearer-Test" (signature not validated by the backend), a real token as "Bearer".
+  const cookieTok = _getCookie(r, _PRESENCE_TOKEN_COOKIE);
   const headers: Record<string, string> = {};
+
+  const appName =
+    _WATCHDOG_APP_NAMES.indexOf(args.appName) !== -1
+      ? args.appName
+      : _WATCHDOG_APP_DEFAULT;
+  headers["X-Watchdog-App-Name"] = appName;
   if (cookieTok) {
     headers["Authorization"] =
-      (_PRESENCE_USE_ID_TOKEN ? "Bearer " : "Bearer-Test ") + decodeURIComponent(cookieTok);
+      (_PRESENCE_USE_REAL_TOKEN ? "Bearer " : "Bearer-Test ") +
+      decodeURIComponent(cookieTok);
   }
 
   try {
-    const fetchOpts: { method: string; headers: Record<string, string>; body?: string } = {
+    const fetchOpts: {
+      method: string;
+      headers: Record<string, string>;
+      body?: string;
+    } = {
       method: op.method,
       headers,
     };
@@ -1246,7 +1522,13 @@ async function handlePresenceJsonp(r: NginxHTTPRequest): Promise<void> {
       // Raw JSONP has no error channel; give the browser callback one.
       r.return(
         200,
-        cb + "(" + JSON.stringify({ jsonpError: "upstream " + resp.status, upstreamBody: text }) + ")",
+        cb +
+          "(" +
+          JSON.stringify({
+            jsonpError: "upstream " + resp.status,
+            upstreamBody: text,
+          }) +
+          ")",
       );
       return;
     }

@@ -29,8 +29,8 @@
   ],
   "scripts": {
     "preinstall": "npx only-allow pnpm",
-    "build": "stencil build",
-    "rollup": "rollup --config",
+    "build": "stencil build && node scripts/check-no-credentials.js",
+    "rollup": "rollup --config && node scripts/check-no-credentials.js",
     "predev": "esbuild mock-api/worker.ts --bundle --outfile=www/mock-api/browser.js --format=esm --log-level=error",
     "dev": "stencil build --dev --watch --serve",
     "test": "stencil test --spec",
