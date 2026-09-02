@@ -50,6 +50,22 @@ const KEEPALIVE_MS = 5000;
 // blindly: the session is gone, so the cure is to Connect again.
 const SESSION_EVICTED = "SESSION_EVICTED";
 
+// Whether to drop our own entry before publishing.
+//
+// FALSE, which matches the two legacy clients: the Classic banner counts and lists
+// everyone including you, and so does the Modern bar. Three clients disagreeing
+// about whether you can see yourself would be worse than any of the answers.
+//
+// It also makes the feature observable by one person: with self hidden, a lone
+// developer on a case sees an empty list and cannot tell a working mechanism from
+// a broken one — which is exactly where an afternoon went on 2026-09-02.
+//
+// Flip to true to restore the original SPA behaviour, whose argument was that
+// otherwise a lone user is told they are viewing the case they are looking at.
+// That is a real product question and worth settling with the UI work rather than
+// by default.
+const HIDE_SELF = false;
+
 const { _debug, _warn, _error } = makeConsole("caseLockingPresence");
 
 // NEVER put a token literal here. Until 2026-09-01 this file carried a hardcoded
@@ -165,11 +181,10 @@ export const createCaseLockingPresence = ({
 
   let reconcilePromise: Promise<void> = Promise.resolve();
 
-  // The hub reports everyone in the section, ourselves included. Drop our own entry
-  // so the banner only appears when someone *else* is on the case — otherwise a lone
-  // user is told they are viewing the case they are looking at. Compared
-  // case-insensitively because the server derives the name from token claims, whose
-  // casing we don't control.
+  // The hub reports everyone in the section, ourselves included.
+  //
+  // Compared case-insensitively because the server derives the name from token
+  // claims, whose casing we don't control.
   const isSelf = ({ user }: CaseLockingPresentUser) => !!user && user.toLowerCase() === username.toLowerCase();
 
   // The API's member shape flattened to what the store already publishes. Mapped
@@ -184,7 +199,7 @@ export const createCaseLockingPresence = ({
   // The store still receives the region CODE rather than the section identity —
   // the UI is changing shortly, so this keeps its existing contract.
   const publishPresentUsers = (key: string, code: string, users: CaseLockingPresentUser[]) => {
-    const others = users.filter(user => !isSelf(user));
+    const others = HIDE_SELF ? users.filter(user => !isSelf(user)) : users;
     publishedKey = key;
     _debug("publishing present users", { key, code, users, others });
     register({ caseLockingPresentUsers: { code, users: others } });

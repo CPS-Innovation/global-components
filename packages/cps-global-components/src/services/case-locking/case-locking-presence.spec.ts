@@ -262,7 +262,9 @@ describe("createCaseLockingPresence", () => {
   });
 
   describe("presence publication", () => {
-    it("Notify publishes the other present users, with self filtered out", async () => {
+    // HIDE_SELF is false, matching the Classic banner and the Modern bar, which
+    // both count and list the current user. See the constant for why.
+    it("publishes everyone in the section, ourselves included", async () => {
       const { service, hubFor, getPresentUsers, register } = setup();
       service.setCaseId("123");
       service.addRegion("witness");
@@ -277,27 +279,18 @@ describe("createCaseLockingPresence", () => {
       expect(register).toHaveBeenCalledWith({
         caseLockingPresentUsers: {
           code: "witness",
-          users: [{ user: "bob@cps.gov.uk", appName: "CMS" }],
+          users: [
+            { user: "alice", appName: "test-app" },
+            { user: "bob@cps.gov.uk", appName: "CMS" },
+          ],
         },
       });
-      expect(getPresentUsers()).toEqual({
-        code: "witness",
-        users: [{ user: "bob@cps.gov.uk", appName: "CMS" }],
-      });
+      expect(getPresentUsers()?.users).toHaveLength(2);
     });
 
-    it("filters self case-insensitively (the hub echoes token-claim casing)", async () => {
-      const { service, hubFor, getPresentUsers } = setup();
-      service.setCaseId("123");
-      service.addRegion("witness");
-      await flush();
-
-      hubFor("123:WITNESS")!.__notify?.(presence([{ user: "ALICE", appName: "CMS" }]));
-      await flush();
-      expect(getPresentUsers()?.users).toEqual([]);
-    });
-
-    it("publishes an empty list when we are the only user present", async () => {
+    it("publishes a list of one when we are the only user present", async () => {
+      // The observability case: with self hidden, a lone developer on a case sees
+      // an empty list and cannot tell a working mechanism from a broken one.
       const { service, hubFor, getPresentUsers } = setup();
       service.setCaseId("123");
       service.addRegion("witness");
@@ -305,7 +298,21 @@ describe("createCaseLockingPresence", () => {
 
       hubFor("123:WITNESS")!.__notify?.(presence([{ user: "alice", appName: "test-app" }]));
       await flush();
-      expect(getPresentUsers()?.users).toEqual([]);
+      expect(getPresentUsers()?.users).toEqual([{ user: "alice", appName: "test-app" }]);
+    });
+
+    it("keeps us in the list whatever casing the hub echoes back", async () => {
+      // The server derives the name from token claims, whose casing we do not
+      // control — so the self comparison, when it is used at all, is
+      // case-insensitive. Here it must not remove us either way.
+      const { service, hubFor, getPresentUsers } = setup();
+      service.setCaseId("123");
+      service.addRegion("witness");
+      await flush();
+
+      hubFor("123:WITNESS")!.__notify?.(presence([{ user: "ALICE", appName: "CMS" }]));
+      await flush();
+      expect(getPresentUsers()?.users).toEqual([{ user: "ALICE", appName: "CMS" }]);
     });
 
     it("subsequent Notifys overwrite the published list", async () => {
