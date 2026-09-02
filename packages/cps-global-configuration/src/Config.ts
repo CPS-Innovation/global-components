@@ -220,6 +220,11 @@ export const configBaseSchema = z.object({
   FEATURE_FLAG_MENU_USERS: featureFlagUsersSchema.optional(),
   FEATURE_FLAG_USE_MSAL_FULL_REDIRECT_USERS: featureFlagUsersSchema.optional(),
   FEATURE_FLAG_CASE_LOCKING_USERS: featureFlagUsersSchema.optional(),
+  // Who gets accessibility mode — the footer "Settings" link and the low-contrast
+  // background that page controls. generallyAvailable is the env-wide switch (on
+  // across pre-prod); adGroupIds/adHocUserObjectIds let us pilot with named groups
+  // in prod ahead of GA. ORs with the per-user preview flag and local-dev.
+  FEATURE_FLAG_ACCESSIBILITY_MODE_USERS: featureFlagUsersSchema.optional(),
   // Broad on/off for the OutSystems Triage XHR observation shim. The shim
   // also installs when the per-user preview flag is set, so flipping this off
   // disables observation for everyone except preview-flag opt-ins (which is
