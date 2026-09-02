@@ -97,9 +97,9 @@ CCPRoster.createRoster = function () {
             continue; // stale / out-of-order — keep the newer cached roster
           }
           sections[key] = {
-            caseId: snap.section && snap.section.caseId !== undefined && snap.section.caseId !== null ? String(snap.section.caseId) : "",
-            kind: snap.section && snap.section.kind !== undefined && snap.section.kind !== null ? String(snap.section.kind) : "",
-            subjectId: snap.section && snap.section.subjectId !== undefined && snap.section.subjectId !== null ? String(snap.section.subjectId) : "",
+            caseId: snap.section && snap.section.caseId != null ? String(snap.section.caseId) : "",
+            kind: snap.section && snap.section.kind != null ? String(snap.section.kind) : "",
+            subjectId: snap.section && snap.section.subjectId != null ? String(snap.section.subjectId) : "",
             version: version,
             members: normaliseMembers(snap.members)
           };

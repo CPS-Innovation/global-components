@@ -29,7 +29,7 @@ CCPSections.sectionId = function (caseId, kind, subjectId) {
     return null;
   }
   var id = String(caseId) + ":" + String(kind);
-  if (subjectId !== undefined && subjectId !== null && String(subjectId) !== "") {
+  if (subjectId != null && String(subjectId) !== "") {
     id = id + ":" + String(subjectId);
   }
   return id;
@@ -45,9 +45,9 @@ CCPSections.sectionKey = function (section) {
   if (!section) {
     return "";
   }
-  var caseId = section.caseId !== undefined && section.caseId !== null ? String(section.caseId) : "";
-  var kind = section.kind !== undefined && section.kind !== null ? String(section.kind) : "";
-  var subjectId = section.subjectId !== undefined && section.subjectId !== null ? String(section.subjectId) : "";
+  var caseId = section.caseId != null ? String(section.caseId) : "";
+  var kind = section.kind != null ? String(section.kind) : "";
+  var subjectId = section.subjectId != null ? String(section.subjectId) : "";
   if (!caseId || !kind) {
     return "";
   }
