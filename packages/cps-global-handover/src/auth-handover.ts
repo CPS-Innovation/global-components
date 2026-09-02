@@ -12,12 +12,14 @@
  */
 
 import {
+  applyRegionToString,
   AuthHint,
   AuthHintSchema,
   Config,
   FEATURE_FLAGS,
   fetchConfig,
   fetchState,
+  getPreviewRegion,
   HANDOVER_PARAM_KEYS,
   HANDOVER_STAGES,
   Me,
@@ -39,9 +41,11 @@ import {
 
 // Kill switch for the preemptive AD check on the OS handover branches.
 // When false, OS_COOKIE_RETURN and OS_TOKEN_RETURN navigate straight to their
-// target without fetching authHint/preview or running the silent-or-redirect
-// cascade — keeping the OS handover decoupled from AD entirely. The
-// ENSURE_AD branch is unaffected (that's the explicit AD entry point).
+// target without fetching authHint or running the silent-or-redirect cascade —
+// keeping the OS handover decoupled from AD entirely. The ENSURE_AD branch is
+// unaffected (that's the explicit AD entry point). Preview is fetched by the
+// dispatcher regardless of this switch, since the region check needs it on
+// every branch.
 const ENSURE_AD_ON_OS_HANDOVER = false;
 
 // AAD response hashes always carry one of these. Cheap pattern beats parsing
@@ -66,15 +70,18 @@ export const getConfig = async (scriptUrl: URL): Promise<Config> => {
   return (await response.json()) as Config;
 };
 
-// Best-effort fetch of the authHint. Same-origin relative to the bundle URL
-// (resolves the same way as the host's `../state/auth-hint` lookup) — works
-// for the Polaris variant; on the OS variant it's a cross-origin request to
-// polaris-api and will typically fail unless CORS is configured. Either way
-// the Result discriminator lets callers proceed when not-found.
+// Best-effort fetch of the authHint. Resolved relative to the bundle URL, so it
+// always points at the polaris state endpoint (the same `../state/auth-hint`
+// lookup the host does) regardless of which origin the handover HTML is served
+// from. On the OS variant that makes it a cross-origin credentialed GET, which
+// the state area is built for: the location block sends
+// Access-Control-Allow-Origin/-Credentials and handles the preflight, and the
+// state cookies are SameSite=None; Secure. The Result discriminator still lets
+// callers proceed when not-found.
 //
-// Used for two things downstream: feature-flag bucketing (we need the user's
-// identity to decide whether to do the preemptive AD cascade) and the
-// failure-beacon objectId.
+// Used for three things downstream: feature-flag bucketing (we need the user's
+// identity to decide whether to do the preemptive AD cascade), the
+// failure-beacon objectId, and the OS ClientVar re-publish on transfer-in.
 const tryFetchAuthHint = (scriptUrl: URL): Promise<Result<AuthHint>> =>
   fetchState({
     rootUrl: scriptUrl.href,
@@ -146,6 +153,82 @@ const buildAuthHintFromAccount = (
   };
 };
 
+// Entra objectId → OS ClientVar (FCT2-21199, tactical). OutSystems reads this
+// localStorage key on its own origin; the ad-redirect termination for OS
+// full-page-redirect auth lands on the OS origin, so writing here puts the
+// objectId exactly where OS can pick it up. The key name comes from config —
+// blank/absent turns the feature off. Same objectId the AuthHint write-back
+// below carries (account.localAccountId). Harmless no-op on the polaris-served
+// variant (nothing reads it there); no host gate needed.
+//
+// Also called from the OS transfer-in branches via republishEntraIdClientVar —
+// see the rationale there for why the termination write alone isn't enough.
+const writeEntraIdClientVar = (
+  win: Window,
+  config: Config,
+  objectId: string | undefined,
+): void => {
+  const key = config.OS_ENTRA_ID_STORAGE_KEY;
+  if (!key || !objectId) {
+    return;
+  }
+  // Best-effort, exactly like the AuthHint write-back. This sits on the
+  // AD-redirect return path immediately before the navigation to returnTo, so a
+  // throwing localStorage (disabled, full, or partitioned) must not escape: the
+  // dispatch entry point only logs what it catches, which would leave the user
+  // stranded on the handover page mid-auth. The ClientVar is a convenience for
+  // OutSystems, never something the handover itself depends on.
+  try {
+    win.localStorage.setItem(key, objectId);
+  } catch (err) {
+    console.warn(
+      "[CPS-GLOBAL-HANDOVER] could not write Entra objectId ClientVar",
+      err,
+    );
+  }
+};
+
+// Re-publish the objectId on every pass through the OS transfer-in, not only on
+// the ad-redirect termination.
+//
+// Two clocks are at play and they aren't coupled. The termination write fires
+// only when MSAL's localStorage cache on the OS origin goes cold — roughly once
+// a refresh-token lifetime. OutSystems clears its ClientVars wholesale on its
+// own, shorter cadence. So a user can lose the ClientVar and then keep working
+// for a long stretch with auth still warm, never tripping the one event that
+// would rewrite it. Transfer-in happens far more often than reauth, which makes
+// it the right clock to hang the write on.
+//
+// objectId comes from the persisted auth-hint rather than a live MSAL account:
+// no AD work happens on this path (see ENSURE_AD_ON_OS_HANDOVER) and we want to
+// keep it that way. `authResult.objectId` is required by AuthSchema, so a found
+// hint always carries one. The state endpoint is CORS-enabled with
+// SameSite=None cookies, so this read works from the OS origin.
+//
+// Ordering matters as much as frequency: this has to happen BEFORE we navigate
+// on to the OS app, so the value is in place by the time OS boots and reads its
+// ClientVars. Called once, at the top of the cookie-return stage — see there for
+// why that single site covers every transfer-in. A hint we can't fetch, or a
+// config with no key, writes nothing — writeEntraIdClientVar never clears or
+// blanks an existing value.
+const republishEntraIdClientVar = async (
+  win: Window,
+  config: Config,
+  scriptUrl: URL,
+): Promise<void> => {
+  if (!config.OS_ENTRA_ID_STORAGE_KEY) {
+    // Feature off — skip the fetch entirely rather than pay for a round trip
+    // whose result we would throw away.
+    return;
+  }
+  const authHint = await tryFetchAuthHint(scriptUrl);
+  writeEntraIdClientVar(
+    win,
+    config,
+    authHint.found ? authHint.result.authResult.objectId : undefined,
+  );
+};
+
 // Shared AD-validation routine. Called from three places:
 //   1. The ENSURE_AD dispatch case (public entry point for external entities).
 //   2. The OS_COOKIE_RETURN case once cookies have been validated.
@@ -163,11 +246,9 @@ const runEnsureAd = async (
   config: Config,
   scriptUrl: URL,
   returnTo: string | null,
+  preview: Result<Preview>,
 ): Promise<void> => {
-  const [authHint, preview] = await Promise.all([
-    tryFetchAuthHint(scriptUrl),
-    tryFetchPreview(scriptUrl),
-  ]);
+  const authHint = await tryFetchAuthHint(scriptUrl);
   const inFlag = FEATURE_FLAGS.shouldUseFullPageMsalRedirect({
     config,
     preview,
@@ -217,6 +298,66 @@ const runEnsureAd = async (
   // for us to do. No navigation here.
 };
 
+// Allowlist for the region-redirect sink. Today the host we redirect to is
+// derived from the origin we are already running on and never from the query
+// string, so this cannot fail — but that reasoning lives in
+// applyRegionToString, a module away, and it stops holding the moment a
+// region's host comes from config, which is exactly what the front-door option
+// will do. Asserting it at the sink keeps the constraint local and checkable.
+const ALLOWED_REDIRECT_HOST = /^cpslon(-[a-z0-9]+)?\.outsystemsenterprise\.com$/;
+
+// Region override (FCT2-20670). The handover sits in the navigation path of
+// every OS entry point, which makes it the natural place to catch a user who is
+// on the wrong OutSystems host and move them across before anything else runs.
+//
+// Loop-safety rests on the preview cookie living on the polaris origin: it
+// reads identically from either OS host, so the decision is stable across the
+// redirect. Every non-matching case — no override, already on London, or the
+// polaris-served handover variant (not an OS host at all) — leaves the origin
+// untouched and returns false.
+//
+// The redirect has to happen before the handover does its work, not after:
+// handover transfers CMS auth into the OS origin's own storage, and that does
+// not cross origins. Every param carrying an OS domain is transposed too —
+// returnTo in particular, which resolveReturnTo requires to be same-origin.
+const redirectToPreviewRegion = (
+  win: Window,
+  preview: Result<Preview>,
+): boolean => {
+  const region = getPreviewRegion(preview);
+  const url = new URL(win.location.href);
+  const targetOrigin = applyRegionToString(url.origin, region);
+  if (targetOrigin === url.origin) {
+    return false;
+  }
+
+  const target = new URL(url.href);
+  target.host = new URL(targetOrigin).host;
+  for (const [key, value] of [...target.searchParams]) {
+    target.searchParams.set(key, applyRegionToString(value, region));
+  }
+
+  // Fails closed: a user who doesn't get moved to London is a broken test, not
+  // a broken app, so we carry on dispatching on the current host.
+  if (
+    target.protocol !== "https:" ||
+    !ALLOWED_REDIRECT_HOST.test(target.hostname)
+  ) {
+    console.warn(
+      "[CPS-GLOBAL-HANDOVER] refusing region redirect to unexpected host",
+      { host: target.hostname, protocol: target.protocol },
+    );
+    return false;
+  }
+
+  console.log("[CPS-GLOBAL-HANDOVER] region override redirect", {
+    from: url.href,
+    to: target.href,
+  });
+  win.location.replace(target.href);
+  return true;
+};
+
 // Single dispatcher for the shared auth-handover endpoint. Branches by
 // `?stage=`; within `ad-redirect` it further branches on whether the URL
 // fragment carries an AAD response.
@@ -240,14 +381,34 @@ export const dispatchHandover = async (
     href: win.location.href,
   });
 
-  const config = await getConfig(scriptUrl);
+  // Preview rides alongside the config fetch rather than after it, so the
+  // region check costs no extra serial latency on a path that is already
+  // several redirects deep.
+  const [config, preview] = await Promise.all([
+    getConfig(scriptUrl),
+    tryFetchPreview(scriptUrl),
+  ]);
   console.log("[CPS-GLOBAL-HANDOVER] config loaded", {
     hasClientId: !!config.AD_CLIENT_ID,
     hasAuthority: !!config.AD_TENANT_AUTHORITY,
   });
 
+  if (redirectToPreviewRegion(win, preview)) {
+    return;
+  }
+
   switch (stage) {
     case HANDOVER_STAGES.OS_COOKIE_RETURN: {
+      // The single door into the OS handover — both producers of a handover URL
+      // (the menu's createOutboundUrlDirect and the njs redirect chain) enter
+      // here, and os-token-return is only ever reached from the needs-token
+      // branch below. So one write here covers every transfer-in, on both exits,
+      // and lands before any navigation on to the OS app — which is what
+      // matters, since OS reads its ClientVars at bootstrap. On the needs-token
+      // path the value simply persists across the token-handover bounce (same
+      // origin, and nothing on that leg touches the key).
+      await republishEntraIdClientVar(win, config, scriptUrl);
+
       const outcome = handleOsCookieReturn(win, {
         tokenHandoverUrl: `${scriptUrl.origin}/auth-refresh-cms-modern-token`,
         cmsAuthStorageKeys: config.CMS_AUTH_STORAGE_KEYS!,
@@ -257,7 +418,7 @@ export const dispatchHandover = async (
           // Cookies fresh — preemptive AD check before delivering to target.
           // We're already on the handover endpoint; just call the same function
           // the ENSURE_AD stage uses, no page-load required.
-          return runEnsureAd(win, config, scriptUrl, outcome.target);
+          return runEnsureAd(win, config, scriptUrl, outcome.target, preview);
         }
         win.location.replace(outcome.target);
         return;
@@ -272,10 +433,12 @@ export const dispatchHandover = async (
       const outcome = await handleOsTokenReturn(win, {
         cmsAuthStorageKeys: config.CMS_AUTH_STORAGE_KEYS!,
       });
+      // No ClientVar write here — we only arrive at this stage via the
+      // cookie-return needs-token branch, which has already written.
       if (ENSURE_AD_ON_OS_HANDOVER) {
         // Token stored — preemptive AD check before the user reaches target.
         // In-process call, not a page navigation.
-        return runEnsureAd(win, config, scriptUrl, outcome.target);
+        return runEnsureAd(win, config, scriptUrl, outcome.target, preview);
       }
       win.location.replace(outcome.target);
       return;
@@ -290,6 +453,7 @@ export const dispatchHandover = async (
         config,
         scriptUrl,
         params.get(HANDOVER_PARAM_KEYS.RETURN_TO),
+        preview,
       );
 
     case HANDOVER_STAGES.AD_REDIRECT: {
@@ -304,6 +468,11 @@ export const dispatchHandover = async (
         const result = await handleMsalTermination(win, msalConfig);
 
         if (result.outcome === "handled" && result.account) {
+          // Publish the Entra objectId as an OS ClientVar (if enabled in
+          // config). Independent of the AuthHint write-back below — both derive
+          // from the same freshly-terminated account.
+          writeEntraIdClientVar(win, config, result.account.localAccountId);
+
           // Write the fresh AuthHint (including the new sid) back BEFORE we
           // navigate. The host's first cascade after the redirect will then
           // read this hint and replay the new sid on ssoSilent — turning the

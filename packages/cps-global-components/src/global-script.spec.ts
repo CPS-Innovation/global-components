@@ -1339,23 +1339,27 @@ describe("global-script", () => {
       );
     });
 
-    it("should pass preview and settings to initialiseDomObservation for accessibilitySubscriber", async () => {
+    it("should pass preview, settings and authHint to initialiseDomObservation for accessibilitySubscriber", async () => {
       const testPreview = { result: { accessibility: true } };
       const testSettings = { fontSize: "large" };
+      const testAuthHint = { found: true, result: { authResult: { isAuthed: true, objectId: "obj-1", groups: ["group-a"] } } };
       mockInitialisePreview.mockResolvedValue(testPreview);
       mockInitialiseSettings.mockResolvedValue(testSettings);
+      mockInitialiseAuthHint.mockResolvedValue({ authHint: testAuthHint, setAuthHint: jest.fn() });
 
       const globalScript = require("./global-script").default;
       globalScript();
       await new Promise(resolve => setTimeout(resolve, 10));
 
       const callArgs = mockInitialiseDomObservation.mock.calls[0];
-      // First arg is the options object containing window, preview, and settings
+      // First arg is the options object containing window, preview, settings and the
+      // last-known identity the accessibility flag's AD-group path is resolved from.
       expect(callArgs[0]).toEqual(
         expect.objectContaining({
           window: mockWindow,
           preview: testPreview,
           settings: testSettings,
+          authHint: testAuthHint,
         }),
       );
       // accessibilitySubscriber should be in the args

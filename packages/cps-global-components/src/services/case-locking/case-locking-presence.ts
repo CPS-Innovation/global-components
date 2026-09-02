@@ -22,7 +22,11 @@ const { _debug, _warn, _error } = makeConsole("caseLockingPresence");
 
 const defaultHubFactory: HubFactory = url =>
   new HubConnectionBuilder()
-    .withUrl(url, { transport: HttpTransportType.WebSockets | HttpTransportType.ServerSentEvents | HttpTransportType.LongPolling })
+    .withUrl(url, {
+      transport: HttpTransportType.WebSockets | HttpTransportType.ServerSentEvents | HttpTransportType.LongPolling,
+      accessTokenFactory: () =>
+        "eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiIsImtpZCI6IlQxU3QtZUxHSGcxZ0o0d1RmZDl3Q3F6WnEtQjRvOFUiLCJ4NXQiOiJUMVN0LWVMR0hnMWdKNHdUZmQ5d0NxelpxLUI0bzhVIn0.eyJhdWQiOiJhcGk6Ly8xMTExMjIyMi0zMzMzLTQ0NDQtNTU1NS02NjY2Nzc3Nzg4ODgiLCJpc3MiOiJodHRwczovL2xvZ2luLm1pY3Jvc29mdG9ubGluZS5jb20vOTk5OTg4ODgtNzc3Ny02NjY2LTU1NTUtNDQ0NDMzMzMyMjIyL3YyLjAiLCJpYXQiOjE3MzU3MzI4MDAsIm5iZiI6MTczNTczMjgwMCwiZXhwIjoxNzM1NzM2NDAwLCJhaW8iOiJBV1FBbS84WEFBQUF0VjBtMFA3VnYxYnFVM3E0WWgxSncybjZtUThiMGs1cjN4Tj09IiwiYXpwIjoiOGQ2MTMzYWYtOTU5My00N2M2LTk0ZDAtNWM2NWU5ZTMxMGYxIiwiYXpwYWNyIjoiMSIsIm5hbWUiOiJUZXN0IFVzZXIiLCJvaWQiOiI3YzlmNGUyYS0xYjZkLTRjM2UtOWYwYS0yZDViOGUxYTRjN2YiLCJwcmVmZXJyZWRfdXNlcm5hbWUiOiJ0ZXN0LXVzZXJAY3BzLmdvdi51ayIsImVtYWlsIjoic3RlZkBjcHMuZ292LnVrIiwicmgiOiIwLkFBQUEuZ1kuIiwic2NwIjoiYXBpLnByZXNlbmNlLnVzZXIucmVhZHdyaXRlIiwic3ViIjoiQUFkajhrUTJyN3g5bU4zcEw1dFoxdkI2d1gwY1k0dUg4c0syZUY3Z1Q5YSIsInRpZCI6Ijk5OTk4ODg4LTc3NzctNjY2Ni01NTU1LTQ0NDQzMzMzMjIyMiIsInV0aSI6ImFCM2NENGVGNWdINmlKN2tMOG1OQUEiLCJ2ZXIiOiIyLjAifQ.dev-signature-not-validated-by-BearerTest-scheme",
+    })
     .withAutomaticReconnect()
     .build();
 
@@ -42,12 +46,22 @@ export const createCaseLockingPresence = ({ apiUrl, username, appName, register,
 
   let reconcilePromise: Promise<void> = Promise.resolve();
 
-  const buildSectionKey = (caseId: string, code: string) => `case-${caseId}-${code}`;
+  // Wire format agreed with the presence API: "<caseId>:<SECTION_KIND>", e.g. "12345:CASE".
+  // Region codes are lower-case by local convention; the hub expects the kind upper-cased.
+  const buildSectionKey = (caseId: string, code: string) => `${caseId}:${code.toUpperCase()}`;
+
+  // The hub reports everyone in the section, ourselves included. Drop our own entry
+  // so the banner only appears when someone *else* is on the case — otherwise a lone
+  // user is told they are viewing the case they are looking at. Compared
+  // case-insensitively because the server derives the name from token claims, whose
+  // casing we don't control.
+  const isSelf = ({ user }: CaseLockingPresentUser) => !!user && user.toLowerCase() === username.toLowerCase();
 
   const publishPresentUsers = (code: string, users: CaseLockingPresentUser[]) => {
+    const others = users.filter(user => !isSelf(user));
     publishedCode = code;
-    _debug("publishing present users", { code, users });
-    register({ caseLockingPresentUsers: { code, users } });
+    _debug("publishing present users", { code, users, others });
+    register({ caseLockingPresentUsers: { code, users: others } });
   };
 
   const clearPublishedPresence = () => {
@@ -85,7 +99,7 @@ export const createCaseLockingPresence = ({ apiUrl, username, appName, register,
 
     connection.onreconnected(() => {
       _debug("reconnected — re-invoking Connect", { sectionKey });
-      connection.invoke("Connect", sectionKey, username, appName).catch(err => _warn("reconnect invoke failed", { sectionKey }, err));
+      connection.invoke("Connect", sectionKey, appName).catch(err => _warn("reconnect invoke failed", { sectionKey }, err));
     });
 
     connection.onclose(err => {
@@ -99,7 +113,7 @@ export const createCaseLockingPresence = ({ apiUrl, username, appName, register,
     try {
       await connection.start();
       _debug("connection started — invoking Connect", { sectionKey });
-      await connection.invoke("Connect", sectionKey, username, appName);
+      await connection.invoke("Connect", sectionKey, appName);
       _debug("Connect acknowledged", { sectionKey });
     } catch (err) {
       _error("start/invoke failed", { sectionKey }, err);

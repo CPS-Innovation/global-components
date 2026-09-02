@@ -26,6 +26,8 @@ const baseProps: ArrangeProps = {
       HOME_JSON: "$OS_Users$Casework_Blocks$ClientVars$JSONString",
       HOME_COOKIES: "$OS_Users$Casework_Blocks$ClientVars$Cookies",
       HOME_IS_FROM_PROXY: "$OS_Users$Casework_Blocks$ClientVars$IsFromProxy",
+      VCA_JSON: "$OS_Users$VictimsCaseApplication$ClientVars$JSONString",
+      VCA_COOKIES: "$OS_Users$VictimsCaseApplication$ClientVars$Cookies",
     },
   },
   auth: { isAuthed: true, adGroups: ["e2e-test-group"] },

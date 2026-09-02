@@ -1,0 +1,6 @@
+# cms-auth-v2-client.js is injected into CMS Classic and runs in IE mode /
+# document-mode 5 (old JScript). Prettier's default trailingComma: "all" adds
+# trailing commas in object literals and call argument lists, which that engine
+# rejects outright — "SCRIPT1028: Expected identifier, string or number" — so the
+# whole file fails to parse and silently never runs. Keep it out of Prettier.
+infra/proxy/config/global-components.cms-auth-v2/cms-auth-v2-client.js

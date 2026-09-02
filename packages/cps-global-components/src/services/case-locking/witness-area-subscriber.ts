@@ -1,14 +1,17 @@
 import { DomMutationObserver } from "../browser/dom/DomMutationObserver";
 import { makeConsole } from "../../logging/makeConsole";
 
-const REGION_CODE = "witness";
-const TARGET_SELECTOR = "div#WitnessIsActive";
+// Presence is registered at CASE level, not witness level — the region code becomes
+// the section kind on the wire ("<caseId>:CASE"). The witness block is only the
+// trigger for *when* we register, not what we register against.
+const REGION_CODE = "case";
+const TARGET_SELECTOR = 'div[data-block="MainFlow.Witnesses"]';
 // cspell:disable-next-line
 const URL_FRAGMENT = "/workmanagementapp/caseoverview";
 
 const { _debug } = makeConsole("witnessAreaSubscriber");
 
-// Inject a <cps-region> into div#WitnessIsActive once and walk away. The cps-region
+// Inject a <cps-region> into the witness block once and walk away. The cps-region
 // component handles its own presence lifecycle (mount + visibility), so the subscriber
 // doesn't need to track display toggles or remove the region when hidden — the region
 // itself goes inactive when its host is display:none, and back active when un-hidden.
@@ -29,7 +32,7 @@ export const createWitnessAreaSubscriber =
               return;
             }
             htmlEl.insertAdjacentHTML("beforeend", `<cps-region code="${REGION_CODE}"></cps-region>`);
-            _debug("WitnessIsActive matched — added cps-region", REGION_CODE);
+            _debug("witness block matched — added cps-region", REGION_CODE);
           },
         },
       ],

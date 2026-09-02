@@ -72,4 +72,16 @@ AppPageViews
     "CPSD",
     User_Area)
 | where Auth_ObjectId !in ((GloCo_ExcludedUsers))
+// Retrospective area/department backfill. Rows that already carry an area/department keep it
+// (new data is stamped, so this is a no-op going forward); only blank pre-July "swiss-cheese"
+// rows fall back to GloCo_UserDimension — a one-off all-history snapshot keyed on Auth_ObjectId.
+// GloCo_UserDimension is a DATATABLE embedded here: do NOT reference it directly in any downstream
+// function — that recreates the embedded+direct saved-search resolver clash (validated safe as an
+// embedded-only reference via throwaway spike). lookup broadcasts the small dimension (cheap).
+| lookup kind=leftouter GloCo_UserDimension on Auth_ObjectId
+| extend User_Area       = iif(isnotempty(User_Area), User_Area, UserArea),
+         User_AreaOrCPSD = iif(isnotempty(User_AreaOrCPSD), User_AreaOrCPSD, UserAreaOrCPSD),
+         Auth_Department = iif(isnotempty(Auth_Department), Auth_Department, Department),
+         Auth_JobTitle   = iif(isnotempty(Auth_JobTitle), Auth_JobTitle, JobTitle)
+| project-away Email, UserArea, UserAreaOrCPSD, Department, Region, JobTitle
 | project-away parsed, Build, Auth, Context, CorrelationIds, User

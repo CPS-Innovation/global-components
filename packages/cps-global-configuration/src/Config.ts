@@ -159,6 +159,15 @@ const cmsAuthStorageKeysSchema = z.object({
   HOME_JSON: z.string(),
   HOME_COOKIES: z.string(),
   HOME_IS_FROM_PROXY: z.string(),
+  // VCA (FCT2-21576) rolls out per environment, so its ClientVar keys are
+  // optional: an env where Victims Case Application isn't live yet simply omits
+  // them and every VCA read/write in os-handover/core/storage.ts no-ops. They
+  // are deliberately absent from prod until VCA goes live there — adding them
+  // makes isStoredAuthCurrent false for every existing user (nobody has the key
+  // yet), pushing all of them through an extra token-handover hop on their next
+  // CMS→OS handover.
+  VCA_JSON: z.string().optional(),
+  VCA_COOKIES: z.string().optional(),
 });
 
 export type CmsAuthStorageKeys = z.infer<typeof cmsAuthStorageKeysSchema>;
@@ -166,7 +175,6 @@ export type CmsAuthStorageKeys = z.infer<typeof cmsAuthStorageKeysSchema>;
 export const configBaseSchema = z.object({
   ENVIRONMENT: z.string(),
   REDIRECT_SCRIPT_URL: z.string().optional(),
-  CASE_LOCKING_POC_SCRIPT_BLOB_ADDRESS: z.string().optional(),
   CASE_LOCKING_API_URL: z.string().optional(),
   LINKS: z.array(linkSchema),
   BANNER_TITLE_HREF: z.string(),
@@ -195,9 +203,20 @@ export const configBaseSchema = z.object({
   SHOW_CASE_DETAILS: z.union([z.literal("a"), z.literal("b")]).optional(),
   SHOW_NOTIFICATIONS: z.boolean().optional(),
   OS_HANDOVER_URL: z.string().optional(),
+  // localStorage key (an OS ClientVar, e.g.
+  // "$OS_Users$Casework_Blocks$ClientVars$EntraID") that the auth-handover
+  // writes the user's Entra objectId into on the OS origin, so OutSystems can
+  // read it. Blank/absent turns the feature off — no write happens. Tactical
+  // bridge (FCT2-21199); the objectId is the same one the AuthHint carries.
+  OS_ENTRA_ID_STORAGE_KEY: z.string().optional(),
   FEATURE_FLAG_MENU_USERS: featureFlagUsersSchema.optional(),
   FEATURE_FLAG_USE_MSAL_FULL_REDIRECT_USERS: featureFlagUsersSchema.optional(),
   FEATURE_FLAG_CASE_LOCKING_USERS: featureFlagUsersSchema.optional(),
+  // Who gets accessibility mode — the footer "Settings" link and the low-contrast
+  // background that page controls. generallyAvailable is the env-wide switch (on
+  // across pre-prod); adGroupIds/adHocUserObjectIds let us pilot with named groups
+  // in prod ahead of GA. ORs with the per-user preview flag and local-dev.
+  FEATURE_FLAG_ACCESSIBILITY_MODE_USERS: featureFlagUsersSchema.optional(),
   // Broad on/off for the OutSystems Triage XHR observation shim. The shim
   // also installs when the per-user preview flag is set, so flipping this off
   // disables observation for everyone except preview-flag opt-ins (which is

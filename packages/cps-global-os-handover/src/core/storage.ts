@@ -18,6 +18,27 @@ const redactedPreview = (value: string | null | undefined): string => {
   return `${value.slice(0, 6)}…(len ${value.length})`;
 };
 
+// VCA's ClientVar keys are optional — see the note on cmsAuthStorageKeysSchema.
+// Every VCA touch goes through here (or an equivalent guard) so an env that has
+// not enabled VCA yet is a clean no-op: an unguarded write would land under the
+// literal key "undefined", and an unguarded read would drag a permanently-absent
+// value into isStoredAuthCurrent's comparison.
+const setIfKeyed = (
+  storage: Storage,
+  key: string | undefined,
+  value: string,
+) => {
+  if (!key) {
+    return;
+  }
+  storage[key] = value;
+};
+
+const getIfKeyed = (
+  storage: Storage,
+  key: string | undefined,
+): string | undefined => (key ? storage[key] : undefined);
+
 export const storeAuth = (
   cookies: string,
   token: string,
@@ -33,9 +54,11 @@ export const storeAuth = (
   storage[keys.WMA_COOKIES] = cookies;
   storage[keys.CASE_REVIEW_COOKIES] = cookies;
   storage[keys.HOME_COOKIES] = cookies;
+  setIfKeyed(storage, keys.VCA_COOKIES, cookies);
   storage[keys.WMA_JSON] = cmsAuthValuesJson;
   storage[keys.CASE_REVIEW_JSON] = cmsAuthValuesJson;
   storage[keys.HOME_JSON] = cmsAuthValuesJson;
+  setIfKeyed(storage, keys.VCA_JSON, cmsAuthValuesJson);
 
   console.log("[CPS-GLOBAL-OS-HANDOVER] storeAuth wrote auth values", {
     cookies: redactedPreview(cookies),
@@ -54,6 +77,10 @@ export const isStoredAuthCurrent = (
     storage[keys.WMA_COOKIES],
     storage[keys.CASE_REVIEW_COOKIES],
     storage[keys.HOME_COOKIES],
+    // Only compare VCA where the env has it configured. Including an absent key
+    // here would make this false for every user whose storage predates VCA,
+    // sending all of them down the token-handover leg unnecessarily.
+    ...(keys.VCA_COOKIES ? [storage[keys.VCA_COOKIES]] : []),
   );
 
 export const isStoredTokenSameAs = (
@@ -95,18 +122,18 @@ export const syncOsAuth = (
   const copyToOtherApps = (
     jsonKey: keyof Pick<
       CmsAuthStorageKeys,
-      "WMA_JSON" | "CASE_REVIEW_JSON" | "HOME_JSON"
+      "WMA_JSON" | "CASE_REVIEW_JSON" | "HOME_JSON" | "VCA_JSON"
     >,
     cookiesKey: keyof Pick<
       CmsAuthStorageKeys,
-      "WMA_COOKIES" | "CASE_REVIEW_COOKIES" | "HOME_COOKIES"
+      "WMA_COOKIES" | "CASE_REVIEW_COOKIES" | "HOME_COOKIES" | "VCA_COOKIES"
     >,
   ) => {
     // Guard each copy on its own source: never let a blank/"undefined" source
     // overwrite a sibling app's still-valid auth. Without this, OutSystems
     // blanking the active app's ClientVar would fan out and wipe the others.
-    const json = storage[keys[jsonKey]];
-    const cookies = storage[keys[cookiesKey]];
+    const json = getIfKeyed(storage, keys[jsonKey]);
+    const cookies = getIfKeyed(storage, keys[cookiesKey]);
 
     console.log("[CPS-GLOBAL-OS-HANDOVER] syncOsAuth copy", {
       app,
@@ -121,6 +148,7 @@ export const syncOsAuth = (
         storage[keys.CASE_REVIEW_JSON] =
         storage[keys.HOME_JSON] =
           json;
+      setIfKeyed(storage, keys.VCA_JSON, json);
     }
 
     if (isUsableValue(cookies)) {
@@ -128,10 +156,11 @@ export const syncOsAuth = (
         storage[keys.CASE_REVIEW_COOKIES] =
         storage[keys.HOME_COOKIES] =
           cookies;
+      setIfKeyed(storage, keys.VCA_COOKIES, cookies);
     }
   };
 
-  if (!app || !["workmanagementapp", "casereview", "casework_blocks", "casework"].includes(app)) {
+  if (!app || !["workmanagementapp", "casereview", "casework_blocks", "casework", "victimscaseapplication"].includes(app)) {
     console.log("[CPS-GLOBAL-OS-HANDOVER] syncOsAuth no-op (app not matched)", { app });
   }
 
@@ -145,6 +174,9 @@ export const syncOsAuth = (
     case "casework_blocks":
     case "casework":
       copyToOtherApps("HOME_JSON", "HOME_COOKIES");
+      break;
+    case "victimscaseapplication":
+      copyToOtherApps("VCA_JSON", "VCA_COOKIES");
       break;
   }
 };

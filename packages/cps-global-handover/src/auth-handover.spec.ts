@@ -20,7 +20,15 @@ jest.mock("cps-global-configuration", () => {
   const actual = jest.requireActual<typeof import("cps-global-configuration")>(
     "cps-global-configuration",
   );
-  return { ...actual, fetchConfig: jest.fn() };
+  return {
+    ...actual,
+    fetchConfig: jest.fn(),
+    // Real implementation by default (restored in beforeEach). The redirect
+    // allowlist is unreachable through the real transposition — that is the
+    // point of it — so the only way to prove the guard bites is to make this
+    // return a host it should never produce.
+    applyRegionToString: jest.fn(),
+  };
 });
 
 // global.fetch mock — used only for the authHint lookup and write-back
@@ -28,7 +36,7 @@ jest.mock("cps-global-configuration", () => {
 const mockFetch = jest.fn<(input: unknown, init?: RequestInit) => Promise<unknown>>();
 global.fetch = mockFetch as unknown as typeof fetch;
 
-import { fetchConfig } from "cps-global-configuration";
+import { applyRegionToString, fetchConfig } from "cps-global-configuration";
 import {
   handleMsalEnsureAd,
   handleMsalLogin,
@@ -41,6 +49,13 @@ import {
 import { dispatchHandover } from "./auth-handover";
 
 const mockFetchConfig = fetchConfig as jest.MockedFunction<typeof fetchConfig>;
+
+const mockApplyRegionToString = applyRegionToString as jest.MockedFunction<
+  typeof applyRegionToString
+>;
+const realApplyRegionToString = jest.requireActual<
+  typeof import("cps-global-configuration")
+>("cps-global-configuration").applyRegionToString;
 
 const mockHandleMsalLogin = handleMsalLogin as jest.MockedFunction<
   typeof handleMsalLogin
@@ -66,6 +81,8 @@ const cmsAuthStorageKeys: CmsAuthStorageKeys = {
   HOME_JSON: "home-json",
   HOME_COOKIES: "home-cookies",
   HOME_IS_FROM_PROXY: "home-is-from-proxy",
+  VCA_JSON: "vca-json",
+  VCA_COOKIES: "vca-cookies",
 };
 
 // Cast — Config has many optional fields we don't need to set here.
@@ -93,6 +110,10 @@ const makeWindow = (currentUrl: string) => {
       hash: url.hash,
       replace: jest.fn(),
     },
+    localStorage: {
+      setItem: jest.fn(),
+      getItem: jest.fn(),
+    },
   } as unknown as Window;
 };
 
@@ -101,6 +122,9 @@ describe("dispatchHandover", () => {
     jest.clearAllMocks();
     jest.spyOn(console, "log").mockImplementation(() => {});
     jest.spyOn(console, "warn").mockImplementation(() => {});
+    // clearAllMocks doesn't drop implementations, so restore the real
+    // transposition explicitly — otherwise the allowlist test below leaks.
+    mockApplyRegionToString.mockImplementation(realApplyRegionToString);
     // Default outcomes for sub-modules. Per-test setup overrides as needed.
     mockHandleMsalTermination.mockResolvedValue({ outcome: "handled" });
     mockHandleOsCookieReturn.mockReturnValue({
@@ -478,6 +502,255 @@ describe("dispatchHandover", () => {
     });
   });
 
+  describe("entra-id OS ClientVar write (FCT2-21199)", () => {
+    const handledWithObjectId = (localAccountId: string) =>
+      mockHandleMsalTermination.mockResolvedValue({
+        outcome: "handled",
+        account: {
+          username: "u",
+          localAccountId,
+          idTokenClaims: {},
+        } as never,
+        returnTo: "https://cps-tst.outsystemsenterprise.com/casework_blocks/home",
+      });
+
+    test("writes the Entra objectId to the configured key on successful termination", async () => {
+      withConfigOverrides({
+        OS_ENTRA_ID_STORAGE_KEY: "$OS_Users$Casework_Blocks$ClientVars$EntraID",
+      });
+      handledWithObjectId("obj-123");
+      const win = makeWindow(
+        "https://cps-tst.outsystemsenterprise.com/Casework_Patterns/auth-handover.html?src=x&stage=ad-redirect#code=abc",
+      );
+
+      await dispatchHandover(win, scriptUrl);
+
+      expect(win.localStorage.setItem).toHaveBeenCalledWith(
+        "$OS_Users$Casework_Blocks$ClientVars$EntraID",
+        "obj-123",
+      );
+    });
+
+    test("no-op when the config key is absent (feature off)", async () => {
+      // Base config has no OS_ENTRA_ID_STORAGE_KEY.
+      handledWithObjectId("obj-123");
+      const win = makeWindow(
+        "https://cps-tst.outsystemsenterprise.com/Casework_Patterns/auth-handover.html?src=x&stage=ad-redirect#code=abc",
+      );
+
+      await dispatchHandover(win, scriptUrl);
+
+      expect(win.localStorage.setItem).not.toHaveBeenCalled();
+    });
+
+    test("no-op on failed termination (no account, so no objectId)", async () => {
+      withConfigOverrides({
+        OS_ENTRA_ID_STORAGE_KEY: "$OS_Users$Casework_Blocks$ClientVars$EntraID",
+      });
+      mockHandleMsalTermination.mockResolvedValue({ outcome: "handled-with-error" });
+      const win = makeWindow(
+        "https://cps-tst.outsystemsenterprise.com/Casework_Patterns/auth-handover.html?src=x&stage=ad-redirect#error=invalid",
+      );
+
+      await dispatchHandover(win, scriptUrl);
+
+      expect(win.localStorage.setItem).not.toHaveBeenCalled();
+    });
+
+    // The write sits immediately before the navigation to returnTo, and the
+    // dispatch entry point only logs what it catches — so an escaping storage
+    // error would strand the user on the handover page mid-auth.
+    test("a throwing localStorage does not block the navigation to returnTo", async () => {
+      withConfigOverrides({
+        OS_ENTRA_ID_STORAGE_KEY: "$OS_Users$Casework_Blocks$ClientVars$EntraID",
+      });
+      handledWithObjectId("obj-123");
+      const win = makeWindow(
+        "https://cps-tst.outsystemsenterprise.com/Casework_Patterns/auth-handover.html?src=x&stage=ad-redirect#code=abc",
+      );
+      (win.localStorage.setItem as jest.Mock).mockImplementation(() => {
+        throw new Error("QuotaExceededError");
+      });
+
+      await expect(dispatchHandover(win, scriptUrl)).resolves.not.toThrow();
+
+      expect(win.location.replace).toHaveBeenCalledWith(
+        "https://cps-tst.outsystemsenterprise.com/casework_blocks/home",
+      );
+    });
+  });
+
+  // OS clears its ClientVars wholesale more often than our MSAL localStorage
+  // cache goes cold, so the termination write above leaves windows where the
+  // ClientVar is gone but auth stays warm and never rewrites it. Transfer-in is
+  // the frequent event, so we re-publish there off the persisted auth-hint.
+  describe("entra-id OS ClientVar re-publish on transfer-in (FCT2-21199)", () => {
+    const entraKey = "$OS_Users$Casework_Blocks$ClientVars$EntraID";
+
+    const isAuthHintGet = (input: unknown) =>
+      String(input).endsWith("/state/auth-hint");
+
+    // Only the auth-hint GET is answered; the dispatcher's preview lookup falls
+    // through to a 404 and resolves as not-found, which is what we want.
+    const withAuthHint = (objectId: string) =>
+      mockFetch.mockImplementation(async (input) =>
+        isAuthHintGet(input)
+          ? {
+              ok: true,
+              json: async () => ({
+                authResult: {
+                  isAuthed: true,
+                  username: "u@cps.gov.uk",
+                  objectId,
+                  groups: [],
+                },
+                timestamp: 1,
+              }),
+            }
+          : { ok: false, status: 404, statusText: "Not Found" },
+      );
+
+    const cookieReturnWindow = () =>
+      makeWindow(
+        "https://cps-tst.outsystemsenterprise.com/Casework_Patterns/auth-handover.html?src=x&stage=os-cookie-return&cc=abc&r=https%3A%2F%2Fcps-tst.outsystemsenterprise.com%2Fcasework_blocks%2Fhome",
+      );
+
+    const tokenReturnWindow = () =>
+      makeWindow(
+        "https://cps-tst.outsystemsenterprise.com/Casework_Patterns/auth-handover.html?src=x&stage=os-token-return&r=https%3A%2F%2Fcps-tst.outsystemsenterprise.com%2Fcasework_blocks%2Fhome",
+      );
+
+    test("os-cookie-return kind:ready writes the objectId from the auth-hint", async () => {
+      withConfigOverrides({ OS_ENTRA_ID_STORAGE_KEY: entraKey });
+      withAuthHint("obj-from-hint");
+      mockHandleOsCookieReturn.mockReturnValue({
+        kind: "ready",
+        target: "https://cps-tst.outsystemsenterprise.com/casework_blocks/home",
+      });
+      const win = cookieReturnWindow();
+
+      await dispatchHandover(win, scriptUrl);
+
+      expect(win.localStorage.setItem).toHaveBeenCalledWith(
+        entraKey,
+        "obj-from-hint",
+      );
+    });
+
+    // Cookie-return is the single door in, so it writes on both exits. The
+    // value then rides across the token-handover bounce (same origin) and is
+    // still in place when OS boots.
+    test("os-cookie-return kind:needs-token also writes, before bouncing off", async () => {
+      withConfigOverrides({ OS_ENTRA_ID_STORAGE_KEY: entraKey });
+      withAuthHint("obj-from-hint");
+      mockHandleOsCookieReturn.mockReturnValue({
+        kind: "needs-token",
+        href: "https://polaris.example/auth-refresh-cms-modern-token?cc=x&r=y",
+      });
+      const win = cookieReturnWindow();
+
+      await dispatchHandover(win, scriptUrl);
+
+      expect(win.localStorage.setItem).toHaveBeenCalledWith(
+        entraKey,
+        "obj-from-hint",
+      );
+      const writeOrder = (win.localStorage.setItem as jest.Mock).mock
+        .invocationCallOrder[0]!;
+      const navigateOrder = (win.location.replace as jest.Mock).mock
+        .invocationCallOrder[0]!;
+      expect(writeOrder).toBeLessThan(navigateOrder);
+    });
+
+    // os-token-return is reachable only from the needs-token branch above, which
+    // has already written — so this stage does no ClientVar work at all.
+    test("os-token-return neither writes nor fetches the hint", async () => {
+      withConfigOverrides({ OS_ENTRA_ID_STORAGE_KEY: entraKey });
+      withAuthHint("obj-from-hint");
+      const win = tokenReturnWindow();
+
+      await dispatchHandover(win, scriptUrl);
+
+      expect(win.localStorage.setItem).not.toHaveBeenCalled();
+      expect(
+        mockFetch.mock.calls.filter((c) => isAuthHintGet(c[0])),
+      ).toHaveLength(0);
+    });
+
+    // OS reads its ClientVars at bootstrap, so a write that landed after the
+    // navigation would miss the very load we are about to trigger.
+    test("writes before navigating on to the OS app", async () => {
+      withConfigOverrides({ OS_ENTRA_ID_STORAGE_KEY: entraKey });
+      withAuthHint("obj-from-hint");
+      const win = cookieReturnWindow();
+
+      await dispatchHandover(win, scriptUrl);
+
+      const writeOrder = (win.localStorage.setItem as jest.Mock).mock
+        .invocationCallOrder[0]!;
+      const navigateOrder = (win.location.replace as jest.Mock).mock
+        .invocationCallOrder[0]!;
+      expect(writeOrder).toBeLessThan(navigateOrder);
+    });
+
+    test("no key configured: no write, and no auth-hint round trip", async () => {
+      // Base config has no OS_ENTRA_ID_STORAGE_KEY.
+      withAuthHint("obj-from-hint");
+      const win = cookieReturnWindow();
+
+      await dispatchHandover(win, scriptUrl);
+
+      expect(win.localStorage.setItem).not.toHaveBeenCalled();
+      expect(
+        mockFetch.mock.calls.filter((c) => isAuthHintGet(c[0])),
+      ).toHaveLength(0);
+    });
+
+    // An unavailable hint must leave whatever OS already has alone — we never
+    // blank the ClientVar, only ever set a real objectId.
+    test("auth-hint not found: writes nothing rather than blanking", async () => {
+      withConfigOverrides({ OS_ENTRA_ID_STORAGE_KEY: entraKey });
+      mockFetch.mockResolvedValue({
+        ok: false,
+        status: 404,
+        statusText: "Not Found",
+      });
+      mockHandleOsCookieReturn.mockReturnValue({
+        kind: "ready",
+        target: "https://cps-tst.outsystemsenterprise.com/casework_blocks/home",
+      });
+      const win = cookieReturnWindow();
+
+      await dispatchHandover(win, scriptUrl);
+
+      expect(win.localStorage.setItem).not.toHaveBeenCalled();
+      expect(win.location.replace).toHaveBeenCalledWith(
+        "https://cps-tst.outsystemsenterprise.com/casework_blocks/home",
+      );
+    });
+
+    // Transfer-in is navigation-critical: an escaping storage error would
+    // strand the user on the handover page instead of delivering them to OS.
+    test("a throwing localStorage does not block the transfer-in navigation", async () => {
+      withConfigOverrides({ OS_ENTRA_ID_STORAGE_KEY: entraKey });
+      withAuthHint("obj-from-hint");
+      mockHandleOsCookieReturn.mockReturnValue({
+        kind: "ready",
+        target: "https://cps-tst.outsystemsenterprise.com/casework_blocks/home",
+      });
+      const win = cookieReturnWindow();
+      (win.localStorage.setItem as jest.Mock).mockImplementation(() => {
+        throw new Error("QuotaExceededError");
+      });
+
+      await expect(dispatchHandover(win, scriptUrl)).resolves.not.toThrow();
+
+      expect(win.location.replace).toHaveBeenCalledWith(
+        "https://cps-tst.outsystemsenterprise.com/casework_blocks/home",
+      );
+    });
+  });
+
   describe("feature-flag gate (shouldUseFullPageMsalRedirect)", () => {
     // Applies only to the ENSURE_AD branch. The OS handover branches no
     // longer route through runEnsureAd at all (the kill switch keeps them
@@ -515,6 +788,113 @@ describe("dispatchHandover", () => {
 
       await dispatchHandover(win, scriptUrl);
 
+      expect(mockHandleMsalEnsureAd).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe("region override redirect (FCT2-20670)", () => {
+    const withPreview = (preview: unknown) =>
+      mockFetch.mockImplementation(async (input: unknown) =>
+        String(input).includes("/state/preview")
+          ? ({ ok: true, json: async () => preview } as never)
+          : ({ ok: false, status: 404, statusText: "Not Found" } as never),
+      );
+
+    test("moves a Dublin user to London, transposing the host and every OS param", async () => {
+      withPreview({ region: "london" });
+      const win = makeWindow(
+        "https://cps-tst.outsystemsenterprise.com/Casework_Patterns/auth-handover.html?stage=ensure-ad&returnTo=https%3A%2F%2Fcps-tst.outsystemsenterprise.com%2Fcasework_blocks%2Fhome",
+      );
+
+      await dispatchHandover(win, scriptUrl);
+
+      const target = new URL(
+        (win.location.replace as jest.Mock).mock.calls[0][0] as string,
+      );
+      expect(target.hostname).toBe("cpslon-tst.outsystemsenterprise.com");
+      // returnTo has to come across too — resolveReturnTo demands same-origin,
+      // so a Dublin returnTo would be rejected once we land on London.
+      expect(target.searchParams.get("returnTo")).toBe(
+        "https://cpslon-tst.outsystemsenterprise.com/casework_blocks/home",
+      );
+      expect(target.searchParams.get("stage")).toBe("ensure-ad");
+    });
+
+    test("redirects before the stage is dispatched — handover storage doesn't cross origins", async () => {
+      withPreview({ region: "london" });
+      const win = makeWindow(
+        "https://cps-tst.outsystemsenterprise.com/Casework_Patterns/auth-handover.html?stage=os-cookie-return&cc=abc",
+      );
+
+      await dispatchHandover(win, scriptUrl);
+
+      expect(mockHandleOsCookieReturn).not.toHaveBeenCalled();
+      expect(win.location.replace).toHaveBeenCalledTimes(1);
+    });
+
+    test.each([
+      ["already on London", "https://cpslon-tst.outsystemsenterprise.com"],
+      ["the polaris-served variant, not an OS host", "https://polaris.example"],
+    ])("does not redirect when %s", async (_label, origin) => {
+      withPreview({ region: "london" });
+      const win = makeWindow(
+        `${origin}/Casework_Patterns/auth-handover.html?stage=ensure-ad`,
+      );
+
+      await dispatchHandover(win, scriptUrl);
+
+      expect(mockHandleMsalEnsureAd).toHaveBeenCalledTimes(1);
+    });
+
+    test.each([
+      ["there is no region override", {}],
+      ["the region is frontDoor, which has no host yet", { region: "frontDoor" }],
+    ])("does not redirect when %s", async (_label, preview) => {
+      withPreview(preview);
+      const win = makeWindow(
+        "https://cps-tst.outsystemsenterprise.com/Casework_Patterns/auth-handover.html?stage=ensure-ad",
+      );
+
+      await dispatchHandover(win, scriptUrl);
+
+      expect(mockHandleMsalEnsureAd).toHaveBeenCalledTimes(1);
+    });
+
+    // The allowlist exists for the day a region's host comes from config (the
+    // front-door option) rather than from the origin we're already on. Forcing
+    // a bad transposition is the only way to reach it.
+    test("fails closed on an off-domain host, dispatching normally instead", async () => {
+      withPreview({ region: "london" });
+      mockApplyRegionToString.mockImplementation(() => "https://evil.example");
+      const win = makeWindow(
+        "https://cps-tst.outsystemsenterprise.com/Casework_Patterns/auth-handover.html?stage=ensure-ad&returnTo=https%3A%2F%2Fcps-tst.outsystemsenterprise.com%2Fhome",
+      );
+
+      await dispatchHandover(win, scriptUrl);
+
+      expect(win.location.replace).not.toHaveBeenCalledWith(
+        expect.stringContaining("evil.example"),
+      );
+      // Failing closed means the user still gets a working handover.
+      expect(mockHandleMsalEnsureAd).toHaveBeenCalledTimes(1);
+    });
+
+    // Setting .host never changes the scheme, so target.protocol is always the
+    // page's own — the guard is really "don't bounce an http page onward".
+    test("fails closed when the page itself is not https", async () => {
+      withPreview({ region: "london" });
+      mockApplyRegionToString.mockImplementation(
+        () => "https://cpslon-tst.outsystemsenterprise.com",
+      );
+      const win = makeWindow(
+        "http://cps-tst.outsystemsenterprise.com/Casework_Patterns/auth-handover.html?stage=ensure-ad",
+      );
+
+      await dispatchHandover(win, scriptUrl);
+
+      expect(win.location.replace).not.toHaveBeenCalledWith(
+        expect.stringContaining("cpslon-tst"),
+      );
       expect(mockHandleMsalEnsureAd).toHaveBeenCalledTimes(1);
     });
   });
