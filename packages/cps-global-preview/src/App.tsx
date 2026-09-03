@@ -136,6 +136,13 @@ const FEATURES: Feature[] = [
     disabled: false,
   },
   {
+    key: "caseLockingInterstitial",
+    label: "Case locking — show interruption",
+    description:
+      "Show the full-screen interruption card when someone else is on this case, instead of (or as well as) the pinned banner. Currently triggered by the same condition as the banner; which situations should interrupt rather than inform is still to be decided.",
+    disabled: false,
+  },
+  {
     key: "caseLockingCountSelf",
     label: "Case locking — count myself",
     description:

@@ -112,6 +112,11 @@ const shouldShowCaseLockingNotifications = (inputs: FlagInputs) =>
 // telling someone they are viewing the case they are looking at is noise. On, a
 // lone developer can see the banner without a second person — which is the only
 // way to tell a working mechanism from a broken one single-handed.
+// The interruption. Like the banner it requires the feature to be on at all, so
+// it can only ever hide, never enable.
+const shouldShowCaseLockingInterstitial = (inputs: FlagInputs) =>
+  shouldEnableCaseLocking(inputs) && !!inputs.preview?.result?.caseLockingInterstitial;
+
 const shouldCountSelfInCaseLocking = ({ preview }: FlagInputs) => !!preview?.result?.caseLockingCountSelf;
 
 export const FEATURE_FLAGS = {
@@ -128,5 +133,6 @@ export const FEATURE_FLAGS = {
   shouldUseFullPageMsalRedirect,
   shouldEnableCaseLocking,
   shouldShowCaseLockingNotifications,
+  shouldShowCaseLockingInterstitial,
   shouldCountSelfInCaseLocking,
 };

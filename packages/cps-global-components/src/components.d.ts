@@ -12,6 +12,11 @@ export { ContextsToUseEventNavigation } from "cps-global-configuration";
 export namespace Components {
     interface CpsGdsNotificationBanner {
         /**
+          * Show only the header until the user asks for detail — the prototype's progressive enhancement, reimplemented rather than bolted on with jQuery. The toggle carries aria-expanded and aria-controls, and the content is genuinely `hidden` when collapsed, so assistive tech is told the same story the sighted user gets rather than reading content that looks closed.
+          * @default false
+         */
+        "collapsible": boolean;
+        /**
           * Prevent the banner from being focused on page load (only relevant for success type).
           * @default false
          */
@@ -21,6 +26,11 @@ export namespace Components {
           * @default false
          */
         "dismissible": boolean;
+        /**
+          * Pin the banner to the bottom of the viewport instead of letting it sit in the document flow. Matches the UCD prototype's app-notification-banner-pinned.
+          * @default false
+         */
+        "pinned": boolean;
         /**
           * Override the ARIA role. Defaults to "region" (or "alert" for success type).
          */
@@ -47,6 +57,32 @@ export namespace Components {
     interface CpsGlobalBanner {
     }
     interface CpsGlobalCaseDetails {
+    }
+    /**
+     * The interruption, from the UCD prototype's moj-interruption-card.
+     * WHY A NATIVE <dialog> RATHER THAN AN OVERLAY DIV
+     * In the prototype this card is rendered INSIDE <main>, replacing the page
+     * content — the server simply does not send the case. We cannot do that: we are
+     * a guest component on a page whose DOM belongs to someone else.
+     * showModal() gets us the same effect without touching a single node of theirs.
+     * The browser puts the dialog in the top layer and makes the entire rest of the
+     * document inert — out of the accessibility tree, unfocusable, unclickable — and
+     * gives us the focus trap, the backdrop and Escape handling for free. The
+     * alternative (a fixed overlay plus `inert` applied to the host's body children)
+     * works, but means mutating and then reliably un-mutating host DOM while their
+     * app re-renders underneath us, which is exactly the class of thing that breaks
+     * quietly.
+     * The cost is that it covers our own header too. UCD's design already answers
+     * that: the card carries both exits, so the user is never stranded.
+     * ACCESSIBILITY
+     * role="alertdialog" is the role for an interruption that demands a decision —
+     * a screen reader announces it rather than leaving it to be discovered. It is
+     * labelled by the heading and described by the body, and focus moves into it on
+     * open (showModal does that, to the first focusable element — here, "Continue").
+     * Escape dismisses, deliberately: both choices are visible, so trapping the
+     * keyboard would buy nothing and cost a lot.
+     */
+    interface CpsGlobalCaseLockingInterstitial {
     }
     interface CpsGlobalCaseLockingNotification {
     }
@@ -153,6 +189,36 @@ declare global {
         prototype: HTMLCpsGlobalCaseDetailsElement;
         new (): HTMLCpsGlobalCaseDetailsElement;
     };
+    /**
+     * The interruption, from the UCD prototype's moj-interruption-card.
+     * WHY A NATIVE <dialog> RATHER THAN AN OVERLAY DIV
+     * In the prototype this card is rendered INSIDE <main>, replacing the page
+     * content — the server simply does not send the case. We cannot do that: we are
+     * a guest component on a page whose DOM belongs to someone else.
+     * showModal() gets us the same effect without touching a single node of theirs.
+     * The browser puts the dialog in the top layer and makes the entire rest of the
+     * document inert — out of the accessibility tree, unfocusable, unclickable — and
+     * gives us the focus trap, the backdrop and Escape handling for free. The
+     * alternative (a fixed overlay plus `inert` applied to the host's body children)
+     * works, but means mutating and then reliably un-mutating host DOM while their
+     * app re-renders underneath us, which is exactly the class of thing that breaks
+     * quietly.
+     * The cost is that it covers our own header too. UCD's design already answers
+     * that: the card carries both exits, so the user is never stranded.
+     * ACCESSIBILITY
+     * role="alertdialog" is the role for an interruption that demands a decision —
+     * a screen reader announces it rather than leaving it to be discovered. It is
+     * labelled by the heading and described by the body, and focus moves into it on
+     * open (showModal does that, to the first focusable element — here, "Continue").
+     * Escape dismisses, deliberately: both choices are visible, so trapping the
+     * keyboard would buy nothing and cost a lot.
+     */
+    interface HTMLCpsGlobalCaseLockingInterstitialElement extends Components.CpsGlobalCaseLockingInterstitial, HTMLStencilElement {
+    }
+    var HTMLCpsGlobalCaseLockingInterstitialElement: {
+        prototype: HTMLCpsGlobalCaseLockingInterstitialElement;
+        new (): HTMLCpsGlobalCaseLockingInterstitialElement;
+    };
     interface HTMLCpsGlobalCaseLockingNotificationElement extends Components.CpsGlobalCaseLockingNotification, HTMLStencilElement {
     }
     var HTMLCpsGlobalCaseLockingNotificationElement: {
@@ -240,6 +306,7 @@ declare global {
         "cps-gds-notification-banner": HTMLCpsGdsNotificationBannerElement;
         "cps-global-banner": HTMLCpsGlobalBannerElement;
         "cps-global-case-details": HTMLCpsGlobalCaseDetailsElement;
+        "cps-global-case-locking-interstitial": HTMLCpsGlobalCaseLockingInterstitialElement;
         "cps-global-case-locking-notification": HTMLCpsGlobalCaseLockingNotificationElement;
         "cps-global-footer": HTMLCpsGlobalFooterElement;
         "cps-global-footer-content": HTMLCpsGlobalFooterContentElement;
@@ -259,6 +326,11 @@ declare namespace LocalJSX {
 
     interface CpsGdsNotificationBanner {
         /**
+          * Show only the header until the user asks for detail — the prototype's progressive enhancement, reimplemented rather than bolted on with jQuery. The toggle carries aria-expanded and aria-controls, and the content is genuinely `hidden` when collapsed, so assistive tech is told the same story the sighted user gets rather than reading content that looks closed.
+          * @default false
+         */
+        "collapsible"?: boolean;
+        /**
           * Prevent the banner from being focused on page load (only relevant for success type).
           * @default false
          */
@@ -272,6 +344,11 @@ declare namespace LocalJSX {
           * Fired when the user clicks the dismiss button.
          */
         "onCpsDismissed"?: (event: CpsGdsNotificationBannerCustomEvent<void>) => void;
+        /**
+          * Pin the banner to the bottom of the viewport instead of letting it sit in the document flow. Matches the UCD prototype's app-notification-banner-pinned.
+          * @default false
+         */
+        "pinned"?: boolean;
         /**
           * Override the ARIA role. Defaults to "region" (or "alert" for success type).
          */
@@ -298,6 +375,32 @@ declare namespace LocalJSX {
     interface CpsGlobalBanner {
     }
     interface CpsGlobalCaseDetails {
+    }
+    /**
+     * The interruption, from the UCD prototype's moj-interruption-card.
+     * WHY A NATIVE <dialog> RATHER THAN AN OVERLAY DIV
+     * In the prototype this card is rendered INSIDE <main>, replacing the page
+     * content — the server simply does not send the case. We cannot do that: we are
+     * a guest component on a page whose DOM belongs to someone else.
+     * showModal() gets us the same effect without touching a single node of theirs.
+     * The browser puts the dialog in the top layer and makes the entire rest of the
+     * document inert — out of the accessibility tree, unfocusable, unclickable — and
+     * gives us the focus trap, the backdrop and Escape handling for free. The
+     * alternative (a fixed overlay plus `inert` applied to the host's body children)
+     * works, but means mutating and then reliably un-mutating host DOM while their
+     * app re-renders underneath us, which is exactly the class of thing that breaks
+     * quietly.
+     * The cost is that it covers our own header too. UCD's design already answers
+     * that: the card carries both exits, so the user is never stranded.
+     * ACCESSIBILITY
+     * role="alertdialog" is the role for an interruption that demands a decision —
+     * a screen reader announces it rather than leaving it to be discovered. It is
+     * labelled by the heading and described by the body, and focus moves into it on
+     * open (showModal does that, to the first focusable element — here, "Continue").
+     * Escape dismisses, deliberately: both choices are visible, so trapping the
+     * keyboard would buy nothing and cost a lot.
+     */
+    interface CpsGlobalCaseLockingInterstitial {
     }
     interface CpsGlobalCaseLockingNotification {
     }
@@ -375,6 +478,8 @@ declare namespace LocalJSX {
         "role": string;
         "disableAutoFocus": boolean;
         "dismissible": boolean;
+        "pinned": boolean;
+        "collapsible": boolean;
     }
     interface CpsGlobalFooterAttributes {
         "userEmail": string;
@@ -412,6 +517,7 @@ declare namespace LocalJSX {
         "cps-gds-notification-banner": Omit<CpsGdsNotificationBanner, keyof CpsGdsNotificationBannerAttributes> & { [K in keyof CpsGdsNotificationBanner & keyof CpsGdsNotificationBannerAttributes]?: CpsGdsNotificationBanner[K] } & { [K in keyof CpsGdsNotificationBanner & keyof CpsGdsNotificationBannerAttributes as `attr:${K}`]?: CpsGdsNotificationBannerAttributes[K] } & { [K in keyof CpsGdsNotificationBanner & keyof CpsGdsNotificationBannerAttributes as `prop:${K}`]?: CpsGdsNotificationBanner[K] };
         "cps-global-banner": CpsGlobalBanner;
         "cps-global-case-details": CpsGlobalCaseDetails;
+        "cps-global-case-locking-interstitial": CpsGlobalCaseLockingInterstitial;
         "cps-global-case-locking-notification": CpsGlobalCaseLockingNotification;
         "cps-global-footer": Omit<CpsGlobalFooter, keyof CpsGlobalFooterAttributes> & { [K in keyof CpsGlobalFooter & keyof CpsGlobalFooterAttributes]?: CpsGlobalFooter[K] } & { [K in keyof CpsGlobalFooter & keyof CpsGlobalFooterAttributes as `attr:${K}`]?: CpsGlobalFooterAttributes[K] } & { [K in keyof CpsGlobalFooter & keyof CpsGlobalFooterAttributes as `prop:${K}`]?: CpsGlobalFooter[K] };
         "cps-global-footer-content": Omit<CpsGlobalFooterContent, keyof CpsGlobalFooterContentAttributes> & { [K in keyof CpsGlobalFooterContent & keyof CpsGlobalFooterContentAttributes]?: CpsGlobalFooterContent[K] } & { [K in keyof CpsGlobalFooterContent & keyof CpsGlobalFooterContentAttributes as `attr:${K}`]?: CpsGlobalFooterContentAttributes[K] } & { [K in keyof CpsGlobalFooterContent & keyof CpsGlobalFooterContentAttributes as `prop:${K}`]?: CpsGlobalFooterContent[K] };
@@ -433,6 +539,31 @@ declare module "@stencil/core" {
             "cps-gds-notification-banner": LocalJSX.IntrinsicElements["cps-gds-notification-banner"] & JSXBase.HTMLAttributes<HTMLCpsGdsNotificationBannerElement>;
             "cps-global-banner": LocalJSX.IntrinsicElements["cps-global-banner"] & JSXBase.HTMLAttributes<HTMLCpsGlobalBannerElement>;
             "cps-global-case-details": LocalJSX.IntrinsicElements["cps-global-case-details"] & JSXBase.HTMLAttributes<HTMLCpsGlobalCaseDetailsElement>;
+            /**
+             * The interruption, from the UCD prototype's moj-interruption-card.
+             * WHY A NATIVE <dialog> RATHER THAN AN OVERLAY DIV
+             * In the prototype this card is rendered INSIDE <main>, replacing the page
+             * content — the server simply does not send the case. We cannot do that: we are
+             * a guest component on a page whose DOM belongs to someone else.
+             * showModal() gets us the same effect without touching a single node of theirs.
+             * The browser puts the dialog in the top layer and makes the entire rest of the
+             * document inert — out of the accessibility tree, unfocusable, unclickable — and
+             * gives us the focus trap, the backdrop and Escape handling for free. The
+             * alternative (a fixed overlay plus `inert` applied to the host's body children)
+             * works, but means mutating and then reliably un-mutating host DOM while their
+             * app re-renders underneath us, which is exactly the class of thing that breaks
+             * quietly.
+             * The cost is that it covers our own header too. UCD's design already answers
+             * that: the card carries both exits, so the user is never stranded.
+             * ACCESSIBILITY
+             * role="alertdialog" is the role for an interruption that demands a decision —
+             * a screen reader announces it rather than leaving it to be discovered. It is
+             * labelled by the heading and described by the body, and focus moves into it on
+             * open (showModal does that, to the first focusable element — here, "Continue").
+             * Escape dismisses, deliberately: both choices are visible, so trapping the
+             * keyboard would buy nothing and cost a lot.
+             */
+            "cps-global-case-locking-interstitial": LocalJSX.IntrinsicElements["cps-global-case-locking-interstitial"] & JSXBase.HTMLAttributes<HTMLCpsGlobalCaseLockingInterstitialElement>;
             "cps-global-case-locking-notification": LocalJSX.IntrinsicElements["cps-global-case-locking-notification"] & JSXBase.HTMLAttributes<HTMLCpsGlobalCaseLockingNotificationElement>;
             "cps-global-footer": LocalJSX.IntrinsicElements["cps-global-footer"] & JSXBase.HTMLAttributes<HTMLCpsGlobalFooterElement>;
             "cps-global-footer-content": LocalJSX.IntrinsicElements["cps-global-footer-content"] & JSXBase.HTMLAttributes<HTMLCpsGlobalFooterContentElement>;

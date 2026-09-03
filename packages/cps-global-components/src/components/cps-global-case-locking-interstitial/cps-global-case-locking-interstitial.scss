@@ -1,0 +1,107 @@
+@use "../common/common.scss" as *;
+
+/* MoJ Frontend's interruption card, reimplemented.
+ *
+ * @ministryofjustice/frontend is not a dependency here (govuk-frontend is), and
+ * pulling in a whole design system for one card would be a poor trade. These are
+ * the card's essentials only: GOV.UK blue, white text, generous padding, content
+ * held to a readable measure. Class names match MoJ's so the markup stays
+ * recognisable to anyone who knows the prototype.
+ */
+
+/* The dialog itself is only a positioning shell — the card does the visuals.
+ * Reset the UA's default dialog chrome (border, padding, max-width) so the blue
+ * fills the space we give it. */
+dialog.app-interruption {
+  border: 0;
+  padding: 0;
+  margin: 0;
+  max-width: none;
+  max-height: none;
+  width: 100%;
+  height: 100%;
+  background: transparent;
+  overflow: auto;
+}
+
+/* Covers the page beneath. Opaque rather than a tint: the point is that the
+ * underlying case is not readable, not merely dimmed. */
+dialog.app-interruption::backdrop {
+  background: #1d70b8;
+}
+
+.moj-interruption-card {
+  background-color: #1d70b8; /* govuk-colour("blue") */
+  color: #ffffff;
+  min-height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 15px;
+  box-sizing: border-box;
+}
+
+.moj-interruption-card__content {
+  max-width: 30em; /* a readable measure, as GDS holds body copy to */
+  width: 100%;
+}
+
+.moj-interruption-card__heading {
+  color: #ffffff;
+  margin-top: 0;
+  margin-bottom: 20px;
+  font-family: inherit;
+  font-size: 2rem;
+  line-height: 1.09;
+  font-weight: 700;
+}
+
+.moj-interruption-card__body {
+  font-size: 1.1875rem;
+  line-height: 1.31;
+  margin-bottom: 30px;
+}
+
+.moj-interruption-card__body p {
+  color: #ffffff;
+  margin-top: 0;
+  margin-bottom: 15px;
+}
+
+.moj-interruption-card__actions {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+
+/* "Go back" is a link in the design but a <button> in the markup: it performs an
+ * action rather than navigating to a URL we know, and a button is the honest
+ * element for that. These rules make it read as govuk-link--inverse. */
+.app-interruption__link {
+  background: none;
+  border: 0;
+  padding: 0;
+  color: #ffffff;
+  font-family: inherit;
+  font-size: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.app-interruption__link:hover {
+  text-decoration-thickness: 3px;
+}
+
+/* GDS focus style, stated explicitly rather than relying on the host page's
+ * stylesheet being loaded. */
+.app-interruption__link:focus,
+.moj-interruption-card .govuk-button:focus {
+  outline: 3px solid transparent;
+  color: #0b0c0c;
+  background-color: #ffdd00;
+  box-shadow:
+    0 -2px #ffdd00,
+    0 4px #0b0c0c;
+  text-decoration: none;
+}
