@@ -194,7 +194,7 @@ importers:
         version: 3.3.11(tslib@2.8.1)
       '@microsoft/signalr':
         specifier: ^8.0.7
-        version: 8.0.17
+        version: 8.0.29
       '@types/arrive':
         specifier: ^2.4.4
         version: 2.4.4
@@ -1393,8 +1393,8 @@ packages:
   '@microsoft/dynamicproto-js@2.0.3':
     resolution: {integrity: sha512-JTWTU80rMy3mdxOjjpaiDQsTLZ6YSGGqsjURsY6AUQtIj0udlF/jYmhdLZu8693ZIC0T1IwYnFa0+QeiMnziBA==}
 
-  '@microsoft/signalr@8.0.17':
-    resolution: {integrity: sha512-5pM6xPtKZNJLO0Tq5nQasVyPFwi/WBY3QB5uc/v3dIPTpS1JXQbaXAQAPxFoQ5rTBFE094w8bbqkp17F9ReQvA==}
+  '@microsoft/signalr@8.0.29':
+    resolution: {integrity: sha512-yzszFiTAuRxHm3qxNaSan3YzN8dffLqQcc3ZNJD2tn9eInCBBi7u2xCJ6AVNXjw19RDoBc+NPWfYN43K1HcjdA==}
 
   '@mswjs/interceptors@0.41.3':
     resolution: {integrity: sha512-cXu86tF4VQVfwz8W1SPbhoRyHJkti6mjH/XJIxp40jhO4j2k1m4KYrEykxqWPkFF3vrK4rgQppBh//AwyGSXPA==}
@@ -4836,7 +4836,7 @@ snapshots:
       send: 1.2.1(supports-color@8.1.1)
       ssri: 11.0.0
       urlpattern-polyfill: 10.1.0
-      ws: 8.20.0
+      ws: 8.21.2
     transitivePeerDependencies:
       - bufferutil
       - supports-color
@@ -5873,7 +5873,7 @@ snapshots:
     dependencies:
       '@nevware21/ts-utils': 0.14.0
 
-  '@microsoft/signalr@8.0.17':
+  '@microsoft/signalr@8.0.29':
     dependencies:
       abort-controller: 3.0.0
       eventsource: 2.0.2
@@ -8731,7 +8731,7 @@ snapshots:
       devtools-protocol: 0.0.1581282
       typed-query-selector: 2.12.1
       webdriver-bidi-protocol: 0.4.1
-      ws: 8.20.0
+      ws: 8.21.2
     transitivePeerDependencies:
       - bare-abort-controller
       - bare-buffer
