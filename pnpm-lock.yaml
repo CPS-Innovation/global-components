@@ -130,7 +130,7 @@ importers:
         version: 19.2.3(@types/react@19.2.14)
       '@vitejs/plugin-react':
         specifier: ^5.0.0
-        version: 5.2.0(supports-color@8.1.1)(vite@7.3.1(@types/node@24.12.0)(sass-embedded@1.98.0)(sass@1.98.0)(tsx@4.21.0))
+        version: 5.2.0(supports-color@8.1.1)(vite@7.3.5(@types/node@24.12.0)(sass-embedded@1.98.0)(sass@1.98.0)(tsx@4.21.0))
       sass:
         specifier: ^1.93.0
         version: 1.98.0
@@ -139,7 +139,7 @@ importers:
         version: 5.9.3
       vite:
         specifier: ^7.0.0
-        version: 7.3.1(@types/node@24.12.0)(sass-embedded@1.98.0)(sass@1.98.0)(tsx@4.21.0)
+        version: 7.3.5(@types/node@24.12.0)(sass-embedded@1.98.0)(sass@1.98.0)(tsx@4.21.0)
 
   packages/cps-global-auth:
     dependencies:
@@ -418,13 +418,13 @@ importers:
         version: 19.2.3(@types/react@19.2.14)
       '@vitejs/plugin-react':
         specifier: ^5.0.0
-        version: 5.2.0(supports-color@8.1.1)(vite@7.3.1(@types/node@24.12.0)(sass-embedded@1.98.0)(sass@1.98.0)(tsx@4.21.0))
+        version: 5.2.0(supports-color@8.1.1)(vite@7.3.5(@types/node@24.12.0)(sass-embedded@1.98.0)(sass@1.98.0)(tsx@4.21.0))
       typescript:
         specifier: ^5.6.0
         version: 5.9.3
       vite:
         specifier: ^7.0.0
-        version: 7.3.1(@types/node@24.12.0)(sass-embedded@1.98.0)(sass@1.98.0)(tsx@4.21.0)
+        version: 7.3.5(@types/node@24.12.0)(sass-embedded@1.98.0)(sass@1.98.0)(tsx@4.21.0)
 
   packages/cps-global-react-helpers:
     devDependencies:
@@ -4601,8 +4601,8 @@ packages:
   varint@6.0.0:
     resolution: {integrity: sha512-cXEIW6cfr15lFv563k4GuVuW/fiwjknytD37jIOLSdSWuOI6WnO/oKwmP2FQTU2l01LP8/M5TSAJpzUaGe3uWg==}
 
-  vite@7.3.1:
-    resolution: {integrity: sha512-w+N7Hifpc3gRjZ63vYBXA56dvvRlNWRczTdmCBBa+CotUzAPf5b7YMdMR/8CQoeYE5LX3W4wj6RYTgonm1b9DA==}
+  vite@7.3.5:
+    resolution: {integrity: sha512-KuOaNhcnGFN2zIPGA7wRmzF+lJA1sea7rHq17aiJ++9lzY1WWG6Jpwqwe1KNbRVPIqHmr8GLYx7jbrQcN/7/ww==}
     engines: {node: ^20.19.0 || >=22.12.0}
     hasBin: true
     peerDependencies:
@@ -6421,7 +6421,7 @@ snapshots:
   '@unrs/resolver-binding-win32-x64-msvc@1.11.1':
     optional: true
 
-  '@vitejs/plugin-react@5.2.0(supports-color@8.1.1)(vite@7.3.1(@types/node@24.12.0)(sass-embedded@1.98.0)(sass@1.98.0)(tsx@4.21.0))':
+  '@vitejs/plugin-react@5.2.0(supports-color@8.1.1)(vite@7.3.5(@types/node@24.12.0)(sass-embedded@1.98.0)(sass@1.98.0)(tsx@4.21.0))':
     dependencies:
       '@babel/core': 7.29.0(supports-color@8.1.1)
       '@babel/plugin-transform-react-jsx-self': 7.27.1(@babel/core@7.29.0(supports-color@8.1.1))
@@ -6429,7 +6429,7 @@ snapshots:
       '@rolldown/pluginutils': 1.0.0-rc.3
       '@types/babel__core': 7.20.5
       react-refresh: 0.18.0
-      vite: 7.3.1(@types/node@24.12.0)(sass-embedded@1.98.0)(sass@1.98.0)(tsx@4.21.0)
+      vite: 7.3.5(@types/node@24.12.0)(sass-embedded@1.98.0)(sass@1.98.0)(tsx@4.21.0)
     transitivePeerDependencies:
       - supports-color
 
@@ -9402,7 +9402,7 @@ snapshots:
 
   varint@6.0.0: {}
 
-  vite@7.3.1(@types/node@24.12.0)(sass-embedded@1.98.0)(sass@1.98.0)(tsx@4.21.0):
+  vite@7.3.5(@types/node@24.12.0)(sass-embedded@1.98.0)(sass@1.98.0)(tsx@4.21.0):
     dependencies:
       esbuild: 0.27.4
       fdir: 6.5.0(picomatch@4.0.4)
