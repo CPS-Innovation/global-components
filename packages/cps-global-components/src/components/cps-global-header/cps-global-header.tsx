@@ -45,6 +45,7 @@ export class CpsGlobalHeader {
           {state.fatalInitialisationError ? renderError(state.fatalInitialisationError) : <cps-global-menu></cps-global-menu>}
           <cps-global-notifications></cps-global-notifications>
           <cps-global-case-locking-notification></cps-global-case-locking-notification>
+          <cps-global-case-locking-interstitial></cps-global-case-locking-interstitial>
           {state.caseIdentifiers?.caseId && <cps-region code="case"></cps-region>}
         </div>
       </Host>

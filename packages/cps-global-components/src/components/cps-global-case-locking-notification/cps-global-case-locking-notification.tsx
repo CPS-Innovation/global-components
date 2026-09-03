@@ -34,9 +34,16 @@ export class CpsGlobalCaseLockingNotification {
     const { code, users } = state.caseLockingPresentUsers;
     const upns = users.map(u => u.user).join(", ");
     return (
-      <cps-gds-notification-banner dismissible={false}>
+      // Pinned to the bottom and collapsed to its header, per the UCD prototype:
+      // presence is ambient information, so it should be reachable without
+      // taking the top of the screen away from the work.
+      //
+      // Wording is deliberately plain. We can say who is present and where; we
+      // cannot say what they are doing or whether it is safe to proceed, so we
+      // do not imply it.
+      <cps-gds-notification-banner titleText="Case activity" pinned collapsible dismissible={false}>
         <p class="govuk-body">
-          Viewing {friendlyName(code)}: {upns}
+          Also viewing {friendlyName(code)}: {upns}
         </p>
       </cps-gds-notification-banner>
     );

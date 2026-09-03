@@ -34,6 +34,12 @@ export const PreviewSchema = z.object({
   // want a caseworker discovering mid-work.
   caseLockingNotifications: z.boolean().optional(),
   caseLockingCountSelf: z.boolean().optional(),
+  // The interruption card (MoJ interruption-card), separate from the pinned
+  // banner so either can be tried on its own while we work out which belongs
+  // where. Both currently trigger on the same "someone else is on this case"
+  // condition; the real rules (which section kinds interrupt, which merely
+  // inform) come later.
+  caseLockingInterstitial: z.boolean().optional(),
   requestObservationShim: z.boolean().optional(),
 
   // OutSystems region override (FCT2-20670). Absent means no override, i.e.

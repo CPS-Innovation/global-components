@@ -1,4 +1,4 @@
-import { Component, h, Prop, Element, Event, EventEmitter } from "@stencil/core";
+import { Component, h, Prop, State, Element, Event, EventEmitter } from "@stencil/core";
 
 export type NotificationBannerType = "success";
 
@@ -31,6 +31,23 @@ export class CpsGdsNotificationBanner {
   /** Renders the dismiss button. Persistence is the caller's responsibility via the `cpsDismissed` event. */
   @Prop() dismissible: boolean = false;
 
+  /**
+   * Pin the banner to the bottom of the viewport instead of letting it sit in
+   * the document flow. Matches the UCD prototype's app-notification-banner-pinned.
+   */
+  @Prop() pinned: boolean = false;
+
+  /**
+   * Show only the header until the user asks for detail — the prototype's
+   * progressive enhancement, reimplemented rather than bolted on with jQuery.
+   * The toggle carries aria-expanded and aria-controls, and the content is
+   * genuinely `hidden` when collapsed, so assistive tech is told the same story
+   * the sighted user gets rather than reading content that looks closed.
+   */
+  @Prop() collapsible: boolean = false;
+
+  @State() expanded: boolean = false;
+
   /** Fired when the user clicks the dismiss button. */
   @Event() cpsDismissed: EventEmitter<void>;
 
@@ -57,9 +74,28 @@ export class CpsGdsNotificationBanner {
     this.cpsDismissed.emit();
   };
 
+  // Unique per instance so aria-controls always points at this banner's own
+  // content, even with several on a page.
+  private contentId = `cps-notification-banner-content-${(CpsGdsNotificationBanner.idCount += 1)}`;
+
+  private static idCount = 0;
+
+  private toggle = () => {
+    this.expanded = !this.expanded;
+  };
+
   render() {
     const HeadingTag = `h${this.titleHeadingLevel}` as any;
-    const classes = ["govuk-notification-banner", this.isSuccess && "govuk-notification-banner--success"].filter(Boolean).join(" ");
+    const collapsed = this.collapsible && !this.expanded;
+    const classes = [
+      "govuk-notification-banner",
+      this.isSuccess && "govuk-notification-banner--success",
+      this.pinned && "app-notification-banner-pinned",
+      this.collapsible && "app-notification-banner-pinned--initialised",
+      this.collapsible && this.expanded && "app-notification-banner-pinned--expanded",
+    ]
+      .filter(Boolean)
+      .join(" ");
 
     return (
       <div
@@ -73,8 +109,19 @@ export class CpsGdsNotificationBanner {
           <HeadingTag class="govuk-notification-banner__title" id={this.titleId}>
             {this.resolvedTitleText}
           </HeadingTag>
+          {this.collapsible && (
+            <button
+              type="button"
+              class="app-notification-banner-pinned__toggle"
+              aria-expanded={this.expanded ? "true" : "false"}
+              aria-controls={this.contentId}
+              onClick={this.toggle}
+            >
+              {this.expanded ? "Hide details" : "Show details"}
+            </button>
+          )}
         </div>
-        <div class="govuk-notification-banner__content">
+        <div class="govuk-notification-banner__content" id={this.contentId} hidden={collapsed}>
           <slot />
           {this.dismissible && (
             <button class="govuk-button govuk-button--secondary" onClick={this.dismiss}>
