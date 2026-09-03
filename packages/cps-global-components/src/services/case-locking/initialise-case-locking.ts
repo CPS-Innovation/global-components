@@ -100,6 +100,9 @@ export const initialiseCaseLocking = ({ window, config, preview, register }: Pro
         // Authorization header at all — the right failure for a guest component
         // that must never trigger an interactive consent prompt.
         getAccessToken: () => getToken({ config: { AD_GATEWAY_SCOPES: config.CASE_LOCKING_SCOPES ?? [] } }),
+        // Read once, at construction: a preview change takes effect on reload,
+        // which is fine for a development switch.
+        countSelf: FEATURE_FLAGS.shouldCountSelfInCaseLocking({ config, preview, auth, authHint: undefined }),
       });
       // Regions that appeared before auth completed. The case section needs no
       // replay — it follows setCaseId below.

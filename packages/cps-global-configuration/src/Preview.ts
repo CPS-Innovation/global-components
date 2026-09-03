@@ -23,6 +23,17 @@ export const PreviewSchema = z.object({
   notifications: z.boolean().optional(),
   useFullPageMsalRedirect: z.boolean().optional(),
   caseLocking: z.boolean().optional(),
+
+  // Case-locking is deliberately split three ways so the mechanism can run for
+  // real in QA while staying invisible to real users:
+  //   caseLocking            register presence — exercises the hub and the API
+  //   caseLockingNotifications  show the banner when someone else is present
+  //   caseLockingCountSelf   count yourself as another user, so the banner can be
+  //                          seen at all by one developer on a case alone
+  // Registration is the part we want load on; the banner is the part we do not
+  // want a caseworker discovering mid-work.
+  caseLockingNotifications: z.boolean().optional(),
+  caseLockingCountSelf: z.boolean().optional(),
   requestObservationShim: z.boolean().optional(),
 
   // OutSystems region override (FCT2-20670). Absent means no override, i.e.

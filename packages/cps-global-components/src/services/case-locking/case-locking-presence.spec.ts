@@ -58,7 +58,7 @@ const presence = (users: { user: string; appName: string }[], { caseId = "123", 
   },
 });
 
-const setup = () => {
+const setup = (options: { countSelf?: boolean } = {}) => {
   const hubs: FakeHubConnection[] = [];
   let presentUsers: CaseLockingPresentUsers;
   const register = jest.fn((arg: { caseLockingPresentUsers: CaseLockingPresentUsers }) => {
@@ -71,6 +71,7 @@ const setup = () => {
     // Unused here — every test injects a hubFactory, so the real one (which is
     // what consumes this) is never built. Present because the type requires it.
     getAccessToken: async () => "test-token",
+    countSelf: options.countSelf,
     register,
     hubFactory: () => {
       const hub = makeFakeHub();
@@ -262,10 +263,10 @@ describe("createCaseLockingPresence", () => {
   });
 
   describe("presence publication", () => {
-    // HIDE_SELF is false, matching the Classic banner and the Modern bar, which
-    // both count and list the current user. See the constant for why.
-    it("publishes everyone in the section, ourselves included", async () => {
-      const { service, hubFor, getPresentUsers, register } = setup();
+    // countSelf mirrors the caseLockingCountSelf preview flag. ON, we match the
+    // Classic banner and the Modern bar, which both count and list you.
+    it("publishes everyone in the section, ourselves included, when countSelf is on", async () => {
+      const { service, hubFor, getPresentUsers, register } = setup({ countSelf: true });
       service.setCaseId("123");
       service.addRegion("witness");
       await flush();
@@ -288,10 +289,11 @@ describe("createCaseLockingPresence", () => {
       expect(getPresentUsers()?.users).toHaveLength(2);
     });
 
-    it("publishes a list of one when we are the only user present", async () => {
-      // The observability case: with self hidden, a lone developer on a case sees
-      // an empty list and cannot tell a working mechanism from a broken one.
-      const { service, hubFor, getPresentUsers } = setup();
+    it("publishes a list of one when we are the only user present and countSelf is on", async () => {
+      // The observability case, and the whole reason the flag exists: with self
+      // hidden, a lone developer on a case sees an empty list and cannot tell a
+      // working mechanism from a broken one.
+      const { service, hubFor, getPresentUsers } = setup({ countSelf: true });
       service.setCaseId("123");
       service.addRegion("witness");
       await flush();
@@ -301,10 +303,10 @@ describe("createCaseLockingPresence", () => {
       expect(getPresentUsers()?.users).toEqual([{ user: "alice", appName: "test-app" }]);
     });
 
-    it("keeps us in the list whatever casing the hub echoes back", async () => {
-      // The server derives the name from token claims, whose casing we do not
-      // control — so the self comparison, when it is used at all, is
-      // case-insensitive. Here it must not remove us either way.
+    it("removes us case-insensitively by default — the hub echoes token-claim casing", async () => {
+      // Default (production) behaviour: self is dropped, and the comparison must
+      // survive the server's casing, which comes from token claims we do not
+      // control.
       const { service, hubFor, getPresentUsers } = setup();
       service.setCaseId("123");
       service.addRegion("witness");
@@ -312,7 +314,21 @@ describe("createCaseLockingPresence", () => {
 
       hubFor("123:WITNESS")!.__notify?.(presence([{ user: "ALICE", appName: "CMS" }]));
       await flush();
-      expect(getPresentUsers()?.users).toEqual([{ user: "ALICE", appName: "CMS" }]);
+      expect(getPresentUsers()?.users).toEqual([]);
+    });
+
+    it("publishes only the others by default, so a lone user is told nothing", async () => {
+      const { service, hubFor, getPresentUsers } = setup();
+      service.setCaseId("123");
+      service.addRegion("witness");
+      await flush();
+
+      hubFor("123:WITNESS")!.__notify?.(presence([
+        { user: "alice", appName: "test-app" },
+        { user: "bob@cps.gov.uk", appName: "CMS" },
+      ]));
+      await flush();
+      expect(getPresentUsers()?.users).toEqual([{ user: "bob@cps.gov.uk", appName: "CMS" }]);
     });
 
     it("subsequent Notifys overwrite the published list", async () => {

@@ -129,6 +129,20 @@ const FEATURES: Feature[] = [
     disabled: false,
   },
   {
+    key: "caseLockingNotifications",
+    label: "Case locking — show notifications",
+    description:
+      "Show the banner naming other users present on this case. Presence is registered regardless (see Case locking); this only controls whether you SEE it, so the mechanism can be exercised in an environment without real users noticing.",
+    disabled: false,
+  },
+  {
+    key: "caseLockingCountSelf",
+    label: "Case locking — count myself",
+    description:
+      "Count yourself among the present users. For development only: without it a developer alone on a case sees an empty list and cannot tell a working mechanism from a broken one. In production, telling someone they are viewing the case they are looking at is noise.",
+    disabled: false,
+  },
+  {
     key: "requestObservationShim",
     label: "Request observation shim",
     description:

@@ -16,6 +16,12 @@ type Props = {
   appName: string;
   register: Register;
   getAccessToken: GetAccessToken;
+  // Count ourselves among the present users. Off by default: in production,
+  // telling someone they are viewing the case they are looking at is noise. On
+  // (via the caseLockingCountSelf preview flag) a lone developer can see the
+  // banner without a second person, which is the only way to tell a working
+  // mechanism from a broken one single-handed.
+  countSelf?: boolean;
   hubFactory?: HubFactory;
 };
 
@@ -49,22 +55,6 @@ const KEEPALIVE_MS = 5000;
 // The hub's error text when our session has been reaped. Not a failure to retry
 // blindly: the session is gone, so the cure is to Connect again.
 const SESSION_EVICTED = "SESSION_EVICTED";
-
-// Whether to drop our own entry before publishing.
-//
-// FALSE, which matches the two legacy clients: the Classic banner counts and lists
-// everyone including you, and so does the Modern bar. Three clients disagreeing
-// about whether you can see yourself would be worse than any of the answers.
-//
-// It also makes the feature observable by one person: with self hidden, a lone
-// developer on a case sees an empty list and cannot tell a working mechanism from
-// a broken one — which is exactly where an afternoon went on 2026-09-02.
-//
-// Flip to true to restore the original SPA behaviour, whose argument was that
-// otherwise a lone user is told they are viewing the case they are looking at.
-// That is a real product question and worth settling with the UI work rather than
-// by default.
-const HIDE_SELF = false;
 
 const { _debug, _warn, _error } = makeConsole("caseLockingPresence");
 
@@ -155,6 +145,7 @@ export const createCaseLockingPresence = ({
   appName,
   register,
   getAccessToken,
+  countSelf = false,
   hubFactory = makeHubFactory(getAccessToken),
 }: Props): CaseLockingPresenceService => {
   _debug("creating presence service", { apiUrl, username, appName });
@@ -199,7 +190,7 @@ export const createCaseLockingPresence = ({
   // The store still receives the region CODE rather than the section identity —
   // the UI is changing shortly, so this keeps its existing contract.
   const publishPresentUsers = (key: string, code: string, users: CaseLockingPresentUser[]) => {
-    const others = HIDE_SELF ? users.filter(user => !isSelf(user)) : users;
+    const others = countSelf ? users : users.filter(user => !isSelf(user));
     publishedKey = key;
     _debug("publishing present users", { key, code, users, others });
     register({ caseLockingPresentUsers: { code, users: others } });
