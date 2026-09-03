@@ -80,7 +80,7 @@ export const makeHubFactory =
   url =>
     new HubConnectionBuilder()
       .withUrl(url, {
-        transport: HttpTransportType.WebSockets | HttpTransportType.ServerSentEvents | HttpTransportType.LongPolling,
+        transport: /*HttpTransportType.WebSockets | */ HttpTransportType.ServerSentEvents | HttpTransportType.LongPolling,
         accessTokenFactory: async () => (await getAccessToken()) ?? "",
       })
       .withAutomaticReconnect()
