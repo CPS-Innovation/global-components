@@ -27,7 +27,10 @@ export class CpsGlobalHeader {
 
   @WithLogging("CpsGlobalHeader")
   render() {
-    const { isReady, state } = readyState("config", "context", "preview", "flags");
+    // caseIdentifiers is OPTIONAL, not required: it is legitimately absent on every
+    // page that is not a case, and gating the header's readiness on it would stop
+    // the header rendering at all there.
+    const { isReady, state } = readyState(["config", "context", "preview", "flags"], ["caseIdentifiers"]);
 
     const { headerCustomCssClasses, headerCustomCssStyles } =
       isReady && state?.context.found ? state.context : { headerCustomCssClasses: undefined, headerCustomCssStyles: undefined };
@@ -42,6 +45,7 @@ export class CpsGlobalHeader {
           {state.fatalInitialisationError ? renderError(state.fatalInitialisationError) : <cps-global-menu></cps-global-menu>}
           <cps-global-notifications></cps-global-notifications>
           <cps-global-case-locking-notification></cps-global-case-locking-notification>
+          {state.caseIdentifiers?.caseId && <cps-region code="case"></cps-region>}
         </div>
       </Host>
     );
