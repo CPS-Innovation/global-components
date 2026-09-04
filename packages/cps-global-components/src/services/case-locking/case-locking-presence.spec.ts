@@ -83,7 +83,11 @@ const setup = (options: { countSelf?: boolean } = {}) => {
   // being meaningful when the case section started opening its own connection.
   const hubFor = (sectionId: string) =>
     hubs.find(hub => hub.invoke.mock.calls.some(([method, section]) => method === "Connect" && section === sectionId));
-  return { service, hubs, register, hubFor, getPresentUsers: () => presentUsers };
+  // Everyone published, across every section — what most of these tests mean by
+  // "the present users". Sections that end up empty are dropped entirely, so the
+  // whole payload is undefined when there is nobody to show.
+  const allUsers = () => (presentUsers?.sections ?? []).flatMap(section => section.users);
+  return { service, hubs, register, hubFor, allUsers, getPresentUsers: () => presentUsers };
 };
 
 describe("createCaseLockingPresence", () => {
@@ -266,7 +270,7 @@ describe("createCaseLockingPresence", () => {
     // countSelf mirrors the caseLockingCountSelf preview flag. ON, we match the
     // Classic banner and the Modern bar, which both count and list you.
     it("publishes everyone in the section, ourselves included, when countSelf is on", async () => {
-      const { service, hubFor, getPresentUsers, register } = setup({ countSelf: true });
+      const { service, hubFor, register, allUsers } = setup({ countSelf: true });
       service.setCaseId("123");
       service.addRegion("witness");
       await flush();
@@ -279,28 +283,32 @@ describe("createCaseLockingPresence", () => {
 
       expect(register).toHaveBeenCalledWith({
         caseLockingPresentUsers: {
-          code: "witness",
-          users: [
-            { user: "alice", appName: "test-app" },
-            { user: "bob@cps.gov.uk", appName: "CMS" },
+          sections: [
+            {
+              code: "witness",
+              users: [
+                { user: "alice", appName: "test-app", joinedAt: undefined },
+                { user: "bob@cps.gov.uk", appName: "CMS", joinedAt: undefined },
+              ],
+            },
           ],
         },
       });
-      expect(getPresentUsers()?.users).toHaveLength(2);
+      expect(allUsers()).toHaveLength(2);
     });
 
     it("publishes a list of one when we are the only user present and countSelf is on", async () => {
       // The observability case, and the whole reason the flag exists: with self
       // hidden, a lone developer on a case sees an empty list and cannot tell a
       // working mechanism from a broken one.
-      const { service, hubFor, getPresentUsers } = setup({ countSelf: true });
+      const { service, hubFor, allUsers } = setup({ countSelf: true });
       service.setCaseId("123");
       service.addRegion("witness");
       await flush();
 
       hubFor("123:WITNESS")!.__notify?.(presence([{ user: "alice", appName: "test-app" }]));
       await flush();
-      expect(getPresentUsers()?.users).toEqual([{ user: "alice", appName: "test-app" }]);
+      expect(allUsers()).toEqual([{ user: "alice", appName: "test-app" }]);
     });
 
     it("removes us case-insensitively by default — the hub echoes token-claim casing", async () => {
@@ -314,11 +322,11 @@ describe("createCaseLockingPresence", () => {
 
       hubFor("123:WITNESS")!.__notify?.(presence([{ user: "ALICE", appName: "CMS" }]));
       await flush();
-      expect(getPresentUsers()?.users).toEqual([]);
+      expect(getPresentUsers()).toBeUndefined();
     });
 
     it("publishes only the others by default, so a lone user is told nothing", async () => {
-      const { service, hubFor, getPresentUsers } = setup();
+      const { service, hubFor, allUsers } = setup();
       service.setCaseId("123");
       service.addRegion("witness");
       await flush();
@@ -328,25 +336,25 @@ describe("createCaseLockingPresence", () => {
         { user: "bob@cps.gov.uk", appName: "CMS" },
       ]));
       await flush();
-      expect(getPresentUsers()?.users).toEqual([{ user: "bob@cps.gov.uk", appName: "CMS" }]);
+      expect(allUsers()).toEqual([{ user: "bob@cps.gov.uk", appName: "CMS" }]);
     });
 
     it("subsequent Notifys overwrite the published list", async () => {
-      const { service, hubFor, getPresentUsers } = setup();
+      const { service, hubFor, allUsers } = setup();
       service.setCaseId("123");
       service.addRegion("witness");
       await flush();
 
       hubFor("123:WITNESS")!.__notify?.(presence([{ user: "bob", appName: "CMS" }]));
       await flush();
-      expect(getPresentUsers()?.users).toHaveLength(1);
+      expect(allUsers()).toHaveLength(1);
 
       hubFor("123:WITNESS")!.__notify?.(presence([
         { user: "bob", appName: "CMS" },
         { user: "carol", appName: "CMS" },
       ]));
       await flush();
-      expect(getPresentUsers()?.users).toHaveLength(2);
+      expect(allUsers()).toHaveLength(2);
     });
 
     it("removing the active code clears the published list", async () => {
@@ -405,20 +413,20 @@ describe("createCaseLockingPresence", () => {
     };
 
     it("applies a snapshot and publishes its members", async () => {
-      const { hub, getPresentUsers } = await onWitness();
+      const { hub, allUsers } = await onWitness();
       hub.__notify?.(notification(1, ["bob@cps.gov.uk"]));
       await flush();
-      expect(getPresentUsers()?.users).toEqual([{ user: "bob@cps.gov.uk", appName: "CMS" }]);
+      expect(allUsers()).toEqual([{ user: "bob@cps.gov.uk", appName: "CMS" }]);
     });
 
     it("discards a snapshot older than one already applied — they arrive out of order", async () => {
-      const { hub, getPresentUsers } = await onWitness();
+      const { hub, allUsers } = await onWitness();
       hub.__notify?.(notification(5, ["bob@cps.gov.uk"]));
       await flush();
       hub.__notify?.(notification(3, ["carol@cps.gov.uk", "dave@cps.gov.uk"]));
       await flush();
       // The late arrival must not resurrect a roster that has moved on.
-      expect(getPresentUsers()?.users).toEqual([{ user: "bob@cps.gov.uk", appName: "CMS" }]);
+      expect(allUsers()).toEqual([{ user: "bob@cps.gov.uk", appName: "CMS" }]);
     });
 
     it("accepts a newer snapshot, including one that empties the section", async () => {
@@ -428,7 +436,7 @@ describe("createCaseLockingPresence", () => {
       // An empty members array is a valid update meaning everyone left.
       hub.__notify?.(notification(2, []));
       await flush();
-      expect(getPresentUsers()?.users).toEqual([]);
+      expect(getPresentUsers()).toBeUndefined();
     });
 
     it("ignores a snapshot for a different section", async () => {
