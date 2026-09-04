@@ -54,7 +54,7 @@ export class CpsGlobalCaseLockingNotification {
     const summary = people === 1 ? "1 other person is working on this case" : `${people} other people are working on this case`;
 
     return (
-      <cps-gds-notification-banner titleText={summary} pinned collapsible dismissible={false}>
+      <cps-global-pinned-notification titleText={summary} collapsible dismissible={false}>
         {present.sections.map(section => (
           <div>
             <h3 class="govuk-heading-s">{friendlyName(section.code)}</h3>
@@ -69,7 +69,7 @@ export class CpsGlobalCaseLockingNotification {
             })}
           </div>
         ))}
-      </cps-gds-notification-banner>
+      </cps-global-pinned-notification>
     );
   }
 }

@@ -28,12 +28,23 @@
  * White, not a tint: the point is that the case underneath is not readable, not
  * merely dimmed.
  *
- * FOOTER: the host's footer sits in the scrolled page, so on a long page it is
- * below the fold anyway; where it is visible it will be behind this. Extending
- * the band to stop at the footer means measuring an element in someone else's
- * DOM, which is a fragility we have paid for twice already elsewhere.
+ * FOOTER: the band stops at the top of cps-global-footer-content when it is on
+ * screen, and runs to the bottom of the viewport when it is not. That element is
+ * OURS, so measuring it is safe; the host's own footer is not ours to find, and
+ * hunting for it by selector is the fragility that has cost us twice elsewhere.
+ *
+ * The document's scroll is locked while this is up (see lockScroll), so these
+ * edges can only change on resize.
  */
 .app-interruption {
+  /* Focused programmatically so the alertdialog is announced, never by tabbing.
+   * The ring would frame the whole band, which tells a sighted user nothing and
+   * looks like a bug — the card is plainly the thing that just appeared. Removed
+   * only for this container; every control inside keeps its GDS focus style. */
+  &:focus {
+    outline: none;
+  }
+
   position: fixed;
   left: 0;
   right: 0;

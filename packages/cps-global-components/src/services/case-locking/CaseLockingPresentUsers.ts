@@ -6,7 +6,24 @@ export type CaseLockingPresentUser = {
 };
 
 /** Everyone present in one section, keyed by the region code we registered it as. */
-export type CaseLockingPresentSection = { code: string; users: CaseLockingPresentUser[] };
+export type CaseLockingPresentSection = {
+  code: string;
+  users: CaseLockingPresentUser[];
+  /**
+   * Was anyone already here when we arrived?
+   *
+   * Decided on the FIRST snapshot after we register the section and never
+   * revisited. It is what separates the two devices: walking into a section
+   * someone already occupies is an interruption, whereas someone joining a
+   * section you are already in is news you can read at your own pace, so it gets
+   * the pinned banner instead.
+   *
+   * The corollary is that two people on one case produce exactly one
+   * interruption, shown to whoever arrived second — the first person is never
+   * interrupted on a case they were already working on.
+   */
+  occupiedOnEntry: boolean;
+};
 
 /**
  * A LIST of sections, not one.

@@ -5,6 +5,45 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=5.0" />
   <title>CPS Global Nav development</title>
+  <script>
+    /* PREVIEW FLAGS, served without a service worker.
+     *
+     * Stencil's dev server injects a snippet at the end of this page that
+     * unregisters ANY service worker and reloads. MSW is a service worker, so the
+     * mock API is killed at random on reload — the two race, and the preview
+     * endpoint 404s on whichever load MSW loses. preview.result is then undefined,
+     * every preview-gated feature switches off, and the case-locking UI silently
+     * renders nothing. It presents as "it worked yesterday".
+     *
+     * A fetch shim has nothing to unregister, so it cannot lose that race. Runs
+     * before the module below, which is why it is a classic script.
+     *
+     *   ?ui=banner         the pinned notification only
+     *   ?ui=interstitial   the interruption card only
+     *   (absent)           both
+     */
+    (function () {
+      var realFetch = window.fetch;
+      window.fetch = function (input) {
+        var url = typeof input === "string" ? input : (input && input.url) || "";
+        if (url.indexOf("/state/preview") !== -1) {
+          var ui = new URLSearchParams(location.search).get("ui");
+          var body = {
+            enabled: true,
+            caseLocking: true,
+            caseLockingNotifications: ui !== "interstitial",
+            caseLockingInterstitial: ui !== "banner",
+          };
+          return Promise.resolve(new Response(JSON.stringify(body), {
+            status: 200,
+            headers: { "Content-Type": "application/json" },
+          }));
+        }
+        return realFetch.apply(this, arguments);
+      };
+    })();
+  </script>
+
   <script type="module">
 
     if (location.hostname === 'localhost') {
@@ -71,7 +110,26 @@
   <div id="div1">
     <div id="div2">
       <div>
-        <main id="the-main-itself"></main>
+        <main id="the-main-itself">
+          <!-- Focusable content, so `inert` can actually be tested. The
+               interstitial removes the page behind it from the tab order and the
+               accessibility tree; with nothing focusable here that is
+               indistinguishable from doing nothing at all. Tab through this
+               block with the interruption up — every stop should be skipped. -->
+          <h2>Dev page content</h2>
+          <p><a href="#the-main-itself">A link in the page body</a></p>
+          <p><label>A text input <input type="text" name="dev-text" /></label></p>
+          <p>
+            <label>A select
+              <select name="dev-select">
+                <option>One</option>
+                <option>Two</option>
+              </select>
+            </label>
+          </p>
+          <p><label>A textarea <textarea name="dev-textarea" rows="2"></textarea></label></p>
+          <p><button type="button">A button in the page body</button></p>
+        </main>
 
       </div>
     </div>

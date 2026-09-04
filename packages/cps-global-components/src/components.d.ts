@@ -10,12 +10,14 @@ import { ContextsToUseEventNavigation } from "cps-global-configuration";
 export { NotificationBannerType } from "./components/cps-gds-notification-banner/cps-gds-notification-banner";
 export { ContextsToUseEventNavigation } from "cps-global-configuration";
 export namespace Components {
+    /**
+     * A thin shell over govuk-frontend's notification banner.
+     * Deliberately thin. The pinned variant that used to live here as a flag is now
+     * cps-global-pinned-notification: it positions against the viewport, mutates the
+     * host page's layout and follows UCD's design, none of which belongs in the
+     * component every notification in the app renders through.
+     */
     interface CpsGdsNotificationBanner {
-        /**
-          * Show only the header until the user asks for detail — the prototype's progressive enhancement, reimplemented rather than bolted on with jQuery. The toggle carries aria-expanded and aria-controls, and the content is genuinely `hidden` when collapsed, so assistive tech is told the same story the sighted user gets rather than reading content that looks closed.
-          * @default false
-         */
-        "collapsible": boolean;
         /**
           * Prevent the banner from being focused on page load (only relevant for success type).
           * @default false
@@ -27,11 +29,6 @@ export namespace Components {
          */
         "dismissible": boolean;
         /**
-          * Pin the banner to the bottom of the viewport instead of letting it sit in the document flow. Matches the UCD prototype's app-notification-banner-pinned.
-          * @default false
-         */
-        "pinned": boolean;
-        /**
           * Override the ARIA role. Defaults to "region" (or "alert" for success type).
          */
         "role"?: string;
@@ -41,10 +38,9 @@ export namespace Components {
          */
         "titleHeadingLevel": number;
         /**
-          * Custom id for the title element. Defaults to "govuk-notification-banner-title".
-          * @default "govuk-notification-banner-title"
+          * Custom id for the title element. Defaults to one generated per instance.  NOT A FIXED STRING, which is what GDS's own example markup uses and what this defaulted to. aria-labelledby is an IDREF and resolves to the FIRST matching element in the tree, so several banners sharing an id all end up named by whichever renders first — and cps-global-notifications renders one banner per notification, all as siblings. The symptom is a screen reader announcing the same region name several times over, on the busiest screens.
          */
-        "titleId": string;
+        "titleId"?: string;
         /**
           * The title text shown in the banner header. Defaults to "Important" or "Success" based on type.
          */
@@ -72,6 +68,11 @@ export namespace Components {
      * reads the case underneath and the keyboard still tabs into it — the user is
      * told to stop while the page quietly says otherwise. `inert` removes those
      * elements from the accessibility tree AND the tab order in one attribute.
+     * THE PAGE IS FROZEN WHILE WE ARE UP
+     * An overlay over a page that still scrolls reads as a floating panel, however
+     * it is styled. Locking the document's overflow means nothing behind us can
+     * move, so the band reads as the page rather than as a sheet on top of it — and
+     * with nothing moving there is nothing to re-measure on scroll either.
      * WE MUTATE HOST DOM HERE, WHICH WE OTHERWISE AVOID. It is confined to setting
      * and clearing `inert` on the direct children of <body>, excluding our own root,
      * and every path that hides the overlay releases it — including
@@ -104,6 +105,45 @@ export namespace Components {
     interface CpsGlobalMenu {
     }
     interface CpsGlobalNotifications {
+    }
+    /**
+     * The pinned notification from the UCD prototype's app-notification-banner-pinned.
+     * WHY THIS IS NOT A FLAG ON cps-gds-notification-banner
+     * It began as one, and the specialisation outgrew it. This component positions
+     * itself against the viewport, mutates the host page's layout, owns a
+     * progressive-enhancement toggle and answers to UCD; the GDS banner is a thin
+     * shell over a govuk-frontend component and answers to govuk-frontend. Sharing
+     * one component meant every notification in the app rendered through code that
+     * only the pinned one used — including host-DOM teardown it never performed.
+     * The prototype makes the same split: app-notification-banner-pinned is a
+     * wrapper with its own JS module around a stock govuk-notification-banner.
+     * WHY NOT COMPOSE the GDS banner inside this one, which would avoid repeating
+     * its markup: the toggle has to sit INSIDE the banner's header, next to the
+     * title. The prototype achieves that by reaching in with jQuery
+     * (header.append(toggle)). Doing the equivalent across a component boundary is
+     * worse than repeating twenty lines of markup that govuk-frontend has not
+     * changed in years.
+     */
+    interface CpsGlobalPinnedNotification {
+        /**
+          * Show only the header until the user asks for detail — the prototype's progressive enhancement, reimplemented rather than bolted on with jQuery. The toggle carries aria-expanded and aria-controls, and the content is genuinely `hidden` when collapsed, so assistive tech is told the same story the sighted user gets rather than reading content that looks closed.
+          * @default false
+         */
+        "collapsible": boolean;
+        /**
+          * Renders the dismiss button. Persistence is the caller's responsibility via the `cpsDismissed` event.
+          * @default false
+         */
+        "dismissible": boolean;
+        /**
+          * The heading level for the title (1-6). Defaults to 2.
+          * @default 2
+         */
+        "titleHeadingLevel": number;
+        /**
+          * The title text shown in the banner header.
+         */
+        "titleText"?: string;
     }
     interface CpsGlobalRecentCases {
         /**
@@ -156,6 +196,10 @@ export interface CpsGdsNotificationBannerCustomEvent<T> extends CustomEvent<T> {
     detail: T;
     target: HTMLCpsGdsNotificationBannerElement;
 }
+export interface CpsGlobalPinnedNotificationCustomEvent<T> extends CustomEvent<T> {
+    detail: T;
+    target: HTMLCpsGlobalPinnedNotificationElement;
+}
 export interface NavLinkCustomEvent<T> extends CustomEvent<T> {
     detail: T;
     target: HTMLNavLinkElement;
@@ -164,6 +208,13 @@ declare global {
     interface HTMLCpsGdsNotificationBannerElementEventMap {
         "cpsDismissed": void;
     }
+    /**
+     * A thin shell over govuk-frontend's notification banner.
+     * Deliberately thin. The pinned variant that used to live here as a flag is now
+     * cps-global-pinned-notification: it positions against the viewport, mutates the
+     * host page's layout and follows UCD's design, none of which belongs in the
+     * component every notification in the app renders through.
+     */
     interface HTMLCpsGdsNotificationBannerElement extends Components.CpsGdsNotificationBanner, HTMLStencilElement {
         addEventListener<K extends keyof HTMLCpsGdsNotificationBannerElementEventMap>(type: K, listener: (this: HTMLCpsGdsNotificationBannerElement, ev: CpsGdsNotificationBannerCustomEvent<HTMLCpsGdsNotificationBannerElementEventMap[K]>) => any, options?: boolean | AddEventListenerOptions): void;
         addEventListener<K extends keyof DocumentEventMap>(type: K, listener: (this: Document, ev: DocumentEventMap[K]) => any, options?: boolean | AddEventListenerOptions): void;
@@ -204,6 +255,11 @@ declare global {
      * reads the case underneath and the keyboard still tabs into it — the user is
      * told to stop while the page quietly says otherwise. `inert` removes those
      * elements from the accessibility tree AND the tab order in one attribute.
+     * THE PAGE IS FROZEN WHILE WE ARE UP
+     * An overlay over a page that still scrolls reads as a floating panel, however
+     * it is styled. Locking the document's overflow means nothing behind us can
+     * move, so the band reads as the page rather than as a sheet on top of it — and
+     * with nothing moving there is nothing to re-measure on scroll either.
      * WE MUTATE HOST DOM HERE, WHICH WE OTHERWISE AVOID. It is confined to setting
      * and clearing `inert` on the direct children of <body>, excluding our own root,
      * and every path that hides the overlay releases it — including
@@ -263,6 +319,41 @@ declare global {
         prototype: HTMLCpsGlobalNotificationsElement;
         new (): HTMLCpsGlobalNotificationsElement;
     };
+    interface HTMLCpsGlobalPinnedNotificationElementEventMap {
+        "cpsDismissed": void;
+    }
+    /**
+     * The pinned notification from the UCD prototype's app-notification-banner-pinned.
+     * WHY THIS IS NOT A FLAG ON cps-gds-notification-banner
+     * It began as one, and the specialisation outgrew it. This component positions
+     * itself against the viewport, mutates the host page's layout, owns a
+     * progressive-enhancement toggle and answers to UCD; the GDS banner is a thin
+     * shell over a govuk-frontend component and answers to govuk-frontend. Sharing
+     * one component meant every notification in the app rendered through code that
+     * only the pinned one used — including host-DOM teardown it never performed.
+     * The prototype makes the same split: app-notification-banner-pinned is a
+     * wrapper with its own JS module around a stock govuk-notification-banner.
+     * WHY NOT COMPOSE the GDS banner inside this one, which would avoid repeating
+     * its markup: the toggle has to sit INSIDE the banner's header, next to the
+     * title. The prototype achieves that by reaching in with jQuery
+     * (header.append(toggle)). Doing the equivalent across a component boundary is
+     * worse than repeating twenty lines of markup that govuk-frontend has not
+     * changed in years.
+     */
+    interface HTMLCpsGlobalPinnedNotificationElement extends Components.CpsGlobalPinnedNotification, HTMLStencilElement {
+        addEventListener<K extends keyof HTMLCpsGlobalPinnedNotificationElementEventMap>(type: K, listener: (this: HTMLCpsGlobalPinnedNotificationElement, ev: CpsGlobalPinnedNotificationCustomEvent<HTMLCpsGlobalPinnedNotificationElementEventMap[K]>) => any, options?: boolean | AddEventListenerOptions): void;
+        addEventListener<K extends keyof DocumentEventMap>(type: K, listener: (this: Document, ev: DocumentEventMap[K]) => any, options?: boolean | AddEventListenerOptions): void;
+        addEventListener<K extends keyof HTMLElementEventMap>(type: K, listener: (this: HTMLElement, ev: HTMLElementEventMap[K]) => any, options?: boolean | AddEventListenerOptions): void;
+        addEventListener(type: string, listener: EventListenerOrEventListenerObject, options?: boolean | AddEventListenerOptions): void;
+        removeEventListener<K extends keyof HTMLCpsGlobalPinnedNotificationElementEventMap>(type: K, listener: (this: HTMLCpsGlobalPinnedNotificationElement, ev: CpsGlobalPinnedNotificationCustomEvent<HTMLCpsGlobalPinnedNotificationElementEventMap[K]>) => any, options?: boolean | EventListenerOptions): void;
+        removeEventListener<K extends keyof DocumentEventMap>(type: K, listener: (this: Document, ev: DocumentEventMap[K]) => any, options?: boolean | EventListenerOptions): void;
+        removeEventListener<K extends keyof HTMLElementEventMap>(type: K, listener: (this: HTMLElement, ev: HTMLElementEventMap[K]) => any, options?: boolean | EventListenerOptions): void;
+        removeEventListener(type: string, listener: EventListenerOrEventListenerObject, options?: boolean | EventListenerOptions): void;
+    }
+    var HTMLCpsGlobalPinnedNotificationElement: {
+        prototype: HTMLCpsGlobalPinnedNotificationElement;
+        new (): HTMLCpsGlobalPinnedNotificationElement;
+    };
     interface HTMLCpsGlobalRecentCasesElement extends Components.CpsGlobalRecentCases, HTMLStencilElement {
     }
     var HTMLCpsGlobalRecentCasesElement: {
@@ -316,6 +407,7 @@ declare global {
         "cps-global-home-page-notification": HTMLCpsGlobalHomePageNotificationElement;
         "cps-global-menu": HTMLCpsGlobalMenuElement;
         "cps-global-notifications": HTMLCpsGlobalNotificationsElement;
+        "cps-global-pinned-notification": HTMLCpsGlobalPinnedNotificationElement;
         "cps-global-recent-cases": HTMLCpsGlobalRecentCasesElement;
         "cps-region": HTMLCpsRegionElement;
         "cps-skip-link": HTMLCpsSkipLinkElement;
@@ -326,12 +418,14 @@ declare global {
 declare namespace LocalJSX {
     type OneOf<K extends string, PropT, AttrT = PropT> = { [P in K]: PropT } & { [P in `attr:${K}` | `prop:${K}`]?: never } | { [P in `attr:${K}`]: AttrT } & { [P in K | `prop:${K}`]?: never } | { [P in `prop:${K}`]: PropT } & { [P in K | `attr:${K}`]?: never };
 
+    /**
+     * A thin shell over govuk-frontend's notification banner.
+     * Deliberately thin. The pinned variant that used to live here as a flag is now
+     * cps-global-pinned-notification: it positions against the viewport, mutates the
+     * host page's layout and follows UCD's design, none of which belongs in the
+     * component every notification in the app renders through.
+     */
     interface CpsGdsNotificationBanner {
-        /**
-          * Show only the header until the user asks for detail — the prototype's progressive enhancement, reimplemented rather than bolted on with jQuery. The toggle carries aria-expanded and aria-controls, and the content is genuinely `hidden` when collapsed, so assistive tech is told the same story the sighted user gets rather than reading content that looks closed.
-          * @default false
-         */
-        "collapsible"?: boolean;
         /**
           * Prevent the banner from being focused on page load (only relevant for success type).
           * @default false
@@ -347,11 +441,6 @@ declare namespace LocalJSX {
          */
         "onCpsDismissed"?: (event: CpsGdsNotificationBannerCustomEvent<void>) => void;
         /**
-          * Pin the banner to the bottom of the viewport instead of letting it sit in the document flow. Matches the UCD prototype's app-notification-banner-pinned.
-          * @default false
-         */
-        "pinned"?: boolean;
-        /**
           * Override the ARIA role. Defaults to "region" (or "alert" for success type).
          */
         "role"?: string;
@@ -361,8 +450,7 @@ declare namespace LocalJSX {
          */
         "titleHeadingLevel"?: number;
         /**
-          * Custom id for the title element. Defaults to "govuk-notification-banner-title".
-          * @default "govuk-notification-banner-title"
+          * Custom id for the title element. Defaults to one generated per instance.  NOT A FIXED STRING, which is what GDS's own example markup uses and what this defaulted to. aria-labelledby is an IDREF and resolves to the FIRST matching element in the tree, so several banners sharing an id all end up named by whichever renders first — and cps-global-notifications renders one banner per notification, all as siblings. The symptom is a screen reader announcing the same region name several times over, on the busiest screens.
          */
         "titleId"?: string;
         /**
@@ -392,6 +480,11 @@ declare namespace LocalJSX {
      * reads the case underneath and the keyboard still tabs into it — the user is
      * told to stop while the page quietly says otherwise. `inert` removes those
      * elements from the accessibility tree AND the tab order in one attribute.
+     * THE PAGE IS FROZEN WHILE WE ARE UP
+     * An overlay over a page that still scrolls reads as a floating panel, however
+     * it is styled. Locking the document's overflow means nothing behind us can
+     * move, so the band reads as the page rather than as a sheet on top of it — and
+     * with nothing moving there is nothing to re-measure on scroll either.
      * WE MUTATE HOST DOM HERE, WHICH WE OTHERWISE AVOID. It is confined to setting
      * and clearing `inert` on the direct children of <body>, excluding our own root,
      * and every path that hides the overlay releases it — including
@@ -424,6 +517,49 @@ declare namespace LocalJSX {
     interface CpsGlobalMenu {
     }
     interface CpsGlobalNotifications {
+    }
+    /**
+     * The pinned notification from the UCD prototype's app-notification-banner-pinned.
+     * WHY THIS IS NOT A FLAG ON cps-gds-notification-banner
+     * It began as one, and the specialisation outgrew it. This component positions
+     * itself against the viewport, mutates the host page's layout, owns a
+     * progressive-enhancement toggle and answers to UCD; the GDS banner is a thin
+     * shell over a govuk-frontend component and answers to govuk-frontend. Sharing
+     * one component meant every notification in the app rendered through code that
+     * only the pinned one used — including host-DOM teardown it never performed.
+     * The prototype makes the same split: app-notification-banner-pinned is a
+     * wrapper with its own JS module around a stock govuk-notification-banner.
+     * WHY NOT COMPOSE the GDS banner inside this one, which would avoid repeating
+     * its markup: the toggle has to sit INSIDE the banner's header, next to the
+     * title. The prototype achieves that by reaching in with jQuery
+     * (header.append(toggle)). Doing the equivalent across a component boundary is
+     * worse than repeating twenty lines of markup that govuk-frontend has not
+     * changed in years.
+     */
+    interface CpsGlobalPinnedNotification {
+        /**
+          * Show only the header until the user asks for detail — the prototype's progressive enhancement, reimplemented rather than bolted on with jQuery. The toggle carries aria-expanded and aria-controls, and the content is genuinely `hidden` when collapsed, so assistive tech is told the same story the sighted user gets rather than reading content that looks closed.
+          * @default false
+         */
+        "collapsible"?: boolean;
+        /**
+          * Renders the dismiss button. Persistence is the caller's responsibility via the `cpsDismissed` event.
+          * @default false
+         */
+        "dismissible"?: boolean;
+        /**
+          * Fired when the user clicks the dismiss button.
+         */
+        "onCpsDismissed"?: (event: CpsGlobalPinnedNotificationCustomEvent<void>) => void;
+        /**
+          * The heading level for the title (1-6). Defaults to 2.
+          * @default 2
+         */
+        "titleHeadingLevel"?: number;
+        /**
+          * The title text shown in the banner header.
+         */
+        "titleText"?: string;
     }
     interface CpsGlobalRecentCases {
         /**
@@ -481,8 +617,6 @@ declare namespace LocalJSX {
         "role": string;
         "disableAutoFocus": boolean;
         "dismissible": boolean;
-        "pinned": boolean;
-        "collapsible": boolean;
     }
     interface CpsGlobalFooterAttributes {
         "userEmail": string;
@@ -492,6 +626,12 @@ declare namespace LocalJSX {
     }
     interface CpsGlobalHeaderAttributes {
         "isDcf": boolean;
+    }
+    interface CpsGlobalPinnedNotificationAttributes {
+        "titleText": string;
+        "titleHeadingLevel": number;
+        "dismissible": boolean;
+        "collapsible": boolean;
     }
     interface CpsGlobalRecentCasesAttributes {
         "listClass": string;
@@ -528,6 +668,7 @@ declare namespace LocalJSX {
         "cps-global-home-page-notification": CpsGlobalHomePageNotification;
         "cps-global-menu": CpsGlobalMenu;
         "cps-global-notifications": CpsGlobalNotifications;
+        "cps-global-pinned-notification": Omit<CpsGlobalPinnedNotification, keyof CpsGlobalPinnedNotificationAttributes> & { [K in keyof CpsGlobalPinnedNotification & keyof CpsGlobalPinnedNotificationAttributes]?: CpsGlobalPinnedNotification[K] } & { [K in keyof CpsGlobalPinnedNotification & keyof CpsGlobalPinnedNotificationAttributes as `attr:${K}`]?: CpsGlobalPinnedNotificationAttributes[K] } & { [K in keyof CpsGlobalPinnedNotification & keyof CpsGlobalPinnedNotificationAttributes as `prop:${K}`]?: CpsGlobalPinnedNotification[K] };
         "cps-global-recent-cases": Omit<CpsGlobalRecentCases, keyof CpsGlobalRecentCasesAttributes> & { [K in keyof CpsGlobalRecentCases & keyof CpsGlobalRecentCasesAttributes]?: CpsGlobalRecentCases[K] } & { [K in keyof CpsGlobalRecentCases & keyof CpsGlobalRecentCasesAttributes as `attr:${K}`]?: CpsGlobalRecentCasesAttributes[K] } & { [K in keyof CpsGlobalRecentCases & keyof CpsGlobalRecentCasesAttributes as `prop:${K}`]?: CpsGlobalRecentCases[K] };
         "cps-region": Omit<CpsRegion, keyof CpsRegionAttributes> & { [K in keyof CpsRegion & keyof CpsRegionAttributes]?: CpsRegion[K] } & { [K in keyof CpsRegion & keyof CpsRegionAttributes as `attr:${K}`]?: CpsRegionAttributes[K] } & { [K in keyof CpsRegion & keyof CpsRegionAttributes as `prop:${K}`]?: CpsRegion[K] } & OneOf<"code", CpsRegion["code"], CpsRegionAttributes["code"]>;
         "cps-skip-link": Omit<CpsSkipLink, keyof CpsSkipLinkAttributes> & { [K in keyof CpsSkipLink & keyof CpsSkipLinkAttributes]?: CpsSkipLink[K] } & { [K in keyof CpsSkipLink & keyof CpsSkipLinkAttributes as `attr:${K}`]?: CpsSkipLinkAttributes[K] } & { [K in keyof CpsSkipLink & keyof CpsSkipLinkAttributes as `prop:${K}`]?: CpsSkipLink[K] };
@@ -539,6 +680,13 @@ export { LocalJSX as JSX };
 declare module "@stencil/core" {
     export namespace JSX {
         interface IntrinsicElements {
+            /**
+             * A thin shell over govuk-frontend's notification banner.
+             * Deliberately thin. The pinned variant that used to live here as a flag is now
+             * cps-global-pinned-notification: it positions against the viewport, mutates the
+             * host page's layout and follows UCD's design, none of which belongs in the
+             * component every notification in the app renders through.
+             */
             "cps-gds-notification-banner": LocalJSX.IntrinsicElements["cps-gds-notification-banner"] & JSXBase.HTMLAttributes<HTMLCpsGdsNotificationBannerElement>;
             "cps-global-banner": LocalJSX.IntrinsicElements["cps-global-banner"] & JSXBase.HTMLAttributes<HTMLCpsGlobalBannerElement>;
             "cps-global-case-details": LocalJSX.IntrinsicElements["cps-global-case-details"] & JSXBase.HTMLAttributes<HTMLCpsGlobalCaseDetailsElement>;
@@ -556,6 +704,11 @@ declare module "@stencil/core" {
              * reads the case underneath and the keyboard still tabs into it — the user is
              * told to stop while the page quietly says otherwise. `inert` removes those
              * elements from the accessibility tree AND the tab order in one attribute.
+             * THE PAGE IS FROZEN WHILE WE ARE UP
+             * An overlay over a page that still scrolls reads as a floating panel, however
+             * it is styled. Locking the document's overflow means nothing behind us can
+             * move, so the band reads as the page rather than as a sheet on top of it — and
+             * with nothing moving there is nothing to re-measure on scroll either.
              * WE MUTATE HOST DOM HERE, WHICH WE OTHERWISE AVOID. It is confined to setting
              * and clearing `inert` on the direct children of <body>, excluding our own root,
              * and every path that hides the overlay releases it — including
@@ -575,6 +728,25 @@ declare module "@stencil/core" {
             "cps-global-home-page-notification": LocalJSX.IntrinsicElements["cps-global-home-page-notification"] & JSXBase.HTMLAttributes<HTMLCpsGlobalHomePageNotificationElement>;
             "cps-global-menu": LocalJSX.IntrinsicElements["cps-global-menu"] & JSXBase.HTMLAttributes<HTMLCpsGlobalMenuElement>;
             "cps-global-notifications": LocalJSX.IntrinsicElements["cps-global-notifications"] & JSXBase.HTMLAttributes<HTMLCpsGlobalNotificationsElement>;
+            /**
+             * The pinned notification from the UCD prototype's app-notification-banner-pinned.
+             * WHY THIS IS NOT A FLAG ON cps-gds-notification-banner
+             * It began as one, and the specialisation outgrew it. This component positions
+             * itself against the viewport, mutates the host page's layout, owns a
+             * progressive-enhancement toggle and answers to UCD; the GDS banner is a thin
+             * shell over a govuk-frontend component and answers to govuk-frontend. Sharing
+             * one component meant every notification in the app rendered through code that
+             * only the pinned one used — including host-DOM teardown it never performed.
+             * The prototype makes the same split: app-notification-banner-pinned is a
+             * wrapper with its own JS module around a stock govuk-notification-banner.
+             * WHY NOT COMPOSE the GDS banner inside this one, which would avoid repeating
+             * its markup: the toggle has to sit INSIDE the banner's header, next to the
+             * title. The prototype achieves that by reaching in with jQuery
+             * (header.append(toggle)). Doing the equivalent across a component boundary is
+             * worse than repeating twenty lines of markup that govuk-frontend has not
+             * changed in years.
+             */
+            "cps-global-pinned-notification": LocalJSX.IntrinsicElements["cps-global-pinned-notification"] & JSXBase.HTMLAttributes<HTMLCpsGlobalPinnedNotificationElement>;
             "cps-global-recent-cases": LocalJSX.IntrinsicElements["cps-global-recent-cases"] & JSXBase.HTMLAttributes<HTMLCpsGlobalRecentCasesElement>;
             "cps-region": LocalJSX.IntrinsicElements["cps-region"] & JSXBase.HTMLAttributes<HTMLCpsRegionElement>;
             "cps-skip-link": LocalJSX.IntrinsicElements["cps-skip-link"] & JSXBase.HTMLAttributes<HTMLCpsSkipLinkElement>;

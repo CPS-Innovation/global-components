@@ -1,7 +1,15 @@
-import { Component, h, Prop, State, Element, Event, EventEmitter } from "@stencil/core";
+import { Component, h, Prop, Element, Event, EventEmitter } from "@stencil/core";
 
 export type NotificationBannerType = "success";
 
+/**
+ * A thin shell over govuk-frontend's notification banner.
+ *
+ * Deliberately thin. The pinned variant that used to live here as a flag is now
+ * cps-global-pinned-notification: it positions against the viewport, mutates the
+ * host page's layout and follows UCD's design, none of which belongs in the
+ * component every notification in the app renders through.
+ */
 @Component({
   tag: "cps-gds-notification-banner",
   styleUrl: "cps-gds-notification-banner.scss",
@@ -16,8 +24,17 @@ export class CpsGdsNotificationBanner {
   /** The title text shown in the banner header. Defaults to "Important" or "Success" based on type. */
   @Prop() titleText?: string;
 
-  /** Custom id for the title element. Defaults to "govuk-notification-banner-title". */
-  @Prop() titleId: string = "govuk-notification-banner-title";
+  /**
+   * Custom id for the title element. Defaults to one generated per instance.
+   *
+   * NOT A FIXED STRING, which is what GDS's own example markup uses and what this
+   * defaulted to. aria-labelledby is an IDREF and resolves to the FIRST matching
+   * element in the tree, so several banners sharing an id all end up named by
+   * whichever renders first — and cps-global-notifications renders one banner per
+   * notification, all as siblings. The symptom is a screen reader announcing the
+   * same region name several times over, on the busiest screens.
+   */
+  @Prop() titleId?: string;
 
   /** The heading level for the title (1-6). Defaults to 2. */
   @Prop() titleHeadingLevel: number = 2;
@@ -31,25 +48,11 @@ export class CpsGdsNotificationBanner {
   /** Renders the dismiss button. Persistence is the caller's responsibility via the `cpsDismissed` event. */
   @Prop() dismissible: boolean = false;
 
-  /**
-   * Pin the banner to the bottom of the viewport instead of letting it sit in
-   * the document flow. Matches the UCD prototype's app-notification-banner-pinned.
-   */
-  @Prop() pinned: boolean = false;
-
-  /**
-   * Show only the header until the user asks for detail — the prototype's
-   * progressive enhancement, reimplemented rather than bolted on with jQuery.
-   * The toggle carries aria-expanded and aria-controls, and the content is
-   * genuinely `hidden` when collapsed, so assistive tech is told the same story
-   * the sighted user gets rather than reading content that looks closed.
-   */
-  @Prop() collapsible: boolean = false;
-
-  @State() expanded: boolean = false;
-
   /** Fired when the user clicks the dismiss button. */
   @Event() cpsDismissed: EventEmitter<void>;
+
+  private static idCount = 0;
+  private generatedTitleId = `cps-notification-banner-title-${(CpsGdsNotificationBanner.idCount += 1)}`;
 
   componentDidLoad() {
     if (this.isSuccess && !this.disableAutoFocus) {
@@ -70,58 +73,33 @@ export class CpsGdsNotificationBanner {
     return this.role ?? (this.isSuccess ? "alert" : "region");
   }
 
+  private get resolvedTitleId() {
+    return this.titleId ?? this.generatedTitleId;
+  }
+
   private dismiss = () => {
     this.cpsDismissed.emit();
   };
 
-  // Unique per instance so aria-controls always points at this banner's own
-  // content, even with several on a page.
-  private contentId = `cps-notification-banner-content-${(CpsGdsNotificationBanner.idCount += 1)}`;
-
-  private static idCount = 0;
-
-  private toggle = () => {
-    this.expanded = !this.expanded;
-  };
-
   render() {
     const HeadingTag = `h${this.titleHeadingLevel}` as any;
-    const collapsed = this.collapsible && !this.expanded;
-    const classes = [
-      "govuk-notification-banner",
-      this.isSuccess && "govuk-notification-banner--success",
-      this.pinned && "app-notification-banner-pinned",
-      this.collapsible && "app-notification-banner-pinned--initialised",
-      this.collapsible && this.expanded && "app-notification-banner-pinned--expanded",
-    ]
-      .filter(Boolean)
-      .join(" ");
+    const titleId = this.resolvedTitleId;
+    const classes = ["govuk-notification-banner", this.isSuccess && "govuk-notification-banner--success"].filter(Boolean).join(" ");
 
     return (
       <div
         class={classes}
         role={this.resolvedRole}
-        aria-labelledby={this.titleId}
+        aria-labelledby={titleId}
         data-module="govuk-notification-banner"
         tabindex={this.isSuccess && !this.disableAutoFocus ? -1 : undefined}
       >
         <div class="govuk-notification-banner__header">
-          <HeadingTag class="govuk-notification-banner__title" id={this.titleId}>
+          <HeadingTag class="govuk-notification-banner__title" id={titleId}>
             {this.resolvedTitleText}
           </HeadingTag>
-          {this.collapsible && (
-            <button
-              type="button"
-              class="app-notification-banner-pinned__toggle"
-              aria-expanded={this.expanded ? "true" : "false"}
-              aria-controls={this.contentId}
-              onClick={this.toggle}
-            >
-              {this.expanded ? "Hide details" : "Show details"}
-            </button>
-          )}
         </div>
-        <div class="govuk-notification-banner__content" id={this.contentId} hidden={collapsed}>
+        <div class="govuk-notification-banner__content">
           <slot />
           {this.dismissible && (
             <button class="govuk-button govuk-button--secondary" onClick={this.dismiss}>
