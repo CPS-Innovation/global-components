@@ -71,7 +71,26 @@
   <div id="div1">
     <div id="div2">
       <div>
-        <main id="the-main-itself"></main>
+        <main id="the-main-itself">
+          <!-- Focusable content, so `inert` can actually be tested. The
+               interstitial removes the page behind it from the tab order and the
+               accessibility tree; with nothing focusable here that is
+               indistinguishable from doing nothing at all. Tab through this
+               block with the interruption up — every stop should be skipped. -->
+          <h2>Dev page content</h2>
+          <p><a href="#the-main-itself">A link in the page body</a></p>
+          <p><label>A text input <input type="text" name="dev-text" /></label></p>
+          <p>
+            <label>A select
+              <select name="dev-select">
+                <option>One</option>
+                <option>Two</option>
+              </select>
+            </label>
+          </p>
+          <p><label>A textarea <textarea name="dev-textarea" rows="2"></textarea></label></p>
+          <p><button type="button">A button in the page body</button></p>
+        </main>
 
       </div>
     </div>

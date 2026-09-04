@@ -72,6 +72,11 @@ export namespace Components {
      * reads the case underneath and the keyboard still tabs into it — the user is
      * told to stop while the page quietly says otherwise. `inert` removes those
      * elements from the accessibility tree AND the tab order in one attribute.
+     * THE PAGE IS FROZEN WHILE WE ARE UP
+     * An overlay over a page that still scrolls reads as a floating panel, however
+     * it is styled. Locking the document's overflow means nothing behind us can
+     * move, so the band reads as the page rather than as a sheet on top of it — and
+     * with nothing moving there is nothing to re-measure on scroll either.
      * WE MUTATE HOST DOM HERE, WHICH WE OTHERWISE AVOID. It is confined to setting
      * and clearing `inert` on the direct children of <body>, excluding our own root,
      * and every path that hides the overlay releases it — including
@@ -204,6 +209,11 @@ declare global {
      * reads the case underneath and the keyboard still tabs into it — the user is
      * told to stop while the page quietly says otherwise. `inert` removes those
      * elements from the accessibility tree AND the tab order in one attribute.
+     * THE PAGE IS FROZEN WHILE WE ARE UP
+     * An overlay over a page that still scrolls reads as a floating panel, however
+     * it is styled. Locking the document's overflow means nothing behind us can
+     * move, so the band reads as the page rather than as a sheet on top of it — and
+     * with nothing moving there is nothing to re-measure on scroll either.
      * WE MUTATE HOST DOM HERE, WHICH WE OTHERWISE AVOID. It is confined to setting
      * and clearing `inert` on the direct children of <body>, excluding our own root,
      * and every path that hides the overlay releases it — including
@@ -392,6 +402,11 @@ declare namespace LocalJSX {
      * reads the case underneath and the keyboard still tabs into it — the user is
      * told to stop while the page quietly says otherwise. `inert` removes those
      * elements from the accessibility tree AND the tab order in one attribute.
+     * THE PAGE IS FROZEN WHILE WE ARE UP
+     * An overlay over a page that still scrolls reads as a floating panel, however
+     * it is styled. Locking the document's overflow means nothing behind us can
+     * move, so the band reads as the page rather than as a sheet on top of it — and
+     * with nothing moving there is nothing to re-measure on scroll either.
      * WE MUTATE HOST DOM HERE, WHICH WE OTHERWISE AVOID. It is confined to setting
      * and clearing `inert` on the direct children of <body>, excluding our own root,
      * and every path that hides the overlay releases it — including
@@ -556,6 +571,11 @@ declare module "@stencil/core" {
              * reads the case underneath and the keyboard still tabs into it — the user is
              * told to stop while the page quietly says otherwise. `inert` removes those
              * elements from the accessibility tree AND the tab order in one attribute.
+             * THE PAGE IS FROZEN WHILE WE ARE UP
+             * An overlay over a page that still scrolls reads as a floating panel, however
+             * it is styled. Locking the document's overflow means nothing behind us can
+             * move, so the band reads as the page rather than as a sheet on top of it — and
+             * with nothing moving there is nothing to re-measure on scroll either.
              * WE MUTATE HOST DOM HERE, WHICH WE OTHERWISE AVOID. It is confined to setting
              * and clearing `inert` on the direct children of <body>, excluding our own root,
              * and every path that hides the overlay releases it — including

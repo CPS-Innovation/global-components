@@ -19,6 +19,12 @@ import { FEATURE_FLAGS } from "cps-global-configuration";
  * told to stop while the page quietly says otherwise. `inert` removes those
  * elements from the accessibility tree AND the tab order in one attribute.
  *
+ * THE PAGE IS FROZEN WHILE WE ARE UP
+ * An overlay over a page that still scrolls reads as a floating panel, however
+ * it is styled. Locking the document's overflow means nothing behind us can
+ * move, so the band reads as the page rather than as a sheet on top of it — and
+ * with nothing moving there is nothing to re-measure on scroll either.
+ *
  * WE MUTATE HOST DOM HERE, WHICH WE OTHERWISE AVOID. It is confined to setting
  * and clearing `inert` on the direct children of <body>, excluding our own root,
  * and every path that hides the overlay releases it — including
@@ -56,6 +62,9 @@ export class CpsGlobalCaseLockingInterstitial {
   private currentCode?: string;
   private inerted: HTMLElement[] = [];
   private showing = false;
+  private previousOverflow: string | null = null;
+  private previousPaddingRight: string | null = null;
+  private headerObserver?: ResizeObserver;
 
   disconnectedCallback() {
     this.release();
@@ -63,15 +72,6 @@ export class CpsGlobalCaseLockingInterstitial {
 
   @Listen("resize", { target: "window" })
   onResize() {
-    if (this.showing) {
-      this.measure();
-    }
-  }
-
-  // The footer moves relative to the viewport as the page scrolls, so the band's
-  // lower edge has to follow it.
-  @Listen("scroll", { target: "window" })
-  onScroll() {
     if (this.showing) {
       this.measure();
     }
@@ -89,14 +89,29 @@ export class CpsGlobalCaseLockingInterstitial {
     if (card && !this.showing) {
       this.showing = true;
       this.measure();
+      this.lockScroll();
       this.applyInert();
       this.el.querySelector<HTMLElement>(".govuk-button")?.focus();
+      // MEASURE AGAIN AFTER THE FRAME SETTLES, and never delete this.
+      // componentDidRender runs before our own styles have applied, so at that
+      // moment this component is still IN FLOW inside cps-global-header and
+      // inflates the header's box — measured live, a header whose chrome ends at
+      // 109px reported a bottom of 244px. The band then starts 135px too low and
+      // the page shows through above it.
+      //
+      // Once the styles land we collapse to zero height and the header is 109px
+      // again, so a second measurement on the next frame is correct. This used to
+      // be masked by the scroll listener, which corrected it on the first scroll;
+      // that listener went when the page scroll was locked.
+      requestAnimationFrame(() => {
+        if (this.showing) {
+          this.measure();
+        }
+      });
+      this.observeHeader();
     }
   }
 
-  // The band starts where our header ends. Measured rather than assumed: the
-  // header's height varies with the rebrand, the case-details strip and whether
-  // the second-level menu is showing.
   // The band runs from the bottom of our header to the top of our footer. Both
   // are measured rather than assumed: the header's height varies with the
   // rebrand, the case-details strip and the second-level menu, and the footer may
@@ -114,6 +129,27 @@ export class CpsGlobalCaseLockingInterstitial {
     this.bottomOffset = rect && rect.height > 0 ? Math.max(0, window.innerHeight - rect.top) : 0;
   }
 
+  // The header's height is not fixed: the second-level menu appears and
+  // disappears, the case-details strip arrives asynchronously, notifications come
+  // and go. None of those fire a window resize, and with the page scroll locked
+  // there is no scroll event to correct us either — so without this the band's top
+  // edge would silently go stale, which is the bug we just fixed in a slower form.
+  private observeHeader() {
+    if (this.headerObserver || typeof ResizeObserver === "undefined") {
+      return;
+    }
+    const header = document.querySelector("cps-global-header");
+    if (!header) {
+      return;
+    }
+    this.headerObserver = new ResizeObserver(() => {
+      if (this.showing) {
+        this.measure();
+      }
+    });
+    this.headerObserver.observe(header);
+  }
+
   private applyInert() {
     const ourRoot = this.rootChildOfBody();
     Array.from(document.body.children).forEach(child => {
@@ -129,7 +165,48 @@ export class CpsGlobalCaseLockingInterstitial {
   private release() {
     this.inerted.forEach(el => (el.inert = false));
     this.inerted = [];
+    this.unlockScroll();
+    this.headerObserver?.disconnect();
+    this.headerObserver = undefined;
     this.showing = false;
+  }
+
+  // WHY LOCK THE PAGE
+  // Without this the host page scrolls behind a stationary sheet, which is what
+  // makes the interruption read as a floating panel rather than as the content
+  // of the page. Locking the document freezes what is behind us, so the only
+  // thing on screen that can move is the interruption itself.
+  //
+  // It also removes the need to re-measure on scroll: the band's edges can only
+  // change on resize now, so the drifting top edge goes away with it.
+  //
+  // The scrollbar disappearing would reflow the page a few pixels wider, a jump
+  // the eye reads as the page "jolting" underneath. Replacing its width with
+  // padding keeps the layout still. Both previous inline values are captured so
+  // release() restores exactly what the host had, including "not set at all".
+  private lockScroll() {
+    const root = document.documentElement;
+    if (this.previousOverflow !== null) {
+      return; // already locked — never capture our own values as the host's
+    }
+    const scrollbarWidth = window.innerWidth - root.clientWidth;
+    this.previousOverflow = root.style.overflow;
+    this.previousPaddingRight = root.style.paddingRight;
+    root.style.overflow = "hidden";
+    if (scrollbarWidth > 0) {
+      root.style.paddingRight = `${scrollbarWidth}px`;
+    }
+  }
+
+  private unlockScroll() {
+    if (this.previousOverflow === null) {
+      return;
+    }
+    const root = document.documentElement;
+    root.style.overflow = this.previousOverflow;
+    root.style.paddingRight = this.previousPaddingRight ?? "";
+    this.previousOverflow = null;
+    this.previousPaddingRight = null;
   }
 
   // Our own top-level ancestor, walking out through shadow boundaries — this

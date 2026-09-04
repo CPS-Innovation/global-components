@@ -38,6 +38,7 @@ import { runNowAndOnNavigation } from "./services/browser/navigation/navigation"
 import { initialisePageLifecycle } from "./services/browser/navigation/page-lifecycle";
 import { TrackException } from "./services/analytics/TrackException";
 import { summariseResults } from "./utils/summarise-results";
+import { exposeDevStore } from "./services/dev/expose-dev-store";
 
 const { _error } = makeConsole("global-script");
 
@@ -73,6 +74,10 @@ const initialise = async (window: Window & typeof globalThis) => {
     initialiseNavigateCms({ window, rootUrl });
 
     const flags = initialiseApplicationFlags({ window, rootUrl, register });
+
+    if (flags.isLocalDevelopment) {
+      exposeDevStore({ window, register });
+    }
 
     // Config no longer depends on preview (override-via-preview was removed in
     // FCT2-17451 drop 4) so it joins the parallel set.

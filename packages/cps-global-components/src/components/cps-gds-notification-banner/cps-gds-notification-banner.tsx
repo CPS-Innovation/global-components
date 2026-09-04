@@ -48,6 +48,9 @@ export class CpsGdsNotificationBanner {
 
   @State() expanded: boolean = false;
 
+  private previousBodyPaddingBottom: string | null = null;
+  private bannerObserver?: ResizeObserver;
+
   /** Fired when the user clicks the dismiss button. */
   @Event() cpsDismissed: EventEmitter<void>;
 
@@ -55,6 +58,68 @@ export class CpsGdsNotificationBanner {
     if (this.isSuccess && !this.disableAutoFocus) {
       const banner = this.el.querySelector<HTMLElement>(".govuk-notification-banner");
       banner?.focus();
+    }
+  }
+
+  componentDidRender() {
+    if (this.pinned) {
+      this.applyFooterClearance();
+    } else {
+      this.releaseFooterClearance();
+    }
+  }
+
+  disconnectedCallback() {
+    this.releaseFooterClearance();
+  }
+
+  /**
+   * MAKE ROOM BELOW THE FOOTER.
+   *
+   * A banner fixed to the bottom of the viewport covers whatever is behind it,
+   * and at the very end of the page that is the footer — permanently, since you
+   * cannot scroll past it. The design asks for the opposite: pinned while you
+   * read, but out of the footer's way once you reach the bottom.
+   *
+   * Adding the banner's own height as padding to the bottom of the page gives the
+   * document somewhere further to scroll. At full scroll that padding is the
+   * strip the banner occupies, so the footer comes to rest directly above it and
+   * the banner reads as sitting below the footer. No collision detection, no
+   * measuring the footer, nothing to keep in sync while scrolling.
+   *
+   * WE MUTATE HOST DOM HERE. Confined to body's inline padding-bottom, with the
+   * previous inline value captured so release restores exactly what was there —
+   * including "not set at all" — and released on disconnect as well as on
+   * unpinning. Height is observed rather than measured once, because the banner
+   * is collapsible and changes height when the user expands it.
+   */
+  private applyFooterClearance() {
+    const banner = this.el.querySelector<HTMLElement>(".app-notification-banner-pinned");
+    if (!banner) {
+      return;
+    }
+    if (this.previousBodyPaddingBottom === null) {
+      this.previousBodyPaddingBottom = document.body.style.paddingBottom;
+    }
+    const height = `${Math.ceil(banner.getBoundingClientRect().height)}px`;
+    // Only write on an actual change: the observer below watches an element whose
+    // size this padding can influence via reflow, and an unconditional write is
+    // how that becomes a ResizeObserver loop.
+    if (document.body.style.paddingBottom !== height) {
+      document.body.style.paddingBottom = height;
+    }
+    if (!this.bannerObserver && typeof ResizeObserver !== "undefined") {
+      this.bannerObserver = new ResizeObserver(() => this.applyFooterClearance());
+      this.bannerObserver.observe(banner);
+    }
+  }
+
+  private releaseFooterClearance() {
+    this.bannerObserver?.disconnect();
+    this.bannerObserver = undefined;
+    if (this.previousBodyPaddingBottom !== null) {
+      document.body.style.paddingBottom = this.previousBodyPaddingBottom;
+      this.previousBodyPaddingBottom = null;
     }
   }
 
@@ -87,17 +152,21 @@ export class CpsGdsNotificationBanner {
   render() {
     const HeadingTag = `h${this.titleHeadingLevel}` as any;
     const collapsed = this.collapsible && !this.expanded;
-    const classes = [
-      "govuk-notification-banner",
-      this.isSuccess && "govuk-notification-banner--success",
-      this.pinned && "app-notification-banner-pinned",
+    const classes = ["govuk-notification-banner", this.isSuccess && "govuk-notification-banner--success"].filter(Boolean).join(" ");
+
+    // The pinned variant is a WRAPPER around a stock notification banner, not a
+    // modifier on it — the prototype's structure, and load-bearing: it is what
+    // lets the CSS reset the banner's own 60px bottom margin, which otherwise
+    // holds the banner clear of the viewport floor.
+    const pinnedClasses = [
+      "app-notification-banner-pinned",
       this.collapsible && "app-notification-banner-pinned--initialised",
       this.collapsible && this.expanded && "app-notification-banner-pinned--expanded",
     ]
       .filter(Boolean)
       .join(" ");
 
-    return (
+    const banner = (
       <div
         class={classes}
         role={this.resolvedRole}
@@ -130,6 +199,14 @@ export class CpsGdsNotificationBanner {
           )}
         </div>
       </div>
+    );
+
+    return this.pinned ? (
+      <div class={pinnedClasses} data-module="app-notification-banner-pinned">
+        {banner}
+      </div>
+    ) : (
+      banner
     );
   }
 }
