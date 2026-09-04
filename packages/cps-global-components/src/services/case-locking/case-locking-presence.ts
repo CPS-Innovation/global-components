@@ -1,6 +1,6 @@
 import { HubConnection, HubConnectionBuilder, HttpTransportType } from "@microsoft/signalr";
 import { Register } from "../../store/store";
-import { CaseLockingPresentUser } from "./CaseLockingPresentUsers";
+import { CaseLockingPresentSection, CaseLockingPresentUser } from "./CaseLockingPresentUsers";
 import { makeConsole } from "../../logging/makeConsole";
 
 type HubFactory = (url: string) => HubConnection;
@@ -156,7 +156,10 @@ export const createCaseLockingPresence = ({
   // shims in this app are for.
   const desiredRegions = new Map<string, SectionSpec>();
   const connections = new Map<string, ConnectionEntry>();
-  let publishedKey: string | undefined;
+  // What we last knew about each live section, keyed by section identity. The
+  // store gets the union of these, so two sections coexist instead of
+  // overwriting one another.
+  const rosters = new Map<string, CaseLockingPresentSection>();
 
   // Every section we should be holding right now.
   const desiredSections = (): Map<string, SectionSpec> => {
@@ -185,34 +188,27 @@ export const createCaseLockingPresence = ({
   const toPresentUser = (member: PresenceMember): CaseLockingPresentUser => ({
     user: member.userEmail ?? "",
     appName: member.sourceApplication ?? "",
+    joinedAt: member.joinedAt,
   });
 
-  // The store still receives the region CODE rather than the section identity —
-  // the UI is changing shortly, so this keeps its existing contract.
+  // Empty sections are dropped: a section everyone has left is not news, and the
+  // design omits them from the detail panel.
+  const publish = () => {
+    const sections = Array.from(rosters.values()).filter(section => section.users.length > 0);
+    _debug("publishing present users", { sections });
+    register({ caseLockingPresentUsers: sections.length ? { sections } : undefined });
+  };
+
   const publishPresentUsers = (key: string, code: string, users: CaseLockingPresentUser[]) => {
     const others = countSelf ? users : users.filter(user => !isSelf(user));
-    publishedKey = key;
-    _debug("publishing present users", { key, code, users, others });
-    register({ caseLockingPresentUsers: { code, users: others } });
+    rosters.set(key, { code, users: others });
+    publish();
   };
 
-  const clearPublishedPresence = () => {
-    if (!publishedKey) {
-      return;
+  const forgetRoster = (key: string) => {
+    if (rosters.delete(key)) {
+      publish();
     }
-    _debug("clearing published presence", { key: publishedKey });
-    publishedKey = undefined;
-    register({ caseLockingPresentUsers: undefined });
-  };
-
-  const clearPublishedPresenceIfStale = () => {
-    if (!publishedKey) {
-      return;
-    }
-    if (desiredSections().has(publishedKey) && connections.has(publishedKey)) {
-      return;
-    }
-    clearPublishedPresence();
   };
 
   // Apply one notification to one connection's section. Snapshots for any other
@@ -346,9 +342,7 @@ export const createCaseLockingPresence = ({
     _debug("stopping connection", { key, sectionId: entry.sectionId });
     connections.delete(key);
     stopKeepAlive(entry);
-    if (publishedKey === key) {
-      clearPublishedPresence();
-    }
+    forgetRoster(key);
     // Leave first so the server drops us at once rather than waiting out the
     // eviction window, then close the socket. Both are best-effort — a killed tab
     // does neither, which is exactly why the server has a timeout at all.
@@ -383,7 +377,14 @@ export const createCaseLockingPresence = ({
       }
     }
 
-    clearPublishedPresenceIfStale();
+    // Anything we still hold a roster for but no longer have a session for is
+    // stale — drop it rather than leaving a section on screen that we stopped
+    // listening to.
+    Array.from(rosters.keys()).forEach(key => {
+      if (!connections.has(key)) {
+        forgetRoster(key);
+      }
+    });
   };
 
   const queueReconcile = () => {

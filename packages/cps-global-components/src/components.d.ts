@@ -60,27 +60,28 @@ export namespace Components {
     }
     /**
      * The interruption, from the UCD prototype's moj-interruption-card.
-     * WHY A NATIVE <dialog> RATHER THAN AN OVERLAY DIV
-     * In the prototype this card is rendered INSIDE <main>, replacing the page
-     * content — the server simply does not send the case. We cannot do that: we are
-     * a guest component on a page whose DOM belongs to someone else.
-     * showModal() gets us the same effect without touching a single node of theirs.
-     * The browser puts the dialog in the top layer and makes the entire rest of the
-     * document inert — out of the accessibility tree, unfocusable, unclickable — and
-     * gives us the focus trap, the backdrop and Escape handling for free. The
-     * alternative (a fixed overlay plus `inert` applied to the host's body children)
-     * works, but means mutating and then reliably un-mutating host DOM while their
-     * app re-renders underneath us, which is exactly the class of thing that breaks
-     * quietly.
-     * The cost is that it covers our own header too. UCD's design already answers
-     * that: the card carries both exits, so the user is never stranded.
+     * WHY NOT A MODAL <dialog>
+     * showModal() is the tidy answer to "block the page accessibly" — the browser
+     * inerts the whole document, traps focus and supplies a backdrop, all without
+     * touching the host's DOM. But it puts the dialog in the TOP LAYER, which covers
+     * everything, and the design keeps the header and footer visible. So we do it
+     * ourselves: an overlay occupying the band below the header, plus `inert` on the
+     * host's content.
+     * WHAT `inert` BUYS
+     * Covering the page visually is not enough. Without it a screen reader still
+     * reads the case underneath and the keyboard still tabs into it — the user is
+     * told to stop while the page quietly says otherwise. `inert` removes those
+     * elements from the accessibility tree AND the tab order in one attribute.
+     * WE MUTATE HOST DOM HERE, WHICH WE OTHERWISE AVOID. It is confined to setting
+     * and clearing `inert` on the direct children of <body>, excluding our own root,
+     * and every path that hides the overlay releases it — including
+     * disconnectedCallback, because a host app that tears us down mid-interruption
+     * must not be left with an unusable page.
      * ACCESSIBILITY
-     * role="alertdialog" is the role for an interruption that demands a decision —
-     * a screen reader announces it rather than leaving it to be discovered. It is
-     * labelled by the heading and described by the body, and focus moves into it on
-     * open (showModal does that, to the first focusable element — here, "Continue").
-     * Escape dismisses, deliberately: both choices are visible, so trapping the
-     * keyboard would buy nothing and cost a lot.
+     * role="alertdialog" is the role for an interruption that demands a decision.
+     * Focus moves into the card when it appears, so assistive tech announces it
+     * rather than leaving it to be discovered, and Escape dismisses — both choices
+     * are visible, so trapping the keyboard would cost more than it buys.
      */
     interface CpsGlobalCaseLockingInterstitial {
     }
@@ -191,27 +192,28 @@ declare global {
     };
     /**
      * The interruption, from the UCD prototype's moj-interruption-card.
-     * WHY A NATIVE <dialog> RATHER THAN AN OVERLAY DIV
-     * In the prototype this card is rendered INSIDE <main>, replacing the page
-     * content — the server simply does not send the case. We cannot do that: we are
-     * a guest component on a page whose DOM belongs to someone else.
-     * showModal() gets us the same effect without touching a single node of theirs.
-     * The browser puts the dialog in the top layer and makes the entire rest of the
-     * document inert — out of the accessibility tree, unfocusable, unclickable — and
-     * gives us the focus trap, the backdrop and Escape handling for free. The
-     * alternative (a fixed overlay plus `inert` applied to the host's body children)
-     * works, but means mutating and then reliably un-mutating host DOM while their
-     * app re-renders underneath us, which is exactly the class of thing that breaks
-     * quietly.
-     * The cost is that it covers our own header too. UCD's design already answers
-     * that: the card carries both exits, so the user is never stranded.
+     * WHY NOT A MODAL <dialog>
+     * showModal() is the tidy answer to "block the page accessibly" — the browser
+     * inerts the whole document, traps focus and supplies a backdrop, all without
+     * touching the host's DOM. But it puts the dialog in the TOP LAYER, which covers
+     * everything, and the design keeps the header and footer visible. So we do it
+     * ourselves: an overlay occupying the band below the header, plus `inert` on the
+     * host's content.
+     * WHAT `inert` BUYS
+     * Covering the page visually is not enough. Without it a screen reader still
+     * reads the case underneath and the keyboard still tabs into it — the user is
+     * told to stop while the page quietly says otherwise. `inert` removes those
+     * elements from the accessibility tree AND the tab order in one attribute.
+     * WE MUTATE HOST DOM HERE, WHICH WE OTHERWISE AVOID. It is confined to setting
+     * and clearing `inert` on the direct children of <body>, excluding our own root,
+     * and every path that hides the overlay releases it — including
+     * disconnectedCallback, because a host app that tears us down mid-interruption
+     * must not be left with an unusable page.
      * ACCESSIBILITY
-     * role="alertdialog" is the role for an interruption that demands a decision —
-     * a screen reader announces it rather than leaving it to be discovered. It is
-     * labelled by the heading and described by the body, and focus moves into it on
-     * open (showModal does that, to the first focusable element — here, "Continue").
-     * Escape dismisses, deliberately: both choices are visible, so trapping the
-     * keyboard would buy nothing and cost a lot.
+     * role="alertdialog" is the role for an interruption that demands a decision.
+     * Focus moves into the card when it appears, so assistive tech announces it
+     * rather than leaving it to be discovered, and Escape dismisses — both choices
+     * are visible, so trapping the keyboard would cost more than it buys.
      */
     interface HTMLCpsGlobalCaseLockingInterstitialElement extends Components.CpsGlobalCaseLockingInterstitial, HTMLStencilElement {
     }
@@ -378,27 +380,28 @@ declare namespace LocalJSX {
     }
     /**
      * The interruption, from the UCD prototype's moj-interruption-card.
-     * WHY A NATIVE <dialog> RATHER THAN AN OVERLAY DIV
-     * In the prototype this card is rendered INSIDE <main>, replacing the page
-     * content — the server simply does not send the case. We cannot do that: we are
-     * a guest component on a page whose DOM belongs to someone else.
-     * showModal() gets us the same effect without touching a single node of theirs.
-     * The browser puts the dialog in the top layer and makes the entire rest of the
-     * document inert — out of the accessibility tree, unfocusable, unclickable — and
-     * gives us the focus trap, the backdrop and Escape handling for free. The
-     * alternative (a fixed overlay plus `inert` applied to the host's body children)
-     * works, but means mutating and then reliably un-mutating host DOM while their
-     * app re-renders underneath us, which is exactly the class of thing that breaks
-     * quietly.
-     * The cost is that it covers our own header too. UCD's design already answers
-     * that: the card carries both exits, so the user is never stranded.
+     * WHY NOT A MODAL <dialog>
+     * showModal() is the tidy answer to "block the page accessibly" — the browser
+     * inerts the whole document, traps focus and supplies a backdrop, all without
+     * touching the host's DOM. But it puts the dialog in the TOP LAYER, which covers
+     * everything, and the design keeps the header and footer visible. So we do it
+     * ourselves: an overlay occupying the band below the header, plus `inert` on the
+     * host's content.
+     * WHAT `inert` BUYS
+     * Covering the page visually is not enough. Without it a screen reader still
+     * reads the case underneath and the keyboard still tabs into it — the user is
+     * told to stop while the page quietly says otherwise. `inert` removes those
+     * elements from the accessibility tree AND the tab order in one attribute.
+     * WE MUTATE HOST DOM HERE, WHICH WE OTHERWISE AVOID. It is confined to setting
+     * and clearing `inert` on the direct children of <body>, excluding our own root,
+     * and every path that hides the overlay releases it — including
+     * disconnectedCallback, because a host app that tears us down mid-interruption
+     * must not be left with an unusable page.
      * ACCESSIBILITY
-     * role="alertdialog" is the role for an interruption that demands a decision —
-     * a screen reader announces it rather than leaving it to be discovered. It is
-     * labelled by the heading and described by the body, and focus moves into it on
-     * open (showModal does that, to the first focusable element — here, "Continue").
-     * Escape dismisses, deliberately: both choices are visible, so trapping the
-     * keyboard would buy nothing and cost a lot.
+     * role="alertdialog" is the role for an interruption that demands a decision.
+     * Focus moves into the card when it appears, so assistive tech announces it
+     * rather than leaving it to be discovered, and Escape dismisses — both choices
+     * are visible, so trapping the keyboard would cost more than it buys.
      */
     interface CpsGlobalCaseLockingInterstitial {
     }
@@ -541,27 +544,28 @@ declare module "@stencil/core" {
             "cps-global-case-details": LocalJSX.IntrinsicElements["cps-global-case-details"] & JSXBase.HTMLAttributes<HTMLCpsGlobalCaseDetailsElement>;
             /**
              * The interruption, from the UCD prototype's moj-interruption-card.
-             * WHY A NATIVE <dialog> RATHER THAN AN OVERLAY DIV
-             * In the prototype this card is rendered INSIDE <main>, replacing the page
-             * content — the server simply does not send the case. We cannot do that: we are
-             * a guest component on a page whose DOM belongs to someone else.
-             * showModal() gets us the same effect without touching a single node of theirs.
-             * The browser puts the dialog in the top layer and makes the entire rest of the
-             * document inert — out of the accessibility tree, unfocusable, unclickable — and
-             * gives us the focus trap, the backdrop and Escape handling for free. The
-             * alternative (a fixed overlay plus `inert` applied to the host's body children)
-             * works, but means mutating and then reliably un-mutating host DOM while their
-             * app re-renders underneath us, which is exactly the class of thing that breaks
-             * quietly.
-             * The cost is that it covers our own header too. UCD's design already answers
-             * that: the card carries both exits, so the user is never stranded.
+             * WHY NOT A MODAL <dialog>
+             * showModal() is the tidy answer to "block the page accessibly" — the browser
+             * inerts the whole document, traps focus and supplies a backdrop, all without
+             * touching the host's DOM. But it puts the dialog in the TOP LAYER, which covers
+             * everything, and the design keeps the header and footer visible. So we do it
+             * ourselves: an overlay occupying the band below the header, plus `inert` on the
+             * host's content.
+             * WHAT `inert` BUYS
+             * Covering the page visually is not enough. Without it a screen reader still
+             * reads the case underneath and the keyboard still tabs into it — the user is
+             * told to stop while the page quietly says otherwise. `inert` removes those
+             * elements from the accessibility tree AND the tab order in one attribute.
+             * WE MUTATE HOST DOM HERE, WHICH WE OTHERWISE AVOID. It is confined to setting
+             * and clearing `inert` on the direct children of <body>, excluding our own root,
+             * and every path that hides the overlay releases it — including
+             * disconnectedCallback, because a host app that tears us down mid-interruption
+             * must not be left with an unusable page.
              * ACCESSIBILITY
-             * role="alertdialog" is the role for an interruption that demands a decision —
-             * a screen reader announces it rather than leaving it to be discovered. It is
-             * labelled by the heading and described by the body, and focus moves into it on
-             * open (showModal does that, to the first focusable element — here, "Continue").
-             * Escape dismisses, deliberately: both choices are visible, so trapping the
-             * keyboard would buy nothing and cost a lot.
+             * role="alertdialog" is the role for an interruption that demands a decision.
+             * Focus moves into the card when it appears, so assistive tech announces it
+             * rather than leaving it to be discovered, and Escape dismisses — both choices
+             * are visible, so trapping the keyboard would cost more than it buys.
              */
             "cps-global-case-locking-interstitial": LocalJSX.IntrinsicElements["cps-global-case-locking-interstitial"] & JSXBase.HTMLAttributes<HTMLCpsGlobalCaseLockingInterstitialElement>;
             "cps-global-case-locking-notification": LocalJSX.IntrinsicElements["cps-global-case-locking-notification"] & JSXBase.HTMLAttributes<HTMLCpsGlobalCaseLockingNotificationElement>;

@@ -1,107 +1,100 @@
 @use "../common/common.scss" as *;
 
-/* MoJ Frontend's interruption card, reimplemented.
+/* MoJ Frontend's interruption card, reimplemented on GDS foundations.
  *
- * @ministryofjustice/frontend is not a dependency here (govuk-frontend is), and
- * pulling in a whole design system for one card would be a poor trade. These are
- * the card's essentials only: GOV.UK blue, white text, generous padding, content
- * held to a readable measure. Class names match MoJ's so the markup stays
- * recognisable to anyone who knows the prototype.
+ * @ministryofjustice/frontend is not a dependency; govuk-frontend is, and
+ * common.scss imports its whole index — so colours, spacing and type all come
+ * from GDS mixins rather than from numbers I picked. Class names match MoJ's so
+ * the markup stays recognisable against the UCD prototype.
+ *
+ * SHAPE: in the prototype this card sits INSIDE <main>, in the grid column,
+ * beneath the page's own caption and heading, on the normal white page, with the
+ * header and footer still in place. The obscuring is done by the server simply
+ * not rendering the case below it.
+ *
+ * We cannot render inside the host's <main>, so we supply the equivalent surface
+ * ourselves: a white band starting below our header, with the card held to
+ * govuk-width-container. Two earlier attempts were wrong in ways worth recording
+ * — the first painted the backdrop blue as well, turning the screen into one blue
+ * field; the second used a modal <dialog>, which covers the header and footer
+ * because showModal() renders in the top layer.
  */
 
-/* The dialog itself is only a positioning shell — the card does the visuals.
- * Reset the UA's default dialog chrome (border, padding, max-width) so the blue
- * fills the space we give it. */
-dialog.app-interruption {
-  border: 0;
-  padding: 0;
-  margin: 0;
-  max-width: none;
-  max-height: none;
-  width: 100%;
-  height: 100%;
-  background: transparent;
-  overflow: auto;
-}
-
-/* Covers the page beneath. Opaque rather than a tint: the point is that the
- * underlying case is not readable, not merely dimmed. */
-dialog.app-interruption::backdrop {
-  background: #1d70b8;
-}
-
-.moj-interruption-card {
-  background-color: #1d70b8; /* govuk-colour("blue") */
-  color: #ffffff;
-  min-height: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 40px 15px;
+/* The overlay occupies the band from the bottom of our header to the bottom of
+ * the viewport. `top` is set inline from a measurement, because the header's
+ * height varies with the rebrand, the case-details strip and the second-level
+ * menu.
+ *
+ * White, not a tint: the point is that the case underneath is not readable, not
+ * merely dimmed.
+ *
+ * FOOTER: the host's footer sits in the scrolled page, so on a long page it is
+ * below the fold anyway; where it is visible it will be behind this. Extending
+ * the band to stop at the footer means measuring an element in someone else's
+ * DOM, which is a fragility we have paid for twice already elsewhere.
+ */
+.app-interruption {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 999;
+  overflow-y: auto;
+  background: govuk-colour("white");
+  padding-top: govuk-spacing(7);
+  padding-bottom: govuk-spacing(7);
   box-sizing: border-box;
 }
 
-.moj-interruption-card__content {
-  max-width: 30em; /* a readable measure, as GDS holds body copy to */
-  width: 100%;
+.moj-interruption-card {
+  background-color: govuk-colour("blue");
+  color: govuk-colour("white");
+  padding: govuk-spacing(6);
 }
 
 .moj-interruption-card__heading {
-  color: #ffffff;
+  @include govuk-font($size: 36, $weight: bold);
+  color: govuk-colour("white");
   margin-top: 0;
-  margin-bottom: 20px;
-  font-family: inherit;
-  font-size: 2rem;
-  line-height: 1.09;
-  font-weight: 700;
+  margin-bottom: govuk-spacing(4);
 }
 
 .moj-interruption-card__body {
-  font-size: 1.1875rem;
-  line-height: 1.31;
-  margin-bottom: 30px;
+  @include govuk-font($size: 19);
+  margin-bottom: govuk-spacing(6);
 }
 
 .moj-interruption-card__body p {
-  color: #ffffff;
+  color: govuk-colour("white");
   margin-top: 0;
-  margin-bottom: 15px;
+  margin-bottom: govuk-spacing(3);
 }
 
+.moj-interruption-card__body p:last-child {
+  margin-bottom: 0;
+}
+
+/* govuk-button-group already handles the spacing and wrapping; this only needs
+ * to align the link with the button's text baseline. */
 .moj-interruption-card__actions {
-  display: flex;
-  align-items: center;
-  gap: 20px;
-  flex-wrap: wrap;
+  margin-bottom: 0;
 }
 
 /* "Go back" is a link in the design but a <button> in the markup: it performs an
- * action rather than navigating to a URL we know, and a button is the honest
- * element for that. These rules make it read as govuk-link--inverse. */
+ * action rather than navigating somewhere we know the URL of, and a button is the
+ * honest element for that. govuk-link--inverse supplies the colour and the focus
+ * style — these rules only strip the browser's button chrome. */
 .app-interruption__link {
   background: none;
   border: 0;
   padding: 0;
-  color: #ffffff;
   font-family: inherit;
-  font-size: inherit;
-  text-decoration: underline;
   cursor: pointer;
 }
 
-.app-interruption__link:hover {
-  text-decoration-thickness: 3px;
-}
-
-/* GDS focus style, stated explicitly rather than relying on the host page's
- * stylesheet being loaded. */
-.app-interruption__link:focus,
-.moj-interruption-card .govuk-button:focus {
-  outline: 3px solid transparent;
-  color: #0b0c0c;
-  background-color: #ffdd00;
-  box-shadow:
-    0 -2px #ffdd00,
-    0 4px #0b0c0c;
-  text-decoration: none;
+/* The case reference above the card, mirroring the design's govuk-caption-l. */
+.app-interruption__caption {
+  display: block;
+  color: govuk-colour("dark-grey");
+  margin-bottom: govuk-spacing(2);
 }
