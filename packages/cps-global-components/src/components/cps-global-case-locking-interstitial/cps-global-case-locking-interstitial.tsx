@@ -168,8 +168,14 @@ export class CpsGlobalCaseLockingInterstitial {
       return null;
     }
     // Keyed on the whole set of sections: a different combination is a different
-    // interruption, and dismissing one should not silence the next.
-    const key = present.sections.map(section => section.code).sort().join(",");
+    // interruption, and dismissing one should not silence the next. Sorted with an
+    // explicit comparator so the key is stable — a bare sort() orders by string
+    // conversion, which happens to work for these codes but is not something to
+    // rely on for a value used as an identity.
+    const key = present.sections
+      .map(section => section.code)
+      .sort((a, b) => a.localeCompare(b))
+      .join(",");
     if (this.dismissedFor === key) {
       this.release();
       return null;
