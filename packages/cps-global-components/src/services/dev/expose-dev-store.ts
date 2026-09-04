@@ -31,9 +31,7 @@ const APP_NAME = "Dev";
 const { _log } = makeConsole("devStore");
 
 export const exposeDevStore = ({ window, register }: Props) => {
-  // A whole roster in one call, for the common case of "show me the UI":
-  //   __cps.presence("a.person@cps.gov.uk", "b.person@cps.gov.uk")
-  const presence = (...users: string[]) =>
+  const roster = (users: string[], wasOccupiedOnEntry: boolean) =>
     register({
       caseLockingPresentUsers: users.length
         ? {
@@ -41,11 +39,21 @@ export const exposeDevStore = ({ window, register }: Props) => {
               {
                 code: "case",
                 users: users.map(user => ({ user, appName: APP_NAME, joinedAt: new Date().toISOString() })),
+                occupiedOnEntry: wasOccupiedOnEntry,
               },
             ],
           }
         : undefined,
     });
+
+  // The two devices, which differ only by whether the section was already
+  // occupied when we arrived — the one thing that is genuinely awkward to stage
+  // with real people, since it needs two users and correct timing.
+  //
+  //   __cps.presence("a.person@cps.gov.uk")   we walked in on them -> interruption
+  //   __cps.arrives("a.person@cps.gov.uk")    they joined after us -> banner only
+  const presence = (...users: string[]) => roster(users, true);
+  const arrives = (...users: string[]) => roster(users, false);
 
   // The full shape, for section combinations and missing joinedAt:
   //   __cps.sections([{ code: "witness", users: [{ user: "a@b", appName: "CMS" }] }])
@@ -53,7 +61,7 @@ export const exposeDevStore = ({ window, register }: Props) => {
 
   const clear = () => register({ caseLockingPresentUsers: undefined });
 
-  (window as any).__cps = { register, presence, sections, clear };
+  (window as any).__cps = { register, presence, arrives, sections, clear };
 
-  _log("__cps ready — try __cps.presence('a.person@cps.gov.uk'), __cps.sections([...]), __cps.clear()");
+  _log("__cps ready — presence(...) interrupts, arrives(...) shows the banner only; also sections([...]) and clear()");
 };

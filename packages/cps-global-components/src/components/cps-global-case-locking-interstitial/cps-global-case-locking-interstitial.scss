@@ -37,6 +37,14 @@
  * edges can only change on resize.
  */
 .app-interruption {
+  /* Focused programmatically so the alertdialog is announced, never by tabbing.
+   * The ring would frame the whole band, which tells a sighted user nothing and
+   * looks like a bug — the card is plainly the thing that just appeared. Removed
+   * only for this container; every control inside keeps its GDS focus style. */
+  &:focus {
+    outline: none;
+  }
+
   position: fixed;
   left: 0;
   right: 0;

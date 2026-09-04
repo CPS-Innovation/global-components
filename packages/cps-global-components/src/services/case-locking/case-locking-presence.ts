@@ -161,6 +161,17 @@ export const createCaseLockingPresence = ({
   // overwriting one another.
   const rosters = new Map<string, CaseLockingPresentSection>();
 
+  // Whether anyone was already in a section when we first retrieved it, latched
+  // per section key. See CaseLockingPresentSection.occupiedOnEntry.
+  //
+  // LATCHED, NOT RECOMPUTED, and that is the whole point. A hub reconnect
+  // re-registers the section and hands us a fresh first snapshot in which the
+  // person who has been sitting there all along looks like an incumbent we have
+  // just walked in on. Recomputing would fire an interruption on every transient
+  // disconnect, on a five-second keepalive. The latch is cleared only when we
+  // genuinely leave the section (forgetRoster).
+  const occupiedOnEntry = new Map<string, boolean>();
+
   // Every section we should be holding right now.
   const desiredSections = (): Map<string, SectionSpec> => {
     const desired = new Map<string, SectionSpec>();
@@ -201,11 +212,15 @@ export const createCaseLockingPresence = ({
 
   const publishPresentUsers = (key: string, code: string, users: CaseLockingPresentUser[]) => {
     const others = countSelf ? users : users.filter(user => !isSelf(user));
-    rosters.set(key, { code, users: others });
+    if (!occupiedOnEntry.has(key)) {
+      occupiedOnEntry.set(key, others.length > 0);
+    }
+    rosters.set(key, { code, users: others, occupiedOnEntry: occupiedOnEntry.get(key) ?? false });
     publish();
   };
 
   const forgetRoster = (key: string) => {
+    occupiedOnEntry.delete(key);
     if (rosters.delete(key)) {
       publish();
     }

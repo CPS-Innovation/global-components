@@ -65,6 +65,8 @@ export class CpsGlobalCaseLockingInterstitial {
   private previousOverflow: string | null = null;
   private previousPaddingRight: string | null = null;
   private headerObserver?: ResizeObserver;
+  /** Where focus was before we took it. Restored only on a user-initiated exit. */
+  private focusedBeforeShowing: HTMLElement | null = null;
 
   disconnectedCallback() {
     this.release();
@@ -91,7 +93,7 @@ export class CpsGlobalCaseLockingInterstitial {
       this.measure();
       this.lockScroll();
       this.applyInert();
-      this.el.querySelector<HTMLElement>(".govuk-button")?.focus();
+      this.takeFocus();
       // MEASURE AGAIN AFTER THE FRAME SETTLES, and never delete this.
       // componentDidRender runs before our own styles have applied, so at that
       // moment this component is still IN FLOW inside cps-global-header and
@@ -150,11 +152,74 @@ export class CpsGlobalCaseLockingInterstitial {
     this.headerObserver.observe(header);
   }
 
+  /**
+   * FOCUS THE DIALOG ITSELF, not the first button.
+   *
+   * role="alertdialog" is announced when focus enters it, so something in here
+   * must take focus or an assistive-tech user is told nothing at all. Focusing
+   * the container rather than "Continue anyway" means the screen reader reads the
+   * dialog's name and description before the user reaches the actions — and it
+   * leaves no button armed for a reflexive Enter, which for a warning is a
+   * feature rather than an inconvenience.
+   *
+   * The container carries tabindex="-1" so it can be focused programmatically
+   * without joining the tab order. Falling back to the button covers the case
+   * where the container somehow cannot take focus; between them, focus can never
+   * be left stranded on a page that is now entirely inert.
+   */
+  private takeFocus() {
+    const active = document.activeElement;
+    this.focusedBeforeShowing = active instanceof HTMLElement ? active : null;
+    const dialog = this.el.querySelector<HTMLElement>(".app-interruption");
+    dialog?.focus();
+    if (document.activeElement !== dialog) {
+      this.el.querySelector<HTMLElement>(".govuk-button")?.focus();
+    }
+  }
+
+  /**
+   * Give focus back to whatever had it before we interrupted.
+   *
+   * ONLY ON A USER-INITIATED EXIT — dismiss, go back, Escape. release() also runs
+   * on incidental teardown (the flag going off, presence emptying, the component
+   * being torn down), and restoring focus there would yank the caret out of
+   * whatever the user had moved on to, seemingly at random, whenever a roster
+   * happened to empty.
+   *
+   * Ordering matters: release() clears inert first, because focus() on an inert
+   * element silently does nothing. The isConnected guard covers the element
+   * having been removed by a host re-render while we were up.
+   */
+  private restoreFocus() {
+    const target = this.focusedBeforeShowing;
+    this.focusedBeforeShowing = null;
+    if (target?.isConnected) {
+      target.focus();
+    }
+  }
+
   private applyInert() {
+    // The host page: everything under <body> except the subtree we live in.
     const ourRoot = this.rootChildOfBody();
-    Array.from(document.body.children).forEach(child => {
+    this.inertAll(Array.from(document.body.children), ourRoot);
+
+    // OUR OWN CHROME, which the line above necessarily spares. We render inside
+    // cps-global-header's shadow root, as a sibling of the banner, the menu, the
+    // notifications and the pinned banner — so excluding our subtree from the
+    // page-level pass leaves the entire header reachable by keyboard. Tabbing out
+    // of the interruption and into the global menu, while aria-modal="true" tells
+    // assistive tech that everything outside the dialog is unavailable, is the
+    // ARIA lying about what the keyboard can actually do.
+    //
+    // The design keeps the header VISIBLE, which is not the same as usable: the
+    // card offers "Go back" for the user who wants out.
+    this.inertAll(Array.from(this.el.parentElement?.children ?? []), this.el);
+  }
+
+  private inertAll(candidates: Element[], keep: Element | null) {
+    candidates.forEach(child => {
       const el = child as HTMLElement;
-      if (el === ourRoot || el.inert) {
+      if (el === keep || el.inert) {
         return; // ours, or already inert for someone else's reasons — leave alone
       }
       el.inert = true;
@@ -223,8 +288,10 @@ export class CpsGlobalCaseLockingInterstitial {
     return null;
   }
 
+  // The user-initiated exit, and the only path that hands focus back.
   private dismiss = () => {
     this.release();
+    this.restoreFocus();
     this.dismissedFor = this.currentCode ?? "";
   };
 
@@ -240,7 +307,13 @@ export class CpsGlobalCaseLockingInterstitial {
       return null;
     }
     const present = state.caseLockingPresentUsers;
-    if (!present || present.sections.length === 0) {
+    // Only sections that were ALREADY OCCUPIED when we arrived interrupt. Someone
+    // joining a section we are already in is not an interruption for us — we are
+    // the one who was here first, and they are the one being shown this card. Two
+    // people on a case therefore produce exactly one interruption, not two.
+    // Everyone else is reported by the pinned banner, which shows all sections.
+    const sections = present?.sections.filter(section => section.occupiedOnEntry) ?? [];
+    if (sections.length === 0) {
       this.release();
       return null;
     }
@@ -249,7 +322,7 @@ export class CpsGlobalCaseLockingInterstitial {
     // explicit comparator so the key is stable — a bare sort() orders by string
     // conversion, which happens to work for these codes but is not something to
     // rely on for a value used as an identity.
-    const key = present.sections
+    const key = sections
       .map(section => section.code)
       .sort((a, b) => a.localeCompare(b))
       .join(",");
@@ -260,7 +333,7 @@ export class CpsGlobalCaseLockingInterstitial {
 
     this.currentCode = key;
     const urn = state.tags?.urn;
-    const names = Array.from(new Set(present.sections.flatMap(section => section.users.map(user => user.user))));
+    const names = Array.from(new Set(sections.flatMap(section => section.users.map(user => user.user))));
     const who = names.join(", ");
 
     return (
@@ -272,6 +345,9 @@ export class CpsGlobalCaseLockingInterstitial {
         class="app-interruption"
         role="alertdialog"
         aria-modal="true"
+        // Focusable programmatically, but never in the tab order: focus enters
+        // the dialog so it is announced, and leaves via the actions inside it.
+        tabindex={-1}
         aria-labelledby="cps-interruption-heading"
         aria-describedby="cps-interruption-body"
         style={{ top: `${this.topOffset}px`, bottom: `${this.bottomOffset}px` }}

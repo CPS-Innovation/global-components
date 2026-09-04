@@ -290,6 +290,7 @@ describe("createCaseLockingPresence", () => {
                 { user: "alice", appName: "test-app", joinedAt: undefined },
                 { user: "bob@cps.gov.uk", appName: "CMS", joinedAt: undefined },
               ],
+              occupiedOnEntry: true,
             },
           ],
         },
@@ -391,6 +392,65 @@ describe("createCaseLockingPresence", () => {
       service.setCaseId("456");
       await flush();
       expect(getPresentUsers()).toBeUndefined();
+    });
+  });
+
+  // The rule that separates the two UI devices: walking in on an occupied section
+  // interrupts, someone joining a section you already hold does not.
+  describe("occupiedOnEntry", () => {
+    const sectionOf = (getPresentUsers: () => CaseLockingPresentUsers, code: string) =>
+      (getPresentUsers()?.sections ?? []).find(section => section.code === code);
+
+    it("is true when someone is already present on the first retrieval", async () => {
+      const { service, hubFor, getPresentUsers } = setup();
+      service.setCaseId("123");
+      service.addRegion("witness");
+      await flush();
+
+      hubFor("123:WITNESS")!.__notify?.(presence([{ user: "bob@cps.gov.uk", appName: "CMS" }]));
+      await flush();
+
+      expect(sectionOf(getPresentUsers, "witness")?.occupiedOnEntry).toBe(true);
+    });
+
+    it("is false when the section was empty on the first retrieval and someone joins later", async () => {
+      const { service, hubFor, getPresentUsers } = setup();
+      service.setCaseId("123");
+      service.addRegion("witness");
+      await flush();
+
+      // First retrieval: nobody here but us.
+      hubFor("123:WITNESS")!.__notify?.(presence([]));
+      await flush();
+
+      hubFor("123:WITNESS")!.__notify?.(presence([{ user: "bob@cps.gov.uk", appName: "CMS" }]));
+      await flush();
+
+      expect(sectionOf(getPresentUsers, "witness")?.users).toHaveLength(1);
+      expect(sectionOf(getPresentUsers, "witness")?.occupiedOnEntry).toBe(false);
+    });
+
+    // The reconnect case, which is why this is latched rather than recomputed: a
+    // later snapshot must never promote a section to "occupied on entry", or a
+    // transient disconnect would interrupt us over someone who was here first.
+    it("stays false once decided, however many people arrive afterwards", async () => {
+      const { service, hubFor, getPresentUsers } = setup();
+      service.setCaseId("123");
+      service.addRegion("witness");
+      await flush();
+
+      hubFor("123:WITNESS")!.__notify?.(presence([]));
+      await flush();
+
+      hubFor("123:WITNESS")!.__notify?.(
+        presence([
+          { user: "bob@cps.gov.uk", appName: "CMS" },
+          { user: "carol@cps.gov.uk", appName: "CMS" },
+        ]),
+      );
+      await flush();
+
+      expect(sectionOf(getPresentUsers, "witness")?.occupiedOnEntry).toBe(false);
     });
   });
 
