@@ -5,37 +5,42 @@ import { FEATURE_FLAGS } from "cps-global-configuration";
 /**
  * The interruption, from the UCD prototype's moj-interruption-card.
  *
- * WHY NOT A MODAL <dialog>
- * showModal() is the tidy answer to "block the page accessibly" — the browser
- * inerts the whole document, traps focus and supplies a backdrop, all without
- * touching the host's DOM. But it puts the dialog in the TOP LAYER, which covers
- * everything, and the design keeps the header and footer visible. So we do it
- * ourselves: an overlay occupying the band below the header, plus `inert` on the
- * host's content.
+ * WE REPLACE THE PAGE'S CONTENT RATHER THAN COVER IT.
+ * In the prototype this card is rendered INSIDE <main>: the server simply does
+ * not send the case, so the card is the page's content, in normal flow, with the
+ * header and footer still around it.
  *
- * WHAT `inert` BUYS
- * Covering the page visually is not enough. Without it a screen reader still
- * reads the case underneath and the keyboard still tabs into it — the user is
- * told to stop while the page quietly says otherwise. `inert` removes those
- * elements from the accessibility tree AND the tab order in one attribute.
+ * Two earlier attempts tried to imitate that from outside, and both failed in
+ * ways worth recording. A modal <dialog> renders in the TOP LAYER, so it covers
+ * the header and footer the design keeps. A fixed overlay band, measured to sit
+ * between our header and our footer, is what actually shipped — and a fixed sheet
+ * over a live page betrays itself however it is styled: it grew its own
+ * scrollbar, and it visibly shifted as the page was dragged underneath it.
  *
- * THE PAGE IS FROZEN WHILE WE ARE UP
- * An overlay over a page that still scrolls reads as a floating panel, however
- * it is styled. Locking the document's overflow means nothing behind us can
- * move, so the band reads as the page rather than as a sheet on top of it — and
- * with nothing moving there is nothing to re-measure on scroll either.
+ * So we do what the prototype does. The host's content is HIDDEN and the card
+ * renders in the ordinary document flow, inside cps-global-header where this
+ * component already lives. There is nothing to measure, nothing to keep in sync
+ * with scrolling, no z-index and no second scrollbar — the page is simply
+ * shorter while the interruption is up.
  *
- * WE MUTATE HOST DOM HERE, WHICH WE OTHERWISE AVOID. It is confined to setting
- * and clearing `inert` on the direct children of <body>, excluding our own root,
- * and every path that hides the overlay releases it — including
- * disconnectedCallback, because a host app that tears us down mid-interruption
- * must not be left with an unusable page.
+ * WE MUTATE HOST DOM HERE, WHICH WE OTHERWISE AVOID. It is confined to inline
+ * `display` on the direct children of <body>, with each previous inline value
+ * captured so release restores exactly what was there. Every path that hides the
+ * card releases it, including disconnectedCallback — a host app that tears us
+ * down mid-interruption must not be left with an invisible page.
+ *
+ * WHAT IS SPARED: our own subtree, and the subtree containing cps-global-footer.
+ * Both are found by walking up from elements of OURS, never by guessing at the
+ * host's markup — hunting for the host's own header or footer by selector is the
+ * fragility that has cost us twice elsewhere.
  *
  * ACCESSIBILITY
- * role="alertdialog" is the role for an interruption that demands a decision.
- * Focus moves into the card when it appears, so assistive tech announces it
- * rather than leaving it to be discovered, and Escape dismisses — both choices
- * are visible, so trapping the keyboard would cost more than it buys.
+ * role="alertdialog" is the role for an interruption that demands a decision, and
+ * focus moves into it so assistive tech announces it rather than leaving it to be
+ * discovered. Hiding the host content with `display: none` takes it out of the
+ * accessibility tree and the tab order in one move, so aria-modal is an honest
+ * claim; our own chrome, which stays visible, is made inert for the same reason.
+ * Escape dismisses, and focus returns to wherever it came from.
  */
 @Component({
   tag: "cps-global-case-locking-interstitial",
@@ -52,31 +57,28 @@ export class CpsGlobalCaseLockingInterstitial {
    */
   @State() dismissedFor?: string;
 
-  /** Distance from the top of the viewport to the bottom of our header. */
-  @State() topOffset: number = 0;
-
-  /** Distance from the bottom of the viewport to the top of our footer, when it
-   * is on screen. Zero when the footer is below the fold or absent. */
-  @State() bottomOffset: number = 0;
-
   private currentCode?: string;
   private inerted: HTMLElement[] = [];
+  /**
+   * Host elements we hid, with the inline `display` each had before we did.
+   *
+   * NOT NAMED `hidden`. In the rollup bundle the component class IS the custom
+   * element, so a field called `hidden` resolves to HTMLElement.prototype.hidden:
+   * assigning an array to it coerces to `true`, which hides this very element and
+   * makes every later call on it throw "forEach is not a function". The dev
+   * server keeps the instance separate from the element, so it fails only in the
+   * shipped build — an e2e test caught it, and nothing in the dev harness would
+   * have. Worth checking any new field name against HTMLElement's own properties.
+   */
+  private hiddenHostElements: { el: HTMLElement; display: string }[] = [];
+  /** The footer's inline position properties, captured before we pinned it. */
+  private footerStyle?: { el: HTMLElement; position: string; left: string; right: string; bottom: string };
   private showing = false;
-  private previousOverflow: string | null = null;
-  private previousPaddingRight: string | null = null;
-  private headerObserver?: ResizeObserver;
   /** Where focus was before we took it. Restored only on a user-initiated exit. */
   private focusedBeforeShowing: HTMLElement | null = null;
 
   disconnectedCallback() {
     this.release();
-  }
-
-  @Listen("resize", { target: "window" })
-  onResize() {
-    if (this.showing) {
-      this.measure();
-    }
   }
 
   @Listen("keydown", { target: "document" })
@@ -90,66 +92,178 @@ export class CpsGlobalCaseLockingInterstitial {
     const card = this.el.querySelector<HTMLElement>(".moj-interruption-card");
     if (card && !this.showing) {
       this.showing = true;
-      this.measure();
-      this.lockScroll();
-      this.applyInert();
+      this.hideHostContent();
+      this.pinFooter();
+      this.inertOwnChrome();
       this.takeFocus();
-      // MEASURE AGAIN AFTER THE FRAME SETTLES, and never delete this.
-      // componentDidRender runs before our own styles have applied, so at that
-      // moment this component is still IN FLOW inside cps-global-header and
-      // inflates the header's box — measured live, a header whose chrome ends at
-      // 109px reported a bottom of 244px. The band then starts 135px too low and
-      // the page shows through above it.
-      //
-      // Once the styles land we collapse to zero height and the header is 109px
-      // again, so a second measurement on the next frame is correct. This used to
-      // be masked by the scroll listener, which corrected it on the first scroll;
-      // that listener went when the page scroll was locked.
-      requestAnimationFrame(() => {
-        if (this.showing) {
-          this.measure();
-        }
-      });
-      this.observeHeader();
     }
   }
 
-  // The band runs from the bottom of our header to the top of our footer. Both
-  // are measured rather than assumed: the header's height varies with the
-  // rebrand, the case-details strip and the second-level menu, and the footer may
-  // be absent, below the fold, or on screen.
-  //
-  // Only OUR chrome is measured. The host's own header and footer are not ours to
-  // find, and hunting for them by selector is the fragility that has already cost
-  // us twice.
-  private measure() {
-    const header = document.querySelector("cps-global-header");
-    this.topOffset = header ? Math.max(0, header.getBoundingClientRect().bottom) : 0;
-
-    const footer = document.querySelector("cps-global-footer-content");
-    const rect = footer?.getBoundingClientRect();
-    this.bottomOffset = rect && rect.height > 0 ? Math.max(0, window.innerHeight - rect.top) : 0;
-  }
-
-  // The header's height is not fixed: the second-level menu appears and
-  // disappears, the case-details strip arrives asynchronously, notifications come
-  // and go. None of those fire a window resize, and with the page scroll locked
-  // there is no scroll event to correct us either — so without this the band's top
-  // edge would silently go stale, which is the bug we just fixed in a slower form.
-  private observeHeader() {
-    if (this.headerObserver || typeof ResizeObserver === "undefined") {
-      return;
-    }
-    const header = document.querySelector("cps-global-header");
-    if (!header) {
-      return;
-    }
-    this.headerObserver = new ResizeObserver(() => {
-      if (this.showing) {
-        this.measure();
+  /**
+   * Hide the page, keeping our own chrome and our footer.
+   *
+   * `display: none` rather than `inert`: it removes the content visually, from
+   * the accessibility tree and from the tab order in one attribute, which is the
+   * whole job. The card then occupies the space in normal flow.
+   *
+   * WALKS THE ANCESTOR CHAIN rather than hiding <body>'s children, because our
+   * header is not necessarily a child of <body>. Where a host nests it in a
+   * container alongside page content — as the dev harness does — sparing "our
+   * subtree" would spare that content too, and the case stays on screen behind
+   * the interruption. Hiding the siblings at EVERY level from our host element up
+   * to <body> leaves exactly one visible branch: the one we are in.
+   *
+   * The walk starts at our shadow HOST, not at this element: siblings inside
+   * cps-global-header's shadow root are our own chrome, which the design keeps
+   * visible (and inertOwnChrome makes unreachable).
+   *
+   * Only elements can be hidden this way. A bare text node sitting next to the
+   * header has no style to set and will survive — real host apps wrap their
+   * content, but it is why the dev harness needed its stray text wrapping.
+   */
+  private hideHostContent() {
+    // Never hide the branch the footer sits in, wherever the host has anchored it.
+    const footerChain = this.ancestorChain(document.querySelector("cps-global-footer"));
+    let node: Element | null = this.shadowHost() ?? this.el;
+    while (node && node !== document.body) {
+      const parent: Element | null = node.parentElement;
+      if (!parent) {
+        return;
       }
+      const current = node;
+      Array.from(parent.children).forEach(child => {
+        const el = child as HTMLElement;
+        if (el === current || footerChain.has(el) || el.style.display === "none") {
+          return;
+        }
+        this.hiddenHostElements.push({ el, display: el.style.display });
+        el.style.display = "none";
+      });
+      node = parent;
+    }
+  }
+
+  /** Every element from `from` up to and including <body>. */
+  private ancestorChain(from: Element | null): Set<Element> {
+    const chain = new Set<Element>();
+    let node: Element | null = from;
+    while (node) {
+      chain.add(node);
+      node = node.parentElement;
+    }
+    return chain;
+  }
+
+  /** The element hosting the shadow root we render inside — cps-global-header. */
+  private shadowHost(): Element | null {
+    let node: Node | null = this.el;
+    while (node) {
+      const parent: Node | null = node.parentNode;
+      if (parent instanceof ShadowRoot) {
+        return parent.host;
+      }
+      node = parent;
+    }
+    return null;
+  }
+
+  /**
+   * Our own chrome stays VISIBLE — the design keeps the header — but must not
+   * stay reachable, or the keyboard could tab into the global menu while
+   * aria-modal tells assistive tech that everything outside the card is
+   * unavailable. Visible is not the same as usable; the card offers "Go back"
+   * for the user who wants out.
+   *
+   * THE PINNED BANNER IS THE EXCEPTION, and is hidden rather than inerted. It
+   * reports the same presence this card is interrupting about, so while the card
+   * is up it is a second copy of the message — and an inert one, which reads as
+   * broken: its "Show details" toggle is visibly there but cannot be clicked or
+   * tabbed to. Hiding it leaves one thing to act on, which is the point of an
+   * interruption. It comes back on dismissal, via the same release() that
+   * restores everything else, and resumes its role as the ongoing informational
+   * channel.
+   */
+  private inertOwnChrome() {
+    Array.from(this.el.parentElement?.children ?? []).forEach(child => {
+      const el = child as HTMLElement;
+      if (el === this.el) {
+        return;
+      }
+      if (el.tagName.toLowerCase() === "cps-global-case-locking-notification") {
+        if (el.style.display !== "none") {
+          this.hiddenHostElements.push({ el, display: el.style.display });
+          el.style.display = "none";
+        }
+        return; // display:none already removes it from the tree and the tab order
+      }
+      if (el.inert) {
+        return; // already inert for someone else's reasons — leave alone
+      }
+      el.inert = true;
+      this.inerted.push(el);
     });
-    this.headerObserver.observe(header);
+  }
+
+  private release() {
+    this.inerted.forEach(el => (el.inert = false));
+    this.inerted = [];
+    this.hiddenHostElements.forEach(({ el, display }) => (el.style.display = display));
+    this.hiddenHostElements = [];
+    this.unpinFooter();
+    this.showing = false;
+  }
+
+  /**
+   * PIN THE FOOTER TO THE BOTTOM OF THE VIEWPORT while the interruption is up.
+   *
+   * With the page's content hidden, the document becomes as short as the card —
+   * so the footer rides up directly beneath it and the two sit stranded together
+   * in the top half of the screen, with the whole footer's worth of links looming
+   * under a short message. Pinning it puts the page back into the shape the user
+   * expects: header, the interruption, white space, footer at the foot.
+   *
+   * Only the four positioning properties are captured and restored, NOT the whole
+   * style attribute: footer-subscriber writes a synced width onto this same
+   * element, and restoring wholesale would clobber whatever it had set while we
+   * were up.
+   */
+  private pinFooter() {
+    const footer = document.querySelector<HTMLElement>("cps-global-footer");
+    if (!footer || this.footerStyle) {
+      return;
+    }
+    // A footer the host already fixes to the viewport never rides up when the
+    // content goes, so there is nothing to pin — and writing `bottom` here would
+    // fight cps-global-pinned-notification, which raises a fixed footer by its
+    // own height to sit beneath it. Leave it alone and let that component own the
+    // offset.
+    const position = getComputedStyle(footer).position;
+    if (position === "fixed" || position === "sticky") {
+      return;
+    }
+    this.footerStyle = {
+      el: footer,
+      position: footer.style.position,
+      left: footer.style.left,
+      right: footer.style.right,
+      bottom: footer.style.bottom,
+    };
+    footer.style.position = "fixed";
+    footer.style.left = "0";
+    footer.style.right = "0";
+    footer.style.bottom = "0";
+  }
+
+  private unpinFooter() {
+    const previous = this.footerStyle;
+    this.footerStyle = undefined;
+    if (!previous) {
+      return;
+    }
+    previous.el.style.position = previous.position;
+    previous.el.style.left = previous.left;
+    previous.el.style.right = previous.right;
+    previous.el.style.bottom = previous.bottom;
   }
 
   /**
@@ -161,11 +275,6 @@ export class CpsGlobalCaseLockingInterstitial {
    * dialog's name and description before the user reaches the actions — and it
    * leaves no button armed for a reflexive Enter, which for a warning is a
    * feature rather than an inconvenience.
-   *
-   * The container carries tabindex="-1" so it can be focused programmatically
-   * without joining the tab order. Falling back to the button covers the case
-   * where the container somehow cannot take focus; between them, focus can never
-   * be left stranded on a page that is now entirely inert.
    */
   private takeFocus() {
     const active = document.activeElement;
@@ -183,12 +292,11 @@ export class CpsGlobalCaseLockingInterstitial {
    * ONLY ON A USER-INITIATED EXIT — dismiss, go back, Escape. release() also runs
    * on incidental teardown (the flag going off, presence emptying, the component
    * being torn down), and restoring focus there would yank the caret out of
-   * whatever the user had moved on to, seemingly at random, whenever a roster
-   * happened to empty.
+   * whatever the user had moved on to, seemingly at random.
    *
-   * Ordering matters: release() clears inert first, because focus() on an inert
-   * element silently does nothing. The isConnected guard covers the element
-   * having been removed by a host re-render while we were up.
+   * Ordering matters: release() restores the page first, because focus() on a
+   * hidden element does nothing. The isConnected guard covers the element having
+   * been removed by a host re-render while we were up.
    */
   private restoreFocus() {
     const target = this.focusedBeforeShowing;
@@ -196,96 +304,6 @@ export class CpsGlobalCaseLockingInterstitial {
     if (target?.isConnected) {
       target.focus();
     }
-  }
-
-  private applyInert() {
-    // The host page: everything under <body> except the subtree we live in.
-    const ourRoot = this.rootChildOfBody();
-    this.inertAll(Array.from(document.body.children), ourRoot);
-
-    // OUR OWN CHROME, which the line above necessarily spares. We render inside
-    // cps-global-header's shadow root, as a sibling of the banner, the menu, the
-    // notifications and the pinned banner — so excluding our subtree from the
-    // page-level pass leaves the entire header reachable by keyboard. Tabbing out
-    // of the interruption and into the global menu, while aria-modal="true" tells
-    // assistive tech that everything outside the dialog is unavailable, is the
-    // ARIA lying about what the keyboard can actually do.
-    //
-    // The design keeps the header VISIBLE, which is not the same as usable: the
-    // card offers "Go back" for the user who wants out.
-    this.inertAll(Array.from(this.el.parentElement?.children ?? []), this.el);
-  }
-
-  private inertAll(candidates: Element[], keep: Element | null) {
-    candidates.forEach(child => {
-      const el = child as HTMLElement;
-      if (el === keep || el.inert) {
-        return; // ours, or already inert for someone else's reasons — leave alone
-      }
-      el.inert = true;
-      this.inerted.push(el);
-    });
-  }
-
-  private release() {
-    this.inerted.forEach(el => (el.inert = false));
-    this.inerted = [];
-    this.unlockScroll();
-    this.headerObserver?.disconnect();
-    this.headerObserver = undefined;
-    this.showing = false;
-  }
-
-  // WHY LOCK THE PAGE
-  // Without this the host page scrolls behind a stationary sheet, which is what
-  // makes the interruption read as a floating panel rather than as the content
-  // of the page. Locking the document freezes what is behind us, so the only
-  // thing on screen that can move is the interruption itself.
-  //
-  // It also removes the need to re-measure on scroll: the band's edges can only
-  // change on resize now, so the drifting top edge goes away with it.
-  //
-  // The scrollbar disappearing would reflow the page a few pixels wider, a jump
-  // the eye reads as the page "jolting" underneath. Replacing its width with
-  // padding keeps the layout still. Both previous inline values are captured so
-  // release() restores exactly what the host had, including "not set at all".
-  private lockScroll() {
-    const root = document.documentElement;
-    if (this.previousOverflow !== null) {
-      return; // already locked — never capture our own values as the host's
-    }
-    const scrollbarWidth = window.innerWidth - root.clientWidth;
-    this.previousOverflow = root.style.overflow;
-    this.previousPaddingRight = root.style.paddingRight;
-    root.style.overflow = "hidden";
-    if (scrollbarWidth > 0) {
-      root.style.paddingRight = `${scrollbarWidth}px`;
-    }
-  }
-
-  private unlockScroll() {
-    if (this.previousOverflow === null) {
-      return;
-    }
-    const root = document.documentElement;
-    root.style.overflow = this.previousOverflow;
-    root.style.paddingRight = this.previousPaddingRight ?? "";
-    this.previousOverflow = null;
-    this.previousPaddingRight = null;
-  }
-
-  // Our own top-level ancestor, walking out through shadow boundaries — this
-  // component sits inside cps-global-header's shadow root.
-  private rootChildOfBody(): Element | null {
-    let node: Node | null = this.el;
-    while (node) {
-      const parent: Node | null = node.parentNode;
-      if (parent === document.body) {
-        return node as Element;
-      }
-      node = parent instanceof ShadowRoot ? parent.host : parent;
-    }
-    return null;
   }
 
   // The user-initiated exit, and the only path that hands focus back.
@@ -332,7 +350,6 @@ export class CpsGlobalCaseLockingInterstitial {
     }
 
     this.currentCode = key;
-    const urn = state.tags?.urn;
     const names = Array.from(new Set(sections.flatMap(section => section.users.map(user => user.user))));
     const who = names.join(", ");
 
@@ -350,7 +367,6 @@ export class CpsGlobalCaseLockingInterstitial {
         tabindex={-1}
         aria-labelledby="cps-interruption-heading"
         aria-describedby="cps-interruption-body"
-        style={{ top: `${this.topOffset}px`, bottom: `${this.bottomOffset}px` }}
       >
         {/* The prototype's own structure: width container > main wrapper > grid
             row > full-width-from-desktop column > card. These carry GDS spacing
@@ -360,29 +376,23 @@ export class CpsGlobalCaseLockingInterstitial {
           <div class="govuk-main-wrapper">
             <div class="govuk-grid-row">
               <div class="govuk-grid-column-full-from-desktop">
-                {/* The case reference, which the design shows above the card.
-                    Taken from our own tags — we cannot read the host page's
-                    heading, but we do not need to: the URN is already ours. The
-                    page's own name ("Review case") stays beyond us, and that is
-                    the only part of the design we drop. */}
-                {urn && <span class="govuk-caption-l app-interruption__caption">{urn}</span>}
                 <div class="moj-interruption-card">
-            <div class="moj-interruption-card__content">
-              <h1 class="moj-interruption-card__heading" id="cps-interruption-heading">
-                Someone else is working on this case
-              </h1>
-              <div class="moj-interruption-card__body" id="cps-interruption-body">
-                <p>{who} is also working on this case.</p>
-                <p>If you both make changes, one set of changes could be lost.</p>
-              </div>
-              <div class="govuk-button-group moj-interruption-card__actions">
-                <button type="button" class="govuk-button govuk-button--inverse" onClick={this.dismiss}>
-                  Continue anyway
-                </button>
-                <button type="button" class="govuk-link govuk-link--inverse app-interruption__link" onClick={this.goBack}>
-                  Go back
-                </button>
-              </div>
+                  <div class="moj-interruption-card__content">
+                    <h1 class="moj-interruption-card__heading" id="cps-interruption-heading">
+                      Someone else is working on this case
+                    </h1>
+                    <div class="moj-interruption-card__body" id="cps-interruption-body">
+                      <p>{who} is also working on this case.</p>
+                      <p>If you both make changes, one set of changes could be lost.</p>
+                    </div>
+                    <div class="govuk-button-group moj-interruption-card__actions">
+                      <button type="button" class="govuk-button govuk-button--inverse" onClick={this.dismiss}>
+                        Continue anyway
+                      </button>
+                      <button type="button" class="govuk-link govuk-link--inverse app-interruption__link" onClick={this.goBack}>
+                        Go back
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>

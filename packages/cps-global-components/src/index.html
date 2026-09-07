@@ -88,9 +88,15 @@
   <div>
     <cps-global-header is-dcf="true"></cps-global-header>
 
-    long text long text long text long text long text long text long text long text long text long text long text long
-    text long text long text long text long text long text long text long text long text long text long text long text
-    long text long text long text long text long text long text long text
+    <!-- Wrapped in an element on purpose. This sits in the same container as the
+         header, and the interstitial hides the host's content by setting
+         display:none on element siblings up the ancestor chain — a bare text node
+         has no style to set and would stay on screen behind the interruption. -->
+    <div>
+      long text long text long text long text long text long text long text long text long text long text long text long
+      text long text long text long text long text long text long text long text long text long text long text long text
+      long text long text long text long text long text long text long text
+    </div>
   </div>
 
   <cps-global-recent-cases>
