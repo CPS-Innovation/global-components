@@ -72,11 +72,16 @@
           "contextIds": "unknown-home"
         },
         {
-          "path": "https://cps-dev.outsystemsenterprise.com/CaseReview.*?[&?](?:CMS)?CaseId=(?<caseId>\\d+)",
-          "contextIds": "case review",
-          "hostAppEventTargets": [
-            { "selector": "#b1-Resume", "action": "click" },
-            { "selector": "#b1-TaskCompleted2", "action": "appear" }
+          "caseLockingAppName": "Case Review App",
+          "contexts": [
+            {
+              "path": "https://cps-dev.outsystemsenterprise.com/CaseReview.*?[&?](?:CMS)?CaseId=(?<caseId>\\d+)",
+              "contextIds": "case review",
+              "hostAppEventTargets": [
+                { "selector": "#b1-Resume", "action": "click" },
+                { "selector": "#b1-TaskCompleted2", "action": "appear" }
+              ]
+            }
           ]
         },
         {
@@ -89,12 +94,17 @@
           "contextIds": "cases"
         },
         {
-          "path": "https://cps-dev.outsystemsenterprise.com/WorkManagementApp.*?(?=.*[&?]CaseId=(?<caseId>\\d+))(?=.*[&?]IsOpenMaterials=true)",
-          "contextIds": "case materials"
-        },
-        {
-          "path": "https://cps-dev.outsystemsenterprise.com/WorkManagementApp.*[&?]CaseId=(?<caseId>\\d+)",
-          "contextIds": "case details"
+          "caseLockingAppName": "Work Management App",
+          "contexts": [
+            {
+              "path": "https://cps-dev.outsystemsenterprise.com/WorkManagementApp.*?(?=.*[&?]CaseId=(?<caseId>\\d+))(?=.*[&?]IsOpenMaterials=true)",
+              "contextIds": "case materials"
+            },
+            {
+              "path": "https://cps-dev.outsystemsenterprise.com/WorkManagementApp.*[&?]CaseId=(?<caseId>\\d+)",
+              "contextIds": "case details"
+            }
+          ]
         },
         {
           "path": "https://cps-dev.outsystemsenterprise.com/WorkManagementApp/Cases",
@@ -123,8 +133,13 @@
       "msalRedirectUrl": "https://polaris-qa-notprod.cps.gov.uk/global-components/dev/auth-handover.html?src=https%3A%2F%2Fpolaris-qa-notprod.cps.gov.uk%2Fglobal-components%2Fdev%2Fauth-handover.js&stage=ad-redirect",
       "contexts": [
         {
-          "path": "https://polaris-qa-notprod.cps.gov.uk/(?:polaris-ui/case-details|materials-ui)/(?<urn>[^/]+)/(?<caseId>\\d+)",
-          "contextIds": "case materials materials-cwa"
+          "caseLockingAppName": "Casework App",
+          "contexts": [
+            {
+              "path": "https://polaris-qa-notprod.cps.gov.uk/(?:polaris-ui/case-details|materials-ui)/(?<urn>[^/]+)/(?<caseId>\\d+)",
+              "contextIds": "case materials materials-cwa"
+            }
+          ]
         },
         {
           "path": "https://polaris-qa-notprod.cps.gov.uk/(?:polaris-ui|materials-ui)/go\\?",
@@ -157,10 +172,15 @@
           "preventPageViewAnalytics": true
         },
         {
-          "path": "https://housekeeping",
-          "contextIds": "case materials",
-          "preventADAndDataCalls": true,
-          "takeTagsFromHandover": true
+          "caseLockingAppName": "Casework App",
+          "contexts": [
+            {
+              "path": "https://housekeeping",
+              "contextIds": "case materials",
+              "preventADAndDataCalls": true,
+              "takeTagsFromHandover": true
+            }
+          ]
         }
       ]
     },
