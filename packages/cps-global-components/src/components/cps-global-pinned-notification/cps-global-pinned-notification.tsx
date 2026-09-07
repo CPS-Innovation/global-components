@@ -114,11 +114,19 @@ export class CpsGlobalPinnedNotification {
         this.headerObserver.observe(header);
       }
     }
-    const width = header.getBoundingClientRect().width;
-    if (width < MIN_REAL_HEADER_WIDTH_PX) {
+    const rect = header.getBoundingClientRect();
+    if (rect.width < MIN_REAL_HEADER_WIDTH_PX) {
       return; // transient mid-navigation value — keep the last good width
     }
-    banner.style.width = `${width}px`;
+    // ANCHOR TO THE HEADER'S LEFT EDGE rather than centring in the viewport.
+    // Auto margins between left:0 and right:0 centre within the VIEWPORT, but the
+    // page's content column is centred within the DOCUMENT — and those differ by
+    // the width of the scrollbar. The banner ended up half a scrollbar (~7px) to
+    // the right of the content it belongs to. Taking the header's own left edge
+    // sidesteps the arithmetic entirely and cannot drift from it.
+    banner.style.width = `${rect.width}px`;
+    banner.style.left = `${Math.round(rect.left)}px`;
+    banner.style.right = "auto";
   }
 
   private toggle = () => {
