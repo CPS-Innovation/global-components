@@ -19,11 +19,21 @@ dialog.app-interruption {
   max-height: none;
   color: inherit;
 
-  /* inset:0 rather than 100vw/100vh. 100vw INCLUDES the scrollbar gutter, so on a
-   * page with a vertical scrollbar the dialog would be wider than the viewport and
-   * produce a horizontal one of its own. */
+  /* FILL THE VIEWPORT. All four of these are load-bearing.
+   *
+   * inset:0 rather than 100vw/100vh, because 100vw INCLUDES the scrollbar gutter —
+   * on a page with a vertical scrollbar the dialog would be wider than the viewport
+   * and produce a horizontal one of its own.
+   *
+   * But inset alone does NOT size a dialog. The UA stylesheet gives <dialog>
+   * `width: fit-content; height: fit-content`, and an explicit size beats inset —
+   * so without these two the dialog shrinks to its contents and sits in the
+   * top-left corner. Measured live when they were missing: 1200x644 inside a
+   * 1282x343 viewport, anchored at 0,0, with the page showing around it. */
   position: fixed;
   inset: 0;
+  width: auto;
+  height: auto;
 
   /* Stop a wheel over the dialog scrolling the page behind it once our own
    * scrollable area reaches its end. Costs nothing and needs no host DOM. */
