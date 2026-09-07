@@ -59,8 +59,18 @@ export class CpsGlobalCaseLockingInterstitial {
 
   private currentCode?: string;
   private inerted: HTMLElement[] = [];
-  /** Host elements we hid, with the inline `display` each had before we did. */
-  private hidden: { el: HTMLElement; display: string }[] = [];
+  /**
+   * Host elements we hid, with the inline `display` each had before we did.
+   *
+   * NOT NAMED `hidden`. In the rollup bundle the component class IS the custom
+   * element, so a field called `hidden` resolves to HTMLElement.prototype.hidden:
+   * assigning an array to it coerces to `true`, which hides this very element and
+   * makes every later call on it throw "forEach is not a function". The dev
+   * server keeps the instance separate from the element, so it fails only in the
+   * shipped build — an e2e test caught it, and nothing in the dev harness would
+   * have. Worth checking any new field name against HTMLElement's own properties.
+   */
+  private hiddenHostElements: { el: HTMLElement; display: string }[] = [];
   /** The footer's inline position properties, captured before we pinned it. */
   private footerStyle?: { el: HTMLElement; position: string; left: string; right: string; bottom: string };
   private showing = false;
@@ -126,7 +136,7 @@ export class CpsGlobalCaseLockingInterstitial {
         if (el === current || footerChain.has(el) || el.style.display === "none") {
           return;
         }
-        this.hidden.push({ el, display: el.style.display });
+        this.hiddenHostElements.push({ el, display: el.style.display });
         el.style.display = "none";
       });
       node = parent;
@@ -181,7 +191,7 @@ export class CpsGlobalCaseLockingInterstitial {
       }
       if (el.tagName.toLowerCase() === "cps-global-case-locking-notification") {
         if (el.style.display !== "none") {
-          this.hidden.push({ el, display: el.style.display });
+          this.hiddenHostElements.push({ el, display: el.style.display });
           el.style.display = "none";
         }
         return; // display:none already removes it from the tree and the tab order
@@ -197,8 +207,8 @@ export class CpsGlobalCaseLockingInterstitial {
   private release() {
     this.inerted.forEach(el => (el.inert = false));
     this.inerted = [];
-    this.hidden.forEach(({ el, display }) => (el.style.display = display));
-    this.hidden = [];
+    this.hiddenHostElements.forEach(({ el, display }) => (el.style.display = display));
+    this.hiddenHostElements = [];
     this.unpinFooter();
     this.showing = false;
   }
