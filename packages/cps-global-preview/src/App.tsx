@@ -139,7 +139,7 @@ const FEATURES: Feature[] = [
     key: "caseLockingInterstitial",
     label: "Case locking — show interruption",
     description:
-      "Show the full-screen interruption card when someone else is on this case, instead of (or as well as) the pinned banner. Currently triggered by the same condition as the banner; which situations should interrupt rather than inform is still to be decided.",
+      "Show the full-screen interruption when someone else is already on this case as you arrive, instead of (or as well as) the pinned banner. Whoever was there first is never interrupted, so two people on a case produce one interruption, not two.",
     disabled: false,
   },
   {

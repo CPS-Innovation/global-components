@@ -24,8 +24,19 @@
  * the prototype's error colour, which is not GDS red (#d4351c); it comes through
  * the --govuk-error-colour custom property with that fallback, kept verbatim.
  *
- * NO SHADOW, and max-width 960px rather than $govuk-page-width (1020px). Both are
- * the prototype's own values.
+ * NO SHADOW — the prototype has none.
+ *
+ * WIDTH IS NOT SET HERE. The prototype caps this at 960px, which is right for the
+ * prototype's page and arbitrary on ours: our header and footer take their width
+ * from whatever container the host puts them in, so there is no static value to
+ * match. syncWidth() writes it inline from cps-global-header's measured width,
+ * which is the same source footer-subscriber already syncs the footer to — so all
+ * three line up by construction rather than by coincidence.
+ *
+ * A max-width here would cap that measured value on a wide host container and
+ * silently reintroduce the mismatch, so there deliberately isn't one. Until the
+ * first measurement lands the banner runs full bleed: visibly wrong beats subtly
+ * wrong.
  */
 .app-notification-banner-pinned {
   position: fixed;
@@ -33,7 +44,6 @@
   bottom: 0;
   left: 0;
   z-index: 1000;
-  max-width: 960px;
   margin-right: auto;
   margin-left: auto;
 

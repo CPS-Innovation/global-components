@@ -16,11 +16,13 @@
 
 ### Used by
 
+ - [cps-global-case-locking-interstitial](../cps-global-case-locking-interstitial)
  - [cps-global-footer](../cps-global-footer)
 
 ### Graph
 ```mermaid
 graph TD;
+  cps-global-case-locking-interstitial --> cps-global-footer-content
   cps-global-footer --> cps-global-footer-content
   style cps-global-footer-content fill:#f9f,stroke:#333,stroke-width:4px
 ```

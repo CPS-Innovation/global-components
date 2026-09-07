@@ -50,9 +50,15 @@ changed in years.
 
  - [cps-global-case-locking-notification](../cps-global-case-locking-notification)
 
+### Depends on
+
+- [cps-global-footer](../cps-global-footer)
+
 ### Graph
 ```mermaid
 graph TD;
+  cps-global-pinned-notification --> cps-global-footer
+  cps-global-footer --> cps-global-footer-content
   cps-global-case-locking-notification --> cps-global-pinned-notification
   style cps-global-pinned-notification fill:#f9f,stroke:#333,stroke-width:4px
 ```

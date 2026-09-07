@@ -15,7 +15,7 @@ const OBSERVED_MARKER = "cpsFooterEmailObserved";
 // we'd write width:0 onto the footer, squashing the visible content inside
 // it. Anything below this threshold is treated as transient: we keep the
 // last good width until a real value arrives.
-const MIN_REAL_HEADER_WIDTH_PX = 100;
+export const MIN_REAL_HEADER_WIDTH_PX = 100;
 
 // Tracks which cps-global-footer elements already have width-sync wired. The
 // footer is re-anchored (not recreated) across SPA navigations, so once the
