@@ -100,15 +100,25 @@ export class CpsGlobalCaseLockingInterstitial {
    * the original, because the estate has custom dark-mode code that rewrites the
    * DOM's colours and never sees a value baked into our stylesheet.
    *
-   * Reading body's computed background at open time inherits whatever that code
-   * has already decided, without coupling us to how it works. Canvas — the CSS
-   * system colour, which follows the user's colour scheme — is the fallback for a
-   * transparent body, which is the common case on a page that never set one.
+   * READ <html>, NOT <body>. The accessibility subscriber puts the surface colour
+   * on the document element and explicitly sets body TRANSPARENT:
+   *
+   *     [data-grey-mode]      { background-color: <pageSurface> !important }
+   *     [data-grey-mode] body { background-color: transparent !important }
+   *
+   * so body is the one element guaranteed NOT to carry it. An earlier version read
+   * body, always got transparent, fell through to the fallback, and so ignored the
+   * low-contrast override entirely.
+   *
+   * Body is still worth trying second — on a page with no grey mode it is often
+   * where a host sets its own surface. Canvas, the CSS system colour that follows
+   * the user's colour scheme, is the last resort.
    */
   private paintSurface(dialog: HTMLDialogElement) {
-    const bodyBackground = getComputedStyle(document.body).backgroundColor;
-    const isTransparent = !bodyBackground || bodyBackground === "transparent" || bodyBackground === "rgba(0, 0, 0, 0)";
-    dialog.style.background = isTransparent ? "Canvas" : bodyBackground;
+    const isPainted = (colour: string) => !!colour && colour !== "transparent" && colour !== "rgba(0, 0, 0, 0)";
+    const documentSurface = getComputedStyle(document.documentElement).backgroundColor;
+    const bodySurface = getComputedStyle(document.body).backgroundColor;
+    dialog.style.background = isPainted(documentSurface) ? documentSurface : isPainted(bodySurface) ? bodySurface : "Canvas";
   }
 
   /**
