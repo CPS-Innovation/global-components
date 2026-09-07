@@ -89,6 +89,8 @@ export type SkipLinks = z.infer<typeof skipLinksSchema>;
 const contextPathsSchema = z.object({
   path: z.string(),
   contextIds: z.string(),
+  // See contextsBaseSchema — a leaf may name its own app rather than inherit one.
+  caseLockingAppName: z.string().optional(),
   domTagDefinitions: z.array(domTagDefinitionsSchema).optional(),
   showNotification: z.boolean().optional(),
   preventADAndDataCalls: z.boolean().optional(),
@@ -100,6 +102,16 @@ const contextPathsSchema = z.object({
 export type ContextPathsSchema = z.infer<typeof contextPathsSchema>;
 
 const contextsBaseSchema = z.object({
+  // The application name to REGISTER with the presence API for pages matching this
+  // context. The API keeps a fixed vocabulary — "Work Management App", "Case Review
+  // App", "Casework App", "CMS Classic", "CMS Modern" — and rejects anything else,
+  // so a typo here is reported as no app rather than as itself.
+  //
+  // Lives on the context tree because it is a fact about WHICH APP a URL belongs to,
+  // which is exactly what the tree already encodes. Set it on a branch and every
+  // path under it inherits; a leaf can override. Display names are NOT here: they
+  // are a code-level mapping shared with the legacy clients.
+  caseLockingAppName: z.string().optional(),
   msalRedirectUrl: z.string().optional(),
   domTagDefinitions: z.array(domTagDefinitionsSchema).optional(),
   forceCmsAuthRefresh: z.boolean().optional(),

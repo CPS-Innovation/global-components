@@ -1,4 +1,4 @@
-import { AuthResult, Config, FEATURE_FLAGS, Preview } from "cps-global-configuration";
+import { AuthResult, Config, FEATURE_FLAGS, FoundContext, Preview } from "cps-global-configuration";
 import { Register } from "../../store/store";
 import { Result } from "../../utils/Result";
 import { RegionEnterEvent, RegionLeaveEvent, RegionDetail } from "../../components/cps-global-locking-region/region-events";
@@ -15,7 +15,17 @@ type Props = {
   register: Register;
 };
 
-const APP_NAME = "Work Management App";
+/**
+ * What we register as when the matched context does not name an application.
+ *
+ * It is a legacy default, not a sensible one: every SPA registration used to send
+ * this regardless of which OutSystems app the user was actually in, so two of the
+ * three were misreported. Contexts now carry caseLockingAppName (see Config.ts) and
+ * this exists only so an environment whose config has not been updated behaves as
+ * it did rather than registering something the API would reject. Delete it once
+ * every context names its app.
+ */
+const FALLBACK_APP_NAME = "Work Management App";
 
 const { _debug } = makeConsole("initialiseCaseLocking");
 
@@ -26,7 +36,7 @@ export const initialiseCaseLocking = ({ window, config, preview, register }: Pro
   if (!apiUrl) {
     _debug("no CASE_LOCKING_API_URL — case-locking subscriber & service inert");
     return {
-      initialiseCaseLockingForContext: (_args: { auth: AuthResult; caseIdentifiers: CaseIdentifiers | undefined; getToken: GetToken }) => {},
+      initialiseCaseLockingForContext: (_args: { auth: AuthResult; caseIdentifiers: CaseIdentifiers | undefined; getToken: GetToken; context: FoundContext }) => {},
       witnessAreaSubscriber: createWitnessAreaSubscriber(false),
     };
   }
@@ -74,11 +84,19 @@ export const initialiseCaseLocking = ({ window, config, preview, register }: Pro
     auth,
     caseIdentifiers,
     getToken,
+    context,
   }: {
     auth: AuthResult;
     caseIdentifiers: CaseIdentifiers | undefined;
     getToken: GetToken;
+    context: FoundContext;
   }) => {
+    // WHICH APP ARE WE? The context tree knows: it is the same structure that
+    // already decides what a URL means, so the app a path belongs to is recorded
+    // there rather than inferred here. Read on every context pass, but only ever
+    // used at creation below — crossing between apps is a page load, not an SPA
+    // navigation, so the value cannot change under a live presence service.
+    const appName = (context.found && context.caseLockingAppName) || FALLBACK_APP_NAME;
     const flagPasses = FEATURE_FLAGS.shouldEnableCaseLocking({ config, preview, auth, authHint: undefined });
     _debug("forContext", { isAuthed: auth.isAuthed, flagPasses, caseId: caseIdentifiers?.caseId, presenceCreated: !!presence });
 
@@ -87,7 +105,7 @@ export const initialiseCaseLocking = ({ window, config, preview, register }: Pro
       presence = createCaseLockingPresence({
         apiUrl,
         username: auth.username,
-        appName: APP_NAME,
+        appName,
         register,
         // The presence API's OWN scope, not the gateway scopes: one token has one
         // audience, and AD_GATEWAY_SCOPES asks for Microsoft Graph. The presence

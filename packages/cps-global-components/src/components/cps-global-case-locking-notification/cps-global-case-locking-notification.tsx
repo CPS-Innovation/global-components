@@ -2,6 +2,7 @@ import { Component, h } from "@stencil/core";
 import { readyState } from "../../store/store";
 import { FEATURE_FLAGS } from "cps-global-configuration";
 import { formatJoined } from "../../services/case-locking/format-joined";
+import { appDisplayName } from "../../services/case-locking/app-display-name";
 import { CaseLockingPresentSection } from "../../services/case-locking/CaseLockingPresentUsers";
 
 // The region code is also the section kind we register against. Anything not
@@ -60,10 +61,16 @@ export class CpsGlobalCaseLockingNotification {
             <h3 class="govuk-heading-s">{friendlyName(section.code)}</h3>
             {section.users.map(user => {
               const since = formatJoined(user.joinedAt);
+              // Which application they are in, mapped out of the presence API's own
+              // vocabulary — the three OutSystems apps are all RCMS to a user. Omitted
+              // entirely when the API sends no sourceApplication, rather than shown as
+              // an empty gap in the sentence.
+              const app = appDisplayName(user.appName);
+              const where = app ? ` in ${app}` : "";
               return (
                 <p class="govuk-body">
                   {user.user}
-                  {since ? ` has been in this section since ${since}.` : " is in this section."}
+                  {since ? ` has been in this section${where} since ${since}.` : ` is in this section${where}.`}
                 </p>
               );
             })}
