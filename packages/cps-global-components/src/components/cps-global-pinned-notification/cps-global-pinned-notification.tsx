@@ -1,4 +1,5 @@
 import { Component, h, Prop, State, Element, Event, EventEmitter } from "@stencil/core";
+import { MIN_REAL_HEADER_WIDTH_PX } from "../../services/browser/dom/footer-subscriber";
 
 /**
  * The pinned notification from the UCD prototype's app-notification-banner-pinned.
@@ -55,6 +56,8 @@ export class CpsGlobalPinnedNotification {
   private previousBodyPaddingBottom: string | null = null;
   private previousFooterBottom: { el: HTMLElement; bottom: string } | null = null;
   private bannerObserver?: ResizeObserver;
+  private headerObserver?: ResizeObserver;
+  private observedHeader?: HTMLElement | null;
 
   // Unique per instance so aria-labelledby and aria-controls always resolve to
   // THIS banner's own elements. An id fixed at the class level resolves to
@@ -66,11 +69,56 @@ export class CpsGlobalPinnedNotification {
   private contentId = `cps-pinned-notification-content-${this.instance}`;
 
   componentDidRender() {
+    this.syncWidth();
     this.applyFooterClearance();
   }
 
   disconnectedCallback() {
     this.releaseFooterClearance();
+    this.headerObserver?.disconnect();
+    this.headerObserver = undefined;
+    this.observedHeader = undefined;
+  }
+
+  /**
+   * TAKE OUR WIDTH FROM THE HEADER, not from a number of our own.
+   *
+   * The header and footer are full-bleed inside whatever container the host page
+   * puts them in — neither uses govuk-width-container — so the content column is
+   * the host's decision, and there is nothing static to match. The prototype's own
+   * stylesheet caps this banner at 960px, which is right for the prototype's page
+   * and arbitrary anywhere else.
+   *
+   * cps-global-header is the established source of truth: footer-subscriber
+   * already syncs cps-global-footer's width to it, so matching the header here
+   * lines all three up by construction rather than by coincidence. The threshold
+   * is shared with that subscriber for the same reason it exists there — during a
+   * host SPA route change the header is briefly zero-sized, and an unguarded sync
+   * writes width:0 and collapses the banner.
+   *
+   * Auto margins centre it within the fixed left:0/right:0 box, matching what the
+   * footer shim does.
+   */
+  private syncWidth() {
+    const banner = this.el.querySelector<HTMLElement>(".app-notification-banner-pinned");
+    const header = document.querySelector<HTMLElement>("cps-global-header");
+    if (!banner || !header) {
+      return;
+    }
+    // The header is re-created, not just resized, across some SPA navigations.
+    if (header !== this.observedHeader) {
+      this.headerObserver?.disconnect();
+      this.observedHeader = header;
+      if (typeof ResizeObserver !== "undefined") {
+        this.headerObserver = new ResizeObserver(() => this.syncWidth());
+        this.headerObserver.observe(header);
+      }
+    }
+    const width = header.getBoundingClientRect().width;
+    if (width < MIN_REAL_HEADER_WIDTH_PX) {
+      return; // transient mid-navigation value — keep the last good width
+    }
+    banner.style.width = `${width}px`;
   }
 
   private toggle = () => {

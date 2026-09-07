@@ -19,6 +19,8 @@
 ```mermaid
 graph TD;
   cps-global-case-locking-notification --> cps-global-pinned-notification
+  cps-global-pinned-notification --> cps-global-footer
+  cps-global-footer --> cps-global-footer-content
   cps-global-header --> cps-global-case-locking-notification
   style cps-global-case-locking-notification fill:#f9f,stroke:#333,stroke-width:4px
 ```

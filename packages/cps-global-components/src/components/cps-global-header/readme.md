@@ -38,6 +38,8 @@ graph TD;
   cps-global-menu --> cps-global-case-details
   cps-global-notifications --> cps-gds-notification-banner
   cps-global-case-locking-notification --> cps-global-pinned-notification
+  cps-global-pinned-notification --> cps-global-footer
+  cps-global-footer --> cps-global-footer-content
   style cps-global-header fill:#f9f,stroke:#333,stroke-width:4px
 ```
 
