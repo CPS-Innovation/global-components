@@ -100,15 +100,33 @@ export class CpsGlobalCaseLockingInterstitial {
    * the original, because the estate has custom dark-mode code that rewrites the
    * DOM's colours and never sees a value baked into our stylesheet.
    *
-   * Reading body's computed background at open time inherits whatever that code
-   * has already decided, without coupling us to how it works. Canvas — the CSS
-   * system colour, which follows the user's colour scheme — is the fallback for a
-   * transparent body, which is the common case on a page that never set one.
+   * NEITHER <html> NOR <body> ALONE IS THE ANSWER, and picking one was wrong twice.
+   *
+   * Reading body got transparent under the accessibility subscriber, which puts the
+   * surface on the document element and sets body transparent:
+   *
+   *     [data-grey-mode]      { background-color: <pageSurface> !important }
+   *     [data-grey-mode] body { background-color: transparent !important }
+   *
+   * Reading either one and copying it verbatim then produced a SEMI-TRANSPARENT
+   * dialog on OutSystems hosts, where the value carries alpha — our dark ::backdrop
+   * showed through it as grey.
+   *
+   * So do what the browser does for a real page: paint body's layer over html's,
+   * both over an opaque base. Compositing is the browser's job, no colour parsing
+   * and no alpha arithmetic, and it is correct whichever of the two carries the
+   * colour and whatever alpha either has. Canvas — the CSS system colour that
+   * follows the user's colour scheme — guarantees the result is opaque.
    */
   private paintSurface(dialog: HTMLDialogElement) {
-    const bodyBackground = getComputedStyle(document.body).backgroundColor;
-    const isTransparent = !bodyBackground || bodyBackground === "transparent" || bodyBackground === "rgba(0, 0, 0, 0)";
-    dialog.style.background = isTransparent ? "Canvas" : bodyBackground;
+    const documentSurface = getComputedStyle(document.documentElement).backgroundColor;
+    const bodySurface = getComputedStyle(document.body).backgroundColor;
+    // Stack the page's own two layers over an opaque base, in the order the
+    // browser paints them: body on top, then html, then Canvas. A gradient of a
+    // single colour is just that colour, and is the only way to give one element
+    // several background layers.
+    dialog.style.backgroundColor = "Canvas";
+    dialog.style.backgroundImage = `linear-gradient(${bodySurface}, ${bodySurface}), linear-gradient(${documentSurface}, ${documentSurface})`;
   }
 
   /**
