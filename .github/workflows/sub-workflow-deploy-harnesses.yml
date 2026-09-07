@@ -32,7 +32,7 @@ jobs:
           # The static harness also needs a BASE_PATH for hyperlinks to be consistent
           echo "BASE_PATH=/${{ inputs.environment }}/static" >> $GITHUB_ENV
 
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v6
         with:
           version: latest
           run_install: false
