@@ -19,6 +19,7 @@ dialog.app-interruption {
   max-height: none;
   color: inherit;
 
+<<<<<<< HEAD
   /* FILL THE VIEWPORT. All four of these are load-bearing.
    *
    * inset:0 rather than 100vw/100vh, because 100vw INCLUDES the scrollbar gutter —
@@ -34,6 +35,13 @@ dialog.app-interruption {
   inset: 0;
   width: auto;
   height: auto;
+=======
+  /* inset:0 rather than 100vw/100vh. 100vw INCLUDES the scrollbar gutter, so on a
+   * page with a vertical scrollbar the dialog would be wider than the viewport and
+   * produce a horizontal one of its own. */
+  position: fixed;
+  inset: 0;
+>>>>>>> main
 
   /* Stop a wheel over the dialog scrolling the page behind it once our own
    * scrollable area reaches its end. Costs nothing and needs no host DOM. */
