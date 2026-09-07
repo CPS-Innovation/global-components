@@ -7,54 +7,32 @@
  * from GDS mixins rather than from numbers I picked. Class names match MoJ's so
  * the markup stays recognisable against the UCD prototype.
  *
- * SHAPE: in the prototype this card sits INSIDE <main>, in the grid column,
- * beneath the page's own caption and heading, on the normal white page, with the
- * header and footer still in place. The obscuring is done by the server simply
- * not rendering the case below it.
+ * SHAPE: the card is ordinary page content, in normal flow, exactly as it is in
+ * the prototype. The component hides the host's content while this is up, so
+ * there is nothing to position against and nothing to cover — hence no fixed
+ * positioning, no measured offsets, no z-index and no overflow of its own.
  *
- * We cannot render inside the host's <main>, so we supply the equivalent surface
- * ourselves: a white band starting below our header, with the card held to
- * govuk-width-container. Two earlier attempts were wrong in ways worth recording
- * — the first painted the backdrop blue as well, turning the screen into one blue
- * field; the second used a modal <dialog>, which covers the header and footer
- * because showModal() renders in the top layer.
- */
-
-/* The overlay occupies the band from the bottom of our header to the bottom of
- * the viewport. `top` is set inline from a measurement, because the header's
- * height varies with the rebrand, the case-details strip and the second-level
- * menu.
- *
- * White, not a tint: the point is that the case underneath is not readable, not
- * merely dimmed.
- *
- * FOOTER: the band stops at the top of cps-global-footer-content when it is on
- * screen, and runs to the bottom of the viewport when it is not. That element is
- * OURS, so measuring it is safe; the host's own footer is not ours to find, and
- * hunting for it by selector is the fragility that has cost us twice elsewhere.
- *
- * The document's scroll is locked while this is up (see lockScroll), so these
- * edges can only change on resize.
+ * Three earlier versions are worth remembering, because each was wrong in a way
+ * that looked right first: a blue backdrop behind a blue card (a wall of blue);
+ * a modal <dialog>, which renders in the top layer and covers the header and
+ * footer the design keeps; and a fixed overlay band measured between our header
+ * and our footer, which grew its own scrollbar and visibly shifted when the page
+ * was dragged underneath it.
  */
 .app-interruption {
+  /* The card sits on the page's own background once the content is hidden. GDS
+   * pages are white, but the host's body is not ours to rely on, so the block the
+   * card occupies paints its own. */
+  background: govuk-colour("white");
+  padding-bottom: govuk-spacing(7);
+
   /* Focused programmatically so the alertdialog is announced, never by tabbing.
-   * The ring would frame the whole band, which tells a sighted user nothing and
-   * looks like a bug — the card is plainly the thing that just appeared. Removed
-   * only for this container; every control inside keeps its GDS focus style. */
+   * The ring would frame the whole block, which tells a sighted user nothing —
+   * the card is plainly the thing that just appeared. Removed only for this
+   * container; every control inside keeps its GDS focus style. */
   &:focus {
     outline: none;
   }
-
-  position: fixed;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  z-index: 999;
-  overflow-y: auto;
-  background: govuk-colour("white");
-  padding-top: govuk-spacing(7);
-  padding-bottom: govuk-spacing(7);
-  box-sizing: border-box;
 }
 
 .moj-interruption-card {
@@ -103,9 +81,3 @@
   cursor: pointer;
 }
 
-/* The case reference above the card, mirroring the design's govuk-caption-l. */
-.app-interruption__caption {
-  display: block;
-  color: govuk-colour("dark-grey");
-  margin-bottom: govuk-spacing(2);
-}

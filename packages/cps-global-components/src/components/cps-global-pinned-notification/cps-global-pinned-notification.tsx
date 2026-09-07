@@ -53,6 +53,7 @@ export class CpsGlobalPinnedNotification {
   @Event() cpsDismissed: EventEmitter<void>;
 
   private previousBodyPaddingBottom: string | null = null;
+  private previousFooterBottom: { el: HTMLElement; bottom: string } | null = null;
   private bannerObserver?: ResizeObserver;
 
   // Unique per instance so aria-labelledby and aria-controls always resolve to
@@ -119,15 +120,57 @@ export class CpsGlobalPinnedNotification {
     if (document.body.style.paddingBottom !== height) {
       document.body.style.paddingBottom = height;
     }
+    this.raiseFixedFooter(height);
     if (!this.bannerObserver && typeof ResizeObserver !== "undefined") {
       this.bannerObserver = new ResizeObserver(() => this.applyFooterClearance());
       this.bannerObserver.observe(banner);
     }
   }
 
+  /**
+   * A FOOTER THAT IS ITSELF FIXED CANNOT BE CLEARED BY PADDING.
+   *
+   * The padding above extends the document so the footer comes to rest above the
+   * banner at full scroll — which works only while the footer moves with the
+   * document. Host apps that fix their footer to the viewport (OutSystems does)
+   * leave it anchored at bottom: 0, exactly where we are, and we cover it however
+   * much room we make after it. Measured live: a page whose scrollHeight equalled
+   * its viewport, with the footer's computed position reading `fixed`.
+   *
+   * So for that case we move the footer instead, raising it by our own height so
+   * the banner occupies its own strip beneath it. Applied only when the footer is
+   * genuinely fixed or sticky: on a footer in normal flow `bottom` does nothing,
+   * and the padding is what does the work.
+   */
+  private raiseFixedFooter(height: string) {
+    const footer = document.querySelector<HTMLElement>("cps-global-footer");
+    if (!footer) {
+      return;
+    }
+    const position = getComputedStyle(footer).position;
+    if (position !== "fixed" && position !== "sticky") {
+      return;
+    }
+    if (this.previousFooterBottom === null) {
+      this.previousFooterBottom = { el: footer, bottom: footer.style.bottom };
+    }
+    if (footer.style.bottom !== height) {
+      footer.style.bottom = height;
+    }
+  }
+
+  private lowerFixedFooter() {
+    const previous = this.previousFooterBottom;
+    this.previousFooterBottom = null;
+    if (previous) {
+      previous.el.style.bottom = previous.bottom;
+    }
+  }
+
   private releaseFooterClearance() {
     this.bannerObserver?.disconnect();
     this.bannerObserver = undefined;
+    this.lowerFixedFooter();
     if (this.previousBodyPaddingBottom !== null) {
       document.body.style.paddingBottom = this.previousBodyPaddingBottom;
       this.previousBodyPaddingBottom = null;

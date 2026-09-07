@@ -56,33 +56,37 @@ export namespace Components {
     }
     /**
      * The interruption, from the UCD prototype's moj-interruption-card.
-     * WHY NOT A MODAL <dialog>
-     * showModal() is the tidy answer to "block the page accessibly" — the browser
-     * inerts the whole document, traps focus and supplies a backdrop, all without
-     * touching the host's DOM. But it puts the dialog in the TOP LAYER, which covers
-     * everything, and the design keeps the header and footer visible. So we do it
-     * ourselves: an overlay occupying the band below the header, plus `inert` on the
-     * host's content.
-     * WHAT `inert` BUYS
-     * Covering the page visually is not enough. Without it a screen reader still
-     * reads the case underneath and the keyboard still tabs into it — the user is
-     * told to stop while the page quietly says otherwise. `inert` removes those
-     * elements from the accessibility tree AND the tab order in one attribute.
-     * THE PAGE IS FROZEN WHILE WE ARE UP
-     * An overlay over a page that still scrolls reads as a floating panel, however
-     * it is styled. Locking the document's overflow means nothing behind us can
-     * move, so the band reads as the page rather than as a sheet on top of it — and
-     * with nothing moving there is nothing to re-measure on scroll either.
-     * WE MUTATE HOST DOM HERE, WHICH WE OTHERWISE AVOID. It is confined to setting
-     * and clearing `inert` on the direct children of <body>, excluding our own root,
-     * and every path that hides the overlay releases it — including
-     * disconnectedCallback, because a host app that tears us down mid-interruption
-     * must not be left with an unusable page.
+     * WE REPLACE THE PAGE'S CONTENT RATHER THAN COVER IT.
+     * In the prototype this card is rendered INSIDE <main>: the server simply does
+     * not send the case, so the card is the page's content, in normal flow, with the
+     * header and footer still around it.
+     * Two earlier attempts tried to imitate that from outside, and both failed in
+     * ways worth recording. A modal <dialog> renders in the TOP LAYER, so it covers
+     * the header and footer the design keeps. A fixed overlay band, measured to sit
+     * between our header and our footer, is what actually shipped — and a fixed sheet
+     * over a live page betrays itself however it is styled: it grew its own
+     * scrollbar, and it visibly shifted as the page was dragged underneath it.
+     * So we do what the prototype does. The host's content is HIDDEN and the card
+     * renders in the ordinary document flow, inside cps-global-header where this
+     * component already lives. There is nothing to measure, nothing to keep in sync
+     * with scrolling, no z-index and no second scrollbar — the page is simply
+     * shorter while the interruption is up.
+     * WE MUTATE HOST DOM HERE, WHICH WE OTHERWISE AVOID. It is confined to inline
+     * `display` on the direct children of <body>, with each previous inline value
+     * captured so release restores exactly what was there. Every path that hides the
+     * card releases it, including disconnectedCallback — a host app that tears us
+     * down mid-interruption must not be left with an invisible page.
+     * WHAT IS SPARED: our own subtree, and the subtree containing cps-global-footer.
+     * Both are found by walking up from elements of OURS, never by guessing at the
+     * host's markup — hunting for the host's own header or footer by selector is the
+     * fragility that has cost us twice elsewhere.
      * ACCESSIBILITY
-     * role="alertdialog" is the role for an interruption that demands a decision.
-     * Focus moves into the card when it appears, so assistive tech announces it
-     * rather than leaving it to be discovered, and Escape dismisses — both choices
-     * are visible, so trapping the keyboard would cost more than it buys.
+     * role="alertdialog" is the role for an interruption that demands a decision, and
+     * focus moves into it so assistive tech announces it rather than leaving it to be
+     * discovered. Hiding the host content with `display: none` takes it out of the
+     * accessibility tree and the tab order in one move, so aria-modal is an honest
+     * claim; our own chrome, which stays visible, is made inert for the same reason.
+     * Escape dismisses, and focus returns to wherever it came from.
      */
     interface CpsGlobalCaseLockingInterstitial {
     }
@@ -243,33 +247,37 @@ declare global {
     };
     /**
      * The interruption, from the UCD prototype's moj-interruption-card.
-     * WHY NOT A MODAL <dialog>
-     * showModal() is the tidy answer to "block the page accessibly" — the browser
-     * inerts the whole document, traps focus and supplies a backdrop, all without
-     * touching the host's DOM. But it puts the dialog in the TOP LAYER, which covers
-     * everything, and the design keeps the header and footer visible. So we do it
-     * ourselves: an overlay occupying the band below the header, plus `inert` on the
-     * host's content.
-     * WHAT `inert` BUYS
-     * Covering the page visually is not enough. Without it a screen reader still
-     * reads the case underneath and the keyboard still tabs into it — the user is
-     * told to stop while the page quietly says otherwise. `inert` removes those
-     * elements from the accessibility tree AND the tab order in one attribute.
-     * THE PAGE IS FROZEN WHILE WE ARE UP
-     * An overlay over a page that still scrolls reads as a floating panel, however
-     * it is styled. Locking the document's overflow means nothing behind us can
-     * move, so the band reads as the page rather than as a sheet on top of it — and
-     * with nothing moving there is nothing to re-measure on scroll either.
-     * WE MUTATE HOST DOM HERE, WHICH WE OTHERWISE AVOID. It is confined to setting
-     * and clearing `inert` on the direct children of <body>, excluding our own root,
-     * and every path that hides the overlay releases it — including
-     * disconnectedCallback, because a host app that tears us down mid-interruption
-     * must not be left with an unusable page.
+     * WE REPLACE THE PAGE'S CONTENT RATHER THAN COVER IT.
+     * In the prototype this card is rendered INSIDE <main>: the server simply does
+     * not send the case, so the card is the page's content, in normal flow, with the
+     * header and footer still around it.
+     * Two earlier attempts tried to imitate that from outside, and both failed in
+     * ways worth recording. A modal <dialog> renders in the TOP LAYER, so it covers
+     * the header and footer the design keeps. A fixed overlay band, measured to sit
+     * between our header and our footer, is what actually shipped — and a fixed sheet
+     * over a live page betrays itself however it is styled: it grew its own
+     * scrollbar, and it visibly shifted as the page was dragged underneath it.
+     * So we do what the prototype does. The host's content is HIDDEN and the card
+     * renders in the ordinary document flow, inside cps-global-header where this
+     * component already lives. There is nothing to measure, nothing to keep in sync
+     * with scrolling, no z-index and no second scrollbar — the page is simply
+     * shorter while the interruption is up.
+     * WE MUTATE HOST DOM HERE, WHICH WE OTHERWISE AVOID. It is confined to inline
+     * `display` on the direct children of <body>, with each previous inline value
+     * captured so release restores exactly what was there. Every path that hides the
+     * card releases it, including disconnectedCallback — a host app that tears us
+     * down mid-interruption must not be left with an invisible page.
+     * WHAT IS SPARED: our own subtree, and the subtree containing cps-global-footer.
+     * Both are found by walking up from elements of OURS, never by guessing at the
+     * host's markup — hunting for the host's own header or footer by selector is the
+     * fragility that has cost us twice elsewhere.
      * ACCESSIBILITY
-     * role="alertdialog" is the role for an interruption that demands a decision.
-     * Focus moves into the card when it appears, so assistive tech announces it
-     * rather than leaving it to be discovered, and Escape dismisses — both choices
-     * are visible, so trapping the keyboard would cost more than it buys.
+     * role="alertdialog" is the role for an interruption that demands a decision, and
+     * focus moves into it so assistive tech announces it rather than leaving it to be
+     * discovered. Hiding the host content with `display: none` takes it out of the
+     * accessibility tree and the tab order in one move, so aria-modal is an honest
+     * claim; our own chrome, which stays visible, is made inert for the same reason.
+     * Escape dismisses, and focus returns to wherever it came from.
      */
     interface HTMLCpsGlobalCaseLockingInterstitialElement extends Components.CpsGlobalCaseLockingInterstitial, HTMLStencilElement {
     }
@@ -468,33 +476,37 @@ declare namespace LocalJSX {
     }
     /**
      * The interruption, from the UCD prototype's moj-interruption-card.
-     * WHY NOT A MODAL <dialog>
-     * showModal() is the tidy answer to "block the page accessibly" — the browser
-     * inerts the whole document, traps focus and supplies a backdrop, all without
-     * touching the host's DOM. But it puts the dialog in the TOP LAYER, which covers
-     * everything, and the design keeps the header and footer visible. So we do it
-     * ourselves: an overlay occupying the band below the header, plus `inert` on the
-     * host's content.
-     * WHAT `inert` BUYS
-     * Covering the page visually is not enough. Without it a screen reader still
-     * reads the case underneath and the keyboard still tabs into it — the user is
-     * told to stop while the page quietly says otherwise. `inert` removes those
-     * elements from the accessibility tree AND the tab order in one attribute.
-     * THE PAGE IS FROZEN WHILE WE ARE UP
-     * An overlay over a page that still scrolls reads as a floating panel, however
-     * it is styled. Locking the document's overflow means nothing behind us can
-     * move, so the band reads as the page rather than as a sheet on top of it — and
-     * with nothing moving there is nothing to re-measure on scroll either.
-     * WE MUTATE HOST DOM HERE, WHICH WE OTHERWISE AVOID. It is confined to setting
-     * and clearing `inert` on the direct children of <body>, excluding our own root,
-     * and every path that hides the overlay releases it — including
-     * disconnectedCallback, because a host app that tears us down mid-interruption
-     * must not be left with an unusable page.
+     * WE REPLACE THE PAGE'S CONTENT RATHER THAN COVER IT.
+     * In the prototype this card is rendered INSIDE <main>: the server simply does
+     * not send the case, so the card is the page's content, in normal flow, with the
+     * header and footer still around it.
+     * Two earlier attempts tried to imitate that from outside, and both failed in
+     * ways worth recording. A modal <dialog> renders in the TOP LAYER, so it covers
+     * the header and footer the design keeps. A fixed overlay band, measured to sit
+     * between our header and our footer, is what actually shipped — and a fixed sheet
+     * over a live page betrays itself however it is styled: it grew its own
+     * scrollbar, and it visibly shifted as the page was dragged underneath it.
+     * So we do what the prototype does. The host's content is HIDDEN and the card
+     * renders in the ordinary document flow, inside cps-global-header where this
+     * component already lives. There is nothing to measure, nothing to keep in sync
+     * with scrolling, no z-index and no second scrollbar — the page is simply
+     * shorter while the interruption is up.
+     * WE MUTATE HOST DOM HERE, WHICH WE OTHERWISE AVOID. It is confined to inline
+     * `display` on the direct children of <body>, with each previous inline value
+     * captured so release restores exactly what was there. Every path that hides the
+     * card releases it, including disconnectedCallback — a host app that tears us
+     * down mid-interruption must not be left with an invisible page.
+     * WHAT IS SPARED: our own subtree, and the subtree containing cps-global-footer.
+     * Both are found by walking up from elements of OURS, never by guessing at the
+     * host's markup — hunting for the host's own header or footer by selector is the
+     * fragility that has cost us twice elsewhere.
      * ACCESSIBILITY
-     * role="alertdialog" is the role for an interruption that demands a decision.
-     * Focus moves into the card when it appears, so assistive tech announces it
-     * rather than leaving it to be discovered, and Escape dismisses — both choices
-     * are visible, so trapping the keyboard would cost more than it buys.
+     * role="alertdialog" is the role for an interruption that demands a decision, and
+     * focus moves into it so assistive tech announces it rather than leaving it to be
+     * discovered. Hiding the host content with `display: none` takes it out of the
+     * accessibility tree and the tab order in one move, so aria-modal is an honest
+     * claim; our own chrome, which stays visible, is made inert for the same reason.
+     * Escape dismisses, and focus returns to wherever it came from.
      */
     interface CpsGlobalCaseLockingInterstitial {
     }
@@ -692,33 +704,37 @@ declare module "@stencil/core" {
             "cps-global-case-details": LocalJSX.IntrinsicElements["cps-global-case-details"] & JSXBase.HTMLAttributes<HTMLCpsGlobalCaseDetailsElement>;
             /**
              * The interruption, from the UCD prototype's moj-interruption-card.
-             * WHY NOT A MODAL <dialog>
-             * showModal() is the tidy answer to "block the page accessibly" — the browser
-             * inerts the whole document, traps focus and supplies a backdrop, all without
-             * touching the host's DOM. But it puts the dialog in the TOP LAYER, which covers
-             * everything, and the design keeps the header and footer visible. So we do it
-             * ourselves: an overlay occupying the band below the header, plus `inert` on the
-             * host's content.
-             * WHAT `inert` BUYS
-             * Covering the page visually is not enough. Without it a screen reader still
-             * reads the case underneath and the keyboard still tabs into it — the user is
-             * told to stop while the page quietly says otherwise. `inert` removes those
-             * elements from the accessibility tree AND the tab order in one attribute.
-             * THE PAGE IS FROZEN WHILE WE ARE UP
-             * An overlay over a page that still scrolls reads as a floating panel, however
-             * it is styled. Locking the document's overflow means nothing behind us can
-             * move, so the band reads as the page rather than as a sheet on top of it — and
-             * with nothing moving there is nothing to re-measure on scroll either.
-             * WE MUTATE HOST DOM HERE, WHICH WE OTHERWISE AVOID. It is confined to setting
-             * and clearing `inert` on the direct children of <body>, excluding our own root,
-             * and every path that hides the overlay releases it — including
-             * disconnectedCallback, because a host app that tears us down mid-interruption
-             * must not be left with an unusable page.
+             * WE REPLACE THE PAGE'S CONTENT RATHER THAN COVER IT.
+             * In the prototype this card is rendered INSIDE <main>: the server simply does
+             * not send the case, so the card is the page's content, in normal flow, with the
+             * header and footer still around it.
+             * Two earlier attempts tried to imitate that from outside, and both failed in
+             * ways worth recording. A modal <dialog> renders in the TOP LAYER, so it covers
+             * the header and footer the design keeps. A fixed overlay band, measured to sit
+             * between our header and our footer, is what actually shipped — and a fixed sheet
+             * over a live page betrays itself however it is styled: it grew its own
+             * scrollbar, and it visibly shifted as the page was dragged underneath it.
+             * So we do what the prototype does. The host's content is HIDDEN and the card
+             * renders in the ordinary document flow, inside cps-global-header where this
+             * component already lives. There is nothing to measure, nothing to keep in sync
+             * with scrolling, no z-index and no second scrollbar — the page is simply
+             * shorter while the interruption is up.
+             * WE MUTATE HOST DOM HERE, WHICH WE OTHERWISE AVOID. It is confined to inline
+             * `display` on the direct children of <body>, with each previous inline value
+             * captured so release restores exactly what was there. Every path that hides the
+             * card releases it, including disconnectedCallback — a host app that tears us
+             * down mid-interruption must not be left with an invisible page.
+             * WHAT IS SPARED: our own subtree, and the subtree containing cps-global-footer.
+             * Both are found by walking up from elements of OURS, never by guessing at the
+             * host's markup — hunting for the host's own header or footer by selector is the
+             * fragility that has cost us twice elsewhere.
              * ACCESSIBILITY
-             * role="alertdialog" is the role for an interruption that demands a decision.
-             * Focus moves into the card when it appears, so assistive tech announces it
-             * rather than leaving it to be discovered, and Escape dismisses — both choices
-             * are visible, so trapping the keyboard would cost more than it buys.
+             * role="alertdialog" is the role for an interruption that demands a decision, and
+             * focus moves into it so assistive tech announces it rather than leaving it to be
+             * discovered. Hiding the host content with `display: none` takes it out of the
+             * accessibility tree and the tab order in one move, so aria-modal is an honest
+             * claim; our own chrome, which stays visible, is made inert for the same reason.
+             * Escape dismisses, and focus returns to wherever it came from.
              */
             "cps-global-case-locking-interstitial": LocalJSX.IntrinsicElements["cps-global-case-locking-interstitial"] & JSXBase.HTMLAttributes<HTMLCpsGlobalCaseLockingInterstitialElement>;
             "cps-global-case-locking-notification": LocalJSX.IntrinsicElements["cps-global-case-locking-notification"] & JSXBase.HTMLAttributes<HTMLCpsGlobalCaseLockingNotificationElement>;
