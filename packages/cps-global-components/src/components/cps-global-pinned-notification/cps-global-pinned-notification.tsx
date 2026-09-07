@@ -121,12 +121,25 @@ export class CpsGlobalPinnedNotification {
     // ANCHOR TO THE HEADER'S LEFT EDGE rather than centring in the viewport.
     // Auto margins between left:0 and right:0 centre within the VIEWPORT, but the
     // page's content column is centred within the DOCUMENT — and those differ by
-    // the width of the scrollbar. The banner ended up half a scrollbar (~7px) to
-    // the right of the content it belongs to. Taking the header's own left edge
-    // sidesteps the arithmetic entirely and cannot drift from it.
+    // the width of the scrollbar, which left the banner about half a scrollbar to
+    // the right of the content it belongs to.
+    //
+    // CALIBRATE RATHER THAN ASSUME THE COORDINATE SPACE. `position: fixed` resolves
+    // `left` against the viewport ONLY while no ancestor establishes a containing
+    // block; a transform, filter, contain or will-change anywhere above us makes it
+    // resolve against that ancestor instead. Both kinds of host are in this estate,
+    // and writing a viewport coordinate into the second kind double-counts the
+    // ancestor's own offset — which is exactly how fixing the shift on one host
+    // introduced it on the other.
+    //
+    // So park it at left:0, read where that actually landed, and correct by the
+    // difference. Two reads and a write, correct in either coordinate space, and it
+    // needs to know nothing about the host's CSS.
     banner.style.width = `${rect.width}px`;
-    banner.style.left = `${Math.round(rect.left)}px`;
     banner.style.right = "auto";
+    banner.style.left = "0px";
+    const originLeft = banner.getBoundingClientRect().left;
+    banner.style.left = `${Math.round(rect.left - originLeft)}px`;
   }
 
   private toggle = () => {
