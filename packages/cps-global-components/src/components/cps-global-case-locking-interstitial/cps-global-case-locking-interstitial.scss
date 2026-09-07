@@ -1,38 +1,70 @@
 @use "../common/common.scss" as *;
 
-/* MoJ Frontend's interruption card, reimplemented on GDS foundations.
+/* The interruption as a top-layer dialog. Card styling is shared in spirit with
+ * cps-global-case-locking-interstitial, but deliberately duplicated rather than
+ * shared: these two exist side by side to be compared and one of them is going to
+ * be deleted, and a shared partial would have to be untangled at that point.
  *
- * @ministryofjustice/frontend is not a dependency; govuk-frontend is, and
- * common.scss imports its whole index — so colours, spacing and type all come
- * from GDS mixins rather than from numbers I picked. Class names match MoJ's so
- * the markup stays recognisable against the UCD prototype.
- *
- * SHAPE: the card is ordinary page content, in normal flow, exactly as it is in
- * the prototype. The component hides the host's content while this is up, so
- * there is nothing to position against and nothing to cover — hence no fixed
- * positioning, no measured offsets, no z-index and no overflow of its own.
- *
- * Three earlier versions are worth remembering, because each was wrong in a way
- * that looked right first: a blue backdrop behind a blue card (a wall of blue);
- * a modal <dialog>, which renders in the top layer and covers the header and
- * footer the design keeps; and a fixed overlay band measured between our header
- * and our footer, which grew its own scrollbar and visibly shifted when the page
- * was dragged underneath it.
+ * The dialog fills the viewport and lays out as a column: header, the card, then
+ * the footer pushed to the bottom. The background is painted at runtime from the
+ * host page's own body colour — see paintSurface — so it follows the estate's
+ * dark-mode code rather than baking in a white that code will never find.
  */
-.app-interruption {
-  /* The card sits on the page's own background once the content is hidden. GDS
-   * pages are white, but the host's body is not ours to rely on, so the block the
-   * card occupies paints its own. */
-  background: govuk-colour("white");
-  padding-bottom: govuk-spacing(7);
+dialog.app-interruption {
+  /* Reset the UA's dialog chrome so it can fill the screen. */
+  border: 0;
+  padding: 0;
+  margin: 0;
+  max-width: none;
+  max-height: none;
+  color: inherit;
 
-  /* Focused programmatically so the alertdialog is announced, never by tabbing.
-   * The ring would frame the whole block, which tells a sighted user nothing —
-   * the card is plainly the thing that just appeared. Removed only for this
-   * container; every control inside keeps its GDS focus style. */
-  &:focus {
-    outline: none;
-  }
+  /* inset:0 rather than 100vw/100vh. 100vw INCLUDES the scrollbar gutter, so on a
+   * page with a vertical scrollbar the dialog would be wider than the viewport and
+   * produce a horizontal one of its own. */
+  position: fixed;
+  inset: 0;
+
+  /* Stop a wheel over the dialog scrolling the page behind it once our own
+   * scrollable area reaches its end. Costs nothing and needs no host DOM. */
+  overscroll-behavior: contain;
+
+  display: flex;
+  flex-direction: column;
+}
+
+/* Nothing behind is visible, so the backdrop only needs to stop the page showing
+ * through at the edges on browsers that inset the dialog. */
+dialog.app-interruption::backdrop {
+  background: rgba(0, 0, 0, 0.6);
+}
+
+/* DOM ORDER IS card, header, footer — reading order starts at the message. These
+ * three rules put them back into visual order. */
+/* Centred within the full-width dialog. The WIDTH itself is written inline by
+ * syncChromeWidth() from the real header's measured width — the header and footer
+ * take their width from the host's container on a real page, and there is no such
+ * container in here. Auto margins then place that column centrally, as the footer
+ * shim does on the page. */
+.app-interruption__chrome {
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.app-interruption__chrome--header {
+  order: 1;
+  flex: 0 0 auto;
+}
+
+.app-interruption__main {
+  order: 2;
+  flex: 1 1 auto;
+  overflow-y: auto; /* a long roster scrolls here, not the whole dialog */
+}
+
+.app-interruption__chrome--footer {
+  order: 3;
+  flex: 0 0 auto;
 }
 
 .moj-interruption-card {
@@ -63,16 +95,12 @@
   margin-bottom: 0;
 }
 
-/* govuk-button-group already handles the spacing and wrapping; this only needs
- * to align the link with the button's text baseline. */
 .moj-interruption-card__actions {
   margin-bottom: 0;
 }
 
 /* "Go back" is a link in the design but a <button> in the markup: it performs an
- * action rather than navigating somewhere we know the URL of, and a button is the
- * honest element for that. govuk-link--inverse supplies the colour and the focus
- * style — these rules only strip the browser's button chrome. */
+ * action rather than navigating somewhere we know the URL of. */
 .app-interruption__link {
   background: none;
   border: 0;
@@ -80,4 +108,3 @@
   font-family: inherit;
   cursor: pointer;
 }
-

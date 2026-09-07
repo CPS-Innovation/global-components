@@ -180,10 +180,15 @@ export class CpsGlobalPinnedNotification {
    *
    * The padding above extends the document so the footer comes to rest above the
    * banner at full scroll — which works only while the footer moves with the
-   * document. Host apps that fix their footer to the viewport (OutSystems does)
-   * leave it anchored at bottom: 0, exactly where we are, and we cover it however
-   * much room we make after it. Measured live: a page whose scrollHeight equalled
-   * its viewport, with the footer's computed position reading `fixed`.
+   * document. A footer fixed to the viewport stays anchored at bottom: 0, exactly
+   * where we are, and we cover it however much room we make after it.
+   *
+   * WHOSE FOOTER IS FIXED: not the host's. An earlier reading of `position: fixed`
+   * on a deployed page was our OWN interstitial's pin, measured while it was up —
+   * the host leaves the footer in normal flow, so on an ordinary page it is the
+   * padding above that does the work and this is a no-op. This stays because the
+   * interstitial does pin the footer, and because a host that fixes its own footer
+   * is a real possibility we would otherwise cover.
    *
    * So for that case we move the footer instead, raising it by our own height so
    * the banner occupies its own strip beneath it. Applied only when the footer is
