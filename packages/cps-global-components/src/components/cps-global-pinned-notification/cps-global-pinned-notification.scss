@@ -44,8 +44,25 @@
   bottom: 0;
   left: 0;
   z-index: 1000;
-  margin-right: auto;
-  margin-left: auto;
+  /* left/width are written inline by syncWidth() from the real header's measured
+   * rect. Auto margins are NOT used: they centre within the viewport, which is
+   * wider than the document by the scrollbar, and the banner drifted right of the
+   * content column by half of it. */
+  margin-right: 0;
+  margin-left: 0;
+
+  /* NO BLEED HERE, deliberately — the strip either side of the banner shows
+   * whatever is behind it, and that is correct: page content while scrolling, the
+   * footer's own band once you reach the bottom.
+   *
+   * A previous attempt painted a full-width band in the footer's colour, to fix
+   * OutSystems, where DIV.active-screen.screen-container has `overflow: hidden
+   * scroll` and clips the footer's bleed so the strip falls back to the page
+   * background. But an unconditional bleed covers page content at every OTHER
+   * scroll position, on every host. Matching the footer only where the footer
+   * actually is would need a scroll listener (capture phase, since OutSystems
+   * scrolls an inner container and window scroll events never fire) — more
+   * machinery than a strip of colour in one scroll position is worth. */
 
   /* A long roster must not grow past the viewport and take the actions with it. */
   max-height: 90vh;
