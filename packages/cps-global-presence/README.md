@@ -1,5 +1,14 @@
 # cms-presence-client — presence for the legacy CMS apps
 
+> **This code lives in `packages/` and ships three ways.** It was under
+> `infra/proxy/config/global-components.cms-auth-v2/cms-presence-client/` until
+> 2026-09-07, on the assumption that it was proxy configuration. It is not: it is
+> client code that the proxy happens to inject, and the web components need the
+> same shared modules. `build.sh` emits both legacy bundles into `dist/` (the
+> deploy script uploads them from there) plus `dist/esm/index.js` for the
+> bundler-based consumers. Nothing about the injected URLs changed.
+
+
 Source for **both** injected clients. One build, two artefacts, one shared core:
 
 | artefact | injected into | engine | sections |
@@ -67,7 +76,7 @@ UI         "show it"                       app-specific (a GDS bar here, a menu-
 
 **Transport is JSONP**, the same as Classic — one mechanism for both legacy apps.
 A working SignalR transport is archived, with rehydration instructions, under
-[`infra/proxy/reference/signalr-presence-transport/`](../../../reference/signalr-presence-transport/).
+[`infra/proxy/reference/signalr-presence-transport/`](../../infra/proxy/reference/signalr-presence-transport/).
 It was retired on merit, not on feasibility: cross-origin SignalR is *proven* to
 work in this estate.
 
@@ -172,7 +181,8 @@ once. Moving `common/` into `packages/` is then a lift-and-shift.
 node common/presence-roster.test.js   # or just one
 ```
 
-Also run by `pnpm test` in `infra/proxy`, alongside the njs suites.
+Run by this package's own `pnpm test`. They used to be invoked from `infra/proxy`'s
+test script, which no longer knows about the client code.
 
 Colocated deliberately: these are unit tests of small modules, and what you want
 when you open `presence-roster.js` is `presence-roster.test.js` beside it. The
@@ -232,7 +242,7 @@ The existing asset deploy script takes the source and blob name as env vars — 
 needed:
 
 ```bash
-JS_SRC="$PWD/infra/proxy/config/global-components.cms-auth-v2/cms-presence-client.js" \
+JS_SRC="$PWD/packages/cps-global-presence/dist/cms-presence-client.js" \
 BLOB_NAME=cms-presence-client.js \
 DRY_RUN=0 ./infra/proxy/scripts/deploy-cms-auth-v2-client.local.sh deploy
 ```

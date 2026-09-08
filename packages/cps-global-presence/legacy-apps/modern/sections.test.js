@@ -3,13 +3,13 @@
  * The URLs below are real ones, taken from HAR captures of the deployed apps —
  * including the trailing user guid that neither app documents.
  */
-var h = require("../test-harness");
+var h = require("../../test-harness");
 
 function at(href) {
   var url = new URL(href);
   var win = h.fakeWindow({ href: href, pathname: url.pathname, hash: url.hash });
   return h.load(
-    ["common/presence-sections.js", "common/presence-origin.js", "common/presence-locator.js", "modern/sections.js"],
+    ["legacy-apps/common/presence-sections.js", "legacy-apps/common/presence-origin.js", "legacy-apps/common/presence-locator.js", "legacy-apps/modern/sections.js"],
     ["activeSections", "activeSectionIds", "describeLocation", "resolveJsonpBase"],
     { window: win }
   );
@@ -80,7 +80,7 @@ h.test("uses our own script origin — unproxied, a relative path would hit the 
     { src: "https://polaris.example/global-components/test/cms-presence-client.js" }
   ]);
   var m = h.load(
-    ["common/presence-sections.js", "common/presence-origin.js", "common/presence-locator.js", "modern/sections.js"],
+    ["legacy-apps/common/presence-sections.js", "legacy-apps/common/presence-origin.js", "legacy-apps/common/presence-locator.js", "legacy-apps/modern/sections.js"],
     ["resolveJsonpBase"],
     { window: win, document: doc }
   );
@@ -91,7 +91,7 @@ h.test("falls back to the relative path when our tag cannot be found", function 
   var win = h.fakeWindow({ href: "https://cms.example/viewer/landing", pathname: "/viewer/landing", hash: "" });
   var doc = h.fakeDocument([{ src: "https://cms.example/other.js" }]);
   var m = h.load(
-    ["common/presence-sections.js", "common/presence-origin.js", "common/presence-locator.js", "modern/sections.js"],
+    ["legacy-apps/common/presence-sections.js", "legacy-apps/common/presence-origin.js", "legacy-apps/common/presence-locator.js", "legacy-apps/modern/sections.js"],
     ["resolveJsonpBase"],
     { window: win, document: doc }
   );

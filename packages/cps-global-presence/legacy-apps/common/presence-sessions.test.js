@@ -8,7 +8,7 @@
  * that arrives, one that goes, one the server forgets — because none of it is
  * visible until the day it matters.
  */
-var h = require("../test-harness");
+var h = require("../../test-harness");
 
 var BASE = "https://polaris-uat-notprod.cps.gov.uk/global-components/presence-jsonp";
 var A = "2148456:CASE";
@@ -22,7 +22,7 @@ function rig(overrides) {
   var logged = [];
 
   var m = h.load(
-    ["common/presence-sections.js", "common/presence-jsonp.js", "common/presence-sessions.js"],
+    ["legacy-apps/common/presence-sections.js", "legacy-apps/common/presence-jsonp.js", "legacy-apps/common/presence-sessions.js"],
     ["CCPSessions", "CCPJsonp"],
     { window: win, document: doc }
   );

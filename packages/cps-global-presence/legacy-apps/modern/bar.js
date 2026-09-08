@@ -24,7 +24,9 @@ function describePerson(person, fallbackApp) {
   if (reviewing) {
     return person.userEmail + " is reviewing this case";
   }
-  var app = person.apps.length ? person.apps[0] : fallbackApp;
+  // Through CCPApps so all three clients name applications the same way — the
+  // API's vocabulary is the backend's, not the user's.
+  var app = CCPApps.displayName(person.apps.length ? person.apps[0] : fallbackApp);
   return person.userEmail + " is also viewing this case in " + app;
 }
 

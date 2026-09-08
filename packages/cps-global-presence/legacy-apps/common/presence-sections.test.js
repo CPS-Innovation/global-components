@@ -1,7 +1,7 @@
 /* Unit tests for common/presence-sections.js */
-var h = require("../test-harness");
+var h = require("../../test-harness");
 
-var S = h.load(["common/presence-sections.js"], ["CCPSections"]).CCPSections;
+var S = h.load(["legacy-apps/common/presence-sections.js"], ["CCPSections"]).CCPSections;
 
 h.describe("CCPSections.sectionId");
 

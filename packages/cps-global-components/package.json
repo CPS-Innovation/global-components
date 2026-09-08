@@ -29,10 +29,14 @@
   ],
   "scripts": {
     "preinstall": "npx only-allow pnpm",
+    "build:presence": "cd ../cps-global-presence && ./build.sh >/dev/null",
+    "prebuild": "pnpm run build:presence",
     "build": "stencil build && node scripts/check-no-credentials.js",
+    "prerollup": "pnpm run build:presence",
     "rollup": "rollup --config && node scripts/check-no-credentials.js",
-    "predev": "esbuild mock-api/worker.ts --bundle --outfile=www/mock-api/browser.js --format=esm --log-level=error",
+    "predev": "pnpm run build:presence && esbuild mock-api/worker.ts --bundle --outfile=www/mock-api/browser.js --format=esm --log-level=error",
     "dev": "stencil build --dev --watch --serve",
+    "pretest": "pnpm run build:presence",
     "test": "stencil test --spec",
     "test:watch": "stencil test --spec --watchAll",
     "deploy:prod": "dotenvx run -f .env.prod -- bash ./deploy.sh",
@@ -70,7 +74,8 @@
     "govuk-frontend": "^5.7.1",
     "proper-url-join": "^2.1.2",
     "uuid": "^14.0.0",
-    "zod": "^4.1.11"
+    "zod": "^4.1.11",
+    "cps-global-presence": "workspace:*"
   },
   "msw": {
     "workerDirectory": [

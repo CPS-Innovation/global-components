@@ -13,7 +13,7 @@
  *     genuinely live in nested frames — and several can be active at once, which
  *     the original single-result locator could not report.
  */
-var h = require("../test-harness");
+var h = require("../../test-harness");
 
 var CASE = "2121407";
 var BASE = "https://polaris-qa-notprod.cps.gov.uk/CMS.24.0.01/";
@@ -56,7 +56,7 @@ function shell(main, nested) {
 
 function locate(top) {
   return h.load(
-    ["common/presence-sections.js", "common/presence-locator.js", "classic/dom.js", "classic/banner.js", "classic/sections.js"],
+    ["legacy-apps/common/presence-sections.js", "legacy-apps/common/presence-locator.js", "legacy-apps/classic/dom.js", "legacy-apps/classic/banner.js", "legacy-apps/classic/sections.js"],
     ["activeSections", "activeSectionIds"],
     { window: top, document: top.document }
   );

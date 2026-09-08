@@ -4,10 +4,10 @@
  * another. Relative URLs would resolve against the page — the wrong box — so these
  * assert we take the SCRIPT's origin instead.
  */
-var h = require("../test-harness");
+var h = require("../../test-harness");
 
 function withScripts(tags) {
-  return h.load(["common/presence-origin.js"], ["CCPOrigin"], { document: h.fakeDocument(tags) }).CCPOrigin;
+  return h.load(["legacy-apps/common/presence-origin.js"], ["CCPOrigin"], { document: h.fakeDocument(tags) }).CCPOrigin;
 }
 
 var MARKER = "cms-presence-client.js";

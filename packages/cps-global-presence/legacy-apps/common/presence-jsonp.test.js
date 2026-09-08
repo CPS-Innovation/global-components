@@ -4,12 +4,12 @@
  * through a handful of calls — the harness supplies fakes for those, and the
  * assertions here are on the URL it builds and the callback lifecycle.
  */
-var h = require("../test-harness");
+var h = require("../../test-harness");
 
 function build() {
   var win = h.fakeWindow();
   var doc = h.fakeDocument();
-  var mod = h.load(["common/presence-jsonp.js"], ["CCPJsonp"], { window: win, document: doc });
+  var mod = h.load(["legacy-apps/common/presence-jsonp.js"], ["CCPJsonp"], { window: win, document: doc });
   var call = mod.CCPJsonp.createJsonp({ base: "https://proxy.example/global-components/presence-jsonp", appName: "CMS Modern", timeoutMs: 8000 });
   return { win: win, doc: doc, call: call };
 }

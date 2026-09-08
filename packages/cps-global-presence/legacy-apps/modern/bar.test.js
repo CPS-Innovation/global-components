@@ -4,9 +4,10 @@
  * actually reads. The DOM plumbing around it is exercised in the browser, not
  * here — a fake document would only prove the fake works.
  */
-var h = require("../test-harness");
+var h = require("../../test-harness");
 
-var describePerson = h.load(["modern/bar.js"], ["describePerson"]).describePerson;
+// presence-apps.js comes first: bar.js names applications through CCPApps now.
+var describePerson = h.load(["common/presence-apps.js", "legacy-apps/modern/bar.js"], ["describePerson"]).describePerson;
 
 function person(email, regions, apps) {
   return { userEmail: email, regions: regions, apps: apps || [] };
@@ -24,7 +25,8 @@ h.test("someone on the case is reported as viewing, naming their app", function 
 h.test("their app is named as the server reported it, not as ours", function () {
   h.assertEqual(
     describePerson(person("ann@cps.gov.uk", ["CASE"], ["Work Management App"]), "CMS Modern"),
-    "ann@cps.gov.uk is also viewing this case in Work Management App"
+    // Mapped, not raw: "Work Management App" is the API's name for RCMS.
+    "ann@cps.gov.uk is also viewing this case in RCMS"
   );
 });
 

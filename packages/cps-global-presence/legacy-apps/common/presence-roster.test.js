@@ -4,9 +4,9 @@
  * behind JSONP for the legacy clients and SignalR for the current apps — so the
  * cases below are written against the API's real wire shape.
  */
-var h = require("../test-harness");
+var h = require("../../test-harness");
 
-var loaded = h.load(["common/presence-sections.js", "common/presence-roster.js"], ["CCPRoster"]);
+var loaded = h.load(["legacy-apps/common/presence-sections.js", "legacy-apps/common/presence-roster.js"], ["CCPRoster"]);
 var CCPRoster = loaded.CCPRoster;
 
 // One notification carrying one snapshot, as poll returns it.
