@@ -457,7 +457,14 @@ describe("createCaseLockingPresence", () => {
   describe("the wire contract", () => {
     // Built explicitly rather than via presence() so the version and section are
     // under each test's control — they are the two things being checked.
-    const notification = (version: number, users: string[], section = { caseId: "123", kind: "WITNESS" }) => ({
+    // The section is typed explicitly rather than inferred from the default: an
+    // inferred { caseId, kind } rejects the subjectId that subject-scoped sections
+    // carry, and the tests below need both shapes.
+    const notification = (
+      version: number,
+      users: string[],
+      section: { caseId: string; kind: string; subjectId?: string } = { caseId: "123", kind: "WITNESS" },
+    ) => ({
       type: 0,
       payload: {
         snapshots: [{ section, version, members: users.map(user => ({ userEmail: user, sourceApplication: "CMS" })) }],
