@@ -1,0 +1,13 @@
+{
+  "name": "cps-global-presence",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Presence client shared by CMS Classic, CMS Modern/DCF and the web components.",
+  "main": "dist/esm/index.js",
+  "module": "dist/esm/index.js",
+  "types": "esm.d.ts",
+  "scripts": {
+    "build": "./build.sh",
+    "test": "bash ./test.sh"
+  }
+}

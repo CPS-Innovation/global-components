@@ -2,7 +2,7 @@ import { Component, h } from "@stencil/core";
 import { readyState } from "../../store/store";
 import { FEATURE_FLAGS } from "cps-global-configuration";
 import { formatJoined } from "../../services/case-locking/format-joined";
-import { appDisplayName } from "../../services/case-locking/app-display-name";
+import { CCPPeople } from "cps-global-presence";
 import { CaseLockingPresentSection } from "../../services/case-locking/CaseLockingPresentUsers";
 
 // The region code is also the section kind we register against. Anything not
@@ -17,13 +17,17 @@ const FRIENDLY_NAMES: Record<string, string> = {
 
 const friendlyName = (code: string) => FRIENDLY_NAMES[code] ?? code;
 
-// One person may hold several sections; the summary counts PEOPLE, not sessions,
-// which is what "2 users viewing" means to a reader.
-const distinctUsers = (sections: CaseLockingPresentSection[]) => {
-  const seen = new Set<string>();
-  sections.forEach(section => section.users.forEach(user => seen.add(user.user.toLowerCase())));
-  return seen.size;
-};
+// COLLAPSED IN THE SHARED CODE, not here. The API's records are denormalised —
+// one per user, per section, per application — so the same person on the case and
+// editing a witness within it, from two OutSystems apps, arrives four times. What a
+// reader wants is the person once, with the applications they are in; and because
+// Work Management and Case Review both display as RCMS, someone in both is in one
+// application, not two. CCPPeople.collapse is the single implementation of that,
+// shared with the Classic and Modern clients so all three agree.
+const collapsePeople = (sections: CaseLockingPresentSection[]) =>
+  CCPPeople.collapse(
+    sections.flatMap(section => section.users.map(user => ({ userEmail: user.user, sourceApplication: user.appName, joinedAt: user.joinedAt }))),
+  );
 
 @Component({
   tag: "cps-global-case-locking-notification",
@@ -47,7 +51,7 @@ export class CpsGlobalCaseLockingNotification {
       return null;
     }
 
-    const people = distinctUsers(present.sections);
+    const people = collapsePeople(present.sections).length;
     // The prototype's heading reads "Case locked as 1 user is editing with 2
     // users viewing". We can count people and name their sections; we cannot say
     // who is EDITING or that anything is LOCKED, because the presence API reports
@@ -59,18 +63,24 @@ export class CpsGlobalCaseLockingNotification {
         {present.sections.map(section => (
           <div>
             <h3 class="govuk-heading-s">{friendlyName(section.code)}</h3>
-            {section.users.map(user => {
-              const since = formatJoined(user.joinedAt);
-              // Which application they are in, mapped out of the presence API's own
-              // vocabulary — the three OutSystems apps are all RCMS to a user. Omitted
-              // entirely when the API sends no sourceApplication, rather than shown as
-              // an empty gap in the sentence.
-              const app = appDisplayName(user.appName);
-              const where = app ? ` in ${app}` : "";
+            {/* Collapsed WITHIN the section, not across them: a person in two
+                sections is genuinely in two sections and is listed under each. What
+                must never happen is one person reading as two because the API sent a
+                record per application. */}
+            {collapsePeople([section]).map(person => {
+              // "RCMS since 3.38pm on 8 September 2026", one clause per application.
+              // The API can give us a person with no application at all, in which
+              // case they are simply here and we say no more than that.
+              const where = person.apps
+                .map(app => {
+                  const since = formatJoined(app.timeEntered);
+                  return since ? `${app.appDisplayName} since ${since}` : app.appDisplayName;
+                })
+                .join(", ");
               return (
                 <p class="govuk-body">
-                  {user.user}
-                  {since ? ` has been in this section${where} since ${since}.` : ` is in this section${where}.`}
+                  {person.username}
+                  {where ? ` — ${where}` : " is in this section."}
                 </p>
               );
             })}

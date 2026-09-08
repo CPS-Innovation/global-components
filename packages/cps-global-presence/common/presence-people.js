@@ -1,0 +1,95 @@
+/* common/presence-people.js — one row per PERSON, not per registration.
+ * SHARED, MODE 5 FLOOR.
+ *
+ * WHAT THE API GIVES US is denormalised: one member record per user, per section,
+ * per application. The same person on the case AND editing a witness within it,
+ * from two OutSystems apps, is four records. Rendered literally that is four
+ * people, or one person listed four times, and neither is true.
+ *
+ * WHAT A UI NEEDS is the person, once, with the applications they are in. So this
+ * collapses on two keys:
+ *
+ *   PERSON, by email case-insensitively — the server derives it from token claims
+ *   and its casing is not ours to rely on. The first spelling seen is the one
+ *   reported, so the display keeps whatever the server actually sent.
+ *
+ *   APPLICATION, by DISPLAY name, after CCPApps has mapped it. That is the whole
+ *   point of collapsing here rather than in each UI: Work Management App and Case
+ *   Review App are both RCMS, so someone in both is in ONE application as far as a
+ *   user is concerned, not two.
+ *
+ * timeEntered is the EARLIEST joinedAt seen for that person in that application.
+ * When two records collapse into one, the answer to "since when" is when they
+ * arrived, not when the later of two registrations happened to be made.
+ *
+ * FORMAT IS NOT OUR JOB: timeEntered is passed through exactly as the API sent it.
+ * Each client formats dates its own way, and the two legacy ones cannot use the
+ * facilities the web components have.
+ *
+ * ORDER is first appearance, for people and for their applications. Stable across
+ * polls as long as the server's own order is stable, so a UI does not reshuffle
+ * under the reader.
+ */
+
+var CCPPeople = {};
+
+/**
+ * @param {Array<{userEmail?: string, sourceApplication?: string, joinedAt?: string}>} members
+ *        Every member record, from every section, flattened. Callers hold the
+ *        sections differently; this deliberately takes the flat list they can all
+ *        produce.
+ * @returns {Array<{username: string, apps: Array<{appDisplayName: string, timeEntered: string|undefined}>}>}
+ */
+CCPPeople.collapse = function (members) {
+  var byUser = {};
+  var order = [];
+  var out = [];
+  var i, member, id, person, appName, app, j, found;
+
+  if (!members || !members.length) {
+    return out;
+  }
+
+  for (i = 0; i < members.length; i++) {
+    member = members[i];
+    if (!member) {
+      continue;
+    }
+    id = String(member.userEmail ? member.userEmail : "").toLowerCase();
+    if (!id) {
+      continue; // a record with nobody in it says nothing
+    }
+    if (!byUser.hasOwnProperty(id)) {
+      byUser[id] = { username: member.userEmail, apps: [] };
+      order.push(id);
+    }
+    person = byUser[id];
+
+    appName = CCPApps.displayName(member.sourceApplication);
+    if (!appName) {
+      continue; // present, but the API did not say where — the person still counts
+    }
+
+    found = null;
+    for (j = 0; j < person.apps.length; j++) {
+      if (person.apps[j].appDisplayName === appName) {
+        found = person.apps[j];
+        break;
+      }
+    }
+    if (!found) {
+      person.apps.push({ appDisplayName: appName, timeEntered: member.joinedAt });
+      continue;
+    }
+    // Earliest wins. String comparison is correct for the ISO-8601 the API sends,
+    // and avoids parsing dates at the mode 5 floor.
+    if (member.joinedAt && (!found.timeEntered || member.joinedAt < found.timeEntered)) {
+      found.timeEntered = member.joinedAt;
+    }
+  }
+
+  for (i = 0; i < order.length; i++) {
+    out.push(byUser[order[i]]);
+  }
+  return out;
+};

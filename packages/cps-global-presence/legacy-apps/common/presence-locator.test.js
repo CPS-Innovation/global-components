@@ -5,10 +5,10 @@
  * duplicate cases that the single-section locators used to get wrong by
  * construction.
  */
-var h = require("../test-harness");
+var h = require("../../test-harness");
 
 function load() {
-  return h.load(["common/presence-sections.js", "common/presence-locator.js"], ["CCPLocator"]).CCPLocator;
+  return h.load(["legacy-apps/common/presence-sections.js", "legacy-apps/common/presence-locator.js"], ["CCPLocator"]).CCPLocator;
 }
 
 var CCPLocator = load();

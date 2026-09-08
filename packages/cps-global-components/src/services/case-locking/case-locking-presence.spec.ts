@@ -507,6 +507,76 @@ describe("createCaseLockingPresence", () => {
       expect(getPresentUsers()).toBeUndefined();
     });
 
+    // A :CASE session receives notifications for the whole case, sub-sections
+    // included — the backend's own description. Someone only in a sub-section is
+    // still on this case, and must be reported as such.
+    describe("the case-wide session takes any section of its case", () => {
+      const onCase = async () => {
+        const rig = setup();
+        rig.service.setCaseId("123");
+        rig.service.addRegion("case");
+        await flush();
+        return { ...rig, hub: rig.hubFor("123:CASE")! };
+      };
+
+      it("counts someone who is only in a sub-section", async () => {
+        const { hub, allUsers } = await onCase();
+        hub.__notify?.(notification(1, ["bob@cps.gov.uk"], { caseId: "123", kind: "CASE_REVIEW" }));
+        await flush();
+        expect(allUsers()).toEqual([{ user: "bob@cps.gov.uk", appName: "CMS", joinedAt: undefined }]);
+      });
+
+      it("counts a subject-scoped sub-section too", async () => {
+        const { hub, allUsers } = await onCase();
+        hub.__notify?.(notification(1, ["bob@cps.gov.uk"], { caseId: "123", kind: "VICTIM_WITNESS", subjectId: "543231" }));
+        await flush();
+        expect(allUsers()).toHaveLength(1);
+      });
+
+      // The same person in two sections is one person on this case.
+      it("reports someone in several sections once", async () => {
+        const { hub, allUsers } = await onCase();
+        hub.__notify?.(notification(1, ["bob@cps.gov.uk"], { caseId: "123", kind: "CASE" }));
+        hub.__notify?.(notification(1, ["bob@cps.gov.uk"], { caseId: "123", kind: "CASE_REVIEW" }));
+        await flush();
+        expect(allUsers()).toHaveLength(1);
+      });
+
+      it("merges different people across sections", async () => {
+        const { hub, allUsers } = await onCase();
+        hub.__notify?.(notification(1, ["bob@cps.gov.uk"], { caseId: "123", kind: "CASE" }));
+        hub.__notify?.(notification(1, ["ann@cps.gov.uk"], { caseId: "123", kind: "CASE_REVIEW" }));
+        await flush();
+        expect(allUsers().map(u => u.user).sort()).toEqual(["ann@cps.gov.uk", "bob@cps.gov.uk"]);
+      });
+
+      // Versions are issued PER SECTION. A single counter would let a high version
+      // in one section suppress a later, live snapshot in another.
+      it("versions each section independently", async () => {
+        const { hub, allUsers } = await onCase();
+        hub.__notify?.(notification(7, ["ann@cps.gov.uk"], { caseId: "123", kind: "CASE_REVIEW" }));
+        hub.__notify?.(notification(5, ["bob@cps.gov.uk"], { caseId: "123", kind: "CASE" }));
+        await flush();
+        expect(allUsers().map(u => u.user).sort()).toEqual(["ann@cps.gov.uk", "bob@cps.gov.uk"]);
+      });
+
+      it("still ignores another case entirely", async () => {
+        const { hub, getPresentUsers } = await onCase();
+        hub.__notify?.(notification(1, ["bob@cps.gov.uk"], { caseId: "999", kind: "CASE_REVIEW" }));
+        await flush();
+        expect(getPresentUsers()).toBeUndefined();
+      });
+
+      it("a section emptying removes only its own members", async () => {
+        const { hub, allUsers } = await onCase();
+        hub.__notify?.(notification(1, ["bob@cps.gov.uk"], { caseId: "123", kind: "CASE" }));
+        hub.__notify?.(notification(1, ["ann@cps.gov.uk"], { caseId: "123", kind: "CASE_REVIEW" }));
+        hub.__notify?.(notification(2, [], { caseId: "123", kind: "CASE_REVIEW" }));
+        await flush();
+        expect(allUsers().map(u => u.user)).toEqual(["bob@cps.gov.uk"]);
+      });
+    });
+
     it("ignores notifications that are not presence snapshots", async () => {
       const { hub, getPresentUsers } = await onWitness();
       hub.__notify?.({ ...notification(1, ["bob@cps.gov.uk"]), type: 1 });

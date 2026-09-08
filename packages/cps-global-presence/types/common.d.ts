@@ -1,3 +1,43 @@
+declare namespace CCPApps {
+    let DISPLAY_NAMES: {
+        "Work Management App": string;
+        "Case Review App": string;
+        "Casework App": string;
+    };
+    /**
+     * FALLS BACK TO THE NAME AS SENT, deliberately. An application the API starts
+     * reporting before this table knows about it shows the backend's own wording,
+     * which is imperfect but true. Hiding it would lose the one thing a user needs in
+     * order to go and find the person.
+     *
+     * Returns "" when there is no application at all, so callers can omit the clause
+     * rather than printing an empty gap.
+     *
+     * @param {string|undefined} appName
+     * @returns {string}
+     */
+    function displayName(appName: string | undefined): string;
+}
+declare namespace CCPPeople {
+    /**
+     * @param {Array<{userEmail?: string, sourceApplication?: string, joinedAt?: string}>} members
+     *        Every member record, from every section, flattened. Callers hold the
+     *        sections differently; this deliberately takes the flat list they can all
+     *        produce.
+     * @returns {Array<{username: string, apps: Array<{appDisplayName: string, timeEntered: string|undefined}>}>}
+     */
+    function collapse(members: Array<{
+        userEmail?: string;
+        sourceApplication?: string;
+        joinedAt?: string;
+    }>): Array<{
+        username: string;
+        apps: Array<{
+            appDisplayName: string;
+            timeEntered: string | undefined;
+        }>;
+    }>;
+}
 /**
  * window[name] = value, spelled out because TypeScript objects otherwise: the DOM
  * lib types a string index on Window as a named frame, not an arbitrary value.

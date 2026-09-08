@@ -50,15 +50,15 @@ the only coupling, and it is what makes rehydration cheap.
 
 ## Rehydrating
 
-1. **Vendor files** into `cms-presence-client/vendor/`, exact versions — these are the
+1. **Vendor files** into `packages/cps-global-presence/vendor/`, exact versions — these are the
    last that work at document mode 11:
    - `es6-promise-4.2.8.auto.min.js` (MIT) — mode 11 has no `Promise`; the `.auto` build
      installs it globally, which the SignalR client requires.
    - `signalr-3.1.31.min.js` (Apache-2.0) — `@microsoft/signalr` 3.1. Later majors drop
      IE support.
 
-2. **Restore the two source files**: `plugin.js` → `cms-presence-client/signalr/`, and
-   `transport-signalr.js` (+ its test) → `cms-presence-client/modern/`.
+2. **Restore the two source files**: `plugin.js` → `packages/cps-global-presence/signalr/`, and
+   `transport-signalr.js` (+ its test) → `packages/cps-global-presence/modern/`.
 
 3. **Re-point the loader at the session interface.** This is the one thing that has
    moved on: when this was archived, transports implemented

@@ -22,7 +22,9 @@
 var path = require("path");
 var fs = require("fs");
 
-var ROOT = path.resolve(__dirname, "../../../../..");
+// The workspace root, for the pnpm store paths below. Two levels up now this
+// lives in packages/ — it was five when it sat under infra/proxy/config/.
+var ROOT = path.resolve(__dirname, "../..");
 var acorn = require(path.join(ROOT, "node_modules/.pnpm/acorn@8.16.0/node_modules/acorn"));
 var walk = require(path.join(ROOT, "node_modules/.pnpm/acorn-walk@8.3.5/node_modules/acorn-walk"));
 

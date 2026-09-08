@@ -34,7 +34,8 @@
   },
   "include": [
     "common/*.js",
-    "common/types.d.ts"
+    "legacy-apps/common/*.js",
+    "legacy-apps/common/types.d.ts"
   ],
   "exclude": [
     "**/*.test.js",

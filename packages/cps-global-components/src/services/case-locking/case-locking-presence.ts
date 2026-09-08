@@ -108,9 +108,24 @@ type ConnectionEntry = {
   caseId: string;
   sectionId: string;
   connection: HubConnection;
-  // Highest snapshot version applied for this section. -Infinity so the first
-  // snapshot always wins, whatever the server starts counting from.
-  version: number;
+  /**
+   * Highest snapshot version applied, PER SECTION ID. -Infinity (absent) so the
+   * first snapshot for a section always wins, whatever the server starts counting
+   * from.
+   *
+   * Per section rather than per connection because a :CASE session receives
+   * notifications for the whole case — its sub-sections included — and the server
+   * versions each section separately. A single counter would let CASE_REVIEW at
+   * version 7 suppress a later CASE at version 5 as stale, silently discarding a
+   * live snapshot.
+   */
+  versions: Record<string, number>;
+  /**
+   * The members last seen in each section this connection covers, so the published
+   * roster can be the union. A :CASE connection accumulates several; a sub-section
+   * connection only ever holds its own.
+   */
+  membersBySection: Record<string, CaseLockingPresentUser[]>;
   keepAlive: ReturnType<typeof setInterval> | undefined;
   keepAliveInFlight: boolean;
 };
@@ -129,6 +144,9 @@ export const buildSectionId = (caseId: string, kind: string, subjectId?: string 
   subjectId ? `${caseId}:${kind.toUpperCase()}:${subjectId}` : `${caseId}:${kind.toUpperCase()}`;
 
 // The same identity, derived from a snapshot's section object rather than parts.
+/** The kind the hub uses for the whole case, as opposed to a section within it. */
+const CASE_KIND = "CASE";
+
 const sectionIdOf = (section: PresenceSection | undefined): string => {
   if (!section || section.caseId === undefined || section.caseId === null || !section.kind) {
     return "";
@@ -202,6 +220,37 @@ export const createCaseLockingPresence = ({
     joinedAt: member.joinedAt,
   });
 
+  /**
+   * Every member this connection currently knows about, across every section of its
+   * case, deduplicated.
+   *
+   * The same person is genuinely in several sections at once — on the case AND
+   * editing a witness within it — and the server reports them in each. To a reader
+   * that is one person on this case, so the earliest arrival is kept and the rest
+   * discarded. Matching is case-insensitive on the email: the server derives it from
+   * token claims and its casing is not ours to rely on.
+   */
+  const mergeMembers = (entry: ConnectionEntry): CaseLockingPresentUser[] => {
+    const byUser = new Map<string, CaseLockingPresentUser>();
+    Object.keys(entry.membersBySection).forEach(sectionId =>
+      entry.membersBySection[sectionId].forEach(user => {
+        const id = (user.user ?? "").toLowerCase();
+        if (!id) {
+          return;
+        }
+        const seen = byUser.get(id);
+        if (!seen) {
+          byUser.set(id, user);
+          return;
+        }
+        if (user.joinedAt && (!seen.joinedAt || user.joinedAt < seen.joinedAt)) {
+          byUser.set(id, user);
+        }
+      }),
+    );
+    return Array.from(byUser.values());
+  };
+
   // Empty sections are dropped: a section everyone has left is not news, and the
   // design omits them from the detail panel.
   const publish = () => {
@@ -226,9 +275,22 @@ export const createCaseLockingPresence = ({
     }
   };
 
-  // Apply one notification to one connection's section. Snapshots for any other
-  // section are ignored here: each connection owns exactly one, and whichever
-  // connection owns the other will receive its own copy.
+  /**
+   * Apply one notification to one connection.
+   *
+   * THE CASE-WIDE SESSION TAKES ANY SECTION OF ITS CASE. A session bound to
+   * "12345:CASE" receives notifications for the whole case, sub-sections included —
+   * so someone only in "12345:CASE_REVIEW" or "12345:VICTIM_WITNESS:543231" is on
+   * this case, and reporting them absent because their section id is not an exact
+   * match would be plainly wrong.
+   *
+   * EVERY OTHER SESSION KEEPS THE EXACT MATCH, and that is not merely caution. A
+   * roster is published under its region's code, so members accepted by a witness
+   * connection are reported as being in the witness section. Letting case-wide
+   * members in there would mislabel them. The server does not send them either —
+   * a sub-section binding receives only its own section — so this is the same
+   * behaviour stated twice, which is what we want from a client boundary.
+   */
   const applyNotification = (key: string, spec: SectionSpec, entry: ConnectionEntry, notification: PresenceNotification) => {
     if (!notification || notification.type !== NOTIFICATION_TYPE_PRESENCE) {
       return;
@@ -237,21 +299,35 @@ export const createCaseLockingPresence = ({
     if (!snapshots || !snapshots.length) {
       return;
     }
+    // Case-wide only when this connection IS the case section, not merely when its
+    // section happens to be case-wide: CASE_REVIEW carries no subject either.
+    const takesWholeCase = entry.sectionId === buildSectionId(entry.caseId, CASE_KIND);
+    let changed = false;
     for (const snapshot of snapshots) {
-      if (sectionIdOf(snapshot?.section) !== entry.sectionId) {
+      const sectionId = sectionIdOf(snapshot?.section);
+      if (!sectionId) {
+        continue;
+      }
+      const wanted = takesWholeCase ? String(snapshot?.section?.caseId ?? "") === entry.caseId : sectionId === entry.sectionId;
+      if (!wanted) {
         continue;
       }
       const version = typeof snapshot.version === "number" ? snapshot.version : NaN;
+      const applied = entry.versions[sectionId] ?? Number.NEGATIVE_INFINITY;
       // A version we have already passed is stale and must not be applied. NaN
       // compares false against everything, so an unversioned snapshot is always
       // accepted — the best available behaviour when the server gives us nothing
       // to order by.
-      if (version <= entry.version) {
-        _debug("discarding stale snapshot", { key, sectionId: entry.sectionId, version, applied: entry.version });
+      if (version <= applied) {
+        _debug("discarding stale snapshot", { key, sectionId, version, applied });
         continue;
       }
-      entry.version = version;
-      publishPresentUsers(key, spec.code, (snapshot.members ?? []).map(toPresentUser));
+      entry.versions[sectionId] = version;
+      entry.membersBySection[sectionId] = (snapshot.members ?? []).map(toPresentUser);
+      changed = true;
+    }
+    if (changed) {
+      publishPresentUsers(key, spec.code, mergeMembers(entry));
     }
   };
 
@@ -278,9 +354,9 @@ export const createCaseLockingPresence = ({
           _warn("KeepAlive failed", { sectionId: entry.sectionId }, err);
         } else {
           // Our session was reaped. Everything we hold is now fiction, so the
-          // version goes back and the rejoined session's first snapshot is taken.
+          // sections' versions go back and the rejoined session's first snapshot is taken.
           _debug("session evicted — rejoining", { sectionId: entry.sectionId });
-          entry.version = Number.NEGATIVE_INFINITY;
+          entry.versions = {};
           try {
             await entry.connection.invoke("Connect", entry.sectionId, appName);
           } catch (rejoinErr) {
@@ -304,7 +380,8 @@ export const createCaseLockingPresence = ({
       caseId,
       sectionId,
       connection,
-      version: Number.NEGATIVE_INFINITY,
+      versions: {},
+      membersBySection: {},
       keepAlive: undefined,
       keepAliveInFlight: false,
     };
@@ -319,7 +396,9 @@ export const createCaseLockingPresence = ({
       // A new transport means a new session; the roster we hold describes a world
       // that no longer exists, so the version goes back with it.
       _debug("reconnected — re-invoking Connect", { sectionId });
-      entry.version = Number.NEGATIVE_INFINITY;
+      // Members are KEPT until the fresh snapshots replace them: dropping them
+      // here would blank the banner for the length of a reconnect.
+      entry.versions = {};
       connection.invoke("Connect", sectionId, appName).catch(err => _warn("reconnect invoke failed", { sectionId }, err));
     });
 
