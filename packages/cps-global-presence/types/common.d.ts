@@ -18,6 +18,18 @@ declare namespace CCPApps {
      */
     function displayName(appName: string | undefined): string;
 }
+/**
+ * @param {Array<{appDisplayName: string, timeEntered: string|undefined}>} apps
+ * @param {string} appDisplayName
+ * @returns {{appDisplayName: string, timeEntered: string|undefined}|null}
+ */
+declare function findApp(apps: Array<{
+    appDisplayName: string;
+    timeEntered: string | undefined;
+}>, appDisplayName: string): {
+    appDisplayName: string;
+    timeEntered: string | undefined;
+} | null;
 declare namespace CCPPeople {
     /**
      * @param {Array<{userEmail?: string, sourceApplication?: string, joinedAt?: string}>} members

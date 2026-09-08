@@ -33,6 +33,24 @@
 
 var CCPPeople = {};
 
+// The app entry for a display name, or null. Its own function so collapse() below
+// reads as the two decisions it actually makes — which person, which application —
+// rather than as three nested loops.
+/**
+ * @param {Array<{appDisplayName: string, timeEntered: string|undefined}>} apps
+ * @param {string} appDisplayName
+ * @returns {{appDisplayName: string, timeEntered: string|undefined}|null}
+ */
+function findApp(apps, appDisplayName) {
+  var j;
+  for (j = 0; j < apps.length; j++) {
+    if (apps[j].appDisplayName === appDisplayName) {
+      return apps[j];
+    }
+  }
+  return null;
+}
+
 /**
  * @param {Array<{userEmail?: string, sourceApplication?: string, joinedAt?: string}>} members
  *        Every member record, from every section, flattened. Callers hold the
@@ -44,7 +62,7 @@ CCPPeople.collapse = function (members) {
   var byUser = {};
   var order = [];
   var out = [];
-  var i, member, id, person, appName, app, j, found;
+  var i, member, id, person, appName, found;
 
   if (!members || !members.length) {
     return out;
@@ -70,13 +88,7 @@ CCPPeople.collapse = function (members) {
       continue; // present, but the API did not say where — the person still counts
     }
 
-    found = null;
-    for (j = 0; j < person.apps.length; j++) {
-      if (person.apps[j].appDisplayName === appName) {
-        found = person.apps[j];
-        break;
-      }
-    }
+    found = findApp(person.apps, appName);
     if (!found) {
       person.apps.push({ appDisplayName: appName, timeEntered: member.joinedAt });
       continue;

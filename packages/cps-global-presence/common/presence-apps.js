@@ -45,5 +45,5 @@ CCPApps.displayName = function (appName) {
     return "";
   }
   var mapped = CCPApps.DISPLAY_NAMES[appName];
-  return mapped ? mapped : appName;
+  return mapped || appName;
 };
