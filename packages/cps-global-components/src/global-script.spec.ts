@@ -130,11 +130,9 @@ jest.mock("./services/data/initialise-case-details-data", () => ({
 }));
 
 const mockInitialiseCaseLockingForContext = jest.fn();
-const mockWitnessAreaSubscriber = jest.fn(() => ({ isActiveForContext: false, subscriptions: [] }));
 jest.mock("./services/case-locking/initialise-case-locking", () => ({
   initialiseCaseLocking: () => ({
     initialiseCaseLockingForContext: mockInitialiseCaseLockingForContext,
-    witnessAreaSubscriber: mockWitnessAreaSubscriber,
   }),
 }));
 

@@ -225,30 +225,44 @@ export const createCaseLockingPresence = ({
    * case, deduplicated.
    *
    * The same person is genuinely in several sections at once — on the case AND
-   * editing a witness within it — and the server reports them in each. To a reader
-   * that is one person on this case, so the earliest arrival is kept and the rest
-   * discarded. Matching is case-insensitive on the email: the server derives it from
-   * token claims and its casing is not ours to rely on.
+   * editing a witness within it — and the server reports them in each. Those are
+   * one presence, so the earliest arrival wins and the rest are dropped.
+   *
+   * BUT ONE PERSON IN TWO SYSTEMS IS TWO PRESENCES, and both are worth reporting:
+   * someone in RCMS and CMS Classic is in both, and saying only the older would be
+   * a smaller truth than we have. So this collapses per person PER APPLICATION and
+   * leaves the person-level collapse to CCPPeople.collapse downstream, whose shape
+   * carries several applications for one person and this one cannot.
+   *
+   * Matching is case-insensitive on the email: the server derives it from token
+   * claims and its casing is not ours to rely on.
    */
   const mergeMembers = (entry: ConnectionEntry): CaseLockingPresentUser[] => {
-    const byUser = new Map<string, CaseLockingPresentUser>();
+    const byUserAndApp = new Map<string, CaseLockingPresentUser>();
     Object.keys(entry.membersBySection).forEach(sectionId =>
       entry.membersBySection[sectionId].forEach(user => {
         const id = (user.user ?? "").toLowerCase();
         if (!id) {
           return;
         }
-        const seen = byUser.get(id);
+        // Keyed on the PERSON AND THE APPLICATION. Keying on the person alone would
+        // report someone signed into two systems as being in only one of them —
+        // whichever they reached first — and silently drop the other session. A
+        // null byte separates the parts because neither can contain one, so
+        // "a@b" + "X" cannot collide with "a@b:X" + "".
+        const key = `${id}\u0000${(user.appName ?? "").toLowerCase()}`;
+        const seen = byUserAndApp.get(key);
         if (!seen) {
-          byUser.set(id, user);
+          byUserAndApp.set(key, user);
           return;
         }
+        // Same person, same application, reported by two sections: one arrival.
         if (user.joinedAt && (!seen.joinedAt || user.joinedAt < seen.joinedAt)) {
-          byUser.set(id, user);
+          byUserAndApp.set(key, user);
         }
       }),
     );
-    return Array.from(byUser.values());
+    return Array.from(byUserAndApp.values());
   };
 
   // Empty sections are dropped: a section everyone has left is not news, and the

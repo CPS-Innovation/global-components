@@ -86,11 +86,31 @@ const skipLinksSchema = z.object({
 
 export type SkipLinks = z.infer<typeof skipLinksSchema>;
 
+const caseLockingRegionSchema = z.object({
+  // The section kind, lower-case by local convention; the wire form upper-cases it,
+  // so "victim_witness" becomes VICTIM_WITNESS. Must match what CMS Classic and CMS
+  // Modern register for the same thing, or the two systems register different
+  // sections and never see each other.
+  code: z.string(),
+  // The subject, for kinds scoped to one person. A TEMPLATE, substituted from the
+  // current tags exactly as msalRedirectUrl and the menu hrefs are — so a named
+  // group captured by this context's own path regex is all it takes:
+  //   path:    "...In_WitnessID=(?<witnessId>\\d+)..."
+  //   subject: "{witnessId}"
+  // Omitted for case-wide kinds. If the template resolves to nothing the region is
+  // case-wide rather than scoped to an empty subject.
+  subject: z.string().optional(),
+});
+
+export type CaseLockingRegion = z.infer<typeof caseLockingRegionSchema>;
+
 const contextPathsSchema = z.object({
   path: z.string(),
   contextIds: z.string(),
   // See contextsBaseSchema — a leaf may name its own app rather than inherit one.
   caseLockingAppName: z.string().optional(),
+  // See contextsBaseSchema — likewise for the section this path represents.
+  caseLockingRegion: caseLockingRegionSchema.optional(),
   domTagDefinitions: z.array(domTagDefinitionsSchema).optional(),
   showNotification: z.boolean().optional(),
   preventADAndDataCalls: z.boolean().optional(),
@@ -112,6 +132,31 @@ const contextsBaseSchema = z.object({
   // path under it inherits; a leaf can override. Display names are NOT here: they
   // are a code-level mapping shared with the legacy clients.
   caseLockingAppName: z.string().optional(),
+  /**
+   * WHICH SECTION OF THE CASE this path represents, for presence.
+   *
+   * Every variant we need to report is identifiable from the address bar, and this
+   * tree is already the thing that matches addresses — so the section is recorded
+   * here rather than discovered in the DOM. A path that says which witness is being
+   * edited has said everything presence needs.
+   *
+   * ABSENT MEANS NO PRESENCE ON THIS PATH — there is no fallback. Every case
+   * context states its own section, including the plain ones that say { "code":
+   * "case" }. That verbosity buys two things: "this page reports nothing" becomes
+   * something config can say, and presence stops being a side effect of whether a
+   * caseId happened to reach the store from a path group or from a handover.
+   *
+   * ORDERING MATTERS. Contexts are first-match-wins, so a path that names a finer
+   * section must sit BEFORE the broader one it would otherwise fall through to —
+   * and should carry the same contextIds, so the only new thing about it is the
+   * section it reports.
+   *
+   * This does NOT replace <cps-region>. The header renders one either way, with the
+   * code this names — so a host app that later needs something finer than a URL can
+   * express drops its own tag in, and the more-specific-region rule in
+   * initialise-case-locking stands ours down. One mechanism, two ways to drive it.
+   */
+  caseLockingRegion: caseLockingRegionSchema.optional(),
   msalRedirectUrl: z.string().optional(),
   domTagDefinitions: z.array(domTagDefinitionsSchema).optional(),
   forceCmsAuthRefresh: z.boolean().optional(),
