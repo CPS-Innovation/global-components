@@ -1,6 +1,16 @@
 export type CaseLockingPresentUser = {
   user: string;
   appName: string;
+  /**
+   * The section KINDS this person is in, as the API names them — CASE,
+   * CASE_REVIEW, VICTIM_WITNESS. Usually one; more when someone is in a section
+   * and the case around it.
+   *
+   * Carried per person because a case-wide session merges every section of its
+   * case into one roster, and without this the UI could only ever say "this case"
+   * — which is true and useless. CCPSectionNames turns them into words.
+   */
+  sectionKinds?: string[];
   /** ISO timestamp from the API's member record. Absent if the server omits it. */
   joinedAt?: string;
 };

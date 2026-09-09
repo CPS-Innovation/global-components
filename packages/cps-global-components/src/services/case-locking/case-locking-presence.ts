@@ -214,10 +214,11 @@ export const createCaseLockingPresence = ({
   // rather than replaced on purpose: the UI is changing shortly, so this keeps the
   // existing contract instead of inventing a second one that is about to be thrown
   // away.
-  const toPresentUser = (member: PresenceMember): CaseLockingPresentUser => ({
+  const toPresentUser = (member: PresenceMember, sectionKind: string): CaseLockingPresentUser => ({
     user: member.userEmail ?? "",
     appName: member.sourceApplication ?? "",
     joinedAt: member.joinedAt,
+    sectionKinds: sectionKind ? [sectionKind] : [],
   });
 
   /**
@@ -253,12 +254,20 @@ export const createCaseLockingPresence = ({
         const key = `${id}\u0000${(user.appName ?? "").toLowerCase()}`;
         const seen = byUserAndApp.get(key);
         if (!seen) {
-          byUserAndApp.set(key, user);
+          byUserAndApp.set(key, { ...user, sectionKinds: [...(user.sectionKinds ?? [])] });
           return;
         }
-        // Same person, same application, reported by two sections: one arrival.
+        // Same person, same application, reported by two sections: one arrival, and
+        // BOTH sections. The kinds accumulate even when the record itself is
+        // discarded as the later of the two — otherwise being in a section and the
+        // case around it would report only whichever arrived first.
+        (user.sectionKinds ?? []).forEach(kind => {
+          if (!seen.sectionKinds?.includes(kind)) {
+            seen.sectionKinds = [...(seen.sectionKinds ?? []), kind];
+          }
+        });
         if (user.joinedAt && (!seen.joinedAt || user.joinedAt < seen.joinedAt)) {
-          byUserAndApp.set(key, user);
+          byUserAndApp.set(key, { ...user, sectionKinds: seen.sectionKinds });
         }
       }),
     );
@@ -337,7 +346,8 @@ export const createCaseLockingPresence = ({
         continue;
       }
       entry.versions[sectionId] = version;
-      entry.membersBySection[sectionId] = (snapshot.members ?? []).map(toPresentUser);
+      const kind = String(snapshot?.section?.kind ?? "");
+      entry.membersBySection[sectionId] = (snapshot.members ?? []).map(member => toPresentUser(member, kind));
       changed = true;
     }
     if (changed) {

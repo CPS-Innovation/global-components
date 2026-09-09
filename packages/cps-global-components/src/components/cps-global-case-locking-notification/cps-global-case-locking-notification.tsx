@@ -2,20 +2,8 @@ import { Component, h } from "@stencil/core";
 import { readyState } from "../../store/store";
 import { FEATURE_FLAGS } from "cps-global-configuration";
 import { formatJoined } from "../../services/case-locking/format-joined";
-import { CCPPeople } from "cps-global-presence";
+import { CCPPeople, CCPSectionNames } from "cps-global-presence";
 import { CaseLockingPresentSection } from "../../services/case-locking/CaseLockingPresentUsers";
-
-// The region code is also the section kind we register against. Anything not
-// listed falls back to the code itself rather than guessing a label.
-const FRIENDLY_NAMES: Record<string, string> = {
-  case: "This case",
-  witness: "Witnesses",
-  victim_witness: "Witnesses",
-  defendant: "Defendants",
-  case_review: "Case review",
-};
-
-const friendlyName = (code: string) => FRIENDLY_NAMES[code] ?? code;
 
 // COLLAPSED IN THE SHARED CODE, not here. The API's records are denormalised —
 // one per user, per section, per application — so the same person on the case and
@@ -26,7 +14,9 @@ const friendlyName = (code: string) => FRIENDLY_NAMES[code] ?? code;
 // shared with the Classic and Modern clients so all three agree.
 const collapsePeople = (sections: CaseLockingPresentSection[]) =>
   CCPPeople.collapse(
-    sections.flatMap(section => section.users.map(user => ({ userEmail: user.user, sourceApplication: user.appName, joinedAt: user.joinedAt }))),
+    sections.flatMap(section =>
+      section.users.map(user => ({ userEmail: user.user, sourceApplication: user.appName, joinedAt: user.joinedAt, sectionKinds: user.sectionKinds })),
+    ),
   );
 
 @Component({
@@ -62,7 +52,6 @@ export class CpsGlobalCaseLockingNotification {
       <cps-global-pinned-notification titleText={summary} collapsible dismissible={false}>
         {present.sections.map(section => (
           <div>
-            <h3 class="govuk-heading-s">{friendlyName(section.code)}</h3>
             {/* Collapsed WITHIN the section, not across them: a person in two
                 sections is genuinely in two sections and is listed under each. What
                 must never happen is one person reading as two because the API sent a
@@ -77,10 +66,17 @@ export class CpsGlobalCaseLockingNotification {
                   return since ? `${app.appDisplayName} since ${since}` : app.appDisplayName;
                 })
                 .join(", ");
+              // WHICH PART OF THE CASE they are in, in words. A case-wide session
+              // reports everyone anywhere in the case, so "this case" was true of
+              // everybody and told the reader nothing; naming the section is the
+              // difference between "someone is here" and "someone is on the review".
+              const sections = CCPSectionNames.describe(person.sectionKinds ?? []);
               return (
                 <p class="govuk-body">
                   {person.username}
-                  {where ? ` — ${where}` : " is in this section."}
+                  {sections ? ` is in ${sections}` : ""}
+                  {where ? ` — ${where}` : ""}
+                  {!sections && !where ? " is on this case." : "."}
                 </p>
               );
             })}

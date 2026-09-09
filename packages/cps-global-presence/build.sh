@@ -38,7 +38,7 @@ OUT2="$DIR/dist/cms-presence-client-2.js"
 
 # common/ is shared with the WEB COMPONENTS as well as both legacy clients, so it
 # leads every bundle and is the only part exported as ESM.
-SHARED="$DIR/common/presence-apps.js $DIR/common/presence-people.js"
+SHARED="$DIR/common/presence-apps.js $DIR/common/presence-section-names.js $DIR/common/presence-people.js"
 # legacy-apps/common/ is shared between Classic and Modern/DCF and nothing else —
 # JSONP, sessions and the script-origin trick have no meaning in a bundled app.
 LEGACY_COMMON="$DIR/legacy-apps/common/presence-sections.js $DIR/legacy-apps/common/presence-origin.js $DIR/legacy-apps/common/presence-roster.js $DIR/legacy-apps/common/presence-locator.js $DIR/legacy-apps/common/presence-jsonp.js $DIR/legacy-apps/common/presence-sessions.js"
@@ -151,7 +151,7 @@ emit_modern "$OUT2" "legacy-apps/modern-2/" $COMMON $MODERN2
 # module-scope variables and cannot be tree-shaken away. Add here when a consumer
 # appears, not before.
 ESM_SHARED="$SHARED"
-ESM_EXPORTS="CCPApps, CCPPeople"
+ESM_EXPORTS="CCPApps, CCPPeople, CCPSectionNames"
 ESM_OUT="$DIR/dist/esm/index.js"
 mkdir -p "$DIR/dist/esm"
 {
