@@ -19,24 +19,33 @@ declare module "cps-global-presence" {
     userEmail?: string;
     sourceApplication?: string;
     joinedAt?: string;
-    /** Section kinds as the API names them: CASE, CASE_REVIEW, VICTIM_WITNESS. */
-    sectionKinds?: string[];
+    /** The sections this record puts the user in. */
+    sections?: CCPSection[];
   };
+
+  /**
+   * One section a person is in. isCurrent marks the section the READER is in too,
+   * which is what lets a UI say "this witness or victim" instead of "a witness or
+   * victim" — the definite article is only honest when the subjects match.
+   */
+  export type CCPSection = { kind: string; isCurrent?: boolean };
 
   /** A person, once, with the applications they are in. */
   export type CCPPerson = {
     username: string;
     apps: { appDisplayName: string; timeEntered: string | undefined }[];
     /** Every section of the case this person is in, unioned across their records. */
-    sectionKinds: string[];
+    sections: { kind: string; isCurrent: boolean }[];
   };
 
   export const CCPSectionNames: {
     DISPLAY_NAMES: Record<string, string>;
+    /** The definite forms, for the section the reader is in: "this defendant". */
+    CURRENT_NAMES: Record<string, string>;
     /** What to call one section kind; the kind itself if unmapped, "" if absent. */
-    displayName(kind: string | undefined): string;
+    displayName(kind: string | undefined, isCurrent?: boolean): string;
     /** Several, as a reader would say them: "the case review and a defendant". */
-    describe(kinds: string[]): string;
+    describe(sections: CCPSection[]): string;
   };
 
   export const CCPPeople: {

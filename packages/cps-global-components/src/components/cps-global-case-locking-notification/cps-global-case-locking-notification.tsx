@@ -15,7 +15,7 @@ import { CaseLockingPresentSection } from "../../services/case-locking/CaseLocki
 const collapsePeople = (sections: CaseLockingPresentSection[]) =>
   CCPPeople.collapse(
     sections.flatMap(section =>
-      section.users.map(user => ({ userEmail: user.user, sourceApplication: user.appName, joinedAt: user.joinedAt, sectionKinds: user.sectionKinds })),
+      section.users.map(user => ({ userEmail: user.user, sourceApplication: user.appName, joinedAt: user.joinedAt, sections: user.sections })),
     ),
   );
 
@@ -70,7 +70,11 @@ export class CpsGlobalCaseLockingNotification {
               // reports everyone anywhere in the case, so "this case" was true of
               // everybody and told the reader nothing; naming the section is the
               // difference between "someone is here" and "someone is on the review".
-              const sections = CCPSectionNames.describe(person.sectionKinds ?? []);
+              //
+              // "this witness or victim" when their subject is the one in focus,
+              // "a witness or victim" when it is another one in the same case —
+              // the difference between a collision and a coincidence.
+              const sections = CCPSectionNames.describe(person.sections ?? []);
               return (
                 <p class="govuk-body">
                   {person.username}

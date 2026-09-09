@@ -44,6 +44,19 @@ CCPPeople.indexOf = function (list, value) {
   return -1;
 };
 
+// The section entry for a kind, or null. Kind is the identity here: two witnesses
+// are two SECTIONS but one phrase, and a UI that said "a witness or victim and a
+// witness or victim" would be repeating itself rather than informing.
+function findSection(sections, kind) {
+  var i;
+  for (i = 0; i < sections.length; i++) {
+    if (sections[i].kind === kind) {
+      return sections[i];
+    }
+  }
+  return null;
+}
+
 // The app entry for a display name, or null. Its own function so collapse() below
 // reads as the two decisions it actually makes — which person, which application —
 // rather than as three nested loops.
@@ -63,17 +76,17 @@ function findApp(apps, appDisplayName) {
 }
 
 /**
- * @param {Array<{userEmail?: string, sourceApplication?: string, joinedAt?: string, sectionKinds?: string[]}>} members
+ * @param {Array<{userEmail?: string, sourceApplication?: string, joinedAt?: string, sections?: Array<{kind: string, isCurrent?: boolean}>}>} members
  *        Every member record, from every section, flattened. Callers hold the
  *        sections differently; this deliberately takes the flat list they can all
  *        produce.
- * @returns {Array<{username: string, apps: Array<{appDisplayName: string, timeEntered: string|undefined}>, sectionKinds: string[]}>}
+ * @returns {Array<{username: string, apps: Array<{appDisplayName: string, timeEntered: string|undefined}>, sections: Array<{kind: string, isCurrent: boolean}>}>}
  */
 CCPPeople.collapse = function (members) {
   var byUser = {};
   var order = [];
   var out = [];
-  var i, member, id, person, appName, found, kinds, k;
+  var i, member, id, person, appName, found, sections, k;
 
   if (!members || !members.length) {
     return out;
@@ -89,7 +102,7 @@ CCPPeople.collapse = function (members) {
       continue; // a record with nobody in it says nothing
     }
     if (!byUser.hasOwnProperty(id)) {
-      byUser[id] = { username: member.userEmail, apps: [], sectionKinds: [] };
+      byUser[id] = { username: member.userEmail, apps: [], sections: [] };
       order.push(id);
     }
     person = byUser[id];
@@ -97,10 +110,20 @@ CCPPeople.collapse = function (members) {
     // WHICH PARTS OF THE CASE they are in, unioned across every record. A case-wide
     // session reports everyone anywhere in the case, so without this a UI can only
     // say "this case" — true of everybody, and therefore no help.
-    kinds = member.sectionKinds || [];
-    for (k = 0; k < kinds.length; k++) {
-      if (kinds[k] && CCPPeople.indexOf(person.sectionKinds, kinds[k]) === -1) {
-        person.sectionKinds.push(kinds[k]);
+    //
+    // isCurrent survives the union: if ANY record puts them in the very section the
+    // reader is looking at, that is the fact worth reporting, and a later record
+    // from elsewhere in the case must not quietly downgrade it.
+    sections = member.sections || [];
+    for (k = 0; k < sections.length; k++) {
+      if (!sections[k] || !sections[k].kind) {
+        continue;
+      }
+      found = findSection(person.sections, sections[k].kind);
+      if (!found) {
+        person.sections.push({ kind: sections[k].kind, isCurrent: !!sections[k].isCurrent });
+      } else if (sections[k].isCurrent) {
+        found.isCurrent = true;
       }
     }
 

@@ -214,11 +214,11 @@ export const createCaseLockingPresence = ({
   // rather than replaced on purpose: the UI is changing shortly, so this keeps the
   // existing contract instead of inventing a second one that is about to be thrown
   // away.
-  const toPresentUser = (member: PresenceMember, sectionKind: string): CaseLockingPresentUser => ({
+  const toPresentUser = (member: PresenceMember, sectionKind: string, isCurrent: boolean): CaseLockingPresentUser => ({
     user: member.userEmail ?? "",
     appName: member.sourceApplication ?? "",
     joinedAt: member.joinedAt,
-    sectionKinds: sectionKind ? [sectionKind] : [],
+    sections: sectionKind ? [{ kind: sectionKind, isCurrent }] : [],
   });
 
   /**
@@ -254,20 +254,28 @@ export const createCaseLockingPresence = ({
         const key = `${id}\u0000${(user.appName ?? "").toLowerCase()}`;
         const seen = byUserAndApp.get(key);
         if (!seen) {
-          byUserAndApp.set(key, { ...user, sectionKinds: [...(user.sectionKinds ?? [])] });
+          byUserAndApp.set(key, { ...user, sections: [...(user.sections ?? [])] });
           return;
         }
         // Same person, same application, reported by two sections: one arrival, and
         // BOTH sections. The kinds accumulate even when the record itself is
         // discarded as the later of the two — otherwise being in a section and the
         // case around it would report only whichever arrived first.
-        (user.sectionKinds ?? []).forEach(kind => {
-          if (!seen.sectionKinds?.includes(kind)) {
-            seen.sectionKinds = [...(seen.sectionKinds ?? []), kind];
+        //
+        // isCurrent is unioned, never overwritten: two witnesses are one kind and
+        // one phrase, and if either of them is the witness in focus that is the
+        // fact the reader needs. Being additionally reported by the case-wide
+        // roster must not talk us back down to the indefinite article.
+        (user.sections ?? []).forEach(({ kind, isCurrent }) => {
+          const already = seen.sections?.find(section => section.kind === kind);
+          if (!already) {
+            seen.sections = [...(seen.sections ?? []), { kind, isCurrent }];
+          } else if (isCurrent) {
+            already.isCurrent = true;
           }
         });
         if (user.joinedAt && (!seen.joinedAt || user.joinedAt < seen.joinedAt)) {
-          byUserAndApp.set(key, { ...user, sectionKinds: seen.sectionKinds });
+          byUserAndApp.set(key, { ...user, sections: seen.sections });
         }
       }),
     );
@@ -347,7 +355,12 @@ export const createCaseLockingPresence = ({
       }
       entry.versions[sectionId] = version;
       const kind = String(snapshot?.section?.kind ?? "");
-      entry.membersBySection[sectionId] = (snapshot.members ?? []).map(member => toPresentUser(member, kind));
+      // THE SECTION IN FOCUS is the one this connection registered — the region the
+      // host page put us in. Under a case-wide session every other snapshot is
+      // somewhere else in the same case, which is exactly the case the indefinite
+      // article exists for.
+      const isCurrent = sectionId === entry.sectionId;
+      entry.membersBySection[sectionId] = (snapshot.members ?? []).map(member => toPresentUser(member, kind, isCurrent));
       changed = true;
     }
     if (changed) {

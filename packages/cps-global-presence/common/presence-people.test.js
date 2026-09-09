@@ -13,6 +13,10 @@ function member(email, app, joinedAt) {
   return { userEmail: email, sourceApplication: app, joinedAt: joinedAt };
 }
 
+function sectioned(email, app, sections) {
+  return { userEmail: email, sourceApplication: app, joinedAt: "2026-09-08T09:00:00Z", sections: sections };
+}
+
 h.describe("CCPPeople.collapse");
 
 h.test("one record per person, not per registration", function () {
@@ -87,4 +91,57 @@ h.test("preserves first-appearance order so a UI does not reshuffle", function (
 h.test("an empty or missing list is an empty result", function () {
   h.assertEqual(CCPPeople.collapse([]).length, 0);
   h.assertEqual(CCPPeople.collapse(undefined).length, 0);
+});
+
+h.describe("CCPPeople.collapse — which parts of the case");
+
+// The union is the point: a case-wide session reports a person once per section,
+// and a UI that took only the first record would name whichever section happened
+// to arrive first.
+h.test("unions the sections a person is reported in", function () {
+  var people = CCPPeople.collapse([
+    sectioned("a@cps.gov.uk", "CMS Classic", [{ kind: "CASE", isCurrent: true }]),
+    sectioned("a@cps.gov.uk", "CMS Classic", [{ kind: "CASE_REVIEW", isCurrent: false }])
+  ]);
+  h.assertEqual(people.length, 1);
+  h.assertEqual(people[0].sections.length, 2);
+  h.assertEqual(people[0].sections[0].kind, "CASE");
+  h.assertEqual(people[0].sections[1].kind, "CASE_REVIEW");
+});
+
+// Two witnesses are two sections but ONE phrase — "a witness or victim and a
+// witness or victim" would be a UI repeating itself rather than informing.
+h.test("one entry per kind, however many subjects", function () {
+  var people = CCPPeople.collapse([
+    sectioned("a@cps.gov.uk", "CMS Classic", [{ kind: "VICTIM_WITNESS", isCurrent: false }]),
+    sectioned("a@cps.gov.uk", "CMS Classic", [{ kind: "VICTIM_WITNESS", isCurrent: false }])
+  ]);
+  h.assertEqual(people[0].sections.length, 1);
+});
+
+// THE DEFINITE ARTICLE SURVIVES THE UNION. Someone on the witness in focus is
+// also reported by the case-wide roster as being on a witness somewhere; the
+// second record must not talk the first back down to "a witness or victim".
+h.test("isCurrent wins over a later record that is not current", function () {
+  var people = CCPPeople.collapse([
+    sectioned("a@cps.gov.uk", "CMS Classic", [{ kind: "VICTIM_WITNESS", isCurrent: true }]),
+    sectioned("a@cps.gov.uk", "CMS Classic", [{ kind: "VICTIM_WITNESS", isCurrent: false }])
+  ]);
+  h.assertEqual(people[0].sections.length, 1);
+  h.assertEqual(people[0].sections[0].isCurrent, true);
+});
+
+h.test("isCurrent wins whichever order the records arrive in", function () {
+  var people = CCPPeople.collapse([
+    sectioned("a@cps.gov.uk", "CMS Classic", [{ kind: "VICTIM_WITNESS", isCurrent: false }]),
+    sectioned("a@cps.gov.uk", "CMS Classic", [{ kind: "VICTIM_WITNESS", isCurrent: true }])
+  ]);
+  h.assertEqual(people[0].sections[0].isCurrent, true);
+});
+
+// The legacy roster does not carry sections at all, so this is the everyday shape
+// on two of the three clients, not an edge case.
+h.test("a record with no sections is a person with no sections", function () {
+  var people = CCPPeople.collapse([member("a@cps.gov.uk", "CMS Classic", "2026-09-08T09:00:00Z")]);
+  h.assertEqual(people[0].sections.length, 0);
 });

@@ -23,29 +23,48 @@ CCPSectionNames.DISPLAY_NAMES = {
 };
 
 /**
+ * What to call a section when it is the very one the reader is looking at.
+ *
+ * Only the subject-scoped kinds appear here. "A witness or victim" and "this
+ * witness or victim" are different pieces of news: the first says someone is
+ * elsewhere in the case, the second says they are on the record open in front of
+ * you. The case and the case review have no subject — there is only one of each per
+ * case — so "the case" is already definite and needs no second form.
+ */
+CCPSectionNames.CURRENT_NAMES = {
+  VICTIM_WITNESS: "this witness or victim",
+  DEFENDANT: "this defendant"
+};
+
+/**
  * @param {string|undefined} kind
+ * @param {boolean} [isCurrent] true when this is the section the reader is in
  * @returns {string}
  */
-CCPSectionNames.displayName = function (kind) {
+CCPSectionNames.displayName = function (kind, isCurrent) {
   if (!kind) {
     return "";
   }
-  var mapped = CCPSectionNames.DISPLAY_NAMES[String(kind).toUpperCase()];
+  var key = String(kind).toUpperCase();
+  if (isCurrent && CCPSectionNames.CURRENT_NAMES[key]) {
+    return CCPSectionNames.CURRENT_NAMES[key];
+  }
+  var mapped = CCPSectionNames.DISPLAY_NAMES[key];
   return mapped || kind;
 };
 
 /**
- * A list of section names as a reader would say it: "the case review", or "the case
- * review and a defendant", or "the case, the case review and a defendant".
+ * A list of section names as a reader would say it: "the case review", or "this
+ * witness or victim and the case", or "the case, the case review and a defendant".
  *
- * @param {string[]} kinds
+ * @param {Array<{kind: string, isCurrent?: boolean}>} sections
  * @returns {string}
  */
-CCPSectionNames.describe = function (kinds) {
+CCPSectionNames.describe = function (sections) {
   var names = [];
   var i, name;
-  for (i = 0; i < kinds.length; i++) {
-    name = CCPSectionNames.displayName(kinds[i]);
+  for (i = 0; i < sections.length; i++) {
+    name = sections[i] ? CCPSectionNames.displayName(sections[i].kind, sections[i].isCurrent) : "";
     if (name && CCPSectionNames.indexOf(names, name) === -1) {
       names.push(name);
     }

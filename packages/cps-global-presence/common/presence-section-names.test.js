@@ -26,17 +26,41 @@ h.test("shows an unknown kind as sent rather than hiding it", function () {
 h.describe("CCPSectionNames.describe");
 
 h.test("reads as a sentence, not a list", function () {
-  h.assertEqual(CCPSectionNames.describe(["CASE_REVIEW"]), "the case review");
-  h.assertEqual(CCPSectionNames.describe(["CASE_REVIEW", "DEFENDANT"]), "the case review and a defendant");
-  h.assertEqual(CCPSectionNames.describe(["CASE", "CASE_REVIEW", "DEFENDANT"]), "the case, the case review and a defendant");
+  h.assertEqual(CCPSectionNames.describe([{ kind: "CASE_REVIEW" }]), "the case review");
+  h.assertEqual(CCPSectionNames.describe([{ kind: "CASE_REVIEW" }, { kind: "DEFENDANT" }]), "the case review and a defendant");
+  h.assertEqual(CCPSectionNames.describe([{ kind: "CASE" }, { kind: "CASE_REVIEW" }, { kind: "DEFENDANT" }]), "the case, the case review and a defendant");
 });
 
 // Two witnesses are two sections but one phrase — repeating "a witness or victim"
 // would say nothing extra.
 h.test("does not repeat a name", function () {
-  h.assertEqual(CCPSectionNames.describe(["VICTIM_WITNESS", "VICTIM_WITNESS"]), "a witness or victim");
+  h.assertEqual(CCPSectionNames.describe([{ kind: "VICTIM_WITNESS" }, { kind: "VICTIM_WITNESS" }]), "a witness or victim");
 });
 
 h.test("says nothing when there is nothing to say", function () {
   h.assertEqual(CCPSectionNames.describe([]), "");
+});
+
+h.describe("the reader's own section");
+
+// The distinction worth drawing: someone elsewhere in the case, versus someone on
+// the very record open in front of you.
+h.test("names the reader's own subject definitely", function () {
+  h.assertEqual(CCPSectionNames.displayName("VICTIM_WITNESS", true), "this witness or victim");
+  h.assertEqual(CCPSectionNames.displayName("VICTIM_WITNESS", false), "a witness or victim");
+  h.assertEqual(CCPSectionNames.displayName("DEFENDANT", true), "this defendant");
+});
+
+// There is only one case and one case review per case, so "the case" is already
+// definite and has no second form to fall back to.
+h.test("leaves the case-wide kinds alone", function () {
+  h.assertEqual(CCPSectionNames.displayName("CASE", true), "the case");
+  h.assertEqual(CCPSectionNames.displayName("CASE_REVIEW", true), "the case review");
+});
+
+h.test("mixes both in one phrase", function () {
+  h.assertEqual(
+    CCPSectionNames.describe([{ kind: "VICTIM_WITNESS", isCurrent: true }, { kind: "CASE" }]),
+    "this witness or victim and the case"
+  );
 });

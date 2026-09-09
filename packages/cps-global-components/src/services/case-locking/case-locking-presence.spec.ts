@@ -287,8 +287,8 @@ describe("createCaseLockingPresence", () => {
             {
               code: "witness",
               users: [
-                { user: "alice", appName: "test-app", joinedAt: undefined, sectionKinds: ["WITNESS"] },
-                { user: "bob@cps.gov.uk", appName: "CMS", joinedAt: undefined, sectionKinds: ["WITNESS"] },
+                { user: "alice", appName: "test-app", joinedAt: undefined, sections: [{ kind: "WITNESS", isCurrent: true }] },
+                { user: "bob@cps.gov.uk", appName: "CMS", joinedAt: undefined, sections: [{ kind: "WITNESS", isCurrent: true }] },
               ],
               occupiedOnEntry: true,
             },
@@ -309,7 +309,7 @@ describe("createCaseLockingPresence", () => {
 
       hubFor("123:WITNESS")!.__notify?.(presence([{ user: "alice", appName: "test-app" }]));
       await flush();
-      expect(allUsers()).toEqual([{ user: "alice", appName: "test-app", joinedAt: undefined, sectionKinds: ["WITNESS"] }]);
+      expect(allUsers()).toEqual([{ user: "alice", appName: "test-app", joinedAt: undefined, sections: [{ kind: "WITNESS", isCurrent: true }] }]);
     });
 
     it("removes us case-insensitively by default — the hub echoes token-claim casing", async () => {
@@ -337,7 +337,7 @@ describe("createCaseLockingPresence", () => {
         { user: "bob@cps.gov.uk", appName: "CMS" },
       ]));
       await flush();
-      expect(allUsers()).toEqual([{ user: "bob@cps.gov.uk", appName: "CMS", joinedAt: undefined, sectionKinds: ["WITNESS"] }]);
+      expect(allUsers()).toEqual([{ user: "bob@cps.gov.uk", appName: "CMS", joinedAt: undefined, sections: [{ kind: "WITNESS", isCurrent: true }] }]);
     });
 
     it("subsequent Notifys overwrite the published list", async () => {
@@ -483,7 +483,7 @@ describe("createCaseLockingPresence", () => {
       const { hub, allUsers } = await onWitness();
       hub.__notify?.(notification(1, ["bob@cps.gov.uk"]));
       await flush();
-      expect(allUsers()).toEqual([{ user: "bob@cps.gov.uk", appName: "CMS", joinedAt: undefined, sectionKinds: ["WITNESS"] }]);
+      expect(allUsers()).toEqual([{ user: "bob@cps.gov.uk", appName: "CMS", joinedAt: undefined, sections: [{ kind: "WITNESS", isCurrent: true }] }]);
     });
 
     it("discards a snapshot older than one already applied — they arrive out of order", async () => {
@@ -493,7 +493,7 @@ describe("createCaseLockingPresence", () => {
       hub.__notify?.(notification(3, ["carol@cps.gov.uk", "dave@cps.gov.uk"]));
       await flush();
       // The late arrival must not resurrect a roster that has moved on.
-      expect(allUsers()).toEqual([{ user: "bob@cps.gov.uk", appName: "CMS", joinedAt: undefined, sectionKinds: ["WITNESS"] }]);
+      expect(allUsers()).toEqual([{ user: "bob@cps.gov.uk", appName: "CMS", joinedAt: undefined, sections: [{ kind: "WITNESS", isCurrent: true }] }]);
     });
 
     it("accepts a newer snapshot, including one that empties the section", async () => {
@@ -530,7 +530,7 @@ describe("createCaseLockingPresence", () => {
         const { hub, allUsers } = await onCase();
         hub.__notify?.(notification(1, ["bob@cps.gov.uk"], { caseId: "123", kind: "CASE_REVIEW" }));
         await flush();
-        expect(allUsers()).toEqual([{ user: "bob@cps.gov.uk", appName: "CMS", joinedAt: undefined, sectionKinds: ["CASE_REVIEW"] }]);
+        expect(allUsers()).toEqual([{ user: "bob@cps.gov.uk", appName: "CMS", joinedAt: undefined, sections: [{ kind: "CASE_REVIEW", isCurrent: false }] }]);
       });
 
       it("counts a subject-scoped sub-section too", async () => {
@@ -573,6 +573,23 @@ describe("createCaseLockingPresence", () => {
         await flush();
         expect(getPresentUsers()).toBeUndefined();
       });
+
+      // THE ONE THE READER IS LOOKING AT is the section this connection registered.
+      // Under a case-wide session that is the case itself, and every sub-section
+      // reported alongside it is somewhere else — so the UI says "a witness or
+      // victim", not "this" one. Getting this backwards would tell a caseworker
+      // that someone is on the very witness they have open when they are on a
+      // different witness in the same case.
+      it("marks only the registered section as the one in focus", async () => {
+        const { hub, allUsers } = await onCase();
+        hub.__notify?.(notification(1, ["bob@cps.gov.uk"], { caseId: "123", kind: "CASE" }));
+        hub.__notify?.(notification(1, ["ann@cps.gov.uk"], { caseId: "123", kind: "VICTIM_WITNESS", subjectId: "543231" }));
+        await flush();
+        const byUser = Object.fromEntries(allUsers().map(user => [user.user, user.sections]));
+        expect(byUser["bob@cps.gov.uk"]).toEqual([{ kind: "CASE", isCurrent: true }]);
+        expect(byUser["ann@cps.gov.uk"]).toEqual([{ kind: "VICTIM_WITNESS", isCurrent: false }]);
+      });
+
 
       // One person signed into two systems is two presences, and both matter: the
       // banner names the applications, so dropping the later one would report them
@@ -627,6 +644,36 @@ describe("createCaseLockingPresence", () => {
         hub.__notify?.(notification(2, [], { caseId: "123", kind: "CASE_REVIEW" }));
         await flush();
         expect(allUsers().map(u => u.user)).toEqual(["bob@cps.gov.uk"]);
+      });
+    });
+
+    // A subject-scoped region: the reader is on ONE witness, and the section the
+    // server reports is that witness. This is the case the definite article was
+    // added for.
+    describe("a subject-scoped region", () => {
+      const onWitness543231 = async () => {
+        const rig = setup();
+        rig.service.setCaseId("123");
+        rig.service.addRegion("victim_witness", "543231");
+        await flush();
+        return { ...rig, hub: rig.hubFor("123:VICTIM_WITNESS:543231")! };
+      };
+
+      it("marks its own subject as the one in focus", async () => {
+        const { hub, allUsers } = await onWitness543231();
+        hub.__notify?.(notification(1, ["bob@cps.gov.uk"], { caseId: "123", kind: "VICTIM_WITNESS", subjectId: "543231" }));
+        await flush();
+        expect(allUsers()[0].sections).toEqual([{ kind: "VICTIM_WITNESS", isCurrent: true }]);
+      });
+
+      // A binding to a sub-section receives nothing beyond that section, so a
+      // snapshot for another witness is not ours to apply — and must not arrive
+      // and quietly claim to be the witness in focus.
+      it("ignores another subject of the same kind", async () => {
+        const { hub, getPresentUsers } = await onWitness543231();
+        hub.__notify?.(notification(1, ["bob@cps.gov.uk"], { caseId: "123", kind: "VICTIM_WITNESS", subjectId: "999999" }));
+        await flush();
+        expect(getPresentUsers()).toBeUndefined();
       });
     });
 
