@@ -19,12 +19,24 @@ declare module "cps-global-presence" {
     userEmail?: string;
     sourceApplication?: string;
     joinedAt?: string;
+    /** Section kinds as the API names them: CASE, CASE_REVIEW, VICTIM_WITNESS. */
+    sectionKinds?: string[];
   };
 
   /** A person, once, with the applications they are in. */
   export type CCPPerson = {
     username: string;
     apps: { appDisplayName: string; timeEntered: string | undefined }[];
+    /** Every section of the case this person is in, unioned across their records. */
+    sectionKinds: string[];
+  };
+
+  export const CCPSectionNames: {
+    DISPLAY_NAMES: Record<string, string>;
+    /** What to call one section kind; the kind itself if unmapped, "" if absent. */
+    displayName(kind: string | undefined): string;
+    /** Several, as a reader would say them: "the case review and a defendant". */
+    describe(kinds: string[]): string;
   };
 
   export const CCPPeople: {

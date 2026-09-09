@@ -33,6 +33,17 @@
 
 var CCPPeople = {};
 
+// Array.prototype.indexOf does not exist at document mode 5.
+CCPPeople.indexOf = function (list, value) {
+  var i;
+  for (i = 0; i < list.length; i++) {
+    if (list[i] === value) {
+      return i;
+    }
+  }
+  return -1;
+};
+
 // The app entry for a display name, or null. Its own function so collapse() below
 // reads as the two decisions it actually makes — which person, which application —
 // rather than as three nested loops.
@@ -52,17 +63,17 @@ function findApp(apps, appDisplayName) {
 }
 
 /**
- * @param {Array<{userEmail?: string, sourceApplication?: string, joinedAt?: string}>} members
+ * @param {Array<{userEmail?: string, sourceApplication?: string, joinedAt?: string, sectionKinds?: string[]}>} members
  *        Every member record, from every section, flattened. Callers hold the
  *        sections differently; this deliberately takes the flat list they can all
  *        produce.
- * @returns {Array<{username: string, apps: Array<{appDisplayName: string, timeEntered: string|undefined}>}>}
+ * @returns {Array<{username: string, apps: Array<{appDisplayName: string, timeEntered: string|undefined}>, sectionKinds: string[]}>}
  */
 CCPPeople.collapse = function (members) {
   var byUser = {};
   var order = [];
   var out = [];
-  var i, member, id, person, appName, found;
+  var i, member, id, person, appName, found, kinds, k;
 
   if (!members || !members.length) {
     return out;
@@ -78,10 +89,20 @@ CCPPeople.collapse = function (members) {
       continue; // a record with nobody in it says nothing
     }
     if (!byUser.hasOwnProperty(id)) {
-      byUser[id] = { username: member.userEmail, apps: [] };
+      byUser[id] = { username: member.userEmail, apps: [], sectionKinds: [] };
       order.push(id);
     }
     person = byUser[id];
+
+    // WHICH PARTS OF THE CASE they are in, unioned across every record. A case-wide
+    // session reports everyone anywhere in the case, so without this a UI can only
+    // say "this case" — true of everybody, and therefore no help.
+    kinds = member.sectionKinds || [];
+    for (k = 0; k < kinds.length; k++) {
+      if (kinds[k] && CCPPeople.indexOf(person.sectionKinds, kinds[k]) === -1) {
+        person.sectionKinds.push(kinds[k]);
+      }
+    }
 
     appName = CCPApps.displayName(member.sourceApplication);
     if (!appName) {

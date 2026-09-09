@@ -89,24 +89,49 @@ declare function findApp(apps: Array<{
     timeEntered: string | undefined;
 } | null;
 declare namespace CCPPeople {
+    function indexOf(list: any, value: any): number;
     /**
-     * @param {Array<{userEmail?: string, sourceApplication?: string, joinedAt?: string}>} members
+     * @param {Array<{userEmail?: string, sourceApplication?: string, joinedAt?: string, sectionKinds?: string[]}>} members
      *        Every member record, from every section, flattened. Callers hold the
      *        sections differently; this deliberately takes the flat list they can all
      *        produce.
-     * @returns {Array<{username: string, apps: Array<{appDisplayName: string, timeEntered: string|undefined}>}>}
+     * @returns {Array<{username: string, apps: Array<{appDisplayName: string, timeEntered: string|undefined}>, sectionKinds: string[]}>}
      */
     function collapse(members: Array<{
         userEmail?: string;
         sourceApplication?: string;
         joinedAt?: string;
+        sectionKinds?: string[];
     }>): Array<{
         username: string;
         apps: Array<{
             appDisplayName: string;
             timeEntered: string | undefined;
         }>;
+        sectionKinds: string[];
     }>;
+}
+declare namespace CCPSectionNames {
+    namespace DISPLAY_NAMES {
+        let CASE: string;
+        let CASE_REVIEW: string;
+        let VICTIM_WITNESS: string;
+        let DEFENDANT: string;
+    }
+    /**
+     * @param {string|undefined} kind
+     * @returns {string}
+     */
+    function displayName(kind: string | undefined): string;
+    /**
+     * A list of section names as a reader would say it: "the case review", or "the case
+     * review and a defendant", or "the case, the case review and a defendant".
+     *
+     * @param {string[]} kinds
+     * @returns {string}
+     */
+    function describe(kinds: string[]): string;
+    function indexOf(list: any, value: any): number;
 }
 /**
  * window[name] = value, spelled out because TypeScript objects otherwise: the DOM

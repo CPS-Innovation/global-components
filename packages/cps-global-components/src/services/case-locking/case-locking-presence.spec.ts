@@ -287,8 +287,8 @@ describe("createCaseLockingPresence", () => {
             {
               code: "witness",
               users: [
-                { user: "alice", appName: "test-app", joinedAt: undefined },
-                { user: "bob@cps.gov.uk", appName: "CMS", joinedAt: undefined },
+                { user: "alice", appName: "test-app", joinedAt: undefined, sectionKinds: ["WITNESS"] },
+                { user: "bob@cps.gov.uk", appName: "CMS", joinedAt: undefined, sectionKinds: ["WITNESS"] },
               ],
               occupiedOnEntry: true,
             },
@@ -309,7 +309,7 @@ describe("createCaseLockingPresence", () => {
 
       hubFor("123:WITNESS")!.__notify?.(presence([{ user: "alice", appName: "test-app" }]));
       await flush();
-      expect(allUsers()).toEqual([{ user: "alice", appName: "test-app" }]);
+      expect(allUsers()).toEqual([{ user: "alice", appName: "test-app", joinedAt: undefined, sectionKinds: ["WITNESS"] }]);
     });
 
     it("removes us case-insensitively by default — the hub echoes token-claim casing", async () => {
@@ -337,7 +337,7 @@ describe("createCaseLockingPresence", () => {
         { user: "bob@cps.gov.uk", appName: "CMS" },
       ]));
       await flush();
-      expect(allUsers()).toEqual([{ user: "bob@cps.gov.uk", appName: "CMS" }]);
+      expect(allUsers()).toEqual([{ user: "bob@cps.gov.uk", appName: "CMS", joinedAt: undefined, sectionKinds: ["WITNESS"] }]);
     });
 
     it("subsequent Notifys overwrite the published list", async () => {
@@ -483,7 +483,7 @@ describe("createCaseLockingPresence", () => {
       const { hub, allUsers } = await onWitness();
       hub.__notify?.(notification(1, ["bob@cps.gov.uk"]));
       await flush();
-      expect(allUsers()).toEqual([{ user: "bob@cps.gov.uk", appName: "CMS" }]);
+      expect(allUsers()).toEqual([{ user: "bob@cps.gov.uk", appName: "CMS", joinedAt: undefined, sectionKinds: ["WITNESS"] }]);
     });
 
     it("discards a snapshot older than one already applied — they arrive out of order", async () => {
@@ -493,7 +493,7 @@ describe("createCaseLockingPresence", () => {
       hub.__notify?.(notification(3, ["carol@cps.gov.uk", "dave@cps.gov.uk"]));
       await flush();
       // The late arrival must not resurrect a roster that has moved on.
-      expect(allUsers()).toEqual([{ user: "bob@cps.gov.uk", appName: "CMS" }]);
+      expect(allUsers()).toEqual([{ user: "bob@cps.gov.uk", appName: "CMS", joinedAt: undefined, sectionKinds: ["WITNESS"] }]);
     });
 
     it("accepts a newer snapshot, including one that empties the section", async () => {
@@ -530,7 +530,7 @@ describe("createCaseLockingPresence", () => {
         const { hub, allUsers } = await onCase();
         hub.__notify?.(notification(1, ["bob@cps.gov.uk"], { caseId: "123", kind: "CASE_REVIEW" }));
         await flush();
-        expect(allUsers()).toEqual([{ user: "bob@cps.gov.uk", appName: "CMS", joinedAt: undefined }]);
+        expect(allUsers()).toEqual([{ user: "bob@cps.gov.uk", appName: "CMS", joinedAt: undefined, sectionKinds: ["CASE_REVIEW"] }]);
       });
 
       it("counts a subject-scoped sub-section too", async () => {
