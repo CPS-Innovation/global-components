@@ -277,7 +277,7 @@ describe("createCaseLockingPresence", () => {
 
       hubFor("123:WITNESS")!.__notify?.(presence([
         { user: "alice", appName: "test-app" },
-        { user: "bob@cps.gov.uk", appName: "CMS", joinedAt: undefined, sectionKinds: ["WITNESS"] },
+        { user: "bob@cps.gov.uk", appName: "CMS" },
       ]));
       await flush();
 
@@ -334,7 +334,7 @@ describe("createCaseLockingPresence", () => {
 
       hubFor("123:WITNESS")!.__notify?.(presence([
         { user: "alice", appName: "test-app" },
-        { user: "bob@cps.gov.uk", appName: "CMS", joinedAt: undefined, sectionKinds: ["WITNESS"] },
+        { user: "bob@cps.gov.uk", appName: "CMS" },
       ]));
       await flush();
       expect(allUsers()).toEqual([{ user: "bob@cps.gov.uk", appName: "CMS", joinedAt: undefined, sectionKinds: ["WITNESS"] }]);
@@ -407,7 +407,7 @@ describe("createCaseLockingPresence", () => {
       service.addRegion("witness");
       await flush();
 
-      hubFor("123:WITNESS")!.__notify?.(presence([{ user: "bob@cps.gov.uk", appName: "CMS", joinedAt: undefined, sectionKinds: ["WITNESS"] }]));
+      hubFor("123:WITNESS")!.__notify?.(presence([{ user: "bob@cps.gov.uk", appName: "CMS" }]));
       await flush();
 
       expect(sectionOf(getPresentUsers, "witness")?.occupiedOnEntry).toBe(true);
@@ -423,7 +423,7 @@ describe("createCaseLockingPresence", () => {
       hubFor("123:WITNESS")!.__notify?.(presence([]));
       await flush();
 
-      hubFor("123:WITNESS")!.__notify?.(presence([{ user: "bob@cps.gov.uk", appName: "CMS", joinedAt: undefined, sectionKinds: ["WITNESS"] }]));
+      hubFor("123:WITNESS")!.__notify?.(presence([{ user: "bob@cps.gov.uk", appName: "CMS" }]));
       await flush();
 
       expect(sectionOf(getPresentUsers, "witness")?.users).toHaveLength(1);
@@ -444,7 +444,7 @@ describe("createCaseLockingPresence", () => {
 
       hubFor("123:WITNESS")!.__notify?.(
         presence([
-          { user: "bob@cps.gov.uk", appName: "CMS", joinedAt: undefined, sectionKinds: ["WITNESS"] },
+          { user: "bob@cps.gov.uk", appName: "CMS" },
           { user: "carol@cps.gov.uk", appName: "CMS" },
         ]),
       );
