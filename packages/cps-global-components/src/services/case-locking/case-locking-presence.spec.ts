@@ -574,6 +574,52 @@ describe("createCaseLockingPresence", () => {
         expect(getPresentUsers()).toBeUndefined();
       });
 
+      // One person signed into two systems is two presences, and both matter: the
+      // banner names the applications, so dropping the later one would report them
+      // as being somewhere they have also left.
+      it("keeps both systems when one person is in two", async () => {
+        const { hub, allUsers } = await onCase();
+        hub.__notify?.({
+          type: 0,
+          payload: {
+            snapshots: [
+              {
+                section: { caseId: "123", kind: "CASE" },
+                version: 1,
+                members: [
+                  { userEmail: "bob@cps.gov.uk", sourceApplication: "Work Management App", joinedAt: "2026-09-09T14:00:00Z" },
+                  { userEmail: "bob@cps.gov.uk", sourceApplication: "CMS Classic", joinedAt: "2026-09-09T15:00:00Z" },
+                ],
+              },
+            ],
+          },
+        });
+        await flush();
+        expect(allUsers().map(u => u.appName).sort()).toEqual(["CMS Classic", "Work Management App"]);
+      });
+
+      // The same person, same application, reported by two sections is ONE arrival.
+      it("keeps one entry per system, at the earliest arrival", async () => {
+        const { hub, allUsers } = await onCase();
+        const inApp = (kind: string, joinedAt: string) => ({
+          type: 0,
+          payload: {
+            snapshots: [
+              {
+                section: { caseId: "123", kind },
+                version: 1,
+                members: [{ userEmail: "bob@cps.gov.uk", sourceApplication: "CMS Classic", joinedAt }],
+              },
+            ],
+          },
+        });
+        hub.__notify?.(inApp("CASE", "2026-09-09T15:00:00Z"));
+        hub.__notify?.(inApp("CASE_REVIEW", "2026-09-09T14:00:00Z"));
+        await flush();
+        expect(allUsers()).toHaveLength(1);
+        expect(allUsers()[0].joinedAt).toBe("2026-09-09T14:00:00Z");
+      });
+
       it("a section emptying removes only its own members", async () => {
         const { hub, allUsers } = await onCase();
         hub.__notify?.(notification(1, ["bob@cps.gov.uk"], { caseId: "123", kind: "CASE" }));
