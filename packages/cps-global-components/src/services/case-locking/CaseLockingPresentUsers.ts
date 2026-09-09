@@ -1,16 +1,24 @@
+/** One section a person is in, and whether it is the one the reader is in too. */
+export type CaseLockingPresentUserSection = { kind: string; isCurrent: boolean };
+
 export type CaseLockingPresentUser = {
   user: string;
   appName: string;
   /**
-   * The section KINDS this person is in, as the API names them — CASE,
+   * The sections this person is in, as the API names their kinds — CASE,
    * CASE_REVIEW, VICTIM_WITNESS. Usually one; more when someone is in a section
    * and the case around it.
    *
    * Carried per person because a case-wide session merges every section of its
    * case into one roster, and without this the UI could only ever say "this case"
    * — which is true and useless. CCPSectionNames turns them into words.
+   *
+   * isCurrent marks the section the READER is looking at, so the UI can say "this
+   * witness or victim" rather than "a witness or victim". The distinction only
+   * exists for kinds that have a subject: a case-wide roster reports everyone
+   * anywhere in the case, and "a witness or victim" there could be any of them.
    */
-  sectionKinds?: string[];
+  sections?: CaseLockingPresentUserSection[];
   /** ISO timestamp from the API's member record. Absent if the server omits it. */
   joinedAt?: string;
 };

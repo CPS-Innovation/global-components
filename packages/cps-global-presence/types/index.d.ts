@@ -76,6 +76,7 @@ declare namespace CCPApps {
      */
     function displayName(appName: string | undefined): string;
 }
+declare function findSection(sections: any, kind: any): any;
 /**
  * @param {Array<{appDisplayName: string, timeEntered: string|undefined}>} apps
  * @param {string} appDisplayName
@@ -91,24 +92,30 @@ declare function findApp(apps: Array<{
 declare namespace CCPPeople {
     function indexOf(list: any, value: any): number;
     /**
-     * @param {Array<{userEmail?: string, sourceApplication?: string, joinedAt?: string, sectionKinds?: string[]}>} members
+     * @param {Array<{userEmail?: string, sourceApplication?: string, joinedAt?: string, sections?: Array<{kind: string, isCurrent?: boolean}>}>} members
      *        Every member record, from every section, flattened. Callers hold the
      *        sections differently; this deliberately takes the flat list they can all
      *        produce.
-     * @returns {Array<{username: string, apps: Array<{appDisplayName: string, timeEntered: string|undefined}>, sectionKinds: string[]}>}
+     * @returns {Array<{username: string, apps: Array<{appDisplayName: string, timeEntered: string|undefined}>, sections: Array<{kind: string, isCurrent: boolean}>}>}
      */
     function collapse(members: Array<{
         userEmail?: string;
         sourceApplication?: string;
         joinedAt?: string;
-        sectionKinds?: string[];
+        sections?: Array<{
+            kind: string;
+            isCurrent?: boolean;
+        }>;
     }>): Array<{
         username: string;
         apps: Array<{
             appDisplayName: string;
             timeEntered: string | undefined;
         }>;
-        sectionKinds: string[];
+        sections: Array<{
+            kind: string;
+            isCurrent: boolean;
+        }>;
     }>;
 }
 declare namespace CCPSectionNames {
@@ -118,19 +125,29 @@ declare namespace CCPSectionNames {
         let VICTIM_WITNESS: string;
         let DEFENDANT: string;
     }
+    namespace CURRENT_NAMES {
+        let VICTIM_WITNESS_1: string;
+        export { VICTIM_WITNESS_1 as VICTIM_WITNESS };
+        let DEFENDANT_1: string;
+        export { DEFENDANT_1 as DEFENDANT };
+    }
     /**
      * @param {string|undefined} kind
+     * @param {boolean} [isCurrent] true when this is the section the reader is in
      * @returns {string}
      */
-    function displayName(kind: string | undefined): string;
+    function displayName(kind: string | undefined, isCurrent?: boolean): string;
     /**
-     * A list of section names as a reader would say it: "the case review", or "the case
-     * review and a defendant", or "the case, the case review and a defendant".
+     * A list of section names as a reader would say it: "the case review", or "this
+     * witness or victim and the case", or "the case, the case review and a defendant".
      *
-     * @param {string[]} kinds
+     * @param {Array<{kind: string, isCurrent?: boolean}>} sections
      * @returns {string}
      */
-    function describe(kinds: string[]): string;
+    function describe(sections: Array<{
+        kind: string;
+        isCurrent?: boolean;
+    }>): string;
     function indexOf(list: any, value: any): number;
 }
 /**
