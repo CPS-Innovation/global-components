@@ -78,6 +78,7 @@
             {
               "path": "https://cps-dev.outsystemsenterprise.com/CaseReview.*?[&?](?:CMS)?CaseId=(?<caseId>\\d+)",
               "contextIds": "case review",
+              "caseLockingRegion": { "code": "case_review" },
               "hostAppEventTargets": [
                 { "selector": "#b1-Resume", "action": "click" },
                 { "selector": "#b1-TaskCompleted2", "action": "appear" }
@@ -99,11 +100,18 @@
           "contexts": [
             {
               "path": "https://cps-dev.outsystemsenterprise.com/WorkManagementApp.*?(?=.*[&?]CaseId=(?<caseId>\\d+))(?=.*[&?]IsOpenMaterials=true)",
-              "contextIds": "case materials"
+              "contextIds": "case materials",
+              "caseLockingRegion": { "code": "case" }
+            },
+            {
+              "path": "https://cps-dev.outsystemsenterprise.com/WorkManagementApp/CaseOverviewDetails(?=.*[&?]In_WitnessID=(?<witnessId>\\d+))(?=.*[&?]CaseId=(?<caseId>\\d+))",
+              "contextIds": "case details",
+              "caseLockingRegion": { "code": "victim_witness", "subject": "{witnessId}" }
             },
             {
               "path": "https://cps-dev.outsystemsenterprise.com/WorkManagementApp.*[&?]CaseId=(?<caseId>\\d+)",
-              "contextIds": "case details"
+              "contextIds": "case details",
+              "caseLockingRegion": { "code": "case" }
             }
           ]
         },
@@ -138,7 +146,8 @@
           "contexts": [
             {
               "path": "https://polaris-qa-notprod.cps.gov.uk/(?:polaris-ui/case-details|materials-ui)/(?<urn>[^/]+)/(?<caseId>\\d+)",
-              "contextIds": "case materials materials-cwa"
+              "contextIds": "case materials materials-cwa",
+              "caseLockingRegion": { "code": "case" }
             }
           ]
         },
@@ -178,6 +187,7 @@
             {
               "path": "https://housekeeping",
               "contextIds": "case materials",
+              "caseLockingRegion": { "code": "case" },
               "preventADAndDataCalls": true,
               "takeTagsFromHandover": true
             }

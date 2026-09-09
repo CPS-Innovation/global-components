@@ -5,8 +5,6 @@ import { RegionEnterEvent, RegionLeaveEvent, RegionDetail } from "../../componen
 import { CaseIdentifiers } from "../context/CaseIdentifiers";
 import { GetToken } from "../auth/GetToken";
 import { createCaseLockingPresence, CaseLockingPresenceService } from "./case-locking-presence";
-import { createWitnessAreaSubscriber } from "./witness-area-subscriber";
-import { createCaseReviewAreaSubscriber } from "./case-review-area-subscriber";
 import { makeConsole } from "../../logging/makeConsole";
 
 type Props = {
@@ -47,8 +45,6 @@ export const initialiseCaseLocking = ({ window, config, preview, register }: Pro
     _debug("no CASE_LOCKING_API_URL — case-locking subscriber & service inert");
     return {
       initialiseCaseLockingForContext: (_args: { auth: AuthResult; caseIdentifiers: CaseIdentifiers | undefined; getToken: GetToken; context: FoundContext }) => {},
-      witnessAreaSubscriber: createWitnessAreaSubscriber(false),
-      caseReviewAreaSubscriber: createCaseReviewAreaSubscriber(false),
     };
   }
 
@@ -191,7 +187,5 @@ export const initialiseCaseLocking = ({ window, config, preview, register }: Pro
 
   return {
     initialiseCaseLockingForContext,
-    witnessAreaSubscriber: createWitnessAreaSubscriber(true),
-    caseReviewAreaSubscriber: createCaseReviewAreaSubscriber(true),
   };
 };

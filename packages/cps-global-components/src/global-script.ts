@@ -103,7 +103,7 @@ const initialise = async (window: Window & typeof globalThis) => {
 
     initialiseOutSystemsReconcileAuth({ window, flags, config });
 
-    const { initialiseCaseLockingForContext, witnessAreaSubscriber, caseReviewAreaSubscriber } = initialiseCaseLocking({ window, config, preview, register });
+    const { initialiseCaseLockingForContext } = initialiseCaseLocking({ window, config, preview, register });
 
     const { initialiseDomForContext } = initialiseDomObservation(
       { window, register, mergeTags, preview, settings, flags, config, authHint },
@@ -111,8 +111,6 @@ const initialise = async (window: Window & typeof globalThis) => {
       footerSubscriber,
       hostAppEventSubscriber,
       accessibilitySubscriber,
-      witnessAreaSubscriber,
-      caseReviewAreaSubscriber,
       skipLinkSubscriber,
     );
 
