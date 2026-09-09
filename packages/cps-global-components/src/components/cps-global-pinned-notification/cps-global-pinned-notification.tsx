@@ -118,6 +118,16 @@ export class CpsGlobalPinnedNotification {
     if (rect.width < MIN_REAL_HEADER_WIDTH_PX) {
       return; // transient mid-navigation value — keep the last good width
     }
+    // NOT WHILE WE ARE HIDDEN. The interstitial hides this banner with display:none
+    // for the duration of an interruption, and a hidden element measures as all
+    // zeros — so the calibration below would read an origin of 0 and write a
+    // viewport coordinate into a box that may not be the viewport, putting the
+    // banner a scrollbar's width out when it came back. Skip; the observer fires
+    // again when display returns.
+    const box = banner.getBoundingClientRect();
+    if (box.width === 0 && box.height === 0) {
+      return;
+    }
     // ANCHOR TO THE HEADER'S LEFT EDGE rather than centring in the viewport.
     // Auto margins between left:0 and right:0 centre within the VIEWPORT, but the
     // page's content column is centred within the DOCUMENT — and those differ by
@@ -191,7 +201,13 @@ export class CpsGlobalPinnedNotification {
     }
     this.raiseFixedFooter(height);
     if (!this.bannerObserver && typeof ResizeObserver !== "undefined") {
-      this.bannerObserver = new ResizeObserver(() => this.applyFooterClearance());
+      // Width as well as height: this fires when the interstitial gives the banner
+      // its display back, which is the moment its position needs recomputing and
+      // the only signal we get — restoring an inline style does not re-render us.
+      this.bannerObserver = new ResizeObserver(() => {
+        this.syncWidth();
+        this.applyFooterClearance();
+      });
       this.bannerObserver.observe(banner);
     }
   }
