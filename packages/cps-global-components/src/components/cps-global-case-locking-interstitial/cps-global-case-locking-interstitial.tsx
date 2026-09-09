@@ -1,6 +1,7 @@
 import { Component, h, State, Element, Listen } from "@stencil/core";
 import { readyState } from "../../store/store";
 import { FEATURE_FLAGS } from "cps-global-configuration";
+import { replaceTagsInString } from "../cps-global-menu/menu-config/helpers/replace-tags-in-string";
 import { MIN_REAL_HEADER_WIDTH_PX } from "../../services/browser/dom/footer-subscriber";
 
 /**
@@ -215,11 +216,6 @@ export class CpsGlobalCaseLockingInterstitial {
     this.dismissedFor = this.currentCode ?? "";
   };
 
-  private goBack = () => {
-    this.dismiss();
-    window.history.back();
-  };
-
   render() {
     const { isReady, state } = readyState(["caseLockingPresentUsers", "config", "preview", "authHint"], ["auth", "tags"]);
     if (!isReady || !FEATURE_FLAGS.shouldShowCaseLockingInterstitial(state)) {
@@ -245,6 +241,11 @@ export class CpsGlobalCaseLockingInterstitial {
     }
 
     this.currentCode = key;
+    // A hard navigation away, so there is nothing to dismiss first and no SPA route
+    // to coordinate with. Absent config means no link rather than one that goes
+    // nowhere; absent tags mean the same, since a case id is the whole point.
+    const template = state.config.CASE_LOCKING_CASE_DETAILS_URL;
+    const caseDetailsUrl = template && state.tags?.caseId ? replaceTagsInString(template, state.tags) : undefined;
     const names = Array.from(new Set(sections.flatMap(section => section.users.map(user => user.user))));
     const who = names.join(", ");
 
@@ -273,9 +274,18 @@ export class CpsGlobalCaseLockingInterstitial {
                         <button type="button" class="govuk-button govuk-button--inverse" autofocus onClick={this.dismiss}>
                           Continue anyway
                         </button>
-                        <button type="button" class="govuk-link govuk-link--inverse app-interruption__link" onClick={this.goBack}>
-                          Go back
-                        </button>
+                        {/* AN ANCHOR, not a button: this is a plain navigation to
+                            another page, and saying so in the markup is what makes
+                            it work. govuk-link--inverse colours through
+                            `&:link, &:visited`, which match only an anchor WITH an
+                            href — the same class on a <button> matched nothing and
+                            rendered black. Middle-click and "open in new tab" come
+                            free with the right element too. */}
+                        {caseDetailsUrl && (
+                          <a class="govuk-link govuk-link--inverse" href={caseDetailsUrl}>
+                            Go to case details
+                          </a>
+                        )}
                       </div>
                     </div>
                   </div>

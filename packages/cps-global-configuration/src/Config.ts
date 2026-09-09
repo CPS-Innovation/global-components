@@ -196,6 +196,15 @@ export const configBaseSchema = z.object({
   // see _PRESENCE_API_SCOPE in global-components.cms-auth-v2.ts, where the legacy
   // clients request exactly the same scope. Empty means send no token at all.
   CASE_LOCKING_SCOPES: z.array(z.string()).optional(),
+  // Where the interruption's secondary action sends someone: the case's details
+  // page. One value rather than one per context — case details is the same RCMS
+  // page whichever application you were interrupted in, so a per-context URL would
+  // be three copies of one fact.
+  //
+  // Templated like the menu's own hrefs, and substituted the same way: {caseId} and
+  // {urn} come from the current tags. Absent means no link is offered rather than
+  // a link that goes nowhere.
+  CASE_LOCKING_CASE_DETAILS_URL: z.string().optional(),
   LINKS: z.array(linkSchema),
   BANNER_TITLE_HREF: z.string(),
   AD_TENANT_AUTHORITY: z.string().optional(),
