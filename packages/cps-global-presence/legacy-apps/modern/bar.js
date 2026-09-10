@@ -11,23 +11,33 @@ var GDS_DARK_BLUE = "#003078"; // govuk-colour("dark-blue")
 var GDS_WHITE = "#ffffff";
 var BAR_ID = "ccPresenceBar";
 
-// Most specific region wins the wording: someone reviewing a case is also on the
-// case, and "is reviewing" is the more useful thing to say.
+// "someone@cps.gov.uk is in the case review — RCMS since 3.38pm"
+//
+// Assembled entirely from the shared tables, so this reads the same as the pinned
+// notification in the web components: CCPSectionNames for where, CCPApps for the
+// application, CCPJoined for when. It used to hardcode "is reviewing this case"
+// off a CASE_REVIEW prefix test and name only the first of a person's
+// applications, with no time at all.
 function describePerson(person, fallbackApp) {
-  var reviewing = false;
-  var i;
-  for (i = 0; i < person.regions.length; i++) {
-    if (String(person.regions[i]).indexOf("CASE_REVIEW") === 0) {
-      reviewing = true;
-    }
+  var where = CCPSectionNames.describe(person.sections);
+  var apps = [];
+  var i, app, since;
+
+  for (i = 0; i < person.apps.length; i++) {
+    app = person.apps[i];
+    since = CCPJoined.format(app.timeEntered);
+    apps.push(since ? app.appDisplayName + " since " + since : app.appDisplayName);
   }
-  if (reviewing) {
-    return person.userEmail + " is reviewing this case";
+  // The API can report someone with no application at all. Naming the app we are
+  // ourselves in would be a guess, so the fallback is only used when we have
+  // nothing — better a bare name than a wrong one.
+  if (!apps.length && fallbackApp) {
+    apps.push(CCPApps.displayName(fallbackApp));
   }
-  // Through CCPApps so all three clients name applications the same way — the
-  // API's vocabulary is the backend's, not the user's.
-  var app = CCPApps.displayName(person.apps.length ? person.apps[0] : fallbackApp);
-  return person.userEmail + " is also viewing this case in " + app;
+
+  return person.username +
+    (where ? " is in " + where : " is on this case") +
+    (apps.length ? " — " + apps.join(", ") : "");
 }
 
 function removeBar() {

@@ -49,8 +49,14 @@ var BASE = resolveJsonpBase(JSONP_PATH);
 var roster = CCPRoster.createRoster();
 
 function draw() {
+  // THROUGH CCPPeople, not roster.people(). The latter predates the shared collapse
+  // and reports raw application names with no arrival times, so someone signed into
+  // two systems showed as whichever the roster met first, and Work Management and
+  // Case Review — one product to a user — counted as two. Skin 2 and the web
+  // components have gone this way already; this is the last one.
+  //
   // An empty roster removes the bar rather than drawing an empty one.
-  renderBar(roster.people(), APP_NAME);
+  renderBar(CCPPeople.collapse(roster.members(activeSectionIds())), APP_NAME);
 }
 
 // Snapshots arrive per section and are version-guarded inside the roster, so

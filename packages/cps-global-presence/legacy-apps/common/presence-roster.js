@@ -23,6 +23,7 @@ var CCPRoster = {};
  *   people: function(): CCPPerson[],
  *   describe: function(): string,
  *   sections: function(): Object,
+ *   members: function(string[]|undefined): {userEmail: string, sourceApplication: string, joinedAt: string, sections: {kind: string, isCurrent: boolean}[]}[],
  *   forget: function(string): boolean,
  *   clear: function(): void
  * }}
@@ -162,6 +163,43 @@ CCPRoster.createRoster = function () {
 
     sections: function () {
       return sections;
+    },
+
+    // EVERY MEMBER RECORD, FLATTENED, in the shape CCPPeople.collapse takes.
+    //
+    // people() predates the shared collapse and reports raw application names with
+    // no arrival times; this hands the shared code what it needs instead, so both
+    // Modern skins can say the same things the web components do.
+    //
+    // ourSectionIds is what makes isCurrent meaningful. The hub sends a session
+    // every section it CONFLICTS with, not just the one it bound to, so this roster
+    // legitimately holds sections we never registered — someone on the case while
+    // we are reviewing it. Those are news, but they are not the section in front of
+    // the reader, and only the caller knows which sections it asked for.
+    members: function (ourSectionIds) {
+      var out = [];
+      var mine = {};
+      var key, entry, i, j;
+
+      for (i = 0; ourSectionIds && i < ourSectionIds.length; i++) {
+        mine["s" + ourSectionIds[i]] = true;
+      }
+
+      for (key in sections) {
+        if (!sections.hasOwnProperty(key)) {
+          continue;
+        }
+        entry = sections[key];
+        for (j = 0; j < entry.members.length; j++) {
+          out.push({
+            userEmail: entry.members[j].userEmail,
+            sourceApplication: entry.members[j].sourceApplication,
+            joinedAt: entry.members[j].joinedAt,
+            sections: [{ kind: entry.kind, isCurrent: mine.hasOwnProperty("s" + key) }]
+          });
+        }
+      }
+      return out;
     },
 
     // Forget ONE section — its session has gone, so its roster is no longer

@@ -14,6 +14,17 @@ declare module "cps-global-presence" {
     displayName(appName: string | undefined): string;
   };
 
+  /**
+   * When someone arrived, as a reader would say it: "3.38pm", "3.38pm yesterday",
+   * "3.38pm on 21 September 2026". "" when there is nothing usable, so callers can
+   * drop the clause rather than print a fallback.
+   */
+  export const CCPJoined: {
+    /** An ISO-8601 timestamp as a Date, or null. Parsed by hand — mode 5 cannot Date.parse one. */
+    parse(iso: string | undefined): Date | null;
+    format(iso: string | undefined, now?: Date): string;
+  };
+
   /** One member record as the API sends it — one per user, per section, per app. */
   export type CCPMember = {
     userEmail?: string;

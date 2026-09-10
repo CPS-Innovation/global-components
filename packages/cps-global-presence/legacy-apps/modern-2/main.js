@@ -62,25 +62,7 @@ function draw() {
   // with no times.
   //
   // An empty roster removes the indicator rather than drawing an empty one.
-  renderIndicator(CCPPeople.collapse(allMembers()), "");
-}
-
-// Every member record the roster is holding, from every section, flattened — the
-// shape CCPPeople.collapse takes.
-function allMembers() {
-  var sections = roster.sections();
-  var out = [];
-  var key, i, entry;
-  for (key in sections) {
-    if (!sections.hasOwnProperty(key)) {
-      continue;
-    }
-    entry = sections[key];
-    for (i = 0; i < entry.members.length; i++) {
-      out.push(entry.members[i]);
-    }
-  }
-  return out;
+  renderIndicator(CCPPeople.collapse(roster.members(activeSectionIds())), "");
 }
 
 // Snapshots arrive per section and are version-guarded inside the roster, so

@@ -1,3 +1,5 @@
+import { CCPJoined } from "cps-global-presence";
+
 /**
  * When someone arrived, said the way a person would say it.
  *
@@ -22,34 +24,12 @@
  *
  * `now` is a parameter so the boundary cases can be tested without freezing the
  * clock; callers pass nothing.
+ *
+ * A WRAPPER, NOT AN IMPLEMENTATION. The formatting itself is CCPJoined, shared
+ * with the Classic and Modern clients so an arrival reads the same in all three —
+ * it was written three times, three ways, before it was written once. What stays
+ * here is the shape TypeScript callers want: undefined for "nothing to say",
+ * where the shared code returns "" because that is the mode 5 idiom.
  */
-export const formatJoined = (iso: string | undefined, now: Date = new Date()): string | undefined => {
-  if (!iso) {
-    return undefined;
-  }
-  const at = new Date(iso);
-  if (Number.isNaN(at.getTime())) {
-    return undefined;
-  }
-  const hours24 = at.getHours();
-  const hours = hours24 % 12 === 0 ? 12 : hours24 % 12;
-  const minutes = String(at.getMinutes()).padStart(2, "0");
-  const meridiem = hours24 < 12 ? "am" : "pm";
-  const time = `${hours}.${minutes}${meridiem}`;
-
-  // Compared as calendar days, not as an elapsed-hours difference: 11pm and 1am are
-  // two hours apart and different days, which is what a reader means by "yesterday".
-  const startOfDay = (date: Date) => new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime();
-  const daysBefore = Math.round((startOfDay(now) - startOfDay(at)) / 86400000);
-
-  if (daysBefore === 0) {
-    return time;
-  }
-  if (daysBefore === 1) {
-    return `${time} yesterday`;
-  }
-  // Anything else — including a timestamp in the future, which should not happen but
-  // reads better as a date than as "in -3 days".
-  const month = at.toLocaleString("en-GB", { month: "long" });
-  return `${time} on ${at.getDate()} ${month} ${at.getFullYear()}`;
-};
+export const formatJoined = (iso: string | undefined, now?: Date): string | undefined =>
+  CCPJoined.format(iso, now) || undefined;
