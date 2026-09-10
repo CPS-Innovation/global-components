@@ -145,3 +145,85 @@ h.test("a record with no sections is a person with no sections", function () {
   var people = CCPPeople.collapse([member("a@cps.gov.uk", "CMS Classic", "2026-09-08T09:00:00Z")]);
   h.assertEqual(people[0].sections.length, 0);
 });
+
+h.describe("CCPPeople.others — everyone but the reader");
+
+h.test("drops the reader and keeps the rest", function () {
+  var rest = CCPPeople.others(
+    [member("me@cps.gov.uk", "CMS Classic", "x"), member("ann@cps.gov.uk", "CMS Classic", "x")],
+    "me@cps.gov.uk"
+  );
+  h.assertEqual(rest.length, 1);
+  h.assertEqual(rest[0].userEmail, "ann@cps.gov.uk");
+});
+
+// The server derives the address from token claims and its casing is not ours to
+// rely on — the capture this was built against had mixed case on both sides.
+h.test("matches the reader case-insensitively", function () {
+  h.assertEqual(CCPPeople.others([member("Me@CPS.gov.uk", "CMS Classic", "x")], "me@cps.gov.uk").length, 0);
+  h.assertEqual(CCPPeople.others([member("me@cps.gov.uk", "CMS Classic", "x")], "ME@CPS.GOV.UK").length, 0);
+});
+
+// THE ASYMMETRY THAT MATTERS. Unknown viewer means whoami has not answered, or
+// there is no token, or the claim was missing. Showing one person too many is a
+// far smaller failure than hiding every colleague.
+h.test("an unknown reader filters nobody", function () {
+  var all = [member("me@cps.gov.uk", "CMS Classic", "x"), member("ann@cps.gov.uk", "CMS Classic", "x")];
+  h.assertEqual(CCPPeople.others(all, "").length, 2);
+  h.assertEqual(CCPPeople.others(all, undefined).length, 2);
+});
+
+h.test("survives records with no address at all", function () {
+  h.assertEqual(CCPPeople.others([null, { }, member("ann@cps.gov.uk", "CMS Classic", "x")], "me@cps.gov.uk").length, 3);
+});
+
+h.test("no members is no members", function () {
+  h.assertEqual(CCPPeople.others([], "me@cps.gov.uk").length, 0);
+  h.assertEqual(CCPPeople.others(undefined, "me@cps.gov.uk").length, 0);
+});
+
+// The dev override rides on the same path rather than a second one: pass "" to
+// count yourself.
+h.test("the dev override is just an unknown reader", function () {
+  var all = [member("me@cps.gov.uk", "CMS Classic", "x")];
+  h.assertEqual(CCPPeople.others(all, "").length, 1);
+  h.assertEqual(CCPPeople.others(all, "me@cps.gov.uk").length, 0);
+});
+
+h.describe("CCPPeople — marking the reader");
+
+h.test("marks the reader and nobody else", function () {
+  var people = CCPPeople.collapse(
+    [member("me@cps.gov.uk", "CMS Classic", "x"), member("ann@cps.gov.uk", "CMS Classic", "x")],
+    "me@cps.gov.uk"
+  );
+  h.assertEqual(people[0].isCurrentUser, true);
+  h.assertEqual(people[1].isCurrentUser, false);
+});
+
+h.test("recognises the reader whatever the server's casing", function () {
+  h.assertEqual(CCPPeople.collapse([member("Me@CPS.gov.uk", "CMS Classic", "x")], "me@cps.gov.uk")[0].isCurrentUser, true);
+  h.assertEqual(CCPPeople.collapse([member("me@cps.gov.uk", "CMS Classic", "x")], "ME@CPS.GOV.UK")[0].isCurrentUser, true);
+});
+
+h.test("nobody is the reader when the reader is unknown", function () {
+  h.assertEqual(CCPPeople.collapse([member("me@cps.gov.uk", "CMS Classic", "x")])[0].isCurrentUser, false);
+  h.assertEqual(CCPPeople.collapse([member("me@cps.gov.uk", "CMS Classic", "x")], "")[0].isCurrentUser, false);
+});
+
+h.describe("CCPPeople.displayName");
+
+h.test("the reader is named and marked", function () {
+  var people = CCPPeople.collapse([member("me@cps.gov.uk", "CMS Classic", "x")], "me@cps.gov.uk");
+  h.assertEqual(CCPPeople.displayName(people[0]), "me@cps.gov.uk (current user)");
+});
+
+h.test("everyone else is just named", function () {
+  var people = CCPPeople.collapse([member("ann@cps.gov.uk", "CMS Classic", "x")], "me@cps.gov.uk");
+  h.assertEqual(CCPPeople.displayName(people[0]), "ann@cps.gov.uk");
+});
+
+h.test("nothing to name is an empty string", function () {
+  h.assertEqual(CCPPeople.displayName(undefined), "");
+  h.assertEqual(CCPPeople.displayName({}), "");
+});

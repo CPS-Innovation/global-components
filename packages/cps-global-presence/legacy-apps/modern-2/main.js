@@ -62,7 +62,9 @@ function draw() {
   // with no times.
   //
   // An empty roster removes the indicator rather than drawing an empty one.
-  renderIndicator(CCPPeople.collapse(roster.members(activeSectionIds())), "");
+  var me = viewer.email();
+  var members = roster.members(activeSectionIds());
+  renderIndicator(CCPPeople.collapse(countSelf ? members : CCPPeople.others(members, me), me), "");
 }
 
 // Snapshots arrive per section and are version-guarded inside the roster, so
@@ -85,13 +87,32 @@ function onSectionDropped(sectionId) {
   }
 }
 
+// ONE jsonp caller, shared. The viewer asks who we are on the same route the
+// sessions use, so it must not build a second one with its own base.
+var call = CCPJsonp.createJsonp({
+  base: BASE,
+  appName: APP_NAME,
+  timeoutMs: TIMEOUT_MS,
+  log: log
+});
+
+// ON WHILE WE ARE BUILDING THIS. Counting yourself is noise in production —
+// telling someone they are on the case they are looking at says nothing — but
+// while the feature is being proved it is the evidence: a roster that includes
+// you, marked "(current user)", shows that whoami answered and that the address
+// it returned matches what the API reports you as. Filtering silently proves
+// nothing, because an empty banner looks the same whether self-detection works or
+// presence is broken end to end.
+//
+// Turn it off here (or with __ccPresence.setCountSelf(false)) to see production
+// behaviour: CCPPeople.others drops the reader and the label stops appearing on
+// its own, since nobody left in the list is them.
+var countSelf = true;
+
+var viewer = CCPViewer.createViewer({ call: call, log: log });
+
 var sessions = CCPSessions.createSessions({
-  call: CCPJsonp.createJsonp({
-    base: BASE,
-    appName: APP_NAME,
-    timeoutMs: TIMEOUT_MS,
-    log: log
-  }),
+  call: call,
   appName: APP_NAME,
   tickMs: TICK_MS,
   log: log,
@@ -106,6 +127,7 @@ var lastReported = "";
 // section already held is left strictly alone — so this re-asserts the truth
 // every pass rather than trying to spot changes itself.
 function reconcile() {
+  viewer.refresh();
   var ids = activeSectionIds();
   var key = ids.join("|");
   if (key !== lastReported) {
@@ -143,6 +165,16 @@ window.__ccPresence = {
     sessions.stop();
     roster.clear();
     draw();
+  },
+  // The dev override, and the way to see why filtering is or is not happening.
+  whoami: function () {
+    return { email: viewer.email(), oid: viewer.oid(), known: viewer.known() };
+  },
+  setCountSelf: function (on) {
+    countSelf = !!on;
+    log("countSelf", countSelf ? "on" : "off");
+    draw();
+    return countSelf;
   },
   setVerbose: function (on) {
     verbose = !!on;

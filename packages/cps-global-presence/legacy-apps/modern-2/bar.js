@@ -56,7 +56,7 @@ function cc2Lines_(people) {
       app = person.apps[j];
       parts.push(app.appDisplayName + (app.timeEntered ? " since " + CCPJoined.format(app.timeEntered) : ""));
     }
-    out.push(person.username + (parts.length ? " — " + parts.join(", ") : ""));
+    out.push(CCPPeople.displayName(person) + (parts.length ? " — " + parts.join(", ") : ""));
   }
   return out;
 }

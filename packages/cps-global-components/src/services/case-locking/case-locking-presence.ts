@@ -299,7 +299,13 @@ export const createCaseLockingPresence = ({
     // isCurrent already means "in the section this connection registered", which is
     // exactly who can clash with us. Everyone else in the roster is elsewhere in
     // the case and belongs in the banner, not in an interruption.
-    const here = others.filter(user => (user.sections ?? []).some(section => section.isCurrent));
+    //
+    // OURSELVES EXCLUDED WHATEVER countSelf SAYS. You cannot clash with yourself,
+    // and countSelf is about being able to SEE the roster working single-handed —
+    // not about manufacturing a collision. Without this, turning the flag on to
+    // demonstrate presence would raise the interruption on arrival at every case
+    // review you opened alone.
+    const here = others.filter(user => !isSelf(user) && (user.sections ?? []).some(section => section.isCurrent));
     // WAIT FOR OUR OWN SECTION before deciding. A payload can carry the conflicting
     // sections and be applied before our section's own snapshot has been seen;
     // latching then would record "empty" for a section we had not yet heard about

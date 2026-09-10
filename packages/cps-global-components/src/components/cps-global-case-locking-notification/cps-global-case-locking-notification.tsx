@@ -12,11 +12,12 @@ import { CaseLockingPresentSection } from "../../services/case-locking/CaseLocki
 // Work Management and Case Review both display as RCMS, someone in both is in one
 // application, not two. CCPPeople.collapse is the single implementation of that,
 // shared with the Classic and Modern clients so all three agree.
-const collapsePeople = (sections: CaseLockingPresentSection[]) =>
+const collapsePeople = (sections: CaseLockingPresentSection[], viewer: string | undefined) =>
   CCPPeople.collapse(
     sections.flatMap(section =>
       section.users.map(user => ({ userEmail: user.user, sourceApplication: user.appName, joinedAt: user.joinedAt, sections: user.sections })),
     ),
+    viewer,
   );
 
 @Component({
@@ -41,12 +42,34 @@ export class CpsGlobalCaseLockingNotification {
       return null;
     }
 
-    const people = collapsePeople(present.sections).length;
+    // WHO IS READING, so the reader can be marked rather than silently dropped.
+    // While the feature is being built we count ourselves: a roster that includes
+    // you, and says so, is the only evidence from outside that the identification
+    // works — filtering proves nothing, because an empty banner looks the same
+    // whether self-detection works or presence is broken.
+    // Narrowed rather than optional-chained: AuthResult is a union and only the
+    // authenticated arm carries a username. Unauthenticated means nobody is marked,
+    // which is the same safe default as an unanswered whoami on the legacy clients.
+    const viewer = state.auth?.isAuthed ? state.auth.username : undefined;
+    const collapsed = collapsePeople(present.sections, viewer);
+    const people = collapsed.length;
+    const includesSelf = collapsed.some(person => person.isCurrentUser);
     // The prototype's heading reads "Case locked as 1 user is editing with 2
     // users viewing". We can count people and name their sections; we cannot say
     // who is EDITING or that anything is LOCKED, because the presence API reports
     // neither. So the summary states only what we know.
-    const summary = people === 1 ? "1 other person is working on this case" : `${people} other people are working on this case`;
+    //
+    // "OTHER" IS DROPPED WHEN THE COUNT INCLUDES US, because it would be a lie —
+    // "2 other people" alongside a list that names you as one of them. The
+    // production wording is the "other" branch, and it comes back on its own once
+    // we stop counting ourselves.
+    const summary = includesSelf
+      ? people === 1
+        ? "1 person is working on this case"
+        : `${people} people are working on this case`
+      : people === 1
+        ? "1 other person is working on this case"
+        : `${people} other people are working on this case`;
 
     return (
       <cps-global-pinned-notification titleText={summary} collapsible dismissible={false}>
@@ -56,7 +79,7 @@ export class CpsGlobalCaseLockingNotification {
                 sections is genuinely in two sections and is listed under each. What
                 must never happen is one person reading as two because the API sent a
                 record per application. */}
-            {collapsePeople([section]).map(person => {
+            {collapsePeople([section], viewer).map(person => {
               // "RCMS since 3.38pm on 8 September 2026", one clause per application.
               // The API can give us a person with no application at all, in which
               // case they are simply here and we say no more than that.
@@ -77,7 +100,7 @@ export class CpsGlobalCaseLockingNotification {
               const sections = CCPSectionNames.describe(person.sections ?? []);
               return (
                 <p class="govuk-body">
-                  {person.username}
+                  {CCPPeople.displayName(person)}
                   {sections ? ` is in ${sections}` : ""}
                   {where ? ` — ${where}` : ""}
                   {!sections && !where ? " is on this case." : "."}

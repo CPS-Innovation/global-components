@@ -539,6 +539,21 @@ describe("createCaseLockingPresence", () => {
 
     // The other half of the same rule: someone in OUR section, already there when
     // we arrived, is the clash the interruption exists for.
+    // You cannot clash with yourself. countSelf exists so a lone developer can SEE
+    // the roster working, not so it can manufacture a collision — without this,
+    // turning it on would raise the interruption on every case review opened alone.
+    it("never counts us as occupying our own section, even with countSelf on", async () => {
+      const { service, hubFor, getPresentUsers } = setup({ countSelf: true });
+      service.setCaseId("123");
+      service.addRegion("witness");
+      await flush();
+      hubFor("123:WITNESS")!.__notify?.(presence([{ user: "alice", appName: "test-app" }]));
+      await flush();
+      // Published — that is what countSelf is for — but not an interruption.
+      expect(getPresentUsers()?.sections[0].users).toHaveLength(1);
+      expect(getPresentUsers()?.sections[0].occupiedOnEntry).toBe(false);
+    });
+
     it("counts our own section as occupied on entry", async () => {
       const { hub, getPresentUsers } = await onWitness();
       hub.__notify?.(notification(1, ["bob@cps.gov.uk"], { caseId: "123", kind: "WITNESS" }));

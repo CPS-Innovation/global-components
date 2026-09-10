@@ -16,14 +16,15 @@ var describePerson = h.load(
     "common/presence-apps.js",
     "common/presence-section-names.js",
     "common/presence-joined.js",
+    "common/presence-people.js",
     "legacy-apps/modern/bar.js"
   ],
   ["describePerson"]
 ).describePerson;
 
 // The collapsed shape CCPPeople.collapse produces, which is what the bar now takes.
-function person(username, sections, apps) {
-  return { username: username, sections: sections || [], apps: apps || [] };
+function person(username, sections, apps, isCurrentUser) {
+  return { username: username, sections: sections || [], apps: apps || [], isCurrentUser: !!isCurrentUser };
 }
 
 function app(appDisplayName, timeEntered) {
@@ -106,4 +107,21 @@ h.test("an unrecognised section shows its own name rather than nothing", functio
 
 h.test("says something sensible when we know nothing but the name", function () {
   h.assertEqual(describePerson(person("ann@cps.gov.uk", [], []), ""), "ann@cps.gov.uk is on this case");
+});
+
+// While the feature is being proved the reader stays in the list, labelled — the
+// only outside evidence that whoami identified them and that the address matches
+// what the API reports.
+h.test("marks the reader, and the grammar still reads", function () {
+  h.assertEqual(
+    describePerson(person("me@cps.gov.uk", [{ kind: "CASE" }], [app("CMS Modern")], true), "CMS Modern"),
+    "me@cps.gov.uk (current user) is in the case — CMS Modern"
+  );
+});
+
+h.test("everyone else is unmarked", function () {
+  h.assertEqual(
+    describePerson(person("ann@cps.gov.uk", [{ kind: "CASE" }], [app("CMS Modern")], false), "CMS Modern"),
+    "ann@cps.gov.uk is in the case — CMS Modern"
+  );
 });

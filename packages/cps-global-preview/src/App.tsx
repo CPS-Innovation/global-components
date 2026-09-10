@@ -139,7 +139,7 @@ const FEATURES: Feature[] = [
     key: "caseLockingCountSelf",
     label: "Case locking — count myself",
     description:
-      "Count yourself among the present users. For development only: without it a developer alone on a case sees an empty list and cannot tell a working mechanism from a broken one. In production, telling someone they are viewing the case they are looking at is noise.",
+      "Count yourself among the present users, shown as \"(current user)\" after your name. For development and demos: it is the evidence that self-identification works at all — filtered out, an empty banner looks the same whether the mechanism works or presence is broken. You are never counted as a CLASH with yourself, so this cannot raise the interruption on a case only you are on. In production, telling someone they are viewing the case they are looking at is noise.",
     disabled: false,
   },
   {
