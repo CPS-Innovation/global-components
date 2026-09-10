@@ -506,17 +506,62 @@ describe("createCaseLockingPresence", () => {
       expect(getPresentUsers()).toBeUndefined();
     });
 
-    it("ignores a snapshot for a different section", async () => {
+    it("ignores a snapshot for another case entirely", async () => {
       const { hub, getPresentUsers } = await onWitness();
       hub.__notify?.(notification(1, ["bob@cps.gov.uk"], { caseId: "999", kind: "WITNESS" }));
-      hub.__notify?.(notification(1, ["bob@cps.gov.uk"], { caseId: "123", kind: "CASE" }));
       await flush();
       expect(getPresentUsers()).toBeUndefined();
     });
 
-    // A :CASE session receives notifications for the whole case, sub-sections
-    // included — the backend's own description. Someone only in a sub-section is
-    // still on this case, and must be reported as such.
+    // THE CONFLICT SET. The hub sends a section every section it conflicts with —
+    // a sub-section binding hears about the case around it, not just itself — so a
+    // colleague on the case reaches the banner of someone editing a witness. This
+    // was previously discarded, and the person doing the delicate work was the one
+    // told nothing.
+    it("keeps another section of the same case, marked as not the one in focus", async () => {
+      const { hub, allUsers } = await onWitness();
+      hub.__notify?.(notification(1, ["bob@cps.gov.uk"], { caseId: "123", kind: "CASE" }));
+      await flush();
+      expect(allUsers()).toEqual([
+        { user: "bob@cps.gov.uk", appName: "CMS", joinedAt: undefined, sections: [{ kind: "CASE", isCurrent: false }] },
+      ]);
+    });
+
+    // ...and it must not interrupt. Reading the case is not a clash with editing a
+    // witness inside it; only someone in our own section can be that.
+    it("does not count another section of the case as occupied on entry", async () => {
+      const { hub, getPresentUsers } = await onWitness();
+      hub.__notify?.(notification(1, ["bob@cps.gov.uk"], { caseId: "123", kind: "CASE" }));
+      hub.__notify?.(notification(2, [], { caseId: "123", kind: "WITNESS" }));
+      await flush();
+      expect(getPresentUsers()?.sections[0].occupiedOnEntry).toBe(false);
+    });
+
+    // The other half of the same rule: someone in OUR section, already there when
+    // we arrived, is the clash the interruption exists for.
+    it("counts our own section as occupied on entry", async () => {
+      const { hub, getPresentUsers } = await onWitness();
+      hub.__notify?.(notification(1, ["bob@cps.gov.uk"], { caseId: "123", kind: "WITNESS" }));
+      await flush();
+      expect(getPresentUsers()?.sections[0].occupiedOnEntry).toBe(true);
+    });
+
+    // A payload can carry a conflicting section before our own section's snapshot
+    // has been seen. Latching then would record "empty" for a section we had not
+    // heard about yet and lose the interruption for the rest of the visit.
+    it("waits for our own section before deciding occupancy", async () => {
+      const { hub, getPresentUsers } = await onWitness();
+      hub.__notify?.(notification(1, ["ann@cps.gov.uk"], { caseId: "123", kind: "CASE" }));
+      await flush();
+      hub.__notify?.(notification(2, ["bob@cps.gov.uk"], { caseId: "123", kind: "WITNESS" }));
+      await flush();
+      expect(getPresentUsers()?.sections[0].occupiedOnEntry).toBe(true);
+    });
+
+    // Once the special case, now just an instance of the general one: EVERY session
+    // is sent its conflict set, so every session takes any section of its own case.
+    // Kept as its own block because the case-wide binding is the one where someone
+    // reported only in a sub-section must still count as being on this case.
     describe("the case-wide session takes any section of its case", () => {
       const onCase = async () => {
         const rig = setup();
@@ -666,14 +711,16 @@ describe("createCaseLockingPresence", () => {
         expect(allUsers()[0].sections).toEqual([{ kind: "VICTIM_WITNESS", isCurrent: true }]);
       });
 
-      // A binding to a sub-section receives nothing beyond that section, so a
-      // snapshot for another witness is not ours to apply — and must not arrive
-      // and quietly claim to be the witness in focus.
-      it("ignores another subject of the same kind", async () => {
-        const { hub, getPresentUsers } = await onWitness543231();
+      // Another witness in the same case is in the conflict set, so we hear about
+      // them — but they are NOT the record in front of us. Reporting them as "this
+      // witness or victim", or interrupting for them, would both be lies.
+      it("keeps another subject of the same kind without claiming it is ours", async () => {
+        const { hub, allUsers, getPresentUsers } = await onWitness543231();
         hub.__notify?.(notification(1, ["bob@cps.gov.uk"], { caseId: "123", kind: "VICTIM_WITNESS", subjectId: "999999" }));
+        hub.__notify?.(notification(2, [], { caseId: "123", kind: "VICTIM_WITNESS", subjectId: "543231" }));
         await flush();
-        expect(getPresentUsers()).toBeUndefined();
+        expect(allUsers()[0].sections).toEqual([{ kind: "VICTIM_WITNESS", isCurrent: false }]);
+        expect(getPresentUsers()?.sections[0].occupiedOnEntry).toBe(false);
       });
     });
 

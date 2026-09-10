@@ -150,6 +150,23 @@ declare namespace CCPSectionNames {
     }>): string;
     function indexOf(list: any, value: any): number;
 }
+declare namespace CCPSectionRules {
+    namespace INTERRUPTS {
+        let CASE_REVIEW: boolean;
+        let VICTIM_WITNESS: boolean;
+    }
+    /**
+     * Does presence in this section warrant taking the page away?
+     *
+     * Takes either the wire kind (VICTIM_WITNESS) or the region code config writes
+     * (victim_witness) — they are the same string in different cases, so this
+     * normalises rather than making callers care which they hold.
+     *
+     * @param {string|undefined} kind
+     * @returns {boolean}
+     */
+    function interrupts(kind: string | undefined): boolean;
+}
 /**
  * window[name] = value, spelled out because TypeScript objects otherwise: the DOM
  * lib types a string index on Window as a named frame, not an arbitrary value.

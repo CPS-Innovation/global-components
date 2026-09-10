@@ -48,6 +48,18 @@ declare module "cps-global-presence" {
     describe(sections: CCPSection[]): string;
   };
 
+  /**
+   * How presence in a section should be surfaced, as opposed to what it is
+   * called. Web components only — the legacy clients interrupt nobody, so
+   * build.sh keeps this out of their bundles.
+   */
+  export const CCPSectionRules: {
+    /** The kinds worth interrupting for. An allowlist: absent means quiet. */
+    INTERRUPTS: Record<string, boolean>;
+    /** Takes a wire kind (VICTIM_WITNESS) or a config region code (victim_witness). */
+    interrupts(kind: string | undefined): boolean;
+  };
+
   export const CCPPeople: {
     /** Collapse denormalised member records to one row per person. */
     collapse(members: CCPMember[] | undefined): CCPPerson[];

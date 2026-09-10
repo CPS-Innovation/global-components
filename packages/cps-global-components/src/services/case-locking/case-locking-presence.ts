@@ -144,8 +144,6 @@ export const buildSectionId = (caseId: string, kind: string, subjectId?: string 
   subjectId ? `${caseId}:${kind.toUpperCase()}:${subjectId}` : `${caseId}:${kind.toUpperCase()}`;
 
 // The same identity, derived from a snapshot's section object rather than parts.
-/** The kind the hub uses for the whole case, as opposed to a section within it. */
-const CASE_KIND = "CASE";
 
 const sectionIdOf = (section: PresenceSection | undefined): string => {
   if (!section || section.caseId === undefined || section.caseId === null || !section.kind) {
@@ -179,8 +177,13 @@ export const createCaseLockingPresence = ({
   // overwriting one another.
   const rosters = new Map<string, CaseLockingPresentSection>();
 
-  // Whether anyone was already in a section when we first retrieved it, latched
-  // per section key. See CaseLockingPresentSection.occupiedOnEntry.
+  // Whether anyone was already in OUR OWN section when we first retrieved it,
+  // latched per section key. See CaseLockingPresentSection.occupiedOnEntry.
+  //
+  // Our own section, not the roster, and the distinction is the whole interruption
+  // rule. The roster now spans every conflicting section of the case, so counting
+  // it would raise the interruption for a colleague merely reading the case — the
+  // false alarm the section rules exist to prevent.
   //
   // LATCHED, NOT RECOMPUTED, and that is the whole point. A hub reconnect
   // re-registers the section and hands us a fresh first snapshot in which the
@@ -290,10 +293,19 @@ export const createCaseLockingPresence = ({
     register({ caseLockingPresentUsers: sections.length ? { sections } : undefined });
   };
 
-  const publishPresentUsers = (key: string, code: string, users: CaseLockingPresentUser[]) => {
+  const publishPresentUsers = (key: string, code: string, entry: ConnectionEntry) => {
+    const users = mergeMembers(entry);
     const others = countSelf ? users : users.filter(user => !isSelf(user));
-    if (!occupiedOnEntry.has(key)) {
-      occupiedOnEntry.set(key, others.length > 0);
+    // isCurrent already means "in the section this connection registered", which is
+    // exactly who can clash with us. Everyone else in the roster is elsewhere in
+    // the case and belongs in the banner, not in an interruption.
+    const here = others.filter(user => (user.sections ?? []).some(section => section.isCurrent));
+    // WAIT FOR OUR OWN SECTION before deciding. A payload can carry the conflicting
+    // sections and be applied before our section's own snapshot has been seen;
+    // latching then would record "empty" for a section we had not yet heard about
+    // and lose the interruption for the rest of the visit.
+    if (!occupiedOnEntry.has(key) && entry.versions[entry.sectionId] !== undefined) {
+      occupiedOnEntry.set(key, here.length > 0);
     }
     rosters.set(key, { code, users: others, occupiedOnEntry: occupiedOnEntry.get(key) ?? false });
     publish();
@@ -330,17 +342,25 @@ export const createCaseLockingPresence = ({
     if (!snapshots || !snapshots.length) {
       return;
     }
-    // Case-wide only when this connection IS the case section, not merely when its
-    // section happens to be case-wide: CASE_REVIEW carries no subject either.
-    const takesWholeCase = entry.sectionId === buildSectionId(entry.caseId, CASE_KIND);
     let changed = false;
     for (const snapshot of snapshots) {
       const sectionId = sectionIdOf(snapshot?.section);
       if (!sectionId) {
         continue;
       }
-      const wanted = takesWholeCase ? String(snapshot?.section?.caseId ?? "") === entry.caseId : sectionId === entry.sectionId;
-      if (!wanted) {
+      // EVERY SECTION OF OUR OWN CASE, whatever section this connection is bound to.
+      //
+      // The hub works in CONFLICT SETS, not bindings: a CASE_REVIEW session is in
+      // conflict with CASE, CASE_REVIEW, VICTIM_WITNESS and DEFENDANT, and is sent
+      // the lot whenever anyone joins or leaves any of them. This used to keep only
+      // our own section unless we were the case-wide session, on the earlier
+      // understanding that a sub-section binding heard nothing else — so someone
+      // editing a witness was told nothing about a colleague on the case, while the
+      // colleague could see them. The news was arriving and being discarded here.
+      //
+      // The case id is still checked, because it is the one thing that would be a
+      // genuine mistake to accept: another case's roster is not ours to show.
+      if (String(snapshot?.section?.caseId ?? "") !== entry.caseId) {
         continue;
       }
       const version = typeof snapshot.version === "number" ? snapshot.version : NaN;
@@ -364,7 +384,7 @@ export const createCaseLockingPresence = ({
       changed = true;
     }
     if (changed) {
-      publishPresentUsers(key, spec.code, mergeMembers(entry));
+      publishPresentUsers(key, spec.code, entry);
     }
   };
 

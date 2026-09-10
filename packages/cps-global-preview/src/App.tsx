@@ -132,14 +132,7 @@ const FEATURES: Feature[] = [
     key: "caseLockingNotifications",
     label: "Case locking — show notifications",
     description:
-      "Show the banner naming other users present on this case. Presence is registered regardless (see Case locking); this only controls whether you SEE it, so the mechanism can be exercised in an environment without real users noticing.",
-    disabled: false,
-  },
-  {
-    key: "caseLockingInterstitial",
-    label: "Case locking — show interruption",
-    description:
-      "Show the full-screen interruption when someone else is already on this case as you arrive, instead of (or as well as) the pinned banner. Whoever was there first is never interrupted, so two people on a case produce one interruption, not two.",
+      "Show what presence found: the pinned banner naming other users on this case, and the full-screen interruption when you arrive at a case review or a witness or victim record someone is already in. Presence is registered regardless (see Case locking); this only controls whether you SEE it, so the mechanism can be exercised in an environment without real users noticing.",
     disabled: false,
   },
   {
