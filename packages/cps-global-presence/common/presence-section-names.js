@@ -61,10 +61,40 @@ CCPSectionNames.displayName = function (kind, isCurrent) {
  * @returns {string}
  */
 CCPSectionNames.describe = function (sections) {
+  var kinds = [];
+  var currentByKind = {};
   var names = [];
-  var i, name;
+  var i, key, name;
+
+  if (!sections) {
+    return "";
+  }
+
+  // COLLAPSED BY KIND BEFORE ANYTHING IS NAMED, and the definite form wins.
+  //
+  // Two witnesses are two sections but one phrase, and if one of them is the
+  // record open in front of the reader that is the fact worth reporting. Naming
+  // each section first and de-duplicating the words afterwards produced "this
+  // witness or victim and a witness or victim" — the same news said twice, and
+  // the second half quietly undermining the first.
   for (i = 0; i < sections.length; i++) {
-    name = sections[i] ? CCPSectionNames.displayName(sections[i].kind, sections[i].isCurrent) : "";
+    if (!sections[i] || !sections[i].kind) {
+      continue;
+    }
+    key = String(sections[i].kind).toUpperCase();
+    if (!currentByKind.hasOwnProperty(key)) {
+      kinds.push(sections[i].kind);
+      currentByKind[key] = false;
+    }
+    if (sections[i].isCurrent) {
+      currentByKind[key] = true;
+    }
+  }
+
+  for (i = 0; i < kinds.length; i++) {
+    name = CCPSectionNames.displayName(kinds[i], currentByKind[String(kinds[i]).toUpperCase()]);
+    // Still de-duplicated by name as well as by kind: two unmapped kinds fall
+    // through to their own wire names, but nothing guarantees those differ.
     if (name && CCPSectionNames.indexOf(names, name) === -1) {
       names.push(name);
     }

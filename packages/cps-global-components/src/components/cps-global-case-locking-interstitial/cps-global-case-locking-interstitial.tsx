@@ -2,6 +2,7 @@ import { Component, h, State, Element, Listen } from "@stencil/core";
 import { readyState } from "../../store/store";
 import { FEATURE_FLAGS } from "cps-global-configuration";
 import { replaceTagsInString } from "../cps-global-menu/menu-config/helpers/replace-tags-in-string";
+import { CCPSectionNames } from "cps-global-presence";
 import { MIN_REAL_HEADER_WIDTH_PX } from "../../services/browser/dom/footer-subscriber";
 
 /**
@@ -248,6 +249,25 @@ export class CpsGlobalCaseLockingInterstitial {
     const caseDetailsUrl = template && state.tags?.caseId ? replaceTagsInString(template, state.tags) : undefined;
     const names = Array.from(new Set(sections.flatMap(section => section.users.map(user => user.user))));
     const who = names.join(", ");
+    /**
+     * WHERE THE CLASH IS, in the same words the pinned notification uses.
+     *
+     * The card used to say "this case" whatever had been walked into, which was
+     * true of every interruption it could ever raise and so told the reader
+     * nothing about the one in front of them. In practice only a case review or a
+     * witness or victim edit reaches interrupt level, but nothing here assumes
+     * that: whatever kinds the sections report get named.
+     *
+     * Unioned across everyone being interrupted for and collapsed by kind inside
+     * describe(), where the definite form wins — so someone on the very witness in
+     * front of the reader reads as "this witness or victim" even when the same
+     * person is also reported from elsewhere in the case.
+     *
+     * FALLS BACK TO THE OLD WORDING rather than to a gap. A member record that
+     * carries no sections at all is the everyday shape on the legacy clients, and
+     * "is also working on ." would be a worse card than a vague one.
+     */
+    const where = CCPSectionNames.describe(sections.flatMap(section => section.users.flatMap(user => user.sections ?? []))) || "this case";
 
     return (
       <dialog class="app-interruption" role="alertdialog" aria-labelledby="cps-interruption-heading" aria-describedby="cps-interruption-body">
@@ -261,13 +281,15 @@ export class CpsGlobalCaseLockingInterstitial {
                   <div class="moj-interruption-card">
                     <div class="moj-interruption-card__content">
                       <h1 class="moj-interruption-card__heading" id="cps-interruption-heading">
-                        Someone else is working on this case
+                        Someone else is working on {where}
                       </h1>
                       {/* Wording is deliberately plain. The presence API tells us who is
                           in a section and when they arrived — NOT whether they are
                           editing, nor whether it is safe to proceed. */}
                       <div class="moj-interruption-card__body" id="cps-interruption-body">
-                        <p>{who} is also working on this case.</p>
+                        <p>
+                          {who} is also working on {where}.
+                        </p>
                         <p>If you both make changes, one set of changes could be lost.</p>
                       </div>
                       <div class="govuk-button-group moj-interruption-card__actions">
