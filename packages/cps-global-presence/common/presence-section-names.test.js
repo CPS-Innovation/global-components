@@ -64,3 +64,41 @@ h.test("mixes both in one phrase", function () {
     "this witness or victim and the case"
   );
 });
+
+h.describe("CCPSectionNames.describe — one phrase per kind");
+
+// The interstitial unions the sections of everyone it is interrupting for, so a
+// kind genuinely arrives twice: once as the record in front of the reader, once
+// from elsewhere in the same case. One phrase, and the definite one.
+h.test("the definite form wins when a kind arrives both ways", function () {
+  h.assertEqual(
+    CCPSectionNames.describe([{ kind: "VICTIM_WITNESS", isCurrent: true }, { kind: "VICTIM_WITNESS", isCurrent: false }]),
+    "this witness or victim"
+  );
+});
+
+h.test("and whichever order the two arrive in", function () {
+  h.assertEqual(
+    CCPSectionNames.describe([{ kind: "VICTIM_WITNESS", isCurrent: false }, { kind: "VICTIM_WITNESS", isCurrent: true }]),
+    "this witness or victim"
+  );
+});
+
+h.test("kinds are matched case-insensitively when collapsing", function () {
+  h.assertEqual(CCPSectionNames.describe([{ kind: "victim_witness" }, { kind: "VICTIM_WITNESS", isCurrent: true }]), "this witness or victim");
+});
+
+// First-appearance order, so a caller controls the reading order by the order it
+// collects sections in rather than by an alphabet nobody asked for.
+h.test("keeps first-appearance order across kinds", function () {
+  h.assertEqual(
+    CCPSectionNames.describe([{ kind: "VICTIM_WITNESS", isCurrent: true }, { kind: "CASE" }, { kind: "VICTIM_WITNESS" }]),
+    "this witness or victim and the case"
+  );
+});
+
+h.test("skips records with no kind, and takes no list at all", function () {
+  h.assertEqual(CCPSectionNames.describe([null, { kind: "" }, { kind: "CASE" }]), "the case");
+  h.assertEqual(CCPSectionNames.describe(undefined), "");
+});
+
