@@ -102,9 +102,14 @@ const shouldEnableCaseLocking = ({ config, preview, auth, authHint }: FlagInputs
   (!!preview?.result?.caseLocking ||
     getFeatureFlagAssignment({ auth, authHint, config }, "FEATURE_FLAG_CASE_LOCKING_USERS").result);
 
-// The banner, separately from the registration above. Requires the feature to be
-// on at all, so this cannot resurrect presence for someone the config excludes —
-// it only ever hides, never enables.
+// Everything the user actually SEES — the pinned banner and the interruption card
+// — separately from the registration above. Requires the feature to be on at all,
+// so this cannot resurrect presence for someone the config excludes: it only ever
+// hides, never enables.
+//
+// The two surfaces share one flag because they are no longer alternatives. Which
+// one appears is decided by the section: see INTERRUPTING_REGION_CODES in
+// cps-global-case-locking-interstitial.
 const shouldShowCaseLockingNotifications = (inputs: FlagInputs) =>
   shouldEnableCaseLocking(inputs) && !!inputs.preview?.result?.caseLockingNotifications;
 
@@ -112,11 +117,6 @@ const shouldShowCaseLockingNotifications = (inputs: FlagInputs) =>
 // telling someone they are viewing the case they are looking at is noise. On, a
 // lone developer can see the banner without a second person — which is the only
 // way to tell a working mechanism from a broken one single-handed.
-// The interruption. Like the banner it requires the feature to be on at all, so
-// it can only ever hide, never enable.
-const shouldShowCaseLockingInterstitial = (inputs: FlagInputs) =>
-  shouldEnableCaseLocking(inputs) && !!inputs.preview?.result?.caseLockingInterstitial;
-
 const shouldCountSelfInCaseLocking = ({ preview }: FlagInputs) => !!preview?.result?.caseLockingCountSelf;
 
 export const FEATURE_FLAGS = {
@@ -133,6 +133,5 @@ export const FEATURE_FLAGS = {
   shouldUseFullPageMsalRedirect,
   shouldEnableCaseLocking,
   shouldShowCaseLockingNotifications,
-  shouldShowCaseLockingInterstitial,
   shouldCountSelfInCaseLocking,
 };

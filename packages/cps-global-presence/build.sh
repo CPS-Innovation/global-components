@@ -38,7 +38,14 @@ OUT2="$DIR/dist/cms-presence-client-2.js"
 
 # common/ is shared with the WEB COMPONENTS as well as both legacy clients, so it
 # leads every bundle and is the only part exported as ESM.
-SHARED="$DIR/common/presence-apps.js $DIR/common/presence-section-names.js $DIR/common/presence-people.js"
+SHARED="$DIR/common/presence-apps.js $DIR/common/presence-section-names.js $DIR/common/presence-joined.js $DIR/common/presence-people.js"
+# ...except these, which live in common/ because the definitions belong beside
+# their neighbours, but go ONLY to the web components. The legacy clients show a
+# roster and interrupt nobody, so shipping the interruption rules into an IE-mode
+# tab would be dead weight in a bundle where bytes are scarce. Still held to the
+# mode 5 floor below with the rest of common/: the folder's contract does not
+# bend for who happens to consume a file today.
+SHARED_ESM_ONLY="$DIR/common/presence-section-rules.js"
 # legacy-apps/common/ is shared between Classic and Modern/DCF and nothing else —
 # JSONP, sessions and the script-origin trick have no meaning in a bundled app.
 LEGACY_COMMON="$DIR/legacy-apps/common/presence-sections.js $DIR/legacy-apps/common/presence-origin.js $DIR/legacy-apps/common/presence-roster.js $DIR/legacy-apps/common/presence-locator.js $DIR/legacy-apps/common/presence-jsonp.js $DIR/legacy-apps/common/presence-sessions.js"
@@ -58,7 +65,7 @@ AUTH="$DIR/legacy-apps/classic/auth.js"
 mkdir -p "$DIR/dist"
 
 echo "--- floor checks ---"
-node "$DIR/check-syntax.js" es3 $COMMON
+node "$DIR/check-syntax.js" es3 $COMMON $SHARED_ESM_ONLY
 node "$DIR/check-syntax.js" es3 $CLASSIC $AUTH
 node "$DIR/check-syntax.js" es5 $MODERN
 node "$DIR/check-syntax.js" es5 $MODERN2
@@ -150,8 +157,8 @@ emit_modern "$OUT2" "legacy-apps/modern-2/" $COMMON $MODERN2
 # export nothing consumes is dead code in their bundle, since these files assign to
 # module-scope variables and cannot be tree-shaken away. Add here when a consumer
 # appears, not before.
-ESM_SHARED="$SHARED"
-ESM_EXPORTS="CCPApps, CCPPeople, CCPSectionNames"
+ESM_SHARED="$SHARED $SHARED_ESM_ONLY"
+ESM_EXPORTS="CCPApps, CCPJoined, CCPPeople, CCPSectionNames, CCPSectionRules"
 ESM_OUT="$DIR/dist/esm/index.js"
 mkdir -p "$DIR/dist/esm"
 {

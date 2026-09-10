@@ -54,32 +54,11 @@ function cc2Lines_(people) {
     parts = [];
     for (j = 0; j < person.apps.length; j++) {
       app = person.apps[j];
-      parts.push(app.appDisplayName + (app.timeEntered ? " since " + cc2FormatJoined(app.timeEntered) : ""));
+      parts.push(app.appDisplayName + (app.timeEntered ? " since " + CCPJoined.format(app.timeEntered) : ""));
     }
     out.push(person.username + (parts.length ? " — " + parts.join(", ") : ""));
   }
   return out;
-}
-
-var CC2_MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-
-// "8 Sep, 3.38pm". Deliberately not Date.toLocaleString: its output varies by
-// browser and locale, and this has to read the same as the Classic popup.
-function cc2FormatJoined(iso) {
-  var d, hours, mins, suffix;
-  try {
-    d = new Date(iso);
-    if (isNaN(d.getTime())) {
-      return "";
-    }
-  } catch (e) {
-    return "";
-  }
-  hours = d.getHours();
-  suffix = hours < 12 ? "am" : "pm";
-  hours = hours % 12 === 0 ? 12 : hours % 12;
-  mins = d.getMinutes() < 10 ? "0" + d.getMinutes() : String(d.getMinutes());
-  return d.getDate() + " " + CC2_MONTHS[d.getMonth()] + ", " + hours + "." + mins + suffix;
 }
 
 function cc2HidePopup() {

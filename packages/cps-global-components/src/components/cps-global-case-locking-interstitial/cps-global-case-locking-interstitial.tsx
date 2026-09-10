@@ -2,7 +2,7 @@ import { Component, h, State, Element, Listen } from "@stencil/core";
 import { readyState } from "../../store/store";
 import { FEATURE_FLAGS } from "cps-global-configuration";
 import { replaceTagsInString } from "../cps-global-menu/menu-config/helpers/replace-tags-in-string";
-import { CCPSectionNames } from "cps-global-presence";
+import { CCPSectionNames, CCPSectionRules } from "cps-global-presence";
 import { MIN_REAL_HEADER_WIDTH_PX } from "../../services/browser/dom/footer-subscriber";
 
 /**
@@ -219,15 +219,27 @@ export class CpsGlobalCaseLockingInterstitial {
 
   render() {
     const { isReady, state } = readyState(["caseLockingPresentUsers", "config", "preview", "authHint"], ["auth", "tags"]);
-    if (!isReady || !FEATURE_FLAGS.shouldShowCaseLockingInterstitial(state)) {
+    if (!isReady || !FEATURE_FLAGS.shouldShowCaseLockingNotifications(state)) {
       this.close();
       return null;
     }
     const present = state.caseLockingPresentUsers;
-    // Only sections that were ALREADY OCCUPIED when we arrived interrupt. Someone
-    // joining a section we are already in is not an interruption for us — we are
-    // the one who was here first, and they are the one being shown this card.
-    const sections = present?.sections.filter(section => section.occupiedOnEntry) ?? [];
+    // TWO CONDITIONS, and both are about not crying wolf.
+    //
+    // ALREADY OCCUPIED when we arrived: someone joining a section we are already
+    // in is not an interruption for us — we are the one who was here first, and
+    // they are the one being shown this card.
+    //
+    // AND A SECTION WORTH INTERRUPTING FOR. Presence on the case as a whole is not
+    // a clash — two people can read a case at once all day and nothing is lost,
+    // and interrupting them for it teaches people to dismiss the card unread. That
+    // rule lives in CCPSectionRules, beside the section display names, because it
+    // is a fact about a section kind rather than about this component. Case-wide
+    // presence still reaches the pinned banner, which is where it belongs.
+    //
+    // section.code is the region code config writes; interrupts() normalises it
+    // against the wire kinds, so neither side has to care which case it holds.
+    const sections = present?.sections.filter(section => section.occupiedOnEntry && CCPSectionRules.interrupts(section.code)) ?? [];
     if (sections.length === 0) {
       this.close();
       return null;

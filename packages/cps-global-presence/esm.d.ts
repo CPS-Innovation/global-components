@@ -14,6 +14,17 @@ declare module "cps-global-presence" {
     displayName(appName: string | undefined): string;
   };
 
+  /**
+   * When someone arrived, as a reader would say it: "3.38pm", "3.38pm yesterday",
+   * "3.38pm on 21 September 2026". "" when there is nothing usable, so callers can
+   * drop the clause rather than print a fallback.
+   */
+  export const CCPJoined: {
+    /** An ISO-8601 timestamp as a Date, or null. Parsed by hand — mode 5 cannot Date.parse one. */
+    parse(iso: string | undefined): Date | null;
+    format(iso: string | undefined, now?: Date): string;
+  };
+
   /** One member record as the API sends it — one per user, per section, per app. */
   export type CCPMember = {
     userEmail?: string;
@@ -46,6 +57,18 @@ declare module "cps-global-presence" {
     displayName(kind: string | undefined, isCurrent?: boolean): string;
     /** Several, as a reader would say them: "the case review and a defendant". */
     describe(sections: CCPSection[]): string;
+  };
+
+  /**
+   * How presence in a section should be surfaced, as opposed to what it is
+   * called. Web components only — the legacy clients interrupt nobody, so
+   * build.sh keeps this out of their bundles.
+   */
+  export const CCPSectionRules: {
+    /** The kinds worth interrupting for. An allowlist: absent means quiet. */
+    INTERRUPTS: Record<string, boolean>;
+    /** Takes a wire kind (VICTIM_WITNESS) or a config region code (victim_witness). */
+    interrupts(kind: string | undefined): boolean;
   };
 
   export const CCPPeople: {

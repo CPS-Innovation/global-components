@@ -18,6 +18,34 @@ declare namespace CCPApps {
      */
     function displayName(appName: string | undefined): string;
 }
+declare namespace CCPJoined {
+    let MONTHS: string[];
+    let ISO: RegExp;
+    /**
+     * An ISO-8601 timestamp as a Date, or null when it is not one.
+     *
+     * A string with NO offset is read as UTC. Every timestamp this sees comes from
+     * the presence API and is UTC; guessing "local" for an unmarked one would put a
+     * server time an hour out for half the year rather than admit it does not know.
+     *
+     * @param {string|undefined} iso
+     * @returns {Date|null}
+     */
+    function parse(iso: string | undefined): Date | null;
+    /** Midnight at the start of a date, in local time — the unit "yesterday" counts in. */
+    function startOfDay(date: any): number;
+    /**
+     * Returns "" rather than a fallback string when there is nothing usable, so
+     * callers can drop the clause entirely instead of printing "since Invalid Date".
+     * joinedAt is optional on the API's member record and we do not control whether
+     * it arrives.
+     *
+     * @param {string|undefined} iso
+     * @param {Date} [now] injectable so the boundary cases can be tested; callers pass nothing
+     * @returns {string}
+     */
+    function format(iso: string | undefined, now?: Date): string;
+}
 declare function findSection(sections: any, kind: any): any;
 /**
  * @param {Array<{appDisplayName: string, timeEntered: string|undefined}>} apps
@@ -91,6 +119,23 @@ declare namespace CCPSectionNames {
         isCurrent?: boolean;
     }>): string;
     function indexOf(list: any, value: any): number;
+}
+declare namespace CCPSectionRules {
+    namespace INTERRUPTS {
+        let CASE_REVIEW: boolean;
+        let VICTIM_WITNESS: boolean;
+    }
+    /**
+     * Does presence in this section warrant taking the page away?
+     *
+     * Takes either the wire kind (VICTIM_WITNESS) or the region code config writes
+     * (victim_witness) — they are the same string in different cases, so this
+     * normalises rather than making callers care which they hold.
+     *
+     * @param {string|undefined} kind
+     * @returns {boolean}
+     */
+    function interrupts(kind: string | undefined): boolean;
 }
 /**
  * window[name] = value, spelled out because TypeScript objects otherwise: the DOM
@@ -209,6 +254,7 @@ declare namespace CCPRoster {
      *   people: function(): CCPPerson[],
      *   describe: function(): string,
      *   sections: function(): Object,
+     *   members: function(string[]|undefined): {userEmail: string, sourceApplication: string, joinedAt: string, sections: {kind: string, isCurrent: boolean}[]}[],
      *   forget: function(string): boolean,
      *   clear: function(): void
      * }}
@@ -218,6 +264,15 @@ declare namespace CCPRoster {
         people: () => CCPPerson[];
         describe: () => string;
         sections: () => any;
+        members: (arg0: string[] | undefined) => {
+            userEmail: string;
+            sourceApplication: string;
+            joinedAt: string;
+            sections: {
+                kind: string;
+                isCurrent: boolean;
+            }[];
+        }[];
         forget: (arg0: string) => boolean;
         clear: () => void;
     };

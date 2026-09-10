@@ -18,21 +18,21 @@
      * A fetch shim has nothing to unregister, so it cannot lose that race. Runs
      * before the module below, which is why it is a classic script.
      *
-     *   ?ui=banner         the pinned notification only
-     *   ?ui=interstitial   the interruption only
-     *   (absent)           both
+     * WHICH SURFACE YOU GET IS NO LONGER A SWITCH. The pinned banner shows for
+     * presence anywhere on the case; the interruption shows only in the sections
+     * that warrant one — a case review, or a witness or victim record — so you
+     * see it by being in one of those regions, which means the dev config's
+     * caseLockingRegion decides, not a query string.
      */
     (function () {
       var realFetch = window.fetch;
       window.fetch = function (input) {
         var url = typeof input === "string" ? input : (input && input.url) || "";
         if (url.indexOf("/state/preview") !== -1) {
-          var ui = new URLSearchParams(location.search).get("ui");
           var body = {
             enabled: true,
             caseLocking: true,
-            caseLockingNotifications: ui !== "interstitial",
-            caseLockingInterstitial: ui !== "banner",
+            caseLockingNotifications: true,
           };
           return Promise.resolve(new Response(JSON.stringify(body), {
             status: 200,
