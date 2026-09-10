@@ -108,3 +108,51 @@ dialog.app-interruption::backdrop {
 .moj-interruption-card__actions {
   margin-bottom: 0;
 }
+
+/* WON BACK FROM cps-global-menu, which leaks its link colours onto us.
+ *
+ * That component is `shadow: false`, so its stylesheet is injected into the
+ * document unscoped and its `a.govuk-link` rules — written for the menu's own
+ * links — apply to every anchor in the light DOM, ours included. One of them is:
+ *
+ *     a.govuk-link:visited { color: #1d70b8 }    // $govuk-brand-colour
+ *
+ * which is EXACTLY this card's background, govuk-colour("blue"). At (0,2,1) it
+ * outranks govuk-frontend's own `.govuk-link--inverse:visited` (0,2,0) whatever
+ * order the sheets land in, so the link disappeared into the card — and only for
+ * people who had visited the target, which is everyone, since they arrived here
+ * from the case they are being sent back to. Hovering restored it because the
+ * leaked `:visited:hover` rule paints it dark blue.
+ *
+ * So this restates govuk-frontend's inverse palette at a specificity that wins:
+ * the card class plus the element selector puts every rule below one class above
+ * its leaked counterpart. `:visited:hover` and `:visited:focus` are spelled out
+ * rather than relying on `:hover` alone, because the leak names those pairs too
+ * and would otherwise tie.
+ *
+ * THE REAL FIX IS TO SCOPE THE MENU'S RULES, which is a change to a component
+ * with its own e2e coverage and other unwitting dependents; this keeps the
+ * interruption legible until that is done.
+ */
+.moj-interruption-card a.govuk-link--inverse {
+  /* Also beats the leaked `a.govuk-link { display: none }` (0,1,1). Today
+     govuk-frontend's `.govuk-button-group .govuk-link` already does that at
+     (0,2,0), so this only matters if the actions ever stop being a button group —
+     but the failure it prevents is the link vanishing outright. */
+  display: inline-block;
+
+  &:link,
+  &:visited {
+    color: govuk-colour("white");
+  }
+
+  &:hover,
+  &:visited:hover {
+    color: rgba(govuk-colour("white"), 0.99);
+  }
+
+  &:focus,
+  &:visited:focus {
+    color: $govuk-focus-text-colour;
+  }
+}
