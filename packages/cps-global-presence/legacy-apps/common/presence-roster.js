@@ -179,10 +179,13 @@ CCPRoster.createRoster = function () {
     members: function (ourSectionIds) {
       var out = [];
       var mine = {};
+      var ours = ourSectionIds || [];
       var key, entry, i, j;
 
-      for (i = 0; ourSectionIds && i < ourSectionIds.length; i++) {
-        mine["s" + ourSectionIds[i]] = true;
+      // Prefixed so a section id can never collide with a name on Object.prototype
+      // — "constructor" as a key would otherwise read as already present.
+      for (i = 0; i < ours.length; i++) {
+        mine["s" + ours[i]] = true;
       }
 
       for (key in sections) {

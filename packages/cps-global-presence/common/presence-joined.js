@@ -66,7 +66,7 @@ CCPJoined.parse = function (iso) {
   // Milliseconds kept rather than discarded, so a parsed instant is the same
   // instant an engine that can read ISO would produce, to the millisecond. The
   // fraction can be any length; three digits is what a millisecond is.
-  millis = m[7] ? parseInt((m[7] + "00").substr(0, 3), 10) : 0;
+  millis = m[7] ? parseInt((m[7] + "00").substring(0, 3), 10) : 0;
 
   ms = Date.UTC(year, month, day, hour, minute, second, millis);
   if (isNaN(ms)) {
@@ -91,8 +91,8 @@ CCPJoined.parse = function (iso) {
   offset = m[8];
   if (offset && offset !== "Z") {
     sign = offset.charAt(0) === "-" ? -1 : 1;
-    hours = parseInt(offset.substr(1, 2), 10);
-    minutes = parseInt(offset.substr(offset.length - 2), 10);
+    hours = parseInt(offset.substring(1, 3), 10);
+    minutes = parseInt(offset.substring(offset.length - 2), 10);
     ms = ms - sign * (hours * 60 + minutes) * 60000;
   }
   return new Date(ms);
