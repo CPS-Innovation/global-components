@@ -6,7 +6,6 @@ import { CaseIdentifiers } from "../context/CaseIdentifiers";
 import { GetToken } from "../auth/GetToken";
 import { createCaseLockingPresence, CaseLockingPresenceService } from "./case-locking-presence";
 import { makeConsole } from "../../logging/makeConsole";
-import { CCPSectionRules } from "cps-global-presence";
 
 type Props = {
   window: Window;
@@ -141,18 +140,6 @@ export const initialiseCaseLocking = ({ window, config, preview, register }: Pro
   window.document.addEventListener(RegionLeaveEvent.type, onLeave);
   _debug("region event listeners attached");
 
-  /**
-   * ONLY WHERE AN INTERRUPTION COULD FOLLOW.
-   *
-   * A presence change means the lock may have changed hands, but re-reading it
-   * everywhere would put the case-summary endpoint behind every arrival and
-   * departure on every case page — the opposite of the caching this data has
-   * precisely to avoid. On a case-wide page the banner can live with the lock we
-   * arrived holding; on a section that can raise the interruption, being right
-   * matters enough to pay for the call.
-   */
-  const holdsInterruptingRegion = () => Array.from(activeRegions.values()).some(region => CCPSectionRules.interrupts(region.code));
-
   const initialiseCaseLockingForContext = ({
     auth,
     caseIdentifiers,
@@ -196,15 +183,22 @@ export const initialiseCaseLocking = ({ window, config, preview, register }: Pro
         // Read once, at construction: a preview change takes effect on reload,
         // which is fine for a development switch.
         countSelf: FEATURE_FLAGS.shouldCountSelfInCaseLocking({ config, preview, auth, authHint: undefined }),
-        // Gated HERE rather than at the wiring site, because the answer changes with
-        // what is on screen: the same page can hold a case-wide region one moment and
-        // a specific section the next, and only this service tracks that.
-        onPresenceChanged: () => {
-          if (!holdsInterruptingRegion()) {
-            _debug("presence changed, but no interrupting region — not re-reading the lock");
-            return;
-          }
-          _debug("presence changed on an interrupting region — re-reading the lock");
+        // EVERY PRESENCE CHANGE RE-READS THE LOCK, on every page that shows one.
+        //
+        // This was briefly gated to interruption-worthy sections, to spare the
+        // case-summary endpoint. That was wrong, and wrong in the worst direction:
+        // the banner shows the lock on EVERY case page, so on a case-wide page the
+        // lock was read once at load and never again — someone unlocking and leaving
+        // Classic left a lock statement on screen that could not go away. A stale
+        // "this case is locked" is worse than none: it is the one thing here a
+        // reader would act on, and acting on it is wasted when it is untrue.
+        //
+        // The cost is smaller than it looks. This fires only when the SET of people
+        // changes, never on the keepalive republishes that make up almost all
+        // presence traffic, so it is one call per arrival or departure — which, for
+        // a Classic arrival or departure, IS the lock changing hands.
+        onClassicPresenceChanged: () => {
+          _debug("Classic presence changed — re-reading the lock");
           onPresenceChanged?.();
         },
       });

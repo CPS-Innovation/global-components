@@ -23,15 +23,17 @@ type Props = {
   // mechanism from a broken one single-handed.
   countSelf?: boolean;
   /**
-   * Someone arrived or left. Not a general "presence updated" hook: it fires only
-   * when the SET OF PEOPLE changes, never on a re-publish of the same roster.
+   * Someone arrived in or left CMS CLASSIC. Not a general "presence updated" hook
+   * in two respects: it fires only when the set of people IN CLASSIC changes, and
+   * never on a re-publish of the same roster.
    *
-   * Exists because in CMS Classic an arrival or departure is the CMS lock being
-   * taken or released — the lock is held for exactly as long as the Classic case
-   * screen is open — so this is the cue to re-read the lock. The service itself
-   * knows nothing about locks or case details; the caller decides what to do.
+   * Classic is singled out because an arrival or departure there is the CMS lock
+   * being taken or released — the lock is held for exactly as long as the Classic
+   * case screen is open. Presence elsewhere changes who is reading the case and
+   * changes nothing about whether it can be written to. The service itself knows
+   * nothing about locks or case details; the caller decides what to do.
    */
-  onPresenceChanged?: () => void;
+  onClassicPresenceChanged?: () => void;
   hubFactory?: HubFactory;
 };
 
@@ -165,6 +167,21 @@ const sectionIdOf = (section: PresenceSection | undefined): string => {
 
 const isSessionEvicted = (error: unknown): boolean => String((error as Error)?.message ?? error ?? "").includes(SESSION_EVICTED);
 
+/**
+ * The application whose presence IS the case lock.
+ *
+ * One name, from the API's own vocabulary, matched case-insensitively because the
+ * server's casing is not ours to rely on. Deliberately not a list: if another
+ * application starts taking locks, that is a decision someone should make here
+ * rather than a behaviour that arrives with a new value in a payload.
+ *
+ * Not shared with the legacy clients. They render a roster and know nothing about
+ * locks, and an unused table in an IE-mode bundle is weight for nothing.
+ */
+const LOCKING_APPLICATION = "cms classic";
+
+const isLockingApplication = ({ appName }: CaseLockingPresentUser) => (appName ?? "").toLowerCase() === LOCKING_APPLICATION;
+
 export const createCaseLockingPresence = ({
   apiUrl,
   username,
@@ -172,7 +189,7 @@ export const createCaseLockingPresence = ({
   register,
   getAccessToken,
   countSelf = false,
-  onPresenceChanged,
+  onClassicPresenceChanged,
   hubFactory = makeHubFactory(getAccessToken),
 }: Props): CaseLockingPresenceService => {
   _debug("creating presence service", { apiUrl, username, appName });
@@ -296,38 +313,53 @@ export const createCaseLockingPresence = ({
     return Array.from(byUserAndApp.values());
   };
 
-  // Empty sections are dropped: a section everyone has left is not news, and the
-  // design omits them from the detail panel.
-  // WHO IS PRESENT, as one comparable string. Only used to spot arrivals and
-  // departures — a change of application or arrival time is not someone coming or
-  // going, and must not fire a refetch of anything.
-  // Sorted explicitly rather than on Array#sort's default: the default coerces to
-  // string and compares UTF-16 code units, which happens to be right here and would
-  // stop being right the moment this held anything but lower-cased addresses.
-  const presenceSignature = (sections: CaseLockingPresentSection[]) =>
-    Array.from(new Set(sections.flatMap(section => section.users.map(user => (user.user ?? "").toLowerCase()))))
+  /**
+   * WHO IS IN CMS CLASSIC, as one comparable string, OURSELVES INCLUDED.
+   *
+   * CLASSIC AND ONLY CLASSIC, because Classic presence IS the lock: it is taken by
+   * opening the Classic case screen and released by leaving it. Someone arriving in
+   * or leaving RCMS changes who is reading the case and changes nothing about
+   * whether it can be written to, so it must not send us back to the API.
+   *
+   * OURSELVES INCLUDED, and held separately from the published rosters for that
+   * reason. What we publish has the reader filtered out of it; this must not be,
+   * because the reader's own Classic session takes and releases the lock exactly as
+   * anyone else's does. Built from the published list instead, someone who locked a
+   * case themselves — the commonest way to meet this feature — would watch the lock
+   * appear and then never clear, because their own departure changed nothing they
+   * could observe.
+   *
+   * Sorted explicitly rather than on Array#sort's default: the default coerces to
+   * string and compares UTF-16 code units, which happens to be right here and would
+   * stop being right the moment this held anything but lower-cased addresses.
+   */
+  const classicPresence = new Map<string, string[]>();
+
+  const classicSignature = () =>
+    Array.from(new Set(Array.from(classicPresence.values()).flat()))
       .sort((a, b) => a.localeCompare(b))
       .join(",");
 
   let lastPresenceSignature: string | undefined;
 
+  // Empty sections are dropped: a section everyone has left is not news, and the
+  // design omits them from the detail panel.
   const publish = () => {
     const sections = Array.from(rosters.values()).filter(section => section.users.length > 0);
     _debug("publishing present users", { sections });
     register({ caseLockingPresentUsers: sections.length ? { sections } : undefined });
 
-    // SOMEONE ARRIVED OR LEFT. In CMS Classic that IS the lock changing hands — the
-    // lock is taken by opening the case screen and released by leaving it — so this
-    // is not a heuristic that correlates with lock changes, it is the same event
-    // reaching us by the other route. Fired on the first publish too: arriving to
-    // find people already here is the moment we most want a fresh lock reading.
-    const signature = presenceSignature(sections);
+    // SOMEONE ARRIVED IN OR LEFT CLASSIC, which IS the lock changing hands — not a
+    // heuristic that correlates with it, the same event reaching us by the other
+    // route. Fired on the first publish too: arriving to find someone already in
+    // Classic is the moment we most want a fresh lock reading.
+    const signature = classicSignature();
     if (signature !== lastPresenceSignature) {
       const first = lastPresenceSignature === undefined;
       lastPresenceSignature = signature;
       if (!first || signature) {
         _debug("presence changed", { signature });
-        onPresenceChanged?.();
+        onClassicPresenceChanged?.();
       }
     }
   };
@@ -345,6 +377,11 @@ export const createCaseLockingPresence = ({
     // demonstrate presence would raise the interruption on arrival at every case
     // review you opened alone.
     const here = others.filter(user => !isSelf(user) && (user.sections ?? []).some(section => section.isCurrent));
+    // Recorded BEFORE the self filter, and Classic only — see classicPresence.
+    classicPresence.set(
+      key,
+      users.filter(isLockingApplication).map(user => (user.user ?? "").toLowerCase()),
+    );
     // WAIT FOR OUR OWN SECTION before deciding. A payload can carry the conflicting
     // sections and be applied before our section's own snapshot has been seen;
     // latching then would record "empty" for a section we had not yet heard about
@@ -358,6 +395,7 @@ export const createCaseLockingPresence = ({
 
   const forgetRoster = (key: string) => {
     occupiedOnEntry.delete(key);
+    classicPresence.delete(key);
     if (rosters.delete(key)) {
       publish();
     }
