@@ -76,7 +76,7 @@ declare namespace CCPPeople {
             kind: string;
             isCurrent?: boolean;
         }>;
-    }>): Array<{
+    }>, viewerEmail: any): Array<{
         username: string;
         apps: Array<{
             appDisplayName: string;
@@ -87,6 +87,52 @@ declare namespace CCPPeople {
             isCurrent: boolean;
         }>;
     }>;
+    /**
+     * Everyone BUT the reader.
+     *
+     * Telling someone that they are working on the case they are looking at is noise,
+     * and on a case only they are on it turns an empty roster into a false alarm. The
+     * web components have always done this; the legacy clients could not, because
+     * nothing on the page knew who the reader was until the whoami op existed.
+     *
+     * FILTERS NOBODY WHEN THE VIEWER IS UNKNOWN, and that asymmetry is deliberate. ""
+     * means whoami has not answered yet, or there is no token, or the claim was
+     * missing — and in every one of those cases showing one person too many is a much
+     * smaller failure than hiding everyone. It also doubles as the dev override: pass
+     * "" to count yourself, which is what CCPPeople's caller does when it wants a lone
+     * developer to be able to see the mechanism working.
+     *
+     * Compared case-insensitively. The server derives the address from token claims
+     * and its casing is not ours to rely on — the real capture this was built against
+     * had mixed case on both sides.
+     *
+     * @param {Array<{userEmail?: string}>|undefined} members
+     * @param {string|undefined} viewerEmail
+     * @returns {Array} the members that are not the reader
+     */
+    function others(members: Array<{
+        userEmail?: string;
+    }> | undefined, viewerEmail: string | undefined): any[];
+    /**
+     * WHAT TO SHOW AS SOMEONE'S NAME, marking the reader.
+     *
+     * While the feature is being built we deliberately count and show ourselves: a
+     * roster that includes you, and says so, is the only evidence from the outside
+     * that the identification works at all. Filtering silently proves nothing — an
+     * empty banner looks identical whether self-detection is working or the whole
+     * presence mechanism is broken.
+     *
+     * When that stops being useful, filter with CCPPeople.others instead and this
+     * suffix stops appearing on its own: nobody left in the list is the reader.
+     *
+     * @param {{username?: string, isCurrentUser?: boolean}} person
+     * @returns {string}
+     */
+    function displayName(person: {
+        username?: string;
+        isCurrentUser?: boolean;
+    }): string;
+    let CURRENT_USER_SUFFIX: string;
 }
 declare namespace CCPSectionNames {
     namespace DISPLAY_NAMES {
@@ -330,5 +376,22 @@ declare namespace CCPSessions {
         stop: () => void;
         ids: () => string[];
         stats: () => any;
+    };
+}
+declare namespace CCPViewer {
+    /**
+     * @param {{call: function(string, Object, function(*): void): void,
+     *          log: function(...*): void}} options
+     * @returns {{email: function(): string, oid: function(): string,
+     *            refresh: function(): void, known: function(): boolean}}
+     */
+    function createViewer(options: {
+        call: (arg0: string, arg1: any, arg2: (arg0: any) => void) => void;
+        log: (...args: any[]) => void;
+    }): {
+        email: () => string;
+        oid: () => string;
+        refresh: () => void;
+        known: () => boolean;
     };
 }

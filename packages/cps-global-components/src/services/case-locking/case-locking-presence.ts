@@ -22,6 +22,16 @@ type Props = {
   // banner without a second person, which is the only way to tell a working
   // mechanism from a broken one single-handed.
   countSelf?: boolean;
+  /**
+   * Someone arrived or left. Not a general "presence updated" hook: it fires only
+   * when the SET OF PEOPLE changes, never on a re-publish of the same roster.
+   *
+   * Exists because in CMS Classic an arrival or departure is the CMS lock being
+   * taken or released — the lock is held for exactly as long as the Classic case
+   * screen is open — so this is the cue to re-read the lock. The service itself
+   * knows nothing about locks or case details; the caller decides what to do.
+   */
+  onPresenceChanged?: () => void;
   hubFactory?: HubFactory;
 };
 
@@ -162,6 +172,7 @@ export const createCaseLockingPresence = ({
   register,
   getAccessToken,
   countSelf = false,
+  onPresenceChanged,
   hubFactory = makeHubFactory(getAccessToken),
 }: Props): CaseLockingPresenceService => {
   _debug("creating presence service", { apiUrl, username, appName });
@@ -287,10 +298,38 @@ export const createCaseLockingPresence = ({
 
   // Empty sections are dropped: a section everyone has left is not news, and the
   // design omits them from the detail panel.
+  // WHO IS PRESENT, as one comparable string. Only used to spot arrivals and
+  // departures — a change of application or arrival time is not someone coming or
+  // going, and must not fire a refetch of anything.
+  // Sorted explicitly rather than on Array#sort's default: the default coerces to
+  // string and compares UTF-16 code units, which happens to be right here and would
+  // stop being right the moment this held anything but lower-cased addresses.
+  const presenceSignature = (sections: CaseLockingPresentSection[]) =>
+    Array.from(new Set(sections.flatMap(section => section.users.map(user => (user.user ?? "").toLowerCase()))))
+      .sort((a, b) => a.localeCompare(b))
+      .join(",");
+
+  let lastPresenceSignature: string | undefined;
+
   const publish = () => {
     const sections = Array.from(rosters.values()).filter(section => section.users.length > 0);
     _debug("publishing present users", { sections });
     register({ caseLockingPresentUsers: sections.length ? { sections } : undefined });
+
+    // SOMEONE ARRIVED OR LEFT. In CMS Classic that IS the lock changing hands — the
+    // lock is taken by opening the case screen and released by leaving it — so this
+    // is not a heuristic that correlates with lock changes, it is the same event
+    // reaching us by the other route. Fired on the first publish too: arriving to
+    // find people already here is the moment we most want a fresh lock reading.
+    const signature = presenceSignature(sections);
+    if (signature !== lastPresenceSignature) {
+      const first = lastPresenceSignature === undefined;
+      lastPresenceSignature = signature;
+      if (!first || signature) {
+        _debug("presence changed", { signature });
+        onPresenceChanged?.();
+      }
+    }
   };
 
   const publishPresentUsers = (key: string, code: string, entry: ConnectionEntry) => {
@@ -299,7 +338,13 @@ export const createCaseLockingPresence = ({
     // isCurrent already means "in the section this connection registered", which is
     // exactly who can clash with us. Everyone else in the roster is elsewhere in
     // the case and belongs in the banner, not in an interruption.
-    const here = others.filter(user => (user.sections ?? []).some(section => section.isCurrent));
+    //
+    // OURSELVES EXCLUDED WHATEVER countSelf SAYS. You cannot clash with yourself,
+    // and countSelf is about being able to SEE the roster working single-handed —
+    // not about manufacturing a collision. Without this, turning the flag on to
+    // demonstrate presence would raise the interruption on arrival at every case
+    // review you opened alone.
+    const here = others.filter(user => !isSelf(user) && (user.sections ?? []).some(section => section.isCurrent));
     // WAIT FOR OUR OWN SECTION before deciding. A payload can carry the conflicting
     // sections and be applied before our section's own snapshot has been seen;
     // latching then would record "empty" for a section we had not yet heard about

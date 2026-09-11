@@ -26,10 +26,26 @@ type Props = {
   mergeTags: MergeTags;
 };
 
+type ContextArgs = {
+  context: FoundContext;
+  caseIdentifiers: CaseIdentifiers | undefined;
+  getToken: GetToken;
+  correlationIds: CorrelationIds;
+  auth: AuthResult;
+};
+
 export const initialiseCaseDetailsData = ({ config, handover, setNextHandover, setNextRecentCases, trackEvent, trackException, register, mergeTags }: Props) => {
   let optimisticCaseId: number | undefined;
   let lastSeenCaseId: number | undefined;
   let generation = 0;
+  // The arguments of the last per-context call, so a refresh is "do that again"
+  // rather than a second call site that has to reassemble them. Kept beside the
+  // other closure state for the same reason it is: this service owns when it
+  // fetches, and these are part of that decision.
+  let lastContextArgs: ContextArgs | undefined;
+  // Set by refreshCaseDetailsData and cleared the moment it is honoured. This is
+  // the ONLY thing that gets past the handover short-circuit below.
+  let refetchRequested = false;
 
   // Called as soon as caseIdentifiers are known (before auth completes).
   // Sets store from handover if available — no network, instant.
@@ -62,19 +78,12 @@ export const initialiseCaseDetailsData = ({ config, handover, setNextHandover, s
   };
 
   // Called after auth completes. Fetches from network if the optimistic path didn't cover it.
-  const initialiseCaseDetailsDataForContext = ({
-    context,
-    caseIdentifiers,
-    getToken,
-    correlationIds,
-    auth,
-  }: {
-    context: FoundContext;
-    caseIdentifiers: CaseIdentifiers | undefined;
-    getToken: GetToken;
-    correlationIds: CorrelationIds;
-    auth: AuthResult;
-  }) => {
+  const initialiseCaseDetailsDataForContext = (args: ContextArgs) => {
+    const { context, caseIdentifiers, getToken, correlationIds, auth } = args;
+    // Remembered BEFORE the guards below, so a refresh still works on a context
+    // pass that decided not to fetch — which is exactly the handover case, and
+    // exactly when the lock we hold is most likely to be out of date.
+    lastContextArgs = args;
     // The authed network fetch only makes sense with a token. auth resolves (not
     // rejects) even on a FailedAuth / redirect-in-flight outcome — we make the
     // call/no-call determination here rather than the caller. The optimistic
@@ -83,8 +92,14 @@ export const initialiseCaseDetailsData = ({ config, handover, setNextHandover, s
 
     const caseId = Number(caseIdentifiers.caseId);
 
-    // Optimistic path already handled this case from handover
-    if (optimisticCaseId === caseId) return;
+    // Optimistic path already handled this case from handover — unless someone has
+    // told us it has gone stale. Handover data is fetched once and passed between
+    // apps to be kind to the API, which is right for a URN or a defendant name and
+    // wrong for a lock: the lock changes while you sit on the page. This is the
+    // same shape as initialise-user-data's refresh window, with an event standing
+    // in for elapsed time.
+    if (optimisticCaseId === caseId && !refetchRequested) return;
+    refetchRequested = false;
 
     const thisGeneration = generation;
     const isStale = () => thisGeneration !== generation;
@@ -130,5 +145,29 @@ export const initialiseCaseDetailsData = ({ config, handover, setNextHandover, s
     });
   };
 
-  return { initialiseCaseDetailsDataForContext, initialiseCaseDetailsDataForContextOptimistic };
+  /**
+   * Fetch the current case's details again, whatever the freshness policy would
+   * otherwise have decided.
+   *
+   * A REFRESH IS THE SAME FETCH ASKED FOR AGAIN — same endpoint, same schema, same
+   * generation guard — so there is one code path to reason about rather than two.
+   * It takes no arguments because the answer to "which case?" is always "the one we
+   * are already on"; the caller is a presence event, which knows nothing about
+   * contexts or tokens and should not have to.
+   *
+   * The side effects are deliberate rather than tolerated: setNextHandover means the
+   * next app inherits the fresher lock, and setNextRecentCases already no-ops when
+   * the head of the list is unchanged.
+   *
+   * No-ops before the first per-context call, when there is nothing to repeat.
+   */
+  const refreshCaseDetailsData = () => {
+    if (!lastContextArgs) {
+      return;
+    }
+    refetchRequested = true;
+    return initialiseCaseDetailsDataForContext(lastContextArgs);
+  };
+
+  return { initialiseCaseDetailsDataForContext, initialiseCaseDetailsDataForContextOptimistic, refreshCaseDetailsData };
 };

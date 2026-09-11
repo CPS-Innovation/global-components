@@ -44,6 +44,12 @@ declare module "cps-global-presence" {
   /** A person, once, with the applications they are in. */
   export type CCPPerson = {
     username: string;
+    /**
+     * Is this the reader? True only when collapse was told who they are. Marked
+     * rather than filtered while the feature is being built — a roster that
+     * includes you and says so is the evidence that identification works.
+     */
+    isCurrentUser: boolean;
     apps: { appDisplayName: string; timeEntered: string | undefined }[];
     /** Every section of the case this person is in, unioned across their records. */
     sections: { kind: string; isCurrent: boolean }[];
@@ -72,7 +78,20 @@ declare module "cps-global-presence" {
   };
 
   export const CCPPeople: {
-    /** Collapse denormalised member records to one row per person. */
-    collapse(members: CCPMember[] | undefined): CCPPerson[];
+    /**
+     * Collapse denormalised member records to one row per person. viewerEmail, when
+     * given, marks the reader's own row as isCurrentUser (compared case-insensitively).
+     */
+    collapse(members: CCPMember[] | undefined, viewerEmail?: string): CCPPerson[];
+    /** The name to show, with "(current user)" appended for the reader. */
+    displayName(person: { username?: string; isCurrentUser?: boolean } | undefined): string;
+    /** The suffix displayName appends. */
+    CURRENT_USER_SUFFIX: string;
+    /**
+     * Everyone but the reader. An empty or absent viewerEmail filters NOBODY —
+     * showing one person too many beats hiding every colleague when the identity
+     * is not known yet.
+     */
+    others<T extends { userEmail?: string }>(members: T[] | undefined, viewerEmail: string | undefined): T[];
   };
 }

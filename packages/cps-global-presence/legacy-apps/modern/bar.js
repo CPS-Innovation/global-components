@@ -35,7 +35,7 @@ function describePerson(person, fallbackApp) {
     apps.push(CCPApps.displayName(fallbackApp));
   }
 
-  return person.username +
+  return CCPPeople.displayName(person) +
     (where ? " is in " + where : " is on this case") +
     (apps.length ? " — " + apps.join(", ") : "");
 }

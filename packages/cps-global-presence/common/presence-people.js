@@ -82,11 +82,12 @@ function findApp(apps, appDisplayName) {
  *        produce.
  * @returns {Array<{username: string, apps: Array<{appDisplayName: string, timeEntered: string|undefined}>, sections: Array<{kind: string, isCurrent: boolean}>}>}
  */
-CCPPeople.collapse = function (members) {
+CCPPeople.collapse = function (members, viewerEmail) {
   var byUser = {};
   var order = [];
   var out = [];
   var i, member, id, person, appName, found, sections, k;
+  var me = String(viewerEmail || "").toLowerCase();
 
   if (!members || !members.length) {
     return out;
@@ -102,7 +103,15 @@ CCPPeople.collapse = function (members) {
       continue; // a record with nobody in it says nothing
     }
     if (!byUser.hasOwnProperty(id)) {
-      byUser[id] = { username: member.userEmail, apps: [], sections: [] };
+      byUser[id] = {
+        username: member.userEmail,
+        apps: [],
+        sections: [],
+        // Compared on the same lowercased id the collapse already keys on, so the
+        // server's casing — which comes from token claims and is not ours to rely
+        // on — cannot make the reader fail to recognise themselves.
+        isCurrentUser: !!me && id === me
+      };
       order.push(id);
     }
     person = byUser[id];
@@ -149,3 +158,75 @@ CCPPeople.collapse = function (members) {
   }
   return out;
 };
+
+/**
+ * Everyone BUT the reader.
+ *
+ * Telling someone that they are working on the case they are looking at is noise,
+ * and on a case only they are on it turns an empty roster into a false alarm. The
+ * web components have always done this; the legacy clients could not, because
+ * nothing on the page knew who the reader was until the whoami op existed.
+ *
+ * FILTERS NOBODY WHEN THE VIEWER IS UNKNOWN, and that asymmetry is deliberate. ""
+ * means whoami has not answered yet, or there is no token, or the claim was
+ * missing — and in every one of those cases showing one person too many is a much
+ * smaller failure than hiding everyone. It also doubles as the dev override: pass
+ * "" to count yourself, which is what CCPPeople's caller does when it wants a lone
+ * developer to be able to see the mechanism working.
+ *
+ * Compared case-insensitively. The server derives the address from token claims
+ * and its casing is not ours to rely on — the real capture this was built against
+ * had mixed case on both sides.
+ *
+ * @param {Array<{userEmail?: string}>|undefined} members
+ * @param {string|undefined} viewerEmail
+ * @returns {Array} the members that are not the reader
+ */
+CCPPeople.others = function (members, viewerEmail) {
+  var out = [];
+  var me, i, email;
+  if (!members) {
+    return out;
+  }
+  me = String(viewerEmail || "").toLowerCase();
+  if (!me) {
+    for (i = 0; i < members.length; i++) {
+      out.push(members[i]);
+    }
+    return out;
+  }
+  for (i = 0; i < members.length; i++) {
+    email = members[i] ? String(members[i].userEmail || "").toLowerCase() : "";
+    if (email !== me) {
+      out.push(members[i]);
+    }
+  }
+  return out;
+};
+
+/**
+ * WHAT TO SHOW AS SOMEONE'S NAME, marking the reader.
+ *
+ * While the feature is being built we deliberately count and show ourselves: a
+ * roster that includes you, and says so, is the only evidence from the outside
+ * that the identification works at all. Filtering silently proves nothing — an
+ * empty banner looks identical whether self-detection is working or the whole
+ * presence mechanism is broken.
+ *
+ * When that stops being useful, filter with CCPPeople.others instead and this
+ * suffix stops appearing on its own: nobody left in the list is the reader.
+ *
+ * @param {{username?: string, isCurrentUser?: boolean}} person
+ * @returns {string}
+ */
+CCPPeople.displayName = function (person) {
+  if (!person || !person.username) {
+    return "";
+  }
+  return person.isCurrentUser ? person.username + CCPPeople.CURRENT_USER_SUFFIX : person.username;
+};
+
+// In brackets after the name rather than replacing it with "you": the address is
+// still the thing a reader matches against what the API reported, and a roster
+// that renamed one row would be harder to check, not easier.
+CCPPeople.CURRENT_USER_SUFFIX = " (current user)";

@@ -1471,6 +1471,49 @@ async function handlePresenceJsonp(r: NginxHTTPRequest): Promise<void> {
     appName: decodeURIComponent(_getQueryParam(r, "appName") || ""),
   };
 
+  // whoami — ANSWERED HERE, not proxied. The legacy clients cannot filter the
+  // reader out of their own roster because nothing on the page knows who the
+  // reader is: the identity lives in the presence token, which is an HttpOnly
+  // cookie they can never read. RCMS has the email to hand and filters on it; this
+  // is how the JSONP clients get the same fact.
+  //
+  // preferred_username IS the claim. Verified against a real capture: the presence
+  // access token (scp api.presence.user.readwrite) carries preferred_username, oid,
+  // sub and sid — and NOT email or upn — and its preferred_username is byte-for-byte
+  // what the API puts in member.userEmail. The order below matches
+  // handleInitV2Callback's, so both read identity the same way; for this token it is
+  // the third entry that fires.
+  //
+  // NEVER THE TOKEN ITSELF, only the claim. The page already acts as this user, so
+  // telling it their own username exposes nothing new — handing back the bearer
+  // token would be another matter entirely.
+  //
+  // An unreadable or absent cookie yields "" rather than an error, and the client
+  // reads "" as FILTER NOBODY. Getting this wrong in the other direction would hide
+  // every colleague rather than one, which is the failure worth designing against.
+  if (args.op === "whoami") {
+    const tok = _getCookie(r, _PRESENCE_TOKEN_COOKIE);
+    const claims = tok ? _decodeJwtPayload(decodeURIComponent(tok)) : null;
+    const userEmail = claims
+      ? String(claims.email || claims.upn || claims.preferred_username || "")
+      : "";
+    r.return(
+      200,
+      cb +
+        "(" +
+        JSON.stringify({
+          userEmail,
+          // Diagnostics only — the client matches on userEmail, because that is the
+          // only identity the API's member records carry. Here so that "presence
+          // works but nobody is filtered" can be told apart from "no token at all"
+          // without decoding a cookie by hand.
+          oid: claims ? String(claims.oid || "") : "",
+        }) +
+        ")",
+    );
+    return;
+  }
+
   const op = _PRESENCE_OPS[args.op];
   if (!op) {
     r.return(

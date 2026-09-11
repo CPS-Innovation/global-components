@@ -48,7 +48,7 @@ SHARED="$DIR/common/presence-apps.js $DIR/common/presence-section-names.js $DIR/
 SHARED_ESM_ONLY="$DIR/common/presence-section-rules.js"
 # legacy-apps/common/ is shared between Classic and Modern/DCF and nothing else —
 # JSONP, sessions and the script-origin trick have no meaning in a bundled app.
-LEGACY_COMMON="$DIR/legacy-apps/common/presence-sections.js $DIR/legacy-apps/common/presence-origin.js $DIR/legacy-apps/common/presence-roster.js $DIR/legacy-apps/common/presence-locator.js $DIR/legacy-apps/common/presence-jsonp.js $DIR/legacy-apps/common/presence-sessions.js"
+LEGACY_COMMON="$DIR/legacy-apps/common/presence-viewer.js $DIR/legacy-apps/common/presence-sections.js $DIR/legacy-apps/common/presence-origin.js $DIR/legacy-apps/common/presence-roster.js $DIR/legacy-apps/common/presence-locator.js $DIR/legacy-apps/common/presence-jsonp.js $DIR/legacy-apps/common/presence-sessions.js"
 COMMON="$SHARED $LEGACY_COMMON"
 MODERN="$DIR/legacy-apps/modern/sections.js $DIR/legacy-apps/modern/bar.js $DIR/legacy-apps/modern/main.js"
 # The second Modern skin: an indicator beside the username, as CMS Classic has,

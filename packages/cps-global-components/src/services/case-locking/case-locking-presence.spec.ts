@@ -58,7 +58,7 @@ const presence = (users: { user: string; appName: string }[], { caseId = "123", 
   },
 });
 
-const setup = (options: { countSelf?: boolean } = {}) => {
+const setup = (options: { countSelf?: boolean; onPresenceChanged?: () => void } = {}) => {
   const hubs: FakeHubConnection[] = [];
   let presentUsers: CaseLockingPresentUsers;
   const register = jest.fn((arg: { caseLockingPresentUsers: CaseLockingPresentUsers }) => {
@@ -72,6 +72,7 @@ const setup = (options: { countSelf?: boolean } = {}) => {
     // what consumes this) is never built. Present because the type requires it.
     getAccessToken: async () => "test-token",
     countSelf: options.countSelf,
+    onPresenceChanged: options.onPresenceChanged,
     register,
     hubFactory: () => {
       const hub = makeFakeHub();
@@ -264,6 +265,66 @@ describe("createCaseLockingPresence", () => {
     service.addRegion("a");
     await flush();
     expect(hubs.length).toBeGreaterThan(1);
+  });
+
+  // In CMS Classic an arrival or departure IS the lock changing hands, so this
+  // callback is what re-reads it. It must fire on people coming and going and on
+  // nothing else — a redraw of the same roster that triggered a refetch would put
+  // the case-summary endpoint behind every keepalive.
+  describe("the presence-changed signal", () => {
+    // One rig for the whole block: every test here needs a witness region with a
+    // spy attached, and spelling that out four times said nothing the fourth time
+    // that it had not said the first.
+    const onWitnessWatching = async () => {
+      const onPresenceChanged = jest.fn();
+      const rig = setup({ countSelf: true, onPresenceChanged });
+      rig.service.setCaseId("123");
+      rig.service.addRegion("witness");
+      await flush();
+      const arrive = async (...users: { user: string; appName: string }[]) => {
+        rig.hubFor("123:WITNESS")!.__notify?.(presence(users));
+        await flush();
+      };
+      return { ...rig, onPresenceChanged, arrive };
+    };
+
+    const alice = { user: "alice", appName: "test-app" };
+    const bob = { user: "bob", appName: "CMS" };
+
+    it("fires when the first person appears", async () => {
+      const { onPresenceChanged, arrive } = await onWitnessWatching();
+      expect(onPresenceChanged).not.toHaveBeenCalled();
+      await arrive(alice);
+      expect(onPresenceChanged).toHaveBeenCalledTimes(1);
+    });
+
+    it("fires again when someone else arrives, and when they leave", async () => {
+      const { onPresenceChanged, arrive } = await onWitnessWatching();
+      await arrive(alice);
+      await arrive(alice, bob);
+      expect(onPresenceChanged).toHaveBeenCalledTimes(2);
+      await arrive(alice);
+      expect(onPresenceChanged).toHaveBeenCalledTimes(3);
+    });
+
+    // The same people re-reported is not news. Snapshots arrive on every keepalive,
+    // so treating a republish as a change would refetch case details every few
+    // seconds — the opposite of being kind to the API.
+    it("does not fire when the same people are reported again", async () => {
+      const { onPresenceChanged, arrive } = await onWitnessWatching();
+      await arrive(alice);
+      await arrive(alice);
+      expect(onPresenceChanged).toHaveBeenCalledTimes(1);
+    });
+
+    // A person moving between applications is the same person still present. The
+    // lock cannot have changed hands, so nothing needs re-reading.
+    it("does not fire when only the application changes", async () => {
+      const { onPresenceChanged, arrive } = await onWitnessWatching();
+      await arrive(alice);
+      await arrive({ user: "alice", appName: "CMS Classic" });
+      expect(onPresenceChanged).toHaveBeenCalledTimes(1);
+    });
   });
 
   describe("presence publication", () => {
@@ -539,6 +600,21 @@ describe("createCaseLockingPresence", () => {
 
     // The other half of the same rule: someone in OUR section, already there when
     // we arrived, is the clash the interruption exists for.
+    // You cannot clash with yourself. countSelf exists so a lone developer can SEE
+    // the roster working, not so it can manufacture a collision — without this,
+    // turning it on would raise the interruption on every case review opened alone.
+    it("never counts us as occupying our own section, even with countSelf on", async () => {
+      const { service, hubFor, getPresentUsers } = setup({ countSelf: true });
+      service.setCaseId("123");
+      service.addRegion("witness");
+      await flush();
+      hubFor("123:WITNESS")!.__notify?.(presence([{ user: "alice", appName: "test-app" }]));
+      await flush();
+      // Published — that is what countSelf is for — but not an interruption.
+      expect(getPresentUsers()?.sections[0].users).toHaveLength(1);
+      expect(getPresentUsers()?.sections[0].occupiedOnEntry).toBe(false);
+    });
+
     it("counts our own section as occupied on entry", async () => {
       const { hub, getPresentUsers } = await onWitness();
       hub.__notify?.(notification(1, ["bob@cps.gov.uk"], { caseId: "123", kind: "WITNESS" }));
