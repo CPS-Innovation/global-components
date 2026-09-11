@@ -6,6 +6,7 @@ import { CaseIdentifiers } from "../context/CaseIdentifiers";
 import { GetToken } from "../auth/GetToken";
 import { createCaseLockingPresence, CaseLockingPresenceService } from "./case-locking-presence";
 import { makeConsole } from "../../logging/makeConsole";
+import { CCPSectionRules } from "cps-global-presence";
 
 type Props = {
   window: Window;
@@ -44,7 +45,13 @@ export const initialiseCaseLocking = ({ window, config, preview, register }: Pro
   if (!apiUrl) {
     _debug("no CASE_LOCKING_API_URL — case-locking subscriber & service inert");
     return {
-      initialiseCaseLockingForContext: (_args: { auth: AuthResult; caseIdentifiers: CaseIdentifiers | undefined; getToken: GetToken; context: FoundContext }) => {},
+      initialiseCaseLockingForContext: (_args: {
+        auth: AuthResult;
+        caseIdentifiers: CaseIdentifiers | undefined;
+        getToken: GetToken;
+        context: FoundContext;
+        onPresenceChanged?: () => void;
+      }) => {},
     };
   }
 
@@ -134,16 +141,30 @@ export const initialiseCaseLocking = ({ window, config, preview, register }: Pro
   window.document.addEventListener(RegionLeaveEvent.type, onLeave);
   _debug("region event listeners attached");
 
+  /**
+   * ONLY WHERE AN INTERRUPTION COULD FOLLOW.
+   *
+   * A presence change means the lock may have changed hands, but re-reading it
+   * everywhere would put the case-summary endpoint behind every arrival and
+   * departure on every case page — the opposite of the caching this data has
+   * precisely to avoid. On a case-wide page the banner can live with the lock we
+   * arrived holding; on a section that can raise the interruption, being right
+   * matters enough to pay for the call.
+   */
+  const holdsInterruptingRegion = () => Array.from(activeRegions.values()).some(region => CCPSectionRules.interrupts(region.code));
+
   const initialiseCaseLockingForContext = ({
     auth,
     caseIdentifiers,
     getToken,
     context,
+    onPresenceChanged,
   }: {
     auth: AuthResult;
     caseIdentifiers: CaseIdentifiers | undefined;
     getToken: GetToken;
     context: FoundContext;
+    onPresenceChanged?: () => void;
   }) => {
     // WHICH APP ARE WE? The context tree knows: it is the same structure that
     // already decides what a URL means, so the app a path belongs to is recorded
@@ -175,6 +196,17 @@ export const initialiseCaseLocking = ({ window, config, preview, register }: Pro
         // Read once, at construction: a preview change takes effect on reload,
         // which is fine for a development switch.
         countSelf: FEATURE_FLAGS.shouldCountSelfInCaseLocking({ config, preview, auth, authHint: undefined }),
+        // Gated HERE rather than at the wiring site, because the answer changes with
+        // what is on screen: the same page can hold a case-wide region one moment and
+        // a specific section the next, and only this service tracks that.
+        onPresenceChanged: () => {
+          if (!holdsInterruptingRegion()) {
+            _debug("presence changed, but no interrupting region — not re-reading the lock");
+            return;
+          }
+          _debug("presence changed on an interrupting region — re-reading the lock");
+          onPresenceChanged?.();
+        },
       });
       // Regions that appeared before auth completed. Replayed through the same rule
       // rather than added wholesale, or a page that already had a specific region on

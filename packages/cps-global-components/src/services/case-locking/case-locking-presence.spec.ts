@@ -58,7 +58,7 @@ const presence = (users: { user: string; appName: string }[], { caseId = "123", 
   },
 });
 
-const setup = (options: { countSelf?: boolean } = {}) => {
+const setup = (options: { countSelf?: boolean; onPresenceChanged?: () => void } = {}) => {
   const hubs: FakeHubConnection[] = [];
   let presentUsers: CaseLockingPresentUsers;
   const register = jest.fn((arg: { caseLockingPresentUsers: CaseLockingPresentUsers }) => {
@@ -72,6 +72,7 @@ const setup = (options: { countSelf?: boolean } = {}) => {
     // what consumes this) is never built. Present because the type requires it.
     getAccessToken: async () => "test-token",
     countSelf: options.countSelf,
+    onPresenceChanged: options.onPresenceChanged,
     register,
     hubFactory: () => {
       const hub = makeFakeHub();
@@ -264,6 +265,76 @@ describe("createCaseLockingPresence", () => {
     service.addRegion("a");
     await flush();
     expect(hubs.length).toBeGreaterThan(1);
+  });
+
+  // In CMS Classic an arrival or departure IS the lock changing hands, so this
+  // callback is what re-reads it. It must fire on people coming and going and on
+  // nothing else — a redraw of the same roster that triggered a refetch would put
+  // the case-summary endpoint behind every keepalive.
+  describe("the presence-changed signal", () => {
+    it("fires when the first person appears", async () => {
+      const onPresenceChanged = jest.fn();
+      const { service, hubFor } = setup({ countSelf: true, onPresenceChanged });
+      service.setCaseId("123");
+      service.addRegion("witness");
+      await flush();
+      expect(onPresenceChanged).not.toHaveBeenCalled();
+
+      hubFor("123:WITNESS")!.__notify?.(presence([{ user: "alice", appName: "test-app" }]));
+      await flush();
+      expect(onPresenceChanged).toHaveBeenCalledTimes(1);
+    });
+
+    it("fires again when someone else arrives, and when they leave", async () => {
+      const onPresenceChanged = jest.fn();
+      const { service, hubFor } = setup({ countSelf: true, onPresenceChanged });
+      service.setCaseId("123");
+      service.addRegion("witness");
+      await flush();
+
+      hubFor("123:WITNESS")!.__notify?.(presence([{ user: "alice", appName: "test-app" }]));
+      await flush();
+      hubFor("123:WITNESS")!.__notify?.(presence([{ user: "alice", appName: "test-app" }, { user: "bob", appName: "CMS" }]));
+      await flush();
+      expect(onPresenceChanged).toHaveBeenCalledTimes(2);
+
+      hubFor("123:WITNESS")!.__notify?.(presence([{ user: "alice", appName: "test-app" }]));
+      await flush();
+      expect(onPresenceChanged).toHaveBeenCalledTimes(3);
+    });
+
+    // The same people re-reported is not news. Snapshots arrive on every keepalive,
+    // so treating a republish as a change would refetch case details every few
+    // seconds — the opposite of being kind to the API.
+    it("does not fire when the same people are reported again", async () => {
+      const onPresenceChanged = jest.fn();
+      const { service, hubFor } = setup({ countSelf: true, onPresenceChanged });
+      service.setCaseId("123");
+      service.addRegion("witness");
+      await flush();
+
+      hubFor("123:WITNESS")!.__notify?.(presence([{ user: "alice", appName: "test-app" }]));
+      await flush();
+      hubFor("123:WITNESS")!.__notify?.(presence([{ user: "alice", appName: "test-app" }]));
+      await flush();
+      expect(onPresenceChanged).toHaveBeenCalledTimes(1);
+    });
+
+    // A person moving between applications is the same person still present. The
+    // lock cannot have changed hands, so nothing needs re-reading.
+    it("does not fire when only the application changes", async () => {
+      const onPresenceChanged = jest.fn();
+      const { service, hubFor } = setup({ countSelf: true, onPresenceChanged });
+      service.setCaseId("123");
+      service.addRegion("witness");
+      await flush();
+
+      hubFor("123:WITNESS")!.__notify?.(presence([{ user: "alice", appName: "test-app" }]));
+      await flush();
+      hubFor("123:WITNESS")!.__notify?.(presence([{ user: "alice", appName: "CMS Classic" }]));
+      await flush();
+      expect(onPresenceChanged).toHaveBeenCalledTimes(1);
+    });
   });
 
   describe("presence publication", () => {

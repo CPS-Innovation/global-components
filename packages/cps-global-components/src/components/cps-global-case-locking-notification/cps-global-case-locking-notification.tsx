@@ -4,6 +4,7 @@ import { FEATURE_FLAGS } from "cps-global-configuration";
 import { formatJoined } from "../../services/case-locking/format-joined";
 import { CCPPeople, CCPSectionNames } from "cps-global-presence";
 import { CaseLockingPresentSection } from "../../services/case-locking/CaseLockingPresentUsers";
+import { getCaseLock } from "../../services/case-locking/get-case-lock";
 
 // COLLAPSED IN THE SHARED CODE, not here. The API's records are denormalised —
 // one per user, per section, per application — so the same person on the case and
@@ -26,7 +27,7 @@ const collapsePeople = (sections: CaseLockingPresentSection[], viewer: string | 
 })
 export class CpsGlobalCaseLockingNotification {
   render() {
-    const { isReady, state } = readyState(["caseLockingPresentUsers", "config", "preview", "authHint"], ["auth"]);
+    const { isReady, state } = readyState(["caseLockingPresentUsers", "config", "preview", "authHint"], ["auth", "caseDetails"]);
     if (!isReady) {
       return null;
     }
@@ -38,7 +39,13 @@ export class CpsGlobalCaseLockingNotification {
       return null;
     }
     const present = state.caseLockingPresentUsers;
-    if (!present || present.sections.length === 0) {
+    // EITHER IS ENOUGH. A lock with nobody present is the ordinary result of someone
+    // closing their browser on the Classic case screen — the lock outlives the
+    // session — and it is the more consequential of the two facts, so it must be
+    // able to raise this banner on its own.
+    const lock = getCaseLock(state.caseDetails);
+    const locked = !!lock?.locked;
+    if ((!present || present.sections.length === 0) && !locked) {
       return null;
     }
 
@@ -51,7 +58,8 @@ export class CpsGlobalCaseLockingNotification {
     // authenticated arm carries a username. Unauthenticated means nobody is marked,
     // which is the same safe default as an unanswered whoami on the legacy clients.
     const viewer = state.auth?.isAuthed ? state.auth.username : undefined;
-    const collapsed = collapsePeople(present.sections, viewer);
+    const sections = present?.sections ?? [];
+    const collapsed = collapsePeople(sections, viewer);
     const people = collapsed.length;
     const includesSelf = collapsed.some(person => person.isCurrentUser);
     // The prototype's heading reads "Case locked as 1 user is editing with 2
@@ -63,17 +71,37 @@ export class CpsGlobalCaseLockingNotification {
     // "2 other people" alongside a list that names you as one of them. The
     // production wording is the "other" branch, and it comes back on its own once
     // we stop counting ourselves.
-    const summary = includesSelf
+    const working = includesSelf
       ? people === 1
         ? "1 person is working on this case"
         : `${people} people are working on this case`
       : people === 1
         ? "1 other person is working on this case"
         : `${people} other people are working on this case`;
+    // THE LOCK LEADS. Presence is someone reading over your shoulder; the lock is
+    // the case refusing to be written to. When both are true the lock goes first
+    // and presence follows as the subordinate clause, because that is the order a
+    // reader needs them in to decide what to do next.
+    //
+    // "currently" earns its place only in the compound sentence, where it separates
+    // the standing state of the case from who happens to be on it right now.
+    const summary = locked ? (people ? `This case is locked, and ${working.replace(" is working", " is currently working").replace(" are working", " are currently working")}` : "This case is locked") : working;
 
     return (
       <cps-global-pinned-notification titleText={summary} collapsible dismissible={false}>
-        {present.sections.map(section => (
+        {locked && (
+          <p class="govuk-body">
+            {/* FIRST IN THE BODY, above the roster, for the same reason it leads the
+                heading. The name is whatever CMS recorded; we make no attempt to
+                match it to the people in the roster below — that reconciliation is
+                a separate problem and a wrong guess would be worse than two
+                un-joined facts. */}
+            {lock?.by ? `${lock.by} is locking this case` : "Someone is locking this case"}
+            {lock?.application ? ` in ${lock.application}` : ""}
+            {formatJoined(lock?.since) ? `, since ${formatJoined(lock?.since)}` : ""}.
+          </p>
+        )}
+        {sections.map(section => (
           <div>
             {/* Collapsed WITHIN the section, not across them: a person in two
                 sections is genuinely in two sections and is listed under each. What

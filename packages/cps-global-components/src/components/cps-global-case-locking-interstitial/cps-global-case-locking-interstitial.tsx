@@ -3,6 +3,8 @@ import { readyState } from "../../store/store";
 import { FEATURE_FLAGS } from "cps-global-configuration";
 import { replaceTagsInString } from "../cps-global-menu/menu-config/helpers/replace-tags-in-string";
 import { CCPSectionNames, CCPSectionRules } from "cps-global-presence";
+import { getCaseLock } from "../../services/case-locking/get-case-lock";
+import { formatJoined } from "../../services/case-locking/format-joined";
 import { MIN_REAL_HEADER_WIDTH_PX } from "../../services/browser/dom/footer-subscriber";
 
 /**
@@ -218,13 +220,13 @@ export class CpsGlobalCaseLockingInterstitial {
   };
 
   render() {
-    const { isReady, state } = readyState(["caseLockingPresentUsers", "config", "preview", "authHint"], ["auth", "tags"]);
+    const { isReady, state } = readyState(["caseLockingPresentUsers", "config", "context", "preview", "authHint"], ["auth", "tags", "caseDetails"]);
     if (!isReady || !FEATURE_FLAGS.shouldShowCaseLockingNotifications(state)) {
       this.close();
       return null;
     }
     const present = state.caseLockingPresentUsers;
-    // TWO CONDITIONS, and both are about not crying wolf.
+    // TWO CONDITIONS FOR PRESENCE, and both are about not crying wolf.
     //
     // ALREADY OCCUPIED when we arrived: someone joining a section we are already
     // in is not an interruption for us — we are the one who was here first, and
@@ -240,12 +242,29 @@ export class CpsGlobalCaseLockingInterstitial {
     // section.code is the region code config writes; interrupts() normalises it
     // against the wire kinds, so neither side has to care which case it holds.
     const sections = present?.sections.filter(section => section.occupiedOnEntry && CCPSectionRules.interrupts(section.code)) ?? [];
-    if (sections.length === 0) {
+
+    // THE LOCK INTERRUPTS ON ITS OWN, and needs no presence to do it. A lock with
+    // nobody present is the ordinary outcome of closing a browser on the Classic
+    // case screen, and it is the more consequential fact: presence means someone is
+    // reading, the lock means your changes will not save.
+    //
+    // The region comes from the matched CONTEXT rather than from the roster, because
+    // a roster with nobody in it has no sections to read a region off — which is
+    // exactly the case this branch exists for.
+    const lock = getCaseLock(state.caseDetails);
+    const configuredRegion = state.context?.found ? state.context.caseLockingRegion : undefined;
+    const lockInterrupts = !!lock?.locked && !!configuredRegion && CCPSectionRules.interrupts(configuredRegion.code);
+
+    if (sections.length === 0 && !lockInterrupts) {
       this.close();
       return null;
     }
+    // The lock is part of the dismissal identity, so a lock taken while the card is
+    // dismissed raises it again. Keyed on the holder, not just on "locked": the case
+    // passing from one person to another is new news.
     const key = sections
       .map(section => section.code)
+      .concat(lockInterrupts ? [`lock:${lock?.by || "?"}`] : [])
       .sort((a, b) => a.localeCompare(b))
       .join(",");
     if (this.dismissedFor === key) {
@@ -293,16 +312,36 @@ export class CpsGlobalCaseLockingInterstitial {
                   <div class="moj-interruption-card">
                     <div class="moj-interruption-card__content">
                       <h1 class="moj-interruption-card__heading" id="cps-interruption-heading">
-                        Someone else is working on {where}
+                        {/* THE LOCK LEADS when there is one. "Someone is working here"
+                            is something you may choose to ignore; "this case is
+                            locked" is something that will stop you saving, and the
+                            heading is the only line some readers take in. */}
+                        {lockInterrupts ? "This case is locked" : `Someone else is working on ${where}`}
                       </h1>
                       {/* Wording is deliberately plain. The presence API tells us who is
                           in a section and when they arrived — NOT whether they are
                           editing, nor whether it is safe to proceed. */}
                       <div class="moj-interruption-card__body" id="cps-interruption-body">
-                        <p>
-                          {who} is also working on {where}.
-                        </p>
-                        <p>If you both make changes, one set of changes could be lost.</p>
+                        {lockInterrupts && (
+                          <p>
+                            {/* No attempt to match this name against the roster below.
+                                CMS records a lock holder by name and presence reports
+                                an address; joining them is a separate problem, and a
+                                wrong guess reads worse than two unjoined facts. */}
+                            {lock?.by ? `${lock.by} is locking this case` : "Someone is locking this case"}
+                            {lock?.application ? ` in ${lock.application}` : ""}
+                            {formatJoined(lock?.since) ? `, since ${formatJoined(lock?.since)}` : ""}.
+                          </p>
+                        )}
+                        {who && (
+                          <p>
+                            {who} is also working on {where}.
+                          </p>
+                        )}
+                        {/* Wording is deliberately plain, and the two cases say
+                            different things because they ARE different. A lock is a
+                            fact about the case; two people editing is a risk. */}
+                        <p>{lockInterrupts ? "While it is locked, changes you make may not be saved." : "If you both make changes, one set of changes could be lost."}</p>
                       </div>
                       <div class="govuk-button-group moj-interruption-card__actions">
                         <button type="button" class="govuk-button govuk-button--inverse" autofocus onClick={this.dismiss}>
