@@ -72,7 +72,7 @@ const setup = (options: { countSelf?: boolean; onPresenceChanged?: () => void } 
     // what consumes this) is never built. Present because the type requires it.
     getAccessToken: async () => "test-token",
     countSelf: options.countSelf,
-    onPresenceChanged: options.onPresenceChanged,
+    onClassicPresenceChanged: options.onPresenceChanged,
     register,
     hubFactory: () => {
       const hub = makeFakeHub();
@@ -271,13 +271,15 @@ describe("createCaseLockingPresence", () => {
   // callback is what re-reads it. It must fire on people coming and going and on
   // nothing else — a redraw of the same roster that triggered a refetch would put
   // the case-summary endpoint behind every keepalive.
-  describe("the presence-changed signal", () => {
-    // One rig for the whole block: every test here needs a witness region with a
-    // spy attached, and spelling that out four times said nothing the fourth time
-    // that it had not said the first.
+  // CLASSIC PRESENCE IS THE LOCK — taken by opening the Classic case screen,
+  // released by leaving it — so this signal is what sends us back for a fresh lock
+  // reading. It must fire for Classic comings and goings and for nothing else: an
+  // RCMS arrival changes who is reading the case and changes nothing about whether
+  // it can be written to.
+  describe("the Classic-presence signal", () => {
     const onWitnessWatching = async () => {
       const onPresenceChanged = jest.fn();
-      const rig = setup({ countSelf: true, onPresenceChanged });
+      const rig = setup({ onPresenceChanged });
       rig.service.setCaseId("123");
       rig.service.addRegion("witness");
       await flush();
@@ -288,23 +290,58 @@ describe("createCaseLockingPresence", () => {
       return { ...rig, onPresenceChanged, arrive };
     };
 
-    const alice = { user: "alice", appName: "test-app" };
-    const bob = { user: "bob", appName: "CMS" };
+    const inClassic = { user: "bob@cps.gov.uk", appName: "CMS Classic" };
+    const alsoClassic = { user: "carol@cps.gov.uk", appName: "CMS Classic" };
+    const inRcms = { user: "dave@cps.gov.uk", appName: "Work Management App" };
 
-    it("fires when the first person appears", async () => {
+    it("fires on finding someone already in Classic", async () => {
       const { onPresenceChanged, arrive } = await onWitnessWatching();
       expect(onPresenceChanged).not.toHaveBeenCalled();
-      await arrive(alice);
+      await arrive(inClassic);
       expect(onPresenceChanged).toHaveBeenCalledTimes(1);
     });
 
-    it("fires again when someone else arrives, and when they leave", async () => {
+    it("fires when someone arrives in Classic, and when they leave", async () => {
       const { onPresenceChanged, arrive } = await onWitnessWatching();
-      await arrive(alice);
-      await arrive(alice, bob);
+      await arrive(inClassic);
+      await arrive(inClassic, alsoClassic);
       expect(onPresenceChanged).toHaveBeenCalledTimes(2);
-      await arrive(alice);
+      await arrive(inClassic);
       expect(onPresenceChanged).toHaveBeenCalledTimes(3);
+      await arrive();
+      expect(onPresenceChanged).toHaveBeenCalledTimes(4);
+    });
+
+    // THE CASE THAT CAUGHT US OUT. You lock a case yourself in Classic, then leave
+    // it — and the lock statement never cleared, because the published roster has
+    // the reader filtered out of it and so never changed. The signal counts the
+    // reader, because the reader's own Classic session moves the lock like anyone's.
+    it("fires when the reader themselves arrives in and leaves Classic", async () => {
+      const { onPresenceChanged, arrive } = await onWitnessWatching();
+      await arrive({ user: "alice", appName: "CMS Classic" });
+      expect(onPresenceChanged).toHaveBeenCalledTimes(1);
+      await arrive();
+      expect(onPresenceChanged).toHaveBeenCalledTimes(2);
+    });
+
+    // The saving, and the reason this is narrowed to one application: RCMS is where
+    // most presence traffic happens and none of it can change a lock.
+    it("ignores arrivals and departures in RCMS", async () => {
+      const { onPresenceChanged, arrive } = await onWitnessWatching();
+      await arrive(inRcms);
+      await arrive(inRcms, { user: "erin@cps.gov.uk", appName: "Case Review App" });
+      await arrive();
+      expect(onPresenceChanged).not.toHaveBeenCalled();
+    });
+
+    // An RCMS arrival alongside a standing Classic session is still not lock news.
+    it("does not fire when RCMS churns around a Classic session", async () => {
+      const { onPresenceChanged, arrive } = await onWitnessWatching();
+      await arrive(inClassic);
+      expect(onPresenceChanged).toHaveBeenCalledTimes(1);
+      await arrive(inClassic, inRcms);
+      await arrive(inClassic);
+      expect(onPresenceChanged).toHaveBeenCalledTimes(1);
     });
 
     // The same people re-reported is not news. Snapshots arrive on every keepalive,
@@ -312,17 +349,24 @@ describe("createCaseLockingPresence", () => {
     // seconds — the opposite of being kind to the API.
     it("does not fire when the same people are reported again", async () => {
       const { onPresenceChanged, arrive } = await onWitnessWatching();
-      await arrive(alice);
-      await arrive(alice);
+      await arrive(inClassic);
+      await arrive(inClassic);
       expect(onPresenceChanged).toHaveBeenCalledTimes(1);
     });
 
-    // A person moving between applications is the same person still present. The
-    // lock cannot have changed hands, so nothing needs re-reading.
-    it("does not fire when only the application changes", async () => {
+    // Someone moving from RCMS into Classic HAS taken the lock, even though the set
+    // of people on the case did not change.
+    it("fires when someone moves from RCMS into Classic", async () => {
       const { onPresenceChanged, arrive } = await onWitnessWatching();
-      await arrive(alice);
-      await arrive({ user: "alice", appName: "CMS Classic" });
+      await arrive({ user: "bob@cps.gov.uk", appName: "Work Management App" });
+      expect(onPresenceChanged).not.toHaveBeenCalled();
+      await arrive(inClassic);
+      expect(onPresenceChanged).toHaveBeenCalledTimes(1);
+    });
+
+    it("matches the application name whatever its casing", async () => {
+      const { onPresenceChanged, arrive } = await onWitnessWatching();
+      await arrive({ user: "bob@cps.gov.uk", appName: "cms classic" });
       expect(onPresenceChanged).toHaveBeenCalledTimes(1);
     });
   });
