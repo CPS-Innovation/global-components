@@ -4,7 +4,7 @@ import { FEATURE_FLAGS } from "cps-global-configuration";
 import { formatJoined } from "../../services/case-locking/format-joined";
 import { CCPPeople, CCPSectionNames } from "cps-global-presence";
 import { CaseLockingPresentSection } from "../../services/case-locking/CaseLockingPresentUsers";
-import { getCaseLock } from "../../services/case-locking/get-case-lock";
+import { describeCaseLock, getCaseLock } from "../../services/case-locking/get-case-lock";
 
 // COLLAPSED IN THE SHARED CODE, not here. The API's records are denormalised —
 // one per user, per section, per application — so the same person on the case and
@@ -89,18 +89,11 @@ export class CpsGlobalCaseLockingNotification {
 
     return (
       <cps-global-pinned-notification titleText={summary} collapsible dismissible={false}>
-        {locked && (
-          <p class="govuk-body">
-            {/* FIRST IN THE BODY, above the roster, for the same reason it leads the
-                heading. The name is whatever CMS recorded; we make no attempt to
-                match it to the people in the roster below — that reconciliation is
-                a separate problem and a wrong guess would be worse than two
-                un-joined facts. */}
-            {lock?.by ? `${lock.by} is locking this case` : "Someone is locking this case"}
-            {lock?.application ? ` in ${lock.application}` : ""}
-            {formatJoined(lock?.since) ? `, since ${formatJoined(lock?.since)}` : ""}.
-          </p>
-        )}
+        {/* FIRST IN THE BODY, above the roster, for the same reason it leads the
+            heading. The name is whatever CMS recorded; we make no attempt to match it
+            to the people in the roster below — that reconciliation is a separate
+            problem and a wrong guess would read worse than two unjoined facts. */}
+        {locked && <p class="govuk-body">{describeCaseLock(lock)}</p>}
         {sections.map(section => (
           <div>
             {/* Collapsed WITHIN the section, not across them: a person in two

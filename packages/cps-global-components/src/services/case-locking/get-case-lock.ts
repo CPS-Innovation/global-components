@@ -2,6 +2,7 @@ import { CCPApps } from "cps-global-presence";
 import { CaseDetails } from "../data/CaseDetails";
 import { Result } from "../../utils/Result";
 import { makeConsole } from "../../logging/makeConsole";
+import { formatJoined } from "./format-joined";
 
 const { _debug } = makeConsole("getCaseLock");
 
@@ -47,4 +48,29 @@ export const getCaseLock = (caseDetails: Result<CaseDetails> | undefined): CaseL
     application: CCPApps.displayName(locking?.application ?? undefined),
     since: locking?.since ?? undefined,
   };
+};
+
+/**
+ * The lock as one sentence: "John Smith is locking this case in RCMS, since 3.38pm".
+ *
+ * ONE SENTENCE, TWO SURFACES. The banner and the interruption both say this, and
+ * they must say it identically — the interruption is the banner's more insistent
+ * twin, and a reader who dismisses one and then reads the other should not have to
+ * work out whether two differently-worded lines describe the same lock.
+ *
+ * Every clause after the name is dropped when the API did not send it, so an
+ * incomplete record degrades to a shorter true sentence rather than one with a
+ * gap in it. Returns "" when there is no lock, so callers can omit the line.
+ */
+export const describeCaseLock = (lock: CaseLock | undefined): string => {
+  if (!lock?.locked) {
+    return "";
+  }
+  const since = formatJoined(lock.since);
+  return (
+    (lock.by ? `${lock.by} is locking this case` : "Someone is locking this case") +
+    (lock.application ? ` in ${lock.application}` : "") +
+    (since ? `, since ${since}` : "") +
+    "."
+  );
 };

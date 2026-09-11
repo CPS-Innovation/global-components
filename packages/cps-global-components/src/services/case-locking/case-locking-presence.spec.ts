@@ -272,34 +272,38 @@ describe("createCaseLockingPresence", () => {
   // nothing else — a redraw of the same roster that triggered a refetch would put
   // the case-summary endpoint behind every keepalive.
   describe("the presence-changed signal", () => {
-    it("fires when the first person appears", async () => {
+    // One rig for the whole block: every test here needs a witness region with a
+    // spy attached, and spelling that out four times said nothing the fourth time
+    // that it had not said the first.
+    const onWitnessWatching = async () => {
       const onPresenceChanged = jest.fn();
-      const { service, hubFor } = setup({ countSelf: true, onPresenceChanged });
-      service.setCaseId("123");
-      service.addRegion("witness");
+      const rig = setup({ countSelf: true, onPresenceChanged });
+      rig.service.setCaseId("123");
+      rig.service.addRegion("witness");
       await flush();
-      expect(onPresenceChanged).not.toHaveBeenCalled();
+      const arrive = async (...users: { user: string; appName: string }[]) => {
+        rig.hubFor("123:WITNESS")!.__notify?.(presence(users));
+        await flush();
+      };
+      return { ...rig, onPresenceChanged, arrive };
+    };
 
-      hubFor("123:WITNESS")!.__notify?.(presence([{ user: "alice", appName: "test-app" }]));
-      await flush();
+    const alice = { user: "alice", appName: "test-app" };
+    const bob = { user: "bob", appName: "CMS" };
+
+    it("fires when the first person appears", async () => {
+      const { onPresenceChanged, arrive } = await onWitnessWatching();
+      expect(onPresenceChanged).not.toHaveBeenCalled();
+      await arrive(alice);
       expect(onPresenceChanged).toHaveBeenCalledTimes(1);
     });
 
     it("fires again when someone else arrives, and when they leave", async () => {
-      const onPresenceChanged = jest.fn();
-      const { service, hubFor } = setup({ countSelf: true, onPresenceChanged });
-      service.setCaseId("123");
-      service.addRegion("witness");
-      await flush();
-
-      hubFor("123:WITNESS")!.__notify?.(presence([{ user: "alice", appName: "test-app" }]));
-      await flush();
-      hubFor("123:WITNESS")!.__notify?.(presence([{ user: "alice", appName: "test-app" }, { user: "bob", appName: "CMS" }]));
-      await flush();
+      const { onPresenceChanged, arrive } = await onWitnessWatching();
+      await arrive(alice);
+      await arrive(alice, bob);
       expect(onPresenceChanged).toHaveBeenCalledTimes(2);
-
-      hubFor("123:WITNESS")!.__notify?.(presence([{ user: "alice", appName: "test-app" }]));
-      await flush();
+      await arrive(alice);
       expect(onPresenceChanged).toHaveBeenCalledTimes(3);
     });
 
@@ -307,32 +311,18 @@ describe("createCaseLockingPresence", () => {
     // so treating a republish as a change would refetch case details every few
     // seconds — the opposite of being kind to the API.
     it("does not fire when the same people are reported again", async () => {
-      const onPresenceChanged = jest.fn();
-      const { service, hubFor } = setup({ countSelf: true, onPresenceChanged });
-      service.setCaseId("123");
-      service.addRegion("witness");
-      await flush();
-
-      hubFor("123:WITNESS")!.__notify?.(presence([{ user: "alice", appName: "test-app" }]));
-      await flush();
-      hubFor("123:WITNESS")!.__notify?.(presence([{ user: "alice", appName: "test-app" }]));
-      await flush();
+      const { onPresenceChanged, arrive } = await onWitnessWatching();
+      await arrive(alice);
+      await arrive(alice);
       expect(onPresenceChanged).toHaveBeenCalledTimes(1);
     });
 
     // A person moving between applications is the same person still present. The
     // lock cannot have changed hands, so nothing needs re-reading.
     it("does not fire when only the application changes", async () => {
-      const onPresenceChanged = jest.fn();
-      const { service, hubFor } = setup({ countSelf: true, onPresenceChanged });
-      service.setCaseId("123");
-      service.addRegion("witness");
-      await flush();
-
-      hubFor("123:WITNESS")!.__notify?.(presence([{ user: "alice", appName: "test-app" }]));
-      await flush();
-      hubFor("123:WITNESS")!.__notify?.(presence([{ user: "alice", appName: "CMS Classic" }]));
-      await flush();
+      const { onPresenceChanged, arrive } = await onWitnessWatching();
+      await arrive(alice);
+      await arrive({ user: "alice", appName: "CMS Classic" });
       expect(onPresenceChanged).toHaveBeenCalledTimes(1);
     });
   });

@@ -3,8 +3,7 @@ import { readyState } from "../../store/store";
 import { FEATURE_FLAGS } from "cps-global-configuration";
 import { replaceTagsInString } from "../cps-global-menu/menu-config/helpers/replace-tags-in-string";
 import { CCPSectionNames, CCPSectionRules } from "cps-global-presence";
-import { getCaseLock } from "../../services/case-locking/get-case-lock";
-import { formatJoined } from "../../services/case-locking/format-joined";
+import { describeCaseLock, getCaseLock } from "../../services/case-locking/get-case-lock";
 import { MIN_REAL_HEADER_WIDTH_PX } from "../../services/browser/dom/footer-subscriber";
 
 /**
@@ -322,17 +321,11 @@ export class CpsGlobalCaseLockingInterstitial {
                           in a section and when they arrived — NOT whether they are
                           editing, nor whether it is safe to proceed. */}
                       <div class="moj-interruption-card__body" id="cps-interruption-body">
-                        {lockInterrupts && (
-                          <p>
-                            {/* No attempt to match this name against the roster below.
-                                CMS records a lock holder by name and presence reports
-                                an address; joining them is a separate problem, and a
-                                wrong guess reads worse than two unjoined facts. */}
-                            {lock?.by ? `${lock.by} is locking this case` : "Someone is locking this case"}
-                            {lock?.application ? ` in ${lock.application}` : ""}
-                            {formatJoined(lock?.since) ? `, since ${formatJoined(lock?.since)}` : ""}.
-                          </p>
-                        )}
+                        {/* The same sentence the banner uses, from the same function:
+                            this card is the banner's more insistent twin, and a reader
+                            who dismisses one and meets the other should not have to
+                            work out whether two wordings mean one lock. */}
+                        {lockInterrupts && <p>{describeCaseLock(lock)}</p>}
                         {who && (
                           <p>
                             {who} is also working on {where}.

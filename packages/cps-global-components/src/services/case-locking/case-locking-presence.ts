@@ -301,9 +301,12 @@ export const createCaseLockingPresence = ({
   // WHO IS PRESENT, as one comparable string. Only used to spot arrivals and
   // departures — a change of application or arrival time is not someone coming or
   // going, and must not fire a refetch of anything.
+  // Sorted explicitly rather than on Array#sort's default: the default coerces to
+  // string and compares UTF-16 code units, which happens to be right here and would
+  // stop being right the moment this held anything but lower-cased addresses.
   const presenceSignature = (sections: CaseLockingPresentSection[]) =>
     Array.from(new Set(sections.flatMap(section => section.users.map(user => (user.user ?? "").toLowerCase()))))
-      .sort()
+      .sort((a, b) => a.localeCompare(b))
       .join(",");
 
   let lastPresenceSignature: string | undefined;
