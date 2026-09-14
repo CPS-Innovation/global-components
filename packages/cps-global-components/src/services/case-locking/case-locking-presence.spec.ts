@@ -364,6 +364,25 @@ describe("createCaseLockingPresence", () => {
       expect(onPresenceChanged).toHaveBeenCalledTimes(1);
     });
 
+    // THE SHAPE THAT BROKE IT IN QA. You are already on the case in RCMS, then open
+    // it in Classic and take the lock. The set of PEOPLE has not changed — you were
+    // there and you still are — so a signature keyed on identity saw nothing happen
+    // and never re-read the lock. Keyed on who is in Classic, it goes from nobody to
+    // you. mergeMembers keys on person AND application, so both sessions are in the
+    // roster; it is the signature that must not flatten them back together.
+    it("fires when someone already in RCMS also opens Classic", async () => {
+      const { onPresenceChanged, arrive } = await onWitnessWatching();
+      await arrive({ user: "bob@cps.gov.uk", appName: "Work Management App" });
+      expect(onPresenceChanged).not.toHaveBeenCalled();
+
+      await arrive({ user: "bob@cps.gov.uk", appName: "Work Management App" }, { user: "bob@cps.gov.uk", appName: "CMS Classic" });
+      expect(onPresenceChanged).toHaveBeenCalledTimes(1);
+
+      // ...and releases it when the Classic session goes, though they are still here.
+      await arrive({ user: "bob@cps.gov.uk", appName: "Work Management App" });
+      expect(onPresenceChanged).toHaveBeenCalledTimes(2);
+    });
+
     it("matches the application name whatever its casing", async () => {
       const { onPresenceChanged, arrive } = await onWitnessWatching();
       await arrive({ user: "bob@cps.gov.uk", appName: "cms classic" });
