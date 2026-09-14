@@ -145,7 +145,10 @@ function readCmsAuthValues(r: NginxHTTPRequest): string {
 
 // For nginx js_set - returns origin if allowed, empty string otherwise
 function readCorsOrigin(r: NginxHTTPRequest): string {
-  const origin = r.headersIn["Origin"] as string;
+  const origin = _getHeaderValue(r, "Origin");
+  if (!origin) {
+    return "";
+  }
   return CORS_ALLOWED_ORIGINS.includes(origin) ||
     origin.endsWith(".cps.gov.uk") ||
     origin.startsWith("http://localhost:") ||
