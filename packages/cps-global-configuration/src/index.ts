@@ -4,6 +4,7 @@ export {
   type Config,
   type ConfigStorage,
   type Context,
+  type CaseLockingRegion,
   type DomTagDefinitions,
   type FeatureFlagUsers,
   type Link,

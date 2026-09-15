@@ -130,11 +130,9 @@ jest.mock("./services/data/initialise-case-details-data", () => ({
 }));
 
 const mockInitialiseCaseLockingForContext = jest.fn();
-const mockWitnessAreaSubscriber = jest.fn(() => ({ isActiveForContext: false, subscriptions: [] }));
 jest.mock("./services/case-locking/initialise-case-locking", () => ({
   initialiseCaseLocking: () => ({
     initialiseCaseLockingForContext: mockInitialiseCaseLockingForContext,
-    witnessAreaSubscriber: mockWitnessAreaSubscriber,
   }),
 }));
 
@@ -224,9 +222,15 @@ jest.mock("./services/navigate-cms/initialise-navigate-cms", () => ({
 
 // Mock makeConsole to return no-op functions
 jest.mock("./logging/makeConsole", () => ({
+  // The full shape of the real module. A partial mock silently turns any other
+  // method into undefined, which throws at the call site and — because
+  // initialise() catches — surfaces as an unrelated assertion failing on zero
+  // calls, a long way from the cause.
   makeConsole: () => ({
     _debug: jest.fn(),
+    _log: jest.fn(),
     _error: jest.fn(),
+    _warn: jest.fn(),
   }),
 }));
 

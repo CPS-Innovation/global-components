@@ -4,3 +4,11 @@
 # rejects outright — "SCRIPT1028: Expected identifier, string or number" — so the
 # whole file fails to parse and silently never runs. Keep it out of Prettier.
 infra/proxy/config/global-components.cms-auth-v2/cms-auth-v2-client.js
+
+# Presence POC bundle for CMS Modern / DCF: cms-presence-client.js is GENERATED
+# (vendor + glue concatenated by cms-presence-client/build.sh) and the vendor
+# files are minified third-party code. The hand-written source must also stay
+# unformatted — it targets Trident document mode 11.
+infra/proxy/config/global-components.cms-auth-v2/cms-presence-client.js
+infra/proxy/config/global-components.cms-auth-v2/cms-presence-client/vendor/
+infra/proxy/config/global-components.cms-auth-v2/cms-presence-client/cms-presence-client.src.js
