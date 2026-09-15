@@ -1,3 +1,4 @@
+import { applyRegionOverride } from "cps-global-configuration";
 import { initialiseAuth } from "./services/auth/initialise-auth";
 import { initialiseStore } from "./store/store";
 import { initialiseAnalytics } from "./services/analytics/initialise-analytics";
@@ -14,12 +15,14 @@ import { initialiseCorrelationIds } from "./services/correlation/initialise-corr
 import { initialiseRootUrl } from "./services/root-url/initialise-root-url";
 import { initialisePreview } from "./services/state/preview/initialise-preview";
 import { initialiseRequestObservationShim } from "./services/request-observation/initialise-request-observation-shim";
+import { initialiseDarkReaderDetection } from "./services/dark-reader-detection/initialise-dark-reader-detection";
 import { initialiseNotifications } from "./services/notifications/initialise-notifications";
 import { handlers } from "./services/handlers/handlers";
 import { initialiseRecentCases } from "./services/state/recent-cases/initialise-recent-cases";
 import { footerSubscriber } from "./services/browser/dom/footer-subscriber";
 import { hostAppEventSubscriber } from "./services/browser/dom/host-app-event-subscriber";
 import { accessibilitySubscriber } from "./services/browser/accessibility/accessibility-subscriber";
+import { skipLinkSubscriber } from "./services/browser/dom/skip-link-subscriber";
 import { initialiseSettings } from "./services/state/settings/initialise-settings";
 import { initialiseOutSystemsReconcileAuth } from "./services/outsystems-shim/initialise-outsytems-reconcile-auth";
 import { initialiseOutSystemsShowAlert } from "./services/outsystems-shim/outsystems-show-alert";
@@ -35,6 +38,7 @@ import { runNowAndOnNavigation } from "./services/browser/navigation/navigation"
 import { initialisePageLifecycle } from "./services/browser/navigation/page-lifecycle";
 import { TrackException } from "./services/analytics/TrackException";
 import { summariseResults } from "./utils/summarise-results";
+import { exposeDevStore } from "./services/dev/expose-dev-store";
 
 const { _error } = makeConsole("global-script");
 
@@ -71,9 +75,13 @@ const initialise = async (window: Window & typeof globalThis) => {
 
     const flags = initialiseApplicationFlags({ window, rootUrl, register });
 
+    if (flags.isLocalDevelopment) {
+      exposeDevStore({ window, register });
+    }
+
     // Config no longer depends on preview (override-via-preview was removed in
     // FCT2-17451 drop 4) so it joins the parallel set.
-    const [{ handover, setNextHandover }, preview, settings, { authHint, setAuthHint }, { userDataHint, setUserDataHint }, cmsSessionHint, config] = await Promise.all([
+    const [{ handover, setNextHandover }, preview, settings, { authHint, setAuthHint }, { userDataHint, setUserDataHint }, cmsSessionHint, loadedConfig] = await Promise.all([
       initialiseHandover({ rootUrl, register }),
       initialisePreview({ rootUrl, register }),
       initialiseSettings({ rootUrl }),
@@ -83,17 +91,27 @@ const initialise = async (window: Window & typeof globalThis) => {
       initialiseConfig({ rootUrl, flags, register }),
     ]);
 
+    // Region override (FCT2-20670). Preview and config resolve together above,
+    // so the rewrite lands before anything reads either. initialiseConfig has
+    // already registered the un-overridden config, hence the re-register —
+    // applyRegionOverride returns the same reference when there's no override,
+    // so the identity check keeps the no-op case free.
+    const config = applyRegionOverride(loadedConfig, preview);
+    if (config !== loadedConfig) {
+      register({ config });
+    }
+
     initialiseOutSystemsReconcileAuth({ window, flags, config });
 
-    const { initialiseCaseLockingForContext, witnessAreaSubscriber } = initialiseCaseLocking({ window, config, preview, register });
+    const { initialiseCaseLockingForContext } = initialiseCaseLocking({ window, config, preview, register });
 
     const { initialiseDomForContext } = initialiseDomObservation(
-      { window, register, mergeTags, preview, settings },
+      { window, register, mergeTags, preview, settings, flags, config, authHint },
       domTagMutationSubscriber,
       footerSubscriber,
       hostAppEventSubscriber,
       accessibilitySubscriber,
-      witnessAreaSubscriber,
+      skipLinkSubscriber,
     );
 
     initialiseTabTitle({ window, preview, settings, subscribe, flags });
@@ -121,7 +139,9 @@ const initialise = async (window: Window & typeof globalThis) => {
 
     initialiseRequestObservationShim({ window, config, preview, trackEvent });
 
-    initialiseDiagnostics({ window, rootUrl, config, flags, trackEvent });
+    initialiseDarkReaderDetection({ window, config, trackEvent });
+
+    initialiseDiagnostics({ window, rootUrl, config, trackEvent });
 
     trackEvent({ name: "state-summary", summary: summariseResults({ handover, preview, settings, authHint, userDataHint, cmsSessionHint }) });
 
@@ -136,7 +156,7 @@ const initialise = async (window: Window & typeof globalThis) => {
       setAuthHint,
       window,
     });
-    const { initialiseCaseDetailsDataForContext, initialiseCaseDetailsDataForContextOptimistic } = initialiseCaseDetailsData({
+    const { initialiseCaseDetailsDataForContext, initialiseCaseDetailsDataForContextOptimistic, refreshCaseDetailsData } = initialiseCaseDetailsData({
       config,
       handover,
       setNextHandover,
@@ -181,7 +201,12 @@ const initialise = async (window: Window & typeof globalThis) => {
             // auth passed through; the service skips the authed fetch when not
             // authed (the optimistic path already covered the unauthed case).
             initialiseCaseDetailsDataForContext({ context, caseIdentifiers, getToken, correlationIds, auth });
-            initialiseCaseLockingForContext({ auth, caseIdentifiers });
+            // PRESENCE MOVING RE-READS THE LOCK. In CMS Classic the lock is taken by
+            // opening the case screen and released by leaving it, so an arrival or a
+            // departure IS the lock changing hands. Wired here, where every other
+            // dependency between services is wired, rather than either service
+            // reaching for the other.
+            initialiseCaseLockingForContext({ auth, caseIdentifiers, getToken, context, onPresenceChanged: refreshCaseDetailsData });
           })
           .catch(handleError);
       } catch (err) {

@@ -4,12 +4,19 @@ export {
   type Config,
   type ConfigStorage,
   type Context,
+  type CaseLockingRegion,
   type DomTagDefinitions,
   type FeatureFlagUsers,
   type Link,
   type ContextsToUseEventNavigation,
+  type SkipLinks,
 } from "./Config";
 export { PreviewSchema, type Preview } from "./Preview";
+export {
+  applyRegionOverride,
+  applyRegionToString,
+  getPreviewRegion,
+} from "./apply-region-override";
 export {
   notificationSchema,
   notificationsFileSchema,
@@ -22,7 +29,9 @@ export { CmsSessionHintSchema, type CmsSessionHint } from "./CmsSessionHint";
 export { transformAndValidateConfig, type ValidationResult } from "./validator";
 export {
   AuthSchema,
+  MeSchema,
   type Auth,
+  type Me,
   type AuthResult,
   type FailedAuth,
   type KnownErrorType,

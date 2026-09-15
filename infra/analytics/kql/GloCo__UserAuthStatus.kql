@@ -23,7 +23,7 @@ by UserId
     | summarize DomainCount = count() by UserId, Domain
     | summarize DomainCounts = make_bag(pack(Domain, DomainCount)) by UserId
 ) on UserId | project-away UserId1
-| join kind=leftouter (GloCo__IframeProbeEvents
+| join kind=leftouter (GloCo__NavigatorPermissionsEvents
     | where Environment == "prod"
     | where UserId != "8Min41xE/O6WPw2sGPoFME"
     | where Hostname !startswith "house"

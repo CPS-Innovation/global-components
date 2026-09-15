@@ -116,6 +116,10 @@ jest.mock("./services/browser/tab-title/initialise-tab-title", () => ({
   initialiseTabTitle: mockInitialiseTabTitle,
 }));
 
+jest.mock("./services/dark-reader-detection/initialise-dark-reader-detection", () => ({
+  initialiseDarkReaderDetection: jest.fn(),
+}));
+
 const mockInitialiseCaseDetailsDataForContext = jest.fn();
 const mockInitialiseCaseDetailsDataForContextOptimistic = jest.fn();
 jest.mock("./services/data/initialise-case-details-data", () => ({
@@ -126,11 +130,9 @@ jest.mock("./services/data/initialise-case-details-data", () => ({
 }));
 
 const mockInitialiseCaseLockingForContext = jest.fn();
-const mockWitnessAreaSubscriber = jest.fn(() => ({ isActiveForContext: false, subscriptions: [] }));
 jest.mock("./services/case-locking/initialise-case-locking", () => ({
   initialiseCaseLocking: () => ({
     initialiseCaseLockingForContext: mockInitialiseCaseLockingForContext,
-    witnessAreaSubscriber: mockWitnessAreaSubscriber,
   }),
 }));
 
@@ -220,9 +222,15 @@ jest.mock("./services/navigate-cms/initialise-navigate-cms", () => ({
 
 // Mock makeConsole to return no-op functions
 jest.mock("./logging/makeConsole", () => ({
+  // The full shape of the real module. A partial mock silently turns any other
+  // method into undefined, which throws at the call site and — because
+  // initialise() catches — surfaces as an unrelated assertion failing on zero
+  // calls, a long way from the cause.
   makeConsole: () => ({
     _debug: jest.fn(),
+    _log: jest.fn(),
     _error: jest.fn(),
+    _warn: jest.fn(),
   }),
 }));
 
@@ -1335,23 +1343,27 @@ describe("global-script", () => {
       );
     });
 
-    it("should pass preview and settings to initialiseDomObservation for accessibilitySubscriber", async () => {
+    it("should pass preview, settings and authHint to initialiseDomObservation for accessibilitySubscriber", async () => {
       const testPreview = { result: { accessibility: true } };
       const testSettings = { fontSize: "large" };
+      const testAuthHint = { found: true, result: { authResult: { isAuthed: true, objectId: "obj-1", groups: ["group-a"] } } };
       mockInitialisePreview.mockResolvedValue(testPreview);
       mockInitialiseSettings.mockResolvedValue(testSettings);
+      mockInitialiseAuthHint.mockResolvedValue({ authHint: testAuthHint, setAuthHint: jest.fn() });
 
       const globalScript = require("./global-script").default;
       globalScript();
       await new Promise(resolve => setTimeout(resolve, 10));
 
       const callArgs = mockInitialiseDomObservation.mock.calls[0];
-      // First arg is the options object containing window, preview, and settings
+      // First arg is the options object containing window, preview, settings and the
+      // last-known identity the accessibility flag's AD-group path is resolved from.
       expect(callArgs[0]).toEqual(
         expect.objectContaining({
           window: mockWindow,
           preview: testPreview,
           settings: testSettings,
+          authHint: testAuthHint,
         }),
       );
       // accessibilitySubscriber should be in the args

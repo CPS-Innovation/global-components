@@ -60,7 +60,7 @@ DEST_CONTAINER="prod"
 # plus the three msal-redirect transition files. Files in prod that match this
 # pattern but aren't in prod-safe are deletion candidates (the bad deploy
 # added them); files that don't match this pattern are left alone.
-CANONICAL_PATTERN='^(global-components\.js(\.map)?|cps-global-components\.js|auth-handover\.(js|js\.map|html)|global-components-msal-redirect\.html|msal-redirect\.(js|js\.map)|probe-iframe-load\.html|config\.json|notification\.json|(preview|accessibility)/(index\.html|assets/.+))$'
+CANONICAL_PATTERN='^(global-components\.js(\.map)?|cps-global-components\.js|auth-handover\.(js|js\.map|html)|global-components-msal-redirect\.html|msal-redirect\.(js|js\.map)|config\.json|notification\.json|(preview|accessibility)/(index\.html|assets/.+))$'
 
 echo "=== prod-safe contents ==="
 SAFE_LIST=$(az storage blob list \

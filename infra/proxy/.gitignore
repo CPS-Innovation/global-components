@@ -7,6 +7,7 @@ dist/
 # Compiled JavaScript files (keep nginx.js which is not ours, and test files)
 config/**/*.js
 !config/main/nginx.js
+!config/main/cmsenv.js
 !config/**/tests/*.js
 !config/**/main-reference/*.js
 
@@ -17,8 +18,14 @@ deploy/backups/
 # Environment config files (contain secrets)
 config/main/.env
 config/global-components.vnext/.env
+config/global-components.cms-auth-v2/.env*
+# .env.example is the committed documentation of those keys
+!config/global-components.cms-auth-v2/.env.example
 
 # Local mkcert output for the proxy dev stack — generated on demand by
 # whichever branch wires up the dockerised proxy. Lingering on disk after
 # branch switches; safe to ignore globally.
 docker/certs/
+
+# Personal, uncommitted deploy/helper scripts
+*.local.sh

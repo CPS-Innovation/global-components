@@ -10,7 +10,7 @@ export const initialiseOutSystemsReconcileAuth = ({
   window: Window;
   config: Config;
 }) => {
-  if (isOutSystems && ["dev", "test"].includes(environment)) {
+  if (isOutSystems && ["dev", "test", "uat"].includes(environment)) {
     synchroniseOsAuth({
       window,
       cmsAuthStorageKeys: config.CMS_AUTH_STORAGE_KEYS,

@@ -35,6 +35,85 @@ describe("FEATURE_FLAGS", () => {
       const result = FEATURE_FLAGS.shouldEnableAccessibilityMode(state);
       expect(result).toBe(false);
     });
+
+    it("should return true when generallyAvailable is set (env-wide switch)", () => {
+      const state = {
+        preview: { found: true as const, result: {} },
+        flags: {} as ApplicationFlags,
+        config: { FEATURE_FLAG_ACCESSIBILITY_MODE_USERS: { generallyAvailable: true } } as any,
+      };
+
+      const result = FEATURE_FLAGS.shouldEnableAccessibilityMode(state);
+      expect(result).toBe(true);
+    });
+
+    it("should return false when generallyAvailable is false and there is no other opt-in", () => {
+      const state = {
+        preview: { found: true as const, result: {} },
+        flags: {} as ApplicationFlags,
+        config: { FEATURE_FLAG_ACCESSIBILITY_MODE_USERS: { generallyAvailable: false } } as any,
+      };
+
+      const result = FEATURE_FLAGS.shouldEnableAccessibilityMode(state);
+      expect(result).toBe(false);
+    });
+
+    it("should return true for a user in an enrolled AD group, resolved from the auth hint alone", () => {
+      const state = {
+        preview: { found: true as const, result: {} },
+        flags: {} as ApplicationFlags,
+        authHint: { found: true as const, result: { authResult: { isAuthed: true, objectId: "obj-1", groups: ["group-a"] } } } as any,
+        config: { FEATURE_FLAG_ACCESSIBILITY_MODE_USERS: { generallyAvailable: false, adGroupIds: ["group-a"] } } as any,
+      };
+
+      const result = FEATURE_FLAGS.shouldEnableAccessibilityMode(state);
+      expect(result).toBe(true);
+    });
+
+    it("should return false for an identity outside the enrolled AD groups", () => {
+      const state = {
+        preview: { found: true as const, result: {} },
+        flags: {} as ApplicationFlags,
+        authHint: { found: true as const, result: { authResult: { isAuthed: true, objectId: "obj-1", groups: ["group-z"] } } } as any,
+        config: { FEATURE_FLAG_ACCESSIBILITY_MODE_USERS: { generallyAvailable: false, adGroupIds: ["group-a"] } } as any,
+      };
+
+      const result = FEATURE_FLAGS.shouldEnableAccessibilityMode(state);
+      expect(result).toBe(false);
+    });
+
+    it("should return false on a cold load with no identity yet, even for an AD-group-enrolled flag", () => {
+      const state = {
+        preview: { found: true as const, result: {} },
+        flags: {} as ApplicationFlags,
+        config: { FEATURE_FLAG_ACCESSIBILITY_MODE_USERS: { generallyAvailable: false, adGroupIds: ["group-a"] } } as any,
+      };
+
+      const result = FEATURE_FLAGS.shouldEnableAccessibilityMode(state);
+      expect(result).toBe(false);
+    });
+
+    it("should return true when the flag excludes the user but they have the preview opt-in", () => {
+      const state = {
+        preview: { found: true as const, result: { accessibility: true } },
+        flags: {} as ApplicationFlags,
+        config: { FEATURE_FLAG_ACCESSIBILITY_MODE_USERS: { generallyAvailable: false } } as any,
+      };
+
+      const result = FEATURE_FLAGS.shouldEnableAccessibilityMode(state);
+      expect(result).toBe(true);
+    });
+
+    it("should return true in local development", () => {
+      const state = {
+        preview: { found: true as const, result: {} },
+        flags: { isLocalDevelopment: true } as ApplicationFlags,
+        config: {} as any,
+      };
+
+      const result = FEATURE_FLAGS.shouldEnableAccessibilityMode(state);
+      expect(result).toBe(true);
+    });
   });
 
   describe("shouldShowGovUkRebrand", () => {
@@ -106,6 +185,160 @@ describe("FEATURE_FLAGS", () => {
 
       const result = FEATURE_FLAGS.shouldShowGovUkRebrand(state);
       expect(result).toBe("gds");
+    });
+  });
+
+  describe("shouldShimFooter", () => {
+    it("should return true when config.FOOTER_SHIM_ENABLED is true (GA gate, on for everyone)", () => {
+      const state = {
+        preview: { found: true as const, result: {} },
+        flags: {} as ApplicationFlags,
+        config: { FOOTER_SHIM_ENABLED: true } as any,
+      };
+
+      expect(FEATURE_FLAGS.shouldShimFooter(state)).toBe(true);
+    });
+
+    it("should return true when preview footer is set even though config gate is off", () => {
+      const state = {
+        preview: { found: true as const, result: { footer: true } },
+        flags: {} as ApplicationFlags,
+        config: { FOOTER_SHIM_ENABLED: false } as any,
+      };
+
+      expect(FEATURE_FLAGS.shouldShimFooter(state)).toBe(true);
+    });
+
+    it("should return true in local dev even though config gate is off and no preview opt-in", () => {
+      const state = {
+        preview: { found: true as const, result: {} },
+        flags: { isLocalDevelopment: true } as ApplicationFlags,
+        config: { FOOTER_SHIM_ENABLED: false } as any,
+      };
+
+      expect(FEATURE_FLAGS.shouldShimFooter(state)).toBe(true);
+    });
+
+    it("should return false when the config gate is off, no preview opt-in, and not local dev (emergency rollback)", () => {
+      const state = {
+        preview: { found: true as const, result: {} },
+        flags: {} as ApplicationFlags,
+        config: { FOOTER_SHIM_ENABLED: false } as any,
+      };
+
+      expect(FEATURE_FLAGS.shouldShimFooter(state)).toBe(false);
+    });
+
+    it("should return false when the config gate is absent, no preview opt-in, and not local dev", () => {
+      const state = {
+        preview: { found: true as const, result: {} },
+        flags: {} as ApplicationFlags,
+        config: {} as any,
+      };
+
+      expect(FEATURE_FLAGS.shouldShimFooter(state)).toBe(false);
+    });
+  });
+
+  describe("shouldShowCaseDetails", () => {
+    it("should return 'a' when preview caseMarkers is 'a'", () => {
+      const state = {
+        preview: { found: true as const, result: { caseMarkers: "a" as const } },
+        config: {} as any,
+        flags: {} as ApplicationFlags,
+      };
+
+      expect(FEATURE_FLAGS.shouldShowCaseDetails(state)).toBe("a");
+    });
+
+    it("should return 'b' when preview caseMarkers is 'b'", () => {
+      const state = {
+        preview: { found: true as const, result: { caseMarkers: "b" as const } },
+        config: {} as any,
+        flags: {} as ApplicationFlags,
+      };
+
+      expect(FEATURE_FLAGS.shouldShowCaseDetails(state)).toBe("b");
+    });
+
+    it("should return undefined when nothing is configured", () => {
+      const state = {
+        preview: { found: true as const, result: {} },
+        config: {} as any,
+        flags: {} as ApplicationFlags,
+      };
+
+      expect(FEATURE_FLAGS.shouldShowCaseDetails(state)).toBeUndefined();
+    });
+
+    it("should fall back to config.SHOW_CASE_DETAILS when preview caseMarkers is undefined", () => {
+      const state = {
+        preview: { found: true as const, result: {} },
+        config: { SHOW_CASE_DETAILS: "b" } as any,
+        flags: {} as ApplicationFlags,
+      };
+
+      expect(FEATURE_FLAGS.shouldShowCaseDetails(state)).toBe("b");
+    });
+
+    it("should fall back to config.SHOW_CASE_DETAILS when preview is not found", () => {
+      const state = {
+        preview: { found: false as const, error: {} as Error },
+        config: { SHOW_CASE_DETAILS: "a" } as any,
+        flags: {} as ApplicationFlags,
+      };
+
+      expect(FEATURE_FLAGS.shouldShowCaseDetails(state)).toBe("a");
+    });
+
+    it("should let preview caseMarkers override config.SHOW_CASE_DETAILS", () => {
+      const state = {
+        preview: { found: true as const, result: { caseMarkers: "a" as const } },
+        config: { SHOW_CASE_DETAILS: "b" } as any,
+        flags: {} as ApplicationFlags,
+      };
+
+      expect(FEATURE_FLAGS.shouldShowCaseDetails(state)).toBe("a");
+    });
+
+    it("should return undefined when preview caseMarkers is 'off', hiding the panel", () => {
+      const state = {
+        preview: { found: true as const, result: { caseMarkers: "off" as const } },
+        config: {} as any,
+        flags: {} as ApplicationFlags,
+      };
+
+      expect(FEATURE_FLAGS.shouldShowCaseDetails(state)).toBeUndefined();
+    });
+
+    it("should let preview 'off' override config.SHOW_CASE_DETAILS so colleagues can demo prod-like in QA", () => {
+      const state = {
+        preview: { found: true as const, result: { caseMarkers: "off" as const } },
+        config: { SHOW_CASE_DETAILS: "b" } as any,
+        flags: {} as ApplicationFlags,
+      };
+
+      expect(FEATURE_FLAGS.shouldShowCaseDetails(state)).toBeUndefined();
+    });
+
+    it("should default to 'a' in local development when nothing else is configured", () => {
+      const state = {
+        preview: { found: true as const, result: {} },
+        config: {} as any,
+        flags: { isLocalDevelopment: true } as ApplicationFlags,
+      };
+
+      expect(FEATURE_FLAGS.shouldShowCaseDetails(state)).toBe("a");
+    });
+
+    it("should let preview 'off' override the local-development default", () => {
+      const state = {
+        preview: { found: true as const, result: { caseMarkers: "off" as const } },
+        config: {} as any,
+        flags: { isLocalDevelopment: true } as ApplicationFlags,
+      };
+
+      expect(FEATURE_FLAGS.shouldShowCaseDetails(state)).toBeUndefined();
     });
   });
 

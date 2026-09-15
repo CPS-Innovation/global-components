@@ -25,6 +25,7 @@ type SubOption = {
 type RadioOption<T extends string> = {
   value: T;
   label: string;
+  disabled?: boolean;
 };
 
 type Feature = {
@@ -40,11 +41,22 @@ type Feature = {
 const CASE_MARKERS_OPTIONS: RadioOption<string>[] = [
   { value: "a", label: "Design A" },
   { value: "b", label: "Design B" },
+  { value: "off", label: "Off (force hide)" },
 ];
 
 const COLOUR_PALETTE_OPTIONS: RadioOption<string>[] = [
   { value: "gds", label: "GDS" },
   { value: "cps", label: "CPS" },
+];
+
+// Unlike the feature radios above, this group stands alone rather than hanging
+// off a checkbox: "no override" is the default we want visible, not an unticked
+// box. The empty value maps to an absent `region` — the same thing — so the
+// cookie stays clean when nothing is overridden.
+const REGION_OPTIONS: RadioOption<string>[] = [
+  { value: "", label: "No override (Dublin)" },
+  { value: "london", label: "Use London" },
+  { value: "frontDoor", label: "Use front-door domain", disabled: true },
 ];
 
 const FEATURES: Feature[] = [
@@ -114,6 +126,20 @@ const FEATURES: Feature[] = [
     label: "Case locking",
     description:
       "Enable the case-locking presence feature: register the user as present on the current case via the SignalR hub and notify when other users are working on the same case section.",
+    disabled: false,
+  },
+  {
+    key: "caseLockingNotifications",
+    label: "Case locking — show notifications",
+    description:
+      "Show what presence found: the pinned banner naming other users on this case, and the full-screen interruption when you arrive at a case review or a witness or victim record someone is already in. Presence is registered regardless (see Case locking); this only controls whether you SEE it, so the mechanism can be exercised in an environment without real users noticing.",
+    disabled: false,
+  },
+  {
+    key: "caseLockingCountSelf",
+    label: "Case locking — count myself",
+    description:
+      "Count yourself among the present users, shown as \"(current user)\" after your name. For development and demos: it is the evidence that self-identification works at all — filtered out, an empty banner looks the same whether the mechanism works or presence is broken. You are never counted as a CLASH with yourself, so this cannot raise the interruption on a case only you are on. In production, telling someone they are viewing the case they are looking at is noise.",
     disabled: false,
   },
   {
@@ -268,6 +294,15 @@ export function App() {
 
   const handleRadioChange = (key: keyof Preview, value: string) => {
     const newState = { ...state, [key]: value };
+    setState(newState);
+    saveState(newState);
+  };
+
+  const handleRegionChange = (value: string) => {
+    const newState = {
+      ...state,
+      region: (value || undefined) as Preview["region"],
+    };
     setState(newState);
     saveState(newState);
   };
@@ -750,6 +785,45 @@ export function App() {
                 </button>
               </>
             )}
+          </fieldset>
+        </div>
+
+        <div className="govuk-form-group">
+          <fieldset className="govuk-fieldset">
+            <legend className="govuk-fieldset__legend govuk-fieldset__legend--m">
+              <h2 className="govuk-fieldset__heading">Region</h2>
+            </legend>
+            <p className="govuk-body govuk-!-font-size-16">
+              Which OutSystems region the global components send you to. Applies
+              to the menu links, the banner title, and the auth handover — if you
+              are on the wrong host, the handover moves you across. Leave on{" "}
+              <strong>No override</strong> unless you are testing London.
+            </p>
+            <div
+              className="govuk-radios govuk-radios--small"
+              data-module="govuk-radios"
+            >
+              {REGION_OPTIONS.map((option) => (
+                <div key={option.value} className="govuk-radios__item">
+                  <input
+                    className="govuk-radios__input"
+                    id={`region-${option.value || "none"}`}
+                    name="region"
+                    type="radio"
+                    value={option.value}
+                    checked={(state.region ?? "") === option.value}
+                    disabled={loading || option.disabled}
+                    onChange={() => handleRegionChange(option.value)}
+                  />
+                  <label
+                    className="govuk-label govuk-radios__label"
+                    htmlFor={`region-${option.value || "none"}`}
+                  >
+                    {option.label}
+                  </label>
+                </div>
+              ))}
+            </div>
           </fieldset>
         </div>
 

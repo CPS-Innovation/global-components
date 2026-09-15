@@ -39,7 +39,6 @@ fi
 #   cps-global-components.js            (redirect stub)
 #   auth-handover.html                  (handover dispatcher entry HTML)
 #   auth-handover.js, auth-handover.js.map
-#   probe-iframe-load.html              (LNA diagnostic probe page)
 #   config.json                         (required)
 #   notification.json                   (optional; kept if present)
 #
@@ -52,7 +51,6 @@ is_kept() {
     cps-global-components.js) return 0 ;;
     auth-handover.html) return 0 ;;
     auth-handover.js|auth-handover.js.map) return 0 ;;
-    probe-iframe-load.html) return 0 ;;
     config.json|notification.json) return 0 ;;
     preview/index.html|accessibility/index.html) return 0 ;;
     preview/assets/*|accessibility/assets/*) return 0 ;;

@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex">
+  <!-- STRATEGY: a short, real title prevents the URL fallback, and focus is
+       stolen to an off-screen node on load to cut off the title speech stream. -->
+  <title>Loading</title>
+</head>
+
+<body>
+  <!-- Visually hidden container used to forcefully steal JAWS focus on load. -->
+  <div id="jaws-hijack" tabindex="-1" style="position: absolute; left: -10000px;"></div>
+
+  <p>Redirecting back to the test rig&hellip;</p>
+  <script>
+    (function () {
+      // 1. Immediately grab focus to cut off the title speech stream.
+      document.getElementById('jaws-hijack').focus();
+
+      // 2. Bounce back to the rig after the configured delay.
+      var params = new URLSearchParams(location.search);
+      var parsed = parseInt(params.get('delay'), 10);
+      var delay = isNaN(parsed) ? 0 : Math.max(0, parsed);
+      setTimeout(function () {
+        location.replace('./index.html?from=' + encodeURIComponent('Defocus title'));
+      }, delay);
+    })();
+  </script>
+</body>
+
+</html>

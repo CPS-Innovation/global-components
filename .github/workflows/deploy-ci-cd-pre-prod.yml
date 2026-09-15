@@ -11,6 +11,6 @@ jobs:
   deploy-non-prod:
     uses: ./.github/workflows/sub-workflow-core-deploy.yml
     with:
-      environments: '["accessibility", "dev", "test"]'
+      environments: '["accessibility", "dev", "test", "uat"]'
     secrets:
       BLOB_STORAGE_CONNECTION_STRING: ${{ secrets.BLOB_STORAGE_CONNECTION_STRING }}

@@ -1,0 +1,14 @@
+// Regional-email helper (checklist item 1): the "total reviews per unit & area" figure,
+// all regions in one result sorted by region, ready to copy-paste per region.
+//
+// Thin projection over GloCo_CaseReview_AreaCounts — drops the per-week columns and keeps
+// Region / Area / Total plus the synthetic "{Region}, Total" rows. "Total" = distinct cases
+// submitted (case-review submissions UNION triage) attributed to the submitter's area, since
+// launch to today. Called by name (single saved-search reference) to avoid the resolver clash
+// documented in GloCo_PageViews / GloCo__AreaRegionMapping.
+//
+// Caveats (see email-reproduction-checklist.md): reviewer-area attribution (not case area), so
+// high-unit reviewers collapse into CPSD and blank-area into Unmapped; triage only from
+// 2026-06-01. Numbers approximate the backend's case-area figures, they don't match exactly.
+GloCo_CaseReview_AreaCounts
+| project Region, Area, Total

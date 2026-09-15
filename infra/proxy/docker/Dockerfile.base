@@ -11,6 +11,10 @@ RUN mkdir -p /etc/nginx/templates
 # Source files are .conf, add .template suffix for nginx envsubst
 COPY config/main/nginx.conf /etc/nginx/templates/nginx.conf.template
 COPY config/main/nginx.js /etc/nginx/nginx.js
+# Real cmsenv module (js_import cmsenv.js). Loads cleanly and is only invoked by
+# the cms-auth-v2 login shim, which the cms-auth-v2 test layer overrides with a
+# reduced mock. Other layers just need it importable so nginx starts.
+COPY config/main/cmsenv.js /etc/nginx/cmsenv.js
 
 # Configure nginx to run as non-root
 RUN chown -R nginx:nginx /var/cache/nginx /var/log/nginx /etc/nginx \

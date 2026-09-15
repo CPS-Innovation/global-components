@@ -1,0 +1,502 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Spike: MSAL.js Test Page</title>
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      max-width: 900px;
+      margin: 40px auto;
+      padding: 0 20px;
+      color: #333;
+      line-height: 1.5;
+    }
+
+    h1 {
+      margin-bottom: 8px;
+    }
+
+    h2 {
+      margin-top: 32px;
+      color: #555;
+      border-bottom: 1px solid #ddd;
+      padding-bottom: 4px;
+    }
+
+    .subtitle {
+      color: #888;
+      margin-bottom: 24px;
+    }
+
+    button {
+      padding: 8px 16px;
+      margin: 4px 8px 4px 0;
+      cursor: pointer;
+      border: 1px solid #0066cc;
+      background: #0066cc;
+      color: white;
+      border-radius: 4px;
+      font-size: 14px;
+    }
+
+    button:hover {
+      background: #0052a3;
+    }
+
+    button:disabled {
+      background: #999;
+      border-color: #999;
+      cursor: not-allowed;
+    }
+
+    button.secondary {
+      background: white;
+      color: #0066cc;
+    }
+
+    button.secondary:hover {
+      background: #f0f0f0;
+    }
+
+    .status {
+      padding: 12px;
+      margin: 8px 0;
+      border-radius: 4px;
+    }
+
+    .status.info {
+      background: #e8f4fd;
+      border: 1px solid #b3d9f2;
+    }
+
+    .status.success {
+      background: #e8f8e8;
+      border: 1px solid #b3d9b3;
+    }
+
+    .status.error {
+      background: #fde8e8;
+      border: 1px solid #f2b3b3;
+    }
+
+    pre {
+      background: #f5f5f5;
+      padding: 16px;
+      border-radius: 4px;
+      overflow-x: auto;
+      font-size: 13px;
+      border: 1px solid #ddd;
+      max-height: 400px;
+      overflow-y: auto;
+    }
+
+    .section {
+      margin-bottom: 24px;
+    }
+
+    .links {
+      margin-top: 32px;
+      padding-top: 16px;
+      border-top: 1px solid #ddd;
+    }
+
+    .links a {
+      margin-right: 16px;
+      color: #0066cc;
+    }
+
+    label {
+      display: block;
+      margin: 8px 0 4px;
+      font-weight: 600;
+    }
+
+    input[type="text"] {
+      padding: 8px;
+      width: 300px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      font-size: 14px;
+    }
+  </style>
+</head>
+
+<body>
+  <h1>Spike Test Page</h1>
+  <p class="subtitle">Azure AD Authentication with Directory Extensions</p>
+
+  <!-- ================================================================== -->
+  <!-- Increment 1: Server-side OIDC -->
+  <!-- ================================================================== -->
+  <h2>Increment 1: Server-Side OIDC (App A)</h2>
+  <div class="section">
+    <p>Test the server-side OIDC authorization code flow through nginx/njs.</p>
+    <button onclick="window.location.href='/spike/login'">Login via OIDC</button>
+  </div>
+
+  <!-- ================================================================== -->
+  <!-- Increment 2: MSAL.js Login + Validate -->
+  <!-- ================================================================== -->
+  <h2>Increment 2: Client-Side Auth (App B) + Token Validation</h2>
+  <div class="section">
+    <div id="auth-status" class="status info">Not signed in</div>
+    <div>
+      <button id="btn-login" onclick="msalLogin()" disabled>Login</button>
+      <button id="btn-token" onclick="acquireToken()" disabled>Get Token</button>
+      <button id="btn-validate" onclick="callValidate()" disabled>Validate Token</button>
+      <button id="btn-logout" onclick="msalLogout()" disabled class="secondary">Logout</button>
+    </div>
+    <div id="token-display" style="display:none">
+      <h3>Access Token</h3>
+      <pre id="token-value"></pre>
+    </div>
+    <div id="validate-display" style="display:none">
+      <h3>Validation Response</h3>
+      <pre id="validate-value"></pre>
+    </div>
+  </div>
+
+  <!-- ================================================================== -->
+  <!-- Increment 3 & 4: Store & Read Extension Property -->
+  <!-- ================================================================== -->
+  <h2>Increment 3 &amp; 4: Store &amp; Read Extension Property</h2>
+  <div class="section">
+    <p>Store and read a value in the user's directory extension property. Both use App B's token; the server uses App A's credentials to write.</p>
+    <label for="store-value">Value to store:</label>
+    <input type="text" id="store-value" value="hello123" placeholder="Enter a value">
+    <br><br>
+    <button id="btn-store" onclick="storeValue()" disabled>Store Value</button>
+    <button id="btn-read" onclick="callRead()" disabled>Read Stored Value</button>
+    <div id="store-display" style="display:none">
+      <h3>Store Response</h3>
+      <pre id="store-value-result"></pre>
+    </div>
+    <div id="read-display" style="display:none">
+      <h3>Read Response</h3>
+      <pre id="read-value"></pre>
+    </div>
+  </div>
+
+  <!-- ================================================================== -->
+  <!-- Increment 5: Table Storage -->
+  <!-- ================================================================== -->
+  <h2>Increment 5: Store &amp; Read via Azure Table Storage</h2>
+  <div class="section">
+    <p>Store and read a value in Azure Table Storage (no 256-char limit). Both use App B's token.</p>
+    <label for="table-store-value">Value to store:</label>
+    <input type="text" id="table-store-value" value="this-can-be-longer-than-256-chars" placeholder="Enter a value (any length)">
+    <br><br>
+    <button id="btn-table-store" onclick="tableStoreValue()" disabled>Store in Table</button>
+    <button id="btn-table-read" onclick="callTableRead()" disabled>Read from Table</button>
+    <div id="table-store-display" style="display:none">
+      <h3>Table Store Response</h3>
+      <pre id="table-store-value-result"></pre>
+    </div>
+    <div id="table-read-display" style="display:none">
+      <h3>Table Read Response</h3>
+      <pre id="table-read-value"></pre>
+    </div>
+  </div>
+
+  <!-- ================================================================== -->
+  <!-- Increment 6: Compressed Extension Property -->
+  <!-- ================================================================== -->
+  <h2>Increment 6: Extension Property with Unicode Compression</h2>
+  <div class="section">
+    <p>Pack ASCII JSON payload into Unicode characters (2:1 ratio) to fit within the 256-char extension property limit.</p>
+    <label for="ext-compress-value">JSON value to store:</label>
+    <textarea id="ext-compress-value" rows="6" style="width:100%; font-family:monospace; font-size:12px;">{"cookies":".CMSAUTH=01A42EB0A0CF686107B17D2409D941D47F76A1013CDBDA57A40040433A39127D2E3669867769A9F57D0B76DB7F201A74B865B1C707BD5CD8D8279CBF3977C2349031F6F72DE0334D51A5BF84104FE0CC6F49976D90297F4E0A6BAE4BAEB7EEA597FCA3A36FE68BB6D33267B3311DF8C6A497E90702606E24DB76AAEA055BCC69D4A3E615; ASP.NET_SessionId=me0yxcvneiwa5jiyebs4m0de; UID=104007; WindowID=MASTER","token":"b3f1a2c4-9d5e-4f6a-8b7c-1d2e3f4a5b6c","other":"session_flags=active;region=eu-west-1;tier=standard"}</textarea>
+    <p id="ext-compress-stats" style="font-size:12px; color:#666;"></p>
+    <button id="btn-ext-compress-store" onclick="extCompressStore()" disabled>Store Compressed</button>
+    <button id="btn-ext-compress-read" onclick="callExtCompressRead()" disabled>Read &amp; Decompress</button>
+    <div id="ext-compress-store-display" style="display:none">
+      <h3>Store Response</h3>
+      <pre id="ext-compress-store-value-result"></pre>
+    </div>
+    <div id="ext-compress-read-display" style="display:none">
+      <h3>Read Response</h3>
+      <pre id="ext-compress-read-value"></pre>
+    </div>
+  </div>
+
+  <!-- ================================================================== -->
+  <!-- Links -->
+  <!-- ================================================================== -->
+  <div class="links">
+    <a href="/spike/login">Direct: /spike/login</a>
+    <a href="/spike/validate">Direct: /spike/validate</a>
+    <a href="/health">Health check</a>
+  </div>
+
+  <!-- MSAL.js -->
+  <script src="https://alcdn.msauth.net/browser/2.35.0/js/msal-browser.min.js"
+    onerror="document.getElementById('auth-status').className='status error';document.getElementById('auth-status').textContent='Failed to load MSAL.js from CDN'"></script>
+  <script>
+    console.log("SPIKE: inline script block executing");
+    // =======================================================================
+    // CONFIGURE THESE VALUES
+    // =======================================================================
+    const SPA_CLIENT_ID = "a293e225-df55-4671-b411-04e2dd5c949a";  // App B client ID
+    const TENANT_ID = "e3654cb4-692a-4024-96ab-7753bf1ae402";             // Azure AD tenant ID
+    // =======================================================================
+
+    const msalConfig = {
+      auth: {
+        clientId: SPA_CLIENT_ID,
+        authority: "https://login.microsoftonline.com/" + TENANT_ID,
+        redirectUri: window.location.origin + "/spike/",
+      },
+      cache: {
+        cacheLocation: "sessionStorage",
+        storeAuthStateInCookie: false,
+      },
+    };
+
+    var msalInstance = null;
+    var msalReady = false;
+
+    try {
+      if (typeof msal === "undefined") {
+        throw new Error("MSAL library not loaded - check CDN script tag");
+      }
+      console.log("MSAL library loaded, creating instance...");
+      msalInstance = new msal.PublicClientApplication(msalConfig);
+      msalReady = true;
+      document.getElementById("btn-login").disabled = false;
+      console.log("MSAL instance created, login button enabled");
+
+      // Handle redirect response on page load
+      msalInstance.handleRedirectPromise().then(function (response) {
+        if (response) {
+          updateAuthStatus(response.account);
+        } else {
+          var accounts = msalInstance.getAllAccounts();
+          if (accounts.length > 0) {
+            updateAuthStatus(accounts[0]);
+          }
+        }
+      }).catch(function (err) {
+        showError("MSAL redirect error: " + err.message);
+      });
+    } catch (e) {
+      showError("MSAL init failed: " + e.message);
+      console.error("MSAL init failed:", e);
+    }
+
+    var currentToken = null;
+
+    function enableTokenButtons() {
+      document.getElementById("btn-validate").disabled = false;
+      document.getElementById("btn-store").disabled = false;
+      document.getElementById("btn-read").disabled = false;
+      document.getElementById("btn-table-store").disabled = false;
+      document.getElementById("btn-table-read").disabled = false;
+      document.getElementById("btn-ext-compress-store").disabled = false;
+      document.getElementById("btn-ext-compress-read").disabled = false;
+    }
+
+    function updateAuthStatus(account) {
+      if (account) {
+        var el = document.getElementById("auth-status");
+        el.className = "status success";
+        el.textContent = "Signed in as: " + (account.username || account.name || account.localAccountId);
+        document.getElementById("btn-token").disabled = false;
+        document.getElementById("btn-logout").disabled = false;
+      }
+    }
+
+    function msalLogin() {
+      if (!msalReady) { showError("MSAL not ready yet"); return; }
+      msalInstance.loginRedirect({
+        scopes: ["openid", "profile", "email"],
+      });
+    }
+
+    function acquireToken() {
+      var accounts = msalInstance.getAllAccounts();
+      if (accounts.length === 0) {
+        showError("No accounts found. Please login first.");
+        return;
+      }
+
+      console.log("Acquiring token for account:", accounts[0].username);
+      msalInstance.acquireTokenSilent({
+        scopes: ["openid", "profile", "email"],
+        account: accounts[0],
+      }).then(function (response) {
+        console.log("Token acquired - idToken:", typeof response.idToken, "len:", (response.idToken || "").length,
+          "accessToken:", typeof response.accessToken, "len:", (response.accessToken || "").length);
+        currentToken = response.idToken || response.accessToken;
+        console.log("currentToken set, truthy:", !!currentToken, "len:", (currentToken || "").length);
+        document.getElementById("token-display").style.display = "block";
+        enableTokenButtons();
+
+        // Decode and show claims
+        try {
+          var payload = currentToken.split(".")[1];
+          var decoded = JSON.parse(atob(payload.replace(/-/g, "+").replace(/_/g, "/")));
+          document.getElementById("token-value").textContent =
+            "Token: " + currentToken.substring(0, 50) + "...\n\nDecoded claims:\n" +
+            JSON.stringify(decoded, null, 2);
+        } catch (e) {
+          document.getElementById("token-value").textContent = currentToken;
+        }
+      }).catch(function (err) {
+        console.warn("Silent token failed, redirecting:", err.message);
+        msalInstance.acquireTokenRedirect({
+          scopes: ["openid", "profile", "email"],
+          account: accounts[0],
+        });
+      });
+    }
+
+    // =====================================================================
+    // Generic fetch helpers
+    // =====================================================================
+
+    function showResult(displayId, valueId, result) {
+      document.getElementById(displayId).style.display = "block";
+      try {
+        document.getElementById(valueId).textContent =
+          "Status: " + result.status + "\n\n" + JSON.stringify(JSON.parse(result.body), null, 2);
+      } catch (e) {
+        document.getElementById(valueId).textContent =
+          "Status: " + result.status + "\n\n" + result.body;
+      }
+    }
+
+    function doGet(url) {
+      return fetch(url, {
+        headers: { "Authorization": "Bearer " + currentToken },
+      }).then(function (resp) {
+        return resp.text().then(function (t) { return { status: resp.status, body: t }; });
+      });
+    }
+
+    function doPost(url, value) {
+      return fetch(url, {
+        method: "POST",
+        headers: {
+          "Authorization": "Bearer " + currentToken,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ value: value }),
+      }).then(function (resp) {
+        return resp.text().then(function (t) { return { status: resp.status, body: t }; });
+      });
+    }
+
+    // =====================================================================
+    // Increment 2: Validate
+    // =====================================================================
+
+    function callValidate() {
+      if (!currentToken) { showError("No token available. Get a token first."); return; }
+      doGet("/spike/validate")
+        .then(function (r) { showResult("validate-display", "validate-value", r); })
+        .catch(function (err) { showError("Validate call failed: " + err.message); });
+    }
+
+    // =====================================================================
+    // Increment 3 & 4: Extension property store & read
+    // =====================================================================
+
+    function storeValue() {
+      if (!currentToken) { showError("No token available. Get a token first."); return; }
+      var value = document.getElementById("store-value").value;
+      if (!value) { showError("Please enter a value to store."); return; }
+      doPost("/spike/store", value)
+        .then(function (r) { showResult("store-display", "store-value-result", r); })
+        .catch(function (err) { showError("Store call failed: " + err.message); });
+    }
+
+    function callRead() {
+      if (!currentToken) { showError("No token available. Get a token first."); return; }
+      doGet("/spike/read")
+        .then(function (r) { showResult("read-display", "read-value", r); })
+        .catch(function (err) { showError("Read call failed: " + err.message); });
+    }
+
+    // =====================================================================
+    // Increment 5: Table Storage store & read
+    // =====================================================================
+
+    function tableStoreValue() {
+      if (!currentToken) { showError("No token available. Get a token first."); return; }
+      var value = document.getElementById("table-store-value").value;
+      if (!value) { showError("Please enter a value to store."); return; }
+      doPost("/spike/table/store", value)
+        .then(function (r) { showResult("table-store-display", "table-store-value-result", r); })
+        .catch(function (err) { showError("Table store call failed: " + err.message); });
+    }
+
+    function callTableRead() {
+      if (!currentToken) { showError("No token available. Get a token first."); return; }
+      doGet("/spike/table/read")
+        .then(function (r) { showResult("table-read-display", "table-read-value", r); })
+        .catch(function (err) { showError("Table read call failed: " + err.message); });
+    }
+
+    // =====================================================================
+    // Increment 6: Compressed extension store & read
+    // =====================================================================
+
+    // Show compression stats as user types
+    (function () {
+      var textarea = document.getElementById("ext-compress-value");
+      function updateStats() {
+        var val = textarea.value;
+        var asciiLen = val.length;
+        var unicodeLen = Math.ceil(asciiLen / 2) + (asciiLen % 2 !== 0 ? 1 : 0);
+        var el = document.getElementById("ext-compress-stats");
+        var fits = unicodeLen <= 256;
+        el.textContent = "ASCII length: " + asciiLen + " chars → Compressed: " + unicodeLen +
+          " Unicode chars" + (fits ? " ✓ fits in 256" : " ✗ exceeds 256 limit");
+        el.style.color = fits ? "#2a7" : "#c33";
+      }
+      textarea.addEventListener("input", updateStats);
+      updateStats();
+    })();
+
+    function extCompressStore() {
+      if (!currentToken) { showError("No token available. Get a token first."); return; }
+      var value = document.getElementById("ext-compress-value").value;
+      if (!value) { showError("Please enter a value to store."); return; }
+      doPost("/spike/ext-compress/store", value)
+        .then(function (r) { showResult("ext-compress-store-display", "ext-compress-store-value-result", r); })
+        .catch(function (err) { showError("Ext compress store failed: " + err.message); });
+    }
+
+    function callExtCompressRead() {
+      if (!currentToken) { showError("No token available. Get a token first."); return; }
+      doGet("/spike/ext-compress/read")
+        .then(function (r) { showResult("ext-compress-read-display", "ext-compress-read-value", r); })
+        .catch(function (err) { showError("Ext compress read failed: " + err.message); });
+    }
+
+    // =====================================================================
+    // Auth helpers
+    // =====================================================================
+
+    function msalLogout() {
+      msalInstance.logoutRedirect({
+        postLogoutRedirectUri: window.location.origin + "/spike/",
+      });
+    }
+
+    function showError(msg) {
+      var el = document.getElementById("auth-status");
+      el.className = "status error";
+      el.textContent = msg;
+    }
+  </script>
+</body>
+
+</html>

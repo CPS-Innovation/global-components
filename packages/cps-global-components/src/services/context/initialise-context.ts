@@ -34,7 +34,14 @@ export const initialiseContext = ({
       if (!match) continue;
 
       const pathTags = match.groups || {};
-      const cmsAuth = (context.cmsAuthFromStorageKey && (sessionStorage.getItem(context.cmsAuthFromStorageKey) || localStorage.getItem(context.cmsAuthFromStorageKey))) || "";
+      const rawCmsAuth = context.cmsAuthFromStorageKey ? (sessionStorage.getItem(context.cmsAuthFromStorageKey) || localStorage.getItem(context.cmsAuthFromStorageKey)) : null;
+      const cmsAuth = rawCmsAuth || "";
+      // Partially-redacted: distinguishes absent / empty / literal "undefined" /
+      // a real value so a wiped CMS-auth read is visible without leaking it.
+      _debug("cmsAuth read", {
+        key: context.cmsAuthFromStorageKey,
+        value: rawCmsAuth === null || rawCmsAuth === undefined ? "<absent>" : rawCmsAuth === "undefined" ? '<literal "undefined">' : rawCmsAuth === "" ? "<empty>" : `${rawCmsAuth.slice(0, 6)}…(len ${rawCmsAuth.length})`,
+      });
 
       const result: FoundContext = {
         ...context,

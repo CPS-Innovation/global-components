@@ -49,7 +49,7 @@ export class NavLink {
 
     const coreProps = {
       "role": "link",
-      "aria-current": this.ariaSelected ? "page" : undefined,
+      "aria-current": this.ariaSelected ? "true" : this.selected ? "page" : undefined,
     };
     const renderLink = () => {
       switch (mode) {

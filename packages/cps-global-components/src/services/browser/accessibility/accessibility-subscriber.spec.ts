@@ -34,12 +34,16 @@ const makeWindow = ({ forcedColors = false }: { forcedColors?: boolean } = {}) =
   return { win, runRaf, getAppendedStyle: () => appendedStyle };
 };
 
-const build = (win: Window, opts: { accessibility?: boolean; tone?: "soft-grey" | "warm" | undefined } = {}) => {
+// `accessibility` drives the per-user preview opt-in; `envEnabled` drives the env
+// config gate. Either one turns accessibility mode on — see shouldEnableAccessibilityMode.
+const build = (win: Window, opts: { accessibility?: boolean; envEnabled?: boolean; tone?: "soft-grey" | "warm" | undefined } = {}) => {
   const accessibility = opts.accessibility ?? true;
   const tone = "tone" in opts ? opts.tone : "soft-grey"; // distinguish "absent" from explicit undefined
   return accessibilitySubscriber({
     preview: accessibility ? { found: true, result: { accessibility: true } } : { found: false, error: new Error("off") },
     settings: { found: true, result: { accessibilityBackground: tone } },
+    config: { FEATURE_FLAG_ACCESSIBILITY_MODE_USERS: { generallyAvailable: opts.envEnabled ?? false } },
+    flags: {},
     window: win,
   } as any);
 };
@@ -56,6 +60,16 @@ describe("accessibilitySubscriber — isActiveForContext", () => {
   it("is inactive when the preview flag is off", () => {
     const { win } = makeWindow();
     expect(build(win, { accessibility: false }).isActiveForContext).toBe(false);
+  });
+
+  it("is active when the env config gate is on, even without the preview opt-in", () => {
+    const { win } = makeWindow();
+    expect(build(win, { accessibility: false, envEnabled: true }).isActiveForContext).toBe(true);
+  });
+
+  it("is inactive when the env config gate is on but no tone is set", () => {
+    const { win } = makeWindow();
+    expect(build(win, { accessibility: false, envEnabled: true, tone: undefined }).isActiveForContext).toBe(false);
   });
 
   it("is inactive when no tone is selected", () => {

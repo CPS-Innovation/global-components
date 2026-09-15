@@ -15,6 +15,14 @@ export class CpsRegion {
   @Prop({ reflect: true }) code!: string;
 
   /**
+   * Optional subject for kinds that are scoped to one — a witness, a defendant.
+   * With it the section is "<caseId>:KIND:<subjectId>"; without it the section is
+   * case-wide, "<caseId>:KIND". Must match the id the other clients use for the
+   * same person, or the two register different sections for one subject.
+   */
+  @Prop({ reflect: true }) subject?: string;
+
+  /**
    * Tracks whether the registry currently considers this element "present".
    * Presence = mounted in DOM AND not display:none on self or any ancestor.
    */
@@ -50,8 +58,8 @@ export class CpsRegion {
     if (newCode === oldCode || !this.isPresent) {
       return;
     }
-    regionRegistry.leave(this.el, oldCode);
-    regionRegistry.enter(this.el, newCode);
+    regionRegistry.leave(this.el, oldCode, this.subject);
+    regionRegistry.enter(this.el, newCode, this.subject);
   }
 
   render() {
@@ -101,9 +109,9 @@ export class CpsRegion {
     }
     this.isPresent = present;
     if (present) {
-      regionRegistry.enter(this.el, code);
+      regionRegistry.enter(this.el, code, this.subject);
     } else {
-      regionRegistry.leave(this.el, code);
+      regionRegistry.leave(this.el, code, this.subject);
     }
   }
 }

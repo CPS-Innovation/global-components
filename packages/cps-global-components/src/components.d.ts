@@ -10,6 +10,13 @@ import { ContextsToUseEventNavigation } from "cps-global-configuration";
 export { NotificationBannerType } from "./components/cps-gds-notification-banner/cps-gds-notification-banner";
 export { ContextsToUseEventNavigation } from "cps-global-configuration";
 export namespace Components {
+    /**
+     * A thin shell over govuk-frontend's notification banner.
+     * Deliberately thin. The pinned variant that used to live here as a flag is now
+     * cps-global-pinned-notification: it positions against the viewport, mutates the
+     * host page's layout and follows UCD's design, none of which belongs in the
+     * component every notification in the app renders through.
+     */
     interface CpsGdsNotificationBanner {
         /**
           * Prevent the banner from being focused on page load (only relevant for success type).
@@ -31,10 +38,9 @@ export namespace Components {
          */
         "titleHeadingLevel": number;
         /**
-          * Custom id for the title element. Defaults to "govuk-notification-banner-title".
-          * @default "govuk-notification-banner-title"
+          * Custom id for the title element. Defaults to one generated per instance.  NOT A FIXED STRING, which is what GDS's own example markup uses and what this defaulted to. aria-labelledby is an IDREF and resolves to the FIRST matching element in the tree, so several banners sharing an id all end up named by whichever renders first — and cps-global-notifications renders one banner per notification, all as siblings. The symptom is a screen reader announcing the same region name several times over, on the busiest screens.
          */
-        "titleId": string;
+        "titleId"?: string;
         /**
           * The title text shown in the banner header. Defaults to "Important" or "Success" based on type.
          */
@@ -48,11 +54,55 @@ export namespace Components {
     }
     interface CpsGlobalCaseDetails {
     }
+    /**
+     * The interruption, rebuilt as a top-layer dialog.
+     * WHY REPLACE THE PAGE RATHER THAN EDIT IT
+     * Three earlier versions tried to imitate an interruption from outside, and each
+     * was wrong in a way that only showed up on a real page: a fixed overlay band
+     * measured between our header and footer grew its own scrollbar and visibly
+     * shifted when the page was dragged; hiding the host's content element by element
+     * worked until the host changed the page underneath us.
+     * That last one is worth spelling out, because it looked correct. It walked the
+     * DOM setting `display: none` on element siblings up the ancestor chain and
+     * remembered each one so it could be put back — a snapshot of a page that does not
+     * hold still. Content the host added afterwards was never hidden, a subtree it
+     * re-rendered came back, and a `display` it set while we were up got clobbered on
+     * restore.
+     * showModal() sidesteps the whole category. The browser puts this in the top
+     * layer, makes the rest of the document inert — out of the accessibility tree and
+     * the tab order — traps focus, handles Escape, and RESTORES FOCUS on close. We
+     * touch no host DOM at all, so there is nothing to remember and nothing to undo.
+     * WHY THE CHROME IS IN HERE
+     * The top layer covers everything, including our own header and footer, and the
+     * design keeps them. So the dialog carries its own: cps-global-header in
+     * chrome-only mode, and cps-global-footer-content. Whole components, not a
+     * reassembly of their parts — the theme classes, custom host CSS, error fallback
+     * and ordering stay owned by the header, and cannot drift from it.
+     * ...AND WHY IT IS HIDDEN FROM ASSISTIVE TECH
+     * Visually the chrome is context. To a screen reader it would be a full
+     * navigation menu and a footer sitting between the user and the decision, read
+     * out before the message and joining the tab order of an interruption that is
+     * meant to have two exits. `inert` plus `aria-hidden` makes it what it actually
+     * is: decoration. The only thing exposed in here is the choice.
+     * The card is also FIRST in the DOM, with the chrome placed visually by flex
+     * `order`, so reading order starts at the message.
+     */
+    interface CpsGlobalCaseLockingInterstitial {
+    }
     interface CpsGlobalCaseLockingNotification {
     }
     interface CpsGlobalFooter {
+        "userEmail"?: string;
+    }
+    interface CpsGlobalFooterContent {
+        "userEmail"?: string;
     }
     interface CpsGlobalHeader {
+        /**
+          * Render the CHROME ONLY — the banner and the menu — and none of the components that do things.  This exists for one caller: cps-global-case-locking-interstitial renders a header inside its dialog so the interruption looks like a page rather than a card on a blank screen. Reusing this component rather than reassembling its parts keeps the theme classes, the custom host CSS, the error fallback and the ordering in ONE place — hand-copying them would drift the moment any of them changed. Without this flag it would also recurse, since the block below renders the overlay itself.  The gate wraps the behavioural children as a GROUP rather than listing exclusions, so anything added there later is covered by default.
+          * @default false
+         */
+        "chromeOnly": boolean;
         /**
           * @default false
          */
@@ -63,6 +113,45 @@ export namespace Components {
     interface CpsGlobalMenu {
     }
     interface CpsGlobalNotifications {
+    }
+    /**
+     * The pinned notification from the UCD prototype's app-notification-banner-pinned.
+     * WHY THIS IS NOT A FLAG ON cps-gds-notification-banner
+     * It began as one, and the specialisation outgrew it. This component positions
+     * itself against the viewport, mutates the host page's layout, owns a
+     * progressive-enhancement toggle and answers to UCD; the GDS banner is a thin
+     * shell over a govuk-frontend component and answers to govuk-frontend. Sharing
+     * one component meant every notification in the app rendered through code that
+     * only the pinned one used — including host-DOM teardown it never performed.
+     * The prototype makes the same split: app-notification-banner-pinned is a
+     * wrapper with its own JS module around a stock govuk-notification-banner.
+     * WHY NOT COMPOSE the GDS banner inside this one, which would avoid repeating
+     * its markup: the toggle has to sit INSIDE the banner's header, next to the
+     * title. The prototype achieves that by reaching in with jQuery
+     * (header.append(toggle)). Doing the equivalent across a component boundary is
+     * worse than repeating twenty lines of markup that govuk-frontend has not
+     * changed in years.
+     */
+    interface CpsGlobalPinnedNotification {
+        /**
+          * Show only the header until the user asks for detail — the prototype's progressive enhancement, reimplemented rather than bolted on with jQuery. The toggle carries aria-expanded and aria-controls, and the content is genuinely `hidden` when collapsed, so assistive tech is told the same story the sighted user gets rather than reading content that looks closed.
+          * @default false
+         */
+        "collapsible": boolean;
+        /**
+          * Renders the dismiss button. Persistence is the caller's responsibility via the `cpsDismissed` event.
+          * @default false
+         */
+        "dismissible": boolean;
+        /**
+          * The heading level for the title (1-6). Defaults to 2.
+          * @default 2
+         */
+        "titleHeadingLevel": number;
+        /**
+          * The title text shown in the banner header.
+         */
+        "titleText"?: string;
     }
     interface CpsGlobalRecentCases {
         /**
@@ -87,13 +176,19 @@ export namespace Components {
           * Identifier passed to the central service when this region enters or leaves "present" state. Reflected so it's readable as an attribute.
          */
         "code": string;
+        /**
+          * Optional subject for kinds that are scoped to one — a witness, a defendant. With it the section is "<caseId>:KIND:<subjectId>"; without it the section is case-wide, "<caseId>:KIND". Must match the id the other clients use for the same person, or the two register different sections for one subject.
+         */
+        "subject"?: string;
     }
     interface CpsSkipLink {
+        "targetSelector"?: string;
         /**
           * @default false
          */
-        "isOutSystems": boolean;
-        "skipLinkClassName"?: string;
+        "useScroll": boolean;
+    }
+    interface CpsSkipLinks {
     }
     interface NavLink {
         "ariaSelected"?: boolean;
@@ -109,6 +204,10 @@ export interface CpsGdsNotificationBannerCustomEvent<T> extends CustomEvent<T> {
     detail: T;
     target: HTMLCpsGdsNotificationBannerElement;
 }
+export interface CpsGlobalPinnedNotificationCustomEvent<T> extends CustomEvent<T> {
+    detail: T;
+    target: HTMLCpsGlobalPinnedNotificationElement;
+}
 export interface NavLinkCustomEvent<T> extends CustomEvent<T> {
     detail: T;
     target: HTMLNavLinkElement;
@@ -117,6 +216,13 @@ declare global {
     interface HTMLCpsGdsNotificationBannerElementEventMap {
         "cpsDismissed": void;
     }
+    /**
+     * A thin shell over govuk-frontend's notification banner.
+     * Deliberately thin. The pinned variant that used to live here as a flag is now
+     * cps-global-pinned-notification: it positions against the viewport, mutates the
+     * host page's layout and follows UCD's design, none of which belongs in the
+     * component every notification in the app renders through.
+     */
     interface HTMLCpsGdsNotificationBannerElement extends Components.CpsGdsNotificationBanner, HTMLStencilElement {
         addEventListener<K extends keyof HTMLCpsGdsNotificationBannerElementEventMap>(type: K, listener: (this: HTMLCpsGdsNotificationBannerElement, ev: CpsGdsNotificationBannerCustomEvent<HTMLCpsGdsNotificationBannerElementEventMap[K]>) => any, options?: boolean | AddEventListenerOptions): void;
         addEventListener<K extends keyof DocumentEventMap>(type: K, listener: (this: Document, ev: DocumentEventMap[K]) => any, options?: boolean | AddEventListenerOptions): void;
@@ -143,6 +249,45 @@ declare global {
         prototype: HTMLCpsGlobalCaseDetailsElement;
         new (): HTMLCpsGlobalCaseDetailsElement;
     };
+    /**
+     * The interruption, rebuilt as a top-layer dialog.
+     * WHY REPLACE THE PAGE RATHER THAN EDIT IT
+     * Three earlier versions tried to imitate an interruption from outside, and each
+     * was wrong in a way that only showed up on a real page: a fixed overlay band
+     * measured between our header and footer grew its own scrollbar and visibly
+     * shifted when the page was dragged; hiding the host's content element by element
+     * worked until the host changed the page underneath us.
+     * That last one is worth spelling out, because it looked correct. It walked the
+     * DOM setting `display: none` on element siblings up the ancestor chain and
+     * remembered each one so it could be put back — a snapshot of a page that does not
+     * hold still. Content the host added afterwards was never hidden, a subtree it
+     * re-rendered came back, and a `display` it set while we were up got clobbered on
+     * restore.
+     * showModal() sidesteps the whole category. The browser puts this in the top
+     * layer, makes the rest of the document inert — out of the accessibility tree and
+     * the tab order — traps focus, handles Escape, and RESTORES FOCUS on close. We
+     * touch no host DOM at all, so there is nothing to remember and nothing to undo.
+     * WHY THE CHROME IS IN HERE
+     * The top layer covers everything, including our own header and footer, and the
+     * design keeps them. So the dialog carries its own: cps-global-header in
+     * chrome-only mode, and cps-global-footer-content. Whole components, not a
+     * reassembly of their parts — the theme classes, custom host CSS, error fallback
+     * and ordering stay owned by the header, and cannot drift from it.
+     * ...AND WHY IT IS HIDDEN FROM ASSISTIVE TECH
+     * Visually the chrome is context. To a screen reader it would be a full
+     * navigation menu and a footer sitting between the user and the decision, read
+     * out before the message and joining the tab order of an interruption that is
+     * meant to have two exits. `inert` plus `aria-hidden` makes it what it actually
+     * is: decoration. The only thing exposed in here is the choice.
+     * The card is also FIRST in the DOM, with the chrome placed visually by flex
+     * `order`, so reading order starts at the message.
+     */
+    interface HTMLCpsGlobalCaseLockingInterstitialElement extends Components.CpsGlobalCaseLockingInterstitial, HTMLStencilElement {
+    }
+    var HTMLCpsGlobalCaseLockingInterstitialElement: {
+        prototype: HTMLCpsGlobalCaseLockingInterstitialElement;
+        new (): HTMLCpsGlobalCaseLockingInterstitialElement;
+    };
     interface HTMLCpsGlobalCaseLockingNotificationElement extends Components.CpsGlobalCaseLockingNotification, HTMLStencilElement {
     }
     var HTMLCpsGlobalCaseLockingNotificationElement: {
@@ -154,6 +299,12 @@ declare global {
     var HTMLCpsGlobalFooterElement: {
         prototype: HTMLCpsGlobalFooterElement;
         new (): HTMLCpsGlobalFooterElement;
+    };
+    interface HTMLCpsGlobalFooterContentElement extends Components.CpsGlobalFooterContent, HTMLStencilElement {
+    }
+    var HTMLCpsGlobalFooterContentElement: {
+        prototype: HTMLCpsGlobalFooterContentElement;
+        new (): HTMLCpsGlobalFooterContentElement;
     };
     interface HTMLCpsGlobalHeaderElement extends Components.CpsGlobalHeader, HTMLStencilElement {
     }
@@ -179,6 +330,41 @@ declare global {
         prototype: HTMLCpsGlobalNotificationsElement;
         new (): HTMLCpsGlobalNotificationsElement;
     };
+    interface HTMLCpsGlobalPinnedNotificationElementEventMap {
+        "cpsDismissed": void;
+    }
+    /**
+     * The pinned notification from the UCD prototype's app-notification-banner-pinned.
+     * WHY THIS IS NOT A FLAG ON cps-gds-notification-banner
+     * It began as one, and the specialisation outgrew it. This component positions
+     * itself against the viewport, mutates the host page's layout, owns a
+     * progressive-enhancement toggle and answers to UCD; the GDS banner is a thin
+     * shell over a govuk-frontend component and answers to govuk-frontend. Sharing
+     * one component meant every notification in the app rendered through code that
+     * only the pinned one used — including host-DOM teardown it never performed.
+     * The prototype makes the same split: app-notification-banner-pinned is a
+     * wrapper with its own JS module around a stock govuk-notification-banner.
+     * WHY NOT COMPOSE the GDS banner inside this one, which would avoid repeating
+     * its markup: the toggle has to sit INSIDE the banner's header, next to the
+     * title. The prototype achieves that by reaching in with jQuery
+     * (header.append(toggle)). Doing the equivalent across a component boundary is
+     * worse than repeating twenty lines of markup that govuk-frontend has not
+     * changed in years.
+     */
+    interface HTMLCpsGlobalPinnedNotificationElement extends Components.CpsGlobalPinnedNotification, HTMLStencilElement {
+        addEventListener<K extends keyof HTMLCpsGlobalPinnedNotificationElementEventMap>(type: K, listener: (this: HTMLCpsGlobalPinnedNotificationElement, ev: CpsGlobalPinnedNotificationCustomEvent<HTMLCpsGlobalPinnedNotificationElementEventMap[K]>) => any, options?: boolean | AddEventListenerOptions): void;
+        addEventListener<K extends keyof DocumentEventMap>(type: K, listener: (this: Document, ev: DocumentEventMap[K]) => any, options?: boolean | AddEventListenerOptions): void;
+        addEventListener<K extends keyof HTMLElementEventMap>(type: K, listener: (this: HTMLElement, ev: HTMLElementEventMap[K]) => any, options?: boolean | AddEventListenerOptions): void;
+        addEventListener(type: string, listener: EventListenerOrEventListenerObject, options?: boolean | AddEventListenerOptions): void;
+        removeEventListener<K extends keyof HTMLCpsGlobalPinnedNotificationElementEventMap>(type: K, listener: (this: HTMLCpsGlobalPinnedNotificationElement, ev: CpsGlobalPinnedNotificationCustomEvent<HTMLCpsGlobalPinnedNotificationElementEventMap[K]>) => any, options?: boolean | EventListenerOptions): void;
+        removeEventListener<K extends keyof DocumentEventMap>(type: K, listener: (this: Document, ev: DocumentEventMap[K]) => any, options?: boolean | EventListenerOptions): void;
+        removeEventListener<K extends keyof HTMLElementEventMap>(type: K, listener: (this: HTMLElement, ev: HTMLElementEventMap[K]) => any, options?: boolean | EventListenerOptions): void;
+        removeEventListener(type: string, listener: EventListenerOrEventListenerObject, options?: boolean | EventListenerOptions): void;
+    }
+    var HTMLCpsGlobalPinnedNotificationElement: {
+        prototype: HTMLCpsGlobalPinnedNotificationElement;
+        new (): HTMLCpsGlobalPinnedNotificationElement;
+    };
     interface HTMLCpsGlobalRecentCasesElement extends Components.CpsGlobalRecentCases, HTMLStencilElement {
     }
     var HTMLCpsGlobalRecentCasesElement: {
@@ -196,6 +382,12 @@ declare global {
     var HTMLCpsSkipLinkElement: {
         prototype: HTMLCpsSkipLinkElement;
         new (): HTMLCpsSkipLinkElement;
+    };
+    interface HTMLCpsSkipLinksElement extends Components.CpsSkipLinks, HTMLStencilElement {
+    }
+    var HTMLCpsSkipLinksElement: {
+        prototype: HTMLCpsSkipLinksElement;
+        new (): HTMLCpsSkipLinksElement;
     };
     interface HTMLNavLinkElementEventMap {
         "cps-global-header-event": string;
@@ -218,21 +410,32 @@ declare global {
         "cps-gds-notification-banner": HTMLCpsGdsNotificationBannerElement;
         "cps-global-banner": HTMLCpsGlobalBannerElement;
         "cps-global-case-details": HTMLCpsGlobalCaseDetailsElement;
+        "cps-global-case-locking-interstitial": HTMLCpsGlobalCaseLockingInterstitialElement;
         "cps-global-case-locking-notification": HTMLCpsGlobalCaseLockingNotificationElement;
         "cps-global-footer": HTMLCpsGlobalFooterElement;
+        "cps-global-footer-content": HTMLCpsGlobalFooterContentElement;
         "cps-global-header": HTMLCpsGlobalHeaderElement;
         "cps-global-home-page-notification": HTMLCpsGlobalHomePageNotificationElement;
         "cps-global-menu": HTMLCpsGlobalMenuElement;
         "cps-global-notifications": HTMLCpsGlobalNotificationsElement;
+        "cps-global-pinned-notification": HTMLCpsGlobalPinnedNotificationElement;
         "cps-global-recent-cases": HTMLCpsGlobalRecentCasesElement;
         "cps-region": HTMLCpsRegionElement;
         "cps-skip-link": HTMLCpsSkipLinkElement;
+        "cps-skip-links": HTMLCpsSkipLinksElement;
         "nav-link": HTMLNavLinkElement;
     }
 }
 declare namespace LocalJSX {
     type OneOf<K extends string, PropT, AttrT = PropT> = { [P in K]: PropT } & { [P in `attr:${K}` | `prop:${K}`]?: never } | { [P in `attr:${K}`]: AttrT } & { [P in K | `prop:${K}`]?: never } | { [P in `prop:${K}`]: PropT } & { [P in K | `attr:${K}`]?: never };
 
+    /**
+     * A thin shell over govuk-frontend's notification banner.
+     * Deliberately thin. The pinned variant that used to live here as a flag is now
+     * cps-global-pinned-notification: it positions against the viewport, mutates the
+     * host page's layout and follows UCD's design, none of which belongs in the
+     * component every notification in the app renders through.
+     */
     interface CpsGdsNotificationBanner {
         /**
           * Prevent the banner from being focused on page load (only relevant for success type).
@@ -258,8 +461,7 @@ declare namespace LocalJSX {
          */
         "titleHeadingLevel"?: number;
         /**
-          * Custom id for the title element. Defaults to "govuk-notification-banner-title".
-          * @default "govuk-notification-banner-title"
+          * Custom id for the title element. Defaults to one generated per instance.  NOT A FIXED STRING, which is what GDS's own example markup uses and what this defaulted to. aria-labelledby is an IDREF and resolves to the FIRST matching element in the tree, so several banners sharing an id all end up named by whichever renders first — and cps-global-notifications renders one banner per notification, all as siblings. The symptom is a screen reader announcing the same region name several times over, on the busiest screens.
          */
         "titleId"?: string;
         /**
@@ -275,11 +477,55 @@ declare namespace LocalJSX {
     }
     interface CpsGlobalCaseDetails {
     }
+    /**
+     * The interruption, rebuilt as a top-layer dialog.
+     * WHY REPLACE THE PAGE RATHER THAN EDIT IT
+     * Three earlier versions tried to imitate an interruption from outside, and each
+     * was wrong in a way that only showed up on a real page: a fixed overlay band
+     * measured between our header and footer grew its own scrollbar and visibly
+     * shifted when the page was dragged; hiding the host's content element by element
+     * worked until the host changed the page underneath us.
+     * That last one is worth spelling out, because it looked correct. It walked the
+     * DOM setting `display: none` on element siblings up the ancestor chain and
+     * remembered each one so it could be put back — a snapshot of a page that does not
+     * hold still. Content the host added afterwards was never hidden, a subtree it
+     * re-rendered came back, and a `display` it set while we were up got clobbered on
+     * restore.
+     * showModal() sidesteps the whole category. The browser puts this in the top
+     * layer, makes the rest of the document inert — out of the accessibility tree and
+     * the tab order — traps focus, handles Escape, and RESTORES FOCUS on close. We
+     * touch no host DOM at all, so there is nothing to remember and nothing to undo.
+     * WHY THE CHROME IS IN HERE
+     * The top layer covers everything, including our own header and footer, and the
+     * design keeps them. So the dialog carries its own: cps-global-header in
+     * chrome-only mode, and cps-global-footer-content. Whole components, not a
+     * reassembly of their parts — the theme classes, custom host CSS, error fallback
+     * and ordering stay owned by the header, and cannot drift from it.
+     * ...AND WHY IT IS HIDDEN FROM ASSISTIVE TECH
+     * Visually the chrome is context. To a screen reader it would be a full
+     * navigation menu and a footer sitting between the user and the decision, read
+     * out before the message and joining the tab order of an interruption that is
+     * meant to have two exits. `inert` plus `aria-hidden` makes it what it actually
+     * is: decoration. The only thing exposed in here is the choice.
+     * The card is also FIRST in the DOM, with the chrome placed visually by flex
+     * `order`, so reading order starts at the message.
+     */
+    interface CpsGlobalCaseLockingInterstitial {
+    }
     interface CpsGlobalCaseLockingNotification {
     }
     interface CpsGlobalFooter {
+        "userEmail"?: string;
+    }
+    interface CpsGlobalFooterContent {
+        "userEmail"?: string;
     }
     interface CpsGlobalHeader {
+        /**
+          * Render the CHROME ONLY — the banner and the menu — and none of the components that do things.  This exists for one caller: cps-global-case-locking-interstitial renders a header inside its dialog so the interruption looks like a page rather than a card on a blank screen. Reusing this component rather than reassembling its parts keeps the theme classes, the custom host CSS, the error fallback and the ordering in ONE place — hand-copying them would drift the moment any of them changed. Without this flag it would also recurse, since the block below renders the overlay itself.  The gate wraps the behavioural children as a GROUP rather than listing exclusions, so anything added there later is covered by default.
+          * @default false
+         */
+        "chromeOnly"?: boolean;
         /**
           * @default false
          */
@@ -290,6 +536,49 @@ declare namespace LocalJSX {
     interface CpsGlobalMenu {
     }
     interface CpsGlobalNotifications {
+    }
+    /**
+     * The pinned notification from the UCD prototype's app-notification-banner-pinned.
+     * WHY THIS IS NOT A FLAG ON cps-gds-notification-banner
+     * It began as one, and the specialisation outgrew it. This component positions
+     * itself against the viewport, mutates the host page's layout, owns a
+     * progressive-enhancement toggle and answers to UCD; the GDS banner is a thin
+     * shell over a govuk-frontend component and answers to govuk-frontend. Sharing
+     * one component meant every notification in the app rendered through code that
+     * only the pinned one used — including host-DOM teardown it never performed.
+     * The prototype makes the same split: app-notification-banner-pinned is a
+     * wrapper with its own JS module around a stock govuk-notification-banner.
+     * WHY NOT COMPOSE the GDS banner inside this one, which would avoid repeating
+     * its markup: the toggle has to sit INSIDE the banner's header, next to the
+     * title. The prototype achieves that by reaching in with jQuery
+     * (header.append(toggle)). Doing the equivalent across a component boundary is
+     * worse than repeating twenty lines of markup that govuk-frontend has not
+     * changed in years.
+     */
+    interface CpsGlobalPinnedNotification {
+        /**
+          * Show only the header until the user asks for detail — the prototype's progressive enhancement, reimplemented rather than bolted on with jQuery. The toggle carries aria-expanded and aria-controls, and the content is genuinely `hidden` when collapsed, so assistive tech is told the same story the sighted user gets rather than reading content that looks closed.
+          * @default false
+         */
+        "collapsible"?: boolean;
+        /**
+          * Renders the dismiss button. Persistence is the caller's responsibility via the `cpsDismissed` event.
+          * @default false
+         */
+        "dismissible"?: boolean;
+        /**
+          * Fired when the user clicks the dismiss button.
+         */
+        "onCpsDismissed"?: (event: CpsGlobalPinnedNotificationCustomEvent<void>) => void;
+        /**
+          * The heading level for the title (1-6). Defaults to 2.
+          * @default 2
+         */
+        "titleHeadingLevel"?: number;
+        /**
+          * The title text shown in the banner header.
+         */
+        "titleText"?: string;
     }
     interface CpsGlobalRecentCases {
         /**
@@ -314,13 +603,19 @@ declare namespace LocalJSX {
           * Identifier passed to the central service when this region enters or leaves "present" state. Reflected so it's readable as an attribute.
          */
         "code": string;
+        /**
+          * Optional subject for kinds that are scoped to one — a witness, a defendant. With it the section is "<caseId>:KIND:<subjectId>"; without it the section is case-wide, "<caseId>:KIND". Must match the id the other clients use for the same person, or the two register different sections for one subject.
+         */
+        "subject"?: string;
     }
     interface CpsSkipLink {
+        "targetSelector"?: string;
         /**
           * @default false
          */
-        "isOutSystems"?: boolean;
-        "skipLinkClassName"?: string;
+        "useScroll"?: boolean;
+    }
+    interface CpsSkipLinks {
     }
     interface NavLink {
         "ariaSelected"?: boolean;
@@ -342,8 +637,21 @@ declare namespace LocalJSX {
         "disableAutoFocus": boolean;
         "dismissible": boolean;
     }
+    interface CpsGlobalFooterAttributes {
+        "userEmail": string;
+    }
+    interface CpsGlobalFooterContentAttributes {
+        "userEmail": string;
+    }
     interface CpsGlobalHeaderAttributes {
         "isDcf": boolean;
+        "chromeOnly": boolean;
+    }
+    interface CpsGlobalPinnedNotificationAttributes {
+        "titleText": string;
+        "titleHeadingLevel": number;
+        "dismissible": boolean;
+        "collapsible": boolean;
     }
     interface CpsGlobalRecentCasesAttributes {
         "listClass": string;
@@ -353,10 +661,11 @@ declare namespace LocalJSX {
     }
     interface CpsRegionAttributes {
         "code": string;
+        "subject": string;
     }
     interface CpsSkipLinkAttributes {
-        "isOutSystems": boolean;
-        "skipLinkClassName": string;
+        "targetSelector": string;
+        "useScroll": boolean;
     }
     interface NavLinkAttributes {
         "label": string;
@@ -371,15 +680,19 @@ declare namespace LocalJSX {
         "cps-gds-notification-banner": Omit<CpsGdsNotificationBanner, keyof CpsGdsNotificationBannerAttributes> & { [K in keyof CpsGdsNotificationBanner & keyof CpsGdsNotificationBannerAttributes]?: CpsGdsNotificationBanner[K] } & { [K in keyof CpsGdsNotificationBanner & keyof CpsGdsNotificationBannerAttributes as `attr:${K}`]?: CpsGdsNotificationBannerAttributes[K] } & { [K in keyof CpsGdsNotificationBanner & keyof CpsGdsNotificationBannerAttributes as `prop:${K}`]?: CpsGdsNotificationBanner[K] };
         "cps-global-banner": CpsGlobalBanner;
         "cps-global-case-details": CpsGlobalCaseDetails;
+        "cps-global-case-locking-interstitial": CpsGlobalCaseLockingInterstitial;
         "cps-global-case-locking-notification": CpsGlobalCaseLockingNotification;
-        "cps-global-footer": CpsGlobalFooter;
+        "cps-global-footer": Omit<CpsGlobalFooter, keyof CpsGlobalFooterAttributes> & { [K in keyof CpsGlobalFooter & keyof CpsGlobalFooterAttributes]?: CpsGlobalFooter[K] } & { [K in keyof CpsGlobalFooter & keyof CpsGlobalFooterAttributes as `attr:${K}`]?: CpsGlobalFooterAttributes[K] } & { [K in keyof CpsGlobalFooter & keyof CpsGlobalFooterAttributes as `prop:${K}`]?: CpsGlobalFooter[K] };
+        "cps-global-footer-content": Omit<CpsGlobalFooterContent, keyof CpsGlobalFooterContentAttributes> & { [K in keyof CpsGlobalFooterContent & keyof CpsGlobalFooterContentAttributes]?: CpsGlobalFooterContent[K] } & { [K in keyof CpsGlobalFooterContent & keyof CpsGlobalFooterContentAttributes as `attr:${K}`]?: CpsGlobalFooterContentAttributes[K] } & { [K in keyof CpsGlobalFooterContent & keyof CpsGlobalFooterContentAttributes as `prop:${K}`]?: CpsGlobalFooterContent[K] };
         "cps-global-header": Omit<CpsGlobalHeader, keyof CpsGlobalHeaderAttributes> & { [K in keyof CpsGlobalHeader & keyof CpsGlobalHeaderAttributes]?: CpsGlobalHeader[K] } & { [K in keyof CpsGlobalHeader & keyof CpsGlobalHeaderAttributes as `attr:${K}`]?: CpsGlobalHeaderAttributes[K] } & { [K in keyof CpsGlobalHeader & keyof CpsGlobalHeaderAttributes as `prop:${K}`]?: CpsGlobalHeader[K] };
         "cps-global-home-page-notification": CpsGlobalHomePageNotification;
         "cps-global-menu": CpsGlobalMenu;
         "cps-global-notifications": CpsGlobalNotifications;
+        "cps-global-pinned-notification": Omit<CpsGlobalPinnedNotification, keyof CpsGlobalPinnedNotificationAttributes> & { [K in keyof CpsGlobalPinnedNotification & keyof CpsGlobalPinnedNotificationAttributes]?: CpsGlobalPinnedNotification[K] } & { [K in keyof CpsGlobalPinnedNotification & keyof CpsGlobalPinnedNotificationAttributes as `attr:${K}`]?: CpsGlobalPinnedNotificationAttributes[K] } & { [K in keyof CpsGlobalPinnedNotification & keyof CpsGlobalPinnedNotificationAttributes as `prop:${K}`]?: CpsGlobalPinnedNotification[K] };
         "cps-global-recent-cases": Omit<CpsGlobalRecentCases, keyof CpsGlobalRecentCasesAttributes> & { [K in keyof CpsGlobalRecentCases & keyof CpsGlobalRecentCasesAttributes]?: CpsGlobalRecentCases[K] } & { [K in keyof CpsGlobalRecentCases & keyof CpsGlobalRecentCasesAttributes as `attr:${K}`]?: CpsGlobalRecentCasesAttributes[K] } & { [K in keyof CpsGlobalRecentCases & keyof CpsGlobalRecentCasesAttributes as `prop:${K}`]?: CpsGlobalRecentCases[K] };
         "cps-region": Omit<CpsRegion, keyof CpsRegionAttributes> & { [K in keyof CpsRegion & keyof CpsRegionAttributes]?: CpsRegion[K] } & { [K in keyof CpsRegion & keyof CpsRegionAttributes as `attr:${K}`]?: CpsRegionAttributes[K] } & { [K in keyof CpsRegion & keyof CpsRegionAttributes as `prop:${K}`]?: CpsRegion[K] } & OneOf<"code", CpsRegion["code"], CpsRegionAttributes["code"]>;
         "cps-skip-link": Omit<CpsSkipLink, keyof CpsSkipLinkAttributes> & { [K in keyof CpsSkipLink & keyof CpsSkipLinkAttributes]?: CpsSkipLink[K] } & { [K in keyof CpsSkipLink & keyof CpsSkipLinkAttributes as `attr:${K}`]?: CpsSkipLinkAttributes[K] } & { [K in keyof CpsSkipLink & keyof CpsSkipLinkAttributes as `prop:${K}`]?: CpsSkipLink[K] };
+        "cps-skip-links": CpsSkipLinks;
         "nav-link": Omit<NavLink, keyof NavLinkAttributes> & { [K in keyof NavLink & keyof NavLinkAttributes]?: NavLink[K] } & { [K in keyof NavLink & keyof NavLinkAttributes as `attr:${K}`]?: NavLinkAttributes[K] } & { [K in keyof NavLink & keyof NavLinkAttributes as `prop:${K}`]?: NavLink[K] };
     }
 }
@@ -387,18 +700,80 @@ export { LocalJSX as JSX };
 declare module "@stencil/core" {
     export namespace JSX {
         interface IntrinsicElements {
+            /**
+             * A thin shell over govuk-frontend's notification banner.
+             * Deliberately thin. The pinned variant that used to live here as a flag is now
+             * cps-global-pinned-notification: it positions against the viewport, mutates the
+             * host page's layout and follows UCD's design, none of which belongs in the
+             * component every notification in the app renders through.
+             */
             "cps-gds-notification-banner": LocalJSX.IntrinsicElements["cps-gds-notification-banner"] & JSXBase.HTMLAttributes<HTMLCpsGdsNotificationBannerElement>;
             "cps-global-banner": LocalJSX.IntrinsicElements["cps-global-banner"] & JSXBase.HTMLAttributes<HTMLCpsGlobalBannerElement>;
             "cps-global-case-details": LocalJSX.IntrinsicElements["cps-global-case-details"] & JSXBase.HTMLAttributes<HTMLCpsGlobalCaseDetailsElement>;
+            /**
+             * The interruption, rebuilt as a top-layer dialog.
+             * WHY REPLACE THE PAGE RATHER THAN EDIT IT
+             * Three earlier versions tried to imitate an interruption from outside, and each
+             * was wrong in a way that only showed up on a real page: a fixed overlay band
+             * measured between our header and footer grew its own scrollbar and visibly
+             * shifted when the page was dragged; hiding the host's content element by element
+             * worked until the host changed the page underneath us.
+             * That last one is worth spelling out, because it looked correct. It walked the
+             * DOM setting `display: none` on element siblings up the ancestor chain and
+             * remembered each one so it could be put back — a snapshot of a page that does not
+             * hold still. Content the host added afterwards was never hidden, a subtree it
+             * re-rendered came back, and a `display` it set while we were up got clobbered on
+             * restore.
+             * showModal() sidesteps the whole category. The browser puts this in the top
+             * layer, makes the rest of the document inert — out of the accessibility tree and
+             * the tab order — traps focus, handles Escape, and RESTORES FOCUS on close. We
+             * touch no host DOM at all, so there is nothing to remember and nothing to undo.
+             * WHY THE CHROME IS IN HERE
+             * The top layer covers everything, including our own header and footer, and the
+             * design keeps them. So the dialog carries its own: cps-global-header in
+             * chrome-only mode, and cps-global-footer-content. Whole components, not a
+             * reassembly of their parts — the theme classes, custom host CSS, error fallback
+             * and ordering stay owned by the header, and cannot drift from it.
+             * ...AND WHY IT IS HIDDEN FROM ASSISTIVE TECH
+             * Visually the chrome is context. To a screen reader it would be a full
+             * navigation menu and a footer sitting between the user and the decision, read
+             * out before the message and joining the tab order of an interruption that is
+             * meant to have two exits. `inert` plus `aria-hidden` makes it what it actually
+             * is: decoration. The only thing exposed in here is the choice.
+             * The card is also FIRST in the DOM, with the chrome placed visually by flex
+             * `order`, so reading order starts at the message.
+             */
+            "cps-global-case-locking-interstitial": LocalJSX.IntrinsicElements["cps-global-case-locking-interstitial"] & JSXBase.HTMLAttributes<HTMLCpsGlobalCaseLockingInterstitialElement>;
             "cps-global-case-locking-notification": LocalJSX.IntrinsicElements["cps-global-case-locking-notification"] & JSXBase.HTMLAttributes<HTMLCpsGlobalCaseLockingNotificationElement>;
             "cps-global-footer": LocalJSX.IntrinsicElements["cps-global-footer"] & JSXBase.HTMLAttributes<HTMLCpsGlobalFooterElement>;
+            "cps-global-footer-content": LocalJSX.IntrinsicElements["cps-global-footer-content"] & JSXBase.HTMLAttributes<HTMLCpsGlobalFooterContentElement>;
             "cps-global-header": LocalJSX.IntrinsicElements["cps-global-header"] & JSXBase.HTMLAttributes<HTMLCpsGlobalHeaderElement>;
             "cps-global-home-page-notification": LocalJSX.IntrinsicElements["cps-global-home-page-notification"] & JSXBase.HTMLAttributes<HTMLCpsGlobalHomePageNotificationElement>;
             "cps-global-menu": LocalJSX.IntrinsicElements["cps-global-menu"] & JSXBase.HTMLAttributes<HTMLCpsGlobalMenuElement>;
             "cps-global-notifications": LocalJSX.IntrinsicElements["cps-global-notifications"] & JSXBase.HTMLAttributes<HTMLCpsGlobalNotificationsElement>;
+            /**
+             * The pinned notification from the UCD prototype's app-notification-banner-pinned.
+             * WHY THIS IS NOT A FLAG ON cps-gds-notification-banner
+             * It began as one, and the specialisation outgrew it. This component positions
+             * itself against the viewport, mutates the host page's layout, owns a
+             * progressive-enhancement toggle and answers to UCD; the GDS banner is a thin
+             * shell over a govuk-frontend component and answers to govuk-frontend. Sharing
+             * one component meant every notification in the app rendered through code that
+             * only the pinned one used — including host-DOM teardown it never performed.
+             * The prototype makes the same split: app-notification-banner-pinned is a
+             * wrapper with its own JS module around a stock govuk-notification-banner.
+             * WHY NOT COMPOSE the GDS banner inside this one, which would avoid repeating
+             * its markup: the toggle has to sit INSIDE the banner's header, next to the
+             * title. The prototype achieves that by reaching in with jQuery
+             * (header.append(toggle)). Doing the equivalent across a component boundary is
+             * worse than repeating twenty lines of markup that govuk-frontend has not
+             * changed in years.
+             */
+            "cps-global-pinned-notification": LocalJSX.IntrinsicElements["cps-global-pinned-notification"] & JSXBase.HTMLAttributes<HTMLCpsGlobalPinnedNotificationElement>;
             "cps-global-recent-cases": LocalJSX.IntrinsicElements["cps-global-recent-cases"] & JSXBase.HTMLAttributes<HTMLCpsGlobalRecentCasesElement>;
             "cps-region": LocalJSX.IntrinsicElements["cps-region"] & JSXBase.HTMLAttributes<HTMLCpsRegionElement>;
             "cps-skip-link": LocalJSX.IntrinsicElements["cps-skip-link"] & JSXBase.HTMLAttributes<HTMLCpsSkipLinkElement>;
+            "cps-skip-links": LocalJSX.IntrinsicElements["cps-skip-links"] & JSXBase.HTMLAttributes<HTMLCpsSkipLinksElement>;
             "nav-link": LocalJSX.IntrinsicElements["nav-link"] & JSXBase.HTMLAttributes<HTMLNavLinkElement>;
         }
     }

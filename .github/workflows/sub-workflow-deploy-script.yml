@@ -39,7 +39,18 @@ jobs:
           artifact-ids: ${{ inputs.artifact-id }}
           path: ./to-deploy
 
-      - run: |
+      - env:
+          # Accessibility-statement contact emails. Held as repo variables so the
+          # real addresses never live in git (statement.html ships {{EMAIL_*}}
+          # placeholders). Passed through env and referenced below only as shell
+          # vars ($EMAIL_*), NOT inlined into the command, so the values are never
+          # echoed into the public Actions log. Repo is public; variables are not
+          # log-masked, so keep them out of any echo/cat/set -x.
+          EMAIL_RCMS_BUG: ${{ vars.ACCESSIBILITY_EMAIL_RCMS_BUG }}
+          EMAIL_COMPLAINTS: ${{ vars.ACCESSIBILITY_EMAIL_COMPLAINTS }}
+          EMAIL_DA_COMPLIANCE: ${{ vars.ACCESSIBILITY_EMAIL_DA_COMPLIANCE }}
+          EMAIL_ESCALATION: ${{ vars.ACCESSIBILITY_EMAIL_ESCALATION }}
+        run: |
           cp ./configuration/config.${{ inputs.environment }}.json ./to-deploy/config.json
 
           if [ -f "./configuration/config.${{ inputs.environment }}.notification.json" ]; then
@@ -58,6 +69,28 @@ jobs:
           BEACON_URL="https://$ACCOUNT_NAME.blob.core.windows.net/${{ inputs.environment }}/legacy-caller-beacon"
           echo "Beacon URL: $BEACON_URL"
           sed -i "s|{{BEACON_URL}}|$BEACON_URL|g" ./to-deploy/cps-global-components.js
+
+          # Restore the accessibility-statement contact emails from repo variables
+          # (see the env block above). The file is byte-identical across envs, so the
+          # same values apply to every environment. Do NOT echo these values.
+          STATEMENT=./to-deploy/accessibility/statement.html
+          if [ -f "$STATEMENT" ]; then
+            for name in EMAIL_RCMS_BUG EMAIL_COMPLAINTS EMAIL_DA_COMPLIANCE EMAIL_ESCALATION; do
+              eval "val=\${$name}"
+              if [ -z "$val" ]; then
+                echo "::warning::repo variable for $name is unset — statement email will be blank"
+              fi
+            done
+            sed -i \
+              -e "s|{{EMAIL_RCMS_BUG}}|$EMAIL_RCMS_BUG|g" \
+              -e "s|{{EMAIL_COMPLAINTS}}|$EMAIL_COMPLAINTS|g" \
+              -e "s|{{EMAIL_DA_COMPLIANCE}}|$EMAIL_DA_COMPLIANCE|g" \
+              -e "s|{{EMAIL_ESCALATION}}|$EMAIL_ESCALATION|g" \
+              "$STATEMENT"
+            if grep -q "{{EMAIL_" "$STATEMENT"; then
+              echo "::warning::unsubstituted {{EMAIL_*}} placeholder(s) remain in statement.html"
+            fi
+          fi
 
       - uses: azure/cli@v2
         with:

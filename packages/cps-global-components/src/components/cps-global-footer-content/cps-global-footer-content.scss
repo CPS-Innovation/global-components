@@ -1,0 +1,73 @@
+@use "../common/common.scss" as *;
+
+:host {
+  display: block;
+}
+
+// Low-contrast modes: warm/soften the footer band with the rest of the page.
+//
+// The accessibility subscriber recolours the host page two ways — a stylesheet on
+// <html> for the document surface, and a per-element pass for anything with an
+// explicit background. Neither reaches in here: this component is shadow: true, so
+// the per-element walk cannot see the band, and the band's colour comes from GDS
+// plus the box-shadow bleed below rather than from the page. Left alone the footer
+// stays cold light-grey under a warmed page — which is what it did.
+//
+// :host-context lets these shadow-DOM styles react to <html>'s data-grey-mode, the
+// same route cps-global-header uses for its menu band. The band is an
+// already-light-grey surface, so it maps to the theme's RAISED surface rather than
+// its page surface, preserving the layer separation between page and footer. Brand
+// accents — the blue top strip, link colours — are deliberately untouched.
+:host-context([data-grey-mode="warm"]) .govuk-footer {
+  @include background(#ece4d3); // warm theme, raisedSurface
+}
+
+:host-context([data-grey-mode="soft-grey"]) .govuk-footer {
+  @include background(#e1e1e1); // soft-grey theme, raisedSurface
+}
+
+.govuk-footer {
+  position: relative;
+  padding-top: 40px;
+  padding-bottom: 10px;
+  border-top: none;
+
+  // Bleed the footer band to viewport edges (box-shadow + clip-path) while
+  // content stays aligned with the host page's container. GDS already sets
+  // background-color (and swaps it under .govuk-template--rebranded); we
+  // mirror that switch on the box-shadow so the bled colour matches.
+  box-shadow: 0 0 0 100vmax govuk-colour("light-grey");
+  .govuk-template--rebranded & {
+    box-shadow: 0 0 0 100vmax govuk-tint($govuk-brand-colour, 95%);
+  }
+
+  // Top capped at 10px so the ::before blue strip pseudo isn't culled;
+  // sides + bottom bleed so short pages don't show white below the footer.
+  clip-path: inset(-10px -100vmax -100vmax -100vmax);
+
+  // Bleed the blue top border to viewport edges too.
+  &::before {
+    content: "";
+    position: absolute;
+    top: -10px;
+    left: 0;
+    right: 0;
+    height: 10px;
+    background-color: var(--brand-primary-colour);
+    box-shadow: 0 0 0 100vmax var(--brand-primary-colour);
+    clip-path: inset(0 -100vmax);
+  }
+
+  // GDS's govuk-footer__link forces text-colour in every state via
+  // govuk-link-style-text. Under rebrand we want the brand blue instead.
+  .govuk-template--rebranded & .govuk-footer__link {
+    &,
+    &:link,
+    &:visited,
+    &:hover,
+    &:active,
+    &:focus {
+      color: var(--brand-primary-colour);
+    }
+  }
+}

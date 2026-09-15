@@ -1,4 +1,10 @@
-import type { AccountInfo, AuthenticationResult } from "@azure/msal-browser";
+import type {
+  AccountInfo,
+  AuthenticationResult,
+  PublicClientApplication,
+} from "@azure/msal-browser";
+import { Me } from "./AuthResult";
+import { getMe } from "./get-me";
 import { createMsalInstance } from "./internal/create-msal-instance";
 import {
   MSAL_REDIRECT_COMPLETION_ID_KEY,
@@ -14,6 +20,10 @@ type MsalConfig = {
 type MsalLikeInstance = {
   handleRedirectPromise: () => Promise<AuthenticationResult | null>;
   setActiveAccount(account: AccountInfo | null): void;
+  // Needed so getMe can acquire a Graph token off the freshly-terminated
+  // account. The real createMsalInstance returns a PublicClientApplication,
+  // which satisfies this; tests inject a fake that stubs it.
+  acquireTokenSilent: PublicClientApplication["acquireTokenSilent"];
 };
 
 // Async factory — must return an already-initialised instance (consistent with
@@ -42,6 +52,12 @@ export type HandleMsalTerminationResult = {
   // live AAD session (no account-picker, no re-prompt). See
   // [[project_sid_hint_rationale]].
   sid?: string;
+  // The user's /me profile slice (department), fetched from Graph off the fresh
+  // account. The redirect bounce-back is a genuine AD re-establishment, so this
+  // is the right place to refresh it; the handover bakes it into the written-
+  // back hint. Undefined when there's no account or the Graph call soft-fails
+  // (the host then re-fetches via its own !knownMe branch).
+  me?: Me;
   // The post-termination navigation target, drained from sessionStorage on
   // success. Caller is responsible for performing the navigation (via
   // win.location.replace) once any pre-navigation work — e.g. firing the
@@ -112,15 +128,21 @@ export const handleMsalTermination = async (
       win.sessionStorage.removeItem(MSAL_REDIRECT_RETURN_TO_KEY);
     }
     const sid = (account?.idTokenClaims as { sid?: string } | undefined)?.sid;
+    // Refresh the /me slice off the fresh account — this bounce-back is a
+    // genuine AD re-establishment. Non-fatal inside getMe; we just carry
+    // whatever it returns (possibly undefined) into the written-back hint.
+    const me = account ? await getMe({ instance, account }) : undefined;
     console.log("[CPS-GLOBAL-AUTH] handleMsalTermination complete", {
       hasAccount: !!account,
       hasSid: !!sid,
+      hasMe: !!me,
       hasReturnTo: !!returnTo,
     });
     return {
       outcome: "handled",
       account: account,
       sid,
+      me,
       returnTo,
     };
   } catch (err) {

@@ -77,6 +77,21 @@ const server = http.createServer((req, res) => {
     return;
   }
 
+  // CMS classic login page stub. The cms-auth-v2 login-page shim proxies
+  // uaulLogin.aspx here and sub_filters a hidden /polaris-v2 capture iframe into
+  // it, so the body MUST contain the exact sub_filter target
+  // 'location.href = sNewHref;</script>'.
+  if (/^CMS\.[^/]+\/User\/uaulLogin\.aspx$/i.test(path)) {
+    console.log('  -> CMS login page stub (uaulLogin.aspx)');
+    res.writeHead(200, { 'Content-Type': 'text/html' });
+    res.end(
+      '<html><head><title>CMS Login</title></head><body>' +
+        '<script>var sNewHref = "/CMS.24.0.01/home";location.href = sNewHref;</script>' +
+        '</body></html>'
+    );
+    return;
+  }
+
   // Handle blob storage requests (dev/test/prod environments)
   // Matches both /blob/env/file (HTTP mock) and /env/file (HTTPS blob proxy)
   const blobMatch = path.match(/^(?:blob\/)?(dev|test|prod)\/(.+)$/);

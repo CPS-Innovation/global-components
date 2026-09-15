@@ -26,11 +26,36 @@ type FlagInputs = {
   authHint?: Result<AuthHint>;
 };
 
-const shouldShowCaseDetails = ({ preview, flags }: FlagInputs) =>
-  !!preview?.result?.caseMarkers || !!flags?.isLocalDevelopment;
+// Resolution order: a preview value always wins (including "off", the explicit
+// "force hidden" override colleagues use to demo prod-like in QA), then the
+// per-env config, then the local-dev default. "off" collapses to undefined so
+// the menu's truthiness gate hides the panel rather than rendering layout "a".
+const shouldShowCaseDetails = ({ preview, config, flags }: FlagInputs): "a" | "b" | undefined => {
+  const resolved = preview?.result?.caseMarkers ?? config.SHOW_CASE_DETAILS ?? (flags?.isLocalDevelopment ? "a" : undefined);
+  return resolved === "off" ? undefined : resolved;
+};
 
-const shouldEnableAccessibilityMode = ({ preview, flags }: FlagInputs) =>
-  !!(preview?.result?.accessibility || flags?.isLocalDevelopment);
+// Gates the footer "Settings" link and the low-contrast background subscriber that
+// the settings page drives — the two must move together, or a user gets a link to a
+// control that silently does nothing. FEATURE_FLAG_ACCESSIBILITY_MODE_USERS carries the
+// env-wide switch (generallyAvailable, on across pre-prod) plus group/ad-hoc enrolment
+// for piloting in prod; it ORs with the per-user preview opt-in and the local-dev default.
+//
+// Note for the subscriber call site: the group/ad-hoc paths need an identity, and on a
+// cold first load there is neither `auth` nor `authHint` yet, so those users get no paint
+// until the next page load. generallyAvailable and preview need no identity at all.
+const shouldEnableAccessibilityMode = ({ config, preview, flags, auth, authHint }: FlagInputs) =>
+  !!preview?.result?.accessibility ||
+  !!flags?.isLocalDevelopment ||
+  getFeatureFlagAssignment({ auth, authHint, config }, "FEATURE_FLAG_ACCESSIBILITY_MODE_USERS").result;
+
+// Used by the DOM subscriber that swaps host <footer>s for cps-global-footer.
+// FOOTER_SHIM_ENABLED is the env-config GA gate (on for everyone); it ORs with
+// the per-user preview opt-in and the local-dev default, so flipping it to false
+// reverts to preview opt-ins + local dev only — the pre-GA behaviour — without a
+// code change.
+const shouldShimFooter = ({ config, preview, flags }: Pick<FlagInputs, "config" | "preview" | "flags">) =>
+  !!config.FOOTER_SHIM_ENABLED || !!preview?.result?.footer || !!flags?.isLocalDevelopment;
 
 const shouldShowGovUkRebrand = ({ preview, config }: FlagInputs): Preview["newHeader"] =>
   preview?.result?.newHeader ?? config.SHOW_HEADER_REBRAND;
@@ -52,6 +77,11 @@ const surveyLink = ({ config }: FlagInputs) => ({ showLink: !!config.SURVEY_LINK
 
 const reportIssueLink = ({ config }: FlagInputs) => ({ showLink: !!config.REPORT_ISSUE_LINK, url: config.REPORT_ISSUE_LINK });
 
+const accessibilityStatementLink = ({ config }: FlagInputs) => ({
+  showLink: !!config.ACCESSIBILITY_STATEMENT_URL,
+  url: config.ACCESSIBILITY_STATEMENT_URL,
+});
+
 const shouldShowHomePageNotification = ({ config, auth, authHint, preview }: FlagInputs) =>
   !!preview?.result?.homePageNotification ||
   !getFeatureFlagAssignment({ auth, authHint, config }, "FEATURE_FLAG_MENU_USERS").result;
@@ -72,15 +102,36 @@ const shouldEnableCaseLocking = ({ config, preview, auth, authHint }: FlagInputs
   (!!preview?.result?.caseLocking ||
     getFeatureFlagAssignment({ auth, authHint, config }, "FEATURE_FLAG_CASE_LOCKING_USERS").result);
 
+// Everything the user actually SEES — the pinned banner and the interruption card
+// — separately from the registration above. Requires the feature to be on at all,
+// so this cannot resurrect presence for someone the config excludes: it only ever
+// hides, never enables.
+//
+// The two surfaces share one flag because they are no longer alternatives. Which
+// one appears is decided by the section: see INTERRUPTING_REGION_CODES in
+// cps-global-case-locking-interstitial.
+const shouldShowCaseLockingNotifications = (inputs: FlagInputs) =>
+  shouldEnableCaseLocking(inputs) && !!inputs.preview?.result?.caseLockingNotifications;
+
+// Count ourselves among the present users. Off by default, because in production
+// telling someone they are viewing the case they are looking at is noise. On, a
+// lone developer can see the banner without a second person — which is the only
+// way to tell a working mechanism from a broken one single-handed.
+const shouldCountSelfInCaseLocking = ({ preview }: FlagInputs) => !!preview?.result?.caseLockingCountSelf;
+
 export const FEATURE_FLAGS = {
   shouldShowCaseDetails,
   shouldEnableAccessibilityMode,
+  shouldShimFooter,
   shouldShowGovUkRebrand,
   shouldShowRecentCases,
   shouldShowMenu,
   surveyLink,
   reportIssueLink,
+  accessibilityStatementLink,
   shouldShowHomePageNotification,
   shouldUseFullPageMsalRedirect,
   shouldEnableCaseLocking,
+  shouldShowCaseLockingNotifications,
+  shouldCountSelfInCaseLocking,
 };

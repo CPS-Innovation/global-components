@@ -13,12 +13,13 @@
 
 ### Depends on
 
-- [cps-skip-link](../common)
+- [cps-skip-links](../common)
 
 ### Graph
 ```mermaid
 graph TD;
-  cps-global-banner --> cps-skip-link
+  cps-global-banner --> cps-skip-links
+  cps-skip-links --> cps-skip-link
   cps-global-header --> cps-global-banner
   style cps-global-banner fill:#f9f,stroke:#333,stroke-width:4px
 ```

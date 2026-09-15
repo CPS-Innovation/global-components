@@ -77,12 +77,19 @@ export const initialiseAuth = ({
       return authInFlight;
     }
 
+    // Replay the last-known /me slice (department) from the persisted hint so
+    // initialiseAdAuth can skip the Graph call on warm loads — Graph never
+    // caches the /me response, so the hint is the only thing keeping us off
+    // Graph on every page load. Absent on the ~daily cold start, where the
+    // library fetches it fresh.
+    const knownMe = authHint.found ? authHint.result.authResult.me : undefined;
+
     const doAuth = async (): Promise<AuthOutcome> =>
       context.preventADAndDataCalls
         ? noAuthResult
         : isE2e
           ? initialiseMockAuth({ flags })
-          : initialiseAdAuth({ config, context, logError, useFullPageRedirect, window });
+          : initialiseAdAuth({ config, context, logError, useFullPageRedirect, knownMe, window });
 
     authInFlight = doAuth()
       .then(result => {

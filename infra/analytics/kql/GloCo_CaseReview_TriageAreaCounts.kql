@@ -1,0 +1,50 @@
+// Triage submissions per area per week — the triage-only sibling of
+// GloCo_CaseReview_AreaCounts (same Region/Area/Total/week structure and region
+// grouping). Source is the request-observation shim's "triage-submission" AppEvents
+// (prod only, since the 2026-06-01 shim ship date — pre-shim weeks have no triage
+// signal at all). Counted as distinct (CaseId, TriageType): one per triage task
+// submitted, since a single case can be triaged more than one way (OD/ODPCDReview/DCP)
+// and the shim can fire more than once per task on retries.
+//
+// Each submission is attributed to the submitter's area (their latest User_AreaOrCPSD
+// seen in a case-review / WMA context) and the week of submission. Region comes from
+// GloCo__AreaRegionMapping.
+//
+// The per-user area is sourced from GloCo_PageViews_CaseReview rather than the
+// equivalent GloCo__UserAreaMapping. Both derive from GloCo_PageViews, but the Kusto
+// saved-search resolver fails to resolve GloCo_PageViews when GloCo__UserAreaMapping is
+// combined with a GloCo__AreaRegionMapping join in the same query, whereas
+// GloCo_PageViews_CaseReview + GloCo__AreaRegionMapping resolves cleanly (verified by
+// bisection). GloCo_CaseReview_AreaCounts avoids the clash only incidentally, because it
+// also references GloCo_PageViews_CaseReview via its case-review submissions.
+let UserAreas = GloCo_PageViews_CaseReview
+    | where isnotempty(Auth_Username) and isnotempty(User_CountNotSensitiveUnits)
+    | summarize arg_max(TimeGenerated, User_AreaOrCPSD) by Auth_Username
+    | project Auth_Username, Area = User_AreaOrCPSD;
+let TriageSubmissions = AppEvents
+    | where TimeGenerated > datetime(2026-03-09T12:00:01)
+    | where Name == "cps-global-components-analytics-event"
+    | where tostring(Properties["name"]) == "triage-submission"
+    | where tostring(Properties["environment"]) == "prod"
+    | extend CaseId = tolong(Properties["CaseId"]), TriageType = tostring(Properties["TriageType"])
+    | extend Auth = parse_json(tostring(Properties["auth"]))
+    | extend Auth_Username = tostring(Auth.username), Auth_ObjectId = tostring(Auth.objectId)
+    | where isnotnull(CaseId)
+    | where Auth_ObjectId !in ((GloCo_ExcludedUsers))
+    | project TimeGenerated, CaseId, TriageType, Auth_Username;
+let AreaCounts = UserAreas
+    | join kind=inner TriageSubmissions on Auth_Username
+    | project-away Auth_Username1
+    | distinct CaseId, TriageType, Area, Week = format_datetime(startofweek(TimeGenerated), "yyyy-MM-dd")
+    | summarize CountTriageSubmitted = count() by Area, Week
+    | join kind=leftouter (GloCo__AreaRegionMapping | distinct User_Area, Region) on $left.Area == $right.User_Area
+    | project Region = coalesce(Region, "Unmapped"), Area, Week, CountTriageSubmitted;
+let AreaTotal   = AreaCounts | summarize CountTriageSubmitted = sum(CountTriageSubmitted) by Region, Area | extend Week = "Total";
+let RegionWeek  = AreaCounts | summarize CountTriageSubmitted = sum(CountTriageSubmitted) by Region, Week | extend Area = strcat(Region, ", Total");
+let RegionTotal = AreaCounts | summarize CountTriageSubmitted = sum(CountTriageSubmitted) by Region        | extend Area = strcat(Region, ", Total"), Week = "Total";
+union AreaCounts, AreaTotal, RegionWeek, RegionTotal
+| evaluate pivot(Week, sum(CountTriageSubmitted), Region, Area)
+| extend SortKey = iff(Area endswith ", Total" and Area startswith Region, 1, 0)
+| order by Region asc, SortKey asc, Area asc
+| project-away SortKey
+| project-reorder Region, Area, Total, * desc

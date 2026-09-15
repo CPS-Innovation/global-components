@@ -69,12 +69,19 @@ function setSessionHintCookie(r) {
   let cookieValue
   try {
     const isProxySession = r.args[IS_PROXY_SESSION_PARAM_NAME] === "true"
-    // Match lowercase subdomain(s) followed by .cps.gov.uk (terminated by _POOL)
-    // This avoids matching uppercase prefixes like CPSACP-LTM-CM-WAN-CIN3-
-    const cmsDomains =
-      r.args["cookie"].match(
-        /[a-z][a-z0-9]*(?:\.[a-z][a-z0-9]*)*\.cps\.gov\.uk(?=_POOL)/g
-      ) || []
+    const cookie = r.args["cookie"]
+    // The environment domain (e.g. cin3.cps.gov.uk) can come from either LB cookie style.
+    // Prefer the load-balancing cookie, named [CF]-<TOKEN>-LBsessioncookie (e.g. C-CIN3-...,
+    // F-FOO-...), and derive <token>.cps.gov.uk from the TOKEN. Fall back to the legacy
+    // BIGipServer* cookie, whose name embeds the domain immediately before _POOL.
+    const loadBalancingCookies = cookie.match(/(?:^|;\s*)[CF]-[^=;]*-LBsessioncookie/g) || []
+    const cmsDomains = loadBalancingCookies.length
+      ? loadBalancingCookies.map(
+          (m) => `${m.match(/[CF]-([^=;]*)-LBsessioncookie/)[1].toLowerCase()}.cps.gov.uk`
+        )
+      : // Match lowercase subdomain(s) followed by .cps.gov.uk (terminated by _POOL).
+        // This avoids matching uppercase prefixes like CPSACP-LTM-CM-WAN-CIN3-.
+        cookie.match(/[a-z][a-z0-9]*(?:\.[a-z][a-z0-9]*)*\.cps\.gov\.uk(?=_POOL)/g) || []
 
     const handoverEndpoint = isProxySession
       ? `https://${r.headersIn["Host"]}/polaris`
@@ -104,10 +111,46 @@ function setSessionHintCookie(r) {
   }
 }
 
+function _shimBigIpCookies(args) {
+  // HACK: The load balancer used to emit BIGipServer* cookies which the downstream
+  //  /auth-refresh-inbound endpoint (DDEI /api/init/) keys off to route a user's session.
+  //  Those have stopped appearing and are now replaced by a single load-balancing cookie named
+  //  [CF]-<TOKEN>-LBsessioncookie (e.g. C-CIN3-LBsessioncookie, F-FOO-LBsessioncookie; an
+  //  upstream shim guarantees there is only one). The TOKEN (CIN3, FOO, ...) is the same one
+  //  another system reads via [CF]-(.*)-LBsessioncookie. We copy that token across to a
+  //  legacy BIGipServer* cookie (token.cps.gov.uk) so the downstream routing logic keeps
+  //  working - unless one is already present for that token.
+  //  Regexes anchor on a cookie-name boundary (start-of-string or "; ") and stop at "=" / ";"
+  //  so we match cookie names rather than values.
+  const cookieString = args["cookie"]
+  if (!cookieString) {
+    return args
+  }
+
+  const cMatch = cookieString.match(/(?:^|;\s*)[CF]-([^=;]*)-LBsessioncookie/)
+  if (!cMatch) {
+    return args
+  }
+  const token = cMatch[1].toLowerCase()
+
+  // Already covered by a BIGipServer* cookie whose name references this token? Nothing to do.
+  // (We avoid building a RegExp from the arbitrary token - a metachar would throw here.)
+  const bigIpNames = cookieString.match(/(?:^|;\s*)BIGipServer[^=;]*/gi) || []
+  if (bigIpNames.some((name) => name.toLowerCase().includes(token))) {
+    return args
+  }
+
+  const shim = `BIGipServer-shim-${token.toUpperCase()}-${token}.cps.gov.uk=1`
+  const clonedArgs = qs.parse(qs.stringify(args))
+  clonedArgs["cookie"] = `${cookieString}; ${shim}`
+  return clonedArgs
+}
+
 function appAuthRedirect(r) {
   setSessionHintCookie(r)
 
-  const args = _argsShim(r.args)
+  let args = _argsShim(r.args)
+  args = _shimBigIpCookies(args)
 
   const whitelistedUrls = process.env.AUTH_HANDOVER_WHITELIST ?? ""
   const redirectUrl = args["r"]

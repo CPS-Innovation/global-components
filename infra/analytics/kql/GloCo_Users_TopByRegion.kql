@@ -1,0 +1,34 @@
+// Top 10 most active users per region, with NATIONAL rank (by visits), national Percentile
+// ("top X%" = rank/N), and N (distinct authed users active in the window).
+// Window = (EndDate - SinceDays) .. EndDate.
+//   Ongoing:    GloCo_Users_TopByRegion(30)                          -> last 30 days to now
+//               GloCo_Users_TopByRegion(3650)                        -> all time to now
+//   Validation: GloCo_Users_TopByRegion(3650, datetime(2026-07-01))  -> launch .. 1 Jul
+// EndDate defaults to the far future; min_of(EndDate, now()) makes the default behave as "now".
+// Percentile formatting: < 1% -> one decimal place (floored to 0.1% so #1 reads 'top 0.1%', still true); >= 1% -> nearest integer.
+// A "visit" = distinct CorrelationId_ScriptLoad (authed, excl Casework app). Region via
+// User_AreaOrCPSD (backfilled at base) -> GloCo__AreaRegionMapping.
+let End = min_of(EndDate, now());
+let StartWin = End - SinceDays * 1d;
+let PV = materialize(GloCo_PageViews | where TimeGenerated between (StartWin .. End) | where Auth_IsAuthed);
+let Visits = PV
+    | where App != "Casework app"
+    | summarize v = count_distinct(CorrelationId_ScriptLoad) by Auth_Username, App
+    | summarize Total_Visits = sum(v) by Auth_Username;
+let N = toscalar(Visits | summarize count());
+let UserArea = PV
+    | where isnotempty(Auth_Username) and isnotempty(User_AreaOrCPSD)
+    | summarize arg_max(TimeGenerated, User_AreaOrCPSD) by Auth_Username
+    | project Auth_Username, Area = User_AreaOrCPSD;
+Visits
+| join kind=leftouter UserArea on Auth_Username | project-away Auth_Username1
+| order by Total_Visits desc
+| extend National_Rank = row_number()
+| join kind=leftouter (GloCo__AreaRegionMapping | distinct User_Area, Region) on $left.Area == $right.User_Area
+| extend Region = coalesce(Region, "Unmapped")
+| extend Users_In_Window = N
+| extend PctRaw = National_Rank * 100.0 / N
+| extend Percentile = iff(PctRaw < 1.0, strcat("top ", tostring(max_of(round(PctRaw, 1), 0.1)), "%"), strcat("top ", tostring(toint(round(PctRaw, 0))), "%"))
+| partition by Region ( order by National_Rank asc | take 10 )
+| project Region, National_Rank, Percentile, Users_In_Window, Auth_Username, Area, Total_Visits
+| order by Region asc, National_Rank asc

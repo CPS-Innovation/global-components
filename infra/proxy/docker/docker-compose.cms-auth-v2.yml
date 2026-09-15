@@ -1,0 +1,22 @@
+# CMS Auth V2 layer override
+# Use: docker-compose -f docker-compose.yml -f docker-compose.cms-auth-v2.yml up --build
+#
+# Mounts the v2 conf and compiled JS so nginx can parse the location blocks.
+# Does NOT require real Azure AD credentials — the integration test only
+# checks that nginx starts and the sync error handler responds.
+
+services:
+  nginx:
+    env_file:
+      - global-components.cms-auth-v2.mock.env
+    environment:
+      # Envsubst values the login-page shim references; the deployed proxy provides
+      # these itself. Literal http scheme + a burst so nginx starts locally.
+      - WEBSITE_SCHEME=http
+      - CMS_RATE_LIMIT_QUEUE=100
+    volumes:
+      - ../config/global-components.cms-auth-v2/global-components.cms-auth-v2.conf:/etc/nginx/templates/global-components.cms-auth-v2.conf.template:ro
+      - ../dist/global-components.cms-auth-v2.js:/etc/nginx/templates/global-components.cms-auth-v2.js:ro
+      # Reduced mock cmsenv for the login shim — overrides the real cmsenv.js baked
+      # into the image, so the shim's js_set/proxy_pass resolve to the mock-upstream.
+      - ./cmsenv.mock.js:/etc/nginx/cmsenv.js:ro

@@ -4,7 +4,7 @@ import gloco from "templates/global-components.js";
 
 const DEPLOYMENT_JSON_PATH =
   "/etc/nginx/templates/global-components-deployment.json";
-const TENANT_ID = "00dd0d1d-d7e6-6338-ac51-565339c7088c";
+const TENANT_ID = "00dd0d1d-d7e6-4338-ac51-565339c7088c";
 const VALIDATE_TOKEN_AGAINST_AD = false; // Set to true when ready to enforce AD token validation
 const AD_AUTH_ENDPOINT = "https://graph.microsoft.com/v1.0/me";
 

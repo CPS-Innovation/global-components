@@ -1,5 +1,5 @@
 import { ApplicationInsights } from "@microsoft/applicationinsights-web";
-import { AuthHint, AuthResult, Config, FoundContext, KnownErrorType } from "cps-global-configuration";
+import { AuthHint, AuthResult, Config, FoundContext, KnownErrorType, Me } from "cps-global-configuration";
 import { CorrelationIds } from "../correlation/CorrelationIds";
 import { AnalyticsEventData, TrackEvent } from "./analytics-event";
 import { HostAppEvent } from "./host-app-event";
@@ -26,8 +26,8 @@ type Props = {
 
 type AuthAnalyticsProps =
   | undefined
-  | { isAuthed: false; knownErrorType: KnownErrorType; username?: string; objectId?: string }
-  | { isAuthed: true; username: string; objectId: string };
+  | { isAuthed: false; knownErrorType: KnownErrorType; username?: string; objectId?: string; me?: Me }
+  | { isAuthed: true; username: string; objectId: string; me?: Me };
 
 export type Analytics = ReturnType<typeof initialiseAiAnalytics>;
 
@@ -125,10 +125,10 @@ export const initialiseAiAnalytics = ({ window, config: { APP_INSIGHTS_CONNECTIO
 
   const registerAuthWithAnalytics = (auth: AuthResult) => {
     if (auth.isAuthed) {
-      authValues = { isAuthed: true, username: auth.username, objectId: auth.objectId };
+      authValues = { isAuthed: true, username: auth.username, objectId: auth.objectId, ...(auth.me && { me: auth.me }) };
     } else {
       const hint = authHint?.found ? authHint.result.authResult : undefined;
-      authValues = { isAuthed: false, knownErrorType: auth.knownErrorType, ...(hint && { username: hint.username, objectId: hint.objectId }) };
+      authValues = { isAuthed: false, knownErrorType: auth.knownErrorType, ...(hint && { username: hint.username, objectId: hint.objectId, ...(hint.me && { me: hint.me }) }) };
     }
     resolveAuthReady();
   };
