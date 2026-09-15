@@ -276,39 +276,47 @@ export function SettingsApp() {
           {/* Not a setting we own — it is a browser flag the user sets themselves — so it sits
               outside the form and its check-answers flow, as collapsed guidance. The Dark Reader
               extension route stays on the Accessibility Preview page: it needs an install, which
-              is a heavier ask than flipping a flag. */}
-          <hr className="govuk-section-break govuk-section-break--l govuk-section-break--visible" />
+              is a heavier ask than flipping a flag.
 
-          <h2 className="govuk-heading-m">Dark mode</h2>
-          <p className="govuk-body">
-            Microsoft Edge has a built-in experimental feature that forces dark mode on all websites, including CPS services.
-          </p>
+              Gated with the background control rather than on its own flag: both are ways of
+              softening a too-bright page, and leaving dark-mode guidance behind once the
+              background radios are hidden would leave the page reading as a stub. */}
+          {showBackground && (
+            <>
+              <hr className="govuk-section-break govuk-section-break--l govuk-section-break--visible" />
 
-          <details className="govuk-details">
-            <summary className="govuk-details__summary">
-              <span className="govuk-details__summary-text">How to turn on experimental dark mode</span>
-            </summary>
-            <div className="govuk-details__text">
-              <ol className="govuk-list govuk-list--number">
-                <li>
-                  Open a new tab and type <code>edge://flags/#enable-force-dark</code> in the address bar, then press Enter
-                </li>
-                <li>
-                  Find the setting labelled <strong>Auto Dark Mode for Web Contents</strong>
-                </li>
-                <li>
-                  Change the dropdown from <strong>Default</strong> to <strong>Enabled</strong>
-                </li>
-                <li>
-                  Click <strong>Restart</strong> at the bottom of the page to apply the changes
-                </li>
-              </ol>
-              <p className="govuk-body govuk-!-font-size-16">
-                <strong>Note:</strong> This is an experimental feature and may not work perfectly on all websites. You can
-                disable it by returning to the flags page and setting it back to <strong>Default</strong>.
+              <h2 className="govuk-heading-m">Dark mode</h2>
+              <p className="govuk-body">
+                Microsoft Edge has a built-in experimental feature that forces dark mode on all websites, including CPS services.
               </p>
-            </div>
-          </details>
+
+              <details className="govuk-details">
+                <summary className="govuk-details__summary">
+                  <span className="govuk-details__summary-text">How to turn on experimental dark mode</span>
+                </summary>
+                <div className="govuk-details__text">
+                  <ol className="govuk-list govuk-list--number">
+                    <li>
+                      Open a new tab and type <code>edge://flags/#enable-force-dark</code> in the address bar, then press Enter
+                    </li>
+                    <li>
+                      Find the setting labelled <strong>Auto Dark Mode for Web Contents</strong>
+                    </li>
+                    <li>
+                      Change the dropdown from <strong>Default</strong> to <strong>Enabled</strong>
+                    </li>
+                    <li>
+                      Click <strong>Restart</strong> at the bottom of the page to apply the changes
+                    </li>
+                  </ol>
+                  <p className="govuk-body govuk-!-font-size-16">
+                    <strong>Note:</strong> This is an experimental feature and may not work perfectly on all websites. You can
+                    disable it by returning to the flags page and setting it back to <strong>Default</strong>.
+                  </p>
+                </div>
+              </details>
+            </>
+          )}
         </div>
       </div>
     );
