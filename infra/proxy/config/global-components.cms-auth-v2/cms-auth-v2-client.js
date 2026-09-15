@@ -66,7 +66,17 @@
  * poll interval late, and an open-then-close inside a single interval is not seen
  * at all (neither event fires, so the pair stays balanced).
  */
+// Master switch for BOTH presence and its auth-iframe bootstrap. Keep false in
+// production; set true only in the copy deployed to UAT until testing is complete.
+// Deployment-time switch: reload the CMS shell after changing it. It does not
+// shut down an integration that was already started by a previously loaded script.
+var CMS_WATCHDOG_ENABLED = true;
+
 (function () {
+  if (CMS_WATCHDOG_ENABLED !== true) {
+    return; // no section observation, JSONP requests, stripe or frame resizing
+  }
+
   var INTERVAL = 3000; // ms between observation passes
   var MAXDEPTH = 64;
 
@@ -1331,6 +1341,10 @@
  * functions, var + function declarations, no trailing commas).
  * ==========================================================================*/
 (function () {
+  if (CMS_WATCHDOG_ENABLED !== true) {
+    return; // no login watcher, auth iframe or manual auth-spawn handle
+  }
+
   var BUILD = "spawn1"; // bump on redeploy to confirm fresh bytes are live (cache!)
   var DEBUG = true; // verbose per-tick logging; window.__ccAuthHandover.setDebug(false) to quiet
 
