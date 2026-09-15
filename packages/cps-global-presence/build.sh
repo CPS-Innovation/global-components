@@ -35,6 +35,7 @@ OUT="$DIR/dist/cms-presence-client.js"
 # the two is uploaded AS cms-presence-client.js, so switching skins is a deploy
 # choice rather than a code change, and the injected URL never moves.
 OUT2="$DIR/dist/cms-presence-client-2.js"
+OUT3="$DIR/dist/cms-presence-client-3.js"
 
 # common/ is shared with the WEB COMPONENTS as well as both legacy clients, so it
 # leads every bundle and is the only part exported as ESM.
@@ -57,6 +58,10 @@ MODERN="$DIR/legacy-apps/modern/sections.js $DIR/legacy-apps/modern/bar.js $DIR/
 # deploy.local.sh picks which one ships as cms-presence-client.js, so switching
 # needs no rebuild and no change to the injected URL.
 MODERN2="$DIR/legacy-apps/modern/sections.js $DIR/legacy-apps/modern-2/bar.js $DIR/legacy-apps/modern-2/main.js"
+# The third Modern skin: the web components' pinned notification, rebuilt by hand.
+# govuk-frontend v5 dropped IE11 and these pages are document mode 11, so the design
+# is recreated from its measurements rather than shared — see modern-3/bar.js.
+MODERN3="$DIR/legacy-apps/modern/sections.js $DIR/legacy-apps/modern-3/bar.js $DIR/legacy-apps/modern-3/main.js"
 CLASSIC="$DIR/legacy-apps/classic/dom.js $DIR/legacy-apps/classic/sections.js $DIR/legacy-apps/classic/banner.js $DIR/legacy-apps/classic/event-sink.js $DIR/legacy-apps/classic/main.js"
 AUTH="$DIR/legacy-apps/classic/auth.js"
 
@@ -69,6 +74,7 @@ node "$DIR/check-syntax.js" es3 $COMMON $SHARED_ESM_ONLY
 node "$DIR/check-syntax.js" es3 $CLASSIC $AUTH
 node "$DIR/check-syntax.js" es5 $MODERN
 node "$DIR/check-syntax.js" es5 $MODERN2
+node "$DIR/check-syntax.js" es5 $MODERN3
 
 # common/ is plain JS, but tsc type-checks it from its JSDoc and REGENERATES
 # types/common.d.ts — the surface global-components would import. Nothing is
@@ -145,6 +151,7 @@ emit_modern() { # emit_modern <outfile> <skin dir> <sources...>
 echo "--- output ---"
 emit_modern "$OUT" "legacy-apps/modern/" $COMMON $MODERN
 emit_modern "$OUT2" "legacy-apps/modern-2/" $COMMON $MODERN2
+emit_modern "$OUT3" "legacy-apps/modern-3/" $COMMON $MODERN3
 
 # ---- the ESM entry, for the web components -----------------------------------
 #
