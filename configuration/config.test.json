@@ -73,7 +73,7 @@
           "showNotification": true
         },
         {
-          "path": "https://(?:cps-tst|cpslon-tst)\\.outsystemsenterprise\\.com/casework(_blocks)?",
+          "path": "https://(?:cps-tst|cpslon-tst)\\.outsystemsenterprise\\.com/casework(_blocks)?(?![a-z0-9_])",
           "contextIds": "unknown-home"
         },
         {
