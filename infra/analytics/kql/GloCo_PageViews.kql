@@ -17,8 +17,10 @@ AppPageViews
     Url startswith "https://housekeeping",                                    "Housekeeping",
     Url startswith "https://cps.outsystemsenterprise.com/CaseReview",         "Case review",
     Url startswith "https://cps.outsystemsenterprise.com/WorkManagementApp",  "Work management app",
+    // startswith is case-insensitive. Home moved module Casework_Blocks -> Casework
+    // (FCT2-19128); both spellings stay live while the old URL is still linked-to.
     Url startswith "https://cps.outsystemsenterprise.com/casework_blocks"
- or Url startswith "https://cps.outsystemsenterprise.com/Casework_Blocks",    "Home",
+ or Url startswith "https://cps.outsystemsenterprise.com/casework/",         "Home",
     "Unknown")
 | extend Feature = iff(App in ("Case review", "Work management app", "Casework app"), tostring(split(parse_url(Url)["Path"], "/")[2]), App)
 | extend Build   = parse_json(tostring(parsed.Build))

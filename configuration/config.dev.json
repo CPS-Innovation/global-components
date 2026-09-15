@@ -69,7 +69,7 @@
           "contextIds": "home"
         },
         {
-          "path": "https://cps-dev.outsystemsenterprise.com/casework(_blocks)?",
+          "path": "https://cps-dev.outsystemsenterprise.com/casework(_blocks)?(?![a-z0-9_])",
           "contextIds": "unknown-home"
         },
         {
