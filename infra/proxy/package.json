@@ -4,7 +4,8 @@
   "scripts": {
     "build": "./scripts/build.sh",
     "build:watch": "tsc --watch",
-    "test": "pnpm exec ts-node --project tsconfig.test.json config/main/tests/global-components.unit.test.ts && pnpm exec ts-node --project tsconfig.test.json config/global-components.vnext/tests/global-components.vnext.unit.test.ts && pnpm exec ts-node --project tsconfig.test.json config/global-components.case-locking/tests/global-components.case-locking.unit.test.ts && pnpm exec ts-node --project tsconfig.test.json config/main/tests/nginx.unit.test.ts",
+    "test": "pnpm run test:cms-client && pnpm exec ts-node --project tsconfig.test.json config/main/tests/global-components.unit.test.ts && pnpm exec ts-node --project tsconfig.test.json config/global-components.vnext/tests/global-components.vnext.unit.test.ts && pnpm exec ts-node --project tsconfig.test.json config/global-components.case-locking/tests/global-components.case-locking.unit.test.ts && pnpm exec ts-node --project tsconfig.test.json config/main/tests/nginx.unit.test.ts",
+    "test:cms-client": "node --test config/global-components.cms-auth-v2/tests/cms-auth-v2-client.unit.test.js",
     "test:integration": "pnpm build && ./run-tests.sh"
   },
   "devDependencies": {

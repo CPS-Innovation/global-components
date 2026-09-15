@@ -5,8 +5,8 @@
  * IIFE so a failure in one cannot affect the other:
  *   1. Contact-edit logger + section presence (immediately below) — observes the
  *      Witnesses & details screen, reports which contact is being edited, and (via
- *      the presence API over JSONP) shows an "also viewing" banner when another
- *      user is in the same section.
+ *      the presence API over JSONP) shows a footer accordion with the count and
+ *      details of users working on the case.
  *   2. Login -> auth iframe (bottom of file) — on login, spawns the /polaris auth
  *      iframe; its AD callback stashes the id-token in POLARIS localStorage for the
  *      presence API to read same-origin. No cross-subdomain cookie hand-off.
@@ -40,10 +40,6 @@
  *   "closed"  - that contact's panel is no longer open (Cancel/OK/deselect, the
  *               frame navigated away, or the shell unloaded).
  * Switching contact A -> B emits "closed" A then "editing" B.
- *
- * TO CALL AN ENDPOINT: every event funnels through ONE function, sendEvent() —
- * see the "OUTPUT SINK" section below. Set ENDPOINT_URL, uncomment one line,
- * and you are done; nothing else in this file needs to change.
  *
  * Alternatively, without editing this file at all, assign a handler at runtime:
  *   window.__ccContactLogger.onChange = function (kind, rec) { ... };
@@ -95,17 +91,15 @@
 
   var FRAGMENT_DOCUMENTS = "uacgSelectDocument.aspx";
 
-  // Which frame HOSTS the hover popup for a section. Pages differ in structure:
-  //   - Some sections (e.g. victim/witness) load a FRAMESET into frameMain, and the
-  //     content lives in a child frame named "framePage" — so the popup is rendered
-  //     there (frameMain itself is a frameset doc whose body never renders).
-  //   - Other sections (e.g. case review) are rendered DIRECTLY as frameMain's content
-  //     document (no inner frameset, no framePage) — so the popup is rendered into
-  //     frameMain's own body.
-  // Each SECTION_DETECTORS entry declares its popupFrame so the engine knows where to
-  // append the popup (see presenceShowPopup).
-  var POPUP_FRAME_PAGE = "framePage"; // inner content frame (frameset pages)
-  var POPUP_FRAME_MAIN = "frameMain"; // frameMain rendered directly as content
+  var FRAGMENT_GENERIC_CASE_ID = "intCaseID";
+  var SECTION_KIND_CASE_GENERIC = "CASE";
+
+  // Place the stripe above the footer in frameActionBar when frameMain is a
+  // FRAMESET, otherwise in frameMain itself. The footer is the fourth frame.
+  var PRESENCE_FRAME_MAIN = "frameMain";
+  var PRESENCE_FRAME_ACTION_BAR = "frameActionBar";
+  var PRESENCE_ACTION_BAR_ID = "tblCMSActionBar";
+  var PRESENCE_ACTION_BAR_ROW_INDEX = 3;
 
   var timer;
   var lastRec = null; // last reported contact; null means nothing open
@@ -388,20 +382,44 @@
     return rec;
   }
 
+  function readGenericCase(win) {
+    var caseId = "";
+    try { caseId = win.iScreenCaseID ? String(win.iScreenCaseID) : ""; } catch (e) { }
+    if (!caseId) {
+      var href = ""; try { href = win.location.href; } catch (e2) { href = ""; }
+      caseId = queryParam(href, "intCaseID");
+    }
+    if (!caseId) { return null; }
+
+    var rec = {};
+    rec.sectionId = caseId + ":" + SECTION_KIND_CASE_GENERIC;
+    rec.key = caseId + "/case";
+    rec.caseId = caseId;
+    rec.personId = "";
+    rec.recorderId = "";
+    rec.name = "";
+    rec.role = "";
+    return rec;
+  }
+
   // The section registry: each entry maps a frame URL fragment to the detector that
   // reads its presence record. findActiveSection walks the frames and returns the
   // first active section it finds. Add new sections here.
   var SECTION_DETECTORS = [
-    { fragment: FRAGMENT_CONTACTS, read: readOpenContact, popupFrame: POPUP_FRAME_PAGE },
-    { fragment: FRAGMENT_CASE_REVIEW, read: readCaseReview, popupFrame: POPUP_FRAME_MAIN },
-    { fragment: FRAGMENT_CASE_REVIEW_CHARGE, read: readCaseReview, popupFrame: POPUP_FRAME_MAIN },
-    { fragment: FRAGMENT_DEFS_CHARGES, read: readOpenDefendant, popupFrame: POPUP_FRAME_PAGE },
-    { fragment: FRAGMENT_DOCUMENTS, read: readWitnessTab, popupFrame: POPUP_FRAME_PAGE }
+    { fragment: FRAGMENT_CONTACTS, read: readOpenContact },
+    { fragment: FRAGMENT_CASE_REVIEW, read: readCaseReview },
+    { fragment: FRAGMENT_CASE_REVIEW_CHARGE, read: readCaseReview },
+    { fragment: FRAGMENT_DEFS_CHARGES, read: readOpenDefendant },
+    { fragment: FRAGMENT_DOCUMENTS, read: readWitnessTab }
+  ];
+
+  var FALLBACK_DETECTORS = [
+    { fragment: FRAGMENT_GENERIC_CASE_ID, read: readGenericCase }
   ];
 
   // Walk every nested frame; return the presence record from the first same-origin
   // frame matching a section detector that is currently active, or null.
-  function findActiveSection(win, depth) {
+  function findActiveSection(win, depth, detectors) {
     if (depth > MAXDEPTH) {
       return null;
     }
@@ -417,40 +435,29 @@
       try {
         href = child.location.href;
       } catch (e) { } // same-origin only
-      for (d = 0; d < SECTION_DETECTORS.length; d++) {
-        if (href.indexOf(SECTION_DETECTORS[d].fragment) !== -1) {
+      for (d = 0; d < detectors.length; d++) {
+        if (href.indexOf(detectors[d].fragment) !== -1) {
           rec = null;
           try {
-            rec = SECTION_DETECTORS[d].read(child);
+            rec = detectors[d].read(child);
           } catch (e2) { }
           if (rec) {
-            // Carry the section's popup host frame so the banner knows where to render
-            // the hover popup (framePage for frameset pages, frameMain for content pages).
-            rec.popupFrame = SECTION_DETECTORS[d].popupFrame;
             return rec;
           }
         }
       }
-      rec = findActiveSection(child, depth + 1);
+      rec = findActiveSection(child, depth + 1, detectors);
       if (rec) {
         return rec;
       }
     }
+
     return null;
   }
 
   /* ===================================================================
    * OUTPUT SINK — THE ONE PLACE TO CHANGE TO CALL AN ENDPOINT
    * -------------------------------------------------------------------
-   * sendEvent() is the single funnel for every event this script produces.
-   * It is called exactly twice in the code below (once for "editing", once
-   * for "closed"), so changing it changes all reporting.
-   *
-   * TO START CALLING AN ENDPOINT:
-   *   1. set ENDPOINT_URL below (keep it a SAME-ORIGIN relative path)
-   *   2. uncomment the postEvent(kind, rec) line inside sendEvent()
-   * Nothing else in this file needs to change. postEvent() is written and
-   * ready — it just isn't called.
    *
    * Constraints that shaped the helpers (IE mode / document-mode 5):
    *   - No JSON object, so the body is form-encoded by hand, not stringified.
@@ -467,69 +474,37 @@
   var ENDPOINT_URL = ""; // e.g. "/global-components/case-locking/api/cms-contact-view"
   var ID_TOKEN_STORAGE_KEY = "cms-auth-id-token"; // written to top-window localStorage by the auth flow
 
-  // THE SINK. kind is "editing" | "closed"; rec is
-  // { key, caseId, personId, recorderId, name, role }.
-  function sendEvent(kind, rec) {
-    // Section presence — isolated so it can never affect CMS. Uses the JSONP
-    // transport (presenceJsonp*), which shares this detection + the banner.
-    try {
-      if (kind === "editing") {
-        presenceJsonpStart(rec);
-      } else if (kind === "closed") {
-        presenceJsonpStop();
-      }
-    } catch (e) { }
-
-    // postEvent(kind, rec);   // <-- UNCOMMENT to POST (set ENDPOINT_URL first)
-
-    // Runtime seam: lets a consumer hook in without editing this file.
-    // Fully isolated — anything it throws is swallowed and cannot affect CMS.
-    var api = window.__ccContactLogger;
-    if (api && typeof api.onChange === "function") {
-      try {
-        api.onChange(kind, rec);
-      } catch (e) { }
-    }
-  }
-
-  function describe(rec) {
-    var msg = "caseId=" + (rec.caseId || "-");
-    msg = msg + " personId=" + rec.personId;
-    msg = msg + " contactRecorderId=" + (rec.recorderId || "-");
-    msg = msg + ' name="' + rec.name + '"';
-    if (rec.role) {
-      msg = msg + " role=" + rec.role;
-    }
-    return msg;
-  }
-
   /* ===================================================================
    * SECTION PRESENCE (expansion of concern 1) — JSONP-driven.
    * -------------------------------------------------------------------
    * On "editing" we register the sectionId with the presence API over JSONP
    * (<script src>, which is NOT gated by the IE cross-origin XHR zone), then
-   * heartbeat + poll on a timer; the poll's member list drives the menu-bar icon.
-   * On "closed" we DELETE the session and remove the icon. See presenceJsonp*
+  * heartbeat + poll on a timer; the poll's member list drives the footer stripe.
+  * On "closed" we DELETE the session and remove the stripe. See presenceJsonp*
    * below and memory reference_cms_polaris_xorigin_zone.
    * =================================================================== */
 
-  var PRESENCE_BANNER_ID = "ccPresenceBanner";
-  var PRESENCE_POPUP_ID = "ccPresencePopup"; // the beige hover popup shown under the icon
-  var PRESENCE_COUNT_ID = "ccPresenceCount"; // the bold "(N)" head-count shown right after the icon
-  var PRESENCE_COUNT_COLOR = "#350066"; // CPS purple for the "(N)" head-count
-  var PRESENCE_CONNECTING_TIP = "Connecting to The Watchdog..."; // popup text shown while the session is being set up (pre-first-poll)
-  var PRESENCE_CONNECTING_DOTS = "..."; // shown in place of the "(N)" head-count while connecting
-  var PRESENCE_ERROR_TIP = "There was an error connecting to The Watchdog!"; // popup text on a non-recoverable connection error
-  var PRESENCE_ERROR_MARK = "!"; // shown in place of the "(N)" head-count on a non-recoverable error
-  // Root-relative path of the meeting icon, referenced the same way as the padlock
-  // (<HOST>/Noexpiry/Images/uaimcaselock1.gif). The absolute URL is built per-doc in
-  // presenceIconUrl so it resolves against the menu bar's own CMS origin.
-  var PRESENCE_ICON_PATH = "../Noexpiry/Images/uaimmeeting.gif";
+  var PRESENCE_CONNECTING_TEXT = "Connecting to The Watchdog...";
+  var PRESENCE_ERROR_TEXT = "There was an error connecting to The Watchdog!";
+  var PRESENCE_STRIPE_ID = "ccPresenceStripe";
+  var PRESENCE_STRIPE_HEADER_ID = "ccPresenceStripeHeader";
+  var PRESENCE_STRIPE_SUMMARY_ID = "ccPresenceStripeSummary";
+  var PRESENCE_STRIPE_TOGGLE_ID = "ccPresenceStripeToggle";
+  var PRESENCE_STRIPE_DETAILS_ID = "ccPresenceStripeDetails";
+  var PRESENCE_STRIPE_COLOR = "#b10e1e";
+  var PRESENCE_STRIPE_HEIGHT = 23;
 
-  // Find the CMS yellow menu bar (class="menuBar" — the bar that also hosts the
-  // "Legal Links" link). It may live in the shell document or in any same-origin
-  // frame, so walk the whole frame tree. document-mode 5 has no
-  // getElementsByClassName / querySelector, so scan elements and test className.
+  // Only connection/poll/error events update this state. Keep expansion across polls;
+  // the observer tick detects section changes but does not render or refresh the UI.
+  var presenceStripeState = null; // { text, count }; null = no presence UI
+  var presenceStripeEl = null;
+  var presenceStripeExpanded = false;
+  // Bind the baseline to the actual FRAMESET, not the current named frame. This
+  // lets us restore the old footer after navigation without resizing the new page.
+  var presenceFooterResize = null; // { frameset, originalRow, baseHeight }
+
+  // document-mode 5 has no getElementsByClassName / querySelector. Scan elements
+  // and test className if the footer cannot be found by id.
   function classHas(el, cls) {
     var c = el.className;
     if (!c || typeof c.split !== "function") { return false; }
@@ -553,101 +528,12 @@
     return null;
   }
 
-  // Returns { win: frameWindow, row: menuBarRow } for the first same-origin frame
-  // whose document contains the menuBar row, or null. We carry the frame WINDOW
-  // (not the row's ownerDocument, which is unreliable in document-mode 5) so callers
-  // reach the row's real document via win.document.
-  function findMenuBar(win, depth) {
-    if (depth > MAXDEPTH) { return null; }
-    var doc;
-    try { doc = win.document; } catch (e) { return null; } // x-origin frame
-    var el = findElByClassInDoc(doc, "menuBar");
-    if (el) { return { win: win, row: el }; }
-    var frames, i, found;
-    try { frames = win.frames; } catch (e2) { return null; }
-    for (i = 0; i < frames.length; i++) {
-      found = findMenuBar(frames[i], depth + 1);
-      if (found) { return found; }
-    }
-    return null;
+  // The stripe is the only presence UI. Called for connecting, each successful poll,
+  // and permanent failure, matching the original banner's cadence and lifecycle.
+  function presenceShowStripe(text, count) {
+    presenceStripeState = { text: text, count: count };
+    presenceRenderStripe();
   }
-
-  // Presence indicator: whenever anyone is viewing a supported section, show the
-  // meeting icon as the LAST cell of the yellow menu bar. The bar is a table ROW
-  // (<TR class=menuBar>) whose items are <TD class=menu> cells; there is no
-  // pre-existing element to anchor to (the old cboNShow anchor no longer exists),
-  // so the ONLY way to place the icon is to append a NEW <TD> at the end of the row.
-  // On hover the icon shows a custom beige popup (presenceShowPopup) with the roster
-  // text; the same text is kept on the icon (icon.ccTipText) so each poll just
-  // refreshes it. Replaces the old per-frame "also viewing" text banner.
-  function presenceShowBanner(tip, count) {
-    var hit = findMenuBar(window, 0);
-    if (!hit) { return; }
-    var doc = hit.win.document; // real doc of the frame the row lives in
-    var row = hit.row;
-    try {
-      // Reuse the existing icon if we already added it on a previous poll; otherwise
-      // insert exactly one new cell and wire the hover popup ONCE. Without the reuse
-      // check, every presence update would append another cell / rebind handlers.
-      var icon = doc.getElementById(PRESENCE_BANNER_ID);
-      if (!icon) {
-        var cell = row.insertCell(row.cells.length);
-        cell.className = "menu"; // match the other menu cells' styling
-        icon = doc.createElement("img");
-        icon.id = PRESENCE_BANNER_ID;
-        icon.src = PRESENCE_ICON_PATH;
-        icon.border = 0;
-        icon.style.verticalAlign = "middle";
-        icon.style.cursor = "default";
-        cell.appendChild(icon);
-        // The head-count, shown as bold "(N)" in CPS purple right after the icon.
-        // Refreshed on every poll (see below); starts hidden until we have a count.
-        var cnt = doc.createElement("span");
-        cnt.id = PRESENCE_COUNT_ID;
-        cnt.style.marginLeft = "3px";
-        cnt.style.fontWeight = "bold";
-        cnt.style.color = PRESENCE_COUNT_COLOR;
-        cnt.style.verticalAlign = "middle";
-        cell.appendChild(cnt);
-        // Hover popup (attachEvent — no addEventListener in document-mode 5). The
-        // handlers read icon.ccTipText, which we refresh below on every poll, so the
-        // popup always shows the latest roster without rebinding.
-        try {
-          icon.attachEvent("onmouseover", function () { presenceShowPopup(icon); });
-          icon.attachEvent("onmouseout", function () { presenceHidePopup(); });
-        } catch (eBind) { }
-      }
-
-      // Keep the current roster text on the icon for the hover handlers. We do NOT set
-      // title/alt — the custom popup replaces the native tooltip. If the popup is open
-      // right now, refresh its text in place.
-      icon.ccTipText = tip ? tip : "Also viewing this case";
-      // Refresh the head-count after the icon: show it verbatim in brackets whether it's
-      // the numeric roster size ("(N)") or the connecting placeholder ("(...)"). There is
-      // no 0/negative case to guard — a real roster always has >= 1 (you), and the
-      // pre-roster connecting state is already handled by passing the "..." placeholder.
-      var cntEl = doc.getElementById(PRESENCE_COUNT_ID);
-      if (cntEl) { cntEl.innerText = count ? ("(" + count + ")") : ""; }
-      if (presencePopupEl) { presenceShowPopup(icon); }
-    } catch (e) { }
-  }
-
-  // Absolute position of the icon within its document (viewport rect + scroll).
-  // ---- Hover popup, anchored to the active section's host frame top-right -----
-  // The popup is appended to the CONTENT frame that renders the active section and
-  // pinned to its TOP-RIGHT (top:0, right:0) so it grows DOWN-and-LEFT and is never
-  // clipped. Which frame that is depends on the page structure and is declared per
-  // section in SECTION_DETECTORS (popupFrame):
-  //   - "framePage": frameset pages (e.g. victim/witness) render content in an inner
-  //     framePage frame; frameMain is a frameset doc whose body never renders.
-  //   - "frameMain": content pages (e.g. case review) render directly as frameMain's
-  //     document, so the popup goes into frameMain's own body.
-  // presencePopupFrameName holds the current section's host frame (set on start). It is
-  // null when the active section did NOT declare a popupFrame — there is no default, so
-  // in that case we simply do not render the popup. presencePopupEl tracks the live
-  // popup so we can remove it.
-  var presencePopupFrameName = null; // current section's popup host frame; null = don't render
-  var presencePopupEl = null;
 
   // Find the first same-origin frame named `name` anywhere in the tree, or null.
   function presenceFindFrameByName(win, name, depth) {
@@ -668,77 +554,257 @@
     return null;
   }
 
-  // Show (or refresh) the popup in the active section's host frame, pinned to its
-  // top-right and growing down-and-left. Text is icon.ccTipText; white-space:pre
-  // renders the "\n" line breaks. If the active section declared no popup host frame
-  // (presencePopupFrameName is null) or that frame can't be found / has no renderable
-  // body, we render NOTHING — there is deliberately no default/fallback host.
-  function presenceShowPopup(icon) {
+  // Resolve the footer and its owning FRAMESET from the live structure on each
+  // update. Search only inside frameMain; never insert HTML into a FRAMESET body.
+  function presenceGetFooterTarget() {
     try {
-      if (!presencePopupFrameName) { return; } // section didn't declare a popup host frame
-      var text = icon.ccTipText || "";
-      if (!text) { return; }
-      var host = presenceFindFrameByName(window, presencePopupFrameName, 0);
-      var hostDoc = null;
-      if (host) { try { hostDoc = host.document; } catch (eD) { hostDoc = null; } }
-      if (!hostDoc || !hostDoc.body) { return; } // host frame missing / no body -> don't render
-      var pop = hostDoc.getElementById(PRESENCE_POPUP_ID);
-      if (!pop) {
-        pop = hostDoc.createElement("div");
-        pop.id = PRESENCE_POPUP_ID;
-        pop.style.position = "absolute";
-        // Top offset depends on the host frame: framePage renders content at its own
-        // top so 0 is fine; frameMain-as-content has the menu/header chrome up top, so
-        // push the popup down 50px to clear it. Either way it grows down-and-left.
-        pop.style.top = (presencePopupFrameName === POPUP_FRAME_MAIN ? "50px" : "0px");
-        pop.style.right = "0px"; // pin top-right -> grows down-and-left
-        pop.style.background = "#FFFFB3";
-        pop.style.border = "1px solid #8a8a5c";
-        pop.style.padding = "6px 8px";
-        pop.style.fontFamily = "Arial, sans-serif";
-        pop.style.fontSize = "10pt";
-        pop.style.fontWeight = "bold";
-        pop.style.color = "#000000";
-        pop.style.whiteSpace = "pre";
-        pop.style.zIndex = "100000";
-        (hostDoc.body || hostDoc.documentElement).appendChild(pop);
+      var main = presenceFindFrameByName(window, PRESENCE_FRAME_MAIN, 0);
+      var doc = main ? main.document : null;
+      if (!doc || !doc.body) {
+        return null;
       }
-      presencePopupEl = pop;
-      pop.innerText = text; // IE renders \n as line breaks under white-space:pre
-      pop.style.display = "";
+      var frameset = null;
+      var host = main;
+      if (String(doc.body.tagName).toLowerCase() === "frameset") {
+        frameset = doc.body;
+        host = presenceFindFrameByName(main, PRESENCE_FRAME_ACTION_BAR, 0);
+        doc = host ? host.document : null;
+      }
+      if (!doc || !doc.body || String(doc.body.tagName).toLowerCase() === "frameset") {
+        return null;
+      }
+      var footer = getEl(host, PRESENCE_ACTION_BAR_ID);
+      if (!footer) {
+        footer = findElByClassInDoc(doc, "cmsActionBar");
+      }
+      if (!footer || !footer.parentNode) {
+        return null;
+      }
+      return { doc: doc, footer: footer, frameset: frameset, win: host };
+    } catch (e) {
+      return null;
+    }
+  }
+
+  // Restore just the footer's original row specification. Other CMS rows, including
+  // the flexible content row, must remain untouched even if CMS changed them meanwhile.
+  function presenceRestoreFooterRows() {
+    var resize = presenceFooterResize;
+    presenceFooterResize = null;
+    if (!resize) {
+      return;
+    }
+    try {
+      var rows = String(resize.frameset.rows).split(",");
+      if (rows.length > PRESENCE_ACTION_BAR_ROW_INDEX &&
+        rows[PRESENCE_ACTION_BAR_ROW_INDEX] !== resize.originalRow) {
+        rows[PRESENCE_ACTION_BAR_ROW_INDEX] = resize.originalRow;
+        resize.frameset.rows = rows.join(",");
+      }
     } catch (e) { }
   }
 
-  // Remove the popup wherever it was rendered.
-  function presenceHidePopup() {
+  // Capture BEFORE inserting the stripe, including during the connecting state.
+  // Reuse this baseline on every poll/toggle instead of adding to an enlarged row.
+  function presencePrepareFooterResize(target) {
+    if (presenceFooterResize && presenceFooterResize.frameset === target.frameset) {
+      return;
+    }
+    presenceRestoreFooterRows();
+    if (!target.frameset) {
+      return; // HTML frameMain does not need a frameset height adjustment
+    }
     try {
-      if (presencePopupEl && presencePopupEl.parentNode) {
-        presencePopupEl.parentNode.removeChild(presencePopupEl);
+      var rows = String(target.frameset.rows).split(",");
+      if (rows.length <= PRESENCE_ACTION_BAR_ROW_INDEX) {
+        return;
       }
+      var row = trim(rows[PRESENCE_ACTION_BAR_ROW_INDEX]);
+      var baseHeight;
+      if (/^\d+$/.test(row)) {
+        baseHeight = parseInt(row, 10);
+      } else if (/[%*]/.test(row)) {
+        // A percentage or star is not a pixel count. Use the allocated height,
+        // but keep the original row text so removing the stripe restores it exactly.
+        var frameEl = target.win.frameElement;
+        baseHeight = frameEl ? frameEl.offsetHeight : 0;
+        if (!(baseHeight > 0)) {
+          return;
+        }
+      } else {
+        return;
+      }
+      presenceFooterResize = {
+        frameset: target.frameset,
+        originalRow: rows[PRESENCE_ACTION_BAR_ROW_INDEX],
+        baseHeight: baseHeight
+      };
     } catch (e) { }
-    presencePopupEl = null;
   }
 
-  function presenceRemoveBanner() {
-    var hit = findMenuBar(window, 0);
-    var doc = hit ? hit.win.document : null;
-    if (!doc) { return; }
+  // Measure the full accordion after its text/display has been updated: 23px when
+  // collapsed, plus the white details panel when expanded. Only the fourth row changes.
+  function presenceResizeFooter() {
+    if (!presenceFooterResize || !presenceStripeEl) {
+      return;
+    }
     try {
-      presenceHidePopup(); // drop the hover popup if it's open
-      var icon = doc.getElementById(PRESENCE_BANNER_ID);
-      if (!icon) { return; }
-      // Remove the whole cell we added (the <TD>), not just the <img>. Delete it via
-      // the table DOM API (deleteCell) for the same IE-mode reason as insertCell;
-      // fall back to removeChild if deleteCell/cellIndex aren't available.
-      var cell = icon.parentNode; // the <TD>
-      var tr = cell ? cell.parentNode : null; // the <TR>
-      if (tr && tr.deleteCell && typeof cell.cellIndex === "number" && cell.cellIndex >= 0) {
-        tr.deleteCell(cell.cellIndex);
-      } else if (cell && cell.parentNode) {
-        cell.parentNode.removeChild(cell);
-      } else if (icon.parentNode) {
-        icon.parentNode.removeChild(icon);
+      var height = Math.max(PRESENCE_STRIPE_HEIGHT, presenceStripeEl.offsetHeight);
+      if (!isFinite(height)) {
+        return;
       }
+      var resize = presenceFooterResize;
+      var rows = String(resize.frameset.rows).split(",");
+      if (rows.length <= PRESENCE_ACTION_BAR_ROW_INDEX) {
+        return;
+      }
+      var value = String(resize.baseHeight + height);
+      if (rows[PRESENCE_ACTION_BAR_ROW_INDEX] !== value) {
+        rows[PRESENCE_ACTION_BAR_ROW_INDEX] = value;
+        resize.frameset.rows = rows.join(",");
+      }
+    } catch (e) { }
+  }
+
+  // Drop the old DOM and restore its footer space, retaining text/expansion for the
+  // next notification render if the user navigated within the same case.
+  function presenceDetachStripe() {
+    try {
+      if (presenceStripeEl && presenceStripeEl.parentNode) {
+        presenceStripeEl.parentNode.removeChild(presenceStripeEl);
+      }
+    } catch (e) { }
+    presenceStripeEl = null;
+    presenceRestoreFooterRows();
+  }
+
+  function presenceRemoveStripe() {
+    presenceStripeState = null;
+    presenceStripeExpanded = false;
+    presenceDetachStripe();
+  }
+
+  // User interaction changes only expansion and its allocated space, not the
+  // notification content or connection/poll cadence.
+  function presenceUpdateStripeExpanded(toggle, details) {
+    var label = presenceStripeExpanded ? "Hide details" : "Show details";
+    if (toggle) {
+      if (toggle.innerText !== label) {
+        toggle.innerText = label;
+      }
+      toggle.setAttribute("aria-expanded", presenceStripeExpanded ? "true" : "false");
+    }
+    if (details) {
+      details.style.display = presenceStripeExpanded ? "block" : "none";
+    }
+    presenceResizeFooter();
+  }
+
+  // Normal-flow accordion immediately BEFORE the whole footer table, keeping its
+  // Cancel/Save/Done controls underneath. Only the red header is fixed at 23px;
+  // the details and (in frameset mode) footer frame grow with the roster.
+  function presenceRenderStripe() {
+    try {
+      var state = presenceStripeState;
+      var target = presenceGetFooterTarget();
+      if (!state || !target) {
+        presenceDetachStripe();
+        return;
+      }
+      var doc = target.doc;
+      var footer = target.footer;
+      var stripe = doc.getElementById(PRESENCE_STRIPE_ID);
+      if (presenceStripeEl && presenceStripeEl !== stripe) {
+        presenceDetachStripe(); // a new host, or a new document in the same named frame
+      }
+      presencePrepareFooterResize(target);
+      if (!stripe) {
+        stripe = doc.createElement("div");
+        stripe.id = PRESENCE_STRIPE_ID;
+        stripe.style.margin = "0";
+        stripe.style.padding = "0";
+        stripe.style.fontFamily = "Arial, sans-serif";
+        stripe.style.fontSize = "10pt";
+
+        var header = doc.createElement("div");
+        header.id = PRESENCE_STRIPE_HEADER_ID;
+        header.style.position = "relative";
+        header.style.height = PRESENCE_STRIPE_HEIGHT + "px";
+        header.style.lineHeight = PRESENCE_STRIPE_HEIGHT + "px";
+        header.style.margin = "0";
+        header.style.padding = "0";
+        header.style.backgroundColor = PRESENCE_STRIPE_COLOR;
+        header.style.color = "#ffffff";
+        header.style.fontWeight = "bold";
+        header.style.overflow = "hidden";
+
+        var summary = doc.createElement("span");
+        summary.id = PRESENCE_STRIPE_SUMMARY_ID;
+        summary.style.display = "block";
+        summary.style.margin = "0 110px 0 8px"; // reserve room for the details link
+        summary.style.whiteSpace = "nowrap";
+        summary.style.overflow = "hidden";
+        summary.style.textOverflow = "ellipsis";
+        header.appendChild(summary);
+
+        var toggle = doc.createElement("a");
+        toggle.id = PRESENCE_STRIPE_TOGGLE_ID;
+        toggle.href = "#" + PRESENCE_STRIPE_DETAILS_ID;
+        toggle.style.position = "absolute";
+        toggle.style.right = "8px";
+        toggle.style.top = "0px";
+        toggle.style.color = "#ffffff";
+        toggle.style.textDecoration = "underline";
+        toggle.style.whiteSpace = "nowrap";
+        toggle.setAttribute("role", "button");
+        toggle.setAttribute("aria-controls", PRESENCE_STRIPE_DETAILS_ID);
+        // DOM0's return false cancels anchor navigation in document-mode 5 too.
+        // Enter activates the link natively; Space also toggles it like a button.
+        toggle.onclick = function () {
+          presenceStripeExpanded = !presenceStripeExpanded;
+          presenceUpdateStripeExpanded(toggle, details);
+          return false;
+        };
+        toggle.onkeydown = function (event) {
+          var e = event || (doc.parentWindow ? doc.parentWindow.event : null);
+          if (e && e.keyCode === 32) {
+            e.returnValue = false;
+            return toggle.onclick();
+          }
+          return true;
+        };
+        header.appendChild(toggle);
+        stripe.appendChild(header);
+
+        var details = doc.createElement("div");
+        details.id = PRESENCE_STRIPE_DETAILS_ID;
+        details.style.backgroundColor = "#ffffff";
+        details.style.color = "#000000";
+        details.style.border = "1px solid " + PRESENCE_STRIPE_COLOR;
+        details.style.borderTop = "0";
+        details.style.padding = "6px 8px";
+        details.style.whiteSpace = "pre";
+        details.style.overflow = "auto"; // keep long roster lines accessible without widening the page
+        stripe.appendChild(details);
+      }
+      if (stripe.nextSibling !== footer) {
+        footer.parentNode.insertBefore(stripe, footer);
+      }
+      presenceStripeEl = stripe;
+      var summaryEl = doc.getElementById(PRESENCE_STRIPE_SUMMARY_ID);
+      var toggleEl = doc.getElementById(PRESENCE_STRIPE_TOGGLE_ID);
+      var detailsEl = doc.getElementById(PRESENCE_STRIPE_DETAILS_ID);
+      var summaryText = typeof state.count === "number" ?
+        state.count + " users currently working on the case" : state.text;
+      if (summaryEl && summaryEl.innerText !== summaryText) {
+        summaryEl.innerText = summaryText;
+      }
+      if (detailsEl) {
+        if (detailsEl.innerText !== state.text) {
+          detailsEl.innerText = state.text; // never interpret names / notification text as HTML
+        }
+      }
+      presenceUpdateStripeExpanded(toggleEl, detailsEl);
     } catch (e) { }
   }
 
@@ -747,7 +813,7 @@
    * iframe and no cookie bridge — the adapter (handlePresenceJsonp) turns each GET
    * into the backend's real REST call. The JSONP response executes as JS, so the
    * callback receives a REAL object/array — no JSON parsing needed here (which an
-   * XHR relay could not do in document-mode 5). Drives the menu-bar banner.
+  * XHR relay could not do in document-mode 5). Drives the footer stripe.
    * ----------------------------------------------------------------------- */
   var PRESENCE_JSONP_BASE = "/global-components/presence-jsonp"; // same-origin on the proxy
   var PRESENCE_JSONP_TICK_MS = 3000; // heartbeat + poll cadence
@@ -850,9 +916,9 @@
   // so we key a cache by section identity and apply a snapshot's members ONLY when
   // its version is newer than the cached one — dropping stale / out-of-order updates.
   // An empty members array is a VALID update (everyone left that section) and simply
-  // clears that section's roster. The icon shows whenever ANY section of the case has
-  // members; its tooltip groups the roster BY SECTION (empty sections omitted — see
-  // presenceBuildTooltip).
+  // clears that section's roster. The stripe shows whenever ANY section of the case has
+  // members; its details group the roster BY SECTION (empty sections omitted — see
+  // presenceBuildDetails).
 
   // Build the dictionary key for a section object (caseId:kind:subjectId). subjectId
   // is null/absent for case-wide sections (CASE_REVIEW, CASE) — treat as empty.
@@ -872,7 +938,7 @@
 
   // Normalise a snapshot's members array into our cache shape: one
   // { email, app, joinedAt } per member (may be empty). We keep all three fields
-  // because the tooltip shows "<email> on <app> - joined <date>".
+  // because the details show "<email> on <app> - joined <date>".
   function presenceSnapshotMembers(members) {
     var out = [];
     if (!members || typeof members.length !== "number") { return out; }
@@ -924,7 +990,7 @@
     }
   }
 
-  // Human-readable label for a section kind (used in the by-section tooltip).
+  // Human-readable label for a section kind (used in the by-section details).
   function presenceSectionLabel(kind) {
     if (kind === "CASE") { return "Case"; }
     if (kind === "CASE_REVIEW") { return "Case Review"; }
@@ -935,19 +1001,57 @@
 
   var PRESENCE_MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
-  // Format an ISO-8601 joinedAt ("2026-08-21T08:11:53.226+00:00") as "21 Aug 2026 08:11".
-  // document-mode 5 cannot reliably Date.parse ISO strings, so we read the fields out
-  // of the string directly (wall-clock as sent). Returns "" if it isn't a timestamp.
+  // Format joinedAt in the computer's local timezone as "21 Aug 2026 08:11".
+  // Parse ISO fields and the offset manually: document-mode 5 cannot reliably
+  // Date.parse ISO strings. Local Date getters apply the timezone/DST at that instant.
+  // A timestamp without an offset denotes local wall-clock time. Invalid input -> "".
   function presenceFormatJoined(iso) {
-    if (!iso || typeof iso !== "string") { return ""; }
-    var m = /^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2})/.exec(iso);
-    if (!m) { return ""; }
+    if (!iso || typeof iso !== "string") {
+      return "";
+    }
+    var m = /^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2})(?::(\d{2})(?:\.(\d+))?)?(Z|[+-]\d{2}:?\d{2})?$/.exec(iso);
+    if (!m) {
+      return "";
+    }
+    var year = parseInt(m[1], 10);
     var monthIdx = parseInt(m[2], 10) - 1;
-    var mon = (monthIdx >= 0 && monthIdx < 12) ? PRESENCE_MONTHS[monthIdx] : m[2];
-    return parseInt(m[3], 10) + " " + mon + " " + m[1] + " " + m[4] + ":" + m[5];
+    var day = parseInt(m[3], 10);
+    var hour = parseInt(m[4], 10);
+    var minute = parseInt(m[5], 10);
+    var second = m[6] ? parseInt(m[6], 10) : 0;
+    var millis = m[7] ? parseInt((m[7] + "00").substring(0, 3), 10) : 0;
+    var zone = m[8];
+    var date = new Date(0);
+    date.setUTCFullYear(year, monthIdx, day);
+    date.setUTCHours(hour, minute, second, millis);
+    // Date normalises out-of-range fields; reject those rather than inventing a date.
+    if (date.getUTCFullYear() !== year || date.getUTCMonth() !== monthIdx ||
+      date.getUTCDate() !== day || date.getUTCHours() !== hour ||
+      date.getUTCMinutes() !== minute || date.getUTCSeconds() !== second) {
+      return "";
+    }
+    if (zone && zone !== "Z") {
+      var offset = zone.substring(1).replace(":", "");
+      var offsetHours = parseInt(offset.substring(0, 2), 10);
+      var offsetMinutes = parseInt(offset.substring(2, 4), 10);
+      if (offsetHours > 23 || offsetMinutes > 59) {
+        return "";
+      }
+      var offsetMillis = (offsetHours * 60 + offsetMinutes) * 60000;
+      // +05:30 means the source clock is ahead of UTC, so subtract its offset.
+      date = new Date(date.getTime() + (zone.charAt(0) === "+" ? -offsetMillis : offsetMillis));
+    } else if (!zone) {
+      date = new Date(0);
+      date.setFullYear(year, monthIdx, day);
+      date.setHours(hour, minute, second, millis);
+    }
+    var localHour = date.getHours();
+    var localMinute = date.getMinutes();
+    return date.getDate() + " " + PRESENCE_MONTHS[date.getMonth()] + " " + date.getFullYear() + " " +
+      (localHour < 10 ? "0" : "") + localHour + ":" + (localMinute < 10 ? "0" : "") + localMinute;
   }
 
-  // Build the full tooltip text for one case, grouped by section. Format:
+  // Build the full details text for one case, grouped by section. Format:
   //   Who's working where:
   //   Currently these users are working on <Section>:
   //   <email> on <app> - joined <date>
@@ -955,7 +1059,7 @@
   //   <blank line between sections>
   // Sections whose roster is empty (everyone left — a valid, version-bumped
   // notification) are OMITTED. Returns "" when no section of the case has members.
-  function presenceBuildTooltip(caseId) {
+  function presenceBuildDetails(caseId) {
     var blocks = [];
     var key, sec, members, i, mem, when, lines, line;
     for (key in presenceSections) {
@@ -979,8 +1083,8 @@
   }
 
   // Total number of people across ALL sections of one case (sum of the section
-  // rosters). Drives the "(N)" head-count after the icon. Empty sections contribute
-  // 0, so this matches how many names presenceBuildTooltip lists.
+  // rosters). Drives the stripe's header count. Empty sections contribute 0,
+  // so this matches how many names presenceBuildDetails lists.
   function presenceCountMembers(caseId) {
     var total = 0, key, sec;
     for (key in presenceSections) {
@@ -992,36 +1096,22 @@
     return total;
   }
 
-  // Compact shape hint for logging: "array[N]" or "object{key,key}".
-  function presenceJsonpDescribe(data) {
-    if (data === null || typeof data !== "object") { return String(data); }
-    if (typeof data.length === "number") { return "array[" + data.length + "]"; }
-    var ks = [], k;
-    for (k in data) { if (data.hasOwnProperty(k)) { ks[ks.length] = k; } }
-    return "object{" + ks.join(",") + "}";
-  }
-
   // Session expired (a 410 on heartbeat: the Watchdog no longer knows this session, e.g. a
   // heartbeat arrived too late to renew it). Without a session we can't poll, so tear the
-  // whole routine down and reconnect from scratch — same section id, same popup host frame.
+  // whole routine down and reconnect from scratch for the same section id.
   function presenceJsonpRestart() {
-    var sid = presenceJsonpActiveSid; // capture before stop clears these
-    var frame = presencePopupFrameName;
+    var sid = presenceJsonpActiveSid; // capture before stop clears it
     presenceJsonpStop();
     if (sid) {
-      presenceJsonpStart({ sectionId: sid, popupFrame: frame });
+      presenceJsonpStart({ sectionId: sid });
     }
   }
 
-  // Non-recoverable connection failure (any heartbeat jsonpError that is NOT a 410). Stop the
-  // routine — no auto-reconnect — and surface it to the user: "!" in place of the head-count
-  // and an error message in the hover popup. presenceJsonpStop clears the popup host frame, so
-  // restore it afterwards so the error popup can still render on hover.
+  // Non-recoverable create/heartbeat failure: stop without auto-reconnect and
+  // replace the connecting/roster stripe with the error message.
   function presenceJsonpFail() {
-    var frame = presencePopupFrameName;
     presenceJsonpStop();
-    presencePopupFrameName = frame;
-    presenceShowBanner(PRESENCE_ERROR_TIP, PRESENCE_ERROR_MARK);
+    presenceShowStripe(PRESENCE_ERROR_TEXT, null);
   }
 
   function presenceJsonpTick() {
@@ -1042,24 +1132,24 @@
           }
         }
       });
-      // Poll (GET-mapped) -> reconcile -> banner.
+      // Poll (GET-mapped) -> reconcile -> stripe.
       presenceJsonp("poll", { sid: sid }, function (data) {
         if (presenceJsonpSessionId !== sid) { return; } // superseded (restart / stop / section switch)
         if (data === null) { return; } // transient timeout -> just retry on the next tick
         if (data.jsonpError) { return; }
         // Reconcile this delta into the per-section version-checked roster cache, then
-        // recompute the banner. Show the icon whenever ANY section of the case has
-        // members (no threshold — even just you counts); the tooltip groups the roster
+        // recompute the stripe. Show it whenever ANY section of the case has
+        // members (no threshold — even just you counts); the details group the roster
         // BY SECTION (empty sections omitted). An empty poll array applies nothing and
         // simply re-shows the unchanged rosters.
         presenceApplyNotifications(data);
         var caseId = presenceJsonpActiveSid ? presenceJsonpActiveSid.split(":")[0] : "";
-        var tip = presenceBuildTooltip(caseId); // grouped, formatted per-section roster ("" if nobody)
-        var count = presenceCountMembers(caseId); // total people across all sections -> "(N)" after the icon
-        if (tip) {
-          presenceShowBanner(tip, count);
+        var text = presenceBuildDetails(caseId); // grouped, formatted per-section roster ("" if nobody)
+        var count = presenceCountMembers(caseId); // total people across all sections
+        if (text) {
+          presenceShowStripe(text, count);
         } else {
-          presenceRemoveBanner();
+          presenceRemoveStripe();
         }
       });
     } catch (ex) {
@@ -1072,19 +1162,15 @@
     if (sid === presenceJsonpActiveSid) { return; } // same section (e.g. victim<->witness of one person)
     presenceJsonpStop(); // clears any prior session (and fires its DELETE)
     presenceJsonpActiveSid = sid;
-    presencePopupFrameName = rec.popupFrame ? rec.popupFrame : null; // where to render the popup; null = don't render
-    // Show the icon immediately — the section IS supported — even though we don't yet
-    // know the roster (we are still creating the session + awaiting the first poll). The
-    // popup reads "Connecting to The Watchdog..." and the head-count shows "(...)"; both
-    // are replaced with the real roster / number on the first successful poll (see
-    // presenceJsonpTick). A prior session's banner was already cleared by presenceJsonpStop.
-    presenceShowBanner(PRESENCE_CONNECTING_TIP, PRESENCE_CONNECTING_DOTS);
+
+    // Show connecting immediately, then replace it with the count and details on
+    // the first successful poll. No independent UI refresh runs in the observer tick.
+    presenceShowStripe(PRESENCE_CONNECTING_TEXT, null);
     presenceJsonp("create", { sectionId: sid }, function (data) {
       if (presenceJsonpActiveSid !== sid) { return; } // superseded while in flight
       if (data === null || data.jsonpError || !data.sessionId) {
         var why = data === null ? "no response (timeout)" : (data.jsonpError || "no sessionId in response");
-        // Could not establish the session -> non-recoverable. Surface it the same way as a
-        // heartbeat failure: "!" in place of the head-count and the error message in the popup.
+        // Could not establish the session -> show the same error stripe as heartbeat failure.
         presenceJsonpFail();
         return;
       }
@@ -1106,9 +1192,8 @@
     }
     presenceJsonpSessionId = "";
     presenceJsonpActiveSid = "";
-    presencePopupFrameName = null; // no active section -> no popup host frame
     presenceSections = {}; // fresh reconciliation state per presence session
-    presenceRemoveBanner();
+    presenceRemoveStripe();
   }
 
   // ---- HTTP helpers (ready to use; only called if you uncomment above) ----
@@ -1167,20 +1252,27 @@
   function tick() {
     var rec = null;
     try {
-      rec = findActiveSection(window, 0);
+      rec = findActiveSection(window, 0, SECTION_DETECTORS);
+      if (!rec) {
+        rec = findActiveSection(window, 0, FALLBACK_DETECTORS);
+      }
     } catch (e) { }
     var key = rec ? rec.key : "";
     if (key === lastKey) {
-      return; // no change since last pass -> stay quiet
+      lastRec = rec;
+      if (rec && presenceJsonpActiveSid == "" && presenceJsonpSessionId == "") {
+        presenceJsonpRestart();
+      }
+      return; // unchanged section: no UI refresh, reconnect, or clearing a permanent failure
     }
     var prev = lastRec;
     lastRec = rec;
     lastKey = key;
     if (prev) {
-      sendEvent("closed", prev); // includes the A -> B switch case
+      presenceJsonpStop();
     }
     if (rec) {
-      sendEvent("editing", rec);
+      presenceJsonpStart(rec);
     }
   }
 
@@ -1207,15 +1299,11 @@
       lastRec = null;
       lastKey = "";
       try {
-        sendEvent("closed", prev);
+        presenceJsonpStop();
       } catch (e) { }
     }
     stop();
   }
-
-  // Expose start/stop/tick so you can drive it from the console if needed, and
-  // onChange as the seam for calling an endpoint.
-  window.__ccContactLogger = { start: start, stop: stop, tick: tick };
 
   // Clean up the timer when the shell unloads.
   window.attachEvent("onunload", shutdown);
