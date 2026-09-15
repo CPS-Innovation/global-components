@@ -95,6 +95,13 @@ const FEATURES: Feature[] = [
     disabled: false,
   },
   {
+    key: "accessibilityBackground",
+    label: "Accessibility — low contrast background setting",
+    description:
+      "Offer the low contrast background control on the Settings page. Separate from Accessibility above, which decides whether the Settings page is reachable at all; this decides only whether that one control appears on it. Anyone who already has a tone saved keeps the control regardless, so they can always turn it off.",
+    disabled: false,
+  },
+  {
     key: "caseSearch",
     label: "Case search",
     description: "Show case search functionality.",

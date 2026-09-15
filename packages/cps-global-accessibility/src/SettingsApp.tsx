@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import { SettingsSchema, type Settings } from "cps-global-configuration";
+import { PreviewSchema, SettingsSchema, type Settings } from "cps-global-configuration";
 
 const STATE_ENDPOINT = "/global-components/state/settings";
+const PREVIEW_ENDPOINT = "/global-components/state/preview";
 
 // Whether the case URN is shown at the start of the browser tab title. It is
 // stored (inverted) as the `preventUrnPrependInTabTitle` setting and consumed
@@ -32,6 +33,28 @@ const toneFromSettings = (settings: Settings): Tone => settings.accessibilityBac
 
 const toneLabel = (tone: Tone): string => TONE_OPTIONS.find(({ value }) => value === tone)?.label ?? "Off";
 
+// The "Low contrast background" control is gated behind a per-user preview flag
+// so it can be held back from everyone while staying demonstrable to us without
+// a config deploy. Fetched here rather than read off the global-components
+// store: this page is a standalone React app and the store is module-scoped
+// inside that bundle, with no handle on it outside local development.
+//
+// A failure is not an error state. Preview state is optional — a user who has
+// never opened the preview page has none, and the endpoint answers `null` — so
+// anything other than a clean, flagged parse simply means "not enabled".
+const loadBackgroundPreviewFlag = async (): Promise<boolean> => {
+  try {
+    const response = await fetch(PREVIEW_ENDPOINT, { credentials: "include", cache: "no-cache" });
+    if (!response.ok) {
+      return false;
+    }
+    const parsed = PreviewSchema.safeParse(await response.json());
+    return parsed.success && !!parsed.data.accessibilityBackground;
+  } catch {
+    return false;
+  }
+};
+
 export function SettingsApp() {
   const [step, setStep] = useState<Step>("form");
   // Everything the endpoint holds. We preserve fields we do not manage here so
@@ -39,6 +62,7 @@ export function SettingsApp() {
   const [settings, setSettings] = useState<Settings>({});
   const [showUrn, setShowUrn] = useState<ShowUrn>("yes");
   const [tone, setTone] = useState<Tone>("off");
+  const [showBackground, setShowBackground] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -76,7 +100,10 @@ export function SettingsApp() {
 
   const loadState = useCallback(async () => {
     try {
-      const response = await fetch(STATE_ENDPOINT, { credentials: "include" });
+      const [response, backgroundPreviewFlag] = await Promise.all([
+        fetch(STATE_ENDPOINT, { credentials: "include" }),
+        loadBackgroundPreviewFlag(),
+      ]);
       if (!response.ok) {
         throw new Error("Failed to load settings");
       }
@@ -89,6 +116,10 @@ export function SettingsApp() {
       setSettings(data);
       setShowUrn(showUrnFromSettings(data));
       setTone(toneFromSettings(data));
+      // Show the control to anyone who already has a tone saved, whatever the flag
+      // says. Without this, a user who opted in before the gate went up is left on a
+      // recoloured page with no way to turn it back off.
+      setShowBackground(backgroundPreviewFlag || !!data.accessibilityBackground);
     } catch (err) {
       setError(`Failed to load settings: ${err instanceof Error ? err.message : "Unknown error"}`);
     } finally {
@@ -105,7 +136,10 @@ export function SettingsApp() {
       const newState: Settings = {
         ...settings,
         preventUrnPrependInTabTitle: showUrn === "no" ? true : undefined,
-        accessibilityBackground: tone === "off" ? undefined : tone,
+        // Only written when the control was on screen. Writing it regardless would
+        // send `undefined` — the "off" default of a control the user never saw — and
+        // wipe a tone chosen before the gate went up. Spreading `settings` keeps it.
+        ...(showBackground ? { accessibilityBackground: tone === "off" ? undefined : tone } : {}),
       };
       const hasAnyValue = Object.values(newState).some((v) => v);
       const body = hasAnyValue ? JSON.stringify(newState) : "null";
@@ -125,7 +159,7 @@ export function SettingsApp() {
       setError(`Failed to save settings: ${err instanceof Error ? err.message : "Unknown error"}`);
       return false;
     }
-  }, [settings, showUrn, tone]);
+  }, [settings, showUrn, tone, showBackground]);
 
   const handleSaveAndContinue = async () => {
     setError(null);
@@ -195,40 +229,42 @@ export function SettingsApp() {
               </fieldset>
             </div>
 
-            <div className="govuk-form-group">
-              <fieldset className="govuk-fieldset" aria-describedby="background-hint">
-                <legend className="govuk-fieldset__legend govuk-fieldset__legend--m">Low contrast background</legend>
-                <div id="background-hint" className="govuk-hint">
-                  Reduces the harsh glare of the bright white page background to make the service easier on the eyes over long periods, while keeping
-                  text dark and readable.
-                </div>
-                <div className="govuk-radios" data-module="govuk-radios">
-                  {TONE_OPTIONS.map(({ value, label, hint }) => (
-                    <div className="govuk-radios__item" key={value}>
-                      <input
-                        className="govuk-radios__input"
-                        id={`background-${value}`}
-                        name="background"
-                        type="radio"
-                        value={value}
-                        checked={tone === value}
-                        disabled={loading}
-                        aria-describedby={hint ? `background-${value}-hint` : undefined}
-                        onChange={() => setTone(value)}
-                      />
-                      <label className="govuk-label govuk-radios__label" htmlFor={`background-${value}`}>
-                        {label}
-                      </label>
-                      {hint && (
-                        <div id={`background-${value}-hint`} className="govuk-hint govuk-radios__hint">
-                          {hint}
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </fieldset>
-            </div>
+            {showBackground && (
+              <div className="govuk-form-group">
+                <fieldset className="govuk-fieldset" aria-describedby="background-hint">
+                  <legend className="govuk-fieldset__legend govuk-fieldset__legend--m">Low contrast background</legend>
+                  <div id="background-hint" className="govuk-hint">
+                    Reduces the harsh glare of the bright white page background to make the service easier on the eyes over long periods, while keeping
+                    text dark and readable.
+                  </div>
+                  <div className="govuk-radios" data-module="govuk-radios">
+                    {TONE_OPTIONS.map(({ value, label, hint }) => (
+                      <div className="govuk-radios__item" key={value}>
+                        <input
+                          className="govuk-radios__input"
+                          id={`background-${value}`}
+                          name="background"
+                          type="radio"
+                          value={value}
+                          checked={tone === value}
+                          disabled={loading}
+                          aria-describedby={hint ? `background-${value}-hint` : undefined}
+                          onChange={() => setTone(value)}
+                        />
+                        <label className="govuk-label govuk-radios__label" htmlFor={`background-${value}`}>
+                          {label}
+                        </label>
+                        {hint && (
+                          <div id={`background-${value}-hint`} className="govuk-hint govuk-radios__hint">
+                            {hint}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </fieldset>
+              </div>
+            )}
 
             <div className="govuk-button-group">
               <button type="submit" className="govuk-button" data-module="govuk-button" disabled={loading}>
@@ -298,15 +334,17 @@ export function SettingsApp() {
                 </a>
               </dd>
             </div>
-            <div className="govuk-summary-list__row">
-              <dt className="govuk-summary-list__key">Low contrast background</dt>
-              <dd className="govuk-summary-list__value">{toneLabel(tone)}</dd>
-              <dd className="govuk-summary-list__actions">
-                <a className="govuk-link" href="#" onClick={(e) => { e.preventDefault(); setStep("form"); }}>
-                  Change<span className="govuk-visually-hidden"> low contrast background</span>
-                </a>
-              </dd>
-            </div>
+            {showBackground && (
+              <div className="govuk-summary-list__row">
+                <dt className="govuk-summary-list__key">Low contrast background</dt>
+                <dd className="govuk-summary-list__value">{toneLabel(tone)}</dd>
+                <dd className="govuk-summary-list__actions">
+                  <a className="govuk-link" href="#" onClick={(e) => { e.preventDefault(); setStep("form"); }}>
+                    Change<span className="govuk-visually-hidden"> low contrast background</span>
+                  </a>
+                </dd>
+              </div>
+            )}
           </dl>
 
           <form
@@ -341,7 +379,8 @@ export function SettingsApp() {
             announces it. Instead the flow ends here and the reload is the user's own next step. */}
         <h2 className="govuk-heading-m">What happens next</h2>
         <p className="govuk-body">
-          Your settings have been saved. If you changed the background, you will see it the next time a page loads.
+          Your settings have been saved.
+          {showBackground && " If you changed the background, you will see it the next time a page loads."}
         </p>
         <p className="govuk-body">
           <a className="govuk-link" href="#" onClick={(e) => { e.preventDefault(); window.location.reload(); }}>
