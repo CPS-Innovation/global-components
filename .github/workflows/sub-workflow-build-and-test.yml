@@ -113,6 +113,15 @@ jobs:
           cp ./packages/cps-global-handover/dist/auth-handover.js.map ./to-deploy
           cp -r ./packages/cps-global-preview/dist ./to-deploy/preview
           cp -r ./packages/cps-global-accessibility/dist ./to-deploy/accessibility
+          # The URLs the CMS maintainers have been asked to link from the real CMS:
+          #   /global-components/<env>/cms-augmentation/client-{classic,modern}.js
+          # Placeholders for now -- build.sh decides what is emitted under these names.
+          # Named files rather than the folder, so nothing unintended is ever
+          # published to a URL someone else's application loads. Prod receives them
+          # only through deploy-all, like everything else in this artifact.
+          mkdir -p ./to-deploy/cms-augmentation
+          cp ./packages/cps-global-presence/dist/cms-augmentation/client-classic.js ./to-deploy/cms-augmentation/
+          cp ./packages/cps-global-presence/dist/cms-augmentation/client-modern.js ./to-deploy/cms-augmentation/
 
       - uses: actions/upload-artifact@v6
         id: upload

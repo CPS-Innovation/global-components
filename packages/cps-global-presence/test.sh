@@ -15,7 +15,9 @@ set -uo pipefail
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 failed=0
 
-for f in "$DIR"/common/*.test.js "$DIR"/legacy-apps/common/*.test.js "$DIR"/legacy-apps/classic/*.test.js "$DIR"/legacy-apps/modern/*.test.js; do
+# Every folder that holds tests, named explicitly. A folder missing from this list
+# has tests that CI never runs -- modern-3's were, until they were added here.
+for f in "$DIR"/common/*.test.js "$DIR"/legacy-apps/common/*.test.js "$DIR"/legacy-apps/classic/*.test.js "$DIR"/legacy-apps/modern/*.test.js "$DIR"/legacy-apps/modern-3/*.test.js "$DIR"/cms-augmentation-placeholders/*.test.js; do
   [ -f "$f" ] || continue
   echo
   echo "=== $(basename "$(dirname "$f")")/$(basename "$f") ==="

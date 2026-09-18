@@ -75,6 +75,8 @@ node "$DIR/check-syntax.js" es3 $CLASSIC $AUTH
 node "$DIR/check-syntax.js" es5 $MODERN
 node "$DIR/check-syntax.js" es5 $MODERN2
 node "$DIR/check-syntax.js" es5 $MODERN3
+node "$DIR/check-syntax.js" es3 "$DIR/cms-augmentation-placeholders/client-classic.js"
+node "$DIR/check-syntax.js" es5 "$DIR/cms-augmentation-placeholders/client-modern.js"
 
 # common/ is plain JS, but tsc type-checks it from its JSDoc and REGENERATES
 # types/common.d.ts — the surface global-components would import. Nothing is
@@ -229,3 +231,35 @@ CLASSIC_OUT="$DIR/dist/cms-auth-v2-client.js"
 node "$DIR/check-syntax.js" es3 "$CLASSIC_OUT"
 grep -q "eyJ0eXAiOiJKV1Qi" "$CLASSIC_OUT" && { echo "ERROR: a credential leaked into the bundle" >&2; exit 1; }
 echo "built $CLASSIC_OUT ($(wc -c < "$CLASSIC_OUT" | tr -d ' ') bytes), no credential"
+
+# ---- the cms-augmentation publication names -----------------------------------
+#
+# The CMS maintainers have been asked to link these URLs from the real, unproxied
+# CMS, in every environment:
+#
+#     /global-components/<env>/cms-augmentation/client-classic.js
+#     /global-components/<env>/cms-augmentation/client-modern.js
+#
+# CI copies dist/cms-augmentation/ into the deploy artifact, so these land in each
+# environment's container on every deploy (prod only via deploy-all, like
+# everything else). THIS is where it is decided what is published under those
+# names: today a harmless placeholder, so a link added before we are ready loads
+# and runs rather than 404ing.
+#
+# The placeholders are the ONLY hand-written files ever published there, and the
+# source folder is named for that. When the real clients are ready, the two copies
+# below take built bundles from dist/ instead -- real artefacts are always built,
+# never maintained by hand -- and cms-augmentation-placeholders/ is deleted. The
+# pipeline does not change at all.
+#
+# The real presence clients are unaffected: they still reach CMS injected by our
+# proxy, from the dist/ files above.
+AUG_OUT="$DIR/dist/cms-augmentation"
+mkdir -p "$AUG_OUT"
+cp "$DIR/cms-augmentation-placeholders/client-classic.js" "$AUG_OUT/client-classic.js"
+cp "$DIR/cms-augmentation-placeholders/client-modern.js" "$AUG_OUT/client-modern.js"
+for f in "$AUG_OUT/client-classic.js" "$AUG_OUT/client-modern.js"; do
+  grep -q "eyJ0eXAiOiJKV1Qi" "$f" && { echo "ERROR: a credential leaked into $f" >&2; exit 1; }
+done
+echo "built $AUG_OUT/client-classic.js, client-modern.js (placeholders), no credential"
+
