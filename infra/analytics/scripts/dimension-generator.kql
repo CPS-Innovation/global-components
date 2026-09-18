@@ -1,21 +1,51 @@
 // dimension-generator.kql — produces the analytics-derived per-user rows for GloCo_UserDimension:
 // latest-known Email / Area / AreaOrCPSD / Department / Region / JobTitle per Auth_ObjectId across
-// ALL history. rebuild-dimension.sh runs this, then OVERLAYS authoritative job titles from Entra
-// (output/entra_jobtitles.jsonl) and assembles + deploys the GloCo_UserDimension datatable.
+// ALL history. rebuild-dimension.sh runs this, then OVERLAYS authoritative job titles AND departments
+// from Entra (output/entra_jobtitles.jsonl) and assembles + deploys the GloCo_UserDimension datatable.
 //
 // Output is ONE column ("Row") — fields joined by the "~^~" sentinel so `az --output tsv` cannot
 // reorder columns (it alphabetises multi-column output) and so rebuild-dimension.sh can split it
 // back reliably. No PII in THIS file (it is committable); the assembled datatable is not.
+//
+// WHY DEPARTMENT AND JOB TITLE COME FROM RAW AppPageViews, NOT GloCo_PageViews
+// ---------------------------------------------------------------------------
+// GloCo_PageViews already backfills Auth_Department and Auth_JobTitle from GloCo_UserDimension —
+// the very table this query rebuilds. Reading those columns back through it creates a RATCHET: an
+// Entra-sourced value lands on a user's blank rows, and the next rebuild reads it as though our own
+// telemetry had captured it. The Entra overlay then has nothing to disagree with, so a value can
+// never be reverted and a mistake is re-baked forever. Observed on 2026-09-17: two users whose most
+// recent page view had a blank department kept an Entra department the fill-mode rebuild was meant
+// to revert (antonia.walters, jodie.mcintosh).
+//
+// Reading the two externally-overlaid fields from the RAW table breaks that loop — "analytics
+// captured" then genuinely means captured. Scoping is preserved because the ObjectId set still comes
+// from GloCo_PageViews (so GloCo_ExcludedUsers and the URL/environment filters still apply); the raw
+// lookups only supply values for users already selected.
+//
+// Email, Area and AreaOrCPSD stay on GloCo_PageViews. They have no external overlay — the dimension's
+// values for them came from telemetry in the first place — so re-reading them is idempotent, and
+// User_AreaOrCPSD needs the CPSD/SEOCID logic that GloCo_PageViews applies.
 let PV = materialize(
     GloCo_PageViews
     | where isnotempty(Auth_ObjectId)
-    | project TimeGenerated, Auth_ObjectId, Auth_Username, User_Area, User_AreaOrCPSD, Auth_Department, Auth_JobTitle);
+    | project TimeGenerated, Auth_ObjectId, Auth_Username, User_Area, User_AreaOrCPSD);
+// Raw, un-backfilled Auth.Me — restricted to the users PV already admits.
+let RAW = materialize(
+    AppPageViews
+    | project TimeGenerated, parsed = parse_json(Properties)
+    | where tostring(parsed.Environment) == "prod"
+    | extend Auth = parse_json(tostring(parsed.Auth))
+    | extend Auth_ObjectId = tostring(Auth.ObjectId),
+             Raw_Department = tostring(Auth.Me.Department),
+             Raw_JobTitle   = tostring(Auth.Me.JobTitle)
+    | where isnotempty(Auth_ObjectId)
+    | project TimeGenerated, Auth_ObjectId, Raw_Department, Raw_JobTitle);
 let LatestEmail = PV | where isnotempty(Auth_Username)    | summarize arg_max(TimeGenerated, Auth_Username) by Auth_ObjectId | project Auth_ObjectId, Email = Auth_Username;
 let LatestArea  = PV | where isnotempty(User_AreaOrCPSD)  | summarize arg_max(TimeGenerated, User_Area, User_AreaOrCPSD) by Auth_ObjectId | project Auth_ObjectId, User_Area, User_AreaOrCPSD;
-let LatestDept  = PV | where isnotempty(Auth_Department)  | summarize arg_max(TimeGenerated, Auth_Department) by Auth_ObjectId | project Auth_ObjectId, Department = Auth_Department;
+let LatestDept  = RAW | where isnotempty(Raw_Department)  | summarize arg_max(TimeGenerated, Raw_Department) by Auth_ObjectId | project Auth_ObjectId, Department = Raw_Department;
 // Reject junk titles that leaked from a past table-format parse (e.g. a tab-prefixed "PrimaryResult")
 // so the backfill ratchet can't keep re-baking them; a real earlier title (or Entra) then wins instead.
-let LatestJob   = PV | where isnotempty(Auth_JobTitle) and Auth_JobTitle !contains "\t" and Auth_JobTitle !contains "PrimaryResult" | summarize arg_max(TimeGenerated, Auth_JobTitle) by Auth_ObjectId | project Auth_ObjectId, JobTitle = Auth_JobTitle;
+let LatestJob   = RAW | where isnotempty(Raw_JobTitle) and Raw_JobTitle !contains "\t" and Raw_JobTitle !contains "PrimaryResult" | summarize arg_max(TimeGenerated, Raw_JobTitle) by Auth_ObjectId | project Auth_ObjectId, JobTitle = Raw_JobTitle;
 LatestEmail
 | join kind=leftouter LatestArea on Auth_ObjectId | project-away Auth_ObjectId1
 | join kind=leftouter LatestDept on Auth_ObjectId | project-away Auth_ObjectId1
