@@ -80,29 +80,41 @@ var CMS_WATCHDOG_ENABLED = true;
   var INTERVAL = 3000; // ms between observation passes
   var MAXDEPTH = 64;
 
+  // Set before the section kinds are initialised. CIN2 / CIN3 / CIN5 isolate
+  // presence on the same Watchdog; undefined, null or blank uses the default kinds.
+  // Deployment-time setting: reload the CMS shell after changing it.
+  var CIN_ENVIRONMENT = "CIN3";
+
+  function presenceSectionKind(kind) {
+    var environment = typeof CIN_ENVIRONMENT === "undefined" ? "" : trim(CIN_ENVIRONMENT);
+    return environment ? kind + "_" + environment : kind;
+  }
+
   // ---- Sections --------------------------------------------------------------
   // The Watchdog tracks "sections" of the site. A section is identified by the URL
   // FRAGMENT of its iframe and has a KIND (the section name The Watchdog knows).
   // Its presence id is built as:
   //   sectionId = caseId ":" KIND             (case-wide sections, no subject)
   //   sectionId = caseId ":" KIND ":" subjId  (subject-scoped sections, e.g. a person)
+  // Only KIND receives the CIN suffix: e.g. "1234:CASE_CIN3" or
+  // "1234:VICTIM_WITNESS_CIN3:5678". Case and subject ids stay unchanged.
   // Each section provides a "detector" (see SECTION_DETECTORS below) that reads its
   // frame and returns a presence record (carrying .sectionId) when it is active.
   var FRAGMENT_CONTACTS = "uaccContactDetails.aspx"; // victim/witness edit screen
   var VICWIT = "VW"; // VICTIMS_WITNESSES_CONTACT (sRHPType of the vic/wit RHP)
-  var SECTION_KIND_VICTIM_WITNESS = "VICTIM_WITNESS"; // subject-scoped (personId)
+  var SECTION_KIND_VICTIM_WITNESS = presenceSectionKind("VICTIM_WITNESS"); // subject-scoped (personId)
 
   var FRAGMENT_CASE_REVIEW = "uapcPreChargeCaseAnalysis.aspx"; // case review screen
   var FRAGMENT_CASE_REVIEW_CHARGE = "uapcPreChargeDecDetails.aspx";
-  var SECTION_KIND_CASE_REVIEW = "CASE_REVIEW"; // case-wide (no subject)
+  var SECTION_KIND_CASE_REVIEW = presenceSectionKind("CASE_REVIEW"); // case-wide (no subject)
 
   var FRAGMENT_DEFS_CHARGES = "uadcDefsCharges.aspx"; // Defs & Charges tab (its own frame)
-  var SECTION_KIND_DEFENDANT = "DEFENDANT";           // subject-scoped (partyId)
+  var SECTION_KIND_DEFENDANT = presenceSectionKind("DEFENDANT"); // subject-scoped (partyId)
 
   var FRAGMENT_DOCUMENTS = "uacgSelectDocument.aspx";
 
   var FRAGMENT_GENERIC_CASE_ID = "intCaseID";
-  var SECTION_KIND_CASE_GENERIC = "CASE";
+  var SECTION_KIND_CASE_GENERIC = presenceSectionKind("CASE");
 
   // Place the stripe above the footer in frameActionBar when frameMain is a
   // FRAMESET, otherwise in frameMain itself. The footer is the fourth frame.
@@ -332,7 +344,7 @@ var CMS_WATCHDOG_ENABLED = true;
   // Case review is a CASE-WIDE section spanning MORE THAN ONE page: the review
   // analysis (uapcPreChargeCaseAnalysis.aspx) and the charge decision
   // (uapcPreChargeDecDetails.aspx) both live under the SAME section, so both must
-  // yield the SAME sectionId ("<caseId>:CASE_REVIEW") — that way users on either page
+  // yield the SAME sectionId (CASE_REVIEW with the optional CIN suffix) — users on either page
   // merge into one presence roster/count. There is no subject id. Unlike the
   // victim/witness page, case review does NOT expose i32CaseId; the case id is the
   // intCaseID query param of whichever case-review frame is open, e.g.
@@ -935,6 +947,7 @@ var CMS_WATCHDOG_ENABLED = true;
   function presenceSectionKey(section) {
     if (!section) { return ""; }
     var caseId = section.caseId != null ? String(section.caseId) : "";
+    // The wire kind already includes any CIN suffix; preserve it without adding another.
     var kind = section.kind != null ? String(section.kind) : "";
     var subjectId = section.subjectId != null ? String(section.subjectId) : "";
     var key = caseId + ":" + kind;
@@ -1000,12 +1013,20 @@ var CMS_WATCHDOG_ENABLED = true;
     }
   }
 
-  // Human-readable label for a section kind (used in the by-section details).
+  // Match configured kinds (including any CIN suffix), keeping the display labels readable.
   function presenceSectionLabel(kind) {
-    if (kind === "CASE") { return "Case"; }
-    if (kind === "CASE_REVIEW") { return "Case Review"; }
-    if (kind === "VICTIM_WITNESS") { return "Witness/Victim"; }
-    if (kind === "DEFENDANT") { return "Defendant"; }
+    if (kind === SECTION_KIND_CASE_GENERIC) {
+      return "Case";
+    }
+    if (kind === SECTION_KIND_CASE_REVIEW) {
+      return "Case Review";
+    }
+    if (kind === SECTION_KIND_VICTIM_WITNESS) {
+      return "Witness/Victim";
+    }
+    if (kind === SECTION_KIND_DEFENDANT) {
+      return "Defendant";
+    }
     return kind ? kind : "Section";
   }
 
