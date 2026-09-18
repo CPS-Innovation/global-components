@@ -187,6 +187,22 @@ async function runTests(): Promise<void> {
     assertEqual(gloco.readCorsOrigin(r), "", "Should return empty string")
   })
 
+  await test("returns empty string when no Origin header present", async () => {
+    const r = createMockRequest({})
+    assertEqual(gloco.readCorsOrigin(r), "", "Should return empty string")
+  })
+
+  await test("returns origin for a .cps.gov.uk subdomain", async () => {
+    const r = createMockRequest({
+      headersIn: { Origin: "https://foo.cps.gov.uk" },
+    })
+    assertEqual(
+      gloco.readCorsOrigin(r),
+      "https://foo.cps.gov.uk",
+      "Should return origin",
+    )
+  })
+
   // --- handleSessionHint tests ---
   console.log("\nhandleSessionHint:")
 

@@ -18,6 +18,17 @@ export const PreviewSchema = z.object({
   ),
   footer: z.boolean().optional(),
   accessibility: z.boolean().optional(),
+
+  // Whether the Settings page shows the "Low contrast background" control and
+  // the Edge dark-mode guidance that sits below it — everything on that page
+  // concerned with softening a too-bright page.
+  //
+  // Deliberately NOT the same flag as `accessibility` above: that one means
+  // "the Settings page exists at all" (it gates the footer link and the
+  // background subscriber together), and the page is wanted — it is only this
+  // part of it that is being held back. Read by SettingsApp; it does not gate
+  // the paint, so a user who already chose a tone keeps it.
+  accessibilityBackground: z.boolean().optional(),
   homePageNotification: z.boolean().optional(),
   tabTitleUrn: z.boolean().optional(),
   notifications: z.boolean().optional(),

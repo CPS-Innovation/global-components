@@ -35,6 +35,7 @@ OUT="$DIR/dist/cms-presence-client.js"
 # the two is uploaded AS cms-presence-client.js, so switching skins is a deploy
 # choice rather than a code change, and the injected URL never moves.
 OUT2="$DIR/dist/cms-presence-client-2.js"
+OUT3="$DIR/dist/cms-presence-client-3.js"
 
 # common/ is shared with the WEB COMPONENTS as well as both legacy clients, so it
 # leads every bundle and is the only part exported as ESM.
@@ -57,6 +58,10 @@ MODERN="$DIR/legacy-apps/modern/sections.js $DIR/legacy-apps/modern/bar.js $DIR/
 # deploy.local.sh picks which one ships as cms-presence-client.js, so switching
 # needs no rebuild and no change to the injected URL.
 MODERN2="$DIR/legacy-apps/modern/sections.js $DIR/legacy-apps/modern-2/bar.js $DIR/legacy-apps/modern-2/main.js"
+# The third Modern skin: the web components' pinned notification, rebuilt by hand.
+# govuk-frontend v5 dropped IE11 and these pages are document mode 11, so the design
+# is recreated from its measurements rather than shared — see modern-3/bar.js.
+MODERN3="$DIR/legacy-apps/modern/sections.js $DIR/legacy-apps/modern-3/bar.js $DIR/legacy-apps/modern-3/main.js"
 CLASSIC="$DIR/legacy-apps/classic/dom.js $DIR/legacy-apps/classic/sections.js $DIR/legacy-apps/classic/banner.js $DIR/legacy-apps/classic/event-sink.js $DIR/legacy-apps/classic/main.js"
 AUTH="$DIR/legacy-apps/classic/auth.js"
 
@@ -69,6 +74,9 @@ node "$DIR/check-syntax.js" es3 $COMMON $SHARED_ESM_ONLY
 node "$DIR/check-syntax.js" es3 $CLASSIC $AUTH
 node "$DIR/check-syntax.js" es5 $MODERN
 node "$DIR/check-syntax.js" es5 $MODERN2
+node "$DIR/check-syntax.js" es5 $MODERN3
+node "$DIR/check-syntax.js" es3 "$DIR/cms-augmentation-placeholders/client-classic.js"
+node "$DIR/check-syntax.js" es5 "$DIR/cms-augmentation-placeholders/client-modern.js"
 
 # common/ is plain JS, but tsc type-checks it from its JSDoc and REGENERATES
 # types/common.d.ts — the surface global-components would import. Nothing is
@@ -145,6 +153,7 @@ emit_modern() { # emit_modern <outfile> <skin dir> <sources...>
 echo "--- output ---"
 emit_modern "$OUT" "legacy-apps/modern/" $COMMON $MODERN
 emit_modern "$OUT2" "legacy-apps/modern-2/" $COMMON $MODERN2
+emit_modern "$OUT3" "legacy-apps/modern-3/" $COMMON $MODERN3
 
 # ---- the ESM entry, for the web components -----------------------------------
 #
@@ -222,3 +231,35 @@ CLASSIC_OUT="$DIR/dist/cms-auth-v2-client.js"
 node "$DIR/check-syntax.js" es3 "$CLASSIC_OUT"
 grep -q "eyJ0eXAiOiJKV1Qi" "$CLASSIC_OUT" && { echo "ERROR: a credential leaked into the bundle" >&2; exit 1; }
 echo "built $CLASSIC_OUT ($(wc -c < "$CLASSIC_OUT" | tr -d ' ') bytes), no credential"
+
+# ---- the cms-augmentation publication names -----------------------------------
+#
+# The CMS maintainers have been asked to link these URLs from the real, unproxied
+# CMS, in every environment:
+#
+#     /global-components/<env>/cms-augmentation/client-classic.js
+#     /global-components/<env>/cms-augmentation/client-modern.js
+#
+# CI copies dist/cms-augmentation/ into the deploy artifact, so these land in each
+# environment's container on every deploy (prod only via deploy-all, like
+# everything else). THIS is where it is decided what is published under those
+# names: today a harmless placeholder, so a link added before we are ready loads
+# and runs rather than 404ing.
+#
+# The placeholders are the ONLY hand-written files ever published there, and the
+# source folder is named for that. When the real clients are ready, the two copies
+# below take built bundles from dist/ instead -- real artefacts are always built,
+# never maintained by hand -- and cms-augmentation-placeholders/ is deleted. The
+# pipeline does not change at all.
+#
+# The real presence clients are unaffected: they still reach CMS injected by our
+# proxy, from the dist/ files above.
+AUG_OUT="$DIR/dist/cms-augmentation"
+mkdir -p "$AUG_OUT"
+cp "$DIR/cms-augmentation-placeholders/client-classic.js" "$AUG_OUT/client-classic.js"
+cp "$DIR/cms-augmentation-placeholders/client-modern.js" "$AUG_OUT/client-modern.js"
+for f in "$AUG_OUT/client-classic.js" "$AUG_OUT/client-modern.js"; do
+  grep -q "eyJ0eXAiOiJKV1Qi" "$f" && { echo "ERROR: a credential leaked into $f" >&2; exit 1; }
+done
+echo "built $AUG_OUT/client-classic.js, client-modern.js (placeholders), no credential"
+
