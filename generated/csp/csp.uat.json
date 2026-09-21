@@ -1,0 +1,50 @@
+{
+  "environment": "uat",
+  "directives": {
+    "connect-src": [
+      "https://graph.microsoft.com",
+      "https://js.monitor.azure.com",
+      "https://login.microsoftonline.com",
+      "https://polaris-uat-notprod.cps.gov.uk"
+    ],
+    "frame-src": [
+      "https://login.microsoftonline.com"
+    ],
+    "script-src": [
+      "https://polaris-uat-notprod.cps.gov.uk"
+    ]
+  },
+  "policy": "connect-src https://graph.microsoft.com https://js.monitor.azure.com https://login.microsoftonline.com https://polaris-uat-notprod.cps.gov.uk; frame-src https://login.microsoftonline.com; script-src https://polaris-uat-notprod.cps.gov.uk;",
+  "requirements": [
+    {
+      "directive": "connect-src",
+      "value": "https://graph.microsoft.com",
+      "reason": "getMe() fetches /v1.0/me?$select=department,jobTitle (cps-global-auth/src/get-me.ts). Soft-fails silently when blocked — the caller in handle-msal-termination passes no logError — so a missing entry costs the department/jobTitle slice with no error anywhere."
+    },
+    {
+      "directive": "connect-src",
+      "value": "https://js.monitor.azure.com",
+      "reason": "@microsoft/applicationinsights-web's CfgSyncPlugin fetches /scripts/b/ai.config.1.cfg.json at runtime. Enabled by default; disabling it via featureOptIn in initialise-ai-analytics.ts would remove this requirement entirely."
+    },
+    {
+      "directive": "connect-src",
+      "value": "https://login.microsoftonline.com",
+      "reason": "MSAL token endpoint (derived from AD_TENANT_AUTHORITY)."
+    },
+    {
+      "directive": "connect-src",
+      "value": "https://polaris-uat-notprod.cps.gov.uk",
+      "reason": "Serves the state endpoints the bundle fetches: ../state/* and ../cms-session-hint. ALSO: App Insights ingestion (derived from IngestionEndpoint in APP_INSIGHTS_CONNECTION_STRING). ALSO: Case-locking SignalR hub. Server-sent events and long-polling today — both connect-src. WebSockets is commented out in case-locking-presence.ts; re-enabling it needs the same host as wss:, which is why this is derived rather than pinned to a scheme."
+    },
+    {
+      "directive": "frame-src",
+      "value": "https://login.microsoftonline.com",
+      "reason": "MSAL uses a hidden iframe for ssoSilent and acquireTokenSilent. A host app whose policy sets only the legacy child-src also satisfies this."
+    },
+    {
+      "directive": "script-src",
+      "value": "https://polaris-uat-notprod.cps.gov.uk",
+      "reason": "Serves global-components.js (derived from OS_HANDOVER_URL's ?src= parameter)."
+    }
+  ]
+}

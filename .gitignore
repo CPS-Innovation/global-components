@@ -13,3 +13,7 @@ e2e.log
 
 *.tsbuildinfo 
 PLAN*
+# Live CSP check output — a point-in-time observation of third-party config,
+# regenerated on every run. The derived requirements in generated/csp ARE
+# committed (and freshness-tested); these results are not.
+generated/csp-check/
