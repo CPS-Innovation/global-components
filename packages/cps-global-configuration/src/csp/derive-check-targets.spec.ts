@@ -1,5 +1,5 @@
-import { readFileSync } from "fs";
-import { join } from "path";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { deriveAllCheckTargets, deriveCheckTargets } from "./derive-check-targets";
 
 const CONFIG_DIR = join(__dirname, "..", "..", "..", "..", "configuration");
@@ -85,7 +85,7 @@ describe("against the committed configs", () => {
       targets.filter(t => t.kind === "auth-handover").map(t => t.environment),
     );
 
-    expect([...handoverEnvironments].sort()).toEqual(ENVIRONMENTS.sort());
+    expect([...handoverEnvironments].sort()).toEqual([...ENVIRONMENTS].sort());
   });
 
   it("probes the Casework module at its current name, not Casework_blocks", () => {

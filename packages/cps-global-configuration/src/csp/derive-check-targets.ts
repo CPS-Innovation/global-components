@@ -26,11 +26,11 @@ export type CheckTarget = {
 
 type TargetConfig = Pick<Config, "LINKS" | "OS_HANDOVER_URL">;
 
-const OUTSYSTEMS_HOST = /\.outsystemsenterprise\.com$/;
+const OUTSYSTEMS_HOST_SUFFIX = ".outsystemsenterprise.com";
 
 const isOutSystemsUrl = (value: string): boolean => {
   try {
-    return OUTSYSTEMS_HOST.test(new URL(value).hostname);
+    return new URL(value).hostname.endsWith(OUTSYSTEMS_HOST_SUFFIX);
   } catch {
     return false;
   }
@@ -41,7 +41,7 @@ const isOutSystemsUrl = (value: string): boolean => {
 // multiply the report without adding information.
 const moduleRootOf = (href: string): string => {
   const url = new URL(href);
-  const [firstSegment] = url.pathname.split("/").filter(Boolean);
+  const firstSegment = url.pathname.split("/").find(Boolean);
   return `${url.origin}/${firstSegment ?? ""}`;
 };
 

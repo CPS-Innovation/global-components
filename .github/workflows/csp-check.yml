@@ -15,13 +15,11 @@ on:
     # 07:00 on weekdays — before the working day, so a regression is waiting
     # rather than discovered mid-incident.
     - cron: "0 7 * * 1-5"
+  # No inputs: the build-provenance rules require workflow_dispatch inputs to be
+  # empty, so the run cannot be parameterised. The check is passive by design
+  # anyway — it reports, it does not gate. To fail on findings instead, run
+  # `pnpm --filter cps-global-configuration check:csp -- --strict` locally.
   workflow_dispatch:
-    inputs:
-      strict:
-        description: "Fail the run when a host is missing a required origin"
-        required: false
-        type: boolean
-        default: false
 
 permissions:
   contents: read
@@ -43,7 +41,7 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      - uses: pnpm/action-setup@v6
+      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6
         with:
           version: latest
           run_install: false
@@ -67,7 +65,7 @@ jobs:
       - name: Check deployed policies
         id: check
         run: |
-          pnpm --filter cps-global-configuration check:csp ${{ inputs.strict && '-- --strict' || '' }}
+          pnpm --filter cps-global-configuration check:csp
 
       - uses: actions/upload-artifact@v4
         if: always()
@@ -80,7 +78,7 @@ jobs:
       # history in Actions covers "when did it change". Uploaded even when the
       # check found problems, since a report of problems is the thing worth
       # publishing.
-      - uses: azure/cli@v2
+      - uses: Azure/cli@9f7ce6f37c31b777ec6c6b6d1dfe7db79f497956 # v2
         if: always() && github.event_name != 'pull_request'
         with:
           azcliversion: latest

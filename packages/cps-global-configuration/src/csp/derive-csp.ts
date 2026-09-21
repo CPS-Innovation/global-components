@@ -225,9 +225,7 @@ export const deriveCspRequirements = (
 export const deriveHandoverPagePolicy = (
   configs: CspRelevantConfig[],
 ): CspRequirement[] =>
-  mergeCspRequirements(
-    configs.map(deriveHandoverPageRequirements).flat(),
-    );
+  mergeCspRequirements(configs.flatMap(deriveHandoverPageRequirements));
 
 export const groupByDirective = (
   requirements: CspRequirement[],

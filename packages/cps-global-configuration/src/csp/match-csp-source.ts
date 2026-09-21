@@ -98,36 +98,66 @@ const portMatches = (required: URL, port: string | undefined): boolean => {
  * filename. Reporting it as a clean pass hides a scheduled breakage; reporting
  * it as absent cries wolf.
  */
+// A requirement can itself be a keyword rather than an origin — the handover
+// page's profile requires 'self' and 'unsafe-inline', because it is a complete
+// policy for a file we own rather than a list of hosts to request. Those are
+// satisfied only by the identical keyword: `*` does not grant 'unsafe-inline',
+// and no host source grants 'self'.
+const matchKeywordRequirement = (
+  requiredKeyword: string,
+  source: string,
+): MatchVerdict =>
+  source.toLowerCase() === requiredKeyword.toLowerCase() ? "allowed" : "absent";
+
+const matchKeywordSource = (
+  requiredOrigin: string,
+  keyword: string,
+  pageOrigin?: string,
+): MatchVerdict => {
+  if (keyword !== "'self'" || !pageOrigin) {
+    return "absent";
+  }
+  return new URL(pageOrigin).origin === new URL(requiredOrigin).origin
+    ? "allowed"
+    : "absent";
+};
+
+const matchHostSource = (
+  required: URL,
+  parsed: Extract<ParsedSource, { kind: "host" }>,
+): MatchVerdict => {
+  // A source with no scheme matches the page's scheme; every origin we require
+  // is https, and CSP additionally allows http sources to be upgraded, so
+  // treating an absent scheme as "matches https" is right for our purposes.
+  const schemeMismatch = !!parsed.scheme && parsed.scheme !== required.protocol;
+  if (
+    schemeMismatch ||
+    !hostMatches(required, parsed) ||
+    !portMatches(required, parsed.port)
+  ) {
+    return "absent";
+  }
+  // We require whole origins, so any path on the source is a restriction we did
+  // not ask for.
+  return parsed.path && parsed.path !== "/" ? "narrower" : "allowed";
+};
+
 export const matchSource = (
   requiredOrigin: string,
   source: string,
   pageOrigin?: string,
 ): MatchVerdict => {
-  // A requirement can itself be a keyword rather than an origin — the handover
-  // page's profile requires 'self' and 'unsafe-inline', because it is a
-  // complete policy for a file we own rather than a list of hosts to request.
-  // Those are satisfied only by the identical keyword: `*` does not grant
-  // 'unsafe-inline', and no host source grants 'self'. This has to come before
-  // anything that treats requiredOrigin as a URL.
+  // Must come before anything that treats requiredOrigin as a URL.
   if (requiredOrigin.startsWith("'")) {
-    return source.toLowerCase() === requiredOrigin.toLowerCase()
-      ? "allowed"
-      : "absent";
+    return matchKeywordRequirement(requiredOrigin, source);
   }
 
   const parsed = parseSource(source);
-
   if (parsed.kind === "any") {
     return "allowed";
   }
-
   if (parsed.kind === "keyword") {
-    if (parsed.value === "'self'" && pageOrigin) {
-      return new URL(pageOrigin).origin === new URL(requiredOrigin).origin
-        ? "allowed"
-        : "absent";
-    }
-    return "absent";
+    return matchKeywordSource(requiredOrigin, parsed.value, pageOrigin);
   }
 
   let required: URL;
@@ -137,28 +167,11 @@ export const matchSource = (
     return "absent";
   }
 
-  if (parsed.kind === "scheme") {
-    return parsed.scheme === required.protocol ? "allowed" : "absent";
-  }
-
-  // A source with no scheme matches the page's scheme; every origin we require
-  // is https, and CSP additionally allows http sources to be upgraded, so
-  // treating an absent scheme as "matches https" is right for our purposes.
-  if (parsed.scheme && parsed.scheme !== required.protocol) {
-    return "absent";
-  }
-  if (!hostMatches(required, parsed)) {
-    return "absent";
-  }
-  if (!portMatches(required, parsed.port)) {
-    return "absent";
-  }
-  // We require whole origins, so any path on the source is a restriction we did
-  // not ask for.
-  if (parsed.path && parsed.path !== "/") {
-    return "narrower";
-  }
-  return "allowed";
+  return parsed.kind === "scheme"
+    ? parsed.scheme === required.protocol
+      ? "allowed"
+      : "absent"
+    : matchHostSource(required, parsed);
 };
 
 /**
@@ -174,12 +187,11 @@ export const matchSources = (
   if (sources === undefined) {
     return "allowed";
   }
-  const verdicts = sources.map(s => matchSource(requiredOrigin, s, pageOrigin));
-  if (verdicts.includes("allowed")) {
+  const verdicts = new Set(
+    sources.map(s => matchSource(requiredOrigin, s, pageOrigin)),
+  );
+  if (verdicts.has("allowed")) {
     return "allowed";
   }
-  if (verdicts.includes("narrower")) {
-    return "narrower";
-  }
-  return "absent";
+  return verdicts.has("narrower") ? "narrower" : "absent";
 };

@@ -132,10 +132,10 @@ const detailSection = (result: TargetResult): string[] => {
       ? [
           "| Directive | Required | Verdict | Satisfied via |",
           "| --- | --- | --- | --- |",
-          ...problems.map(
-            f =>
-              `| \`${f.requirement.directive}\` | \`${f.requirement.value}\` | ${f.verdict} | ${f.via ? `\`${f.via}\`` : "—"} |`,
-          ),
+          ...problems.map(f => {
+            const via = f.via ? `\`${f.via}\`` : "—";
+            return `| \`${f.requirement.directive}\` | \`${f.requirement.value}\` | ${f.verdict} | ${via} |`;
+          }),
           "",
           ...problems.map(f => `- \`${f.requirement.value}\` — ${f.requirement.reason}`),
           "",

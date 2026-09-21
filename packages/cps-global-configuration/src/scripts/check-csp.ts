@@ -20,8 +20,8 @@
  * the OutSystems team, not a broken build for us.
  */
 
-import * as fs from "fs";
-import * as path from "path";
+import * as fs from "node:fs";
+import * as path from "node:path";
 import { checkPolicy } from "../csp/check-policy";
 import {
   deriveCspRequirements,
@@ -65,7 +65,10 @@ const policiesEquivalent = (a: string, b: string): boolean => {
   const normalise = (policy: string) =>
     JSON.stringify(
       Object.entries(parsePolicy(policy))
-        .map(([directive, sources]) => [directive, [...sources].sort()])
+        .map(([directive, sources]) => [
+          directive,
+          [...sources].sort((a, b) => a.localeCompare(b)),
+        ])
         .sort(([x], [y]) => String(x).localeCompare(String(y))),
     );
   return normalise(a) === normalise(b);
