@@ -8,6 +8,20 @@
  * so that staying in step is easy.
  */
 declare module "cps-global-presence" {
+  /**
+   * The CMS instance whose presence we join. CIN2/CIN3/CIN5 share one Watchdog and
+   * isolate by suffixing every section kind, so we must use the same suffix as the
+   * Classic client or be invisible to it. Wire-only: on when registering, off when
+   * a kind is read back.
+   */
+  export const CCPEnvironment: {
+    CIN: string;
+    /** "CASE" -> "CASE_CIN3". Never doubles an existing suffix. */
+    suffixKind(kind: string | undefined): string;
+    /** "CASE_CIN3" -> "CASE". Strips only our own instance's suffix. */
+    baseKind(kind: string | undefined): string;
+  };
+
   export const CCPApps: {
     DISPLAY_NAMES: Record<string, string>;
     /** The name to show for an API application name; the name itself if unmapped, "" if absent. */

@@ -21,14 +21,17 @@
 // the only place it can be read. The screen segment is deliberately not
 // enumerated: every viewer screen that names a case is a view OF that case, so a
 // new one starts reporting presence without a code change.
+// The kinds carry the CIN suffix on the wire so this client joins the same
+// conflict set as the Classic one -- see CCPEnvironment. It comes off again when a
+// kind is read back for display, in the roster.
 var MODERN_DETECTORS = [
   CCPLocator.urlDetector({
-    kind: "CASE_REVIEW",
+    kind: CCPEnvironment.suffixKind("CASE_REVIEW"),
     pattern: /\/dcf\/[^/]+\/(\d+)/,
     hint: { app: "DCF" }
   }),
   CCPLocator.urlDetector({
-    kind: "CASE",
+    kind: CCPEnvironment.suffixKind("CASE"),
     pattern: /\/viewer\/[^#]*#\/[^/?]+\/(\d+)/,
     hint: { app: "CMS Modern" }
   })

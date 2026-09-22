@@ -18,6 +18,30 @@ declare namespace CCPApps {
      */
     function displayName(appName: string | undefined): string;
 }
+declare namespace CCPEnvironment {
+    let CIN: string;
+    /**
+     * The kind to put on the wire. Never double-suffixes: a kind that already carries
+     * the suffix is returned untouched, because the wire kind read back from a
+     * snapshot already has it.
+     *
+     * @param {string|undefined} kind
+     * @returns {string}
+     */
+    function suffixKind(kind: string | undefined): string;
+    /**
+     * The kind as the API documents it, for naming and for policy.
+     *
+     * ONLY OUR OWN SUFFIX IS STRIPPED. A kind carrying some other instance's suffix is
+     * left alone: it should be impossible, and if it ever arrives it should be visible
+     * as the oddity it is rather than quietly normalised into one of ours.
+     *
+     * @param {string|undefined} kind
+     * @returns {string}
+     */
+    function baseKind(kind: string | undefined): string;
+    function hasSuffix(text: any, suffix: any): boolean;
+}
 declare namespace CCPJoined {
     let MONTHS: string[];
     let ISO: RegExp;
