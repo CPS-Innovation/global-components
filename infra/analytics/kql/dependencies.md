@@ -12,7 +12,7 @@ GloCo_PageViews  (also joins GloCo_ExcludedUsers; lookups GloCo_UserDimension fo
   |       |---> GloCo_CaseReview_WithTriageTotalStartedSubmitted  (also joins AppEvents — triage-submission)
   |       |---> GloCo_CaseReview_InvolvementByUser                (also joins AppEvents — triage-submission)
   |       |---> GloCo_CaseReview_AreaCounts  (also joins GloCo__UserAreaMapping and GloCo__AreaRegionMapping; also unions AppEvents triage-submission)
-  |       |---> GloCo_CaseReview_AreaByType(SinceDays, EndDate)  (regional-email grid: per-area review/triage TYPE breakdown, Green excluded; joins GloCo__AreaRegionMapping + AppEvents triage-submission. PARAMETERISED — deploy via `az rest` PUT with functionParameters, not functions-deploy.sh)
+  |       |---> GloCo_CaseReview_AreaByType(SinceDays, EndDate)  (regional-email grid: per-area review/triage TYPE breakdown; joins GloCo__AreaRegionMapping + AppEvents triage-submission. WARNING: its triage columns have been ZERO since 2026-07-23 — the triage-submission event stopped; see review-triage-types.md. Its 'Triage red'/'Triage OD' column names also predate the corrected colour mapping (red = ODPCDReview, green = OD). PARAMETERISED — deploy via `az rest` PUT with functionParameters, not functions-deploy.sh)
   |       |
   |       '---> GloCo_CaseReview_PerCase
   |               |

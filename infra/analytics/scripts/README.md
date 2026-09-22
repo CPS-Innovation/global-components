@@ -37,36 +37,82 @@ it directly in a downstream function (embedded+direct saved-search resolver clas
 
 Regenerating is **two steps**:
 
-### Step 1 — export authoritative job titles from Entra
+### Step 1 — export authoritative job titles + departments from Entra
 
 ```bash
-./entra-jobtitles-export.sh        # -> output/entra_jobtitles.jsonl  ({id, jobTitle} per line)
+./entra-jobtitles-export.sh        # -> output/entra_jobtitles.jsonl  ({id, jobTitle, department} per line)
 ```
 
-Pages the whole tenant from Microsoft Graph (`/users?$select=id,jobTitle`) via the bastion. Needs
-directory read of `jobTitle` (`User.Read.All` delegated, or a `Directory.Read.All` app role) on the
-bastion identity. `id` is the same GUID as `Auth_ObjectId`, so it joins cleanly. Entra holds the
-**current** title for every live account, which is what closes the ~1,300-user gap our telemetry
-can't. (Skip this step to reuse the last extract — but then titles are as stale as that file.)
+Pages the whole tenant from Microsoft Graph (`/users?$select=id,jobTitle,department`) via the bastion.
+Needs directory read of `jobTitle` and `department` (`User.Read.All` delegated, or a
+`Directory.Read.All` app role) on the bastion identity. `id` is the same GUID as `Auth_ObjectId`, so it
+joins cleanly. Entra holds the **current** values for every live account, which is what closes the gaps
+our telemetry can't: ~1,300 users with no job title, and ~1,300 with no department (before the
+department overlay, dimension coverage was JobTitle 99.8% vs Department 76.0%). (Skip this step to
+reuse the last extract — but then values are as stale as that file. An extract taken before the
+department overlay has no `department` field; `rebuild-dimension.sh` detects that and refuses to run.)
+
+⚠️ Entra values are **current, not point-in-time**. Anyone who has moved between CPS Direct and an
+area is relabelled with today's department across their whole history — which matters because
+`Auth_Department == "CPS DIRECT"` is how we identify CPSD users. Step 2 reports how many departments
+the overlay **changes** as opposed to fills, so the impact is visible before you accept it.
 
 ### Step 2 — rebuild + deploy the dimension
 
 ```bash
-./rebuild-dimension.sh
+./rebuild-dimension.sh                          # department: fill blanks only (default)
+./rebuild-dimension.sh --overwrite-departments  # department: Entra wins everywhere
 ```
 
 1. Runs [`dimension-generator.kql`](dimension-generator.kql) in LA — the analytics-derived latest
    Email/area/department/region/job-title per user.
-2. **Overlays** the Entra title: `JobTitle = Entra title if the directory has one, else the
-   analytics-captured title`. (So the handful of accounts Entra has no title for keep whatever we saw.)
+2. **Overlays** the Entra values. `JobTitle = Entra title if the directory has one, else the
+   analytics-captured title`. **Department has two modes**, because unlike a job title it decides who
+   counts as a CPSD user:
+   - **`fill`** (default) — only populate a **blank** department. Point-in-time capture wins wherever
+     we have it, so the CPSD cohort cannot shift underneath existing reports. Pure gain.
+   - **`--overwrite-departments`** — Entra wins everywhere, same precedence as job title. Use when you
+     want today's org structure applied throughout history.
+
+   Either mode reports how many users Entra **differs** from telemetry on, so one run tells you the
+   impact of the other mode without applying it. (Accounts Entra has nothing for keep whatever we saw.)
 3. Assembles `output/GloCo_UserDimension.kql` and `PUT`s it to the saved search via
    `az rest … --body @file` (bypasses ARG_MAX).
 
-It prints a coverage line, e.g. `users: 5401 | title from Entra: 5390 | title from telemetry only: 11
-| no title anywhere: 0`. After it deploys, `GloCo_PageViews` immediately backfills from the refreshed
+It prints two coverage lines, e.g. `users: 5401 | title from Entra: 5390 | title from telemetry only:
+11 | no title anywhere: 0` and `department [fill]: filled from Entra: 1297 | kept from telemetry: 4104 |
+overwritten: 0 | still blank: 0`, followed by a count of users where Entra **differs** from telemetry.
+A non-zero differ count means those people have moved department since we captured them — decide
+whether you want point-in-time (default) or current (`--overwrite-departments`). After it deploys,
+`GloCo_PageViews` immediately backfills `Auth_JobTitle` and `Auth_Department` from the refreshed
 dimension.
 
-**Refresh cadence:** it's a manual snapshot. Re-run both steps whenever you want current areas/titles
+Note `Region` in the dimension is derived from `UserAreaOrCPSD` (the unit-count area), **not** from
+`Department`, so the two can legitimately disagree for a user — that is the same two-signal split
+documented in [`../review-triage-types.md`](../review-triage-types.md), not a bug.
+
+#### Why the generator reads raw `AppPageViews` for department and job title
+
+`GloCo_PageViews` backfills `Auth_Department` and `Auth_JobTitle` from `GloCo_UserDimension` — the
+table this pipeline rebuilds. Reading those columns back through it would create a **ratchet**: an
+Entra-sourced value lands on a user's blank rows, and the next rebuild reads it as though our own
+telemetry had captured it. The Entra overlay then has nothing to disagree with, so a value can never
+be reverted and a mistake is re-baked permanently.
+
+That is not hypothetical — on 2026-09-17 two users whose most recent page view had a blank department
+kept an Entra department that a `fill`-mode rebuild was supposed to revert. So
+[`dimension-generator.kql`](dimension-generator.kql) takes **Department and JobTitle from raw
+`AppPageViews`**, and only Email/Area/AreaOrCPSD from `GloCo_PageViews` (those have no external
+overlay, so re-reading them is idempotent, and `AreaOrCPSD` needs the CPSD/SEOCID logic). Scope is
+unchanged because the ObjectId set still comes from `GloCo_PageViews`, so `GloCo_ExcludedUsers` and
+the environment/URL filters still apply.
+
+**Expect the reported numbers to change once, downwards, and that is the fix working.** Telemetry
+coverage in the generator is ~79.6% for department and job title; before the fix it read ~99.9%,
+because it was counting our own backfill as captured data. The Entra overlay still takes the deployed
+dimension to ~100%.
+
+**Refresh cadence:** it's a manual snapshot. Re-run both steps whenever you want current areas/titles/departments
 (e.g. before a reporting cycle). The build is idempotent.
 
 ## Lawyer classification (related)
