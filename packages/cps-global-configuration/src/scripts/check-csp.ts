@@ -35,6 +35,7 @@ import { CSP_ENVIRONMENTS } from "../csp/render-csp-artifacts";
 import {
   renderHtmlReport,
   renderMarkdownReport,
+  renderTldr,
   statusOf,
   type TargetResult,
 } from "../csp/render-check-report";
@@ -201,6 +202,7 @@ const main = async (): Promise<void> => {
   });
 
   const generatedAt = new Date().toISOString();
+  const tldr = renderTldr(results);
   const markdown = renderMarkdownReport(results, generatedAt);
 
   if (outputDir) {
@@ -213,13 +215,17 @@ const main = async (): Promise<void> => {
       renderHtmlReport(results, generatedAt),
     );
     fs.writeFileSync(path.join(outputDir, "report.md"), markdown);
+    // The list an OutSystems developer is actually being sent. Its own file so it
+    // can be pasted into a ticket or a message without trimming a report first.
+    fs.writeFileSync(path.join(outputDir, "tldr.md"), tldr);
     console.log(`wrote report to ${outputDir}`);
   }
 
   // GitHub renders markdown tables in the job summary, so the ticks and crosses
   // land in the run without any hosting.
   if (process.env["GITHUB_STEP_SUMMARY"]) {
-    fs.appendFileSync(process.env["GITHUB_STEP_SUMMARY"], markdown);
+    // TL;DR first: the summary is read at a glance, and the gaps are the point.
+    fs.appendFileSync(process.env["GITHUB_STEP_SUMMARY"], tldr + "\n\n" + markdown);
   }
 
   console.log(markdown);
