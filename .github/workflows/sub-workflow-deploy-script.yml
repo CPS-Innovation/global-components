@@ -57,6 +57,19 @@ jobs:
             cp ./configuration/config.${{ inputs.environment }}.notification.json ./to-deploy/notification.json
           fi
 
+          # Publish the derived CSP requirements beside config.json. The live
+          # check reads this deployed copy rather than the one on main, so it
+          # compares the host apps against the requirements of the build they
+          # are actually running — not against unreleased changes.
+          #
+          # Generated and committed (generated/csp), with a unit test asserting
+          # it matches a fresh render, so no generation step is needed here.
+          # Absent for the accessibility environment, which is the standalone
+          # demo site rather than an OutSystems tenant.
+          if [ -f "./generated/csp/csp.${{ inputs.environment }}.json" ]; then
+            cp ./generated/csp/csp.${{ inputs.environment }}.json ./to-deploy/csp.json
+          fi
+
           # cps-global-components.js is the legacy URL redirect stub. Substitute the target URL
           # from the env's REDIRECT_SCRIPT_URL config. Defaults to sibling ./global-components.js.
           REDIRECT_SCRIPT_URL=$(jq -r '.REDIRECT_SCRIPT_URL // "./global-components.js"' ./to-deploy/config.json)

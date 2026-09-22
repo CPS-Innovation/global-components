@@ -1,0 +1,94 @@
+name: "CSP check: OutSystems host applications"
+
+# Verifies that the OutSystems apps still allow the origins the global
+# components need, and that each tenant's uploaded auth-handover.html still
+# matches this repository.
+#
+# Scheduled rather than only post-deploy, because the drift this catches is not
+# ours: the OutSystems team can tighten a policy, or re-upload an old handover
+# page, at any time and nothing in our pipeline would run. The previous attempt
+# at this check was an on-demand page that nobody visited, and it went stale
+# without anyone noticing — which is the argument for a cron rather than a
+# dashboard.
+on:
+  schedule:
+    # 07:00 on weekdays — before the working day, so a regression is waiting
+    # rather than discovered mid-incident.
+    - cron: "0 7 * * 1-5"
+  # No inputs: the build-provenance rules require workflow_dispatch inputs to be
+  # empty, so the run cannot be parameterised. The check is passive by design
+  # anyway — it reports, it does not gate. To fail on findings instead, run
+  # `pnpm --filter cps-global-configuration check:csp -- --strict` locally.
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  # Published under the static-website container so the result has a plain,
+  # shareable URL rather than living inside a GitHub run. Same account and the
+  # same $web container the test harnesses publish to.
+  BLOB_PATH: csp-check
+
+concurrency:
+  group: csp-check
+  cancel-in-progress: false
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6
+        with:
+          version: latest
+          run_install: false
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version-file: ".nvmrc"
+          cache: "pnpm"
+
+      - run: pnpm install
+        env:
+          CI: true
+
+      # Writes the markdown table into the job summary, so the result is
+      # readable in the run itself without any hosting. The HTML copy is kept as
+      # an artifact for sharing outside GitHub.
+      # Non-strict by default, so the job goes green and the result is read from
+      # the summary. Strict would mean a permanently red scheduled workflow for
+      # as long as a host app is missing an origin — which is someone else's
+      # backlog, and a workflow that is always red is a workflow nobody reads.
+      - name: Check deployed policies
+        id: check
+        run: |
+          pnpm --filter cps-global-configuration check:csp
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: csp-check
+          path: generated/csp-check/
+          retention-days: 30
+
+      # Latest result only — this answers "what is the state now", and the run
+      # history in Actions covers "when did it change". Uploaded even when the
+      # check found problems, since a report of problems is the thing worth
+      # publishing.
+      - uses: Azure/cli@9f7ce6f37c31b777ec6c6b6d1dfe7db79f497956 # v2
+        if: always() && github.event_name != 'pull_request'
+        with:
+          azcliversion: latest
+          inlineScript: |
+            az storage blob upload-batch \
+              --destination "\$web/${{ env.BLOB_PATH }}" \
+              --source "./generated/csp-check" \
+              --connection-string "${{ secrets.BLOB_STORAGE_CONNECTION_STRING }}" \
+              --overwrite true \
+              --content-cache-control "max-age=300, stale-while-revalidate=3600"
+
+            ACCOUNT_NAME=$(echo "${{ secrets.BLOB_STORAGE_CONNECTION_STRING }}" | grep -oP 'AccountName=\K[^;]+')
+            echo "Report published to https://$ACCOUNT_NAME.z33.web.core.windows.net/${{ env.BLOB_PATH }}/" >> $GITHUB_STEP_SUMMARY

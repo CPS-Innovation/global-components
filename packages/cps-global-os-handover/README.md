@@ -19,7 +19,7 @@ The file is environment-agnostic — the same bytes ship to dev, test and prod. 
 2. Set `Public: Yes` and `Deploy Action: Deploy to Target Directory`.
 3. Publish.
 
-Updates to this HTML file are rare because it is just the host-side allowlist shim — the actual handover logic lives in `auth-handover.js`, which deploys via CI. See `outsystems-support/readme.md` for the full OS embedding instructions.
+Updates to this HTML file are rare because it is just the host-side allowlist shim — the actual handover logic lives in `auth-handover.js`, which deploys via CI. See the root `README.md` for the full OS embedding instructions.
 
 ## Configuration
 
