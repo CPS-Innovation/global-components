@@ -162,6 +162,66 @@ const detailSection = (result: TargetResult): string[] => {
   ];
 };
 
+/**
+ * THE ONE THING AN OUTSYSTEMS DEVELOPER NEEDS: what to add, and where.
+ *
+ * The full report explains every requirement, every verdict and every source it
+ * matched against, which is what you want when diagnosing the checker. It is not
+ * what you want when someone has asked you to fix a policy: then it is noise
+ * wrapped around one short list.
+ *
+ * So this renders only the gaps -- `absent` (not granted at all) and `narrower`
+ * (granted, but not wide enough to cover the origin we need) -- grouped by
+ * environment and then by URL, as a line per directive that can be pasted
+ * straight into a policy.
+ *
+ * Deliberately silent about everything else. Sources their policy grants that we
+ * do not need are theirs to keep; unreachable targets belong in the full report
+ * where there is room to say why. An environment with nothing to add says so in
+ * one line, because "nothing" is the answer people are hoping for and it should
+ * not have to be inferred from an absence.
+ */
+export const renderTldr = (results: TargetResult[]): string => {
+  const gaps = results.flatMap(result =>
+    (result.check?.findings ?? [])
+      .filter(finding => finding.verdict !== "allowed")
+      .map(finding => ({
+        environment: result.target.environment,
+        url: result.finalUrl ?? result.target.url,
+        directive: finding.requirement.directive,
+        value: finding.requirement.value,
+      })),
+  );
+
+  if (gaps.length === 0) {
+    return "# CSP: nothing to add\n\nEvery environment already grants everything we need.\n";
+  }
+
+  const lines: string[] = ["# CSP: what to add", ""];
+  const environments = Array.from(new Set(gaps.map(g => g.environment))).sort((a, b) => a.localeCompare(b));
+
+  for (const environment of environments) {
+    lines.push(`## ${environment}`, "");
+    const urls = Array.from(new Set(gaps.filter(g => g.environment === environment).map(g => g.url))).sort((a, b) =>
+      a.localeCompare(b),
+    );
+    for (const url of urls) {
+      const here = gaps.filter(g => g.environment === environment && g.url === url);
+      const directives = Array.from(new Set(here.map(g => g.directive))).sort((a, b) => a.localeCompare(b));
+      lines.push(url, "");
+      lines.push("```");
+      for (const directive of directives) {
+        const values = Array.from(new Set(here.filter(g => g.directive === directive).map(g => g.value))).sort((a, b) =>
+          a.localeCompare(b),
+        );
+        lines.push(`${directive} ${values.join(" ")}`);
+      }
+      lines.push("```", "");
+    }
+  }
+  return lines.join("\n");
+};
+
 export const renderMarkdownReport = (
   results: TargetResult[],
   generatedAt: string,

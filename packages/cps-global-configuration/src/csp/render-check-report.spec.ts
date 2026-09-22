@@ -1,6 +1,7 @@
 import {
   renderHtmlReport,
   renderMarkdownReport,
+  renderTldr,
   statusOf,
   type TargetResult,
 } from "./render-check-report";
@@ -261,5 +262,57 @@ describe("the HTML page is self-contained", () => {
     const html = renderHtmlReport([result(), result()], "now");
 
     expect([...html.matchAll(/<tr/g)]).toHaveLength(3);
+  });
+});
+
+describe("renderTldr", () => {
+  const target = (environment: string, url: string) => ({ environment, url, region: "dublin" as const, kind: "screen" as const });
+  const finding = (directive: string, value: string, verdict: "allowed" | "narrower" | "absent") => ({
+    requirement: { directive, value, reason: "because" } as never,
+    verdict,
+  });
+
+  const result = (environment: string, url: string, findings: ReturnType<typeof finding>[]): TargetResult => ({
+    target: target(environment, url),
+    enforced: [],
+    reportOnly: [],
+    check: { findings, stale: [], ok: findings.every(f => f.verdict === "allowed") } as never,
+  });
+
+  // The answer people hope for should be stated, not inferred from an empty page.
+  it("says so plainly when there is nothing to add", () => {
+    const out = renderTldr([result("test", "https://a.example", [finding("connect-src", "https://x", "allowed")])]);
+    expect(out).toContain("nothing to add");
+  });
+
+  // Only the gaps. A policy's own entries are theirs, and the detail belongs in
+  // the full report.
+  it("lists only what is missing or too narrow, grouped by environment and url", () => {
+    const out = renderTldr([
+      result("test", "https://a.example", [
+        finding("connect-src", "https://js.monitor.azure.com", "absent"),
+        finding("connect-src", "https://graph.microsoft.com", "allowed"),
+        finding("script-src", "https://polaris.example", "narrower"),
+      ]),
+      result("uat", "https://b.example", [finding("connect-src", "https://graph.microsoft.com", "allowed")]),
+    ]);
+    expect(out).toContain("## test");
+    expect(out).toContain("https://a.example");
+    expect(out).toContain("connect-src https://js.monitor.azure.com");
+    expect(out).toContain("script-src https://polaris.example");
+    // uat had no gaps, so it is not mentioned at all.
+    expect(out).not.toContain("## uat");
+    expect(out).not.toContain("graph.microsoft.com");
+  });
+
+  // One line per directive, pasteable straight into a policy.
+  it("collapses several sources for one directive onto a single line", () => {
+    const out = renderTldr([
+      result("test", "https://a.example", [
+        finding("connect-src", "https://one.example", "absent"),
+        finding("connect-src", "https://two.example", "absent"),
+      ]),
+    ]);
+    expect(out).toContain("connect-src https://one.example https://two.example");
   });
 });
