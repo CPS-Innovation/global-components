@@ -1,4 +1,5 @@
 import { HubConnection, HubConnectionBuilder, HttpTransportType } from "@microsoft/signalr";
+import { CCPEnvironment } from "cps-global-presence";
 import { Register } from "../../store/store";
 import { CaseLockingPresentSection, CaseLockingPresentUser } from "./CaseLockingPresentUsers";
 import { makeConsole } from "../../logging/makeConsole";
@@ -457,7 +458,10 @@ export const createCaseLockingPresence = ({
         continue;
       }
       entry.versions[sectionId] = version;
-      const kind = String(snapshot?.section?.kind ?? "");
+      // ...and comes off here, before the kind reaches anything that reasons about
+      // it. CCPSectionNames and CCPSectionRules know the kinds the API documents
+      // and must never need an entry per CMS instance.
+      const kind = CCPEnvironment.baseKind(String(snapshot?.section?.kind ?? ""));
       // THE SECTION IN FOCUS is the one this connection registered — the region the
       // host page put us in. Under a case-wide session every other snapshot is
       // somewhere else in the same case, which is exactly the case the indefinite
@@ -513,7 +517,11 @@ export const createCaseLockingPresence = ({
     if (connections.has(key)) {
       return;
     }
-    const sectionId = buildSectionId(caseId, spec.code, spec.subjectId);
+    // THE CIN SUFFIX GOES ON HERE, and only here, because this is the one place we
+    // name a section of our own rather than echo one the API sent. Registering
+    // "123:CASE" against a CMS instance speaking "123:CASE_CIN3" isolates us
+    // silently -- see CCPEnvironment.
+    const sectionId = buildSectionId(caseId, CCPEnvironment.suffixKind(spec.code), spec.subjectId);
     _debug("starting connection", { sectionId, key, caseId });
     const connection = hubFactory(apiUrl);
     const entry: ConnectionEntry = {

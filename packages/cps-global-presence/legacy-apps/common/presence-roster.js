@@ -198,7 +198,9 @@ CCPRoster.createRoster = function () {
             userEmail: entry.members[j].userEmail,
             sourceApplication: entry.members[j].sourceApplication,
             joinedAt: entry.members[j].joinedAt,
-            sections: [{ kind: entry.kind, isCurrent: mine.hasOwnProperty("s" + key) }]
+            // The wire kind carries the CIN suffix; the shared naming and rules
+            // tables know only the documented kinds, so it comes off here.
+            sections: [{ kind: CCPEnvironment.baseKind(entry.kind), isCurrent: mine.hasOwnProperty("s" + key) }]
           });
         }
       }
