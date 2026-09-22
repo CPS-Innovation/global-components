@@ -39,7 +39,7 @@ OUT3="$DIR/dist/cms-presence-client-3.js"
 
 # common/ is shared with the WEB COMPONENTS as well as both legacy clients, so it
 # leads every bundle and is the only part exported as ESM.
-SHARED="$DIR/common/presence-apps.js $DIR/common/presence-section-names.js $DIR/common/presence-joined.js $DIR/common/presence-people.js"
+SHARED="$DIR/common/presence-environment.js $DIR/common/presence-apps.js $DIR/common/presence-section-names.js $DIR/common/presence-joined.js $DIR/common/presence-people.js"
 # ...except these, which live in common/ because the definitions belong beside
 # their neighbours, but go ONLY to the web components. The legacy clients show a
 # roster and interrupt nobody, so shipping the interruption rules into an IE-mode
@@ -167,7 +167,7 @@ emit_modern "$OUT3" "legacy-apps/modern-3/" $COMMON $MODERN3
 # module-scope variables and cannot be tree-shaken away. Add here when a consumer
 # appears, not before.
 ESM_SHARED="$SHARED $SHARED_ESM_ONLY"
-ESM_EXPORTS="CCPApps, CCPJoined, CCPPeople, CCPSectionNames, CCPSectionRules"
+ESM_EXPORTS="CCPApps, CCPEnvironment, CCPJoined, CCPPeople, CCPSectionNames, CCPSectionRules"
 ESM_OUT="$DIR/dist/esm/index.js"
 mkdir -p "$DIR/dist/esm"
 {

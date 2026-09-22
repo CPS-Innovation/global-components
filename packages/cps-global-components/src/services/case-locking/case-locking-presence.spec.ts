@@ -1,5 +1,6 @@
 import { createCaseLockingPresence } from "./case-locking-presence";
 import { CaseLockingPresentUsers } from "./CaseLockingPresentUsers";
+import { CCPEnvironment } from "cps-global-presence";
 
 type FakeHubConnection = {
   start: jest.Mock<Promise<void>, []>;
@@ -50,13 +51,20 @@ const presence = (users: { user: string; appName: string }[], { caseId = "123", 
   payload: {
     snapshots: [
       {
-        section: { caseId, kind },
+        section: { caseId, kind: CCPEnvironment.suffixKind(kind) },
         version: ++snapshotVersion,
         members: users.map(({ user, appName }) => ({ userEmail: user, sourceApplication: appName })),
       },
     ],
   },
 });
+
+// THE WIRE FORM of a section id. The CIN suffix goes on the KIND only -- never on
+// the case id or the subject id -- so that this client joins the same conflict set
+// as the Classic one. Built through CCPEnvironment rather than written out, so
+// these tests describe the rule and not one CMS instance's value.
+const sid = (caseId: string, kind: string, subjectId?: string) =>
+  `${caseId}:${CCPEnvironment.suffixKind(kind)}` + (subjectId ? `:${subjectId}` : "");
 
 const setup = (options: { countSelf?: boolean; onPresenceChanged?: () => void } = {}) => {
   const hubs: FakeHubConnection[] = [];
@@ -114,8 +122,8 @@ describe("createCaseLockingPresence", () => {
     service.setCaseId("123");
     await flush();
     expect(hubs).toHaveLength(1);
-    expect(hubFor("123:WITNESS")?.start).toHaveBeenCalled();
-    expect(hubFor("123:WITNESS")?.invoke).toHaveBeenCalledWith("Connect", "123:WITNESS", "test-app");
+    expect(hubFor(sid("123", "WITNESS"))?.start).toHaveBeenCalled();
+    expect(hubFor(sid("123", "WITNESS"))?.invoke).toHaveBeenCalledWith("Connect", sid("123", "WITNESS"), "test-app");
   });
 
   it("does not start a connection when a caseId arrives but no regions are active", async () => {
@@ -130,7 +138,7 @@ describe("createCaseLockingPresence", () => {
     service.setCaseId("123");
     service.addRegion("victim_witness", "98765");
     await flush();
-    expect(hubFor("123:VICTIM_WITNESS:98765")?.invoke).toHaveBeenCalledWith("Connect", "123:VICTIM_WITNESS:98765", "test-app");
+    expect(hubFor(sid("123", "VICTIM_WITNESS", "98765"))?.invoke).toHaveBeenCalledWith("Connect", sid("123", "VICTIM_WITNESS", "98765"), "test-app");
   });
 
   it("treats two subjects of the same kind as two sections", async () => {
@@ -141,8 +149,8 @@ describe("createCaseLockingPresence", () => {
     await flush();
 
     expect(hubs).toHaveLength(2);
-    expect(hubFor("123:VICTIM_WITNESS:111")).toBeDefined();
-    expect(hubFor("123:VICTIM_WITNESS:222")).toBeDefined();
+    expect(hubFor(sid("123", "VICTIM_WITNESS", "111"))).toBeDefined();
+    expect(hubFor(sid("123", "VICTIM_WITNESS", "222"))).toBeDefined();
   });
 
   it("treats a case-wide region and a subject-scoped one of the same kind as different sections", async () => {
@@ -153,8 +161,8 @@ describe("createCaseLockingPresence", () => {
     await flush();
 
     expect(hubs).toHaveLength(2);
-    expect(hubFor("123:VICTIM_WITNESS")).toBeDefined();
-    expect(hubFor("123:VICTIM_WITNESS:98765")).toBeDefined();
+    expect(hubFor(sid("123", "VICTIM_WITNESS"))).toBeDefined();
+    expect(hubFor(sid("123", "VICTIM_WITNESS", "98765"))).toBeDefined();
   });
 
   it("starts connections for each active code under the same caseId", async () => {
@@ -166,7 +174,7 @@ describe("createCaseLockingPresence", () => {
 
     expect(hubs).toHaveLength(2);
     const sectionKeys = hubs.map(h => h.invoke.mock.calls[0][1]).sort();
-    expect(sectionKeys).toEqual(["123:A", "123:B"]);
+    expect(sectionKeys).toEqual([sid("123", "A"), sid("123", "B")]);
   });
 
   it("stops a connection when its region is removed", async () => {
@@ -174,11 +182,11 @@ describe("createCaseLockingPresence", () => {
     service.setCaseId("123");
     service.addRegion("a");
     await flush();
-    expect(hubFor("123:A")?.start).toHaveBeenCalled();
+    expect(hubFor(sid("123", "A"))?.start).toHaveBeenCalled();
 
     service.removeRegion("a");
     await flush();
-    expect(hubFor("123:A")?.stop).toHaveBeenCalled();
+    expect(hubFor(sid("123", "A"))?.stop).toHaveBeenCalled();
   });
 
   it("addRegion twice is idempotent (single connection)", async () => {
@@ -191,7 +199,7 @@ describe("createCaseLockingPresence", () => {
 
     service.removeRegion("a");
     await flush();
-    expect(hubFor("123:A")?.stop).toHaveBeenCalled();
+    expect(hubFor(sid("123", "A"))?.stop).toHaveBeenCalled();
   });
 
   it("changing caseId tears down the old connections and rebuilds on the new case", async () => {
@@ -199,12 +207,12 @@ describe("createCaseLockingPresence", () => {
     service.setCaseId("123");
     service.addRegion("a");
     await flush();
-    expect(hubFor("123:A")).toBeDefined();
+    expect(hubFor(sid("123", "A"))).toBeDefined();
 
     service.setCaseId("456");
     await flush();
-    expect(hubFor("123:A")?.stop).toHaveBeenCalled();
-    expect(hubFor("456:A")?.invoke).toHaveBeenCalledWith("Connect", "456:A", "test-app");
+    expect(hubFor(sid("123", "A"))?.stop).toHaveBeenCalled();
+    expect(hubFor(sid("456", "A"))?.invoke).toHaveBeenCalledWith("Connect", sid("456", "A"), "test-app");
   });
 
   it("setting caseId to undefined tears down everything without forgetting the regions", async () => {
@@ -216,12 +224,12 @@ describe("createCaseLockingPresence", () => {
 
     service.setCaseId(undefined);
     await flush();
-    expect(hubFor("123:A")?.stop).toHaveBeenCalled();
+    expect(hubFor(sid("123", "A"))?.stop).toHaveBeenCalled();
 
     // The region was never removed, so a new case picks it up again.
     service.setCaseId("789");
     await flush();
-    expect(hubFor("789:A")?.invoke).toHaveBeenCalledWith("Connect", "789:A", "test-app");
+    expect(hubFor(sid("789", "A"))?.invoke).toHaveBeenCalledWith("Connect", sid("789", "A"), "test-app");
   });
 
   it("on reconnect, re-invokes Connect with the same section key", async () => {
@@ -229,13 +237,13 @@ describe("createCaseLockingPresence", () => {
     service.setCaseId("123");
     service.addRegion("a");
     await flush();
-    const hub = hubFor("123:A")!;
+    const hub = hubFor(sid("123", "A"))!;
     expect(hub.invoke).toHaveBeenCalledTimes(1);
 
     hub.__reconnectedHandler?.();
     await flush();
     expect(hub.invoke).toHaveBeenCalledTimes(2);
-    expect(hub.invoke).toHaveBeenLastCalledWith("Connect", "123:A", "test-app");
+    expect(hub.invoke).toHaveBeenLastCalledWith("Connect", sid("123", "A"), "test-app");
   });
 
   it("on start failure, drops the connection and does not leak it to the active set", async () => {
@@ -276,6 +284,35 @@ describe("createCaseLockingPresence", () => {
   // reading. It must fire for Classic comings and goings and for nothing else: an
   // RCMS arrival changes who is reading the case and changes nothing about whether
   // it can be written to.
+  // THE CIN SUFFIX is what keeps this client in the same conflict set as the
+  // Classic one. Classic moved to suffixed kinds first, and the isolation is
+  // silent by design -- no error, just nobody ever there -- so these pin both
+  // halves: what we register, and that the suffix never escapes into the shared
+  // naming and rules tables.
+  describe("the CIN environment suffix", () => {
+    it("registers the suffixed kind, leaving case and subject ids alone", async () => {
+      const { service, hubs } = setup();
+      service.setCaseId("123");
+      service.addRegion("victim_witness", "98765");
+      await flush();
+      const connects = hubs.flatMap(hub => hub.invoke.mock.calls.filter(([method]) => method === "Connect").map(([, section]) => section));
+      expect(connects).toEqual([`123:VICTIM_WITNESS_${CCPEnvironment.CIN}:98765`]);
+    });
+
+    // The reason the suffix is stripped on the way in: CCPSectionNames and
+    // CCPSectionRules key on the kinds the API documents, and must never need an
+    // entry per CMS instance.
+    it("strips the suffix before a kind becomes display data", async () => {
+      const { service, hubFor, allUsers } = setup({ countSelf: true });
+      service.setCaseId("123");
+      service.addRegion("witness");
+      await flush();
+      hubFor(sid("123", "WITNESS"))!.__notify?.(presence([{ user: "alice", appName: "test-app" }]));
+      await flush();
+      expect(allUsers()[0].sections).toEqual([{ kind: "WITNESS", isCurrent: true }]);
+    });
+  });
+
   describe("the Classic-presence signal", () => {
     const onWitnessWatching = async () => {
       const onPresenceChanged = jest.fn();
@@ -284,7 +321,7 @@ describe("createCaseLockingPresence", () => {
       rig.service.addRegion("witness");
       await flush();
       const arrive = async (...users: { user: string; appName: string }[]) => {
-        rig.hubFor("123:WITNESS")!.__notify?.(presence(users));
+        rig.hubFor(sid("123", "WITNESS"))!.__notify?.(presence(users));
         await flush();
       };
       return { ...rig, onPresenceChanged, arrive };
@@ -399,7 +436,7 @@ describe("createCaseLockingPresence", () => {
       service.addRegion("witness");
       await flush();
 
-      hubFor("123:WITNESS")!.__notify?.(presence([
+      hubFor(sid("123", "WITNESS"))!.__notify?.(presence([
         { user: "alice", appName: "test-app" },
         { user: "bob@cps.gov.uk", appName: "CMS" },
       ]));
@@ -431,7 +468,7 @@ describe("createCaseLockingPresence", () => {
       service.addRegion("witness");
       await flush();
 
-      hubFor("123:WITNESS")!.__notify?.(presence([{ user: "alice", appName: "test-app" }]));
+      hubFor(sid("123", "WITNESS"))!.__notify?.(presence([{ user: "alice", appName: "test-app" }]));
       await flush();
       expect(allUsers()).toEqual([{ user: "alice", appName: "test-app", joinedAt: undefined, sections: [{ kind: "WITNESS", isCurrent: true }] }]);
     });
@@ -445,7 +482,7 @@ describe("createCaseLockingPresence", () => {
       service.addRegion("witness");
       await flush();
 
-      hubFor("123:WITNESS")!.__notify?.(presence([{ user: "ALICE", appName: "CMS" }]));
+      hubFor(sid("123", "WITNESS"))!.__notify?.(presence([{ user: "ALICE", appName: "CMS" }]));
       await flush();
       expect(getPresentUsers()).toBeUndefined();
     });
@@ -456,7 +493,7 @@ describe("createCaseLockingPresence", () => {
       service.addRegion("witness");
       await flush();
 
-      hubFor("123:WITNESS")!.__notify?.(presence([
+      hubFor(sid("123", "WITNESS"))!.__notify?.(presence([
         { user: "alice", appName: "test-app" },
         { user: "bob@cps.gov.uk", appName: "CMS" },
       ]));
@@ -470,11 +507,11 @@ describe("createCaseLockingPresence", () => {
       service.addRegion("witness");
       await flush();
 
-      hubFor("123:WITNESS")!.__notify?.(presence([{ user: "bob", appName: "CMS" }]));
+      hubFor(sid("123", "WITNESS"))!.__notify?.(presence([{ user: "bob", appName: "CMS" }]));
       await flush();
       expect(allUsers()).toHaveLength(1);
 
-      hubFor("123:WITNESS")!.__notify?.(presence([
+      hubFor(sid("123", "WITNESS"))!.__notify?.(presence([
         { user: "bob", appName: "CMS" },
         { user: "carol", appName: "CMS" },
       ]));
@@ -488,7 +525,7 @@ describe("createCaseLockingPresence", () => {
       service.addRegion("witness");
       await flush();
 
-      hubFor("123:WITNESS")!.__notify?.(presence([
+      hubFor(sid("123", "WITNESS"))!.__notify?.(presence([
         { user: "alice", appName: "test-app" },
         { user: "bob", appName: "CMS" },
       ]));
@@ -506,7 +543,7 @@ describe("createCaseLockingPresence", () => {
       service.addRegion("witness");
       await flush();
 
-      hubFor("123:WITNESS")!.__notify?.(presence([
+      hubFor(sid("123", "WITNESS"))!.__notify?.(presence([
         { user: "alice", appName: "test-app" },
         { user: "bob", appName: "CMS" },
       ]));
@@ -531,7 +568,7 @@ describe("createCaseLockingPresence", () => {
       service.addRegion("witness");
       await flush();
 
-      hubFor("123:WITNESS")!.__notify?.(presence([{ user: "bob@cps.gov.uk", appName: "CMS" }]));
+      hubFor(sid("123", "WITNESS"))!.__notify?.(presence([{ user: "bob@cps.gov.uk", appName: "CMS" }]));
       await flush();
 
       expect(sectionOf(getPresentUsers, "witness")?.occupiedOnEntry).toBe(true);
@@ -544,10 +581,10 @@ describe("createCaseLockingPresence", () => {
       await flush();
 
       // First retrieval: nobody here but us.
-      hubFor("123:WITNESS")!.__notify?.(presence([]));
+      hubFor(sid("123", "WITNESS"))!.__notify?.(presence([]));
       await flush();
 
-      hubFor("123:WITNESS")!.__notify?.(presence([{ user: "bob@cps.gov.uk", appName: "CMS" }]));
+      hubFor(sid("123", "WITNESS"))!.__notify?.(presence([{ user: "bob@cps.gov.uk", appName: "CMS" }]));
       await flush();
 
       expect(sectionOf(getPresentUsers, "witness")?.users).toHaveLength(1);
@@ -563,10 +600,10 @@ describe("createCaseLockingPresence", () => {
       service.addRegion("witness");
       await flush();
 
-      hubFor("123:WITNESS")!.__notify?.(presence([]));
+      hubFor(sid("123", "WITNESS"))!.__notify?.(presence([]));
       await flush();
 
-      hubFor("123:WITNESS")!.__notify?.(
+      hubFor(sid("123", "WITNESS"))!.__notify?.(
         presence([
           { user: "bob@cps.gov.uk", appName: "CMS" },
           { user: "carol@cps.gov.uk", appName: "CMS" },
@@ -591,7 +628,7 @@ describe("createCaseLockingPresence", () => {
     ) => ({
       type: 0,
       payload: {
-        snapshots: [{ section, version, members: users.map(user => ({ userEmail: user, sourceApplication: "CMS" })) }],
+        snapshots: [{ section: { ...section, kind: CCPEnvironment.suffixKind(section.kind) }, version, members: users.map(user => ({ userEmail: user, sourceApplication: "CMS" })) }],
       },
     });
 
@@ -600,7 +637,7 @@ describe("createCaseLockingPresence", () => {
       rig.service.setCaseId("123");
       rig.service.addRegion("witness");
       await flush();
-      return { ...rig, hub: rig.hubFor("123:WITNESS")! };
+      return { ...rig, hub: rig.hubFor(sid("123", "WITNESS"))! };
     };
 
     it("applies a snapshot and publishes its members", async () => {
@@ -671,7 +708,7 @@ describe("createCaseLockingPresence", () => {
       service.setCaseId("123");
       service.addRegion("witness");
       await flush();
-      hubFor("123:WITNESS")!.__notify?.(presence([{ user: "alice", appName: "test-app" }]));
+      hubFor(sid("123", "WITNESS"))!.__notify?.(presence([{ user: "alice", appName: "test-app" }]));
       await flush();
       // Published — that is what countSelf is for — but not an interruption.
       expect(getPresentUsers()?.sections[0].users).toHaveLength(1);
@@ -707,7 +744,7 @@ describe("createCaseLockingPresence", () => {
         rig.service.setCaseId("123");
         rig.service.addRegion("case");
         await flush();
-        return { ...rig, hub: rig.hubFor("123:CASE")! };
+        return { ...rig, hub: rig.hubFor(sid("123", "CASE"))! };
       };
 
       it("counts someone who is only in a sub-section", async () => {
@@ -840,7 +877,7 @@ describe("createCaseLockingPresence", () => {
         rig.service.setCaseId("123");
         rig.service.addRegion("victim_witness", "543231");
         await flush();
-        return { ...rig, hub: rig.hubFor("123:VICTIM_WITNESS:543231")! };
+        return { ...rig, hub: rig.hubFor(sid("123", "VICTIM_WITNESS", "543231"))! };
       };
 
       it("marks its own subject as the one in focus", async () => {
@@ -890,7 +927,7 @@ describe("createCaseLockingPresence", () => {
       service.setCaseId("123");
       service.addRegion("witness");
       await flush();
-      const hub = hubFor("123:WITNESS")!;
+      const hub = hubFor(sid("123", "WITNESS"))!;
       hub.invoke.mockClear();
 
       jest.advanceTimersByTime(5000);
@@ -907,7 +944,7 @@ describe("createCaseLockingPresence", () => {
       service.setCaseId("123");
       service.addRegion("witness");
       await flush();
-      const hub = hubFor("123:WITNESS")!;
+      const hub = hubFor(sid("123", "WITNESS"))!;
       hub.invoke.mockClear();
       hub.invoke.mockImplementation((method: string) =>
         method === "KeepAlive" ? Promise.reject(new Error("SESSION_EVICTED: gone")) : Promise.resolve(),
@@ -915,7 +952,7 @@ describe("createCaseLockingPresence", () => {
 
       jest.advanceTimersByTime(5000);
       await flush();
-      expect(hub.invoke).toHaveBeenCalledWith("Connect", "123:WITNESS", "test-app");
+      expect(hub.invoke).toHaveBeenCalledWith("Connect", sid("123", "WITNESS"), "test-app");
     });
 
     it("stops beating once the connection is torn down", async () => {
@@ -925,7 +962,7 @@ describe("createCaseLockingPresence", () => {
       await flush();
       service.removeRegion("witness");
       await flush();
-      const hub = hubFor("123:WITNESS")!;
+      const hub = hubFor(sid("123", "WITNESS"))!;
       hub.invoke.mockClear();
 
       jest.advanceTimersByTime(20000);
@@ -939,7 +976,7 @@ describe("createCaseLockingPresence", () => {
       service.addRegion("witness");
       await flush();
       // Captured before teardown: hubFor identifies a hub by its Connect call.
-      const hub = hubFor("123:WITNESS")!;
+      const hub = hubFor(sid("123", "WITNESS"))!;
       service.removeRegion("witness");
       await flush();
 
