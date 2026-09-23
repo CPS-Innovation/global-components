@@ -1,123 +1,573 @@
 import { HubConnection, HubConnectionBuilder, HttpTransportType } from "@microsoft/signalr";
+import { CCPEnvironment } from "cps-global-presence";
 import { Register } from "../../store/store";
-import { CaseLockingPresentUser } from "./CaseLockingPresentUsers";
+import { CaseLockingPresentSection, CaseLockingPresentUser } from "./CaseLockingPresentUsers";
 import { makeConsole } from "../../logging/makeConsole";
 
 type HubFactory = (url: string) => HubConnection;
+
+// Supplies the presence API access token, or null when we have not got one.
+// Deliberately narrow: presence should not know how tokens are acquired, only
+// that it may or may not get one.
+export type GetAccessToken = () => Promise<string | null>;
 
 type Props = {
   apiUrl: string;
   username: string;
   appName: string;
   register: Register;
+  getAccessToken: GetAccessToken;
+  // Count ourselves among the present users. Off by default: in production,
+  // telling someone they are viewing the case they are looking at is noise. On
+  // (via the caseLockingCountSelf preview flag) a lone developer can see the
+  // banner without a second person, which is the only way to tell a working
+  // mechanism from a broken one single-handed.
+  countSelf?: boolean;
+  /**
+   * Someone arrived in or left CMS CLASSIC. Not a general "presence updated" hook
+   * in two respects: it fires only when the set of people IN CLASSIC changes, and
+   * never on a re-publish of the same roster.
+   *
+   * Classic is singled out because an arrival or departure there is the CMS lock
+   * being taken or released — the lock is held for exactly as long as the Classic
+   * case screen is open. Presence elsewhere changes who is reading the case and
+   * changes nothing about whether it can be written to. The service itself knows
+   * nothing about locks or case details; the caller decides what to do.
+   */
+  onClassicPresenceChanged?: () => void;
   hubFactory?: HubFactory;
 };
 
-type ConnectionEntry = {
-  caseId: string;
-  connection: HubConnection;
-};
+/* ---- the wire contract ------------------------------------------------------
+ *
+ * What the presence API actually sends, and what both legacy CMS clients already
+ * consume. This service spoke an older shape until 2026-09-01 — a flat user list
+ * on a "Notify" event — which the API had long since stopped sending, so the
+ * handler never fired at all.
+ *
+ * A notification carries SNAPSHOTS, one per section, each with a VERSION. They
+ * are not guaranteed to arrive in order, which is why the version matters: a late
+ * snapshot must be discarded rather than applied, or it resurrects people who
+ * have left. An empty members array is a valid update meaning "everyone left".
+ */
+const NOTIFICATION_EVENT = "ReceiveNotification";
+const NOTIFICATION_TYPE_PRESENCE = 0;
+
+type PresenceMember = { userEmail?: string; sourceApplication?: string; joinedAt?: string };
+type PresenceSection = { caseId?: string | number | null; kind?: string | null; subjectId?: string | number | null };
+type PresenceSnapshot = { section?: PresenceSection; version?: number; members?: PresenceMember[] };
+type PresenceNotification = { type?: number; payload?: { snapshots?: PresenceSnapshot[] } };
+
+// The server evicts a session it has not heard from for 10 seconds, so we beat at
+// 5: one missed tick is survivable, two are not. The legacy clients use the same
+// window (Classic polls at 3s, the SignalR reference beat at 5s). Without this the
+// connection stays open while the SESSION quietly dies, and presence vanishes ten
+// seconds after it appears — which reads exactly like "the API does not notify".
+const KEEPALIVE_MS = 5000;
+
+// The hub's error text when our session has been reaped. Not a failure to retry
+// blindly: the session is gone, so the cure is to Connect again.
+const SESSION_EVICTED = "SESSION_EVICTED";
 
 const { _debug, _warn, _error } = makeConsole("caseLockingPresence");
 
-const defaultHubFactory: HubFactory = url =>
-  new HubConnectionBuilder()
-    .withUrl(url, {
-      transport: HttpTransportType.WebSockets | HttpTransportType.ServerSentEvents | HttpTransportType.LongPolling,
-      accessTokenFactory: () =>
-        "eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiIsImtpZCI6IlQxU3QtZUxHSGcxZ0o0d1RmZDl3Q3F6WnEtQjRvOFUiLCJ4NXQiOiJUMVN0LWVMR0hnMWdKNHdUZmQ5d0NxelpxLUI0bzhVIn0.eyJhdWQiOiJhcGk6Ly8xMTExMjIyMi0zMzMzLTQ0NDQtNTU1NS02NjY2Nzc3Nzg4ODgiLCJpc3MiOiJodHRwczovL2xvZ2luLm1pY3Jvc29mdG9ubGluZS5jb20vOTk5OTg4ODgtNzc3Ny02NjY2LTU1NTUtNDQ0NDMzMzMyMjIyL3YyLjAiLCJpYXQiOjE3MzU3MzI4MDAsIm5iZiI6MTczNTczMjgwMCwiZXhwIjoxNzM1NzM2NDAwLCJhaW8iOiJBV1FBbS84WEFBQUF0VjBtMFA3VnYxYnFVM3E0WWgxSncybjZtUThiMGs1cjN4Tj09IiwiYXpwIjoiOGQ2MTMzYWYtOTU5My00N2M2LTk0ZDAtNWM2NWU5ZTMxMGYxIiwiYXpwYWNyIjoiMSIsIm5hbWUiOiJUZXN0IFVzZXIiLCJvaWQiOiI3YzlmNGUyYS0xYjZkLTRjM2UtOWYwYS0yZDViOGUxYTRjN2YiLCJwcmVmZXJyZWRfdXNlcm5hbWUiOiJ0ZXN0LXVzZXJAY3BzLmdvdi51ayIsImVtYWlsIjoic3RlZkBjcHMuZ292LnVrIiwicmgiOiIwLkFBQUEuZ1kuIiwic2NwIjoiYXBpLnByZXNlbmNlLnVzZXIucmVhZHdyaXRlIiwic3ViIjoiQUFkajhrUTJyN3g5bU4zcEw1dFoxdkI2d1gwY1k0dUg4c0syZUY3Z1Q5YSIsInRpZCI6Ijk5OTk4ODg4LTc3NzctNjY2Ni01NTU1LTQ0NDQzMzMzMjIyMiIsInV0aSI6ImFCM2NENGVGNWdINmlKN2tMOG1OQUEiLCJ2ZXIiOiIyLjAifQ.dev-signature-not-validated-by-BearerTest-scheme",
-    })
-    .withAutomaticReconnect()
-    .build();
+// NEVER put a token literal here. Until 2026-09-01 this file carried a hardcoded
+// JWT that shipped in the built bundle: a dev token for the API's BearerTest
+// scheme, expired since 2025-01-01, carrying a real email address. The legacy
+// client build fails on exactly that string; the Stencil build now does too (see
+// scripts/check-no-credentials.js).
+//
+// The token comes from MSAL, for the presence API's own scope — NOT the gateway
+// scopes, which ask for Microsoft Graph and would yield a token with the wrong
+// audience. The presence API and this SPA are the same app registration, so the
+// token we send is the same shape the legacy clients already send and the API
+// already accepts.
+//
+// A null token means we send NO Authorization header, and the proxy leaves the
+// request unauthenticated (see presenceBearer). That is the right failure: we are
+// a guest component and must never trigger an interactive consent prompt, and a
+// wrong-audience token would be worse than none — accepted today by BearerTest,
+// rejected the day real validation lands.
+export const makeHubFactory =
+  (getAccessToken: GetAccessToken): HubFactory =>
+  url =>
+    new HubConnectionBuilder()
+      .withUrl(url, {
+        transport: /*HttpTransportType.WebSockets | */ HttpTransportType.ServerSentEvents | HttpTransportType.LongPolling,
+        accessTokenFactory: async () => (await getAccessToken()) ?? "",
+      })
+      .withAutomaticReconnect()
+      .build();
 
 export type CaseLockingPresenceService = {
   setCaseId: (caseId: string | undefined) => void;
-  addCode: (code: string) => void;
-  removeCode: (code: string) => void;
+  addRegion: (code: string, subjectId?: string) => void;
+  removeRegion: (code: string, subjectId?: string) => void;
 };
 
-export const createCaseLockingPresence = ({ apiUrl, username, appName, register, hubFactory = defaultHubFactory }: Props): CaseLockingPresenceService => {
+/**
+ * One section we want to be present in: a kind, and a subject for the kinds that
+ * have one. `code` is the region's lower-case convention; buildSectionId
+ * upper-cases it into the wire form.
+ */
+type SectionSpec = { code: string; subjectId?: string };
+
+// Keyed by identity, not by code, so a case-wide section and a subject-scoped one
+// of the same kind are different sections — and two regions naming the same
+// subject are one.
+const specKey = (spec: SectionSpec): string => (spec.subjectId ? `${spec.code}:${spec.subjectId}` : spec.code);
+
+type ConnectionEntry = {
+  caseId: string;
+  sectionId: string;
+  connection: HubConnection;
+  /**
+   * Highest snapshot version applied, PER SECTION ID. -Infinity (absent) so the
+   * first snapshot for a section always wins, whatever the server starts counting
+   * from.
+   *
+   * Per section rather than per connection because a :CASE session receives
+   * notifications for the whole case — its sub-sections included — and the server
+   * versions each section separately. A single counter would let CASE_REVIEW at
+   * version 7 suppress a later CASE at version 5 as stale, silently discarding a
+   * live snapshot.
+   */
+  versions: Record<string, number>;
+  /**
+   * The members last seen in each section this connection covers, so the published
+   * roster can be the union. A :CASE connection accumulates several; a sub-section
+   * connection only ever holds its own.
+   */
+  membersBySection: Record<string, CaseLockingPresentUser[]>;
+  keepAlive: ReturnType<typeof setInterval> | undefined;
+  keepAliveInFlight: boolean;
+};
+
+/**
+ * A section id as the presence API expects it, and as CCPSections.sectionId builds
+ * it for the legacy clients: case-wide kinds carry NO subject and NO trailing
+ * colon ("544545:CASE"), while subject-scoped kinds append theirs
+ * ("544545:VICTIM_WITNESS:98765"). The two must agree, or one section is tracked
+ * under two names and the rosters never meet.
+ *
+ * Region codes are lower-case by local convention; the hub expects the kind
+ * upper-cased.
+ */
+export const buildSectionId = (caseId: string, kind: string, subjectId?: string | null): string =>
+  subjectId ? `${caseId}:${kind.toUpperCase()}:${subjectId}` : `${caseId}:${kind.toUpperCase()}`;
+
+// The same identity, derived from a snapshot's section object rather than parts.
+
+const sectionIdOf = (section: PresenceSection | undefined): string => {
+  if (!section || section.caseId === undefined || section.caseId === null || !section.kind) {
+    return "";
+  }
+  const subjectId = section.subjectId === undefined || section.subjectId === null ? "" : String(section.subjectId);
+  return buildSectionId(String(section.caseId), String(section.kind), subjectId || null);
+};
+
+const isSessionEvicted = (error: unknown): boolean => String((error as Error)?.message ?? error ?? "").includes(SESSION_EVICTED);
+
+/**
+ * The application whose presence IS the case lock.
+ *
+ * One name, from the API's own vocabulary, matched case-insensitively because the
+ * server's casing is not ours to rely on. Deliberately not a list: if another
+ * application starts taking locks, that is a decision someone should make here
+ * rather than a behaviour that arrives with a new value in a payload.
+ *
+ * Not shared with the legacy clients. They render a roster and know nothing about
+ * locks, and an unused table in an IE-mode bundle is weight for nothing.
+ */
+const LOCKING_APPLICATION = "cms classic";
+
+const isLockingApplication = ({ appName }: CaseLockingPresentUser) => (appName ?? "").toLowerCase() === LOCKING_APPLICATION;
+
+export const createCaseLockingPresence = ({
+  apiUrl,
+  username,
+  appName,
+  register,
+  getAccessToken,
+  countSelf = false,
+  onClassicPresenceChanged,
+  hubFactory = makeHubFactory(getAccessToken),
+}: Props): CaseLockingPresenceService => {
   _debug("creating presence service", { apiUrl, username, appName });
 
   let currentCaseId: string | undefined;
-  const desiredCodes = new Set<string>();
+  // Regions currently on screen, keyed by section identity. Presence follows the
+  // regions: a caseId on its own registers nothing, which is what the region
+  // shims in this app are for.
+  const desiredRegions = new Map<string, SectionSpec>();
   const connections = new Map<string, ConnectionEntry>();
-  let publishedCode: string | undefined;
+  // What we last knew about each live section, keyed by section identity. The
+  // store gets the union of these, so two sections coexist instead of
+  // overwriting one another.
+  const rosters = new Map<string, CaseLockingPresentSection>();
+
+  // Whether anyone was already in OUR OWN section when we first retrieved it,
+  // latched per section key. See CaseLockingPresentSection.occupiedOnEntry.
+  //
+  // Our own section, not the roster, and the distinction is the whole interruption
+  // rule. The roster now spans every conflicting section of the case, so counting
+  // it would raise the interruption for a colleague merely reading the case — the
+  // false alarm the section rules exist to prevent.
+  //
+  // LATCHED, NOT RECOMPUTED, and that is the whole point. A hub reconnect
+  // re-registers the section and hands us a fresh first snapshot in which the
+  // person who has been sitting there all along looks like an incumbent we have
+  // just walked in on. Recomputing would fire an interruption on every transient
+  // disconnect, on a five-second keepalive. The latch is cleared only when we
+  // genuinely leave the section (forgetRoster).
+  const occupiedOnEntry = new Map<string, boolean>();
+
+  // Every section we should be holding right now.
+  const desiredSections = (): Map<string, SectionSpec> => {
+    const desired = new Map<string, SectionSpec>();
+    if (!currentCaseId) {
+      return desired;
+    }
+    for (const [key, spec] of desiredRegions) {
+      desired.set(key, spec);
+    }
+    return desired;
+  };
 
   let reconcilePromise: Promise<void> = Promise.resolve();
 
-  // Wire format agreed with the presence API: "<caseId>:<SECTION_KIND>", e.g. "12345:CASE".
-  // Region codes are lower-case by local convention; the hub expects the kind upper-cased.
-  const buildSectionKey = (caseId: string, code: string) => `${caseId}:${code.toUpperCase()}`;
-
-  // The hub reports everyone in the section, ourselves included. Drop our own entry
-  // so the banner only appears when someone *else* is on the case — otherwise a lone
-  // user is told they are viewing the case they are looking at. Compared
-  // case-insensitively because the server derives the name from token claims, whose
-  // casing we don't control.
+  // The hub reports everyone in the section, ourselves included.
+  //
+  // Compared case-insensitively because the server derives the name from token
+  // claims, whose casing we don't control.
   const isSelf = ({ user }: CaseLockingPresentUser) => !!user && user.toLowerCase() === username.toLowerCase();
 
-  const publishPresentUsers = (code: string, users: CaseLockingPresentUser[]) => {
-    const others = users.filter(user => !isSelf(user));
-    publishedCode = code;
-    _debug("publishing present users", { code, users, others });
-    register({ caseLockingPresentUsers: { code, users: others } });
+  // The API's member shape flattened to what the store already publishes. Mapped
+  // rather than replaced on purpose: the UI is changing shortly, so this keeps the
+  // existing contract instead of inventing a second one that is about to be thrown
+  // away.
+  const toPresentUser = (member: PresenceMember, sectionKind: string, isCurrent: boolean): CaseLockingPresentUser => ({
+    user: member.userEmail ?? "",
+    appName: member.sourceApplication ?? "",
+    joinedAt: member.joinedAt,
+    sections: sectionKind ? [{ kind: sectionKind, isCurrent }] : [],
+  });
+
+  /**
+   * Every member this connection currently knows about, across every section of its
+   * case, deduplicated.
+   *
+   * The same person is genuinely in several sections at once — on the case AND
+   * editing a witness within it — and the server reports them in each. Those are
+   * one presence, so the earliest arrival wins and the rest are dropped.
+   *
+   * BUT ONE PERSON IN TWO SYSTEMS IS TWO PRESENCES, and both are worth reporting:
+   * someone in RCMS and CMS Classic is in both, and saying only the older would be
+   * a smaller truth than we have. So this collapses per person PER APPLICATION and
+   * leaves the person-level collapse to CCPPeople.collapse downstream, whose shape
+   * carries several applications for one person and this one cannot.
+   *
+   * Matching is case-insensitive on the email: the server derives it from token
+   * claims and its casing is not ours to rely on.
+   */
+  const mergeMembers = (entry: ConnectionEntry): CaseLockingPresentUser[] => {
+    const byUserAndApp = new Map<string, CaseLockingPresentUser>();
+    Object.keys(entry.membersBySection).forEach(sectionId =>
+      entry.membersBySection[sectionId].forEach(user => {
+        const id = (user.user ?? "").toLowerCase();
+        if (!id) {
+          return;
+        }
+        // Keyed on the PERSON AND THE APPLICATION. Keying on the person alone would
+        // report someone signed into two systems as being in only one of them —
+        // whichever they reached first — and silently drop the other session. A
+        // null byte separates the parts because neither can contain one, so
+        // "a@b" + "X" cannot collide with "a@b:X" + "".
+        const key = `${id}\u0000${(user.appName ?? "").toLowerCase()}`;
+        const seen = byUserAndApp.get(key);
+        if (!seen) {
+          byUserAndApp.set(key, { ...user, sections: [...(user.sections ?? [])] });
+          return;
+        }
+        // Same person, same application, reported by two sections: one arrival, and
+        // BOTH sections. The kinds accumulate even when the record itself is
+        // discarded as the later of the two — otherwise being in a section and the
+        // case around it would report only whichever arrived first.
+        //
+        // isCurrent is unioned, never overwritten: two witnesses are one kind and
+        // one phrase, and if either of them is the witness in focus that is the
+        // fact the reader needs. Being additionally reported by the case-wide
+        // roster must not talk us back down to the indefinite article.
+        (user.sections ?? []).forEach(({ kind, isCurrent }) => {
+          const already = seen.sections?.find(section => section.kind === kind);
+          if (!already) {
+            seen.sections = [...(seen.sections ?? []), { kind, isCurrent }];
+          } else if (isCurrent) {
+            already.isCurrent = true;
+          }
+        });
+        if (user.joinedAt && (!seen.joinedAt || user.joinedAt < seen.joinedAt)) {
+          byUserAndApp.set(key, { ...user, sections: seen.sections });
+        }
+      }),
+    );
+    return Array.from(byUserAndApp.values());
   };
 
-  const clearPublishedPresence = () => {
-    if (!publishedCode) {
-      return;
+  /**
+   * WHO IS IN CMS CLASSIC, as one comparable string, OURSELVES INCLUDED.
+   *
+   * CLASSIC AND ONLY CLASSIC, because Classic presence IS the lock: it is taken by
+   * opening the Classic case screen and released by leaving it. Someone arriving in
+   * or leaving RCMS changes who is reading the case and changes nothing about
+   * whether it can be written to, so it must not send us back to the API.
+   *
+   * OURSELVES INCLUDED, and held separately from the published rosters for that
+   * reason. What we publish has the reader filtered out of it; this must not be,
+   * because the reader's own Classic session takes and releases the lock exactly as
+   * anyone else's does. Built from the published list instead, someone who locked a
+   * case themselves — the commonest way to meet this feature — would watch the lock
+   * appear and then never clear, because their own departure changed nothing they
+   * could observe.
+   *
+   * Sorted explicitly rather than on Array#sort's default: the default coerces to
+   * string and compares UTF-16 code units, which happens to be right here and would
+   * stop being right the moment this held anything but lower-cased addresses.
+   */
+  const classicPresence = new Map<string, string[]>();
+
+  const classicSignature = () =>
+    Array.from(new Set(Array.from(classicPresence.values()).flat()))
+      .sort((a, b) => a.localeCompare(b))
+      .join(",");
+
+  let lastPresenceSignature: string | undefined;
+
+  // Empty sections are dropped: a section everyone has left is not news, and the
+  // design omits them from the detail panel.
+  const publish = () => {
+    const sections = Array.from(rosters.values()).filter(section => section.users.length > 0);
+    _debug("publishing present users", { sections });
+    register({ caseLockingPresentUsers: sections.length ? { sections } : undefined });
+
+    // SOMEONE ARRIVED IN OR LEFT CLASSIC, which IS the lock changing hands — not a
+    // heuristic that correlates with it, the same event reaching us by the other
+    // route. Fired on the first publish too: arriving to find someone already in
+    // Classic is the moment we most want a fresh lock reading.
+    const signature = classicSignature();
+    if (signature !== lastPresenceSignature) {
+      const first = lastPresenceSignature === undefined;
+      lastPresenceSignature = signature;
+      if (!first || signature) {
+        _debug("presence changed", { signature });
+        onClassicPresenceChanged?.();
+      }
     }
-    _debug("clearing published presence", { code: publishedCode });
-    publishedCode = undefined;
-    register({ caseLockingPresentUsers: undefined });
   };
 
-  const clearPublishedPresenceIfStale = () => {
-    if (!publishedCode) {
-      return;
+  const publishPresentUsers = (key: string, code: string, entry: ConnectionEntry) => {
+    const users = mergeMembers(entry);
+    const others = countSelf ? users : users.filter(user => !isSelf(user));
+    // isCurrent already means "in the section this connection registered", which is
+    // exactly who can clash with us. Everyone else in the roster is elsewhere in
+    // the case and belongs in the banner, not in an interruption.
+    //
+    // OURSELVES EXCLUDED WHATEVER countSelf SAYS. You cannot clash with yourself,
+    // and countSelf is about being able to SEE the roster working single-handed —
+    // not about manufacturing a collision. Without this, turning the flag on to
+    // demonstrate presence would raise the interruption on arrival at every case
+    // review you opened alone.
+    const here = others.filter(user => !isSelf(user) && (user.sections ?? []).some(section => section.isCurrent));
+    // Recorded BEFORE the self filter, and Classic only — see classicPresence.
+    classicPresence.set(
+      key,
+      users.filter(isLockingApplication).map(user => (user.user ?? "").toLowerCase()),
+    );
+    // WAIT FOR OUR OWN SECTION before deciding. A payload can carry the conflicting
+    // sections and be applied before our section's own snapshot has been seen;
+    // latching then would record "empty" for a section we had not yet heard about
+    // and lose the interruption for the rest of the visit.
+    if (!occupiedOnEntry.has(key) && entry.versions[entry.sectionId] !== undefined) {
+      occupiedOnEntry.set(key, here.length > 0);
     }
-    if (currentCaseId && desiredCodes.has(publishedCode) && connections.has(publishedCode)) {
-      return;
-    }
-    clearPublishedPresence();
+    rosters.set(key, { code, users: others, occupiedOnEntry: occupiedOnEntry.get(key) ?? false });
+    publish();
   };
 
-  const startConnection = async (caseId: string, code: string) => {
-    if (connections.has(code)) {
+  const forgetRoster = (key: string) => {
+    occupiedOnEntry.delete(key);
+    classicPresence.delete(key);
+    if (rosters.delete(key)) {
+      publish();
+    }
+  };
+
+  /**
+   * Apply one notification to one connection.
+   *
+   * THE CASE-WIDE SESSION TAKES ANY SECTION OF ITS CASE. A session bound to
+   * "12345:CASE" receives notifications for the whole case, sub-sections included —
+   * so someone only in "12345:CASE_REVIEW" or "12345:VICTIM_WITNESS:543231" is on
+   * this case, and reporting them absent because their section id is not an exact
+   * match would be plainly wrong.
+   *
+   * EVERY OTHER SESSION KEEPS THE EXACT MATCH, and that is not merely caution. A
+   * roster is published under its region's code, so members accepted by a witness
+   * connection are reported as being in the witness section. Letting case-wide
+   * members in there would mislabel them. The server does not send them either —
+   * a sub-section binding receives only its own section — so this is the same
+   * behaviour stated twice, which is what we want from a client boundary.
+   */
+  const applyNotification = (key: string, spec: SectionSpec, entry: ConnectionEntry, notification: PresenceNotification) => {
+    if (!notification || notification.type !== NOTIFICATION_TYPE_PRESENCE) {
       return;
     }
-    const sectionKey = buildSectionKey(caseId, code);
-    _debug("starting connection", { sectionKey, code, caseId });
+    const snapshots = notification.payload?.snapshots;
+    if (!snapshots || !snapshots.length) {
+      return;
+    }
+    let changed = false;
+    for (const snapshot of snapshots) {
+      const sectionId = sectionIdOf(snapshot?.section);
+      if (!sectionId) {
+        continue;
+      }
+      // EVERY SECTION OF OUR OWN CASE, whatever section this connection is bound to.
+      //
+      // The hub works in CONFLICT SETS, not bindings: a CASE_REVIEW session is in
+      // conflict with CASE, CASE_REVIEW, VICTIM_WITNESS and DEFENDANT, and is sent
+      // the lot whenever anyone joins or leaves any of them. This used to keep only
+      // our own section unless we were the case-wide session, on the earlier
+      // understanding that a sub-section binding heard nothing else — so someone
+      // editing a witness was told nothing about a colleague on the case, while the
+      // colleague could see them. The news was arriving and being discarded here.
+      //
+      // The case id is still checked, because it is the one thing that would be a
+      // genuine mistake to accept: another case's roster is not ours to show.
+      if (String(snapshot?.section?.caseId ?? "") !== entry.caseId) {
+        continue;
+      }
+      const version = typeof snapshot.version === "number" ? snapshot.version : NaN;
+      const applied = entry.versions[sectionId] ?? Number.NEGATIVE_INFINITY;
+      // A version we have already passed is stale and must not be applied. NaN
+      // compares false against everything, so an unversioned snapshot is always
+      // accepted — the best available behaviour when the server gives us nothing
+      // to order by.
+      if (version <= applied) {
+        _debug("discarding stale snapshot", { key, sectionId, version, applied });
+        continue;
+      }
+      entry.versions[sectionId] = version;
+      // ...and comes off here, before the kind reaches anything that reasons about
+      // it. CCPSectionNames and CCPSectionRules know the kinds the API documents
+      // and must never need an entry per CMS instance.
+      const kind = CCPEnvironment.baseKind(String(snapshot?.section?.kind ?? ""));
+      // THE SECTION IN FOCUS is the one this connection registered — the region the
+      // host page put us in. Under a case-wide session every other snapshot is
+      // somewhere else in the same case, which is exactly the case the indefinite
+      // article exists for.
+      const isCurrent = sectionId === entry.sectionId;
+      entry.membersBySection[sectionId] = (snapshot.members ?? []).map(member => toPresentUser(member, kind, isCurrent));
+      changed = true;
+    }
+    if (changed) {
+      publishPresentUsers(key, spec.code, entry);
+    }
+  };
+
+  const stopKeepAlive = (entry: ConnectionEntry) => {
+    if (entry.keepAlive !== undefined) {
+      clearInterval(entry.keepAlive);
+      entry.keepAlive = undefined;
+    }
+  };
+
+  const startKeepAlive = (key: string, entry: ConnectionEntry) => {
+    stopKeepAlive(entry);
+    entry.keepAlive = setInterval(async () => {
+      // A slow beat must not stack up behind itself, and a superseded entry must
+      // not keep beating on a connection nobody is listening to.
+      if (entry.keepAliveInFlight || connections.get(key) !== entry) {
+        return;
+      }
+      entry.keepAliveInFlight = true;
+      try {
+        await entry.connection.invoke("KeepAlive");
+      } catch (err) {
+        if (!isSessionEvicted(err)) {
+          _warn("KeepAlive failed", { sectionId: entry.sectionId }, err);
+        } else {
+          // Our session was reaped. Everything we hold is now fiction, so the
+          // sections' versions go back and the rejoined session's first snapshot is taken.
+          _debug("session evicted — rejoining", { sectionId: entry.sectionId });
+          entry.versions = {};
+          try {
+            await entry.connection.invoke("Connect", entry.sectionId, appName);
+          } catch (rejoinErr) {
+            _warn("rejoin failed — will retry next beat", { sectionId: entry.sectionId }, rejoinErr);
+          }
+        }
+      } finally {
+        entry.keepAliveInFlight = false;
+      }
+    }, KEEPALIVE_MS);
+  };
+
+  const startConnection = async (caseId: string, key: string, spec: SectionSpec) => {
+    if (connections.has(key)) {
+      return;
+    }
+    // THE CIN SUFFIX GOES ON HERE, and only here, because this is the one place we
+    // name a section of our own rather than echo one the API sent. Registering
+    // "123:CASE" against a CMS instance speaking "123:CASE_CIN3" isolates us
+    // silently -- see CCPEnvironment.
+    const sectionId = buildSectionId(caseId, CCPEnvironment.suffixKind(spec.code), spec.subjectId);
+    _debug("starting connection", { sectionId, key, caseId });
     const connection = hubFactory(apiUrl);
-    connections.set(code, { caseId, connection });
+    const entry: ConnectionEntry = {
+      caseId,
+      sectionId,
+      connection,
+      versions: {},
+      membersBySection: {},
+      keepAlive: undefined,
+      keepAliveInFlight: false,
+    };
+    connections.set(key, entry);
 
-    connection.on("Notify", (users: CaseLockingPresentUser[]) => {
-      _debug("Notify received", { code, sectionKey, users });
-      publishPresentUsers(code, users ?? []);
+    connection.on(NOTIFICATION_EVENT, (notification: PresenceNotification) => {
+      _debug("notification received", { key, sectionId, notification });
+      applyNotification(key, spec, entry, notification);
     });
 
     connection.onreconnected(() => {
-      _debug("reconnected — re-invoking Connect", { sectionKey });
-      connection.invoke("Connect", sectionKey, appName).catch(err => _warn("reconnect invoke failed", { sectionKey }, err));
+      // A new transport means a new session; the roster we hold describes a world
+      // that no longer exists, so the version goes back with it.
+      _debug("reconnected — re-invoking Connect", { sectionId });
+      // Members are KEPT until the fresh snapshots replace them: dropping them
+      // here would blank the banner for the length of a reconnect.
+      entry.versions = {};
+      connection.invoke("Connect", sectionId, appName).catch(err => _warn("reconnect invoke failed", { sectionId }, err));
     });
 
     connection.onclose(err => {
       if (err) {
-        _warn("connection closed with error", { sectionKey }, err);
+        _warn("connection closed with error", { sectionId }, err);
       } else {
-        _debug("connection closed", { sectionKey });
+        _debug("connection closed", { sectionId });
       }
     });
 
     try {
       await connection.start();
-      _debug("connection started — invoking Connect", { sectionKey });
-      await connection.invoke("Connect", sectionKey, appName);
-      _debug("Connect acknowledged", { sectionKey });
+      _debug("connection started — invoking Connect", { sectionId });
+      await connection.invoke("Connect", sectionId, appName);
+      _debug("Connect acknowledged", { sectionId, keepAliveMs: KEEPALIVE_MS });
+      startKeepAlive(key, entry);
     } catch (err) {
-      _error("start/invoke failed", { sectionKey }, err);
-      connections.delete(code);
+      _error("start/invoke failed", { sectionId }, err);
+      stopKeepAlive(entry);
+      connections.delete(key);
       try {
         await connection.stop();
       } catch {
@@ -126,43 +576,57 @@ export const createCaseLockingPresence = ({ apiUrl, username, appName, register,
     }
   };
 
-  const stopConnection = async (code: string) => {
-    const entry = connections.get(code);
+  const stopConnection = async (key: string) => {
+    const entry = connections.get(key);
     if (!entry) {
       return;
     }
-    _debug("stopping connection", { code, caseId: entry.caseId });
-    connections.delete(code);
-    if (publishedCode === code) {
-      clearPublishedPresence();
+    _debug("stopping connection", { key, sectionId: entry.sectionId });
+    connections.delete(key);
+    stopKeepAlive(entry);
+    forgetRoster(key);
+    // Leave first so the server drops us at once rather than waiting out the
+    // eviction window, then close the socket. Both are best-effort — a killed tab
+    // does neither, which is exactly why the server has a timeout at all.
+    try {
+      await entry.connection.invoke("Leave");
+    } catch (err) {
+      _debug("Leave failed (already closed or evicted)", { key }, err);
     }
     try {
       await entry.connection.stop();
     } catch (err) {
-      _warn("stop failed", { code }, err);
+      _warn("stop failed", { key }, err);
     }
   };
 
   const reconcile = async () => {
     const caseId = currentCaseId;
-    const desired = caseId ? new Set(desiredCodes) : new Set<string>();
-    _debug("reconciling", { caseId, desired: Array.from(desired), live: Array.from(connections.keys()) });
+    const desired = desiredSections();
+    _debug("reconciling", { caseId, desired: Array.from(desired.keys()), live: Array.from(connections.keys()) });
 
-    for (const [code, entry] of Array.from(connections.entries())) {
-      if (!desired.has(code) || entry.caseId !== caseId) {
-        await stopConnection(code);
+    for (const [key, entry] of Array.from(connections.entries())) {
+      if (!desired.has(key) || entry.caseId !== caseId) {
+        await stopConnection(key);
       }
     }
 
     if (caseId) {
-      for (const code of desired) {
-        if (!connections.has(code)) {
-          await startConnection(caseId, code);
+      for (const [key, spec] of desired) {
+        if (!connections.has(key)) {
+          await startConnection(caseId, key, spec);
         }
       }
     }
 
-    clearPublishedPresenceIfStale();
+    // Anything we still hold a roster for but no longer have a session for is
+    // stale — drop it rather than leaving a section on screen that we stopped
+    // listening to.
+    Array.from(rosters.keys()).forEach(key => {
+      if (!connections.has(key)) {
+        forgetRoster(key);
+      }
+    });
   };
 
   const queueReconcile = () => {
@@ -179,20 +643,23 @@ export const createCaseLockingPresence = ({ apiUrl, username, appName, register,
       currentCaseId = caseId;
       queueReconcile();
     },
-    addCode: (code: string) => {
-      if (desiredCodes.has(code)) {
+    addRegion: (code: string, subjectId?: string) => {
+      const spec: SectionSpec = { code, subjectId };
+      const key = specKey(spec);
+      if (desiredRegions.has(key)) {
         return;
       }
-      _debug("addCode", { code });
-      desiredCodes.add(code);
+      _debug("addRegion", { key, code, subjectId });
+      desiredRegions.set(key, spec);
       queueReconcile();
     },
-    removeCode: (code: string) => {
-      if (!desiredCodes.has(code)) {
+    removeRegion: (code: string, subjectId?: string) => {
+      const key = specKey({ code, subjectId });
+      if (!desiredRegions.has(key)) {
         return;
       }
-      _debug("removeCode", { code });
-      desiredCodes.delete(code);
+      _debug("removeRegion", { key, code, subjectId });
+      desiredRegions.delete(key);
       queueReconcile();
     },
   };

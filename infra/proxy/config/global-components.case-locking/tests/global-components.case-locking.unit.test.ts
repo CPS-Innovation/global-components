@@ -23,6 +23,7 @@ interface MockRequest {
   headersIn: Record<string, string | undefined>
   headersOut: Record<string, string | undefined>
   variables: Record<string, string>
+  args: Record<string, string>
   sentBuffer: string | null
   sentFlags: Record<string, unknown> | null
   sendBuffer(buffer: string, flags: Record<string, unknown>): void
@@ -31,6 +32,8 @@ interface MockRequest {
 interface CaseLockingModule {
   dropContentLengthForNegotiate(r: MockRequest): void
   filterNegotiateBody(r: MockRequest, data: string, flags: Record<string, unknown>): void
+  presenceBearer(r: MockRequest): string
+  watchdogAppName(r: MockRequest): string
 }
 
 async function build(): Promise<void> {
@@ -78,6 +81,7 @@ async function runTests(): Promise<void> {
       headersIn?: Record<string, string>
       headersOut?: Record<string, string>
       variables?: Record<string, string>
+      args?: Record<string, string>
     } = {}
   ): MockRequest {
     return {
@@ -85,6 +89,7 @@ async function runTests(): Promise<void> {
       headersIn: { Host: "proxy.example.com", ...(opts.headersIn ?? {}) },
       headersOut: { ...(opts.headersOut ?? {}) },
       variables: { scheme: "https", host: "proxy.example.com", ...(opts.variables ?? {}) },
+      args: { ...(opts.args ?? {}) },
       sentBuffer: null,
       sentFlags: null,
       sendBuffer(buffer: string, flags: Record<string, unknown>) {
@@ -189,6 +194,94 @@ async function runTests(): Promise<void> {
     const body = "not json at all"
     caseLocking.filterNegotiateBody(r, body, { last: true })
     assertEqual(r.sentBuffer, body, "Should emit body unchanged when no URL to rewrite")
+  })
+
+  // ---- presenceBearer ------------------------------------------------------
+
+  await test("presenceBearer lifts the presence cookie into a Bearer header", async () => {
+    const r = createMockRequest("/global-components/case-locking/api/hubs/notifications", {
+      headersIn: { Cookie: "foo=1; cms-auth-presence-token=abc.def.ghi; bar=2" },
+    })
+    assertEqual(caseLocking.presenceBearer(r), "Bearer abc.def.ghi", "Should build the header from the cookie")
+  })
+
+  await test("presenceBearer url-decodes the cookie value", async () => {
+    const r = createMockRequest("/global-components/case-locking/api/hubs/notifications", {
+      headersIn: { Cookie: "cms-auth-presence-token=a%2Bb%2Fc" },
+    })
+    assertEqual(caseLocking.presenceBearer(r), "Bearer a+b/c", "Should decode percent-encoding")
+  })
+
+  await test("presenceBearer returns empty when the cookie is absent", async () => {
+    const r = createMockRequest("/global-components/case-locking/api/hubs/notifications", {
+      headersIn: { Cookie: "other=1" },
+    })
+    assertEqual(caseLocking.presenceBearer(r), "", "No cookie -> no header (nginx omits empty values)")
+  })
+
+  await test("presenceBearer returns empty when there is no Cookie header at all", async () => {
+    const r = createMockRequest("/global-components/case-locking/api/hubs/notifications")
+    assertEqual(caseLocking.presenceBearer(r), "", "Missing Cookie header -> empty")
+  })
+
+  await test("presenceBearer is not fooled by a cookie whose name merely ends with ours", async () => {
+    const r = createMockRequest("/global-components/case-locking/api/hubs/notifications", {
+      headersIn: { Cookie: "not-cms-auth-presence-token=nope" },
+    })
+    assertEqual(caseLocking.presenceBearer(r), "", "Suffix match must not count as the cookie")
+  })
+
+  await test("presenceBearer passes a client-supplied Authorization through untouched", async () => {
+    const r = createMockRequest("/global-components/case-locking/api/hubs/notifications", {
+      headersIn: { Authorization: "Bearer client.sent.token", Cookie: "cms-auth-presence-token=cookie.tok.en" },
+    })
+    assertEqual(
+      caseLocking.presenceBearer(r),
+      "Bearer client.sent.token",
+      "global-components sends its own MSAL token — it must NOT be replaced by the cookie"
+    )
+  })
+
+  await test("presenceBearer passes the client header through when there is no cookie", async () => {
+    const r = createMockRequest("/global-components/case-locking/api/hubs/notifications", {
+      headersIn: { Authorization: "Bearer only.the.header" },
+    })
+    assertEqual(caseLocking.presenceBearer(r), "Bearer only.the.header", "Must not strip a credential we cannot replace")
+  })
+
+  // ---- watchdogAppName -----------------------------------------------------
+
+  await test("watchdogAppName passes a known application through", async () => {
+    const r = createMockRequest("/global-components/case-locking/api/hubs/notifications", {
+      args: { appName: "CMS Modern" },
+    })
+    assertEqual(caseLocking.watchdogAppName(r), "CMS Modern", "Known name should be reported")
+  })
+
+  await test("watchdogAppName decodes percent-encoding", async () => {
+    const r = createMockRequest("/global-components/case-locking/api/hubs/notifications", {
+      args: { appName: "Work%20Management%20App" },
+    })
+    assertEqual(caseLocking.watchdogAppName(r), "Work Management App", "Should decode before matching")
+  })
+
+  await test("watchdogAppName rejects an unknown application", async () => {
+    const r = createMockRequest("/global-components/case-locking/api/hubs/notifications", {
+      args: { appName: "Definitely Not An App" },
+    })
+    assertEqual(caseLocking.watchdogAppName(r), "", "Unknown -> no header, never a passthrough")
+  })
+
+  await test("watchdogAppName rejects a header-injection attempt", async () => {
+    const r = createMockRequest("/global-components/case-locking/api/hubs/notifications", {
+      args: { appName: "CMS%20Modern%0d%0aX-Evil:%20yes" },
+    })
+    assertEqual(caseLocking.watchdogAppName(r), "", "CRLF payload must not reach the header")
+  })
+
+  await test("watchdogAppName returns empty when the arg is absent", async () => {
+    const r = createMockRequest("/global-components/case-locking/api/hubs/notifications")
+    assertEqual(caseLocking.watchdogAppName(r), "", "No arg -> no header")
   })
 
   console.log("\n" + "=".repeat(60))

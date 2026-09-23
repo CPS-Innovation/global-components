@@ -4,6 +4,7 @@ export {
   type Config,
   type ConfigStorage,
   type Context,
+  type CaseLockingRegion,
   type DomTagDefinitions,
   type FeatureFlagUsers,
   type Link,
@@ -59,3 +60,19 @@ export {
   type FeatureFlagUsersKeys,
 } from "./feature-flags/get-feature-flag-assignment";
 export { assignBuckets } from "./feature-flags/assign-buckets";
+export {
+  deriveCspRequirements,
+  deriveHandoverPagePolicy,
+  mergeCspRequirements,
+  groupByDirective,
+  formatCspPolicy,
+  type CspRelevantConfig,
+} from "./csp/derive-csp";
+export {
+  GRAPH_REQUIREMENT,
+  APP_INSIGHTS_CFG_SYNC_REQUIREMENT,
+  type CspDirective,
+  type CspProfile,
+  type CspProfileName,
+  type CspRequirement,
+} from "./csp/csp-requirements";

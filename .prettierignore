@@ -1,6 +1,15 @@
-# cms-auth-v2-client.js is injected into CMS Classic and runs in IE mode /
-# document-mode 5 (old JScript). Prettier's default trailingComma: "all" adds
-# trailing commas in object literals and call argument lists, which that engine
-# rejects outright — "SCRIPT1028: Expected identifier, string or number" — so the
-# whole file fails to parse and silently never runs. Keep it out of Prettier.
-infra/proxy/config/global-components.cms-auth-v2/cms-auth-v2-client.js
+# The legacy CMS clients run in Edge IE mode: CMS Classic at document mode 5 (old
+# JScript), CMS Modern and DCF at mode 11. Prettier's default trailingComma: "all"
+# adds trailing commas to object literals and call argument lists, which both
+# engines reject outright -- "SCRIPT1028: Expected identifier, string or number" --
+# so the whole file fails to parse and silently never runs. Keep every hand-written
+# source for those engines out of Prettier.
+#
+# These paths moved from infra/proxy/config/global-components.cms-auth-v2/ into
+# packages/cps-global-presence/ on 2026-09-07. The old entries were left pointing
+# at the old location, so for a while NOTHING here was protected; build.sh's
+# check-syntax floor is what caught it, when the cms-augmentation placeholders were
+# formatted on save. If this package moves again, move these with it.
+packages/cps-global-presence/common/
+packages/cps-global-presence/legacy-apps/
+packages/cps-global-presence/cms-augmentation-placeholders/

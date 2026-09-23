@@ -7,7 +7,9 @@
   "scripts": {
     "build": "tsc && tsc -p tsconfig-cjs.json",
     "validate": "npm run build && node dist/cjs/scripts/validate.js ../../configuration",
-    "test": "jest"
+    "test": "jest",
+    "generate:csp": "npm run build && node dist/cjs/scripts/generate-csp.js ../../configuration ../../generated/csp",
+    "check:csp": "npm run build && node dist/cjs/scripts/check-csp.js ../../configuration ../../generated/csp-check"
   },
   "keywords": [
     "typescript",

@@ -106,13 +106,13 @@ Superseded per `docs/CLAUDE.md`. To exercise any of it you'd restore a compose o
 
 ### Docs
 
-| File | Purpose |
-|---|---|
-| [docs/spike.md](docs/spike.md) | The canonical 7-step setup + run playbook. Start here for setup. |
-| [docs/CLAUDE.md](docs/CLAUDE.md) | Design notes for cms-auth-v2; flags v1 + cms-ping + spike.cms-auth.md as superseded. |
-| [docs/_auth.md](docs/_auth.md) | Auth-flow specifics — request/response shapes, state cookie format. |
-| [docs/cms-analysis.md](docs/cms-analysis.md) | CMS traffic analysis from the original spike investigation. |
-| [docs/spike.cms-auth.md](docs/spike.cms-auth.md) | **Superseded** original v1 design doc — kept for breadcrumbs. |
+| File                                                                   | Purpose                                                                                                                                                                            |
+| ---------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [docs/spike.md](docs/spike.md)                                         | The canonical 7-step setup + run playbook. Start here for setup.                                                                                                                   |
+| [docs/CLAUDE.md](docs/CLAUDE.md)                                       | Design notes for cms-auth-v2; flags v1 + cms-ping + spike.cms-auth.md as superseded.                                                                                               |
+| [docs/\_auth.md](docs/_auth.md)                                        | Auth-flow specifics — request/response shapes, state cookie format.                                                                                                                |
+| [docs/cms-analysis.md](docs/cms-analysis.md)                           | CMS traffic analysis from the original spike investigation.                                                                                                                        |
+| [docs/spike.cms-auth.md](docs/spike.cms-auth.md)                       | **Superseded** original v1 design doc — kept for breadcrumbs.                                                                                                                      |
 | [docs/vnext-observability-notes.md](docs/vnext-observability-notes.md) | Soft-mode token validation + structured logging ideas rescued from the recovered patch's vnext rejects. Independent of the spike — port to whichever module owns protected routes. |
 
 ## Recovery breadcrumbs

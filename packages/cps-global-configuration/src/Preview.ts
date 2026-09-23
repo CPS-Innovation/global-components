@@ -18,11 +18,41 @@ export const PreviewSchema = z.object({
   ),
   footer: z.boolean().optional(),
   accessibility: z.boolean().optional(),
+
+  // Whether the Settings page shows the "Low contrast background" control and
+  // the Edge dark-mode guidance that sits below it — everything on that page
+  // concerned with softening a too-bright page.
+  //
+  // Deliberately NOT the same flag as `accessibility` above: that one means
+  // "the Settings page exists at all" (it gates the footer link and the
+  // background subscriber together), and the page is wanted — it is only this
+  // part of it that is being held back. Read by SettingsApp; it does not gate
+  // the paint, so a user who already chose a tone keeps it.
+  accessibilityBackground: z.boolean().optional(),
   homePageNotification: z.boolean().optional(),
   tabTitleUrn: z.boolean().optional(),
   notifications: z.boolean().optional(),
   useFullPageMsalRedirect: z.boolean().optional(),
   caseLocking: z.boolean().optional(),
+
+  // Case-locking is deliberately split three ways so the mechanism can run for
+  // real in QA while staying invisible to real users:
+  //   caseLocking            register presence — exercises the hub and the API
+  //   caseLockingNotifications  show what presence found: the pinned banner, and
+  //                          the interruption card in the sections that warrant one
+  //   caseLockingCountSelf   count yourself as another user, so the banner can be
+  //                          seen at all by one developer on a case alone
+  // Registration is the part we want load on; the visible part is what we do not
+  // want a caseworker discovering mid-work.
+  //
+  // THE INTERRUPTION HAD ITS OWN FLAG HERE and no longer needs one. It existed
+  // while both surfaces fired on the same "someone else is on this case"
+  // condition and the only way to see one was to switch off the other. The rule
+  // is now the section itself — the case review and witness or victim records
+  // interrupt, case-wide presence informs — so the way to see the interruption is
+  // to go to a case review, not to flip a switch.
+  caseLockingNotifications: z.boolean().optional(),
+  caseLockingCountSelf: z.boolean().optional(),
   requestObservationShim: z.boolean().optional(),
 
   // OutSystems region override (FCT2-20670). Absent means no override, i.e.

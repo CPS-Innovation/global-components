@@ -95,6 +95,13 @@ const FEATURES: Feature[] = [
     disabled: false,
   },
   {
+    key: "accessibilityBackground",
+    label: "Accessibility — low contrast background setting",
+    description:
+      "Show the low contrast background control, and the Edge dark-mode guidance below it, on the Settings page. Separate from Accessibility above, which decides whether the Settings page is reachable at all; this decides only whether that part of it appears. Anyone who already has a tone saved keeps the control regardless, so they can always turn it off.",
+    disabled: false,
+  },
+  {
     key: "caseSearch",
     label: "Case search",
     description: "Show case search functionality.",
@@ -126,6 +133,20 @@ const FEATURES: Feature[] = [
     label: "Case locking",
     description:
       "Enable the case-locking presence feature: register the user as present on the current case via the SignalR hub and notify when other users are working on the same case section.",
+    disabled: false,
+  },
+  {
+    key: "caseLockingNotifications",
+    label: "Case locking — show notifications",
+    description:
+      "Show what presence found: the pinned banner naming other users on this case, and the full-screen interruption when you arrive at a case review or a witness or victim record someone is already in. Presence is registered regardless (see Case locking); this only controls whether you SEE it, so the mechanism can be exercised in an environment without real users noticing.",
+    disabled: false,
+  },
+  {
+    key: "caseLockingCountSelf",
+    label: "Case locking — count myself",
+    description:
+      "Count yourself among the present users, shown as \"(current user)\" after your name. For development and demos: it is the evidence that self-identification works at all — filtered out, an empty banner looks the same whether the mechanism works or presence is broken. You are never counted as a CLASH with yourself, so this cannot raise the interruption on a case only you are on. In production, telling someone they are viewing the case they are looking at is noise.",
     disabled: false,
   },
   {

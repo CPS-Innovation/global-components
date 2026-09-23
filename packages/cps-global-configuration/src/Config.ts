@@ -86,9 +86,31 @@ const skipLinksSchema = z.object({
 
 export type SkipLinks = z.infer<typeof skipLinksSchema>;
 
+const caseLockingRegionSchema = z.object({
+  // The section kind, lower-case by local convention; the wire form upper-cases it,
+  // so "victim_witness" becomes VICTIM_WITNESS. Must match what CMS Classic and CMS
+  // Modern register for the same thing, or the two systems register different
+  // sections and never see each other.
+  code: z.string(),
+  // The subject, for kinds scoped to one person. A TEMPLATE, substituted from the
+  // current tags exactly as msalRedirectUrl and the menu hrefs are — so a named
+  // group captured by this context's own path regex is all it takes:
+  //   path:    "...In_WitnessID=(?<witnessId>\\d+)..."
+  //   subject: "{witnessId}"
+  // Omitted for case-wide kinds. If the template resolves to nothing the region is
+  // case-wide rather than scoped to an empty subject.
+  subject: z.string().optional(),
+});
+
+export type CaseLockingRegion = z.infer<typeof caseLockingRegionSchema>;
+
 const contextPathsSchema = z.object({
   path: z.string(),
   contextIds: z.string(),
+  // See contextsBaseSchema — a leaf may name its own app rather than inherit one.
+  caseLockingAppName: z.string().optional(),
+  // See contextsBaseSchema — likewise for the section this path represents.
+  caseLockingRegion: caseLockingRegionSchema.optional(),
   domTagDefinitions: z.array(domTagDefinitionsSchema).optional(),
   showNotification: z.boolean().optional(),
   preventADAndDataCalls: z.boolean().optional(),
@@ -100,6 +122,41 @@ const contextPathsSchema = z.object({
 export type ContextPathsSchema = z.infer<typeof contextPathsSchema>;
 
 const contextsBaseSchema = z.object({
+  // The application name to REGISTER with the presence API for pages matching this
+  // context. The API keeps a fixed vocabulary — "Work Management App", "Case Review
+  // App", "Casework App", "CMS Classic", "CMS Modern" — and rejects anything else,
+  // so a typo here is reported as no app rather than as itself.
+  //
+  // Lives on the context tree because it is a fact about WHICH APP a URL belongs to,
+  // which is exactly what the tree already encodes. Set it on a branch and every
+  // path under it inherits; a leaf can override. Display names are NOT here: they
+  // are a code-level mapping shared with the legacy clients.
+  caseLockingAppName: z.string().optional(),
+  /**
+   * WHICH SECTION OF THE CASE this path represents, for presence.
+   *
+   * Every variant we need to report is identifiable from the address bar, and this
+   * tree is already the thing that matches addresses — so the section is recorded
+   * here rather than discovered in the DOM. A path that says which witness is being
+   * edited has said everything presence needs.
+   *
+   * ABSENT MEANS NO PRESENCE ON THIS PATH — there is no fallback. Every case
+   * context states its own section, including the plain ones that say { "code":
+   * "case" }. That verbosity buys two things: "this page reports nothing" becomes
+   * something config can say, and presence stops being a side effect of whether a
+   * caseId happened to reach the store from a path group or from a handover.
+   *
+   * ORDERING MATTERS. Contexts are first-match-wins, so a path that names a finer
+   * section must sit BEFORE the broader one it would otherwise fall through to —
+   * and should carry the same contextIds, so the only new thing about it is the
+   * section it reports.
+   *
+   * This does NOT replace <cps-region>. The header renders one either way, with the
+   * code this names — so a host app that later needs something finer than a URL can
+   * express drops its own tag in, and the more-specific-region rule in
+   * initialise-case-locking stands ours down. One mechanism, two ways to drive it.
+   */
+  caseLockingRegion: caseLockingRegionSchema.optional(),
   msalRedirectUrl: z.string().optional(),
   domTagDefinitions: z.array(domTagDefinitionsSchema).optional(),
   forceCmsAuthRefresh: z.boolean().optional(),
@@ -176,6 +233,23 @@ export const configBaseSchema = z.object({
   ENVIRONMENT: z.string(),
   REDIRECT_SCRIPT_URL: z.string().optional(),
   CASE_LOCKING_API_URL: z.string().optional(),
+  // Scopes for the presence API access token. NOT the gateway scopes: one token
+  // has one audience, and AD_GATEWAY_SCOPES asks for Microsoft Graph, so a token
+  // acquired with those would be rejected by the presence API the moment it starts
+  // validating. The presence API is the SAME app registration the SPA signs in
+  // with (client and resource in one), which is why no consent grant is involved —
+  // see _PRESENCE_API_SCOPE in global-components.cms-auth-v2.ts, where the legacy
+  // clients request exactly the same scope. Empty means send no token at all.
+  CASE_LOCKING_SCOPES: z.array(z.string()).optional(),
+  // Where the interruption's secondary action sends someone: the case's details
+  // page. One value rather than one per context — case details is the same RCMS
+  // page whichever application you were interrupted in, so a per-context URL would
+  // be three copies of one fact.
+  //
+  // Templated like the menu's own hrefs, and substituted the same way: {caseId} and
+  // {urn} come from the current tags. Absent means no link is offered rather than
+  // a link that goes nowhere.
+  CASE_LOCKING_CASE_DETAILS_URL: z.string().optional(),
   LINKS: z.array(linkSchema),
   BANNER_TITLE_HREF: z.string(),
   AD_TENANT_AUTHORITY: z.string().optional(),

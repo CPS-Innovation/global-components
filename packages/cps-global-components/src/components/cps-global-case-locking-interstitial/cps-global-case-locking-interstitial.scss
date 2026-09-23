@@ -1,0 +1,158 @@
+@use "../common/common.scss" as *;
+
+/* The interruption as a top-layer dialog. Card styling is shared in spirit with
+ * cps-global-case-locking-interstitial, but deliberately duplicated rather than
+ * shared: these two exist side by side to be compared and one of them is going to
+ * be deleted, and a shared partial would have to be untangled at that point.
+ *
+ * The dialog fills the viewport and lays out as a column: header, the card, then
+ * the footer pushed to the bottom. The background is painted at runtime from the
+ * host page's own body colour — see paintSurface — so it follows the estate's
+ * dark-mode code rather than baking in a white that code will never find.
+ */
+dialog.app-interruption {
+  /* Reset the UA's dialog chrome so it can fill the screen. */
+  border: 0;
+  padding: 0;
+  margin: 0;
+  max-width: none;
+  max-height: none;
+  color: inherit;
+
+  /* FILL THE VIEWPORT. All four of these are load-bearing.
+   *
+   * inset:0 rather than 100vw/100vh, because 100vw INCLUDES the scrollbar gutter —
+   * on a page with a vertical scrollbar the dialog would be wider than the viewport
+   * and produce a horizontal one of its own.
+   *
+   * But inset alone does NOT size a dialog. The UA stylesheet gives <dialog>
+   * `width: fit-content; height: fit-content`, and an explicit size beats inset —
+   * so without these two the dialog shrinks to its contents and sits in the
+   * top-left corner. Measured live when they were missing: 1200x644 inside a
+   * 1282x343 viewport, anchored at 0,0, with the page showing around it. */
+  position: fixed;
+  inset: 0;
+  width: auto;
+  height: auto;
+
+  /* Stop a wheel over the dialog scrolling the page behind it once our own
+   * scrollable area reaches its end. Costs nothing and needs no host DOM. */
+  overscroll-behavior: contain;
+
+  display: flex;
+  flex-direction: column;
+}
+
+/* Nothing behind is visible, so the backdrop only needs to stop the page showing
+ * through at the edges on browsers that inset the dialog. */
+dialog.app-interruption::backdrop {
+  background: rgba(0, 0, 0, 0.6);
+}
+
+/* DOM ORDER IS card, header, footer — reading order starts at the message. These
+ * three rules put them back into visual order. */
+/* Centred within the full-width dialog. The WIDTH itself is written inline by
+ * syncChromeWidth() from the real header's measured width — the header and footer
+ * take their width from the host's container on a real page, and there is no such
+ * container in here. Auto margins then place that column centrally, as the footer
+ * shim does on the page. */
+.app-interruption__chrome {
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.app-interruption__chrome--header {
+  order: 1;
+  flex: 0 0 auto;
+}
+
+.app-interruption__main {
+  order: 2;
+  flex: 1 1 auto;
+  overflow-y: auto; /* a long roster scrolls here, not the whole dialog */
+}
+
+.app-interruption__chrome--footer {
+  order: 3;
+  flex: 0 0 auto;
+}
+
+.moj-interruption-card {
+  background-color: govuk-colour("blue");
+  color: govuk-colour("white");
+  padding: govuk-spacing(6);
+}
+
+.moj-interruption-card__heading {
+  @include govuk-font($size: 36, $weight: bold);
+  color: govuk-colour("white");
+  margin-top: 0;
+  margin-bottom: govuk-spacing(4);
+}
+
+.moj-interruption-card__body {
+  @include govuk-font($size: 19);
+  margin-bottom: govuk-spacing(6);
+}
+
+.moj-interruption-card__body p {
+  color: govuk-colour("white");
+  margin-top: 0;
+  margin-bottom: govuk-spacing(3);
+}
+
+.moj-interruption-card__body p:last-child {
+  margin-bottom: 0;
+}
+
+.moj-interruption-card__actions {
+  margin-bottom: 0;
+}
+
+/* WON BACK FROM cps-global-menu, which leaks its link colours onto us.
+ *
+ * That component is `shadow: false`, so its stylesheet is injected into the
+ * document unscoped and its `a.govuk-link` rules — written for the menu's own
+ * links — apply to every anchor in the light DOM, ours included. One of them is:
+ *
+ *     a.govuk-link:visited { color: #1d70b8 }    // $govuk-brand-colour
+ *
+ * which is EXACTLY this card's background, govuk-colour("blue"). At (0,2,1) it
+ * outranks govuk-frontend's own `.govuk-link--inverse:visited` (0,2,0) whatever
+ * order the sheets land in, so the link disappeared into the card — and only for
+ * people who had visited the target, which is everyone, since they arrived here
+ * from the case they are being sent back to. Hovering restored it because the
+ * leaked `:visited:hover` rule paints it dark blue.
+ *
+ * So this restates govuk-frontend's inverse palette at a specificity that wins:
+ * the card class plus the element selector puts every rule below one class above
+ * its leaked counterpart. `:visited:hover` and `:visited:focus` are spelled out
+ * rather than relying on `:hover` alone, because the leak names those pairs too
+ * and would otherwise tie.
+ *
+ * THE REAL FIX IS TO SCOPE THE MENU'S RULES, which is a change to a component
+ * with its own e2e coverage and other unwitting dependents; this keeps the
+ * interruption legible until that is done.
+ */
+.moj-interruption-card a.govuk-link--inverse {
+  /* Also beats the leaked `a.govuk-link { display: none }` (0,1,1). Today
+     govuk-frontend's `.govuk-button-group .govuk-link` already does that at
+     (0,2,0), so this only matters if the actions ever stop being a button group —
+     but the failure it prevents is the link vanishing outright. */
+  display: inline-block;
+
+  &:link,
+  &:visited {
+    color: govuk-colour("white");
+  }
+
+  &:hover,
+  &:visited:hover {
+    color: rgba(govuk-colour("white"), 0.99);
+  }
+
+  &:focus,
+  &:visited:focus {
+    color: $govuk-focus-text-colour;
+  }
+}

@@ -5,8 +5,17 @@ import type { Result } from "../Result";
 import { assignBuckets } from "./assign-buckets";
 
 // Keys on Config whose value type is FeatureFlagUsers.
+//
+// The index-signature guard is load-bearing. Every property of FeatureFlagUsers is
+// OPTIONAL, so any Record<string, …> on Config satisfies it structurally — an index
+// signature supplies `adGroupIds` and friends on demand. Without the guard,
+// CASE_LOCKING_APP_DISPLAY_NAMES (a Record<string, string>) was picked up as a
+// feature-flag key, and every read off the result widened to include `string`.
+//
+// `string extends keyof NonNullable<T[K]>` is true only for a type with a string
+// index signature, which no real feature-flag entry has.
 type KeysOfType<T, U> = {
-  [K in keyof T]: T[K] extends U | undefined ? K : never;
+  [K in keyof T]: string extends keyof NonNullable<T[K]> ? never : T[K] extends U | undefined ? K : never;
 }[keyof T] &
   string;
 

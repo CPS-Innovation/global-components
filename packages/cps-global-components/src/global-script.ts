@@ -38,6 +38,7 @@ import { runNowAndOnNavigation } from "./services/browser/navigation/navigation"
 import { initialisePageLifecycle } from "./services/browser/navigation/page-lifecycle";
 import { TrackException } from "./services/analytics/TrackException";
 import { summariseResults } from "./utils/summarise-results";
+import { exposeDevStore } from "./services/dev/expose-dev-store";
 
 const { _error } = makeConsole("global-script");
 
@@ -74,6 +75,10 @@ const initialise = async (window: Window & typeof globalThis) => {
 
     const flags = initialiseApplicationFlags({ window, rootUrl, register });
 
+    if (flags.isLocalDevelopment) {
+      exposeDevStore({ window, register });
+    }
+
     // Config no longer depends on preview (override-via-preview was removed in
     // FCT2-17451 drop 4) so it joins the parallel set.
     const [{ handover, setNextHandover }, preview, settings, { authHint, setAuthHint }, { userDataHint, setUserDataHint }, cmsSessionHint, loadedConfig] = await Promise.all([
@@ -98,7 +103,7 @@ const initialise = async (window: Window & typeof globalThis) => {
 
     initialiseOutSystemsReconcileAuth({ window, flags, config });
 
-    const { initialiseCaseLockingForContext, witnessAreaSubscriber } = initialiseCaseLocking({ window, config, preview, register });
+    const { initialiseCaseLockingForContext } = initialiseCaseLocking({ window, config, preview, register });
 
     const { initialiseDomForContext } = initialiseDomObservation(
       { window, register, mergeTags, preview, settings, flags, config, authHint },
@@ -106,7 +111,6 @@ const initialise = async (window: Window & typeof globalThis) => {
       footerSubscriber,
       hostAppEventSubscriber,
       accessibilitySubscriber,
-      witnessAreaSubscriber,
       skipLinkSubscriber,
     );
 
@@ -152,7 +156,7 @@ const initialise = async (window: Window & typeof globalThis) => {
       setAuthHint,
       window,
     });
-    const { initialiseCaseDetailsDataForContext, initialiseCaseDetailsDataForContextOptimistic } = initialiseCaseDetailsData({
+    const { initialiseCaseDetailsDataForContext, initialiseCaseDetailsDataForContextOptimistic, refreshCaseDetailsData } = initialiseCaseDetailsData({
       config,
       handover,
       setNextHandover,
@@ -197,7 +201,12 @@ const initialise = async (window: Window & typeof globalThis) => {
             // auth passed through; the service skips the authed fetch when not
             // authed (the optimistic path already covered the unauthed case).
             initialiseCaseDetailsDataForContext({ context, caseIdentifiers, getToken, correlationIds, auth });
-            initialiseCaseLockingForContext({ auth, caseIdentifiers });
+            // PRESENCE MOVING RE-READS THE LOCK. In CMS Classic the lock is taken by
+            // opening the case screen and released by leaving it, so an arrival or a
+            // departure IS the lock changing hands. Wired here, where every other
+            // dependency between services is wired, rather than either service
+            // reaching for the other.
+            initialiseCaseLockingForContext({ auth, caseIdentifiers, getToken, context, onPresenceChanged: refreshCaseDetailsData });
           })
           .catch(handleError);
       } catch (err) {

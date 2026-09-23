@@ -1,0 +1,375 @@
+import { Component, h, State, Element, Listen } from "@stencil/core";
+import { readyState } from "../../store/store";
+import { FEATURE_FLAGS } from "cps-global-configuration";
+import { replaceTagsInString } from "../cps-global-menu/menu-config/helpers/replace-tags-in-string";
+import { CCPSectionNames, CCPSectionRules } from "cps-global-presence";
+import { describeCaseLock, getCaseLock } from "../../services/case-locking/get-case-lock";
+import { MIN_REAL_HEADER_WIDTH_PX } from "../../services/browser/dom/footer-subscriber";
+
+/**
+ * The interruption, rebuilt as a top-layer dialog.
+ *
+ * WHY REPLACE THE PAGE RATHER THAN EDIT IT
+ * Three earlier versions tried to imitate an interruption from outside, and each
+ * was wrong in a way that only showed up on a real page: a fixed overlay band
+ * measured between our header and footer grew its own scrollbar and visibly
+ * shifted when the page was dragged; hiding the host's content element by element
+ * worked until the host changed the page underneath us.
+ *
+ * That last one is worth spelling out, because it looked correct. It walked the
+ * DOM setting `display: none` on element siblings up the ancestor chain and
+ * remembered each one so it could be put back — a snapshot of a page that does not
+ * hold still. Content the host added afterwards was never hidden, a subtree it
+ * re-rendered came back, and a `display` it set while we were up got clobbered on
+ * restore.
+ *
+ * showModal() sidesteps the whole category. The browser puts this in the top
+ * layer, makes the rest of the document inert — out of the accessibility tree and
+ * the tab order — traps focus, handles Escape, and RESTORES FOCUS on close. We
+ * touch no host DOM at all, so there is nothing to remember and nothing to undo.
+ *
+ * WHY THE CHROME IS IN HERE
+ * The top layer covers everything, including our own header and footer, and the
+ * design keeps them. So the dialog carries its own: cps-global-header in
+ * chrome-only mode, and cps-global-footer-content. Whole components, not a
+ * reassembly of their parts — the theme classes, custom host CSS, error fallback
+ * and ordering stay owned by the header, and cannot drift from it.
+ *
+ * ...AND WHY IT IS HIDDEN FROM ASSISTIVE TECH
+ * Visually the chrome is context. To a screen reader it would be a full
+ * navigation menu and a footer sitting between the user and the decision, read
+ * out before the message and joining the tab order of an interruption that is
+ * meant to have two exits. `inert` plus `aria-hidden` makes it what it actually
+ * is: decoration. The only thing exposed in here is the choice.
+ *
+ * The card is also FIRST in the DOM, with the chrome placed visually by flex
+ * `order`, so reading order starts at the message.
+ */
+@Component({
+  tag: "cps-global-case-locking-interstitial",
+  styleUrl: "cps-global-case-locking-interstitial.scss",
+  shadow: false,
+})
+export class CpsGlobalCaseLockingInterstitial {
+  @Element() el: HTMLElement;
+
+  /**
+   * The region code we have been dismissed for. Without this the interruption
+   * would reappear on the next poll, every poll, which is unusable. Re-arms when
+   * the code changes — a different section is a different interruption.
+   */
+  @State() dismissedFor?: string;
+
+  private currentCode?: string;
+  private showing = false;
+  private headerObserver?: ResizeObserver;
+  /** The document's inline `overflow` before we hid its scrollbar. */
+  private previousOverflow: string | null = null;
+
+  disconnectedCallback() {
+    this.close();
+  }
+
+  /**
+   * Escape reaches us as the dialog's own `cancel` event rather than a keydown,
+   * because the browser is handling it. Routing it through dismiss() rather than
+   * letting the default close happen keeps the dismissal latch in step — closing
+   * without recording it would re-raise the interruption on the next poll.
+   */
+  @Listen("cancel")
+  onCancel(event: Event) {
+    event.preventDefault();
+    this.dismiss();
+  }
+
+  componentDidRender() {
+    const dialog = this.dialog();
+    if (dialog && !this.showing) {
+      this.showing = true;
+      this.paintSurface(dialog);
+      dialog.showModal();
+      this.hidePageScrollbar();
+      this.syncChromeWidth();
+    }
+  }
+
+  private dialog = () => this.el.querySelector<HTMLDialogElement>("dialog");
+
+  /**
+   * TAKE THE PAGE'S OWN SURFACE COLOUR.
+   *
+   * A top-layer dialog has nothing behind it to inherit from, so it must paint
+   * its own background — and a hardcoded white is exactly what we removed from
+   * the original, because the estate has custom dark-mode code that rewrites the
+   * DOM's colours and never sees a value baked into our stylesheet.
+   *
+   * NEITHER <html> NOR <body> ALONE IS THE ANSWER, and picking one was wrong twice.
+   *
+   * Reading body got transparent under the accessibility subscriber, which puts the
+   * surface on the document element and sets body transparent:
+   *
+   *     [data-grey-mode]      { background-color: <pageSurface> !important }
+   *     [data-grey-mode] body { background-color: transparent !important }
+   *
+   * Reading either one and copying it verbatim then produced a SEMI-TRANSPARENT
+   * dialog on OutSystems hosts, where the value carries alpha — our dark ::backdrop
+   * showed through it as grey.
+   *
+   * So do what the browser does for a real page: paint body's layer over html's,
+   * both over an opaque base. Compositing is the browser's job, no colour parsing
+   * and no alpha arithmetic, and it is correct whichever of the two carries the
+   * colour and whatever alpha either has. Canvas — the CSS system colour that
+   * follows the user's colour scheme — guarantees the result is opaque.
+   */
+  private paintSurface(dialog: HTMLDialogElement) {
+    const documentSurface = getComputedStyle(document.documentElement).backgroundColor;
+    const bodySurface = getComputedStyle(document.body).backgroundColor;
+    // Stack the page's own two layers over an opaque base, in the order the
+    // browser paints them: body on top, then html, then Canvas. A gradient of a
+    // single colour is just that colour, and is the only way to give one element
+    // several background layers.
+    dialog.style.backgroundColor = "Canvas";
+    dialog.style.backgroundImage = `linear-gradient(${bodySurface}, ${bodySurface}), linear-gradient(${documentSurface}, ${documentSurface})`;
+  }
+
+  /**
+   * GIVE THE CHROME THE PAGE'S CONTENT WIDTH.
+   *
+   * Neither the header nor the footer uses govuk-width-container — on a real page
+   * they take their width from whatever container the host puts them in. Inside a
+   * viewport-filling dialog there is no such container, so left alone they run the
+   * full width of the screen and stop looking like the page they are imitating.
+   *
+   * The measurement comes from the REAL header still laid out on the page behind
+   * us. document.querySelector finds only that one: our copy lives inside the
+   * outer header's shadow root, so document-level queries cannot see it.
+   *
+   * The threshold is shared with footer-subscriber, which syncs the real footer to
+   * the real header for the same reason and against the same hazard: during a host
+   * SPA route change the header is briefly zero-sized, and an unguarded sync
+   * writes width:0 and collapses everything.
+   */
+  private syncChromeWidth() {
+    const outerHeader = document.querySelector<HTMLElement>("cps-global-header");
+    if (!outerHeader) {
+      return;
+    }
+    if (!this.headerObserver && typeof ResizeObserver !== "undefined") {
+      this.headerObserver = new ResizeObserver(() => this.syncChromeWidth());
+      this.headerObserver.observe(outerHeader);
+    }
+    const width = outerHeader.getBoundingClientRect().width;
+    if (width < MIN_REAL_HEADER_WIDTH_PX) {
+      return; // transient mid-navigation value — keep the last good width
+    }
+    this.el.querySelectorAll<HTMLElement>(".app-interruption__chrome").forEach(chrome => {
+      chrome.style.width = `${width}px`;
+    });
+  }
+
+  /**
+   * HIDE THE PAGE'S SCROLLBAR while the dialog is up.
+   *
+   * showModal() makes the document inert but does not stop it scrolling, so the
+   * page keeps a scrollbar sized to content nobody can see — it reports the height
+   * of the case behind the interruption, which is both meaningless and a way to
+   * scroll the dialog's backdrop away from under it.
+   *
+   * THIS IS HOST DOM, and deliberately the least of it: one named property on the
+   * document root, with the previous inline value captured so close() restores
+   * exactly what was there, including "not set at all". It is not the earlier
+   * approach of enumerating the host's elements — there is nothing here to go
+   * stale when the page changes underneath us.
+   *
+   * ASSUMES THE DOCUMENT IS WHAT SCROLLS. A host that scrolls an inner container
+   * keeps its scrollbar; overscroll-behavior on the dialog still stops the wheel
+   * reaching it, so the result is cosmetic rather than broken.
+   */
+  private hidePageScrollbar() {
+    if (this.previousOverflow !== null) {
+      return; // already hidden — never capture our own value as the host's
+    }
+    const root = document.documentElement;
+    this.previousOverflow = root.style.overflow;
+    root.style.overflow = "hidden";
+  }
+
+  private restorePageScrollbar() {
+    if (this.previousOverflow === null) {
+      return;
+    }
+    document.documentElement.style.overflow = this.previousOverflow;
+    this.previousOverflow = null;
+  }
+
+  private close() {
+    const dialog = this.dialog();
+    if (dialog?.open) {
+      dialog.close(); // the browser restores focus to wherever it was
+    }
+    this.headerObserver?.disconnect();
+    this.headerObserver = undefined;
+    this.restorePageScrollbar();
+    this.showing = false;
+  }
+
+  private dismiss = () => {
+    this.close();
+    this.dismissedFor = this.currentCode ?? "";
+  };
+
+  render() {
+    const { isReady, state } = readyState(["caseLockingPresentUsers", "config", "context", "preview", "authHint"], ["auth", "tags", "caseDetails"]);
+    if (!isReady || !FEATURE_FLAGS.shouldShowCaseLockingNotifications(state)) {
+      this.close();
+      return null;
+    }
+    const present = state.caseLockingPresentUsers;
+    // TWO CONDITIONS FOR PRESENCE, and both are about not crying wolf.
+    //
+    // ALREADY OCCUPIED when we arrived: someone joining a section we are already
+    // in is not an interruption for us — we are the one who was here first, and
+    // they are the one being shown this card.
+    //
+    // AND A SECTION WORTH INTERRUPTING FOR. Presence on the case as a whole is not
+    // a clash — two people can read a case at once all day and nothing is lost,
+    // and interrupting them for it teaches people to dismiss the card unread. That
+    // rule lives in CCPSectionRules, beside the section display names, because it
+    // is a fact about a section kind rather than about this component. Case-wide
+    // presence still reaches the pinned banner, which is where it belongs.
+    //
+    // section.code is the region code config writes; interrupts() normalises it
+    // against the wire kinds, so neither side has to care which case it holds.
+    const sections = present?.sections.filter(section => section.occupiedOnEntry && CCPSectionRules.interrupts(section.code)) ?? [];
+
+    // THE LOCK INTERRUPTS ON ITS OWN, and needs no presence to do it. A lock with
+    // nobody present is the ordinary outcome of closing a browser on the Classic
+    // case screen, and it is the more consequential fact: presence means someone is
+    // reading, the lock means your changes will not save.
+    //
+    // The region comes from the matched CONTEXT rather than from the roster, because
+    // a roster with nobody in it has no sections to read a region off — which is
+    // exactly the case this branch exists for.
+    const lock = getCaseLock(state.caseDetails);
+    const configuredRegion = state.context?.found ? state.context.caseLockingRegion : undefined;
+    const lockInterrupts = !!lock?.locked && !!configuredRegion && CCPSectionRules.interrupts(configuredRegion.code);
+
+    if (sections.length === 0 && !lockInterrupts) {
+      this.close();
+      return null;
+    }
+    // The lock is part of the dismissal identity, so a lock taken while the card is
+    // dismissed raises it again. Keyed on the holder, not just on "locked": the case
+    // passing from one person to another is new news.
+    const key = sections
+      .map(section => section.code)
+      .concat(lockInterrupts ? [`lock:${lock?.by || "?"}`] : [])
+      .sort((a, b) => a.localeCompare(b))
+      .join(",");
+    if (this.dismissedFor === key) {
+      this.close();
+      return null;
+    }
+
+    this.currentCode = key;
+    // A hard navigation away, so there is nothing to dismiss first and no SPA route
+    // to coordinate with. Absent config means no link rather than one that goes
+    // nowhere; absent tags mean the same, since a case id is the whole point.
+    const template = state.config.CASE_LOCKING_CASE_DETAILS_URL;
+    const caseDetailsUrl = template && state.tags?.caseId ? replaceTagsInString(template, state.tags) : undefined;
+    const names = Array.from(new Set(sections.flatMap(section => section.users.map(user => user.user))));
+    const who = names.join(", ");
+    /**
+     * WHERE THE CLASH IS, in the same words the pinned notification uses.
+     *
+     * The card used to say "this case" whatever had been walked into, which was
+     * true of every interruption it could ever raise and so told the reader
+     * nothing about the one in front of them. In practice only a case review or a
+     * witness or victim edit reaches interrupt level, but nothing here assumes
+     * that: whatever kinds the sections report get named.
+     *
+     * Unioned across everyone being interrupted for and collapsed by kind inside
+     * describe(), where the definite form wins — so someone on the very witness in
+     * front of the reader reads as "this witness or victim" even when the same
+     * person is also reported from elsewhere in the case.
+     *
+     * FALLS BACK TO THE OLD WORDING rather than to a gap. A member record that
+     * carries no sections at all is the everyday shape on the legacy clients, and
+     * "is also working on ." would be a worse card than a vague one.
+     */
+    const where = CCPSectionNames.describe(sections.flatMap(section => section.users.flatMap(user => user.sections ?? []))) || "this case";
+
+    return (
+      <dialog class="app-interruption" role="alertdialog" aria-labelledby="cps-interruption-heading" aria-describedby="cps-interruption-body">
+        {/* FIRST in the DOM so reading order starts at the message; flex `order`
+            puts it between the chrome visually. */}
+        <main class="app-interruption__main">
+          <div class="govuk-width-container">
+            <div class="govuk-main-wrapper">
+              <div class="govuk-grid-row">
+                <div class="govuk-grid-column-full-from-desktop">
+                  <div class="moj-interruption-card">
+                    <div class="moj-interruption-card__content">
+                      <h1 class="moj-interruption-card__heading" id="cps-interruption-heading">
+                        {/* THE LOCK LEADS when there is one. "Someone is working here"
+                            is something you may choose to ignore; "this case is
+                            locked" is something that will stop you saving, and the
+                            heading is the only line some readers take in. */}
+                        {lockInterrupts ? "This case is locked" : `Someone else is working on ${where}`}
+                      </h1>
+                      {/* Wording is deliberately plain. The presence API tells us who is
+                          in a section and when they arrived — NOT whether they are
+                          editing, nor whether it is safe to proceed. */}
+                      <div class="moj-interruption-card__body" id="cps-interruption-body">
+                        {/* The same sentence the banner uses, from the same function:
+                            this card is the banner's more insistent twin, and a reader
+                            who dismisses one and meets the other should not have to
+                            work out whether two wordings mean one lock. */}
+                        {lockInterrupts && <p>{describeCaseLock(lock)}</p>}
+                        {who && (
+                          <p>
+                            {who} is also working on {where}.
+                          </p>
+                        )}
+                        {/* Wording is deliberately plain, and the two cases say
+                            different things because they ARE different. A lock is a
+                            fact about the case; two people editing is a risk. */}
+                        <p>{lockInterrupts ? "While it is locked, changes you make may not be saved." : "If you both make changes, one set of changes could be lost."}</p>
+                      </div>
+                      <div class="govuk-button-group moj-interruption-card__actions">
+                        <button type="button" class="govuk-button govuk-button--inverse" autofocus onClick={this.dismiss}>
+                          Continue anyway
+                        </button>
+                        {/* AN ANCHOR, not a button: this is a plain navigation to
+                            another page, and saying so in the markup is what makes
+                            it work. govuk-link--inverse colours through
+                            `&:link, &:visited`, which match only an anchor WITH an
+                            href — the same class on a <button> matched nothing and
+                            rendered black. Middle-click and "open in new tab" come
+                            free with the right element too. */}
+                        {caseDetailsUrl && (
+                          <a class="govuk-link govuk-link--inverse" href={caseDetailsUrl}>
+                            Go to case details
+                          </a>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </main>
+
+        {/* Decoration. See the note at the top of this file: to assistive tech the
+            only thing in this dialog is the choice above. */}
+        <div class="app-interruption__chrome app-interruption__chrome--header" aria-hidden="true" ref={el => el && (el.inert = true)}>
+          <cps-global-header chromeOnly={true}></cps-global-header>
+        </div>
+        <div class="app-interruption__chrome app-interruption__chrome--footer" aria-hidden="true" ref={el => el && (el.inert = true)}>
+          <cps-global-footer-content></cps-global-footer-content>
+        </div>
+      </dialog>
+    );
+  }
+}

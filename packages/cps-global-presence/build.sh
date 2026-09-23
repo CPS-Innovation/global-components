@@ -1,0 +1,265 @@
+#!/usr/bin/env bash
+#
+# build.sh — assemble the injected presence client.
+#
+#   ./build.sh   emits BOTH injected clients:
+#                  ../cms-presence-client.js   common/ + modern/   (CMS Modern, DCF)
+#                  ../cms-auth-v2-client.js    common/ + classic/  (CMS Classic)
+#                No vendor code, no Promise polyfill, nothing patched onto the
+#                host page.
+#
+# A working SignalR transport is archived, with its vendor libraries removed and
+# rehydration instructions, under infra/proxy/reference/signalr-presence-transport/.
+#
+# CODE SHARING
+#   common/  runs in BOTH legacy clients, so it is held to the DOCUMENT MODE 5
+#            floor — Classic's engine. Proven by check-syntax.js es3: ES3 syntax
+#            plus a denylist of the ES5 runtime Classic does not have. There is no
+#            tool that transpiles down to mode 5 (TypeScript removed its ES3
+#            target, esbuild's floor is a partial es5, and Babel cannot conjure a
+#            missing JSON or Array.prototype.forEach), so the floor is written by
+#            hand and enforced mechanically.
+#   modern/  Modern/DCF only (document mode 11), so ES5 is its floor.
+#   classic/ CMS Classic only — document mode 5, so it is held to the SAME floor
+#            as common/. It was a single hand-edited file until we took ownership
+#            of it; it is generated now, and cms-auth-v2-client.js at the level
+#            above is output, not source.
+#
+# The order below matters: common/ declares CCP.* which modern/ consumes, and
+# modern/main.js runs on load, so it goes last.
+set -euo pipefail
+
+DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+OUT="$DIR/dist/cms-presence-client.js"
+# The alternative Modern skin. Built every time; deploy.local.sh decides which of
+# the two is uploaded AS cms-presence-client.js, so switching skins is a deploy
+# choice rather than a code change, and the injected URL never moves.
+OUT2="$DIR/dist/cms-presence-client-2.js"
+OUT3="$DIR/dist/cms-presence-client-3.js"
+
+# common/ is shared with the WEB COMPONENTS as well as both legacy clients, so it
+# leads every bundle and is the only part exported as ESM.
+SHARED="$DIR/common/presence-environment.js $DIR/common/presence-apps.js $DIR/common/presence-section-names.js $DIR/common/presence-joined.js $DIR/common/presence-people.js"
+# ...except these, which live in common/ because the definitions belong beside
+# their neighbours, but go ONLY to the web components. The legacy clients show a
+# roster and interrupt nobody, so shipping the interruption rules into an IE-mode
+# tab would be dead weight in a bundle where bytes are scarce. Still held to the
+# mode 5 floor below with the rest of common/: the folder's contract does not
+# bend for who happens to consume a file today.
+SHARED_ESM_ONLY="$DIR/common/presence-section-rules.js"
+# legacy-apps/common/ is shared between Classic and Modern/DCF and nothing else —
+# JSONP, sessions and the script-origin trick have no meaning in a bundled app.
+LEGACY_COMMON="$DIR/legacy-apps/common/presence-viewer.js $DIR/legacy-apps/common/presence-sections.js $DIR/legacy-apps/common/presence-origin.js $DIR/legacy-apps/common/presence-roster.js $DIR/legacy-apps/common/presence-locator.js $DIR/legacy-apps/common/presence-jsonp.js $DIR/legacy-apps/common/presence-sessions.js"
+COMMON="$SHARED $LEGACY_COMMON"
+MODERN="$DIR/legacy-apps/modern/sections.js $DIR/legacy-apps/modern/bar.js $DIR/legacy-apps/modern/main.js"
+# The second Modern skin: an indicator beside the username, as CMS Classic has,
+# rather than a strip across the page. sections.js is REUSED — where the sections
+# are does not change with the presentation. Both bundles are built every time and
+# deploy.local.sh picks which one ships as cms-presence-client.js, so switching
+# needs no rebuild and no change to the injected URL.
+MODERN2="$DIR/legacy-apps/modern/sections.js $DIR/legacy-apps/modern-2/bar.js $DIR/legacy-apps/modern-2/main.js"
+# The third Modern skin: the web components' pinned notification, rebuilt by hand.
+# govuk-frontend v5 dropped IE11 and these pages are document mode 11, so the design
+# is recreated from its measurements rather than shared — see modern-3/bar.js.
+MODERN3="$DIR/legacy-apps/modern/sections.js $DIR/legacy-apps/modern-3/bar.js $DIR/legacy-apps/modern-3/main.js"
+CLASSIC="$DIR/legacy-apps/classic/dom.js $DIR/legacy-apps/classic/sections.js $DIR/legacy-apps/classic/banner.js $DIR/legacy-apps/classic/event-sink.js $DIR/legacy-apps/classic/main.js"
+AUTH="$DIR/legacy-apps/classic/auth.js"
+
+# Gate BEFORE building: a floor violation should fail here, naming the file and
+# line, rather than surfacing as a blank page in an IE-mode tab.
+mkdir -p "$DIR/dist"
+
+echo "--- floor checks ---"
+node "$DIR/check-syntax.js" es3 $COMMON $SHARED_ESM_ONLY
+node "$DIR/check-syntax.js" es3 $CLASSIC $AUTH
+node "$DIR/check-syntax.js" es5 $MODERN
+node "$DIR/check-syntax.js" es5 $MODERN2
+node "$DIR/check-syntax.js" es5 $MODERN3
+node "$DIR/check-syntax.js" es3 "$DIR/cms-augmentation-placeholders/client-classic.js"
+node "$DIR/check-syntax.js" es5 "$DIR/cms-augmentation-placeholders/client-modern.js"
+
+# common/ is plain JS, but tsc type-checks it from its JSDoc and REGENERATES
+# types/common.d.ts — the surface global-components would import. Nothing is
+# emitted into the shipping path; this only proves the shared code is internally
+# consistent and keeps its published types from drifting. Skipped if the compiler
+# is not present (a bare checkout of the proxy folder alone).
+TSC="$DIR/../../node_modules/.bin/tsc"
+if [ -x "$TSC" ]; then
+  echo "--- types ---"
+  "$TSC" -p "$DIR"
+  # tsc's output describes OUR functions but only REFERENCES the API's wire shapes
+  # (CCPSection, CCPNotification, CCPPerson) — it defines none of them, so it is not
+  # usable on its own. Publish one self-contained file instead: the hand-written wire
+  # contract followed by the generated surface.
+  {
+    echo "/* types/index.d.ts — GENERATED by build.sh. DO NOT EDIT."
+    echo " *"
+    echo " * The published surface of common/. Two halves:"
+    echo " *   1. legacy-apps/common/types.d.ts   the wire shapes (hand-written:"
+    echo " *                          they describe the SERVER's contract, so there is"
+    echo " *                          nothing in our code to infer them from)"
+    echo " *   2. types/common.d.ts   our functions, generated by tsc from the JSDoc"
+    echo " *                          in common/*.js, so they cannot drift"
+    echo " */"
+    echo
+    cat "$DIR/legacy-apps/common/types.d.ts"
+    echo
+    cat "$DIR/types/common.d.ts"
+  } > "$DIR/types/index.d.ts"
+  echo "ok   tsc  common/*.js type-checked, types/index.d.ts regenerated"
+else
+  echo "skip tsc  (compiler not found — types not re-checked)"
+fi
+
+# Two Modern bundles from one recipe: same shared modules, same loop, different
+# presentation. Written as a function so the second cannot drift from the first —
+# only the source list and the skin's name differ.
+emit_modern() { # emit_modern <outfile> <skin dir> <sources...>
+  local out="$1" skin="$2"
+  shift 2
+  {
+    echo "/* $(basename "$out") — GENERATED by build.sh. DO NOT EDIT."
+    echo " *"
+    echo " * Presence client for CMS Modern (/viewer/) and DCF (/dcf/), which run in Edge"
+    echo " * IE mode at document mode 11. JSONP transport — no vendor code, no Promise"
+    echo " * polyfill, nothing patched onto the host page."
+    echo " *"
+    echo " * Assembled from:"
+    echo " *   common/             shared with the web components AND the Classic client"
+    echo " *   legacy-apps/common/ shared with the Classic client — mode 5 floor"
+    echo " *   $skin  this skin only"
+    echo " *"
+    echo " * Edit those sources and re-run build.sh."
+    echo " */"
+    echo "(function () {"
+    echo '  "use strict";'
+    echo
+    echo "  // Each common module declares its own CCP* namespace. Concatenation rather"
+    echo "  // than modules: the injected script has no loader, and document mode 5 has no"
+    echo "  // module system. Order matters — presence-sections defines what the others use."
+    for f in "$@"; do
+      echo
+      echo "  /* ================= ${f#$DIR/} ================= */"
+      sed 's/^/  /' "$f"
+    done
+    echo "})();"
+  } > "$out"
+
+  node "$DIR/check-syntax.js" es5 "$out"
+  grep -q "eyJ0eXAiOiJKV1Qi" "$out" && { echo "ERROR: a credential leaked into the bundle" >&2; exit 1; }
+  echo "built $out ($(wc -c < "$out" | tr -d ' ') bytes), no credential"
+}
+
+echo "--- output ---"
+emit_modern "$OUT" "legacy-apps/modern/" $COMMON $MODERN
+emit_modern "$OUT2" "legacy-apps/modern-2/" $COMMON $MODERN2
+emit_modern "$OUT3" "legacy-apps/modern-3/" $COMMON $MODERN3
+
+# ---- the ESM entry, for the web components -----------------------------------
+#
+# A THIRD consumption path for the same sources. The legacy clients concatenate
+# them into an IIFE and the tests eval them through new Function(); a bundler needs
+# ESM, so this emits the shared modules followed by an export statement.
+#
+# Only what the web components actually import is listed. The rest of common/ is
+# shareable in principle — presence-roster's reconciliation especially — but an
+# export nothing consumes is dead code in their bundle, since these files assign to
+# module-scope variables and cannot be tree-shaken away. Add here when a consumer
+# appears, not before.
+ESM_SHARED="$SHARED $SHARED_ESM_ONLY"
+ESM_EXPORTS="CCPApps, CCPEnvironment, CCPJoined, CCPPeople, CCPSectionNames, CCPSectionRules"
+ESM_OUT="$DIR/dist/esm/index.js"
+mkdir -p "$DIR/dist/esm"
+{
+  echo "/* dist/esm/index.js — GENERATED by build.sh. DO NOT EDIT."
+  echo " *"
+  echo " * The shared presence modules as an ES module, for the web components. The same"
+  echo " * sources ship to CMS Classic and CMS Modern as concatenated IIFEs; this is the"
+  echo " * bundler-facing shape of them, so the three clients cannot diverge."
+  echo " */"
+  for f in $ESM_SHARED; do
+    echo
+    echo "/* ================= ${f#$DIR/} ================= */"
+    cat "$f"
+  done
+  echo
+  echo "export { $ESM_EXPORTS };"
+} > "$ESM_OUT"
+echo "built $ESM_OUT ($(wc -c < "$ESM_OUT" | tr -d ' ') bytes)"
+
+# ---- the Classic client ------------------------------------------------------
+#
+# Two IIFEs, exactly as the hand-written file had, because the header's promise
+# still holds: a failure in one concern must not reach the other. The presence
+# concern gets common/ inside its scope; the auth concern is self-contained and
+# is appended untouched.
+#
+# NO "use strict" here, unlike the Modern bundle. This code has always run in
+# sloppy mode at document mode 5, and turning it on now would be a behaviour
+# change nobody asked for in someone else's application.
+CLASSIC_OUT="$DIR/dist/cms-auth-v2-client.js"
+{
+  echo "/* cms-auth-v2-client.js — GENERATED by cms-presence-client/build.sh. DO NOT EDIT."
+  echo " *"
+  echo " * Injected into the persistent CMS Classic frameset shell (uaglCMS.aspx <head>),"
+  echo " * which loads once per session and persists THROUGH login. Two independent"
+  echo " * concerns, each its own IIFE so a failure in one cannot affect the other:"
+  echo " *   1. section presence + the contact-edit logger"
+  echo " *   2. the login -> auth iframe hand-off"
+  echo " *"
+  echo " * Document mode 5 (old JScript): no const/let/arrow, no trailing commas, no"
+  echo " * Array.forEach/indexOf, no String.trim, no JSON, no querySelector, no"
+  echo " * addEventListener. build.sh proves it with check-syntax.js es3."
+  echo " *"
+  echo " * Assembled from cms-presence-client/:"
+  echo " *   common/   shared with the Modern/DCF client"
+  echo " *   classic/  this app only"
+  echo " *"
+  echo " * Edit those sources and re-run build.sh."
+  echo " */"
+  echo "(function () {"
+  for f in $COMMON $CLASSIC; do
+    echo
+    echo "  /* ================= ${f#$DIR/} ================= */"
+    sed 's/^/  /' "$f"
+  done
+  echo "})();"
+  echo
+  cat "$AUTH"
+} > "$CLASSIC_OUT"
+
+node "$DIR/check-syntax.js" es3 "$CLASSIC_OUT"
+grep -q "eyJ0eXAiOiJKV1Qi" "$CLASSIC_OUT" && { echo "ERROR: a credential leaked into the bundle" >&2; exit 1; }
+echo "built $CLASSIC_OUT ($(wc -c < "$CLASSIC_OUT" | tr -d ' ') bytes), no credential"
+
+# ---- the cms-augmentation publication names -----------------------------------
+#
+# The CMS maintainers have been asked to link these URLs from the real, unproxied
+# CMS, in every environment:
+#
+#     /global-components/<env>/cms-augmentation/client-classic.js
+#     /global-components/<env>/cms-augmentation/client-modern.js
+#
+# CI copies dist/cms-augmentation/ into the deploy artifact, so these land in each
+# environment's container on every deploy (prod only via deploy-all, like
+# everything else). THIS is where it is decided what is published under those
+# names: today a harmless placeholder, so a link added before we are ready loads
+# and runs rather than 404ing.
+#
+# The placeholders are the ONLY hand-written files ever published there, and the
+# source folder is named for that. When the real clients are ready, the two copies
+# below take built bundles from dist/ instead -- real artefacts are always built,
+# never maintained by hand -- and cms-augmentation-placeholders/ is deleted. The
+# pipeline does not change at all.
+#
+# The real presence clients are unaffected: they still reach CMS injected by our
+# proxy, from the dist/ files above.
+AUG_OUT="$DIR/dist/cms-augmentation"
+mkdir -p "$AUG_OUT"
+cp "$DIR/cms-augmentation-placeholders/client-classic.js" "$AUG_OUT/client-classic.js"
+cp "$DIR/cms-augmentation-placeholders/client-modern.js" "$AUG_OUT/client-modern.js"
+for f in "$AUG_OUT/client-classic.js" "$AUG_OUT/client-modern.js"; do
+  grep -q "eyJ0eXAiOiJKV1Qi" "$f" && { echo "ERROR: a credential leaked into $f" >&2; exit 1; }
+done
+echo "built $AUG_OUT/client-classic.js, client-modern.js (placeholders), no credential"
+

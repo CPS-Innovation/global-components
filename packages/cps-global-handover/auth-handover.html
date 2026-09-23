@@ -9,8 +9,8 @@
   - os-cookie-return / os-token-return (CMS → OS auth handover, OS variant only)
   - ad-redirect (host-initiated MSAL full-page redirect + AAD bounce-back)
 
-  See packages/cps-global-handover/README.md for the full embedding flow and
-  per-environment URLs.
+  See the root README.md for the embedding flow and per-environment URLs, and
+  EXTERNAL-ENTRY.md in this package for the ?stage= contract.
 
   Defence in depth — both layers below must agree before any remote script runs:
 
@@ -36,14 +36,28 @@
   <title>Application handover page</title>
 
   <!--
+    GENERATED-EQUIVALENT — do not hand-edit without updating the source of truth.
+    This policy is asserted against packages/cps-global-configuration/src/csp
+    (deriveHandoverPagePolicy) by src/auth-handover-csp.spec.ts. Change the
+    derivation, not this string; the test prints the expected policy on failure.
+
+    It is deliberately NOT per-environment: this file is uploaded to the
+    OutSystems domains by hand, so one file that works wherever it lands beats
+    four near-identical variants a human has to match to the right tenant.
+
     script-src 'unsafe-inline' is acceptable here because the inline script
     does no eval / new Function / dynamic code construction; it only injects a
     remote <script> tag whose src is gated by both this CSP and the runtime
-    allowlist. connect-src covers auth-handover.js's fetch('config.json') and
-    MSAL token-endpoint XHRs; form-action covers MSAL's POST to AAD.
+    allowlist. connect-src covers auth-handover.js's fetch('config.json'), the
+    ../state/* lookups, MSAL token-endpoint XHRs, and the Graph /me call that
+    handleMsalTermination makes via getMe — that last one fails SILENTLY when
+    blocked (getMe soft-fails and its caller passes no logError), which is how
+    it went unnoticed until 2026-09-21. frame-src covers MSAL's hidden iframe
+    for acquireTokenSilent on the ensure-ad stage; form-action covers MSAL's
+    POST to AAD.
   -->
   <meta http-equiv="Content-Security-Policy"
-    content="script-src 'unsafe-inline' https://polaris.cps.gov.uk https://polaris-qa-notprod.cps.gov.uk https://polaris-uat-notprod.cps.gov.uk https://polaris-dev-notprod.cps.gov.uk; connect-src 'self' https://polaris.cps.gov.uk https://polaris-qa-notprod.cps.gov.uk https://polaris-uat-notprod.cps.gov.uk https://polaris-dev-notprod.cps.gov.uk https://login.microsoftonline.com; form-action https://login.microsoftonline.com;">
+    content="connect-src 'self' https://graph.microsoft.com https://login.microsoftonline.com https://polaris-qa-notprod.cps.gov.uk https://polaris-uat-notprod.cps.gov.uk https://polaris.cps.gov.uk; form-action https://login.microsoftonline.com; frame-src https://login.microsoftonline.com; script-src 'unsafe-inline' https://polaris-qa-notprod.cps.gov.uk https://polaris-uat-notprod.cps.gov.uk https://polaris.cps.gov.uk;">
 
   <script>
     // Bail in iframe contexts (MSAL ssoSilent loads us in a hidden iframe to
@@ -52,9 +66,12 @@
     // sibling config.json fetch keeps every silent SSO cheap). The in-bundle
     // iframe guard in handleMsalTermination is belt-and-braces.
     if (window.self === window.top) {
-      // Hosts permitted to supply auth-handover.js via ?src=. Mirrors the
-      // script-src directive in the meta CSP above — keep these two in sync.
-      const allowed = new Set(['polaris.cps.gov.uk', 'polaris-qa-notprod.cps.gov.uk', 'polaris-uat-notprod.cps.gov.uk', 'polaris-dev-notprod.cps.gov.uk']);
+      // Hosts permitted to supply auth-handover.js via ?src=. Must equal the
+      // host entries of script-src in the meta CSP above. That agreement is no
+      // longer a promise in a comment: auth-handover-csp.spec.ts asserts both
+      // lists against the same derived source of truth, so drifting either one
+      // fails the build.
+      const allowed = new Set(['polaris-qa-notprod.cps.gov.uk', 'polaris-uat-notprod.cps.gov.uk', 'polaris.cps.gov.uk']);
       const src = new URLSearchParams(window.location.search).get('src');
       if (src) {
         try {
