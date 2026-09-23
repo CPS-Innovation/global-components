@@ -23,7 +23,6 @@ Deployment is done from a remote machine with network access to Azure blob stora
    AZURE_STORAGE_ACCOUNT=your-storage-account
    AZURE_STORAGE_CONTAINER=content
    AZURE_WEBAPP_NAME=your-webapp-name
-   STATUS_ENDPOINT=https://your-proxy-domain/global-components/status
    GLOBAL_COMPONENTS_APPLICATION_ID=your-app-id
    GLOBAL_COMPONENTS_BLOB_STORAGE_URL=https://your-storage.blob.core.windows.net
    CPS_GLOBAL_COMPONENTS_BLOB_STORAGE_DOMAIN=your-storage.blob.core.windows.net
@@ -46,9 +45,10 @@ This will:
 2. Backup current files from blob storage
 3. Upload new config files to blob storage
 4. Set app settings on the web app
-5. Increment deployment version
-6. Restart the web app
-7. Poll status endpoint until new version is live
+5. Restart the web app
+
+There is no version endpoint to poll, so confirm the deploy by hitting a route the
+vnext conf owns once the app is back up, e.g. `/global-components/swagger.json`.
 
 ## Rollback
 
@@ -74,7 +74,6 @@ global-components-deploy/
 To blob storage (vnext-specific only):
 - `global-components.vnext.conf.template` - vnext nginx location blocks
 - `global-components.vnext.js` - njs module for vnext features (state, token validation)
-- `global-components-deployment.json` - version tracking
 
 As app settings:
 - `GLOBAL_COMPONENTS_APPLICATION_ID`

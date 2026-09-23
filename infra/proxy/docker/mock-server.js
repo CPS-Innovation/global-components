@@ -36,9 +36,12 @@ const routes = {
       openapi: '3.0.0',
       info: { title: 'Mock API', version: '1.0.0' },
       servers: [{ url: BASE_URL }],
+      // Operation paths are BARE, as the real MDS doc emits them: the /api
+      // prefix lives in the server url above, not here. The mock used to carry
+      // '/api/...' paths, which is what let a broken rewrite look correct.
       paths: {
-        '/api/cases': { get: { summary: 'Get cases' } },
-        '/api/documents': { get: { summary: 'Get documents' } }
+        '/cases': { get: { summary: 'Get cases' } },
+        '/documents': { get: { summary: 'Get documents' } }
       }
     }, null, 2)
   },

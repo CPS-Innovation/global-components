@@ -9,10 +9,8 @@
 import * as esbuild from "esbuild"
 import * as path from "path"
 
-// Use require for fs so we can mock readFileSync (ES module imports are immutable)
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const fs = require("fs") as typeof import("fs")
-const originalReadFileSync = fs.readFileSync
 const CONFIG_DIR = path.join(__dirname, "..", "..")
 const DIST_DIR = path.join(__dirname, "..", "..", "..", ".dist")
 
@@ -48,7 +46,6 @@ interface MockRequestOptions {
 
 interface GlocoVnextModule {
   handleValidateToken(r: MockRequest): Promise<void>
-  handleStatus(r: MockRequest): void
   filterSwaggerBody(r: MockRequest, data: string, flags: Record<string, unknown>): void
 }
 
@@ -71,7 +68,6 @@ async function build(): Promise<void> {
     outfile: path.join(DIST_DIR, "global-components.vnext.bundle.js"),
     format: "esm",
     platform: "node",
-    external: ["fs"],
     alias: {
       "templates/global-components.js": path.join(DIST_DIR, "global-components.bundle.js"),
     },
@@ -185,61 +181,17 @@ async function runTests(): Promise<void> {
     assertEqual(r.returnCode, 200, "Should return 200 (validation disabled)")
   })
 
-  // --- handleStatus tests ---
-  console.log("\nhandleStatus:")
-
-  await test("returns JSON with status and version from deployment file", async () => {
-    // Mock fs.readFileSync to return deployment JSON
-    fs.readFileSync = ((filePath: string, encoding: BufferEncoding) => {
-      if (filePath === "/etc/nginx/templates/global-components-deployment.json") {
-        return JSON.stringify({ version: 42 })
-      }
-      return originalReadFileSync(filePath, encoding)
-    }) as typeof fs.readFileSync
-
-    const r = createMockRequest({})
-    glocovnext.handleStatus(r)
-
-    fs.readFileSync = originalReadFileSync // Restore
-
-    assertEqual(r.returnCode, 200, "Should return 200")
-    assertEqual(r.headersOut["Content-Type"], "application/json", "Should be JSON")
-    const body = JSON.parse(r.returnBody!)
-    assertEqual(body.status, "online", "Should have status online")
-    assertEqual(body.version, 42, "Should have version from deployment file")
-  })
-
-  await test("returns version 0 when deployment file does not exist", async () => {
-    // Mock fs.readFileSync to throw (file not found)
-    fs.readFileSync = ((filePath: string, encoding: BufferEncoding) => {
-      if (filePath === "/etc/nginx/templates/global-components-deployment.json") {
-        throw new Error("ENOENT: no such file or directory")
-      }
-      return originalReadFileSync(filePath, encoding)
-    }) as typeof fs.readFileSync
-
-    const r = createMockRequest({})
-    glocovnext.handleStatus(r)
-
-    fs.readFileSync = originalReadFileSync // Restore
-
-    assertEqual(r.returnCode, 200, "Should return 200")
-    const body = JSON.parse(r.returnBody!)
-    assertEqual(body.status, "online", "Should have status online")
-    assertEqual(body.version, 0, "Should return version 0 when file missing")
-  })
-
   // --- filterSwaggerBody tests ---
   console.log("\nfilterSwaggerBody:")
 
-  await test("replaces upstream URL with proxy URL", async () => {
+  await test("replaces upstream URL with the proxied /api route", async () => {
     const r = createMockRequest({
       headersIn: { Host: "proxy.example.com" },
     })
     const data = '{"server": "http://mock-upstream:3000/api/"}'
     glocovnext.filterSwaggerBody(r, data, {})
     assert(
-      r.sentBuffer!.includes("https://proxy.example.com/global-components"),
+      r.sentBuffer!.includes("https://proxy.example.com/global-components/api"),
       `Should replace upstream URL, got: ${r.sentBuffer}`
     )
   })
@@ -252,7 +204,7 @@ async function runTests(): Promise<void> {
     const data = '{"url": "http://mock-upstream:3000/api"}'
     glocovnext.filterSwaggerBody(r, data, {})
     assert(
-      r.sentBuffer!.includes("https://proxy.example.com/global-components"),
+      r.sentBuffer!.includes("https://proxy.example.com/global-components/api"),
       `Should replace upstream URL without trailing slash, got: ${r.sentBuffer}`
     )
     assert(
@@ -261,15 +213,21 @@ async function runTests(): Promise<void> {
     )
   })
 
-  await test("rewrites API paths", async () => {
+  await test("leaves operation paths untouched", async () => {
+    // swagger-ui joins these onto the rewritten server url itself. Rewriting
+    // them here too would produce /global-components/api/global-components/...
     const r = createMockRequest({
       headersIn: { Host: "proxy.example.com" },
     })
-    const data = '{"path": "/api/users"}'
+    const data = '{"paths": {"/authenticate": {}}}'
     glocovnext.filterSwaggerBody(r, data, {})
     assert(
-      r.sentBuffer!.includes('"/global-components/users"'),
-      `Should rewrite API path, got: ${r.sentBuffer}`
+      r.sentBuffer!.includes('"/authenticate"'),
+      `Operation path should survive verbatim, got: ${r.sentBuffer}`
+    )
+    assert(
+      !r.sentBuffer!.includes("/global-components/authenticate"),
+      `Operation path should not be prefixed, got: ${r.sentBuffer}`
     )
   })
 
