@@ -11,6 +11,35 @@ const LISTEN_URL_OD_TASK =
 const LISTEN_URL_DCP_TASK =
   "https://acme.outsystemsenterprise.com/WorkManagementApp/screenservices/WorkManagementApp/Triage/CheckDetails/ActionCompleteDCPTask";
 const OTHER_POST_URL = "https://acme.outsystemsenterprise.com/WorkManagementApp/screenservices/WorkManagementApp/Triage/CheckDetails/Something";
+// Since ~2026-07-23 every triage type completes through this one action.
+const LISTEN_URL_TRIAGE_TASK =
+  "https://acme.outsystemsenterprise.com/WorkManagementApp/screenservices/CaseMilestone_CW/Triage/CheckDetails/ActionCompleteTriageTask";
+
+// Credential-bearing fields the real ActionCompleteTriageTask body carries. Values are
+// fake; they exist so tests can prove none of them ever reaches trackEvent.
+const SENSITIVE = {
+  CmsAuthValues: JSON.stringify({ Cookies: "CMSUSER1=fake-session-id; .CMSAUTH=FAKEAUTHCOOKIE", Token: "fake-token" }),
+  Username: "Fake User.CIN3",
+  CMSUserId: "999999",
+};
+
+// Trimmed shape of a real ActionCompleteTriageTask body (captured on cps-tst), cut down
+// to the fields that matter here plus the sensitive ones above.
+const triageTaskBody = ({ TriageType, SelectedCPSDirectDecision }: { TriageType: string; SelectedCPSDirectDecision: number }) =>
+  JSON.stringify({
+    versionInfo: { moduleVersion: "fake", apiVersion: "fake" },
+    viewName: "MainFlow.Triage",
+    inputParameters: {
+      TaskTypeLabel: "Priority PCD Review",
+      TaskId: "2363856",
+      CaseId: "2205518",
+      IsOD: false,
+      UserInOwningUnit: true,
+      SelectedCPSDirectDecision,
+      TriageType,
+      ...SENSITIVE,
+    },
+  });
 
 const previewOn: Result<Preview> = { found: true, result: { requestObservationShim: true } };
 const previewOff: Result<Preview> = { found: true, result: { requestObservationShim: false } };
@@ -244,6 +273,75 @@ describe("initialiseRequestObservationShim", () => {
       xhr.open("POST", LISTEN_URL);
       expect(() => xhr.send(JSON.stringify({ inputParameters: { IsCPSD: true } }))).not.toThrow();
       expect(send).toHaveBeenCalled();
+    });
+
+    describe("ActionCompleteTriageTask", () => {
+      const odpcdSearch = "?URN=00XX0000000&CaseId=2205518&TriageType=ODPCDReview&TaskId=2363856";
+
+      const submit = (search: string, body: string) => {
+        const trackEvent = jest.fn();
+        const { FakeXHR, send } = installShim(trackEvent, search);
+        const xhr: any = new FakeXHR();
+        xhr.open("POST", LISTEN_URL_TRIAGE_TASK);
+        xhr.send(body);
+        return { trackEvent, send };
+      };
+
+      it("derives IsCPSD true when the Is CPSD control is Yes (SelectedCPSDirectDecision 1)", () => {
+        const body = triageTaskBody({ TriageType: "ODPCDReview", SelectedCPSDirectDecision: 1 });
+        const { trackEvent, send } = submit(odpcdSearch, body);
+
+        expect(send).toHaveBeenCalledWith(body);
+        expect(trackEvent).toHaveBeenCalledWith({
+          name: "triage-submission",
+          URN: "00XX0000000",
+          CaseId: 2205518,
+          TriageType: "ODPCDReview",
+          TaskId: 2363856,
+          IsCPSD: true,
+          SelectedCPSDirectDecision: 1,
+        });
+      });
+
+      it("derives IsCPSD false when the Is CPSD control is No (SelectedCPSDirectDecision 2)", () => {
+        const { trackEvent } = submit(odpcdSearch, triageTaskBody({ TriageType: "ODPCDReview", SelectedCPSDirectDecision: 2 }));
+
+        expect(trackEvent).toHaveBeenCalledWith(expect.objectContaining({ IsCPSD: false, SelectedCPSDirectDecision: 2 }));
+      });
+
+      it("omits IsCPSD but keeps the raw code when the control is not shown (OD, SelectedCPSDirectDecision 0)", () => {
+        const { trackEvent } = submit("?CaseId=2171998&TriageType=OD&TaskId=2269104", triageTaskBody({ TriageType: "OD", SelectedCPSDirectDecision: 0 }));
+
+        expect(trackEvent).toHaveBeenCalledWith({
+          name: "triage-submission",
+          CaseId: 2171998,
+          TriageType: "OD",
+          TaskId: 2269104,
+          SelectedCPSDirectDecision: 0,
+        });
+      });
+
+      it("omits IsCPSD but keeps the raw code for an unrecognised decision value", () => {
+        const { trackEvent } = submit(odpcdSearch, triageTaskBody({ TriageType: "ODPCDReview", SelectedCPSDirectDecision: 3 }));
+
+        const [event] = trackEvent.mock.calls[0];
+        expect(event).not.toHaveProperty("IsCPSD");
+        expect(event.SelectedCPSDirectDecision).toBe(3);
+      });
+
+      it("never emits the credential-bearing body fields", () => {
+        const { trackEvent } = submit(odpcdSearch, triageTaskBody({ TriageType: "ODPCDReview", SelectedCPSDirectDecision: 1 }));
+
+        // Must actually emit, or this would pass vacuously when nothing is captured.
+        expect(trackEvent).toHaveBeenCalledTimes(1);
+        const emitted = JSON.stringify(trackEvent.mock.calls);
+        for (const [key, value] of Object.entries(SENSITIVE)) {
+          expect(emitted).not.toContain(key);
+          expect(emitted).not.toContain(value);
+        }
+        expect(emitted).not.toContain("fake-session-id");
+        expect(emitted).not.toContain("FAKEAUTHCOOKIE");
+      });
     });
   });
 });

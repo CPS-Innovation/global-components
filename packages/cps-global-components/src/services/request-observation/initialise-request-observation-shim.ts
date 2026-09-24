@@ -13,16 +13,32 @@ const ACTIVATION_URL_REGEX = /^https:\/\/[^/]+\/WorkManagementApp\/Triage(\/|$|\
 
 // The OutSystems screenservice endpoints we capture submissions for. Activation
 // already restricts us to the Triage page, so an endsWith match on the distinctive
-// action name is enough — no need to pin the full module path. Only ODReviewTask
-// carries a body we can read (IsCPSD); ODTask/DCPTask bodies are arbitrary, so we
-// just record that the submission happened (see captureTriageSubmission).
-const LISTEN_URL_REGEX = /\/ActionComplete(ODReviewTask|ODTask|DCPTask)$/i;
+// action name is enough — no need to pin the full module path.
+//
+// Since ~2026-07-23 every triage type (OD, ODPCDReview, DCP) completes through ONE
+// action, ActionCompleteTriageTask. Before that each type had its own action, and
+// this regex matching only those is why submissions went silently uncaptured from
+// that date. The legacy names are kept: the new action was confirmed on cps-tst,
+// and they cost nothing if prod lags or differs.
+const LISTEN_URL_REGEX = /\/ActionComplete(TriageTask|ODReviewTask|ODTask|DCPTask)$/i;
 
+// Only ever read named fields from the body — ActionCompleteTriageTask bodies also
+// carry CmsAuthValues (CMS session cookies), Username and CMSUserId, none of which
+// may leave the page.
 const TriageSubmissionBodySchema = z.object({
   inputParameters: z.object({
+    // Legacy ActionCompleteODReviewTask body.
     IsCPSD: z.boolean().optional(),
+    // ActionCompleteTriageTask body: the "Is CPSD" radio (CaseMilestone_CW.Triage.CPSDirect
+    // block), shown on ODPCDReview only. See cpsdFromDecision for the codes.
+    SelectedCPSDirectDecision: z.number().optional(),
   }),
 });
+
+type CpsdFields = {
+  IsCPSD?: boolean;
+  SelectedCPSDirectDecision?: number;
+};
 
 type ObservedRequest = {
   method: string;
@@ -116,41 +132,61 @@ const captureTriageSubmission = ({
   trackEvent: TrackEvent;
   body: Document | XMLHttpRequestBodyInit | null | undefined;
 }) => {
-  // A matched POST is, by definition, one of the triage tasks being completed, so
-  // we always record it. The body is best-effort only: ODReviewTask carries IsCPSD,
-  // but ODTask/DCPTask bodies are arbitrary and may not be JSON at all — we attach
-  // IsCPSD when we can read it and otherwise just note the submission happened. The
-  // captured query params (e.g. TaskType) already tell the tasks apart.
+  // A matched POST is, by definition, a triage task being completed, so we always
+  // record it. The body is best-effort only: we attach the CPSD fields when we can
+  // read them and otherwise just note the submission happened. The captured query
+  // params (TriageType, CaseId, TaskId) already tell the tasks apart.
   const queryParams = readCoercedQueryParams(window);
-  const IsCPSD = extractIsCPSD(body);
+  const cpsdFields = extractCpsdFields(body);
 
   trackEvent({
     name: "triage-submission",
     ...queryParams,
-    ...(IsCPSD !== undefined ? { IsCPSD } : {}),
+    ...cpsdFields,
   });
-  _debug("triage submission tracked", { ...queryParams, IsCPSD });
+  _debug("triage submission tracked", { ...queryParams, ...cpsdFields });
 };
 
-// Best-effort read of IsCPSD from the submission body. Returns undefined for any
-// body we can't read — not a string, not JSON, or not our expected shape — so a
-// whacky ODTask/DCPTask body simply yields an event without IsCPSD rather than
-// being dropped.
-const extractIsCPSD = (body: Document | XMLHttpRequestBodyInit | null | undefined): boolean | undefined => {
+// Maps the "Is CPSD" radio's SelectedCPSDirectDecision code to the IsCPSD boolean the
+// analytics KQL has always keyed on. Codes confirmed against deliberate Yes/No
+// submissions on cps-tst: 0 = control not shown (OD, DCP), 1 = Yes, 2 = No. Anything
+// else is unknown and yields no IsCPSD — the raw code is still emitted, so a new
+// option shows up in the data instead of being misread.
+const cpsdFromDecision = (decision: number | undefined): boolean | undefined => {
+  if (decision === 1) {
+    return true;
+  }
+  if (decision === 2) {
+    return false;
+  }
+  return undefined;
+};
+
+// Best-effort read of the CPSD fields from the submission body. Returns {} for any
+// body we can't read — not a string, not JSON, or not our expected shape — so an
+// unexpected body simply yields an event without them rather than being dropped.
+// The legacy IsCPSD boolean wins where present; otherwise it is derived from
+// SelectedCPSDirectDecision.
+const extractCpsdFields = (body: Document | XMLHttpRequestBodyInit | null | undefined): CpsdFields => {
   if (typeof body !== "string") {
-    return undefined;
+    return {};
   }
   let parsed: unknown;
   try {
     parsed = JSON.parse(body);
   } catch {
-    return undefined;
+    return {};
   }
   const result = TriageSubmissionBodySchema.safeParse(parsed);
   if (!result.success) {
-    return undefined;
+    return {};
   }
-  return result.data.inputParameters.IsCPSD;
+  const { IsCPSD: legacyIsCPSD, SelectedCPSDirectDecision } = result.data.inputParameters;
+  const IsCPSD = legacyIsCPSD ?? cpsdFromDecision(SelectedCPSDirectDecision);
+  return {
+    ...(IsCPSD !== undefined ? { IsCPSD } : {}),
+    ...(SelectedCPSDirectDecision !== undefined ? { SelectedCPSDirectDecision } : {}),
+  };
 };
 
 export const readCoercedQueryParams = (window: Window): Record<string, string | number> => {
