@@ -180,6 +180,99 @@ async function runTests(): Promise<void> {
     )
   })
 
+  // --- OS host switch (Gloco-Os-Target-<env>) ---
+  const TEST_HANDOVER =
+    "https://cps-tst.outsystemsenterprise.com/Casework_Patterns/auth-handover.html" +
+    "?src=https%3A%2F%2Fpolaris-qa-notprod.cps.gov.uk%2Fglobal-components%2Ftest%2Fauth-handover.js" +
+    "&stage=os-cookie-return" +
+    "&r=https%3A%2F%2Fcps-tst.outsystemsenterprise.com%2Fcasework_blocks%2Fhome%3FIsFromCMS%3DTrue"
+  const OAPPS = "oapps-qa-notprod.int.cps.gov.uk"
+  const BOTH_HANDOVERS =
+    "https://cps-tst.outsystemsenterprise.com/Casework_Patterns/auth-handover.html," +
+    `https://${OAPPS}/Casework_Patterns/auth-handover.html`
+
+  const initRequest = (r: string, cookieHeader?: string) =>
+    createMockRequest({
+      args: { r, cookie: "session=abc123" },
+      headersIn: {
+        "X-Forwarded-Proto": "https",
+        Host: "polaris-qa-notprod.cps.gov.uk",
+        ...(cookieHeader ? { Cookie: cookieHeader } : {}),
+      },
+    })
+
+  await test("OS switch: leaves the handover alone when there is no switch cookie", async () => {
+    process.env.AUTH_HANDOVER_WHITELIST = BOTH_HANDOVERS
+    const r = initRequest(TEST_HANDOVER)
+    nginx.appAuthRedirect(r)
+    assertEqual(r.returnCode, 302, "Should redirect")
+    assert(r.returnBody!.startsWith(TEST_HANDOVER), `Should be the original handover, got: ${r.returnBody}`)
+  })
+
+  await test("OS switch: moves the handover and its destination onto the switched host", async () => {
+    process.env.AUTH_HANDOVER_WHITELIST = BOTH_HANDOVERS
+    const r = initRequest(TEST_HANDOVER, `other=1; Gloco-Os-Target-test=${OAPPS}`)
+    nginx.appAuthRedirect(r)
+    assertEqual(r.returnCode, 302, "Should redirect")
+    assert(
+      r.returnBody!.startsWith(`https://${OAPPS}/Casework_Patterns/auth-handover.html?`),
+      `Should target the switched host's handover, got: ${r.returnBody}`
+    )
+    assert(
+      r.returnBody!.includes(`&r=https%3A%2F%2F${OAPPS}%2Fcasework_blocks%2Fhome`),
+      `Should move the nested destination too, got: ${r.returnBody}`
+    )
+    assert(
+      r.returnBody!.includes("src=https%3A%2F%2Fpolaris-qa-notprod.cps.gov.uk"),
+      `Should leave the polaris src alone, got: ${r.returnBody}`
+    )
+    assert(r.returnBody!.includes("cc=session%3Dabc123"), `Should still append cc, got: ${r.returnBody}`)
+  })
+
+  await test("OS switch: also moves a plain (unencoded) nested destination", async () => {
+    process.env.AUTH_HANDOVER_WHITELIST = BOTH_HANDOVERS
+    const handover =
+      "https://cps-tst.outsystemsenterprise.com/Casework_Patterns/auth-handover.html" +
+      "?src=https://polaris-qa-notprod.cps.gov.uk/global-components/test/auth-handover.js" +
+      "&stage=os-cookie-return&r=https://cps-tst.outsystemsenterprise.com/CaseReview/LandingPage"
+    const r = initRequest(handover, `Gloco-Os-Target-test=${OAPPS}`)
+    nginx.appAuthRedirect(r)
+    assert(
+      r.returnBody!.includes(`&r=https://${OAPPS}/CaseReview/LandingPage`),
+      `Should move the nested destination, got: ${r.returnBody}`
+    )
+  })
+
+  await test("OS switch: falls back to the original handover when the switched one isn't whitelisted", async () => {
+    process.env.AUTH_HANDOVER_WHITELIST = "https://cps-tst.outsystemsenterprise.com/Casework_Patterns/auth-handover.html"
+    const r = initRequest(TEST_HANDOVER, "Gloco-Os-Target-test=stale.example.com")
+    nginx.appAuthRedirect(r)
+    assertEqual(r.returnCode, 302, "Should still redirect, not 403")
+    assert(r.returnBody!.startsWith(TEST_HANDOVER), `Should be the original handover, got: ${r.returnBody}`)
+  })
+
+  await test("OS switch: ignores a switch for another environment", async () => {
+    process.env.AUTH_HANDOVER_WHITELIST = BOTH_HANDOVERS
+    const r = initRequest(TEST_HANDOVER, `Gloco-Os-Target-dev=${OAPPS}`)
+    nginx.appAuthRedirect(r)
+    assert(r.returnBody!.startsWith(TEST_HANDOVER), `Should be the original handover, got: ${r.returnBody}`)
+  })
+
+  await test("OS switch: ignores targets that are not an OS handover", async () => {
+    process.env.AUTH_HANDOVER_WHITELIST = "/auth-refresh-inbound"
+    const r = initRequest("/auth-refresh-inbound", `Gloco-Os-Target-test=${OAPPS}`)
+    nginx.appAuthRedirect(r)
+    assertEqual(r.returnCode, 302, "Should redirect")
+    assert(r.returnBody!.includes("/auth-refresh-inbound?cc="), `Should be unchanged, got: ${r.returnBody}`)
+  })
+
+  await test("OS switch: ignores a cookie value that isn't a hostname", async () => {
+    process.env.AUTH_HANDOVER_WHITELIST = BOTH_HANDOVERS
+    const r = initRequest(TEST_HANDOVER, "Gloco-Os-Target-test=evil.example.com%2Fpath")
+    nginx.appAuthRedirect(r)
+    assert(r.returnBody!.startsWith(TEST_HANDOVER), `Should be the original handover, got: ${r.returnBody}`)
+  })
+
   await test("sets Cms-Session-Hint cookie with correct attributes", async () => {
     process.env.AUTH_HANDOVER_WHITELIST = "/auth-refresh-inbound"
     const r = createMockRequest({

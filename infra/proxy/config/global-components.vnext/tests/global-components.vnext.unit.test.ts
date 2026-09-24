@@ -50,6 +50,9 @@ interface GlocoVnextModule {
   handleValidateToken(r: MockRequest): Promise<void>
   handleStatus(r: MockRequest): void
   filterSwaggerBody(r: MockRequest, data: string, flags: Record<string, unknown>): void
+  readConfigBlobName(r: MockRequest): string
+  handleOsTarget(r: MockRequest): void
+  OS_HOST_VARIANTS: Record<string, Record<string, string>>
 }
 
 // Bundle both modules
@@ -271,6 +274,136 @@ async function runTests(): Promise<void> {
       r.sentBuffer!.includes('"/global-components/users"'),
       `Should rewrite API path, got: ${r.sentBuffer}`
     )
+  })
+
+  // --- OS host variants ---
+  console.log("\nreadConfigBlobName:")
+
+  const OAPPS = "oapps-qa-notprod.int.cps.gov.uk"
+  const configRequest = (headersIn: Record<string, string>, env = "test") =>
+    createMockRequest({
+      uri: "/global-components/__config",
+      headersIn: { Host: "polaris-qa-notprod.cps.gov.uk", ...headersIn },
+      variables: { gloco_config_env: env },
+    })
+
+  await test("serves config.json when there is no switch", async () => {
+    assertEqual(glocovnext.readConfigBlobName(configRequest({})), "config.json", "blob")
+  })
+
+  await test("serves the variant the switch cookie names (CWA, same-origin)", async () => {
+    const r = configRequest({ Cookie: `other=1; Gloco-Os-Target-test=${OAPPS}` })
+    assertEqual(glocovnext.readConfigBlobName(r), "config.oapps.json", "blob")
+  })
+
+  await test("treats an Origin of our own host as same-origin, so the cookie still decides", async () => {
+    const r = configRequest({ Origin: "https://polaris-qa-notprod.cps.gov.uk", Cookie: `Gloco-Os-Target-test=${OAPPS}` })
+    assertEqual(glocovnext.readConfigBlobName(r), "config.oapps.json", "blob")
+  })
+
+  await test("serves the variant for the OS page's own host, whatever the cookie says", async () => {
+    const r = configRequest({ Origin: `https://${OAPPS}` })
+    assertEqual(glocovnext.readConfigBlobName(r), "config.oapps.json", "blob")
+  })
+
+  // Config has to match the page it runs on: auth state is per-origin.
+  await test("serves config.json to the environment's own OS host even when switched", async () => {
+    const r = configRequest({ Origin: "https://cps-tst.outsystemsenterprise.com", Cookie: `Gloco-Os-Target-test=${OAPPS}` })
+    assertEqual(glocovnext.readConfigBlobName(r), "config.json", "blob")
+  })
+
+  await test("ignores a switch for another environment", async () => {
+    const r = configRequest({ Cookie: `Gloco-Os-Target-test=${OAPPS}` }, "dev")
+    assertEqual(glocovnext.readConfigBlobName(r), "config.json", "blob")
+  })
+
+  await test("ignores a switch naming a host with no variant", async () => {
+    const r = configRequest({ Cookie: "Gloco-Os-Target-test=evil.example.com" })
+    assertEqual(glocovnext.readConfigBlobName(r), "config.json", "blob")
+  })
+
+  console.log("\nhandleOsTarget:")
+
+  const osTargetRequest = (method: string, options: MockRequestOptions = {}) =>
+    createMockRequest({ method, uri: "/global-components/os-target/test", ...options })
+
+  await test("GET lists the environment's variants and the current switch", async () => {
+    const r = osTargetRequest("GET", { headersIn: { Cookie: `Gloco-Os-Target-test=${OAPPS}` } })
+    glocovnext.handleOsTarget(r)
+    assertEqual(r.returnCode, 200, "status")
+    assertEqual(
+      r.returnBody,
+      JSON.stringify({
+        current: OAPPS,
+        options: [
+          { variant: "oapps", host: OAPPS },
+          { variant: "cps-lon", host: "cpslon-tst.outsystemsenterprise.com" },
+        ],
+      }),
+      "body",
+    )
+  })
+
+  await test("GET reports no switch for a stale host", async () => {
+    const r = osTargetRequest("GET", { headersIn: { Cookie: "Gloco-Os-Target-test=gone.example.com" } })
+    glocovnext.handleOsTarget(r)
+    assertEqual(JSON.parse(r.returnBody!).current, null, "current")
+  })
+
+  await test("PUT sets a Path=/ cookie for a known host", async () => {
+    const r = osTargetRequest("PUT", { requestText: JSON.stringify({ host: OAPPS }) })
+    glocovnext.handleOsTarget(r)
+    assertEqual(r.returnCode, 200, "status")
+    const cookie = r.headersOut["Set-Cookie"] as string
+    assert(cookie.startsWith(`Gloco-Os-Target-test=${OAPPS}; Path=/;`), `cookie: ${cookie}`)
+    assert(cookie.includes("Secure") && cookie.includes("HttpOnly") && cookie.includes("SameSite=Lax"), `cookie: ${cookie}`)
+  })
+
+  await test("PUT refuses a host that is not a variant of this environment", async () => {
+    for (const requestText of [JSON.stringify({ host: "evil.example.com" }), "not json", ""]) {
+      const r = osTargetRequest("PUT", { requestText })
+      glocovnext.handleOsTarget(r)
+      assertEqual(r.returnCode, 400, `status for ${requestText}`)
+      assertEqual(r.headersOut["Set-Cookie"], undefined, "no cookie")
+    }
+  })
+
+  await test("PUT refuses for an environment with no variants", async () => {
+    const r = createMockRequest({ method: "PUT", uri: "/global-components/os-target/prod", requestText: JSON.stringify({ host: OAPPS }) })
+    glocovnext.handleOsTarget(r)
+    assertEqual(r.returnCode, 400, "status")
+  })
+
+  await test("DELETE expires the cookie", async () => {
+    const r = osTargetRequest("DELETE")
+    glocovnext.handleOsTarget(r)
+    assertEqual(r.returnCode, 200, "status")
+    assert((r.headersOut["Set-Cookie"] as string).includes("Expires=Thu, 01 Jan 1970"), "expired")
+  })
+
+  await test("other methods are refused", async () => {
+    const r = osTargetRequest("POST")
+    glocovnext.handleOsTarget(r)
+    assertEqual(r.returnCode, 405, "status")
+  })
+
+  // The table and the files are two halves of one fact: a variant the proxy
+  // offers must have a config to serve, and a config nobody can reach is dead.
+  await test("OS_HOST_VARIANTS matches configuration/config.<env>.<variant>.json both ways", async () => {
+    const configDir = path.join(__dirname, "..", "..", "..", "..", "..", "configuration")
+    const files = fs
+      .readdirSync(configDir)
+      .map((file: string) => file.match(/^config\.([^.]+)\.([^.]+)\.json$/))
+      .filter((m: RegExpMatchArray | null): m is RegExpMatchArray => !!m && m[2] !== "notification")
+    const fromFiles = files.map(([file, env, variant]: RegExpMatchArray) => {
+      const text = originalReadFileSync.call(fs, path.join(configDir, file), "utf8") as string
+      const host = (text.match(/"BANNER_TITLE_HREF": "https:\/\/([^/]+)\//) || [])[1]
+      return `${env}/${variant}=${host}`
+    })
+    const fromTable = Object.entries(glocovnext.OS_HOST_VARIANTS).flatMap(([env, variants]) =>
+      Object.entries(variants).map(([variant, host]) => `${env}/${variant}=${host}`),
+    )
+    assertEqual(JSON.stringify(fromTable.sort()), JSON.stringify(fromFiles.sort()), "variants")
   })
 
   // Summary

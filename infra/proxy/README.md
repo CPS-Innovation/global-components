@@ -22,6 +22,22 @@ Nginx reverse proxy with njs (JavaScript) for header/cookie manipulation. Used t
 - `.env` - **gitignored** - contains vnext-specific config
 - `.env.example` - template for the above
 
+The vnext layer also owns **OS host variants**: letting named users be switched onto a
+different OutSystems host from the rest of their environment.
+
+- `configuration/config.<env>.<variant>.json` is the environment's config with only the OS
+  host swapped (enforced by `outsystems-host-consistency.spec.ts`), deployed beside
+  `config.json` as `config.<variant>.json`.
+- `OS_HOST_VARIANTS` in `global-components.vnext.ts` maps each variant to its host. A unit
+  test checks it against the variant files both ways.
+- The switch is the `Gloco-Os-Target-<env>` cookie (`Path=/`, value = the variant's OS host),
+  set via `PUT`/`DELETE /global-components/os-target/<env>` from the preview page.
+- `/global-components/<env>/config.json` is served by `readConfigBlobName`:
+  - the variant for the requesting OS page's own host (by `Origin`); else
+  - the variant the cookie names (CWA); else
+  - `config.json`.
+- Polaris's `/init` reads the same cookie to move the handover onto the switched host.
+
 ### Docker (`docker/`)
 
 - `Dockerfile.base` - nginx with njs module, runs as non-root `nginx` user on port 8080

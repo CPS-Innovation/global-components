@@ -192,6 +192,28 @@ async function runTests(): Promise<void> {
     assertEqual(gloco.readCorsOrigin(r), "", "Should return empty string")
   })
 
+  await test("returns origin for the London test OS host", async () => {
+    const r = createMockRequest({
+      headersIn: { Origin: "https://cpslon-tst.outsystemsenterprise.com" },
+    })
+    assertEqual(
+      gloco.readCorsOrigin(r),
+      "https://cpslon-tst.outsystemsenterprise.com",
+      "Should return origin",
+    )
+  })
+
+  await test("returns origin for an oapps proxy host via the .cps.gov.uk rule", async () => {
+    const r = createMockRequest({
+      headersIn: { Origin: "https://oapps-qa-notprod.int.cps.gov.uk" },
+    })
+    assertEqual(
+      gloco.readCorsOrigin(r),
+      "https://oapps-qa-notprod.int.cps.gov.uk",
+      "Should return origin",
+    )
+  })
+
   await test("returns origin for a .cps.gov.uk subdomain", async () => {
     const r = createMockRequest({
       headersIn: { Origin: "https://foo.cps.gov.uk" },

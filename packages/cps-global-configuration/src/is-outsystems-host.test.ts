@@ -5,7 +5,7 @@ describe("isOutSystemsHostname", () => {
     "cps.outsystemsenterprise.com",
     "cps-tst.outsystemsenterprise.com",
     "CPS-TST1.outsystemsenterprise.com",
-    "oapps.cps.gov.uk",
+    "oapps.int.cps.gov.uk",
     "oapps-qa-notprod.int.cps.gov.uk",
     "oapps-dev-notprod.int.cps.gov.uk",
   ])("recognises %s", hostname => {
@@ -18,7 +18,10 @@ describe("isOutSystemsHostname", () => {
     // Only the proxy hosts themselves, not anything else under cps.gov.uk that
     // happens to start with oapps.
     "oapps-evil.cps.gov.uk",
-    "oapps.cps.gov.uk.example.com",
+    "oapps.int.cps.gov.uk.example.com",
+    // The proxies all live under int.cps.gov.uk.
+    "oapps.cps.gov.uk",
+    "oapps-qa-notprod.cps.gov.uk",
     "outsystemsenterprise.com.example.com",
     "notoutsystemsenterprise.com",
   ])("rejects %s", hostname => {

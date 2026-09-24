@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { deriveAllCheckTargets, deriveCheckTargets } from "./derive-check-targets";
+import { listOsHostVariantFiles } from "../scripts/os-host-variant-files";
 
 const CONFIG_DIR = join(__dirname, "..", "..", "..", "..", "configuration");
 const ENVIRONMENTS = ["dev", "test", "uat", "prod"];
@@ -53,6 +54,35 @@ describe("deriveCheckTargets", () => {
 
     expect(oapps.map(t => t.url)).toEqual([
       "https://oapps-qa-notprod.int.cps.gov.uk/WorkManagementApp",
+    ]);
+  });
+});
+
+describe("against the committed OS host variants", () => {
+  const targets = deriveAllCheckTargets(
+    Object.fromEntries(
+      listOsHostVariantFiles(CONFIG_DIR).map(({ file, env, variant }) => [
+        `${env}.${variant}`,
+        JSON.parse(readFileSync(join(CONFIG_DIR, file), "utf8")),
+      ]),
+    ),
+  );
+
+  // QA's alternative hosts configure their CSP independently of cps-tst, so the
+  // live checker probes them as well.
+  it("probes the oapps and London hosts in QA", () => {
+    expect(new Set(targets.map(t => `${t.environment} ${new URL(t.url).hostname}`))).toEqual(
+      new Set([
+        "test.oapps oapps-qa-notprod.int.cps.gov.uk",
+        "test.cps-lon cpslon-tst.outsystemsenterprise.com",
+      ]),
+    );
+  });
+
+  it("includes each variant's handover page", () => {
+    expect(targets.filter(t => t.kind === "auth-handover").map(t => t.environment).sort()).toEqual([
+      "test.cps-lon",
+      "test.oapps",
     ]);
   });
 });

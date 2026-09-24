@@ -7,6 +7,15 @@ const AUTH_HINT_ENDPOINT = "/global-components/state/auth-hint";
 const ENV_MATCH = window.location.pathname.match(/\/global-components\/([^/]+)\//);
 const ENV = ENV_MATCH?.[1] ?? "test";
 const NOTIFICATIONS_ENDPOINT = `/global-components/${ENV}/notification.json`;
+// The per-environment OS host switch, owned by the proxy (see OS_HOST_VARIANTS
+// in infra/proxy/config/global-components.vnext). It lives in its own cookie
+// rather than preview state because Polaris's /init has to read it too.
+const OS_TARGET_ENDPOINT = `/global-components/os-target/${ENV}`;
+
+type OsTarget = {
+  current: string | null;
+  options: { variant: string; host: string }[];
+};
 
 type NotificationsResult =
   | { loaded: true; notifications: Notification[] }
@@ -162,6 +171,7 @@ export function App() {
     useState<NotificationsResult | null>(null);
   const [authHint, setAuthHint] = useState<AuthHint | null>(null);
   const [sidInput, setSidInput] = useState<string>("");
+  const [osTarget, setOsTarget] = useState<OsTarget | null>(null);
 
   const showStatus = useCallback((message: string, type: StatusType) => {
     setStatus({ message, type });
@@ -244,6 +254,39 @@ export function App() {
   useEffect(() => {
     loadNotifications();
   }, [loadNotifications]);
+
+  const loadOsTarget = useCallback(async () => {
+    try {
+      const response = await fetch(OS_TARGET_ENDPOINT, { credentials: "include" });
+      if (response.ok) {
+        setOsTarget(await response.json());
+      }
+    } catch {
+      // No switch endpoint (e.g. an older proxy) — the section stays hidden.
+    }
+  }, []);
+
+  useEffect(() => {
+    loadOsTarget();
+  }, [loadOsTarget]);
+
+  const handleOsTargetChange = async (host: string) => {
+    try {
+      const response = await fetch(OS_TARGET_ENDPOINT, {
+        method: host ? "PUT" : "DELETE",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: host ? JSON.stringify({ host }) : undefined,
+      });
+      if (!response.ok) {
+        throw new Error("Failed to switch OutSystems host");
+      }
+      setOsTarget(osTarget && { ...osTarget, current: host || null });
+      showStatus("OutSystems host switched — takes effect on your next page load or C-button press", "success");
+    } catch (err) {
+      showStatus(err instanceof Error ? err.message : "Unknown error", "error");
+    }
+  };
 
   const handleEnabledChange = (checked: boolean) => {
     const newState = { ...state, enabled: checked || undefined };
@@ -774,6 +817,39 @@ export function App() {
             )}
           </fieldset>
         </div>
+
+        {osTarget && osTarget.options.length > 0 && (
+          <div className="govuk-form-group">
+            <fieldset className="govuk-fieldset">
+              <legend className="govuk-fieldset__legend govuk-fieldset__legend--m">
+                <h2 className="govuk-fieldset__heading">OutSystems host</h2>
+              </legend>
+              <p className="govuk-body govuk-!-font-size-16">
+                Which OutSystems host the C-button and the menu send you to in this
+                environment. Pages you open directly on either host keep working as
+                they are.
+              </p>
+              <div className="govuk-radios govuk-radios--small" data-module="govuk-radios">
+                {[{ variant: "", host: "" }, ...osTarget.options].map(({ variant, host }) => (
+                  <div key={host || "default"} className="govuk-radios__item">
+                    <input
+                      className="govuk-radios__input"
+                      id={`os-target-${variant || "default"}`}
+                      name="osTarget"
+                      type="radio"
+                      checked={(osTarget.current ?? "") === host}
+                      disabled={loading}
+                      onChange={() => handleOsTargetChange(host)}
+                    />
+                    <label className="govuk-label govuk-radios__label" htmlFor={`os-target-${variant || "default"}`}>
+                      {host ? `${variant} — ${host}` : "Default for this environment"}
+                    </label>
+                  </div>
+                ))}
+              </div>
+            </fieldset>
+          </div>
+        )}
 
         <div className="govuk-form-group">
           <fieldset className="govuk-fieldset">
