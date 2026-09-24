@@ -579,6 +579,32 @@ async function runTests(): Promise<void> {
     )
   })
 
+  await test("accepts a full OS host in place of a subdomain", async () => {
+    const r = createMockRequest({
+      uri: "/case-review-redirect/oapps-qa-notprod.int.cps.gov.uk/test",
+      args: { CMSCaseId: "42", URN: "12AB3456789" },
+      headersIn: { "X-Forwarded-Proto": "https", Host: "polaris-qa.cps.gov.uk" },
+    })
+    gloco.handleCaseReviewRedirect(r)
+    assertEqual(r.returnCode, 302, "Should return 302")
+
+    const authHandoverUrl = decodeURIComponent(r.returnBody!.split("?r=")[1])
+    assert(
+      authHandoverUrl.startsWith("https://oapps-qa-notprod.int.cps.gov.uk/Casework_Patterns/auth-handover.html"),
+      `Should use the full OS host, got: ${authHandoverUrl}`
+    )
+  })
+
+  await test("returns 400 for a full host outside our estate", async () => {
+    const r = createMockRequest({
+      uri: "/case-review-redirect/evil.example.com/test",
+      args: { CMSCaseId: "42", URN: "12AB3456789" },
+      headersIn: { "X-Forwarded-Proto": "https", Host: "polaris-qa.cps.gov.uk" },
+    })
+    gloco.handleCaseReviewRedirect(r)
+    assertEqual(r.returnCode, 400, "Should return 400")
+  })
+
   await test("returns 400 when CMSCaseId is missing", async () => {
     const r = createMockRequest({
       uri: "/case-review-redirect/cps-tst/test",

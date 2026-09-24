@@ -6,8 +6,10 @@ import { TrackEvent } from "../analytics/analytics-event";
 
 const { _log, _warn, _debug } = makeConsole("request-observation-shim");
 
-// Only activate on the OutSystems triage page.
-const ACTIVATION_URL_REGEX = /^https:\/\/[^/]+\.outsystemsenterprise\.com\/WorkManagementApp\/Triage(\/|$|\?)/i;
+// Only activate on the OutSystems triage page. Host-agnostic, so it survives
+// OutSystems moving off outsystemsenterprise.com (onto the oapps proxies); no
+// other app has a /WorkManagementApp/Triage path.
+const ACTIVATION_URL_REGEX = /^https:\/\/[^/]+\/WorkManagementApp\/Triage(\/|$|\?)/i;
 
 // The OutSystems screenservice endpoints we capture submissions for. Activation
 // already restricts us to the Triage page, so an endsWith match on the distinctive

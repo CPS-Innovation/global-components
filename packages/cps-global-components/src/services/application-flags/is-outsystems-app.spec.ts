@@ -22,6 +22,12 @@ describe("isOutSystemsApp", () => {
     expect(isOutSystemsApp(createMockWindow("https://a.b.c.outsystemsenterprise.com"))).toBe(true);
   });
 
+  it("should return true for the oapps proxies OutSystems is moving behind", () => {
+    expect(isOutSystemsApp(createMockWindow("https://oapps.cps.gov.uk/Casework/home"))).toBe(true);
+    expect(isOutSystemsApp(createMockWindow("https://oapps-qa-notprod.int.cps.gov.uk/WorkManagementApp/TaskList"))).toBe(true);
+    expect(isOutSystemsApp(createMockWindow("https://polaris-qa-notprod.cps.gov.uk/polaris-ui"))).toBe(false);
+  });
+
   it("should return false for non-http/https URLs", () => {
     expect(isOutSystemsApp(createMockWindow("ftp://app.outsystemsenterprise.com"))).toBe(false);
     expect(isOutSystemsApp(createMockWindow("file:///app.outsystemsenterprise.com"))).toBe(false);

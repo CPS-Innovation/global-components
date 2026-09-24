@@ -34,6 +34,7 @@
   "SHOW_HEADER_REBRAND": "cps",
   "OS_HANDOVER_URL": "https://cps-tst.outsystemsenterprise.com/Casework_Patterns/auth-handover.html?src=https://polaris-qa-notprod.cps.gov.uk/global-components/test/auth-handover.js",
   "OS_ENTRA_ID_STORAGE_KEY": "$OS_Users$Casework_Blocks$ClientVars$EntraID",
+  "OS_RESET_TASKLIST_FILTERS_ON_FRESH_TOKEN": true,
   "RECENT_CASES_NAVIGATE_URL": "https://cps-tst.outsystemsenterprise.com/WorkManagementApp/CaseOverview?CaseId={caseId}",
   "RECENT_CASES_LIST_LENGTH": 5,
   "FEATURE_FLAG_MENU_USERS": {
@@ -68,19 +69,19 @@
       "cmsAuthFromStorageKey": "$OS_Users$Casework_Blocks$ClientVars$JSONString",
       "contexts": [
         {
-          "path": "https://(?:cps-tst|cpslon-tst)\\.outsystemsenterprise\\.com/casework(_blocks)?/home",
+          "path": "https://cps-tst\\.outsystemsenterprise\\.com/casework(_blocks)?/home",
           "contextIds": "home",
           "showNotification": true
         },
         {
-          "path": "https://(?:cps-tst|cpslon-tst)\\.outsystemsenterprise\\.com/casework(_blocks)?(?![a-z0-9_])",
+          "path": "https://cps-tst\\.outsystemsenterprise\\.com/casework(_blocks)?(?![a-z0-9_])",
           "contextIds": "unknown-home"
         },
         {
           "caseLockingAppName": "Case Review App",
           "contexts": [
             {
-              "path": "https://(?:cps-tst|cpslon-tst)\\.outsystemsenterprise\\.com/CaseReview.*?[&?](?:CMS)?CaseId=(?<caseId>\\d+)",
+              "path": "https://cps-tst\\.outsystemsenterprise\\.com/CaseReview.*?[&?](?:CMS)?CaseId=(?<caseId>\\d+)",
               "contextIds": "case review",
               "caseLockingRegion": { "code": "case_review" },
               "hostAppEventTargets": [
@@ -91,53 +92,53 @@
           ]
         },
         {
-          "path": "https://(?:cps-tst|cpslon-tst)\\.outsystemsenterprise\\.com/CaseReview/RedirectCW",
+          "path": "https://cps-tst\\.outsystemsenterprise\\.com/CaseReview/RedirectCW",
           "contextIds": "redirect",
           "preventPageViewAnalytics": true
         },
         {
-          "path": "https://(?:cps-tst|cpslon-tst)\\.outsystemsenterprise\\.com/CaseReview/",
+          "path": "https://cps-tst\\.outsystemsenterprise\\.com/CaseReview/",
           "contextIds": "cases"
         },
         {
           "caseLockingAppName": "Work Management App",
           "contexts": [
             {
-              "path": "https://(?:cps-tst|cpslon-tst)\\.outsystemsenterprise\\.com/WorkManagementApp.*?(?=.*[&?]CaseId=(?<caseId>\\d+))(?=.*[&?]IsOpenMaterials=true)",
+              "path": "https://cps-tst\\.outsystemsenterprise\\.com/WorkManagementApp.*?(?=.*[&?]CaseId=(?<caseId>\\d+))(?=.*[&?]IsOpenMaterials=true)",
               "contextIds": "case materials",
               "caseLockingRegion": { "code": "case" }
             },
             {
-              "path": "https://(?:cps-tst|cpslon-tst)\\.outsystemsenterprise\\.com/WorkManagementApp/CaseOverviewDetails(?=.*[&?]In_WitnessID=(?<witnessId>\\d+))(?=.*[&?]CaseId=(?<caseId>\\d+))",
+              "path": "https://cps-tst\\.outsystemsenterprise\\.com/WorkManagementApp/CaseOverviewDetails(?=.*[&?]In_WitnessID=(?<witnessId>\\d+))(?=.*[&?]CaseId=(?<caseId>\\d+))",
               "contextIds": "case details",
               "caseLockingRegion": { "code": "victim_witness", "subject": "{witnessId}" }
             },
             {
-              "path": "https://(?:cps-tst|cpslon-tst)\\.outsystemsenterprise\\.com/WorkManagementApp.*[&?]CaseId=(?<caseId>\\d+)",
+              "path": "https://cps-tst\\.outsystemsenterprise\\.com/WorkManagementApp.*[&?]CaseId=(?<caseId>\\d+)",
               "contextIds": "case details",
               "caseLockingRegion": { "code": "case" }
             }
           ]
         },
         {
-          "path": "https://(?:cps-tst|cpslon-tst)\\.outsystemsenterprise\\.com/WorkManagementApp/Cases",
+          "path": "https://cps-tst\\.outsystemsenterprise\\.com/WorkManagementApp/Cases",
           "contextIds": "cases"
         },
         {
-          "path": "https://(?:cps-tst|cpslon-tst)\\.outsystemsenterprise\\.com/WorkManagementApp/TaskList",
+          "path": "https://cps-tst\\.outsystemsenterprise\\.com/WorkManagementApp/TaskList",
           "contextIds": "tasks"
         },
         {
-          "path": "https://(?:cps-tst|cpslon-tst)\\.outsystemsenterprise\\.com/WorkManagementApp/Redirect",
+          "path": "https://cps-tst\\.outsystemsenterprise\\.com/WorkManagementApp/Redirect",
           "contextIds": "redirect",
           "preventPageViewAnalytics": true
         },
         {
-          "path": "https://(?:cps-tst|cpslon-tst)\\.outsystemsenterprise\\.com/WorkManagementApp/SearchCase",
+          "path": "https://cps-tst\\.outsystemsenterprise\\.com/WorkManagementApp/SearchCase",
           "contextIds": "cases"
         },
         {
-          "path": "https://(?:cps-tst|cpslon-tst)\\.outsystemsenterprise\\.com/WorkManagementApp",
+          "path": "https://cps-tst\\.outsystemsenterprise\\.com/WorkManagementApp",
           "contextIds": "unknown-wma"
         }
       ]

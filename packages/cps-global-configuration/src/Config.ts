@@ -283,6 +283,10 @@ export const configBaseSchema = z.object({
   // read it. Blank/absent turns the feature off — no write happens. Tactical
   // bridge (FCT2-21199); the objectId is the same one the AuthHint carries.
   OS_ENTRA_ID_STORAGE_KEY: z.string().optional(),
+  // FCT2-16735 temporary feature gate: on a fresh CMS token, the OS handover
+  // clears the user's stale tasklist filters. Was keyed off the OS hostname
+  // (cps-tst*, i.e. test and uat); a config flag survives OS changing domain.
+  OS_RESET_TASKLIST_FILTERS_ON_FRESH_TOKEN: z.boolean().optional(),
   FEATURE_FLAG_MENU_USERS: featureFlagUsersSchema.optional(),
   FEATURE_FLAG_USE_MSAL_FULL_REDIRECT_USERS: featureFlagUsersSchema.optional(),
   FEATURE_FLAG_CASE_LOCKING_USERS: featureFlagUsersSchema.optional(),

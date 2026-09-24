@@ -28,33 +28,32 @@ describe("deriveCheckTargets", () => {
   it("collapses several links in one module to a single probe", () => {
     const wma = targets.filter(t => t.url.endsWith("/WorkManagementApp"));
 
-    expect(wma).toHaveLength(2); // dublin + london, not four
+    expect(wma).toHaveLength(1);
   });
 
   it("ignores relative hrefs and non-OutSystems hosts", () => {
-    expect(targets.every(t => t.url.includes("outsystemsenterprise.com"))).toBe(
-      true,
-    );
+    expect(targets.map(t => new URL(t.url).hostname)).toEqual([
+      "cps-tst.outsystemsenterprise.com",
+      "cps-tst.outsystemsenterprise.com",
+      "cps-tst.outsystemsenterprise.com",
+    ]);
   });
 
   it("includes the handover page as its own kind", () => {
     expect(
       targets.filter(t => t.kind === "auth-handover").map(t => t.url),
-    ).toContain(HANDOVER_URL);
+    ).toEqual([HANDOVER_URL]);
   });
 
-  it("adds the London twin of every Dublin target", () => {
-    // The hand-listed version checked none of these.
-    expect(targets.filter(t => t.region === "london").map(t => t.url)).toContain(
-      "https://cpslon-tst.outsystemsenterprise.com/WorkManagementApp",
-    );
-  });
+  // The checker follows OutSystems onto the oapps proxies without change.
+  it("probes OutSystems on an oapps proxy host", () => {
+    const oapps = deriveCheckTargets("test", {
+      LINKS: [{ href: "https://oapps-qa-notprod.int.cps.gov.uk/WorkManagementApp/TaskList" }],
+    } as never);
 
-  it("produces one London target for each Dublin one", () => {
-    const dublin = targets.filter(t => t.region === "dublin");
-    const london = targets.filter(t => t.region === "london");
-
-    expect(london).toHaveLength(dublin.length);
+    expect(oapps.map(t => t.url)).toEqual([
+      "https://oapps-qa-notprod.int.cps.gov.uk/WorkManagementApp",
+    ]);
   });
 });
 
@@ -66,17 +65,13 @@ describe("against the committed configs", () => {
   it("covers every OutSystems host the configs reference", () => {
     const hosts = new Set(targets.map(t => new URL(t.url).hostname));
 
-    // The four Dublin hosts plus their London twins. The previous hand-written
-    // list named three of these eight.
+    // One OutSystems host per environment. The previous hand-written list
+    // named three of these four.
     expect([...hosts].sort()).toEqual([
       "cps-dev.outsystemsenterprise.com",
       "cps-tst.outsystemsenterprise.com",
       "cps-tst1.outsystemsenterprise.com",
       "cps.outsystemsenterprise.com",
-      "cpslon-dev.outsystemsenterprise.com",
-      "cpslon-tst.outsystemsenterprise.com",
-      "cpslon-tst1.outsystemsenterprise.com",
-      "cpslon.outsystemsenterprise.com",
     ]);
   });
 

@@ -12,11 +12,7 @@ export {
   type SkipLinks,
 } from "./Config";
 export { PreviewSchema, type Preview } from "./Preview";
-export {
-  applyRegionOverride,
-  applyRegionToString,
-  getPreviewRegion,
-} from "./apply-region-override";
+export { isOutSystemsHostname, isOutSystemsUrl } from "./is-outsystems-host";
 export {
   notificationSchema,
   notificationsFileSchema,

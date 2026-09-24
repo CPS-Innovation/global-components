@@ -59,54 +59,54 @@
       "cmsAuthFromStorageKey": "$OS_Users$Casework_Blocks$ClientVars$JSONString",
       "contexts": [
         {
-          "path": "https://(?:cps|cpslon)\\.outsystemsenterprise\\.com/casework(_blocks)?/home",
+          "path": "https://cps\\.outsystemsenterprise\\.com/casework(_blocks)?/home",
           "contextIds": "home",
           "showNotification": true
         },
         {
-          "path": "https://(?:cps|cpslon)\\.outsystemsenterprise\\.com/casework(_blocks)?(?![a-z0-9_])",
+          "path": "https://cps\\.outsystemsenterprise\\.com/casework(_blocks)?(?![a-z0-9_])",
           "contextIds": "unknown-home"
         },
         {
-          "path": "https://(?:cps|cpslon)\\.outsystemsenterprise\\.com/CaseReview.*?[&?](?:CMS)?CaseId=(?<caseId>\\d+)",
+          "path": "https://cps\\.outsystemsenterprise\\.com/CaseReview.*?[&?](?:CMS)?CaseId=(?<caseId>\\d+)",
           "contextIds": "case review"
         },
         {
-          "path": "https://(?:cps|cpslon)\\.outsystemsenterprise\\.com/CaseReview/RedirectCW",
+          "path": "https://cps\\.outsystemsenterprise\\.com/CaseReview/RedirectCW",
           "contextIds": "redirect",
           "preventADAndDataCalls": true
         },
         {
-          "path": "https://(?:cps|cpslon)\\.outsystemsenterprise\\.com/CaseReview/",
+          "path": "https://cps\\.outsystemsenterprise\\.com/CaseReview/",
           "contextIds": "cases"
         },
         {
-          "path": "https://(?:cps|cpslon)\\.outsystemsenterprise\\.com/WorkManagementApp.*?(?=.*[&?]CaseId=(?<caseId>\\d+))(?=.*[&?]IsOpenMaterials=true)",
+          "path": "https://cps\\.outsystemsenterprise\\.com/WorkManagementApp.*?(?=.*[&?]CaseId=(?<caseId>\\d+))(?=.*[&?]IsOpenMaterials=true)",
           "contextIds": "case materials"
         },
         {
-          "path": "https://(?:cps|cpslon)\\.outsystemsenterprise\\.com/WorkManagementApp.*[&?]CaseId=(?<caseId>\\d+)",
+          "path": "https://cps\\.outsystemsenterprise\\.com/WorkManagementApp.*[&?]CaseId=(?<caseId>\\d+)",
           "contextIds": "case details"
         },
         {
-          "path": "https://(?:cps|cpslon)\\.outsystemsenterprise\\.com/WorkManagementApp/Cases",
+          "path": "https://cps\\.outsystemsenterprise\\.com/WorkManagementApp/Cases",
           "contextIds": "cases"
         },
         {
-          "path": "https://(?:cps|cpslon)\\.outsystemsenterprise\\.com/WorkManagementApp/TaskList",
+          "path": "https://cps\\.outsystemsenterprise\\.com/WorkManagementApp/TaskList",
           "contextIds": "tasks"
         },
         {
-          "path": "https://(?:cps|cpslon)\\.outsystemsenterprise\\.com/WorkManagementApp/Redirect",
+          "path": "https://cps\\.outsystemsenterprise\\.com/WorkManagementApp/Redirect",
           "contextIds": "redirect",
           "preventADAndDataCalls": true
         },
         {
-          "path": "https://(?:cps|cpslon)\\.outsystemsenterprise\\.com/WorkManagementApp/SearchCase",
+          "path": "https://cps\\.outsystemsenterprise\\.com/WorkManagementApp/SearchCase",
           "contextIds": "cases"
         },
         {
-          "path": "https://(?:cps|cpslon)\\.outsystemsenterprise\\.com/WorkManagementApp",
+          "path": "https://cps\\.outsystemsenterprise\\.com/WorkManagementApp",
           "contextIds": "unknown-wma"
         }
       ]

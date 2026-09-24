@@ -96,7 +96,7 @@ const summaryRow = (result: TargetResult): string => {
     .filter(Boolean)
     .join(", ");
 
-  return `| ${ICON[statusOf(result)]} | ${target.environment} | ${target.region} | \`${new URL(target.url).pathname}\` | ${new URL(target.url).hostname} | ${notes || "—"} |`;
+  return `| ${ICON[statusOf(result)]} | ${target.environment} | \`${new URL(target.url).pathname}\` | ${new URL(target.url).hostname} | ${notes || "—"} |`;
 };
 
 const detailSection = (result: TargetResult): string[] => {
@@ -239,8 +239,8 @@ export const renderMarkdownReport = (
     "Requirements are derived from `configuration/config.<env>.json`; see",
     "`generated/csp/CSP-REQUIREMENTS.md` for what each origin is for.",
     "",
-    "| | Env | Region | Path | Host | Notes |",
-    "| --- | --- | --- | --- | --- | --- |",
+    "| | Env | Path | Host | Notes |",
+    "| --- | --- | --- | --- | --- |",
     ...results.map(summaryRow),
     "",
     ...results.flatMap(detailSection),
@@ -296,7 +296,7 @@ export const renderHtmlReport = (
 <h1>OutSystems CSP check</h1>
 <p>Checked ${escapeHtml(generatedAt)}. Requirements derived from the environment configs.</p>
 <table>
-<tr><th></th><th>Env</th><th>Region</th><th>Host</th><th>Path</th><th>Notes</th></tr>
+<tr><th></th><th>Env</th><th>Host</th><th>Path</th><th>Notes</th></tr>
 ${results
   .map(r => {
     const status = statusOf(r);
@@ -311,7 +311,7 @@ ${results
     ]
       .filter(Boolean)
       .join("; ");
-    return `<tr class="${status}"><td>${ICON[status]}</td><td>${escapeHtml(r.target.environment)}</td><td>${escapeHtml(r.target.region)}</td><td>${escapeHtml(url.hostname)}</td><td><code>${escapeHtml(url.pathname)}</code></td><td>${escapeHtml(notes || "—")}</td></tr>`;
+    return `<tr class="${status}"><td>${ICON[status]}</td><td>${escapeHtml(r.target.environment)}</td><td>${escapeHtml(url.hostname)}</td><td><code>${escapeHtml(url.pathname)}</code></td><td>${escapeHtml(notes || "—")}</td></tr>`;
   })
   .join("\n")}
 </table>

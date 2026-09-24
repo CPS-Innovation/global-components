@@ -62,9 +62,8 @@ current state has a plain URL to share:
 https://<storage-account>.z33.web.core.windows.net/csp-check/
 ```
 
-Running it locally probes every OutSystems host the configs reference — including the
-`cpslon*` London hosts — and reports which required origins are missing, which
-are granted only under a narrower path than we need, which are granted but no
+Running it locally probes every OutSystems host the configs reference and reports
+which required origins are missing, which are granted only under a narrower path than we need, which are granted but no
 longer used, and whether each tenant's uploaded `auth-handover.html` still
 matches this repository. Output lands in `generated/csp-check/` as `index.html` plus `report.md`, in the
 GitHub job summary, and — for scheduled runs — at the URL above. Latest result
