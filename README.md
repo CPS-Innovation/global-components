@@ -96,3 +96,9 @@ keys.
 See [`CLAUDE.md`](./CLAUDE.md) for build, test and style conventions —
 in particular, this is a `pnpm` workspace and targeted per-package builds are
 required.
+
+## Rolling back a bad release
+
+See [`.github/ROLLBACK.md`](./.github/ROLLBACK.md). In short: revert the PR with
+GitHub's **Revert** button — pre-prod redeploys itself — and for production, then
+run **"Deploy: all environments including prod"**.
