@@ -19,9 +19,10 @@ on:
 
 env:
   BUILD_ARTIFACT_NAME: build-artifact
-  # Environments whose live build is snapshotted before every deploy, so it can be restored in
-  # under a minute with "Rollback: restore an environment from a snapshot" — see .github/README.md.
-  # Keep in step with the environment choices in rollback-environment.yml.
+  # Environments whose live build is snapshotted before every deploy, so the previous release can
+  # be put back in seconds by that environment's "Rollback: <env> to its previous release" workflow
+  # (rollback-previous-release-<env>.yml) — see .github/README.md. Enrolling an environment needs
+  # both: its name here, and its own copy of that workflow.
   ROLLBACK_ENROLLED_ENVIRONMENTS: '["test"]'
 
 permissions:
@@ -141,8 +142,8 @@ jobs:
               --content-cache-control "max-age=20, stale-while-revalidate=3600, stale-if-error=3600" \
               --metadata $METADATA
 
-      # Keep the 5 most recently live snapshots (plus whatever is live). Housekeeping only, so it
-      # runs after the upload and never fails the deploy.
+      # Keep just the previous release (plus whatever is live) — the one the emergency rollback
+      # restores. Housekeeping only, so it runs after the upload and never fails the deploy.
       - name: Prune old snapshots (rollback-enrolled environments only)
         if: contains(fromJSON(env.ROLLBACK_ENROLLED_ENVIRONMENTS), inputs.environment)
         continue-on-error: true

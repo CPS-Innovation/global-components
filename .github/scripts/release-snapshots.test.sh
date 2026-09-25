@@ -2,7 +2,7 @@
 #
 # release-snapshots.test.sh — exercise release-snapshots.sh end to end against Azurite, the local
 # Azure Storage emulator, the way the workflows use it: deploy, deploy again with new files,
-# restore the previous build, roll forward, prune.
+# restore the previous build, undo that, prune.
 #
 # Talks ONLY to Azurite's publicly documented development account on localhost — it refuses to
 # run otherwise — and only touches the "demo" environment's container and snapshots.
@@ -112,9 +112,9 @@ check "cache-control preserved" "$(az storage blob show --container-name "$ENV_N
 check "content-type preserved" "$(az storage blob show --container-name "$ENV_NAME" --name config.json --query properties.contentSettings.contentType --output tsv)" "application/json"
 check "rolled-away build (bbbbbbb) is still held" "$(held)" "aaaaaaa bbbbbbb "
 
-echo "5. roll forward again"
-$S restore "$ENV_NAME" bbbbbbb >/dev/null
-check "live is bbbbbbb" "$($S live "$ENV_NAME")" "bbbbbbb"
+echo "5. running the rollback again undoes it"
+$S restore "$ENV_NAME" previous >/dev/null
+check "live is bbbbbbb again" "$($S live "$ENV_NAME")" "bbbbbbb"
 check "script content is v2" "$(body "$BASE/$ENV_NAME/global-components.js")" "v2-script"
 check "csp.json back" "$(http "$BASE/$ENV_NAME/csp.json")" "200"
 
@@ -123,31 +123,34 @@ check "restoring the live build is a no-op" "$($S restore "$ENV_NAME" bbbbbbb 2>
 $S restore "$ENV_NAME" deadbee >/dev/null 2>&1
 check "unknown sha fails" "$?" "1"
 $S restore "$ENV_NAME" previous >/dev/null 2>&1
-check "previous picks aaaaaaa" "$($S live "$ENV_NAME")" "aaaaaaa"
+check "previous toggles back to aaaaaaa" "$($S live "$ENV_NAME")" "aaaaaaa"
 
-echo "7. previous means most recently LIVE, not most recently copied"
-# History so far: a, b, restore a, forward b, restore a. bbbbbbb's copy is newer than aaaaaaa's,
-# but aaaaaaa is what was live last — so after deploying c, "previous" must be aaaaaaa.
+echo "7. the one snapshot kept is the most recently LIVE, not the most recently copied"
+# bbbbbbb's copy is newer than aaaaaaa's, but aaaaaaa is what was live last — so deploying c must
+# keep aaaaaaa, or the emergency rollback would restore the wrong release.
 build ccccccc
 deploy ccccccc "$WORK/ccccccc"
+check "deploy keeps aaaaaaa only" "$(held)" "aaaaaaa "
 $S restore "$ENV_NAME" previous >/dev/null 2>&1
-check "previous after deploying c is aaaaaaa" "$($S live "$ENV_NAME")" "aaaaaaa"
-$S restore "$ENV_NAME" ccccccc >/dev/null 2>&1
+check "rollback after deploying c restores aaaaaaa" "$($S live "$ENV_NAME")" "aaaaaaa"
+$S restore "$ENV_NAME" previous >/dev/null 2>&1
+check "and running it again puts c back" "$($S live "$ENV_NAME")" "ccccccc"
 
-echo "8. prune keeps the 5 most recently live"
-for sha in ddddddd eeeeeee fffffff 1111111 2222222; do
-  build "$sha"
-  deploy "$sha" "$WORK/$sha"
-done
-check "exactly 5 held after 8 builds" "$($S list "$ENV_NAME" | wc -l | tr -d ' ')" "5"
-check "the 5 most recently live are kept" "$(held)" "1111111 ccccccc ddddddd eeeeeee fffffff "
-check "pruned snapshot's files are gone too" "$(az storage blob list --container-name release-snapshots --prefix "$ENV_NAME/bbbbbbb/" --query 'length(@)' -o tsv)" "0"
+echo "8. each deploy leaves exactly one snapshot: the previous release"
+build ddddddd
+deploy ddddddd "$WORK/ddddddd"
+check "after deploying d, only c is held" "$(held)" "ccccccc "
+build eeeeeee
+deploy eeeeeee "$WORK/eeeeeee"
+check "after deploying e, only d is held" "$(held)" "ddddddd "
+check "pruned snapshot's files are gone too" "$(az storage blob list --container-name release-snapshots --prefix "$ENV_NAME/ccccccc/" --query 'length(@)' -o tsv)" "0"
+$S restore "$ENV_NAME" previous >/dev/null 2>&1
+check "rollback from e restores d" "$($S live "$ENV_NAME")" "ddddddd"
 
 echo "9. prune never removes the live build's snapshot"
-$S restore "$ENV_NAME" ccccccc >/dev/null 2>&1
 SNAPSHOTS_TO_KEEP=0 $S prune "$ENV_NAME" 2>/dev/null
-check "keep 0 still keeps the live build" "$(held)" "ccccccc "
-check "and it is still restorable" "$($S live "$ENV_NAME")" "ccccccc"
+check "keep 0 still keeps the live build" "$(held)" "ddddddd "
+check "and it is still what is served" "$($S live "$ENV_NAME")" "ddddddd"
 
 echo
 echo "PASS=$PASS FAILED=$FAILED"

@@ -6,7 +6,7 @@
 | ----------------------------------------- | ------------------------------------------------------------------- |
 | Bad release, need to rollback NOW         | [Run Rollback Workflow](#1-rollback-bad-release)                    |
 | Developer ready to re-merge fixed feature | [Run Revert-the-Revert Workflow](#2-re-enable-feature-for-re-merge) |
-| Put an enrolled environment back to exactly what it was serving, in under a minute | [Restore from a snapshot](#3-restore-an-environment-from-a-snapshot) |
+| Emergency exit: put an enrolled environment back on its previous release, in seconds | [Restore the previous release](#3-restore-the-previous-release) |
 
 ---
 
@@ -61,34 +61,33 @@ If the developer merges main (containing the revert) into their feature branch, 
 
 ---
 
-## 3. Restore an Environment from a Snapshot
+## 3. Restore the Previous Release
 
-**When to use:** a deploy has broken an environment and you want it serving **exactly** what it served before — same bytes, same config — straight away, without a rebuild and without touching git.
+**When to use:** the emergency exit. A deploy has broken an environment and you want it back on the release it served before — same bytes, same config — in seconds, without a rebuild and without touching git.
 
-**Enrolled environments:** `test` (QA) only, while this is proven. Enrolment is `ROLLBACK_ENROLLED_ENVIRONMENTS` in `sub-workflow-deploy-script.yml` plus the `environment` choices in `rollback-environment.yml` — keep the two in step.
+**Enrolled environments:** `test` (QA) only, while this is proven. Enrolling another environment takes two things: its name in `ROLLBACK_ENROLLED_ENVIRONMENTS` in `sub-workflow-deploy-script.yml` (so its deploys take the snapshot), and its own copy of `rollback-previous-release-test.yml` with the environment changed (so there is a button to press).
 
 ### How it works
 
-- Before every deploy to an enrolled environment, whatever it is serving is copied server-side into the **private** container `release-snapshots`, under `<environment>/<buildsha>/`. The buildsha is the one the deploy stamps on every blob, so a snapshot is named for the commit it really is. One container holds every environment's snapshots, so the top level of storage stays tidy.
+- Before every deploy to an enrolled environment, whatever it is serving is copied server-side into the **private** container `release-snapshots`, under `<environment>/<buildsha>/`. The buildsha is the one the deploy stamps on every blob, so a snapshot is named for the commit it really is.
 - A snapshot is only usable once complete — marked by `<environment>/<buildsha>/_snapshot.json`, written last.
-- After each deploy, and after each restore, snapshots are **pruned to the 5 most recently live** per environment (`SNAPSHOTS_TO_KEEP`), and the build that is live is never pruned. "Most recently live", not "most recently copied": after deploying a, deploying b, restoring a and deploying c, the previous build is a. Pruning never fails a deploy.
 - For an enrolled environment, **no snapshot means no deploy**: if the snapshot step fails, the upload does not run.
-- Restore copies the snapshot back over the live files in place, then removes files the restored build never had. The environment keeps serving throughout. What was live is snapshotted first, so a restore can itself be undone.
-- Nothing is rebuilt, so it takes seconds rather than the ~5 minutes of a redeploy.
+- After each deploy, snapshots are **pruned to just the previous release** — the one this restores. Pruning never fails a deploy.
+- Restore copies the snapshot back over the live files in place, then removes files the restored build never had. The environment keeps serving throughout. Nothing is rebuilt, so it takes seconds rather than the ~5 minutes of a redeploy.
+- Restore snapshots what was live first and does not prune, so the release you rolled away from is held until the next deploy.
 
 ### Steps
 
-1. Go to **Actions** → **"Rollback: restore an environment from a snapshot"**
-2. Click **"Run workflow"**, select **main**
-3. Pick the **environment**, and leave **sha** as `previous` (the most recently live build that is not live now) or enter a buildsha from the list
-4. Click **"Run workflow"**
+1. Go to **Actions** → **"Rollback: test (QA) to its previous release"**
+2. Click **"Run workflow"**, select **main**, click **"Run workflow"**
 
-The run **Summary** shows what was live, the snapshots held, and what is live now.
+There are no inputs — it always restores the previous release. (Org policy, Checkov `CKV_GHA_7`, requires manually run workflows to take no inputs.) The run **Summary** shows what was live before and what is live now.
 
 ### After a restore
 
+- **To undo it, run the same workflow again** — it puts back the release you rolled away from. That works until the next deploy.
 - The environment is now **behind main**. The next deploy of main — including the automatic pre-prod deploy on every push — **re-ships what you rolled back from.** Fix forward, or revert on main, before anything else merges.
-- To undo the restore, run the workflow again with the sha it reported as "was".
+- It goes back **one release only**. To go further back, revert on main and redeploy.
 
 ### Locally
 
@@ -113,7 +112,8 @@ If your feature was rolled back:
 | ----------------- | ----------------------------------------- | ---------------------------------------- |
 | Rollback          | `.github/workflows/rollback.yml`          | Deploy previous version + create revert  |
 | Revert the Revert | `.github/workflows/revert-the-revert.yml` | Prepare main for re-merge                |
-| Restore from snapshot | `.github/workflows/rollback-environment.yml` | Restore an enrolled environment's previous build, exactly |
+| Restore previous release (QA) | `.github/workflows/rollback-previous-release-test.yml` | Emergency exit for `test`; no inputs |
+| Restore previous release (shared) | `.github/workflows/sub-workflow-restore-previous-release.yml` | The restore job every environment's rollback calls |
 | Snapshot mechanics | `.github/scripts/release-snapshots.sh` | Snapshot / list / restore, used by the deploy and the restore workflow |
 
 ---
@@ -168,4 +168,4 @@ Re-merge:
 
 - The git-revert rollback workflow only affects pre-prod environments.
 - `deploy-all.yml` only runs from `main`, so it cannot deploy an older commit or tag.
-- Production is not yet enrolled for [snapshot restore](#3-restore-an-environment-from-a-snapshot). Until it is, revert on main and run `deploy-all.yml`, or contact the platform team.
+- Production is not yet enrolled for [restoring the previous release](#3-restore-the-previous-release). Until it is, revert on main and run `deploy-all.yml`, or contact the platform team.

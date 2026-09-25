@@ -3,9 +3,10 @@
 # release-snapshots.sh — snapshot and restore what an environment is serving.
 #
 # WHY
-# Each environment's components are a public blob container of that name (deploy-script
-# uploads ./to-deploy into it). Build artefacts are kept for one day, and re-running an old
-# commit through the pipeline rebuilds it with today's tooling and takes ~5 minutes. So the
+# An emergency exit: put an environment back to the release it served before the last deploy,
+# exactly and in seconds. Each environment's components are a public blob container of that name
+# (deploy-script uploads ./to-deploy into it). Build artefacts are kept for one day, and re-running
+# an old commit through the pipeline rebuilds it with today's tooling and takes ~5 minutes. So the
 # only exact record of "what was live" is the container itself — this script copies it aside
 # before it is overwritten, and copies it back on request.
 #
@@ -23,6 +24,11 @@
 #                   "most recently live", not "most recently copied" — after deploy a, deploy b,
 #                   restore a, deploy c, the previous build is a, not b.
 #
+# RETENTION — deliberately just the previous release. Deploys prune to the most recently live
+# snapshot (SNAPSHOTS_TO_KEEP, default 1), plus whatever is live. Restores do NOT prune, so a
+# restore keeps the build it rolled away from until the next deploy: running "restore previous"
+# again undoes it.
+#
 # Snapshots are keyed by the buildsha metadata deploy-script stamps on every blob, read from
 # global-components.js. Copies are server-side (Copy Blob), which keeps content-type,
 # cache-control and metadata — so a restored global-components.js still carries the buildsha
@@ -35,7 +41,7 @@
 #   release-snapshots.sh live     <environment>        buildsha currently served
 #   release-snapshots.sh restore  <environment> <sha>  make <sha> live again; <sha> may be "previous"
 #   release-snapshots.sh prune    <environment>        keep the SNAPSHOTS_TO_KEEP most recently live
-#                                                      (default 5), plus whatever is live now
+#                                                      (default 1), plus whatever is live now
 #
 # Requires az (preinstalled on GitHub's ubuntu runners).
 
@@ -45,7 +51,7 @@ SNAPSHOT_CONTAINER="release-snapshots"
 MARKER="_snapshot.json"
 # deploy-script stamps buildsha on every blob it uploads; this one is always present.
 LIVE_BLOB="global-components.js"
-KEEP="${SNAPSHOTS_TO_KEEP:-5}"
+KEEP="${SNAPSHOTS_TO_KEEP:-1}"
 COPY_TIMEOUT_SECS=300
 PARALLEL_COPIES=8
 
@@ -202,7 +208,7 @@ cmd_prune() {
   ensure_snapshot_container
 
   # Newest KEEP by last_live_at survive, and so does whatever is live — even if its snapshot is
-  # old, e.g. straight after restoring a build from several releases back.
+  # not among them (e.g. SNAPSHOTS_TO_KEEP=0, or straight after a restore).
   local held count sha
   held="$(list_snapshots "$environment" | awk '{ print $2 }')"
   count="$(printf '%s\n' "$held" | grep -c . || true)"
