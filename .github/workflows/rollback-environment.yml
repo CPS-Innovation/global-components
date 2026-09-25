@@ -1,0 +1,94 @@
+name: "Rollback: restore an environment from a snapshot"
+
+# Puts an environment back to EXACTLY what it was serving before a deploy — same bytes, same
+# config — in under a minute, with no rebuild. Every deploy to an enrolled environment first
+# snapshots whatever is live (see ROLLBACK_ENROLLED_ENVIRONMENTS in sub-workflow-deploy-script.yml),
+# and this copies a snapshot back. Mechanics and layout: .github/scripts/release-snapshots.sh.
+#
+# Unlike rollback.yml this does NOT touch git: main is left as it is. So after a restore the
+# environment is BEHIND main, and the next deploy of main re-ships whatever was rolled back from.
+# The run summary says so; fix forward or revert on main before deploying again.
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "Environment to restore (only environments enrolled for snapshots are offered)"
+        type: choice
+        # Keep in step with ROLLBACK_ENROLLED_ENVIRONMENTS in sub-workflow-deploy-script.yml.
+        options:
+          - test
+        required: true
+      sha:
+        description: 'Build to restore: a buildsha from the snapshot list, or "previous" for the most recent one that is not live'
+        type: string
+        default: previous
+        required: true
+
+permissions:
+  contents: read
+
+# One restore per environment at a time.
+concurrency:
+  group: rollback-environment-${{ inputs.environment }}
+  cancel-in-progress: false
+
+jobs:
+  validate-branch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validate branch is main
+        run: |
+          if [[ "${{ github.ref_name }}" != "main" ]]; then
+            echo "Error: Rollback can only be run from the main branch"
+            echo "Current branch: ${{ github.ref_name }}"
+            exit 1
+          fi
+
+  restore:
+    needs: validate-branch
+    runs-on: ubuntu-latest
+    env:
+      AZURE_STORAGE_CONNECTION_STRING: ${{ secrets.BLOB_STORAGE_CONNECTION_STRING }}
+      ENVIRONMENT: ${{ inputs.environment }}
+      TARGET: ${{ inputs.sha }}
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Show what is live and what is held
+        run: |
+          LIVE=$(bash .github/scripts/release-snapshots.sh live "$ENVIRONMENT")
+          {
+            echo "## Before: \`$ENVIRONMENT\` is serving \`$LIVE\`"
+            echo
+            echo "| Last live | buildsha |"
+            echo "| --- | --- |"
+            bash .github/scripts/release-snapshots.sh list "$ENVIRONMENT" | awk '{ printf "| %s | `%s` |\n", $1, $2 }'
+          } >> "$GITHUB_STEP_SUMMARY"
+          echo "LIVE_BEFORE=$LIVE" >> "$GITHUB_ENV"
+
+      - name: Restore
+        run: |
+          RESTORED=$(bash .github/scripts/release-snapshots.sh restore "$ENVIRONMENT" "$TARGET")
+          echo "RESTORED=$RESTORED" >> "$GITHUB_ENV"
+
+      # The restore snapshotted what was live, so tidy up to the usual 5. Never fails the rollback.
+      - name: Prune old snapshots
+        continue-on-error: true
+        run: bash .github/scripts/release-snapshots.sh prune "$ENVIRONMENT"
+
+      - name: Summary
+        run: |
+          MAIN=$(git rev-parse HEAD)
+          {
+            echo "## After: \`$ENVIRONMENT\` is serving \`$RESTORED\` (was \`$LIVE_BEFORE\`)"
+            echo
+            # buildsha is a short sha, so compare as a prefix of main's full sha.
+            if [[ "$MAIN" != "$RESTORED"* ]]; then
+              echo "> [!WARNING]"
+              echo "> **\`$ENVIRONMENT\` is now behind main** (\`${MAIN:0:7}\`). The next deploy of main will re-ship"
+              echo "> what was rolled back from. Fix forward or revert on main before deploying again."
+              echo ">"
+              echo "> To undo this restore, run this workflow again with sha \`$LIVE_BEFORE\` — it was snapshotted first."
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"

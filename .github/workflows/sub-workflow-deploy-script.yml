@@ -19,6 +19,10 @@ on:
 
 env:
   BUILD_ARTIFACT_NAME: build-artifact
+  # Environments whose live build is snapshotted before every deploy, so it can be restored in
+  # under a minute with "Rollback: restore an environment from a snapshot" — see .github/README.md.
+  # Keep in step with the environment choices in rollback-environment.yml.
+  ROLLBACK_ENROLLED_ENVIRONMENTS: '["test"]'
 
 permissions:
   contents: read
@@ -105,6 +109,16 @@ jobs:
             fi
           fi
 
+      # Copy what the environment is serving right now aside, BEFORE the upload below overwrites
+      # it. Deliberately not continue-on-error: for an enrolled environment the snapshot is the
+      # rollback, so no snapshot means no deploy. A no-op when nothing is live yet, or when this
+      # build is already held. Runs on the runner's own az (preinstalled), not azure/cli.
+      - name: Snapshot live build (rollback-enrolled environments only)
+        if: contains(fromJSON(env.ROLLBACK_ENROLLED_ENVIRONMENTS), inputs.environment)
+        env:
+          AZURE_STORAGE_CONNECTION_STRING: ${{ secrets.BLOB_STORAGE_CONNECTION_STRING }}
+        run: bash .github/scripts/release-snapshots.sh snapshot "${{ inputs.environment }}"
+
       - uses: azure/cli@v2
         with:
           azcliversion: latest
@@ -126,3 +140,12 @@ jobs:
               --overwrite true \
               --content-cache-control "max-age=20, stale-while-revalidate=3600, stale-if-error=3600" \
               --metadata $METADATA
+
+      # Keep the 5 most recently live snapshots (plus whatever is live). Housekeeping only, so it
+      # runs after the upload and never fails the deploy.
+      - name: Prune old snapshots (rollback-enrolled environments only)
+        if: contains(fromJSON(env.ROLLBACK_ENROLLED_ENVIRONMENTS), inputs.environment)
+        continue-on-error: true
+        env:
+          AZURE_STORAGE_CONNECTION_STRING: ${{ secrets.BLOB_STORAGE_CONNECTION_STRING }}
+        run: bash .github/scripts/release-snapshots.sh prune "${{ inputs.environment }}"
