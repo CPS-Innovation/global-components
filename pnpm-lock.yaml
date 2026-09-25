@@ -240,7 +240,7 @@ importers:
         version: 4.45.0
       '@stencil/sass':
         specifier: ^3.0.12
-        version: 3.2.3(@stencil/core@4.45.0)
+        version: 3.3.3(@stencil/core@4.45.0)
       '@stencil/store':
         specifier: ^2.2.0
         version: 2.2.4(@stencil/core@4.45.0)
@@ -1794,11 +1794,11 @@ packages:
     engines: {node: '>=16.0.0', npm: '>=7.10.0'}
     hasBin: true
 
-  '@stencil/sass@3.2.3':
-    resolution: {integrity: sha512-Wru76NJqa6D79/fDjSuiXoe2U0Ky1j7LLycqn7DV0jCmVO3tiWqXHBUPg0gMXJtxEiIbIJeiH/VpKhjNrBIUkQ==}
-    engines: {node: '>=12.0.0', npm: '>=6.0.0'}
+  '@stencil/sass@3.3.3':
+    resolution: {integrity: sha512-NiaoOry3xvPcsRyQFHps/Ug8okgTVlPqHmJkx0QN0GSEcAB67ryF/4sGRejgpIMUidnyzl1OjGEHXFnq1L6phg==}
+    engines: {node: '>=22.0.0', pnpm: '>=9.0.0'}
     peerDependencies:
-      '@stencil/core': '>=2.0.0 || >=3.0.0-beta.0 || >= 4.0.0-beta.0 || >= 4.0.0'
+      '@stencil/core': ^4.0.0 || ^5.0.0 || >=5.0.0-alpha.19 <5.0.0-next.0
 
   '@stencil/store@2.2.4':
     resolution: {integrity: sha512-D2XogVJPIuiqD7q6YWPe4Tsyy2Kr+4u5XlCZLqXNP9DuykncgoizoknFH/spuKUEOpn8YSq0elib3y8zHhKtXQ==}
@@ -6294,7 +6294,7 @@ snapshots:
       '@rollup/rollup-win32-arm64-msvc': 4.44.0
       '@rollup/rollup-win32-x64-msvc': 4.44.0
 
-  '@stencil/sass@3.2.3(@stencil/core@4.45.0)':
+  '@stencil/sass@3.3.3(@stencil/core@4.45.0)':
     dependencies:
       '@stencil/core': 4.45.0
       sass-embedded: 1.98.0
