@@ -10,14 +10,14 @@ All-time, prod, 6 Mar 2026 – 16 Sep 2026. Exact distinct cases.
 | Early advice subsequent    | —         | yes   | derived              | Lawyer 100%          |     39 |      0.0% |
 | Admin finalise             | —         | n/a   | yes                  | **Not Lawyer 79.7%** |     74 |      1.4% |
 | Streamlined threshold test | —         | yes   | no                   | Lawyer 100%          |     30 |     73.3% |
-| Triage OD                  | **Green** | yes   | **dead 23 Jul 2026** | **Not Lawyer 99.8%** |  2,094 |      2.4% |
-| Triage ODPCDReview         | **Red**   | yes   | **dead 23 Jul 2026** | **Not Lawyer 100%**  | 11,268 | **99.2%** |
-| Triage DCP                 | neither   | yes   | **dead 23 Jul 2026** | Lawyer 97.6%         |    207 |      0.0% |
+| Triage OD                  | **Green** | yes   | yes, **gap 23 Jul – 25 Sep 2026** | **Not Lawyer 99.8%** |  2,094 |      2.4% |
+| Triage ODPCDReview         | **Red**   | yes   | yes, **gap 23 Jul – 25 Sep 2026** | **Not Lawyer 100%**  | 11,268 | **99.2%** |
+| Triage DCP                 | neither   | yes   | yes, **gap 23 Jul – 25 Sep 2026** | Lawyer 97.6%         |    207 |      0.0% |
 
 - Start / submit = whether we have a signal, not a count.
 - "derived" — no EA-specific submit flag; inferred from an EA start plus a submit on the same case.
-- Triage submit came from the request-observation shim, which has captured nothing since 23 Jul 2026. Triage counts above are **started**.
-- `IsCPSD` (per-case mode flag, ODPCDReview submissions only) died with the same shim.
+- Triage submit comes from the request-observation shim. It captured nothing from 23 Jul to 25 Sep 2026 and was restored by FCT2-22147 — see [the capture gap](#the-capture-gap-23-jul--25-sep-2026). The triage counts above (a snapshot to 16 Sep) are therefore **started**.
+- `IsCPSD` (per-case mode flag, ODPCDReview submissions only) is missing for the same gap, and flows again from 25 Sep 2026.
 - Triage DCP page views also stop 13 Aug 2026.
 - A case worked by both a CPSD and a non-CPSD person counts in both, so % CPSD is "share of cases with at least one CPSD participant".
 - Lawyer status via `GloCo_LawyerStatus(Auth_JobTitle)`; job titles are current from Entra, not point-in-time.
@@ -39,7 +39,7 @@ Two independent signals, both per user.
   - 101 are CPSD by both. None are Entra-CPSD without also being units-CPSD.
   - 46 are units-CPSD but not Entra-CPSD — mostly HQ / specialist functions needing all-areas access. Only 5 ever did any work, and they did OD/DCP triage and no ODPCDReview, i.e. area behaviour.
   - Where the two disagree, Entra is the one to trust.
-- Neither signal captures **mode**. CPS Direct staff working an area shift look identical. Only the dead `IsCPSD` flag ever recorded that.
+- Neither signal captures **mode**. CPS Direct staff working an area shift look identical. Only the per-case `IsCPSD` flag records that — on ODPCDReview submissions only, and absent for 23 Jul – 25 Sep 2026.
 
 ## Red / green — resolved (stakeholder, 17 Sep 2026)
 
@@ -60,21 +60,56 @@ Reporting rule unchanged: emit type names, not colours. The mapping above lets t
 
 **Red/green reporting is not lost.** Both types come from the `TriageType` URL param, need no shim, and reach back to launch on 9 Mar — earlier than the shim ever did.
 
-## What we lost on 23 Jul 2026
+## The capture gap: 23 Jul – 25 Sep 2026
 
-We lost the whole `triage-submission` event, not just the boolean.
+`triage-submission` events stopped in prod at **2026-07-23T17:08Z** and resumed with the prod release of **FCT2-22147 on 25 Sep 2026**. Nothing was captured in between, and that period cannot be backfilled.
 
-- That event was the **only** submission signal for triage, and it covered **all three types**. Last events: OD 23 Jul, ODPCDReview 23 Jul, DCP 23 Jul. They stopped together.
-- So we lost (a) any way to tell a triage was _submitted_ rather than merely opened, for OD, ODPCDReview and DCP alike, and (b) the `IsCPSD` boolean, which only ever rode on ODPCDReview submissions.
-- **What survives:** triage _started_, from the `TriageType` URL param on the page view. All three types, from launch on 9 Mar — earlier than the shim, which only shipped 1 Jun.
-- **Reviews are unaffected.** Their submit signal is the `LandingPage` return carrying `IsSubmitted` / `SubmittedIsFirstReview` — page views, still flowing.
-- Cost of using started as a proxy, measured over the overlap: ODPCDReview +1.3%, OD +7%, DCP +7%. Worse for CPSD specifically (~+29% on OD/DCP) — CPS Direct staff open triage pages they do not complete more often than area staff.
-- Not backfillable. `IsCPSD` existed only in the POST body: not in any URL, not in Entra, not derivable from unit counts.
+**Cause.** OutSystems replaced the three per-type submit actions `ActionComplete{ODReviewTask,ODTask,DCPTask}` with a single action for every type, `…/CaseMilestone_CW/Triage/CheckDetails/ActionCompleteTriageTask`. The shim's URL match no longer fired, so it installed fine and silently captured nothing. Found from a cps-tst HAR, not a release on our side.
 
-**How serious is losing `IsCPSD`? Not very — stakeholder view, 17 Sep 2026.**
+**What the gap means for reporting.**
+
+- We lost the whole `triage-submission` event for the gap, not just the boolean — it is the **only** submission signal for triage, for all three types. So for 23 Jul – 25 Sep there is no way to tell a triage was _submitted_ rather than merely opened, and no `IsCPSD`.
+- Any window that spans the gap shows Submitted well below Started. Rolling 30-day figures stay depressed until the release date is more than 30 days old; all-time Submitted is permanently short by the gap.
+- **Use started across the gap.** Triage _started_ comes from the `TriageType` URL param on the page view — all three types, from launch on 9 Mar, unaffected by the gap. Cost of started as a proxy, measured over the 1 Jun – 23 Jul overlap: ODPCDReview +1.3%, OD +7%, DCP +7%, and ~+29% for CPSD specifically on OD/DCP (CPS Direct staff open triage pages they do not complete more often than area staff).
+- **Reviews were never affected.** Their submit signal is the `LandingPage` return carrying `IsSubmitted` / `SubmittedIsFirstReview` — page views.
+- No KQL changes were needed to resume: every consumer reads the same fields (`name`, `environment`, `CaseId`, `TriageType`, `IsCPSD`, `auth.username`) with the same values as before.
+
+### Capture from 25 Sep 2026
+
+- The shim matches `ActionCompleteTriageTask` (legacy per-type names kept in case prod lags).
+- `IsCPSD` was renamed, not lost. The body now carries `SelectedCPSDirectDecision`, bound to the "Is CPSD" radio (`CaseMilestone_CW.Triage.CPSDirect`, shown on ODPCDReview only). The shim derives the old flag from it, so existing KQL is unchanged:
+
+  | `SelectedCPSDirectDecision` | Meaning                    | Emitted `IsCPSD` |
+  | --------------------------- | -------------------------- | ---------------- |
+  | 0                           | control not shown (OD/DCP) | omitted          |
+  | 1                           | Yes                        | `true`           |
+  | 2                           | No                         | `false`          |
+
+  The raw code is emitted too, so a new option would show up in the data rather than be misread.
+
+- Verified end to end in QA (environment `test`) on 25 Sep 2026: OD, DCP, ODPCDReview Yes and ODPCDReview No all captured and mapped as above.
+- The new request body also carries CMS credentials (`CmsAuthValues`, `Username`, `CMSUserId`). The shim reads named fields through a narrow schema only, and a unit test asserts none of those ever reach the event.
+- DCP `TaskId`s are GUIDs, not integers — any future KQL doing `tolong(TaskId)` would silently null DCP rows.
+
+**How serious was losing `IsCPSD`? Not very — stakeholder view, 17 Sep 2026.**
 
 - The flag is a legacy artefact. The originating system had no reliable way to identify CPSD staff, so it captured the answer directly at submission time. It is retained there in case it is useful.
-- We now have two independent ways to identify CPSD people (Entra department, unit-count proxy), so we do not need the flag to answer "was this CPSD work".
-- `IsCPSD` was only ever on the **red** type. The shim listened on all three actions (`ActionComplete(ODReviewTask|ODTask|DCPTask)`) but only `ODReviewTask` bodies carried it — OD and DCP submissions never had it. So it was never a green/red discriminator; colour comes from the type.
-- What it uniquely told us: which individual red cases were done by an **area** person helping out rather than by CPSD. Measured while it lived: 18 cases against 3,459, 16 of them in Devon and Cornwall.
-- **The more serious loss is the submission signal itself**, for all three types — that is what forces every all-time triage figure onto "started".
+- We have two independent ways to identify CPSD people (Entra department, unit-count proxy), so we do not need the flag to answer "was this CPSD work".
+- `IsCPSD` is only ever on the **red** type — OD and DCP never carried it. So it was never a green/red discriminator; colour comes from the type.
+- What it uniquely tells us: which individual red cases were done by an **area** person helping out rather than by CPSD. Before the gap: 18 cases against 3,459, 16 of them in Devon and Cornwall.
+- **The more serious loss was the submission signal itself**, for all three types — that is what forces triage figures spanning the gap onto "started".
+
+# How to do triages in QA
+
+OD triage
+
+- Tasks: select _Check New PCD_ task type; _All owners_; Select a _unit_
+- Go to the last page of results
+- Click _More_ -> _Start task_
+- Click _Complete triage_
+- (Don't select _Transfer case_ unless you want to fill out more stuff)
+
+OD PCD Review
+
+- Tasks: select _Priority charging tab_
+- Click _More_ -> _Start triage_

@@ -1,11 +1,13 @@
 // Triage submissions are captured client-side by the request-observation shim
 // (services/request-observation/initialise-request-observation-shim.ts): a
 // "triage-submission" analytics event fired when the OutSystems Triage page POSTs
-// an ActionComplete{ODReviewTask,ODTask,DCPTask}. Each event carries the triage
+// its submit action — ActionCompleteTriageTask since ~2026-07-23, previously
+// ActionComplete{ODReviewTask,ODTask,DCPTask}. Each event carries the triage
 // page's CaseId + TriageType, so we can now fill the Submitted column for the
 // Triage rows (previously hard-zero — there was no submission signal).
 //
-// ODReviewTask submissions also carry IsCPSD ("true"/"false"), which we use to
+// ODPCDReview submissions also carry IsCPSD ("true"/"false" — since 2026-09-25 derived
+// by the shim from the body's SelectedCPSDirectDecision: 1 = Yes, 2 = No), which we use to
 // split the Triage ODPCDReview row three ways: CPSD, non-CPSD, and unknown
 // (cases that were started but never submitted via the shim, including pre-shim
 // submissions). The "unknown" bucket's Submitted column will always be 0 — if
@@ -16,8 +18,9 @@
 //    so raw event count over-reports — dedupe to the case.
 //  - keyed on the event's own TriageType, matched to the Triage page view's CaseId.
 // Caveat: submissions only exist from when the shim shipped to prod (2026-06-01),
-// so for the Triage rows Submitted is not comparable to Started across the full
-// window the way the (long-standing) Case review rows are.
+// and NOT AT ALL from 2026-07-23 to 2026-09-25 (OutSystems renamed the submit action;
+// fixed by FCT2-22147). So for the Triage rows Submitted is not comparable to Started
+// across the full window the way the (long-standing) Case review rows are.
 let TriageSubmissions = AppEvents
 | where TimeGenerated > datetime(2026-03-09T12:00:01)
 | where Name == "cps-global-components-analytics-event"

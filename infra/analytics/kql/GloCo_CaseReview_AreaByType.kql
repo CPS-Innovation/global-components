@@ -12,11 +12,13 @@
 // emitted: "Triage OD", "Triage red" (ODPCDReview IsCPSD=false), "Triage DCP"; ODPCDReview with
 // IsCPSD=true or unknown is excluded, as CPS-Direct work that never attributes to a geographic area.
 //
-// TWO WARNINGS (added 2026-09-17, logic deliberately UNCHANGED — see review-triage-types.md):
-//  1. BROKEN: all three triage columns have been ZERO since 2026-07-23. They read the
-//     "triage-submission" AppEvent, which the request-observation shim stopped emitting on that date.
-//     Only the review columns still populate. A fix means sourcing triage from the page-view
-//     TriageType param (started, not submitted) instead of AppEvents.
+// TWO NOTES (added 2026-09-17, updated 2026-09-25; logic deliberately UNCHANGED — see
+// review-triage-types.md):
+//  1. CAPTURE GAP: the triage columns read the "triage-submission" AppEvent, which captured
+//     nothing from 2026-07-23 to 2026-09-25 (OutSystems renamed the submit action; fixed by
+//     FCT2-22147). They populate again from 2026-09-25, but any window touching the gap
+//     under-reports triage. For such windows, source triage from the page-view TriageType param
+//     (started, not submitted) instead.
 //  2. MISLABELLED: the stakeholder's colour convention is the triage TYPE — red = ODPCDReview,
 //     green = OD. So the column emitted here as "Triage red" is really "ODPCDReview done by an
 //     area person" (the IsCPSD=false subset), and "Triage OD" is really green. The per-area intent
