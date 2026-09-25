@@ -1,10 +1,11 @@
 # Regional email — reproduction checklist
 
-> **Updated 17 Sep 2026.** The red/green mapping in this document was wrong and has been
-> corrected throughout — see [`review-triage-types.md`](review-triage-types.md), which is now
-> the source of truth for review/triage types, colours and the CPSD definition. Also note the
-> triage **submission** signal has been dead since 23 Jul 2026; every triage figure specified
-> below must now be **started**, not submitted.
+> **Updated 17 Sep 2026; capture note updated 25 Sep 2026.** The red/green mapping in this
+> document was wrong and has been corrected throughout — see
+> [`review-triage-types.md`](review-triage-types.md), which is now the source of truth for
+> review/triage types, colours and the CPSD definition. Triage **submission** capture was lost
+> from 23 Jul to 25 Sep 2026 and restored by FCT2-22147: any triage figure for a window touching
+> that gap must use **started**, not submitted. Windows wholly after 25 Sep can use submitted again.
 
 Goal (reframed): produce a **document of region-by-region lumps** the stakeholder can copy-paste
 into per-region emails. Each region's lump has THREE sub-sections, each in both windows:
@@ -36,8 +37,9 @@ Column definitions (LOCKED — do not relitigate):
   - **Green (OD) IS per-area** — 2,094 cases all-time, 97.6% area. Report it per area, not one
     region row. **Red (ODPCDReview) is ~all CPSD** — 11,268 cases, 99.2% CPSD — so it stays a single
     region/CPSD figure.
-  - Triage counts must be **started** (page view, `TriageType` URL param, available from launch
-    9 Mar 2026). The submission signal died on 23 Jul 2026.
+  - Triage counts: use **started** (page view, `TriageType` URL param, available from launch
+    9 Mar 2026) for any window touching the 23 Jul – 25 Sep 2026 capture gap. Submitted is
+    available again for windows wholly after 25 Sep 2026.
 - **Top users**: national rank by visits (all users); **N** = distinct authed users active in window.
 - **Region/area key**: TRADITIONAL `User_AreaOrCPSD` → `GloCo__AreaRegionMapping`. Do NOT use
   `Auth_Department` for the area breakdown (user's decision). Department is reserved ONLY for making
@@ -74,7 +76,8 @@ normalisation (UPPERCASE + `CPS DIRECT`→CPSD, `CYMRU WALES`→our spelling, et
 Does NOT rescue per-region **red** triage: ODPCDReview stays CPS-Direct-concentrated (99.2%) even under
 clean Department attribution — it is genuinely a CPS Direct activity, not an attribution artefact. The
 `IsCPSD=true/false` split within it was **CPS DIRECT 3459 / South West 17 / else ~0**; that flag is a
-legacy field, not the colour, and stopped being captured on 23 Jul 2026. **Green (OD) triage is the
+legacy field, not the colour, and was not captured from 23 Jul to 25 Sep 2026 (restored since, derived
+from `SelectedCPSDirectDecision`). **Green (OD) triage is the
 opposite** — 97.6% area — and does break down per region and per area.
 
 ## Review-count undercount — MECHANISM (investigated via Jack Dray / John Penny / Lucy Coleman)
@@ -194,13 +197,16 @@ and masked the review undercount; at pure per-user review granularity the gap is
     Direct work done on them, whereas we only ever see who **did** the work — we do not capture case
     area at all. Treat the email's green column as not reproducible.
   - TODO: build the query (national + per-area), on **started** triage from
-    `GloCo_PageViews_CaseReview` (`Is_Triage_OD` / `Is_Triage_ODPCDReview` / `Is_Triage_DCP`), not on
-    the dead `triage-submission` event. Per-area via submitter `User_AreaOrCPSD` (usual reviewer-area
-    caveat). Watch the resolver bug if joining `GloCo__AreaRegionMapping`.
+    `GloCo_PageViews_CaseReview` (`Is_Triage_OD` / `Is_Triage_ODPCDReview` / `Is_Triage_DCP`). Started
+    is the only signal covering the whole history; the `triage-submission` event has the 23 Jul –
+    25 Sep 2026 gap, so layer submitted on only for windows after 25 Sep. Per-area via submitter
+    `User_AreaOrCPSD` (usual reviewer-area caveat). Watch the resolver bug if joining
+    `GloCo__AreaRegionMapping`.
   - Started over-counts submitted by ~1.3% (ODPCDReview) and ~7% (OD, DCP), measured over the
     1 Jun – 23 Jul overlap; worse for CPSD specifically (~+29% on OD/DCP).
-  - The old "Unknown ODPCDReview" bucket (started but no captured submission carrying `IsCPSD`) is
-    now the permanent state for all triage after 23 Jul 2026.
+  - The "Unknown ODPCDReview" bucket (started but no captured submission carrying `IsCPSD`) is the
+    permanent state for ODPCDReview triages in the 23 Jul – 25 Sep 2026 gap. After 25 Sep it shrinks
+    back to genuinely started-but-not-submitted cases.
 
 ## Out of scope / needs backend
 
