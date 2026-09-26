@@ -33,7 +33,7 @@ fi
 source secrets.env
 
 # Validate required variables
-REQUIRED_VARS="AZURE_SUBSCRIPTION_ID AZURE_RESOURCE_GROUP AZURE_STORAGE_ACCOUNT AZURE_STORAGE_CONTAINER AZURE_WEBAPP_NAME STATUS_ENDPOINT"
+REQUIRED_VARS="AZURE_SUBSCRIPTION_ID AZURE_RESOURCE_GROUP AZURE_STORAGE_ACCOUNT AZURE_STORAGE_CONTAINER AZURE_WEBAPP_NAME"
 for var in $REQUIRED_VARS; do
   if [ -z "${!var}" ]; then
     echo -e "${RED}Error: $var is not set in secrets.env${NC}"
@@ -105,16 +105,8 @@ az storage blob list \
   --output table \
   2>&1 | sed 's/^/  /'
 
-# Get current version for new backup
-echo -e "\n${YELLOW}Getting current version from status endpoint...${NC}"
-echo "  Endpoint: $STATUS_ENDPOINT"
-STATUS_RESPONSE=$(curl -s "$STATUS_ENDPOINT" 2>&1)
-echo "  Response: $STATUS_RESPONSE"
-CURRENT_VERSION=$(echo "$STATUS_RESPONSE" | grep -o '"version":[ ]*[0-9]*' | grep -o '[0-9]*' || echo "0")
-echo "  Parsed version: $CURRENT_VERSION"
-
 # Create a backup of current state before rollback
-PRE_ROLLBACK_DIR="$BACKUPS_DIR/$(date +%Y%m%d_%H%M%S)_pre-rollback_v${CURRENT_VERSION}"
+PRE_ROLLBACK_DIR="$BACKUPS_DIR/$(date +%Y%m%d_%H%M%S)_pre-rollback"
 mkdir -p "$PRE_ROLLBACK_DIR"
 echo -e "\n${YELLOW}Backing up current state before rollback to: $PRE_ROLLBACK_DIR${NC}"
 
@@ -123,7 +115,6 @@ echo -e "\n${YELLOW}Backing up current state before rollback to: $PRE_ROLLBACK_D
 FILES_TO_BACKUP=(
   "global-components.vnext.conf.template"
   "global-components.vnext.js"
-  "global-components-deployment.json"
 )
 
 for file in "${FILES_TO_BACKUP[@]}"; do
@@ -146,6 +137,12 @@ echo -e "\n${YELLOW}Uploading backup files...${NC}"
 for file in "$SELECTED_BACKUP"/*; do
   if [ -f "$file" ]; then
     blob_name=$(basename "$file")
+    # Backups taken before the status endpoint was removed may still hold this;
+    # nothing reads it any more, so don't resurrect it.
+    if [ "$blob_name" = "global-components-deployment.json" ]; then
+      echo "  Skipping $blob_name (retired)"
+      continue
+    fi
     echo "  Uploading $blob_name..."
     az storage blob upload \
       --account-name "$AZURE_STORAGE_ACCOUNT" \
@@ -167,25 +164,9 @@ az webapp restart \
   --resource-group "$AZURE_RESOURCE_GROUP"
 echo -e "${GREEN}Restart initiated${NC}"
 
-# Get expected version from backup deployment.json
-EXPECTED_VERSION=$(grep -o '"version":[ ]*[0-9]*' "$SELECTED_BACKUP/global-components-deployment.json" 2>/dev/null | grep -o '[0-9]*' || echo "unknown")
-
-# Poll for version change
-echo -e "\n${YELLOW}Waiting for rollback to complete...${NC}"
-echo "Expected version: $EXPECTED_VERSION"
-MAX_ATTEMPTS=60
-ATTEMPT=1
-while [ $ATTEMPT -le $MAX_ATTEMPTS ]; do
-  LIVE_VERSION=$(curl -s "$STATUS_ENDPOINT" 2>/dev/null | grep -o '"version":[ ]*[0-9]*' | grep -o '[0-9]*' || echo "0")
-  if [ "$LIVE_VERSION" != "$CURRENT_VERSION" ]; then
-    echo -e "\n${GREEN}Rollback complete! Version is now: $LIVE_VERSION${NC}"
-    exit 0
-  fi
-  echo -n "."
-  sleep 2
-  ((ATTEMPT++))
-done
-
-echo -e "\n${YELLOW}Timeout waiting for version change.${NC}"
-echo "The rollback may still be in progress. Check the web app."
-exit 1
+# No version endpoint to poll any more — verify by hitting a route the vnext
+# conf owns, e.g. curl -sI https://<proxy-host>/global-components/swagger.json
+echo -e "\n${GREEN}Rollback complete.${NC}"
+echo "The web app is restarting; give it a few seconds, then verify a vnext route"
+echo "responds. Check the web app logs if not."
+exit 0

@@ -17,7 +17,7 @@ Nginx reverse proxy with njs (JavaScript) for header/cookie manipulation. Used t
 
 ### Global components vnext config (`config/global-components.vnext/`)
 
-- `global-components.vnext.js` - njs module for state endpoint, status endpoint, token validation, swagger filtering
+- `global-components.vnext.js` - njs module for state endpoint, token validation, swagger filtering
 - `global-components.vnext.conf.template` - nginx location blocks for vnext features (uses env vars: `${GLOBAL_COMPONENTS_APPLICATION_ID}`, `${GLOBAL_COMPONENTS_BLOB_STORAGE_URL}`)
 - `.env` - **gitignored** - contains vnext-specific config
 - `.env.example` - template for the above
@@ -153,7 +153,6 @@ Deployment is done from a remote machine with network access to Azure blob stora
 To blob storage (vnext-specific only):
 - `global-components.vnext.conf.template` - vnext nginx location blocks (with vnext env vars pre-substituted)
 - `global-components.vnext.js` - njs module for vnext features (state, token validation)
-- `global-components-deployment.json` - deployment version tracking file
 
 Note: `GLOBAL_COMPONENTS_APPLICATION_ID` and `GLOBAL_COMPONENTS_BLOB_STORAGE_URL` are baked into the config file via envsubst during deployment (from secrets.env). App settings code is commented out but can be re-enabled if needed.
 
@@ -168,7 +167,6 @@ Note: `GLOBAL_COMPONENTS_APPLICATION_ID` and `GLOBAL_COMPONENTS_BLOB_STORAGE_URL
 
 1. Create a deployment directory and `secrets.env` with:
    - Azure subscription, resource group, storage account, container, webapp name
-   - Status endpoint URL
    - `GLOBAL_COMPONENTS_APPLICATION_ID` and `GLOBAL_COMPONENTS_BLOB_STORAGE_URL`
 
 See `deploy/README.md` for detailed setup instructions.
@@ -183,11 +181,12 @@ This will:
 
 1. Download build artifact from GitHub Actions
 2. Download current files from blob storage as backup
-3. Increment deployment version
-4. Upload vnext files to blob storage
-5. Set app settings on the web app
-6. Restart the Azure web app
-7. Poll status endpoint until new version is live
+3. Upload vnext files to blob storage
+4. Set app settings on the web app
+5. Restart the Azure web app
+
+There is no version endpoint to poll, so confirm the deploy by hitting a route the
+vnext conf owns once the app is back up, e.g. `/global-components/swagger.json`.
 
 ### Rollback
 
@@ -197,33 +196,11 @@ curl -sSL https://raw.githubusercontent.com/CPS-Innovation/global-components/mai
 
 Lists available backups and lets you select one to restore.
 
-### Status endpoint
-
-`GET /global-components/status` returns:
-
-```json
-{ "status": "online", "version": 42 }
-```
-
-The version number is read from `/etc/nginx/global-components-deployment.json` on the filesystem. This file is created/updated during deployment and contains `{"version": N}`. If the file doesn't exist, version 0 is returned.
-
 ### Files (gitignored)
 
 - `deploy/secrets.env` - Azure credentials and vnext config
 - `config/global-components.vnext/.env` - vnext config (app ID, blob storage URL)
 - `deploy/backups/` - timestamped backup folders
-
-### Deployment version tracking
-
-The deployment version is tracked in `global-components-deployment.json`:
-- Located at `/etc/nginx/global-components-deployment.json` on the server
-- Contains `{"version": N}` where N is incremented on each deploy
-- During deployment:
-  1. Download current file from blob storage (if exists)
-  2. Read current version (or 0 if not found)
-  3. Increment version
-  4. Upload new file to blob storage
-- The status endpoint reads this file to report current version
 
 ## Known Issues / TODO
 

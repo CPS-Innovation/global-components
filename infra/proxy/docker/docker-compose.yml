@@ -28,7 +28,6 @@ services:
       # matching the `global-components*.conf` include glob in nginx.conf so
       # it gets loaded without changes to the main config.
       - ./test-only.upgrade-shim.conf:/etc/nginx/global-components.test-upgrade-shim.conf:ro
-      - ./global-components-deployment.mock.json:/etc/nginx/global-components-deployment.json:ro
     depends_on:
       - mock-upstream
 
