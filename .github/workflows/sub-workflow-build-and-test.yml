@@ -123,7 +123,7 @@ jobs:
           cp ./packages/cps-global-presence/dist/cms-augmentation/client-classic.js ./to-deploy/cms-augmentation/
           cp ./packages/cps-global-presence/dist/cms-augmentation/client-modern.js ./to-deploy/cms-augmentation/
 
-      - uses: actions/upload-artifact@v6
+      - uses: actions/upload-artifact@v7
         id: upload
         with:
           name: ${{env.BUILD_ARTIFACT_NAME}}
@@ -131,7 +131,7 @@ jobs:
             ./to-deploy/*
           retention-days: 1
 
-      - uses: actions/upload-artifact@v6
+      - uses: actions/upload-artifact@v7
         id: upload-proxy
         with:
           name: ${{env.PROXY_ARTIFACT_NAME}}
