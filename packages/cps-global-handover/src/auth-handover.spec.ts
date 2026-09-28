@@ -14,15 +14,20 @@ jest.mock("cps-global-os-handover", () => ({
   handleOsTokenReturn: jest.fn(),
 }));
 // Mock fetchConfig so tests can supply config directly without sharing
-// global.fetch with the authHint fetches. Everything else from
-// cps-global-configuration (schemas, constants, fetchState) is real.
+// global.fetch with the authHint fetches. loadConfig stays real (transform +
+// validation run) but is pointed at the mocked fetchConfig, since its own
+// default source is the package-internal one this mock can't reach.
+// Everything else from cps-global-configuration (schemas, constants,
+// fetchState) is real.
 jest.mock("cps-global-configuration", () => {
   const actual = jest.requireActual<typeof import("cps-global-configuration")>(
     "cps-global-configuration",
   );
+  const fetchConfig = jest.fn<typeof actual.fetchConfig>();
   return {
     ...actual,
-    fetchConfig: jest.fn(),
+    fetchConfig,
+    loadConfig: (configUrl: string) => actual.loadConfig(configUrl, [fetchConfig]),
     // Real implementation by default (restored in beforeEach). The redirect
     // allowlist is unreachable through the real transposition — that is the
     // point of it — so the only way to prove the guard bites is to make this
@@ -46,7 +51,7 @@ import {
   handleOsCookieReturn,
   handleOsTokenReturn,
 } from "cps-global-os-handover";
-import { dispatchHandover } from "./auth-handover";
+import { dispatchHandover, getConfig } from "./auth-handover";
 
 const mockFetchConfig = fetchConfig as jest.MockedFunction<typeof fetchConfig>;
 
@@ -85,16 +90,21 @@ const cmsAuthStorageKeys: CmsAuthStorageKeys = {
   VCA_COOKIES: "vca-cookies",
 };
 
-// Cast — Config has many optional fields we don't need to set here.
+// A minimal but schema-valid config: getConfig runs it through
+// loadConfig (transform + validation) just as the host bundle does.
 // FEATURE_FLAG_USE_MSAL_FULL_REDIRECT_USERS defaults to generally-available so the
 // AD-cascade path is exercised; tests that need the short-circuit override it off.
-const config = {
+const config: Config = {
+  ENVIRONMENT: "test",
+  LINKS: [],
+  BANNER_TITLE_HREF: "https://example.com",
+  CONTEXTS: [],
   AD_CLIENT_ID: "client-id",
   AD_TENANT_AUTHORITY: "https://login.microsoftonline.com/tenant",
   AD_GATEWAY_SCOPES: ["User.Read"],
   CMS_AUTH_STORAGE_KEYS: cmsAuthStorageKeys,
   FEATURE_FLAG_USE_MSAL_FULL_REDIRECT_USERS: { generallyAvailable: true },
-} as Config;
+};
 
 const scriptUrl = new URL(
   "https://polaris.example/global-components/test/auth-handover.js",
@@ -925,5 +935,50 @@ describe("dispatchHandover", () => {
       expect(mockHandleMsalLogin).not.toHaveBeenCalled();
       expect(mockHandleMsalTermination).not.toHaveBeenCalled();
     });
+  });
+});
+
+describe("getConfig", () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  const respondWith = (json: unknown) =>
+    mockFetchConfig.mockResolvedValue({ ok: true, json: async () => json } as never);
+
+  test("fetches the sibling config.json", async () => {
+    respondWith(config);
+
+    await getConfig(scriptUrl);
+
+    expect(mockFetchConfig).toHaveBeenCalledWith("https://polaris.example/global-components/test/config.json");
+  });
+
+  test("returns the validated config", async () => {
+    respondWith(config);
+
+    await expect(getConfig(scriptUrl)).resolves.toEqual(config);
+  });
+
+  test("resolves timed values to the value in force now", async () => {
+    respondWith({
+      ...config,
+      AD_CLIENT_ID: { value: "future-client-id", "until 2000-01-01T00:00:00Z": "past-client-id" },
+    });
+
+    await expect(getConfig(scriptUrl)).resolves.toMatchObject({ AD_CLIENT_ID: "future-client-id" });
+  });
+
+  test("throws on a config that fails validation", async () => {
+    const { ENVIRONMENT, ...withoutEnvironment } = config;
+    respondWith(withoutEnvironment);
+
+    await expect(getConfig(scriptUrl)).rejects.toThrow(/Config validation error/);
+  });
+
+  test("throws when the fetch is not ok", async () => {
+    mockFetchConfig.mockResolvedValue({ ok: false, status: 404, statusText: "Not Found" } as never);
+
+    await expect(getConfig(scriptUrl)).rejects.toThrow(/404 Not Found/);
   });
 });
