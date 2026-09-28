@@ -26,7 +26,6 @@ export {
 } from "./Notification";
 export { SettingsSchema, type Settings } from "./Settings";
 export { CmsSessionHintSchema, type CmsSessionHint } from "./CmsSessionHint";
-export { transformAndValidateConfig, type ValidationResult } from "./validator";
 export {
   AuthSchema,
   MeSchema,
@@ -46,6 +45,7 @@ export { type FoundContext } from "./FoundContext";
 export { type ApplicationFlags } from "./ApplicationFlags";
 export { fetchState } from "./fetch-state";
 export { fetchConfig, type ConfigFetch } from "./fetch-config";
+export { loadConfig } from "./load-config";
 export {
   HANDOVER_PARAM_KEYS,
   HANDOVER_STAGES,

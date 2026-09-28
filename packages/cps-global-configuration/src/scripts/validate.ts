@@ -4,6 +4,7 @@ import * as fs from "fs";
 import * as path from "path";
 import { transformAndValidateConfig } from "../validator";
 import { notificationsFileSchema } from "../Notification";
+import { findTimedValueProblems, getTimedValueMoments } from "../timed-values";
 
 const NOTIFICATION_FILENAME_REGEX = /^config\..*\.notification\.json$/;
 
@@ -41,17 +42,36 @@ function validateFile(filePath: string): boolean {
   try {
     const fileContent = fs.readFileSync(filePath, "utf-8");
     const jsonData = JSON.parse(fileContent);
+    const now = new Date();
 
-    const result = transformAndValidateConfig(jsonData, filename);
-
-    if (result.success) {
-      console.log(`✅ ${filename} is valid`);
-      return true;
-    } else {
-      console.error(`❌ ${filename} is invalid:`);
-      console.error(result.errorMsg);
+    const timedValueProblems = findTimedValueProblems(jsonData, now);
+    if (timedValueProblems.length) {
+      console.error(`❌ ${filename} has timed value problems:`);
+      timedValueProblems.forEach((problem) => console.error(`   ${problem}`));
       return false;
     }
+
+    // Validate the config as it is now AND as it will be after each future
+    // timed-value switch, so a broken future value fails the build today rather
+    // than breaking config unattended at the switch moment.
+    const moments = [now, ...getTimedValueMoments(jsonData)];
+    const failures = moments
+      .map((moment) => ({ moment, result: transformAndValidateConfig(jsonData, filename, moment) }))
+      .filter(({ result }) => !result.success);
+
+    if (!failures.length) {
+      console.log(`✅ ${filename} is valid${moments.length > 1 ? ` (checked at ${moments.length} points in time)` : ""}`);
+      return true;
+    }
+
+    console.error(`❌ ${filename} is invalid:`);
+    failures.forEach(({ moment, result }) => {
+      if (moments.length > 1) {
+        console.error(`   as at ${moment === now ? "now" : moment.toISOString()}:`);
+      }
+      console.error(result.success ? "" : result.errorMsg);
+    });
+    return false;
   } catch (error) {
     console.error(`❌ Error reading or parsing ${filename}:`);
     console.error(error instanceof Error ? error.message : "Unknown error");
