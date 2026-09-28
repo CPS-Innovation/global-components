@@ -1,0 +1,113 @@
+// GloCo_CaseReview_Activity — THE definition of a piece of case work: one row per review, triage,
+// admin finalise or streamlined threshold test. Reports should count rows of this, not re-derive them.
+//
+// Built on GloCo_PageViews_CaseReview (what each page view means) and GloCo_TriageSubmissions (what each
+// triage submission event means). This function only ASSEMBLES: it parses no URLs and no events.
+//
+// ONE ROW = one piece of work, identified by UnitKey = CaseId | SeqKey | Occurrence
+//   SeqKey  Review|First, Review|Subsequent, Triage|<type>|<TaskId>, Admin finalise, Streamlined threshold test
+//   Occurrence (reviews only)  a review START that follows a SUBMISSION of the same case and order begins the
+//          next occurrence — a second review of the same order on the same case is a second row. First /
+//          Subsequent is a CATEGORY of review, not its position: a case can have two first reviews. Review
+//          URLs carry no id, so this sequence is the only way to tell them apart. A triage's identity is its
+//          TaskId: a second submission of the same task is a retry, not a second triage. Admin finalise
+//          happens once per case; STT has no submission.
+//
+// WHO: the person who submitted it (earliest authenticated submission), else who started it (earliest
+// authenticated start). Their email, area, department and job title come with the row, AS AT THE TIME OF THE
+// WORK: from the deciding page view (where GloCo_PageViews has already back-filled anything not captured then),
+// or, when that was a triage submission event (which carries no area), from their latest page view. Work with
+// no area from either is left blank; reports show it as "(unknown)".
+//
+// STATUS: Submitted / Started. A review started but never submitted is Started.
+//
+// LOOK-BACKS are not work: reviewers reopen a review they have already submitted to look at it. A review
+// occurrence after the first that is never submitted is such a look (50 to 2026-09-25, every one by the person
+// who submitted the previous occurrence, most within the hour) and is dropped. The cost: a genuine second
+// review that is started but not yet submitted does not appear until it is submitted.
+//
+// TAINT: triage submissions are only observable inside the capture windows (see GloCo_TriageSubmissions).
+// A triage STARTED outside them has no observable submission: it is counted as Submitted, with SubmittedAt =
+// StartedAt, and Taint = "SubmissionInferred". Filter or report on Taint to show how much of a figure is
+// inferred. Reviews, admin finalise and STT are always observed and never tainted.
+//
+// REPORTING A TRIAGE FIGURE: show it twice, as two numeric columns — "Submitted" (SubmittedObserved: submitted
+// AND actually seen) and "Submitted (adjusted)" (Status == "Submitted": observed plus inferred). Reviews need
+// only the one; for them the two are always equal.
+//
+// EARLY ADVICE: an occurrence is early advice when its start was an early-advice page and there was no
+// ordinary review start; an occurrence with no captured start falls back to the same test over the case.
+//
+// TIME: all history from launch. Filter consumers on StartedAt / SubmittedAt, never before this function —
+// cutting the page views first would split pieces of work at the window edge. The Log Analytics time picker
+// still bounds the tables read, so set it to cover launch when running a consumer by name.
+let Launch    = datetime(2026-03-09T12:00:01);
+let ShimStart = datetime(2026-06-01T13:57:00Z);
+let GapStart  = datetime(2026-07-23T17:08:00Z);
+let Resumed   = datetime(2026-09-28T07:37:00Z);   // FCT2-22147 prod release (08:37 BST)
+let PV = materialize(
+    GloCo_PageViews_CaseReview
+    | where TimeGenerated > Launch
+    | where not(Is_Saved)
+    | project TimeGenerated, CaseId, Kind, Order, TriageType, TaskId, IsStart, IsSubmit, IsEarlyAdvice,
+              IsOrdinaryStart = Is_Review_First_Review or Is_Review_Subsequent_Review,
+              Auth_ObjectId, Auth_Username, User_Area, User_AreaOrCPSD, Auth_Department, Auth_JobTitle,
+              IsCPSD = "", CPSDirectDecision = long(null));
+let Submissions = GloCo_TriageSubmissions
+    | where TimeGenerated > Launch
+    | project TimeGenerated, CaseId, Kind = "Triage", Order = "", TriageType, TaskId, IsStart = false, IsSubmit = true,
+              IsEarlyAdvice = false, IsOrdinaryStart = false, Auth_ObjectId, Auth_Username, User_Area = "",
+              User_AreaOrCPSD = "", Auth_Department = "", Auth_JobTitle = "", IsCPSD, CPSDirectDecision;
+let People = PV
+    | where isnotempty(Auth_ObjectId)
+    | summarize arg_max(TimeGenerated, P_Username = Auth_Username, P_Area = User_Area, P_AreaOrCPSD = User_AreaOrCPSD,
+                        P_Department = Auth_Department, P_JobTitle = Auth_JobTitle) by Auth_ObjectId
+    | project-away TimeGenerated;
+let CaseEarlyAdvice = PV
+    | where Kind == "Review"
+    | summarize CaseHasEA = countif(IsEarlyAdvice) > 0, CaseHasOrdinary = countif(IsOrdinaryStart) > 0 by CaseId, Order;
+union PV, Submissions
+| extend SeqKey = case(Kind == "Review", strcat("Review|", Order),
+                       Kind == "Triage", strcat("Triage|", TriageType, "|", TaskId),
+                       Kind)
+| sort by CaseId asc, SeqKey asc, TimeGenerated asc
+| extend NewOccurrence = Kind == "Review" and IsStart and prev(IsSubmit) == true and prev(CaseId) == CaseId and prev(SeqKey) == SeqKey
+| extend Occurrence = row_cumsum(toint(NewOccurrence), CaseId != prev(CaseId) or SeqKey != prev(SeqKey)) + 1
+| extend Priority = case(IsSubmit and isnotempty(Auth_ObjectId), 0, IsStart and isnotempty(Auth_ObjectId), 1,
+                         isnotempty(Auth_ObjectId), 2, 3)
+| extend RankKey = Priority * 100000000000000.0 + (TimeGenerated - datetime(2026-01-01)) / 1ms
+| summarize
+    Kind = take_any(Kind), Order = take_any(Order), TriageType = take_any(TriageType), TaskId = take_any(TaskId),
+    StartedAt = minif(TimeGenerated, IsStart), SubmittedAt = minif(TimeGenerated, IsSubmit),
+    StartCount = countif(IsStart), SubmitCount = countif(IsSubmit), EventCount = count(),
+    HasEAStart = countif(IsEarlyAdvice) > 0, HasOrdinaryStart = countif(IsOrdinaryStart) > 0,
+    Submitters = count_distinctif(Auth_ObjectId, IsSubmit and isnotempty(Auth_ObjectId)),
+    IsCPSD = take_anyif(IsCPSD, isnotempty(IsCPSD)),
+    CPSDirectDecision = take_anyif(CPSDirectDecision, isnotnull(CPSDirectDecision)),
+    arg_min(RankKey, Auth_ObjectId, Auth_Username, User_Area, User_AreaOrCPSD, Auth_Department, Auth_JobTitle)
+    by CaseId, SeqKey, Occurrence
+| where not(Kind == "Review" and Occurrence > 1 and SubmitCount == 0)   // look-back, see header
+| join kind=leftouter CaseEarlyAdvice on CaseId, Order
+| join kind=leftouter People on Auth_ObjectId
+| extend IsEA = iif(StartCount > 0, HasEAStart and not(HasOrdinaryStart), CaseHasEA == true and CaseHasOrdinary != true)
+| extend SubType = case(
+    Kind == "Review" and Order == "First",      iif(IsEA, "EA first review", "First review"),
+    Kind == "Review" and Order == "Subsequent", iif(IsEA, "EA subsequent review", "Subsequent review"),
+    Kind == "Triage",                           strcat("Triage ", TriageType),
+    Kind)
+| extend TriageCaptured = (StartedAt between (ShimStart .. GapStart)) or StartedAt >= Resumed
+| extend Inferred = Kind == "Triage" and SubmitCount == 0 and not(TriageCaptured)
+| extend Status = case(
+    Kind == "Admin finalise",             "Submitted",
+    Kind == "Streamlined threshold test", "Started",
+    SubmitCount > 0 or Inferred,          "Submitted",
+    "Started")
+| extend SubmittedAt = iif(Inferred, StartedAt, SubmittedAt),
+         Taint = iif(Inferred, "SubmissionInferred", "")
+| project CaseId, Kind, SubType, TaskId, Occurrence, UnitKey = strcat(CaseId, "|", SeqKey, "|", Occurrence),
+          StartedAt, SubmittedAt, Status, Taint, SubmittedObserved = Status == "Submitted" and not(Inferred),
+          IsCPSD, CPSDirectDecision,
+          User_ObjectId = Auth_ObjectId, User_Email = coalesce(Auth_Username, P_Username),
+          User_Area = coalesce(User_Area, P_Area), User_AreaOrCPSD = coalesce(User_AreaOrCPSD, P_AreaOrCPSD),
+          User_Department = coalesce(Auth_Department, P_Department), User_JobTitle = coalesce(Auth_JobTitle, P_JobTitle),
+          StartCount, SubmitCount, EventCount, Submitters

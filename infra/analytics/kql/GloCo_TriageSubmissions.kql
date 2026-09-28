@@ -1,0 +1,34 @@
+// GloCo_TriageSubmissions — every captured triage SUBMISSION, one row per "triage-submission" analytics
+// event, prod only. The single place that reads that event; consumers should not parse AppEvents for it.
+//
+// Source: the request-observation shim (initialise-request-observation-shim.ts), which reports the Work
+// Management App's triage submit action. Every event carries CaseId, TriageType, TaskId and the
+// submitter's auth.objectId.
+//
+// CAPTURE WINDOWS — outside these no submission can be observed at all:
+//   2026-06-01 13:57 UTC → 2026-07-23 17:08 UTC   (shim shipped → OutSystems renamed the submit action)
+//   2026-09-28 07:37 UTC onwards                    (FCT2-22147 prod release, 08:37 BST)
+// GloCo_CaseReview_Activity uses these windows to decide when a missing submission is unknowable.
+//
+// The shim can fire more than once for one task (e.g. a retry after a server error): de-duplicate by
+// (CaseId, TaskId) to count triages.
+//
+// IsCPSD: "true"/"false" on ODPCDReview submissions only. Up to the gap it came from the legacy body's
+// IsCPSD; since FCT2-22147 the shim derives it from CPSDirectDecision (the "Is CPSD" radio: 0 = not
+// shown, 1 = Yes, 2 = No), which is also kept raw.
+AppEvents
+| where Name == "cps-global-components-analytics-event"
+| where tostring(Properties["name"]) == "triage-submission"
+| where tostring(Properties["environment"]) == "prod"
+| extend Auth = parse_json(tostring(Properties["auth"]))
+| extend
+    CaseId            = tolong(Properties["CaseId"]),
+    TriageType        = tostring(Properties["TriageType"]),
+    TaskId            = tostring(Properties["TaskId"]),
+    IsCPSD            = tostring(Properties["IsCPSD"]),
+    CPSDirectDecision = tolong(Properties["SelectedCPSDirectDecision"]),
+    Auth_ObjectId     = tostring(Auth.objectId),
+    Auth_Username     = tostring(Auth.username)
+| where isnotnull(CaseId)
+| where Auth_ObjectId !in (GloCo_ExcludedUsers)
+| project TimeGenerated, CaseId, TriageType, TaskId, IsCPSD, CPSDirectDecision, Auth_ObjectId, Auth_Username

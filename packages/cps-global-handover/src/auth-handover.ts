@@ -16,10 +16,10 @@ import {
   AuthHintSchema,
   Config,
   FEATURE_FLAGS,
-  fetchConfig,
   fetchState,
   HANDOVER_PARAM_KEYS,
   HANDOVER_STAGES,
+  loadConfig,
   Me,
   Preview,
   PreviewSchema,
@@ -49,22 +49,12 @@ const ENSURE_AD_ON_OS_HANDOVER = false;
 const hasAuthResponseHash = (hash: string): boolean =>
   /[#&](code|error|id_token)=/.test(hash);
 
-// Fetches and casts sibling config.json. The shape is the canonical Config
-// from cps-global-configuration — same schema the host bundle validates against.
-//
 // Sibling-relative resolution: scriptUrl/auth-handover.js → scriptUrl/config.json
 // (NOT bare-root /config.json — that path 404s on the Polaris CDN and surfaces
 // as a CORS error when the bundle is loaded cross-origin from an OS host page).
-export const getConfig = async (scriptUrl: URL): Promise<Config> => {
-  const configUrl = new URL("./config.json", scriptUrl).href;
-  const response = await fetchConfig(configUrl);
-  if (!response.ok) {
-    throw new Error(
-      `config.json fetch returned ${response.status} ${response.statusText}`,
-    );
-  }
-  return (await response.json()) as Config;
-};
+// loadConfig is the same fetch-transform-validate the host bundle uses, so the
+// handover sees exactly the Config the header does.
+export const getConfig = (scriptUrl: URL): Promise<Config> => loadConfig(new URL("./config.json", scriptUrl).href);
 
 // Best-effort fetch of the authHint. Resolved relative to the bundle URL, so it
 // always points at the polaris state endpoint (the same `../state/auth-hint`

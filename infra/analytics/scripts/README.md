@@ -19,7 +19,12 @@ isn't tracked in git — `GloCo_UserDimension`.
 ./run-query.sh '<KQL>' [table|json|tsv]     # run an ad-hoc query, result saved to output/
 ./functions-export.sh                        # refresh output/deployed-functions.json (alias -> saved-search id)
 ./functions-deploy.sh ../kql/GloCo_Foo.kql   # deploy/update one saved function
+./functions-deploy.sh --prune                # list deployed GloCo_ functions with no .kql in ../kql; delete on y
 ```
+
+`../kql/` is the source of truth for which functions exist. Removing a function = delete its `.kql`,
+then run `--prune` AFTER deploying everything else, so nothing is deleted while a function that still
+calls it is live. `GloCo_UserDimension` is deployed-only by design and is never pruned.
 
 ## Rebuilding `GloCo_UserDimension`
 

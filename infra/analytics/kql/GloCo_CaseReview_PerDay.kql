@@ -1,39 +1,25 @@
-let TypedRows = GloCo_CaseReview_PerCase
-| where ReviewType in ("First", "Subsequent", "EA First", "EA Subsequent", "Admin Finalise")
-| where FirstSeen > datetime(2026-03-09T12:00:01);
-let CaseFirstSeen = TypedRows
-| summarize CaseFirstSeen = min(FirstSeen) by CaseId;
-let Cases = TypedRows
-| join kind=inner CaseFirstSeen on CaseId
-| extend F = case(
-    ReviewType == "First",          "First",
-    ReviewType == "Subsequent",     "Subsequent",
-    ReviewType == "EA First",       "EAFirst",
-    ReviewType == "EA Subsequent",  "EASubsequent",
-    ReviewType == "Admin Finalise", "QuickAdmin",
-    "")
-| project CaseId, FirstSeen = bin(CaseFirstSeen, 1d), F;
-let NewCases = Cases
-| summarize NewCases = count() by Day = FirstSeen, F;
-let Spine = range Day from toscalar(Cases | summarize min(FirstSeen)) to toscalar(Cases | summarize max(FirstSeen)) step 1d
-| mv-expand F = dynamic(["First","Subsequent","EAFirst","EASubsequent","QuickAdmin"]) to typeof(string);
+// Case review work per day, by type, with running totals: pieces of work (rows of GloCo_CaseReview_Activity)
+// counted on the day they began (their start, else their submission) — started and submitted alike.
+let Cases = GloCo_CaseReview_Activity
+    | where Kind in ("Review", "Admin finalise")
+    | extend F = case(SubType == "First review", "First", SubType == "Subsequent review", "Subsequent",
+                      SubType == "EA first review", "EAFirst", SubType == "EA subsequent review", "EASubsequent", "QuickAdmin")
+    | project Day = bin(coalesce(StartedAt, SubmittedAt), 1d), F;
+let NewCases = Cases | summarize NewCases = count() by Day, F;
+let Spine = range Day from toscalar(Cases | summarize min(Day)) to toscalar(Cases | summarize max(Day)) step 1d
+    | mv-expand F = dynamic(["First","Subsequent","EAFirst","EASubsequent","QuickAdmin"]) to typeof(string);
 let Combined = Spine
-| join kind=leftouter NewCases on Day, F
-| extend NewCases = coalesce(NewCases, 0)
-| project Day, F, NewCases
-| partition by F (
-    order by Day asc
-    | extend CumulativeCases = row_cumsum(NewCases)
-);
-let DailyPivot      = Combined | project Day, F, NewCases       | evaluate pivot(F, sum(NewCases));
+    | join kind=leftouter NewCases on Day, F
+    | project Day, F, NewCases = coalesce(NewCases, 0)
+    | partition by F (order by Day asc | extend CumulativeCases = row_cumsum(NewCases));
+let DailyPivot      = Combined | project Day, F, NewCases        | evaluate pivot(F, sum(NewCases));
 let CumulativePivot = Combined | project Day, F, CumulativeCases | evaluate pivot(F, max(CumulativeCases));
 DailyPivot
 | join kind=inner CumulativePivot on Day
-| project-away Day1
 | project Day,
-    First_Review_Daily           = First,          First_Review_Cumulative           = First1,
-    Subsequent_Review_Daily      = Subsequent,     Subsequent_Review_Cumulative      = Subsequent1,
-    EA_First_Review_Daily        = EAFirst,        EA_First_Review_Cumulative        = EAFirst1,
-    EA_Subsequent_Review_Daily   = EASubsequent,   EA_Subsequent_Review_Cumulative   = EASubsequent1,
-    Quick_Admin_Finalise_Daily   = QuickAdmin,     Quick_Admin_Finalise_Cumulative   = QuickAdmin1
+    First_Review_Daily         = First,        First_Review_Cumulative         = First1,
+    Subsequent_Review_Daily    = Subsequent,   Subsequent_Review_Cumulative    = Subsequent1,
+    EA_First_Review_Daily      = EAFirst,      EA_First_Review_Cumulative      = EAFirst1,
+    EA_Subsequent_Review_Daily = EASubsequent, EA_Subsequent_Review_Cumulative = EASubsequent1,
+    Quick_Admin_Finalise_Daily = QuickAdmin,   Quick_Admin_Finalise_Cumulative = QuickAdmin1
 | order by Day desc

@@ -7,28 +7,37 @@ jest.mock("cps-global-auth", () => ({
   handleMsalEnsureAd: jest.fn(),
   // resolveReturnTo is a pure helper — keep its real implementation so the
   // mediator's same-origin validation actually runs in tests.
-  resolveReturnTo: jest.requireActual<typeof import("cps-global-auth")>("cps-global-auth").resolveReturnTo,
+  resolveReturnTo:
+    jest.requireActual<typeof import("cps-global-auth")>("cps-global-auth")
+      .resolveReturnTo,
 }));
 jest.mock("cps-global-os-handover", () => ({
   handleOsCookieReturn: jest.fn(),
   handleOsTokenReturn: jest.fn(),
 }));
 // Mock fetchConfig so tests can supply config directly without sharing
-// global.fetch with the authHint fetches. Everything else from
-// cps-global-configuration (schemas, constants, fetchState) is real.
+// global.fetch with the authHint fetches. loadConfig stays real (transform +
+// validation run) but is pointed at the mocked fetchConfig, since its own
+// default source is the package-internal one this mock can't reach.
+// Everything else from cps-global-configuration (schemas, constants,
+// fetchState) is real.
 jest.mock("cps-global-configuration", () => {
   const actual = jest.requireActual<typeof import("cps-global-configuration")>(
     "cps-global-configuration",
   );
+  const fetchConfig = jest.fn<typeof actual.fetchConfig>();
   return {
     ...actual,
-    fetchConfig: jest.fn(),
+    fetchConfig,
+    loadConfig: (configUrl: string) =>
+      actual.loadConfig(configUrl, [fetchConfig]),
   };
 });
 
 // global.fetch mock — used only for the authHint lookup and write-back
 // (config fetching is mocked separately via fetchConfig).
-const mockFetch = jest.fn<(input: unknown, init?: RequestInit) => Promise<unknown>>();
+const mockFetch =
+  jest.fn<(input: unknown, init?: RequestInit) => Promise<unknown>>();
 global.fetch = mockFetch as unknown as typeof fetch;
 
 import { fetchConfig } from "cps-global-configuration";
@@ -41,10 +50,9 @@ import {
   handleOsCookieReturn,
   handleOsTokenReturn,
 } from "cps-global-os-handover";
-import { dispatchHandover } from "./auth-handover";
+import { dispatchHandover, getConfig } from "./auth-handover";
 
 const mockFetchConfig = fetchConfig as jest.MockedFunction<typeof fetchConfig>;
-
 
 const mockHandleMsalLogin = handleMsalLogin as jest.MockedFunction<
   typeof handleMsalLogin
@@ -74,16 +82,21 @@ const cmsAuthStorageKeys: CmsAuthStorageKeys = {
   VCA_COOKIES: "vca-cookies",
 };
 
-// Cast — Config has many optional fields we don't need to set here.
+// A minimal but schema-valid config: getConfig runs it through
+// loadConfig (transform + validation) just as the host bundle does.
 // FEATURE_FLAG_USE_MSAL_FULL_REDIRECT_USERS defaults to generally-available so the
 // AD-cascade path is exercised; tests that need the short-circuit override it off.
-const config = {
+const config: Config = {
+  ENVIRONMENT: "test",
+  LINKS: [],
+  BANNER_TITLE_HREF: "https://example.com",
+  CONTEXTS: [],
   AD_CLIENT_ID: "client-id",
   AD_TENANT_AUTHORITY: "https://login.microsoftonline.com/tenant",
   AD_GATEWAY_SCOPES: ["User.Read"],
   CMS_AUTH_STORAGE_KEYS: cmsAuthStorageKeys,
   FEATURE_FLAG_USE_MSAL_FULL_REDIRECT_USERS: { generallyAvailable: true },
-} as Config;
+};
 
 const scriptUrl = new URL(
   "https://polaris.example/global-components/test/auth-handover.js",
@@ -150,7 +163,8 @@ describe("dispatchHandover", () => {
       await dispatchHandover(win, scriptUrl);
 
       expect(mockHandleOsCookieReturn).toHaveBeenCalledWith(win, {
-        tokenHandoverUrl: "https://polaris.example/auth-refresh-cms-modern-token",
+        tokenHandoverUrl:
+          "https://polaris.example/auth-refresh-cms-modern-token",
         cmsAuthStorageKeys,
       });
       expect(mockHandleMsalEnsureAd).not.toHaveBeenCalled();
@@ -361,7 +375,8 @@ describe("dispatchHandover", () => {
     test("on successful termination, navigates to returnTo via location.replace", async () => {
       mockHandleMsalTermination.mockResolvedValue({
         outcome: "handled",
-        returnTo: "https://cps-tst.outsystemsenterprise.com/casework_blocks/home",
+        returnTo:
+          "https://cps-tst.outsystemsenterprise.com/casework_blocks/home",
       });
       const win = makeWindow(
         "https://cps-tst.outsystemsenterprise.com/Casework_Patterns/auth-handover.html?src=x&stage=ad-redirect#code=abc",
@@ -380,7 +395,8 @@ describe("dispatchHandover", () => {
       // packages/cps-global-handover/AD-FAILURE-MODES.md.
       mockHandleMsalTermination.mockResolvedValue({
         outcome: "handled-with-error",
-        returnTo: "https://cps-tst.outsystemsenterprise.com/casework_blocks/home",
+        returnTo:
+          "https://cps-tst.outsystemsenterprise.com/casework_blocks/home",
       });
       const win = makeWindow(
         "https://cps-tst.outsystemsenterprise.com/Casework_Patterns/auth-handover.html?src=x&stage=ad-redirect#error=invalid",
@@ -394,7 +410,9 @@ describe("dispatchHandover", () => {
     });
 
     test("on failed termination with no returnTo, does not navigate (user left on handover page)", async () => {
-      mockHandleMsalTermination.mockResolvedValue({ outcome: "handled-with-error" });
+      mockHandleMsalTermination.mockResolvedValue({
+        outcome: "handled-with-error",
+      });
       const win = makeWindow(
         "https://cps-tst.outsystemsenterprise.com/Casework_Patterns/auth-handover.html?src=x&stage=ad-redirect#error=invalid",
       );
@@ -419,7 +437,8 @@ describe("dispatchHandover", () => {
         } as never,
         sid: "session-id-abc",
         me: { department: "Innovation" },
-        returnTo: "https://cps-tst.outsystemsenterprise.com/casework_blocks/home",
+        returnTo:
+          "https://cps-tst.outsystemsenterprise.com/casework_blocks/home",
       });
       const win = makeWindow(
         "https://cps-tst.outsystemsenterprise.com/Casework_Patterns/auth-handover.html?src=x&stage=ad-redirect#code=abc",
@@ -512,7 +531,8 @@ describe("dispatchHandover", () => {
           localAccountId,
           idTokenClaims: {},
         } as never,
-        returnTo: "https://cps-tst.outsystemsenterprise.com/casework_blocks/home",
+        returnTo:
+          "https://cps-tst.outsystemsenterprise.com/casework_blocks/home",
       });
 
     test("writes the Entra objectId to the configured key on successful termination", async () => {
@@ -548,7 +568,9 @@ describe("dispatchHandover", () => {
       withConfigOverrides({
         OS_ENTRA_ID_STORAGE_KEY: "$OS_Users$Casework_Blocks$ClientVars$EntraID",
       });
-      mockHandleMsalTermination.mockResolvedValue({ outcome: "handled-with-error" });
+      mockHandleMsalTermination.mockResolvedValue({
+        outcome: "handled-with-error",
+      });
       const win = makeWindow(
         "https://cps-tst.outsystemsenterprise.com/Casework_Patterns/auth-handover.html?src=x&stage=ad-redirect#error=invalid",
       );
@@ -758,7 +780,9 @@ describe("dispatchHandover", () => {
     // decoupled from AD), so the FF gate is irrelevant there.
 
     test("ensure-ad: when FF is off, navigates straight to (validated) returnTo without calling handleMsalEnsureAd", async () => {
-      withConfigOverrides({ FEATURE_FLAG_USE_MSAL_FULL_REDIRECT_USERS: undefined });
+      withConfigOverrides({
+        FEATURE_FLAG_USE_MSAL_FULL_REDIRECT_USERS: undefined,
+      });
       const win = makeWindow(
         "https://cps-tst.outsystemsenterprise.com/Casework_Patterns/auth-handover.html?src=x&stage=ensure-ad&returnTo=https%3A%2F%2Fcps-tst.outsystemsenterprise.com%2Fcasework_blocks%2Fhome",
       );
@@ -772,7 +796,9 @@ describe("dispatchHandover", () => {
     });
 
     test("ensure-ad: preview override enables the AD cascade even when config flag is off", async () => {
-      withConfigOverrides({ FEATURE_FLAG_USE_MSAL_FULL_REDIRECT_USERS: undefined });
+      withConfigOverrides({
+        FEATURE_FLAG_USE_MSAL_FULL_REDIRECT_USERS: undefined,
+      });
       mockFetch.mockImplementation(async (input: unknown) => {
         const url = String(input);
         if (url.includes("/state/preview")) {
@@ -819,5 +845,66 @@ describe("dispatchHandover", () => {
       expect(mockHandleMsalLogin).not.toHaveBeenCalled();
       expect(mockHandleMsalTermination).not.toHaveBeenCalled();
     });
+  });
+});
+
+describe("getConfig", () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  const respondWith = (json: unknown) =>
+    mockFetchConfig.mockResolvedValue({
+      ok: true,
+      json: async () => json,
+    } as never);
+
+  test("fetches the sibling config.json", async () => {
+    respondWith(config);
+
+    await getConfig(scriptUrl);
+
+    expect(mockFetchConfig).toHaveBeenCalledWith(
+      "https://polaris.example/global-components/test/config.json",
+    );
+  });
+
+  test("returns the validated config", async () => {
+    respondWith(config);
+
+    await expect(getConfig(scriptUrl)).resolves.toEqual(config);
+  });
+
+  test("resolves timed values to the value in force now", async () => {
+    respondWith({
+      ...config,
+      AD_CLIENT_ID: {
+        value: "future-client-id",
+        "until 2000-01-01T00:00:00Z": "past-client-id",
+      },
+    });
+
+    await expect(getConfig(scriptUrl)).resolves.toMatchObject({
+      AD_CLIENT_ID: "future-client-id",
+    });
+  });
+
+  test("throws on a config that fails validation", async () => {
+    const { ENVIRONMENT, ...withoutEnvironment } = config;
+    respondWith(withoutEnvironment);
+
+    await expect(getConfig(scriptUrl)).rejects.toThrow(
+      /Config validation error/,
+    );
+  });
+
+  test("throws when the fetch is not ok", async () => {
+    mockFetchConfig.mockResolvedValue({
+      ok: false,
+      status: 404,
+      statusText: "Not Found",
+    } as never);
+
+    await expect(getConfig(scriptUrl)).rejects.toThrow(/404 Not Found/);
   });
 });
