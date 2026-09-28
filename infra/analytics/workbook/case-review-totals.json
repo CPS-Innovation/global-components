@@ -70,14 +70,23 @@
         "query": "GloCo_CaseReview_InvolvementByUser\n",
         "size": 1,
         "title": "Case review: user submitted count by review type",
-        "timeContext": {
-          "durationMs": 7344000099,
-          "endTime": "2026-06-02T13:53:49.099Z"
-        },
         "queryType": 0,
         "resourceType": "microsoft.operationalinsights/workspaces"
       },
       "name": "query - 4"
+    },
+    {
+      "type": 3,
+      "content": {
+        "version": "KqlItem/1.0",
+        "query": "GloCo_Users_CpsdReviewTriage\n",
+        "size": 1,
+        "title": "CPS Direct users: reviews and triage",
+        "showExportToExcel": true,
+        "queryType": 0,
+        "resourceType": "microsoft.operationalinsights/workspaces"
+      },
+      "name": "query - cpsd-review-triage"
     }
   ],
   "isLocked": false,

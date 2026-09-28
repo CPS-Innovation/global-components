@@ -10,14 +10,14 @@ All-time, prod, 6 Mar 2026 – 16 Sep 2026. Exact distinct cases.
 | Early advice subsequent    | —         | yes   | derived              | Lawyer 100%          |     39 |      0.0% |
 | Admin finalise             | —         | n/a   | yes                  | **Not Lawyer 79.7%** |     74 |      1.4% |
 | Streamlined threshold test | —         | yes   | no                   | Lawyer 100%          |     30 |     73.3% |
-| Triage OD                  | **Green** | yes   | yes, **gap 23 Jul – 25 Sep 2026** | **Not Lawyer 99.8%** |  2,094 |      2.4% |
-| Triage ODPCDReview         | **Red**   | yes   | yes, **gap 23 Jul – 25 Sep 2026** | **Not Lawyer 100%**  | 11,268 | **99.2%** |
-| Triage DCP                 | neither   | yes   | yes, **gap 23 Jul – 25 Sep 2026** | Lawyer 97.6%         |    207 |      0.0% |
+| Triage OD                  | **Green** | yes   | yes, **gap 23 Jul – 28 Sep 2026** | **Not Lawyer 99.8%** |  2,094 |      2.4% |
+| Triage ODPCDReview         | **Red**   | yes   | yes, **gap 23 Jul – 28 Sep 2026** | **Not Lawyer 100%**  | 11,268 | **99.2%** |
+| Triage DCP                 | neither   | yes   | yes, **gap 23 Jul – 28 Sep 2026** | Lawyer 97.6%         |    207 |      0.0% |
 
 - Start / submit = whether we have a signal, not a count.
 - "derived" — no EA-specific submit flag; inferred from an EA start plus a submit on the same case.
-- Triage submit comes from the request-observation shim. It captured nothing from 23 Jul to 25 Sep 2026 and was restored by FCT2-22147 — see [the capture gap](#the-capture-gap-23-jul--25-sep-2026). The triage counts above (a snapshot to 16 Sep) are therefore **started**.
-- `IsCPSD` (per-case mode flag, ODPCDReview submissions only) is missing for the same gap, and flows again from 25 Sep 2026.
+- Triage submit comes from the request-observation shim. It captured nothing from 23 Jul to 28 Sep 2026 and was restored by FCT2-22147 — see [the capture gap](#the-capture-gap-23-jul--28-sep-2026). The triage counts above (a snapshot to 16 Sep) are therefore **started**.
+- `IsCPSD` (per-case mode flag, ODPCDReview submissions only) is missing for the same gap, and flows again from 28 Sep 2026.
 - Triage DCP page views also stop 13 Aug 2026.
 - A case worked by both a CPSD and a non-CPSD person counts in both, so % CPSD is "share of cases with at least one CPSD participant".
 - Lawyer status via `GloCo_LawyerStatus(Auth_JobTitle)`; job titles are current from Entra, not point-in-time.
@@ -39,7 +39,7 @@ Two independent signals, both per user.
   - 101 are CPSD by both. None are Entra-CPSD without also being units-CPSD.
   - 46 are units-CPSD but not Entra-CPSD — mostly HQ / specialist functions needing all-areas access. Only 5 ever did any work, and they did OD/DCP triage and no ODPCDReview, i.e. area behaviour.
   - Where the two disagree, Entra is the one to trust.
-- Neither signal captures **mode**. CPS Direct staff working an area shift look identical. Only the per-case `IsCPSD` flag records that — on ODPCDReview submissions only, and absent for 23 Jul – 25 Sep 2026.
+- Neither signal captures **mode**. CPS Direct staff working an area shift look identical. Only the per-case `IsCPSD` flag records that — on ODPCDReview submissions only, and absent for 23 Jul – 28 Sep 2026.
 
 ## Red / green — resolved (stakeholder, 17 Sep 2026)
 
@@ -60,21 +60,21 @@ Reporting rule unchanged: emit type names, not colours. The mapping above lets t
 
 **Red/green reporting is not lost.** Both types come from the `TriageType` URL param, need no shim, and reach back to launch on 9 Mar — earlier than the shim ever did.
 
-## The capture gap: 23 Jul – 25 Sep 2026
+## The capture gap: 23 Jul – 28 Sep 2026
 
-`triage-submission` events stopped in prod at **2026-07-23T17:08Z** and resumed with the prod release of **FCT2-22147 on 25 Sep 2026**. Nothing was captured in between, and that period cannot be backfilled.
+`triage-submission` events stopped in prod at **2026-07-23T17:08Z** and resumed with the prod release of **FCT2-22147 at 08:37 BST (07:37Z) on 28 Sep 2026**. Nothing was captured in between, and that period cannot be backfilled.
 
 **Cause.** OutSystems replaced the three per-type submit actions `ActionComplete{ODReviewTask,ODTask,DCPTask}` with a single action for every type, `…/CaseMilestone_CW/Triage/CheckDetails/ActionCompleteTriageTask`. The shim's URL match no longer fired, so it installed fine and silently captured nothing. Found from a cps-tst HAR, not a release on our side.
 
 **What the gap means for reporting.**
 
-- We lost the whole `triage-submission` event for the gap, not just the boolean — it is the **only** submission signal for triage, for all three types. So for 23 Jul – 25 Sep there is no way to tell a triage was _submitted_ rather than merely opened, and no `IsCPSD`.
+- We lost the whole `triage-submission` event for the gap, not just the boolean — it is the **only** submission signal for triage, for all three types. So for 23 Jul – 28 Sep there is no way to tell a triage was _submitted_ rather than merely opened, and no `IsCPSD`.
 - Any window that spans the gap shows Submitted well below Started. Rolling 30-day figures stay depressed until the release date is more than 30 days old; all-time Submitted is permanently short by the gap.
 - **Use started across the gap.** Triage _started_ comes from the `TriageType` URL param on the page view — all three types, from launch on 9 Mar, unaffected by the gap. Cost of started as a proxy, measured over the 1 Jun – 23 Jul overlap: ODPCDReview +1.3%, OD +7%, DCP +7%, and ~+29% for CPSD specifically on OD/DCP (CPS Direct staff open triage pages they do not complete more often than area staff).
 - **Reviews were never affected.** Their submit signal is the `LandingPage` return carrying `IsSubmitted` / `SubmittedIsFirstReview` — page views.
 - No KQL changes were needed to resume: every consumer reads the same fields (`name`, `environment`, `CaseId`, `TriageType`, `IsCPSD`, `auth.username`) with the same values as before.
 
-### Capture from 25 Sep 2026
+### Capture from 28 Sep 2026
 
 - The shim matches `ActionCompleteTriageTask` (legacy per-type names kept in case prod lags).
 - `IsCPSD` was renamed, not lost. The body now carries `SelectedCPSDirectDecision`, bound to the "Is CPSD" radio (`CaseMilestone_CW.Triage.CPSDirect`, shown on ODPCDReview only). The shim derives the old flag from it, so existing KQL is unchanged:
@@ -98,6 +98,59 @@ Reporting rule unchanged: emit type names, not colours. The mapping above lets t
 - `IsCPSD` is only ever on the **red** type — OD and DCP never carried it. So it was never a green/red discriminator; colour comes from the type.
 - What it uniquely tells us: which individual red cases were done by an **area** person helping out rather than by CPSD. Before the gap: 18 cases against 3,459, 16 of them in Devon and Cornwall.
 - **The more serious loss was the submission signal itself**, for all three types — that is what forces triage figures spanning the gap onto "started".
+
+## How reports count reviews and triage
+
+Since the 28 Sep 2026 restructure, every case-work report counts rows of one function,
+`GloCo_CaseReview_Activity` (see `kql/dependencies.md`). The rules live in its header; in short:
+
+- **One row = one piece of work**, not one case. A case with a first review, a later subsequent review and
+  two triage tasks is four. The snapshot table at the top of this page counts distinct cases, so its figures
+  are lower.
+- **Repeat reviews count.** A review started after the same case's review of the same kind was submitted is a
+  second review. First / subsequent is a category, not a position: a case can have two first reviews.
+- **Looking back is not a review.** Reopening a submitted review and not submitting again is dropped.
+- **A triage is a task** (`TaskId`). Submitting the same task twice is a retry, not a second triage.
+- **Credit goes to one person**: whoever submitted the work, else whoever started it, with their area, department
+  and job title as at the time of the work (back-filled where not captured then).
+- **Two triage figures, side by side.** Wherever a report shows submitted triage it shows it twice:
+  **Submitted** (captured) and **Submitted (adjusted)**. Adjusted also counts a triage *started* outside a capture
+  window as submitted — before 1 Jun 2026 and in the 23 Jul – 28 Sep gap — tagged `Taint = "SubmissionInferred"`.
+  The started→submitted rates in the capture window (ODPCDReview 98.8%, OD 93.8%, DCP 93.7%) are why that is a
+  reasonable guess. Reviews are always captured, so they have one figure. The short tables — the totals by type
+  and the per-week area grids — show both in one cell as `captured (adjusted)`; the per-user tables use two
+  numeric columns, so they export cleanly.
+- **"Triage red" has no adjusted figure.** An inferred ODPCDReview triage has no `IsCPSD`.
+
+## Review counts are a low-side proxy
+
+Our review figures under-count the backend, and no report built on page views will match it. Found in
+Jul 2026 by checking three heavy reviewers against the backend's own figures: ours were 10–15 each,
+the backend's 23–40. Two causes, stacked:
+
+1. **Some submissions are not recognised.** A review counts as submitted when the Case Review
+   `LandingPage` URL carries `IsSubmitted` / `SubmittedIsFirstReview`. Some landing pages arrive with no
+   parameters at all; those are not counted. For one reviewer, 18 cases reached the landing page but only
+   about 10 carried the parameters. Counting every landing page would roughly double the figure, but would
+   also count saves and abandoned reviews.
+2. **Some review sessions are never seen.** Even the landing-page count fell well short of the backend (18
+   against 40, although ours covered a longer period). The rest must be sessions where our script never
+   reported a page view: failed loads, cached navigation, or an entry route we do not see.
+
+Treat review counts as a floor: good for trends and relative comparisons, not as the backend's number.
+
+## Entra department as a region signal
+
+`Auth_Department` (Graph `/me`, captured since 6 Jul 2026 and back-filled from `GloCo_UserDimension`)
+holds the user's CPS **region** as Entra records it — `SOUTH WEST`, `CYMRU WALES`, `CPS DIRECT` and so on,
+plus specialist divisions. Compared with the area route (`User_AreaOrCPSD` → `GloCo__AreaRegionMapping`):
+
+- It does **not** collapse high-unit users into CPSD: a South West lawyer with 120+ units reads `SOUTH WEST`.
+- Coverage was 97% of active users in a 30-day sample, and it placed 93% of users with no captured area.
+- It is region-level only; the area within a region still needs `User_Area`.
+- It would need normalising (case, `CPS DIRECT` → CPSD, spelling of Wales) before joining to our region names.
+
+Reports still group by the area route. This is the better region key if regional reporting comes back.
 
 # How to do triages in QA
 
