@@ -193,8 +193,8 @@ importers:
         specifier: ^3.3.6
         version: 3.4.4(tslib@2.8.1)
       '@microsoft/signalr':
-        specifier: ^8.0.7
-        version: 8.0.29
+        specifier: ^10.0.0
+        version: 10.0.11
       '@types/arrive':
         specifier: ^2.4.4
         version: 2.4.4
@@ -1262,8 +1262,8 @@ packages:
   '@microsoft/dynamicproto-js@2.0.3':
     resolution: {integrity: sha512-JTWTU80rMy3mdxOjjpaiDQsTLZ6YSGGqsjURsY6AUQtIj0udlF/jYmhdLZu8693ZIC0T1IwYnFa0+QeiMnziBA==}
 
-  '@microsoft/signalr@8.0.29':
-    resolution: {integrity: sha512-yzszFiTAuRxHm3qxNaSan3YzN8dffLqQcc3ZNJD2tn9eInCBBi7u2xCJ6AVNXjw19RDoBc+NPWfYN43K1HcjdA==}
+  '@microsoft/signalr@10.0.11':
+    resolution: {integrity: sha512-FulOJ2EEtKvLQcswe/U7v8pzyXyk7Jua5xgWJPPwyQU/2Z9ORvKcVjyO75VvLsem+CJ1ORRexJ+7Bz1FCei2aw==}
 
   '@mswjs/interceptors@0.41.3':
     resolution: {integrity: sha512-cXu86tF4VQVfwz8W1SPbhoRyHJkti6mjH/XJIxp40jhO4j2k1m4KYrEykxqWPkFF3vrK4rgQppBh//AwyGSXPA==}
@@ -6004,7 +6004,7 @@ snapshots:
     dependencies:
       '@nevware21/ts-utils': 0.14.0
 
-  '@microsoft/signalr@8.0.29':
+  '@microsoft/signalr@10.0.11':
     dependencies:
       abort-controller: 3.0.0
       eventsource: 2.0.2
