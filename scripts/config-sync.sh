@@ -93,6 +93,10 @@ for local_file in "${config_files[@]}"; do
     if [[ $filename =~ ^config\.([^.]+)\.json$ ]]; then
         env_name="${BASH_REMATCH[1]}"
         remote_filename="config.json"
+    elif [[ $filename =~ ^config\.([^.]+)\.([^.]+)\.json$ ]] && [ "${BASH_REMATCH[2]}" != "notification" ]; then
+        # OS host variant — config.{env}.{variant}.json → {env}/config.{variant}.json
+        env_name="${BASH_REMATCH[1]}"
+        remote_filename="config.${BASH_REMATCH[2]}.json"
     else
         echo -e "${YELLOW}⚠ Skipping $filename (doesn't match expected pattern)${NC}"
         continue

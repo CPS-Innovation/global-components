@@ -78,6 +78,73 @@ async function testSwaggerRewriting() {
 }
 
 // =============================================================================
+// OS Host Variant Tests
+// =============================================================================
+
+async function testOsHostVariants() {
+  console.log("\nOS Host Variant Tests (config.json selection + os-target switch):")
+
+  const OAPPS = "oapps-qa-notprod.int.cps.gov.uk"
+  const CONFIG_URL = `${PROXY_BASE}/global-components/test/config.json`
+  const blobFileOf = response => response.headers.get("x-mock-blob-file")
+
+  await test("serves config.json from blob storage when there is no switch", async () => {
+    const response = await fetch(CONFIG_URL)
+    assertEqual(response.status, 200, "Should return 200")
+    assertEqual(blobFileOf(response), "config.json", "Should serve the base config")
+    assert((response.headers.get("vary") || "").includes("Cookie"), "Should vary on Cookie")
+  })
+
+  await test("serves the variant named by the switch cookie", async () => {
+    const response = await fetch(CONFIG_URL, {
+      headers: { Cookie: `Gloco-Os-Target-test=${OAPPS}` },
+    })
+    assertEqual(blobFileOf(response), "config.oapps.json", "Should serve the variant")
+  })
+
+  await test("serves the variant matching an OS page's Origin", async () => {
+    const response = await fetch(CONFIG_URL, {
+      headers: { Origin: `https://${OAPPS}` },
+    })
+    assertEqual(blobFileOf(response), "config.oapps.json", "Should serve the variant")
+    assertEqual(response.headers.get("access-control-allow-origin"), "*", "Should keep CORS")
+  })
+
+  await test("leaves every other artifact to the main conf", async () => {
+    const response = await fetch(`${PROXY_BASE}/global-components/test/global-components.js`, {
+      headers: { Cookie: `Gloco-Os-Target-test=${OAPPS}` },
+    })
+    assertEqual(blobFileOf(response), "global-components.js", "Should be untouched")
+  })
+
+  await test("os-target: PUT sets the cookie, GET reads it back, DELETE clears it", async () => {
+    const put = await fetch(`${PROXY_BASE}/global-components/os-target/test`, {
+      method: "PUT",
+      body: JSON.stringify({ host: OAPPS }),
+    })
+    assertEqual(put.status, 200, "PUT should return 200")
+    const cookie = (put.headers.get("set-cookie") || "").split(";")[0]
+    assertEqual(cookie, `Gloco-Os-Target-test=${OAPPS}`, "Should set the switch cookie")
+
+    const get = await fetchJson(`${PROXY_BASE}/global-components/os-target/test`, {
+      headers: { Cookie: cookie },
+    })
+    assertEqual(get.current, OAPPS, "GET should report the switch")
+
+    const del = await fetch(`${PROXY_BASE}/global-components/os-target/test`, { method: "DELETE" })
+    assert((del.headers.get("set-cookie") || "").includes("1970"), "DELETE should expire the cookie")
+  })
+
+  await test("os-target: refuses a host that is not a variant", async () => {
+    const response = await fetch(`${PROXY_BASE}/global-components/os-target/test`, {
+      method: "PUT",
+      body: JSON.stringify({ host: "evil.example.com" }),
+    })
+    assertEqual(response.status, 400, "Should return 400")
+  })
+}
+
+// =============================================================================
 // Main
 // =============================================================================
 
@@ -87,6 +154,7 @@ async function main() {
 
   await testStatusEndpoint()
   await testSwaggerRewriting()
+  await testOsHostVariants()
 }
 
 module.exports = main

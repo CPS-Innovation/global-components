@@ -234,8 +234,11 @@ describe("the committed environment configs", () => {
     // Fails when someone adds configuration/config.<something>.json without
     // deciding whether it belongs in ENVIRONMENTS above.
     const known = new Set([...configFiles, "config.accessibility.json"]);
+    // OS host variants (config.<env>.<variant>.json) are deliberately absent:
+    // outsystems-host-consistency.spec.ts pins each one to its environment's
+    // config with only the OS host swapped, and nothing here depends on that host.
     const unaccountedFor = readdirSync(CONFIG_DIR).filter(
-      f => /^config\..+\.json$/.test(f) && !f.includes("notification") && !known.has(f),
+      f => /^config\.[^.]+\.json$/.test(f) && !known.has(f),
     );
 
     expect(unaccountedFor).toEqual([]);

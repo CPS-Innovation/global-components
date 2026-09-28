@@ -1,16 +1,8 @@
+import { isOutSystemsUrl } from "cps-global-configuration";
 import { withLogging } from "../../logging/with-logging";
 
-export const isOutSystemsAppInternal = ({ location: { href } }: { location: { href: string } }) => {
-  try {
-    const url = href;
-    if (!url) {
-      return false;
-    }
-    const resolvedUrl = url.toLowerCase();
-    return resolvedUrl.toLowerCase().startsWith("http") && new URL(resolvedUrl).hostname.endsWith(".outsystemsenterprise.com");
-  } catch (err) {
-    return false;
-  }
-};
+// Shared with the CSP tooling so both agree on what counts as OutSystems —
+// including the oapps-*.cps.gov.uk proxies OutSystems is moving behind.
+export const isOutSystemsAppInternal = ({ location: { href } }: { location: { href: string } }) => isOutSystemsUrl(href);
 
 export const isOutSystemsApp = withLogging("isOutSystemsApp", isOutSystemsAppInternal);

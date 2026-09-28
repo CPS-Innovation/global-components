@@ -15,6 +15,14 @@
 | `listClass`        | `list-class`         |             | `string` | `"govuk-list govuk-list--spaced govuk-list--bullet"` |
 
 
+## Slots
+
+| Slot         | Description |
+| ------------ | ----------- |
+| `"no-cases"` |             |
+| `"waiting"`  |             |
+
+
 ----------------------------------------------
 
 *Built with [StencilJS](https://stenciljs.com/)*

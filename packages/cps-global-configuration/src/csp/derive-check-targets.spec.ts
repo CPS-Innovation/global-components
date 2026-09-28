@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { deriveAllCheckTargets, deriveCheckTargets } from "./derive-check-targets";
+import { listOsHostVariantFiles } from "../scripts/os-host-variant-files";
 
 const CONFIG_DIR = join(__dirname, "..", "..", "..", "..", "configuration");
 const ENVIRONMENTS = ["dev", "test", "uat", "prod"];
@@ -28,33 +29,61 @@ describe("deriveCheckTargets", () => {
   it("collapses several links in one module to a single probe", () => {
     const wma = targets.filter(t => t.url.endsWith("/WorkManagementApp"));
 
-    expect(wma).toHaveLength(2); // dublin + london, not four
+    expect(wma).toHaveLength(1);
   });
 
   it("ignores relative hrefs and non-OutSystems hosts", () => {
-    expect(targets.every(t => t.url.includes("outsystemsenterprise.com"))).toBe(
-      true,
-    );
+    expect(targets.map(t => new URL(t.url).hostname)).toEqual([
+      "cps-tst.outsystemsenterprise.com",
+      "cps-tst.outsystemsenterprise.com",
+      "cps-tst.outsystemsenterprise.com",
+    ]);
   });
 
   it("includes the handover page as its own kind", () => {
     expect(
       targets.filter(t => t.kind === "auth-handover").map(t => t.url),
-    ).toContain(HANDOVER_URL);
+    ).toEqual([HANDOVER_URL]);
   });
 
-  it("adds the London twin of every Dublin target", () => {
-    // The hand-listed version checked none of these.
-    expect(targets.filter(t => t.region === "london").map(t => t.url)).toContain(
-      "https://cpslon-tst.outsystemsenterprise.com/WorkManagementApp",
+  // The checker follows OutSystems onto the oapps proxies without change.
+  it("probes OutSystems on an oapps proxy host", () => {
+    const oapps = deriveCheckTargets("test", {
+      LINKS: [{ href: "https://oapps-qa-notprod.int.cps.gov.uk/WorkManagementApp/TaskList" }],
+    } as never);
+
+    expect(oapps.map(t => t.url)).toEqual([
+      "https://oapps-qa-notprod.int.cps.gov.uk/WorkManagementApp",
+    ]);
+  });
+});
+
+describe("against the committed OS host variants", () => {
+  const targets = deriveAllCheckTargets(
+    Object.fromEntries(
+      listOsHostVariantFiles(CONFIG_DIR).map(({ file, env, variant }) => [
+        `${env}.${variant}`,
+        JSON.parse(readFileSync(join(CONFIG_DIR, file), "utf8")),
+      ]),
+    ),
+  );
+
+  // QA's alternative hosts configure their CSP independently of cps-tst, so the
+  // live checker probes them as well.
+  it("probes the oapps and London hosts in QA", () => {
+    expect(new Set(targets.map(t => `${t.environment} ${new URL(t.url).hostname}`))).toEqual(
+      new Set([
+        "test.oapps oapps-qa-notprod.int.cps.gov.uk",
+        "test.cps-lon cpslon-tst.outsystemsenterprise.com",
+      ]),
     );
   });
 
-  it("produces one London target for each Dublin one", () => {
-    const dublin = targets.filter(t => t.region === "dublin");
-    const london = targets.filter(t => t.region === "london");
-
-    expect(london).toHaveLength(dublin.length);
+  it("includes each variant's handover page", () => {
+    expect(targets.filter(t => t.kind === "auth-handover").map(t => t.environment).sort()).toEqual([
+      "test.cps-lon",
+      "test.oapps",
+    ]);
   });
 });
 
@@ -66,17 +95,13 @@ describe("against the committed configs", () => {
   it("covers every OutSystems host the configs reference", () => {
     const hosts = new Set(targets.map(t => new URL(t.url).hostname));
 
-    // The four Dublin hosts plus their London twins. The previous hand-written
-    // list named three of these eight.
+    // One OutSystems host per environment. The previous hand-written list
+    // named three of these four.
     expect([...hosts].sort()).toEqual([
       "cps-dev.outsystemsenterprise.com",
       "cps-tst.outsystemsenterprise.com",
       "cps-tst1.outsystemsenterprise.com",
       "cps.outsystemsenterprise.com",
-      "cpslon-dev.outsystemsenterprise.com",
-      "cpslon-tst.outsystemsenterprise.com",
-      "cpslon-tst1.outsystemsenterprise.com",
-      "cpslon.outsystemsenterprise.com",
     ]);
   });
 

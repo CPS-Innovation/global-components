@@ -146,6 +146,67 @@ function _shimBigIpCookies(args) {
   return clonedArgs
 }
 
+// OS host switch (global-components multi-targeting). Named users can be switched
+// onto another OutSystems host than the rest of their environment (e.g. the oapps
+// proxy, or the London tenant) via a per-environment cookie on this host, set from
+// the global-components preview page:
+//   Gloco-Os-Target-<env>=<OS host>
+// Every route into OutSystems — the C-button, the menu's outbound links, the
+// case-review redirect — reaches here with r pointing at the OS auth handover, so
+// this is the one place that moves the user onto the switched host. It runs before
+// anything is written to OS-origin storage, which is per-host.
+//
+// The environment comes from the handover's own src param
+// (.../global-components/<env>/auth-handover.js): dev and test share this host, so
+// the cookie has to be per environment. Both the handover host and the host of its
+// final destination (the nested r) are swapped, as the handover only returns users
+// to its own origin.
+//
+// Returns the rewritten URL, or the original one when there's no switch or the URL
+// isn't an OS handover. The caller only uses a rewrite that AUTH_HANDOVER_WHITELIST
+// accepts, so a stale or tampered cookie falls back to the original target rather
+// than a 403.
+const OS_TARGET_COOKIE_PREFIX = "Gloco-Os-Target-"
+
+function _escapeRegExp(value) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
+}
+
+function _toOsTarget(r, url) {
+  const match = /^(https:\/\/)([^/?#]+)([^?#]*)(\?[^#]*)?(#.*)?$/.exec(url || "")
+  if (!match) {
+    return url
+  }
+  // Indexed rather than destructured: njs has no destructuring assignment.
+  const scheme = match[1]
+  const fromHost = match[2]
+  const path = match[3]
+  const query = match[4] || ""
+  const hash = match[5] || ""
+  if (!/\/auth-handover\.html$/i.test(path)) {
+    return url
+  }
+
+  const src = qs.parse(query.replace(/^\?/, ""))["src"] || ""
+  const env = (/\/global-components\/([^/]+)\/auth-handover\.js/.exec(src) || [])[1]
+  if (!env) {
+    return url
+  }
+
+  const toHost = _maybeDecodeURIComponent(_getCookieValue(r, OS_TARGET_COOKIE_PREFIX + env)).toLowerCase()
+  if (!/^[a-z0-9.-]+$/.test(toHost) || toHost === fromHost.toLowerCase()) {
+    return url
+  }
+
+  // The nested final destination, in the r param: percent-encoded when it came
+  // from a URL builder, plain when hand-written.
+  const nestedDestination = new RegExp(
+    "([?&]r=https(?:%3A%2F%2F|://))" + _escapeRegExp(fromHost) + "(?=%2F|%3F|%23|/|&|$)",
+    "i"
+  )
+  return scheme + toHost + path + query.replace(nestedDestination, "$1" + toHost) + hash
+}
+
 function appAuthRedirect(r) {
   setSessionHintCookie(r)
 
@@ -153,10 +214,16 @@ function appAuthRedirect(r) {
   args = _shimBigIpCookies(args)
 
   const whitelistedUrls = process.env.AUTH_HANDOVER_WHITELIST ?? ""
-  const redirectUrl = args["r"]
-  const isWhitelisted = whitelistedUrls
-    .split(",")
-    .some((url) => redirectUrl.startsWith(url))
+  const isWhitelistedUrl = (url) =>
+    whitelistedUrls.split(",").some((prefix) => url.startsWith(prefix))
+
+  const requestedUrl = args["r"]
+  const osTargetUrl = _toOsTarget(r, requestedUrl)
+  const redirectUrl =
+    osTargetUrl !== requestedUrl && isWhitelistedUrl(osTargetUrl)
+      ? osTargetUrl
+      : requestedUrl
+  const isWhitelisted = isWhitelistedUrl(redirectUrl)
 
   if (isWhitelisted) {
     _redirectToAbsoluteUrl(

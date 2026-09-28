@@ -44,6 +44,13 @@ changed in years.
 | `cpsDismissed` | Fired when the user clicks the dismiss button. | `CustomEvent<void>` |
 
 
+## Slots
+
+| Slot | Description      |
+| ---- | ---------------- |
+|      | The default slot |
+
+
 ## Dependencies
 
 ### Used by

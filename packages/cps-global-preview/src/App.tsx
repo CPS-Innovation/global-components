@@ -7,6 +7,15 @@ const AUTH_HINT_ENDPOINT = "/global-components/state/auth-hint";
 const ENV_MATCH = window.location.pathname.match(/\/global-components\/([^/]+)\//);
 const ENV = ENV_MATCH?.[1] ?? "test";
 const NOTIFICATIONS_ENDPOINT = `/global-components/${ENV}/notification.json`;
+// The per-environment OS host switch, owned by the proxy (see OS_HOST_VARIANTS
+// in infra/proxy/config/global-components.vnext). It lives in its own cookie
+// rather than preview state because Polaris's /init has to read it too.
+const OS_TARGET_ENDPOINT = `/global-components/os-target/${ENV}`;
+
+type OsTarget = {
+  current: string | null;
+  options: { variant: string; host: string }[];
+};
 
 type NotificationsResult =
   | { loaded: true; notifications: Notification[] }
@@ -25,7 +34,6 @@ type SubOption = {
 type RadioOption<T extends string> = {
   value: T;
   label: string;
-  disabled?: boolean;
 };
 
 type Feature = {
@@ -47,16 +55,6 @@ const CASE_MARKERS_OPTIONS: RadioOption<string>[] = [
 const COLOUR_PALETTE_OPTIONS: RadioOption<string>[] = [
   { value: "gds", label: "GDS" },
   { value: "cps", label: "CPS" },
-];
-
-// Unlike the feature radios above, this group stands alone rather than hanging
-// off a checkbox: "no override" is the default we want visible, not an unticked
-// box. The empty value maps to an absent `region` — the same thing — so the
-// cookie stays clean when nothing is overridden.
-const REGION_OPTIONS: RadioOption<string>[] = [
-  { value: "", label: "No override (Dublin)" },
-  { value: "london", label: "Use London" },
-  { value: "frontDoor", label: "Use front-door domain", disabled: true },
 ];
 
 const FEATURES: Feature[] = [
@@ -173,6 +171,7 @@ export function App() {
     useState<NotificationsResult | null>(null);
   const [authHint, setAuthHint] = useState<AuthHint | null>(null);
   const [sidInput, setSidInput] = useState<string>("");
+  const [osTarget, setOsTarget] = useState<OsTarget | null>(null);
 
   const showStatus = useCallback((message: string, type: StatusType) => {
     setStatus({ message, type });
@@ -256,6 +255,39 @@ export function App() {
     loadNotifications();
   }, [loadNotifications]);
 
+  const loadOsTarget = useCallback(async () => {
+    try {
+      const response = await fetch(OS_TARGET_ENDPOINT, { credentials: "include" });
+      if (response.ok) {
+        setOsTarget(await response.json());
+      }
+    } catch {
+      // No switch endpoint (e.g. an older proxy) — the section stays hidden.
+    }
+  }, []);
+
+  useEffect(() => {
+    loadOsTarget();
+  }, [loadOsTarget]);
+
+  const handleOsTargetChange = async (host: string) => {
+    try {
+      const response = await fetch(OS_TARGET_ENDPOINT, {
+        method: host ? "PUT" : "DELETE",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: host ? JSON.stringify({ host }) : undefined,
+      });
+      if (!response.ok) {
+        throw new Error("Failed to switch OutSystems host");
+      }
+      setOsTarget(osTarget && { ...osTarget, current: host || null });
+      showStatus("OutSystems host switched — takes effect on your next page load or C-button press", "success");
+    } catch (err) {
+      showStatus(err instanceof Error ? err.message : "Unknown error", "error");
+    }
+  };
+
   const handleEnabledChange = (checked: boolean) => {
     const newState = { ...state, enabled: checked || undefined };
     setState(newState);
@@ -301,15 +333,6 @@ export function App() {
 
   const handleRadioChange = (key: keyof Preview, value: string) => {
     const newState = { ...state, [key]: value };
-    setState(newState);
-    saveState(newState);
-  };
-
-  const handleRegionChange = (value: string) => {
-    const newState = {
-      ...state,
-      region: (value || undefined) as Preview["region"],
-    };
     setState(newState);
     saveState(newState);
   };
@@ -795,44 +818,38 @@ export function App() {
           </fieldset>
         </div>
 
-        <div className="govuk-form-group">
-          <fieldset className="govuk-fieldset">
-            <legend className="govuk-fieldset__legend govuk-fieldset__legend--m">
-              <h2 className="govuk-fieldset__heading">Region</h2>
-            </legend>
-            <p className="govuk-body govuk-!-font-size-16">
-              Which OutSystems region the global components send you to. Applies
-              to the menu links, the banner title, and the auth handover — if you
-              are on the wrong host, the handover moves you across. Leave on{" "}
-              <strong>No override</strong> unless you are testing London.
-            </p>
-            <div
-              className="govuk-radios govuk-radios--small"
-              data-module="govuk-radios"
-            >
-              {REGION_OPTIONS.map((option) => (
-                <div key={option.value} className="govuk-radios__item">
-                  <input
-                    className="govuk-radios__input"
-                    id={`region-${option.value || "none"}`}
-                    name="region"
-                    type="radio"
-                    value={option.value}
-                    checked={(state.region ?? "") === option.value}
-                    disabled={loading || option.disabled}
-                    onChange={() => handleRegionChange(option.value)}
-                  />
-                  <label
-                    className="govuk-label govuk-radios__label"
-                    htmlFor={`region-${option.value || "none"}`}
-                  >
-                    {option.label}
-                  </label>
-                </div>
-              ))}
-            </div>
-          </fieldset>
-        </div>
+        {osTarget && osTarget.options.length > 0 && (
+          <div className="govuk-form-group">
+            <fieldset className="govuk-fieldset">
+              <legend className="govuk-fieldset__legend govuk-fieldset__legend--m">
+                <h2 className="govuk-fieldset__heading">OutSystems host</h2>
+              </legend>
+              <p className="govuk-body govuk-!-font-size-16">
+                Which OutSystems host the C-button and the menu send you to in this
+                environment. Pages you open directly on either host keep working as
+                they are.
+              </p>
+              <div className="govuk-radios govuk-radios--small" data-module="govuk-radios">
+                {[{ variant: "", host: "" }, ...osTarget.options].map(({ variant, host }) => (
+                  <div key={host || "default"} className="govuk-radios__item">
+                    <input
+                      className="govuk-radios__input"
+                      id={`os-target-${variant || "default"}`}
+                      name="osTarget"
+                      type="radio"
+                      checked={(osTarget.current ?? "") === host}
+                      disabled={loading}
+                      onChange={() => handleOsTargetChange(host)}
+                    />
+                    <label className="govuk-label govuk-radios__label" htmlFor={`os-target-${variant || "default"}`}>
+                      {host ? `${variant} — ${host}` : "Default for this environment"}
+                    </label>
+                  </div>
+                ))}
+              </div>
+            </fieldset>
+          </div>
+        )}
 
         <div className="govuk-form-group">
           <fieldset className="govuk-fieldset">
