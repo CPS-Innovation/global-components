@@ -1,6 +1,10 @@
-GloCo_CaseReview_PerCase
-| where ReviewType in ("First", "Subsequent")
-| where Status == "Submitted"
-| where StartTime > datetime(2026-03-09T12:00:01)
-| extend HoursDiff = round(datetime_diff("minute", SubmittedTime, StartTime) / 60.0, 1)
+// Time to submit, for submitted ordinary first / subsequent reviews with a captured start: hours from the first
+// start of that piece of work (row of GloCo_CaseReview_Activity) to its first submission. A second review on
+// the same case is its own piece of work, so it is never timed from the first review's start.
+// ReviewType is "First" / "Subsequent" for GloCo_CaseReview_Duration_Chart.
+GloCo_CaseReview_Activity
+| where SubType in ("First review", "Subsequent review") and Status == "Submitted" and isnotnull(StartedAt)
+| extend ReviewType = iif(SubType == "First review", "First", "Subsequent"),
+         HoursDiff = round(datetime_diff("minute", SubmittedAt, StartedAt) / 60.0, 1)
 | where HoursDiff > 0
+| project CaseId, ReviewType, StartTime = StartedAt, SubmittedTime = SubmittedAt, HoursDiff, User_Email, User_AreaOrCPSD

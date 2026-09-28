@@ -144,9 +144,9 @@ All live in RG `rg-global-nav-dev` / workspace `la-global-nav-dev`.
 | ------------------------- | ----------------------------------- | ------------------------------------------------------------- | -------------------------------------------------- |
 | Portal dashboard          | `Microsoft.Portal/dashboards`       | `028650ca-6b89-4dc9-a048-70643d7e90de`                        | `infra/analytics/dashboard/dashboard.json`         |
 | Workbook                  | `Microsoft.Insights/workbooks`      | `b9e1e051-ca8c-4f5e-9e9f-d6c8acaa1023` (`case-review-totals`) | `infra/analytics/workbook/case-review-totals.json` |
-| KQL functions (`GloCo_*`) | LA saved searches (`functionAlias`) | ~30 functions                                                 | `infra/analytics/kql/*.kql` (+ `dependencies.md`)  |
+| KQL functions (`GloCo_*`) | LA saved searches (`functionAlias`) | 22 functions, plus the deployed-only `GloCo_UserDimension`    | `infra/analytics/kql/*.kql` (+ `dependencies.md`)  |
 
-Source tables the functions read: `AppPageViews`, `AppEvents`, `AppExceptions`, `AppDependencies`, `StorageBlobLogs`. Note `GloCo_BlobLogs.kql` hardcodes proxy egress IPs (`10.7.204.126` prod, `10.7.198.126` QA) — infra-coupled values.
+Source tables the functions read: `AppPageViews`, `AppEvents`. The repo keeps only functions that feed the workbook or dashboard (pruned 28 Sep 2026; earlier diagnostic functions such as `GloCo_BlobLogs`, `GloCo__UserAuthStatus` and `GloCo__NotAuthedRates` are in git history). The dashboard's "AD auth errors" tile queries `AppExceptions` directly.
 
 ---
 
