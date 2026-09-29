@@ -28,6 +28,8 @@ echo "Copying config files..."
 cp "$PROXY_DIR/config/main/nginx.conf" "$DIST_DIR/nginx.conf.template"
 cp "$PROXY_DIR/config/main/global-components.conf" "$DIST_DIR/global-components.conf.template"
 cp "$PROXY_DIR/config/global-components.vnext/global-components.vnext.conf" "$DIST_DIR/global-components.vnext.conf.template"
+# Temporary multi-OS-domain testing module (FCT2-22132) — delete with the module.
+cp "$PROXY_DIR/config/global-components.multi-os-domain-testing/global-components.multi-os-domain-testing.conf" "$DIST_DIR/global-components.multi-os-domain-testing.conf.template"
 # NOTE: the v1 spike variants (cms-auth, cms-ping, cms-proxy-no-logout, spike) are
 # archived under global-components.cms-auth-v2/previous/ for REFERENCE ONLY. They are
 # deliberately NOT built or packaged — tsconfig excludes config/**/previous/**, so they
@@ -44,6 +46,7 @@ cp "$PROXY_DIR/config/global-components.case-locking/global-components.case-lock
 echo "Flattening compiled JS files..."
 mv "$DIST_DIR/main/global-components.js" "$DIST_DIR/global-components.js"
 mv "$DIST_DIR/global-components.vnext/global-components.vnext.js" "$DIST_DIR/global-components.vnext.js"
+mv "$DIST_DIR/global-components.multi-os-domain-testing/global-components.multi-os-domain-testing.js" "$DIST_DIR/global-components.multi-os-domain-testing.js"
 mv "$DIST_DIR/global-components.cms-auth-v2/global-components.cms-auth-v2.js" "$DIST_DIR/global-components.cms-auth-v2.js"
 mv "$DIST_DIR/global-components.case-locking/global-components.case-locking.js" "$DIST_DIR/global-components.case-locking.js"
 # polaris-non-ddei: another out-of-band POC (like cms-auth-v2) — flatten its
@@ -53,6 +56,7 @@ mv "$DIST_DIR/global-components.polaris-non-ddei/global-components.polaris-non-d
 # Remove empty directories
 rmdir "$DIST_DIR/main" 2>/dev/null || true
 rmdir "$DIST_DIR/global-components.vnext" 2>/dev/null || true
+rmdir "$DIST_DIR/global-components.multi-os-domain-testing" 2>/dev/null || true
 rmdir "$DIST_DIR/global-components.cms-auth-v2" 2>/dev/null || true
 rmdir "$DIST_DIR/global-components.case-locking" 2>/dev/null || true
 rmdir "$DIST_DIR/global-components.polaris-non-ddei" 2>/dev/null || true

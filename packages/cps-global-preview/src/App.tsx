@@ -7,10 +7,13 @@ const AUTH_HINT_ENDPOINT = "/global-components/state/auth-hint";
 const ENV_MATCH = window.location.pathname.match(/\/global-components\/([^/]+)\//);
 const ENV = ENV_MATCH?.[1] ?? "test";
 const NOTIFICATIONS_ENDPOINT = `/global-components/${ENV}/notification.json`;
-// The per-environment OS host switch, owned by the proxy (see OS_HOST_VARIANTS
-// in infra/proxy/config/global-components.vnext). It lives in its own cookie
-// rather than preview state because Polaris's /init has to read it too.
-const OS_TARGET_ENDPOINT = `/global-components/os-target/${ENV}`;
+// The per-environment OS host switch, owned by the proxy's temporary
+// multi-os-domain-testing module (infra/proxy/config/global-components.multi-os-domain-testing).
+// It lives in its own cookie rather than preview state because the proxy reads it
+// server-side, in both Edge and IE mode — so switching is a NAVIGATION through
+// the set route, which visits both engines to write both cookie copies.
+const OS_TARGET_STATUS_ENDPOINT = `/global-components/multi-os/target/${ENV}`;
+const OS_TARGET_SET_ENDPOINT = "/global-components/multi-os/set";
 
 type OsTarget = {
   current: string | null;
@@ -257,7 +260,7 @@ export function App() {
 
   const loadOsTarget = useCallback(async () => {
     try {
-      const response = await fetch(OS_TARGET_ENDPOINT, { credentials: "include" });
+      const response = await fetch(OS_TARGET_STATUS_ENDPOINT, { credentials: "include" });
       if (response.ok) {
         setOsTarget(await response.json());
       }
@@ -270,22 +273,11 @@ export function App() {
     loadOsTarget();
   }, [loadOsTarget]);
 
-  const handleOsTargetChange = async (host: string) => {
-    try {
-      const response = await fetch(OS_TARGET_ENDPOINT, {
-        method: host ? "PUT" : "DELETE",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: host ? JSON.stringify({ host }) : undefined,
-      });
-      if (!response.ok) {
-        throw new Error("Failed to switch OutSystems host");
-      }
-      setOsTarget(osTarget && { ...osTarget, current: host || null });
-      showStatus("OutSystems host switched — takes effect on your next page load or C-button press", "success");
-    } catch (err) {
-      showStatus(err instanceof Error ? err.message : "Unknown error", "error");
-    }
+  // Leaves the page: the set route writes the cookie in Edge, flips the tab to IE
+  // mode to write IE mode's copy, then brings the tab back here.
+  const handleOsTargetChange = (host: string) => {
+    const query = new URLSearchParams({ env: ENV, host, return: window.location.pathname + window.location.search });
+    window.location.assign(`${OS_TARGET_SET_ENDPOINT}?${query}`);
   };
 
   const handleEnabledChange = (checked: boolean) => {
@@ -825,9 +817,10 @@ export function App() {
                 <h2 className="govuk-fieldset__heading">OutSystems host</h2>
               </legend>
               <p className="govuk-body govuk-!-font-size-16">
-                Which OutSystems host the C-button and the menu send you to in this
-                environment. Pages you open directly on either host keep working as
-                they are.
+                Which OutSystems host the proxied CMS C-button and the menu send you
+                to in this environment. Changing it briefly reloads this page (it has
+                to visit both Edge and IE mode to set the choice in each). Pages you
+                open directly on either host keep working as they are.
               </p>
               <div className="govuk-radios govuk-radios--small" data-module="govuk-radios">
                 {[{ variant: "", host: "" }, ...osTarget.options].map(({ variant, host }) => (

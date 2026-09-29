@@ -66,23 +66,42 @@ In this repo:
 - [ ] Hold the **prod** proxy deploy until QA has run for a while. It takes over the
       `config.json` route there too, even though prod has no variants.
 
-## 4. Polaris PRs (yours)
+## 4. Multi-OS-domain testing module (ours) — replaces the vnext switch
 
-- [ ] `/init`: port `_toOsTarget` and the `appAuthRedirect` change from our
-      `infra/proxy/config/main/nginx.js`, plus the "OS switch" tests in `nginx.unit.test.ts`.
-      Keep the rule that a rewrite is only used if `AUTH_HANDOVER_WHITELIST` accepts it.
-      njs has no destructuring and no `URL` class.
-- [ ] Main-conf changes from this branch (`infra/proxy/config/main/global-components.ts` / `.conf`):
-  - `cpslon-tst` in `CORS_ALLOWED_ORIGINS`
+The switch now lives in one temporary module, `infra/proxy/config/global-components.multi-os-domain-testing/`.
+It takes over `config.json` selection and the status route from vnext, adds the both-engines
+set route, and overrides the proxied-CMS C-button routes. Nothing in Polaris changes (`/init`,
+`/launch`, `uainGeneratedScript`), and users without the signal cookie are handed back
+untouched.
+
+- [ ] Run `pnpm -w test:proxy`. There's a new layer, `multi-os-domain-testing`, and vnext has
+      lost its variant tests.
+- [ ] **Deploy order matters.** Both the old vnext and the module define
+      `location = /global-components/<env>/config.json`. If both are live, nginx won't start and
+      the whole proxy goes down.
+  1. Deploy the stripped vnext first (`deploy-vnext.local.sh`). QA briefly loses variant config
+     selection until step 2.
+  2. Then deploy the module (`deploy-multi-os-domain-testing.local.sh`). It refuses to upload
+     while the deployed vnext conf still defines `config.json` locations.
+- [ ] Smoke test:
+  - `GET /global-components/multi-os/target/test` lists `oapps` and `cps-lon`
+  - `test/config.json` still returns `X-Gloco-Config: config.json`, and `config.oapps.json` for
+    `Origin: https://oapps-qa-notprod.int.cps.gov.uk`
+  - a proxied-CMS C-button click **without** the signal still goes where it always did
+- [ ] Main-conf changes, still needed and deployed with the parent project
+      (`infra/proxy/config/main/global-components.ts` / `.conf`):
+  - `cpslon-tst` in `CORS_ALLOWED_ORIGINS` (state fetches from London pages)
   - `/case-review-redirect` accepting a full host
-- [ ] Deploy them to QA Polaris.
 
 ## 5. Trial on test
 
 - [ ] Preview page: switch to `oapps`.
 - [ ] CWA: reload; the menu links point at oapps; clicking one lands you on oapps with CMS auth.
-- [ ] C-button lands on oapps.
-- [ ] The case-review redirect lands on oapps.
+- [ ] Preview page switch: the page reloads via IE mode and comes back showing `oapps` (both
+      cookie copies written).
+- [ ] Proxied-CMS C-button lands on oapps.
+- [ ] A user WITHOUT the signal: proxied-CMS C-button unchanged.
+- [ ] (Not covered by the module: the case-review redirect and raw-CMS C-button stay on `cps-tst`.)
 - [ ] A cold-cache MSAL redirect goes through the oapps handover and back.
 - [ ] Presence, triage capture and page-view analytics all work on oapps.
 - [ ] Repeat for `cps-lon`.
@@ -161,13 +180,15 @@ Afterwards:
   (true in test and UAT).
 - The London / FCT2-20670 preview-region work is removed.
 - **Multi-targeting:**
-  - The switch is the `Gloco-Os-Target-<env>` cookie on the Polaris host: `Path=/`,
+  - The switch is the `Gloco-Os-Target-<env>` cookie on the Polaris host, in BOTH Edge and IE mode's stores: `Path=/`,
     `SameSite=Lax`, `HttpOnly`, and its value is the OS host.
-  - It's set via `/global-components/os-target/<env>` from the preview page. Anyone with the
-    preview page can switch.
-  - The vnext proxy serves `config.json` by the page's `Origin` host first, then the cookie,
-    then the base file.
-  - `/init` moves the handover onto the switched host.
+  - It's written by `/global-components/multi-os/set` (navigated to from the preview page), which
+    visits both engines. Anyone with the preview page can switch.
+  - The multi-os-domain-testing module serves `config.json` by the page's `Origin` host first,
+    then the cookie, then the base file.
+  - Its `/launch/cin2`–`cin5-proxy` overrides send switched users' proxied-CMS C-button through
+    the same `/polaris` → `/init` chain on the chosen host. Everyone else is handed back to
+    Polaris's own route.
   - Component and handover code are unchanged.
 - The CSP checker probes the variant hosts.
 - `GloCo_PageViews.kql` treats the old and oapps prod hosts as one. It's in the repo, not yet
