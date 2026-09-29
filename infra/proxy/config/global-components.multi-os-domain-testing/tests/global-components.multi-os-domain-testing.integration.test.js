@@ -122,7 +122,8 @@ async function testSwitch() {
     const { location, response } = await redirectOf(`${setPath(OAPPS)}&done=edge`, IE_MODE)
     assertEqual(response.headers.get("x-internetexplorermode"), "0", "Should flip back to Edge")
     assert((response.headers.get("set-cookie") || "").startsWith(SIGNAL), "Should set the IE-mode copy")
-    assertEqual(location, "/global-components/test/preview/", "Should return to the preview page")
+    // nginx absolutises relative redirects (absolute_redirect on), so compare the path only.
+    assertEqual(new URL(location, PROXY_BASE).pathname, "/global-components/test/preview/", "Should return to the preview page")
   })
 
   await test("set with no host clears the signal", async () => {
