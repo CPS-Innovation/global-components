@@ -22,21 +22,35 @@ Nginx reverse proxy with njs (JavaScript) for header/cookie manipulation. Used t
 - `.env` - **gitignored** - contains vnext-specific config
 - `.env.example` - template for the above
 
-The vnext layer also owns **OS host variants**: letting named users be switched onto a
-different OutSystems host from the rest of their environment.
+### Multi-OS-domain testing (`config/global-components.multi-os-domain-testing/`) — TEMPORARY
 
-- `configuration/config.<env>.<variant>.json` is the environment's config with only the OS
-  host swapped (enforced by `outsystems-host-consistency.spec.ts`), deployed beside
-  `config.json` as `config.<variant>.json`.
-- `OS_HOST_VARIANTS` in `global-components.vnext.ts` maps each variant to its host. A unit
-  test checks it against the variant files both ways.
-- The switch is the `Gloco-Os-Target-<env>` cookie (`Path=/`, value = the variant's OS host),
-  set via `PUT`/`DELETE /global-components/os-target/<env>` from the preview page.
-- `/global-components/<env>/config.json` is served by `readConfigBlobName`:
+A self-contained module (FCT2-22132) that lets designated QA users run against a different
+OutSystems host (the oapps proxy, the London tenant) while everyone else is untouched. It only
+ADDS locations; where one shadows an existing route, a request without the signal cookie is
+handed straight back to that route's own block. To end the trial, delete the module directory
+and its lines in `scripts/build.sh`, `deploy/deploy.sh`, `deploy/rollback.sh`, `run-tests.sh`,
+`package.json` and `docker/` (`docker-compose.multi-os-domain-testing.yml`,
+`test-only.polaris-launch.conf`).
+
+- **Signal:** the `Gloco-Os-Target-<env>` cookie (`Path=/`, `HttpOnly`, value = the chosen OS
+  host). Edge and IE mode keep separate cookie stores, so it is written into both by
+  `/global-components/multi-os/set?env=&host=&return=`, the only writer. That route flips the
+  tab between engines with `X-InternetExplorerMode`. An empty `host` clears both copies.
+  `/global-components/multi-os/target/<env>` reports the current value to the preview page.
+- **Variants:** `configuration/config.<env>.<variant>.json` is the environment's config with
+  only the OS host swapped (enforced by `outsystems-host-consistency.spec.ts`), deployed beside
+  `config.json` as `config.<variant>.json`. `OS_HOST_VARIANTS` maps each variant to its host; a
+  unit test checks it against the files both ways.
+- **`config.json`:** served by `readConfigBlobName`:
   - the variant for the requesting OS page's own host (by `Origin`); else
   - the variant the cookie names (CWA); else
   - `config.json`.
-- Polaris's `/init` reads the same cookie to move the handover onto the switched host.
+- **Proxied-CMS C-button:** exact-match overrides of Polaris's `/launch/cin2`–`cin5-proxy`.
+  - Without the signal, they rewrite to `…-proxy/`, which only Polaris's prefix locations match,
+    so Polaris's own redirect runs unchanged.
+  - With it (the click arrives in IE mode, carrying IE mode's copy), they redirect to Polaris's
+    same `/polaris?r=<handover>` target, with the OS host swapped.
+  - `/polaris`, `/init`, raw-CMS `/launch/cinN` and prod's `/launch/cms-proxy` are not touched.
 
 ### Docker (`docker/`)
 

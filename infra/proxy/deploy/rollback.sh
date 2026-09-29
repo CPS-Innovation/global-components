@@ -115,6 +115,9 @@ echo -e "\n${YELLOW}Backing up current state before rollback to: $PRE_ROLLBACK_D
 FILES_TO_BACKUP=(
   "global-components.vnext.conf.template"
   "global-components.vnext.js"
+  # Temporary multi-OS-domain testing module (FCT2-22132) — delete with the module.
+  "global-components.multi-os-domain-testing.conf.template"
+  "global-components.multi-os-domain-testing.js"
 )
 
 for file in "${FILES_TO_BACKUP[@]}"; do
