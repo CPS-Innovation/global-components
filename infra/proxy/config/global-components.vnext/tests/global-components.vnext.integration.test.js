@@ -2,13 +2,15 @@
 /**
  * Integration tests for global-components.vnext.conf.template
  *
- * Tests the vnext-only functionality: swagger URL rewriting and the
- * MDS API proxy (monitoring-codes).
+ * Tests the vnext-only functionality: swagger URL rewriting, the MDS API
+ * proxy (monitoring-codes), and OS host variants (config.json selection and
+ * the os-target switch).
  */
 
 const {
   PROXY_BASE,
   assert,
+  assertEqual,
   test,
   fetchJson,
   getState,
