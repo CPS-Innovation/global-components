@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef, type ReactNode } from "react";
 import type { AuthHint, Notification, Preview } from "cps-global-configuration";
 
 const STATE_ENDPOINT = "/global-components/state/preview";
@@ -161,6 +161,16 @@ const FEATURES: Feature[] = [
 
 type FeatureKey = Feature["key"];
 
+// A section heading that is its own #anchor, so sections can be linked to directly.
+// Ids are prefixed "section-" to stay clear of the form inputs' ids.
+const SectionHeading = ({ id, className, children }: { id: string; className: string; children: ReactNode }) => (
+  <h2 className={className} id={`section-${id}`}>
+    <a className="govuk-link govuk-link--text-colour govuk-link--no-underline" href={`#section-${id}`}>
+      {children}
+    </a>
+  </h2>
+);
+
 type StatusType = "info" | "error" | "success";
 
 export function App() {
@@ -175,6 +185,7 @@ export function App() {
   const [authHint, setAuthHint] = useState<AuthHint | null>(null);
   const [sidInput, setSidInput] = useState<string>("");
   const [osTarget, setOsTarget] = useState<OsTarget | null>(null);
+  const scrolledToHash = useRef(false);
 
   const showStatus = useCallback((message: string, type: StatusType) => {
     setStatus({ message, type });
@@ -273,10 +284,24 @@ export function App() {
     loadOsTarget();
   }, [loadOsTarget]);
 
+  // Sections render after async loads (the OutSystems host one only once its
+  // status arrives), so the browser's own jump to the #anchor on load misses them.
+  // Jump once, as soon as the target exists.
+  useEffect(() => {
+    if (scrolledToHash.current || !window.location.hash) {
+      return;
+    }
+    const target = document.getElementById(decodeURIComponent(window.location.hash.slice(1)));
+    if (target) {
+      scrolledToHash.current = true;
+      target.scrollIntoView();
+    }
+  }, [loading, osTarget, notificationsResult, authHint]);
+
   // Leaves the page: the set route writes the cookie in Edge, flips the tab to IE
   // mode to write IE mode's copy, then brings the tab back here.
   const handleOsTargetChange = (host: string) => {
-    const query = new URLSearchParams({ env: ENV, host, return: window.location.pathname + window.location.search });
+    const query = new URLSearchParams({ env: ENV, host, return: window.location.pathname + window.location.search + "#section-os-host" });
     window.location.assign(`${OS_TARGET_SET_ENDPOINT}?${query}`);
   };
 
@@ -444,7 +469,7 @@ export function App() {
         <div className="govuk-form-group">
           <fieldset className="govuk-fieldset">
             <legend className="govuk-fieldset__legend govuk-fieldset__legend--m">
-              <h2 className="govuk-fieldset__heading">Features</h2>
+              <SectionHeading className="govuk-fieldset__heading" id="features">Features</SectionHeading>
             </legend>
             <div>
               {FEATURES.map(
@@ -612,7 +637,7 @@ export function App() {
         <div className="govuk-form-group">
           <fieldset className="govuk-fieldset">
             <legend className="govuk-fieldset__legend govuk-fieldset__legend--m">
-              <h2 className="govuk-fieldset__heading">Notifications</h2>
+              <SectionHeading className="govuk-fieldset__heading" id="notifications">Notifications</SectionHeading>
             </legend>
             <div className="govuk-checkboxes" data-module="govuk-checkboxes">
               <div className="govuk-checkboxes__item">
@@ -653,7 +678,11 @@ export function App() {
               Clear dismissed notifications
             </button>
 
-            <h3 className="govuk-heading-s govuk-!-margin-top-6">Deployed notifications</h3>
+            <h3 className="govuk-heading-s govuk-!-margin-top-6" id="section-deployed-notifications">
+              <a className="govuk-link govuk-link--text-colour govuk-link--no-underline" href="#section-deployed-notifications">
+                Deployed notifications
+              </a>
+            </h3>
             <p className="govuk-body govuk-!-font-size-16">
               Read-only view of <code>notification.json</code> loaded from blob storage
               for the <strong>{ENV}</strong> environment. Edit the source file to change
@@ -755,7 +784,7 @@ export function App() {
         <div className="govuk-form-group">
           <fieldset className="govuk-fieldset">
             <legend className="govuk-fieldset__legend govuk-fieldset__legend--m">
-              <h2 className="govuk-fieldset__heading">Auth hint</h2>
+              <SectionHeading className="govuk-fieldset__heading" id="auth-hint">Auth hint</SectionHeading>
             </legend>
             <p className="govuk-body govuk-!-font-size-16">
               Overwrite the <code>lastKnownSid</code> stored against your auth-hint cookie.
@@ -814,7 +843,7 @@ export function App() {
           <div className="govuk-form-group">
             <fieldset className="govuk-fieldset">
               <legend className="govuk-fieldset__legend govuk-fieldset__legend--m">
-                <h2 className="govuk-fieldset__heading">OutSystems host</h2>
+                <SectionHeading className="govuk-fieldset__heading" id="os-host">OutSystems host</SectionHeading>
               </legend>
               <p className="govuk-body govuk-!-font-size-16">
                 Which OutSystems host the proxied CMS C-button and the menu send you
@@ -847,7 +876,7 @@ export function App() {
         <div className="govuk-form-group">
           <fieldset className="govuk-fieldset">
             <legend className="govuk-fieldset__legend govuk-fieldset__legend--m">
-              <h2 className="govuk-fieldset__heading">Override mode</h2>
+              <SectionHeading className="govuk-fieldset__heading" id="override-mode">Override mode</SectionHeading>
             </legend>
             <div className="govuk-checkboxes" data-module="govuk-checkboxes">
               <div className="govuk-checkboxes__item">
