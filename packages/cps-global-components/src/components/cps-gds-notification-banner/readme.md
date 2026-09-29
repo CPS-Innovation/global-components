@@ -34,6 +34,13 @@ component every notification in the app renders through.
 | `cpsDismissed` | Fired when the user clicks the dismiss button. | `CustomEvent<void>` |
 
 
+## Slots
+
+| Slot | Description      |
+| ---- | ---------------- |
+|      | The default slot |
+
+
 ## Dependencies
 
 ### Used by

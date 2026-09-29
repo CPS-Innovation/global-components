@@ -1,3 +1,30 @@
+// GloCo_PageViews_CaseReview — every Case Review / Work Management App page view that means something for
+// case work, one row per page view, each CLASSIFIED on its own (no row is judged against another here).
+// Assembling page views into pieces of work — sequences, who gets credit, triage submissions — is
+// GloCo_CaseReview_Activity's job, not this function's.
+//
+// FLAGS (one per kind of page view)
+//   Is_Review_First_Review / Is_Review_Subsequent_Review   a review page opened (started)
+//   Is_Early_Advice_First_Review / Is_Early_Advice_Subsequent  an early-advice review page opened (started)
+//   Is_Submitted_First_Review / Is_Submitted_Subsequent_Review  the post-submission LandingPage
+//   Is_Saved                     the LandingPage after SAVING (IsSubmitted=false). A save never records
+//                                whether the review was first or subsequent, so it has no order.
+//   Is_Admin_Finalise            QuickAdminFinalise (a completed action; once per case)
+//   Is_Triage_OD / _ODPCDReview / _DCP   a triage page opened (started), by TriageType
+//   Is_StreamlinedThresholdTest  the STT page opened (started; it has no submission)
+//
+// CLASSIFICATION COLUMNS (derived from the flags, so consumers never re-derive them)
+//   Kind        Review / Triage / Admin finalise / Streamlined threshold test
+//   Order       First / Subsequent for reviews ("" otherwise, and for saves)
+//   TriageType  OD / ODPCDReview / DCP for triage ("" otherwise)
+//   TaskId      the triage task's id, from the URL ("" otherwise). Every triage page view carries one and no
+//               TaskId spans two cases (checked 2026-09-25).
+//   IsStart     the page view begins a piece of work (any review/EA/triage/STT page opened)
+//   IsSubmit    the page view completes one (review submitted, admin finalise)
+//   IsEarlyAdvice  the start was an early-advice review page
+//
+// ASSUMPTION: a LandingPage with IsSubmitted=true but no SubmittedIsFirstReview parameter (331 views to
+// 2026-09-25) is taken to be a SUBSEQUENT review submission.
 GloCo_PageViews
 | where App in ("Case review", "Work management app")
 | where isnotnull(CaseId)
@@ -6,37 +33,40 @@ GloCo_PageViews
 | extend IsFirstReviewParam          = tobool(Params["IsFirstReview"])
 | extend IsSubmittedParam            = tobool(Params["IsSubmitted"])
 | extend SubmittedIsFirstReviewParam = tobool(Params["SubmittedIsFirstReview"])
-| extend TriageType                  = tostring(Params["TriageType"])
+| extend TriageTypeParam             = tostring(Params["TriageType"])
 | extend
     Is_Review_First_Review         = App == "Case review" and Page == "CaseReview_V2" and IsFirstReviewParam,
     Is_Review_Subsequent_Review    = App == "Case review" and ((Page == "CaseReview_V2" and IsFirstReviewParam != true) or Page == "PCDSubsequentCustomReview"),
     Is_Early_Advice_First_Review   = App == "Case review" and Page == "CaseReviewEA" and IsFirstReviewParam,
     Is_Early_Advice_Subsequent     = App == "Case review" and Page == "CaseReviewEA" and IsFirstReviewParam != true,
-    Is_Submitted_First_Review      = App == "Case review" and Page == "LandingPage" and SubmittedIsFirstReviewParam == true,
+    // IsSubmitted is required: without it a save carrying SubmittedIsFirstReview=true would count as a
+    // submission. (That combination has not occurred to 2026-09-25, but the definition should not allow it.)
+    Is_Submitted_First_Review      = App == "Case review" and Page == "LandingPage" and IsSubmittedParam == true and SubmittedIsFirstReviewParam == true,
     Is_Submitted_Subsequent_Review = App == "Case review" and Page == "LandingPage" and IsSubmittedParam == true and SubmittedIsFirstReviewParam != true,
-    Is_Saved_First_Review          = App == "Case review" and Page == "LandingPage" and IsSubmittedParam == false and SubmittedIsFirstReviewParam == true,
-    Is_Saved_Subsequent_Review     = App == "Case review" and Page == "LandingPage" and IsSubmittedParam == false and SubmittedIsFirstReviewParam != true,
+    Is_Saved                       = App == "Case review" and Page == "LandingPage" and IsSubmittedParam == false,
     Is_Admin_Finalise              = App == "Case review" and Page == "QuickAdminFinalise",
-    Is_Triage_OD                   = App == "Work management app" and Page == "Triage" and TriageType == "OD",
-    Is_Triage_ODPCDReview          = App == "Work management app" and Page == "Triage" and TriageType == "ODPCDReview",
-    Is_Triage_DCP                  = App == "Work management app" and Page == "Triage" and TriageType == "DCP",
+    Is_Triage_OD                   = App == "Work management app" and Page == "Triage" and TriageTypeParam == "OD",
+    Is_Triage_ODPCDReview          = App == "Work management app" and Page == "Triage" and TriageTypeParam == "ODPCDReview",
+    Is_Triage_DCP                  = App == "Work management app" and Page == "Triage" and TriageTypeParam == "DCP",
     Is_StreamlinedThresholdTest    = App == "Case review" and Page == "StreamlinedThresholdTest"
+| extend Kind = case(
+    Is_Review_First_Review or Is_Review_Subsequent_Review or Is_Early_Advice_First_Review or Is_Early_Advice_Subsequent
+      or Is_Submitted_First_Review or Is_Submitted_Subsequent_Review or Is_Saved, "Review",
+    Is_Triage_OD or Is_Triage_ODPCDReview or Is_Triage_DCP,                       "Triage",
+    Is_Admin_Finalise,                                                             "Admin finalise",
+    Is_StreamlinedThresholdTest,                                                   "Streamlined threshold test",
+    "")
+| where isnotempty(Kind)
 | extend
-    Is_Active_Visit = IsFirstReviewParam
-        or IsSubmittedParam
-        or SubmittedIsFirstReviewParam
-        or Is_Review_First_Review
-        or Is_Review_Subsequent_Review
-        or Is_Early_Advice_First_Review
-        or Is_Early_Advice_Subsequent
-        or Is_Submitted_First_Review
-        or Is_Submitted_Subsequent_Review
-        or Is_Saved_First_Review
-        or Is_Saved_Subsequent_Review
-        or Is_Admin_Finalise
-        or Is_Triage_OD
-        or Is_Triage_ODPCDReview
-        or Is_Triage_DCP
-        or Is_StreamlinedThresholdTest
-| where Is_Active_Visit
-| project-away Params, TriageType
+    Order = case(
+        Is_Review_First_Review or Is_Early_Advice_First_Review or Is_Submitted_First_Review,           "First",
+        Is_Review_Subsequent_Review or Is_Early_Advice_Subsequent or Is_Submitted_Subsequent_Review,   "Subsequent",
+        ""),
+    TriageType    = iif(Kind == "Triage", TriageTypeParam, ""),
+    TaskId        = iif(Kind == "Triage", tostring(Params["TaskId"]), ""),
+    IsStart       = Is_Review_First_Review or Is_Review_Subsequent_Review or Is_Early_Advice_First_Review
+                    or Is_Early_Advice_Subsequent or Is_Triage_OD or Is_Triage_ODPCDReview or Is_Triage_DCP
+                    or Is_StreamlinedThresholdTest,
+    IsSubmit      = Is_Submitted_First_Review or Is_Submitted_Subsequent_Review or Is_Admin_Finalise,
+    IsEarlyAdvice = Is_Early_Advice_First_Review or Is_Early_Advice_Subsequent
+| project-away Params, TriageTypeParam

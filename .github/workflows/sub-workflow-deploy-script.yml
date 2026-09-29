@@ -28,12 +28,12 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
-      - uses: benjlevesque/short-sha@v3.0
+      - uses: benjlevesque/short-sha@v4.0
         id: short-sha
 
-      - uses: actions/download-artifact@v7
+      - uses: actions/download-artifact@v8
         id: download
         with:
           artifact-ids: ${{ inputs.artifact-id }}
@@ -52,6 +52,20 @@ jobs:
           EMAIL_ESCALATION: ${{ vars.ACCESSIBILITY_EMAIL_ESCALATION }}
         run: |
           cp ./configuration/config.${{ inputs.environment }}.json ./to-deploy/config.json
+
+          # OS host variants (config.<env>.<variant>.json → config.<variant>.json):
+          # the same config pointed at another OutSystems host. The proxy serves one
+          # in place of config.json to users switched onto that host (see
+          # infra/proxy/config/global-components.vnext). Notification files share
+          # the naming shape, so skip them.
+          for variant_file in ./configuration/config.${{ inputs.environment }}.*.json; do
+            [ -e "$variant_file" ] || continue
+            variant=$(basename "$variant_file" .json)
+            variant=${variant#config.${{ inputs.environment }}.}
+            if [ "$variant" != "notification" ]; then
+              cp "$variant_file" "./to-deploy/config.$variant.json"
+            fi
+          done
 
           if [ -f "./configuration/config.${{ inputs.environment }}.notification.json" ]; then
             cp ./configuration/config.${{ inputs.environment }}.notification.json ./to-deploy/notification.json

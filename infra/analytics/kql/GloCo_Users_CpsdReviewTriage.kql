@@ -1,0 +1,64 @@
+// GloCo_Users_CpsdReviewTriage — one row per CPS Direct user who did case-review or triage work,
+// all time, with both CPSD signals side by side and their review / triage counts.
+//
+// POPULATION: users credited with submitted work in GloCo_CaseReview_Activity (Case Review or Work
+// Management App) who are CPSD by EITHER signal. CPSD users who only ever use other apps (e.g. the
+// Casework app) are deliberately not listed.
+//
+// COLUMNS
+//   Email, JobTitle      latest seen. Job title is authoritative from Entra via GloCo_UserDimension.
+//   IsLawyer             GloCo_LawyerStatus(JobTitle): Lawyer / NotLawyer / NoJobTitle / UnknownIfLawyer.
+//   EntraDepartment      latest Auth_Department (Graph /me, backfilled from GloCo_UserDimension).
+//   IsCPSDViaEntra       "true" when EntraDepartment == "CPS DIRECT"; "unknown" when never captured.
+//   UnitCountLatest/Max  non-sensitive unit counts, ignoring rows where the count is 0 (an
+//                        unpopulated user object, not a real permission level).
+//   IsCPSDViaAreaCount   "true" when any such row put the user in "CPSD" (>= 120 units, not SEOCID);
+//                        "unknown" when no populated user object was ever captured.
+//   ReviewCount          submitted reviews credited to the user (pieces of work in
+//                        GloCo_CaseReview_Activity): a first and a subsequent review on the same case
+//                        count as two, and so does a second subsequent review. Early advice included;
+//                        admin finalise not.
+//   TriageSubmitted      submitted triage TASKS credited to the user, as captured.
+//   TriageSubmittedAdjusted  plus the submissions inferred for the periods capture was down — the
+//                        like-for-like successor of the former TriageCount (tasks started), within
+//                        0.2% overall; it differs per person because a task now goes to whoever
+//                        submitted it, not whoever opened it.
+//
+// The two CPSD signals mostly agree. Where they disagree, trust Entra: units-only users are
+// typically regional/HQ staff with all-areas access. Treat "unknown" as unknown, not false.
+//
+// TIME: pinned to product launch below, but the Log Analytics time picker still bounds the tables a
+// function reads — set it to cover the whole period (e.g. a custom range from 9 Mar 2026) when
+// running this by name.
+//
+// Contains no PII itself (it is committable); its OUTPUT contains email addresses.
+let Launch = datetime(2026-03-09T12:00:01);
+let P = materialize(GloCo_PageViews | where TimeGenerated > Launch | where isnotempty(Auth_ObjectId));
+let NameL = P | where isnotempty(Auth_Username) | summarize arg_max(TimeGenerated, Auth_Username) by Auth_ObjectId | project Auth_ObjectId, Email = Auth_Username;
+let JobL  = P | where isnotempty(Auth_JobTitle) | summarize arg_max(TimeGenerated, Auth_JobTitle) by Auth_ObjectId | project Auth_ObjectId, JobTitle = Auth_JobTitle;
+let DeptL = P | where isnotempty(Auth_Department) | summarize arg_max(TimeGenerated, Auth_Department) by Auth_ObjectId | project Auth_ObjectId, EntraDepartment = Auth_Department;
+let UnitsL = P
+    | where isnotempty(User_AreaOrCPSD) and User_CountNotSensitiveUnits > 0
+    | summarize CpsdRows = countif(User_AreaOrCPSD == "CPSD"), UnitCountMax = max(User_CountNotSensitiveUnits),
+                arg_max(TimeGenerated, User_CountNotSensitiveUnits) by Auth_ObjectId
+    | project Auth_ObjectId, UnitsCpsd = (CpsdRows > 0), UnitCountLatest = User_CountNotSensitiveUnits, UnitCountMax;
+let Act = GloCo_CaseReview_Activity
+    | where isnotempty(User_ObjectId)
+    | summarize ReviewCount = countif(Kind == "Review" and Status == "Submitted"),
+                TriageSubmitted = countif(Kind == "Triage" and SubmittedObserved),
+                TriageSubmittedAdjusted = countif(Kind == "Triage" and Status == "Submitted")
+      by Auth_ObjectId = User_ObjectId;
+Act
+| join kind=leftouter NameL on Auth_ObjectId
+| join kind=leftouter JobL on Auth_ObjectId
+| join kind=leftouter DeptL on Auth_ObjectId
+| join kind=leftouter UnitsL on Auth_ObjectId
+| where EntraDepartment == "CPS DIRECT" or UnitsCpsd == true
+| where ReviewCount + TriageSubmittedAdjusted > 0
+| extend IsLawyer = GloCo_LawyerStatus(coalesce(JobTitle, "")),
+         IsCPSDViaEntra = iif(isempty(EntraDepartment), "unknown", tolower(tostring(EntraDepartment == "CPS DIRECT"))),
+         IsCPSDViaAreaCount = iif(isnull(UnitsCpsd), "unknown", tolower(tostring(UnitsCpsd)))
+| order by ReviewCount + TriageSubmittedAdjusted desc, Email asc
+| project Email, JobTitle, IsLawyer, EntraDepartment, IsCPSDViaEntra,
+          UnitCountLatest = coalesce(UnitCountLatest, 0), UnitCountMax = coalesce(UnitCountMax, 0),
+          IsCPSDViaAreaCount, ReviewCount, TriageSubmitted, TriageSubmittedAdjusted

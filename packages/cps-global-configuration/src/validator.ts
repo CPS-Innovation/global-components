@@ -5,6 +5,7 @@ import {
   configStorageSchema,
 } from "./Config";
 import { PotentiallyValidConfig, transformConfig } from "./transform-config";
+import { resolveTimedValues } from "./timed-values";
 
 export type ValidationResult =
   | {
@@ -16,12 +17,15 @@ export type ValidationResult =
       errorMsg: string;
     };
 
+// `now` picks which step of any timed values (see timed-values.ts) is in force;
+// validate.ts passes each future switch moment to check every step.
 export const transformAndValidateConfig = (
   jsonData: unknown,
-  filename?: string
+  filename?: string,
+  now: Date = new Date()
 ): ValidationResult => {
   try {
-    const storedConfig = validateStoredConfig(jsonData);
+    const storedConfig = validateStoredConfig(resolveTimedValues(jsonData, now));
     validateStoredEnvironment(storedConfig, filename);
 
     const config = transformConfig(storedConfig);
@@ -55,7 +59,10 @@ const validateStoredEnvironment = (
     return;
   }
 
-  const match = filename.match(/^config\.(.+)\.json$/);
+  // config.<env>.json, or config.<env>.<variant>.json for an OS host variant of
+  // that environment (e.g. config.test.oapps.json) — the variant keeps its
+  // environment's ENVIRONMENT value.
+  const match = filename.match(/^config\.([^.]+)(?:\.[^.]+)?\.json$/);
   if (!match) {
     return;
   }

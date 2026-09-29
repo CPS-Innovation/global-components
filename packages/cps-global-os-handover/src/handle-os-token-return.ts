@@ -21,7 +21,15 @@ export type OsTokenReturnOutcome = { kind: "ready"; target: string };
 
 export const handleOsTokenReturn = async (
   win: Window,
-  { cmsAuthStorageKeys }: { cmsAuthStorageKeys: CmsAuthStorageKeys },
+  {
+    cmsAuthStorageKeys,
+    resetTasklistFiltersOnFreshToken = false,
+  }: {
+    cmsAuthStorageKeys: CmsAuthStorageKeys;
+    // Config-driven (OS_RESET_TASKLIST_FILTERS_ON_FRESH_TOKEN) rather than keyed
+    // off the OS hostname, so the gate survives OutSystems moving domain.
+    resetTasklistFiltersOnFreshToken?: boolean;
+  },
 ): Promise<OsTokenReturnOutcome> => {
   const url = new URL(win.location.href);
   const [target, cookies, token] = stripParams(
@@ -38,11 +46,11 @@ export const handleOsTokenReturn = async (
   );
   storeAuth(cookies, token, win.localStorage, cmsAuthStorageKeys);
 
-  if (didUpdateToken && win.location.hostname.startsWith("cps-tst")) {
+  if (didUpdateToken && resetTasklistFiltersOnFreshToken) {
     // FCT2-16735: a fresh token means a fresh auth context — clear stale
     // tasklist filters so the user lands in OS without inherited filter state
-    // from a previous session. Hostname check is a temporary feature gate
-    // limiting this to test envs.
+    // from a previous session. The flag is a temporary feature gate limiting
+    // this to test envs.
     resetTasklistFilters(win);
   }
 

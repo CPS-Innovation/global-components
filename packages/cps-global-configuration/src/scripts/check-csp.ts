@@ -32,6 +32,7 @@ import {
   type CheckTarget,
 } from "../csp/derive-check-targets";
 import { CSP_ENVIRONMENTS } from "../csp/render-csp-artifacts";
+import { listOsHostVariantFiles } from "./os-host-variant-files";
 import {
   renderHtmlReport,
   renderMarkdownReport,
@@ -153,14 +154,29 @@ const main = async (): Promise<void> => {
     CSP_ENVIRONMENTS.map(env => configs[env]!),
   );
 
-  const targets = deriveAllCheckTargets(configs);
+  // OS host variants (e.g. test.oapps, test.cps-lon) are the same app on
+  // another OutSystems host, which configures its CSP independently — so probe
+  // them too, judged against their own (host-swapped) config.
+  const checkedConfigs: Record<string, (typeof configs)[string]> = {
+    ...configs,
+    ...Object.fromEntries(
+      listOsHostVariantFiles(configDir)
+        .filter(({ env }) => CSP_ENVIRONMENTS.includes(env))
+        .map(({ file, env, variant }) => [
+          `${env}.${variant}`,
+          JSON.parse(fs.readFileSync(path.join(configDir, file), "utf-8")),
+        ]),
+    ),
+  };
+
+  const targets = deriveAllCheckTargets(checkedConfigs);
   console.log(`checking ${targets.length} targets…`);
 
   const fetched = await Promise.all(targets.map(fetchTarget));
 
   const results: TargetResult[] = fetched.map(raw => {
     const { hostApp, handoverPage } = deriveCspRequirements(
-      configs[raw.target.environment]!,
+      checkedConfigs[raw.target.environment]!,
     );
     const isHandover = raw.target.kind === "auth-handover";
     const body = (raw as TargetResult & { body?: string }).body;

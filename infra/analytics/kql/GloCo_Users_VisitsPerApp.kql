@@ -1,39 +1,29 @@
+// "Top users by visit": per user, page visits per app (distinct script loads, excluding the Casework app) and
+// their submitted case work from GloCo_CaseReview_Activity.
+//   Case reviews submitted          reviews + admin finalise credited to the user (pieces of work)
+//   Triage submissions              triage credited to the user, as captured
+//   Triage submissions (adjusted)   plus the submissions inferred for the periods capture was down
+let Launch = datetime(2026-03-09T12:00:01);
 let Visits = GloCo_PageViews
-| where TimeGenerated > datetime(2026-03-09T12:00:01)
-| where App != "Casework app"
-| where Auth_IsAuthed
-| summarize Visits = count_distinct(CorrelationId_ScriptLoad) by Auth_Username, App;
-let Totals = Visits
-| summarize Total_Visits = sum(Visits) by Auth_Username;
+    | where TimeGenerated > Launch and App != "Casework app" and Auth_IsAuthed
+    | summarize Visits = count_distinct(CorrelationId_ScriptLoad) by Auth_Username, App;
+let Totals = Visits | summarize Total_Visits = sum(Visits) by Auth_Username;
 let GrandTotal = toscalar(Totals | summarize sum(Total_Visits));
-let CaseReviewsSubmitted = GloCo_PageViews_CaseReview
-| where TimeGenerated > datetime(2026-03-09T12:00:01)
-| where Auth_IsAuthed
-| where Is_Submitted_First_Review or Is_Submitted_Subsequent_Review or Is_Admin_Finalise
-| summarize ["Case reviews submitted"] = count_distinct(CaseId) by Auth_Username;
-// Triage submissions come from the request-observation shim's "triage-submission"
-// AppEvents (prod only, since the 2026-06-01 shim ship). Counted as distinct
-// (CaseId, TriageType) — one per triage task submitted — deduped because the shim
-// can fire more than once per task on retries. Username is nested in the event's
-// auth object rather than a top-level column.
-let TriageSubmissions = AppEvents
-| where TimeGenerated > datetime(2026-03-09T12:00:01)
-| where Name == "cps-global-components-analytics-event"
-| where tostring(Properties["name"]) == "triage-submission"
-| where tostring(Properties["environment"]) == "prod"
-| extend CaseId = tolong(Properties["CaseId"]), TriageType = tostring(Properties["TriageType"])
-| extend Auth_Username = tostring(parse_json(tostring(Properties["auth"])).username)
-| where isnotnull(CaseId)
-| summarize ["Triage submissions"] = count_distinct(strcat(tostring(CaseId), "|", TriageType)) by Auth_Username;
+let Work = GloCo_CaseReview_Activity
+    | where Status == "Submitted" and isnotempty(User_Email)
+    | summarize ["Case reviews submitted"] = countif(Kind in ("Review", "Admin finalise")),
+                ["Triage submissions"] = countif(Kind == "Triage" and SubmittedObserved),
+                ["Triage submissions (adjusted)"] = countif(Kind == "Triage")
+      by Auth_Username = User_Email;
 Visits
 | evaluate pivot(App, sum(Visits))
 | join kind=leftouter Totals on Auth_Username | project-away Auth_Username1
-| join kind=leftouter CaseReviewsSubmitted on Auth_Username | project-away Auth_Username1
-| extend ["Case reviews submitted"] = coalesce(["Case reviews submitted"], long(0))
-| join kind=leftouter TriageSubmissions on Auth_Username | project-away Auth_Username1
-| extend ["Triage submissions"] = coalesce(["Triage submissions"], long(0))
+| join kind=leftouter Work on Auth_Username | project-away Auth_Username1
+| extend ["Case reviews submitted"] = coalesce(["Case reviews submitted"], long(0)),
+         ["Triage submissions"] = coalesce(["Triage submissions"], long(0)),
+         ["Triage submissions (adjusted)"] = coalesce(["Triage submissions (adjusted)"], long(0))
 | join kind=leftouter (GloCo_UserAreas | project Auth_Username, User_AreaOrCPSD) on Auth_Username | project-away Auth_Username1
 | order by Total_Visits desc
 | extend Rank = row_number()
 | extend Cumulative_Pct = round(100.0 * row_cumsum(Total_Visits) / GrandTotal, 1)
-| project-reorder Auth_Username, User_AreaOrCPSD, ["Case review"], ["Case reviews submitted"], ["Triage submissions"], *, Rank, Cumulative_Pct
+| project-reorder Auth_Username, User_AreaOrCPSD, ["Case review"], ["Case reviews submitted"], ["Triage submissions"], ["Triage submissions (adjusted)"], *, Rank, Cumulative_Pct
