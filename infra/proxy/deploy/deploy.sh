@@ -49,7 +49,6 @@ if [ ! -f "secrets.env" ]; then
   echo "  AZURE_STORAGE_ACCOUNT"
   echo "  AZURE_STORAGE_CONTAINER"
   echo "  AZURE_WEBAPP_NAME"
-  echo "  STATUS_ENDPOINT"
   echo "  GLOBAL_COMPONENTS_APPLICATION_ID"
   echo "  GLOBAL_COMPONENTS_BLOB_STORAGE_URL"
   echo "  CPS_GLOBAL_COMPONENTS_BLOB_STORAGE_DOMAIN"
@@ -60,7 +59,7 @@ source secrets.env
 set +a  # Stop auto-exporting
 
 # Validate required variables
-REQUIRED_VARS="AZURE_SUBSCRIPTION_ID AZURE_RESOURCE_GROUP AZURE_STORAGE_ACCOUNT AZURE_STORAGE_CONTAINER AZURE_WEBAPP_NAME STATUS_ENDPOINT GLOBAL_COMPONENTS_APPLICATION_ID GLOBAL_COMPONENTS_BLOB_STORAGE_URL CPS_GLOBAL_COMPONENTS_BLOB_STORAGE_DOMAIN"
+REQUIRED_VARS="AZURE_SUBSCRIPTION_ID AZURE_RESOURCE_GROUP AZURE_STORAGE_ACCOUNT AZURE_STORAGE_CONTAINER AZURE_WEBAPP_NAME GLOBAL_COMPONENTS_APPLICATION_ID GLOBAL_COMPONENTS_BLOB_STORAGE_URL CPS_GLOBAL_COMPONENTS_BLOB_STORAGE_DOMAIN"
 for var in $REQUIRED_VARS; do
   if [ -z "${!var}" ]; then
     echo -e "${RED}Error: $var is not set in secrets.env${NC}"
@@ -87,9 +86,6 @@ FILES_TO_DEPLOY=(
 # App settings to deploy (vnext-specific only)
 # Note: WM_MDS_BASE_URL and WM_MDS_ACCESS_KEY are deployed by the parent project
 APP_SETTINGS_VARS="GLOBAL_COMPONENTS_APPLICATION_ID GLOBAL_COMPONENTS_BLOB_STORAGE_URL CPS_GLOBAL_COMPONENTS_BLOB_STORAGE_DOMAIN"
-
-# Deployment version file
-DEPLOYMENT_JSON="global-components-deployment.json"
 
 # Download artifact from GitHub Actions
 echo -e "\n${YELLOW}Downloading build artifact from GitHub Actions...${NC}"
@@ -196,32 +192,7 @@ for file in "${FILES_TO_DEPLOY[@]}"; do
     echo -e "    ${YELLOW}⚠ File may not exist yet${NC}"
   fi
 done
-
-# Download current deployment.json to get version
-echo "  Downloading $DEPLOYMENT_JSON..."
-CURRENT_VERSION=0
-if az storage blob download \
-    --account-name "$AZURE_STORAGE_ACCOUNT" \
-    --container-name "$AZURE_STORAGE_CONTAINER" \
-    --name "$DEPLOYMENT_JSON" \
-    --file "$BACKUP_DIR/$DEPLOYMENT_JSON" \
-    --auth-mode login \
-    2>&1 | sed 's/^/    /'; then
-  echo -e "    ${GREEN}✓ Downloaded${NC}"
-  CURRENT_VERSION=$(grep -o '"version":[ ]*[0-9]*' "$BACKUP_DIR/$DEPLOYMENT_JSON" | grep -o '[0-9]*' || echo "0")
-else
-  echo -e "    ${YELLOW}⚠ File may not exist yet${NC}"
-fi
 echo -e "${GREEN}Backup complete${NC}"
-
-# Calculate new version
-NEW_VERSION=$((CURRENT_VERSION + 1))
-echo -e "\n${YELLOW}Version info:${NC}"
-echo "  Current version: $CURRENT_VERSION"
-echo "  New version: $NEW_VERSION"
-
-# Create new deployment.json
-echo '{"version": '$NEW_VERSION'}' > "$CONTENT_DIR/$DEPLOYMENT_JSON"
 
 # App settings are now baked into the config via envsubst during deployment
 # Uncomment below if you also need to set them as runtime app settings
@@ -250,20 +221,7 @@ for file in "${FILES_TO_DEPLOY[@]}"; do
     --overwrite \
     --auth-mode login
 done
-
-# Upload deployment.json
-echo "  Uploading $DEPLOYMENT_JSON..."
-az storage blob upload \
-  --account-name "$AZURE_STORAGE_ACCOUNT" \
-  --container-name "$AZURE_STORAGE_CONTAINER" \
-  --name "$DEPLOYMENT_JSON" \
-  --file "$CONTENT_DIR/$DEPLOYMENT_JSON" \
-  --overwrite \
-  --auth-mode login
 echo -e "${GREEN}Upload complete${NC}"
-
-# Clean up local deployment.json
-rm -f "$CONTENT_DIR/$DEPLOYMENT_JSON"
 
 # Restart web app
 echo -e "\n${YELLOW}Restarting web app...${NC}"
@@ -272,29 +230,10 @@ az webapp restart \
   --resource-group "$AZURE_RESOURCE_GROUP"
 echo -e "${GREEN}Restart initiated${NC}"
 
-# Poll for new version
-echo -e "\n${YELLOW}Waiting for new version to be live...${NC}"
-echo "Polling: $STATUS_ENDPOINT"
-echo "Expecting version: $NEW_VERSION"
-MAX_ATTEMPTS=60
-ATTEMPT=1
-while [ $ATTEMPT -le $MAX_ATTEMPTS ]; do
-  HTTP_CODE=$(curl -s -o /tmp/poll_response.txt -w "%{http_code}" "$STATUS_ENDPOINT" 2>/dev/null || echo "000")
-  RESPONSE=$(cat /tmp/poll_response.txt 2>/dev/null || echo "{}")
-  LIVE_VERSION=$(echo "$RESPONSE" | grep -o '"version":[ ]*[0-9]*' | grep -o '[0-9]*' || echo "0")
-  echo ""
-  echo "  [$ATTEMPT] HTTP $HTTP_CODE - $RESPONSE"
-  if [ "$LIVE_VERSION" = "$NEW_VERSION" ]; then
-    echo -e "\n${GREEN}Deployment successful! Version $NEW_VERSION is now live.${NC}"
-    rm -f /tmp/poll_response.txt
-    exit 0
-  fi
-  sleep 2
-  ((ATTEMPT++))
-done
-rm -f /tmp/poll_response.txt
-
-echo -e "\n${RED}Timeout waiting for version $NEW_VERSION. Current version: $LIVE_VERSION${NC}"
-echo "The deployment may still be in progress, or there may be an issue."
-echo "Check the web app logs or try again."
-exit 1
+# The app takes a few seconds to come back up. There is no version endpoint to
+# poll any more, so verify by hitting a route the vnext conf owns, e.g.
+#   curl -sI https://<proxy-host>/global-components/swagger.json
+echo -e "\n${GREEN}Deployment complete.${NC}"
+echo "The web app is restarting; give it a few seconds, then verify a vnext route"
+echo "responds (e.g. /global-components/swagger.json). Check the web app logs if not."
+exit 0

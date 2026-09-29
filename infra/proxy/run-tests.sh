@@ -112,7 +112,7 @@ fi
 # Layer 3: VNext
 if run_layer "vnext" \
   "-f docker-compose.yml -f docker-compose.vnext.yml" \
-  "/global-components/status" \
+  "/health" \
   "$SCRIPT_DIR/config/global-components.vnext/tests/global-components.vnext.integration.test.js"; then
   LAYER_RESULTS="${LAYER_RESULTS}  ${GREEN}✓${NC} vnext\n"
 else
