@@ -9,6 +9,8 @@ import { DomMutationObserver } from "./DomMutationObserver";
 const EMAIL_REGEX = /[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/;
 const OBSERVED_MARKER = "cpsFooterEmailObserved";
 
+const IGNORED_FOOTER_CLASS = "cps-component-footer";
+
 // During a host SPA route transition the header is briefly hidden or
 // zero-sized (display:none flash, parent collapsing, mid-paint state). The
 // ResizeObserver faithfully fires with that tiny rect and — left unguarded —
@@ -97,7 +99,12 @@ export const footerSubscriber: DomMutationObserver = ({ preview, flags, config, 
   isActiveForContext: FEATURE_FLAGS.shouldShimFooter({ config, preview, flags }),
   subscriptions: [
     {
-      cssSelector: "footer",
+      // Host apps can use <footer> for things that aren't the page footer
+      // (sidebars, modals, cards). Agreed contract: host apps mark those with
+      // `.cps-component-footer` and we leave them alone. The class must be
+      // present when the element is rendered - if it's added later we'll
+      // already have hidden it and re-anchored cps-global-footer next to it.
+      cssSelector: `footer:not(.${IGNORED_FOOTER_CLASS})`,
       handler: (element: HTMLElement) => {
         let cpsGlobalFooter = element.ownerDocument.querySelector<HTMLCpsGlobalFooterElement>("cps-global-footer");
         if (!cpsGlobalFooter) {
