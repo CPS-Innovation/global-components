@@ -1,7 +1,7 @@
 // ---------------------------------------------------------------------------
-// CMS Auth V2 — Self-contained OIDC round-trip
+// CMS Auth Presence — Self-contained OIDC round-trip
 //
-// Flow: /polaris-v2 -> /init-v2/ -> Azure AD -> /init-v2/callback
+// Flow: /polaris-presence -> /init-presence/ -> Azure AD -> /init-presence/callback
 //
 // First pass: ends on a diagnostic HTML page (no real redirects to landing
 // URLs yet). Combines the cookie-capture, modern-token-fetch, and AD login
@@ -108,7 +108,7 @@ const BUILD_REDIRECT_URI = "@@CPS_GLOBAL_COMPONENTS_CMS_AUTH_REDIRECT_URI@@";
 // Empty means "the same host as the request", which is the conventional
 // single-box deployment and was the only behaviour before the split.
 //
-// This exists because /polaris-v2 is the hand-off between two domains. It must be
+// This exists because /polaris-presence is the hand-off between two domains. It must be
 // hit on the UI domain — that is the only place the browser will send the CMS
 // session cookies — and must then redirect to the IMPLEMENTATION domain carrying
 // them. Until now it redirected to itself, which was indistinguishable from
@@ -139,7 +139,7 @@ const implOrigin = _fromDropzone(BUILD_IMPL_ORIGIN);
 const redirectUri =
   (process.env["CPS_GLOBAL_COMPONENTS_CMS_AUTH_REDIRECT_URI"] as string) ||
   _fromDropzone(BUILD_REDIRECT_URI) ||
-  "https://polaris-qa-notprod.cps.gov.uk/init-v2/callback";
+  "https://polaris-qa-notprod.cps.gov.uk/init-presence/callback";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -255,7 +255,7 @@ function _renderException(
   try {
     ngx.log(
       ngx.ERR,
-      "cms-auth-v2 unhandled in " + where + ": " + name + ": " + msg,
+      "cms-auth-presence unhandled in " + where + ": " + name + ": " + msg,
     );
   } catch {
     // ignore logging failures
@@ -408,10 +408,10 @@ async function _readTable(
 }
 
 // ---------------------------------------------------------------------------
-// /polaris-v2 — Cookie capture + redirect to /init-v2/
+// /polaris-presence — Cookie capture + redirect to /init-presence/
 // ---------------------------------------------------------------------------
 
-function handlePolarisV2(r: NginxHTTPRequest): void {
+function handlePolarisPresence(r: NginxHTTPRequest): void {
   const cookieHeader = r.headersIn["Cookie"] || "";
   const encodedCookies = encodeURIComponent(cookieHeader as string);
 
@@ -436,14 +436,14 @@ function handlePolarisV2(r: NginxHTTPRequest): void {
   const proto = r.headersIn["X-Forwarded-Proto"] || "https";
   const host = r.headersIn["Host"] || "";
   const target = implOrigin || proto + "://" + host;
-  r.return(302, target + "/init-v2/?" + targetQuery);
+  r.return(302, target + "/init-presence/?" + targetQuery);
 }
 
 // ---------------------------------------------------------------------------
-// /init-v2/ — Modern token fetch + AD redirect (combined handler)
+// /init-presence/ — Modern token fetch + AD redirect (combined handler)
 // ---------------------------------------------------------------------------
 
-async function handleInitV2(r: NginxHTTPRequest): Promise<void> {
+async function handleInitPresence(r: NginxHTTPRequest): Promise<void> {
   // Opt-in Edge revert for TOP-LEVEL testing. The default (framed) path stays IE so
   // AD's third-party SSO cookie survives (see the conf) — but a top-level test needs
   // Edge, or AD forces the tab to Edge and the IE-jar state cookie can't be read
@@ -509,7 +509,7 @@ async function handleInitV2(r: NginxHTTPRequest): Promise<void> {
     : "";
 
   // Ensure WindowID=MASTER is present — it has Path=/CMS.24.0.01/ so the
-  // browser won't send it to /polaris-v2. uainGeneratedScript.aspx needs it
+  // browser won't send it to /polaris-presence. uainGeneratedScript.aspx needs it
   // to return session variables instead of the exit/cleanup script.
   const fetchCookies =
     cookies && !cookies.includes("WindowID=")
@@ -573,7 +573,7 @@ async function handleInitV2(r: NginxHTTPRequest): Promise<void> {
       // Redirect to error page on fetch failure
       r.return(
         302,
-        "/init-v2/error?correlation=" +
+        "/init-presence/error?correlation=" +
           encodeURIComponent(correlation) +
           "&error-code=modern-token-fetch-failed",
       );
@@ -727,7 +727,7 @@ async function handleInitV2(r: NginxHTTPRequest): Promise<void> {
 
   // Step 4: Set state cookie + redirect to Azure AD
   const cookieOpts =
-    "; Path=/init-v2; HttpOnly; Secure; SameSite=Lax; Max-Age=300";
+    "; Path=/init-presence; HttpOnly; Secure; SameSite=Lax; Max-Age=300";
   r.headersOut["Set-Cookie"] = ["cms_auth_state=" + encodedState + cookieOpts];
 
   const params = [
@@ -751,7 +751,7 @@ async function handleInitV2(r: NginxHTTPRequest): Promise<void> {
 }
 
 // ---------------------------------------------------------------------------
-// Presence constants — declared here (before handleInitV2Callback, which references
+// Presence constants — declared here (before handleInitPresenceCallback, which references
 // _PRESENCE_USE_REAL_TOKEN / _PRESENCE_DEV_BEARER) because njs TDZ-checks forward
 // references to module-level const. The JSONP adapter below uses them too.
 // ---------------------------------------------------------------------------
@@ -816,10 +816,10 @@ const _PRESENCE_USE_REAL_TOKEN = true;
 const _PRESENCE_TOKEN_KIND: "access" | "id" = "access";
 
 // ---------------------------------------------------------------------------
-// /init-v2/callback — Code exchange, validation, table storage, diagnostics
+// /init-presence/callback — Code exchange, validation, table storage, diagnostics
 // ---------------------------------------------------------------------------
 
-async function handleInitV2Callback(r: NginxHTTPRequest): Promise<void> {
+async function handleInitPresenceCallback(r: NginxHTTPRequest): Promise<void> {
   r.headersOut["Content-Type"] = "text/html; charset=utf-8";
 
   // Check for Azure AD errors
@@ -831,7 +831,7 @@ async function handleInitV2Callback(r: NginxHTTPRequest): Promise<void> {
     // once more with OIDC scopes only. prompt=none cannot show a consent screen,
     // so without this the whole handover dies on a condition we can recover from.
     // The captured context (CMS cookies, modern token, timings) lives in the state
-    // cookie, so we re-issue that payload rather than re-running /init-v2 — nothing
+    // cookie, so we re-issue that payload rather than re-running /init-presence — nothing
     // is lost. `ns` marks the retry so it can only ever happen once.
     if (_CONSENT_ERRORS.indexOf(error) !== -1 && _PRESENCE_API_SCOPE) {
       const raw = _getCookie(r, "cms_auth_state");
@@ -850,7 +850,7 @@ async function handleInitV2Callback(r: NginxHTTPRequest): Promise<void> {
         r.headersOut["Set-Cookie"] = [
           "cms_auth_state=" +
             _base64UrlEncode(JSON.stringify(prior)) +
-            "; Path=/init-v2; HttpOnly; Secure; SameSite=Lax; Max-Age=300",
+            "; Path=/init-presence; HttpOnly; Secure; SameSite=Lax; Max-Age=300",
         ];
         const retryParams = [
           "client_id=" + encodeURIComponent(clientId),
@@ -1135,7 +1135,7 @@ async function handleInitV2Callback(r: NginxHTTPRequest): Promise<void> {
   //     shift, so one login covers the day. Set UNCONDITIONALLY (framed or top-level).
   //     The relay flavour instead uses the localStorage write in storageScript below.
   const clearOpts =
-    "; Path=/init-v2; HttpOnly; Secure; SameSite=Lax; Max-Age=0";
+    "; Path=/init-presence; HttpOnly; Secure; SameSite=Lax; Max-Age=0";
   const presenceCookieOpts =
     "; Path=/global-components/presence-jsonp; HttpOnly; Secure; SameSite=Lax; Max-Age=28800";
   // The SAME token, scoped to the case-locking hub routes, for the Modern/DCF
@@ -1293,10 +1293,10 @@ async function handleInitV2Callback(r: NginxHTTPRequest): Promise<void> {
 }
 
 // ---------------------------------------------------------------------------
-// /init-v2/error — Error page with correlation ID
+// /init-presence/error — Error page with correlation ID
 // ---------------------------------------------------------------------------
 
-function handleInitV2Error(r: NginxHTTPRequest): void {
+function handleInitPresenceError(r: NginxHTTPRequest): void {
   r.headersOut["Content-Type"] = "text/html; charset=utf-8";
 
   const correlation = _getQueryParam(r, "correlation") || "(unknown)";
@@ -1323,7 +1323,7 @@ function handleInitV2Error(r: NginxHTTPRequest): void {
 // /global-components/cms-modern-token-v2 — Standalone modern token fetch
 //
 // Identical to v1 handleCmsModernToken. Allows direct comparison with the
-// /init-v2/ inline fetch using the same cookies.
+// /init-presence/ inline fetch using the same cookies.
 // ---------------------------------------------------------------------------
 
 async function handleCmsModernToken(r: NginxHTTPRequest): Promise<void> {
@@ -1414,10 +1414,10 @@ async function handleCmsModernToken(r: NginxHTTPRequest): Promise<void> {
 // and wraps the JSON response as callback(...). The API keeps its pure REST form.
 //
 // Upstream hop is the plain house pattern (server-level resolver + ngx.fetch), the
-// same as handleInitV2Callback — see the location in the .conf.
+// same as handleInitPresenceCallback — see the location in the .conf.
 // ---------------------------------------------------------------------------
 
-// (The _PRESENCE_* scalar constants are declared ABOVE handleInitV2Callback — that
+// (The _PRESENCE_* scalar constants are declared ABOVE handleInitPresenceCallback — that
 // callback references _PRESENCE_USE_REAL_TOKEN / _PRESENCE_DEV_BEARER, and njs TDZ-checks
 // forward references to module-level const, so they must precede their first use.)
 
@@ -1481,7 +1481,7 @@ async function handlePresenceJsonp(r: NginxHTTPRequest): Promise<void> {
   // access token (scp api.presence.user.readwrite) carries preferred_username, oid,
   // sub and sid — and NOT email or upn — and its preferred_username is byte-for-byte
   // what the API puts in member.userEmail. The order below matches
-  // handleInitV2Callback's, so both read identity the same way; for this token it is
+  // handleInitPresenceCallback's, so both read identity the same way; for this token it is
   // the third entry that fires.
   //
   // NEVER THE TOKEN ITSELF, only the claim. The page already acts as this user, so
@@ -1671,10 +1671,10 @@ const _guard =
   };
 
 export default {
-  handlePolarisV2: _guard("handlePolarisV2", handlePolarisV2),
-  handleInitV2: _guard("handleInitV2", handleInitV2),
-  handleInitV2Callback: _guard("handleInitV2Callback", handleInitV2Callback),
-  handleInitV2Error: _guard("handleInitV2Error", handleInitV2Error),
+  handlePolarisPresence: _guard("handlePolarisPresence", handlePolarisPresence),
+  handleInitPresence: _guard("handleInitPresence", handleInitPresence),
+  handleInitPresenceCallback: _guard("handleInitPresenceCallback", handleInitPresenceCallback),
+  handleInitPresenceError: _guard("handleInitPresenceError", handleInitPresenceError),
   handleCmsModernToken: _guard("handleCmsModernToken", handleCmsModernToken),
   handleClearCookies: _guard("handleClearCookies", handleClearCookies),
   handlePresenceJsonp: _guard("handlePresenceJsonp", handlePresenceJsonp),

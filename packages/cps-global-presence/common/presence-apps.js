@@ -2,7 +2,7 @@
  * SHARED, MODE 5 FLOOR.
  *
  * The presence API reports sourceApplication from a fixed vocabulary of its own —
- * see _WATCHDOG_APP_NAMES in global-components.cms-auth-v2.ts, which rejects
+ * see _WATCHDOG_APP_NAMES in global-components.cms-auth-presence.ts, which rejects
  * anything outside it. Some of those names draw distinctions users do not: Work
  * Management, Case Review and Casework are all RCMS to the people using them, so
  * they are mapped.

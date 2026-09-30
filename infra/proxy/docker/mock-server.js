@@ -80,8 +80,8 @@ const server = http.createServer((req, res) => {
     return;
   }
 
-  // CMS classic login page stub. The cms-auth-v2 login-page shim proxies
-  // uaulLogin.aspx here and sub_filters a hidden /polaris-v2 capture iframe into
+  // CMS classic login page stub. The cms-auth-presence login-page shim proxies
+  // uaulLogin.aspx here and sub_filters a hidden /polaris-presence capture iframe into
   // it, so the body MUST contain the exact sub_filter target
   // 'location.href = sNewHref;</script>'.
   if (/^CMS\.[^/]+\/User\/uaulLogin\.aspx$/i.test(path)) {

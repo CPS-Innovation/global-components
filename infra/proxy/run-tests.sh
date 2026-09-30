@@ -38,7 +38,7 @@ wait_for_proxy() {
 # Stop any running stack
 stop_stack() {
   cd "$DOCKER_DIR"
-  docker compose -f docker-compose.yml -f docker-compose.vnext.yml -f docker-compose.cms-auth-v2.yml -f docker-compose.multi-os-domain-testing.yml down -t 2 2>/dev/null || true
+  docker compose -f docker-compose.yml -f docker-compose.vnext.yml -f docker-compose.cms-auth-presence.yml -f docker-compose.multi-os-domain-testing.yml down -t 2 2>/dev/null || true
 }
 
 # Run a test layer
@@ -120,14 +120,14 @@ else
   TOTAL_FAILED=$((TOTAL_FAILED + 1))
 fi
 
-# Layer 4: CMS Auth V2
-if run_layer "cms-auth-v2" \
-  "-f docker-compose.yml -f docker-compose.cms-auth-v2.yml" \
-  "/init-v2/error" \
-  "$SCRIPT_DIR/config/global-components.cms-auth-v2/tests/global-components.cms-auth-v2.integration.test.js"; then
-  LAYER_RESULTS="${LAYER_RESULTS}  ${GREEN}✓${NC} cms-auth-v2\n"
+# Layer 4: CMS Auth Presence
+if run_layer "cms-auth-presence" \
+  "-f docker-compose.yml -f docker-compose.cms-auth-presence.yml" \
+  "/init-presence/error" \
+  "$SCRIPT_DIR/config/global-components.cms-auth-presence/tests/global-components.cms-auth-presence.integration.test.js"; then
+  LAYER_RESULTS="${LAYER_RESULTS}  ${GREEN}✓${NC} cms-auth-presence\n"
 else
-  LAYER_RESULTS="${LAYER_RESULTS}  ${RED}✗${NC} cms-auth-v2\n"
+  LAYER_RESULTS="${LAYER_RESULTS}  ${RED}✗${NC} cms-auth-presence\n"
   TOTAL_FAILED=$((TOTAL_FAILED + 1))
 fi
 
