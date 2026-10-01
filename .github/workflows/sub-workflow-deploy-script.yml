@@ -56,7 +56,7 @@ jobs:
           # OS host variants (config.<env>.<variant>.json → config.<variant>.json):
           # the same config pointed at another OutSystems host. The proxy serves one
           # in place of config.json to users switched onto that host (see
-          # infra/proxy/config/global-components.vnext). Notification files share
+          # infra/proxy/config/global-components.multi-os-domain-testing). Notification files share
           # the naming shape, so skip them.
           for variant_file in ./configuration/config.${{ inputs.environment }}.*.json; do
             [ -e "$variant_file" ] || continue
