@@ -167,16 +167,12 @@ function _base64UrlEncode(str: string): string {
 
 function _generateRandomString(length: number): string {
   const bytes = new Uint8Array(length);
-  try {
-    // Web Crypto global — not exposed by every njs build.
-    crypto.getRandomValues(bytes);
-  } catch {
-    // POC fallback: Math.random is NOT cryptographically secure. Fine for this
-    // diagnostic spike; revisit before any production use of state/nonce.
-    for (let i = 0; i < length; i++) {
-      bytes[i] = Math.floor(Math.random() * 256);
-    }
-  }
+  // Web Crypto only. This generates the OIDC state and nonce, so a guessable value
+  // is a real weakness: if crypto were ever missing, failing the request is better
+  // than quietly weakening it. The njs we run on has it (0.8.5+), and Polaris's own
+  // handovers (auth-handover.drop1 / drop2) made the same call — no Math.random
+  // fallback.
+  crypto.getRandomValues(bytes);
   return Array.from(bytes)
     .map(function (b) {
       return b.toString(16).padStart(2, "0");
