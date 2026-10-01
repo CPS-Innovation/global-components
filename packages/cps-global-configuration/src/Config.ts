@@ -238,7 +238,7 @@ export const configBaseSchema = z.object({
   // acquired with those would be rejected by the presence API the moment it starts
   // validating. The presence API is the SAME app registration the SPA signs in
   // with (client and resource in one), which is why no consent grant is involved —
-  // see _PRESENCE_API_SCOPE in global-components.cms-auth-v2.ts, where the legacy
+  // see _PRESENCE_API_SCOPE in global-components.cms-auth-presence.ts, where the legacy
   // clients request exactly the same scope. Empty means send no token at all.
   CASE_LOCKING_SCOPES: z.array(z.string()).optional(),
   // Where the interruption's secondary action sends someone: the case's details

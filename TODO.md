@@ -70,9 +70,9 @@ In this repo:
 
 The switch now lives in one temporary module, `infra/proxy/config/global-components.multi-os-domain-testing/`.
 It takes over `config.json` selection and the status route from vnext, adds the both-engines
-set route, and overrides the proxied-CMS C-button routes. Nothing in Polaris changes (`/init`,
-`/launch`, `uainGeneratedScript`), and users without the signal cookie are handed back
-untouched.
+set route, and diverts the proxied-CMS C-button for users carrying the signal cookie. Nothing in
+Polaris changes (`/init`, `/launch`, `uainGeneratedScript`), and requests without the signal
+cookie are never touched. It works in both Polaris proxy worlds (monolith and refactor).
 
 - [ ] Run `pnpm -w test:proxy`. There's a new layer, `multi-os-domain-testing`, and vnext has
       lost its variant tests.
@@ -186,9 +186,9 @@ Afterwards:
     visits both engines. Anyone with the preview page can switch.
   - The multi-os-domain-testing module serves `config.json` by the page's `Origin` host first,
     then the cookie, then the base file.
-  - Its `/launch/cin2`–`cin5-proxy` overrides send switched users' proxied-CMS C-button through
-    the same `/polaris` → `/init` chain on the chosen host. Everyone else is handed back to
-    Polaris's own route.
+  - It diverts switched users' proxied-CMS C-button (`/launch/cin2`–`cin5-proxy`) through the
+    same `/polaris` → `/init` chain on the chosen host. Everyone else goes straight to
+    Polaris's own route, untouched.
   - Component and handover code are unchanged.
 - The CSP checker probes the variant hosts.
 - `GloCo_PageViews.kql` treats the old and oapps prod hosts as one. It's in the repo, not yet

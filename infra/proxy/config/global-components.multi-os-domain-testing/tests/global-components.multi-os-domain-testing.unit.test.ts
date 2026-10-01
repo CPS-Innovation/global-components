@@ -165,8 +165,9 @@ async function runTests(): Promise<void> {
     return match[1]!
   }
 
+  // The conf diverts signalled /launch/<route> requests to this internal URI.
   const launchRequest = (route: string, cookie?: string) =>
-    createMockRequest({ uri: `/launch/${route}`, headersIn: cookie ? { Cookie: cookie } : {} })
+    createMockRequest({ uri: `/global-components/multi-os/launch/${route}`, headersIn: cookie ? { Cookie: cookie } : {} })
 
   await test("hands back (empty) when there is no signal", async () => {
     assertEqual(multiOs.launchTarget(launchRequest("cin3-proxy")), "", "target")
@@ -188,10 +189,15 @@ async function runTests(): Promise<void> {
     assertEqual(multiOs.launchTarget(launchRequest("cin3-proxy", `Gloco-Os-Target-dev=${OAPPS}`)), "", "target")
   })
 
-  await test("never touches routes it doesn't override (raw CMS, prod)", async () => {
+  await test("never touches routes it doesn't divert (raw CMS, prod)", async () => {
     for (const route of ["cin3", "cms-proxy", "cin3-proxy/"]) {
       assertEqual(multiOs.launchTarget(launchRequest(route, SIGNAL)), "", route)
     }
+  })
+
+  await test("only answers on the internal divert URI, not the original route", async () => {
+    const r = createMockRequest({ uri: "/launch/cin3-proxy", headersIn: { Cookie: SIGNAL } })
+    assertEqual(multiOs.launchTarget(r), "", "target")
   })
 
   // --- status ---
@@ -328,15 +334,28 @@ async function runTests(): Promise<void> {
     assertEqual(JSON.stringify(fromTable.sort()), JSON.stringify(fromFiles.sort()), "variants")
   })
 
-  // Every overridden route must exist upstream (or the hand-back goes nowhere),
-  // and have its own exact location in our conf.
-  await test("LAUNCH_ROUTES each have a Polaris prefix location and an override in our conf", async () => {
+  // Every diverted route must exist upstream (or the hand-back goes nowhere), and
+  // the conf's two route regexes (the server-level divert and the internal
+  // location) must match exactly LAUNCH_ROUTES — no more, no fewer.
+  await test("LAUNCH_ROUTES exist upstream and are exactly what the conf diverts", async () => {
     const ours = fs.readFileSync(path.join(MODULE_DIR, "global-components.multi-os-domain-testing.conf"), "utf8")
-    for (const route of Object.keys(multiOs.LAUNCH_ROUTES)) {
+    const divert = ours.match(/^\s*rewrite (\^\/launch\/\S+\$) \/global-components\/multi-os\/launch\/\$1 last;/m)
+    const internal = ours.match(/^location ~ (\^\/global-components\/multi-os\/launch\/\S+\$) \{/m)
+    assert(!!divert, "server-level divert rewrite")
+    assert(!!internal, "internal launch location")
+    const divertRe = new RegExp(divert![1]!)
+    const internalRe = new RegExp(internal![1]!)
+    const routes = Object.keys(multiOs.LAUNCH_ROUTES)
+    for (const route of routes) {
       polarisTarget(route)
-      assert(ours.includes(`location = /launch/${route} {`), `override for ${route}`)
-      assert(ours.includes(`rewrite ^ /launch/${route}/ last;`), `hand-back for ${route}`)
+      assert(divertRe.test(`/launch/${route}`), `divert matches ${route}`)
+      assert(internalRe.test(`/global-components/multi-os/launch/${route}`), `internal location matches ${route}`)
     }
+    for (const other of ["cin1-proxy", "cin6-proxy", "cin3", "cms-proxy", "cin3-proxy/", "cin3-proxyx"]) {
+      assert(!divertRe.test(`/launch/${other}`), `divert leaves ${other} alone`)
+      assert(!internalRe.test(`/global-components/multi-os/launch/${other}`), `internal location refuses ${other}`)
+    }
+    assert(!/^location\s+(=\s*)?\/launch\//m.test(ours), "no location of our own on /launch/")
   })
 
   console.log("\n" + "=".repeat(60))

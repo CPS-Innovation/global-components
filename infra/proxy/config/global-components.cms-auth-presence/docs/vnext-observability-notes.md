@@ -115,6 +115,6 @@ traces
 
 ## Other breadcrumbs
 
-- **TENANT_ID typo fix** — current `vnext.ts` has `00dd0d1d-d7e6-`**6338**`-...`; the spike (and `cms-auth-v2.ts`) uses `4338`. One of these is wrong. The spike's value matches what's hardcoded in the cms-auth-v2 default, suggesting `4338` is the real tenant.
+- **TENANT_ID typo fix** — current `vnext.ts` has `00dd0d1d-d7e6-`**6338**`-...`; the spike (and `cms-auth-presence.ts`) uses `4338`. One of these is wrong. The spike's value matches what's hardcoded in the cms-auth-presence default, suggesting `4338` is the real tenant.
 - **`APPLICATION_ID` baked in as a constant** rather than read from `process.env` / `r.variables` — simplifies the validation path and removes a config surface, at the cost of needing a redeploy to change tenants. Trade-off worth making for production where tenant doesn't change.
 - **`AD_AUTH_ENDPOINT` env-readable with a default** — useful pattern for tests / mock-upstream integration, where you want to override the Graph endpoint to a local mock without changing the real default.

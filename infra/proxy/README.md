@@ -26,8 +26,9 @@ Nginx reverse proxy with njs (JavaScript) for header/cookie manipulation. Used t
 
 A self-contained module (FCT2-22132) that lets designated QA users run against a different
 OutSystems host (the oapps proxy, the London tenant) while everyone else is untouched. It only
-ADDS locations; where one shadows an existing route, a request without the signal cookie is
-handed straight back to that route's own block. To end the trial, delete the module directory
+ADDS locations, plus one server-level divert that fires only for requests carrying the signal
+cookie. It loads unchanged in both Polaris proxy worlds (the live monolith and the refactored
+`features/` config; Polaris `PROXY.md` §6.8), and the deploy writes its conf to both. To end the trial, delete the module directory
 and its lines in `scripts/build.sh`, `deploy/deploy.sh`, `deploy/rollback.sh`, `run-tests.sh`,
 `package.json` and `docker/` (`docker-compose.multi-os-domain-testing.yml`,
 `test-only.polaris-launch.conf`).
@@ -45,11 +46,16 @@ and its lines in `scripts/build.sh`, `deploy/deploy.sh`, `deploy/rollback.sh`, `
   - the variant for the requesting OS page's own host (by `Origin`); else
   - the variant the cookie names (CWA); else
   - `config.json`.
-- **Proxied-CMS C-button:** exact-match overrides of Polaris's `/launch/cin2`–`cin5-proxy`.
-  - Without the signal, they rewrite to `…-proxy/`, which only Polaris's prefix locations match,
-    so Polaris's own redirect runs unchanged.
-  - With it (the click arrives in IE mode, carrying IE mode's copy), they redirect to Polaris's
-    same `/polaris?r=<handover>` target, with the OS host swapped.
+- **Proxied-CMS C-button:** we define no location on Polaris's `/launch/cin2`–`cin5-proxy`
+  (they differ between the two worlds: prefix blocks in the monolith, one exact-name
+  `/launch/` handler in the refactor).
+  - Without a `Gloco-Os-Target-` cookie, nginx never touches the request: Polaris's own route
+    runs unchanged.
+  - With one, a server-level rewrite diverts the click to the internal
+    `/global-components/multi-os/launch/<route>`. A valid signal for that route (the click
+    arrives in IE mode, carrying IE mode's copy) redirects to Polaris's same
+    `/polaris?r=<handover>` target, with the OS host swapped. Anything else is rewritten back
+    to the original URI and lands on Polaris's route, whichever world is running.
   - `/polaris`, `/init`, raw-CMS `/launch/cinN` and prod's `/launch/cms-proxy` are not touched.
 
 ### Docker (`docker/`)

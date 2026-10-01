@@ -120,23 +120,45 @@ FILES_TO_BACKUP=(
   "global-components.multi-os-domain-testing.js"
 )
 
-for file in "${FILES_TO_BACKUP[@]}"; do
-  echo "  Downloading $file..."
-  if az storage blob download \
-    --account-name "$AZURE_STORAGE_ACCOUNT" \
-    --container-name "$AZURE_STORAGE_CONTAINER" \
-    --name "$file" \
-    --file "$PRE_ROLLBACK_DIR/$file" \
-    --auth-mode login \
-    2>&1 | sed 's/^/    /'; then
-    echo -e "    ${GREEN}✓ Downloaded${NC}"
-  else
-    echo -e "    ${YELLOW}⚠ File may not exist${NC}"
+# Blob name(s) each deployed file is uploaded to. The proxy App Service may run either
+# the live monolith or the refactored "next" config (Polaris repo, proxy/config/) — both
+# read this same container. Live loads root `global-components*.conf`; next has no root
+# include and loads only `features/*/*.conf`. So every global-components.<x>.conf.template
+# goes to BOTH places (identical content); .js files stay at the root, shared by both
+# worlds (the confs `js_import templates/global-components.<x>.js`). Contract:
+# Polaris polaris-terraform/main-terraform/proxy/docs/PROXY.md §6.8.
+blob_names() {
+  local file="$1"
+  echo "$file"
+  if [[ "$file" == global-components.*.conf.template ]]; then
+    local stem="${file%.conf.template}"
+    echo "features/$stem/$stem.conf.template"
   fi
+}
+
+for file in "${FILES_TO_BACKUP[@]}"; do
+  for blob in $(blob_names "$file"); do
+    echo "  Downloading $blob..."
+    mkdir -p "$(dirname "$PRE_ROLLBACK_DIR/$blob")"
+    if az storage blob download \
+      --account-name "$AZURE_STORAGE_ACCOUNT" \
+      --container-name "$AZURE_STORAGE_CONTAINER" \
+      --name "$blob" \
+      --file "$PRE_ROLLBACK_DIR/$blob" \
+      --auth-mode login \
+      2>&1 | sed 's/^/    /'; then
+      echo -e "    ${GREEN}✓ Downloaded${NC}"
+    else
+      echo -e "    ${YELLOW}⚠ File may not exist${NC}"
+    fi
+  done
 done
 
 # Upload backup files
 echo -e "\n${YELLOW}Uploading backup files...${NC}"
+# Restore from the ROOT copies only, fanning each out via blob_names — so a backup
+# taken before the features/ copies existed still restores BOTH worlds consistently.
+# (The backup's own features/ copies are identical to their root file; skip them.)
 for file in "$SELECTED_BACKUP"/*; do
   if [ -f "$file" ]; then
     blob_name=$(basename "$file")
@@ -146,14 +168,16 @@ for file in "$SELECTED_BACKUP"/*; do
       echo "  Skipping $blob_name (retired)"
       continue
     fi
-    echo "  Uploading $blob_name..."
-    az storage blob upload \
-      --account-name "$AZURE_STORAGE_ACCOUNT" \
-      --container-name "$AZURE_STORAGE_CONTAINER" \
-      --name "$blob_name" \
-      --file "$file" \
-      --overwrite \
-      --auth-mode login
+    for blob in $(blob_names "$blob_name"); do
+      echo "  Uploading $blob_name -> $blob..."
+      az storage blob upload \
+        --account-name "$AZURE_STORAGE_ACCOUNT" \
+        --container-name "$AZURE_STORAGE_CONTAINER" \
+        --name "$blob" \
+        --file "$file" \
+        --overwrite \
+        --auth-mode login
+    done
   fi
 done
 

@@ -73,7 +73,16 @@ global-components-deploy/
 
 To blob storage (vnext-specific only):
 - `global-components.vnext.conf.template` - vnext nginx location blocks
+- `features/global-components.vnext/global-components.vnext.conf.template` - the SAME conf again, for the refactored "next" proxy config
 - `global-components.vnext.js` - njs module for vnext features (state, token validation)
+
+**Both proxy worlds.** The proxy App Service may run the live monolith config or the
+refactored "next" config (Polaris repo, `proxy/config/`); both read this container. Live
+loads root `global-components*.conf`, next loads only `features/*/*.conf` — so
+`deploy.sh`/`rollback.sh` upload every `global-components.<x>.conf.template` to both
+places (`blob_names()`), and each `.js` once at the root (the confs
+`js_import templates/global-components.<x>.js`). Contract:
+Polaris `polaris-terraform/main-terraform/proxy/docs/PROXY.md` §6.8.
 
 As app settings:
 - `GLOBAL_COMPONENTS_APPLICATION_ID`

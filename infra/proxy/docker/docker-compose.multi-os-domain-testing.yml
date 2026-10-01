@@ -2,7 +2,7 @@
 # Use: docker-compose -f docker-compose.yml -f docker-compose.multi-os-domain-testing.yml up
 #
 # Mounts the module's conf + compiled JS, plus test-only stand-ins for Polaris's
-# /launch routes so the overrides' hand-back can be exercised end to end.
+# /launch routes so the C-button divert and its hand-back can be exercised end to end.
 
 services:
   nginx:

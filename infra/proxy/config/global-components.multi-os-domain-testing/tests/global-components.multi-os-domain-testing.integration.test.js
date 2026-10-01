@@ -4,7 +4,7 @@
  *
  * Runs against the docker stack with the module layer mounted, which also mounts
  * test-only stand-ins for Polaris's /launch routes (docker/test-only.polaris-launch.conf)
- * so the C-button overrides' hand-back can be proven end to end.
+ * so the C-button divert and its hand-back can be proven end to end.
  */
 
 const {
@@ -64,7 +64,7 @@ async function testConfigSelection() {
 }
 
 async function testCButton() {
-  console.log("\nC-button (/launch/<cin>-proxy overrides):")
+  console.log("\nC-button (/launch/<cin>-proxy, diverted only with the signal):")
 
   await test("without the signal, hands back to the existing launch route untouched", async () => {
     const { status, location } = await redirectOf("/launch/cin3-proxy", IE_MODE)
@@ -72,6 +72,13 @@ async function testCButton() {
     assertEqual(location, "https://polaris-qa-notprod.cps.gov.uk/polaris?r=STAND-IN-cin3-proxy", "Should be the existing route's own target")
   })
 
+  await test("with an unrelated cookie, hands back untouched", async () => {
+    const { location } = await redirectOf("/launch/cin3-proxy", { ...IE_MODE, Cookie: "other=1; Gloco-Os-Target=x" })
+    assertEqual(location, "https://polaris-qa-notprod.cps.gov.uk/polaris?r=STAND-IN-cin3-proxy", "Should be the existing route's own target")
+  })
+
+  // Diverted (the cookie is present), then rewritten back to the original URI —
+  // proves the hand-back reaches the exact-match route, without looping.
   await test("with an unknown host in the cookie, still hands back", async () => {
     const { location } = await redirectOf("/launch/cin3-proxy", { ...IE_MODE, Cookie: "Gloco-Os-Target-test=evil.example.com" })
     assertEqual(location, "https://polaris-qa-notprod.cps.gov.uk/polaris?r=STAND-IN-cin3-proxy", "Should be the existing route's own target")
@@ -92,7 +99,12 @@ async function testCButton() {
     )
   })
 
-  await test("leaves routes it doesn't override alone, signal or not", async () => {
+  await test("the internal divert route can't be requested directly", async () => {
+    const { status } = await redirectOf("/global-components/multi-os/launch/cin3-proxy", { ...IE_MODE, Cookie: SIGNAL })
+    assertEqual(status, 404, "Should be internal only")
+  })
+
+  await test("leaves routes it doesn't divert alone, signal or not", async () => {
     const { location } = await redirectOf("/launch/cin3", { Cookie: SIGNAL })
     assertEqual(location, "https://cin3.cps.gov.uk/polaris?r=STAND-IN-cin3", "Should be the existing route's own target")
   })

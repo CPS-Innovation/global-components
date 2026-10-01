@@ -12,7 +12,7 @@
 // EVOLUTIONARY DEAD END. Deployed out-of-band (drop the .conf + compiled .js
 // onto the server, picked up by `include global-components*.conf`). No secrets,
 // no Azure AD, no Table Storage — this flow is purely CMS cookie/session. The
-// refined version will live in the cms-auth-v2 module later.
+// refined version will live in the cms-auth-presence module later.
 //
 // Deliberately SIMPLIFIED vs DDEI (see the plan):
 //   - No Corsham/Farnborough opposite-target retry: token mint is a $host

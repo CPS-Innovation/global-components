@@ -5,7 +5,10 @@
 // (the oapps proxy, the London tenant) while everyone else stays on their
 // environment's own host. Everything for it lives in this module and its .conf,
 // so ending the trial is deleting this directory (plus its build/deploy/test
-// wiring). Nothing here edits another team's config: it only adds locations.
+// wiring). Nothing here edits another team's config: it only adds locations
+// (plus a server-level divert that only fires for requests carrying the signal).
+// It loads unchanged in both Polaris proxy worlds, the live monolith and the
+// refactored features/ config (Polaris PROXY.md §6.8).
 //
 // The signal is a per-environment cookie on this (polaris) host,
 //   Gloco-Os-Target-<env>=<OS host>
@@ -13,12 +16,12 @@
 // which keeps its own) by the set route below, which is the only writer. Three
 // things read it:
 //   - config.json selection, so the component on CWA gets the variant config;
-//   - the /launch/<cin>-proxy overrides, so the proxied-CMS C-button (clicked in
-//     IE mode) sends the user through the handover chain on the chosen host;
+//   - the proxied-CMS C-button (/launch/<cin>-proxy, clicked in IE mode): when
+//     the cookie is present the conf diverts it here, and a valid signal sends
+//     the user through the handover chain on the chosen host;
 //   - the status route, for the preview page's display.
 //
-// Without the cookie, every route here hands straight back to what already
-// exists, unchanged.
+// Without the cookie, nothing here touches a request that already had a home.
 // ---------------------------------------------------------------------------
 
 // Each environment's OS host variants. Must match the variant config files in
@@ -37,9 +40,10 @@ const POLARIS_HOSTS: Record<string, string> = {
   test: "polaris-qa-notprod.cps.gov.uk",
 };
 
-// The proxied-CMS C-button routes we override, and the environment each serves.
-// These mirror Polaris's own `location /launch/<cin>-proxy` blocks, which all
-// send the user to the test handover on polaris-qa-notprod.
+// The proxied-CMS C-button routes we divert (for signalled requests only), and
+// the environment each serves. These mirror Polaris's own /launch/<cin>-proxy
+// routes, which all send the user to the test handover on polaris-qa-notprod.
+// The conf's divert regex must match exactly these (unit-tested).
 const LAUNCH_ROUTES: Record<string, string> = {
   "cin2-proxy": "test",
   "cin3-proxy": "test",
@@ -131,12 +135,14 @@ function _launchUrl(env: string, osHost: string): string {
   return "https://" + polaris + "/polaris?r=" + encodeURIComponent(handover);
 }
 
-// js_set for the /launch/<cin>-proxy overrides: where a switched user's C-button
-// goes, or "" to hand the request back to Polaris's own location untouched.
+// js_set for the diverted C-button (/global-components/multi-os/launch/<route>,
+// reached only via the conf's signal-gated rewrite of /launch/<route>): where a
+// switched user's C-button goes, or "" to hand the request back to the original
+// /launch/<route>, i.e. Polaris's own handler, untouched.
 // The C-button is clicked in the proxied CMS, i.e. in IE mode, so this reads the
 // IE-mode copy of the cookie — which the set route wrote.
 function launchTarget(r: NginxHTTPRequest): string {
-  const route = (r.uri.match(/^\/launch\/([^/]+)$/) || [])[1] || "";
+  const route = (r.uri.match(/^\/global-components\/multi-os\/launch\/([^/]+)$/) || [])[1] || "";
   const env = LAUNCH_ROUTES[route];
   if (!env || !POLARIS_HOSTS[env]) {
     return "";
