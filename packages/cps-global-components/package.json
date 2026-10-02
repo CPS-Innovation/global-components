@@ -54,7 +54,7 @@
     "magic-string": "^0.30.21",
     "msw": "^2.12.3",
     "navigation-api-types": "^0.6.1",
-    "puppeteer": "^24.0.0",
+    "puppeteer": "^25.0.0",
     "rollup": "^4.59.0",
     "rollup-plugin-sourcemaps": "^0.6.3"
   },
