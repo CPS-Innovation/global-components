@@ -10,7 +10,7 @@
   "devDependencies": {
     "@types/node": "^24.0.0",
     "esbuild": "^0.28.0",
-    "njs-types": "^0.9.4",
+    "njs-types": "^1.0.0",
     "ts-node": "^10.9.2",
     "typescript": "^5.7.2"
   }
