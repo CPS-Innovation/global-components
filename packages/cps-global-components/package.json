@@ -43,6 +43,7 @@
     "generate": "stencil generate"
   },
   "devDependencies": {
+    "@dotenvx/dotenvx": "^2.0.0",
     "@stencil/core": "^4.36.2",
     "@stencil/sass": "^3.0.12",
     "@stencil/store": "^2.2.0",
@@ -60,7 +61,6 @@
   },
   "license": "MIT",
   "dependencies": {
-    "@dotenvx/dotenvx": "^2.0.0",
     "@microsoft/applicationinsights-web": "^3.3.6",
     "@microsoft/signalr": "^10.0.0",
     "@types/arrive": "^2.4.4",

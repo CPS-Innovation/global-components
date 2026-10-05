@@ -36,6 +36,8 @@ GloCo_PageViews  (also joins GloCo_ExcludedUsers; lookups GloCo_UserDimension fo
   |
   |---> GloCo_PageViews_ActiveUsers_Chart  [DB "Active users (last 10 minutes)"]
   |
+  |---> GloCo_Casework_PagesByApp  [WB "Casework and Materials apps: page views by page since launch"]  (Materials app take-up vs the Casework app, per App_Page)
+  |
   '---> GloCo_UserAreas  (latest area per user; joined by GloCo_Users_VisitsPerApp)
 ```
 
