@@ -186,9 +186,6 @@ importers:
 
   packages/cps-global-components:
     dependencies:
-      '@dotenvx/dotenvx':
-        specifier: ^2.0.0
-        version: 2.30.0
       '@microsoft/applicationinsights-web':
         specifier: ^3.3.6
         version: 3.4.4(tslib@2.8.1)
@@ -235,6 +232,9 @@ importers:
         specifier: ^4.1.11
         version: 4.6.5
     devDependencies:
+      '@dotenvx/dotenvx':
+        specifier: ^2.0.0
+        version: 2.30.0
       '@stencil/core':
         specifier: ^4.36.2
         version: 4.45.0
