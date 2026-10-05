@@ -10,7 +10,10 @@
         "title": "Case review totals since launch",
         "showExportToExcel": true,
         "queryType": 0,
-        "resourceType": "microsoft.operationalinsights/workspaces"
+        "resourceType": "microsoft.operationalinsights/workspaces",
+        "gridSettings": {
+          "rowLimit": 10000
+        }
       },
       "name": "query - 1"
     },
@@ -22,7 +25,11 @@
         "size": 2,
         "title": "Case submissions by area by week",
         "queryType": 0,
-        "resourceType": "microsoft.operationalinsights/workspaces"
+        "resourceType": "microsoft.operationalinsights/workspaces",
+        "showExportToExcel": true,
+        "gridSettings": {
+          "rowLimit": 10000
+        }
       },
       "name": "query - 1"
     },
@@ -34,7 +41,11 @@
         "size": 2,
         "title": "Triage submissions by area by week",
         "queryType": 0,
-        "resourceType": "microsoft.operationalinsights/workspaces"
+        "resourceType": "microsoft.operationalinsights/workspaces",
+        "showExportToExcel": true,
+        "gridSettings": {
+          "rowLimit": 10000
+        }
       },
       "name": "query - triage-area-counts"
     },
@@ -46,7 +57,11 @@
         "size": 2,
         "title": "Top users by visit",
         "queryType": 0,
-        "resourceType": "microsoft.operationalinsights/workspaces"
+        "resourceType": "microsoft.operationalinsights/workspaces",
+        "showExportToExcel": true,
+        "gridSettings": {
+          "rowLimit": 10000
+        }
       },
       "name": "query - 3"
     },
@@ -71,7 +86,11 @@
         "size": 1,
         "title": "Case review: user submitted count by review type",
         "queryType": 0,
-        "resourceType": "microsoft.operationalinsights/workspaces"
+        "resourceType": "microsoft.operationalinsights/workspaces",
+        "showExportToExcel": true,
+        "gridSettings": {
+          "rowLimit": 10000
+        }
       },
       "name": "query - 4"
     },
@@ -84,9 +103,28 @@
         "title": "CPS Direct users: reviews and triage",
         "showExportToExcel": true,
         "queryType": 0,
-        "resourceType": "microsoft.operationalinsights/workspaces"
+        "resourceType": "microsoft.operationalinsights/workspaces",
+        "gridSettings": {
+          "rowLimit": 10000
+        }
       },
       "name": "query - cpsd-review-triage"
+    },
+    {
+      "type": 3,
+      "content": {
+        "version": "KqlItem/1.0",
+        "query": "GloCo_Casework_PagesByApp\n",
+        "size": 1,
+        "title": "Casework and Materials apps: page views by page since launch",
+        "showExportToExcel": true,
+        "queryType": 0,
+        "resourceType": "microsoft.operationalinsights/workspaces",
+        "gridSettings": {
+          "rowLimit": 10000
+        }
+      },
+      "name": "query - casework-pages-by-app"
     }
   ],
   "isLocked": false,
