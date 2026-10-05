@@ -87,6 +87,19 @@
         "resourceType": "microsoft.operationalinsights/workspaces"
       },
       "name": "query - cpsd-review-triage"
+    },
+    {
+      "type": 3,
+      "content": {
+        "version": "KqlItem/1.0",
+        "query": "GloCo_Casework_PagesByApp\n",
+        "size": 1,
+        "title": "Casework and Materials apps: page views by page since launch",
+        "showExportToExcel": true,
+        "queryType": 0,
+        "resourceType": "microsoft.operationalinsights/workspaces"
+      },
+      "name": "query - casework-pages-by-app"
     }
   ],
   "isLocked": false,
