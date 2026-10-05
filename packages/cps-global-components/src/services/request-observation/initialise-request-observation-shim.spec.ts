@@ -121,6 +121,21 @@ describe("initialiseRequestObservationShim", () => {
       expect(FakeXHR.prototype.send).not.toBe(original);
     });
 
+    // OutSystems is moving onto the oapps proxies; activation must not depend on
+    // the host, or capture goes silently dead again at the cutover.
+    it.each(["oapps-qa-notprod.int.cps.gov.uk", "oapps.int.cps.gov.uk", "cpslon-tst.outsystemsenterprise.com"])(
+      "patches on the Triage page served from %s",
+      host => {
+        const { FakeXHR } = makeFakeXHR();
+        const window = makeFakeWindow(`https://${host}/WorkManagementApp/Triage?CaseId=1`, "?CaseId=1", FakeXHR);
+        const original = FakeXHR.prototype.send;
+
+        initialiseRequestObservationShim({ window, config: configOn, preview: previewOn, trackEvent: jest.fn() });
+
+        expect(FakeXHR.prototype.send).not.toBe(original);
+      },
+    );
+
     it("does not throw and leaves the prototype intact when XHR.prototype is locked", () => {
       const { FakeXHR } = makeFakeXHR();
       const originalOpen = FakeXHR.prototype.open;
@@ -327,6 +342,22 @@ describe("initialiseRequestObservationShim", () => {
         const [event] = trackEvent.mock.calls[0];
         expect(event).not.toHaveProperty("IsCPSD");
         expect(event.SelectedCPSDirectDecision).toBe(3);
+      });
+
+      it("captures a submission on an oapps-hosted Triage page", () => {
+        const host = "https://oapps-qa-notprod.int.cps.gov.uk";
+        const trackEvent = jest.fn();
+        const { FakeXHR } = makeFakeXHR();
+        const window = makeFakeWindow(`${host}/WorkManagementApp/Triage${odpcdSearch}`, odpcdSearch, FakeXHR);
+        initialiseRequestObservationShim({ window, config: configOn, preview: previewOn, trackEvent });
+
+        const xhr: any = new FakeXHR();
+        xhr.open("POST", `${host}/WorkManagementApp/screenservices/CaseMilestone_CW/Triage/CheckDetails/ActionCompleteTriageTask`);
+        xhr.send(triageTaskBody({ TriageType: "ODPCDReview", SelectedCPSDirectDecision: 2 }));
+
+        expect(trackEvent).toHaveBeenCalledWith(
+          expect.objectContaining({ name: "triage-submission", TriageType: "ODPCDReview", IsCPSD: false, SelectedCPSDirectDecision: 2 }),
+        );
       });
 
       it("never emits the credential-bearing body fields", () => {

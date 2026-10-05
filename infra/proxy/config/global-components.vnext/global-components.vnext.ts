@@ -1,9 +1,6 @@
-import fs from "fs";
 // @ts-ignore - njs runtime import path
 import gloco from "templates/global-components.js";
 
-const DEPLOYMENT_JSON_PATH =
-  "/etc/nginx/templates/global-components-deployment.json";
 const TENANT_ID = "00dd0d1d-d7e6-4338-ac51-565339c7088c";
 const VALIDATE_TOKEN_AGAINST_AD = false; // Set to true when ready to enforce AD token validation
 const AD_AUTH_ENDPOINT = "https://graph.microsoft.com/v1.0/me";
@@ -94,52 +91,34 @@ async function handleValidateToken(r: NginxHTTPRequest): Promise<void> {
   r.return(isValid ? 200 : 401, "");
 }
 
-function handleStatus(r: NginxHTTPRequest): void {
-  r.headersOut["Content-Type"] = "application/json";
-
-  let version = 0;
-  let error: string | null = null;
-  try {
-    const data = fs.readFileSync(DEPLOYMENT_JSON_PATH, "utf8");
-    const json = JSON.parse(data);
-    version = json.version || 0;
-  } catch (e) {
-    error = (e as Error).message || String(e);
-  }
-
-  const response: { status: string; version: number; error?: string } = {
-    status: "online",
-    version: version,
-  };
-  if (error) {
-    response.error = error;
-  }
-
-  r.return(200, JSON.stringify(response));
-}
-
 function filterSwaggerBody(
   r: NginxHTTPRequest,
   data: string,
   flags: NginxHTTPSendBufferOptions,
 ): void {
-  // Replace upstream URL with proxy URL and fix API paths
+  // Point the doc at the route that actually proxies to MDS.
+  //
+  // WM_MDS_BASE_URL ends in /api/, and this proxy exposes that same surface at
+  // /global-components/api/ (see the location block in global-components.conf).
+  // So the api segment has to SURVIVE the rewrite: the doc's `servers` url
+  // becomes https://<host>/global-components/api, and swagger-ui appends the
+  // bare operation paths (/authenticate, ...) to it unchanged.
+  //
+  // Dropping that segment — as this did until 2026-09-22 — sends "Try it out"
+  // to /global-components/authenticate, which matches no location block and
+  // 404s. Operation paths are deliberately NOT rewritten: swagger-ui joins them
+  // onto the server url itself, so touching them here doubles the prefix.
   const host = (r.headersIn["Host"] as string) || r.variables.host;
-  const proxyBase = "https://" + host + "/global-components/";
+  const proxyBase = "https://" + host + "/global-components/api";
 
   // Strip trailing slash from base URL for matching (swagger may not include it)
   const baseUrl = (r.variables.wm_mds_base_url as string).replace(/\/$/, "");
   const pattern = new RegExp(_escapeRegExp(baseUrl), "g");
 
-  const result = data
-    .replace(pattern, proxyBase.replace(/\/$/, ""))
-    .replace(/\"\/api\//g, '"/global-components/');
-
-  r.sendBuffer(result, flags);
+  r.sendBuffer(data.replace(pattern, proxyBase), flags);
 }
 
 export default {
   handleValidateToken,
-  handleStatus,
   filterSwaggerBody,
 };

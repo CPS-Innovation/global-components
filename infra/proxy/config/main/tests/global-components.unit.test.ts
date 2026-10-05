@@ -192,6 +192,28 @@ async function runTests(): Promise<void> {
     assertEqual(gloco.readCorsOrigin(r), "", "Should return empty string")
   })
 
+  await test("returns origin for the London test OS host", async () => {
+    const r = createMockRequest({
+      headersIn: { Origin: "https://cpslon-tst.outsystemsenterprise.com" },
+    })
+    assertEqual(
+      gloco.readCorsOrigin(r),
+      "https://cpslon-tst.outsystemsenterprise.com",
+      "Should return origin",
+    )
+  })
+
+  await test("returns origin for an oapps proxy host via the .cps.gov.uk rule", async () => {
+    const r = createMockRequest({
+      headersIn: { Origin: "https://oapps-qa-notprod.int.cps.gov.uk" },
+    })
+    assertEqual(
+      gloco.readCorsOrigin(r),
+      "https://oapps-qa-notprod.int.cps.gov.uk",
+      "Should return origin",
+    )
+  })
+
   await test("returns origin for a .cps.gov.uk subdomain", async () => {
     const r = createMockRequest({
       headersIn: { Origin: "https://foo.cps.gov.uk" },
@@ -577,6 +599,32 @@ async function runTests(): Promise<void> {
       authHandoverUrl.includes("cps-dev.outsystemsenterprise.com"),
       `Should use cps-dev OS domain, got: ${authHandoverUrl}`
     )
+  })
+
+  await test("accepts a full OS host in place of a subdomain", async () => {
+    const r = createMockRequest({
+      uri: "/case-review-redirect/oapps-qa-notprod.int.cps.gov.uk/test",
+      args: { CMSCaseId: "42", URN: "12AB3456789" },
+      headersIn: { "X-Forwarded-Proto": "https", Host: "polaris-qa.cps.gov.uk" },
+    })
+    gloco.handleCaseReviewRedirect(r)
+    assertEqual(r.returnCode, 302, "Should return 302")
+
+    const authHandoverUrl = decodeURIComponent(r.returnBody!.split("?r=")[1])
+    assert(
+      authHandoverUrl.startsWith("https://oapps-qa-notprod.int.cps.gov.uk/Casework_Patterns/auth-handover.html"),
+      `Should use the full OS host, got: ${authHandoverUrl}`
+    )
+  })
+
+  await test("returns 400 for a full host outside our estate", async () => {
+    const r = createMockRequest({
+      uri: "/case-review-redirect/evil.example.com/test",
+      args: { CMSCaseId: "42", URN: "12AB3456789" },
+      headersIn: { "X-Forwarded-Proto": "https", Host: "polaris-qa.cps.gov.uk" },
+    })
+    gloco.handleCaseReviewRedirect(r)
+    assertEqual(r.returnCode, 400, "Should return 400")
   })
 
   await test("returns 400 when CMSCaseId is missing", async () => {

@@ -1,0 +1,12 @@
+# Multi-OS-domain testing layer override (FCT2-22132 — temporary module)
+# Use: docker-compose -f docker-compose.yml -f docker-compose.multi-os-domain-testing.yml up
+#
+# Mounts the module's conf + compiled JS, plus test-only stand-ins for Polaris's
+# /launch routes so the C-button divert and its hand-back can be exercised end to end.
+
+services:
+  nginx:
+    volumes:
+      - ../config/global-components.multi-os-domain-testing/global-components.multi-os-domain-testing.conf:/etc/nginx/templates/global-components.multi-os-domain-testing.conf.template:ro
+      - ../dist/global-components.multi-os-domain-testing.js:/etc/nginx/templates/global-components.multi-os-domain-testing.js:ro
+      - ./test-only.polaris-launch.conf:/etc/nginx/global-components.test-polaris-launch.conf:ro

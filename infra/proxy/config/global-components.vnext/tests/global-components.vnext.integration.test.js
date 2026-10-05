@@ -2,37 +2,18 @@
 /**
  * Integration tests for global-components.vnext.conf.template
  *
- * Tests the vnext-only functionality: status endpoint, swagger URL rewriting,
- * and MDS API proxy (monitoring-codes).
+ * Tests the vnext-only functionality: swagger URL rewriting and the
+ * MDS API proxy (monitoring-codes).
  */
 
 const {
   PROXY_BASE,
   assert,
-  assertEqual,
   test,
   fetchJson,
   getState,
   resetState,
 } = require("../../../test-utils")
-
-// =============================================================================
-// Status Endpoint Tests
-// =============================================================================
-
-async function testStatusEndpoint() {
-  console.log("\nStatus Endpoint Tests (/global-components/status):")
-
-  await test("status endpoint returns JSON with status and version", async () => {
-    const response = await fetch(`${PROXY_BASE}/global-components/status`)
-    assertEqual(response.status, 200, "Health endpoint should return 200")
-    const contentType = response.headers.get("content-type")
-    assert(contentType.includes("application/json"), "Should return JSON")
-    const body = await response.json()
-    assertEqual(body.status, "online", "Should have status online")
-    assert(typeof body.version === "number", "Should have numeric version")
-  })
-}
 
 // =============================================================================
 // Swagger URL Rewriting Tests
@@ -60,18 +41,55 @@ async function testSwaggerRewriting() {
     )
   })
 
-  await test("rewrites API paths in swagger.json", async () => {
+  await test("server url keeps the /api segment the proxy routes on", async () => {
     const response = await fetch(
       `${PROXY_BASE}/global-components/swagger.json`
     )
     const json = await response.json()
 
-    // Paths should be prefixed with /global-components
+    // The proxied MDS surface lives at /global-components/api/, so the rewritten
+    // server url has to end there — otherwise "Try it out" hits a path no
+    // location block matches and 404s.
+    const serverUrl = (json.servers[0].url || "").replace(/\/$/, "")
+    assert(
+      serverUrl.endsWith("/global-components/api"),
+      `Server url should end with /global-components/api, got: ${serverUrl}`
+    )
+  })
+
+  await test("serves a filtered doc on the /api/ path the UI page resolves to", async () => {
+    // The UI page's embedded doc URL rewrites to /global-components/api/swagger.json.
+    // That path would otherwise hit the unfiltered API regex in
+    // global-components.conf, handing swagger-ui the raw upstream server url.
+    const response = await fetch(
+      `${PROXY_BASE}/global-components/api/swagger.json`
+    )
+    const text = await response.text()
+
+    assert(
+      !text.includes("mock-upstream:3000"),
+      `Doc served on the /api/ path should be rewritten, got: ${text.slice(0, 200)}`
+    )
+    const serverUrl = (JSON.parse(text).servers[0].url || "").replace(/\/$/, "")
+    assert(
+      serverUrl.endsWith("/global-components/api"),
+      `Server url should end with /global-components/api, got: ${serverUrl}`
+    )
+  })
+
+  await test("leaves operation paths untouched", async () => {
+    const response = await fetch(
+      `${PROXY_BASE}/global-components/swagger.json`
+    )
+    const json = await response.json()
+
+    // swagger-ui appends these to the server url, so they must pass through
+    // exactly as the upstream emitted them.
     const paths = Object.keys(json.paths || {})
-    for (const path of paths) {
+    for (const expected of ["/cases", "/documents"]) {
       assert(
-        path.startsWith("/global-components"),
-        `Path ${path} should start with /global-components`
+        paths.includes(expected),
+        `Expected ${expected} to survive the filter, got: ${paths.join(", ")}`
       )
     }
   })
@@ -85,7 +103,6 @@ async function main() {
   // Disable TLS verification for self-signed certs
   process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0"
 
-  await testStatusEndpoint()
   await testSwaggerRewriting()
 }
 

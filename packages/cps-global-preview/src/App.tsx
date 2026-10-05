@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef, type ReactNode } from "react";
 import type { AuthHint, Notification, Preview } from "cps-global-configuration";
 
 const STATE_ENDPOINT = "/global-components/state/preview";
@@ -7,6 +7,18 @@ const AUTH_HINT_ENDPOINT = "/global-components/state/auth-hint";
 const ENV_MATCH = window.location.pathname.match(/\/global-components\/([^/]+)\//);
 const ENV = ENV_MATCH?.[1] ?? "test";
 const NOTIFICATIONS_ENDPOINT = `/global-components/${ENV}/notification.json`;
+// The per-environment OS host switch, owned by the proxy's temporary
+// multi-os-domain-testing module (infra/proxy/config/global-components.multi-os-domain-testing).
+// It lives in its own cookie rather than preview state because the proxy reads it
+// server-side, in both Edge and IE mode — so switching is a NAVIGATION through
+// the set route, which visits both engines to write both cookie copies.
+const OS_TARGET_STATUS_ENDPOINT = `/global-components/multi-os/target/${ENV}`;
+const OS_TARGET_SET_ENDPOINT = "/global-components/multi-os/set";
+
+type OsTarget = {
+  current: string | null;
+  options: { variant: string; host: string }[];
+};
 
 type NotificationsResult =
   | { loaded: true; notifications: Notification[] }
@@ -25,7 +37,6 @@ type SubOption = {
 type RadioOption<T extends string> = {
   value: T;
   label: string;
-  disabled?: boolean;
 };
 
 type Feature = {
@@ -47,16 +58,6 @@ const CASE_MARKERS_OPTIONS: RadioOption<string>[] = [
 const COLOUR_PALETTE_OPTIONS: RadioOption<string>[] = [
   { value: "gds", label: "GDS" },
   { value: "cps", label: "CPS" },
-];
-
-// Unlike the feature radios above, this group stands alone rather than hanging
-// off a checkbox: "no override" is the default we want visible, not an unticked
-// box. The empty value maps to an absent `region` — the same thing — so the
-// cookie stays clean when nothing is overridden.
-const REGION_OPTIONS: RadioOption<string>[] = [
-  { value: "", label: "No override (Dublin)" },
-  { value: "london", label: "Use London" },
-  { value: "frontDoor", label: "Use front-door domain", disabled: true },
 ];
 
 const FEATURES: Feature[] = [
@@ -160,6 +161,16 @@ const FEATURES: Feature[] = [
 
 type FeatureKey = Feature["key"];
 
+// A section heading that is its own #anchor, so sections can be linked to directly.
+// Ids are prefixed "section-" to stay clear of the form inputs' ids.
+const SectionHeading = ({ id, className, children }: { id: string; className: string; children: ReactNode }) => (
+  <h2 className={className} id={`section-${id}`}>
+    <a className="govuk-link govuk-link--text-colour govuk-link--no-underline" href={`#section-${id}`}>
+      {children}
+    </a>
+  </h2>
+);
+
 type StatusType = "info" | "error" | "success";
 
 export function App() {
@@ -173,6 +184,8 @@ export function App() {
     useState<NotificationsResult | null>(null);
   const [authHint, setAuthHint] = useState<AuthHint | null>(null);
   const [sidInput, setSidInput] = useState<string>("");
+  const [osTarget, setOsTarget] = useState<OsTarget | null>(null);
+  const scrolledToHash = useRef(false);
 
   const showStatus = useCallback((message: string, type: StatusType) => {
     setStatus({ message, type });
@@ -256,6 +269,42 @@ export function App() {
     loadNotifications();
   }, [loadNotifications]);
 
+  const loadOsTarget = useCallback(async () => {
+    try {
+      const response = await fetch(OS_TARGET_STATUS_ENDPOINT, { credentials: "include" });
+      if (response.ok) {
+        setOsTarget(await response.json());
+      }
+    } catch {
+      // No switch endpoint (e.g. an older proxy) — the section stays hidden.
+    }
+  }, []);
+
+  useEffect(() => {
+    loadOsTarget();
+  }, [loadOsTarget]);
+
+  // Sections render after async loads (the OutSystems host one only once its
+  // status arrives), so the browser's own jump to the #anchor on load misses them.
+  // Jump once, as soon as the target exists.
+  useEffect(() => {
+    if (scrolledToHash.current || !window.location.hash) {
+      return;
+    }
+    const target = document.getElementById(decodeURIComponent(window.location.hash.slice(1)));
+    if (target) {
+      scrolledToHash.current = true;
+      target.scrollIntoView();
+    }
+  }, [loading, osTarget, notificationsResult, authHint]);
+
+  // Leaves the page: the set route writes the cookie in Edge, flips the tab to IE
+  // mode to write IE mode's copy, then brings the tab back here.
+  const handleOsTargetChange = (host: string) => {
+    const query = new URLSearchParams({ env: ENV, host, return: window.location.pathname + window.location.search + "#section-os-host" });
+    window.location.assign(`${OS_TARGET_SET_ENDPOINT}?${query}`);
+  };
+
   const handleEnabledChange = (checked: boolean) => {
     const newState = { ...state, enabled: checked || undefined };
     setState(newState);
@@ -301,15 +350,6 @@ export function App() {
 
   const handleRadioChange = (key: keyof Preview, value: string) => {
     const newState = { ...state, [key]: value };
-    setState(newState);
-    saveState(newState);
-  };
-
-  const handleRegionChange = (value: string) => {
-    const newState = {
-      ...state,
-      region: (value || undefined) as Preview["region"],
-    };
     setState(newState);
     saveState(newState);
   };
@@ -429,7 +469,7 @@ export function App() {
         <div className="govuk-form-group">
           <fieldset className="govuk-fieldset">
             <legend className="govuk-fieldset__legend govuk-fieldset__legend--m">
-              <h2 className="govuk-fieldset__heading">Features</h2>
+              <SectionHeading className="govuk-fieldset__heading" id="features">Features</SectionHeading>
             </legend>
             <div>
               {FEATURES.map(
@@ -597,7 +637,7 @@ export function App() {
         <div className="govuk-form-group">
           <fieldset className="govuk-fieldset">
             <legend className="govuk-fieldset__legend govuk-fieldset__legend--m">
-              <h2 className="govuk-fieldset__heading">Notifications</h2>
+              <SectionHeading className="govuk-fieldset__heading" id="notifications">Notifications</SectionHeading>
             </legend>
             <div className="govuk-checkboxes" data-module="govuk-checkboxes">
               <div className="govuk-checkboxes__item">
@@ -638,7 +678,11 @@ export function App() {
               Clear dismissed notifications
             </button>
 
-            <h3 className="govuk-heading-s govuk-!-margin-top-6">Deployed notifications</h3>
+            <h3 className="govuk-heading-s govuk-!-margin-top-6" id="section-deployed-notifications">
+              <a className="govuk-link govuk-link--text-colour govuk-link--no-underline" href="#section-deployed-notifications">
+                Deployed notifications
+              </a>
+            </h3>
             <p className="govuk-body govuk-!-font-size-16">
               Read-only view of <code>notification.json</code> loaded from blob storage
               for the <strong>{ENV}</strong> environment. Edit the source file to change
@@ -740,7 +784,7 @@ export function App() {
         <div className="govuk-form-group">
           <fieldset className="govuk-fieldset">
             <legend className="govuk-fieldset__legend govuk-fieldset__legend--m">
-              <h2 className="govuk-fieldset__heading">Auth hint</h2>
+              <SectionHeading className="govuk-fieldset__heading" id="auth-hint">Auth hint</SectionHeading>
             </legend>
             <p className="govuk-body govuk-!-font-size-16">
               Overwrite the <code>lastKnownSid</code> stored against your auth-hint cookie.
@@ -795,49 +839,44 @@ export function App() {
           </fieldset>
         </div>
 
-        <div className="govuk-form-group">
-          <fieldset className="govuk-fieldset">
-            <legend className="govuk-fieldset__legend govuk-fieldset__legend--m">
-              <h2 className="govuk-fieldset__heading">Region</h2>
-            </legend>
-            <p className="govuk-body govuk-!-font-size-16">
-              Which OutSystems region the global components send you to. Applies
-              to the menu links, the banner title, and the auth handover — if you
-              are on the wrong host, the handover moves you across. Leave on{" "}
-              <strong>No override</strong> unless you are testing London.
-            </p>
-            <div
-              className="govuk-radios govuk-radios--small"
-              data-module="govuk-radios"
-            >
-              {REGION_OPTIONS.map((option) => (
-                <div key={option.value} className="govuk-radios__item">
-                  <input
-                    className="govuk-radios__input"
-                    id={`region-${option.value || "none"}`}
-                    name="region"
-                    type="radio"
-                    value={option.value}
-                    checked={(state.region ?? "") === option.value}
-                    disabled={loading || option.disabled}
-                    onChange={() => handleRegionChange(option.value)}
-                  />
-                  <label
-                    className="govuk-label govuk-radios__label"
-                    htmlFor={`region-${option.value || "none"}`}
-                  >
-                    {option.label}
-                  </label>
-                </div>
-              ))}
-            </div>
-          </fieldset>
-        </div>
+        {osTarget && osTarget.options.length > 0 && (
+          <div className="govuk-form-group">
+            <fieldset className="govuk-fieldset">
+              <legend className="govuk-fieldset__legend govuk-fieldset__legend--m">
+                <SectionHeading className="govuk-fieldset__heading" id="os-host">OutSystems host</SectionHeading>
+              </legend>
+              <p className="govuk-body govuk-!-font-size-16">
+                Which OutSystems host the proxied CMS C-button and the menu send you
+                to in this environment. Changing it briefly reloads this page (it has
+                to visit both Edge and IE mode to set the choice in each). Pages you
+                open directly on either host keep working as they are.
+              </p>
+              <div className="govuk-radios govuk-radios--small" data-module="govuk-radios">
+                {[{ variant: "", host: "" }, ...osTarget.options].map(({ variant, host }) => (
+                  <div key={host || "default"} className="govuk-radios__item">
+                    <input
+                      className="govuk-radios__input"
+                      id={`os-target-${variant || "default"}`}
+                      name="osTarget"
+                      type="radio"
+                      checked={(osTarget.current ?? "") === host}
+                      disabled={loading}
+                      onChange={() => handleOsTargetChange(host)}
+                    />
+                    <label className="govuk-label govuk-radios__label" htmlFor={`os-target-${variant || "default"}`}>
+                      {host ? `${variant} — ${host}` : "Default for this environment"}
+                    </label>
+                  </div>
+                ))}
+              </div>
+            </fieldset>
+          </div>
+        )}
 
         <div className="govuk-form-group">
           <fieldset className="govuk-fieldset">
             <legend className="govuk-fieldset__legend govuk-fieldset__legend--m">
-              <h2 className="govuk-fieldset__heading">Override mode</h2>
+              <SectionHeading className="govuk-fieldset__heading" id="override-mode">Override mode</SectionHeading>
             </legend>
             <div className="govuk-checkboxes" data-module="govuk-checkboxes">
               <div className="govuk-checkboxes__item">

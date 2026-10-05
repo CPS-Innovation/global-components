@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 /**
- * Integration tests for global-components.cms-auth-v2.conf
+ * Integration tests for global-components.cms-auth-presence.conf
  *
- * Light smoke tests: verifies nginx starts with the v2 conf mounted and
+ * Light smoke tests: verifies nginx starts with the conf mounted and
  * the sync handlers respond correctly. Does NOT exercise the full OIDC
  * round-trip (that requires real Azure AD credentials).
  */
@@ -17,15 +17,15 @@ const {
 } = require("../../../test-utils")
 
 // =============================================================================
-// /init-v2/error — Sync handler (no external calls)
+// /init-presence/error — Sync handler (no external calls)
 // =============================================================================
 
 async function testErrorEndpoint() {
-  console.log("\nError Endpoint Tests (/init-v2/error):")
+  console.log("\nError Endpoint Tests (/init-presence/error):")
 
   await test("returns HTML page with error details", async () => {
     const response = await fetch(
-      `${PROXY_BASE}/init-v2/error?correlation=test-abc123&error-code=modern-token-fetch-failed`
+      `${PROXY_BASE}/init-presence/error?correlation=test-abc123&error-code=modern-token-fetch-failed`
     )
     assertEqual(response.status, 500, "Should return 500")
     const contentType = response.headers.get("content-type")
@@ -42,7 +42,7 @@ async function testErrorEndpoint() {
   })
 
   await test("handles missing query params gracefully", async () => {
-    const response = await fetch(`${PROXY_BASE}/init-v2/error`)
+    const response = await fetch(`${PROXY_BASE}/init-presence/error`)
     assertEqual(response.status, 500, "Should return 500")
     const body = await response.text()
     assert(body.includes("(unknown)"), "Should show (unknown) for missing correlation")
@@ -51,14 +51,14 @@ async function testErrorEndpoint() {
 }
 
 // =============================================================================
-// /polaris-v2 — Sync redirect handler
+// /polaris-presence — Sync redirect handler
 // =============================================================================
 
 async function testPolarisV2Endpoint() {
-  console.log("\nPolaris V2 Endpoint Tests (/polaris-v2):")
+  console.log("\nPolaris Presence Endpoint Tests (/polaris-presence):")
 
-  await test("redirects to /init-v2/ with cookies param", async () => {
-    const response = await fetch(`${PROXY_BASE}/polaris-v2`, {
+  await test("redirects to /init-presence/ with cookies param", async () => {
+    const response = await fetch(`${PROXY_BASE}/polaris-presence`, {
       redirect: "manual",
       headers: {
         Cookie: "test=value; other=123",
@@ -67,7 +67,7 @@ async function testPolarisV2Endpoint() {
     assertEqual(response.status, 302, "Should return 302 redirect")
     const location = response.headers.get("location")
     assert(location !== null, "Should have Location header")
-    assert(location.includes("/init-v2/"), "Should redirect to /init-v2/")
+    assert(location.includes("/init-presence/"), "Should redirect to /init-presence/")
     assert(location.includes("cookies="), "Should include cookies param")
     assert(
       location.includes("is-proxy-session=true"),
@@ -77,7 +77,7 @@ async function testPolarisV2Endpoint() {
 
   await test("preserves existing query params", async () => {
     const response = await fetch(
-      `${PROXY_BASE}/polaris-v2?polaris-ui-url=/some/path`,
+      `${PROXY_BASE}/polaris-presence?polaris-ui-url=/some/path`,
       {
         redirect: "manual",
       }
@@ -95,9 +95,9 @@ async function testPolarisV2Endpoint() {
 // /CMS.24.0.01/User/uaulLogin.aspx — login-page shim: RETIRED
 // -----------------------------------------------------------------------------
 // The login-page iframe injection (and its whole `location = .../uaulLogin.aspx`
-// block) was removed from the cms-auth-v2 conf. That job moved into the injected
+// block) was removed from the cms-auth-presence conf. That job moved into the injected
 // shell script (cms-auth-v2-client.js), which watches frameMain leave the login
-// page and spawns the /polaris-v2 iframe itself. That script is a blob asset this
+// page and spawns the /polaris-presence iframe itself. That script is a blob asset this
 // docker suite does not serve, so there is nothing to assert here. With the block
 // gone, the login page falls through to the deployed ^/CMS.* catch-all (not part
 // of this mock), so no login-page test runs in this layer.
@@ -119,7 +119,7 @@ module.exports = main
 if (require.main === module) {
   resetState()
   console.log("=".repeat(60))
-  console.log("CMS Auth V2 Integration Tests")
+  console.log("CMS Auth Presence Integration Tests")
   console.log(`Target: ${PROXY_BASE}`)
   console.log("=".repeat(60))
 

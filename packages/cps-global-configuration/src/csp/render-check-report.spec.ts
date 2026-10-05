@@ -11,7 +11,6 @@ import type { CspRequirement } from "./csp-requirements";
 const target: CheckTarget = {
   environment: "test",
   url: "https://cps-tst.outsystemsenterprise.com/WorkManagementApp",
-  region: "dublin",
   kind: "screen",
 };
 
@@ -266,7 +265,7 @@ describe("the HTML page is self-contained", () => {
 });
 
 describe("renderTldr", () => {
-  const target = (environment: string, url: string) => ({ environment, url, region: "dublin" as const, kind: "screen" as const });
+  const target = (environment: string, url: string) => ({ environment, url, kind: "screen" as const });
   const finding = (directive: string, value: string, verdict: "allowed" | "narrower" | "absent") => ({
     requirement: { directive, value, reason: "because" } as never,
     verdict,

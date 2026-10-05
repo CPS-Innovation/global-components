@@ -1,5 +1,5 @@
-// Reduced mock of config/main/cmsenv.js — for the cms-auth-v2 docker integration
-// test ONLY (mounted over /etc/nginx/cmsenv.js by docker-compose.cms-auth-v2.yml).
+// Reduced mock of config/main/cmsenv.js — for the cms-auth-presence docker integration
+// test ONLY (mounted over /etc/nginx/cmsenv.js by docker-compose.cms-auth-presence.yml).
 //
 // The real cmsenv derives CMS upstreams from a large js_var block (defaultUpstream*,
 // cin2Upstream*, ...) that only nginx-full.conf defines; the test's nginx.conf does

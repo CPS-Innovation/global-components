@@ -251,7 +251,7 @@ It lands at `/global-components/test/cms-presence-client.js` via the existing bl
 route, which is the `src` the nginx conf injects.
 
 The two injection locations (`= /viewer/landing`, `~ ^/dcf/review/`) live in
-`../global-components.cms-auth-v2.conf` and ship with that conf.
+`../global-components.cms-auth-presence.conf` and ship with that conf.
 
 ## What it does
 

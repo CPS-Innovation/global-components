@@ -17,10 +17,46 @@ Nginx reverse proxy with njs (JavaScript) for header/cookie manipulation. Used t
 
 ### Global components vnext config (`config/global-components.vnext/`)
 
-- `global-components.vnext.js` - njs module for state endpoint, status endpoint, token validation, swagger filtering
+- `global-components.vnext.js` - njs module for state endpoint, token validation, swagger filtering
 - `global-components.vnext.conf.template` - nginx location blocks for vnext features (uses env vars: `${GLOBAL_COMPONENTS_APPLICATION_ID}`, `${GLOBAL_COMPONENTS_BLOB_STORAGE_URL}`)
 - `.env` - **gitignored** - contains vnext-specific config
 - `.env.example` - template for the above
+
+### Multi-OS-domain testing (`config/global-components.multi-os-domain-testing/`) — TEMPORARY
+
+A self-contained module (FCT2-22132) that lets designated QA users run against a different
+OutSystems host (the oapps proxy, the London tenant) while everyone else is untouched. It only
+ADDS locations, plus one server-level divert that fires only for requests carrying the signal
+cookie. It loads unchanged in both Polaris proxy worlds (the live monolith and the refactored
+`features/` config; Polaris `PROXY.md` §6.8), and the deploy writes its conf to both. To end the trial, delete the module directory
+and its lines in `scripts/build.sh`, `deploy/deploy.sh`, `deploy/rollback.sh`, `run-tests.sh`,
+`package.json` and `docker/` (`docker-compose.multi-os-domain-testing.yml`,
+`test-only.polaris-launch.conf`).
+
+- **Signal:** the `Gloco-Os-Target-<env>` cookie (`Path=/`, `HttpOnly`, value = the chosen OS
+  host). Edge and IE mode keep separate cookie stores, so it is written into both by
+  `/global-components/multi-os/set?env=&host=&return=`, the only writer. That route flips the
+  tab between engines with `X-InternetExplorerMode`. An empty `host` clears both copies.
+  `/global-components/multi-os/target/<env>` reports the current value to the preview page.
+- **Variants:** `configuration/config.<env>.<variant>.json` is the environment's config with
+  only the OS host swapped (enforced by `outsystems-host-consistency.spec.ts`), deployed beside
+  `config.json` as `config.<variant>.json`. `OS_HOST_VARIANTS` maps each variant to its host; a
+  unit test checks it against the files both ways.
+- **`config.json`:** served by `readConfigBlobName`:
+  - the variant for the requesting OS page's own host (by `Origin`); else
+  - the variant the cookie names (CWA); else
+  - `config.json`.
+- **Proxied-CMS C-button:** we define no location on Polaris's `/launch/cin2`–`cin5-proxy`
+  (they differ between the two worlds: prefix blocks in the monolith, one exact-name
+  `/launch/` handler in the refactor).
+  - Without a `Gloco-Os-Target-` cookie, nginx never touches the request: Polaris's own route
+    runs unchanged.
+  - With one, a server-level rewrite diverts the click to the internal
+    `/global-components/multi-os/launch/<route>`. A valid signal for that route (the click
+    arrives in IE mode, carrying IE mode's copy) redirects to Polaris's same
+    `/polaris?r=<handover>` target, with the OS host swapped. Anything else is rewritten back
+    to the original URI and lands on Polaris's route, whichever world is running.
+  - `/polaris`, `/init`, raw-CMS `/launch/cinN` and prod's `/launch/cms-proxy` are not touched.
 
 ### Docker (`docker/`)
 
@@ -153,7 +189,6 @@ Deployment is done from a remote machine with network access to Azure blob stora
 To blob storage (vnext-specific only):
 - `global-components.vnext.conf.template` - vnext nginx location blocks (with vnext env vars pre-substituted)
 - `global-components.vnext.js` - njs module for vnext features (state, token validation)
-- `global-components-deployment.json` - deployment version tracking file
 
 Note: `GLOBAL_COMPONENTS_APPLICATION_ID` and `GLOBAL_COMPONENTS_BLOB_STORAGE_URL` are baked into the config file via envsubst during deployment (from secrets.env). App settings code is commented out but can be re-enabled if needed.
 
@@ -168,7 +203,6 @@ Note: `GLOBAL_COMPONENTS_APPLICATION_ID` and `GLOBAL_COMPONENTS_BLOB_STORAGE_URL
 
 1. Create a deployment directory and `secrets.env` with:
    - Azure subscription, resource group, storage account, container, webapp name
-   - Status endpoint URL
    - `GLOBAL_COMPONENTS_APPLICATION_ID` and `GLOBAL_COMPONENTS_BLOB_STORAGE_URL`
 
 See `deploy/README.md` for detailed setup instructions.
@@ -183,11 +217,12 @@ This will:
 
 1. Download build artifact from GitHub Actions
 2. Download current files from blob storage as backup
-3. Increment deployment version
-4. Upload vnext files to blob storage
-5. Set app settings on the web app
-6. Restart the Azure web app
-7. Poll status endpoint until new version is live
+3. Upload vnext files to blob storage
+4. Set app settings on the web app
+5. Restart the Azure web app
+
+There is no version endpoint to poll, so confirm the deploy by hitting a route the
+vnext conf owns once the app is back up, e.g. `/global-components/swagger.json`.
 
 ### Rollback
 
@@ -197,33 +232,11 @@ curl -sSL https://raw.githubusercontent.com/CPS-Innovation/global-components/mai
 
 Lists available backups and lets you select one to restore.
 
-### Status endpoint
-
-`GET /global-components/status` returns:
-
-```json
-{ "status": "online", "version": 42 }
-```
-
-The version number is read from `/etc/nginx/global-components-deployment.json` on the filesystem. This file is created/updated during deployment and contains `{"version": N}`. If the file doesn't exist, version 0 is returned.
-
 ### Files (gitignored)
 
 - `deploy/secrets.env` - Azure credentials and vnext config
 - `config/global-components.vnext/.env` - vnext config (app ID, blob storage URL)
 - `deploy/backups/` - timestamped backup folders
-
-### Deployment version tracking
-
-The deployment version is tracked in `global-components-deployment.json`:
-- Located at `/etc/nginx/global-components-deployment.json` on the server
-- Contains `{"version": N}` where N is incremented on each deploy
-- During deployment:
-  1. Download current file from blob storage (if exists)
-  2. Read current version (or 0 if not found)
-  3. Increment version
-  4. Upload new file to blob storage
-- The status endpoint reads this file to report current version
 
 ## Known Issues / TODO
 

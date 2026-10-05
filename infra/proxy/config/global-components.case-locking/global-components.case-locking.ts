@@ -78,7 +78,7 @@ function filterNegotiateBody(
 // fallback that would mask a broken handover.
 // ---------------------------------------------------------------------------
 
-// Written by handleInitV2Callback in global-components.cms-auth-v2.ts. The two
+// Written by handleInitPresenceCallback in global-components.cms-auth-presence.ts. The two
 // njs bundles are separate, so this name is kept in sync by hand — grep for it
 // before renaming either side.
 const PRESENCE_TOKEN_COOKIE = "cms-auth-presence-token";

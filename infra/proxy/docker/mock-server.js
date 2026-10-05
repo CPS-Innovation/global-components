@@ -36,9 +36,12 @@ const routes = {
       openapi: '3.0.0',
       info: { title: 'Mock API', version: '1.0.0' },
       servers: [{ url: BASE_URL }],
+      // Operation paths are BARE, as the real MDS doc emits them: the /api
+      // prefix lives in the server url above, not here. The mock used to carry
+      // '/api/...' paths, which is what let a broken rewrite look correct.
       paths: {
-        '/api/cases': { get: { summary: 'Get cases' } },
-        '/api/documents': { get: { summary: 'Get documents' } }
+        '/cases': { get: { summary: 'Get cases' } },
+        '/documents': { get: { summary: 'Get documents' } }
       }
     }, null, 2)
   },
@@ -77,8 +80,8 @@ const server = http.createServer((req, res) => {
     return;
   }
 
-  // CMS classic login page stub. The cms-auth-v2 login-page shim proxies
-  // uaulLogin.aspx here and sub_filters a hidden /polaris-v2 capture iframe into
+  // CMS classic login page stub. The cms-auth-presence login-page shim proxies
+  // uaulLogin.aspx here and sub_filters a hidden /polaris-presence capture iframe into
   // it, so the body MUST contain the exact sub_filter target
   // 'location.href = sNewHref;</script>'.
   if (/^CMS\.[^/]+\/User\/uaulLogin\.aspx$/i.test(path)) {

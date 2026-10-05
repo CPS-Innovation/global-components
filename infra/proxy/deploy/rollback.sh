@@ -33,7 +33,7 @@ fi
 source secrets.env
 
 # Validate required variables
-REQUIRED_VARS="AZURE_SUBSCRIPTION_ID AZURE_RESOURCE_GROUP AZURE_STORAGE_ACCOUNT AZURE_STORAGE_CONTAINER AZURE_WEBAPP_NAME STATUS_ENDPOINT"
+REQUIRED_VARS="AZURE_SUBSCRIPTION_ID AZURE_RESOURCE_GROUP AZURE_STORAGE_ACCOUNT AZURE_STORAGE_CONTAINER AZURE_WEBAPP_NAME"
 for var in $REQUIRED_VARS; do
   if [ -z "${!var}" ]; then
     echo -e "${RED}Error: $var is not set in secrets.env${NC}"
@@ -105,16 +105,8 @@ az storage blob list \
   --output table \
   2>&1 | sed 's/^/  /'
 
-# Get current version for new backup
-echo -e "\n${YELLOW}Getting current version from status endpoint...${NC}"
-echo "  Endpoint: $STATUS_ENDPOINT"
-STATUS_RESPONSE=$(curl -s "$STATUS_ENDPOINT" 2>&1)
-echo "  Response: $STATUS_RESPONSE"
-CURRENT_VERSION=$(echo "$STATUS_RESPONSE" | grep -o '"version":[ ]*[0-9]*' | grep -o '[0-9]*' || echo "0")
-echo "  Parsed version: $CURRENT_VERSION"
-
 # Create a backup of current state before rollback
-PRE_ROLLBACK_DIR="$BACKUPS_DIR/$(date +%Y%m%d_%H%M%S)_pre-rollback_v${CURRENT_VERSION}"
+PRE_ROLLBACK_DIR="$BACKUPS_DIR/$(date +%Y%m%d_%H%M%S)_pre-rollback"
 mkdir -p "$PRE_ROLLBACK_DIR"
 echo -e "\n${YELLOW}Backing up current state before rollback to: $PRE_ROLLBACK_DIR${NC}"
 
@@ -123,37 +115,69 @@ echo -e "\n${YELLOW}Backing up current state before rollback to: $PRE_ROLLBACK_D
 FILES_TO_BACKUP=(
   "global-components.vnext.conf.template"
   "global-components.vnext.js"
-  "global-components-deployment.json"
+  # Temporary multi-OS-domain testing module (FCT2-22132) — delete with the module.
+  "global-components.multi-os-domain-testing.conf.template"
+  "global-components.multi-os-domain-testing.js"
 )
 
-for file in "${FILES_TO_BACKUP[@]}"; do
-  echo "  Downloading $file..."
-  if az storage blob download \
-    --account-name "$AZURE_STORAGE_ACCOUNT" \
-    --container-name "$AZURE_STORAGE_CONTAINER" \
-    --name "$file" \
-    --file "$PRE_ROLLBACK_DIR/$file" \
-    --auth-mode login \
-    2>&1 | sed 's/^/    /'; then
-    echo -e "    ${GREEN}✓ Downloaded${NC}"
-  else
-    echo -e "    ${YELLOW}⚠ File may not exist${NC}"
+# Blob name(s) each deployed file is uploaded to. The proxy App Service may run either
+# the live monolith or the refactored "next" config (Polaris repo, proxy/config/) — both
+# read this same container. Live loads root `global-components*.conf`; next has no root
+# include and loads only `features/*/*.conf`. So every global-components.<x>.conf.template
+# goes to BOTH places (identical content); .js files stay at the root, shared by both
+# worlds (the confs `js_import templates/global-components.<x>.js`). Contract:
+# Polaris polaris-terraform/main-terraform/proxy/docs/PROXY.md §6.8.
+blob_names() {
+  local file="$1"
+  echo "$file"
+  if [[ "$file" == global-components.*.conf.template ]]; then
+    local stem="${file%.conf.template}"
+    echo "features/$stem/$stem.conf.template"
   fi
+}
+
+for file in "${FILES_TO_BACKUP[@]}"; do
+  for blob in $(blob_names "$file"); do
+    echo "  Downloading $blob..."
+    mkdir -p "$(dirname "$PRE_ROLLBACK_DIR/$blob")"
+    if az storage blob download \
+      --account-name "$AZURE_STORAGE_ACCOUNT" \
+      --container-name "$AZURE_STORAGE_CONTAINER" \
+      --name "$blob" \
+      --file "$PRE_ROLLBACK_DIR/$blob" \
+      --auth-mode login \
+      2>&1 | sed 's/^/    /'; then
+      echo -e "    ${GREEN}✓ Downloaded${NC}"
+    else
+      echo -e "    ${YELLOW}⚠ File may not exist${NC}"
+    fi
+  done
 done
 
 # Upload backup files
 echo -e "\n${YELLOW}Uploading backup files...${NC}"
+# Restore from the ROOT copies only, fanning each out via blob_names — so a backup
+# taken before the features/ copies existed still restores BOTH worlds consistently.
+# (The backup's own features/ copies are identical to their root file; skip them.)
 for file in "$SELECTED_BACKUP"/*; do
   if [ -f "$file" ]; then
     blob_name=$(basename "$file")
-    echo "  Uploading $blob_name..."
-    az storage blob upload \
-      --account-name "$AZURE_STORAGE_ACCOUNT" \
-      --container-name "$AZURE_STORAGE_CONTAINER" \
-      --name "$blob_name" \
-      --file "$file" \
-      --overwrite \
-      --auth-mode login
+    # Backups taken before the status endpoint was removed may still hold this;
+    # nothing reads it any more, so don't resurrect it.
+    if [ "$blob_name" = "global-components-deployment.json" ]; then
+      echo "  Skipping $blob_name (retired)"
+      continue
+    fi
+    for blob in $(blob_names "$blob_name"); do
+      echo "  Uploading $blob_name -> $blob..."
+      az storage blob upload \
+        --account-name "$AZURE_STORAGE_ACCOUNT" \
+        --container-name "$AZURE_STORAGE_CONTAINER" \
+        --name "$blob" \
+        --file "$file" \
+        --overwrite \
+        --auth-mode login
+    done
   fi
 done
 
@@ -167,25 +191,9 @@ az webapp restart \
   --resource-group "$AZURE_RESOURCE_GROUP"
 echo -e "${GREEN}Restart initiated${NC}"
 
-# Get expected version from backup deployment.json
-EXPECTED_VERSION=$(grep -o '"version":[ ]*[0-9]*' "$SELECTED_BACKUP/global-components-deployment.json" 2>/dev/null | grep -o '[0-9]*' || echo "unknown")
-
-# Poll for version change
-echo -e "\n${YELLOW}Waiting for rollback to complete...${NC}"
-echo "Expected version: $EXPECTED_VERSION"
-MAX_ATTEMPTS=60
-ATTEMPT=1
-while [ $ATTEMPT -le $MAX_ATTEMPTS ]; do
-  LIVE_VERSION=$(curl -s "$STATUS_ENDPOINT" 2>/dev/null | grep -o '"version":[ ]*[0-9]*' | grep -o '[0-9]*' || echo "0")
-  if [ "$LIVE_VERSION" != "$CURRENT_VERSION" ]; then
-    echo -e "\n${GREEN}Rollback complete! Version is now: $LIVE_VERSION${NC}"
-    exit 0
-  fi
-  echo -n "."
-  sleep 2
-  ((ATTEMPT++))
-done
-
-echo -e "\n${YELLOW}Timeout waiting for version change.${NC}"
-echo "The rollback may still be in progress. Check the web app."
-exit 1
+# No version endpoint to poll any more — verify by hitting a route the vnext
+# conf owns, e.g. curl -sI https://<proxy-host>/global-components/swagger.json
+echo -e "\n${GREEN}Rollback complete.${NC}"
+echo "The web app is restarting; give it a few seconds, then verify a vnext route"
+echo "responds. Check the web app logs if not."
+exit 0

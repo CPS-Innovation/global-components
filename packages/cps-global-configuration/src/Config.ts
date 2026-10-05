@@ -238,7 +238,7 @@ export const configBaseSchema = z.object({
   // acquired with those would be rejected by the presence API the moment it starts
   // validating. The presence API is the SAME app registration the SPA signs in
   // with (client and resource in one), which is why no consent grant is involved —
-  // see _PRESENCE_API_SCOPE in global-components.cms-auth-v2.ts, where the legacy
+  // see _PRESENCE_API_SCOPE in global-components.cms-auth-presence.ts, where the legacy
   // clients request exactly the same scope. Empty means send no token at all.
   CASE_LOCKING_SCOPES: z.array(z.string()).optional(),
   // Where the interruption's secondary action sends someone: the case's details
@@ -283,6 +283,10 @@ export const configBaseSchema = z.object({
   // read it. Blank/absent turns the feature off — no write happens. Tactical
   // bridge (FCT2-21199); the objectId is the same one the AuthHint carries.
   OS_ENTRA_ID_STORAGE_KEY: z.string().optional(),
+  // FCT2-16735 temporary feature gate: on a fresh CMS token, the OS handover
+  // clears the user's stale tasklist filters. Was keyed off the OS hostname
+  // (cps-tst*, i.e. test and uat); a config flag survives OS changing domain.
+  OS_RESET_TASKLIST_FILTERS_ON_FRESH_TOKEN: z.boolean().optional(),
   FEATURE_FLAG_MENU_USERS: featureFlagUsersSchema.optional(),
   FEATURE_FLAG_USE_MSAL_FULL_REDIRECT_USERS: featureFlagUsersSchema.optional(),
   FEATURE_FLAG_CASE_LOCKING_USERS: featureFlagUsersSchema.optional(),

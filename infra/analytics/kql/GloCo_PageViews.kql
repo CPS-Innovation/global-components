@@ -2,27 +2,44 @@ AppPageViews
 | project TimeGenerated, OperationId, Id, Url, SessionId, UserId, DurationMs, parsed = parse_json(Properties)
 | extend Environment = tostring(parsed.Environment)
 | where Environment == "prod"
-| where Url !startswith "https://cps.outsystemsenterprise.com/WorkManagementApp/Redirect"
+// OutSystems is moving from cps.outsystemsenterprise.com to the oapps proxy
+// (oapps.int.cps.gov.uk). History stays on the old host, so both are folded into one
+// "os:" prefix here and every OS filter/classification below matches either. Url
+// itself is left untouched. (?i) because startswith, which this replaces, is
+// case-insensitive.
+| extend OsUrl = replace_regex(Url, @"(?i)^https://(cps\.outsystemsenterprise\.com|oapps\.int\.cps\.gov\.uk)/", "os:/")
+| where OsUrl !startswith "os:/WorkManagementApp/Redirect"
 | where Url !startswith "https://polaris.cps.gov.uk/global-components/prod/preview/index.html"
 | where Url !in ("https://polaris.cps.gov.uk/polaris-ui", "https://polaris.cps.gov.uk/polaris-ui/")
 | where Url !startswith "https://polaris.cps.gov.uk/polaris-ui/go"
 | where Url !startswith "https://polaris.cps.gov.uk/polaris-ui#code"
-| where Url !startswith "https://cps.outsystemsenterprise.com/CaseReview/RedirectCW"
-| where Url !startswith "https://cps.outsystemsenterprise.com/CaseReview/LoginPage"
+| where OsUrl !startswith "os:/CaseReview/RedirectCW"
+| where OsUrl !startswith "os:/CaseReview/LoginPage"
 | where Url !startswith "https://housekeeping.cps.gov.uk/init" 
 // Nested double-encoded objects — parse_json() again on each
 | extend Auth    = parse_json(tostring(parsed.Auth))
 | extend App = case(
+    // Pages we serve ourselves from the polaris host (e.g. accessibility) — not the Casework app.
+    Url startswith "https://polaris.cps.gov.uk/global-components/",            "Global Components",
+    // Materials UI is a rework of the Casework app, but counted as its own App so its take-up is visible.
+    Url startswith "https://polaris.cps.gov.uk/materials-ui",                  "Materials app",
     Url startswith "https://polaris.",                                         "Casework app",
     Url startswith "https://housekeeping",                                    "Housekeeping",
-    Url startswith "https://cps.outsystemsenterprise.com/CaseReview",         "Case review",
-    Url startswith "https://cps.outsystemsenterprise.com/WorkManagementApp",  "Work management app",
+    OsUrl startswith "os:/CaseReview",                                        "Case review",
+    OsUrl startswith "os:/WorkManagementApp",                                 "Work management app",
     // startswith is case-insensitive. Home moved module Casework_Blocks -> Casework
     // (FCT2-19128); both spellings stay live while the old URL is still linked-to.
-    Url startswith "https://cps.outsystemsenterprise.com/casework_blocks"
- or Url startswith "https://cps.outsystemsenterprise.com/casework/",         "Home",
+    OsUrl startswith "os:/casework_blocks"
+ or OsUrl startswith "os:/casework/",                                        "Home",
     "Unknown")
-| extend Feature = iff(App in ("Case review", "Work management app", "Casework app"), tostring(split(parse_url(Url)["Path"], "/")[2]), App)
+// App_Page: the page within the Casework / Materials app, with the app root, URN and caseId stripped
+// and any remaining ids as {id} (e.g. "materials", "pcd-request/{id}", "case-details", "(root)").
+// Blank for other apps.
+| extend PagePath = iff(App in ("Casework app", "Materials app"), tostring(parse_url(Url)["Path"]), "")
+| extend PagePath = replace_regex(PagePath, @"^/(?:materials-ui|polaris-ui)/?", "")
+| extend PagePath = replace_regex(PagePath, @"^(case-details/)?[^/]+/(?:\d/)?\d{4,}", @"\1")
+| extend PagePath = trim("/", replace_regex(PagePath, @"[^/]*\d{2,}[^/]*", "{id}"))
+| extend App_Page = case(App !in ("Casework app", "Materials app"), "", isempty(PagePath), "(root)", PagePath)
 | extend Build   = parse_json(tostring(parsed.Build))
 | extend Context = parse_json(tostring(parsed.Context))
 | extend CorrelationIds = parse_json(tostring(parsed.CorrelationIds))
@@ -86,4 +103,4 @@ AppPageViews
          Auth_Department = iif(isnotempty(Auth_Department), Auth_Department, Department),
          Auth_JobTitle   = iif(isnotempty(Auth_JobTitle), Auth_JobTitle, JobTitle)
 | project-away Email, UserArea, UserAreaOrCPSD, Department, Region, JobTitle
-| project-away parsed, Build, Auth, Context, CorrelationIds, User
+| project-away parsed, Build, Auth, Context, CorrelationIds, User, OsUrl, PagePath

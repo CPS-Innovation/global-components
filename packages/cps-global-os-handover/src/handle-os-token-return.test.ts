@@ -55,22 +55,22 @@ describe("handleOsTokenReturn", () => {
     expect(win.location.replace).not.toHaveBeenCalled();
   });
 
-  test("calls resetTasklistFilters when new token differs from stored AND host is cps-tst", async () => {
+  test("calls resetTasklistFilters when new token differs from stored AND the reset is enabled", async () => {
     localStorage[keys.WMA_JSON] = JSON.stringify({ Cookies: "x", Token: "old-token", ExpiryTime: "x" });
 
     const win = makeWindow(
       "https://cps-tst.outsystemsenterprise.com/AuthHandover/index.html?r=https%3A%2F%2Fexample.com%2FWorkManagementApp%2Fpage&stage=os-token-return&cc=test-cookies&cms-modern-token=fresh-token",
     );
 
-    await handleOsTokenReturn(win, { cmsAuthStorageKeys: keys });
+    await handleOsTokenReturn(win, { cmsAuthStorageKeys: keys, resetTasklistFiltersOnFreshToken: true });
 
     expect(mockResetTasklistFilters).toHaveBeenCalledTimes(1);
     expect(mockResetTasklistFilters).toHaveBeenCalledWith(win);
   });
 
-  test("does NOT call resetTasklistFilters when hostname is not cps-tst", async () => {
+  test("does NOT call resetTasklistFilters when the reset is not enabled", async () => {
     const win = makeWindow(
-      "https://cps-dev.outsystemsenterprise.com/AuthHandover/index.html?r=https%3A%2F%2Fexample.com%2FWorkManagementApp%2Fpage&stage=os-token-return&cc=test-cookies&cms-modern-token=fresh-token",
+      "https://cps-tst.outsystemsenterprise.com/AuthHandover/index.html?r=https%3A%2F%2Fexample.com%2FWorkManagementApp%2Fpage&stage=os-token-return&cc=test-cookies&cms-modern-token=fresh-token",
     );
 
     await handleOsTokenReturn(win, { cmsAuthStorageKeys: keys });
@@ -85,7 +85,7 @@ describe("handleOsTokenReturn", () => {
       "https://cps-tst.outsystemsenterprise.com/AuthHandover/index.html?r=https%3A%2F%2Fexample.com%2FWorkManagementApp%2Fpage&stage=os-token-return&cc=test-cookies&cms-modern-token=same-token",
     );
 
-    await handleOsTokenReturn(win, { cmsAuthStorageKeys: keys });
+    await handleOsTokenReturn(win, { cmsAuthStorageKeys: keys, resetTasklistFiltersOnFreshToken: true });
 
     expect(mockResetTasklistFilters).not.toHaveBeenCalled();
   });

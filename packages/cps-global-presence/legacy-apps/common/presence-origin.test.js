@@ -57,7 +57,7 @@ h.test("falls back to the relative path — correct when page and endpoints shar
 
 h.test("works for any of our endpoints, not just the JSONP one", function () {
   var o = withScripts([{ src: "https://polaris-uat-notprod.cps.gov.uk/global-components/uat/cms-auth-v2-client.js" }]);
-  h.assertEqual(o.resolve("cms-auth-v2-client.js", "/polaris-v2"), "https://polaris-uat-notprod.cps.gov.uk/polaris-v2");
+  h.assertEqual(o.resolve("cms-auth-v2-client.js", "/polaris-presence"), "https://polaris-uat-notprod.cps.gov.uk/polaris-presence");
 });
 
 h.describe("CCPOrigin.sibling");
