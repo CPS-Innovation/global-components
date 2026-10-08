@@ -29,7 +29,8 @@
 
 const UNTIL_PREFIX = "until";
 const UNTIL_KEY_REGEX = /^until (.+)$/;
-const ISO_WITH_OFFSET_REGEX = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2}(?:\.\d{1,3})?)?(?:Z|[+-]\d{2}:\d{2})$/;
+const ISO_WITH_OFFSET_REGEX =
+  /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2}(?:\.\d{1,3})?)?(?:Z|[+-]\d{2}:\d{2})$/;
 
 // Settings read straight from the raw JSON by tooling that never resolves timed
 // values, so a wrapper on them would be seen as an object rather than a value:
@@ -60,22 +61,33 @@ type TimedValue = {
   steps: TimedStep[];
 };
 
-const isPlainObject = (candidate: unknown): candidate is Record<string, unknown> =>
-  typeof candidate === "object" && candidate !== null && !Array.isArray(candidate);
+const isPlainObject = (
+  candidate: unknown,
+): candidate is Record<string, unknown> =>
+  typeof candidate === "object" &&
+  candidate !== null &&
+  !Array.isArray(candidate);
 
 // Any "until…" key marks the object as a timed value, so a malformed one
 // (missing "value", bad moment) is an error rather than silently passing through
 // as a plain object.
-const isTimedValue = (candidate: unknown): candidate is Record<string, unknown> =>
-  isPlainObject(candidate) && Object.keys(candidate).some(key => key.startsWith(UNTIL_PREFIX));
+const isTimedValue = (
+  candidate: unknown,
+): candidate is Record<string, unknown> =>
+  isPlainObject(candidate) &&
+  Object.keys(candidate).some((key) => key.startsWith(UNTIL_PREFIX));
 
 const parseStep = (setting: string, key: string, value: unknown): TimedStep => {
   const momentText = UNTIL_KEY_REGEX.exec(key)?.[1];
   if (!momentText) {
-    throw new Error(`${setting}: unexpected key "${key}" in timed value — only "value" and "until <moment>" keys are allowed`);
+    throw new Error(
+      `${setting}: unexpected key "${key}" in timed value — only "value" and "until <moment>" keys are allowed`,
+    );
   }
   if (!ISO_WITH_OFFSET_REGEX.test(momentText)) {
-    throw new Error(`${setting}: "${key}" must be an ISO date-time with an explicit offset, e.g. "until 2026-10-08T09:00:00+01:00"`);
+    throw new Error(
+      `${setting}: "${key}" must be an ISO date-time with an explicit offset, e.g. "until 2026-10-08T09:00:00+01:00"`,
+    );
   }
   const moment = new Date(momentText);
   if (Number.isNaN(moment.getTime())) {
@@ -84,9 +96,14 @@ const parseStep = (setting: string, key: string, value: unknown): TimedStep => {
   return { moment, momentText, value };
 };
 
-const parseTimedValue = (setting: string, timedValue: Record<string, unknown>): TimedValue => {
+const parseTimedValue = (
+  setting: string,
+  timedValue: Record<string, unknown>,
+): TimedValue => {
   if (!("value" in timedValue)) {
-    throw new Error(`${setting}: timed value has "until" keys but no "value" — "value" is the setting after the last switch`);
+    throw new Error(
+      `${setting}: timed value has "until" keys but no "value" — "value" is the setting after the last switch`,
+    );
   }
 
   const { value, ...untilEntries } = timedValue;
@@ -95,8 +112,13 @@ const parseTimedValue = (setting: string, timedValue: Record<string, unknown>): 
     .sort((a, b) => a.moment.getTime() - b.moment.getTime());
 
   steps.forEach((step, index) => {
-    if (index > 0 && steps[index - 1].moment.getTime() === step.moment.getTime()) {
-      throw new Error(`${setting}: "until ${steps[index - 1].momentText}" and "until ${step.momentText}" are the same moment`);
+    if (
+      index > 0 &&
+      steps[index - 1].moment.getTime() === step.moment.getTime()
+    ) {
+      throw new Error(
+        `${setting}: "until ${steps[index - 1].momentText}" and "until ${step.momentText}" are the same moment`,
+      );
     }
   });
 
@@ -104,7 +126,9 @@ const parseTimedValue = (setting: string, timedValue: Record<string, unknown>): 
 };
 
 const valueAt = ({ value, steps }: TimedValue, now: Date): unknown => {
-  const currentStep = steps.find(step => now.getTime() < step.moment.getTime());
+  const currentStep = steps.find(
+    (step) => now.getTime() < step.moment.getTime(),
+  );
   if (currentStep) {
     return currentStep.value;
   }
@@ -117,7 +141,10 @@ const timedSettings = (json: unknown): [string, TimedValue][] => {
   }
   return Object.entries(json)
     .filter(([, setting]) => isTimedValue(setting))
-    .map(([key, setting]) => [key, parseTimedValue(key, setting as Record<string, unknown>)]);
+    .map(([key, setting]) => [
+      key,
+      parseTimedValue(key, setting as Record<string, unknown>),
+    ]);
 };
 
 // Replaces every top-level timed value with the value in force at `now`. Throws
@@ -128,7 +155,12 @@ export const resolveTimedValues = (json: unknown, now: Date): unknown => {
     return json;
   }
 
-  const resolved = Object.fromEntries(timedSettings(json).map(([key, timedValue]) => [key, valueAt(timedValue, now)]));
+  const resolved = Object.fromEntries(
+    timedSettings(json).map(([key, timedValue]) => [
+      key,
+      valueAt(timedValue, now),
+    ]),
+  );
 
   return Object.fromEntries(
     Object.entries({ ...json, ...resolved }) //
@@ -139,20 +171,37 @@ export const resolveTimedValues = (json: unknown, now: Date): unknown => {
 // Every distinct switch moment in the config, ascending — the points at which
 // the resolved config changes, and so the points worth validating it at.
 export const getTimedValueMoments = (json: unknown): Date[] =>
-  [...new Set(timedSettings(json).flatMap(([, { steps }]) => steps.map(step => step.moment.getTime())))]
+  [
+    ...new Set(
+      timedSettings(json).flatMap(([, { steps }]) =>
+        steps.map((step) => step.moment.getTime()),
+      ),
+    ),
+  ]
     .sort((a, b) => a - b)
-    .map(time => new Date(time));
+    .map((time) => new Date(time));
 
-const LONDON_OFFSET_FORMAT = new Intl.DateTimeFormat("en-GB", { timeZone: "Europe/London", timeZoneName: "longOffset" });
-const LONDON_WALL_TIME_FORMAT = new Intl.DateTimeFormat("en-GB", { timeZone: "Europe/London", dateStyle: "medium", timeStyle: "short" });
+const LONDON_OFFSET_FORMAT = new Intl.DateTimeFormat("en-GB", {
+  timeZone: "Europe/London",
+  timeZoneName: "longOffset",
+});
+const LONDON_WALL_TIME_FORMAT = new Intl.DateTimeFormat("en-GB", {
+  timeZone: "Europe/London",
+  dateStyle: "medium",
+  timeStyle: "short",
+});
 
 // "GMT" or "GMT+01:00" → "+00:00" / "+01:00"
 const londonOffsetAt = (moment: Date): string => {
-  const offsetName = LONDON_OFFSET_FORMAT.formatToParts(moment).find(part => part.type === "timeZoneName")?.value ?? "GMT";
+  const offsetName =
+    LONDON_OFFSET_FORMAT.formatToParts(moment).find(
+      (part) => part.type === "timeZoneName",
+    )?.value ?? "GMT";
   return offsetName === "GMT" ? "+00:00" : offsetName.slice("GMT".length);
 };
 
-const writtenOffset = (momentText: string): string => (momentText.endsWith("Z") ? "+00:00" : momentText.slice(-"+00:00".length));
+const writtenOffset = (momentText: string): string =>
+  momentText.endsWith("Z") ? "+00:00" : momentText.slice(-"+00:00".length);
 
 // Build-time checks, beyond the shape errors resolveTimedValues throws. Returns
 // human-readable problems; empty means fine. Uses Intl time zone data, so it is
@@ -167,11 +216,15 @@ export const findTimedValueProblems = (json: unknown, now: Date): string[] => {
 
   return settings.flatMap(([setting, { steps }]) => [
     ...(SETTINGS_THAT_CANNOT_BE_TIMED.includes(setting) //
-      ? [`${setting}: cannot be a timed value — it is read directly from the config file by build/deploy tooling`]
+      ? [
+          `${setting}: cannot be a timed value — it is read directly from the config file by build/deploy tooling`,
+        ]
       : []),
     ...steps.flatMap(({ moment, momentText }) => [
       ...(moment.getTime() <= now.getTime() //
-        ? [`${setting}: "until ${momentText}" is in the past — the switch has happened, so delete that key`]
+        ? [
+            `${setting}: "until ${momentText}" is in the past — the switch has happened, so delete that key`,
+          ]
         : []),
       ...(writtenOffset(momentText) !== londonOffsetAt(moment)
         ? [
