@@ -5,6 +5,7 @@
       "'self'",
       "https://graph.microsoft.com",
       "https://login.microsoftonline.com",
+      "https://polaris-dev-notprod.cps.gov.uk",
       "https://polaris-qa-notprod.cps.gov.uk",
       "https://polaris-uat-notprod.cps.gov.uk",
       "https://polaris.cps.gov.uk"
@@ -17,12 +18,13 @@
     ],
     "script-src": [
       "'unsafe-inline'",
+      "https://polaris-dev-notprod.cps.gov.uk",
       "https://polaris-qa-notprod.cps.gov.uk",
       "https://polaris-uat-notprod.cps.gov.uk",
       "https://polaris.cps.gov.uk"
     ]
   },
-  "policy": "connect-src 'self' https://graph.microsoft.com https://login.microsoftonline.com https://polaris-qa-notprod.cps.gov.uk https://polaris-uat-notprod.cps.gov.uk https://polaris.cps.gov.uk; form-action https://login.microsoftonline.com; frame-src https://login.microsoftonline.com; script-src 'unsafe-inline' https://polaris-qa-notprod.cps.gov.uk https://polaris-uat-notprod.cps.gov.uk https://polaris.cps.gov.uk;",
+  "policy": "connect-src 'self' https://graph.microsoft.com https://login.microsoftonline.com https://polaris-dev-notprod.cps.gov.uk https://polaris-qa-notprod.cps.gov.uk https://polaris-uat-notprod.cps.gov.uk https://polaris.cps.gov.uk; form-action https://login.microsoftonline.com; frame-src https://login.microsoftonline.com; script-src 'unsafe-inline' https://polaris-dev-notprod.cps.gov.uk https://polaris-qa-notprod.cps.gov.uk https://polaris-uat-notprod.cps.gov.uk https://polaris.cps.gov.uk;",
   "requirements": [
     {
       "directive": "connect-src",
@@ -38,6 +40,11 @@
       "directive": "connect-src",
       "value": "https://login.microsoftonline.com",
       "reason": "MSAL token endpoint during termination and silent acquisition."
+    },
+    {
+      "directive": "connect-src",
+      "value": "https://polaris-dev-notprod.cps.gov.uk",
+      "reason": "Sibling config.json, plus ../state/auth-hint and ../state/preview."
     },
     {
       "directive": "connect-src",
@@ -68,6 +75,11 @@
       "directive": "script-src",
       "value": "'unsafe-inline'",
       "reason": "The bootstrap <script> in auth-handover.html is inline. It does no eval / new Function / dynamic code construction — it only injects a remote <script> whose src is gated by both this policy and the runtime allowlist."
+    },
+    {
+      "directive": "script-src",
+      "value": "https://polaris-dev-notprod.cps.gov.uk",
+      "reason": "Supplies auth-handover.js via the ?src= parameter. Must stay in step with the runtime allowlist in the page's bootstrap script."
     },
     {
       "directive": "script-src",

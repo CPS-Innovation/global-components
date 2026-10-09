@@ -206,7 +206,7 @@ https://<host>/Casework_Patterns/auth-handover.html?src=<encoded src>&stage=ad-r
 
 `<encoded src>` for each environment:
 
-- dev: `https%3A%2F%2Fpolaris-qa-notprod.cps.gov.uk%2Fglobal-components%2Fdev%2Fauth-handover.js`
+- dev: `https%3A%2F%2Fpolaris-dev-notprod.cps.gov.uk%2Fglobal-components%2Fdev%2Fauth-handover.js`
 - test: `https%3A%2F%2Fpolaris-qa-notprod.cps.gov.uk%2Fglobal-components%2Ftest%2Fauth-handover.js`
 - uat: `https%3A%2F%2Fpolaris-uat-notprod.cps.gov.uk%2Fglobal-components%2Fuat%2Fauth-handover.js`
 - prod: `https%3A%2F%2Fpolaris.cps.gov.uk%2Fglobal-components%2Fprod%2Fauth-handover.js`

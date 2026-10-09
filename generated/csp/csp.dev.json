@@ -5,16 +5,17 @@
       "https://graph.microsoft.com",
       "https://js.monitor.azure.com",
       "https://login.microsoftonline.com",
+      "https://polaris-dev-notprod.cps.gov.uk",
       "https://polaris-qa-notprod.cps.gov.uk"
     ],
     "frame-src": [
       "https://login.microsoftonline.com"
     ],
     "script-src": [
-      "https://polaris-qa-notprod.cps.gov.uk"
+      "https://polaris-dev-notprod.cps.gov.uk"
     ]
   },
-  "policy": "connect-src https://graph.microsoft.com https://js.monitor.azure.com https://login.microsoftonline.com https://polaris-qa-notprod.cps.gov.uk; frame-src https://login.microsoftonline.com; script-src https://polaris-qa-notprod.cps.gov.uk;",
+  "policy": "connect-src https://graph.microsoft.com https://js.monitor.azure.com https://login.microsoftonline.com https://polaris-dev-notprod.cps.gov.uk https://polaris-qa-notprod.cps.gov.uk; frame-src https://login.microsoftonline.com; script-src https://polaris-dev-notprod.cps.gov.uk;",
   "requirements": [
     {
       "directive": "connect-src",
@@ -33,8 +34,13 @@
     },
     {
       "directive": "connect-src",
+      "value": "https://polaris-dev-notprod.cps.gov.uk",
+      "reason": "Serves the state endpoints the bundle fetches: ../state/* and ../cms-session-hint. ALSO: App Insights ingestion (derived from IngestionEndpoint in APP_INSIGHTS_CONNECTION_STRING)."
+    },
+    {
+      "directive": "connect-src",
       "value": "https://polaris-qa-notprod.cps.gov.uk",
-      "reason": "Serves the state endpoints the bundle fetches: ../state/* and ../cms-session-hint. ALSO: App Insights ingestion (derived from IngestionEndpoint in APP_INSIGHTS_CONNECTION_STRING). ALSO: Case-locking SignalR hub. Server-sent events and long-polling today — both connect-src. WebSockets is commented out in case-locking-presence.ts; re-enabling it needs the same host as wss:, which is why this is derived rather than pinned to a scheme."
+      "reason": "Case-locking SignalR hub. Server-sent events and long-polling today — both connect-src. WebSockets is commented out in case-locking-presence.ts; re-enabling it needs the same host as wss:, which is why this is derived rather than pinned to a scheme."
     },
     {
       "directive": "frame-src",
@@ -43,7 +49,7 @@
     },
     {
       "directive": "script-src",
-      "value": "https://polaris-qa-notprod.cps.gov.uk",
+      "value": "https://polaris-dev-notprod.cps.gov.uk",
       "reason": "Serves global-components.js (derived from OS_HANDOVER_URL's ?src= parameter)."
     }
   ]
