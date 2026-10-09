@@ -38,7 +38,7 @@
     "jsdom": "^30.0.0",
     "rollup": "^4.59.0",
     "ts-jest": "^29.4.0",
-    "typescript": "^5.0.0",
+    "typescript": "^7.0.0",
     "urlpattern-polyfill": "^10.1.0"
   }
 }
