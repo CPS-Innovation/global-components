@@ -46,15 +46,14 @@ describe("deriveCheckTargets", () => {
     ).toEqual([HANDOVER_URL]);
   });
 
-  // The checker follows OutSystems onto the oapps proxies without change.
-  it("probes OutSystems on an oapps proxy host", () => {
+  // oapps is a reverse proxy; the CSP comes from the OutSystems app behind it.
+  it("does not probe an oapps proxy host", () => {
     const oapps = deriveCheckTargets("test", {
       LINKS: [{ href: "https://oapps-qa-notprod.int.cps.gov.uk/WorkManagementApp/TaskList" }],
+      OS_HANDOVER_URL: "https://oapps-qa-notprod.int.cps.gov.uk/Casework_Patterns/auth-handover.html?src=x",
     } as never);
 
-    expect(oapps.map(t => t.url)).toEqual([
-      "https://oapps-qa-notprod.int.cps.gov.uk/WorkManagementApp",
-    ]);
+    expect(oapps).toEqual([]);
   });
 });
 
@@ -68,21 +67,17 @@ describe("against the committed OS host variants", () => {
     ),
   );
 
-  // QA's alternative hosts configure their CSP independently of cps-tst, so the
-  // live checker probes them as well.
-  it("probes the oapps and London hosts in QA", () => {
+  // The London tenant configures its CSP independently of cps-tst, so it is
+  // probed too. The oapps variant is a reverse proxy over cps-tst, so it is not.
+  it("probes the London tenant but not the oapps proxy in QA", () => {
     expect(new Set(targets.map(t => `${t.environment} ${new URL(t.url).hostname}`))).toEqual(
-      new Set([
-        "test.oapps oapps-qa-notprod.int.cps.gov.uk",
-        "test.cps-lon cpslon-tst.outsystemsenterprise.com",
-      ]),
+      new Set(["test.cps-lon cpslon-tst.outsystemsenterprise.com"]),
     );
   });
 
-  it("includes each variant's handover page", () => {
+  it("includes each probed variant's handover page", () => {
     expect(targets.filter(t => t.kind === "auth-handover").map(t => t.environment).sort()).toEqual([
       "test.cps-lon",
-      "test.oapps",
     ]);
   });
 });

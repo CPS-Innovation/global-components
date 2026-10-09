@@ -24,7 +24,7 @@ Required params:
 
 | Param      | Purpose                                                                                                                      |
 | ---------- | ---------------------------------------------------------------------------------------------------------------------------- |
-| `src`      | Polaris-hosted `auth-handover.js` bundle URL — same allowlisted host that the existing flows use                             |
+| `src`      | Polaris-hosted `auth-handover.js` bundle URL — same CSP-permitted host that the existing flows use                            |
 | `stage`    | Must be `ensure-ad`                                                                                                          |
 | `returnTo` | Same-origin URL the user should land at once AD auth is confirmed. Cross-origin values fall back to the handover origin root |
 
@@ -50,9 +50,10 @@ Required params:
 - `returnTo` is validated same-origin against `window.location.origin`. A
   cross-origin or unparseable value falls back to `${origin}/`, so the
   endpoint can never be used as an open redirector.
-- The `src=` host must be on the runtime allowlist embedded in
-  `auth-handover.html`. Off-allowlist values cause the bundle injection to
-  be skipped silently — the page does nothing.
+- `auth-handover.html` carries no CSP or host allowlist of its own. Which
+  `src=` hosts may load is decided by the host's CSP on that page (the
+  OutSystems policy, on the OutSystems domains); where no CSP applies, the
+  `src=` is not restricted.
 
 ## AAD app registration
 

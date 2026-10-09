@@ -46,5 +46,68 @@
       "value": "https://polaris-qa-notprod.cps.gov.uk",
       "reason": "Serves global-components.js (derived from OS_HANDOVER_URL's ?src= parameter)."
     }
-  ]
+  ],
+  "authHandover": {
+    "directives": {
+      "connect-src": [
+        "'self'",
+        "https://graph.microsoft.com",
+        "https://login.microsoftonline.com",
+        "https://polaris-qa-notprod.cps.gov.uk"
+      ],
+      "form-action": [
+        "https://login.microsoftonline.com"
+      ],
+      "frame-src": [
+        "https://login.microsoftonline.com"
+      ],
+      "script-src": [
+        "'unsafe-inline'",
+        "https://polaris-qa-notprod.cps.gov.uk"
+      ]
+    },
+    "policy": "connect-src 'self' https://graph.microsoft.com https://login.microsoftonline.com https://polaris-qa-notprod.cps.gov.uk; form-action https://login.microsoftonline.com; frame-src https://login.microsoftonline.com; script-src 'unsafe-inline' https://polaris-qa-notprod.cps.gov.uk;",
+    "requirements": [
+      {
+        "directive": "connect-src",
+        "value": "'self'",
+        "reason": "auth-handover.html is served from both the Polaris CDN and the OutSystems domains; 'self' covers same-origin fetches on whichever origin it was loaded from."
+      },
+      {
+        "directive": "connect-src",
+        "value": "https://graph.microsoft.com",
+        "reason": "getMe() fetches /v1.0/me?$select=department,jobTitle (cps-global-auth/src/get-me.ts). Soft-fails silently when blocked — the caller in handle-msal-termination passes no logError — so a missing entry costs the department/jobTitle slice with no error anywhere."
+      },
+      {
+        "directive": "connect-src",
+        "value": "https://login.microsoftonline.com",
+        "reason": "MSAL token endpoint during termination and silent acquisition."
+      },
+      {
+        "directive": "connect-src",
+        "value": "https://polaris-qa-notprod.cps.gov.uk",
+        "reason": "Sibling config.json, plus ../state/auth-hint and ../state/preview."
+      },
+      {
+        "directive": "form-action",
+        "value": "https://login.microsoftonline.com",
+        "reason": "MSAL's POST to AAD."
+      },
+      {
+        "directive": "frame-src",
+        "value": "https://login.microsoftonline.com",
+        "reason": "The ensure-ad stage calls acquireTokenSilent, which uses a hidden iframe."
+      },
+      {
+        "directive": "script-src",
+        "value": "'unsafe-inline'",
+        "reason": "The bootstrap <script> in auth-handover.html is inline. It does no eval / new Function / dynamic code construction — it only injects a remote <script> whose src is gated by this policy."
+      },
+      {
+        "directive": "script-src",
+        "value": "https://polaris-qa-notprod.cps.gov.uk",
+        "reason": "Supplies auth-handover.js via the ?src= parameter. This entry is the only gate on which hosts may: the page's bootstrap script loads whatever ?src= names."
+      }
+    ]
+  }
 }

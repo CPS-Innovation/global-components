@@ -161,15 +161,12 @@ const deriveHostAppRequirements = (
 };
 
 /**
- * The complete policy for auth-handover.html, for ONE environment.
+ * What a host policy must allow on auth-handover.html, for ONE environment.
  *
  * Narrower than the host app's: that page's bundle pulls in cps-global-auth,
  * cps-global-configuration and cps-global-os-handover only. No App Insights, so
  * no ingestion host and no cfgSync host; no case-locking, so no hub host. The
  * "beacon" its comments mention is not implemented and performs no fetch.
- *
- * Callers wanting the policy to actually put in the file want
- * deriveHandoverPagePolicy, which unions this across every environment.
  */
 const deriveHandoverPageRequirements = (
   config: CspRelevantConfig,
@@ -181,8 +178,8 @@ const deriveHandoverPageRequirements = (
     requirement(
       "script-src",
       bundle,
-      "Supplies auth-handover.js via the ?src= parameter. Must stay in step with the runtime " +
-        "allowlist in the page's bootstrap script.",
+      "Supplies auth-handover.js via the ?src= parameter. This entry is the only gate on which " +
+        "hosts may: the page's bootstrap script loads whatever ?src= names.",
     ),
     requirement(
       "connect-src",
@@ -212,20 +209,6 @@ export const deriveCspRequirements = (
   hostApp: deriveHostAppRequirements(config),
   handoverPage: deriveHandoverPageRequirements(config),
 });
-
-/**
- * The policy for auth-handover.html, unioned across every environment.
- *
- * Deliberately NOT per-environment. That file is deployed two ways: to the
- * Polaris CDN by CI, and to the OutSystems domains by hand. Per-environment
- * variants would mean four near-identical files a human has to match to the
- * right tenant, and getting it wrong breaks auth quietly. One file that works
- * wherever it lands is worth the extra origins in script-src.
- */
-export const deriveHandoverPagePolicy = (
-  configs: CspRelevantConfig[],
-): CspRequirement[] =>
-  mergeCspRequirements(configs.flatMap(deriveHandoverPageRequirements));
 
 export const groupByDirective = (
   requirements: CspRequirement[],

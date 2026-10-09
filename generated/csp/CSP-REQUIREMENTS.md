@@ -28,6 +28,27 @@ Regenerate with `pnpm --filter cps-global-configuration generate:csp`.
 connect-src https://graph.microsoft.com https://js.monitor.azure.com https://login.microsoftonline.com https://polaris-dev-notprod.cps.gov.uk https://polaris-qa-notprod.cps.gov.uk; frame-src https://login.microsoftonline.com; script-src https://polaris-dev-notprod.cps.gov.uk;
 ```
 
+### `dev`: `/Casework_Patterns/auth-handover.html`
+
+The handover page carries no CSP of its own. If the host serves one on
+this page, it must allow the following -- including the keyword sources the
+page's inline bootstrap script and same-origin fetches need.
+
+| Directive | Source | Why |
+| --- | --- | --- |
+| `connect-src` | `'self'` | auth-handover.html is served from both the Polaris CDN and the OutSystems domains; 'self' covers same-origin fetches on whichever origin it was loaded from. |
+| `connect-src` | `https://graph.microsoft.com` | getMe() fetches /v1.0/me?$select=department,jobTitle (cps-global-auth/src/get-me.ts). Soft-fails silently when blocked — the caller in handle-msal-termination passes no logError — so a missing entry costs the department/jobTitle slice with no error anywhere. |
+| `connect-src` | `https://login.microsoftonline.com` | MSAL token endpoint during termination and silent acquisition. |
+| `connect-src` | `https://polaris-dev-notprod.cps.gov.uk` | Sibling config.json, plus ../state/auth-hint and ../state/preview. |
+| `form-action` | `https://login.microsoftonline.com` | MSAL's POST to AAD. |
+| `frame-src` | `https://login.microsoftonline.com` | The ensure-ad stage calls acquireTokenSilent, which uses a hidden iframe. |
+| `script-src` | `'unsafe-inline'` | The bootstrap <script> in auth-handover.html is inline. It does no eval / new Function / dynamic code construction — it only injects a remote <script> whose src is gated by this policy. |
+| `script-src` | `https://polaris-dev-notprod.cps.gov.uk` | Supplies auth-handover.js via the ?src= parameter. This entry is the only gate on which hosts may: the page's bootstrap script loads whatever ?src= names. |
+
+```
+connect-src 'self' https://graph.microsoft.com https://login.microsoftonline.com https://polaris-dev-notprod.cps.gov.uk; form-action https://login.microsoftonline.com; frame-src https://login.microsoftonline.com; script-src 'unsafe-inline' https://polaris-dev-notprod.cps.gov.uk;
+```
+
 ## `test`
 
 | Directive | Source | Why |
@@ -41,6 +62,27 @@ connect-src https://graph.microsoft.com https://js.monitor.azure.com https://log
 
 ```
 connect-src https://graph.microsoft.com https://js.monitor.azure.com https://login.microsoftonline.com https://polaris-qa-notprod.cps.gov.uk; frame-src https://login.microsoftonline.com; script-src https://polaris-qa-notprod.cps.gov.uk;
+```
+
+### `test`: `/Casework_Patterns/auth-handover.html`
+
+The handover page carries no CSP of its own. If the host serves one on
+this page, it must allow the following -- including the keyword sources the
+page's inline bootstrap script and same-origin fetches need.
+
+| Directive | Source | Why |
+| --- | --- | --- |
+| `connect-src` | `'self'` | auth-handover.html is served from both the Polaris CDN and the OutSystems domains; 'self' covers same-origin fetches on whichever origin it was loaded from. |
+| `connect-src` | `https://graph.microsoft.com` | getMe() fetches /v1.0/me?$select=department,jobTitle (cps-global-auth/src/get-me.ts). Soft-fails silently when blocked — the caller in handle-msal-termination passes no logError — so a missing entry costs the department/jobTitle slice with no error anywhere. |
+| `connect-src` | `https://login.microsoftonline.com` | MSAL token endpoint during termination and silent acquisition. |
+| `connect-src` | `https://polaris-qa-notprod.cps.gov.uk` | Sibling config.json, plus ../state/auth-hint and ../state/preview. |
+| `form-action` | `https://login.microsoftonline.com` | MSAL's POST to AAD. |
+| `frame-src` | `https://login.microsoftonline.com` | The ensure-ad stage calls acquireTokenSilent, which uses a hidden iframe. |
+| `script-src` | `'unsafe-inline'` | The bootstrap <script> in auth-handover.html is inline. It does no eval / new Function / dynamic code construction — it only injects a remote <script> whose src is gated by this policy. |
+| `script-src` | `https://polaris-qa-notprod.cps.gov.uk` | Supplies auth-handover.js via the ?src= parameter. This entry is the only gate on which hosts may: the page's bootstrap script loads whatever ?src= names. |
+
+```
+connect-src 'self' https://graph.microsoft.com https://login.microsoftonline.com https://polaris-qa-notprod.cps.gov.uk; form-action https://login.microsoftonline.com; frame-src https://login.microsoftonline.com; script-src 'unsafe-inline' https://polaris-qa-notprod.cps.gov.uk;
 ```
 
 ## `uat`
@@ -58,6 +100,27 @@ connect-src https://graph.microsoft.com https://js.monitor.azure.com https://log
 connect-src https://graph.microsoft.com https://js.monitor.azure.com https://login.microsoftonline.com https://polaris-uat-notprod.cps.gov.uk; frame-src https://login.microsoftonline.com; script-src https://polaris-uat-notprod.cps.gov.uk;
 ```
 
+### `uat`: `/Casework_Patterns/auth-handover.html`
+
+The handover page carries no CSP of its own. If the host serves one on
+this page, it must allow the following -- including the keyword sources the
+page's inline bootstrap script and same-origin fetches need.
+
+| Directive | Source | Why |
+| --- | --- | --- |
+| `connect-src` | `'self'` | auth-handover.html is served from both the Polaris CDN and the OutSystems domains; 'self' covers same-origin fetches on whichever origin it was loaded from. |
+| `connect-src` | `https://graph.microsoft.com` | getMe() fetches /v1.0/me?$select=department,jobTitle (cps-global-auth/src/get-me.ts). Soft-fails silently when blocked — the caller in handle-msal-termination passes no logError — so a missing entry costs the department/jobTitle slice with no error anywhere. |
+| `connect-src` | `https://login.microsoftonline.com` | MSAL token endpoint during termination and silent acquisition. |
+| `connect-src` | `https://polaris-uat-notprod.cps.gov.uk` | Sibling config.json, plus ../state/auth-hint and ../state/preview. |
+| `form-action` | `https://login.microsoftonline.com` | MSAL's POST to AAD. |
+| `frame-src` | `https://login.microsoftonline.com` | The ensure-ad stage calls acquireTokenSilent, which uses a hidden iframe. |
+| `script-src` | `'unsafe-inline'` | The bootstrap <script> in auth-handover.html is inline. It does no eval / new Function / dynamic code construction — it only injects a remote <script> whose src is gated by this policy. |
+| `script-src` | `https://polaris-uat-notprod.cps.gov.uk` | Supplies auth-handover.js via the ?src= parameter. This entry is the only gate on which hosts may: the page's bootstrap script loads whatever ?src= names. |
+
+```
+connect-src 'self' https://graph.microsoft.com https://login.microsoftonline.com https://polaris-uat-notprod.cps.gov.uk; form-action https://login.microsoftonline.com; frame-src https://login.microsoftonline.com; script-src 'unsafe-inline' https://polaris-uat-notprod.cps.gov.uk;
+```
+
 ## `prod`
 
 | Directive | Source | Why |
@@ -73,33 +136,23 @@ connect-src https://graph.microsoft.com https://js.monitor.azure.com https://log
 connect-src https://graph.microsoft.com https://js.monitor.azure.com https://login.microsoftonline.com https://polaris.cps.gov.uk; frame-src https://login.microsoftonline.com; script-src https://polaris.cps.gov.uk;
 ```
 
-## `auth-handover.html`
+### `prod`: `/Casework_Patterns/auth-handover.html`
 
-The complete meta CSP for the handover page. Unioned across every
-environment rather than generated per-environment, because that one file is
-uploaded to all the OutSystems tenants by hand and a single file that works
-wherever it lands beats four variants someone has to match up correctly.
-
-Asserted against the shipped file by
-`packages/cps-global-handover/src/auth-handover-csp.spec.ts`.
+The handover page carries no CSP of its own. If the host serves one on
+this page, it must allow the following -- including the keyword sources the
+page's inline bootstrap script and same-origin fetches need.
 
 | Directive | Source | Why |
 | --- | --- | --- |
 | `connect-src` | `'self'` | auth-handover.html is served from both the Polaris CDN and the OutSystems domains; 'self' covers same-origin fetches on whichever origin it was loaded from. |
 | `connect-src` | `https://graph.microsoft.com` | getMe() fetches /v1.0/me?$select=department,jobTitle (cps-global-auth/src/get-me.ts). Soft-fails silently when blocked — the caller in handle-msal-termination passes no logError — so a missing entry costs the department/jobTitle slice with no error anywhere. |
 | `connect-src` | `https://login.microsoftonline.com` | MSAL token endpoint during termination and silent acquisition. |
-| `connect-src` | `https://polaris-dev-notprod.cps.gov.uk` | Sibling config.json, plus ../state/auth-hint and ../state/preview. |
-| `connect-src` | `https://polaris-qa-notprod.cps.gov.uk` | Sibling config.json, plus ../state/auth-hint and ../state/preview. |
-| `connect-src` | `https://polaris-uat-notprod.cps.gov.uk` | Sibling config.json, plus ../state/auth-hint and ../state/preview. |
 | `connect-src` | `https://polaris.cps.gov.uk` | Sibling config.json, plus ../state/auth-hint and ../state/preview. |
 | `form-action` | `https://login.microsoftonline.com` | MSAL's POST to AAD. |
 | `frame-src` | `https://login.microsoftonline.com` | The ensure-ad stage calls acquireTokenSilent, which uses a hidden iframe. |
-| `script-src` | `'unsafe-inline'` | The bootstrap <script> in auth-handover.html is inline. It does no eval / new Function / dynamic code construction — it only injects a remote <script> whose src is gated by both this policy and the runtime allowlist. |
-| `script-src` | `https://polaris-dev-notprod.cps.gov.uk` | Supplies auth-handover.js via the ?src= parameter. Must stay in step with the runtime allowlist in the page's bootstrap script. |
-| `script-src` | `https://polaris-qa-notprod.cps.gov.uk` | Supplies auth-handover.js via the ?src= parameter. Must stay in step with the runtime allowlist in the page's bootstrap script. |
-| `script-src` | `https://polaris-uat-notprod.cps.gov.uk` | Supplies auth-handover.js via the ?src= parameter. Must stay in step with the runtime allowlist in the page's bootstrap script. |
-| `script-src` | `https://polaris.cps.gov.uk` | Supplies auth-handover.js via the ?src= parameter. Must stay in step with the runtime allowlist in the page's bootstrap script. |
+| `script-src` | `'unsafe-inline'` | The bootstrap <script> in auth-handover.html is inline. It does no eval / new Function / dynamic code construction — it only injects a remote <script> whose src is gated by this policy. |
+| `script-src` | `https://polaris.cps.gov.uk` | Supplies auth-handover.js via the ?src= parameter. This entry is the only gate on which hosts may: the page's bootstrap script loads whatever ?src= names. |
 
 ```
-connect-src 'self' https://graph.microsoft.com https://login.microsoftonline.com https://polaris-dev-notprod.cps.gov.uk https://polaris-qa-notprod.cps.gov.uk https://polaris-uat-notprod.cps.gov.uk https://polaris.cps.gov.uk; form-action https://login.microsoftonline.com; frame-src https://login.microsoftonline.com; script-src 'unsafe-inline' https://polaris-dev-notprod.cps.gov.uk https://polaris-qa-notprod.cps.gov.uk https://polaris-uat-notprod.cps.gov.uk https://polaris.cps.gov.uk;
+connect-src 'self' https://graph.microsoft.com https://login.microsoftonline.com https://polaris.cps.gov.uk; form-action https://login.microsoftonline.com; frame-src https://login.microsoftonline.com; script-src 'unsafe-inline' https://polaris.cps.gov.uk;
 ```
