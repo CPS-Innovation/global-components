@@ -234,7 +234,7 @@ importers:
     devDependencies:
       '@dotenvx/dotenvx':
         specifier: ^2.0.0
-        version: 2.30.0
+        version: 2.32.4
       '@stencil/core':
         specifier: ^4.36.2
         version: 4.45.1
@@ -778,8 +778,8 @@ packages:
     resolution: {integrity: sha512-OoKoR0f76dCY666JlcbhmVTs2drYj1GUXZTYTcbUgJjh9Nv41aFfZ21bPQTERm5+L5cBDo466NltB2lplS5GBw==}
     engines: {node: '>=20.19.0'}
 
-  '@dotenvx/dotenvx@2.30.0':
-    resolution: {integrity: sha512-+Rk8UhaD3WIREKJBPmH9HHUvKO+ggb4tJhzAoXiZNBjQv6nAiJmI953MQ6sC7msHjAvhRIFlyZT7Oe6bQPslAA==}
+  '@dotenvx/dotenvx@2.32.4':
+    resolution: {integrity: sha512-nJJqsTXaY+mEITPpDFxoPVEPPS4mw815BU/YFjzamnp3eIELOR/CzJeOc7Lt9Vv2ZHH3sYDMUlnaN34FClc/zA==}
     hasBin: true
 
   '@dotenvx/primitives@3.0.3':
@@ -5281,7 +5281,7 @@ snapshots:
 
   '@csstools/css-tokenizer@4.0.2': {}
 
-  '@dotenvx/dotenvx@2.30.0':
+  '@dotenvx/dotenvx@2.32.4':
     dependencies:
       '@dotenvx/primitives': 3.0.3
       '@dotenvx/tooling': 1.0.3
@@ -5824,7 +5824,7 @@ snapshots:
 
   '@jridgewell/gen-mapping@0.3.13':
     dependencies:
-      '@jridgewell/sourcemap-codec': 1.5.5
+      '@jridgewell/sourcemap-codec': 1.6.0
       '@jridgewell/trace-mapping': 0.3.31
 
   '@jridgewell/remapping@2.3.5':
@@ -5841,7 +5841,7 @@ snapshots:
   '@jridgewell/trace-mapping@0.3.31':
     dependencies:
       '@jridgewell/resolve-uri': 3.1.2
-      '@jridgewell/sourcemap-codec': 1.5.5
+      '@jridgewell/sourcemap-codec': 1.6.0
 
   '@jridgewell/trace-mapping@0.3.9':
     dependencies:
