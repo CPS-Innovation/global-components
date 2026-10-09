@@ -4,23 +4,20 @@
   - Polaris CDN (automatic via CI) at /global-components/{env}/auth-handover.html
   - OutSystems domains (manual upload by OS team) at /Casework_Patterns/auth-handover.html
 
-  Loads the env-specific auth-handover.js bundle from a whitelisted Polaris host
-  via the ?src= query parameter. That bundle dispatches by ?stage= to:
+  Loads the env-specific auth-handover.js bundle named by the ?src= query
+  parameter. That bundle dispatches by ?stage= to:
   - os-cookie-return / os-token-return (CMS → OS auth handover, OS variant only)
   - ad-redirect (host-initiated MSAL full-page redirect + AAD bounce-back)
 
   See the root README.md for the embedding flow and per-environment URLs, and
   EXTERNAL-ENTRY.md in this package for the ?stage= contract.
 
-  Defence in depth — both layers below must agree before any remote script runs:
-
-  1. Meta CSP restricts what the browser will fetch / connect to / submit to.
-     Note: meta CSP can only TIGHTEN any HTTP-header CSP the host server sets
-     for this path — it cannot loosen — so if MSAL endpoints aren't already
-     allowed at the header layer, login.microsoftonline.com calls will silently
-     fail.
-  2. Runtime hostname allowlist (the `allowed` Set below) is the human-readable
-     intent and runs first; CSP catches anything that bypasses or post-dates it.
+  No CSP of our own, and no host allowlist (both removed 2026-10-09). A meta
+  CSP can only tighten a host's header CSP, never loosen it, so ours read as
+  permission it could not grant. Where a CSP applies to this page it is the
+  host's, and so is the responsibility for what it allows; the requirements
+  are in generated/csp/CSP-REQUIREMENTS.md. Where none applies, ?src= is not
+  restricted.
 -->
 
 <head>
@@ -33,31 +30,7 @@
     from JS was too late to prevent the URL announcement. Do NOT remove: it looks
     inert but is load-bearing for screen-reader UX.
   -->
-  <title>Application handover page</title>
-
-  <!--
-    GENERATED-EQUIVALENT — do not hand-edit without updating the source of truth.
-    This policy is asserted against packages/cps-global-configuration/src/csp
-    (deriveHandoverPagePolicy) by src/auth-handover-csp.spec.ts. Change the
-    derivation, not this string; the test prints the expected policy on failure.
-
-    It is deliberately NOT per-environment: this file is uploaded to the
-    OutSystems domains by hand, so one file that works wherever it lands beats
-    four near-identical variants a human has to match to the right tenant.
-
-    script-src 'unsafe-inline' is acceptable here because the inline script
-    does no eval / new Function / dynamic code construction; it only injects a
-    remote <script> tag whose src is gated by both this CSP and the runtime
-    allowlist. connect-src covers auth-handover.js's fetch('config.json'), the
-    ../state/* lookups, MSAL token-endpoint XHRs, and the Graph /me call that
-    handleMsalTermination makes via getMe — that last one fails SILENTLY when
-    blocked (getMe soft-fails and its caller passes no logError), which is how
-    it went unnoticed until 2026-09-21. frame-src covers MSAL's hidden iframe
-    for acquireTokenSilent on the ensure-ad stage; form-action covers MSAL's
-    POST to AAD.
-  -->
-  <meta http-equiv="Content-Security-Policy"
-    content="connect-src 'self' https://graph.microsoft.com https://login.microsoftonline.com https://polaris-dev-notprod.cps.gov.uk https://polaris-qa-notprod.cps.gov.uk https://polaris-uat-notprod.cps.gov.uk https://polaris.cps.gov.uk; form-action https://login.microsoftonline.com; frame-src https://login.microsoftonline.com; script-src 'unsafe-inline' https://polaris-dev-notprod.cps.gov.uk https://polaris-qa-notprod.cps.gov.uk https://polaris-uat-notprod.cps.gov.uk https://polaris.cps.gov.uk;">
+  <title>Navigating</title>
 
   <script>
     // Bail in iframe contexts (MSAL ssoSilent loads us in a hidden iframe to
@@ -66,28 +39,16 @@
     // sibling config.json fetch keeps every silent SSO cheap). The in-bundle
     // iframe guard in handleMsalTermination is belt-and-braces.
     if (window.self === window.top) {
-      // Hosts permitted to supply auth-handover.js via ?src=. Must equal the
-      // host entries of script-src in the meta CSP above. That agreement is no
-      // longer a promise in a comment: auth-handover-csp.spec.ts asserts both
-      // lists against the same derived source of truth, so drifting either one
-      // fails the build.
-      const allowed = new Set(['polaris-dev-notprod.cps.gov.uk', 'polaris-qa-notprod.cps.gov.uk', 'polaris-uat-notprod.cps.gov.uk', 'polaris.cps.gov.uk']);
       const src = new URLSearchParams(window.location.search).get('src');
       if (src) {
-        try {
-          if (allowed.has(new URL(src).hostname)) {
-            // createElement + appendChild rather than document.write — same effect
-            // without the Chrome "[Violation] Avoid using document.write" warning.
-            // document.currentScript is still set during execution of dynamically-
-            // inserted classic scripts (per HTML spec), which auth-handover.js
-            // relies on to derive its origin for the sibling config.json fetch.
-            const s = document.createElement('script');
-            s.src = src;
-            document.head.appendChild(s);
-          }
-        } catch (_) {
-          // Invalid src URL — ignore.
-        }
+        // createElement + appendChild rather than document.write — same effect
+        // without the Chrome "[Violation] Avoid using document.write" warning.
+        // document.currentScript is still set during execution of dynamically-
+        // inserted classic scripts (per HTML spec), which auth-handover.js
+        // relies on to derive its origin for the sibling config.json fetch.
+        const s = document.createElement('script');
+        s.src = src;
+        document.head.appendChild(s);
       }
     }
   </script>

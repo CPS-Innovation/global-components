@@ -18,6 +18,9 @@ export type RequirementFinding = {
   // fallback chain was used, so a report can say so rather than implying the
   // specific directive was set.
   via?: string;
+  // For a `narrower` verdict: the source expression that grants too little
+  // (typically a path-restricted entry), so a report can say what to replace.
+  narrowSource?: string;
 };
 
 export type StaleFinding = {
@@ -53,9 +56,18 @@ const checkRequirement = (
 
   const perPolicy = policies.map(policy => {
     const { sources, via } = effectiveSources(policy, requirement.directive);
+    const verdict = matchSources(requirement.value, sources, pageOrigin);
     return {
-      verdict: matchSources(requirement.value, sources, pageOrigin),
+      verdict,
       via,
+      narrowSource:
+        verdict === "narrower"
+          ? (sources ?? []).find(
+              source =>
+                matchSources(requirement.value, [source], pageOrigin) ===
+                "narrower",
+            )
+          : undefined,
     };
   });
 
@@ -66,6 +78,7 @@ const checkRequirement = (
     requirement,
     verdict,
     ...(culprit?.via ? { via: culprit.via } : {}),
+    ...(culprit?.narrowSource ? { narrowSource: culprit.narrowSource } : {}),
   };
 };
 
@@ -77,15 +90,13 @@ const hostOf = (source: string): string | undefined => {
 /**
  * Sources the policy grants that we no longer need.
  *
- * `ownsPolicy` distinguishes the two cases. For auth-handover.html — a file we
- * write — anything not required is unexpected. For a host application's own
- * policy we have no standing to comment on their entries, so only hosts we
- * once asked for are reported.
+ * Only hosts we once asked for are reported: a host application's policy
+ * serves everything on its page, so an entry we never asked for is none of our
+ * business.
  */
 export const findStaleSources = (
   requirements: CspRequirement[],
   policies: ReturnType<typeof parsePolicy>[],
-  ownsPolicy: boolean,
 ): StaleFinding[] => {
   const directives = new Set(requirements.map(r => r.directive));
   const requiredBy = (directive: string): CspRequirement[] =>
@@ -102,21 +113,10 @@ export const findStaleSources = (
           if (stillRequired) {
             return [];
           }
-
           const host = hostOf(source);
           const formerly = FORMERLY_REQUIRED_HOSTS.find(f => f.host === host);
           if (formerly) {
             return [{ directive, source, reason: formerly.reason }];
-          }
-          if (ownsPolicy && source.startsWith("'") === false) {
-            return [
-              {
-                directive,
-                source,
-                reason:
-                  "Not in the derived requirements for a file this repository owns.",
-              },
-            ];
           }
           return [];
         }),
@@ -127,49 +127,20 @@ export const findStaleSources = (
 export const checkPolicy = ({
   requirements,
   policyHeaders,
-  ownedPolicyHeaders = [],
-  ownedRequirements,
   pageOrigin,
 }: {
   requirements: CspRequirement[];
-  // Policies served by someone else — a host application's own headers. Each
-  // value may itself hold several comma-separated policies.
+  // The policies the host serves. Each value may itself hold several
+  // comma-separated policies.
   policyHeaders: string[];
-  // Policies this repository authors, i.e. the meta tag inside
-  // auth-handover.html. Kept separate because the two are judged differently
-  // for staleness: anything unexpected in a policy we wrote is a finding,
-  // whereas a host app's own entries are none of our business.
-  //
-  // Both sets still count equally for whether a requirement is satisfied — a
-  // meta policy can only tighten a header policy, so both are in force.
-  ownedPolicyHeaders?: string[];
-  // Requirements used to judge STALENESS of an owned policy, when they differ
-  // from the requirements used to judge satisfaction.
-  //
-  // auth-handover.html is the case this exists for, and the distinction is
-  // real. Its file content is the union across every environment, because one
-  // file is uploaded to every tenant — so judging its entries against a single
-  // environment reports the other environments' hosts as unexpected grants.
-  // But what is REACHABLE from a given tenant is the intersection of that file
-  // with the tenant's own header policy, and only that environment's own host
-  // needs to be reachable there. Union for "should this be in the file",
-  // per-environment for "does this work here".
-  ownedRequirements?: CspRequirement[];
   pageOrigin?: string;
 }): PolicyCheck => {
-  const external = policyHeaders.flatMap(splitPolicies).map(parsePolicy);
-  const owned = ownedPolicyHeaders.flatMap(splitPolicies).map(parsePolicy);
-
-  const findings = requirements.map(r =>
-    checkRequirement(r, [...external, ...owned], pageOrigin),
-  );
+  const policies = policyHeaders.flatMap(splitPolicies).map(parsePolicy);
+  const findings = requirements.map(r => checkRequirement(r, policies, pageOrigin));
 
   return {
     findings,
-    stale: [
-      ...findStaleSources(requirements, external, false),
-      ...findStaleSources(ownedRequirements ?? requirements, owned, true),
-    ],
+    stale: findStaleSources(requirements, policies),
     ok: findings.every(f => f.verdict === "allowed"),
   };
 };

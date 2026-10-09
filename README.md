@@ -23,12 +23,14 @@ Upload [`packages/cps-global-handover/auth-handover.html`](./packages/cps-global
 to the `Casework_Patterns` module at `Data` -> `Resources`, with
 `Public: Yes` and `Deploy Action: Deploy to Target Directory`.
 
-Upload that file **as-is**. It is not a stub to be retyped: it carries a meta
-CSP and a runtime host allowlist that gate which Polaris host may supply
-`auth-handover.js` via the `?src=` parameter, and it bails out inside iframes so
-MSAL's silent-SSO probes stay cheap. Both lists are asserted against
-[the derived requirements](./generated/csp/CSP-REQUIREMENTS.md) by
-`packages/cps-global-handover/src/auth-handover-csp.spec.ts`.
+Upload that file **as-is**. It is not a stub to be retyped: it loads the
+`auth-handover.js` named by the `?src=` parameter, and it bails out inside
+iframes so MSAL's silent-SSO probes stay cheap.
+
+The file carries no CSP of its own. The OutSystems CSP applies to it like any
+other page, so that policy is what decides which hosts may supply the bundle —
+see the per-environment `auth-handover.html` sections of
+[the derived requirements](./generated/csp/CSP-REQUIREMENTS.md).
 
 One file serves every environment — the bundle it loads comes from the `?src=`
 parameter in `OS_HANDOVER_URL`, not from the file. There is deliberately no

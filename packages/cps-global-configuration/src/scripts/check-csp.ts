@@ -23,10 +23,7 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { checkPolicy } from "../csp/check-policy";
-import {
-  deriveCspRequirements,
-  deriveHandoverPagePolicy,
-} from "../csp/derive-csp";
+import { deriveCspRequirements } from "../csp/derive-csp";
 import {
   deriveAllCheckTargets,
   type CheckTarget,
@@ -36,11 +33,9 @@ import { listOsHostVariantFiles } from "./os-host-variant-files";
 import {
   renderHtmlReport,
   renderMarkdownReport,
-  renderTldr,
   statusOf,
   type TargetResult,
 } from "../csp/render-check-report";
-import { parsePolicy } from "../csp/parse-csp";
 
 const TIMEOUT_MS = 20_000;
 
@@ -56,25 +51,9 @@ const REPO_HANDOVER_HTML = path.join(
   "auth-handover.html",
 );
 
-const metaCspOf = (html: string): string | undefined =>
-  /<meta\s+http-equiv="Content-Security-Policy"\s+content="([^"]+)"/i.exec(
-    html,
-  )?.[1];
-
-// Policies are equal when they grant the same thing, not when they are the same
-// string: a reordered but equivalent policy is not drift worth alarming about.
-const policiesEquivalent = (a: string, b: string): boolean => {
-  const normalise = (policy: string) =>
-    JSON.stringify(
-      Object.entries(parsePolicy(policy))
-        .map(([directive, sources]) => [
-          directive,
-          [...sources].sort((a, b) => a.localeCompare(b)),
-        ])
-        .sort(([x], [y]) => String(x).localeCompare(String(y))),
-    );
-  return normalise(a) === normalise(b);
-};
+// Whitespace-insensitive, so a re-indented or CRLF upload of the same file is
+// not reported as drift.
+const normaliseHtml = (html: string): string => html.replace(/\s+/g, " ").trim();
 
 const fetchTarget = async (target: CheckTarget): Promise<TargetResult> => {
   const controller = new AbortController();
@@ -141,17 +120,8 @@ const main = async (): Promise<void> => {
     ]),
   );
 
-  const repoHandoverPolicy = metaCspOf(
+  const repoHandoverHtml = normaliseHtml(
     fs.readFileSync(REPO_HANDOVER_HTML, "utf-8"),
-  );
-
-  // The handover page is checked against the UNION across environments, not
-  // against the environment it happens to be deployed in. That file is one
-  // artifact uploaded to every tenant, so the other environments' Polaris hosts
-  // belong in its policy by design — judging it per-environment reported every
-  // one of them as an unexpected grant.
-  const handoverRequirements = deriveHandoverPagePolicy(
-    CSP_ENVIRONMENTS.map(env => configs[env]!),
   );
 
   // OS host variants (e.g. test.oapps, test.cps-lon) are the same app on
@@ -181,10 +151,6 @@ const main = async (): Promise<void> => {
     const isHandover = raw.target.kind === "auth-handover";
     const body = (raw as TargetResult & { body?: string }).body;
 
-    // The handover page carries its own meta CSP, and a meta policy can only
-    // tighten the header one — so both are in force and both must allow.
-    const deployedMeta = body ? metaCspOf(body) : undefined;
-
     const redirectedOffHost =
       !!raw.finalUrl &&
       new URL(raw.finalUrl).hostname !== new URL(raw.target.url).hostname;
@@ -193,32 +159,24 @@ const main = async (): Promise<void> => {
       ...raw,
       redirectedOffHost,
       check: checkPolicy({
-        // Satisfaction is judged per-environment: from the test tenant you
-        // only ever load the test bundle, so the prod Polaris host being
-        // unreachable there is correct, not a fault.
+        // Judged per-environment: from the test tenant you only ever load
+        // the test bundle, so the prod Polaris host being unreachable there is
+        // correct, not a fault. The handover page carries no CSP of its own;
+        // whatever policy applies there is the host's header.
         requirements: isHandover ? handoverPage : hostApp,
-        // Staleness of the meta tag is judged against the union, because the
-        // union is what the file is supposed to contain.
-        ...(isHandover ? { ownedRequirements: handoverRequirements } : {}),
         policyHeaders: raw.enforced,
-        // Only the meta tag is ours; the headers on that response are
-        // OutSystems'. Conflating them attributed their entries to us.
-        ownedPolicyHeaders: deployedMeta ? [deployedMeta] : [],
         pageOrigin: raw.finalUrl ?? raw.target.url,
       }),
-      ...(isHandover && deployedMeta && repoHandoverPolicy
-        ? {
-            handoverMetaMatchesRepo: policiesEquivalent(
-              deployedMeta,
-              repoHandoverPolicy,
-            ),
-          }
+      // The deployed file against the repository's, whole. An old upload, or
+      // an error page where nothing was uploaded, differs either way, and the
+      // fix is the same: deploy the latest.
+      ...(isHandover && body !== undefined && !redirectedOffHost
+        ? { handoverMatchesRepo: normaliseHtml(body) === repoHandoverHtml }
         : {}),
     };
   });
 
   const generatedAt = new Date().toISOString();
-  const tldr = renderTldr(results);
   const markdown = renderMarkdownReport(results, generatedAt);
 
   if (outputDir) {
@@ -230,18 +188,15 @@ const main = async (): Promise<void> => {
       path.join(outputDir, "index.html"),
       renderHtmlReport(results, generatedAt),
     );
+    // The checklist an OutSystems developer is sent; pasteable into a ticket.
     fs.writeFileSync(path.join(outputDir, "report.md"), markdown);
-    // The list an OutSystems developer is actually being sent. Its own file so it
-    // can be pasted into a ticket or a message without trimming a report first.
-    fs.writeFileSync(path.join(outputDir, "tldr.md"), tldr);
     console.log(`wrote report to ${outputDir}`);
   }
 
-  // GitHub renders markdown tables in the job summary, so the ticks and crosses
-  // land in the run without any hosting.
+  // GitHub renders markdown tables in the job summary, so the checklist lands
+  // in the run without any hosting.
   if (process.env["GITHUB_STEP_SUMMARY"]) {
-    // TL;DR first: the summary is read at a glance, and the gaps are the point.
-    fs.appendFileSync(process.env["GITHUB_STEP_SUMMARY"], tldr + "\n\n" + markdown);
+    fs.appendFileSync(process.env["GITHUB_STEP_SUMMARY"], markdown);
   }
 
   console.log(markdown);

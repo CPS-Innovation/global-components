@@ -529,6 +529,21 @@ async function testBlobStorageProxy() {
     const blobFile = response.headers.get("x-mock-blob-file")
     assertEqual(blobFile, "script.js", "Should request exact file path")
   })
+
+  // The page carries no CSP of its own, so this header is what restricts its ?src=.
+  await test("auth-handover.html is proxied with a CSP restricting scripts to this host", async () => {
+    const response = await fetch(`${PROXY_BASE}/global-components/test/auth-handover.html`)
+    assertEqual(response.status, 200, "Should return 200")
+    assertEqual(response.headers.get("x-mock-blob-file"), "auth-handover.html", "Should request exact file path")
+    const csp = response.headers.get("content-security-policy") || ""
+    assert(csp.includes("script-src 'self' 'unsafe-inline';"), `script-src should be 'self' 'unsafe-inline', got: ${csp}`)
+    assert(csp.includes("https://graph.microsoft.com"), `connect-src should allow Graph, got: ${csp}`)
+  })
+
+  await test("other blob assets carry no CSP", async () => {
+    const response = await fetch(`${PROXY_BASE}/global-components/test/global-components.js`)
+    assertEqual(response.headers.get("content-security-policy"), null, "Only the handover page gets a CSP")
+  })
 }
 
 // =============================================================================

@@ -58,7 +58,6 @@ export {
 export { assignBuckets } from "./feature-flags/assign-buckets";
 export {
   deriveCspRequirements,
-  deriveHandoverPagePolicy,
   mergeCspRequirements,
   groupByDirective,
   formatCspPolicy,

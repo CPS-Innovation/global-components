@@ -153,30 +153,6 @@ describe("stale source reporting", () => {
 
     expect(result.stale).toEqual([]);
   });
-
-  it("flags anything unexpected in a policy this repository owns", () => {
-    const result = checkPolicy({
-      requirements: [GRAPH],
-      policyHeaders: [],
-      ownedPolicyHeaders: [
-        "connect-src https://graph.microsoft.com https://surprise.example",
-      ],
-    });
-
-    expect(result.stale.map(s => s.source)).toEqual([
-      "https://surprise.example",
-    ]);
-  });
-
-  it("does not flag keyword sources in an owned policy", () => {
-    const result = checkPolicy({
-      requirements: [GRAPH],
-      policyHeaders: [],
-      ownedPolicyHeaders: ["connect-src 'self' https://graph.microsoft.com"],
-    });
-
-    expect(result.stale).toEqual([]);
-  });
 });
 
 describe("against the real deployed policy observed on 2026-09-21", () => {
@@ -249,89 +225,21 @@ describe("against the real deployed policy observed on 2026-09-21", () => {
   });
 });
 
-describe("owned versus external policies", () => {
-  // The handover page is served by OutSystems, so its response carries THEIR
-  // header policy as well as OUR meta policy. Judging the header entries as
-  // ours produced a dozen bogus "stale" findings on the first live run.
-  it("does not attribute a host's own header entries to us", () => {
-    const result = checkPolicy({
-      requirements: [GRAPH],
-      policyHeaders: [
-        "connect-src https://graph.microsoft.com https://their-cdn.example",
-      ],
-      ownedPolicyHeaders: ["connect-src https://graph.microsoft.com"],
-    });
+describe("narrowSource", () => {
+  const POLARIS: CspRequirement = {
+    directive: "script-src",
+    value: "https://polaris.example",
+    reason: "bundle host",
+  };
 
-    expect(result.stale).toEqual([]);
-  });
+  // So a report can say "replace X with Y" rather than just "too narrow".
+  it("names the source that grants too little", () => {
+    const [finding] = checkPolicy({
+      requirements: [POLARIS],
+      policyHeaders: ["script-src 'self' https://polaris.example/global-components/"],
+    }).findings;
 
-  it("still flags unexpected entries in our own meta policy", () => {
-    const result = checkPolicy({
-      requirements: [GRAPH],
-      policyHeaders: ["connect-src https://graph.microsoft.com"],
-      ownedPolicyHeaders: [
-        "connect-src https://graph.microsoft.com https://ours-but-unexpected.example",
-      ],
-    });
-
-    expect(result.stale.map(s => s.source)).toEqual([
-      "https://ours-but-unexpected.example",
-    ]);
-  });
-
-  it("enforces both sets, because a meta policy only tightens a header one", () => {
-    const result = checkPolicy({
-      requirements: [GRAPH],
-      policyHeaders: ["connect-src https://graph.microsoft.com"],
-      ownedPolicyHeaders: ["connect-src 'self'"],
-    });
-
-    expect(result.ok).toBe(false);
-  });
-});
-
-describe("ownedRequirements", () => {
-  // auth-handover.html is one file uploaded to every tenant, so its content is
-  // the union across environments — but only the local environment's host is
-  // reachable from any given tenant. Using one set for both questions reported
-  // the other environments' hosts first as unexpected grants, then as missing.
-  const perEnvironment = [req("script-src", "https://polaris-qa.example")];
-  const union = [
-    req("script-src", "https://polaris-qa.example"),
-    req("script-src", "https://polaris-prod.example"),
-  ];
-
-  const result = checkPolicy({
-    requirements: perEnvironment,
-    // The tenant's own header policy only knows about its own Polaris host.
-    policyHeaders: ["script-src https://polaris-qa.example"],
-    ownedPolicyHeaders: [
-      "script-src https://polaris-qa.example https://polaris-prod.example",
-    ],
-    ownedRequirements: union,
-  });
-
-  it("does not report another environment's host as stale in the shared file", () => {
-    expect(result.stale).toEqual([]);
-  });
-
-  it("does not report another environment's host as missing here", () => {
-    expect(result.findings.map(f => f.verdict)).toEqual(["allowed"]);
-    expect(result.ok).toBe(true);
-  });
-
-  it("still flags something in neither set", () => {
-    const withSurprise = checkPolicy({
-      requirements: perEnvironment,
-      policyHeaders: ["script-src https://polaris-qa.example"],
-      ownedPolicyHeaders: [
-        "script-src https://polaris-qa.example https://surprise.example",
-      ],
-      ownedRequirements: union,
-    });
-
-    expect(withSurprise.stale.map(s => s.source)).toEqual([
-      "https://surprise.example",
-    ]);
+    expect(finding?.verdict).toBe("narrower");
+    expect(finding?.narrowSource).toBe("https://polaris.example/global-components/");
   });
 });
