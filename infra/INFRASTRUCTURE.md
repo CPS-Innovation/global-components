@@ -190,6 +190,44 @@ Both registrations request **more than the runtime code uses**. At runtime the c
 
 Entra matches redirect URIs by exact string, so the registrations are the source of truth — **not** the config. Redirect URIs are **split by tier**: prod handovers on the prod reg (`295ecc3c`), dev/test/uat handovers on the pre-prod reg (`8d6133af`).
 
+Each entry is a context's `msalRedirectUrl` **verbatim, query string included** — MSAL sends it as `redirect_uri`, and the `?src=` / `&stage=` are baked in so silent SSO and the full-page redirect hit the same registered URI. The shape is:
+
+```
+<page>?src=<encodeURIComponent(bundle host + /global-components/<env>/auth-handover.js)>&stage=ad-redirect
+```
+
+LACC pages omit `&stage=ad-redirect`; housekeeping pages have no query at all. Changing a config's `src` host therefore needs a **new** redirect URI, not just a new page.
+
+**Pre-prod reg (`8d6133af`) — SPA redirect URIs** (`az ad app show --id 8d6133af-9593-47c6-94d0-5c65e9e310f1 --query "spa.redirectUris"`, 2026-10-09):
+
+| Env  | Page                                                                    | `src` bundle host / env       | `&stage=ad-redirect` |
+| ---- | ----------------------------------------------------------------------- | ----------------------------- | :------------------: |
+| dev  | `https://polaris-dev-notprod.cps.gov.uk/global-components/dev/auth-handover.html` | `polaris-dev-notprod` / `dev` | ✓ |
+| dev  | `https://cps-dev.outsystemsenterprise.com/Casework_Patterns/auth-handover.html`   | `polaris-dev-notprod` / `dev` | ✓ |
+| dev  | `https://lacc-app-ui-spa-dev.azurewebsites.net/auth-handover.html`                | `polaris-dev-notprod` / `dev` | — |
+| dev  | `https://polaris-qa-notprod.cps.gov.uk/global-components/dev/auth-handover.html`  | `polaris-qa-notprod` / `dev`  | ✓ |
+| dev  | `https://cps-dev.outsystemsenterprise.com/Casework_Patterns/auth-handover.html`   | `polaris-qa-notprod` / `dev`  | ✓ |
+| dev  | `https://lacc-app-ui-spa-dev.azurewebsites.net/auth-handover.html`                | `polaris-qa-notprod` / `dev`  | — |
+| test | `https://polaris-qa-notprod.cps.gov.uk/global-components/test/auth-handover.html` | `polaris-qa-notprod` / `test` | ✓ |
+| test | `https://cps-tst.outsystemsenterprise.com/Casework_Patterns/auth-handover.html`   | `polaris-qa-notprod` / `test` | ✓ |
+| test | `https://cpslon-tst.outsystemsenterprise.com/Casework_Patterns/auth-handover.html` | `polaris-qa-notprod` / `test` | ✓ |
+| test | `https://oapps-qa-notprod.int.cps.gov.uk/Casework_Patterns/auth-handover.html`    | `polaris-qa-notprod` / `test` | ✓ |
+| test | `https://lacc-app-ui-spa-staging.azurewebsites.net/auth-handover.html`            | `polaris-qa-notprod` / `test` | — |
+| uat  | `https://polaris-uat-notprod.cps.gov.uk/global-components/uat/auth-handover.html` | `polaris-uat-notprod` / `uat` | ✓ |
+| uat  | `https://cps-tst1.outsystemsenterprise.com/Casework_Patterns/auth-handover.html`  | `polaris-uat-notprod` / `uat` | ✓ |
+| uat  | `https://lacc-app-ui-spa-staging.azurewebsites.net/auth-handover.html`            | `polaris-uat-notprod` / `uat` | — |
+| prod | `https://polaris.cps.gov.uk/global-components/prod/auth-handover.html`            | `polaris` / `prod`            | ✓ |
+| prod | `https://cps.outsystemsenterprise.com/Casework_Patterns/auth-handover.html`       | `polaris` / `prod`            | ✓ |
+| —    | `https://housekeeping-staging.int.cps.gov.uk/global-components-msal-redirect.html` | _(no query)_                 | — |
+| —    | `https://housekeeping.cps.gov.uk/global-components-msal-redirect.html`            | _(no query)_                  | — |
+
+Notes:
+
+- **The three `polaris-dev-notprod`-`src` dev rows were added 2026-10-09** (FCT2-22288), when `config.dev.json` moved from borrowing Polaris QA's host onto Polaris dev's own. The three `polaris-qa-notprod`-`src` dev rows are the pre-move equivalents, kept so dev keeps working across the deploy; remove them once the dev config is live.
+- **The two prod rows contradict the tier split** — prod handovers belong on `295ecc3c`. Likely leftovers from before the prod reg existed; candidates for removal once prod's `AD_CLIENT_ID` is confirmed as `295ecc3c`.
+- **No `oapps-dev-notprod` row yet** — needed at the dev step of the oapps cutover (`TODO.md`), with the `polaris-dev-notprod` `src`.
+- **Not yet captured here:** the pre-prod reg's **Web** redirect URIs (CMS-auth OIDC) and the prod reg's SPA list.
+
 ---
 
 ### 2.5 CI/CD identity

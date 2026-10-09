@@ -57,7 +57,7 @@
     POST to AAD.
   -->
   <meta http-equiv="Content-Security-Policy"
-    content="connect-src 'self' https://graph.microsoft.com https://login.microsoftonline.com https://polaris-qa-notprod.cps.gov.uk https://polaris-uat-notprod.cps.gov.uk https://polaris.cps.gov.uk; form-action https://login.microsoftonline.com; frame-src https://login.microsoftonline.com; script-src 'unsafe-inline' https://polaris-qa-notprod.cps.gov.uk https://polaris-uat-notprod.cps.gov.uk https://polaris.cps.gov.uk;">
+    content="connect-src 'self' https://graph.microsoft.com https://login.microsoftonline.com https://polaris-dev-notprod.cps.gov.uk https://polaris-qa-notprod.cps.gov.uk https://polaris-uat-notprod.cps.gov.uk https://polaris.cps.gov.uk; form-action https://login.microsoftonline.com; frame-src https://login.microsoftonline.com; script-src 'unsafe-inline' https://polaris-dev-notprod.cps.gov.uk https://polaris-qa-notprod.cps.gov.uk https://polaris-uat-notprod.cps.gov.uk https://polaris.cps.gov.uk;">
 
   <script>
     // Bail in iframe contexts (MSAL ssoSilent loads us in a hidden iframe to
@@ -71,7 +71,7 @@
       // longer a promise in a comment: auth-handover-csp.spec.ts asserts both
       // lists against the same derived source of truth, so drifting either one
       // fails the build.
-      const allowed = new Set(['polaris-qa-notprod.cps.gov.uk', 'polaris-uat-notprod.cps.gov.uk', 'polaris.cps.gov.uk']);
+      const allowed = new Set(['polaris-dev-notprod.cps.gov.uk', 'polaris-qa-notprod.cps.gov.uk', 'polaris-uat-notprod.cps.gov.uk', 'polaris.cps.gov.uk']);
       const src = new URLSearchParams(window.location.search).get('src');
       if (src) {
         try {

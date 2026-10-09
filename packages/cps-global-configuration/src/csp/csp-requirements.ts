@@ -95,13 +95,10 @@ export const HANDOVER_INLINE_SCRIPT_REQUIREMENT: CspRequirement = {
 };
 
 // polaris-dev-notprod.cps.gov.uk was listed in auth-handover.html's meta CSP
-// and runtime allowlist but referenced by no configuration/*.json. It was
-// removed on 2026-09-21 by decision, not by derivation.
-//
-// Left here as a note so it is not reinstated on the assumption it was an
-// oversight. If a Polaris dev host is needed again, the fix is a committed
-// config that references it — at which point the derivation picks it up and no
-// hand-editing of the handover page is required.
+// and runtime allowlist but referenced by no configuration/*.json, so it was
+// removed on 2026-09-21. It returned on 2026-10-09 (FCT2-22288) when
+// config.dev.json moved from borrowing Polaris QA's host onto Polaris dev's
+// own — this time derived from a committed config, as it should be.
 /**
  * Hosts we used to require and no longer do.
  *
