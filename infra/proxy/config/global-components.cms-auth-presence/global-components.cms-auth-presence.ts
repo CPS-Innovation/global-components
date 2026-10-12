@@ -478,6 +478,21 @@ function handlePolarisPresence(r: NginxHTTPRequest): void {
 const _SESSION_HINT_COOKIE_NAME = "Cms-Session-Hint";
 const _SESSION_HINT_LIFESPAN_MS = 30 * 24 * 60 * 60 * 1000;
 
+// HINT WRITE SWITCH. OFF until the Polaris /init cookie whitelist is deployed.
+//
+// /init-presence runs in IE mode, so this write lands in the IE jar on the same
+// host /polaris captures the CMS cookies from. Polaris hands that jar on
+// unfiltered as `cc`, the OutSystems apps put it in their Cms-Auth-Values
+// header, and the hint's URL-encoded JSON breaks that header in the proxy's
+// readCmsAuthValues. (The main module's twin write is harmless: /init is
+// coerced to Edge, a different jar.) Once Polaris whitelists `cc` the hint
+// never leaves the jar and this goes back to true.
+//
+// False does two things: skips the write, and expires any copy an earlier
+// deploy left behind - it lives 30 days, so not writing alone would not stop
+// the failures. While off, whoami's cmsEnv is "".
+const _SESSION_HINT_WRITE_ENABLED = false;
+
 // The environment domain (e.g. cin3.cps.gov.uk) can come from either LB cookie
 // style. Prefer the load-balancing cookie, named [CF]-<TOKEN>-LBsessioncookie
 // (e.g. C-CIN3-..., F-FOO-...), and derive <token>.cps.gov.uk from the TOKEN.
@@ -537,6 +552,17 @@ function _sessionHintCookie(
     value +
     "; Path=/; Expires=" +
     expires.toUTCString() +
+    "; Secure; SameSite=None"
+  );
+}
+
+// Same name, path and attributes as the write above, so it removes exactly the
+// cookie that write created.
+function _expiredSessionHintCookie(): string {
+  return (
+    _SESSION_HINT_COOKIE_NAME +
+    "=; Path=/; Expires=" +
+    new Date(0).toUTCString() +
     "; Secure; SameSite=None"
   );
 }
@@ -857,11 +883,13 @@ async function handleInitPresence(r: NginxHTTPRequest): Promise<void> {
     "; Path=/init-presence; HttpOnly; Secure; SameSite=Lax; Max-Age=300";
   r.headersOut["Set-Cookie"] = [
     "cms_auth_state=" + encodedState + cookieOpts,
-    _sessionHintCookie(
-      rawCookies,
-      _getQueryParam(r, "is-proxy-session") === "true",
-      (r.headersIn["Host"] as string) || "",
-    ),
+    _SESSION_HINT_WRITE_ENABLED
+      ? _sessionHintCookie(
+          rawCookies,
+          _getQueryParam(r, "is-proxy-session") === "true",
+          (r.headersIn["Host"] as string) || "",
+        )
+      : _expiredSessionHintCookie(),
   ];
 
   const params = [
