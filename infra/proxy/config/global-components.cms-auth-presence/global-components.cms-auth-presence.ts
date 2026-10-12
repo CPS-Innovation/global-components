@@ -1608,6 +1608,23 @@ async function handlePresenceJsonp(r: NginxHTTPRequest): Promise<void> {
     const userEmail = claims
       ? String(claims.email || claims.upn || claims.preferred_username || "")
       : "";
+    const whoamiEnv = _cmsEnvFromHint(r);
+    // Logged HERE as well as returned, because the browser-side log is hard to
+    // reach: the CMS estate's only console is IEChooser's, which cannot be
+    // attached before a tab boots — and the Modern tab is opened BY Classic, so
+    // there is no moment to get in first. error_log runs at debug (see
+    // nginx.conf), so this reaches the app service log stream, where the request
+    // timestamps also show whether create preceded whoami and by how long.
+    //
+    // op and environment only. No email, no oid, no token: a pool label is not
+    // an identity, and the log is a different audience from the response.
+    ngx.log(
+      ngx.WARN,
+      "[presence] whoami cmsEnv=" +
+        (whoamiEnv || "(none)") +
+        " identity=" +
+        (userEmail ? "yes" : "no"),
+    );
     r.return(
       200,
       cb +
@@ -1626,7 +1643,7 @@ async function handlePresenceJsonp(r: NginxHTTPRequest): Promise<void> {
           // travels on create, the first op out. Reading the log tells us what
           // deferring that first create would actually cost before anyone
           // restructures boot around a callback.
-          cmsEnv: _cmsEnvFromHint(r),
+          cmsEnv: whoamiEnv,
         }) +
         ")",
     );
@@ -1640,6 +1657,19 @@ async function handlePresenceJsonp(r: NginxHTTPRequest): Promise<void> {
       cb + "(" + JSON.stringify({ jsonpError: "unknown op: " + args.op }) + ")",
     );
     return;
+  }
+
+  // create only — the one op that carries a sectionId, and the one whose timing
+  // relative to whoami is the question. heartbeat and poll fire every 3s per
+  // session and would bury both in the log.
+  if (args.op === "create") {
+    ngx.log(
+      ngx.WARN,
+      "[presence] create sectionId=" +
+        args.sectionId +
+        " cmsEnv=" +
+        (_cmsEnvFromHint(r) || "(none)"),
+    );
   }
 
   // The token comes ONLY from the cookie (the auth callback stamps it there — dev bearer

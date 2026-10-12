@@ -166,7 +166,24 @@ window.__ccPresence = {
   },
   // The dev override, and the way to see why filtering is or is not happening.
   whoami: function () {
-    return { email: viewer.email(), oid: viewer.oid(), known: viewer.known() };
+    return {
+      email: viewer.email(),
+      oid: viewer.oid(),
+      known: viewer.known(),
+      cmsEnv: viewer.cmsEnv()
+    };
+  },
+  // One string, not an array of objects: the only console available in the CMS
+  // estate is IEChooser's, which cannot be attached before boot and renders
+  // nested objects badly. Everything log() ever said is still in `messages`
+  // (a 200-line ring buffer written BEFORE the console is touched), so attaching
+  // late loses nothing -- this just makes it readable and copyable in one go.
+  dump: function () {
+    var out = "";
+    for (var i = 0; i < messages.length; i++) {
+      out = out + messages[i].at + "  " + messages[i].args.join(" ") + "\n";
+    }
+    return out;
   },
   setCountSelf: function (on) {
     countSelf = !!on;
