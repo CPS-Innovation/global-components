@@ -465,7 +465,8 @@ declare namespace CCPViewer {
      * @param {{call: function(string, Object, function(*): void): void,
      *          log: function(...*): void}} options
      * @returns {{email: function(): string, oid: function(): string,
-     *            refresh: function(): void, known: function(): boolean}}
+     *            cmsEnv: function(): string, refresh: function(): void,
+     *            known: function(): boolean}}
      */
     function createViewer(options: {
         call: (arg0: string, arg1: any, arg2: (arg0: any) => void) => void;
@@ -473,6 +474,7 @@ declare namespace CCPViewer {
     }): {
         email: () => string;
         oid: () => string;
+        cmsEnv: () => string;
         refresh: () => void;
         known: () => boolean;
     };

@@ -436,6 +436,108 @@ function handlePolarisPresence(r: NginxHTTPRequest): void {
 }
 
 // ---------------------------------------------------------------------------
+// Cms-Session-Hint — WHICH CMS WE ARE TALKING TO
+//
+// The presence API is one service shared by every CMS environment, so a session
+// in CIN3 and a session in CIN5 land in the same watchdog unless the sectionId
+// says otherwise. That is what CCPEnvironment's suffix is for — but the value
+// behind it was a constant hardcoded in two codebases.
+//
+// The CMS environment is not in the token (the presence token is the plain
+// corporate identity: same bytes whichever CMS you are in) and it is not in our
+// own hostname in the proxied model, where CIN3 and CIN5 are the same host. It
+// is in the F5 affinity cookie, whose NAME embeds it — and the only moment we
+// can see that cookie is the capture in handlePolarisPresence, which runs on the
+// CMS domain. Hence: derive here, publish as a cookie on our own host.
+//
+// Same cookie the main module writes at /init (nginx.js:setSessionHintCookie) —
+// same name, same payload, same lifespan, so the two writers are idempotent
+// rather than competing. NOT shared code: tsc compiles each njs module
+// separately and build.sh flattens the output, so a cross-module import would
+// not survive the build. Keep this in step with that one by hand.
+//
+// Deliberately NOT HttpOnly (the main module's isn't either): it is a pool
+// label, not a credential, and page JS reading it is the point. Host-only (no
+// Domain) so nothing is written to the shared cps.gov.uk space. SameSite=None
+// so it survives a genuinely cross-site caller (the web component, on an
+// OutSystems origin) — same-site callers like a CMS page would be fine with
+// Lax, but the main module's copy has to be None and these must match.
+// ---------------------------------------------------------------------------
+
+const _SESSION_HINT_COOKIE_NAME = "Cms-Session-Hint";
+const _SESSION_HINT_LIFESPAN_MS = 30 * 24 * 60 * 60 * 1000;
+
+// The environment domain (e.g. cin3.cps.gov.uk) can come from either LB cookie
+// style. Prefer the load-balancing cookie, named [CF]-<TOKEN>-LBsessioncookie
+// (e.g. C-CIN3-..., F-FOO-...), and derive <token>.cps.gov.uk from the TOKEN.
+// Fall back to the legacy BIGipServer* cookie, whose name embeds the domain
+// immediately before _POOL — matched in lowercase so the uppercase pool prefix
+// (CPSACP-LTM-CM-WAN-CIN3-) can't be mistaken for the domain.
+//
+// TOKEN IS OPAQUE. It reads CIN3/CIN5 in pre-prod; nothing promises that shape
+// in production, so this never matches /CIN\d/ and never interprets the value.
+function _cmsDomainsFromCookieString(cookieString: string): string[] {
+  const loadBalancingCookies =
+    cookieString.match(/(?:^|;\s*)[CF]-[^=;]*-LBsessioncookie/g) || [];
+  if (loadBalancingCookies.length) {
+    return loadBalancingCookies.map(function (name) {
+      const token = name.match(/[CF]-([^=;]*)-LBsessioncookie/);
+      return (token ? token[1].toLowerCase() : "") + ".cps.gov.uk";
+    });
+  }
+  return (
+    cookieString.match(
+      /[a-z][a-z0-9]*(?:\.[a-z][a-z0-9]*)*\.cps\.gov\.uk(?=_POOL)/g,
+    ) || []
+  );
+}
+
+function _sessionHintCookie(
+  cookieString: string,
+  isProxySession: boolean,
+  host: string,
+): string {
+  const cmsDomains = _cmsDomainsFromCookieString(cookieString);
+  // More than one domain found: take the first, as the main module does.
+  const handoverEndpoint = isProxySession
+    ? "https://" + host + "/polaris"
+    : cmsDomains.length
+      ? "https://" + cmsDomains[0] + "/polaris"
+      : null;
+  const value = encodeURIComponent(
+    JSON.stringify({ cmsDomains, isProxySession, handoverEndpoint }),
+  );
+  const expires = new Date(Date.now() + _SESSION_HINT_LIFESPAN_MS);
+  return (
+    _SESSION_HINT_COOKIE_NAME +
+    "=" +
+    value +
+    "; Path=/; Expires=" +
+    expires.toUTCString() +
+    "; Secure; SameSite=None"
+  );
+}
+
+// The environment as the clients spell it: the first label of the first CMS
+// domain, uppercased (cin3.cps.gov.uk -> CIN3). "" when we don't know, which is
+// the honest answer and NOT a default — a wrong environment silently splits a
+// watchdog, where an absent one is visible.
+function _cmsEnvFromHint(r: NginxHTTPRequest): string {
+  const raw = _getCookie(r, _SESSION_HINT_COOKIE_NAME);
+  if (!raw) {
+    return "";
+  }
+  try {
+    const parsed = JSON.parse(decodeURIComponent(raw));
+    const domains = parsed && parsed.cmsDomains;
+    const domain = domains && domains.length ? String(domains[0]) : "";
+    return domain ? domain.split(".")[0].toUpperCase() : "";
+  } catch (e) {
+    return "";
+  }
+}
+
+// ---------------------------------------------------------------------------
 // /init-presence/ — Modern token fetch + AD redirect (combined handler)
 // ---------------------------------------------------------------------------
 
@@ -721,10 +823,23 @@ async function handleInitPresence(r: NginxHTTPRequest): Promise<void> {
 
   const encodedState = _base64UrlEncode(statePayload);
 
-  // Step 4: Set state cookie + redirect to Azure AD
+  // Step 4: Set state cookie + session hint + redirect to Azure AD
+  //
+  // The hint rides this response, not the callback's: rawCookies — the captured
+  // CMS jar, the only thing that knows which CMS this is — is in hand HERE, and
+  // writing it now means it survives an AD leg that fails. The callback would
+  // have to dig it back out of the state envelope's cc field to say the same
+  // thing.
   const cookieOpts =
     "; Path=/init-presence; HttpOnly; Secure; SameSite=Lax; Max-Age=300";
-  r.headersOut["Set-Cookie"] = ["cms_auth_state=" + encodedState + cookieOpts];
+  r.headersOut["Set-Cookie"] = [
+    "cms_auth_state=" + encodedState + cookieOpts,
+    _sessionHintCookie(
+      rawCookies,
+      _getQueryParam(r, "is-proxy-session") === "true",
+      (r.headersIn["Host"] as string) || "",
+    ),
+  ];
 
   const params = [
     "client_id=" + encodeURIComponent(clientId),
@@ -1504,6 +1619,14 @@ async function handlePresenceJsonp(r: NginxHTTPRequest): Promise<void> {
           // works but nobody is filtered" can be told apart from "no token at all"
           // without decoding a cookie by hand.
           oid: claims ? String(claims.oid || "") : "",
+          // Which CMS this session belongs to (CIN3, CIN5, ...), or "" when the
+          // hint cookie isn't there. DIAGNOSTIC FOR NOW: the client logs it and
+          // nothing depends on it, because whoami answers too late to be a
+          // prerequisite — registration is synchronous at boot and sectionId
+          // travels on create, the first op out. Reading the log tells us what
+          // deferring that first create would actually cost before anyone
+          // restructures boot around a callback.
+          cmsEnv: _cmsEnvFromHint(r),
         }) +
         ")",
     );
