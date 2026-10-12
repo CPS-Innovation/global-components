@@ -450,11 +450,22 @@ function handlePolarisPresence(r: NginxHTTPRequest): void {
 // can see that cookie is the capture in handlePolarisPresence, which runs on the
 // CMS domain. Hence: derive here, publish as a cookie on our own host.
 //
-// Same cookie the main module writes at /init (nginx.js:setSessionHintCookie) —
-// same name, same payload, same lifespan, so the two writers are idempotent
-// rather than competing. NOT shared code: tsc compiles each njs module
-// separately and build.sh flattens the output, so a cross-module import would
-// not survive the build. Keep this in step with that one by hand.
+// THIS WRITE IS SCAFFOLDING. It is a deliberate twin of the main module's
+// nginx.js:setSessionHintCookie, which writes the SAME cookie at /init and has
+// been doing so in production all along — identical name, payload and lifespan,
+// so the two writers are idempotent rather than competing. The long-term shape
+// is one flow: /polaris -> /init carries all of the presence logic, and
+// /polaris-presence and /init-presence go away. When that happens DELETE this
+// (and _cmsDomainsFromCookieString below) rather than reconciling it — because
+// the payload already matches exactly, removal changes nothing for any reader.
+//
+// Until then it cannot be shared code: tsc compiles each njs module separately
+// and build.sh flattens the output, so a cross-module import would not survive
+// the build. Two copies with one end date, not two copies forever.
+//
+// The READ side is NOT scaffolding. _cmsEnvFromHint and the cmsEnv field on
+// whoami stay: the JSONP adapter outlives this flow, and reading a cookie the
+// main module writes is the end state.
 //
 // Deliberately NOT HttpOnly (the main module's isn't either): it is a pool
 // label, not a credential, and page JS reading it is the point. Host-only (no
@@ -492,6 +503,18 @@ function _cmsDomainsFromCookieString(cookieString: string): string[] {
   );
 }
 
+// isProxySession IS A DERIVED SIGNAL, NOT AN ASSUMPTION — and it reads like a
+// bug if you don't know that. The caller passes `is-proxy-session === "true"`,
+// and only ONE kind of endpoint ever sets that param: ours. The real
+// cms.cps.gov.uk/polaris does not. So the param's presence in the handoff is
+// positive evidence that the CMS session came through this proxy rather than
+// from a CMS domain directly, which is the one thing neither the cookie jar nor
+// our own hostname can tell us. handlePolarisPresence hardcoding it to true is
+// therefore correct: that route exists only in the proxied model.
+//
+// It falls out right in both topologies with nothing to configure — proxied
+// gives a handover endpoint on this host, unproxied builds one from the CMS
+// domain the F5 cookie named.
 function _sessionHintCookie(
   cookieString: string,
   isProxySession: boolean,
