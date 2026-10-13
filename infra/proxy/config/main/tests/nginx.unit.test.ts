@@ -141,7 +141,7 @@ async function runTests(): Promise<void> {
     const r = createMockRequest({
       args: {
         r: "http://allowed.example.org/callback",
-        cookie: "session=abc123",
+        cookie: ".CMSAUTH=abc123",
       },
       headersIn: {
         "X-Forwarded-Proto": "https",
@@ -155,7 +155,7 @@ async function runTests(): Promise<void> {
       `Should redirect to allowed URL, got: ${r.returnBody}`
     )
     assert(
-      r.returnBody!.includes("cc=session%3Dabc123"),
+      r.returnBody!.includes("cc=.CMSAUTH%3Dabc123"),
       `Should append encoded cookie as cc param, got: ${r.returnBody}`
     )
   })
@@ -507,7 +507,7 @@ async function runTests(): Promise<void> {
     nginx.appAuthRedirect(r)
     const cc = new URL(r.returnBody!).searchParams.get("cc")
     assert(!cc!.includes("BIGipServer-shim"), `Only -LBsessioncookie cookies should shim, got: ${cc}`)
-    assertEqual(cc, "C-CIN3-somethingelse=!Bxw", "Should pass through unchanged")
+    assertEqual(cc, "", "Should be dropped by the cc whitelist")
   })
 
   await test("does not shim when a BIGipServer cookie already references that CIN", async () => {
@@ -556,7 +556,7 @@ async function runTests(): Promise<void> {
     const r = createMockRequest({
       args: {
         r: "http://allowed.example.org/callback",
-        cookie: "session=abc123",
+        cookie: "WindowID=MASTER; UID=1; .CMSAUTH=ABC",
       },
       headersIn: {
         "X-Forwarded-Proto": "https",
@@ -565,7 +565,65 @@ async function runTests(): Promise<void> {
     })
     nginx.appAuthRedirect(r)
     const cc = new URL(r.returnBody!).searchParams.get("cc")
-    assertEqual(cc, "session=abc123", "Should leave cookie untouched")
+    assertEqual(cc, "WindowID=MASTER; UID=1; .CMSAUTH=ABC", "Should leave cookie untouched")
+  })
+
+  const ccOf = (cookie: string): string | null => {
+    process.env.AUTH_HANDOVER_WHITELIST = "http://allowed.example.org"
+    const r = createMockRequest({
+      args: { r: "http://allowed.example.org/callback", cookie },
+      headersIn: {
+        "X-Forwarded-Proto": "https",
+        Host: "proxy.example.com",
+      },
+    })
+    nginx.appAuthRedirect(r)
+    return new URL(r.returnBody!).searchParams.get("cc")
+  }
+
+  await test("adds WindowID=MASTER when .CMSAUTH is present without it", async () => {
+    assertEqual(ccOf("UID=1; .CMSAUTH=ABC"), "UID=1; .CMSAUTH=ABC; WindowID=MASTER", "Should append")
+  })
+
+  await test("adds WindowID=MASTER when only ASP.NET_SessionId is present", async () => {
+    assertEqual(ccOf("ASP.NET_SessionId=sess"), "ASP.NET_SessionId=sess; WindowID=MASTER", "Should append")
+  })
+
+  await test("does not double the separator after a trailing semicolon", async () => {
+    assertEqual(ccOf(".CMSAUTH=ABC; dtSa=-"), ".CMSAUTH=ABC; WindowID=MASTER", "Should reuse the ;")
+  })
+
+  await test("leaves an existing WindowID alone", async () => {
+    assertEqual(ccOf("WindowID=OTHER; .CMSAUTH=ABC"), "WindowID=OTHER; .CMSAUTH=ABC", "Should not add a second")
+  })
+
+  await test("does not add WindowID to a jar with no CMS session", async () => {
+    assertEqual(ccOf("UID=1; session=abc"), "UID=1;", "Should not top up")
+  })
+
+  await test("cc carries only whitelisted CMS cookies", async () => {
+    process.env.AUTH_HANDOVER_WHITELIST = "http://allowed.example.org"
+    const hint = encodeURIComponent(JSON.stringify({ cmsDomains: ["cin5.cps.gov.uk"] }))
+    const r = createMockRequest({
+      args: {
+        r: "http://allowed.example.org/callback",
+        cookie:
+          `Cms-Session-Hint=${hint}; CMSUSER103096=sess; __CMSENV=cin5; ` +
+          "BIGipServer~ent~cin5.cps.gov.uk_POOL=1; ASP.NET_SessionId=sess; " +
+          "WindowID=MASTER; UID=103096; .CMSAUTH=ABC; dtCookie=v_4; dtSa=-",
+      },
+      headersIn: {
+        "X-Forwarded-Proto": "https",
+        Host: "proxy.example.com",
+      },
+    })
+    nginx.appAuthRedirect(r)
+    const cc = new URL(r.returnBody!).searchParams.get("cc")
+    assertEqual(
+      cc,
+      "CMSUSER103096=sess; BIGipServer~ent~cin5.cps.gov.uk_POOL=1; ASP.NET_SessionId=sess; WindowID=MASTER; UID=103096; .CMSAUTH=ABC;",
+      "Should drop Cms-Session-Hint, __CMSENV and the Dynatrace cookies",
+    )
   })
 
   // --- polarisAuthRedirect tests ---

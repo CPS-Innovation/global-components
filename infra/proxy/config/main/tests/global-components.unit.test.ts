@@ -148,6 +148,39 @@ async function runTests(): Promise<void> {
     assertEqual(gloco.readCmsAuthValues(r), "userId=123", "Should decode header value")
   })
 
+  await test("leaves a raw JSON header alone when a cookie inside it is URL-encoded", async () => {
+    const hint = encodeURIComponent(
+      JSON.stringify({
+        cmsDomains: ["cin5.cps.gov.uk"],
+        isProxySession: true,
+        handoverEndpoint: "https://example.cps.gov.uk/polaris",
+      }),
+    )
+    const header = JSON.stringify({
+      Cookies: `Cms-Session-Hint=${hint}; __CMSENV=cin5; UID=123`,
+      Token: "some-token",
+      ExpiryTime: "2026-10-12T16:16:13.997Z",
+    })
+    const r = createMockRequest({
+      headersIn: { "Cms-Auth-Values": header },
+    })
+    const result = gloco.readCmsAuthValues(r)
+    assertEqual(result, header, "Should pass raw JSON through untouched")
+    assertEqual(
+      JSON.parse(result).Cookies,
+      `Cms-Session-Hint=${hint}; __CMSENV=cin5; UID=123`,
+      "Should still be valid JSON with the inner encoding intact",
+    )
+  })
+
+  await test("decodes a wholly URL-encoded JSON cookie", async () => {
+    const json = JSON.stringify({ token: "some-token", cookies: "UID=123; WindowID=MASTER" })
+    const r = createMockRequest({
+      headersIn: { Cookie: `Cms-Auth-Values=${encodeURIComponent(json)}` },
+    })
+    assertEqual(gloco.readCmsAuthValues(r), json, "Should decode cookie value")
+  })
+
   await test("falls back to cookie if header missing", async () => {
     const r = createMockRequest({
       headersIn: { Cookie: "Cms-Auth-Values=fromCookie" },
