@@ -1,0 +1,4 @@
+// Primitive: the only reader of the raw AppPageViews table. Everything else reads this, never the table, so
+// that where the data physically lives is decided here alone. In this (legacy) workspace that is just its
+// own table; the prod workspace's version, prod/GloCo__AppPageViews.kql, unions old and new together.
+AppPageViews

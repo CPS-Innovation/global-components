@@ -3,11 +3,12 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 source "${SCRIPT_DIR}/.env"
+source "${SCRIPT_DIR}/target.sh"
 
 OUTDIR="${SCRIPT_DIR}/output"
 KQLDIR="${SCRIPT_DIR}/../kql"
 
-OUTFILE="${OUTDIR}/deployed-functions.json"
+OUTFILE="${OUTDIR}/${DEPLOYED_FILE}"
 
 echo "→ ${AWS_REMOTE}"
 echo "→ Fetching saved searches and filtering to GloCo_..."
@@ -24,6 +25,10 @@ COUNT=$(jq length "$OUTFILE")
 echo "Done: ${OUTFILE} (${COUNT} functions)"
 
 if [[ "${1:-}" == "--sync-kql" ]]; then
+  if [[ "${ANALYTICS_TARGET:-dev}" != "dev" ]]; then
+    echo "Error: --sync-kql rebuilds ${KQLDIR}/ and is only for the dev target (prod's primitives differ)" >&2
+    exit 1
+  fi
   echo "→ Rebuilding ${KQLDIR}/ from deployed functions..."
   rm -f "${KQLDIR}"/*.kql
   jq -c '.[]' "$OUTFILE" | while IFS= read -r ENTRY; do

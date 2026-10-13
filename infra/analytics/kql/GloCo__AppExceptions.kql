@@ -1,0 +1,4 @@
+// Primitive: the only reader of the raw AppExceptions table. Everything else reads this, never the table, so
+// that where the data physically lives is decided here alone. In this (legacy) workspace that is just its
+// own table; the prod workspace's version, prod/GloCo__AppExceptions.kql, unions old and new together.
+AppExceptions
