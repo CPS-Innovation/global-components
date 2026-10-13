@@ -3,6 +3,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 source "${SCRIPT_DIR}/.env"
+source "${SCRIPT_DIR}/target.sh"
 
 OUTDIR="${SCRIPT_DIR}/output"
 WBDIR="${SCRIPT_DIR}/../workbook"
@@ -24,6 +25,10 @@ ssh "$AWS_REMOTE" "az rest \
 echo "Done: ${OUTFILE}"
 
 if [[ "${1:-}" == "--sync-workbook" ]]; then
+  if [[ "${ANALYTICS_TARGET:-dev}" != "dev" ]]; then
+    echo "Error: --sync-workbook rewrites the repo copy and is only for the dev target" >&2
+    exit 1
+  fi
   mkdir -p "$WBDIR"
   SYNCFILE="${WBDIR}/${WORKBOOK_NAME}.json"
   # extract serializedData (stringified JSON), pretty-print, redact subscription

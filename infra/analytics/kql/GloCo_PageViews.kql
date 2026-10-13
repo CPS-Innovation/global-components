@@ -1,4 +1,4 @@
-AppPageViews
+GloCo__AppPageViews
 | project TimeGenerated, OperationId, Id, Url, SessionId, UserId, DurationMs, parsed = parse_json(Properties)
 | extend Environment = tostring(parsed.Environment)
 | where Environment == "prod"

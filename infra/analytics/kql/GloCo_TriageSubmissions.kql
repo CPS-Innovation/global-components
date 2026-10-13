@@ -16,7 +16,7 @@
 // IsCPSD: "true"/"false" on ODPCDReview submissions only. Up to the gap it came from the legacy body's
 // IsCPSD; since FCT2-22147 the shim derives it from CPSDirectDecision (the "Is CPSD" radio: 0 = not
 // shown, 1 = Yes, 2 = No), which is also kept raw.
-AppEvents
+GloCo__AppEvents
 | where Name == "cps-global-components-analytics-event"
 | where tostring(Properties["name"]) == "triage-submission"
 | where tostring(Properties["environment"]) == "prod"

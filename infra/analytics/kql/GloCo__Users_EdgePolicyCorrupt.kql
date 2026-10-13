@@ -1,4 +1,4 @@
-AppEvents
+GloCo__AppEvents
 | where Properties contains "probe-navigator-permissions"
 | extend P = parse_json(tostring(Properties))
 | project OperationId, Permission = tostring(P["localNetworkAccessPermission"])

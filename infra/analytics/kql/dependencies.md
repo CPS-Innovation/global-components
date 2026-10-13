@@ -7,8 +7,18 @@ exception is `GloCo_Users_CpsdReviewTriage`, kept deliberately and due to join t
 Functions that fed no page were removed on 28 Sep 2026; they are in git history. Keep it that way:
 `functions-deploy.sh --prune` lists (and, on confirmation, deletes) deployed functions with no `.kql` here.
 
+**Primitives.** No function reads a raw table directly. `GloCo__AppPageViews`, `GloCo__AppEvents` and
+`GloCo__AppExceptions` are the only readers of the tables of the same name, and everything else reads them.
+They are the one thing that differs per workspace: in the legacy workspace (`la-global-nav-dev`) each is
+just its own table; in prod (`la-global-nav`) the versions in `kql/prod/` union this workspace's table with
+the legacy workspace's, so old and new data present as one. `functions-deploy.sh` picks the right version
+for the target (see `scripts/README.md`).
+
 ```
 AppPageViews
+  |
+  v
+GloCo__AppPageViews  (primitive)
   |
   v
 GloCo_PageViews  (also joins GloCo_ExcludedUsers; lookups GloCo_UserDimension for retrospective area/dept/job-title backfill). Lawyer classification is NOT baked in — apply it on demand with the scalar GloCo_LawyerStatus(Auth_JobTitle).
@@ -44,12 +54,16 @@ GloCo_PageViews  (also joins GloCo_ExcludedUsers; lookups GloCo_UserDimension fo
 ```
 AppEvents
   |
+  v
+GloCo__AppEvents  (primitive)
+  |
   |---> GloCo__Users_EdgePolicyCorrupt  [DB "Users with broken Edge policy"]  (also joins GloCo_PageViews above)
   |
   '---> GloCo_TriageSubmissions  (THE only reader of the "triage-submission" event (request-observation shim): one row per captured submission, prod only; reads GloCo_ExcludedUsers directly. Capture windows 2026-06-01 13:57Z → 2026-07-23 17:08Z and from 2026-09-28 07:37Z — see review-triage-types.md. Feeds GloCo_CaseReview_Activity above)
 ```
 
-The dashboard's "AD auth errors" tile queries the `AppExceptions` table directly, through no function.
+The dashboard's "AD auth errors" tile still queries the `AppExceptions` table directly; a prod copy of the
+dashboard must read the `GloCo__AppExceptions` primitive instead.
 
 Standalone (no source table):
 

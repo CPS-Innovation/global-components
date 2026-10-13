@@ -3,6 +3,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 source "${SCRIPT_DIR}/.env"
+source "${SCRIPT_DIR}/target.sh"
 
 OUTDIR="${SCRIPT_DIR}/output"
 DASHDIR="${SCRIPT_DIR}/../dashboard"
@@ -24,6 +25,10 @@ ssh "$AWS_REMOTE" "az rest \
 echo "Done: ${OUTFILE}"
 
 if [[ "${1:-}" == "--sync-dashboard" ]]; then
+  if [[ "${ANALYTICS_TARGET:-dev}" != "dev" ]]; then
+    echo "Error: --sync-dashboard rewrites the repo copy and is only for the dev target" >&2
+    exit 1
+  fi
   mkdir -p "$DASHDIR"
   sed "s/${SUBSCRIPTION}/__SUBSCRIPTION_ID__/g" "$OUTFILE" > "${DASHDIR}/dashboard.json"
   echo "→ Synced to ${DASHDIR}/dashboard.json (subscription ID redacted)"
