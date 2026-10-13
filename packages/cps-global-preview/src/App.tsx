@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef, type ReactNode } from "react";
 import type { AuthHint, Notification, Preview } from "cps-global-configuration";
+import { CutoverTest } from "./CutoverTest";
 
 const STATE_ENDPOINT = "/global-components/state/preview";
 const DISMISSED_NOTIFICATIONS_ENDPOINT = "/global-components/state/dismissed-notifications";
@@ -910,6 +911,7 @@ export function App() {
         </div>
       </form>
 
+      <CutoverTest />
     </div>
   );
 }
