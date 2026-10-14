@@ -71,6 +71,11 @@ export const initialiseAiAnalytics = ({ window, config: { APP_INSIGHTS_CONNECTIO
 
       // Do not auto-track SPA route changes
       enableAutoRouteTracking: false,
+
+      // Chrome is deprecating `unload` (and host apps may block it via Permissions-Policy),
+      //  so registering a listener logs "Permission policy violation: unload is not allowed".
+      //  beforeunload + pagehide still flush the buffer.
+      disablePageUnloadEvents: ["unload"],
     },
   });
 
