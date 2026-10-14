@@ -29,7 +29,7 @@ GloCo_PageViews  (also joins GloCo_ExcludedUsers; lookups GloCo_UserDimension fo
   |               |
   |               |---> GloCo_CaseReview_WithTriageTotalStartedSubmitted  [WB "Case review totals since launch", DB "Case review totals"]  (per type: Started / Submitted — "captured (adjusted)" cells / Users)
   |               |---> GloCo_CaseReview_InvolvementByUser  [WB "user submitted count by review type"]  (per user per type; triage twice — captured and "(adjusted)")
-  |               |---> GloCo_CaseReview_AreaCounts  [WB "Case submissions by area by week"]  (cells "captured (adjusted)"; joins GloCo__AreaRegionMapping)
+  |               |---> GloCo_CaseReview_AreaCounts  [WB "Review submissions by area by week"]  (reviews only; joins GloCo__AreaRegionMapping)
   |               |---> GloCo_CaseReview_TriageAreaCounts  [WB "Triage submissions by area by week"]  (triage-only sibling of AreaCounts; joins GloCo__AreaRegionMapping)
   |               |---> GloCo_CaseReview_Duration
   |               |       |
