@@ -3,11 +3,14 @@ import { isStoredAuthCurrent } from "./core/storage";
 import { createUrlWithParams, setParams, stripParams } from "./core/params";
 
 // Stage 1 of the CMS → OS auth handover. The user arrives with the CMS cookies
-// in the URL (`?cc=…`). If our stored cookies already match, we can skip the
-// expensive token-fetch leg and signal "ready" — the mediator will route the
-// user on. Otherwise we ask the mediator to navigate to the tokenHandoverUrl
-// (a Polaris endpoint that fetches the modern CMS token cookie-side and
-// bounces back at stage=os-token-return).
+// in the URL (`?cc=…`). If the URL also carries the modern CMS token (Polaris
+// `/init` appends it when its Entra step ran), there is nothing to fetch — we
+// signal "has-token" and the mediator runs the stage-2 logic on this same URL.
+// Otherwise, if our stored cookies already match, we can skip the expensive
+// token-fetch leg and signal "ready" — the mediator will route the user on.
+// Otherwise we ask the mediator to navigate to the tokenHandoverUrl (a Polaris
+// endpoint that fetches the modern CMS token cookie-side and bounces back at
+// stage=os-token-return).
 //
 // This function does not write to `win.location`. The mediator owns all our
 // in-estate navigation; we just return an intent.
@@ -19,7 +22,10 @@ export type OsCookieReturnOutcome =
   // Cookies have changed — caller should navigate to `href`, which is a
   // pre-built URL pointing at the token-handover endpoint with our return
   // shape baked in.
-  | { kind: "needs-token"; href: string };
+  | { kind: "needs-token"; href: string }
+  // The handover already carried the modern token (Polaris /init appended it):
+  // no bounce needed — the caller runs the stage-2 logic on this same URL.
+  | { kind: "has-token" };
 
 export const handleOsCookieReturn = (
   win: Window,
@@ -32,7 +38,18 @@ export const handleOsCookieReturn = (
   },
 ): OsCookieReturnOutcome => {
   const url = new URL(win.location.href);
-  const [cookies] = stripParams(url, HANDOVER_PARAM_KEYS.COOKIES);
+  const [cookies, token] = stripParams(
+    url,
+    HANDOVER_PARAM_KEYS.COOKIES,
+    HANDOVER_PARAM_KEYS.TOKEN,
+  );
+
+  // Taken even when the cookies match storage: cookies and token are 1:1, so
+  // re-storing is a cheap no-op in effect and keeps OS on the freshest values.
+  // An empty token, or a token without cookies, is ignored.
+  if (token && cookies) {
+    return { kind: "has-token" };
+  }
 
   const canGoStraightToTarget = isStoredAuthCurrent(
     cookies,
@@ -47,6 +64,8 @@ export const handleOsCookieReturn = (
 
   // Cookies have changed — route through the token-handover endpoint, which
   // returns us at stage=os-token-return with the modern CMS token attached.
+  // Any (empty) token param was stripped above, so the endpoint's appended
+  // token is the only one on the return URL.
   setParams(url, { [HANDOVER_PARAM_KEYS.STAGE]: HANDOVER_STAGES.OS_TOKEN_RETURN });
   const next = createUrlWithParams(tokenHandoverUrl, {
     [HANDOVER_PARAM_KEYS.R]: url.toString(),

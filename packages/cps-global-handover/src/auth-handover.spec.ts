@@ -189,6 +189,47 @@ describe("dispatchHandover", () => {
         "https://polaris.example/auth-handover-cms-modern-token?cc=x&r=y",
       );
     });
+    test("on kind:has-token runs stage 2 in-process on the same URL — no token-handover bounce", async () => {
+      withConfigOverrides({ OS_RESET_TASKLIST_FILTERS_ON_FRESH_TOKEN: true });
+      mockHandleOsCookieReturn.mockReturnValue({ kind: "has-token" });
+      mockHandleOsTokenReturn.mockResolvedValue({
+        kind: "ready",
+        target: "https://cps-tst.outsystemsenterprise.com/casework_blocks/home",
+      });
+      const win = makeWindow(
+        "https://cps-tst.outsystemsenterprise.com/Casework_Patterns/auth-handover.html?src=x&stage=os-cookie-return&cc=abc&cms-modern-token=tok&r=https%3A%2F%2Fcps-tst.outsystemsenterprise.com%2Fcasework_blocks%2Fhome",
+      );
+
+      await dispatchHandover(win, scriptUrl);
+
+      expect(mockHandleOsTokenReturn).toHaveBeenCalledWith(win, {
+        cmsAuthStorageKeys,
+        resetTasklistFiltersOnFreshToken: true,
+      });
+      expect(mockHandleMsalEnsureAd).not.toHaveBeenCalled();
+      expect(win.location.replace).toHaveBeenCalledTimes(1);
+      expect(win.location.replace).toHaveBeenCalledWith(
+        "https://cps-tst.outsystemsenterprise.com/casework_blocks/home",
+      );
+    });
+
+    test.each(["ready", "needs-token"] as const)(
+      "on kind:%s does not run stage 2",
+      async (kind) => {
+        mockHandleOsCookieReturn.mockReturnValue(
+          kind === "ready"
+            ? { kind, target: "https://example.com/target" }
+            : { kind, href: "https://polaris.example/x" },
+        );
+        const win = makeWindow(
+          "https://cps-tst.outsystemsenterprise.com/Casework_Patterns/auth-handover.html?src=x&stage=os-cookie-return&cc=abc&r=y",
+        );
+
+        await dispatchHandover(win, scriptUrl);
+
+        expect(mockHandleOsTokenReturn).not.toHaveBeenCalled();
+      },
+    );
   });
 
   describe("os-token-return stage", () => {
@@ -685,7 +726,28 @@ describe("dispatchHandover", () => {
       expect(writeOrder).toBeLessThan(navigateOrder);
     });
 
-    // os-token-return is reachable only from the needs-token branch above, which
+    // Cookie-return carrying the token runs stage 2 in-process; the write
+    // still lands first, before the navigation on to OS.
+    test("os-cookie-return kind:has-token also writes, before navigating on", async () => {
+      withConfigOverrides({ OS_ENTRA_ID_STORAGE_KEY: entraKey });
+      withAuthHint("obj-from-hint");
+      mockHandleOsCookieReturn.mockReturnValue({ kind: "has-token" });
+      const win = cookieReturnWindow();
+
+      await dispatchHandover(win, scriptUrl);
+
+      expect(win.localStorage.setItem).toHaveBeenCalledWith(
+        entraKey,
+        "obj-from-hint",
+      );
+      const writeOrder = (win.localStorage.setItem as jest.Mock).mock
+        .invocationCallOrder[0]!;
+      const navigateOrder = (win.location.replace as jest.Mock).mock
+        .invocationCallOrder[0]!;
+      expect(writeOrder).toBeLessThan(navigateOrder);
+    });
+
+    // os-token-return is reachable only via the needs-token bounce above, which
     // has already written — so this stage does no ClientVar work at all.
     test("os-token-return neither writes nor fetches the hint", async () => {
       withConfigOverrides({ OS_ENTRA_ID_STORAGE_KEY: entraKey });
