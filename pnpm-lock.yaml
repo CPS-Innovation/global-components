@@ -3416,8 +3416,8 @@ packages:
       node-notifier:
         optional: true
 
-  joi@18.1.2:
-    resolution: {integrity: sha512-rF5MAmps5esSlhCA+N1b6IYHDw9j/btzGaqfgie522jS02Ju/HXBxamlXVlKEHAxoMKQL77HWI8jlqWsFuekZA==}
+  joi@18.2.9:
+    resolution: {integrity: sha512-2mD929bUVKUhOLQQEVhlf6EZ0Mlo0DeRb5MO7cViR9AXLtBauuccEtB1py9Ocxpo/P7ucnh442iY/iOwrh3IQw==}
     engines: {node: '>= 20'}
 
   js-tokens@4.0.0:
@@ -8299,7 +8299,7 @@ snapshots:
       - supports-color
       - ts-node
 
-  joi@18.1.2:
+  joi@18.2.9:
     dependencies:
       '@hapi/address': 5.1.1
       '@hapi/formula': 3.0.2
@@ -9563,7 +9563,7 @@ snapshots:
   wait-on@8.0.5(debug@4.4.3(supports-color@8.1.1)):
     dependencies:
       axios: 1.14.0(debug@4.4.3(supports-color@8.1.1))
-      joi: 18.1.2
+      joi: 18.2.9
       lodash: 4.17.23
       minimist: 1.2.8
       rxjs: 7.8.2
