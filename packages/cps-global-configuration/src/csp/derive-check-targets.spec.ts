@@ -67,16 +67,19 @@ describe("against the committed OS host variants", () => {
     ),
   );
 
-  // The London tenant configures its CSP independently of cps-tst, so it is
-  // probed too. The oapps variant is a reverse proxy over cps-tst, so it is not.
-  it("probes the London tenant but not the oapps proxy in QA", () => {
+  // QA's own host is the oapps proxy, which isn't probed (see "against the
+  // committed configs"), so the tenant behind it, cps-tst, is reached through
+  // the cps variant instead. The London tenant configures its CSP independently,
+  // so it is probed too.
+  it("probes the QA tenant and the London tenant", () => {
     expect(new Set(targets.map(t => `${t.environment} ${new URL(t.url).hostname}`))).toEqual(
-      new Set(["test.cps-lon cpslon-tst.outsystemsenterprise.com"]),
+      new Set(["test.cps cps-tst.outsystemsenterprise.com", "test.cps-lon cpslon-tst.outsystemsenterprise.com"]),
     );
   });
 
   it("includes each probed variant's handover page", () => {
     expect(targets.filter(t => t.kind === "auth-handover").map(t => t.environment).sort()).toEqual([
+      "test.cps",
       "test.cps-lon",
     ]);
   });
@@ -90,22 +93,21 @@ describe("against the committed configs", () => {
   it("covers every OutSystems host the configs reference", () => {
     const hosts = new Set(targets.map(t => new URL(t.url).hostname));
 
-    // One OutSystems host per environment. The previous hand-written list
-    // named three of these four.
+    // One OutSystems host per environment, except test: its host is the oapps
+    // proxy, which isn't probed (its tenant is, via the cps variant above).
     expect([...hosts].sort()).toEqual([
       "cps-dev.outsystemsenterprise.com",
-      "cps-tst.outsystemsenterprise.com",
       "cps-tst1.outsystemsenterprise.com",
       "cps.outsystemsenterprise.com",
     ]);
   });
 
-  it("finds a handover target for every environment", () => {
+  it("finds a handover target for every environment still on its tenant host", () => {
     const handoverEnvironments = new Set(
       targets.filter(t => t.kind === "auth-handover").map(t => t.environment),
     );
 
-    expect([...handoverEnvironments].sort()).toEqual([...ENVIRONMENTS].sort());
+    expect([...handoverEnvironments].sort()).toEqual(ENVIRONMENTS.filter(env => env !== "test").sort());
   });
 
   it("probes the Casework module at its current name, not Casework_blocks", () => {

@@ -124,7 +124,7 @@ const main = async (): Promise<void> => {
     fs.readFileSync(REPO_HANDOVER_HTML, "utf-8"),
   );
 
-  // OS host variants (e.g. test.oapps, test.cps-lon) are the same app on
+  // OS host variants (e.g. test.cps, test.cps-lon) are the same app on
   // another OutSystems host, which configures its CSP independently — so probe
   // them too, judged against their own (host-swapped) config.
   const checkedConfigs: Record<string, (typeof configs)[string]> = {

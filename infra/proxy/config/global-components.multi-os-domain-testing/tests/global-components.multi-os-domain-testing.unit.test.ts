@@ -105,9 +105,9 @@ async function runTests(): Promise<void> {
     }
   }
 
-  const OAPPS = "oapps-qa-notprod.int.cps.gov.uk"
+  const CPS = "cps-tst.outsystemsenterprise.com"
   const LONDON = "cpslon-tst.outsystemsenterprise.com"
-  const SIGNAL = `Gloco-Os-Target-test=${OAPPS}`
+  const SIGNAL = `Gloco-Os-Target-test=${CPS}`
 
   console.log("=".repeat(60))
   console.log("global-components.multi-os-domain-testing.js Unit Tests")
@@ -128,12 +128,12 @@ async function runTests(): Promise<void> {
   })
 
   await test("serves the variant the signal cookie names (CWA, same-origin)", async () => {
-    assertEqual(multiOs.readConfigBlobName(configRequest({ Cookie: `other=1; ${SIGNAL}` })), "config.oapps.json", "blob")
+    assertEqual(multiOs.readConfigBlobName(configRequest({ Cookie: `other=1; ${SIGNAL}` })), "config.cps.json", "blob")
   })
 
   await test("treats an Origin of our own host as same-origin, so the cookie still decides", async () => {
     const r = configRequest({ Origin: "https://polaris-qa-notprod.cps.gov.uk", Cookie: SIGNAL })
-    assertEqual(multiOs.readConfigBlobName(r), "config.oapps.json", "blob")
+    assertEqual(multiOs.readConfigBlobName(r), "config.cps.json", "blob")
   })
 
   await test("serves the variant for the OS page's own host, whatever the cookie says", async () => {
@@ -142,7 +142,7 @@ async function runTests(): Promise<void> {
 
   // Config has to match the page it runs on: auth state is per-origin.
   await test("serves config.json to the environment's own OS host even when switched", async () => {
-    const r = configRequest({ Origin: "https://cps-tst.outsystemsenterprise.com", Cookie: SIGNAL })
+    const r = configRequest({ Origin: "https://oapps-qa-notprod.int.cps.gov.uk", Cookie: SIGNAL })
     assertEqual(multiOs.readConfigBlobName(r), "config.json", "blob")
   })
 
@@ -175,8 +175,8 @@ async function runTests(): Promise<void> {
 
   // Same shape and encoding as Polaris's own target — only the OS host differs.
   await test("builds Polaris's own target with the OS host swapped, for every overridden route", async () => {
-    for (const [route, host] of [["cin2-proxy", OAPPS], ["cin3-proxy", OAPPS], ["cin4-proxy", LONDON], ["cin5-proxy", LONDON]]) {
-      const expected = polarisTarget(route!).split("cps-tst.outsystemsenterprise.com").join(host!)
+    for (const [route, host] of [["cin2-proxy", CPS], ["cin3-proxy", CPS], ["cin4-proxy", LONDON], ["cin5-proxy", LONDON]]) {
+      const expected = polarisTarget(route!).split("oapps-qa-notprod.int.cps.gov.uk").join(host!)
       assertEqual(multiOs.launchTarget(launchRequest(route!, `Gloco-Os-Target-test=${host}`)), expected, route!)
     }
   })
@@ -186,7 +186,7 @@ async function runTests(): Promise<void> {
   })
 
   await test("hands back for another environment's signal", async () => {
-    assertEqual(multiOs.launchTarget(launchRequest("cin3-proxy", `Gloco-Os-Target-dev=${OAPPS}`)), "", "target")
+    assertEqual(multiOs.launchTarget(launchRequest("cin3-proxy", `Gloco-Os-Target-dev=${CPS}`)), "", "target")
   })
 
   await test("never touches routes it doesn't divert (raw CMS, prod)", async () => {
@@ -209,7 +209,7 @@ async function runTests(): Promise<void> {
     assertEqual(r.returnCode, 200, "status")
     assertEqual(
       r.returnBody,
-      JSON.stringify({ current: OAPPS, options: [{ variant: "oapps", host: OAPPS }, { variant: "cps-lon", host: LONDON }] }),
+      JSON.stringify({ current: CPS, options: [{ variant: "cps", host: CPS }, { variant: "cps-lon", host: LONDON }] }),
       "body",
     )
   })
@@ -242,34 +242,34 @@ async function runTests(): Promise<void> {
   const cookieOf = (r: MockRequest) => r.headersOut["Set-Cookie"] as string
 
   await test("from Edge: writes Edge's copy, then flips to IE mode to write that one", async () => {
-    const r = setRequest({ env: "test", host: OAPPS, return: "/global-components/test/preview/" }, EDGE)
+    const r = setRequest({ env: "test", host: CPS, return: "/global-components/test/preview/" }, EDGE)
     multiOs.handleSet(r)
-    assert(cookieOf(r).startsWith(`Gloco-Os-Target-test=${OAPPS}; Path=/;`), `cookie: ${cookieOf(r)}`)
+    assert(cookieOf(r).startsWith(`Gloco-Os-Target-test=${CPS}; Path=/;`), `cookie: ${cookieOf(r)}`)
     assert(cookieOf(r).includes("HttpOnly") && cookieOf(r).includes("Secure"), `cookie: ${cookieOf(r)}`)
     assertEqual(r.headersOut["X-InternetExplorerMode"], "1", "flip to IE mode")
     assertEqual(r.returnCode, 302, "status")
     assertEqual(
       r.returnBody,
-      `/global-components/multi-os/set?env=test&host=${OAPPS}&return=%2Fglobal-components%2Ftest%2Fpreview%2F&done=edge`,
+      `/global-components/multi-os/set?env=test&host=${CPS}&return=%2Fglobal-components%2Ftest%2Fpreview%2F&done=edge`,
       "hop",
     )
   })
 
   await test("then in IE mode: writes IE mode's copy and returns to the preview page in Edge", async () => {
-    const r = setRequest({ env: "test", host: OAPPS, return: "/global-components/test/preview/", done: "edge" }, IE)
+    const r = setRequest({ env: "test", host: CPS, return: "/global-components/test/preview/", done: "edge" }, IE)
     multiOs.handleSet(r)
-    assert(cookieOf(r).startsWith(`Gloco-Os-Target-test=${OAPPS};`), `cookie: ${cookieOf(r)}`)
+    assert(cookieOf(r).startsWith(`Gloco-Os-Target-test=${CPS};`), `cookie: ${cookieOf(r)}`)
     assertEqual(r.headersOut["X-InternetExplorerMode"], "0", "back to Edge")
     assertEqual(r.returnBody, "/global-components/test/preview/", "return")
   })
 
   await test("started in IE mode: writes that copy first, then flips to Edge for the other", async () => {
-    const first = setRequest({ env: "test", host: OAPPS, return: "/x" }, IE)
+    const first = setRequest({ env: "test", host: CPS, return: "/x" }, IE)
     multiOs.handleSet(first)
     assertEqual(first.headersOut["X-InternetExplorerMode"], "0", "flip to Edge")
     assert(first.returnBody!.endsWith("&done=ie"), `hop: ${first.returnBody}`)
 
-    const second = setRequest({ env: "test", host: OAPPS, return: "/x", done: "ie" }, EDGE)
+    const second = setRequest({ env: "test", host: CPS, return: "/x", done: "ie" }, EDGE)
     multiOs.handleSet(second)
     assertEqual(second.headersOut["X-InternetExplorerMode"], undefined, "already in Edge")
     assertEqual(second.returnBody, "/x", "return")
@@ -284,20 +284,20 @@ async function runTests(): Promise<void> {
   })
 
   await test("never loops when the browser declines the flip", async () => {
-    const r = setRequest({ env: "test", host: OAPPS, return: "/x", done: "edge" }, EDGE)
+    const r = setRequest({ env: "test", host: CPS, return: "/x", done: "edge" }, EDGE)
     multiOs.handleSet(r)
     assertEqual(r.returnBody, "/x", "returns rather than hopping again")
   })
 
   await test("a site that can't flip sets the current engine's copy and returns", async () => {
-    const r = setRequest({ env: "test", host: OAPPS, return: "/x" }, "nonie+nonconfigurable+")
+    const r = setRequest({ env: "test", host: CPS, return: "/x" }, "nonie+nonconfigurable+")
     multiOs.handleSet(r)
     assertEqual(r.headersOut["X-InternetExplorerMode"], undefined, "no flip")
     assertEqual(r.returnBody, "/x", "return")
   })
 
   await test("refuses an unknown host or environment, writing nothing", async () => {
-    for (const args of [{ env: "test", host: "evil.example.com" }, { env: "prod", host: OAPPS }, { env: "nope", host: "" }]) {
+    for (const args of [{ env: "test", host: "evil.example.com" }, { env: "prod", host: CPS }, { env: "nope", host: "" }]) {
       const r = setRequest({ ...args, return: "/x" }, EDGE)
       multiOs.handleSet(r)
       assertEqual(r.returnCode, 400, JSON.stringify(args))
@@ -307,7 +307,7 @@ async function runTests(): Promise<void> {
 
   await test("only returns to paths on this host", async () => {
     for (const unsafe of ["https://evil.example.com/", "//evil.example.com/", "evil", ""]) {
-      const r = setRequest({ env: "test", host: OAPPS, return: unsafe, done: "edge" }, IE)
+      const r = setRequest({ env: "test", host: CPS, return: unsafe, done: "edge" }, IE)
       multiOs.handleSet(r)
       assertEqual(r.returnBody, "/", `return for ${unsafe}`)
     }

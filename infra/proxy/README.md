@@ -25,7 +25,7 @@ Nginx reverse proxy with njs (JavaScript) for header/cookie manipulation. Used t
 ### Multi-OS-domain testing (`config/global-components.multi-os-domain-testing/`) — TEMPORARY
 
 A self-contained module (FCT2-22132) that lets designated QA users run against a different
-OutSystems host (the oapps proxy, the London tenant) while everyone else is untouched. It only
+OutSystems host (the old outsystemsenterprise.com host, the London tenant) while everyone else is untouched. It only
 ADDS locations, plus one server-level divert that fires only for requests carrying the signal
 cookie. It loads unchanged in both Polaris proxy worlds (the live monolith and the refactored
 `features/` config; Polaris `PROXY.md` §6.8), and the deploy writes its conf to both. To end the trial, delete the module directory
