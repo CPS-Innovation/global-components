@@ -83,4 +83,74 @@ describe("handleOsCookieReturn", () => {
 
     expect(outcome.kind).toBe("needs-token");
   });
+
+  describe("with the modern token already on the URL (Polaris /init appended it)", () => {
+    const handoverUrl = (query: string) =>
+      `https://cps-tst.outsystemsenterprise.com/Casework_Patterns/auth-handover.html?src=x&stage=os-cookie-return&r=https%3A%2F%2Fexample.com%2Ftarget${query}`;
+
+    const storeCookies = (value: string) => {
+      localStorage[keys.WMA_COOKIES] = value;
+      localStorage[keys.CASE_REVIEW_COOKIES] = value;
+      localStorage[keys.HOME_COOKIES] = value;
+      localStorage[keys.VCA_COOKIES] = value;
+    };
+
+    test("token + cc with stale storage returns kind:has-token (no bounce)", () => {
+      storeCookies("stale-cookies");
+      const win = makeWindow(handoverUrl("&cc=fresh-cookies&cms-modern-token=tok"));
+
+      const outcome = handleOsCookieReturn(win, { tokenHandoverUrl, cmsAuthStorageKeys: keys });
+
+      expect(outcome).toEqual({ kind: "has-token" });
+      expect(win.location.replace).not.toHaveBeenCalled();
+    });
+
+    test("token + cc with matching storage still returns kind:has-token", () => {
+      storeCookies("matching-cookies");
+      const win = makeWindow(handoverUrl("&cc=matching-cookies&cms-modern-token=tok"));
+
+      const outcome = handleOsCookieReturn(win, { tokenHandoverUrl, cmsAuthStorageKeys: keys });
+
+      expect(outcome).toEqual({ kind: "has-token" });
+    });
+
+    test("empty token with matching storage falls through to kind:ready", () => {
+      storeCookies("matching-cookies");
+      const win = makeWindow(handoverUrl("&cc=matching-cookies&cms-modern-token="));
+
+      const outcome = handleOsCookieReturn(win, { tokenHandoverUrl, cmsAuthStorageKeys: keys });
+
+      expect(outcome).toEqual({ kind: "ready", target: "https://example.com/target" });
+    });
+
+    test("empty token with stale storage falls through to kind:needs-token, and r carries no token", () => {
+      storeCookies("stale-cookies");
+      const win = makeWindow(handoverUrl("&cc=fresh-cookies&cms-modern-token="));
+
+      const outcome = handleOsCookieReturn(win, { tokenHandoverUrl, cmsAuthStorageKeys: keys });
+
+      expect(outcome.kind).toBe("needs-token");
+      if (outcome.kind === "needs-token") {
+        const next = new URL(outcome.href);
+        expect(next.searchParams.get("cc")).toBe("fresh-cookies");
+        const r = new URL(next.searchParams.get("r")!);
+        expect(r.searchParams.has("cms-modern-token")).toBe(false);
+        expect(r.searchParams.has("cc")).toBe(false);
+        expect(r.searchParams.get("stage")).toBe("os-token-return");
+      }
+    });
+
+    test("token without cc is ignored — falls through to today's behaviour, r carries no token", () => {
+      storeCookies("stale-cookies");
+      const win = makeWindow(handoverUrl("&cms-modern-token=tok"));
+
+      const outcome = handleOsCookieReturn(win, { tokenHandoverUrl, cmsAuthStorageKeys: keys });
+
+      expect(outcome.kind).toBe("needs-token");
+      if (outcome.kind === "needs-token") {
+        const r = new URL(new URL(outcome.href).searchParams.get("r")!);
+        expect(r.searchParams.has("cms-modern-token")).toBe(false);
+      }
+    });
+  });
 });

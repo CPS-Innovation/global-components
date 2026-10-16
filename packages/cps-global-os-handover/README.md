@@ -57,9 +57,12 @@ When a user is on a proxied CMS page and clicks a menu link targeting OutSystems
 |                                                                     |
 | Validates redirect URL against AUTH_HANDOVER_WHITELIST.              |
 | Appends cookies via ?cc= param.                                     |
+| When its Entra step ran, also appends ?cms-modern-token= (optional, |
+| handover-page destinations only).                                   |
 | Sets Cms-Session-Hint cookie.                                       |
 | Redirects to:                                                        |
 |   {OS_HANDOVER_URL}?stage=os-cookie-return&r={targetUrl}&cc={...}   |
+|                    [&cms-modern-token={...}]                        |
 +----------------------------------+----------------------------------+
                                    |
                                    v
@@ -69,8 +72,10 @@ When a user is on a proxied CMS page and clicks a menu link targeting OutSystems
 |                                                                     |
 | Stage: os-cookie-return                                              |
 |  - Extracts cc (cookies) from URL                                   |
-|  - If cookies match localStorage: skip to target (auth still valid) |
-|  - If not: redirect to TOKEN_HANDOVER_URL with stage=os-token-return|
+|  - If cms-modern-token + cc present: run the os-token-return logic  |
+|    below in-process on this URL (no bounce, one page load)          |
+|  - Else if cookies match localStorage: skip to target               |
+|  - Else: redirect to TOKEN_HANDOVER_URL with stage=os-token-return  |
 +----------------------------------+----------------------------------+
                                    |
                     (if token needed)
@@ -129,3 +134,5 @@ Previously the client-side code had three stages (`os-outbound`, `os-cookie-retu
 - **One config URL**: `OS_HANDOVER_URL` (the auth-handover.html page on the OS domain)
 - **Two derived URLs**: `${origin}/auth-refresh-outbound` and `${origin}/auth-refresh-cms-modern-token`
 - **Two stages**: `os-cookie-return` (cookie check, skip or fetch token) and `os-token-return` (store auth and redirect)
+
+Since 2026-10 the Polaris proxy's `/init` may append `cms-modern-token` to the `os-cookie-return` URL (only when its Entra step ran and looked the token up). When present alongside `cc`, stage 1 skips the `/auth-refresh-cms-modern-token` bounce and stores the token directly — even when the cookies already match storage (cookies and token are 1:1, so this is a no-op in effect). The token is optional forever: without it the flow is exactly as above, and `/auth-refresh-cms-modern-token` remains the fallback.

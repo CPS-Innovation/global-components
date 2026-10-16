@@ -286,6 +286,28 @@ const runEnsureAd = async (
   // for us to do. No navigation here.
 };
 
+// Stage 2 of the OS handover: store the modern CMS auth from the current URL
+// (r + cc + cms-modern-token), then deliver the user to the target. Reached
+// from os-token-return (after the token-handover bounce) and from
+// os-cookie-return's has-token branch (token appended by Polaris /init).
+const completeOsTokenReturn = async (
+  win: Window,
+  config: Config,
+  scriptUrl: URL,
+): Promise<void> => {
+  const outcome = await handleOsTokenReturn(win, {
+    cmsAuthStorageKeys: config.CMS_AUTH_STORAGE_KEYS!,
+    resetTasklistFiltersOnFreshToken:
+      !!config.OS_RESET_TASKLIST_FILTERS_ON_FRESH_TOKEN,
+  });
+  if (ENSURE_AD_ON_OS_HANDOVER) {
+    // Token stored — preemptive AD check before the user reaches target.
+    // In-process call, not a page navigation.
+    return runEnsureAd(win, config, scriptUrl, outcome.target);
+  }
+  win.location.replace(outcome.target);
+};
+
 // Single dispatcher for the shared auth-handover endpoint. Branches by
 // `?stage=`; within `ad-redirect` it further branches on whether the URL
 // fragment carries an AAD response.
@@ -319,18 +341,25 @@ export const dispatchHandover = async (
     case HANDOVER_STAGES.OS_COOKIE_RETURN: {
       // The single door into the OS handover — both producers of a handover URL
       // (the menu's createOutboundUrlDirect and the njs redirect chain) enter
-      // here, and os-token-return is only ever reached from the needs-token
-      // branch below. So one write here covers every transfer-in, on both exits,
-      // and lands before any navigation on to the OS app — which is what
-      // matters, since OS reads its ClientVars at bootstrap. On the needs-token
-      // path the value simply persists across the token-handover bounce (same
-      // origin, and nothing on that leg touches the key).
+      // here. Stage-2 logic runs either in-process from the has-token branch
+      // below, or at os-token-return after the needs-token bounce. So one write
+      // here covers every transfer-in, on every exit, and lands before any
+      // navigation on to the OS app — which is what matters, since OS reads its
+      // ClientVars at bootstrap. On the needs-token path the value simply
+      // persists across the token-handover bounce (same origin, and nothing on
+      // that leg touches the key).
       await republishEntraIdClientVar(win, config, scriptUrl);
 
       const outcome = handleOsCookieReturn(win, {
         tokenHandoverUrl: `${scriptUrl.origin}/auth-refresh-cms-modern-token`,
         cmsAuthStorageKeys: config.CMS_AUTH_STORAGE_KEYS!,
       });
+      if (outcome.kind === "has-token") {
+        // Polaris /init already appended the modern token — no bounce needed.
+        // The URL carries r + cc + cms-modern-token, which is exactly the
+        // os-token-return shape, so run stage 2 on it in-process.
+        return completeOsTokenReturn(win, config, scriptUrl);
+      }
       if (outcome.kind === "ready") {
         if (ENSURE_AD_ON_OS_HANDOVER) {
           // Cookies fresh — preemptive AD check before delivering to target.
@@ -347,22 +376,10 @@ export const dispatchHandover = async (
       return;
     }
 
-    case HANDOVER_STAGES.OS_TOKEN_RETURN: {
-      const outcome = await handleOsTokenReturn(win, {
-        cmsAuthStorageKeys: config.CMS_AUTH_STORAGE_KEYS!,
-        resetTasklistFiltersOnFreshToken:
-          !!config.OS_RESET_TASKLIST_FILTERS_ON_FRESH_TOKEN,
-      });
+    case HANDOVER_STAGES.OS_TOKEN_RETURN:
       // No ClientVar write here — we only arrive at this stage via the
-      // cookie-return needs-token branch, which has already written.
-      if (ENSURE_AD_ON_OS_HANDOVER) {
-        // Token stored — preemptive AD check before the user reaches target.
-        // In-process call, not a page navigation.
-        return runEnsureAd(win, config, scriptUrl, outcome.target);
-      }
-      win.location.replace(outcome.target);
-      return;
-    }
+      // cookie-return needs-token bounce, which has already written.
+      return completeOsTokenReturn(win, config, scriptUrl);
 
     case HANDOVER_STAGES.ENSURE_AD:
       // Public entry point. External entities navigate the user here to
