@@ -2,7 +2,7 @@
 // Multi-OS-domain testing (FCT2-22132)
 //
 // TEMPORARY. Lets designated QA users run against a different OutSystems host
-// (the oapps proxy, the London tenant) while everyone else stays on their
+// (the old outsystemsenterprise.com host, the London tenant) while everyone else stays on their
 // environment's own host. Everything for it lives in this module and its .conf,
 // so ending the trial is deleting this directory (plus its build/deploy/test
 // wiring). Nothing here edits another team's config: it only adds locations
@@ -26,9 +26,11 @@
 
 // Each environment's OS host variants. Must match the variant config files in
 // configuration/ (config.<env>.<variant>.json) — the unit tests check both ways.
+// test's own host is now oapps-qa-notprod; "cps" is the old outsystemsenterprise
+// host, kept switchable until it is retired.
 const OS_HOST_VARIANTS: Record<string, Record<string, string>> = {
   test: {
-    oapps: "oapps-qa-notprod.int.cps.gov.uk",
+    cps: "cps-tst.outsystemsenterprise.com",
     "cps-lon": "cpslon-tst.outsystemsenterprise.com",
   },
 };

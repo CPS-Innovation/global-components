@@ -16,11 +16,11 @@
   "CASE_LOCKING_SCOPES": [
     "api://8d6133af-9593-47c6-94d0-5c65e9e310f1/api.presence.user.readwrite"
   ],
-  "CASE_LOCKING_CASE_DETAILS_URL": "https://cps-tst.outsystemsenterprise.com/WorkManagementApp/CaseOverview?CaseId={caseId}",
+  "CASE_LOCKING_CASE_DETAILS_URL": "https://oapps-qa-notprod.int.cps.gov.uk/WorkManagementApp/CaseOverview?CaseId={caseId}",
   "FEATURE_FLAG_CASE_LOCKING_USERS": {
     "generallyAvailable": true
   },
-  "BANNER_TITLE_HREF": "https://cps-tst.outsystemsenterprise.com/Casework/home",
+  "BANNER_TITLE_HREF": "https://oapps-qa-notprod.int.cps.gov.uk/Casework/home",
   "AD_TENANT_AUTHORITY": "https://login.microsoftonline.com/00dd0d1d-d7e6-4338-ac51-565339c7088c",
   "AD_CLIENT_ID": "8d6133af-9593-47c6-94d0-5c65e9e310f1",
   "AD_GATEWAY_SCOPES": ["User.Read"],
@@ -28,16 +28,16 @@
   "APP_INSIGHTS_CONNECTION_STRING": "InstrumentationKey=e572c03c-8d38-4771-b193-962f13da1b1a;IngestionEndpoint=https://polaris-qa-notprod.cps.gov.uk/global-components/analytics/;ApplicationId=3dafc37d-8c9c-4480-90fc-532ac2b8bba2",
   "SURVEY_LINK": "https://forms.cloud.microsoft/Pages/ResponsePage.aspx?id=HQ3dAObXOEOsUVZTOccIjMYFiPHggxZNtgEAXRbAx2hUNjNWUDc0UEtVTERCMFpFMkI1QTVSSUxTVyQlQCN0PWcu&rc715f3f34a484d8eae0a1809b30c6c5a=%22Feedback%22&r67e8aaf2389e4b9d8aa0c01902281211=9&rf690462c782847db972938cb1c773bc2=%22Easy%22&r781f1b5b16b14f5689b788fa6d98287b=%22Make%20a%20Charging%20Decision%22",
   "REPORT_ISSUE_LINK": "https://cpsprod1.service-now.com/sp?id=sc_cat_item&sys_id=716b2e011bd66410d5b3dce3b24bcbbf",
-  "ACCESSIBILITY_STATEMENT_URL": "https://cps-tst.outsystemsenterprise.com/Casework/accessibility",
+  "ACCESSIBILITY_STATEMENT_URL": "https://oapps-qa-notprod.int.cps.gov.uk/Casework/accessibility",
   "SHOW_MENU": true,
   "SHOW_RECENT_CASES": true,
   "SHOW_MONITORING_CODES": false,
   "SHOW_NOTIFICATIONS": true,
   "SHOW_HEADER_REBRAND": "cps",
-  "OS_HANDOVER_URL": "https://cps-tst.outsystemsenterprise.com/Casework_Patterns/auth-handover.html?src=https://polaris-qa-notprod.cps.gov.uk/global-components/test/auth-handover.js",
+  "OS_HANDOVER_URL": "https://oapps-qa-notprod.int.cps.gov.uk/Casework_Patterns/auth-handover.html?src=https://polaris-qa-notprod.cps.gov.uk/global-components/test/auth-handover.js",
   "OS_ENTRA_ID_STORAGE_KEY": "$OS_Users$Casework_Blocks$ClientVars$EntraID",
   "OS_RESET_TASKLIST_FILTERS_ON_FRESH_TOKEN": true,
-  "RECENT_CASES_NAVIGATE_URL": "https://cps-tst.outsystemsenterprise.com/WorkManagementApp/CaseOverview?CaseId={caseId}",
+  "RECENT_CASES_NAVIGATE_URL": "https://oapps-qa-notprod.int.cps.gov.uk/WorkManagementApp/CaseOverview?CaseId={caseId}",
   "RECENT_CASES_LIST_LENGTH": 5,
   "FEATURE_FLAG_MENU_USERS": {
     "generallyAvailable": true
@@ -67,23 +67,23 @@
         "listSelector": ".cps-skip-link__target .cps-filter-layout .cps-search-results",
         "useScroll": true
       },
-      "msalRedirectUrl": "https://cps-tst.outsystemsenterprise.com/Casework_Patterns/auth-handover.html?src=https%3A%2F%2Fpolaris-qa-notprod.cps.gov.uk%2Fglobal-components%2Ftest%2Fauth-handover.js&stage=ad-redirect",
+      "msalRedirectUrl": "https://oapps-qa-notprod.int.cps.gov.uk/Casework_Patterns/auth-handover.html?src=https%3A%2F%2Fpolaris-qa-notprod.cps.gov.uk%2Fglobal-components%2Ftest%2Fauth-handover.js&stage=ad-redirect",
       "cmsAuthFromStorageKey": "$OS_Users$Casework_Blocks$ClientVars$JSONString",
       "contexts": [
         {
-          "path": "https://cps-tst\\.outsystemsenterprise\\.com/casework(_blocks)?/home",
+          "path": "https://oapps-qa-notprod\\.int\\.cps\\.gov\\.uk/casework(_blocks)?/home",
           "contextIds": "home",
           "showNotification": true
         },
         {
-          "path": "https://cps-tst\\.outsystemsenterprise\\.com/casework(_blocks)?(?![a-z0-9_])",
+          "path": "https://oapps-qa-notprod\\.int\\.cps\\.gov\\.uk/casework(_blocks)?(?![a-z0-9_])",
           "contextIds": "unknown-home"
         },
         {
           "caseLockingAppName": "Case Review App",
           "contexts": [
             {
-              "path": "https://cps-tst\\.outsystemsenterprise\\.com/CaseReview.*?[&?](?:CMS)?CaseId=(?<caseId>\\d+)",
+              "path": "https://oapps-qa-notprod\\.int\\.cps\\.gov\\.uk/CaseReview.*?[&?](?:CMS)?CaseId=(?<caseId>\\d+)",
               "contextIds": "case review",
               "caseLockingRegion": { "code": "case_review" },
               "hostAppEventTargets": [
@@ -94,24 +94,24 @@
           ]
         },
         {
-          "path": "https://cps-tst\\.outsystemsenterprise\\.com/CaseReview/RedirectCW",
+          "path": "https://oapps-qa-notprod\\.int\\.cps\\.gov\\.uk/CaseReview/RedirectCW",
           "contextIds": "redirect",
           "preventPageViewAnalytics": true
         },
         {
-          "path": "https://cps-tst\\.outsystemsenterprise\\.com/CaseReview/",
+          "path": "https://oapps-qa-notprod\\.int\\.cps\\.gov\\.uk/CaseReview/",
           "contextIds": "cases"
         },
         {
           "caseLockingAppName": "Work Management App",
           "contexts": [
             {
-              "path": "https://cps-tst\\.outsystemsenterprise\\.com/WorkManagementApp.*?(?=.*[&?]CaseId=(?<caseId>\\d+))(?=.*[&?]IsOpenMaterials=true)",
+              "path": "https://oapps-qa-notprod\\.int\\.cps\\.gov\\.uk/WorkManagementApp.*?(?=.*[&?]CaseId=(?<caseId>\\d+))(?=.*[&?]IsOpenMaterials=true)",
               "contextIds": "case materials",
               "caseLockingRegion": { "code": "case" }
             },
             {
-              "path": "https://cps-tst\\.outsystemsenterprise\\.com/WorkManagementApp/CaseOverviewDetails(?=.*[&?]In_WitnessID=(?<witnessId>\\d+))(?=.*[&?]CaseId=(?<caseId>\\d+))",
+              "path": "https://oapps-qa-notprod\\.int\\.cps\\.gov\\.uk/WorkManagementApp/CaseOverviewDetails(?=.*[&?]In_WitnessID=(?<witnessId>\\d+))(?=.*[&?]CaseId=(?<caseId>\\d+))",
               "contextIds": "case details",
               "caseLockingRegion": {
                 "code": "victim_witness",
@@ -119,31 +119,31 @@
               }
             },
             {
-              "path": "https://cps-tst\\.outsystemsenterprise\\.com/WorkManagementApp.*[&?]CaseId=(?<caseId>\\d+)",
+              "path": "https://oapps-qa-notprod\\.int\\.cps\\.gov\\.uk/WorkManagementApp.*[&?]CaseId=(?<caseId>\\d+)",
               "contextIds": "case details",
               "caseLockingRegion": { "code": "case" }
             }
           ]
         },
         {
-          "path": "https://cps-tst\\.outsystemsenterprise\\.com/WorkManagementApp/Cases",
+          "path": "https://oapps-qa-notprod\\.int\\.cps\\.gov\\.uk/WorkManagementApp/Cases",
           "contextIds": "cases"
         },
         {
-          "path": "https://cps-tst\\.outsystemsenterprise\\.com/WorkManagementApp/TaskList",
+          "path": "https://oapps-qa-notprod\\.int\\.cps\\.gov\\.uk/WorkManagementApp/TaskList",
           "contextIds": "tasks"
         },
         {
-          "path": "https://cps-tst\\.outsystemsenterprise\\.com/WorkManagementApp/Redirect",
+          "path": "https://oapps-qa-notprod\\.int\\.cps\\.gov\\.uk/WorkManagementApp/Redirect",
           "contextIds": "redirect",
           "preventPageViewAnalytics": true
         },
         {
-          "path": "https://cps-tst\\.outsystemsenterprise\\.com/WorkManagementApp/SearchCase",
+          "path": "https://oapps-qa-notprod\\.int\\.cps\\.gov\\.uk/WorkManagementApp/SearchCase",
           "contextIds": "cases"
         },
         {
-          "path": "https://cps-tst\\.outsystemsenterprise\\.com/WorkManagementApp",
+          "path": "https://oapps-qa-notprod\\.int\\.cps\\.gov\\.uk/WorkManagementApp",
           "contextIds": "unknown-wma"
         }
       ]
@@ -229,28 +229,28 @@
     {
       "label": "Home",
       "level": 0,
-      "href": "https://cps-tst.outsystemsenterprise.com/Casework/home",
+      "href": "https://oapps-qa-notprod.int.cps.gov.uk/Casework/home",
       "visibleContexts": "home tasks cases case unknown-wma accessibility-settings",
       "activeContexts": "home"
     },
     {
       "label": "Tasks",
       "level": 0,
-      "href": "https://cps-tst.outsystemsenterprise.com/WorkManagementApp/TaskList",
+      "href": "https://oapps-qa-notprod.int.cps.gov.uk/WorkManagementApp/TaskList",
       "visibleContexts": "home tasks cases case unknown-wma accessibility-settings",
       "activeContexts": "tasks"
     },
     {
       "label": "Cases",
       "level": 0,
-      "href": "https://cps-tst.outsystemsenterprise.com/WorkManagementApp/Cases?IsCasesNavigation=true",
+      "href": "https://oapps-qa-notprod.int.cps.gov.uk/WorkManagementApp/Cases?IsCasesNavigation=true",
       "visibleContexts": "home tasks cases case unknown-wma accessibility-settings",
       "activeContexts": "cases case"
     },
     {
       "label": "Details",
       "level": 1,
-      "href": "https://cps-tst.outsystemsenterprise.com/WorkManagementApp/CaseOverview?CaseId={caseId}",
+      "href": "https://oapps-qa-notprod.int.cps.gov.uk/WorkManagementApp/CaseOverview?CaseId={caseId}",
       "visibleContexts": "case",
       "activeContexts": "details",
       "dcfContextsToUseEventNavigation": {
@@ -264,7 +264,7 @@
       "label": "Materials",
       "level": 1,
       "href": "https://polaris-qa-notprod.cps.gov.uk/auth-refresh-outbound?q=%7B%22caseId%22%3A{caseId}%7D",
-      "dcfHref": "https://cps-tst.outsystemsenterprise.com/WorkManagementApp/CaseOverview?CaseId={caseId}&IsOpenMaterials=true",
+      "dcfHref": "https://oapps-qa-notprod.int.cps.gov.uk/WorkManagementApp/CaseOverview?CaseId={caseId}&IsOpenMaterials=true",
       "visibleContexts": "case",
       "activeContexts": "materials",
       "dcfContextsToUseEventNavigation": {
@@ -277,7 +277,7 @@
     {
       "label": "Review",
       "level": 1,
-      "href": "https://cps-tst.outsystemsenterprise.com/CaseReview/LandingPage?CMSCaseId={caseId}",
+      "href": "https://oapps-qa-notprod.int.cps.gov.uk/CaseReview/LandingPage?CMSCaseId={caseId}",
       "visibleContexts": "case",
       "activeContexts": "review"
     }

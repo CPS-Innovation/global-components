@@ -60,7 +60,7 @@ const validateStoredEnvironment = (
   }
 
   // config.<env>.json, or config.<env>.<variant>.json for an OS host variant of
-  // that environment (e.g. config.test.oapps.json) — the variant keeps its
+  // that environment (e.g. config.test.cps.json) — the variant keeps its
   // environment's ENVIRONMENT value.
   const match = filename.match(/^config\.([^.]+)(?:\.[^.]+)?\.json$/);
   if (!match) {

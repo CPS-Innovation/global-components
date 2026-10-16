@@ -17,8 +17,8 @@ const {
   resetState,
 } = require("../../../test-utils")
 
-const OAPPS = "oapps-qa-notprod.int.cps.gov.uk"
-const SIGNAL = `Gloco-Os-Target-test=${OAPPS}`
+const CPS = "cps-tst.outsystemsenterprise.com"
+const SIGNAL = `Gloco-Os-Target-test=${CPS}`
 // IE mode, as a proxied-CMS request arrives: Trident UA on an IE-configurable site.
 const IE_MODE = {
   "User-Agent": "Mozilla/5.0 (Windows NT 10.0; WOW64; Trident/7.0; rv:11.0) like Gecko",
@@ -46,12 +46,12 @@ async function testConfigSelection() {
 
   await test("serves the variant named by the signal cookie", async () => {
     const response = await fetch(CONFIG_URL, { headers: { Cookie: SIGNAL } })
-    assertEqual(blobFileOf(response), "config.oapps.json", "Should serve the variant")
+    assertEqual(blobFileOf(response), "config.cps.json", "Should serve the variant")
   })
 
   await test("serves the variant matching an OS page's Origin", async () => {
-    const response = await fetch(CONFIG_URL, { headers: { Origin: `https://${OAPPS}` } })
-    assertEqual(blobFileOf(response), "config.oapps.json", "Should serve the variant")
+    const response = await fetch(CONFIG_URL, { headers: { Origin: `https://${CPS}` } })
+    assertEqual(blobFileOf(response), "config.cps.json", "Should serve the variant")
     assertEqual(response.headers.get("access-control-allow-origin"), "*", "Should keep CORS")
   })
 
@@ -90,11 +90,11 @@ async function testCButton() {
     assert(location.startsWith("https://polaris-qa-notprod.cps.gov.uk/polaris?r="), `Should go via /polaris, got: ${location}`)
     const handover = decodeURIComponent(location.split("?r=")[1])
     assert(
-      handover.startsWith(`https://${OAPPS}/Casework_Patterns/auth-handover.html?src=https://polaris-qa-notprod.cps.gov.uk/global-components/test/auth-handover.js&stage=os-cookie-return&r=`),
+      handover.startsWith(`https://${CPS}/Casework_Patterns/auth-handover.html?src=https://polaris-qa-notprod.cps.gov.uk/global-components/test/auth-handover.js&stage=os-cookie-return&r=`),
       `Should target the chosen host's handover, got: ${handover}`
     )
     assert(
-      decodeURIComponent(handover.split("&r=")[1]) === `https://${OAPPS}/casework_blocks/home?IsFromCMS=True`,
+      decodeURIComponent(handover.split("&r=")[1]) === `https://${CPS}/casework_blocks/home?IsFromCMS=True`,
       `Should land on the chosen host's home, got: ${handover}`
     )
   })
@@ -118,12 +118,12 @@ async function testSwitch() {
 
   await test("status lists the variants and reads the signal", async () => {
     const body = await fetchJson(`${PROXY_BASE}/global-components/multi-os/target/test`, { headers: { Cookie: SIGNAL } })
-    assertEqual(body.current, OAPPS, "Should report the signal")
-    assertEqual(body.options.length, 2, "Should list oapps and cps-lon")
+    assertEqual(body.current, CPS, "Should report the signal")
+    assertEqual(body.options.length, 2, "Should list cps and cps-lon")
   })
 
   await test("set, from Edge: writes the cookie and flips to IE mode for the second copy", async () => {
-    const { status, location, response } = await redirectOf(setPath(OAPPS), EDGE_CONFIGURABLE)
+    const { status, location, response } = await redirectOf(setPath(CPS), EDGE_CONFIGURABLE)
     assertEqual(status, 302, "Should redirect")
     assertEqual(response.headers.get("x-internetexplorermode"), "1", "Should flip to IE mode")
     assert((response.headers.get("set-cookie") || "").startsWith(SIGNAL), "Should set the Edge copy")
@@ -131,7 +131,7 @@ async function testSwitch() {
   })
 
   await test("set, in IE mode: writes the second copy and returns to the preview page in Edge", async () => {
-    const { location, response } = await redirectOf(`${setPath(OAPPS)}&done=edge`, IE_MODE)
+    const { location, response } = await redirectOf(`${setPath(CPS)}&done=edge`, IE_MODE)
     assertEqual(response.headers.get("x-internetexplorermode"), "0", "Should flip back to Edge")
     assert((response.headers.get("set-cookie") || "").startsWith(SIGNAL), "Should set the IE-mode copy")
     // nginx absolutises relative redirects (absolute_redirect on), so compare the path only.
