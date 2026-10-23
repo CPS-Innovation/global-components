@@ -258,7 +258,7 @@ Deployment (`.github/workflows/`) uploads the built bundle to blob storage using
 | `/global-components/{dev,test,uat,prod}/*` | static bundle assets               | blob `${CPS_GLOBAL_COMPONENTS_BLOB_STORAGE_DOMAIN}` |
 | `/global-components/state/*`               | cookie-backed state (preview…)     | njs `handleState`                                   |
 | `/global-components/analytics/*`           | App Insights ingestion (section 2.2) | `uksouth-1.in.applicationinsights.azure.com`        |
-| `/global-components/navigate-cms`          | CMS navigation                     | njs `handleNavigateCms`                             |
+| `/global-components/navigate-cms`          | CMS navigation (`target=modern`: the open Modern tab) | njs `handleNavigateCms`                             |
 | `/case-review-redirect/`                   | Case Review auth-handover chain    | njs `handleCaseReviewRedirect`                      |
 
 **Runtime env vars the proxy needs** (supplied by the proxy App Service / its secrets — **not** by us): `WM_MDS_BASE_URL`, `WM_MDS_ACCESS_KEY`, `CPS_GLOBAL_COMPONENTS_BLOB_STORAGE_DOMAIN`, `WEBSITE_DNS_SERVER`.
