@@ -9,5 +9,9 @@
   "scripts": {
     "build": "./build.sh",
     "test": "bash ./test.sh"
+  },
+  "devDependencies": {
+    "acorn": "^8.16.0",
+    "acorn-walk": "^8.3.5"
   }
 }

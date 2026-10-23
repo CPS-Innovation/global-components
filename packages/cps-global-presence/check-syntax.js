@@ -12,8 +12,8 @@
  * Object.keys, no String.trim, no addEventListener, no delete-on-window).
  *
  * So common/ is written to the floor by hand — and this proves it, rather than
- * trusting anyone to remember. acorn is already used by build.sh for the ES5
- * gate; acorn-walk comes with it.
+ * trusting anyone to remember. acorn and acorn-walk are devDependencies of
+ * this package.
  *
  *   es3  syntax at ecmaVersion 3 (rejects const/let, arrow, trailing commas,
  *        getters in object literals) PLUS a denylist of ES5+ runtime APIs.
@@ -22,11 +22,10 @@
 var path = require("path");
 var fs = require("fs");
 
-// The workspace root, for the pnpm store paths below. Two levels up now this
-// lives in packages/ — it was five when it sat under infra/proxy/config/.
-var ROOT = path.resolve(__dirname, "../..");
-var acorn = require(path.join(ROOT, "node_modules/.pnpm/acorn@8.16.0/node_modules/acorn"));
-var walk = require(path.join(ROOT, "node_modules/.pnpm/acorn-walk@8.3.5/node_modules/acorn-walk"));
+// Declared devDependencies of this package — never reach into the pnpm store by
+// version, any lockfile change that moves acorn breaks the build.
+var acorn = require("acorn");
+var walk = require("acorn-walk");
 
 // Members and globals that document mode 5 does not have. Not exhaustive — it is
 // a net for the ones we would actually reach for. Add to it when something slips.
