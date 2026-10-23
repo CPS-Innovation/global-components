@@ -243,14 +243,14 @@ function _modernCmsNavigatePage(
   cmsDomain: string,
   caseId: string,
 ): string {
-  var modernUrl =
+  const modernUrl =
     proto + "://" + cmsDomain + "/viewer/landing#/case-summary/" + caseId;
-  var closeUrl = "/global-components/navigate-cms?step=close";
-  var heading = "Opening case in CMS Modern";
+  const closeUrl = "/global-components/navigate-cms?step=close";
+  const heading = "Opening case in CMS Modern";
 
   // ES3 only: this runs in IE mode. An existing Modern tab on another origin
   // makes reading its location throw.
-  var script =
+  const script =
     "var w = window.open('', 'MODERN_CMS');" +
     "var href = null;" +
     "try { href = w.location.href; } catch (e) {}" +

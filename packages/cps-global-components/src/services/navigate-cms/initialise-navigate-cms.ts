@@ -3,12 +3,12 @@ import { CmsNavigateEvent } from "./CmsNavigateEvent";
 export const initialiseNavigateCms = ({ window, rootUrl }: { window: Window; rootUrl: string }) => {
   window.document.addEventListener(CmsNavigateEvent.type, ((event: CmsNavigateEvent) => {
     const detail = event.detail;
-    const params =
-      detail.action === "task"
-        ? `caseId=${detail.caseId}&taskId=${detail.taskId}`
-        : detail.action === "modern-case"
-          ? `caseId=${detail.caseId}&target=modern`
-          : `caseId=${detail.caseId}`;
+    let params = `caseId=${detail.caseId}`;
+    if (detail.action === "task") {
+      params += `&taskId=${detail.taskId}`;
+    } else if (detail.action === "modern-case") {
+      params += "&target=modern";
+    }
 
     const url = new URL(`../navigate-cms?${params}`, rootUrl).href;
     window.open(url, "_blank", "width=500,height=200,top=300,left=100");
