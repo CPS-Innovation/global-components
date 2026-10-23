@@ -66,10 +66,10 @@ importers:
         version: 29.7.0(@types/node@24.13.6)(supports-color@8.1.1)(ts-node@10.9.2(@types/node@24.13.6)(typescript@5.9.3))
       jest-environment-puppeteer:
         specifier: ^11.0.0
-        version: 11.0.0(debug@4.4.3(supports-color@8.1.1))(typescript@5.9.3)
+        version: 11.0.0(debug@4.4.3(supports-color@8.1.1))(supports-color@8.1.1)(typescript@5.9.3)
       jest-puppeteer:
         specifier: ^11.0.0
-        version: 11.0.0(debug@4.4.3(supports-color@8.1.1))(puppeteer@25.13.0(yauzl@2.10.0))(typescript@5.9.3)
+        version: 11.0.0(debug@4.4.3(supports-color@8.1.1))(puppeteer@25.13.0(yauzl@2.10.0))(supports-color@8.1.1)(typescript@5.9.3)
       puppeteer:
         specifier: ^25.0.0
         version: 25.13.0(yauzl@2.10.0)
@@ -234,7 +234,7 @@ importers:
     devDependencies:
       '@dotenvx/dotenvx':
         specifier: ^2.0.0
-        version: 2.35.0
+        version: 2.38.0
       '@stencil/core':
         specifier: ^4.36.2
         version: 4.45.2
@@ -785,8 +785,8 @@ packages:
     resolution: {integrity: sha512-OoKoR0f76dCY666JlcbhmVTs2drYj1GUXZTYTcbUgJjh9Nv41aFfZ21bPQTERm5+L5cBDo466NltB2lplS5GBw==}
     engines: {node: '>=20.19.0'}
 
-  '@dotenvx/dotenvx@2.35.0':
-    resolution: {integrity: sha512-ft8JhR2leFYT8Y5PBcAHmKySq7z+AgRhjrk/rhPu2hMC/pWfiHzKYfbjiRni4nXdPtDZEwW9yR73v3e0+HYJgg==}
+  '@dotenvx/dotenvx@2.38.0':
+    resolution: {integrity: sha512-HVkCYAQ+v/h/buDNWfQnA6QkidC34QZFFGcf9A5BMidAgiNKcIGWAA0eyhXNF4Ak8971ytJLDQY/u6xSLmsR2w==}
     hasBin: true
 
   '@dotenvx/primitives@3.3.1':
@@ -5176,7 +5176,7 @@ snapshots:
 
   '@csstools/css-tokenizer@4.0.2': {}
 
-  '@dotenvx/dotenvx@2.35.0':
+  '@dotenvx/dotenvx@2.38.0':
     dependencies:
       '@dotenvx/primitives': 3.3.1
       '@dotenvx/providers': 0.3.8
@@ -7641,7 +7641,7 @@ snapshots:
       - babel-plugin-macros
       - supports-color
 
-  jest-dev-server@11.0.0(debug@4.4.3(supports-color@8.1.1)):
+  jest-dev-server@11.0.0(debug@4.4.3(supports-color@8.1.1))(supports-color@8.1.1):
     dependencies:
       chalk: 4.1.2
       cwd: 0.10.0
@@ -7649,9 +7649,10 @@ snapshots:
       prompts: 2.4.2
       spawnd: 11.0.0
       tree-kill: 1.2.2
-      wait-on: 8.0.5(debug@4.4.3(supports-color@8.1.1))
+      wait-on: 8.0.5(debug@4.4.3(supports-color@8.1.1))(supports-color@8.1.1)
     transitivePeerDependencies:
       - debug
+      - supports-color
 
   jest-diff@29.7.0:
     dependencies:
@@ -7733,15 +7734,16 @@ snapshots:
       jest-util: 30.5.1
       jest-validate: 30.5.1
 
-  jest-environment-puppeteer@11.0.0(debug@4.4.3(supports-color@8.1.1))(typescript@5.9.3):
+  jest-environment-puppeteer@11.0.0(debug@4.4.3(supports-color@8.1.1))(supports-color@8.1.1)(typescript@5.9.3):
     dependencies:
       chalk: 4.1.2
       cosmiconfig: 8.3.6(typescript@5.9.3)
       deepmerge: 4.3.1
-      jest-dev-server: 11.0.0(debug@4.4.3(supports-color@8.1.1))
+      jest-dev-server: 11.0.0(debug@4.4.3(supports-color@8.1.1))(supports-color@8.1.1)
       jest-environment-node: 29.7.0
     transitivePeerDependencies:
       - debug
+      - supports-color
       - typescript
 
   jest-get-type@29.6.3: {}
@@ -7867,13 +7869,14 @@ snapshots:
     optionalDependencies:
       jest-resolve: 29.7.0
 
-  jest-puppeteer@11.0.0(debug@4.4.3(supports-color@8.1.1))(puppeteer@25.13.0(yauzl@2.10.0))(typescript@5.9.3):
+  jest-puppeteer@11.0.0(debug@4.4.3(supports-color@8.1.1))(puppeteer@25.13.0(yauzl@2.10.0))(supports-color@8.1.1)(typescript@5.9.3):
     dependencies:
       expect-puppeteer: 11.0.0
-      jest-environment-puppeteer: 11.0.0(debug@4.4.3(supports-color@8.1.1))(typescript@5.9.3)
+      jest-environment-puppeteer: 11.0.0(debug@4.4.3(supports-color@8.1.1))(supports-color@8.1.1)(typescript@5.9.3)
       puppeteer: 25.13.0(yauzl@2.10.0)
     transitivePeerDependencies:
       - debug
+      - supports-color
       - typescript
 
   jest-regex-util@29.6.3: {}
@@ -9390,7 +9393,7 @@ snapshots:
     dependencies:
       xml-name-validator: 5.0.0
 
-  wait-on@8.0.5(debug@4.4.3(supports-color@8.1.1)):
+  wait-on@8.0.5(debug@4.4.3(supports-color@8.1.1))(supports-color@8.1.1):
     dependencies:
       axios: 1.20.0(debug@4.4.3(supports-color@8.1.1))(supports-color@8.1.1)
       joi: 18.2.9
@@ -9399,6 +9402,7 @@ snapshots:
       rxjs: 7.8.2
     transitivePeerDependencies:
       - debug
+      - supports-color
 
   walker@1.0.8:
     dependencies:
