@@ -1,4 +1,4 @@
-import { initialiseNavigateCms, dispatchCmsNavigate } from "./initialise-navigate-cms";
+import { initialiseNavigateCms, dispatchCmsNavigate, dispatchModernCmsNavigate } from "./initialise-navigate-cms";
 import { CmsNavigateEvent } from "./CmsNavigateEvent";
 
 describe("initialiseNavigateCms", () => {
@@ -40,6 +40,17 @@ describe("initialiseNavigateCms", () => {
 
     expect(mockOpen).toHaveBeenCalledWith("https://example.com/global-components/navigate-cms?caseId=123&taskId=456", "_blank", expect.stringContaining("width=500"));
   });
+
+  it("opens correct URL for modern-case action", () => {
+    initialiseNavigateCms({
+      window: mockWindow,
+      rootUrl: "https://example.com/global-components/test/cps-global-components.esm.js",
+    });
+
+    mockWindow.document.dispatchEvent(new CmsNavigateEvent({ action: "modern-case", caseId: 123 }));
+
+    expect(mockOpen).toHaveBeenCalledWith("https://example.com/global-components/navigate-cms?caseId=123&target=modern", "_blank", expect.stringContaining("width=500"));
+  });
 });
 
 describe("dispatchCmsNavigate", () => {
@@ -52,6 +63,21 @@ describe("dispatchCmsNavigate", () => {
     expect(handler).toHaveBeenCalledTimes(1);
     const event = handler.mock.calls[0][0] as CmsNavigateEvent;
     expect(event.detail).toEqual({ action: "case", caseId: 42 });
+
+    document.removeEventListener(CmsNavigateEvent.type, handler);
+  });
+});
+
+describe("dispatchModernCmsNavigate", () => {
+  it("dispatches a cms-navigate event with modern-case action", () => {
+    const handler = jest.fn();
+    document.addEventListener(CmsNavigateEvent.type, handler);
+
+    dispatchModernCmsNavigate(42);
+
+    expect(handler).toHaveBeenCalledTimes(1);
+    const event = handler.mock.calls[0][0] as CmsNavigateEvent;
+    expect(event.detail).toEqual({ action: "modern-case", caseId: 42 });
 
     document.removeEventListener(CmsNavigateEvent.type, handler);
   });

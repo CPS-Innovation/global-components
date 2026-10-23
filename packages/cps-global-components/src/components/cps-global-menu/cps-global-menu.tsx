@@ -4,7 +4,7 @@ import { readyState } from "../../store/store";
 import { FEATURE_FLAGS } from "cps-global-configuration";
 import { renderError } from "../common/render-error";
 import { WithLogging } from "../../logging/WithLogging";
-import { dispatchCmsNavigate } from "../../services/navigate-cms/initialise-navigate-cms";
+import { dispatchCmsNavigate, dispatchModernCmsNavigate } from "../../services/navigate-cms/initialise-navigate-cms";
 
 @Component({
   tag: "cps-global-menu",
@@ -42,6 +42,7 @@ export class CpsGlobalMenu {
     const surveyLink = FEATURE_FLAGS.surveyLink(state);
     const shouldShowCaseDetails = FEATURE_FLAGS.shouldShowCaseDetails(state);
     const caseId = state.tags?.caseId ? Number(state.tags.caseId) : undefined;
+    const shouldShowOpenInCmsModern = FEATURE_FLAGS.shouldShowOpenInCmsModern(state);
 
     const classes = FEATURE_FLAGS.shouldShowGovUkRebrand(state)
       ? { level1Background: "background-light-blue", divider: "background-divider-blue" }
@@ -75,6 +76,13 @@ export class CpsGlobalMenu {
                   <li class="inline-link open-in-cms">
                     <button class="linkButton" onClick={() => dispatchCmsNavigate(caseId)}>
                       Open in CMS Classic
+                    </button>
+                  </li>
+                )}
+                {caseId && shouldShowOpenInCmsModern && (
+                  <li class="inline-link">
+                    <button class="linkButton" onClick={() => dispatchModernCmsNavigate(caseId)}>
+                      Open in CMS Modern
                     </button>
                   </li>
                 )}

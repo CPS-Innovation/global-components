@@ -157,6 +157,13 @@ const FEATURES: Feature[] = [
       "Hook XMLHttpRequest to log the URL and body length of POST requests to the console. Diagnostic only — does not capture bodies or interfere with requests. Used to confirm we share the host app's XHR.",
     disabled: false,
   },
+  {
+    key: "openInCmsModern",
+    label: "Open in CMS Modern",
+    description:
+      "Show an \"Open in CMS Modern\" link next to \"Open in CMS Classic\". It moves your open CMS Modern tab to the case; it can't open CMS Modern if it isn't already open.",
+    disabled: false,
+  },
 ];
 
 type FeatureKey = Feature["key"];

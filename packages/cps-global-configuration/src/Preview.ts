@@ -54,6 +54,7 @@ export const PreviewSchema = z.object({
   caseLockingNotifications: z.boolean().optional(),
   caseLockingCountSelf: z.boolean().optional(),
   requestObservationShim: z.boolean().optional(),
+  openInCmsModern: z.boolean().optional(),
 });
 
 export type Preview = z.infer<typeof PreviewSchema>;

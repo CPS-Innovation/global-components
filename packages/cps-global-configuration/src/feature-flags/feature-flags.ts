@@ -119,6 +119,8 @@ const shouldShowCaseLockingNotifications = (inputs: FlagInputs) =>
 // way to tell a working mechanism from a broken one single-handed.
 const shouldCountSelfInCaseLocking = ({ preview }: FlagInputs) => !!preview?.result?.caseLockingCountSelf;
 
+const shouldShowOpenInCmsModern = ({ preview }: FlagInputs) => !!preview?.result?.openInCmsModern;
+
 export const FEATURE_FLAGS = {
   shouldShowCaseDetails,
   shouldEnableAccessibilityMode,
@@ -134,4 +136,5 @@ export const FEATURE_FLAGS = {
   shouldEnableCaseLocking,
   shouldShowCaseLockingNotifications,
   shouldCountSelfInCaseLocking,
+  shouldShowOpenInCmsModern,
 };

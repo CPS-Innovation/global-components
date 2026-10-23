@@ -532,6 +532,74 @@ async function runTests(): Promise<void> {
     assert(r.returnBody!.includes("action=navigate&screen=case_details&wId=MASTER&caseId=123"), `Should contain navigate action, got: ${r.returnBody}`)
   })
 
+  console.log("\nhandleNavigateCms (target=modern):")
+
+  await test("non-IE + configurable (modern): keeps target=modern through the IE mode redirect", async () => {
+    const r = createMockRequest({
+      uri: "/global-components/navigate-cms",
+      args: { caseId: "123", target: "modern" },
+      variables: { ieaction: "nonie+configurable+", args: "caseId=123&target=modern" },
+      headersIn: { "X-Forwarded-Proto": "https", Host: "localhost:8080", Cookie: SESSION_HINT_COOKIE },
+    })
+    gloco.handleNavigateCms(r)
+    assertEqual(r.returnCode, 302, "Should return 302")
+    assertEqual(r.headersOut["X-InternetExplorerMode"] as string, "1", "Should set IE mode header")
+    assert(r.returnBody!.includes("caseId=123&target=modern&cmsDomain=foo.cps.gov.uk"), `Should preserve args and add cmsDomain, got: ${r.returnBody}`)
+  })
+
+  await test("IE + configurable (modern): serves the MODERN_CMS page, not the Classic iframe", async () => {
+    const r = createMockRequest({
+      uri: "/global-components/navigate-cms",
+      args: { caseId: "123", target: "modern", cmsDomain: "foo.cps.gov.uk" },
+      variables: { ieaction: "ie+configurable+" },
+      headersIn: { "X-Forwarded-Proto": "https", Host: "localhost:8080" },
+    })
+    gloco.handleNavigateCms(r)
+    assertEqual(r.returnCode, 200, "Should return 200")
+    const body = r.returnBody!
+    assert(!body.includes("Notification.html"), `Should not drive Classic, got: ${body}`)
+    assert(body.includes("window.open('', 'MODERN_CMS')"), `Should find the MODERN_CMS window, got: ${body}`)
+    assert(body.includes("'https://foo.cps.gov.uk/viewer/landing#/case-summary/123'"), `Should target Modern on cmsDomain, got: ${body}`)
+    assert(body.includes("/global-components/navigate-cms?step=close"), `Should close via the close phase, got: ${body}`)
+    assert(body.includes("Opening case in CMS Modern"), `Should have Modern heading, got: ${body}`)
+  })
+
+  await test("non-configurable (modern): serves the MODERN_CMS page directly using the cookie domain", async () => {
+    const r = createMockRequest({
+      uri: "/global-components/navigate-cms",
+      args: { caseId: "123", target: "modern" },
+      variables: { ieaction: "nonie+nonconfigurable+" },
+      headersIn: { "X-Forwarded-Proto": "https", Host: "localhost:8080", Cookie: SESSION_HINT_COOKIE },
+    })
+    gloco.handleNavigateCms(r)
+    assertEqual(r.returnCode, 200, "Should return 200")
+    assert(r.returnBody!.includes("'https://foo.cps.gov.uk/viewer/landing#/case-summary/123'"), `Should target Modern on cookie domain, got: ${r.returnBody}`)
+  })
+
+  await test("IE + configurable (modern): non-numeric caseId returns 400", async () => {
+    const r = createMockRequest({
+      uri: "/global-components/navigate-cms",
+      args: { caseId: "123';alert(1);'", target: "modern", cmsDomain: "foo.cps.gov.uk" },
+      variables: { ieaction: "ie+configurable+" },
+      headersIn: { "X-Forwarded-Proto": "https", Host: "localhost:8080" },
+    })
+    gloco.handleNavigateCms(r)
+    assertEqual(r.returnCode, 400, "Should return 400")
+    assert(!r.returnBody!.includes("alert"), `Should not echo the input, got: ${r.returnBody}`)
+  })
+
+  await test("IE + configurable (modern): cmsDomain that isn't a bare host returns 400", async () => {
+    const r = createMockRequest({
+      uri: "/global-components/navigate-cms",
+      args: { caseId: "123", target: "modern", cmsDomain: "foo.cps.gov.uk/';alert(1);'" },
+      variables: { ieaction: "ie+configurable+" },
+      headersIn: { "X-Forwarded-Proto": "https", Host: "localhost:8080" },
+    })
+    gloco.handleNavigateCms(r)
+    assertEqual(r.returnCode, 400, "Should return 400")
+    assert(!r.returnBody!.includes("alert"), `Should not echo the input, got: ${r.returnBody}`)
+  })
+
   console.log("\nhandleNavigateCms (close phase):")
 
   await test("IE + configurable close: redirects to self with IE mode off", async () => {

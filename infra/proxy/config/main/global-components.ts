@@ -230,6 +230,58 @@ async function handleState(r: NginxHTTPRequest): Promise<void> {
   }
 }
 
+// The IE-mode page that moves an already-open CMS Modern tab to a case.
+//
+// Classic opens Modern with window.open(url, "MODERN_CMS"); window names don't
+// resolve across the Edge/IE-mode boundary, hence IE mode. Modern routes on the
+// hash, so a URL differing only after /viewer/landing# moves the tab without a
+// reload, keeping its session, and the guid-less case route loads the case.
+// No MODERN_CMS window means window.open made a blank one (readable, same
+// origin as us), which we close; Modern can't be opened without Classic's guid.
+function _modernCmsNavigatePage(
+  proto: string,
+  cmsDomain: string,
+  caseId: string,
+): string {
+  const modernUrl =
+    proto + "://" + cmsDomain + "/viewer/landing#/case-summary/" + caseId;
+  const closeUrl = "/global-components/navigate-cms?step=close";
+  const heading = "Opening case in CMS Modern";
+
+  // ES3 only: this runs in IE mode. An existing Modern tab on another origin
+  // makes reading its location throw.
+  const script =
+    "var w = window.open('', 'MODERN_CMS');" +
+    "var href = null;" +
+    "try { href = w.location.href; } catch (e) {}" +
+    "if (href === 'about:blank') {" +
+    "  w.close();" +
+    "  document.getElementById('status').innerHTML = 'CMS Modern is not open. Open it from CMS Classic, then try again.';" +
+    "} else {" +
+    "  w.location.href = '" + modernUrl + "';" +
+    "  w.focus();" +
+    "  window.location.href = '" + closeUrl + "';" +
+    "}";
+
+  return (
+    "<!DOCTYPE html>" +
+    "<html><head><title>" +
+    heading +
+    "</title></head>" +
+    '<body style="font-family: Arial, sans-serif; margin: 30px;">' +
+    '<h1 style="font-size: 24px; font-weight: 700; margin: 0 0 20px 0;">' +
+    heading +
+    "</h1>" +
+    '<div style="border-left: 10px solid #b1b4b6; padding: 15px; margin: 0; clear: both;">' +
+    '<p id="status" style="font-size: 16px; margin: 0;">Please do not close this window. It will close automatically.</p>' +
+    "</div>" +
+    "<script>" +
+    script +
+    "</script>" +
+    "</body></html>"
+  );
+}
+
 function handleNavigateCms(r: NginxHTTPRequest): void {
   var ieaction = r.variables.ieaction || "";
   var step = r.args.step || "";
@@ -295,6 +347,22 @@ function handleNavigateCms(r: NginxHTTPRequest): void {
 
   var caseId = r.args.caseId || "";
   var taskId = r.args.taskId || "";
+
+  if (r.args.target === "modern") {
+    // Both are written into script, so only a plain number and a bare host get through
+    if (!/^\d+$/.test(caseId) || !/^[a-z0-9.-]+(:\d+)?$/i.test(cmsDomain)) {
+      r.headersOut["Content-Type"] = "text/html";
+      r.return(
+        400,
+        "<html><body><p>Error: caseId must be a number and cmsDomain a host.</p></body></html>",
+      );
+      return;
+    }
+    r.headersOut["Content-Type"] = "text/html";
+    r.return(200, _modernCmsNavigatePage(proto, cmsDomain, caseId));
+    return;
+  }
+
   var iframeSrc = taskId
     ? proto +
       "://" +
