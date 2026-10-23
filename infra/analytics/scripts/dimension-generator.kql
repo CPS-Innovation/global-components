@@ -15,7 +15,7 @@
 // telemetry had captured it. The Entra overlay then has nothing to disagree with, so a value can
 // never be reverted and a mistake is re-baked forever. Observed on 2026-09-17: two users whose most
 // recent page view had a blank department kept an Entra department the fill-mode rebuild was meant
-// to revert (antonia.walters, jodie.mcintosh).
+// to revert (an***.wa***, jo***.mc***).
 //
 // Reading the two externally-overlaid fields from the RAW table breaks that loop — "analytics
 // captured" then genuinely means captured. Scoping is preserved because the ObjectId set still comes
