@@ -506,8 +506,6 @@ var CMS_WATCHDOG_ENABLED = true;
    * below and memory reference_cms_polaris_xorigin_zone.
    * =================================================================== */
 
-  var PRESENCE_CONNECTING_TEXT = "Connecting to The Watchdog...";
-  var PRESENCE_ERROR_TEXT = "There was an error connecting to The Watchdog!";
   var PRESENCE_STRIPE_ID = "ccPresenceStripe";
   var PRESENCE_STRIPE_HEADER_ID = "ccPresenceStripeHeader";
   var PRESENCE_STRIPE_SUMMARY_ID = "ccPresenceStripeSummary";
@@ -516,7 +514,7 @@ var CMS_WATCHDOG_ENABLED = true;
   var PRESENCE_STRIPE_COLOR = "#b10e1e";
   var PRESENCE_STRIPE_HEIGHT = 23;
 
-  // Only connection/poll/error events update this state. Keep expansion across polls;
+  // Only successful polls populate this state. Keep expansion across polls;
   // the observer tick detects section changes but does not render or refresh the UI.
   var presenceStripeState = null; // { text, count }; null = no presence UI
   var presenceStripeEl = null;
@@ -550,8 +548,7 @@ var CMS_WATCHDOG_ENABLED = true;
     return null;
   }
 
-  // The stripe is the only presence UI. Called for connecting, each successful poll,
-  // and permanent failure, matching the original banner's cadence and lifecycle.
+  // The stripe is the only presence UI, shown after a successful roster poll.
   function presenceShowStripe(text, count) {
     presenceStripeState = { text: text, count: count };
     presenceRenderStripe();
@@ -626,7 +623,7 @@ var CMS_WATCHDOG_ENABLED = true;
     } catch (e) { }
   }
 
-  // Capture BEFORE inserting the stripe, including during the connecting state.
+  // Capture BEFORE inserting the stripe.
   // Reuse this baseline on every poll/toggle instead of adding to an enlarged row.
   function presencePrepareFooterResize(target) {
     if (presenceFooterResize && presenceFooterResize.frameset === target.frameset) {
@@ -846,6 +843,7 @@ var CMS_WATCHDOG_ENABLED = true;
   var presenceJsonpSessionId = ""; // presence-API session id
   var presenceJsonpActiveSid = ""; // section we're holding
   var presenceJsonpHbTimer = null;
+  var presenceConnectionFailureLogged = false;
 
   // Version-reconciled roster cache. Keyed by SECTION identity (caseId:kind:subjectId),
   // each entry is { caseId: <string>, kind: <string>, version: <number>, members: [ ... ] }
@@ -1138,11 +1136,23 @@ var CMS_WATCHDOG_ENABLED = true;
     }
   }
 
-  // Non-recoverable create/heartbeat failure: stop without auto-reconnect and
-  // replace the connecting/roster stripe with the error message.
-  function presenceJsonpFail() {
+  function presenceConnectionFailed(reason) {
+    presenceRemoveStripe();
+    if (presenceConnectionFailureLogged) {
+      return;
+    }
+    presenceConnectionFailureLogged = true;
+    try {
+      if (window.console && window.console.log) {
+        window.console.log("There was an error connecting to The Watchdog: " + reason);
+      }
+    } catch (e) { }
+  }
+
+  // Stop the failed session; the section observer retries on its next tick.
+  function presenceJsonpFail(reason) {
     presenceJsonpStop();
-    presenceShowStripe(PRESENCE_ERROR_TEXT, null);
+    presenceConnectionFailed(reason);
   }
 
   function presenceJsonpTick() {
@@ -1150,24 +1160,29 @@ var CMS_WATCHDOG_ENABLED = true;
       if (!presenceJsonpSessionId) { return; }
       var sid = presenceJsonpSessionId; // capture: ignore a callback whose session was superseded
       // Heartbeat (PUT-mapped). Its outcome drives failure handling: a 410 means the session
-      // expired -> reconnect (restart); any other jsonpError -> stop and show the error. A
-      // plain timeout (data === null) is transient, so we just retry on the next tick.
+      // expired -> reconnect immediately; any other jsonpError -> retry via the observer. A plain timeout
+      // (data === null) hides the stripe but still retries on the next tick.
       presenceJsonp("heartbeat", { sid: sid }, function (data) {
         if (presenceJsonpSessionId !== sid) { return; } // superseded (restart / stop / section switch)
-        if (data === null) { return; } // transient timeout -> just retry on the next tick
+        if (data === null) {
+          presenceConnectionFailed("no response (timeout)");
+          return;
+        }
         if (data.jsonpError) {
           if (data.jsonpError.indexOf("410") > -1) {
             presenceJsonpRestart();
           } else {
-            presenceJsonpFail();
+            presenceJsonpFail(data.jsonpError);
           }
         }
       });
       // Poll (GET-mapped) -> reconcile -> stripe.
       presenceJsonp("poll", { sid: sid }, function (data) {
         if (presenceJsonpSessionId !== sid) { return; } // superseded (restart / stop / section switch)
-        if (data === null) { return; } // transient timeout -> just retry on the next tick
-        if (data.jsonpError) { return; }
+        if (data === null || data.jsonpError) {
+          presenceConnectionFailed(data === null ? "no response (timeout)" : data.jsonpError);
+          return;
+        }
         // Reconcile this delta into the per-section version-checked roster cache, then
         // recompute the stripe. Show it whenever ANY section of the case has
         // members (no threshold — even just you counts); the details group the roster
@@ -1194,15 +1209,11 @@ var CMS_WATCHDOG_ENABLED = true;
     presenceJsonpStop(); // clears any prior session (and fires its DELETE)
     presenceJsonpActiveSid = sid;
 
-    // Show connecting immediately, then replace it with the count and details on
-    // the first successful poll. No independent UI refresh runs in the observer tick.
-    presenceShowStripe(PRESENCE_CONNECTING_TEXT, null);
     presenceJsonp("create", { sectionId: sid }, function (data) {
       if (presenceJsonpActiveSid !== sid) { return; } // superseded while in flight
       if (data === null || data.jsonpError || !data.sessionId) {
         var why = data === null ? "no response (timeout)" : (data.jsonpError || "no sessionId in response");
-        // Could not establish the session -> show the same error stripe as heartbeat failure.
-        presenceJsonpFail();
+        presenceJsonpFail(why);
         return;
       }
       presenceJsonpSessionId = data.sessionId;
@@ -1291,10 +1302,10 @@ var CMS_WATCHDOG_ENABLED = true;
     var key = rec ? rec.key : "";
     if (key === lastKey) {
       lastRec = rec;
-      if (rec && presenceJsonpActiveSid == "" && presenceJsonpSessionId == "") {
-        presenceJsonpRestart();
+      if (rec && presenceJsonpActiveSid === "" && presenceJsonpSessionId === "") {
+        presenceJsonpStart(rec);
       }
-      return; // unchanged section: no UI refresh, reconnect, or clearing a permanent failure
+      return; // unchanged section: no UI refresh
     }
     var prev = lastRec;
     lastRec = rec;
@@ -1369,7 +1380,7 @@ var CMS_WATCHDOG_ENABLED = true;
   var BUILD = "spawn1"; // bump on redeploy to confirm fresh bytes are live (cache!)
   var DEBUG = true; // verbose per-tick logging; window.__ccAuthHandover.setDebug(false) to quiet
 
-  var POLARIS_PATH = "/polaris-v2"; // auth entry; resolves to THIS origin then redirects to our domain. Change freely.
+  var POLARIS_PATH = "/polaris-presence"; // auth entry; resolves to THIS origin then redirects to our domain. Change freely.
   var LOGIN_FRAGMENT = "uaulLogin.aspx"; // frameMain is "on login" while its URL contains this
   var MAIN_FRAME = "frameMain"; // the shell frame login + app load into
 

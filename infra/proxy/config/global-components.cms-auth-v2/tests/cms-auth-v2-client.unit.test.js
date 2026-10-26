@@ -6,7 +6,7 @@ const { Script, createContext } = require("node:vm")
 
 const clientPath = path.join(__dirname, "..", "cms-auth-v2-client.js")
 const clientScript = new Script(readFileSync(clientPath, "utf8"), { filename: clientPath })
-const tickScript = new Script("window.__ccContactLogger.tick()")
+const tickScript = new Script("observerTick()")
 const caseUrl = "/Case/Overview.aspx?intCaseID=123"
 const popupId = "ccPresencePopup"
 const stripeId = "ccPresenceStripe"
@@ -15,7 +15,7 @@ const stripeSummaryId = "ccPresenceStripeSummary"
 const stripeToggleId = "ccPresenceStripeToggle"
 const stripeDetailsId = "ccPresenceStripeDetails"
 
-// Run the unmodified client through its public observer API. The small DOM and
+// Run the unmodified client through its observation timer. The small DOM and
 // timer fakes exercise its legacy APIs without a CMS server, network or real timers.
 const createElement = (tagName) => {
   const element = {
@@ -24,6 +24,7 @@ const createElement = (tagName) => {
     className: "",
     style: {},
     innerText: "",
+    offsetHeight: 0,
     children: [],
     parentNode: null,
     handlers: {},
@@ -133,6 +134,7 @@ const createLayout = (frameset, href = caseUrl) => {
 const createHarness = (globals = {}) => {
   const requests = []
   const events = []
+  const messages = []
   const intervals = new Map()
   const timeouts = new Map()
   let timerId = 0
@@ -143,6 +145,7 @@ const createHarness = (globals = {}) => {
   const window = {
     document,
     frames: [],
+    console: { log: (message) => messages.push(message) },
     attachEvent: () => {},
     setInterval: (fn) => {
       intervals.set(++timerId, fn)
@@ -157,7 +160,10 @@ const createHarness = (globals = {}) => {
   }
   const context = createContext({ window, document, ...globals })
   clientScript.runInContext(context, { timeout: 1000 })
-  window.__ccContactLogger.onChange = (kind, rec) => events.push({ kind, rec })
+  context.observerTick = intervals.values().next().value
+  if (window.__ccContactLogger) {
+    window.__ccContactLogger.onChange = (kind, rec) => events.push({ kind, rec })
+  }
   const tick = () => tickScript.runInContext(context, { timeout: 1000 })
 
   return {
@@ -165,6 +171,7 @@ const createHarness = (globals = {}) => {
     document,
     requests,
     events,
+    messages,
     intervals,
     tick,
     open: (layout, precedingFrames = []) => {
@@ -179,6 +186,11 @@ const createHarness = (globals = {}) => {
     respond: (request, data) => window[request.callback](data),
     runIntervals: () => {
       for (const fn of [...intervals.values()]) {
+        fn()
+      }
+    },
+    runTimeouts: () => {
+      for (const fn of [...timeouts.values()]) {
         fn()
       }
     },
@@ -447,6 +459,213 @@ const receivePoll = (harness, data) => {
 const connectWithRoster = (harness, data = notification()) => {
   harness.respond(harness.requests.find((request) => request.op === "create"), { sessionId: "session-123" })
   receivePoll(harness, data)
+}
+
+const createFooterLayout = (frameset, url = caseUrl) => {
+  const host = createFrame(frameset ? "frameActionBar" : "frameMain", url)
+  const main = frameset ? createFrame("frameMain", url, "FRAMESET", [host]) : host
+  main.document.body.rows = "40,30,*,32"
+  const footer = host.document.body.appendChild(createElement("table"))
+  footer.id = "tblCMSActionBar"
+  return { main, host, footer }
+}
+
+for (const frameset of [false, true]) {
+  const layoutName = frameset ? "frameset footer" : "HTML footer"
+
+  test(`Watchdog connection: ${layoutName} stays hidden until a successful roster`, () => {
+    const harness = createHarness()
+    const layout = createFooterLayout(frameset)
+    harness.open(layout)
+    assert.equal(layout.host.document.getElementById(stripeId), null)
+    assert.equal(layout.main.document.body.rows, "40,30,*,32")
+
+    harness.respond(harness.requests[0], { sessionId: "session-123" })
+    assert.equal(layout.host.document.getElementById(stripeId), null)
+    receivePoll(harness, notification())
+    assert.equal(layout.host.document.getElementById(stripeId).nextSibling, layout.footer)
+    assert.equal(layout.host.document.getElementById(stripeSummaryId).innerText, "2 users currently working on the case")
+    assert.equal(layout.main.document.body.rows, frameset ? "40,30,*,55" : "40,30,*,32")
+    assert.deepEqual(harness.messages, [])
+  })
+
+  for (const failure of ["timeout", "server error", "missing session"]) {
+    test(`Watchdog connection: ${failure} retries in ${layoutName} and stays hidden until recovery`, () => {
+      const harness = createHarness()
+      const layout = createFooterLayout(frameset)
+      harness.open(layout)
+      if (failure === "timeout") {
+        harness.runTimeouts()
+      } else {
+        harness.respond(harness.requests[0], failure === "server error" ? { jsonpError: "503" } : {})
+      }
+      harness.runIntervals()
+      harness.runIntervals()
+      assert.equal(layout.host.document.getElementById(stripeId), null)
+      assert.equal(layout.main.document.body.rows, "40,30,*,32")
+      assert.equal(harness.messages.length, 1)
+      assert.match(harness.messages[0], /connecting to The Watchdog/)
+      const creates = harness.requests.filter((request) => request.op === "create")
+      assert.equal(creates.length, 2)
+      assert.equal(creates[1].sectionId, creates[0].sectionId)
+
+      harness.respond(creates[1], { sessionId: "session-recovered" })
+      assert.equal(layout.host.document.getElementById(stripeId), null)
+      receivePoll(harness, notification())
+      assert.equal(layout.host.document.getElementById(stripeId).nextSibling, layout.footer)
+      assert.equal(layout.main.document.body.rows, frameset ? "40,30,*,55" : "40,30,*,32")
+      assert.equal(harness.messages.length, 1)
+    })
+  }
+}
+
+test("Watchdog connection: repeated failures retry without overlapping creates or repeated logging", () => {
+  const harness = createHarness()
+  const layout = createFooterLayout(true)
+  harness.open(layout)
+
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const creates = harness.requests.filter((request) => request.op === "create")
+    assert.equal(creates.length, attempt + 1)
+    harness.respond(creates.at(-1), { jsonpError: "503" })
+    harness.runIntervals()
+    harness.runIntervals()
+    assert.equal(harness.requests.filter((request) => request.op === "create").length, attempt + 2)
+    assert.equal(layout.host.document.getElementById(stripeId), null)
+    assert.equal(layout.main.document.body.rows, "40,30,*,32")
+    assert.equal(harness.messages.length, 1)
+  }
+
+  const retry = harness.requests.filter((request) => request.op === "create").at(-1)
+  harness.respond(retry, { sessionId: "session-recovered" })
+  receivePoll(harness, notification())
+  harness.runIntervals()
+  harness.runIntervals()
+  assert.ok(layout.host.document.getElementById(stripeId))
+  assert.equal(harness.requests.filter((request) => request.op === "create").length, 4)
+  assert.equal(harness.messages.length, 1)
+})
+
+test("Watchdog connection: leaving the case stops retries and ignores an in-flight create", () => {
+  const harness = createHarness()
+  const layout = createFooterLayout(true)
+  harness.open(layout)
+  harness.respond(harness.requests[0], { jsonpError: "503" })
+  harness.tick()
+  const creates = harness.requests.filter((request) => request.op === "create")
+  assert.equal(creates.length, 2)
+
+  harness.open(createFooterLayout(false, "/Home.aspx"))
+  harness.respond(creates[1], { sessionId: "session-late" })
+  harness.runIntervals()
+  harness.runIntervals()
+  assert.equal(harness.requests.filter((request) => request.op === "create").length, 2)
+  assert.equal(harness.requests.filter((request) => request.op === "heartbeat" || request.op === "poll").length, 0)
+  assert.equal(layout.host.document.getElementById(stripeId), null)
+  assert.equal(harness.messages.length, 1)
+})
+
+test("Watchdog connection: failures in different sections log only once per page", () => {
+  const harness = createHarness()
+  harness.open(createFooterLayout(false))
+  harness.respond(harness.requests[0], { jsonpError: "503" })
+  const layout = createFooterLayout(false, "/Case/Overview.aspx?intCaseID=456")
+  harness.open(layout)
+  harness.respond(harness.requests.filter((request) => request.op === "create").at(-1), { jsonpError: "503" })
+  assert.equal(layout.host.document.getElementById(stripeId), null)
+  assert.equal(harness.messages.length, 1)
+})
+
+test("Watchdog connection: heartbeat failure hides the roster and reconnects without navigation", () => {
+  const harness = createHarness()
+  const layout = createFooterLayout(true)
+  harness.open(layout)
+  connectWithRoster(harness)
+  const intervalCount = harness.intervals.size
+  harness.runIntervals()
+  const pendingPoll = harness.requests.filter((request) => request.op === "poll").at(-1)
+  harness.respond(harness.requests.find((request) => request.op === "heartbeat"), { jsonpError: "503" })
+  harness.respond(pendingPoll, notification(2))
+  harness.runIntervals()
+  assert.equal(layout.host.document.getElementById(stripeId), null)
+  assert.equal(layout.main.document.body.rows, "40,30,*,32")
+  assert.equal(harness.intervals.size, intervalCount - 1)
+  assert.equal(harness.messages.length, 1)
+
+  const creates = harness.requests.filter((request) => request.op === "create")
+  assert.equal(creates.length, 2)
+  assert.equal(creates[1].sectionId, creates[0].sectionId)
+  harness.respond(creates[1], { sessionId: "session-recovered" })
+  assert.equal(layout.host.document.getElementById(stripeId), null)
+  receivePoll(harness, notification(2))
+  assert.equal(layout.host.document.getElementById(stripeId).nextSibling, layout.footer)
+  assert.equal(layout.main.document.body.rows, "40,30,*,55")
+  assert.equal(harness.intervals.size, intervalCount)
+  assert.equal(harness.messages.length, 1)
+})
+
+test("Watchdog connection: timeouts hide an existing roster, log once, and allow recovery", () => {
+  const harness = createHarness()
+  const layout = createFooterLayout(true)
+  harness.open(layout)
+  connectWithRoster(harness)
+  const intervalCount = harness.intervals.size
+  harness.runIntervals()
+  harness.runTimeouts()
+  assert.equal(layout.host.document.getElementById(stripeId), null)
+  assert.equal(layout.main.document.body.rows, "40,30,*,32")
+  assert.equal(harness.messages.length, 1)
+  assert.equal(harness.intervals.size, intervalCount)
+
+  harness.runIntervals()
+  receivePoll(harness, notification(2))
+  assert.ok(layout.host.document.getElementById(stripeId))
+  assert.equal(harness.messages.length, 1)
+})
+
+test("Watchdog connection: expired sessions reconnect without an error stripe or console message", () => {
+  const harness = createHarness()
+  const layout = createFooterLayout(true)
+  harness.open(layout)
+  connectWithRoster(harness)
+  harness.respond(harness.requests.find((request) => request.op === "heartbeat"), { jsonpError: "410" })
+  assert.equal(layout.host.document.getElementById(stripeId), null)
+  assert.equal(layout.main.document.body.rows, "40,30,*,32")
+  assert.deepEqual(harness.messages, [])
+
+  const creates = harness.requests.filter((request) => request.op === "create")
+  assert.equal(creates.length, 2)
+  harness.respond(creates.at(-1), { sessionId: "session-restarted" })
+  receivePoll(harness, notification(2))
+  assert.ok(layout.host.document.getElementById(stripeId))
+  assert.deepEqual(harness.messages, [])
+})
+
+test("Watchdog connection: poll errors hide the roster without repeated logging", () => {
+  const harness = createHarness()
+  const layout = createFooterLayout(true)
+  harness.open(layout)
+  connectWithRoster(harness)
+  for (let attempt = 0; attempt < 2; attempt++) {
+    harness.runIntervals()
+    receivePoll(harness, { jsonpError: "503" })
+    assert.equal(layout.host.document.getElementById(stripeId), null)
+    assert.equal(layout.main.document.body.rows, "40,30,*,32")
+  }
+  assert.equal(harness.messages.length, 1)
+})
+
+for (const consoleState of ["absent", "throws"]) {
+  test(`Watchdog connection: cleanup succeeds when the console ${consoleState}`, () => {
+    const harness = createHarness()
+    const layout = createFooterLayout(true)
+    harness.open(layout)
+    connectWithRoster(harness)
+    harness.window.console = consoleState === "absent" ? undefined : { log: () => { throw new Error("Console unavailable") } }
+    assert.doesNotThrow(() => harness.respond(harness.requests.find((request) => request.op === "heartbeat"), { jsonpError: "503" }))
+    assert.equal(layout.host.document.getElementById(stripeId), null)
+    assert.equal(layout.main.document.body.rows, "40,30,*,32")
+  })
 }
 
 for (const frameset of [false, true]) {
