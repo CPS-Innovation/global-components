@@ -243,7 +243,7 @@ importers:
         version: 3.3.3(@stencil/core@4.45.2)
       '@stencil/store':
         specifier: ^2.2.0
-        version: 2.2.4(@stencil/core@4.45.2)
+        version: 2.2.5(@stencil/core@4.45.2)
       '@types/jest':
         specifier: ^29.5.6
         version: 29.5.14
@@ -1777,11 +1777,11 @@ packages:
     peerDependencies:
       '@stencil/core': ^4.0.0 || ^5.0.0 || >=5.0.0-alpha.19 <5.0.0-next.0
 
-  '@stencil/store@2.2.4':
-    resolution: {integrity: sha512-D2XogVJPIuiqD7q6YWPe4Tsyy2Kr+4u5XlCZLqXNP9DuykncgoizoknFH/spuKUEOpn8YSq0elib3y8zHhKtXQ==}
+  '@stencil/store@2.2.5':
+    resolution: {integrity: sha512-Wnw8/CMHfNl2htxgXzy+k8yFeR1TSc/u7CslNaIXalu+aPp+yfPYCBbLhy1jjjPd3Pe2SObIs0Gu+BgoJUUNrg==}
     engines: {node: '>=18.0.0', npm: '>=6.0.0'}
     peerDependencies:
-      '@stencil/core': '>=2.0.0 || >=3.0.0 || >= 4.0.0-beta.0 || >= 4.0.0'
+      '@stencil/core': '>=2.0.0 || >=3.0.0 || >= 4.0.0 || >=5.0.0-alpha.0 <5.0.0-next.0 || ^5.0.0'
 
   '@testing-library/dom@10.4.1':
     resolution: {integrity: sha512-o4PXJQidqJl82ckFaXUeoAW+XysPLauYI43Abki5hABd853iMhitooc6znOnczgbTYmEP6U6/y1ZyKAIsvMKGg==}
@@ -6181,7 +6181,7 @@ snapshots:
       '@stencil/core': 4.45.2
       sass-embedded: 1.98.0
 
-  '@stencil/store@2.2.4(@stencil/core@4.45.2)':
+  '@stencil/store@2.2.5(@stencil/core@4.45.2)':
     dependencies:
       '@stencil/core': 4.45.2
 
