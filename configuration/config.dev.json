@@ -150,7 +150,12 @@
           "caseLockingAppName": "Casework App",
           "contexts": [
             {
-              "path": "https://polaris-dev-notprod.cps.gov.uk/(?:polaris-ui/case-details|materials-ui)/(?<urn>[^/]+)/(?<caseId>\\d+)",
+              "path": "https://polaris-dev-notprod.cps.gov.uk/polaris-ui/case-details/(?<urn>[^/]+)/(?<caseId>\\d+)",
+              "contextIds": "case materials materials-cwa",
+              "caseLockingRegion": { "code": "case" }
+            },
+            {
+              "path": "https://polaris-dev-notprod.cps.gov.uk/materials-ui/(?<caseId>\\d+)",
               "contextIds": "case materials materials-cwa",
               "caseLockingRegion": { "code": "case" }
             }
