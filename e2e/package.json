@@ -11,7 +11,7 @@
   },
   "devDependencies": {
     "@types/jest": "^29.5.12",
-    "@types/node": "^24.2.1",
+    "@types/node": "^26.0.0",
     "@types/serve-handler": "^6.1.4",
     "cps-global-configuration": "workspace:*",
     "deepmerge-ts": "^8.0.2",
