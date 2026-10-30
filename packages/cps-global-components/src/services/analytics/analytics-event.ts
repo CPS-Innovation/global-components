@@ -9,6 +9,7 @@ export type AnalyticsEventData =
   | { name: "probe-navigator-permissions"; hostname: string; timestamp: number; localNetworkAccessPermission?: "granted" | "denied" | "prompt" }
   | { name: "notification-dismissed"; notificationId: string }
   | { name: "triage-submission"; [key: string]: string | number | boolean | undefined }
-  | { name: "dark-reader-detected"; detection: "sync" | "async" };
+  | { name: "dark-reader-detected"; detection: "sync" | "async" }
+  | { name: "case-details-retrieved"; caseId: number; isDcfCase: boolean };
 
 export type TrackEvent = (detail: AnalyticsEventData) => void;

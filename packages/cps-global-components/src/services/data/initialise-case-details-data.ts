@@ -99,6 +99,7 @@ export const initialiseCaseDetailsData = ({ config, handover, setNextHandover, s
     // same shape as initialise-user-data's refresh window, with an event standing
     // in for elapsed time.
     if (optimisticCaseId === caseId && !refetchRequested) return;
+    const isRefresh = refetchRequested;
     refetchRequested = false;
 
     const thisGeneration = generation;
@@ -111,6 +112,13 @@ export const initialiseCaseDetailsData = ({ config, handover, setNextHandover, s
         if (isStale()) return undefined;
         mergeTags({ caseDetailsTags: extractTagsFromCaseDetails(caseDetails).tags });
         register({ caseDetails: { found: true, result: caseDetails } });
+        // KQL needs to know whether a caseId is a DCF case. isDcfCase is immutable per case, so
+        //  this is deliberately not de-duplicated: the handover short-circuit above already means
+        //  we only get here on arrival at a case, and a re-send on a later visit heals any event
+        //  lost to navigation. KQL takes a distinct. Refreshes are same-case, so skip those.
+        if (!isRefresh) {
+          trackEvent({ name: "case-details-retrieved", caseId, isDcfCase: caseDetails.isDcfCase });
+        }
         return caseDetails;
       })
       .catch(error => {
