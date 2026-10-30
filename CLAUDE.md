@@ -50,7 +50,7 @@ pnpm -w build
 
 # Step 2: Rollup the bundle with build metadata and copy to harness
 #   (this is what run-tests.sh does between build and test — without it, the harness serves a stale bundle)
-pnpm --filter cps-global-components rollup --intro 'window.cps_global_components_build = window.cps_global_components_build || {Sha: "local", RunId: 0, Timestamp: "2000-01-01T00:00:00Z" };'
+BUILD_INFO='window.cps_global_components_build = window.cps_global_components_build || {Sha: "local", RunId: 0, Timestamp: "2000-01-01T00:00:00Z" };' pnpm --filter cps-global-components rollup
 cp -r ./packages/cps-global-components/dist/global-components.js ./e2e/harness
 
 # Step 3: Run a specific test file
