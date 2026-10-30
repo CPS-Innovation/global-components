@@ -15,6 +15,12 @@ jest.mock("../fetch/fetch-with-auth-factory", () => ({
   fetchWithAuthFactory: (...args: unknown[]) => mockFetchWithAuthFactory(...args),
 }));
 
+// Defaults to never settling so tests that don't care about the fetch outcome stay synchronous.
+const mockFetchAndValidate = jest.fn();
+jest.mock("../fetch/fetch-and-validate", () => ({
+  fetchAndValidate: (...args: unknown[]) => mockFetchAndValidate(...args),
+}));
+
 describe("initialiseCaseDetailsData", () => {
   const createMockConfig = (gatewayUrl: string | null = null): Config =>
     ({
@@ -46,6 +52,7 @@ describe("initialiseCaseDetailsData", () => {
     jest.clearAllMocks();
     mockFetchWithCircuitBreaker.mockReturnValue((f: typeof fetch) => f);
     mockFetchWithAuthFactory.mockReturnValue((f: typeof fetch) => f);
+    mockFetchAndValidate.mockReturnValue(new Promise(() => {}));
   });
 
   describe("when GATEWAY_URL is not configured", () => {
@@ -233,6 +240,66 @@ describe("initialiseCaseDetailsData", () => {
       initialiseCaseDetailsDataForContextOptimistic(undefined);
 
       expect(mockRegister).toHaveBeenCalledWith({ caseDetailsTags: {} });
+    });
+  });
+  describe("case-details-retrieved analytics event", () => {
+    const contextArgs = () => ({
+      context: createMockContext(),
+      caseIdentifiers: { caseId: "123" },
+      getToken: jest.fn().mockResolvedValue("token") as GetToken,
+      correlationIds: { scriptLoadCorrelationId: "s", navigationCorrelationId: "n" },
+      auth: authed,
+    });
+
+    const caseDetailsEvents = (trackEvent: jest.Mock) => trackEvent.mock.calls.map(([event]) => event).filter(event => event.name === "case-details-retrieved");
+
+    it("should track isDcfCase for the caseId when case details are fetched", async () => {
+      const { initialiseCaseDetailsData } = require("./initialise-case-details-data");
+      mockFetchAndValidate.mockResolvedValue({ id: 123, urn: "test-urn", isDcfCase: true });
+      const props = makeProps("https://gateway.example.com/");
+      const { initialiseCaseDetailsDataForContext } = initialiseCaseDetailsData(props);
+
+      await initialiseCaseDetailsDataForContext(contextArgs());
+
+      expect(caseDetailsEvents(props.trackEvent)).toEqual([{ name: "case-details-retrieved", caseId: 123, isDcfCase: true }]);
+    });
+
+    it("should not track when the fetch fails", async () => {
+      const { initialiseCaseDetailsData } = require("./initialise-case-details-data");
+      mockFetchAndValidate.mockRejectedValue(new Error("boom"));
+      const props = makeProps("https://gateway.example.com/");
+      const { initialiseCaseDetailsDataForContext } = initialiseCaseDetailsData(props);
+
+      await initialiseCaseDetailsDataForContext(contextArgs());
+
+      expect(caseDetailsEvents(props.trackEvent)).toEqual([]);
+    });
+
+    it("should not track when case details come from handover", () => {
+      const { initialiseCaseDetailsData } = require("./initialise-case-details-data");
+      const props = {
+        ...makeProps("https://gateway.example.com/"),
+        handover: { found: true, result: { caseId: 123, caseDetails: { urn: "test-urn", isDcfCase: true } } },
+      };
+      const { initialiseCaseDetailsDataForContext, initialiseCaseDetailsDataForContextOptimistic } = initialiseCaseDetailsData(props);
+
+      initialiseCaseDetailsDataForContextOptimistic({ caseId: "123" });
+      initialiseCaseDetailsDataForContext(contextArgs());
+
+      expect(caseDetailsEvents(props.trackEvent)).toEqual([]);
+    });
+
+    it("should not track again on a refresh of the same case", async () => {
+      const { initialiseCaseDetailsData } = require("./initialise-case-details-data");
+      mockFetchAndValidate.mockResolvedValue({ id: 123, urn: "test-urn", isDcfCase: false });
+      const props = makeProps("https://gateway.example.com/");
+      const { initialiseCaseDetailsDataForContext, refreshCaseDetailsData } = initialiseCaseDetailsData(props);
+
+      await initialiseCaseDetailsDataForContext(contextArgs());
+      await refreshCaseDetailsData();
+
+      expect(mockFetchAndValidate).toHaveBeenCalledTimes(2);
+      expect(caseDetailsEvents(props.trackEvent)).toEqual([{ name: "case-details-retrieved", caseId: 123, isDcfCase: false }]);
     });
   });
 });
