@@ -76,7 +76,11 @@ jobs:
             BUILD_INFO="${BUILD_INFO}, Branch: \"${{ inputs.branch }}\""
           fi
           BUILD_INFO="${BUILD_INFO}};"
-          pnpm --filter cps-global-components run rollup --intro "$BUILD_INFO"
+          BUILD_INFO="$BUILD_INFO" pnpm --filter cps-global-components run rollup
+          # Guard: the stamp silently went missing for two months (see rollup.config.mjs). Match the
+          #  assignment, not the bare name — the bundle's own code reads the name, so it is always there.
+          grep -q "^window.cps_global_components_build = " packages/cps-global-components/dist/global-components.js \
+            || { echo "ERROR: build stamp missing from dist/global-components.js"; exit 1; }
 
       # Browser auto-download is disabled workspace-wide via .puppeteerrc.cjs
       # (skipDownload) to stop the two concurrent puppeteer postinstalls racing on
