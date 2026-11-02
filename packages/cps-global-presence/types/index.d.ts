@@ -83,10 +83,10 @@ declare namespace CCPEnvironment {
      * the suffix is returned untouched, because the wire kind read back from a
      * snapshot already has it.
      *
-     * @param {string|undefined} kind
+     * @param {string|null|undefined} kind the documented kind; null/"" yields ""
      * @returns {string}
      */
-    function suffixKind(kind: string | undefined): string;
+    function suffixKind(kind: string | null | undefined): string;
     /**
      * The kind as the API documents it, for naming and for policy.
      *
@@ -94,10 +94,10 @@ declare namespace CCPEnvironment {
      * left alone: it should be impossible, and if it ever arrives it should be visible
      * as the oddity it is rather than quietly normalised into one of ours.
      *
-     * @param {string|undefined} kind
+     * @param {string|null|undefined} kind the wire kind; null/"" yields ""
      * @returns {string}
      */
-    function baseKind(kind: string | undefined): string;
+    function baseKind(kind: string | null | undefined): string;
     function hasSuffix(text: any, suffix: any): boolean;
 }
 declare namespace CCPJoined {
@@ -295,8 +295,12 @@ declare namespace CCPLocator {
      * Returns null when there is no identifiable section, so a detector can simply
      * `return CCPLocator.section(...)` and let a missing caseId mean "not here".
      *
+     * Callers pass the kind as the API documents it ("CASE", "CASE_REVIEW"). The id
+     * comes back carrying the CIN suffix and `kind` comes back without it, so a
+     * detector never has to know which of the two it is holding.
+     *
      * @param {string|number|null|undefined} caseId
-     * @param {string|null|undefined} kind
+     * @param {string|null|undefined} kind the documented kind, unsuffixed
      * @param {string|number|null=} subjectId
      * @param {*=} hint app-specific payload, passed through untouched
      * @returns {{id: string, caseId: string, kind: string, subjectId: string, hint: *}|null}
@@ -439,7 +443,8 @@ declare namespace CCPSessions {
      *          onNotifications: function(Array): void,
      *          onSectionDropped: function(string): void,
      *          dropSectionOnError?: boolean,
-     *          onFatal?: function(string, string): void}} options
+     *          onFatal?: function(string, string): void,
+     *          onTrouble?: function(string, string): void}} options
      * @returns {{setDesired: function(string[]): void, stop: function(): void,
      *            ids: function(): string[], stats: function(): Object}}
      */
@@ -453,6 +458,7 @@ declare namespace CCPSessions {
         onSectionDropped: (arg0: string) => void;
         dropSectionOnError?: boolean;
         onFatal?: (arg0: string, arg1: string) => void;
+        onTrouble?: (arg0: string, arg1: string) => void;
     }): {
         setDesired: (arg0: string[]) => void;
         stop: () => void;

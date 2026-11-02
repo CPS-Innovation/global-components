@@ -8,21 +8,60 @@
 var h = require("../../test-harness");
 
 function load() {
-  return h.load(["legacy-apps/common/presence-sections.js", "legacy-apps/common/presence-locator.js"], ["CCPLocator"]).CCPLocator;
+  return h.load(
+    ["common/presence-environment.js", "legacy-apps/common/presence-sections.js", "legacy-apps/common/presence-locator.js"],
+    ["CCPLocator", "CCPEnvironment"]
+  );
 }
 
-var CCPLocator = load();
+var m = load();
+var CCPLocator = m.CCPLocator;
+
+// The wire ids carry the CIN suffix, which this file applies. Read it from the
+// module rather than writing "CIN3" out: the value is a deploy-time property of
+// the CMS instance, and a test that hardcodes it fails the day it changes for a
+// reason that has nothing to do with the locator.
+function wire(kind) {
+  return m.CCPEnvironment.suffixKind(kind);
+}
 
 h.describe("CCPLocator.section");
 
 h.test("case-wide kinds carry no subject and no trailing colon", function () {
-  h.assertEqual(CCPLocator.section("2148456", "CASE").id, "2148456:CASE");
+  h.assertEqual(CCPLocator.section("2148456", "CASE").id, "2148456:" + wire("CASE"));
 });
 
 h.test("subject-scoped kinds append theirs", function () {
   var s = CCPLocator.section("2148456", "VICTIM_WITNESS", "98765");
-  h.assertEqual(s.id, "2148456:VICTIM_WITNESS:98765");
+  h.assertEqual(s.id, "2148456:" + wire("VICTIM_WITNESS") + ":98765");
   h.assertEqual(s.subjectId, "98765");
+});
+
+h.describe("the CIN suffix, which only this file applies");
+
+// The whole point of centralising it: a client that does nothing still ends up in
+// the right conflict set, so Classic and Modern cannot drift apart again.
+h.test("goes on the id, and only on the kind part of it", function () {
+  var s = CCPLocator.section("2148456", "VICTIM_WITNESS", "98765");
+  h.assertEqual(s.id.indexOf("2148456:VICTIM_WITNESS"), 0, s.id);
+  h.assertTrue(s.id.indexOf(":98765") === s.id.length - 6, s.id);
+});
+
+// Callers write the documented kind and read the documented kind back. Anything
+// that displays, names or applies policy to a kind works on this one.
+h.test("comes off the kind, so nothing downstream has to strip it", function () {
+  h.assertEqual(CCPLocator.section("2148456", "CASE").kind, "CASE");
+  h.assertEqual(CCPLocator.section("2148456", "VICTIM_WITNESS", "9").kind, "VICTIM_WITNESS");
+});
+
+// The hand-written Classic client suffixes its own constants, and a kind read back
+// off the wire already carries one. Both must land on the same id as a caller that
+// passed the documented kind, or the two clients are isolated from each other.
+h.test("is not applied twice to a kind that already carries it", function () {
+  var documented = CCPLocator.section("2148456", "CASE");
+  var alreadyWire = CCPLocator.section("2148456", wire("CASE"));
+  h.assertEqual(alreadyWire.id, documented.id);
+  h.assertEqual(alreadyWire.kind, "CASE");
 });
 
 h.test("numbers are accepted and normalised — CMS hands out both", function () {
@@ -45,7 +84,7 @@ h.describe("CCPLocator.urlDetector");
 
 h.test("pulls the case out of the matching group", function () {
   var d = CCPLocator.urlDetector({ kind: "CASE_REVIEW", pattern: /\/dcf\/[^/]+\/(\d+)/ });
-  h.assertEqual(d.detect("https://x.example/dcf/review/124253/guid?wid=MASTER").id, "124253:CASE_REVIEW");
+  h.assertEqual(d.detect("https://x.example/dcf/review/124253/guid?wid=MASTER").id, "124253:" + wire("CASE_REVIEW"));
 });
 
 h.test("takes a subject group when the section is subject-scoped", function () {
@@ -54,7 +93,7 @@ h.test("takes a subject group when the section is subject-scoped", function () {
     pattern: /case\/(\d+)\/defendant\/(\d+)/,
     subjectIdGroup: 2
   });
-  h.assertEqual(d.detect("https://x.example/case/55/defendant/77").id, "55:DEFENDANT:77");
+  h.assertEqual(d.detect("https://x.example/case/55/defendant/77").id, "55:" + wire("DEFENDANT") + ":77");
 });
 
 h.test("a URL that does not match yields nothing", function () {
@@ -84,22 +123,22 @@ var WITNESS = CCPLocator.section("55", "VICTIM_WITNESS", "9");
 
 h.test("collects from every detector, in order", function () {
   var locator = CCPLocator.createLocator([fixed("CASE", CASE), fixed("VW", WITNESS)]);
-  h.assertEqual(locator.ids("scope"), ["55:CASE", "55:VICTIM_WITNESS:9"]);
+  h.assertEqual(locator.ids("scope"), ["55:" + wire("CASE"), "55:" + wire("VICTIM_WITNESS") + ":9"]);
 });
 
 h.test("a detector may return several sections at once", function () {
   var locator = CCPLocator.createLocator([fixed("many", [CASE, WITNESS])]);
-  h.assertEqual(locator.ids("scope"), ["55:CASE", "55:VICTIM_WITNESS:9"]);
+  h.assertEqual(locator.ids("scope"), ["55:" + wire("CASE"), "55:" + wire("VICTIM_WITNESS") + ":9"]);
 });
 
 h.test("the same section found twice is reported once", function () {
   var locator = CCPLocator.createLocator([fixed("a", CASE), fixed("b", CASE)]);
-  h.assertEqual(locator.ids("scope"), ["55:CASE"]);
+  h.assertEqual(locator.ids("scope"), ["55:" + wire("CASE")]);
 });
 
 h.test("detectors that find nothing contribute nothing", function () {
   var locator = CCPLocator.createLocator([fixed("none", null), fixed("case", CASE), fixed("empty", [])]);
-  h.assertEqual(locator.ids("scope"), ["55:CASE"]);
+  h.assertEqual(locator.ids("scope"), ["55:" + wire("CASE")]);
 });
 
 h.test("a throwing detector is skipped, not fatal — Classic reads live CMS state", function () {
@@ -110,7 +149,7 @@ h.test("a throwing detector is skipped, not fatal — Classic reads live CMS sta
     }
   };
   var locator = CCPLocator.createLocator([boom, fixed("case", CASE)]);
-  h.assertEqual(locator.ids("scope"), ["55:CASE"]);
+  h.assertEqual(locator.ids("scope"), ["55:" + wire("CASE")]);
 });
 
 h.test("nothing active anywhere is an empty list, not null", function () {

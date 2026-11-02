@@ -34,7 +34,7 @@ CCPEnvironment.CIN = "CIN3";
  * the suffix is returned untouched, because the wire kind read back from a
  * snapshot already has it.
  *
- * @param {string|undefined} kind
+ * @param {string|null|undefined} kind the documented kind; null/"" yields ""
  * @returns {string}
  */
 CCPEnvironment.suffixKind = function (kind) {
@@ -56,7 +56,7 @@ CCPEnvironment.suffixKind = function (kind) {
  * left alone: it should be impossible, and if it ever arrives it should be visible
  * as the oddity it is rather than quietly normalised into one of ours.
  *
- * @param {string|undefined} kind
+ * @param {string|null|undefined} kind the wire kind; null/"" yields ""
  * @returns {string}
  */
 CCPEnvironment.baseKind = function (kind) {

@@ -16,9 +16,9 @@
  * review who opened a witness panel was reported as being in one section, not
  * two. Every matching frame is now reported.
  *
- * `hint` carries what only Classic cares about: the finer contact-edit key, the
- * person/recorder ids and name for the event sink, and popupFrame, which tells
- * the banner where to anchor its popup. Shared code passes it through untouched.
+ * `hint` carries what only Classic cares about: the finer contact-edit key and
+ * the person/recorder ids and name for the event sink. Shared code passes it
+ * through untouched.
  */
 
 // ---- Sections --------------------------------------------------------------
@@ -68,17 +68,12 @@ var SCREEN_DESTROYED_CASE = "uadsDestroyedCase"; // carries a case id; is not on
 var SCREEN_ON_EXIT = "uaglCMSOnExit"; // ditto, from the session being torn down
 var SECTION_KIND_CASE = "CASE"; // case-wide, no subject
 
-// Which frame HOSTS the hover popup for a section. Pages differ in structure:
-//   - Some sections (e.g. victim/witness) load a FRAMESET into frameMain, and the
-//     content lives in a child frame named "framePage" — so the popup is rendered
-//     there (frameMain itself is a frameset doc whose body never renders).
-//   - Other sections (e.g. case review) are rendered DIRECTLY as frameMain's content
-//     document (no inner frameset, no framePage) — so the popup is rendered into
-//     frameMain's own body.
-// Each SECTION_DETECTORS entry declares its popupFrame so the engine knows where to
-// append the popup (see presenceShowPopup).
-var POPUP_FRAME_PAGE = "framePage"; // inner content frame (frameset pages)
-var POPUP_FRAME_MAIN = "frameMain"; // frameMain rendered directly as content
+// NO POPUP HOST HERE ANY MORE. Each section used to declare which frame should
+// host the hover popup, because pages differ in structure: some load a frameset
+// into frameMain and render in a child "framePage", others render directly as
+// frameMain's own document. The footer stripe that replaced the popup always
+// renders in the action bar instead (see stripe.js), which it resolves from the
+// live frame structure, so a section no longer has to know where it is drawn.
 
 var timer;
 
@@ -218,15 +213,14 @@ function readOpenDefendant(win) {
   });
 }
 
-// The section registry. fragment -> the frame that shows it; read -> is it active;
-// popupFrame -> where that page renders, so the banner knows where to put the
-// popup (see banner.js: there is deliberately no default).
+// The section registry. fragment -> the frame that shows it; read -> is it active.
+// The order is a priority list: the first match is the section the stripe is about.
 var CLASSIC_SECTIONS = [
-  { kind: SECTION_KIND_VICTIM_WITNESS, fragment: FRAGMENT_CONTACTS, read: readOpenContact, popupFrame: POPUP_FRAME_PAGE },
-  { kind: SECTION_KIND_CASE_REVIEW, fragment: FRAGMENT_CASE_REVIEW, read: readCaseReview, popupFrame: POPUP_FRAME_MAIN },
-  { kind: SECTION_KIND_CASE_REVIEW, fragment: FRAGMENT_CASE_REVIEW_CHARGE, read: readCaseReview, popupFrame: POPUP_FRAME_MAIN },
-  { kind: SECTION_KIND_DEFENDANT, fragment: FRAGMENT_DEFS_CHARGES, read: readOpenDefendant, popupFrame: POPUP_FRAME_PAGE },
-  { kind: SECTION_KIND_VICTIM_WITNESS, fragment: FRAGMENT_DOCUMENTS, read: readWitnessTab, popupFrame: POPUP_FRAME_PAGE }
+  { kind: SECTION_KIND_VICTIM_WITNESS, fragment: FRAGMENT_CONTACTS, read: readOpenContact },
+  { kind: SECTION_KIND_CASE_REVIEW, fragment: FRAGMENT_CASE_REVIEW, read: readCaseReview },
+  { kind: SECTION_KIND_CASE_REVIEW, fragment: FRAGMENT_CASE_REVIEW_CHARGE, read: readCaseReview },
+  { kind: SECTION_KIND_DEFENDANT, fragment: FRAGMENT_DEFS_CHARGES, read: readOpenDefendant },
+  { kind: SECTION_KIND_VICTIM_WITNESS, fragment: FRAGMENT_DOCUMENTS, read: readWitnessTab }
 ];
 
 // Walk win and its whole same-origin subtree, collecting every section this one
@@ -251,9 +245,6 @@ function readSectionsInFrames(win, spec, depth, out) {
     }
     if (section) {
       section.hint = section.hint ? section.hint : {};
-      // Where the banner should anchor: a property of the PAGE, not of the
-      // reader, so it is applied here rather than inside every reader.
-      section.hint.popupFrame = spec.popupFrame;
       // Most sections are identified finely enough by their id; only the contact
       // panel needs a finer key, and it sets its own.
       if (!section.hint.key) {
@@ -304,6 +295,16 @@ function mainFrame(root) {
 // canonical frame, so it cannot be fooled by a sibling frame that happens to name
 // a case. When a finer section is also active both are reported — a user editing a
 // witness is in that witness's section AND on the case.
+//
+// The hand-written client did this as a FALLBACK_DETECTORS entry that walked every
+// frame for one whose URL contains "intCaseID", used only when no finer section
+// matched. NOT ported, on purpose, and the difference is worth knowing: walking
+// means the first frame naming any case wins, which is the misleading-sibling
+// problem the test suite pins. What WAS worth taking from it is iScreenCaseID
+// below. The cost is a case screen whose frameMain URL carries no case id while a
+// nested frame does: we report no case section there and the hand-written client
+// would have. No such screen is known — if one turns up, it belongs here as
+// another source for THIS frame, not as a walk.
 function readCaseContext(root) {
   var main = mainFrame(root);
   if (!main) {
@@ -318,15 +319,22 @@ function readCaseContext(root) {
   if (href.indexOf(SCREEN_DESTROYED_CASE) !== -1 || href.indexOf(SCREEN_ON_EXIT) !== -1) {
     return null; // names a case without being on one
   }
-  var caseId = queryParam(href, "intCaseID");
+  // CMS's own global for "the case this screen is about", preferred over the URL
+  // because a screen can keep it across a navigation that drops the parameter.
+  // A zero is not a case, and `?` already treats it as absent.
+  var caseId = "";
+  try {
+    caseId = main.iScreenCaseID ? String(main.iScreenCaseID) : "";
+  } catch (e2) {
+    caseId = "";
+  }
+  if (!caseId) {
+    caseId = queryParam(href, "intCaseID");
+  }
   if (!caseId) {
     return null;
   }
-  // Where the banner anchors its popup, and it differs by world: the case-details
-  // workspace is a frameset whose own body never renders, so the popup goes to its
-  // content frame; pre-charge IS the content, so it goes to frameMain itself.
-  var popupFrame = href.indexOf("uacdCaseDetails.aspx") !== -1 ? POPUP_FRAME_PAGE : POPUP_FRAME_MAIN;
-  return CCPLocator.section(caseId, SECTION_KIND_CASE, null, { popupFrame: popupFrame });
+  return CCPLocator.section(caseId, SECTION_KIND_CASE, null, {});
 }
 
 function buildClassicLocator() {

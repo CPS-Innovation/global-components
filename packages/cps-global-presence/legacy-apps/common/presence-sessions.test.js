@@ -292,4 +292,61 @@ h.test("stop() removes every session", function () {
   h.assertEqual(r.dropped.length, 2);
 });
 
+h.describe("telling the client something did not answer");
+
+// onTrouble is opt-in and says nothing about retrying — the retry happens either
+// way. Classic takes its footer stripe down on it, because a stale roster beside
+// CMS's own controls reads as fact; Modern passes no handler and keeps its banner.
+function troubleRig() {
+  var trouble = [];
+  var r = rig({
+    onTrouble: function (sectionId, reason) {
+      trouble.push(sectionId + " " + reason);
+    }
+  });
+  r.trouble = trouble;
+  return r;
+}
+
+h.test("a create that failed is reported, with the reason", function () {
+  var r = troubleRig();
+  r.sessions.setDesired([A]);
+  r.last("create", A).reply({ jsonpError: "500 Internal Server Error" });
+  h.assertEqual(r.trouble, [A + " 500 Internal Server Error"]);
+});
+
+h.test("a timeout is reported even though it is otherwise shrugged off", function () {
+  var r = troubleRig();
+  r.join([A]);
+  r.last("heartbeat").reply(null);
+  h.assertEqual(r.trouble, [A + " no response (timeout)"]);
+});
+
+h.test("a poll that failed is reported", function () {
+  var r = troubleRig();
+  r.join([A]);
+  r.last("poll").reply({ jsonpError: "401 Unauthorized" });
+  h.assertEqual(r.trouble, [A + " 401 Unauthorized"]);
+});
+
+// A 410 is ordinary churn, not a fault: the session is dropped and recreated, and
+// the roster follows from the drop. Reporting it would put an error in front of a
+// user for something that fixed itself on the next pass.
+h.test("an expired session is NOT reported as trouble", function () {
+  var r = troubleRig();
+  r.join([A]);
+  r.last("heartbeat").reply({ jsonpError: "410 Gone" });
+  h.assertEqual(r.trouble, []);
+  h.assertEqual(r.dropped, [A]);
+});
+
+h.test("a client that passes no handler is unaffected by any of it", function () {
+  var r = rig();
+  r.join([A]);
+  r.last("heartbeat").reply(null);
+  r.last("poll").reply({ jsonpError: "500 Internal Server Error" });
+  h.assertEqual(r.dropped, []); // still held, still retried
+  h.assertEqual(r.sessions.ids(), [A]);
+});
+
 h.summarise();

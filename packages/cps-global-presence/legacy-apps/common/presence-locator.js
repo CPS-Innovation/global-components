@@ -16,9 +16,23 @@
  * dropped the rest.
  *
  * `hint` travels with a section untouched by shared code. Classic uses it to
- * remember which frame a section was found in, so its popup knows where to
- * anchor; Modern uses it for diagnostics. Anything app-specific goes there rather
- * than widening the section shape for everyone.
+ * remember which frame a section was found in; Modern uses it for diagnostics.
+ * Anything app-specific goes there rather than widening the section shape for
+ * everyone.
+ *
+ * THE CIN SUFFIX IS APPLIED HERE, and this is the only place it is applied. It is
+ * a property of the wire identity, so it goes on where the wire identity is built
+ * -- which means every client gets it by detecting a section at all, and none of
+ * them can forget to. Both clients used to do it themselves, in their own kind
+ * constants: Classic's hand-written client still does, and ours had simply never
+ * started, which would have left Classic registering "1234:CASE" against a Modern
+ * speaking "1234:CASE_CIN3" -- isolated with no error to notice. See
+ * common/presence-environment.js.
+ *
+ * AT DETECTION TIME, NOT AT LOAD. The constants that used to carry the suffix were
+ * evaluated once when the script loaded, which fixes the environment before
+ * anything has had a chance to discover it. Suffixing per detection means a CIN
+ * that becomes known later -- the whoami cmsEnv work -- needs no change here.
  */
 
 var CCPLocator = {};
@@ -28,21 +42,29 @@ var CCPLocator = {};
  * Returns null when there is no identifiable section, so a detector can simply
  * `return CCPLocator.section(...)` and let a missing caseId mean "not here".
  *
+ * Callers pass the kind as the API documents it ("CASE", "CASE_REVIEW"). The id
+ * comes back carrying the CIN suffix and `kind` comes back without it, so a
+ * detector never has to know which of the two it is holding.
+ *
  * @param {string|number|null|undefined} caseId
- * @param {string|null|undefined} kind
+ * @param {string|null|undefined} kind the documented kind, unsuffixed
  * @param {string|number|null=} subjectId
  * @param {*=} hint app-specific payload, passed through untouched
  * @returns {{id: string, caseId: string, kind: string, subjectId: string, hint: *}|null}
  */
 CCPLocator.section = function (caseId, kind, subjectId, hint) {
-  var id = CCPSections.sectionId(caseId, kind, subjectId);
+  // Suffixed for the id, stripped for the kind. baseKind is not merely the input
+  // echoed back: a caller that passes an already-suffixed kind (the hand-written
+  // Classic client's constants, a kind read back off the wire) gets the same
+  // answer as one that passes the documented kind, and neither double-suffixes.
+  var id = CCPSections.sectionId(caseId, CCPEnvironment.suffixKind(kind), subjectId);
   if (!id) {
     return null;
   }
   return {
     id: id,
     caseId: String(caseId),
-    kind: String(kind),
+    kind: CCPEnvironment.baseKind(kind),
     subjectId: subjectId !== undefined && subjectId !== null ? String(subjectId) : "",
     hint: hint
   };

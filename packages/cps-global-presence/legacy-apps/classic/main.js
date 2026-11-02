@@ -6,7 +6,7 @@
  *   classic/sections.js      which sections are active (frame readers)
  *   common/presence-sessions which sessions to hold, and what failure means
  *   common/presence-roster   who is present, reconciled by version
- *   classic/banner.js        the menu-bar icon and its popup
+ *   classic/stripe.js        the red footer stripe and its details accordion
  *   classic/event-sink.js    the finer contact-edit events
  *
  * WHAT CHANGED when this stopped being one file: presence used to start and stop
@@ -30,14 +30,15 @@ var PRESENCE_JSONP_TIMEOUT_MS = 8000; // per-call watchdog (JSONP has no error e
 var timer;
 var lastKey = ""; // the primary section's contact key; "" means nothing open
 var lastRec = null; // and the record we reported for it
-var lastPrimaryId = ""; // the section the banner is currently about
+var lastPrimaryId = ""; // the section the stripe is currently about
 
 var roster = CCPRoster.createRoster();
 
 function presenceLog() {
-  // Classic ships no console output: this file runs inside CMS, where an
+  // Classic ships no routine console output: this file runs inside CMS, where an
   // unexpected console call in an old document mode is a real risk. The
-  // diagnostics seam below is the way to see what is happening.
+  // diagnostics seam below is the way to see what is happening. The ONE exception
+  // is presenceConnectionFailed, which says once that presence is not working.
 }
 
 function isVerbose() {
@@ -57,7 +58,7 @@ function recordFor(section) {
   };
 }
 
-// The banner is about ONE case — the one the user is looking at — even when
+// The stripe is about ONE case — the one the user is looking at — even when
 // several sections of it are held. Detector order decides which that is, so the
 // registry in sections.js is also a priority list.
 function primarySection() {
@@ -80,14 +81,22 @@ function subjectSection(sections) {
   return null;
 }
 
-function drawBanner(caseId) {
+// Show the stripe whenever ANY section of the case has members — there is no
+// threshold, so a case where only you are present still says so. An empty roster
+// takes it away rather than leaving an empty red bar on the page.
+function drawStripe() {
+  var primary = primarySection();
+  if (!primary) {
+    presenceRemoveStripe();
+    return;
+  }
   var sections = roster.sections();
-  var tip = presenceBuildTooltip(caseId, sections); // "" when nobody is anywhere
-  var count = presenceCountMembers(caseId, sections);
-  if (tip) {
-    presenceShowBanner(tip, count);
+  var text = presenceBuildDetails(primary.caseId, sections); // "" when nobody is anywhere
+  var count = presenceCountMembers(primary.caseId, sections);
+  if (text) {
+    presenceShowStripe(text, count);
   } else {
-    presenceRemoveBanner();
+    presenceRemoveStripe();
   }
 }
 
@@ -95,28 +104,34 @@ function onNotifications(data) {
   if (!roster.apply(data)) {
     return;
   }
-  var primary = primarySection();
-  if (primary) {
-    drawBanner(primary.caseId);
-  }
+  drawStripe();
 }
 
 // A session we no longer hold: left, or the Watchdog forgot it. Its roster is no
 // longer evidence of anything, and the others still stand.
 function onSectionDropped(sectionId) {
   if (roster.forget(sectionId)) {
-    var primary = primarySection();
-    if (primary) {
-      drawBanner(primary.caseId);
-    }
+    drawStripe();
   }
 }
 
-// Non-recoverable: surface it the way the original did — "!" in place of the
-// head-count, with the reason in the popup — rather than leaving a stale roster
-// on screen implying we still know who is there.
-function onFatal() {
-  presenceShowBanner(PRESENCE_ERROR_TIP, PRESENCE_ERROR_MARK);
+// Presence is not working. Take the UI away rather than leaving a stale roster on
+// screen implying we still know who is present, and say so ONCE per page load:
+// the sessions layer retries on every pass, so a logged line per failure would be
+// a line every three seconds for as long as the outage lasts.
+var presenceFailureLogged = false;
+
+function presenceConnectionFailed(reason) {
+  presenceRemoveStripe();
+  if (presenceFailureLogged) {
+    return;
+  }
+  presenceFailureLogged = true;
+  try {
+    if (window.console && window.console.log) {
+      window.console.log("There was an error connecting to The Watchdog: " + reason);
+    }
+  } catch (e) { }
 }
 
 var sessions = CCPSessions.createSessions({
@@ -132,30 +147,31 @@ var sessions = CCPSessions.createSessions({
   verbose: isVerbose,
   onNotifications: onNotifications,
   onSectionDropped: onSectionDropped,
-  // Classic's original behaviour: a non-410 error is not retried, it is shown.
+  // Classic's original behaviour: a non-410 error takes the section down rather
+  // than beating a session the server has an opinion about. The next observation
+  // pass puts it straight back, because the section is still on screen — so this
+  // is "start again", not "give up".
   dropSectionOnError: true,
-  onFatal: onFatal
+  // Classic hides the stripe on ANY failed call, including a plain timeout. The
+  // shared module stays silent on those for Modern/DCF, which keeps its banner up
+  // and simply retries, so this is opt-in per client rather than a change to the
+  // failure semantics both share.
+  onTrouble: function (sectionId, reason) {
+    presenceConnectionFailed(reason);
+  }
 });
 
-// The banner follows the primary section: a new one shows "connecting" until the
-// first poll answers, and no section at all takes the banner away.
-function updateBanner(primary) {
+// The stripe follows the primary section, but only to take it DOWN: there is no
+// "connecting" state, so nothing is drawn until a poll answers (see stripe.js).
+function updateStripeSection(primary) {
   var id = primary ? primary.id : "";
   if (id === lastPrimaryId) {
     return;
   }
   lastPrimaryId = id;
   if (!primary) {
-    presencePopupFrameName = null; // no section -> nowhere to anchor -> no popup
-    presenceRemoveBanner();
-    return;
+    presenceRemoveStripe(); // no section -> nothing to be present in
   }
-  // Where the popup renders. null when the section declared no host frame, in
-  // which case banner.js renders no popup at all — there is no default.
-  presencePopupFrameName = primary.hint && primary.hint.popupFrame ? primary.hint.popupFrame : null;
-  // Show the icon at once: the section IS supported, we simply do not know the
-  // roster yet. Replaced by the real numbers on the first successful poll.
-  presenceShowBanner(PRESENCE_CONNECTING_TIP, PRESENCE_CONNECTING_DOTS);
 }
 
 // The contact-edit events, unchanged in meaning: emitted on transition only, and
@@ -193,7 +209,7 @@ function tick() {
     sessions.setDesired(ids);
   } catch (e2) { }
   var primary = sections.length ? sections[0] : null;
-  updateBanner(primary);
+  updateStripeSection(primary);
   updateEvents(subjectSection(sections));
 }
 
@@ -229,30 +245,38 @@ function shutdown() {
   stop();
 }
 
-// start/stop/tick so the loop can be driven from the console, and onChange as the
-// seam for calling an endpoint without editing this file.
-window.__ccContactLogger = { start: start, stop: stop, tick: tick };
+// NOTHING ABOVE THIS LINE STARTS ANYTHING. The switch is honoured here, at the
+// single point where the loop begins and the diagnostics appear — so a disabled
+// bundle observes no sections, makes no JSONP call, renders no stripe and resizes
+// no frameset, and publishes no handles either. The hand-written client returned
+// early from its IIFE instead; the IIFE boundary is build.sh's here, so the guard
+// is at the other end of the same file.
+if (CMS_WATCHDOG_ENABLED === true) {
+  // start/stop/tick so the loop can be driven from the console, and onChange as
+  // the seam for calling an endpoint without editing this file.
+  window.__ccContactLogger = { start: start, stop: stop, tick: tick };
 
-// Presence diagnostics, mirroring the Modern client so the same questions can be
-// asked of either app.
-window.__ccPresence = {
-  sections: activeSections,
-  sessions: function () {
-    return sessions.stats();
-  },
-  roster: function () {
-    return roster.people();
-  },
-  describeRoster: function () {
-    return roster.describe();
-  },
-  rosterBySection: function () {
-    return roster.sections();
-  },
-  tick: tick
-};
+  // Presence diagnostics, mirroring the Modern client so the same questions can
+  // be asked of either app.
+  window.__ccPresence = {
+    sections: activeSections,
+    sessions: function () {
+      return sessions.stats();
+    },
+    roster: function () {
+      return roster.people();
+    },
+    describeRoster: function () {
+      return roster.describe();
+    },
+    rosterBySection: function () {
+      return roster.sections();
+    },
+    tick: tick
+  };
 
-// Clean up the timer when the shell unloads.
-window.attachEvent("onunload", shutdown);
+  // Clean up the timer when the shell unloads.
+  window.attachEvent("onunload", shutdown);
 
-start();
+  start();
+}

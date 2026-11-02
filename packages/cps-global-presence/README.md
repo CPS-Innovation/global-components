@@ -45,9 +45,10 @@ types/    GENERATED — do not edit
   common.d.ts            tsc's output: our functions, inferred from the JSDoc
   index.d.ts             THE PUBLISHED FILE: wire shapes + our functions, merged
 classic/  CMS Classic only — document mode 5, so the SAME floor as common/
+  kill-switch.js         CMS_WATCHDOG_ENABLED, outside both IIFEs
   dom.js                 reading CMS's own state: hidden fields, frame walking
   sections.js            the frame readers, and the section registry
-  banner.js              the menu-bar icon, its popup, and the tooltip
+  stripe.js              the red footer stripe, its accordion, and the words
   event-sink.js          contact-edit events, and the parked HTTP helpers
   main.js                the observation loop and wiring
   auth.js                concern 2: the login -> auth iframe hand-off
@@ -90,8 +91,9 @@ pattern and nothing else, because there the address is the whole context. In
 active, and for which subject), because Classic has no addressable state. Either
 way nothing else changes — not the sessions, not the roster, not the UI.
 
-**Detector order is priority.** Classic's banner is about one case and anchors its
-popup to one frame, so it follows the first section found.
+**Detector order is priority.** Classic's stripe is about one case, so it follows
+the first section found. It renders above the action bar wherever that is, so —
+unlike the hover popup it replaced — no section has to declare where it is drawn.
 
 ```js
 __ccPresence.status()          // location, active sections, session stats

@@ -137,3 +137,56 @@ function frameHrefContaining(win, fragment, depth) {
   return "";
 }
 
+
+// ---- Finding things CMS did not label ---------------------------------------
+// These were in banner.js, which the footer stripe replaced. They are plain
+// observation helpers with no opinion about what is being rendered, so they
+// belong here with the rest of the mode-5 reading code.
+
+// document mode 5 has no classList, so compare the whole token list by hand.
+function classHas(el, cls) {
+  var c = el.className;
+  if (!c || typeof c.split !== "function") { return false; }
+  var parts = c.split(" "), i;
+  for (i = 0; i < parts.length; i++) {
+    if (parts[i] === cls) { return true; }
+  }
+  return false;
+}
+
+// First element in `doc` carrying `cls`, or null. No getElementsByClassName and
+// no querySelector at this floor, so this is a scan of every element: used only
+// as a fallback for an element CMS did not give an id (the action bar table).
+function findElByClassInDoc(doc, cls) {
+  var all = null;
+  try {
+    all = doc.all ? doc.all : (doc.getElementsByTagName ? doc.getElementsByTagName("*") : null);
+  } catch (e) { return null; }
+  if (!all) { return null; }
+  var i;
+  for (i = 0; i < all.length; i++) {
+    if (classHas(all[i], cls)) { return all[i]; }
+  }
+  return null;
+}
+
+// First same-origin frame named `name` anywhere under `win`, or null. The
+// same-origin probe is the document access: a cross-origin frame throws, and a
+// frame we cannot read is a frame we cannot render into.
+function presenceFindFrameByName(win, name, depth) {
+  if (depth > MAXDEPTH) { return null; }
+  var frames;
+  try { frames = win.frames; } catch (e) { return null; } // x-origin
+  var i, f, nm, found;
+  for (i = 0; i < frames.length; i++) {
+    f = frames[i];
+    nm = "";
+    try { nm = f.name; } catch (e2) { nm = ""; }
+    if (nm === name) {
+      try { if (f.document) { return f; } } catch (e3) { } // same-origin probe
+    }
+    found = presenceFindFrameByName(f, name, depth + 1);
+    if (found) { return found; }
+  }
+  return null;
+}

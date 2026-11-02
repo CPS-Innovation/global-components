@@ -1,0 +1,445 @@
+/* classic/stripe.js — the red footer stripe and its details accordion. CLASSIC ONLY.
+ *
+ * THE ONLY PRESENCE UI IN CLASSIC. It replaced banner.js (a meeting icon appended
+ * to the yellow menu bar, with a beige hover popup anchored to whichever frame was
+ * rendering the active section). Ported from the deployed hand-written client,
+ * where this shape won on two grounds: a hover popup is invisible to anyone not
+ * already pointing at the icon, and anchoring it per section meant a section that
+ * declared no host frame showed nothing at all.
+ *
+ * The stripe is in NORMAL FLOW immediately before the action-bar table, so it
+ * pushes the Cancel/Save/Done controls down rather than covering them — which is
+ * also why the frameset row has to grow by the stripe's height. See
+ * presenceResizeFooter: only the footer row is ever touched, and only by the
+ * amount the stripe actually measures.
+ *
+ * SHOWN ONLY ON A SUCCESSFUL POLL. There is deliberately no "connecting" state:
+ * the old banner showed the icon the moment a supported section was detected,
+ * which put chrome on the page before we knew whether anyone was there. Nothing
+ * appears until a roster says so, and any failure takes it away (see
+ * presenceConnectionFailed in main.js) rather than leaving a stale roster on
+ * screen implying we still know who is present.
+ *
+ * MODE 5: no classList, no querySelector, no addEventListener, no textContent.
+ * Roster text is written with innerText, never innerHTML — names and application
+ * names come from the API and are never interpreted as markup.
+ */
+
+var PRESENCE_STRIPE_ID = "ccPresenceStripe";
+var PRESENCE_STRIPE_HEADER_ID = "ccPresenceStripeHeader";
+var PRESENCE_STRIPE_SUMMARY_ID = "ccPresenceStripeSummary";
+var PRESENCE_STRIPE_TOGGLE_ID = "ccPresenceStripeToggle";
+var PRESENCE_STRIPE_DETAILS_ID = "ccPresenceStripeDetails";
+var PRESENCE_STRIPE_COLOR = "#b10e1e"; // GDS/CPS red
+var PRESENCE_STRIPE_HEIGHT = 23; // the red header only; the details panel grows
+
+// The footer lives in the action-bar table, which is either frameMain's own
+// document or — when frameMain is itself a frameset — the frameActionBar frame
+// inside it. PRESENCE_ACTION_BAR_ROW_INDEX is that frame's row in the frameset's
+// `rows` list, and is the ONLY row this file ever writes.
+var PRESENCE_FRAME_ACTION_BAR = "frameActionBar";
+var PRESENCE_ACTION_BAR_ID = "tblCMSActionBar";
+var PRESENCE_ACTION_BAR_CLASS = "cmsActionBar"; // fallback: the table is not always given its id
+var PRESENCE_ACTION_BAR_ROW_INDEX = 3;
+
+// Only a successful poll populates this. Expansion is kept across polls and
+// across a navigation within the same case, so a reader who opened the details
+// does not have to reopen them every three seconds.
+var presenceStripeState = null; // { text, count }; null = no presence UI
+var presenceStripeEl = null;
+var presenceStripeExpanded = false;
+// Bound to the actual FRAMESET element, not to a frame name: that is what lets us
+// put a row back after the user navigates, without resizing whatever page is
+// there now.
+var presenceFooterResize = null; // { frameset, originalRow, baseHeight, win }
+
+// ---- The words --------------------------------------------------------------
+// Moved here from banner.js unchanged: the stripe shows the same roster the hover
+// popup used to, so the formatting was never the banner's own.
+
+// Human-readable label for a section kind, used in the details panel.
+//
+// The kinds reaching here come from the ROSTER, which keeps what the wire said --
+// so they carry the CIN suffix, while the cases below are the kinds the API
+// documents. baseKind is what reconciles the two; without it every heading would
+// read "working on CASE_CIN3".
+function presenceSectionLabel(kind) {
+  var base = CCPEnvironment.baseKind(kind);
+  if (base === "CASE") { return "Case"; }
+  if (base === "CASE_REVIEW") { return "Case Review"; }
+  if (base === "VICTIM_WITNESS") { return "Witness/Victim"; }
+  if (base === "DEFENDANT") { return "Defendant"; }
+  return base ? base : "Section";
+}
+
+var PRESENCE_MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+// Format an ISO-8601 joinedAt ("2026-08-21T08:11:53.226+00:00") as "21 Aug 2026 08:11".
+// document mode 5 cannot reliably Date.parse an ISO string, so read the fields out
+// of it directly (wall-clock as sent). Returns "" if it isn't a timestamp.
+function presenceFormatJoined(iso) {
+  if (!iso || typeof iso !== "string") { return ""; }
+  var m = /^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2})/.exec(iso);
+  if (!m) { return ""; }
+  var monthIdx = parseInt(m[2], 10) - 1;
+  var mon = (monthIdx >= 0 && monthIdx < 12) ? PRESENCE_MONTHS[monthIdx] : m[2];
+  return parseInt(m[3], 10) + " " + mon + " " + m[1] + " " + m[4] + ":" + m[5];
+}
+
+// `sections` is CCPRoster's section map: sectionId -> { caseId, kind, members }.
+// Passed in rather than reached for, so this has no opinion about where the roster
+// lives and can be tested on a literal.
+//
+// The details panel text for one case, grouped by section:
+//   Who's working where:
+//   Currently these users are working on <Section>:
+//   <email> on <app> - joined <date>
+//   ...
+//   <blank line between sections>
+// Sections whose roster is empty (everyone left — a valid, version-bumped
+// notification) are OMITTED. Returns "" when no section of the case has members,
+// which is what main.js reads as "take the stripe away".
+function presenceBuildDetails(caseId, sections) {
+  var blocks = [];
+  var key, sec, members, i, mem, when, lines, line;
+  for (key in sections) {
+    if (!sections.hasOwnProperty(key)) { continue; }
+    sec = sections[key];
+    if (!sec || sec.caseId !== caseId) { continue; }
+    members = sec.members;
+    if (!members || members.length === 0) { continue; } // empty section -> omit
+    lines = ["Currently these users are working on " + presenceSectionLabel(sec.kind) + ":"];
+    for (i = 0; i < members.length; i++) {
+      mem = members[i];
+      line = mem.userEmail + " on " + (mem.sourceApplication ? mem.sourceApplication : "unknown");
+      when = presenceFormatJoined(mem.joinedAt);
+      if (when) { line = line + " - joined " + when; }
+      lines[lines.length] = line;
+    }
+    blocks[blocks.length] = lines.join("\n");
+  }
+  if (blocks.length === 0) { return ""; }
+  return "Who's working where:\n" + blocks.join("\n\n");
+}
+
+// Total people across ALL sections of one case. Drives the collapsed summary, so
+// it has to count the same names presenceBuildDetails lists: empty sections
+// contribute 0, and the reader is counted among them.
+function presenceCountMembers(caseId, sections) {
+  var total = 0, key, sec;
+  for (key in sections) {
+    if (!sections.hasOwnProperty(key)) { continue; }
+    sec = sections[key];
+    if (!sec || sec.caseId !== caseId) { continue; }
+    if (sec.members && sec.members.length) { total = total + sec.members.length; }
+  }
+  return total;
+}
+
+// The one line the reader sees while the accordion is shut. A number means we
+// counted a roster; anything else falls back to the detail text, so a state with
+// no count still says something rather than rendering an empty red bar.
+function presenceStripeSummary(state) {
+  if (!state) { return ""; }
+  if (typeof state.count === "number") {
+    return state.count + " users currently working on the case";
+  }
+  return state.text ? state.text : "";
+}
+
+// ---- Footer geometry --------------------------------------------------------
+// Pure, because getting it wrong resizes someone else's application. Both
+// functions work on the frameset's `rows` attribute as a string and decide
+// nothing about the DOM.
+
+// The pixel height the stripe is added to, read from one row specification.
+// `allocatedHeight` is the footer frame's measured height, used when the row is a
+// proportion rather than a pixel count. Returns -1 when the row cannot be
+// interpreted, which means: leave the frameset alone entirely.
+function presenceBaseHeightFromRow(rowText, allocatedHeight) {
+  var row = trim(rowText);
+  if (/^\d+$/.test(row)) {
+    return parseInt(row, 10);
+  }
+  if (/[%*]/.test(row)) {
+    // A percentage or a star is not a pixel count, so measure what it currently
+    // resolves to — but the ORIGINAL row text is what gets put back, so the
+    // proportion survives the stripe being removed.
+    return allocatedHeight > 0 ? allocatedHeight : -1;
+  }
+  return -1;
+}
+
+// `rowsText` with `index` set to `value`. Returns "" when that would change
+// nothing, or when the frameset has fewer rows than we expect — the caller takes
+// "" as "do not write", so an unfamiliar frameset is never rewritten.
+function presenceRowsWith(rowsText, index, value) {
+  var rows = String(rowsText).split(",");
+  if (rows.length <= index) { return ""; }
+  if (rows[index] === value) { return ""; }
+  rows[index] = value;
+  return rows.join(",");
+}
+
+// ---- Where the stripe goes --------------------------------------------------
+
+// Resolve the footer and its owning FRAMESET from the live structure on every
+// update rather than caching it: CMS replaces these documents under us. Two
+// shapes are supported, and nothing is ever inserted into a frameset body —
+// a frameset has no rendered body, so appending to one renders nowhere.
+function presenceGetFooterTarget() {
+  try {
+    var main = presenceFindFrameByName(window, FRAME_MAIN, 0);
+    var doc = main ? main.document : null;
+    if (!doc || !doc.body) {
+      return null;
+    }
+    var frameset = null;
+    var host = main;
+    if (String(doc.body.tagName).toLowerCase() === "frameset") {
+      // frameMain is a frameset: the action bar is in its frameActionBar frame,
+      // and that frame's row is what has to grow.
+      frameset = doc.body;
+      host = presenceFindFrameByName(main, PRESENCE_FRAME_ACTION_BAR, 0);
+      doc = host ? host.document : null;
+    }
+    if (!doc || !doc.body || String(doc.body.tagName).toLowerCase() === "frameset") {
+      return null;
+    }
+    var footer = getEl(host, PRESENCE_ACTION_BAR_ID);
+    if (!footer) {
+      footer = findElByClassInDoc(doc, PRESENCE_ACTION_BAR_CLASS);
+    }
+    if (!footer || !footer.parentNode) {
+      return null; // no footer to sit above -> no stripe
+    }
+    return { doc: doc, footer: footer, frameset: frameset, win: host };
+  } catch (e) {
+    return null;
+  }
+}
+
+// Put back just the footer's original row specification. Every other row,
+// including the flexible content row, is left exactly as CMS has it now — even if
+// CMS changed it while the stripe was up.
+function presenceRestoreFooterRows() {
+  var resize = presenceFooterResize;
+  presenceFooterResize = null;
+  if (!resize) {
+    return;
+  }
+  try {
+    var rows = presenceRowsWith(resize.frameset.rows, PRESENCE_ACTION_BAR_ROW_INDEX, resize.originalRow);
+    if (rows) {
+      resize.frameset.rows = rows;
+    }
+  } catch (e) { }
+}
+
+// Capture the baseline BEFORE the stripe is inserted, and reuse it on every poll
+// and toggle — otherwise each update would add the stripe's height to an already
+// enlarged row and the footer would creep down the page.
+function presencePrepareFooterResize(target) {
+  if (presenceFooterResize && presenceFooterResize.frameset === target.frameset) {
+    return; // same frameset, baseline still valid
+  }
+  presenceRestoreFooterRows(); // a different frameset: give the old one its row back
+  if (!target.frameset) {
+    return; // frameMain is plain HTML -> normal flow is enough, nothing to resize
+  }
+  try {
+    var rows = String(target.frameset.rows).split(",");
+    if (rows.length <= PRESENCE_ACTION_BAR_ROW_INDEX) {
+      return;
+    }
+    var frameEl = target.win ? target.win.frameElement : null;
+    var baseHeight = presenceBaseHeightFromRow(
+      rows[PRESENCE_ACTION_BAR_ROW_INDEX],
+      frameEl ? frameEl.offsetHeight : 0
+    );
+    if (baseHeight < 0) {
+      return; // unreadable row -> do not touch this frameset at all
+    }
+    presenceFooterResize = {
+      frameset: target.frameset,
+      originalRow: rows[PRESENCE_ACTION_BAR_ROW_INDEX],
+      baseHeight: baseHeight,
+      win: target.win
+    };
+  } catch (e) { }
+}
+
+// Measure the whole accordion AFTER its text and display have been set — 23px
+// collapsed, plus the details panel when expanded — and give the footer row that
+// much more than its baseline.
+function presenceResizeFooter() {
+  if (!presenceFooterResize || !presenceStripeEl) {
+    return;
+  }
+  try {
+    var height = Math.max(PRESENCE_STRIPE_HEIGHT, presenceStripeEl.offsetHeight);
+    if (!isFinite(height)) {
+      return;
+    }
+    var resize = presenceFooterResize;
+    var rows = presenceRowsWith(
+      resize.frameset.rows,
+      PRESENCE_ACTION_BAR_ROW_INDEX,
+      String(resize.baseHeight + height)
+    );
+    if (rows) {
+      resize.frameset.rows = rows;
+    }
+  } catch (e) { }
+}
+
+// Drop the DOM and give the footer its space back, but KEEP the text and the
+// expansion: a navigation within the same case re-renders from the same state, so
+// the stripe comes back as the reader left it.
+function presenceDetachStripe() {
+  try {
+    if (presenceStripeEl && presenceStripeEl.parentNode) {
+      presenceStripeEl.parentNode.removeChild(presenceStripeEl);
+    }
+  } catch (e) { }
+  presenceStripeEl = null;
+  presenceRestoreFooterRows();
+}
+
+// The stripe goes away for good: no roster, or the connection broke.
+function presenceRemoveStripe() {
+  presenceStripeState = null;
+  presenceStripeExpanded = false;
+  presenceDetachStripe();
+}
+
+// A click changes the expansion and the space it needs — nothing else. Not the
+// text, not the poll cadence, and no call to the API.
+function presenceUpdateStripeExpanded(toggle, details) {
+  var label = presenceStripeExpanded ? "Hide details" : "Show details";
+  if (toggle) {
+    if (toggle.innerText !== label) {
+      toggle.innerText = label;
+    }
+    toggle.setAttribute("aria-expanded", presenceStripeExpanded ? "true" : "false");
+  }
+  if (details) {
+    details.style.display = presenceStripeExpanded ? "block" : "none";
+  }
+  presenceResizeFooter();
+}
+
+// Build (once) and refresh (every poll) the accordion. Styles are set inline
+// because CMS's stylesheets are not ours to extend and a class we add means
+// nothing in their documents.
+function presenceRenderStripe() {
+  try {
+    var state = presenceStripeState;
+    var target = presenceGetFooterTarget();
+    if (!state || !target) {
+      presenceDetachStripe(); // keeps state: a missing footer is usually mid-navigation
+      return;
+    }
+    var doc = target.doc;
+    var footer = target.footer;
+    var stripe = doc.getElementById(PRESENCE_STRIPE_ID);
+    if (presenceStripeEl && presenceStripeEl !== stripe) {
+      presenceDetachStripe(); // a new host frame, or a new document in the same one
+    }
+    presencePrepareFooterResize(target);
+    var details;
+    if (!stripe) {
+      stripe = doc.createElement("div");
+      stripe.id = PRESENCE_STRIPE_ID;
+      stripe.style.margin = "0";
+      stripe.style.padding = "0";
+      stripe.style.fontFamily = "Arial, sans-serif";
+      stripe.style.fontSize = "10pt";
+
+      var header = doc.createElement("div");
+      header.id = PRESENCE_STRIPE_HEADER_ID;
+      header.style.position = "relative";
+      header.style.height = PRESENCE_STRIPE_HEIGHT + "px";
+      header.style.lineHeight = PRESENCE_STRIPE_HEIGHT + "px";
+      header.style.margin = "0";
+      header.style.padding = "0";
+      header.style.backgroundColor = PRESENCE_STRIPE_COLOR;
+      header.style.color = "#ffffff";
+      header.style.fontWeight = "bold";
+      header.style.overflow = "hidden";
+
+      var summary = doc.createElement("span");
+      summary.id = PRESENCE_STRIPE_SUMMARY_ID;
+      summary.style.display = "block";
+      summary.style.margin = "0 110px 0 8px"; // reserve room for the details link
+      summary.style.whiteSpace = "nowrap";
+      summary.style.overflow = "hidden";
+      summary.style.textOverflow = "ellipsis";
+      header.appendChild(summary);
+
+      var toggle = doc.createElement("a");
+      toggle.id = PRESENCE_STRIPE_TOGGLE_ID;
+      toggle.href = "#" + PRESENCE_STRIPE_DETAILS_ID;
+      toggle.style.position = "absolute";
+      toggle.style.right = "8px";
+      toggle.style.top = "0px";
+      toggle.style.color = "#ffffff";
+      toggle.style.textDecoration = "underline";
+      toggle.style.whiteSpace = "nowrap";
+      toggle.setAttribute("role", "button");
+      toggle.setAttribute("aria-controls", PRESENCE_STRIPE_DETAILS_ID);
+      // DOM0 handlers: attachEvent cannot cancel an anchor's navigation, and
+      // `return false` still does at this document mode. Enter activates the link
+      // natively; Space is handled so it behaves like the button we claim it is.
+      toggle.onclick = function () {
+        presenceStripeExpanded = !presenceStripeExpanded;
+        presenceUpdateStripeExpanded(toggle, details);
+        return false;
+      };
+      toggle.onkeydown = function (event) {
+        var e = event || (doc.parentWindow ? doc.parentWindow.event : null);
+        if (e && e.keyCode === 32) {
+          e.returnValue = false;
+          return toggle.onclick();
+        }
+        return true;
+      };
+      header.appendChild(toggle);
+      stripe.appendChild(header);
+
+      details = doc.createElement("div");
+      details.id = PRESENCE_STRIPE_DETAILS_ID;
+      details.style.backgroundColor = "#ffffff";
+      details.style.color = "#000000";
+      details.style.border = "1px solid " + PRESENCE_STRIPE_COLOR;
+      details.style.borderTop = "0";
+      details.style.padding = "6px 8px";
+      details.style.whiteSpace = "pre"; // the detail text is "\n"-separated
+      details.style.overflow = "auto"; // long roster lines scroll rather than widening the page
+      stripe.appendChild(details);
+    }
+    // Immediately before the footer table, in normal flow, so the action bar is
+    // pushed down rather than covered.
+    if (stripe.nextSibling !== footer) {
+      footer.parentNode.insertBefore(stripe, footer);
+    }
+    presenceStripeEl = stripe;
+    var summaryEl = doc.getElementById(PRESENCE_STRIPE_SUMMARY_ID);
+    var toggleEl = doc.getElementById(PRESENCE_STRIPE_TOGGLE_ID);
+    var detailsEl = doc.getElementById(PRESENCE_STRIPE_DETAILS_ID);
+    var summaryText = presenceStripeSummary(state);
+    if (summaryEl && summaryEl.innerText !== summaryText) {
+      summaryEl.innerText = summaryText;
+    }
+    if (detailsEl && detailsEl.innerText !== state.text) {
+      detailsEl.innerText = state.text; // innerText: never interpret a name as markup
+    }
+    presenceUpdateStripeExpanded(toggleEl, detailsEl);
+  } catch (e) { }
+}
+
+// The entry point main.js uses on every successful poll.
+function presenceShowStripe(text, count) {
+  presenceStripeState = { text: text, count: count };
+  presenceRenderStripe();
+}

@@ -62,7 +62,8 @@ MODERN2="$DIR/legacy-apps/modern/sections.js $DIR/legacy-apps/modern-2/bar.js $D
 # govuk-frontend v5 dropped IE11 and these pages are document mode 11, so the design
 # is recreated from its measurements rather than shared — see modern-3/bar.js.
 MODERN3="$DIR/legacy-apps/modern/sections.js $DIR/legacy-apps/modern-3/bar.js $DIR/legacy-apps/modern-3/main.js"
-CLASSIC="$DIR/legacy-apps/classic/dom.js $DIR/legacy-apps/classic/sections.js $DIR/legacy-apps/classic/banner.js $DIR/legacy-apps/classic/event-sink.js $DIR/legacy-apps/classic/main.js"
+CLASSIC="$DIR/legacy-apps/classic/dom.js $DIR/legacy-apps/classic/sections.js $DIR/legacy-apps/classic/stripe.js $DIR/legacy-apps/classic/event-sink.js $DIR/legacy-apps/classic/main.js"
+SWITCH="$DIR/legacy-apps/classic/kill-switch.js"
 AUTH="$DIR/legacy-apps/classic/auth.js"
 
 # Gate BEFORE building: a floor violation should fail here, naming the file and
@@ -215,8 +216,15 @@ CLASSIC_OUT="$DIR/dist/cms-auth-v2-client.js"
   echo " *   common/   shared with the Modern/DCF client"
   echo " *   classic/  this app only"
   echo " *"
+  echo " * CMS_WATCHDOG_ENABLED (classic/kill-switch.js) is emitted at the top, outside"
+  echo " * both IIFEs: set it false and redeploy to stop both concerns dead."
+  echo " *"
   echo " * Edit those sources and re-run build.sh."
   echo " */"
+  echo
+  # OUTSIDE both IIFEs on purpose: both concerns read it, so it cannot live inside
+  # either one. See the file's own header.
+  cat "$SWITCH"
   echo "(function () {"
   for f in $COMMON $CLASSIC; do
     echo
