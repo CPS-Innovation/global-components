@@ -53,6 +53,14 @@ var presenceStripeExpanded = false;
 // there now.
 var presenceFooterResize = null; // { frameset, originalRow, baseHeight, win }
 
+// Consecutive observation passes that had a roster to show and nowhere to put it.
+// Not a per-pass warning: a footer that is missing for ONE pass is almost always
+// mid-navigation and the next pass fixes it, so the complaint waits until the
+// condition has outlived any navigation. Reset by a successful render.
+var PRESENCE_UNPLACEABLE_PASSES = 3; // ~9s at main.js's cadence
+var presenceUnplaceablePasses = 0;
+var presenceStripeWarned = false;
+
 // ---- The words --------------------------------------------------------------
 // Moved here from banner.js unchanged: the stripe shows the same roster the hover
 // popup used to, so the formatting was never the banner's own.
@@ -183,6 +191,13 @@ function presenceRowsWith(rowsText, index, value) {
 
 // ---- Where the stripe goes --------------------------------------------------
 
+// Why the lookup below last declined. Every one of its exits was silent, and a
+// populated roster that draws nothing looks identical from the console whichever
+// one was taken — which is what made the 2026-11-04 investigation DOM archaeology.
+// Read it through __ccPresence.stripe(), and see presenceStripeUnplaceable for the
+// one case that says so by itself.
+var presenceFooterReason = "";
+
 // Resolve the footer and its owning FRAMESET from the live structure on every
 // update rather than caching it: CMS replaces these documents under us. Two
 // shapes are supported, and nothing is ever inserted into a frameset body —
@@ -190,8 +205,13 @@ function presenceRowsWith(rowsText, index, value) {
 function presenceGetFooterTarget() {
   try {
     var main = presenceFindFrameByName(window, FRAME_MAIN, 0);
-    var doc = main ? main.document : null;
+    if (!main) {
+      presenceFooterReason = "no " + FRAME_MAIN;
+      return null;
+    }
+    var doc = main.document;
     if (!doc || !doc.body) {
+      presenceFooterReason = FRAME_MAIN + " has no document body yet";
       return null;
     }
     var frameset = null;
@@ -202,8 +222,13 @@ function presenceGetFooterTarget() {
       frameset = doc.body;
       host = presenceFindFrameByName(main, PRESENCE_FRAME_ACTION_BAR, 0);
       doc = host ? host.document : null;
+      if (!host) {
+        presenceFooterReason = FRAME_MAIN + " is a frameset with no " + PRESENCE_FRAME_ACTION_BAR;
+        return null;
+      }
     }
     if (!doc || !doc.body || String(doc.body.tagName).toLowerCase() === "frameset") {
+      presenceFooterReason = "no rendered body to insert into";
       return null;
     }
     var footer = getEl(host, PRESENCE_ACTION_BAR_ID);
@@ -211,10 +236,13 @@ function presenceGetFooterTarget() {
       footer = findElByClassInDoc(doc, PRESENCE_ACTION_BAR_CLASS);
     }
     if (!footer || !footer.parentNode) {
+      presenceFooterReason = "no " + PRESENCE_ACTION_BAR_ID + " / ." + PRESENCE_ACTION_BAR_CLASS + " in the footer document";
       return null; // no footer to sit above -> no stripe
     }
+    presenceFooterReason = "";
     return { doc: doc, footer: footer, frameset: frameset, win: host };
   } catch (e) {
+    presenceFooterReason = "threw: " + e;
     return null;
   }
 }
@@ -337,9 +365,14 @@ function presenceRenderStripe() {
     var state = presenceStripeState;
     var target = presenceGetFooterTarget();
     if (!state || !target) {
+      if (state) {
+        presenceUnplaceablePasses = presenceUnplaceablePasses + 1;
+        presenceStripeUnplaceable();
+      }
       presenceDetachStripe(); // keeps state: a missing footer is usually mid-navigation
       return;
     }
+    presenceUnplaceablePasses = 0;
     var doc = target.doc;
     var footer = target.footer;
     var stripe = doc.getElementById(PRESENCE_STRIPE_ID);
@@ -438,8 +471,72 @@ function presenceRenderStripe() {
   } catch (e) { }
 }
 
+// Said ONCE per shell load, and only when there are people on the case and the
+// stripe has had nowhere to go for several passes running. Classic ships no
+// routine console output, so this is held to the same bar as
+// presenceConnectionFailed in main.js: it reports a state the reader can see is
+// wrong (presence is working, the page says nothing) and names the reason, rather
+// than narrating a loop.
+function presenceStripeUnplaceable() {
+  if (presenceStripeWarned || presenceUnplaceablePasses < PRESENCE_UNPLACEABLE_PASSES) {
+    return;
+  }
+  presenceStripeWarned = true;
+  try {
+    if (window.console && window.console.log) {
+      window.console.log(
+        "There are people on this case but the presence stripe could not be placed: " +
+        (presenceFooterReason ? presenceFooterReason : "unknown") +
+        ". See window.__ccPresence.stripe()."
+      );
+    }
+  } catch (e) { }
+}
+
 // The entry point main.js uses on every successful poll.
 function presenceShowStripe(text, count) {
   presenceStripeState = { text: text, count: count };
   presenceRenderStripe();
+}
+
+// Re-assert whatever the stripe should currently be showing against the LIVE DOM,
+// and nothing more: no new text, no roster, no API call.
+//
+// It exists because CMS replaces the footer document under us on a navigation that
+// changes nothing we observe — same case, same section, same roster — and the
+// stripe goes with the document while presenceStripeState survives.
+// presenceDetachStripe was already written to keep the state "so the stripe comes
+// back as the reader left it", but nothing re-rendered it: the only callers were
+// roster changes, so a reader who navigated after the last change lost the stripe
+// for good. main.js now calls this every observation pass.
+//
+// Cheap to repeat: a no-op with no state, and idempotent with it — the DOM is
+// reused when it is already right, and presenceRowsWith declines to rewrite a row
+// it would not change, so the frameset is not touched on a quiet pass.
+function presenceRefreshStripe() {
+  if (!presenceStripeState) {
+    return;
+  }
+  presenceRenderStripe();
+}
+
+// Triage, for __ccPresence.stripe(). The question this answers is the one that
+// cost a day on 2026-11-04: the roster has people in it and the page shows
+// nothing — is the stripe not being asked for, or asked for and unplaceable?
+//   state null      -> not asked for. The roster is for another case, or empty:
+//                      compare __ccPresence.rosterBySection() with sections().
+//   state set, inDom false -> asked for and it could not be placed; `reason` says
+//                      which lookup failed and `unplaceablePasses` how long for.
+//   state set, inDom true  -> it is on the page; if it cannot be seen, the footer
+//                      row did not grow (see presenceResizeFooter).
+function presenceStripeSnapshot() {
+  var el = presenceStripeEl;
+  return {
+    state: presenceStripeState,
+    inDom: !!(el && el.parentNode),
+    expanded: presenceStripeExpanded,
+    reason: presenceFooterReason,
+    unplaceablePasses: presenceUnplaceablePasses,
+    resized: !!presenceFooterResize
+  };
 }

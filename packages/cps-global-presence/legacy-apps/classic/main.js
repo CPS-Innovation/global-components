@@ -84,8 +84,14 @@ function subjectSection(sections) {
 // Show the stripe whenever ANY section of the case has members — there is no
 // threshold, so a case where only you are present still says so. An empty roster
 // takes it away rather than leaving an empty red bar on the page.
-function drawStripe() {
-  var primary = primarySection();
+//
+// TWO things change the answer and both call this: a new roster, and a new primary
+// section. Only the first used to — see updateStripeSection for why that was not
+// as broken as it looks, and why it is still worth not relying on.
+//
+// The primary is passed in rather than looked up because tick() has just walked
+// the frames for it, and at document mode 5 that walk is not free.
+function drawStripe(primary) {
   if (!primary) {
     presenceRemoveStripe();
     return;
@@ -104,14 +110,14 @@ function onNotifications(data) {
   if (!roster.apply(data)) {
     return;
   }
-  drawStripe();
+  drawStripe(primarySection());
 }
 
 // A session we no longer hold: left, or the Watchdog forgot it. Its roster is no
 // longer evidence of anything, and the others still stand.
 function onSectionDropped(sectionId) {
   if (roster.forget(sectionId)) {
-    drawStripe();
+    drawStripe(primarySection());
   }
 }
 
@@ -161,17 +167,28 @@ var sessions = CCPSessions.createSessions({
   }
 });
 
-// The stripe follows the primary section, but only to take it DOWN: there is no
-// "connecting" state, so nothing is drawn until a poll answers (see stripe.js).
+// The stripe follows the primary section: moving to a different one re-asks what
+// the stripe should say, and moving off every section takes it away.
+//
+// It used to redraw in the second case ONLY — its comment said "but only to take
+// it DOWN". That was less broken than it reads, and the distinction is worth
+// keeping: leaving a section also drops its session, which fires onSectionDropped
+// -> roster.forget -> drawStripe, so the stripe did come down. But that route only
+// fires when the roster HELD an entry under the same key the detector produced —
+// not when nobody else was in the section, and not if the server echoed a key we
+// do not hold. A section change is as much a reason to redraw as a roster change,
+// so this no longer leans on the other route to be correct.
+//
+// There is still no "connecting" state. Arriving somewhere the cached roster knows
+// nothing about yields no detail text, so the stripe comes DOWN and stays down
+// until that case's first poll answers (see stripe.js).
 function updateStripeSection(primary) {
   var id = primary ? primary.id : "";
   if (id === lastPrimaryId) {
     return;
   }
   lastPrimaryId = id;
-  if (!primary) {
-    presenceRemoveStripe(); // no section -> nothing to be present in
-  }
+  drawStripe(primary);
 }
 
 // The contact-edit events, unchanged in meaning: emitted on transition only, and
@@ -209,7 +226,18 @@ function tick() {
     sessions.setDesired(ids);
   } catch (e2) { }
   var primary = sections.length ? sections[0] : null;
-  updateStripeSection(primary);
+  // Guarded like the two calls above it, and for the same reason: the UI is the
+  // least important thing this pass does, and it must not be able to stop the
+  // contact-edit events that follow. It used to be safe by accident — all it could
+  // reach was presenceRemoveStripe, which swallows its own failures — and it now
+  // builds the roster text as well.
+  try {
+    updateStripeSection(primary);
+    // Put the stripe back if CMS replaced the document it was in. A navigation that
+    // changes neither the section nor the roster still destroys it, so neither of
+    // the redraw triggers would notice. Idempotent and cheap on a quiet pass.
+    presenceRefreshStripe();
+  } catch (e3) { }
   updateEvents(subjectSection(sections));
 }
 
@@ -271,6 +299,12 @@ if (CMS_WATCHDOG_ENABLED === true) {
     },
     rosterBySection: function () {
       return roster.sections();
+    },
+    // What the stripe thinks it is doing. Added after an investigation that had to
+    // read the frameset by hand to find out; see presenceStripeSnapshot for how to
+    // read it.
+    stripe: function () {
+      return presenceStripeSnapshot();
     },
     tick: tick
   };
