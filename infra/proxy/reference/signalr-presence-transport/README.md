@@ -43,6 +43,12 @@ Both were deployed to the same blob container. The client located the second by 
 `<script src>` directory (`CCPOrigin.sibling`), because the deploy prefix
 (`/global-components/uat/…`) is per-environment and must not be hard-coded.
 
+> **`CCPOrigin.sibling` no longer exists.** It was deleted on 2026-11-04 along with
+> `CCPOrigin.scriptOrigin`, when the clients stopped locating themselves in the DOM and had
+> their implementation origin baked in at deploy time instead. Rehydrating this transport
+> means restoring `sibling` from git history, or baking the full script base rather than just
+> the origin — `sibling` needs the *directory*, which `CCPOrigin.IMPL_ORIGIN` does not carry.
+
 The two files could not see each other's scope — the shipping bundle is an IIFE — so
 they met at one agreed global: `plugin.js` published `window.CCPSignalRFactory`, and the
 loader called it with everything it needed (hub URL, app name, callbacks). That seam is

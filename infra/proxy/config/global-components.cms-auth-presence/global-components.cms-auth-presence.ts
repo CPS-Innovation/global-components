@@ -935,7 +935,7 @@ const _PRESENCE_DEV_BEARER =
 //
 // NB this is NOT the same thing as the "cms-auth-id-token" localStorage key written near
 // the end of the callback. That one is the RELAY transport's id-token and is read by
-// cms-auth-v2-client.js and cms-presence-relay.html; it stays as-is.
+// the injected Classic client and cms-presence-relay.html; it stays as-is.
 const _PRESENCE_TOKEN_COOKIE = "cms-auth-presence-token";
 
 // The calling application, reported to the presence API as X-Watchdog-App-Name.

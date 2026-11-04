@@ -72,7 +72,8 @@ function describeLocation() {
 
 // Where our endpoints live. See CCPOrigin — a relative path would resolve against
 // the HOST PAGE, which is the wrong box as soon as the UI and our endpoints are on
-// different domains.
+// different domains. CCPOrigin.IMPL_ORIGIN is baked in at deploy time and is ""
+// (meaning "same origin as the page") for every same-host deploy.
 function resolveJsonpBase(jsonpPath) {
-  return CCPOrigin.resolve("cms-presence-client.js", jsonpPath);
+  return CCPOrigin.resolve(jsonpPath);
 }

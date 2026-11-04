@@ -136,7 +136,7 @@ function presenceConnectionFailed(reason) {
 
 var sessions = CCPSessions.createSessions({
   call: CCPJsonp.createJsonp({
-    base: CCPOrigin.resolve("cms-auth-v2-client.js", "/global-components/presence-jsonp"),
+    base: CCPOrigin.resolve("/global-components/presence-jsonp"),
     appName: PRESENCE_APP_NAME,
     timeoutMs: PRESENCE_JSONP_TIMEOUT_MS,
     log: presenceLog

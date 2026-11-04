@@ -346,37 +346,13 @@ declare namespace CCPLocator {
     };
 }
 declare namespace CCPOrigin {
+    let IMPL_ORIGIN: string;
     /**
-     * The origin of the <script> tag whose src contains `marker`.
-     * @param {string} marker a distinctive part of our own script's filename
-     * @returns {string} e.g. "https://polaris-uat-notprod.cps.gov.uk", or "" if not found
-     */
-    function scriptOrigin(marker: string): string;
-    /**
-     * An absolute URL for one of our endpoints, on whichever host served this script.
-     * @param {string} marker a distinctive part of our own script's filename
+     * An absolute URL for one of our endpoints, on the host that owns them.
      * @param {string} path an absolute path, e.g. "/global-components/presence-jsonp"
-     * @returns {string} the absolute URL, or `path` unchanged when the tag is not found
+     * @returns {string} the absolute URL, or `path` unchanged when we are same-origin
      */
-    function resolve(marker: string, path: string): string;
-    /**
-     * The URL of a file served ALONGSIDE this script — same host and same directory.
-     *
-     * `resolve` is for endpoints, whose paths are fixed and known. This is for our own
-     * sibling assets, whose directory is not: the client is deployed under a per-
-     * environment prefix ("/global-components/uat/…", "/global-components/test/…")
-     * that the script cannot know and must not hard-code. Taking the directory from
-     * our own tag means a bundle deployed anywhere finds its siblings.
-     *
-     * NOT CURRENTLY CALLED by the shipping client: its only consumer was the on-demand
-     * SignalR bundle, now archived under reference/signalr-presence-transport/. Kept
-     * because any second artefact needs exactly this, and it is cheap and tested.
-     *
-     * @param {string} marker a distinctive part of our own script's filename
-     * @param {string} filename e.g. "cms-presence-extra.js"
-     * @returns {string} the absolute URL, or `filename` unchanged when the tag is not found
-     */
-    function sibling(marker: string, filename: string): string;
+    function resolve(path: string): string;
 }
 declare namespace CCPRoster {
     /**

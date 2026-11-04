@@ -96,7 +96,7 @@ async function testPolarisV2Endpoint() {
 // -----------------------------------------------------------------------------
 // The login-page iframe injection (and its whole `location = .../uaulLogin.aspx`
 // block) was removed from the cms-auth-presence conf. That job moved into the injected
-// shell script (cms-auth-v2-client.js), which watches frameMain leave the login
+// shell script (the injected Classic client), which watches frameMain leave the login
 // page and spawns the /polaris-presence iframe itself. That script is a blob asset this
 // docker suite does not serve, so there is nothing to assert here. With the block
 // gone, the login page falls through to the deployed ^/CMS.* catch-all (not part

@@ -80,28 +80,26 @@ h.test("carries the app it was found in, for diagnostics", function () {
 
 h.describe("resolveJsonpBase");
 
-h.test("uses our own script origin — unproxied, a relative path would hit the CMS host", function () {
-  var win = h.fakeWindow({ href: "https://cms.example/viewer/landing", pathname: "/viewer/landing", hash: "" });
-  var doc = h.fakeDocument([
-    { src: "https://cms.example/some/other.js" },
-    { src: "https://polaris.example/global-components/test/cms-presence-client.js" }
-  ]);
-  var m = h.load(
+function loadSections() {
+  return h.load(
     ["common/presence-environment.js", "legacy-apps/common/presence-sections.js", "legacy-apps/common/presence-origin.js", "legacy-apps/common/presence-locator.js", "legacy-apps/modern/sections.js"],
-    ["resolveJsonpBase"],
-    { window: win, document: doc }
+    ["resolveJsonpBase", "CCPOrigin"],
+    {
+      window: h.fakeWindow({ href: "https://cms.example/viewer/landing", pathname: "/viewer/landing", hash: "" }),
+      document: h.fakeDocument([])
+    }
   );
+}
+
+h.test("uses the baked implementation origin — unproxied, a relative path would hit the CMS host", function () {
+  var m = loadSections();
+  m.CCPOrigin.IMPL_ORIGIN = "https://polaris.example";
   h.assertEqual(m.resolveJsonpBase("/global-components/presence-jsonp"), "https://polaris.example/global-components/presence-jsonp");
 });
 
-h.test("falls back to the relative path when our tag cannot be found", function () {
-  var win = h.fakeWindow({ href: "https://cms.example/viewer/landing", pathname: "/viewer/landing", hash: "" });
-  var doc = h.fakeDocument([{ src: "https://cms.example/other.js" }]);
-  var m = h.load(
-    ["common/presence-environment.js", "legacy-apps/common/presence-sections.js", "legacy-apps/common/presence-origin.js", "legacy-apps/common/presence-locator.js", "legacy-apps/modern/sections.js"],
-    ["resolveJsonpBase"],
-    { window: win, document: doc }
-  );
+h.test("returns the relative path when the deploy baked no origin — same host as the page", function () {
+  var m = loadSections();
+  h.assertEqual(m.CCPOrigin.IMPL_ORIGIN, "");
   h.assertEqual(m.resolveJsonpBase("/global-components/presence-jsonp"), "/global-components/presence-jsonp");
 });
 

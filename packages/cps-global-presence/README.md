@@ -26,9 +26,9 @@ App names — `"CMS Modern"` (covering DCF too: one app in users' minds) and
 > Everything under `dist/` is **generated**. Classic was a hand-edited single file
 > until 2026-08-28; edit the sources here and run `./build.sh`.
 >
-> The names above are the *to-be* ones, published since 2026-11-03. The proxy still
-> injects the historic `cms-auth-v2-client.js` / `cms-presence-client.js`, so those
-> are what the estate runs today — see **Deploy** below.
+> Published under these names since 2026-11-03, and injected by the proxy since
+> 2026-11-04 — so this is what the estate runs. See **Deploy** below for the
+> injection sites and the rollback.
 
 ## Layout
 
@@ -236,12 +236,25 @@ in a file fetched from `polaris-uat-notprod`, injected into a CMS page served by
 `polaris-qa-notprod`, resolves to **QA** — the page's origin. Deploying the script
 elsewhere changes nothing; the page decides.
 
-`CCPOrigin.resolve(marker, path)` finds our own `<script>` tag and takes its origin
-instead, falling back to the relative path when page and endpoints share a host.
-Both legacy clients need this the moment the UI and the API are on different
-domains — and the auth flow needs it most, because the callback sets the presence
+`CCPOrigin.resolve(path)` prefixes `CCPOrigin.IMPL_ORIGIN`, which is **baked in at
+deploy time**: `deploy.local.sh` rewrites it when the implementation is on another
+host (`IMPL_ENV != ENV`), and it ships as `""` — "same origin as the page" — which is
+correct for every same-host deploy and for every CI deploy, since the pipeline has no
+`IMPL_ENV` concept. Both legacy clients need this the moment the UI and the API are
+on different domains, and the auth flow needs it most: the callback sets the presence
 cookie HOST-ONLY, so the auth iframe must land on the same host as the API or the
 adapter never sees the cookie.
+
+> **This used to be derived in the browser** by scanning the page's `<script>` tags
+> for one whose `src` contained a marker — a distinctive part of our own filename —
+> and taking its origin. It needed no configuration, but it coupled the client to the
+> name the nginx conf injects: rename the blob and the marker matched nothing, and
+> `resolve` fell back to the host page's origin **silently**. Indistinguishable from
+> correct in the same-origin proxied estate; quietly wrong anywhere cross-domain. The
+> rename to `client-*-unstable.js` on 2026-11-04 is what forced the issue, and baking
+> the origin removed the coupling rather than renaming the marker to something that
+> could go stale again. `document.currentScript` was never an option — it does not
+> exist at document mode 11, let alone 5.
 
 ## Why JSONP and not SignalR
 
@@ -275,24 +288,29 @@ blob list is readable — the suffix stops the maintainers wiring it up by accid
 The client carries no credential: the njs adapter lifts the bearer from the presence
 cookie and adds `X-Watchdog-App-Name`.
 
-### Not switched over yet
+### Switched over on 2026-11-04
 
-The `sub_filter` injections in
-`infra/proxy/config/global-components.cms-auth-presence/` still name the historic
-`cms-auth-v2-client.js` / `cms-presence-client.js`. Those blobs are written by **no
-deploy** any more, which is the point: nothing a deploy does can change what an
-environment runs, the switchover is the nginx change on its own, and the rollback is
-reverting the conf with nothing to re-upload.
+The four `sub_filter` injections in
+`infra/proxy/config/global-components.cms-auth-presence/` name the `-unstable` pair,
+so the proxied estate runs the clients built here:
 
-**The switch is two edits that must ship together**: the conf's injected filename,
-*and* the markers at `legacy-apps/classic/main.js` and `legacy-apps/modern/sections.js`
-that `CCPOrigin` matches against it (see *Relative URLs resolve against the PAGE*
-above). A marker that misses falls back to the host page's origin **silently** —
-fine in the same-origin proxied estate, quietly wrong cross-domain. They live in
-different deploy units, so do not leave them disagreeing.
+| `location` | injects |
+|---|---|
+| `= /CMS.24.0.01/uaglCMS.aspx` | `client-classic-unstable.js` |
+| `= /CMS.24.0.01/` | `client-classic-unstable.js` |
+| `= /viewer/landing` | `client-modern-unstable.js` |
+| `~ ^/dcf/review/` | `client-modern-unstable.js` |
 
-The injection locations (`= /viewer/landing`, `~ ^/dcf/review/` for Modern, the
-frameset shell for Classic) live in that conf and ship with it.
+`@@SCRIPT_BASE@@` is unchanged, and the blob route already passes the
+`cms-augmentation/` subdirectory through, so no new location block was needed.
+
+**Rollback is reverting the conf and restarting.** The blobs at the historic
+`cms-auth-v2-client.js` / `cms-presence-client.js` names are written by no deploy, so
+they still hold the pre-switch generation — there is nothing to re-upload.
+
+**Deploy order, if both ever move again:** clients first, conf second. They ship in
+different units (client blob vs config blob), and a conf pointing at a blob that is
+not there yet is a 404 and no presence, whereas a blob nothing points at is inert.
 
 ## What it does
 

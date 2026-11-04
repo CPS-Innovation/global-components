@@ -50,9 +50,9 @@ DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # the other two and the selector are gone, so there is one Modern build again.
 #
 # The historic names cms-auth-v2-client.js and cms-presence-client.js are GONE from
-# the build. They survive only as the filenames the nginx conf still injects, and
-# as the runtime markers that have to match them — see "NOT SWITCHED YET" at the
-# foot of this file.
+# the build, from the nginx conf, and from the client sources. Nothing reads them;
+# the blobs still sitting at those two names are the pre-switch generation, kept as
+# the rollback. See the section at the foot of this file.
 AUG_OUT="$DIR/dist/cms-augmentation"
 CLASSIC_OUT="$AUG_OUT/client-classic-unstable.js"
 MODERN_OUT="$AUG_OUT/client-modern-unstable.js"
@@ -268,19 +268,19 @@ echo "built $CLASSIC_OUT ($(wc -c < "$CLASSIC_OUT" | tr -d ' ') bytes), no crede
 # THE REVEAL IS THEN A ONE-LINE NGINX CHANGE -- drop "-unstable" from the injected
 # src -- with no deploy and no rebuild.
 #
-# NOT SWITCHED YET. Those sub_filter lines still name the historic
-# cms-auth-v2-client.js / cms-presence-client.js, so that pair is what the proxied
-# estate runs today and the -unstable blobs are published but unlinked -- which is
-# why no deploy, local or pipeline, can change what an environment runs.
+# SWITCHED 2026-11-04. Those sub_filter lines now name the -unstable pair, so the
+# proxied estate runs the clients built here. The blobs at the historic names are
+# untouched by any deploy, which makes reverting the conf a complete rollback.
 #
-# The switch is TWO EDITS THAT MUST SHIP TOGETHER, not one: the conf's injected
-# filename, and the runtime markers in legacy-apps/classic/main.js and
-# legacy-apps/modern/sections.js. CCPOrigin finds our own <script> tag by matching
-# the injected filename, and a marker that misses falls back to the HOST PAGE's
-# origin SILENTLY -- correct in the same-origin proxied estate, quietly wrong the
-# moment the UI and our endpoints are on different hosts. Marker and conf live in
-# different deploy units, so whichever order they go in, do not leave them
-# disagreeing.
+# The switch had to move TWO THINGS AT ONCE, and the reason is worth keeping:
+# CCPOrigin used to find our own <script> tag by matching a marker against the
+# injected filename, so renaming the blob broke the match -- and a marker that
+# misses fell back to the HOST PAGE's origin SILENTLY, correct in the same-origin
+# proxied estate and quietly wrong anywhere cross-domain. The marker is gone now.
+# CCPOrigin.IMPL_ORIGIN is baked in by deploy.local.sh for the cross-domain case and
+# ships as "" ("same origin as the page"), which is right for every same-host deploy
+# and every CI deploy. So the names here can move again, and "-unstable" can be
+# dropped for the reveal, with no code change and nothing to keep in step.
 #
 # CI copies the four files into the deploy artifact BY NAME, so they land in each
 # environment's container on every deploy (prod only via deploy-all, like
