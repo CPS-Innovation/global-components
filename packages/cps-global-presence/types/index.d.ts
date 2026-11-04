@@ -413,6 +413,31 @@ declare namespace CCPSections {
 }
 declare namespace CCPSessions {
     /**
+     * An ISO-8601 UTC timestamp, built by hand.
+     *
+     * NOT Date.prototype.toISOString, which this used until 2026-11-04. That method is
+     * an ES5 addition and DOES NOT EXIST at document mode 5 — and this file is held to
+     * the mode 5 floor because CMS Classic runs it. The call was the FIRST statement of
+     * pump(), the pass that heartbeats and polls every held section, inside the
+     * try/catch that exists so a throw there cannot kill the interval. So in Classic it
+     * threw on every pass, silently, and swallowing it was exactly the wrong mercy:
+     *
+     *   - createSession() is called directly by setDesired and so still worked, and its
+     *     callback beats and polls once — which is why presence appeared to work, and
+     *     why a roster could be read out of __ccPresence while nothing ever updated;
+     *   - every heartbeat after that was dead, so the Watchdog expired the session on
+     *     its TTL and the 410 recovery (in pump) never ran either;
+     *   - Modern and DCF are document mode 11, where toISOString exists, so the same
+     *     shared module worked there. "Works in Modern, not reliably in Classic" was
+     *     the only symptom, and it pointed at Classic's own files rather than here.
+     *
+     * check-syntax.js's es3 denylist now carries toISOString, so this cannot come back
+     * the same way.
+     *
+     * @returns {string} e.g. "2026-11-04T09:30:00Z"
+     */
+    function stamp(): string;
+    /**
      * @param {{call: function(string, Object, function(*): void): void,
      *          appName: string, tickMs: number,
      *          log: function(...*): void, verbose: function(): boolean,

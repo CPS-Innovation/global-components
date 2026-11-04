@@ -349,4 +349,43 @@ h.test("a client that passes no handler is unaffected by any of it", function ()
   h.assertEqual(r.sessions.ids(), [A]);
 });
 
+h.describe("the pass, at document mode 5");
+
+// WHY THIS IS HERE. stats.lastTickAt was stamped with Date.prototype.toISOString —
+// an ES5 method document mode 5 does not have — as the FIRST statement of the pass,
+// inside the try/catch that exists so a throw cannot kill the interval. In CMS
+// Classic it threw on every pass and the catch hid it: createSession is called
+// directly by setDesired so presence came up once and a roster could be read out of
+// it, and then nothing ever beat, polled or recovered from a 410 again. Modern and
+// DCF are mode 11, where the method exists, so only Classic was affected.
+//
+// Asserted by SIMULATING the missing method rather than by trusting a comment:
+// check-syntax.js now bans the name, but a test is what proves the pass does not
+// need it.
+h.test("keeps beating when Date.prototype.toISOString does not exist", function () {
+  var real = Date.prototype.toISOString;
+  try {
+    delete Date.prototype.toISOString;
+    var r = rig();
+    r.join([A]);
+    var before = r.opsFor(A).length;
+    r.window.__tick();
+    h.assertTrue(r.opsFor(A).length > before, "the pass must still heartbeat and poll: " + r.opsFor(A).join(","));
+    h.assertTrue(r.sessions.stats().lastTickAt !== null, "and must still stamp itself");
+  } finally {
+    Date.prototype.toISOString = real;
+  }
+});
+
+h.test("stamps an ISO-8601 UTC time to the second", function () {
+  var stamp = rig().sessions.stats().lastTickAt;
+  h.assertEqual(stamp, null, "no pass has run yet");
+  var r = rig();
+  r.join([A]);
+  r.window.__tick();
+  stamp = r.sessions.stats().lastTickAt;
+  h.assertTrue(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/.test(stamp), stamp);
+  h.assertTrue(Math.abs(new Date().getTime() - new Date(stamp).getTime()) < 10000, stamp);
+});
+
 h.summarise();

@@ -40,7 +40,7 @@ var BANNED_MEMBERS = [
   "some", "every", "trim", "trimStart", "trimEnd", "includes", "startsWith",
   "endsWith", "keys", "values", "entries", "assign", "freeze", "create",
   "defineProperty", "getPrototypeOf", "setPrototypeOf", "bind", "isArray",
-  "now", "querySelector", "querySelectorAll", "addEventListener",
+  "now", "toISOString", "querySelector", "querySelectorAll", "addEventListener",
   "removeEventListener", "textContent", "classList", "dataset"
 ];
 var BANNED_GLOBALS = ["JSON", "Promise", "Map", "Set", "Symbol", "WeakMap", "MutationObserver", "Proxy", "Reflect"];
