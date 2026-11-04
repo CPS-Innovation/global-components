@@ -1,4 +1,4 @@
-# cms-presence-client — presence for the legacy CMS apps
+# cps-global-presence — presence for the legacy CMS apps
 
 > **This code lives in `packages/` and ships three ways.** It was under
 > `infra/proxy/config/global-components.cms-auth-v2/cms-presence-client/` until
@@ -6,15 +6,14 @@
 > client code that the proxy happens to inject, and the web components need the
 > same shared modules. `build.sh` emits both legacy bundles into `dist/` (the
 > deploy script uploads them from there) plus `dist/esm/index.js` for the
-> bundler-based consumers. Nothing about the injected URLs changed.
-
+> bundler-based consumers.
 
 Source for **both** injected clients. One build, two artefacts, one shared core:
 
 | artefact | injected into | engine | sections |
 |---|---|---|---|
-| `cms-presence-client.js` | CMS Modern (`/viewer/`), DCF (`/dcf/`) | document mode 11 | `<caseId>:CASE`, `<caseId>:CASE_REVIEW` |
-| `cms-auth-v2-client.js` | the CMS Classic frameset shell | document mode **5** | `:VICTIM_WITNESS:<id>`, `:CASE_REVIEW`, `:DEFENDANT:<id>` |
+| `client-modern-unstable.js` | CMS Modern (`/viewer/`), DCF (`/dcf/`) | document mode 11 | `<caseId>:CASE`, `<caseId>:CASE_REVIEW` |
+| `client-classic-unstable.js` | the CMS Classic frameset shell | document mode **5** | `:VICTIM_WITNESS:<id>`, `:CASE_REVIEW`, `:DEFENDANT:<id>` |
 
 Both register against the case-locking API over JSONP and show who else is on the
 case. The Classic artefact also carries the contact-edit event sink and the auth
@@ -24,8 +23,12 @@ App names — `"CMS Modern"` (covering DCF too: one app in users' minds) and
 `"CMS Classic"` — **must** be sent, because the njs adapter defaults a missing
 `appName` to `"CMS Classic"` and would mislabel Modern.
 
-> `cms-auth-v2-client.js` one level up is **generated**. It was a hand-edited
-> single file until 2026-08-28; edit the sources here and run `./build.sh`.
+> Everything under `dist/` is **generated**. Classic was a hand-edited single file
+> until 2026-08-28; edit the sources here and run `./build.sh`.
+>
+> The names above are the *to-be* ones, published since 2026-11-03. The proxy still
+> injects the historic `cms-auth-v2-client.js` / `cms-presence-client.js`, so those
+> are what the estate runs today — see **Deploy** below.
 
 ## Layout
 
@@ -55,13 +58,37 @@ classic/  CMS Classic only — document mode 5, so the SAME floor as common/
   *.test.js              unit tests, beside the file they test
 modern/   Modern/DCF only — document mode 11, ES5 floor
   sections.js            the URL detectors, and the JSONP base
-  bar.js                 the GDS presence bar
+  bar.js                 the pinned notification, recreated by hand from the web
+                         components' measurements (govuk-frontend v5 dropped IE11)
   main.js                wiring, diagnostics, boot
   *.test.js              unit tests, beside the file they test
 check-syntax.js          the floor gate (see below)
 test-harness.js          load() + assertions for the tests
-cms-presence-client.signalr.src.js   reference SignalR client, not shipped
 ```
+
+`build.sh` writes nothing into the source tree. Its outputs:
+
+```
+dist/cms-augmentation/   the PUBLICATION names — one file per blob, named as uploaded
+  client-classic.js               hello-world stub, every environment, prod included
+  client-modern.js                  "
+  client-classic-unstable.js      the built Classic client
+  client-modern-unstable.js       the built Modern client
+dist/esm/index.js        the shared modules for the web components
+```
+
+Both clients are written straight to their publication name — one build of each, so
+an intermediate copy would only be a second name for one file.
+
+> **There used to be three Modern presentations.** `legacy-apps/modern{,-2,-3}/` were
+> built side by side into `dist/skins/` and a `MODERN_SKIN` env var in
+> `deploy.local.sh` chose which one shipped, so the design could be compared live
+> without a rebuild. The pinned notification (`modern-3`) won on 2026-11-03; the
+> other two, the selector and the `cc3*` identifier prefix are gone, and `modern-3/`
+> was collapsed back into `modern/`.
+
+The reference SignalR client is archived under
+`infra/proxy/reference/signalr-presence-transport/`.
 
 ## How a client is put together
 
@@ -227,33 +254,45 @@ supported long-term, so both legacy apps now share one transport, the injected
 script drops from ~154KB to ~24KB, and no end-of-life dependency ships to
 production. The current apps stay pure SignalR.
 
-## Build
+## Deploy
 
-```bash
-./build.sh           # the JSONP client — what ships
-./build.sh signalr   # the reference SignalR bundle
-```
+Four blobs per environment, in `sacpsglobalcomponents`, container = environment.
+CI and `infra/proxy/scripts/deploy.local.sh` publish **the same four**, so a local
+deploy and a pipeline deploy put the same bytes at the same names:
 
-Both write `../cms-presence-client.js`, so nginx and the deploy script never change.
+| blob under `cms-augmentation/` | contents | who points at it |
+|---|---|---|
+| `client-classic.js` | hello-world stub, **always**, prod included | the CMS maintainers' link |
+| `client-modern.js` | hello-world stub, **always**, prod included | the CMS maintainers' link |
+| `client-classic-unstable.js` | the built Classic client | our own proxy (after the switch) |
+| `client-modern-unstable.js` | the built Modern client | our own proxy (after the switch) |
+
+The stub pair never varies by environment, so no env guard exists that could misfire
+and drop a guest script into someone else's production application. `-unstable` is
+**not secret**, only unlinked: the containers are `--public-access container`, so the
+blob list is readable — the suffix stops the maintainers wiring it up by accident.
+
 The client carries no credential: the njs adapter lifts the bearer from the presence
 cookie and adds `X-Watchdog-App-Name`.
 
-## Deploy
+### Not switched over yet
 
-The existing asset deploy script takes the source and blob name as env vars — no edit
-needed:
+The `sub_filter` injections in
+`infra/proxy/config/global-components.cms-auth-presence/` still name the historic
+`cms-auth-v2-client.js` / `cms-presence-client.js`. Those blobs are written by **no
+deploy** any more, which is the point: nothing a deploy does can change what an
+environment runs, the switchover is the nginx change on its own, and the rollback is
+reverting the conf with nothing to re-upload.
 
-```bash
-JS_SRC="$PWD/packages/cps-global-presence/dist/cms-presence-client.js" \
-BLOB_NAME=cms-presence-client.js \
-DRY_RUN=0 ./infra/proxy/scripts/deploy-cms-auth-v2-client.local.sh deploy
-```
+**The switch is two edits that must ship together**: the conf's injected filename,
+*and* the markers at `legacy-apps/classic/main.js` and `legacy-apps/modern/sections.js`
+that `CCPOrigin` matches against it (see *Relative URLs resolve against the PAGE*
+above). A marker that misses falls back to the host page's origin **silently** —
+fine in the same-origin proxied estate, quietly wrong cross-domain. They live in
+different deploy units, so do not leave them disagreeing.
 
-It lands at `/global-components/test/cms-presence-client.js` via the existing blob
-route, which is the `src` the nginx conf injects.
-
-The two injection locations (`= /viewer/landing`, `~ ^/dcf/review/`) live in
-`../global-components.cms-auth-presence.conf` and ship with that conf.
+The injection locations (`= /viewer/landing`, `~ ^/dcf/review/` for Modern, the
+frameset shell for Classic) live in that conf and ship with it.
 
 ## What it does
 

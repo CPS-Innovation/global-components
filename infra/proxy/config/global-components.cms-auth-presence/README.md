@@ -13,6 +13,12 @@ This branch was recovered from a backup repo after `main` was rewritten. The rec
 (`pnpm test:integration`) and deployed **out-of-band** with `scripts/deploy.local.sh` (into both
 Polaris proxy worlds), not via the main proxy build.
 
+> The build stopped emitting `cms-auth-v2-client.js` on 2026-11-03 — it now publishes
+> `cms-augmentation/client-{classic,modern}{,-unstable}.js`. The `sub_filter` lines here are
+> deliberately unchanged, so no deploy can alter what an environment runs. Pointing them at
+> the `-unstable` pair also means moving the `CCPOrigin` markers in the client sources, in the
+> same change; see `packages/cps-global-presence/README.md` → **Deploy**.
+
 The earlier v1 variants and their manual HTTPS harness are **archived under `previous/`**.
 The `docker-compose.spike.yml` stack that used to serve them on `:8443` has been **removed** —
 the sections below describing `https://localhost:8443/spike/` etc. are retained for historical

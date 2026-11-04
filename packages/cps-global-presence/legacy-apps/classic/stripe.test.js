@@ -14,7 +14,7 @@
  *
  * NOT the rendering. A fake document would only prove the fake works; the stripe
  * is exercised in CMS, where the document mode is the thing under test. Same
- * reasoning as modern-3/bar.test.js.
+ * reasoning as modern/bar.test.js.
  */
 var h = require("../../test-harness");
 

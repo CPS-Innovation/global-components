@@ -1,9 +1,16 @@
 /* modern/main.js — boot and wiring. MODERN/DCF ONLY.
  *
+ * There were three of these until 2026-11-03 — modern/, modern-2/ and modern-3/,
+ * identical but for what they drew, so the presentations could be compared with
+ * only the design as a variable. modern-3's pinned notification won, and the other
+ * two were deleted along with the MODERN_SKIN selector that chose between them.
+ * This file is what modern-3/main.js was.
+ *
  * Thin by design. Everything with a decision in it lives in a shared module:
  *   modern/sections.js       which sections we are in (URL detectors)
  *   common/presence-sessions which sessions to hold, and what to do when they fail
  *   common/presence-roster   who is present, reconciled by version
+ *   common/presence-people   one row per person, collapsing apps that display alike
  *   modern/bar.js            what that looks like on screen
  * This file owns only the loop that connects them, and the diagnostics surface.
  *
@@ -48,21 +55,39 @@ function isVerbose() {
 var BASE = resolveJsonpBase(JSONP_PATH);
 var roster = CCPRoster.createRoster();
 
+/**
+ * The summary line, worded as the web components word it.
+ *
+ * "OTHER" IS DROPPED WHEN THE COUNT INCLUDES US, because it would be a lie beside a
+ * list that names us as one of them. There is no lock clause here: this client does
+ * not read the lock — it has no route to the case-details API and no token for it —
+ * so it says only what presence knows.
+ */
+function summarise(people) {
+  var includesSelf = false;
+  var i;
+  for (i = 0; i < people.length; i++) {
+    if (people[i].isCurrentUser) {
+      includesSelf = true;
+    }
+  }
+  if (includesSelf) {
+    return people.length === 1 ? "1 person is working on this case" : people.length + " people are working on this case";
+  }
+  return people.length === 1 ? "1 other person is working on this case" : people.length + " other people are working on this case";
+}
+
 function draw() {
-  // THROUGH CCPPeople, not roster.people(). The latter predates the shared collapse
-  // and reports raw application names with no arrival times, so someone signed into
-  // two systems showed as whichever the roster met first, and Work Management and
-  // Case Review — one product to a user — counted as two. Skin 2 and the web
-  // components have gone this way already; this is the last one.
+  // Through CCPPeople rather than roster.people(): the banner names applications
+  // and when each person arrived in them, and collapses two applications that
+  // display alike into one. roster.people() predates that and reports raw names
+  // with no times.
   //
-  // An empty roster removes the bar rather than drawing an empty one.
+  // An empty roster removes the banner rather than drawing an empty one.
   var me = viewer.email();
   var members = roster.members(activeSectionIds());
-  // COUNTED AND MARKED, not filtered — see countSelf. others() is what production
-  // will use; until then the reader stays in the list wearing a label, because a
-  // roster that shows you and says so is the only outside evidence that whoami
-  // identified you correctly.
-  renderBar(CCPPeople.collapse(countSelf ? members : CCPPeople.others(members, me), me), APP_NAME);
+  var people = CCPPeople.collapse(countSelf ? members : CCPPeople.others(members, me), me);
+  renderBanner(people, summarise(people));
 }
 
 // Snapshots arrive per section and are version-guarded inside the roster, so
