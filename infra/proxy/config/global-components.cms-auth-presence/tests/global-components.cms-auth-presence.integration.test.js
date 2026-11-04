@@ -92,6 +92,85 @@ async function testPolarisV2Endpoint() {
 }
 
 // =============================================================================
+// /global-components/presence-jsonp?op=whoami — the one op the proxy answers itself
+// =============================================================================
+
+// WHY THIS IS TESTED HERE and not as a unit test: _cmsEnvRead is private, and
+// whoami is the only op answered without an upstream, so the real decoder is
+// reachable over HTTP with nothing mocked. Exporting the function to test it
+// would widen the module's surface for no other reason.
+//
+// WHAT IS BEING PINNED: that an empty cmsEnv is never ambiguous. Four distinct
+// states used to arrive as "" with nothing to tell them apart, and they need
+// different people to fix them — nobody wrote the hint, the hint is corrupt, the
+// writer said it could not work it out, or it carried no CMS domain.
+async function testWhoamiCmsEnv() {
+  console.log("\nWhoami cmsEnv Tests (/global-components/presence-jsonp):")
+
+  const whoami = async (cookie) => {
+    const response = await fetch(
+      `${PROXY_BASE}/global-components/presence-jsonp?op=whoami&callback=cb`,
+      cookie ? { headers: { Cookie: cookie } } : undefined
+    )
+    assertEqual(response.status, 200, "Should return 200")
+    const body = await response.text()
+    // JSONP: cb({...}). Unwrap rather than eval.
+    const json = body.replace(/^cb\(/, "").replace(/\)\s*$/, "")
+    return JSON.parse(json)
+  }
+
+  const hint = (payload) =>
+    `Cms-Session-Hint=${encodeURIComponent(JSON.stringify(payload))}`
+
+  await test("rejects a callback name that is not a bare identifier", async () => {
+    const response = await fetch(
+      `${PROXY_BASE}/global-components/presence-jsonp?op=whoami&callback=alert(1)`
+    )
+    assertEqual(response.status, 400, "Should refuse to reflect it")
+  })
+
+  await test("no hint cookie at all -> why=no-hint", async () => {
+    const data = await whoami(null)
+    assertEqual(data.cmsEnv, "", "Should not guess an environment")
+    assertEqual(data.cmsEnvWhy, "no-hint", "Should say nobody wrote it")
+  })
+
+  await test("a hint naming the CMS domain -> the first label, uppercased", async () => {
+    const data = await whoami(hint({ cmsDomains: ["cin3.cps.gov.uk"] }))
+    assertEqual(data.cmsEnv, "CIN3", "Should read the first label")
+    assertEqual(data.cmsEnvWhy, "hint", "Should say where it came from")
+  })
+
+  await test("an unreadable hint -> why=bad-hint, NOT no-hint", async () => {
+    const data = await whoami("Cms-Session-Hint=%7Bnot-json")
+    assertEqual(data.cmsEnv, "", "Should not guess an environment")
+    assertEqual(data.cmsEnvWhy, "bad-hint", "Present but corrupt is its own case")
+  })
+
+  await test("a hint the writer could not fill -> why=hint-error", async () => {
+    const data = await whoami(hint({ error: "something upstream" }))
+    assertEqual(data.cmsEnv, "", "Should not guess an environment")
+    assertEqual(data.cmsEnvWhy, "hint-error", "The writer's own failure is its own case")
+  })
+
+  await test("a hint with no CMS domain in it -> why=no-domain", async () => {
+    const data = await whoami(hint({ cmsDomains: [], isProxySession: true }))
+    assertEqual(data.cmsEnv, "", "Should not guess an environment")
+    assertEqual(data.cmsEnvWhy, "no-domain", "Written, but nothing to derive from")
+  })
+
+  // The suffix-less case (production, if that is what we choose) is a CLIENT-SIDE
+  // mapping from a KNOWN label, never an empty cmsEnv. Pinned so nobody later
+  // "helpfully" returns "" for a label they think means no suffix: the token is
+  // opaque here, and an empty value means unknown.
+  await test("an unfamiliar label is still reported, not blanked", async () => {
+    const data = await whoami(hint({ cmsDomains: ["cms.cps.gov.uk"] }))
+    assertEqual(data.cmsEnv, "CMS", "Should report what it found")
+    assertEqual(data.cmsEnvWhy, "hint", "Should not treat an unfamiliar label as unknown")
+  })
+}
+
+// =============================================================================
 // /CMS.24.0.01/User/uaulLogin.aspx — login-page shim: RETIRED
 // -----------------------------------------------------------------------------
 // The login-page iframe injection (and its whole `location = .../uaulLogin.aspx`
@@ -111,6 +190,7 @@ async function testPolarisV2Endpoint() {
 async function main() {
   await testErrorEndpoint()
   await testPolarisV2Endpoint()
+  await testWhoamiCmsEnv()
 }
 
 module.exports = main
