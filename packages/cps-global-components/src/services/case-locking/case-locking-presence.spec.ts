@@ -13,6 +13,14 @@ type FakeHubConnection = {
   __reconnectedHandler?: () => void;
 };
 
+// WHICH CMS INSTANCE THESE TESTS ARE ON. The suffix is DISCOVERED from the session
+// hint now rather than hardcoded in CCPEnvironment, so the suite has to establish
+// it: left unknown, every id below would be unsuffixed and the tests under "the CIN
+// environment suffix" would pass while describing nothing at all.
+const CMS_ENV = "CIN3";
+CCPEnvironment.CIN = null;
+CCPEnvironment.adopt(CMS_ENV);
+
 const makeFakeHub = (): FakeHubConnection => {
   const hub: FakeHubConnection = {
     start: jest.fn().mockResolvedValue(undefined),
@@ -296,7 +304,7 @@ describe("createCaseLockingPresence", () => {
       service.addRegion("victim_witness", "98765");
       await flush();
       const connects = hubs.flatMap(hub => hub.invoke.mock.calls.filter(([method]) => method === "Connect").map(([, section]) => section));
-      expect(connects).toEqual([`123:VICTIM_WITNESS_${CCPEnvironment.CIN}:98765`]);
+      expect(connects).toEqual([`123:VICTIM_WITNESS_${CMS_ENV}:98765`]);
     });
 
     // The reason the suffix is stripped on the way in: CCPSectionNames and

@@ -32,6 +32,14 @@ var lastKey = ""; // the primary section's contact key; "" means nothing open
 var lastRec = null; // and the record we reported for it
 var lastPrimaryId = ""; // the section the stripe is currently about
 
+// Who is reading this page, and WHICH CMS INSTANCE they are on. Classic had no
+// viewer at all until the CIN suffix stopped being a hardcoded constant: there
+// was nothing it needed to ask about itself, since the stripe names everyone
+// including the reader. Created in the guarded block at the foot of this file,
+// not here — createViewer asks whoami on construction, and the switch promises a
+// disabled bundle makes no JSONP call.
+var viewer = null;
+
 var roster = CCPRoster.createRoster();
 
 function presenceLog() {
@@ -140,13 +148,17 @@ function presenceConnectionFailed(reason) {
   } catch (e) { }
 }
 
+// ONE jsonp caller, shared with the viewer: whoami goes out on the same route
+// the sessions use, so there must not be a second base.
+var presenceCall = CCPJsonp.createJsonp({
+  base: CCPOrigin.resolve("/global-components/presence-jsonp"),
+  appName: PRESENCE_APP_NAME,
+  timeoutMs: PRESENCE_JSONP_TIMEOUT_MS,
+  log: presenceLog
+});
+
 var sessions = CCPSessions.createSessions({
-  call: CCPJsonp.createJsonp({
-    base: CCPOrigin.resolve("/global-components/presence-jsonp"),
-    appName: PRESENCE_APP_NAME,
-    timeoutMs: PRESENCE_JSONP_TIMEOUT_MS,
-    log: presenceLog
-  }),
+  call: presenceCall,
   appName: PRESENCE_APP_NAME,
   tickMs: PRESENCE_JSONP_TICK_MS,
   log: presenceLog,
@@ -210,7 +222,42 @@ function updateEvents(primary) {
   }
 }
 
+// WHICH CMS INSTANCE ARE WE ON. The answer comes back with whoami, so it is not
+// there on the first pass, and a section named without it joins a room nobody is
+// in — see CCPEnvironment. So every pass offers what the viewer has (adopt is
+// set-once and ignores a repeat) and registers nothing until something has been
+// adopted. "Not yet" costs one observation pass; the loop was already
+// re-asserting what it wants every three seconds.
+//
+// Only the REGISTRATION waits. The contact-edit events below are a separate
+// concern with no rooms in it, and the stripe reflects a roster that is simply
+// empty until sessions exist.
+function environmentReady() {
+  if (viewer && viewer.cmsEnv()) {
+    CCPEnvironment.adopt(viewer.cmsEnv());
+  }
+  return CCPEnvironment.known();
+}
+
 function tick() {
+  // FIRST, and before the frames are read: the section ids below are built with
+  // the suffix, so adopting it after detection would spend one whole pass
+  // registering unsuffixed ids — and the roster would then be keyed under names
+  // the next pass no longer produces, so leaving a section would not take its
+  // entry with it.
+  //
+  // Separately guarded from the registration below: a viewer that threw on every
+  // pass must not be able to stop sessions it has already unblocked.
+  var ready = false;
+  try {
+    if (viewer) {
+      viewer.refresh();
+    }
+  } catch (e1) { }
+  try {
+    ready = environmentReady();
+  } catch (e0) { }
+
   var sections = [];
   try {
     sections = activeSections();
@@ -223,7 +270,9 @@ function tick() {
     ids.push(sections[i].id);
   }
   try {
-    sessions.setDesired(ids);
+    if (ready) {
+      sessions.setDesired(ids);
+    }
   } catch (e2) { }
   var primary = sections.length ? sections[0] : null;
   // Guarded like the two calls above it, and for the same reason: the UI is the
@@ -280,6 +329,10 @@ function shutdown() {
 // early from its IIFE instead; the IIFE boundary is build.sh's here, so the guard
 // is at the other end of the same file.
 if (CMS_WATCHDOG_ENABLED === true) {
+  // The first JSONP call of the page, and the reason this is not at module scope:
+  // createViewer asks whoami on construction.
+  viewer = CCPViewer.createViewer({ call: presenceCall, log: presenceLog });
+
   // start/stop/tick so the loop can be driven from the console, and onChange as
   // the seam for calling an endpoint without editing this file.
   window.__ccContactLogger = { start: start, stop: stop, tick: tick };
@@ -305,6 +358,20 @@ if (CMS_WATCHDOG_ENABLED === true) {
     // read it.
     stripe: function () {
       return presenceStripeSnapshot();
+    },
+    // WHY NOTHING REGISTERED, when nothing has. presenceLog is a no-op in
+    // Classic (see its comment), so this is the only way to see the viewer's
+    // answer: cmsEnvWhy names which kind of empty an empty cmsEnv is, and cin is
+    // null until something has been adopted.
+    whoami: function () {
+      return {
+        email: viewer ? viewer.email() : "",
+        oid: viewer ? viewer.oid() : "",
+        known: viewer ? viewer.known() : false,
+        cmsEnv: viewer ? viewer.cmsEnv() : "",
+        cmsEnvWhy: viewer ? viewer.cmsEnvWhy() : "",
+        cin: CCPEnvironment.CIN
+      };
     },
     tick: tick
   };

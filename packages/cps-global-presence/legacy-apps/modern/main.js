@@ -146,16 +146,47 @@ var sessions = CCPSessions.createSessions({
 
 var lastReported = "";
 
+// WHICH CMS INSTANCE ARE WE ON. The answer comes back with whoami, so it is not
+// there on the first pass, and a section named without it joins a room nobody is
+// in — see CCPEnvironment. Offered every pass because adopt is set-once and
+// ignores a repeat; "not yet" costs one pass of a loop that was already
+// re-asserting what it wants every two seconds.
+var waitingLogged = false;
+
+function environmentReady() {
+  if (viewer.cmsEnv()) {
+    CCPEnvironment.adopt(viewer.cmsEnv());
+  }
+  if (CCPEnvironment.known()) {
+    return true;
+  }
+  if (!waitingLogged) {
+    waitingLogged = true;
+    log("waiting for the CMS environment before registering anything");
+  }
+  return false;
+}
+
 // Called on a timer and on hashchange. setDesired is idempotent and cheap — a
 // section already held is left strictly alone — so this re-asserts the truth
 // every pass rather than trying to spot changes itself.
 function reconcile() {
   viewer.refresh();
+  // BEFORE the ids are built, not after: they carry the suffix, so adopting it
+  // later in the pass would register a set of names the next pass no longer
+  // produces — and the roster, keyed on the first set, would not lose its entry
+  // when the section went away.
+  var ready = environmentReady();
   var ids = activeSectionIds();
   var key = ids.join("|");
   if (key !== lastReported) {
     lastReported = key;
     log("sections", key || "(none)");
+  }
+  // What is on screen is worth logging either way; it is only the registration
+  // that waits.
+  if (!ready) {
+    return;
   }
   sessions.setDesired(ids);
 }
@@ -195,7 +226,11 @@ window.__ccPresence = {
       email: viewer.email(),
       oid: viewer.oid(),
       known: viewer.known(),
-      cmsEnv: viewer.cmsEnv()
+      cmsEnv: viewer.cmsEnv(),
+      // Which kind of empty an empty cmsEnv is, and the suffix adopted from it —
+      // null until one has been, which is also "nothing has registered".
+      cmsEnvWhy: viewer.cmsEnvWhy(),
+      cin: CCPEnvironment.CIN
     };
   },
   // One string, not an array of objects: the only console available in the CMS

@@ -17,12 +17,15 @@ function load() {
 var m = load();
 var CCPLocator = m.CCPLocator;
 
-// The wire ids carry the CIN suffix, which this file applies. Read it from the
-// module rather than writing "CIN3" out: the value is a deploy-time property of
-// the CMS instance, and a test that hardcodes it fails the day it changes for a
-// reason that has nothing to do with the locator.
+// WHICH CMS INSTANCE. The wire ids carry its suffix, which this file applies. The
+// value is DISCOVERED at runtime now rather than hardcoded in the module (it comes
+// back with whoami -- see CCPEnvironment), so the test establishes it and the
+// expected wire form is written out against what it established.
+var CMS_ENV = "CIN3";
+m.CCPEnvironment.adopt(CMS_ENV);
+
 function wire(kind) {
-  return m.CCPEnvironment.suffixKind(kind);
+  return kind + "_" + CMS_ENV;
 }
 
 h.describe("CCPLocator.section");

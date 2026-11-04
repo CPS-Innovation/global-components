@@ -5,9 +5,12 @@
  * the timeout — which the transport signals as a null payload and which is the
  * only evidence the 8s watchdog ever fired.
  *
- * cmsEnv is carried but not acted on. These tests pin that it survives the round
- * trip and reaches the log, so the day something does depend on it the contract
- * is already described here.
+ * cmsEnv IS NOW ACTED ON — it is where the CIN suffix comes from, and no section
+ * is registered until it has arrived — so the tests about it are no longer only
+ * about the log. The one that matters most is the bounded retry: the identity was
+ * always allowed to turn up late, and the environment needs the same grace
+ * without turning an absent session hint into a whoami every three seconds for
+ * the life of the tab.
  */
 var h = require("../../test-harness");
 
@@ -29,6 +32,7 @@ function rig() {
   return {
     viewer: viewer,
     logged: logged,
+    ENV_ATTEMPTS: m.CCPViewer.ENV_ATTEMPTS,
     calls: function () {
       return pending;
     },
@@ -41,7 +45,8 @@ function rig() {
 var IDENTITY = {
   userEmail: "someone@cps.gov.uk",
   oid: "00000000-1111-2222-3333-444444444444",
-  cmsEnv: "CIN3"
+  cmsEnv: "CIN3",
+  cmsEnvWhy: "hint"
 };
 
 h.describe("asking");
@@ -58,7 +63,7 @@ h.test("refresh() while a call is in flight does not ask again", function () {
   h.assertEqual(r.calls().length, 1);
 });
 
-h.test("refresh() after an identity is known is a no-op", function () {
+h.test("refresh() once BOTH facts are known is a no-op", function () {
   var r = rig();
   r.reply(IDENTITY);
   r.viewer.refresh();
@@ -70,6 +75,44 @@ h.test("refresh() after a failure asks again", function () {
   r.reply({ jsonpError: "401" });
   r.viewer.refresh();
   h.assertEqual(r.calls().length, 1);
+});
+
+// The whole reason cmsEnv gets a retry of its own: an identity is enough for
+// self-filtering, but presence does not register at all without an environment,
+// so an answer that carries one and not the other is not an answer yet.
+h.test("an identity without an environment is not settled — it asks again", function () {
+  var r = rig();
+  r.reply({ userEmail: "someone@cps.gov.uk", oid: "", cmsEnv: "" });
+  r.viewer.refresh();
+  h.assertEqual(r.calls().length, 1);
+});
+
+h.test("a late environment is picked up by a later pass", function () {
+  var r = rig();
+  r.reply({ userEmail: "someone@cps.gov.uk", oid: "", cmsEnv: "" });
+  r.viewer.refresh();
+  r.reply(IDENTITY);
+  h.assertEqual(r.viewer.cmsEnv(), "CIN3");
+  r.viewer.refresh();
+  h.assertEqual(r.calls().length, 0, "and then it stops");
+});
+
+// Unbounded would mean a call every observation pass, for as long as the tab is
+// open, to be told the same thing — see CCPViewer.ENV_ATTEMPTS.
+h.test("gives up on the environment after ENV_ATTEMPTS, and stops asking", function () {
+  var r = rig();
+  var blank = { userEmail: "someone@cps.gov.uk", oid: "", cmsEnv: "", cmsEnvWhy: "no-hint" };
+  var i;
+  for (i = 0; i < r.ENV_ATTEMPTS; i++) {
+    h.assertEqual(r.calls().length, 1, "attempt " + (i + 1) + " should be in flight");
+    r.reply(blank);
+    r.viewer.refresh();
+  }
+  h.assertEqual(r.calls().length, 0, "the next pass asks nothing");
+  h.assertTrue(
+    r.logged[r.logged.length - 1].indexOf("will not register") !== -1,
+    r.logged[r.logged.length - 1]
+  );
 });
 
 h.describe("what it keeps");
@@ -105,10 +148,26 @@ h.test("is empty when the hint cookie was missing, never guessed", function () {
 
 h.test("an environment is kept even when the token carried no identity", function () {
   // The two answers are independent: a missing identity must not suppress the
-  // one fact we are collecting the logs for.
+  // fact presence is waiting on.
   var r = rig();
   r.reply({ userEmail: "", oid: "", cmsEnv: "CIN5" });
   h.assertEqual(r.viewer.cmsEnv(), "CIN5");
+});
+
+// An empty cmsEnv arrives for four different reasons and they want four
+// different people — nobody wrote the hint, it is corrupt, the writer could not
+// fill it, or it carried no CMS domain. Passed straight through: this module does
+// not interpret it, it carries it to a console.
+h.test("cmsEnvWhy is carried through as the adapter sent it", function () {
+  var r = rig();
+  r.reply({ userEmail: "", oid: "", cmsEnv: "", cmsEnvWhy: "bad-hint" });
+  h.assertEqual(r.viewer.cmsEnvWhy(), "bad-hint");
+});
+
+h.test("an adapter that reports no reason leaves it empty, never invented", function () {
+  var r = rig();
+  r.reply({ userEmail: "", oid: "", cmsEnv: "" });
+  h.assertEqual(r.viewer.cmsEnvWhy(), "");
 });
 
 h.describe("what it logs");
@@ -122,10 +181,11 @@ h.test("a success names the environment and the elapsed time", function () {
   h.assertTrue(/\+\d+ms/.test(r.logged[0]), r.logged[0]);
 });
 
-h.test("a missing environment says so rather than printing nothing", function () {
+h.test("a missing environment says so, and says which kind of missing", function () {
   var r = rig();
-  r.reply({ userEmail: "someone@cps.gov.uk", oid: "", cmsEnv: "" });
-  h.assertTrue(r.logged[0].indexOf("no session hint cookie") !== -1, r.logged[0]);
+  r.reply({ userEmail: "someone@cps.gov.uk", oid: "", cmsEnv: "", cmsEnvWhy: "no-hint" });
+  h.assertTrue(r.logged[0].indexOf("cmsEnv=(none)") !== -1, r.logged[0]);
+  h.assertTrue(r.logged[0].indexOf("why=no-hint") !== -1, r.logged[0]);
 });
 
 h.test("a timeout is logged as a timeout, not as a failure", function () {

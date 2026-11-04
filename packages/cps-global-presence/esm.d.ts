@@ -13,9 +13,35 @@ declare module "cps-global-presence" {
    * isolate by suffixing every section kind, so we must use the same suffix as the
    * Classic client or be invisible to it. Wire-only: on when registering, off when
    * a kind is read back.
+   *
+   * DISCOVERED, not configured: each client learns the environment at runtime and
+   * adopt()s it before registering anything. Ours comes from the session hint we
+   * already fetch at boot (see initialise-case-locking); the two legacy CMS
+   * clients ask the proxy's whoami op for it.
    */
   export const CCPEnvironment: {
-    CIN: string;
+    /**
+     * The suffix in force. null means NOT YET KNOWN; "" means known, and that this
+     * environment takes none. The difference matters: naming a section while the
+     * answer is still missing joins a room nobody is in, which looks exactly like
+     * working presence on a quiet case. Assign directly only in tests.
+     */
+    CIN: string | null;
+    /** Whether anyone has said which environment this is. */
+    known(): boolean;
+    /**
+     * Take a cmsEnv label as the answer, mapping it through suffixFor. Set-once: a
+     * later label meaning the same suffix is accepted, a different one is REFUSED
+     * (false) because the roster is already keyed under the first.
+     *
+     * Known-ness is the CALLER's assertion, so adopt("") means "known, no suffix" —
+     * a source's own unknown-empty must be filtered out before it gets here.
+     */
+    adopt(label: string | null | undefined): boolean;
+    /** The mapping all three clients share: "CIN3" -> "CIN3", "CMS" -> "", else "". */
+    suffixFor(label: string | null | undefined): string;
+    /** "cin3.cps.gov.uk" -> "CIN3". For clients holding the session hint itself. */
+    labelFor(domain: string | null | undefined): string;
     /** "CASE" -> "CASE_CIN3". Never doubles an existing suffix. */
     suffixKind(kind: string | undefined): string;
     /** "CASE_CIN3" -> "CASE". Strips only our own instance's suffix. */

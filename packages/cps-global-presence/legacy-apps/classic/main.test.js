@@ -1,8 +1,13 @@
-/* Unit tests for classic/main.js — WHEN the stripe is redrawn.
+/* Unit tests for classic/main.js — WHEN anything is registered, and WHEN the
+ * stripe is redrawn.
  *
  * Classic's presence UI has exactly two inputs: a poll response (onNotifications)
  * and an observation pass over the frames (tick). Everything the reader sees comes
  * out of which of those is allowed to redraw, and nothing pinned that until now.
+ *
+ * REGISTRATION NOW WAITS for the CMS instance to be known — it comes back with
+ * whoami, which is why every test here answers one before it ticks, and why
+ * Classic has a viewer at all. See "waiting to be told where we are".
  *
  * WHAT CHANGED on 2026-11-04. updateStripeSection watched the primary section on
  * every pass but acted in one direction only — its comment said so, "but only to
@@ -36,15 +41,17 @@ var CASE_A = "2121407";
 var CASE_B = "2131508";
 var BASE = "https://polaris-qa-notprod.cps.gov.uk/CMS.24.0.01/";
 
-var CCPEnvironment = h.load(["common/presence-environment.js"], ["CCPEnvironment"]).CCPEnvironment;
+// WHICH CMS INSTANCE THESE TESTS ARE ON. Written out rather than read from the
+// module, which no longer has an answer of its own: the suffix is discovered from
+// whoami now, so the environment is something each test ESTABLISHES (see
+// answerWhoami) and this is the value it establishes.
+var CMS_ENV = "CIN3";
 
 // The CIN suffix is applied to the section ID in CCPLocator.section — and to the
 // WIRE kind the roster keeps — but not to the detector's section.kind, which stays
-// the plain kind the detectors are written in. Read it from the module rather than
-// writing "CIN3" out: it is a deploy-time property of the CMS instance we front.
-// Same reasoning as sections.test.js.
+// the plain kind the detectors are written in.
 function wire(kind) {
-  return CCPEnvironment.suffixKind(kind);
+  return kind + "_" + CMS_ENV;
 }
 
 // ---- the CMS shell, as the frame readers find it -----------------------------
@@ -122,11 +129,67 @@ var BUNDLE = [
 ];
 
 function client(top) {
+  // The document is kept on the window so the JSONP helpers below can read the
+  // script tags the transport appended — that is the only record of what this
+  // client actually sent.
+  top.__doc = h.fakeDocument();
   return h.load(
     BUNDLE,
     ["tick", "onNotifications", "activeSections", "activeSectionIds", "presenceStripeSnapshot"],
-    { window: top, document: h.fakeDocument() }
+    { window: top, document: top.__doc }
   );
+}
+
+// ---- the JSONP wire, as the fake document records it --------------------------
+//
+// Every call is a <script src> with its op and its callback name in the query, and
+// the callback is a real global on the window (see presence-jsonp.js). So the ops
+// sent are readable, and a reply can be delivered by calling the global — which is
+// exactly what the browser does when the response body executes.
+
+function ops(top) {
+  var out = [];
+  var appended = top.__doc.__appended;
+  var i, m;
+  for (i = 0; i < appended.length; i++) {
+    m = /[?&]op=([^&]+)/.exec(appended[i].src || "");
+    if (m) {
+      out.push(m[1]);
+    }
+  }
+  return out;
+}
+
+function sent(top, op) {
+  var out = [];
+  var appended = top.__doc.__appended;
+  var i, src;
+  for (i = 0; i < appended.length; i++) {
+    src = appended[i].src || "";
+    if (src.indexOf("op=" + op) !== -1) {
+      out.push(src);
+    }
+  }
+  return out;
+}
+
+// Answer the whoami the viewer sent on construction. Without this the client
+// knows nothing about its environment and registers NOTHING, which is the point
+// of the two tests under "waiting to be told where we are".
+function answerWhoami(top, payload) {
+  var calls = sent(top, "whoami");
+  var src = calls[calls.length - 1];
+  var name = /[?&]callback=([^&]+)/.exec(src)[1];
+  top[name](payload);
+}
+
+function whoamiReply(env, why) {
+  return {
+    userEmail: "me@cps.gov.uk",
+    oid: "00000000-1111-2222-3333-444444444444",
+    cmsEnv: env,
+    cmsEnvWhy: why ? why : "hint"
+  };
 }
 
 // One poll response, in the shape presence-roster.js documents:
@@ -160,14 +223,82 @@ function shown(m) {
   return snap.state ? snap.state.text : "";
 }
 
-// On the case, with one other person there and the stripe up.
+// On the case, with one other person there and the stripe up. The whoami is
+// answered first, because nothing registers before the environment is known.
 function onCaseWithCompany() {
   var top = shell();
   var m = client(top);
+  answerWhoami(top, whoamiReply(CMS_ENV));
   m.tick();
   m.onNotifications(poll(CASE_A, "CASE", [member("ann@cps.gov.uk")]));
   return { top: top, m: m };
 }
+
+h.describe("waiting to be told where we are");
+
+// THE FAILURE THIS PREVENTS IS SILENT. The CIN suffix separates CIN2, CIN3 and
+// CIN5 on the Watchdog they share, and it arrives with whoami — so a pass that
+// registered before the answer came back would name "2121407:CASE" against an
+// instance speaking "2121407:CASE_CIN3" and sit in an empty room for the life of
+// the page, with no error and nothing on screen to suggest a cause.
+h.test("registers nothing before whoami has answered", function () {
+  var top = shell();
+  var m = client(top);
+  m.tick();
+  m.tick();
+  h.assertEqual(ops(top), ["whoami"], "the only call made is the one that asks");
+});
+
+h.test("registers as soon as it knows, with the instance on the section id", function () {
+  var top = shell();
+  var m = client(top);
+  m.tick();
+  answerWhoami(top, whoamiReply(CMS_ENV));
+  m.tick();
+
+  var creates = sent(top, "create");
+  h.assertEqual(creates.length, 1, ops(top).join(","));
+  h.assertTrue(
+    creates[0].indexOf("sectionId=" + encodeURIComponent(CASE_A + ":" + wire("CASE"))) !== -1,
+    creates[0]
+  );
+});
+
+// Production is a Watchdog of its own, so it takes no suffix — and "no suffix"
+// has to be a thing we can be TOLD, distinct from not knowing yet. Pinned here
+// rather than only in presence-environment.test.js because this is the path that
+// has to carry the distinction: the same empty string means "wait" in one place
+// and "register plainly" in the other.
+h.test("an environment that takes no suffix still registers, plainly", function () {
+  var top = shell();
+  var m = client(top);
+  m.tick();
+  answerWhoami(top, whoamiReply("CMS"));
+  m.tick();
+
+  var creates = sent(top, "create");
+  h.assertEqual(creates.length, 1, ops(top).join(","));
+  h.assertTrue(
+    creates[0].indexOf("sectionId=" + encodeURIComponent(CASE_A + ":CASE")) !== -1,
+    creates[0]
+  );
+});
+
+// presenceLog is a no-op in Classic, so __ccPresence.whoami() is the only place
+// the reason an empty cmsEnv is empty can be read — and it is the question asked
+// of a client that registered nothing.
+h.test("says why, when there is no environment to be had", function () {
+  var top = shell();
+  var m = client(top);
+  answerWhoami(top, { userEmail: "me@cps.gov.uk", oid: "", cmsEnv: "", cmsEnvWhy: "no-hint" });
+  m.tick();
+
+  var who = top.__ccPresence.whoami();
+  h.assertEqual(who.cmsEnv, "");
+  h.assertEqual(who.cmsEnvWhy, "no-hint");
+  h.assertEqual(who.cin, null, "nothing adopted means nothing registered");
+  h.assertEqual(sent(top, "create").length, 0, ops(top).join(","));
+});
 
 h.describe("a roster for the case you are on");
 
@@ -179,6 +310,7 @@ h.test("puts the stripe up, naming the people", function () {
 h.test("counts them for the collapsed summary", function () {
   var top = shell();
   var m = client(top);
+  answerWhoami(top, whoamiReply(CMS_ENV));
   m.tick();
   m.onNotifications(poll(CASE_A, "CASE", [member("ann@cps.gov.uk"), member("bob@cps.gov.uk")]));
   h.assertEqual(m.presenceStripeSnapshot().state.count, 2);
@@ -267,6 +399,7 @@ h.test("complains ONCE, and only after the condition outlives a navigation", fun
 h.test("stays quiet while there is nothing to show", function () {
   var top = shell();
   var m = client(top);
+  answerWhoami(top, whoamiReply(CMS_ENV));
   var i;
   for (i = 0; i < 10; i++) {
     m.tick();

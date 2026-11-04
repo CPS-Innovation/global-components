@@ -247,8 +247,15 @@ function readSectionsInFrames(win, spec, depth, out) {
       section.hint = section.hint ? section.hint : {};
       // Most sections are identified finely enough by their id; only the contact
       // panel needs a finer key, and it sets its own.
+      //
+      // REBUILT FROM THE UNSUFFIXED KIND rather than taken from section.id,
+      // which carries the CIN suffix. The suffix is not known at load — it
+      // arrives with whoami — so an id used as the key would CHANGE under an
+      // open panel the moment it does, and updateEvents reads a changed key as a
+      // different record: "closed" then "editing" for something nobody touched.
+      // section.kind is already stripped by CCPLocator.section.
       if (!section.hint.key) {
-        section.hint.key = section.id;
+        section.hint.key = CCPSections.sectionId(section.caseId, section.kind, section.subjectId);
       }
       out.push(section);
     }

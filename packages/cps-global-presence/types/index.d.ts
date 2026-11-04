@@ -77,11 +77,66 @@ declare namespace CCPApps {
     function displayName(appName: string | undefined): string;
 }
 declare namespace CCPEnvironment {
-    let CIN: string;
+    let CIN: string | null;
+    /**
+     * THE MAPPING: a CMS environment label to the suffix it takes.
+     *
+     * Pattern-based rather than a list of names, so standing up a CIN4 needs no
+     * change here:
+     *   "CIN3" -> "CIN3"   a sibling on the shared Watchdog: suffixed, so the
+     *                      instances cannot see each other
+     *   "CMS"  -> ""       production, on a Watchdog of its own with nothing to
+     *                      separate from
+     *   ""     -> ""       already normalised by whoever derived it
+     *   other  -> ""       see below
+     *
+     * TOTAL, AND DELIBERATELY FORGIVING. An unrecognised label takes no suffix,
+     * which puts it in the unsuffixed room on whichever Watchdog it is pointed at.
+     * On the shared one that room is empty, so the cost of a label we have never
+     * seen is presence that finds nobody -- not presence shown to the wrong people.
+     * The label is logged by every client, so it is visible rather than mysterious.
+     *
+     * @param {string|null|undefined} label the cmsEnv label; "" and null are allowed
+     * @returns {string} the suffix, without its leading underscore
+     */
+    function suffixFor(label: string | null | undefined): string;
+    /**
+     * The label for a CMS domain: "cin3.cps.gov.uk" -> "CIN3".
+     *
+     * For the clients that hold the session hint itself rather than a cmsEnv the
+     * proxy has already reduced. The proxy derives it the same way in njs, which
+     * cannot load this file; its integration tests pin that half.
+     *
+     * @param {string|null|undefined} domain a CMS domain from the session hint
+     * @returns {string} the label, uppercased; "" when there is nothing to read
+     */
+    function labelFor(domain: string | null | undefined): string;
+    /** Whether anyone has told us which environment this is. */
+    function known(): boolean;
+    /**
+     * Take a cmsEnv label as the answer. Idempotent, and set-once: a later label
+     * that maps to the same suffix is accepted silently, one that does not is
+     * REFUSED and the first answer stands (see the header).
+     *
+     * KNOWN-NESS IS THE CALLER'S ASSERTION, not a property of the value. Calling
+     * this at all means "I know what environment this is", so adopt("") is a
+     * legitimate "known, and no suffix". A source's own unknown-empty must be
+     * filtered out BEFORE it gets here -- the proxy never reports a blank label for
+     * an environment it identified, so `if (env) { adopt(env); }` is the whole of it.
+     *
+     * @param {string|null|undefined} label
+     * @returns {boolean} true if the value is now in force, false if it was refused
+     */
+    function adopt(label: string | null | undefined): boolean;
     /**
      * The kind to put on the wire. Never double-suffixes: a kind that already carries
      * the suffix is returned untouched, because the wire kind read back from a
      * snapshot already has it.
+     *
+     * An UNKNOWN environment yields the plain kind, the same as a known unsuffixed
+     * one. That is not a judgement that the two are the same -- callers must not get
+     * this far without known() -- it is this function staying total at the mode 5
+     * floor, where a throw inside a guarded observation pass would be swallowed.
      *
      * @param {string|null|undefined} kind the documented kind; null/"" yields ""
      * @returns {string}
@@ -468,12 +523,13 @@ declare namespace CCPSessions {
     };
 }
 declare namespace CCPViewer {
+    let ENV_ATTEMPTS: number;
     /**
      * @param {{call: function(string, Object, function(*): void): void,
      *          log: function(...*): void}} options
      * @returns {{email: function(): string, oid: function(): string,
-     *            cmsEnv: function(): string, refresh: function(): void,
-     *            known: function(): boolean}}
+     *            cmsEnv: function(): string, cmsEnvWhy: function(): string,
+     *            refresh: function(): void, known: function(): boolean}}
      */
     function createViewer(options: {
         call: (arg0: string, arg1: any, arg2: (arg0: any) => void) => void;
@@ -482,6 +538,7 @@ declare namespace CCPViewer {
         email: () => string;
         oid: () => string;
         cmsEnv: () => string;
+        cmsEnvWhy: () => string;
         refresh: () => void;
         known: () => boolean;
     };

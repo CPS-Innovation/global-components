@@ -34,6 +34,12 @@ var m = h.load(
 
 var CASE = "2121407";
 
+// WHICH CMS INSTANCE. The kinds reaching these functions come off the WIRE, so
+// they carry its suffix; the value is discovered at runtime now rather than
+// hardcoded in CCPEnvironment, so the suite establishes it -- without this the
+// suffix would be "" and every assertion below would pass vacuously.
+m.CCPEnvironment.adopt("CIN3");
+
 function member(email, app, joinedAt) {
   return { userEmail: email, sourceApplication: app, joinedAt: joinedAt };
 }

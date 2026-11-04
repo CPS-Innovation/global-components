@@ -24,6 +24,12 @@ var h = require("../../test-harness");
 var CASE = "2121407";
 var BASE = "https://polaris-qa-notprod.cps.gov.uk/CMS.24.0.01/";
 
+// WHICH CMS INSTANCE BOTH CLIENTS ARE ON. Each load below adopts it, because the
+// value is discovered at runtime now rather than hardcoded in CCPEnvironment --
+// and a suite that left it unknown would compare two clients that had both
+// stopped suffixing and call them agreed.
+var CMS_ENV = "CIN3";
+
 // ---- Classic: a CMS shell, read through frames --------------------------------
 
 function frame(href, globals) {
@@ -50,7 +56,7 @@ function classicShell(mainHref) {
 
 function classicAt(mainHref) {
   var top = classicShell(mainHref);
-  return h.load(
+  var m = h.load(
     [
       "common/presence-environment.js",
       "legacy-apps/common/presence-sections.js",
@@ -58,9 +64,11 @@ function classicAt(mainHref) {
       "legacy-apps/classic/dom.js",
       "legacy-apps/classic/sections.js"
     ],
-    ["activeSections", "activeSectionIds"],
+    ["activeSections", "activeSectionIds", "CCPEnvironment"],
     { window: top, document: top.document }
   );
+  m.CCPEnvironment.adopt(CMS_ENV);
+  return m;
 }
 
 // ---- Modern: a URL, and nothing else ------------------------------------------
@@ -68,7 +76,7 @@ function classicAt(mainHref) {
 function modernAt(href) {
   var url = new URL(href);
   var win = h.fakeWindow({ href: href, pathname: url.pathname, hash: url.hash });
-  return h.load(
+  var m = h.load(
     [
       "common/presence-environment.js",
       "legacy-apps/common/presence-sections.js",
@@ -76,9 +84,11 @@ function modernAt(href) {
       "legacy-apps/common/presence-locator.js",
       "legacy-apps/modern/sections.js"
     ],
-    ["activeSections", "activeSectionIds"],
+    ["activeSections", "activeSectionIds", "CCPEnvironment"],
     { window: win }
   );
+  m.CCPEnvironment.adopt(CMS_ENV);
+  return m;
 }
 
 // The section of a given kind, from either client. Both report several sections at
@@ -130,9 +140,8 @@ h.describe("and both of them carry the instance");
 // that had both stopped suffixing would pass the tests above and still be isolated
 // from the hand-written Classic client that is deployed today.
 h.test("the shared id is the suffixed kind, not the bare one", function () {
-  var env = h.load(["common/presence-environment.js"], ["CCPEnvironment"]).CCPEnvironment;
   var classic = classicAt(BASE + "Case/uacdCaseDetails.aspx?intCaseID=" + CASE);
-  h.assertEqual(idOfKind(classic, "CASE"), CASE + ":" + env.suffixKind("CASE"));
+  h.assertEqual(idOfKind(classic, "CASE"), CASE + ":CASE_" + CMS_ENV);
 });
 
 // The kind stays as the API documents it, in both clients, so everything that

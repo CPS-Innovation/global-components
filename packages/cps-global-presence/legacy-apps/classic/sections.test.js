@@ -54,23 +54,25 @@ function shell(main, nested) {
   return top;
 }
 
+// WHICH CMS INSTANCE THESE READERS ARE RUNNING AGAINST. The wire ids carry its
+// suffix, applied in CCPLocator.section so that all three clients get it from
+// one place. It is DISCOVERED at runtime now rather than hardcoded in the module
+// (it comes back with whoami — see CCPEnvironment), so each load establishes it
+// here and the expected wire form is written out against what was established.
+var CMS_ENV = "CIN3";
+
 function locate(top) {
-  return h.load(
+  var m = h.load(
     ["common/presence-environment.js", "legacy-apps/common/presence-sections.js", "legacy-apps/common/presence-locator.js", "legacy-apps/classic/dom.js", "legacy-apps/classic/sections.js"],
-    ["activeSections", "activeSectionIds"],
+    ["activeSections", "activeSectionIds", "CCPEnvironment"],
     { window: top, document: top.document }
   );
+  m.CCPEnvironment.adopt(CMS_ENV);
+  return m;
 }
 
-// The wire ids carry the CIN suffix, applied in CCPLocator.section so that both
-// clients get it from one place. Read it from the module rather than writing
-// "CIN3" out: it is a deploy-time property of the CMS instance we front, and a
-// test that hardcodes it fails the day it changes for a reason that has nothing
-// to do with the frame readers.
-var CCPEnvironment = h.load(["common/presence-environment.js"], ["CCPEnvironment"]).CCPEnvironment;
-
 function wire(kind) {
-  return CCPEnvironment.suffixKind(kind);
+  return kind + "_" + CMS_ENV;
 }
 
 // A test about one section should assert about THAT section. The full list grows
@@ -244,6 +246,29 @@ h.test("the case never outranks a finer section — the stripe follows the first
   var m = locate(shell(CASE_DETAILS, [defendantFrame()]));
   h.assertEqual(m.activeSections()[0].kind, "DEFENDANT");
   h.assertEqual(m.activeSections()[m.activeSections().length - 1].kind, "CASE");
+});
+
+h.describe("the contact-edit key");
+
+// hint.key drives the contact-edit events (updateEvents in main.js), which fire
+// on TRANSITION: a changed key is read as a different record and emits "closed"
+// then "editing". The CIN suffix is not known at load — it arrives with whoami —
+// so a key taken from section.id would change under an open panel the moment it
+// did, for a record nobody touched. Rebuilt from the unsuffixed kind instead.
+h.test("is free of the CIN suffix, so it cannot move when the suffix arrives", function () {
+  var m = locate(shell(caseReviewFrame()));
+  var sections = m.activeSections();
+  h.assertEqual(sections[0].id, CASE + ":" + wire("CASE_REVIEW"), "precondition: the id IS suffixed");
+  h.assertEqual(sections[0].hint.key, CASE + ":CASE_REVIEW");
+});
+
+// Only the contact panel needs a finer key, and it sets its own — that one must
+// still win over the fallback.
+h.test("a reader that sets its own key keeps it", function () {
+  var m = locate(shell(CASE_DETAILS, [defendantFrame()]));
+  var sections = m.activeSections();
+  h.assertEqual(sections[0].kind, "DEFENDANT", "precondition: the panel is first");
+  h.assertEqual(sections[0].hint.key, CASE + "/88112/defendant");
 });
 
 h.describe("frames we cannot read");
