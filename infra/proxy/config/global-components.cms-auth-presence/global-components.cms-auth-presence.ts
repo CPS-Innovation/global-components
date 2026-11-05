@@ -204,6 +204,31 @@ function _decodeJwtPayload(token: string): Record<string, unknown> | null {
   }
 }
 
+/**
+ * Whole seconds until a token's `exp`, from already-decoded claims.
+ *
+ * TOTAL BY DESIGN: no claims, no `exp`, a non-numeric `exp` and an `exp` already
+ * past all give 0. The caller's question is "how long have I got", and every one
+ * of those answers it with "none" — there is nothing a client would do
+ * differently for a token that is unreadable versus one that is stale, because
+ * the response to both is to replay the auth flow. Distinguishing them would add
+ * a branch nobody acts on.
+ *
+ * Negative is clamped rather than reported: an expired token is as useless as a
+ * missing one, and a negative number in a diagnostic reads as a bug in the
+ * clock rather than as the fact it is.
+ *
+ * @param claims the decoded JWT payload, or null
+ * @returns seconds remaining, never negative
+ */
+function _tokenExpiresIn(claims: Record<string, unknown> | null): number {
+  if (!claims || typeof claims.exp !== "number") {
+    return 0;
+  }
+  const left = Math.floor(claims.exp - Date.now() / 1000);
+  return left > 0 ? left : 0;
+}
+
 function _htmlPage(title: string, body: string): string {
   return `<!DOCTYPE html>
 <html lang="en">
@@ -982,9 +1007,9 @@ const _PRESENCE_DEV_BEARER =
 // back out. Named for its PURPOSE, not its payload, because the payload is now selectable
 // (see _PRESENCE_TOKEN_KIND) — it may hold an access token, an id token, or the dev bearer.
 //
-// NB this is NOT the same thing as the "cms-auth-id-token" localStorage key written near
-// the end of the callback. That one is the RELAY transport's id-token and is read by
-// the injected Classic client and cms-presence-relay.html; it stays as-is.
+// This is now the ONLY place the callback leaves a credential. It used to also write
+// the id token to a "cms-auth-id-token" localStorage key for a relay transport that
+// was never built; that went on 2026-11-05 (see the note at the end of the callback).
 const _PRESENCE_TOKEN_COOKIE = "cms-auth-presence-token";
 
 // The calling application, reported to the presence API as X-Watchdog-App-Name.
@@ -1344,7 +1369,14 @@ async function handleInitPresenceCallback(r: NginxHTTPRequest): Promise<void> {
   //     host and out of the shared registrable-domain cookie budget.
   //     Max-Age ~8h matches the token-age grace window the backend accepts and a working
   //     shift, so one login covers the day. Set UNCONDITIONALLY (framed or top-level).
-  //     The relay flavour instead uses the localStorage write in storageScript below.
+  //
+  //     THE 8h IS COVER FOR A MISSING REFRESH, not a claim about the token. The token
+  //     inside lasts of the order of an hour, and this flow has no refresh token to
+  //     swap for a new one — it asks for the presence audience up front and keeps what
+  //     comes back. So the long Max-Age only works because the API does not yet check
+  //     expiry. classic/auth.js now replays the whole silent round trip periodically,
+  //     which is what makes this honest; once that is proven, this should come down to
+  //     the token's own lifetime so the cookie and its contents expire together.
   const clearOpts =
     "; Path=/init-presence; HttpOnly; Secure; SameSite=Lax; Max-Age=0";
   const presenceCookieOpts =
@@ -1471,17 +1503,18 @@ async function handleInitPresenceCallback(r: NginxHTTPRequest): Promise<void> {
     })
     .join("\n");
 
-  // Stash the id token in THIS callback's OWN (polaris) localStorage. The callback
-  // runs on the polaris origin, so this always succeeds; the presence relay iframe is
-  // also polaris-origin and shares this per-origin store (IE mode has no storage
-  // partitioning), so it reads the id-token here same-origin — no cross-origin
-  // transfer, no cookie hand-off. See memory reference_cms_polaris_xorigin_zone.
-  // JSON.stringify + <-escaping keep the JWT from breaking out of the <script>.
-  const idTokenJs = JSON.stringify(idToken).replace(/</g, "\\u003c");
-  const storageScript =
-    `<script>(function(){var v=${idTokenJs};` +
-    `try{window.localStorage.setItem("cms-auth-id-token",v);}catch(e){}` +
-    `})();</script>`;
+  // NO localStorage STASH ANY MORE (removed 2026-11-05). This page used to write the
+  // id token to "cms-auth-id-token" in its own (polaris) origin store for the RELAY
+  // transport to read same-origin. That transport was never built — the relay page it
+  // was written for does not exist in this repo — and the token now reaches our
+  // endpoints the way it should: in the HttpOnly, Path-scoped presence cookie set
+  // above, which the adapter lifts into an Authorization header server-side.
+  //
+  // That is strictly better than the store it replaces. A credential in localStorage
+  // is readable by every script on the origin and has no path scope; the cookie is
+  // readable by none and rides only the two routes that need it. The one remaining
+  // reader was classic/event-sink.js's dormant postEvent helper, whose header now
+  // says to rely on the cookie instead.
 
   r.return(
     200,
@@ -1497,8 +1530,7 @@ async function handleInitPresenceCallback(r: NginxHTTPRequest): Promise<void> {
          <thead><tr><th>Event</th><th>Elapsed</th><th>Delta</th></tr></thead>
          <tbody>${timingRows}</tbody>
        </table>
-       <p>Total: <strong>${timings[timings.length - 1][1] - t0} ms</strong></p>
-       ${storageScript}`,
+       <p>Total: <strong>${timings[timings.length - 1][1] - t0} ms</strong></p>`,
     ),
   );
 }
@@ -1729,7 +1761,13 @@ async function handlePresenceJsonp(r: NginxHTTPRequest): Promise<void> {
         " why=" +
         whoami.why +
         " identity=" +
-        (userEmail ? "yes" : "no"),
+        (userEmail ? "yes" : "no") +
+        // Not an identity, so it belongs in the log by the rule above: a token's
+        // remaining life is the one number that says whether a replay landed, and
+        // the client-side console is hard to reach in this estate. A run of these
+        // falling to 0 and not recovering is a replay that is failing silently.
+        " expiresIn=" +
+        _tokenExpiresIn(claims),
     );
     r.return(
       200,
@@ -1761,6 +1799,30 @@ async function handlePresenceJsonp(r: NginxHTTPRequest): Promise<void> {
           // different people to fix them, which is why one empty string was not
           // enough.
           cmsEnvWhy: whoami.why,
+          // HOW LONG THE PRESENCE TOKEN HAS LEFT, in whole seconds, from its own
+          // `exp` claim. 0 means no token, an unreadable one, or one already past
+          // its expiry — all of which the client treats the same way: replay the
+          // auth flow.
+          //
+          // THIS IS THE REPLAY CLOCK, and the reason it is here rather than
+          // anywhere else. The cookie is HttpOnly and Path-scoped, so no page
+          // script can read it, let alone decode it — the client cannot time its
+          // own refresh. It also cannot learn the outcome from the auth iframe: the
+          // flow ends cross-origin at document mode 5, where there is no
+          // postMessage and no readable contentDocument. So the client asks the
+          // SERVER what it has, after the fact, and schedules from the answer.
+          //
+          // A FRESH VALUE IS THE ONLY PROOF A REPLAY WORKED. The silent round trip
+          // can fail (an expired AD session, AADSTS16000 for a multi-account user)
+          // and a hidden iframe cannot prompt, so it fails invisibly: same cookie
+          // name, same two paths, nothing thrown, nothing logged client-side.
+          // Watching this number go back up is what distinguishes a working replay
+          // from a dead one.
+          //
+          // Diagnostic until the client drives its interval from it; the auth flow
+          // writes the cookie with a long Max-Age today, so the cookie and the token
+          // inside it do not expire together.
+          tokenExpiresIn: _tokenExpiresIn(claims),
         }) +
         ")",
     );
