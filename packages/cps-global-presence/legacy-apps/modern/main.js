@@ -231,9 +231,13 @@ window.__ccPresence = {
       // null until one has been, which is also "nothing has registered".
       cmsEnvWhy: viewer.cmsEnvWhy(),
       cin: CCPEnvironment.CIN,
-      // Seconds left on the presence token. Modern has no auth flow of its own —
-      // it rides the cookie the Classic tab's replay refreshes — so this going to
-      // 0 here points at the Classic tab, not at this one.
+      // Seconds since the presence token was issued, and the one to read to see
+      // whether the replay is working. Modern has no auth flow of its own — it
+      // rides the cookie the Classic tab's replay refreshes — so an age that only
+      // climbs points at the Classic tab, not at this one.
+      tokenAge: viewer.tokenAge(),
+      // Seconds left on it. AAD varies the lifetime, so a fall here does not mean
+      // a replay failed; read tokenAge for that.
       tokenExpiresIn: viewer.tokenExpiresIn()
     };
   },

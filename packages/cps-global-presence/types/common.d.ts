@@ -471,7 +471,7 @@ declare namespace CCPViewer {
      *          log: function(...*): void}} options
      * @returns {{email: function(): string, oid: function(): string,
      *            cmsEnv: function(): string, cmsEnvWhy: function(): string,
-     *            tokenExpiresIn: function(): number,
+     *            tokenExpiresIn: function(): number, tokenAge: function(): number,
      *            refresh: function(boolean=): void, known: function(): boolean}}
      */
     function createViewer(options: {
@@ -483,6 +483,7 @@ declare namespace CCPViewer {
         cmsEnv: () => string;
         cmsEnvWhy: () => string;
         tokenExpiresIn: () => number;
+        tokenAge: () => number;
         refresh: (arg0: boolean | undefined) => void;
         known: () => boolean;
     };

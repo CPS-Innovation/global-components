@@ -260,4 +260,53 @@ h.test("a forced refresh while a call is out does not ask twice", function () {
   h.assertEqual(r.calls().length, 1);
 });
 
+// The age, which is the field that actually answers "did the replay work". The
+// expiry cannot: AAD's token lifetime varies, so a successful replay can report
+// less time remaining than the token it replaced. Age only resets when a new token
+// is written, so these are about 0 surviving the trip as the value it is.
+h.describe("the presence token's age");
+
+h.test("is carried through and logged", function () {
+  var r = rig();
+  r.reply({ userEmail: "someone@cps.gov.uk", cmsEnv: "CIN3", tokenAge: 42 });
+  h.assertEqual(r.viewer.tokenAge(), 42);
+  h.assertTrue(r.logged[0].indexOf("tokenAge=42") !== -1, r.logged[0]);
+});
+
+// THE CASE THE OBVIOUS GUARD GETS WRONG. 0 is a token minted this second — the
+// best possible answer and the whole point of the field — so a truthiness check
+// would discard precisely the reading we are watching for.
+h.test("an age of 0 is kept, not mistaken for absent", function () {
+  var r = rig();
+  r.reply({ userEmail: "someone@cps.gov.uk", cmsEnv: "CIN3", tokenAge: 0 });
+  h.assertEqual(r.viewer.tokenAge(), 0, "0 means brand new, not missing");
+  h.assertTrue(r.logged[0].indexOf("tokenAge=0") !== -1, r.logged[0]);
+});
+
+// -1, not 0, because 0 already means something good. An adapter blob older than
+// this client omits the field.
+h.test("an adapter that does not report it reads as -1", function () {
+  var r = rig();
+  r.reply(IDENTITY);
+  h.assertEqual(r.viewer.tokenAge(), -1, "unknown, not brand new");
+});
+
+h.test("a junk value reads as -1", function () {
+  var r = rig();
+  r.reply({ userEmail: "someone@cps.gov.uk", cmsEnv: "CIN3", tokenAge: "ages" });
+  h.assertEqual(r.viewer.tokenAge(), -1);
+});
+
+// The replay, as it looks from here: an old token, then a fresh one. Note the
+// expiry going DOWN across a successful replay — the exact ambiguity that made the
+// age necessary, pinned so nobody "fixes" the diagnostic back to the expiry.
+h.test("a replay shows as the age dropping, even when the expiry falls too", function () {
+  var r = rig();
+  r.reply({ userEmail: "someone@cps.gov.uk", cmsEnv: "CIN3", tokenAge: 1200, tokenExpiresIn: 4991 });
+  r.viewer.refresh(true);
+  r.reply({ userEmail: "someone@cps.gov.uk", cmsEnv: "CIN3", tokenAge: 3, tokenExpiresIn: 3728 });
+  h.assertEqual(r.viewer.tokenAge(), 3, "a new token is younger");
+  h.assertEqual(r.viewer.tokenExpiresIn(), 3728, "and may have LESS life left");
+});
+
 h.summarise();

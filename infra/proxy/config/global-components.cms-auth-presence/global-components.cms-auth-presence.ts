@@ -229,6 +229,40 @@ function _tokenExpiresIn(claims: Record<string, unknown> | null): number {
   return left > 0 ? left : 0;
 }
 
+/**
+ * Whole seconds since a token was issued, from its `iat` claim. -1 when there is
+ * no token or no usable claim.
+ *
+ * WHY THIS AND NOT JUST THE EXPIRY. Remaining life cannot tell you whether a
+ * token is NEW. AAD issues access tokens with a lifetime that varies — we have
+ * measured 83 minutes and 62 minutes from the same flow an hour apart — so a
+ * freshly minted token can report LESS time left than the one it replaced. Two
+ * readings of the expiry therefore do not answer "did the replay work": a drop is
+ * consistent both with a failed replay and with a successful one that happened to
+ * draw a shorter lifetime. Age is monotonic in the thing we care about. A new
+ * token is always younger, whatever its lifetime, so a small number here means
+ * "just minted" and nothing else.
+ *
+ * -1, NOT 0, FOR UNKNOWN — the opposite convention from _tokenExpiresIn, on
+ * purpose. There, 0 and absent say the same operational thing ("no usable
+ * token"). Here 0 is the BEST possible answer, a token issued this second, so an
+ * absence cannot borrow it without reading as the success it is not.
+ *
+ * A future `iat` (clock skew between us and AAD) clamps to 0 rather than going
+ * negative: brand new is the honest reading, and a negative age in a diagnostic
+ * reads as a bug in this function.
+ *
+ * @param claims the decoded JWT payload, or null
+ * @returns seconds since issue, or -1 when it cannot be told
+ */
+function _tokenAge(claims: Record<string, unknown> | null): number {
+  if (!claims || typeof claims.iat !== "number") {
+    return -1;
+  }
+  const age = Math.floor(Date.now() / 1000 - claims.iat);
+  return age > 0 ? age : 0;
+}
+
 function _htmlPage(title: string, body: string): string {
   return `<!DOCTYPE html>
 <html lang="en">
@@ -1762,12 +1796,17 @@ async function handlePresenceJsonp(r: NginxHTTPRequest): Promise<void> {
         whoami.why +
         " identity=" +
         (userEmail ? "yes" : "no") +
-        // Not an identity, so it belongs in the log by the rule above: a token's
-        // remaining life is the one number that says whether a replay landed, and
-        // the client-side console is hard to reach in this estate. A run of these
-        // falling to 0 and not recovering is a replay that is failing silently.
+        // Neither is an identity, so both belong in the log by the rule above, and
+        // the client-side console is hard to reach in this estate. AGE is the one
+        // that answers "did the replay land" — it resets to near zero every time a
+        // new token is written, so a session's worth of these never going back down
+        // is a replay that is failing silently. Remaining life is here for sizing
+        // the interval, not for deciding whether a refresh happened: AAD varies the
+        // lifetime, so it can fall after a SUCCESSFUL replay (see _tokenAge).
         " expiresIn=" +
-        _tokenExpiresIn(claims),
+        _tokenExpiresIn(claims) +
+        " age=" +
+        _tokenAge(claims),
     );
     r.return(
       200,
@@ -1823,6 +1862,14 @@ async function handlePresenceJsonp(r: NginxHTTPRequest): Promise<void> {
           // writes the cookie with a long Max-Age today, so the cookie and the token
           // inside it do not expire together.
           tokenExpiresIn: _tokenExpiresIn(claims),
+          // HOW OLD THE TOKEN IS, and the field to read when the question is "did
+          // the replay land". -1 means there is no token to age. See _tokenAge for
+          // why the expiry above cannot answer that on its own: AAD's token
+          // lifetime varies, so a successful replay can report LESS time remaining
+          // than the token it replaced, and two expiry readings are therefore
+          // ambiguous. Age is not — a number near zero is a token minted moments
+          // ago, whatever its lifetime.
+          tokenAge: _tokenAge(claims),
         }) +
         ")",
     );

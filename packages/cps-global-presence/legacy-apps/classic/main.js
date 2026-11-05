@@ -371,9 +371,13 @@ if (CMS_WATCHDOG_ENABLED === true) {
         cmsEnv: viewer ? viewer.cmsEnv() : "",
         cmsEnvWhy: viewer ? viewer.cmsEnvWhy() : "",
         cin: CCPEnvironment.CIN,
-        // Seconds left on the presence token. Read it twice an hour apart: going
-        // back up means __ccAuthHandover's replay is working, counting steadily
-        // down to 0 means it is not.
+        // THE ONE TO READ to see whether __ccAuthHandover's replay is working:
+        // seconds since the presence token was issued, so near-zero means one was
+        // minted moments ago. -1 means there is no token to age.
+        tokenAge: viewer ? viewer.tokenAge() : -1,
+        // Seconds left on it. For sizing the replay interval, NOT for deciding
+        // whether a refresh happened — AAD varies the lifetime, so this can fall
+        // after a successful replay.
         tokenExpiresIn: viewer ? viewer.tokenExpiresIn() : 0
       };
     },
