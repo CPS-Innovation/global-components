@@ -238,7 +238,11 @@ window.__ccPresence = {
       tokenAge: viewer.tokenAge(),
       // Seconds left on it. AAD varies the lifetime, so a fall here does not mean
       // a replay failed; read tokenAge for that.
-      tokenExpiresIn: viewer.tokenExpiresIn()
+      tokenExpiresIn: viewer.tokenExpiresIn(),
+      // The claim names our presence token carries — names only, no values.
+      // Answers "is claim X configured on the app registration" from a live
+      // session; nothing in the client reads it.
+      claimKeys: viewer.claimKeys()
     };
   },
   // Re-ask whoami, past the point where it has stopped asking by itself. For

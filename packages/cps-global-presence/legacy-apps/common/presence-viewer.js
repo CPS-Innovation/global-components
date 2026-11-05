@@ -47,6 +47,12 @@
  * replaced, and a falling expiry is consistent with both success and failure. Age
  * resets to near zero whenever a new token is written and climbs from there, so an
  * age that only ever grows is a replay that is failing silently.
+ *
+ * AND claimKeys — the claim NAMES on that token, for the same reason again: a
+ * question that can only be answered server-side, because the token is in an
+ * HttpOnly cookie. Names only, never values. Nothing reads it; it is here so
+ * "does our token carry claim X" can be answered off a console in a live session
+ * instead of by running the auth flow by hand and decoding a bearer token.
  */
 
 var CCPViewer = {};
@@ -71,6 +77,7 @@ CCPViewer.ENV_ATTEMPTS = 10;
  * @returns {{email: function(): string, oid: function(): string,
  *            cmsEnv: function(): string, cmsEnvWhy: function(): string,
  *            tokenExpiresIn: function(): number, tokenAge: function(): number,
+ *            claimKeys: function(): string,
  *            refresh: function(boolean=): void, known: function(): boolean}}
  */
 CCPViewer.createViewer = function (options) {
@@ -86,6 +93,15 @@ CCPViewer.createViewer = function (options) {
   // token minted this second, which is the best possible answer, so an absence
   // must not be able to masquerade as it. See the adapter's _tokenAge.
   var tokenAge = -1;
+  // The claim NAMES on the presence token, comma separated, "" when there is no
+  // readable token. Names carry no identity, which is why the adapter is willing
+  // to send them; values never come over.
+  //
+  // Purely a question-answering field: nothing here or in either client reads it.
+  // It exists so "which claims does our token carry" can be settled from a
+  // console in a live session rather than by running the auth flow by hand and
+  // decoding a bearer token off a diagnostic page.
+  var claimKeys = "";
   var envAttempts = 0;
   var inFlight = false;
   // getTime(), not Date.now(): the floor is document mode 5.
@@ -157,6 +173,10 @@ CCPViewer.createViewer = function (options) {
         typeof data.tokenAge === "number" && !isNaN(data.tokenAge)
           ? data.tokenAge
           : -1;
+      // String(), not Number(): an adapter older than this client omits it and
+      // lands on "", which reads the same as a token we could not decode. Both
+      // mean "cannot be told", and neither needs telling apart.
+      claimKeys = data.claimKeys ? String(data.claimKeys) : "";
       if (!cmsEnv) {
         envAttempts = envAttempts + 1;
       }
@@ -174,7 +194,10 @@ CCPViewer.createViewer = function (options) {
         // auth replay becomes visible. Age is the one to read — see the header on
         // why a falling expiry proves nothing either way.
         "tokenAge=" + tokenAge,
-        "tokenExpiresIn=" + tokenExpiresIn
+        "tokenExpiresIn=" + tokenExpiresIn,
+        // Last because it is the longest and the least often wanted: a reader
+        // scanning for the replay numbers above should not have to step over it.
+        "claims=" + (claimKeys ? claimKeys : "(none)")
       );
       // Said ONCE, on the pass that stops asking, because this is the line that
       // explains a client which never registered anything at all.
@@ -204,6 +227,9 @@ CCPViewer.createViewer = function (options) {
     },
     tokenAge: function () {
       return tokenAge;
+    },
+    claimKeys: function () {
+      return claimKeys;
     },
     known: function () {
       return !!email;

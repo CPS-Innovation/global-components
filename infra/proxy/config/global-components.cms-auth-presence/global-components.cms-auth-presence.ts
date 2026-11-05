@@ -1375,6 +1375,17 @@ async function handleInitPresenceCallback(r: NginxHTTPRequest): Promise<void> {
         String(c.scp ?? "-") +
         " · appid=" +
         String(c.appid ?? c.azp ?? "-") +
+        // Every claim name the token carries, so this cell answers "is claim X
+        // configured" for any X without the four fields above having to be
+        // extended one question at a time. Names only — see the whoami op's
+        // claimKeys for why a key list discloses nothing.
+        //
+        // This cell renders for BOTH tokens, so it is also the only place the
+        // access token's claim names appear: the "JWT Claims Keys" row below is
+        // built from the id token's claims, and the two are configured
+        // separately in the app registration's optional_claims.
+        " · keys=" +
+        Object.keys(c).join(",") +
         "</code>"
       : "<em>(not decodable)</em>";
 
@@ -1870,6 +1881,30 @@ async function handlePresenceJsonp(r: NginxHTTPRequest): Promise<void> {
           // ambiguous. Age is not — a number near zero is a token minted moments
           // ago, whatever its lifetime.
           tokenAge: _tokenAge(claims),
+          // WHICH CLAIMS THE TOKEN ACTUALLY CARRIES — names only, comma
+          // separated, "" when there is no readable token.
+          //
+          // NAMES, NEVER VALUES, and that is the whole reason this is safe to
+          // return: a key list is a SHAPE, not data. It answers "is this claim
+          // configured on the app registration" without disclosing a single
+          // claim's content, so it stays on the right side of the rule above —
+          // the one that lets us hand back an email the page already acts as,
+          // but never the bearer token.
+          //
+          // HERE RATHER THAN ON THE DIAGNOSTIC PAGE because this is the token
+          // that matters. The cookie holds the ACCESS token (_PRESENCE_TOKEN_KIND),
+          // which is what we present to the presence API, whereas
+          // handleInitPresenceCallback's "JWT Claims Keys" row lists the ID
+          // token's claims — a different token with separately configured
+          // optional claims. Asking there answers a question we are not asking.
+          // This also arrives on a call a normal session already makes, so the
+          // answer needs no hand-run of the auth flow.
+          //
+          // The question it was added for: whether a `groups` claim reaches us,
+          // which would let the legacy UI gate features on Entra group
+          // membership — a cohort mechanism that needs no cookie, and so is
+          // immune to the Edge/IE jar split that blocks reading preview state.
+          claimKeys: claims ? Object.keys(claims).join(",") : "",
         }) +
         ")",
     );

@@ -378,7 +378,11 @@ if (CMS_WATCHDOG_ENABLED === true) {
         // Seconds left on it. For sizing the replay interval, NOT for deciding
         // whether a refresh happened — AAD varies the lifetime, so this can fall
         // after a successful replay.
-        tokenExpiresIn: viewer ? viewer.tokenExpiresIn() : 0
+        tokenExpiresIn: viewer ? viewer.tokenExpiresIn() : 0,
+        // The claim names our presence token carries — names only, no values.
+        // Answers "is claim X configured on the app registration" from a live
+        // session; nothing in the client reads it.
+        claimKeys: viewer ? viewer.claimKeys() : ""
       };
     },
     // Re-ask whoami, past the point where it has stopped asking by itself. For

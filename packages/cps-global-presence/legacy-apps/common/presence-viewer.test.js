@@ -309,4 +309,57 @@ h.test("a replay shows as the age dropping, even when the expiry falls too", fun
   h.assertEqual(r.viewer.tokenExpiresIn(), 3728, "and may have LESS life left");
 });
 
+h.describe("the presence token's claim names");
+
+h.test("are carried through and logged", function () {
+  var r = rig();
+  r.reply({
+    userEmail: "someone@cps.gov.uk",
+    cmsEnv: "CIN3",
+    claimKeys: "aud,iss,iat,exp,oid,email,scp"
+  });
+  h.assertEqual(r.viewer.claimKeys(), "aud,iss,iat,exp,oid,email,scp");
+  h.assertTrue(r.logged[0].indexOf("claims=aud,iss,iat,exp,oid,email,scp") !== -1, r.logged[0]);
+});
+
+// An adapter blob older than this client omits the field; so does a session with
+// no readable token. Both mean "cannot be told" and neither needs telling apart.
+h.test("an adapter that does not report them reads as empty", function () {
+  var r = rig();
+  r.reply(IDENTITY);
+  h.assertEqual(r.viewer.claimKeys(), "");
+});
+
+// "(none)" rather than an empty tail, so a log line cannot be misread as a token
+// that carries no claims at all.
+h.test("are logged as (none) when there are none", function () {
+  var r = rig();
+  r.reply(IDENTITY);
+  h.assertTrue(r.logged[0].indexOf("claims=(none)") !== -1, r.logged[0]);
+});
+
+// THE QUESTION THIS FIELD WAS ADDED FOR. A `groups` claim would let the legacy UI
+// gate features on Entra group membership, which needs no cookie and so is immune
+// to the Edge/IE jar split. These two pin how the answer reads either way, because
+// the difference is one name in a list and easy to skim past.
+h.test("a groups claim is visible when the app registration emits one", function () {
+  var r = rig();
+  r.reply({
+    userEmail: "someone@cps.gov.uk",
+    cmsEnv: "CIN3",
+    claimKeys: "aud,iss,iat,exp,oid,email,groups,scp"
+  });
+  h.assertTrue(r.viewer.claimKeys().split(",").indexOf("groups") !== -1, "groups is emitted");
+});
+
+h.test("and its absence is equally visible", function () {
+  var r = rig();
+  r.reply({
+    userEmail: "someone@cps.gov.uk",
+    cmsEnv: "CIN3",
+    claimKeys: "aud,iss,iat,exp,oid,email,scp"
+  });
+  h.assertTrue(r.viewer.claimKeys().split(",").indexOf("groups") === -1, "groups is not emitted");
+});
+
 h.summarise();
