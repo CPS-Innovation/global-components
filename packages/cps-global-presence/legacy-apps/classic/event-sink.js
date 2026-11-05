@@ -26,9 +26,11 @@
  * Constraints that shaped the helpers (IE mode / document-mode 5):
  *   - No JSON object, so the body is form-encoded by hand, not stringified.
  *   - XMLHttpRequest may be absent; ActiveXObject is the fallback.
- *   - Keep ENDPOINT_URL same-origin. Old IE needs XDomainRequest for
- *     cross-origin and cannot set request headers on it, which would break
- *     the Authorization header below.
+ *   - Keep ENDPOINT_URL same-origin, AND under one of the two paths the
+ *     presence cookie is scoped to — that cookie is now what authenticates
+ *     the call (see postEvent). Old IE needs XDomainRequest for cross-origin
+ *     and cannot set request headers on it, so cross-origin was never an
+ *     option here either way.
  *   - The "closed" fired from shutdown() happens during unload, where an
  *     async request may be cancelled by the browser (there is no
  *     sendBeacon here). Treat "closed" as best-effort and rely on a
@@ -36,7 +38,6 @@
  * =================================================================== */
 
 var ENDPOINT_URL = ""; // e.g. "/global-components/case-locking/api/cms-contact-view"
-var ID_TOKEN_STORAGE_KEY = "cms-auth-id-token"; // written to top-window localStorage by the auth flow
 
 // THE SINK. kind is "editing" | "closed"; rec is
 // { key, caseId, personId, recorderId, name, role }.
@@ -83,14 +84,6 @@ function newXhr() {
   return null;
 }
 
-function readIdToken() {
-  try {
-    return window.localStorage.getItem(ID_TOKEN_STORAGE_KEY) || "";
-  } catch (e) {
-    return "";
-  }
-}
-
 // Form-encoded by hand: there is no JSON object in document-mode 5.
 function encodeEvent(kind, rec) {
   var b = "event=" + encodeURIComponent(kind);
@@ -114,10 +107,16 @@ function postEvent(kind, rec) {
   try {
     xhr.open("POST", ENDPOINT_URL, true); // async
     xhr.setRequestHeader("Content-Type", "application/x-www-form-urlencoded");
-    var token = readIdToken();
-    if (token) {
-      xhr.setRequestHeader("Authorization", "Bearer " + token);
-    }
+    // NO Authorization HEADER, deliberately (changed 2026-11-05). This used to read
+    // an id token out of localStorage and set it by hand. The credential now travels
+    // as the HttpOnly presence cookie the auth callback sets, Path-scoped to
+    // /global-components/presence-jsonp and /global-components/case-locking, which
+    // the proxy lifts into an Authorization header on the way upstream.
+    //
+    // So KEEP ENDPOINT_URL UNDER ONE OF THOSE TWO PATHS (the example above is) and
+    // the call is authenticated with no work here. A path outside them gets no
+    // cookie, and this file cannot fix that: the cookie is HttpOnly, so there is
+    // nothing for script to read and re-send.
     xhr.send(encodeEvent(kind, rec));
   } catch (e) { }
 }

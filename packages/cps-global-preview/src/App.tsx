@@ -312,6 +312,32 @@ export function App() {
     window.location.assign(`${OS_TARGET_SET_ENDPOINT}?${query}`);
   };
 
+  // Push the current preview state into the IE-MODE COOKIE JAR as well as this one.
+  //
+  // Edge and IE mode keep SEPARATE cookie jars, and saveState above writes only
+  // the jar of whichever engine this page is rendering in — Edge. CMS Classic
+  // (document mode 5) and CMS Modern/DCF (11) read the other one, so until this
+  // runs they see whatever preview was there last, or none at all.
+  //
+  // IT HAS TO BE A NAVIGATION. The engine is chosen by an X-InternetExplorerMode
+  // response header on a TOP-LEVEL document load, so a fetch cannot do it and an
+  // iframe cannot change its own mode. The set route writes this engine's copy,
+  // flips the tab to the other engine to write that copy, then brings the tab
+  // back here — the same trip as handleOsTargetChange above.
+  //
+  // DELIBERATELY NOT ON EVERY TOGGLE. This page has twenty-odd switches and
+  // people flip several in a row; a reload per click would be unusable. So the
+  // fast save stays as it is and this is a separate, explicit action — at the
+  // cost that Edge can be a few toggles ahead of CMS until it is pressed.
+  const handlePushToCms = () => {
+    const hasAnyValue = Object.values(state).some((v) => v);
+    const query = new URLSearchParams({
+      set: hasAnyValue ? JSON.stringify(state) : "null",
+      return: window.location.pathname + window.location.search + "#section-cms-preview",
+    });
+    window.location.assign(`${STATE_ENDPOINT}?${query}`);
+  };
+
   const handleEnabledChange = (checked: boolean) => {
     const newState = { ...state, enabled: checked || undefined };
     setState(newState);
@@ -879,6 +905,35 @@ export function App() {
             </fieldset>
           </div>
         )}
+
+        <div className="govuk-form-group">
+          <fieldset className="govuk-fieldset">
+            <legend className="govuk-fieldset__legend govuk-fieldset__legend--m">
+              <SectionHeading className="govuk-fieldset__heading" id="cms-preview">Preview inside CMS</SectionHeading>
+            </legend>
+            <p className="govuk-body govuk-!-font-size-16">
+              Everything above takes effect in this browser straight away, but CMS
+              Classic and CMS Modern run in Internet Explorer mode, which keeps its
+              own separate set of cookies. They cannot see the choices on this page
+              until they are copied across.
+            </p>
+            <p className="govuk-body govuk-!-font-size-16">
+              This copies whatever is currently set above into IE mode as well. It
+              briefly reloads this page, because the only way to write IE mode&rsquo;s
+              cookies is to visit it. Reload any CMS tab afterwards to pick the
+              changes up.
+            </p>
+            <button
+              type="button"
+              className="govuk-button govuk-button--secondary"
+              data-module="govuk-button"
+              disabled={loading}
+              onClick={handlePushToCms}
+            >
+              Copy these settings to CMS
+            </button>
+          </fieldset>
+        </div>
 
         <div className="govuk-form-group">
           <fieldset className="govuk-fieldset">

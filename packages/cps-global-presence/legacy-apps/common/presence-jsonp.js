@@ -34,13 +34,24 @@ var CCPJsonp = {};
 /**
  * Build the JSONP caller. Returns call(op, params, onData); onData receives the
  * executed object/array, or null when the call timed out.
- * @param {{base: string, appName: string, timeoutMs?: number, log?: function(...*): void}} options
+ *
+ * `namePrefix` MUST DIFFER BETWEEN INSTANCES, and that is why it is an option.
+ * The names below are minted as prefix + a per-instance counter, so two callers
+ * left on the default would both start at __ccpj_1 and write the same window
+ * property: whichever called second would replace the first's handler, and the
+ * first response to arrive would be delivered to the wrong caller. The pool is
+ * per-instance by construction, so it cannot coordinate — the prefix is what
+ * keeps two callers apart.
+ *
+ * @param {{base: string, appName: string, timeoutMs?: number,
+ *          namePrefix?: string, log?: function(...*): void}} options
  * @returns {function(string, Object, function(*): void): void}
  */
 CCPJsonp.createJsonp = function (options) {
   var base = options.base;
   var appName = options.appName;
   var timeoutMs = options.timeoutMs ? options.timeoutMs : 8000;
+  var namePrefix = options.namePrefix ? options.namePrefix : "__ccpj_";
   var log = options.log ? options.log : function () {};
 
   var seq = 0;
@@ -54,7 +65,7 @@ CCPJsonp.createJsonp = function (options) {
       freeNames.length = n - 1;
       return name;
     }
-    return "__ccpj_" + seq;
+    return namePrefix + seq;
   }
 
   // Park a shared no-op in a freed slot: a straggler response that fires after

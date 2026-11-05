@@ -203,4 +203,163 @@ h.test("a server error is logged with its reason", function () {
   h.assertTrue(r.logged[0].indexOf("timed out") === -1, r.logged[0]);
 });
 
+// The token's remaining life, carried for whoever is watching whether the auth
+// replay works. It drives nothing in here, so these are about it surviving the
+// trip intact — including from an adapter that predates it.
+h.describe("the presence token's remaining life");
+
+h.test("is carried through and logged", function () {
+  var r = rig();
+  r.reply({ userEmail: "someone@cps.gov.uk", cmsEnv: "CIN3", cmsEnvWhy: "hint", tokenExpiresIn: 2400 });
+  h.assertEqual(r.viewer.tokenExpiresIn(), 2400);
+  h.assertTrue(r.logged[0].indexOf("tokenExpiresIn=2400") !== -1, r.logged[0]);
+});
+
+// An older adapter blob than this client omits the field entirely. 0 is the same
+// answer as "expired", which is what the reader should act on either way — and it
+// keeps "NaN" out of the log line, where it would read as a fault rather than an
+// absence.
+h.test("an adapter that does not report it reads as 0, not NaN", function () {
+  var r = rig();
+  r.reply(IDENTITY);
+  h.assertEqual(r.viewer.tokenExpiresIn(), 0);
+  h.assertTrue(r.logged[0].indexOf("tokenExpiresIn=0") !== -1, r.logged[0]);
+});
+
+h.test("a junk value reads as 0", function () {
+  var r = rig();
+  r.reply({ userEmail: "someone@cps.gov.uk", cmsEnv: "CIN3", tokenExpiresIn: "soon" });
+  h.assertEqual(r.viewer.tokenExpiresIn(), 0);
+});
+
+// WHY A FORCED REFRESH EXISTS AT ALL. Identity and environment do not change for
+// the life of a tab, so refresh() stops asking once it has both — which would have
+// frozen tokenExpiresIn at its boot value and made it useless for watching a
+// replay. force skips that check; it does not get a retry loop of its own, because
+// a diagnostic is not worth a whoami every three seconds in every tab.
+h.test("a plain refresh once settled still asks nothing", function () {
+  var r = rig();
+  r.reply({ userEmail: "someone@cps.gov.uk", cmsEnv: "CIN3", tokenExpiresIn: 120 });
+  r.viewer.refresh();
+  h.assertEqual(r.calls().length, 0, "settled means settled");
+});
+
+h.test("a forced refresh asks again, and the newer answer wins", function () {
+  var r = rig();
+  r.reply({ userEmail: "someone@cps.gov.uk", cmsEnv: "CIN3", tokenExpiresIn: 120 });
+  r.viewer.refresh(true);
+  h.assertEqual(r.calls().length, 1, "forced past settled()");
+  r.reply({ userEmail: "someone@cps.gov.uk", cmsEnv: "CIN3", tokenExpiresIn: 3600 });
+  h.assertEqual(r.viewer.tokenExpiresIn(), 3600, "a refreshed token reads higher");
+});
+
+// inFlight is still honoured: two answers racing into the same fields buys nothing.
+h.test("a forced refresh while a call is out does not ask twice", function () {
+  var r = rig();
+  r.viewer.refresh(true);
+  h.assertEqual(r.calls().length, 1);
+});
+
+// The age, which is the field that actually answers "did the replay work". The
+// expiry cannot: AAD's token lifetime varies, so a successful replay can report
+// less time remaining than the token it replaced. Age only resets when a new token
+// is written, so these are about 0 surviving the trip as the value it is.
+h.describe("the presence token's age");
+
+h.test("is carried through and logged", function () {
+  var r = rig();
+  r.reply({ userEmail: "someone@cps.gov.uk", cmsEnv: "CIN3", tokenAge: 42 });
+  h.assertEqual(r.viewer.tokenAge(), 42);
+  h.assertTrue(r.logged[0].indexOf("tokenAge=42") !== -1, r.logged[0]);
+});
+
+// THE CASE THE OBVIOUS GUARD GETS WRONG. 0 is a token minted this second — the
+// best possible answer and the whole point of the field — so a truthiness check
+// would discard precisely the reading we are watching for.
+h.test("an age of 0 is kept, not mistaken for absent", function () {
+  var r = rig();
+  r.reply({ userEmail: "someone@cps.gov.uk", cmsEnv: "CIN3", tokenAge: 0 });
+  h.assertEqual(r.viewer.tokenAge(), 0, "0 means brand new, not missing");
+  h.assertTrue(r.logged[0].indexOf("tokenAge=0") !== -1, r.logged[0]);
+});
+
+// -1, not 0, because 0 already means something good. An adapter blob older than
+// this client omits the field.
+h.test("an adapter that does not report it reads as -1", function () {
+  var r = rig();
+  r.reply(IDENTITY);
+  h.assertEqual(r.viewer.tokenAge(), -1, "unknown, not brand new");
+});
+
+h.test("a junk value reads as -1", function () {
+  var r = rig();
+  r.reply({ userEmail: "someone@cps.gov.uk", cmsEnv: "CIN3", tokenAge: "ages" });
+  h.assertEqual(r.viewer.tokenAge(), -1);
+});
+
+// The replay, as it looks from here: an old token, then a fresh one. Note the
+// expiry going DOWN across a successful replay — the exact ambiguity that made the
+// age necessary, pinned so nobody "fixes" the diagnostic back to the expiry.
+h.test("a replay shows as the age dropping, even when the expiry falls too", function () {
+  var r = rig();
+  r.reply({ userEmail: "someone@cps.gov.uk", cmsEnv: "CIN3", tokenAge: 1200, tokenExpiresIn: 4991 });
+  r.viewer.refresh(true);
+  r.reply({ userEmail: "someone@cps.gov.uk", cmsEnv: "CIN3", tokenAge: 3, tokenExpiresIn: 3728 });
+  h.assertEqual(r.viewer.tokenAge(), 3, "a new token is younger");
+  h.assertEqual(r.viewer.tokenExpiresIn(), 3728, "and may have LESS life left");
+});
+
+h.describe("the presence token's claim names");
+
+h.test("are carried through and logged", function () {
+  var r = rig();
+  r.reply({
+    userEmail: "someone@cps.gov.uk",
+    cmsEnv: "CIN3",
+    claimKeys: "aud,iss,iat,exp,oid,email,scp"
+  });
+  h.assertEqual(r.viewer.claimKeys(), "aud,iss,iat,exp,oid,email,scp");
+  h.assertTrue(r.logged[0].indexOf("claims=aud,iss,iat,exp,oid,email,scp") !== -1, r.logged[0]);
+});
+
+// An adapter blob older than this client omits the field; so does a session with
+// no readable token. Both mean "cannot be told" and neither needs telling apart.
+h.test("an adapter that does not report them reads as empty", function () {
+  var r = rig();
+  r.reply(IDENTITY);
+  h.assertEqual(r.viewer.claimKeys(), "");
+});
+
+// "(none)" rather than an empty tail, so a log line cannot be misread as a token
+// that carries no claims at all.
+h.test("are logged as (none) when there are none", function () {
+  var r = rig();
+  r.reply(IDENTITY);
+  h.assertTrue(r.logged[0].indexOf("claims=(none)") !== -1, r.logged[0]);
+});
+
+// THE QUESTION THIS FIELD WAS ADDED FOR. A `groups` claim would let the legacy UI
+// gate features on Entra group membership, which needs no cookie and so is immune
+// to the Edge/IE jar split. These two pin how the answer reads either way, because
+// the difference is one name in a list and easy to skim past.
+h.test("a groups claim is visible when the app registration emits one", function () {
+  var r = rig();
+  r.reply({
+    userEmail: "someone@cps.gov.uk",
+    cmsEnv: "CIN3",
+    claimKeys: "aud,iss,iat,exp,oid,email,groups,scp"
+  });
+  h.assertTrue(r.viewer.claimKeys().split(",").indexOf("groups") !== -1, "groups is emitted");
+});
+
+h.test("and its absence is equally visible", function () {
+  var r = rig();
+  r.reply({
+    userEmail: "someone@cps.gov.uk",
+    cmsEnv: "CIN3",
+    claimKeys: "aud,iss,iat,exp,oid,email,scp"
+  });
+  h.assertTrue(r.viewer.claimKeys().split(",").indexOf("groups") === -1, "groups is not emitted");
+});
+
 h.summarise();
