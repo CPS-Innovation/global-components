@@ -203,4 +203,61 @@ h.test("a server error is logged with its reason", function () {
   h.assertTrue(r.logged[0].indexOf("timed out") === -1, r.logged[0]);
 });
 
+// The token's remaining life, carried for whoever is watching whether the auth
+// replay works. It drives nothing in here, so these are about it surviving the
+// trip intact — including from an adapter that predates it.
+h.describe("the presence token's remaining life");
+
+h.test("is carried through and logged", function () {
+  var r = rig();
+  r.reply({ userEmail: "someone@cps.gov.uk", cmsEnv: "CIN3", cmsEnvWhy: "hint", tokenExpiresIn: 2400 });
+  h.assertEqual(r.viewer.tokenExpiresIn(), 2400);
+  h.assertTrue(r.logged[0].indexOf("tokenExpiresIn=2400") !== -1, r.logged[0]);
+});
+
+// An older adapter blob than this client omits the field entirely. 0 is the same
+// answer as "expired", which is what the reader should act on either way — and it
+// keeps "NaN" out of the log line, where it would read as a fault rather than an
+// absence.
+h.test("an adapter that does not report it reads as 0, not NaN", function () {
+  var r = rig();
+  r.reply(IDENTITY);
+  h.assertEqual(r.viewer.tokenExpiresIn(), 0);
+  h.assertTrue(r.logged[0].indexOf("tokenExpiresIn=0") !== -1, r.logged[0]);
+});
+
+h.test("a junk value reads as 0", function () {
+  var r = rig();
+  r.reply({ userEmail: "someone@cps.gov.uk", cmsEnv: "CIN3", tokenExpiresIn: "soon" });
+  h.assertEqual(r.viewer.tokenExpiresIn(), 0);
+});
+
+// WHY A FORCED REFRESH EXISTS AT ALL. Identity and environment do not change for
+// the life of a tab, so refresh() stops asking once it has both — which would have
+// frozen tokenExpiresIn at its boot value and made it useless for watching a
+// replay. force skips that check; it does not get a retry loop of its own, because
+// a diagnostic is not worth a whoami every three seconds in every tab.
+h.test("a plain refresh once settled still asks nothing", function () {
+  var r = rig();
+  r.reply({ userEmail: "someone@cps.gov.uk", cmsEnv: "CIN3", tokenExpiresIn: 120 });
+  r.viewer.refresh();
+  h.assertEqual(r.calls().length, 0, "settled means settled");
+});
+
+h.test("a forced refresh asks again, and the newer answer wins", function () {
+  var r = rig();
+  r.reply({ userEmail: "someone@cps.gov.uk", cmsEnv: "CIN3", tokenExpiresIn: 120 });
+  r.viewer.refresh(true);
+  h.assertEqual(r.calls().length, 1, "forced past settled()");
+  r.reply({ userEmail: "someone@cps.gov.uk", cmsEnv: "CIN3", tokenExpiresIn: 3600 });
+  h.assertEqual(r.viewer.tokenExpiresIn(), 3600, "a refreshed token reads higher");
+});
+
+// inFlight is still honoured: two answers racing into the same fields buys nothing.
+h.test("a forced refresh while a call is out does not ask twice", function () {
+  var r = rig();
+  r.viewer.refresh(true);
+  h.assertEqual(r.calls().length, 1);
+});
+
 h.summarise();

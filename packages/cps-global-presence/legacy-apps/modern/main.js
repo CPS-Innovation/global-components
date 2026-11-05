@@ -230,8 +230,18 @@ window.__ccPresence = {
       // Which kind of empty an empty cmsEnv is, and the suffix adopted from it —
       // null until one has been, which is also "nothing has registered".
       cmsEnvWhy: viewer.cmsEnvWhy(),
-      cin: CCPEnvironment.CIN
+      cin: CCPEnvironment.CIN,
+      // Seconds left on the presence token. Modern has no auth flow of its own —
+      // it rides the cookie the Classic tab's replay refreshes — so this going to
+      // 0 here points at the Classic tab, not at this one.
+      tokenExpiresIn: viewer.tokenExpiresIn()
     };
+  },
+  // Re-ask whoami, past the point where it has stopped asking by itself. For
+  // tokenExpiresIn: call this, give it a second, then read whoami() again — the
+  // numbers above are a cache of the last ANSWER, not a live read.
+  refreshWhoami: function () {
+    viewer.refresh(true);
   },
   // One string, not an array of objects: the only console available in the CMS
   // estate is IEChooser's, which cannot be attached before boot and renders

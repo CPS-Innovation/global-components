@@ -32,6 +32,14 @@
  * it is corrupt, the writer could not fill it, or it carried no CMS domain. It
  * drives nothing and exists to be read off a console when presence does not
  * start, because all four look the same from here and want different people.
+ *
+ * AND tokenExpiresIn — seconds left on the presence token, decoded by the adapter
+ * from the cookie it holds. Carried for the same reason as cmsEnvWhy: it drives
+ * nothing here, and it is the only way to see from a client whether the auth
+ * replay (classic/auth.js) is achieving anything. The token is in an HttpOnly
+ * cookie, so no script can read its expiry, and the auth iframe cannot report
+ * back; this is the answer coming the other way, from the server. A value that
+ * only ever counts down, never back up, is a replay that is failing silently.
  */
 
 var CCPViewer = {};
@@ -55,13 +63,18 @@ CCPViewer.ENV_ATTEMPTS = 10;
  *          log: function(...*): void}} options
  * @returns {{email: function(): string, oid: function(): string,
  *            cmsEnv: function(): string, cmsEnvWhy: function(): string,
- *            refresh: function(): void, known: function(): boolean}}
+ *            tokenExpiresIn: function(): number,
+ *            refresh: function(boolean=): void, known: function(): boolean}}
  */
 CCPViewer.createViewer = function (options) {
   var email = "";
   var oid = "";
   var cmsEnv = "";
   var cmsEnvWhy = "";
+  // Seconds left on the presence token as of the last answered whoami. 0 means no
+  // token, an unreadable one, or an expired one — the adapter does not distinguish
+  // them because nothing acts differently on the difference.
+  var tokenExpiresIn = 0;
   var envAttempts = 0;
   var inFlight = false;
   // getTime(), not Date.now(): the floor is document mode 5.
@@ -79,8 +92,25 @@ CCPViewer.createViewer = function (options) {
     return !!email && (!!cmsEnv || envAttempts >= CCPViewer.ENV_ATTEMPTS);
   }
 
-  function refresh() {
-    if (settled() || inFlight) {
+  /**
+   * Ask whoami, unless there is nothing left to learn or a call is already out.
+   *
+   * `force` SKIPS THE SETTLED CHECK, and exists for tokenExpiresIn. The two facts
+   * the reconcile loop needs — identity and environment — do not change for the
+   * life of a tab, which is why settled() stops the asking; the token's remaining
+   * life does change, continuously, and is the one thing worth asking again for.
+   * It does not get its own retry loop, because that would be a whoami every three
+   * seconds for the life of every tab to service a diagnostic nobody is reading.
+   * So it is pulled on demand instead, from the console handle, by whoever is
+   * actually watching a replay.
+   *
+   * `inFlight` is NOT skipped: forcing a second call while one is outstanding would
+   * race two answers into the same fields for no gain.
+   *
+   * @param {boolean} [force] ask even when settled
+   */
+  function refresh(force) {
+    if ((settled() && !force) || inFlight) {
       return;
     }
     inFlight = true;
@@ -104,6 +134,10 @@ CCPViewer.createViewer = function (options) {
       oid = data.oid ? String(data.oid) : "";
       cmsEnv = data.cmsEnv ? String(data.cmsEnv) : "";
       cmsEnvWhy = data.cmsEnvWhy ? String(data.cmsEnvWhy) : "";
+      // Number(), guarded: an adapter that does not report it yet (an older blob
+      // than this client) leaves 0 rather than NaN, which would print as "NaN" in
+      // the log line below and read as a fault rather than as an absence.
+      tokenExpiresIn = data.tokenExpiresIn ? Number(data.tokenExpiresIn) || 0 : 0;
       if (!cmsEnv) {
         envAttempts = envAttempts + 1;
       }
@@ -116,7 +150,10 @@ CCPViewer.createViewer = function (options) {
         // arrives. An empty one means nothing registers at all, so the reason
         // is on the same line.
         "cmsEnv=" + (cmsEnv ? cmsEnv : "(none)"),
-        "why=" + (cmsEnvWhy ? cmsEnvWhy : "(not reported)")
+        "why=" + (cmsEnvWhy ? cmsEnvWhy : "(not reported)"),
+        // Watched over a session rather than read once: this is where a failing
+        // auth replay becomes visible.
+        "tokenExpiresIn=" + tokenExpiresIn
       );
       // Said ONCE, on the pass that stops asking, because this is the line that
       // explains a client which never registered anything at all.
@@ -140,6 +177,9 @@ CCPViewer.createViewer = function (options) {
     },
     cmsEnvWhy: function () {
       return cmsEnvWhy;
+    },
+    tokenExpiresIn: function () {
+      return tokenExpiresIn;
     },
     known: function () {
       return !!email;

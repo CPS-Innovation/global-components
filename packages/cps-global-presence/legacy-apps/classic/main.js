@@ -370,8 +370,21 @@ if (CMS_WATCHDOG_ENABLED === true) {
         known: viewer ? viewer.known() : false,
         cmsEnv: viewer ? viewer.cmsEnv() : "",
         cmsEnvWhy: viewer ? viewer.cmsEnvWhy() : "",
-        cin: CCPEnvironment.CIN
+        cin: CCPEnvironment.CIN,
+        // Seconds left on the presence token. Read it twice an hour apart: going
+        // back up means __ccAuthHandover's replay is working, counting steadily
+        // down to 0 means it is not.
+        tokenExpiresIn: viewer ? viewer.tokenExpiresIn() : 0
       };
+    },
+    // Re-ask whoami, past the point where it has stopped asking by itself. For
+    // tokenExpiresIn: call this, give it a second, then read whoami() again. The
+    // numbers above are a cache of the last ANSWER, so without this they stay at
+    // their boot values for the life of the tab.
+    refreshWhoami: function () {
+      if (viewer) {
+        viewer.refresh(true);
+      }
     },
     tick: tick
   };
