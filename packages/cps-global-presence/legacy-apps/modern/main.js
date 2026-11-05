@@ -62,12 +62,15 @@ var BASE = resolveJsonpBase(JSONP_PATH);
 var roster = CCPRoster.createRoster();
 
 /**
- * The summary line, worded as the web components word it.
+ * The summary line — the web components' sentence, from the shared content module
+ * rather than a copy of it. It used to be a copy, with a comment promising it was
+ * "worded as the web components word it"; see CCPContent for why that promise was
+ * not keepable.
  *
- * "OTHER" IS DROPPED WHEN THE COUNT INCLUDES US, because it would be a lie beside a
- * list that names us as one of them. There is no lock clause here: this client does
- * not read the lock — it has no route to the case-details API and no token for it —
- * so it says only what presence knows.
+ * NO LOCK CLAUSE. This client does not read the lock — it has no route to the
+ * case-details API and no token for it — so it omits the third argument and gets
+ * the presence-only sentence, which is the same one the web component shows for an
+ * unlocked case.
  */
 function summarise(people) {
   var includesSelf = false;
@@ -77,10 +80,7 @@ function summarise(people) {
       includesSelf = true;
     }
   }
-  if (includesSelf) {
-    return people.length === 1 ? "1 person is working on this case" : people.length + " people are working on this case";
-  }
-  return people.length === 1 ? "1 other person is working on this case" : people.length + " other people are working on this case";
+  return CCPContent.summary(people.length, includesSelf);
 }
 
 function draw() {

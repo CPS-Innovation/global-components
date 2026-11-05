@@ -45,7 +45,7 @@ var PRESENCE_ACTION_BAR_ROW_INDEX = 3;
 // Only a successful poll populates this. Expansion is kept across polls and
 // across a navigation within the same case, so a reader who opened the details
 // does not have to reopen them every three seconds.
-var presenceStripeState = null; // { text, count }; null = no presence UI
+var presenceStripeState = null; // { text, count, includesSelf }; null = no presence UI
 var presenceStripeEl = null;
 var presenceStripeExpanded = false;
 // Bound to the actual FRAMESET element, not to a frame name: that is what lets us
@@ -65,74 +65,56 @@ var presenceStripeWarned = false;
 // Moved here from banner.js unchanged: the stripe shows the same roster the hover
 // popup used to, so the formatting was never the banner's own.
 
-// Human-readable label for a section kind, used in the details panel.
+// THREE OF THIS FILE'S OWN TABLES USED TO LIVE HERE and have been deleted, not
+// moved: a section-label table ("Case", "Case Review", "Witness/Victim"), a month
+// table, and a date formatter rendering "21 Aug 2026 08:11". Each had a shared
+// counterpart that said something different — CCPSectionNames gives "the case",
+// "the case review", "a witness or victim", and CCPJoined.format gives
+// "3.38pm on 8 September 2026" — so Classic was not a terser version of the other
+// two clients, it was a third voice. The shared ones won outright.
 //
-// The kinds reaching here come from the ROSTER, which keeps what the wire said --
-// so they carry the CIN suffix, while the cases below are the kinds the API
-// documents. baseKind is what reconciles the two; without it every heading would
-// read "working on CASE_CIN3".
-function presenceSectionLabel(kind) {
-  var base = CCPEnvironment.baseKind(kind);
-  if (base === "CASE") { return "Case"; }
-  if (base === "CASE_REVIEW") { return "Case Review"; }
-  if (base === "VICTIM_WITNESS") { return "Witness/Victim"; }
-  if (base === "DEFENDANT") { return "Defendant"; }
-  return base ? base : "Section";
-}
+// What is left below is layout, not language. Every sentence now comes from
+// CCPContent.
 
-var PRESENCE_MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-
-// Format an ISO-8601 joinedAt ("2026-08-21T08:11:53.226+00:00") as "21 Aug 2026 08:11".
-// document mode 5 cannot reliably Date.parse an ISO string, so read the fields out
-// of it directly (wall-clock as sent). Returns "" if it isn't a timestamp.
-function presenceFormatJoined(iso) {
-  if (!iso || typeof iso !== "string") { return ""; }
-  var m = /^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2})/.exec(iso);
-  if (!m) { return ""; }
-  var monthIdx = parseInt(m[2], 10) - 1;
-  var mon = (monthIdx >= 0 && monthIdx < 12) ? PRESENCE_MONTHS[monthIdx] : m[2];
-  return parseInt(m[3], 10) + " " + mon + " " + m[1] + " " + m[4] + ":" + m[5];
-}
-
-// `sections` is CCPRoster's section map: sectionId -> { caseId, kind, members }.
-// Passed in rather than reached for, so this has no opinion about where the roster
-// lives and can be tested on a literal.
+// The details panel text: ONE SENTENCE PER PERSON, in the web components' words.
 //
-// The details panel text for one case, grouped by section:
-//   Who's working where:
-//   Currently these users are working on <Section>:
-//   <email> on <app> - joined <date>
-//   ...
-//   <blank line between sections>
-// Sections whose roster is empty (everyone left — a valid, version-bumped
-// notification) are OMITTED. Returns "" when no section of the case has members,
-// which is what main.js reads as "take the stripe away".
-function presenceBuildDetails(caseId, sections) {
-  var blocks = [];
-  var key, sec, members, i, mem, when, lines, line;
-  for (key in sections) {
-    if (!sections.hasOwnProperty(key)) { continue; }
-    sec = sections[key];
-    if (!sec || sec.caseId !== caseId) { continue; }
-    members = sec.members;
-    if (!members || members.length === 0) { continue; } // empty section -> omit
-    lines = ["Currently these users are working on " + presenceSectionLabel(sec.kind) + ":"];
-    for (i = 0; i < members.length; i++) {
-      mem = members[i];
-      line = mem.userEmail + " on " + (mem.sourceApplication ? mem.sourceApplication : "unknown");
-      when = presenceFormatJoined(mem.joinedAt);
-      if (when) { line = line + " - joined " + when; }
-      lines[lines.length] = line;
-    }
-    blocks[blocks.length] = lines.join("\n");
+//   A Name is in the case review — RCMS since 3.38pm on 8 September 2026.
+//   Another Name (current user) is in a witness or victim — CMS since 9.02am on 8 September 2026.
+//
+// NO HEADINGS, and that is the substantive change rather than a tidy-up. This
+// used to group by section under "Who's working where:" and "Currently these users
+// are working on Case:". The web component names the section INSIDE each person's
+// sentence, which carries the same fact in one place instead of two and reads as
+// prose rather than as a report — so the groupings and both headings went with
+// them.
+//
+// COLLAPSED, so a person is one line. The API denormalises: one record per user,
+// per section, per application, so somebody on the case and on a witness within it
+// from two apps arrives four times. CCPPeople.collapse is the shared
+// implementation of that reduction, and the other two clients already used it
+// while this one iterated raw records.
+//
+// `people` is already collapsed by the caller, because main.js is where the
+// viewer's identity and the primary case live. Returns "" when nobody is on the
+// case, which is what main.js reads as "take the stripe away".
+function presenceBuildDetails(people) {
+  var lines = [];
+  var i, person;
+  if (!people || people.length === 0) { return ""; }
+  for (i = 0; i < people.length; i++) {
+    person = people[i];
+    lines[lines.length] = CCPContent.personLine(
+      CCPPeople.displayName(person),
+      CCPSectionNames.describe(person.sections),
+      CCPContent.where(person.apps, CCPJoined.format)
+    );
   }
-  if (blocks.length === 0) { return ""; }
-  return "Who's working where:\n" + blocks.join("\n\n");
+  return lines.join("\n");
 }
 
-// Total people across ALL sections of one case. Drives the collapsed summary, so
-// it has to count the same names presenceBuildDetails lists: empty sections
-// contribute 0, and the reader is counted among them.
+// Total MEMBER RECORDS across all sections of one case — not people. Kept only
+// for the diagnostics handle; the stripe's own count is the collapsed one, since
+// that is what the summary sentence has to agree with.
 function presenceCountMembers(caseId, sections) {
   var total = 0, key, sec;
   for (key in sections) {
@@ -144,13 +126,24 @@ function presenceCountMembers(caseId, sections) {
   return total;
 }
 
-// The one line the reader sees while the accordion is shut. A number means we
-// counted a roster; anything else falls back to the detail text, so a state with
-// no count still says something rather than rendering an empty red bar.
+// The one line the reader sees while the accordion is shut.
+//
+// IT USED TO SAY "4 users currently working on the case" — its own sentence, in
+// its own register, agreeing with neither other client. It now says what the web
+// component says: "4 other people are working on this case", and "4 people" once
+// the reader is one of them.
+//
+// THE READER IS NOW COUNTED CONSCIOUSLY rather than incidentally. The old count
+// included them and the old wording never acknowledged it, so a reader alone on a
+// case was told "1 users currently working on the case" — true, and useless.
+// includesSelf comes from the collapsed roster, which marks the viewer's own row.
+//
+// A state with no count falls back to the detail text, so a stripe never renders
+// as an empty red bar.
 function presenceStripeSummary(state) {
   if (!state) { return ""; }
   if (typeof state.count === "number") {
-    return state.count + " users currently working on the case";
+    return CCPContent.summary(state.count, !!state.includesSelf);
   }
   return state.text ? state.text : "";
 }
@@ -344,7 +337,7 @@ function presenceRemoveStripe() {
 // A click changes the expansion and the space it needs — nothing else. Not the
 // text, not the poll cadence, and no call to the API.
 function presenceUpdateStripeExpanded(toggle, details) {
-  var label = presenceStripeExpanded ? "Hide details" : "Show details";
+  var label = CCPContent.detailsToggle(presenceStripeExpanded);
   if (toggle) {
     if (toggle.innerText !== label) {
       toggle.innerText = label;
@@ -494,8 +487,8 @@ function presenceStripeUnplaceable() {
 }
 
 // The entry point main.js uses on every successful poll.
-function presenceShowStripe(text, count) {
-  presenceStripeState = { text: text, count: count };
+function presenceShowStripe(text, count, includesSelf) {
+  presenceStripeState = { text: text, count: count, includesSelf: !!includesSelf };
   presenceRenderStripe();
 }
 

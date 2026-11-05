@@ -16,6 +16,7 @@ var ccLines_ = h.load(
     "common/presence-section-names.js",
     "common/presence-joined.js",
     "common/presence-people.js",
+    "common/presence-content.js",
     "legacy-apps/modern/bar.js"
   ],
   ["ccLines_"]
@@ -39,29 +40,32 @@ h.describe("modern ccLines_");
 h.test("one line per person, naming where they are and which application", function () {
   var lines = ccLines_([person("ann@cps.gov.uk", [{ kind: "CASE" }], [app("RCMS", todayAt(15, 38))])]);
   h.assertEqual(lines.length, 1);
-  h.assertEqual(lines[0], "ann@cps.gov.uk is in the case — RCMS since 3.38pm");
+  h.assertEqual(lines[0], "ann@cps.gov.uk is in the case — RCMS since 3.38pm.");
 });
 
-// The same sentence the web components' banner renders, because the tables are
-// shared. If this drifts, the two products have started describing one roster in
-// two ways.
+// The same sentence the web components' banner renders — now because the SENTENCE
+// is shared (CCPContent.personLine), not just the tables underneath it.
+//
+// THE TRAILING FULL STOP IS NEW HERE, and it is the drift this test was supposed to
+// catch and could not: sharing the naming tables kept the words in step but left
+// each client assembling them, and Modern had quietly stopped ending the sentence.
 h.test("matches the web components' wording for several applications", function () {
   var lines = ccLines_([person("ann@cps.gov.uk", [{ kind: "CASE_REVIEW" }, { kind: "CASE" }], [app("RCMS", todayAt(9, 5)), app("CMS Classic")])]);
-  h.assertEqual(lines[0], "ann@cps.gov.uk is in the case review and the case — RCMS since 9.05am, CMS Classic");
+  h.assertEqual(lines[0], "ann@cps.gov.uk is in the case review and the case — RCMS since 9.05am, CMS Classic.");
 });
 
 h.test("marks the reader", function () {
   var lines = ccLines_([person("me@cps.gov.uk", [{ kind: "CASE" }], [app("CMS Modern")], true)]);
-  h.assertEqual(lines[0], "me@cps.gov.uk (current user) is in the case — CMS Modern");
+  h.assertEqual(lines[0], "me@cps.gov.uk (current user) is in the case — CMS Modern.");
 });
 
 h.test("uses the definite form for the reader's own section", function () {
   var lines = ccLines_([person("ann@cps.gov.uk", [{ kind: "VICTIM_WITNESS", isCurrent: true }], [app("RCMS")])]);
-  h.assertEqual(lines[0], "ann@cps.gov.uk is in this witness or victim — RCMS");
+  h.assertEqual(lines[0], "ann@cps.gov.uk is in this witness or victim — RCMS.");
 });
 
 h.test("says something sensible when we know nothing but the name", function () {
-  h.assertEqual(ccLines_([person("ann@cps.gov.uk", [], [])])[0], "ann@cps.gov.uk is on this case");
+  h.assertEqual(ccLines_([person("ann@cps.gov.uk", [], [])])[0], "ann@cps.gov.uk is on this case.");
 });
 
 h.test("no people is no lines", function () {

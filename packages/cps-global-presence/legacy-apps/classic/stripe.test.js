@@ -19,13 +19,21 @@
 var h = require("../../test-harness");
 
 var m = h.load(
-  ["common/presence-environment.js", "legacy-apps/classic/dom.js", "legacy-apps/classic/stripe.js"],
+  [
+    "common/presence-environment.js",
+    "common/presence-apps.js",
+    "common/presence-section-names.js",
+    "common/presence-joined.js",
+    "common/presence-people.js",
+    "common/presence-content.js",
+    "legacy-apps/classic/dom.js",
+    "legacy-apps/classic/stripe.js"
+  ],
   [
     "CCPEnvironment",
+    "CCPPeople",
     "presenceBuildDetails",
     "presenceCountMembers",
-    "presenceSectionLabel",
-    "presenceFormatJoined",
     "presenceStripeSummary",
     "presenceBaseHeightFromRow",
     "presenceRowsWith"
@@ -44,6 +52,29 @@ function member(email, app, joinedAt) {
   return { userEmail: email, sourceApplication: app, joinedAt: joinedAt };
 }
 
+// A member record as CCPRoster.members() hands it to the shared collapse: the
+// section comes along, already debased of its CIN suffix, and isCurrent says
+// whether it is the one in front of the reader. isCurrent is false throughout
+// here — the definite forms ("this witness or victim") are covered where the
+// naming table itself is tested.
+// LOCAL wall clock, today, as the API would express it. CCPJoined.format renders
+// in the reader's zone and omits the date for today, so this keeps the expectations
+// below to a bare time and makes them the same in BST and GMT. An absolute UTC
+// string would read as 8.11am in winter and 9.11am in summer.
+function todayAt(hh, mi) {
+  var now = new Date();
+  return new Date(now.getFullYear(), now.getMonth(), now.getDate(), hh, mi).toISOString();
+}
+
+function memberIn(email, app, joinedAt, kind) {
+  return {
+    userEmail: email,
+    sourceApplication: app,
+    joinedAt: joinedAt,
+    sections: [{ kind: kind, isCurrent: false }]
+  };
+}
+
 // CCPRoster.sections() shape: sectionId -> { caseId, kind, members }.
 function sections(entries) {
   var map = {};
@@ -60,99 +91,85 @@ function sections(entries) {
 
 h.describe("the detail text");
 
-h.test("heads each block with the section name, from the wire kind the roster holds", function () {
+// COLLAPSED BY THE CALLER, so these build their input the way main.js does — through
+// the shared reduction — rather than hand-rolling its output. That makes the wiring
+// part of what is under test: a change to collapse's shape shows up here.
+function people(members, viewer) {
+  return m.CCPPeople.collapse(members, viewer);
+}
+
+h.test("one sentence per person, in the web components' words", function () {
   var text = m.presenceBuildDetails(
-    CASE,
-    sections([
-      {
-        id: CASE + ":" + m.CCPEnvironment.suffixKind("CASE_REVIEW"),
-        caseId: CASE,
-        kind: m.CCPEnvironment.suffixKind("CASE_REVIEW"),
-        members: [member("ann@cps.gov.uk", "RCMS")]
-      }
-    ])
+    people([memberIn("ann@cps.gov.uk", "RCMS", todayAt(8, 11), "CASE_REVIEW")])
   );
-  h.assertTrue(text.indexOf("working on Case Review:") !== -1, text);
+  h.assertEqual(text, "ann@cps.gov.uk is in the case review — RCMS since 8.11am.");
 });
 
-h.test("groups the roster by section, naming the application and when they arrived", function () {
+// THE HEADINGS ARE GONE, and that is the point of the change rather than a detail
+// of it. This used to read "Who's working where:" over "Currently these users are
+// working on Case Review:" — Classic's own register, matching neither other client.
+// The section is now named inside the sentence, where the web component puts it.
+h.test("no longer heads blocks with a section name", function () {
   var text = m.presenceBuildDetails(
-    CASE,
-    sections([
-      {
-        id: CASE + ":CASE_REVIEW",
-        caseId: CASE,
-        kind: "CASE_REVIEW",
-        members: [member("ann@cps.gov.uk", "RCMS", "2026-08-21T08:11:53.226+00:00")]
-      }
-    ])
+    people([memberIn("ann@cps.gov.uk", "RCMS", "", "CASE_REVIEW")])
   );
-  h.assertEqual(
-    text,
-    "Who's working where:\n" +
-      "Currently these users are working on Case Review:\n" +
-      "ann@cps.gov.uk on RCMS - joined 21 Aug 2026 08:11"
-  );
+  h.assertEqual(text.indexOf("Who's working where"), -1, text);
+  h.assertEqual(text.indexOf("Currently these users"), -1, text);
+  h.assertEqual(text.indexOf("Case Review"), -1, "the old label register is gone: " + text);
 });
 
-h.test("separates sections with a blank line", function () {
+// One line each, newline separated — the stripe renders plain text.
+h.test("one line per person", function () {
   var text = m.presenceBuildDetails(
-    CASE,
-    sections([
-      { id: CASE + ":CASE", caseId: CASE, kind: "CASE", members: [member("ann@cps.gov.uk", "RCMS")] },
-      {
-        id: CASE + ":DEFENDANT:88112",
-        caseId: CASE,
-        kind: "DEFENDANT",
-        members: [member("bob@cps.gov.uk", "CMS Classic")]
-      }
+    people([
+      memberIn("ann@cps.gov.uk", "RCMS", "", "CASE"),
+      memberIn("bob@cps.gov.uk", "CMS Classic", "", "DEFENDANT")
     ])
   );
-  h.assertTrue(text.indexOf("\n\nCurrently these users are working on Defendant:") !== -1, text);
+  h.assertEqual(text.split("\n").length, 2, text);
 });
 
-// An empty section is a real notification — everyone left, and the version bumped
-// to say so. Rendering its heading would claim people are there.
-h.test("omits a section nobody is in", function () {
+// The same person in two sections of a case is ONE line naming both — the old
+// client listed them once per section, because it never collapsed.
+h.test("a person in two sections is one line, naming both", function () {
   var text = m.presenceBuildDetails(
-    CASE,
-    sections([
-      { id: CASE + ":CASE", caseId: CASE, kind: "CASE", members: [member("ann@cps.gov.uk", "RCMS")] },
-      { id: CASE + ":CASE_REVIEW", caseId: CASE, kind: "CASE_REVIEW", members: [] }
+    people([
+      memberIn("ann@cps.gov.uk", "RCMS", "", "CASE"),
+      memberIn("ann@cps.gov.uk", "RCMS", "", "CASE_REVIEW")
     ])
   );
-  h.assertEqual(text.indexOf("Case Review"), -1, text);
+  h.assertEqual(text.split("\n").length, 1, text);
+  h.assertTrue(text.indexOf("the case") !== -1, text);
+  h.assertTrue(text.indexOf("the case review") !== -1, text);
 });
 
 // "" is what main.js reads as "take the stripe away", so this is the visibility
-// rule and not just a formatting detail.
-h.test("is empty when no section of the case has anybody", function () {
-  h.assertEqual(
-    m.presenceBuildDetails(CASE, sections([{ id: CASE + ":CASE", caseId: CASE, kind: "CASE", members: [] }])),
-    ""
-  );
+// rule and not a formatting detail.
+h.test("is empty when nobody is on the case", function () {
+  h.assertEqual(m.presenceBuildDetails([]), "");
+  h.assertEqual(m.presenceBuildDetails(null), "");
 });
 
-h.test("ignores sections belonging to another case", function () {
-  var text = m.presenceBuildDetails(
-    CASE,
-    sections([{ id: "999:CASE", caseId: "999", kind: "CASE", members: [member("ann@cps.gov.uk", "RCMS")] }])
-  );
-  h.assertEqual(text, "");
+// The old client printed "on unknown" here. The web component says nothing about
+// an application it was told nothing about, and the person is still reported.
+h.test("says nothing about an application the API did not name", function () {
+  var text = m.presenceBuildDetails(people([memberIn("ann@cps.gov.uk", "", "", "CASE")]));
+  h.assertEqual(text.indexOf("unknown"), -1, text);
+  h.assertTrue(text.indexOf("ann@cps.gov.uk") !== -1, text);
 });
 
-h.test("says unknown rather than nothing when the API names no application", function () {
+h.test("marks the reader, so the summary's wording can be checked against it", function () {
   var text = m.presenceBuildDetails(
-    CASE,
-    sections([{ id: CASE + ":CASE", caseId: CASE, kind: "CASE", members: [member("ann@cps.gov.uk", "")] }])
+    people([memberIn("ann@cps.gov.uk", "RCMS", "", "CASE")], "ann@cps.gov.uk")
   );
-  h.assertTrue(text.indexOf("ann@cps.gov.uk on unknown") !== -1, text);
+  h.assertTrue(text.indexOf("(current user)") !== -1, text);
 });
 
 h.describe("the head-count");
 
-// The stripe counts PEOPLE, not sections: one person in two sections of a case is
-// listed twice in the detail, so counting them twice is what matches.
+// Still here, still counting RECORDS rather than people, but no longer driving
+// anything a reader sees — the stripe's count is now the collapsed one, because
+// that is what the summary sentence has to agree with.
 h.test("totals every section of the case", function () {
   var map = sections([
     { id: CASE + ":CASE", caseId: CASE, kind: "CASE", members: [member("ann@cps.gov.uk", "RCMS")] },
@@ -176,76 +193,61 @@ h.test("is zero when there is nobody, and does not count an empty section", func
 
 h.describe("the collapsed summary");
 
-h.test("states the head-count", function () {
-  h.assertEqual(m.presenceStripeSummary({ text: "...", count: 3 }), "3 users currently working on the case");
+// IT USED TO SAY "3 users currently working on the case", and "1 users" for one.
+// The test that pinned that said fixing it was "the user's call and not a side
+// effect of the port" — the call has now been made: all three clients say what the
+// web component says.
+h.test("says what the web components say", function () {
+  h.assertEqual(
+    m.presenceStripeSummary({ text: "...", count: 3 }),
+    "3 other people are working on this case"
+  );
 });
 
-// Carried over from the deployed client deliberately: this says "1 users". Fixing
-// the wording is a change to what a caseworker reads, so it is the user's call and
-// not a side effect of the port.
-h.test("uses the same plural for one person as the deployed client does", function () {
-  h.assertEqual(m.presenceStripeSummary({ text: "...", count: 1 }), "1 users currently working on the case");
+// The old wording's worst line: a reader alone on a case was told "1 users
+// currently working on the case".
+h.test("is grammatical for one person", function () {
+  h.assertEqual(
+    m.presenceStripeSummary({ text: "...", count: 1 }),
+    "1 other person is working on this case"
+  );
+});
+
+// "other" is a lie when the list below names the reader, so it goes.
+h.test("drops \"other\" once the reader is one of them", function () {
+  h.assertEqual(
+    m.presenceStripeSummary({ text: "...", count: 3, includesSelf: true }),
+    "3 people are working on this case"
+  );
+  h.assertEqual(
+    m.presenceStripeSummary({ text: "...", count: 1, includesSelf: true }),
+    "1 person is working on this case"
+  );
+});
+
+// An unanswered whoami leaves includesSelf absent, and the reader is then counted
+// among the others. One person too many is the safe direction; the opposite would
+// hide a colleague.
+h.test("an absent includesSelf reads as not-the-reader", function () {
+  h.assertEqual(
+    m.presenceStripeSummary({ text: "...", count: 2 }),
+    "2 other people are working on this case"
+  );
 });
 
 h.test("falls back to the detail text rather than rendering an empty red bar", function () {
-  h.assertEqual(m.presenceStripeSummary({ text: "Who's working where:" }), "Who's working where:");
+  h.assertEqual(m.presenceStripeSummary({ text: "ann@cps.gov.uk is on this case." }), "ann@cps.gov.uk is on this case.");
 });
 
 h.test("is empty when there is no state at all", function () {
   h.assertEqual(m.presenceStripeSummary(null), "");
 });
 
-h.describe("section labels");
-
-h.test("name the sections a caseworker recognises", function () {
-  h.assertEqual(m.presenceSectionLabel("CASE"), "Case");
-  h.assertEqual(m.presenceSectionLabel("CASE_REVIEW"), "Case Review");
-  h.assertEqual(m.presenceSectionLabel("VICTIM_WITNESS"), "Witness/Victim");
-  h.assertEqual(m.presenceSectionLabel("DEFENDANT"), "Defendant");
-});
-
-// A kind we do not know is shown as itself: the API can gain sections before this
-// client does, and the roster is still worth reading.
-h.test("show an unknown kind verbatim, and never render nothing", function () {
-  h.assertEqual(m.presenceSectionLabel("WITNESS_STATEMENT"), "WITNESS_STATEMENT");
-  h.assertEqual(m.presenceSectionLabel(""), "Section");
-  h.assertEqual(m.presenceSectionLabel(null), "Section");
-});
-
-// THE KINDS REACHING THIS FUNCTION COME OFF THE WIRE, so they carry the CIN
-// suffix while the cases in the function are the documented kinds. Without
-// baseKind every heading in the details panel would read "working on CASE_CIN3".
-h.test("name the section when the kind arrives suffixed, as the roster holds it", function () {
-  h.assertEqual(m.presenceSectionLabel(m.CCPEnvironment.suffixKind("CASE")), "Case");
-  h.assertEqual(m.presenceSectionLabel(m.CCPEnvironment.suffixKind("VICTIM_WITNESS")), "Witness/Victim");
-});
-
-// Another instance's suffix is NOT ours to strip. It should be impossible, and if
-// it ever arrives it should look like the oddity it is rather than be normalised
-// into one of our own sections.
-h.test("leave another instance's suffix alone", function () {
-  h.assertEqual(m.presenceSectionLabel("CASE_CIN9"), "CASE_CIN9");
-});
-
-h.describe("joined timestamps");
-
-// Read out of the string, not parsed: document mode 5 cannot Date.parse an ISO
-// string reliably, so the wall-clock as sent is what gets shown.
-h.test("are formatted from the string as sent", function () {
-  h.assertEqual(m.presenceFormatJoined("2026-08-21T08:11:53.226+00:00"), "21 Aug 2026 08:11");
-  h.assertEqual(m.presenceFormatJoined("2026-01-05 00:04"), "5 Jan 2026 00:04");
-});
-
-h.test("are omitted rather than guessed at when the field is not a timestamp", function () {
-  h.assertEqual(m.presenceFormatJoined(""), "");
-  h.assertEqual(m.presenceFormatJoined(null), "");
-  h.assertEqual(m.presenceFormatJoined("yesterday"), "");
-  h.assertEqual(m.presenceFormatJoined(1756000000000), "");
-});
-
-h.test("keep a month number we cannot name", function () {
-  h.assertEqual(m.presenceFormatJoined("2026-13-21T08:11:00+00:00"), "21 13 2026 08:11");
-});
+// SECTION LABELS AND JOINED TIMESTAMPS had their own describes here, covering
+// presenceSectionLabel ("Case Review", "Witness/Victim") and presenceFormatJoined
+// ("21 Aug 2026 08:11"). Both functions are gone, not moved: CCPSectionNames and
+// CCPJoined said different things, and the shared versions won. Their behaviour is
+// covered by common/presence-section-names.test.js and common/presence-joined.test.js.
 
 h.describe("the footer baseline");
 

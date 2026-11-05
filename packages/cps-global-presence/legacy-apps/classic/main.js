@@ -111,11 +111,28 @@ function drawStripe(primary) {
     presenceRemoveStripe();
     return;
   }
-  var sections = roster.sections();
-  var text = presenceBuildDetails(primary.caseId, sections); // "" when nobody is anywhere
-  var count = presenceCountMembers(primary.caseId, sections);
+  // COLLAPSED HERE, not in the stripe, because this is where the two things the
+  // reduction needs live: the viewer's address (so their own row can be marked, and
+  // the summary can say "people" rather than "other people") and the primary case
+  // (so a roster that still holds a case the reader has navigated away from does
+  // not report it). The stripe is handed finished words.
+  //
+  // An unanswered whoami means viewer.email() is "" and CCPPeople.collapse marks
+  // NOBODY — so the reader is counted among the others and the summary says
+  // "other people". One person too many, which is the safe direction: the opposite
+  // would hide a colleague.
+  var me = viewer ? viewer.email() : "";
+  var people = CCPPeople.collapse(roster.members(activeSectionIds(), primary.caseId), me);
+  var text = presenceBuildDetails(people); // "" when nobody is on this case
+  var includesSelf = false;
+  var i;
+  for (i = 0; i < people.length; i++) {
+    if (people[i].isCurrentUser) {
+      includesSelf = true;
+    }
+  }
   if (text) {
-    presenceShowStripe(text, count);
+    presenceShowStripe(text, people.length, includesSelf);
   } else {
     presenceRemoveStripe();
   }

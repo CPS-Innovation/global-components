@@ -134,4 +134,43 @@ declare module "cps-global-presence" {
      */
     others<T extends { userEmail?: string }>(members: T[] | undefined, viewerEmail: string | undefined): T[];
   };
+
+  /**
+   * EVERY SENTENCE PRESENCE SHOWS, for all three UIs. The web component's wording,
+   * which Modern had been tracking by hand and Classic had never matched at all.
+   * Assembles words from pieces the caller derived; it reads no data of its own.
+   */
+  export const CCPContent: {
+    /** What the banner says as it goes away. Only the web component announces it. */
+    ALL_CLEAR: string;
+    /** The collapsed/expanded toggle all three surfaces carry. */
+    DETAILS_SHOW: string;
+    DETAILS_HIDE: string;
+    detailsToggle(expanded: boolean): string;
+    /** Locked, with nobody to report. */
+    LOCKED_ONLY: string;
+    /**
+     * The one line before anything is opened. "other" is dropped when the count
+     * includes the reader; the lock, when known, leads and presence follows as a
+     * subordinate clause. The legacy clients never pass `locked` — neither can know.
+     */
+    summary(people: number, includesSelf: boolean, locked?: boolean): string;
+    /**
+     * One application: "RCMS since 3.38pm on 8 September 2026", or just the
+     * application when there is no time to give.
+     *
+     * `since` IS WIDE ON PURPOSE. The two real formatters express "nothing usable"
+     * differently — CCPJoined.format returns "", and the web components'
+     * formatJoined maps that to undefined — and this treats either the same way, so
+     * neither caller needs a conversion at the call site to satisfy the other.
+     */
+    appClause(appDisplayName: string, since: string | undefined): string;
+    /** Every application one person is in, as one clause. */
+    where(
+      apps: { appDisplayName: string; timeEntered?: string }[] | undefined,
+      format: (timeEntered: string | undefined) => string | undefined,
+    ): string;
+    /** One person as a sentence: "A Name is in the case review — RCMS since ...". */
+    personLine(name: string, sections: string, where: string): string;
+  };
 }
