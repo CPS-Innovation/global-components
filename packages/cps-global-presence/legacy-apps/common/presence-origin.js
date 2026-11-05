@@ -14,91 +14,54 @@
  * sets the presence cookie HOST-ONLY — so the auth iframe must land on the same
  * host as the API, or the adapter never sees the cookie.
  *
- * THE FIX
- * Find our own <script> tag and take ITS origin: by definition the host that
- * served us, which is the host that owns our endpoints. Falls back to the relative
- * path, which is correct whenever page and endpoints share an origin (the proxied
- * estate) and is what every caller wants when the tag cannot be found.
+ * THE FIX: IMPL_ORIGIN, baked in at deploy time.
+ * The deploy knows the answer. scripts/deploy.local.sh computes it one line from
+ * where it substitutes @@SCRIPT_BASE@@ into the nginx conf, and rewrites the line
+ * below in the built bundle when — and only when — the implementation lives on
+ * another host (IMPL_ENV != ENV).
+ *
+ * "" MEANS "SAME ORIGIN AS THE PAGE", and is the correct value for every same-host
+ * deploy, which includes every CI deploy: the pipeline has no IMPL_ENV concept and
+ * each environment serves its own clients. So the committed default is already
+ * right for the common case, and a deploy that fails to substitute degrades to
+ * correct-for-same-host rather than to a broken URL. That is the opposite of a
+ * placeholder, and deliberately so — see WHY NOT AN ENV VAR below.
+ *
+ * HOW THIS USED TO WORK, and why it changed (2026-11-04)
+ * We used to find our own <script> tag in the host page and take its origin,
+ * matching tags on a marker — a distinctive part of our own filename. That derived
+ * the right answer with no configuration, but it coupled the client to the filename
+ * the nginx conf injects. When the published names moved to
+ * cms-augmentation/client-{classic,modern}-unstable.js, every marker became stale,
+ * and a marker that matches nothing made resolve() fall back to the host page's
+ * origin SILENTLY: indistinguishable from correct in the same-origin proxied
+ * estate, quietly wrong the moment anything is cross-domain. A rename could not be
+ * made safe, only remembered. Baking the origin removes the coupling instead: the
+ * blobs can be renamed, and the "-unstable" suffix dropped, with no code change.
  *
  * WHY NOT document.currentScript: it does not exist at document mode 11, let alone
- * mode 5. The scan is the portable answer.
+ * mode 5 — which is why the old scan existed at all. Now moot.
  *
  * WHY NOT AN ENV VAR IN THE NGINX CONF: an undefined ${VAR} is left in the output
  * verbatim by the entrypoint's envsubst, so a missing setting yields a literal
  * "${...}" in the injected src — nginx starts, pages serve, and presence silently
- * never appears. Deriving it needs no configuration at all.
+ * never appears. The line below is not that: its default is a working value, not a
+ * token, so nothing fails silently when the substitution does not happen.
  */
 
 var CCPOrigin = {};
 
-/**
- * The origin of the <script> tag whose src contains `marker`.
- * @param {string} marker a distinctive part of our own script's filename
- * @returns {string} e.g. "https://polaris-uat-notprod.cps.gov.uk", or "" if not found
- */
-CCPOrigin.scriptOrigin = function (marker) {
-  var scripts, i, src, match;
-  try {
-    scripts = document.getElementsByTagName("script");
-    for (i = 0; i < scripts.length; i++) {
-      src = scripts[i].src ? String(scripts[i].src) : "";
-      if (src.indexOf(marker) !== -1) {
-        match = /^(https?:\/\/[^/]+)/.exec(src);
-        if (match) {
-          return match[1];
-        }
-      }
-    }
-  } catch (e) {
-    // a hostile or unusual DOM must not stop the client loading
-  }
-  return "";
-};
+/* The origin serving our endpoints, or "" for "same origin as the host page".
+ * REWRITTEN AT DEPLOY TIME for the cross-domain case — deploy.local.sh matches this
+ * line exactly and fails the deploy if it is not found exactly once, so keep the
+ * spelling and spacing as they are. */
+CCPOrigin.IMPL_ORIGIN = "";
 
 /**
- * An absolute URL for one of our endpoints, on whichever host served this script.
- * @param {string} marker a distinctive part of our own script's filename
+ * An absolute URL for one of our endpoints, on the host that owns them.
  * @param {string} path an absolute path, e.g. "/global-components/presence-jsonp"
- * @returns {string} the absolute URL, or `path` unchanged when the tag is not found
+ * @returns {string} the absolute URL, or `path` unchanged when we are same-origin
  */
-CCPOrigin.resolve = function (marker, path) {
-  var origin = CCPOrigin.scriptOrigin(marker);
-  return origin ? origin + path : path;
-};
-
-/**
- * The URL of a file served ALONGSIDE this script — same host and same directory.
- *
- * `resolve` is for endpoints, whose paths are fixed and known. This is for our own
- * sibling assets, whose directory is not: the client is deployed under a per-
- * environment prefix ("/global-components/uat/…", "/global-components/test/…")
- * that the script cannot know and must not hard-code. Taking the directory from
- * our own tag means a bundle deployed anywhere finds its siblings.
- *
- * NOT CURRENTLY CALLED by the shipping client: its only consumer was the on-demand
- * SignalR bundle, now archived under reference/signalr-presence-transport/. Kept
- * because any second artefact needs exactly this, and it is cheap and tested.
- *
- * @param {string} marker a distinctive part of our own script's filename
- * @param {string} filename e.g. "cms-presence-extra.js"
- * @returns {string} the absolute URL, or `filename` unchanged when the tag is not found
- */
-CCPOrigin.sibling = function (marker, filename) {
-  var scripts, i, src, cut;
-  try {
-    scripts = document.getElementsByTagName("script");
-    for (i = 0; i < scripts.length; i++) {
-      src = scripts[i].src ? String(scripts[i].src) : "";
-      if (src.indexOf(marker) !== -1) {
-        src = src.replace(/[?#][\s\S]*$/, "");
-        cut = src.lastIndexOf("/");
-        if (cut !== -1) {
-          return src.substring(0, cut + 1) + filename;
-        }
-      }
-    }
-  } catch (e) {
-    // a hostile or unusual DOM must not stop the client loading
-  }
-  return filename;
+CCPOrigin.resolve = function (path) {
+  return CCPOrigin.IMPL_ORIGIN ? CCPOrigin.IMPL_ORIGIN + path : path;
 };

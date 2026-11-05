@@ -92,7 +92,9 @@ const initialise = async (window: Window & typeof globalThis) => {
 
     initialiseOutSystemsReconcileAuth({ window, flags, config });
 
-    const { initialiseCaseLockingForContext } = initialiseCaseLocking({ window, config, preview, register });
+    // cmsSessionHint names the CMS instance this session belongs to, and the
+    // presence room is keyed on it — see CCPEnvironment and initialiseCaseLocking.
+    const { initialiseCaseLockingForContext } = initialiseCaseLocking({ window, config, preview, cmsSessionHint, register });
 
     const { initialiseDomForContext } = initialiseDomObservation(
       { window, register, mergeTags, preview, settings, flags, config, authHint },

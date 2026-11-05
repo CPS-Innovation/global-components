@@ -21,28 +21,48 @@
  * beats hiding everyone, so nothing here ever guesses at an identity.
  *
  * IT ALSO CARRIES cmsEnv — which CMS environment this session belongs to, read
- * by the adapter from the Cms-Session-Hint cookie. NOTHING DEPENDS ON IT YET.
- * It is logged, with the elapsed time, to answer one question: registration is
- * synchronous at boot and sectionId travels on create, the first op out, so a
- * value that arrives with whoami arrives too late to build a sectionId from.
- * Deferring that first create would mean a callback restructure (no await at
- * this floor — Promise is banned) and, on failure, the 8s JSONP watchdog rather
- * than an error. The log says what that would really cost before anyone pays it.
+ * by the adapter from the Cms-Session-Hint cookie. SINCE 2026-11-04 THE CIN
+ * SUFFIX COMES FROM IT, so this is now on the critical path: no registration
+ * happens until it has arrived (see CCPEnvironment, and the guards in each
+ * main.js). That cost nothing in the end — the observation loop was already
+ * re-asserting what it wants every pass, so "not yet" simply means the next
+ * pass, and no callback restructure was needed to defer the first create.
+ *
+ * cmsEnvWhy says which of the empties an empty cmsEnv is: nobody wrote the hint,
+ * it is corrupt, the writer could not fill it, or it carried no CMS domain. It
+ * drives nothing and exists to be read off a console when presence does not
+ * start, because all four look the same from here and want different people.
  */
 
 var CCPViewer = {};
 
 /**
+ * How many answered whoami calls to spend waiting for an environment we did not
+ * get first time, before accepting that there is not one to get.
+ *
+ * The identity has always been allowed to arrive late — the reconcile timer is
+ * calling refresh() anyway, so a whoami that lost a race with the cookie
+ * recovered on the next pass. The environment needs the same grace for the same
+ * reason, but it cannot be open-ended: presence does not register without one,
+ * so an absent session hint would otherwise mean a whoami every three seconds
+ * for as long as the tab is open, forever, to be told the same thing. Ten passes
+ * is half a minute, which is a lost race; a minute is a missing cookie.
+ */
+CCPViewer.ENV_ATTEMPTS = 10;
+
+/**
  * @param {{call: function(string, Object, function(*): void): void,
  *          log: function(...*): void}} options
  * @returns {{email: function(): string, oid: function(): string,
- *            cmsEnv: function(): string, refresh: function(): void,
- *            known: function(): boolean}}
+ *            cmsEnv: function(): string, cmsEnvWhy: function(): string,
+ *            refresh: function(): void, known: function(): boolean}}
  */
 CCPViewer.createViewer = function (options) {
   var email = "";
   var oid = "";
   var cmsEnv = "";
+  var cmsEnvWhy = "";
+  var envAttempts = 0;
   var inFlight = false;
   // getTime(), not Date.now(): the floor is document mode 5.
   var startedAt = new Date().getTime();
@@ -51,8 +71,16 @@ CCPViewer.createViewer = function (options) {
     return "+" + (new Date().getTime() - startedAt) + "ms";
   }
 
+  // Both facts have to arrive before there is nothing left to ask for. The
+  // identity could be left to turn up whenever; the environment is what presence
+  // waits on, so it gets a bounded retry of its own rather than the first
+  // answer's silence standing for the session.
+  function settled() {
+    return !!email && (!!cmsEnv || envAttempts >= CCPViewer.ENV_ATTEMPTS);
+  }
+
   function refresh() {
-    if (email || inFlight) {
+    if (settled() || inFlight) {
       return;
     }
     inFlight = true;
@@ -75,14 +103,26 @@ CCPViewer.createViewer = function (options) {
       email = data.userEmail ? String(data.userEmail) : "";
       oid = data.oid ? String(data.oid) : "";
       cmsEnv = data.cmsEnv ? String(data.cmsEnv) : "";
+      cmsEnvWhy = data.cmsEnvWhy ? String(data.cmsEnvWhy) : "";
+      if (!cmsEnv) {
+        envAttempts = envAttempts + 1;
+      }
       options.log(
         "whoami",
         sinceStart(),
         email ? "identified" : "no identity in token",
-        // Any non-zero elapsed above means create has already gone out, so this
-        // is what the suffix WOULD have been, not what it was.
-        "cmsEnv=" + (cmsEnv ? cmsEnv : "(none — no session hint cookie)")
+        // The elapsed time above is how long presence waited to register: this
+        // is the value the suffix is built from, and nothing is named until it
+        // arrives. An empty one means nothing registers at all, so the reason
+        // is on the same line.
+        "cmsEnv=" + (cmsEnv ? cmsEnv : "(none)"),
+        "why=" + (cmsEnvWhy ? cmsEnvWhy : "(not reported)")
       );
+      // Said ONCE, on the pass that stops asking, because this is the line that
+      // explains a client which never registered anything at all.
+      if (!cmsEnv && envAttempts === CCPViewer.ENV_ATTEMPTS) {
+        options.log("no CMS environment after " + envAttempts + " attempts — presence will not register");
+      }
     });
   }
 
@@ -97,6 +137,9 @@ CCPViewer.createViewer = function (options) {
     },
     cmsEnv: function () {
       return cmsEnv;
+    },
+    cmsEnvWhy: function () {
+      return cmsEnvWhy;
     },
     known: function () {
       return !!email;

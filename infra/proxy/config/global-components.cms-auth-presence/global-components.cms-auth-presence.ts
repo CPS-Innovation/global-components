@@ -463,8 +463,8 @@ function handlePolarisPresence(r: NginxHTTPRequest): void {
 // and build.sh flattens the output, so a cross-module import would not survive
 // the build. Two copies with one end date, not two copies forever.
 //
-// The READ side is NOT scaffolding. _cmsEnvFromHint and the cmsEnv field on
-// whoami stay: the JSONP adapter outlives this flow, and reading a cookie the
+// The READ side is NOT scaffolding. _cmsEnvRead and the cmsEnv/cmsEnvWhy fields
+// on whoami stay: the JSONP adapter outlives this flow, and reading a cookie the
 // main module writes is the end state.
 //
 // Deliberately NOT HttpOnly (the main module's isn't either): it is a pool
@@ -478,20 +478,31 @@ function handlePolarisPresence(r: NginxHTTPRequest): void {
 const _SESSION_HINT_COOKIE_NAME = "Cms-Session-Hint";
 const _SESSION_HINT_LIFESPAN_MS = 30 * 24 * 60 * 60 * 1000;
 
-// HINT WRITE SWITCH. OFF until the Polaris /init cookie whitelist is deployed.
+// HINT WRITE SWITCH. BACK ON 2026-11-04, having been off since 2026-10-13.
 //
-// /init-presence runs in IE mode, so this write lands in the IE jar on the same
-// host /polaris captures the CMS cookies from. Polaris hands that jar on
-// unfiltered as `cc`, the OutSystems apps put it in their Cms-Auth-Values
-// header, and the hint's URL-encoded JSON breaks that header in the proxy's
-// readCmsAuthValues. (The main module's twin write is harmless: /init is
-// coerced to Edge, a different jar.) Once Polaris whitelists `cc` the hint
-// never leaves the jar and this goes back to true.
+// WHY IT WAS OFF. /init-presence runs in IE mode, so this write lands in the IE
+// jar on the same host /polaris captures the CMS cookies from. Polaris handed
+// that jar on unfiltered as `cc`, the OutSystems apps put it in their
+// Cms-Auth-Values header, and the hint's URL-encoded JSON broke that header in
+// the main module's readCmsAuthValues. (The main module's twin write was
+// harmless throughout: /init is coerced to Edge, a different jar.)
 //
-// False does two things: skips the write, and expires any copy an earlier
-// deploy left behind - it lives 30 days, so not writing alone would not stop
-// the failures. While off, whoami's cmsEnv is "".
-const _SESSION_HINT_WRITE_ENABLED = false;
+// WHY IT IS SAFE NOW — two independent guards, either of which would do:
+//   1. Polaris FILTERS the jar. CC_WHITELIST_ROOTS (polaris-terraform/
+//      main-terraform/nginx.js, and the identical copy in proxy/config/features/
+//      auth-handover/auth-handover.js) is an ALLOW-list, so the hint cannot ride
+//      along whatever its payload looks like. Landed in Polaris 34c9671a5 on
+//      2026-10-14 — the day after this was switched off, which is why it stayed
+//      off long after it needed to — and is on both `development` and `main`.
+//   2. OUR decoder tolerates it anyway. readCmsAuthValues returns a value that
+//      already opens as `{` untouched, precisely so an inner URL-encoded cookie
+//      like this one is not double-decoded.
+//
+// IF IT HAS TO GO OFF AGAIN: false does two things, and both matter. It skips
+// the write AND expires any copy an earlier deploy left behind — the cookie
+// lives 30 days, so merely not writing would not stop the failures. While off,
+// whoami's cmsEnv is "" with cmsEnvWhy "no-hint".
+const _SESSION_HINT_WRITE_ENABLED = true;
 
 // The environment domain (e.g. cin3.cps.gov.uk) can come from either LB cookie
 // style. Prefer the load-balancing cookie, named [CF]-<TOKEN>-LBsessioncookie
@@ -571,20 +582,58 @@ function _expiredSessionHintCookie(): string {
 // domain, uppercased (cin3.cps.gov.uk -> CIN3). "" when we don't know, which is
 // the honest answer and NOT a default — a wrong environment silently splits a
 // watchdog, where an absent one is visible.
-function _cmsEnvFromHint(r: NginxHTTPRequest): string {
+//
+// "" MEANS UNKNOWN, AND ONLY UNKNOWN. There are four ways to get there and they
+// used to be indistinguishable, which made "cmsEnv is empty" unactionable: a
+// client cannot tell "nobody wrote the hint" from "the hint is corrupt" from
+// "the handover found no CMS domain", and those need different people to fix
+// them. `why` names which, so the caller gets one bit (empty = do not register)
+// and the log gets the diagnosis.
+//
+// THERE IS DELIBERATELY NO "KNOWN TO BE BLANK". A suffix-less environment —
+// production, if that is what we choose — is a CLIENT-SIDE mapping from a known
+// label to no suffix, never an empty cmsEnv. This function keeps the promise
+// made by _cmsDomainsFromCookieString above: THE TOKEN IS OPAQUE. It reads
+// CIN3/CIN5 in pre-prod, nothing promises that shape in production, and a reader
+// that started inferring "this label means no suffix" would be interpreting it.
+type _CmsEnvRead = {
+  env: string;
+  /** "hint" when env is set; otherwise which of the four empties this is. */
+  why: "hint" | "no-hint" | "bad-hint" | "hint-error" | "no-domain";
+};
+
+function _cmsEnvRead(r: NginxHTTPRequest): _CmsEnvRead {
   const raw = _getCookie(r, _SESSION_HINT_COOKIE_NAME);
   if (!raw) {
-    return "";
+    // Nobody wrote it: _SESSION_HINT_WRITE_ENABLED is off, the write has not
+    // run for this session yet, or this is a jar the hint never reached.
+    return { env: "", why: "no-hint" };
   }
+  let parsed: any;
   try {
-    const parsed = JSON.parse(decodeURIComponent(raw));
-    const domains = parsed && parsed.cmsDomains;
-    const domain = domains && domains.length ? String(domains[0]) : "";
-    return domain ? domain.split(".")[0].toUpperCase() : "";
+    parsed = JSON.parse(decodeURIComponent(raw));
   } catch (e) {
-    return "";
+    // Present but unreadable — a truncated or re-encoded cookie. Ours and the
+    // main module's writes are byte-identical, so this should not happen and is
+    // worth seeing rather than flattening into "no hint".
+    return { env: "", why: "bad-hint" };
   }
+  if (parsed && parsed.error) {
+    // The WRITER could not work it out and said so in the payload (see the
+    // `catch` in Polaris's setSessionHintCookie, which writes { error }).
+    return { env: "", why: "hint-error" };
+  }
+  const domains = parsed && parsed.cmsDomains;
+  const domain = domains && domains.length ? String(domains[0]) : "";
+  if (!domain) {
+    // Hint written, no CMS domain in it: the handover saw no load-balancing
+    // cookie, so there was nothing to derive. Not our bug and not the client's.
+    return { env: "", why: "no-domain" };
+  }
+  const label = domain.split(".")[0].toUpperCase();
+  return label ? { env: label, why: "hint" } : { env: "", why: "no-domain" };
 }
+
 
 // ---------------------------------------------------------------------------
 // /init-presence/ — Modern token fetch + AD redirect (combined handler)
@@ -935,7 +984,7 @@ const _PRESENCE_DEV_BEARER =
 //
 // NB this is NOT the same thing as the "cms-auth-id-token" localStorage key written near
 // the end of the callback. That one is the RELAY transport's id-token and is read by
-// cms-auth-v2-client.js and cms-presence-relay.html; it stays as-is.
+// the injected Classic client and cms-presence-relay.html; it stays as-is.
 const _PRESENCE_TOKEN_COOKIE = "cms-auth-presence-token";
 
 // The calling application, reported to the presence API as X-Watchdog-App-Name.
@@ -1659,7 +1708,7 @@ async function handlePresenceJsonp(r: NginxHTTPRequest): Promise<void> {
     const userEmail = claims
       ? String(claims.email || claims.upn || claims.preferred_username || "")
       : "";
-    const whoamiEnv = _cmsEnvFromHint(r);
+    const whoami = _cmsEnvRead(r);
     // Logged HERE as well as returned, because the browser-side log is hard to
     // reach: the CMS estate's only console is IEChooser's, which cannot be
     // attached before a tab boots — and the Modern tab is opened BY Classic, so
@@ -1669,10 +1718,16 @@ async function handlePresenceJsonp(r: NginxHTTPRequest): Promise<void> {
     //
     // op and environment only. No email, no oid, no token: a pool label is not
     // an identity, and the log is a different audience from the response.
+    //
+    // `why` is logged even when the environment is known, so a log line is
+    // self-describing rather than needing the empty case to be inferred from a
+    // missing value.
     ngx.log(
       ngx.WARN,
       "[presence] whoami cmsEnv=" +
-        (whoamiEnv || "(none)") +
+        (whoami.env || "(none)") +
+        " why=" +
+        whoami.why +
         " identity=" +
         (userEmail ? "yes" : "no"),
     );
@@ -1687,14 +1742,25 @@ async function handlePresenceJsonp(r: NginxHTTPRequest): Promise<void> {
           // works but nobody is filtered" can be told apart from "no token at all"
           // without decoding a cookie by hand.
           oid: claims ? String(claims.oid || "") : "",
-          // Which CMS this session belongs to (CIN3, CIN5, ...), or "" when the
-          // hint cookie isn't there. DIAGNOSTIC FOR NOW: the client logs it and
-          // nothing depends on it, because whoami answers too late to be a
-          // prerequisite — registration is synchronous at boot and sectionId
-          // travels on create, the first op out. Reading the log tells us what
-          // deferring that first create would actually cost before anyone
-          // restructures boot around a callback.
-          cmsEnv: whoamiEnv,
+          // Which CMS this session belongs to (CIN3, CIN5, ...), or "" — which
+          // means UNKNOWN and nothing else. See _cmsEnvRead: there is no
+          // "known to be blank", because a suffix-less environment is a
+          // client-side mapping from a known label, not an empty value here.
+          //
+          // STILL DIAGNOSTIC, but no longer only that: the client may now treat
+          // "" as "do not register yet, ask again next pass". Registration is
+          // synchronous at boot and sectionId travels on create, the first op
+          // out, so acting on this costs a deferred create — measured at 151ms
+          // (QA, warm cookie) against the 3s observation cadence that would
+          // retry it anyway.
+          cmsEnv: whoami.env,
+          // WHICH empty, for the client's log and for operators. "hint" when
+          // cmsEnv is set; otherwise no-hint (nobody wrote it), bad-hint
+          // (present, unreadable), hint-error (the writer said it could not work
+          // it out) or no-domain (written, but no CMS domain in it). These need
+          // different people to fix them, which is why one empty string was not
+          // enough.
+          cmsEnvWhy: whoami.why,
         }) +
         ")",
     );
@@ -1714,12 +1780,15 @@ async function handlePresenceJsonp(r: NginxHTTPRequest): Promise<void> {
   // relative to whoami is the question. heartbeat and poll fire every 3s per
   // session and would bury both in the log.
   if (args.op === "create") {
+    const _createEnv = _cmsEnvRead(r);
     ngx.log(
       ngx.WARN,
       "[presence] create sectionId=" +
         args.sectionId +
         " cmsEnv=" +
-        (_cmsEnvFromHint(r) || "(none)"),
+        (_createEnv.env || "(none)") +
+        " why=" +
+        _createEnv.why,
     );
   }
 

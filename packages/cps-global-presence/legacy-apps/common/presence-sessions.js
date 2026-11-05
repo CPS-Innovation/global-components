@@ -18,6 +18,13 @@
  *     permanently on a non-410 error; that is available as dropSectionOnError,
  *     because an observe-only UI is usually better off still trying.
  *
+ * WHAT A CLIENT DOES ABOUT ALL THAT IS ITS OWN BUSINESS. onTrouble fires on every
+ * call that did not answer usefully, including a plain timeout, and says nothing
+ * about whether it is worth retrying — the retry happens either way. Classic uses
+ * it to take its footer stripe down, because a stale roster beside CMS's own
+ * controls reads as fact; Modern/DCF passes nothing and keeps its banner up. The
+ * callback is how those two can differ without the failure RULES differing.
+ *
  * Every callback checks `live[id] !== entry` before acting. Entries are replaced by
  * identity, so a section that was removed and re-added mid-flight correctly ignores
  * the older reply instead of adopting a dead session id.
@@ -26,19 +33,66 @@
 var CCPSessions = {};
 
 /**
+ * An ISO-8601 UTC timestamp, built by hand.
+ *
+ * NOT Date.prototype.toISOString, which this used until 2026-11-04. That method is
+ * an ES5 addition and DOES NOT EXIST at document mode 5 — and this file is held to
+ * the mode 5 floor because CMS Classic runs it. The call was the FIRST statement of
+ * pump(), the pass that heartbeats and polls every held section, inside the
+ * try/catch that exists so a throw there cannot kill the interval. So in Classic it
+ * threw on every pass, silently, and swallowing it was exactly the wrong mercy:
+ *
+ *   - createSession() is called directly by setDesired and so still worked, and its
+ *     callback beats and polls once — which is why presence appeared to work, and
+ *     why a roster could be read out of __ccPresence while nothing ever updated;
+ *   - every heartbeat after that was dead, so the Watchdog expired the session on
+ *     its TTL and the 410 recovery (in pump) never ran either;
+ *   - Modern and DCF are document mode 11, where toISOString exists, so the same
+ *     shared module worked there. "Works in Modern, not reliably in Classic" was
+ *     the only symptom, and it pointed at Classic's own files rather than here.
+ *
+ * check-syntax.js's es3 denylist now carries toISOString, so this cannot come back
+ * the same way.
+ *
+ * @returns {string} e.g. "2026-11-04T09:30:00Z"
+ */
+CCPSessions.stamp = function () {
+  var d = new Date();
+  function two(n) {
+    return (n < 10 ? "0" : "") + n;
+  }
+  return d.getUTCFullYear() +
+    "-" + two(d.getUTCMonth() + 1) +
+    "-" + two(d.getUTCDate()) +
+    "T" + two(d.getUTCHours()) +
+    ":" + two(d.getUTCMinutes()) +
+    ":" + two(d.getUTCSeconds()) +
+    "Z";
+};
+
+/**
  * @param {{call: function(string, Object, function(*): void): void,
  *          appName: string, tickMs: number,
  *          log: function(...*): void, verbose: function(): boolean,
  *          onNotifications: function(Array): void,
  *          onSectionDropped: function(string): void,
  *          dropSectionOnError?: boolean,
- *          onFatal?: function(string, string): void}} options
+ *          onFatal?: function(string, string): void,
+ *          onTrouble?: function(string, string): void}} options
  * @returns {{setDesired: function(string[]): void, stop: function(): void,
  *            ids: function(): string[], stats: function(): Object}}
  */
 CCPSessions.createSessions = function (options) {
   var call = options.call;
   var log = options.log;
+
+  // "That call did not tell us anything." Never fatal, never a reason not to
+  // retry — only a client that shows a roster needs to know.
+  function trouble(sectionId, reason) {
+    if (options.onTrouble) {
+      options.onTrouble(sectionId, reason);
+    }
+  }
 
   var live = {}; // sectionId -> { sessionId, creating }
   var order = []; // the same ids, kept as an array: no Object.keys at mode 5
@@ -83,6 +137,7 @@ CCPSessions.createSessions = function (options) {
         var why = data === null ? "no response (timeout)" : data.jsonpError || "no sessionId in response";
         stats.errors = stats.errors + 1;
         log("create FAILED", sectionId, why, "— retrying next pass");
+        trouble(sectionId, why);
         return;
       }
       stats.creates = stats.creates + 1;
@@ -99,19 +154,25 @@ CCPSessions.createSessions = function (options) {
         return;
       }
       if (data === null) {
-        return; // transient timeout — retry next pass
+        // Transient — retry next pass. Still reported: a client whose UI claims
+        // to know who is present has stopped being able to say that.
+        trouble(sectionId, "no response (timeout)");
+        return;
       }
       if (data.jsonpError) {
         stats.errors = stats.errors + 1;
         if (data.jsonpError.indexOf("410") > -1) {
           // The session is gone, and so is the truth of its roster.
           stats.restarts = stats.restarts + 1;
+          // NOT trouble(): nothing is broken. The section is dropped, so the
+          // roster it stood for goes with it and the UI follows from that.
           log("heartbeat: session expired (410) — recreating", sectionId);
           entry.sessionId = "";
           options.onSectionDropped(sectionId);
           return;
         }
         log("heartbeat FAILED", sectionId, data.jsonpError);
+        trouble(sectionId, data.jsonpError);
         if (options.dropSectionOnError) {
           log("dropping section after error", sectionId);
           forget(sectionId);
@@ -141,11 +202,13 @@ CCPSessions.createSessions = function (options) {
         if (options.verbose()) {
           log("poll: no response (timeout)", sectionId);
         }
+        trouble(sectionId, "no response (timeout)");
         return;
       }
       if (data.jsonpError) {
         stats.errors = stats.errors + 1;
         log("poll FAILED", sectionId, data.jsonpError);
+        trouble(sectionId, data.jsonpError);
         return;
       }
       stats.polls = stats.polls + 1;
@@ -164,7 +227,7 @@ CCPSessions.createSessions = function (options) {
   // that failed to register simply tries again next time round.
   function pump() {
     var i, sectionId, entry;
-    stats.lastTickAt = new Date().toISOString();
+    stats.lastTickAt = CCPSessions.stamp();
     for (i = 0; i < order.length; i++) {
       sectionId = order[i];
       entry = live[sectionId];

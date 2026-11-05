@@ -19,16 +19,71 @@ declare namespace CCPApps {
     function displayName(appName: string | undefined): string;
 }
 declare namespace CCPEnvironment {
-    let CIN: string;
+    let CIN: string | null;
+    /**
+     * THE MAPPING: a CMS environment label to the suffix it takes.
+     *
+     * Pattern-based rather than a list of names, so standing up a CIN4 needs no
+     * change here:
+     *   "CIN3" -> "CIN3"   a sibling on the shared Watchdog: suffixed, so the
+     *                      instances cannot see each other
+     *   "CMS"  -> ""       production, on a Watchdog of its own with nothing to
+     *                      separate from
+     *   ""     -> ""       already normalised by whoever derived it
+     *   other  -> ""       see below
+     *
+     * TOTAL, AND DELIBERATELY FORGIVING. An unrecognised label takes no suffix,
+     * which puts it in the unsuffixed room on whichever Watchdog it is pointed at.
+     * On the shared one that room is empty, so the cost of a label we have never
+     * seen is presence that finds nobody -- not presence shown to the wrong people.
+     * The label is logged by every client, so it is visible rather than mysterious.
+     *
+     * @param {string|null|undefined} label the cmsEnv label; "" and null are allowed
+     * @returns {string} the suffix, without its leading underscore
+     */
+    function suffixFor(label: string | null | undefined): string;
+    /**
+     * The label for a CMS domain: "cin3.cps.gov.uk" -> "CIN3".
+     *
+     * For the clients that hold the session hint itself rather than a cmsEnv the
+     * proxy has already reduced. The proxy derives it the same way in njs, which
+     * cannot load this file; its integration tests pin that half.
+     *
+     * @param {string|null|undefined} domain a CMS domain from the session hint
+     * @returns {string} the label, uppercased; "" when there is nothing to read
+     */
+    function labelFor(domain: string | null | undefined): string;
+    /** Whether anyone has told us which environment this is. */
+    function known(): boolean;
+    /**
+     * Take a cmsEnv label as the answer. Idempotent, and set-once: a later label
+     * that maps to the same suffix is accepted silently, one that does not is
+     * REFUSED and the first answer stands (see the header).
+     *
+     * KNOWN-NESS IS THE CALLER'S ASSERTION, not a property of the value. Calling
+     * this at all means "I know what environment this is", so adopt("") is a
+     * legitimate "known, and no suffix". A source's own unknown-empty must be
+     * filtered out BEFORE it gets here -- the proxy never reports a blank label for
+     * an environment it identified, so `if (env) { adopt(env); }` is the whole of it.
+     *
+     * @param {string|null|undefined} label
+     * @returns {boolean} true if the value is now in force, false if it was refused
+     */
+    function adopt(label: string | null | undefined): boolean;
     /**
      * The kind to put on the wire. Never double-suffixes: a kind that already carries
      * the suffix is returned untouched, because the wire kind read back from a
      * snapshot already has it.
      *
-     * @param {string|undefined} kind
+     * An UNKNOWN environment yields the plain kind, the same as a known unsuffixed
+     * one. That is not a judgement that the two are the same -- callers must not get
+     * this far without known() -- it is this function staying total at the mode 5
+     * floor, where a throw inside a guarded observation pass would be swallowed.
+     *
+     * @param {string|null|undefined} kind the documented kind; null/"" yields ""
      * @returns {string}
      */
-    function suffixKind(kind: string | undefined): string;
+    function suffixKind(kind: string | null | undefined): string;
     /**
      * The kind as the API documents it, for naming and for policy.
      *
@@ -36,10 +91,10 @@ declare namespace CCPEnvironment {
      * left alone: it should be impossible, and if it ever arrives it should be visible
      * as the oddity it is rather than quietly normalised into one of ours.
      *
-     * @param {string|undefined} kind
+     * @param {string|null|undefined} kind the wire kind; null/"" yields ""
      * @returns {string}
      */
-    function baseKind(kind: string | undefined): string;
+    function baseKind(kind: string | null | undefined): string;
     function hasSuffix(text: any, suffix: any): boolean;
 }
 declare namespace CCPJoined {
@@ -237,8 +292,12 @@ declare namespace CCPLocator {
      * Returns null when there is no identifiable section, so a detector can simply
      * `return CCPLocator.section(...)` and let a missing caseId mean "not here".
      *
+     * Callers pass the kind as the API documents it ("CASE", "CASE_REVIEW"). The id
+     * comes back carrying the CIN suffix and `kind` comes back without it, so a
+     * detector never has to know which of the two it is holding.
+     *
      * @param {string|number|null|undefined} caseId
-     * @param {string|null|undefined} kind
+     * @param {string|null|undefined} kind the documented kind, unsuffixed
      * @param {string|number|null=} subjectId
      * @param {*=} hint app-specific payload, passed through untouched
      * @returns {{id: string, caseId: string, kind: string, subjectId: string, hint: *}|null}
@@ -284,37 +343,13 @@ declare namespace CCPLocator {
     };
 }
 declare namespace CCPOrigin {
+    let IMPL_ORIGIN: string;
     /**
-     * The origin of the <script> tag whose src contains `marker`.
-     * @param {string} marker a distinctive part of our own script's filename
-     * @returns {string} e.g. "https://polaris-uat-notprod.cps.gov.uk", or "" if not found
-     */
-    function scriptOrigin(marker: string): string;
-    /**
-     * An absolute URL for one of our endpoints, on whichever host served this script.
-     * @param {string} marker a distinctive part of our own script's filename
+     * An absolute URL for one of our endpoints, on the host that owns them.
      * @param {string} path an absolute path, e.g. "/global-components/presence-jsonp"
-     * @returns {string} the absolute URL, or `path` unchanged when the tag is not found
+     * @returns {string} the absolute URL, or `path` unchanged when we are same-origin
      */
-    function resolve(marker: string, path: string): string;
-    /**
-     * The URL of a file served ALONGSIDE this script — same host and same directory.
-     *
-     * `resolve` is for endpoints, whose paths are fixed and known. This is for our own
-     * sibling assets, whose directory is not: the client is deployed under a per-
-     * environment prefix ("/global-components/uat/…", "/global-components/test/…")
-     * that the script cannot know and must not hard-code. Taking the directory from
-     * our own tag means a bundle deployed anywhere finds its siblings.
-     *
-     * NOT CURRENTLY CALLED by the shipping client: its only consumer was the on-demand
-     * SignalR bundle, now archived under reference/signalr-presence-transport/. Kept
-     * because any second artefact needs exactly this, and it is cheap and tested.
-     *
-     * @param {string} marker a distinctive part of our own script's filename
-     * @param {string} filename e.g. "cms-presence-extra.js"
-     * @returns {string} the absolute URL, or `filename` unchanged when the tag is not found
-     */
-    function sibling(marker: string, filename: string): string;
+    function resolve(path: string): string;
 }
 declare namespace CCPRoster {
     /**
@@ -375,13 +410,39 @@ declare namespace CCPSections {
 }
 declare namespace CCPSessions {
     /**
+     * An ISO-8601 UTC timestamp, built by hand.
+     *
+     * NOT Date.prototype.toISOString, which this used until 2026-11-04. That method is
+     * an ES5 addition and DOES NOT EXIST at document mode 5 — and this file is held to
+     * the mode 5 floor because CMS Classic runs it. The call was the FIRST statement of
+     * pump(), the pass that heartbeats and polls every held section, inside the
+     * try/catch that exists so a throw there cannot kill the interval. So in Classic it
+     * threw on every pass, silently, and swallowing it was exactly the wrong mercy:
+     *
+     *   - createSession() is called directly by setDesired and so still worked, and its
+     *     callback beats and polls once — which is why presence appeared to work, and
+     *     why a roster could be read out of __ccPresence while nothing ever updated;
+     *   - every heartbeat after that was dead, so the Watchdog expired the session on
+     *     its TTL and the 410 recovery (in pump) never ran either;
+     *   - Modern and DCF are document mode 11, where toISOString exists, so the same
+     *     shared module worked there. "Works in Modern, not reliably in Classic" was
+     *     the only symptom, and it pointed at Classic's own files rather than here.
+     *
+     * check-syntax.js's es3 denylist now carries toISOString, so this cannot come back
+     * the same way.
+     *
+     * @returns {string} e.g. "2026-11-04T09:30:00Z"
+     */
+    function stamp(): string;
+    /**
      * @param {{call: function(string, Object, function(*): void): void,
      *          appName: string, tickMs: number,
      *          log: function(...*): void, verbose: function(): boolean,
      *          onNotifications: function(Array): void,
      *          onSectionDropped: function(string): void,
      *          dropSectionOnError?: boolean,
-     *          onFatal?: function(string, string): void}} options
+     *          onFatal?: function(string, string): void,
+     *          onTrouble?: function(string, string): void}} options
      * @returns {{setDesired: function(string[]): void, stop: function(): void,
      *            ids: function(): string[], stats: function(): Object}}
      */
@@ -395,6 +456,7 @@ declare namespace CCPSessions {
         onSectionDropped: (arg0: string) => void;
         dropSectionOnError?: boolean;
         onFatal?: (arg0: string, arg1: string) => void;
+        onTrouble?: (arg0: string, arg1: string) => void;
     }): {
         setDesired: (arg0: string[]) => void;
         stop: () => void;
@@ -403,12 +465,13 @@ declare namespace CCPSessions {
     };
 }
 declare namespace CCPViewer {
+    let ENV_ATTEMPTS: number;
     /**
      * @param {{call: function(string, Object, function(*): void): void,
      *          log: function(...*): void}} options
      * @returns {{email: function(): string, oid: function(): string,
-     *            cmsEnv: function(): string, refresh: function(): void,
-     *            known: function(): boolean}}
+     *            cmsEnv: function(): string, cmsEnvWhy: function(): string,
+     *            refresh: function(): void, known: function(): boolean}}
      */
     function createViewer(options: {
         call: (arg0: string, arg1: any, arg2: (arg0: any) => void) => void;
@@ -417,6 +480,7 @@ declare namespace CCPViewer {
         email: () => string;
         oid: () => string;
         cmsEnv: () => string;
+        cmsEnvWhy: () => string;
         refresh: () => void;
         known: () => boolean;
     };

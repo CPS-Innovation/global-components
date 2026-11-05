@@ -4,9 +4,10 @@
  * Usage: node check-syntax.js <es3|es5> <file> [file...]
  *
  * WHY THIS EXISTS
- * Shared code has to run in BOTH legacy clients. Classic (cms-auth-v2-client.js)
- * is document mode 5 — old JScript — and Modern/DCF are document mode 11. There
- * is no build tool that transpiles down to mode 5: TypeScript REMOVED its ES3
+ * Shared code has to run in BOTH legacy clients. Classic
+ * (dist/cms-augmentation/client-classic-unstable.js) is document mode 5 — old
+ * JScript — and Modern/DCF are document mode 11. There is no build tool that
+ * transpiles down to mode 5: TypeScript REMOVED its ES3
  * target (TS5108), esbuild's floor is a partial es5, and Babel can lower the
  * syntax but not the missing runtime (no JSON, no Array.prototype.forEach, no
  * Object.keys, no String.trim, no addEventListener, no delete-on-window).
@@ -39,7 +40,7 @@ var BANNED_MEMBERS = [
   "some", "every", "trim", "trimStart", "trimEnd", "includes", "startsWith",
   "endsWith", "keys", "values", "entries", "assign", "freeze", "create",
   "defineProperty", "getPrototypeOf", "setPrototypeOf", "bind", "isArray",
-  "now", "querySelector", "querySelectorAll", "addEventListener",
+  "now", "toISOString", "querySelector", "querySelectorAll", "addEventListener",
   "removeEventListener", "textContent", "classList", "dataset"
 ];
 var BANNED_GLOBALS = ["JSON", "Promise", "Map", "Set", "Symbol", "WeakMap", "MutationObserver", "Proxy", "Reflect"];

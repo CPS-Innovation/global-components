@@ -9,9 +9,15 @@ This branch was recovered from a backup repo after `main` was rewritten. The rec
 **`global-components.cms-auth-presence.{conf,ts}` is the active line.** It was called
 `cms-auth-v2` until 2026-09-30, when it was renamed along with its routes (`/polaris-v2` →
 `/polaris-presence`, `/init-v2/*` → `/init-presence/*`); the injected client asset keeps its
-`cms-auth-v2-client.js` name. It's validated by the `cms-auth-presence` integration-test layer
-(`pnpm test:integration`) and deployed **out-of-band** with `scripts/deploy.local.sh` (into both
-Polaris proxy worlds), not via the main proxy build.
+`cms-auth-v2-client.js` name until 2026-11-04. It's validated by the `cms-auth-presence`
+integration-test layer (`pnpm test:integration`) and deployed **out-of-band** with
+`scripts/deploy.local.sh` (into both Polaris proxy worlds), not via the main proxy build.
+
+> **The injected client assets moved on 2026-11-04.** The four `sub_filter` lines now point at
+> `@@SCRIPT_BASE@@/cms-augmentation/client-{classic,modern}-unstable.js`, which is what the
+> build publishes. Reverting these four lines is a complete rollback: nothing writes to the old
+> `cms-auth-v2-client.js` / `cms-presence-client.js` blobs, so they still hold the pre-switch
+> client. See `packages/cps-global-presence/README.md` → **Deploy**.
 
 The earlier v1 variants and their manual HTTPS harness are **archived under `previous/`**.
 The `docker-compose.spike.yml` stack that used to serve them on `:8443` has been **removed** —

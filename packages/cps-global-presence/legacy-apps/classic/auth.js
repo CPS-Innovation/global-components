@@ -18,6 +18,10 @@
  * functions, var + function declarations, no trailing commas).
  * ==========================================================================*/
 (function () {
+  if (CMS_WATCHDOG_ENABLED !== true) {
+    return; // no login watcher, no auth iframe, no __ccAuthHandover handle
+  }
+
   var BUILD = "spawn1"; // bump on redeploy to confirm fresh bytes are live (cache!)
   var DEBUG = true; // verbose per-tick logging; window.__ccAuthHandover.setDebug(false) to quiet
 

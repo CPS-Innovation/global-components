@@ -1,4 +1,5 @@
-import { AuthResult, Config, FEATURE_FLAGS, FoundContext, Preview } from "cps-global-configuration";
+import { AuthResult, CmsSessionHint, Config, FEATURE_FLAGS, FoundContext, Preview } from "cps-global-configuration";
+import { CCPEnvironment } from "cps-global-presence";
 import { Register } from "../../store/store";
 import { Result } from "../../utils/Result";
 import { RegionEnterEvent, RegionLeaveEvent, RegionDetail } from "../../components/cps-global-locking-region/region-events";
@@ -11,6 +12,7 @@ type Props = {
   window: Window;
   config: Config;
   preview: Result<Preview>;
+  cmsSessionHint: Result<CmsSessionHint>;
   register: Register;
 };
 
@@ -37,12 +39,43 @@ const CASE_REGION_CODE = "case";
 
 const { _debug } = makeConsole("initialiseCaseLocking");
 
-export const initialiseCaseLocking = ({ window, config, preview, register }: Props) => {
+export const initialiseCaseLocking = ({ window, config, preview, cmsSessionHint, register }: Props) => {
   const apiUrl = config.CASE_LOCKING_API_URL;
-  _debug("initialise", { apiUrl });
 
-  if (!apiUrl) {
-    _debug("no CASE_LOCKING_API_URL — case-locking subscriber & service inert");
+  /* WHICH CMS INSTANCE'S PRESENCE DO WE JOIN?
+   *
+   * CIN2, CIN3 and CIN5 share one Watchdog and are kept apart by a suffix on the
+   * section kind, so a client that names a section without the right one is
+   * isolated in silence — no error, and a roster that is simply always empty.
+   * The rule is CCPEnvironment's, shared with the two legacy CMS clients so all
+   * three cannot drift; the SOURCE is ours, and it is the session hint we already
+   * fetch at boot. It was a hardcoded "CIN3" in CCPEnvironment until 2026-11-04.
+   *
+   * ADOPTED ONCE, HERE, before anything can register: the hint is resolved by the
+   * time global-script calls this, so unlike the legacy clients (which learn it
+   * from an async whoami) there is nothing to wait for.
+   *
+   * NO HINT MEANS INERT, and that is the point of the check rather than an
+   * oversight. Registering unsuffixed on a guess would put us in a room nobody
+   * occupies, which on screen is indistinguishable from presence working on a
+   * quiet case — the failure this whole mechanism exists to avoid. It bites local
+   * development and OutSystems dev, where there is no CMS and therefore no hint
+   * (see initialise-cms-session-hint): case locking is off there now, loudly,
+   * where it used to register against QA's Watchdog under a hardcoded CIN3.
+   */
+  const cmsDomain = cmsSessionHint.found ? (cmsSessionHint.result.cmsDomains[0] ?? "") : "";
+  const cmsEnv = CCPEnvironment.labelFor(cmsDomain);
+  if (cmsEnv) {
+    CCPEnvironment.adopt(cmsEnv);
+  }
+  _debug("initialise", { apiUrl, cmsDomain, cmsEnv, cin: CCPEnvironment.CIN });
+
+  if (!apiUrl || !CCPEnvironment.known()) {
+    if (apiUrl) {
+      _debug("no CMS environment in the session hint — case-locking subscriber & service inert", { cmsDomain });
+    } else {
+      _debug("no CASE_LOCKING_API_URL — case-locking subscriber & service inert");
+    }
     return {
       initialiseCaseLockingForContext: (_args: {
         auth: AuthResult;

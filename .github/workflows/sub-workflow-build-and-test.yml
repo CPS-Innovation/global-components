@@ -115,13 +115,20 @@ jobs:
           cp -r ./packages/cps-global-accessibility/dist ./to-deploy/accessibility
           # The URLs the CMS maintainers have been asked to link from the real CMS:
           #   /global-components/<env>/cms-augmentation/client-{classic,modern}.js
-          # Placeholders for now -- build.sh decides what is emitted under these names.
+          # ALWAYS the placeholder, in every environment including prod -- that pair
+          # is the maintainers' contract and is never swapped for a real client here.
+          # The built clients ship beside them as client-{classic,modern}-unstable.js,
+          # which only our own proxy injects, so revealing the real thing is a change
+          # to the nginx src and not to this pipeline. See the cms-augmentation
+          # section of packages/cps-global-presence/build.sh.
           # Named files rather than the folder, so nothing unintended is ever
           # published to a URL someone else's application loads. Prod receives them
           # only through deploy-all, like everything else in this artifact.
           mkdir -p ./to-deploy/cms-augmentation
           cp ./packages/cps-global-presence/dist/cms-augmentation/client-classic.js ./to-deploy/cms-augmentation/
           cp ./packages/cps-global-presence/dist/cms-augmentation/client-modern.js ./to-deploy/cms-augmentation/
+          cp ./packages/cps-global-presence/dist/cms-augmentation/client-classic-unstable.js ./to-deploy/cms-augmentation/
+          cp ./packages/cps-global-presence/dist/cms-augmentation/client-modern-unstable.js ./to-deploy/cms-augmentation/
 
       - uses: actions/upload-artifact@v7
         id: upload

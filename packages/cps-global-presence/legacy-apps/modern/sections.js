@@ -21,17 +21,18 @@
 // the only place it can be read. The screen segment is deliberately not
 // enumerated: every viewer screen that names a case is a view OF that case, so a
 // new one starts reporting presence without a code change.
-// The kinds carry the CIN suffix on the wire so this client joins the same
-// conflict set as the Classic one -- see CCPEnvironment. It comes off again when a
-// kind is read back for display, in the roster.
+// Kinds are written here as the API documents them. The CIN suffix that puts this
+// client in the same conflict set as Classic goes on in CCPLocator.section, which
+// is the only place it is applied -- these used to call suffixKind themselves, at
+// module load, which fixed the environment before anything could discover it.
 var MODERN_DETECTORS = [
   CCPLocator.urlDetector({
-    kind: CCPEnvironment.suffixKind("CASE_REVIEW"),
+    kind: "CASE_REVIEW",
     pattern: /\/dcf\/[^/]+\/(\d+)/,
     hint: { app: "DCF" }
   }),
   CCPLocator.urlDetector({
-    kind: CCPEnvironment.suffixKind("CASE"),
+    kind: "CASE",
     pattern: /\/viewer\/[^#]*#\/[^/?]+\/(\d+)/,
     hint: { app: "CMS Modern" }
   })
@@ -71,7 +72,8 @@ function describeLocation() {
 
 // Where our endpoints live. See CCPOrigin — a relative path would resolve against
 // the HOST PAGE, which is the wrong box as soon as the UI and our endpoints are on
-// different domains.
+// different domains. CCPOrigin.IMPL_ORIGIN is baked in at deploy time and is ""
+// (meaning "same origin as the page") for every same-host deploy.
 function resolveJsonpBase(jsonpPath) {
-  return CCPOrigin.resolve("cms-presence-client.js", jsonpPath);
+  return CCPOrigin.resolve(jsonpPath);
 }
