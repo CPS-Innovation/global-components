@@ -276,13 +276,24 @@ declare namespace CCPJsonp {
     /**
      * Build the JSONP caller. Returns call(op, params, onData); onData receives the
      * executed object/array, or null when the call timed out.
-     * @param {{base: string, appName: string, timeoutMs?: number, log?: function(...*): void}} options
+     *
+     * `namePrefix` MUST DIFFER BETWEEN INSTANCES, and that is why it is an option.
+     * The names below are minted as prefix + a per-instance counter, so two callers
+     * left on the default would both start at __ccpj_1 and write the same window
+     * property: whichever called second would replace the first's handler, and the
+     * first response to arrive would be delivered to the wrong caller. The pool is
+     * per-instance by construction, so it cannot coordinate — the prefix is what
+     * keeps two callers apart.
+     *
+     * @param {{base: string, appName: string, timeoutMs?: number,
+     *          namePrefix?: string, log?: function(...*): void}} options
      * @returns {function(string, Object, function(*): void): void}
      */
     function createJsonp(options: {
         base: string;
         appName: string;
         timeoutMs?: number;
+        namePrefix?: string;
         log?: (...args: any[]) => void;
     }): (arg0: string, arg1: any, arg2: (arg0: any) => void) => void;
 }
@@ -350,6 +361,22 @@ declare namespace CCPOrigin {
      * @returns {string} the absolute URL, or `path` unchanged when we are same-origin
      */
     function resolve(path: string): string;
+}
+declare namespace CCPPreview {
+    /**
+     * @param {{call: function(string, Object, function(*): void): void,
+     *          log: function(...*): void}} options
+     * @returns {{flags: function(): Object, known: function(): boolean,
+     *            refresh: function(boolean=): void}}
+     */
+    function createPreview(options: {
+        call: (arg0: string, arg1: any, arg2: (arg0: any) => void) => void;
+        log: (...args: any[]) => void;
+    }): {
+        flags: () => any;
+        known: () => boolean;
+        refresh: (arg0: boolean | undefined) => void;
+    };
 }
 declare namespace CCPRoster {
     /**

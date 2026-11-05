@@ -115,6 +115,7 @@ var BUNDLE = [
   "common/presence-joined.js",
   "common/presence-people.js",
   "legacy-apps/common/presence-viewer.js",
+  "legacy-apps/common/presence-preview.js",
   "legacy-apps/common/presence-sections.js",
   "legacy-apps/common/presence-origin.js",
   "legacy-apps/common/presence-roster.js",
@@ -241,12 +242,50 @@ h.describe("waiting to be told where we are");
 // registered before the answer came back would name "2121407:CASE" against an
 // instance speaking "2121407:CASE_CIN3" and sit in an empty room for the life of
 // the page, with no error and nothing on screen to suggest a cause.
+//
+// The two calls allowed here are the two one-shot QUESTIONS the client asks about
+// itself on boot — whoami, and the preview read on the state route. Neither
+// registers anything and neither gates the other. What must NOT appear is a
+// create, so that is what this asserts; pinning the exact list instead would
+// fail again the next time the client learns to ask something, which says nothing
+// about the invariant.
 h.test("registers nothing before whoami has answered", function () {
   var top = shell();
   var m = client(top);
   m.tick();
   m.tick();
-  h.assertEqual(ops(top), ["whoami"], "the only call made is the one that asks");
+  h.assertEqual(sent(top, "create").length, 0, "nothing registered: " + ops(top).join(","));
+  h.assertTrue(ops(top).indexOf("whoami") !== -1, "but it did ask: " + ops(top).join(","));
+});
+
+// Boot asks exactly twice, and not once per tick. The preview read is cached the
+// same way whoami is — a flag cannot change without the ?set= navigation, which
+// reloads the page — so a client that re-asked every pass would be making two
+// requests every three seconds, for the life of every tab, to be told the same
+// thing.
+h.test("neither boot question is re-asked on later ticks", function () {
+  var top = shell();
+  var m = client(top);
+  m.tick();
+  m.tick();
+  m.tick();
+  var all = ops(top);
+  var whoamis = 0;
+  var previews = 0;
+  var i;
+  for (i = 0; i < all.length; i++) {
+    if (all[i] === "whoami") {
+      whoamis = whoamis + 1;
+    }
+    if (all[i] === "preview") {
+      previews = previews + 1;
+    }
+  }
+  // whoami is still unanswered here, so it is allowed to retry — the environment
+  // is what presence waits on. The preview read is NOT waiting on anything, and
+  // its answer arrived, so it must be done.
+  h.assertEqual(previews, 1, "preview asked once: " + all.join(","));
+  h.assertTrue(whoamis >= 1, "whoami asked: " + all.join(","));
 });
 
 h.test("registers as soon as it knows, with the instance on the section id", function () {

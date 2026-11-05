@@ -40,6 +40,13 @@ var lastPrimaryId = ""; // the section the stripe is currently about
 // disabled bundle makes no JSONP call.
 var viewer = null;
 
+// The preview flags, read from the IE-MODE cookie jar — the one the preview
+// page's own saves never reach. Created in the same guarded block as the viewer,
+// and for the same reason: createPreview asks on construction.
+//
+// Nothing acts on these yet; see presence-preview.js.
+var preview = null;
+
 var roster = CCPRoster.createRoster();
 
 function presenceLog() {
@@ -333,6 +340,23 @@ if (CMS_WATCHDOG_ENABLED === true) {
   // createViewer asks whoami on construction.
   viewer = CCPViewer.createViewer({ call: presenceCall, log: presenceLog });
 
+  // A SECOND caller, on the state route rather than the presence adapter,
+  // because that is where the preview cookie is scoped — an op on the adapter
+  // would not be sent the cookie it was asking about. namePrefix must differ
+  // from the default: callback names are minted per instance, so two callers
+  // sharing a prefix would overwrite each other's window properties and deliver
+  // responses to the wrong one. See CCPJsonp.createJsonp.
+  preview = CCPPreview.createPreview({
+    call: CCPJsonp.createJsonp({
+      base: CCPOrigin.resolve("/global-components/state/preview"),
+      appName: PRESENCE_APP_NAME,
+      timeoutMs: PRESENCE_JSONP_TIMEOUT_MS,
+      namePrefix: "__ccpp_",
+      log: presenceLog
+    }),
+    log: presenceLog
+  });
+
   // start/stop/tick so the loop can be driven from the console, and onChange as
   // the seam for calling an endpoint without editing this file.
   window.__ccContactLogger = { start: start, stop: stop, tick: tick };
@@ -392,6 +416,22 @@ if (CMS_WATCHDOG_ENABLED === true) {
     refreshWhoami: function () {
       if (viewer) {
         viewer.refresh(true);
+      }
+    },
+    // The preview flags THIS client can see — what reached the IE-mode cookie
+    // jar, which is not the jar the preview page writes with its own saves. An
+    // empty object after pressing "Copy these settings to CMS" on the preview
+    // page means the copy did not arrive; see presence-preview.js.
+    //
+    // Nothing acts on these yet.
+    preview: function () {
+      return preview
+        ? { known: preview.known(), flags: preview.flags() }
+        : { known: false, flags: {} };
+    },
+    refreshPreview: function () {
+      if (preview) {
+        preview.refresh(true);
       }
     },
     tick: tick

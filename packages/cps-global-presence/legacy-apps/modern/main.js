@@ -22,6 +22,12 @@
 
 var JSONP_PATH = "/global-components/presence-jsonp";
 
+// The preview state, read on the SAME path its cookie is scoped to. It is not an
+// op on the presence adapter precisely because of that scoping: the cookie is not
+// sent to /global-components/presence-jsonp, so an op there could not read the
+// thing it was asking about.
+var PREVIEW_PATH = "/global-components/state/preview";
+
 // Reported to the presence API as the joining application. DCF and CMS Modern are
 // one app in users' minds, so the API models them under a single name.
 var APP_NAME = "CMS Modern";
@@ -133,6 +139,21 @@ var call = CCPJsonp.createJsonp({
 var countSelf = true;
 
 var viewer = CCPViewer.createViewer({ call: call, log: log });
+
+// A SECOND caller, because the preview state is on a different path — the state
+// route, where its cookie is scoped, not the presence adapter. namePrefix must
+// differ from the default: callback names are minted per instance, so two callers
+// sharing a prefix would overwrite each other's window properties and deliver
+// responses to the wrong one. See CCPJsonp.createJsonp.
+var previewCall = CCPJsonp.createJsonp({
+  base: resolveJsonpBase(PREVIEW_PATH),
+  appName: APP_NAME,
+  timeoutMs: TIMEOUT_MS,
+  namePrefix: "__ccpp_",
+  log: log
+});
+
+var preview = CCPPreview.createPreview({ call: previewCall, log: log });
 
 var sessions = CCPSessions.createSessions({
   call: call,
@@ -250,6 +271,18 @@ window.__ccPresence = {
   // numbers above are a cache of the last ANSWER, not a live read.
   refreshWhoami: function () {
     viewer.refresh(true);
+  },
+  // The preview flags this client can see — i.e. what reached the IE-MODE cookie
+  // jar, which is a different jar from the one the preview page writes with its
+  // own saves. An empty object after pressing "Copy these settings to CMS" on the
+  // preview page means the copy did not arrive; see presence-preview.js.
+  //
+  // Nothing acts on these yet.
+  preview: function () {
+    return { known: preview.known(), flags: preview.flags() };
+  },
+  refreshPreview: function () {
+    preview.refresh(true);
   },
   // One string, not an array of objects: the only console available in the CMS
   // estate is IEChooser's, which cannot be attached before boot and renders
