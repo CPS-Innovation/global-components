@@ -114,6 +114,7 @@ var BUNDLE = [
   "common/presence-section-names.js",
   "common/presence-joined.js",
   "common/presence-people.js",
+  "common/presence-content.js",
   "legacy-apps/common/presence-viewer.js",
   "legacy-apps/common/presence-preview.js",
   "legacy-apps/common/presence-sections.js",

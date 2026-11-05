@@ -1,5 +1,6 @@
 import { Component, h, Prop, State, Element, Event, EventEmitter } from "@stencil/core";
 import { MIN_REAL_HEADER_WIDTH_PX } from "../../services/browser/dom/footer-subscriber";
+import { CCPContent } from "cps-global-presence";
 
 /**
  * The pinned notification from the UCD prototype's app-notification-banner-pinned.
@@ -299,7 +300,7 @@ export class CpsGlobalPinnedNotification {
                 aria-controls={this.contentId}
                 onClick={this.toggle}
               >
-                {this.expanded ? "Hide details" : "Show details"}
+                {CCPContent.detailsToggle(this.expanded)}
               </button>
             )}
           </div>

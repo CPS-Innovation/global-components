@@ -18,6 +18,93 @@ declare namespace CCPApps {
      */
     function displayName(appName: string | undefined): string;
 }
+declare namespace CCPContent {
+    let ALL_CLEAR: string;
+    let DETAILS_SHOW: string;
+    let DETAILS_HIDE: string;
+    /** @param {boolean} expanded @returns {string} */
+    function detailsToggle(expanded: boolean): string;
+    let LOCKED_ONLY: string;
+    /**
+     * The one line a reader sees before opening anything.
+     *
+     * IT SAYS ONLY WHAT WE KNOW. The prototype's heading read "Case locked as 1 user
+     * is editing with 2 users viewing". We can count people and name their sections;
+     * we cannot say who is EDITING, or that anything is locked, because the presence
+     * API reports neither — the lock below is a separate fact from a separate API.
+     *
+     * "OTHER" IS DROPPED WHEN THE COUNT INCLUDES US, because it would be a lie —
+     * "2 other people" above a list that names you as one of them. The production
+     * wording is the "other" branch, and it returns on its own once a client stops
+     * counting the reader.
+     *
+     * THE LOCK LEADS. Presence is someone reading over your shoulder; the lock is the
+     * case refusing to be written to. When both are true the lock goes first and
+     * presence follows as a subordinate clause, because that is the order a reader
+     * needs them in to decide what to do next. "currently" earns its place only in
+     * that compound sentence, where it separates the standing state of the case from
+     * who happens to be on it right now.
+     *
+     * `locked` IS ALWAYS FALSE ON THE LEGACY CLIENTS. Neither has a route to the
+     * case-details API or a token for it, so neither can know. They pass nothing and
+     * get the presence-only wording, which is the same sentence the web component
+     * shows for an unlocked case — not a reduced version of it.
+     *
+     * @param {number} people how many people the roster holds
+     * @param {boolean} includesSelf whether the reader is one of them
+     * @param {boolean} [locked] whether the case is also locked
+     * @returns {string}
+     */
+    function summary(people: number, includesSelf: boolean, locked?: boolean): string;
+    /**
+     * One application clause: "RCMS since 3.38pm on 8 September 2026", or just the
+     * application when the API gave no time.
+     *
+     * EITHER SPELLING OF "NOTHING" IS ACCEPTED. CCPJoined.format says "" and the web
+     * components' formatJoined says undefined; both are falsy and both land here, so
+     * the test below pins that they produce the same clause.
+     *
+     * @param {string} appDisplayName
+     * @param {string|undefined} since already formatted; falsy when there is none
+     * @returns {string}
+     */
+    function appClause(appDisplayName: string, since: string | undefined): string;
+    /**
+     * Every application one person is in, as one clause.
+     *
+     * The API can give us a person with no application at all, in which case they are
+     * simply here and we say no more than that — hence "" rather than a placeholder.
+     *
+     * @param {Array<{appDisplayName: string, timeEntered: (string|undefined)}>} apps
+     * @param {function(string|undefined): (string|undefined)} format turns timeEntered
+     *   into words, or into nothing when there is nothing to say
+     * @returns {string}
+     */
+    function where(apps: Array<{
+        appDisplayName: string;
+        timeEntered: (string | undefined);
+    }>, format: (arg0: string | undefined) => (string | undefined)): string;
+    /**
+     * One person, as a sentence.
+     *
+     *   "A Name is in the case review — RCMS since 3.38pm on 8 September 2026."
+     *   "A Name is in a witness or victim."
+     *   "A Name — RCMS since 3.38pm on 8 September 2026."
+     *   "A Name is on this case."
+     *
+     * NAMING THE SECTION IS THE POINT. A case-wide session reports everyone anywhere
+     * in the case, so "this case" was true of everybody and told the reader nothing;
+     * the section is the difference between "someone is here" and "someone is on the
+     * review". The fallback sentence is only for a person whose sections and
+     * applications are both unknown.
+     *
+     * @param {string} name from CCPPeople.displayName
+     * @param {string} sections from CCPSectionNames.describe, "" when none
+     * @param {string} where from CCPContent.where, "" when none
+     * @returns {string}
+     */
+    function personLine(name: string, sections: string, where: string): string;
+}
 declare namespace CCPEnvironment {
     let CIN: string | null;
     /**
@@ -386,7 +473,7 @@ declare namespace CCPRoster {
      *   people: function(): CCPPerson[],
      *   describe: function(): string,
      *   sections: function(): Object,
-     *   members: function(string[]|undefined): {userEmail: string, sourceApplication: string, joinedAt: string, sections: {kind: string, isCurrent: boolean}[]}[],
+     *   members: function(string[]|undefined, string=): {userEmail: string, sourceApplication: string, joinedAt: string, sections: {kind: string, isCurrent: boolean}[]}[],
      *   forget: function(string): boolean,
      *   clear: function(): void
      * }}
@@ -396,7 +483,7 @@ declare namespace CCPRoster {
         people: () => CCPPerson[];
         describe: () => string;
         sections: () => any;
-        members: (arg0: string[] | undefined) => {
+        members: (arg0: string[] | undefined, arg1: string | undefined) => {
             userEmail: string;
             sourceApplication: string;
             joinedAt: string;

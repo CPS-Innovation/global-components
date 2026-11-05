@@ -42,23 +42,25 @@ var ccExpanded = false;
 var ccLines = [];
 var ccTitle = "";
 
-/* One line per person, in the same words the web components use — the tables are
- * shared precisely so that two products cannot describe one roster differently. */
+/* One line per person, in the web components' own words — assembled by CCPContent
+ * rather than rebuilt here.
+ *
+ * THIS USED TO CLAIM IT ALREADY MATCHED THEM, and it did not: it omitted the
+ * trailing full stop, and it said "is on this case" whenever the section was
+ * unknown even when the applications were known, where the web component says
+ * that only when BOTH are. A comment cannot keep two copies of a sentence in
+ * step — which is the whole reason the sentence now has one home. */
 function ccLines_(people) {
   var out = [];
-  var i, j, person, parts, app, since;
+  var i, person;
   for (i = 0; i < people.length; i++) {
     person = people[i];
-    parts = [];
-    for (j = 0; j < person.apps.length; j++) {
-      app = person.apps[j];
-      since = CCPJoined.format(app.timeEntered);
-      parts.push(since ? app.appDisplayName + " since " + since : app.appDisplayName);
-    }
     out.push(
-      CCPPeople.displayName(person) +
-        (CCPSectionNames.describe(person.sections) ? " is in " + CCPSectionNames.describe(person.sections) : " is on this case") +
-        (parts.length ? " — " + parts.join(", ") : "")
+      CCPContent.personLine(
+        CCPPeople.displayName(person),
+        CCPSectionNames.describe(person.sections),
+        CCPContent.where(person.apps, CCPJoined.format)
+      )
     );
   }
   return out;
@@ -104,7 +106,7 @@ function ccSetToggleText() {
   var toggle = document.getElementById(CC3_TOGGLE_ID);
   if (toggle) {
     toggle.innerHTML = "";
-    toggle.appendChild(document.createTextNode(ccExpanded ? "Hide details" : "Show details"));
+    toggle.appendChild(document.createTextNode(CCPContent.detailsToggle(ccExpanded)));
     toggle.setAttribute("aria-expanded", ccExpanded ? "true" : "false");
   }
 }

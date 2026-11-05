@@ -2,7 +2,7 @@ import { Component, h, Host, State, VNode } from "@stencil/core";
 import { readyState } from "../../store/store";
 import { FEATURE_FLAGS } from "cps-global-configuration";
 import { formatJoined } from "../../services/case-locking/format-joined";
-import { CCPPeople, CCPSectionNames } from "cps-global-presence";
+import { CCPContent, CCPPeople, CCPSectionNames } from "cps-global-presence";
 import { CaseLockingPresentSection } from "../../services/case-locking/CaseLockingPresentUsers";
 import { describeCaseLock, getCaseLock } from "../../services/case-locking/get-case-lock";
 
@@ -26,8 +26,9 @@ const collapsePeople = (sections: CaseLockingPresentSection[], viewer: string | 
 const LIVE_REGION_SETTLE_MS = 500;
 
 // Spoken when the banner goes away, but only if its summary was spoken first.
-// See hasAnnounced.
-const ALL_CLEAR = "Nobody else is working on this case now";
+// See hasAnnounced. The words live in CCPContent with every other sentence
+// presence shows, so the three UIs cannot drift apart again.
+const ALL_CLEAR = CCPContent.ALL_CLEAR;
 
 @Component({
   tag: "cps-global-case-locking-notification",
@@ -147,30 +148,13 @@ export class CpsGlobalCaseLockingNotification {
     const collapsed = collapsePeople(sections, viewer);
     const people = collapsed.length;
     const includesSelf = collapsed.some(person => person.isCurrentUser);
-    // The prototype's heading reads "Case locked as 1 user is editing with 2
-    // users viewing". We can count people and name their sections; we cannot say
-    // who is EDITING or that anything is LOCKED, because the presence API reports
-    // neither. So the summary states only what we know.
-    //
-    // "OTHER" IS DROPPED WHEN THE COUNT INCLUDES US, because it would be a lie —
-    // "2 other people" alongside a list that names you as one of them. The
-    // production wording is the "other" branch, and it comes back on its own once
-    // we stop counting ourselves.
-    const working = includesSelf
-      ? people === 1
-        ? "1 person is working on this case"
-        : `${people} people are working on this case`
-      : people === 1
-        ? "1 other person is working on this case"
-        : `${people} other people are working on this case`;
-    // THE LOCK LEADS. Presence is someone reading over your shoulder; the lock is
-    // the case refusing to be written to. When both are true the lock goes first
-    // and presence follows as the subordinate clause, because that is the order a
-    // reader needs them in to decide what to do next.
-    //
-    // "currently" earns its place only in the compound sentence, where it separates
-    // the standing state of the case from who happens to be on it right now.
-    const summary = locked ? (people ? `This case is locked, and ${working.replace(" is working", " is currently working").replace(" are working", " are currently working")}` : "This case is locked") : working;
+    // THE WORDING, AND THE REASONING THAT PRODUCED IT, ARE SHARED. Why "other"
+    // disappears when the count includes the reader, why the lock leads and
+    // presence follows as a subordinate clause, and why we never say "editing" or
+    // "viewing" — all of it now sits beside the sentences in CCPContent.summary,
+    // which the Classic and Modern clients call too. This is the only UI that can
+    // pass `locked`: the other two have no route to the case-details API.
+    const summary = CCPContent.summary(people, includesSelf, locked);
 
     return this.renderWithLiveRegion(
       this.announce(summary),
@@ -187,15 +171,11 @@ export class CpsGlobalCaseLockingNotification {
                 must never happen is one person reading as two because the API sent a
                 record per application. */}
             {collapsePeople([section], viewer).map(person => {
-              // "RCMS since 3.38pm on 8 September 2026", one clause per application.
-              // The API can give us a person with no application at all, in which
-              // case they are simply here and we say no more than that.
-              const where = person.apps
-                .map(app => {
-                  const since = formatJoined(app.timeEntered);
-                  return since ? `${app.appDisplayName} since ${since}` : app.appDisplayName;
-                })
-                .join(", ");
+              // "RCMS since 3.38pm on 8 September 2026", one clause per application,
+              // assembled by the shared content module so Modern and Classic read
+              // the same. formatJoined is passed in rather than imported there,
+              // because the words are shared but the clock is not.
+              const where = CCPContent.where(person.apps, formatJoined);
               // WHICH PART OF THE CASE they are in, in words. A case-wide session
               // reports everyone anywhere in the case, so "this case" was true of
               // everybody and told the reader nothing; naming the section is the
@@ -206,12 +186,7 @@ export class CpsGlobalCaseLockingNotification {
               // the difference between a collision and a coincidence.
               const sections = CCPSectionNames.describe(person.sections ?? []);
               return (
-                <p class="govuk-body">
-                  {CCPPeople.displayName(person)}
-                  {sections ? ` is in ${sections}` : ""}
-                  {where ? ` — ${where}` : ""}
-                  {!sections && !where ? " is on this case." : "."}
-                </p>
+                <p class="govuk-body">{CCPContent.personLine(CCPPeople.displayName(person), sections, where)}</p>
               );
             })}
           </div>

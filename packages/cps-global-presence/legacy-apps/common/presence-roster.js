@@ -23,7 +23,7 @@ var CCPRoster = {};
  *   people: function(): CCPPerson[],
  *   describe: function(): string,
  *   sections: function(): Object,
- *   members: function(string[]|undefined): {userEmail: string, sourceApplication: string, joinedAt: string, sections: {kind: string, isCurrent: boolean}[]}[],
+ *   members: function(string[]|undefined, string=): {userEmail: string, sourceApplication: string, joinedAt: string, sections: {kind: string, isCurrent: boolean}[]}[],
  *   forget: function(string): boolean,
  *   clear: function(): void
  * }}
@@ -176,7 +176,13 @@ CCPRoster.createRoster = function () {
     // legitimately holds sections we never registered — someone on the case while
     // we are reviewing it. Those are news, but they are not the section in front of
     // the reader, and only the caller knows which sections it asked for.
-    members: function (ourSectionIds) {
+    //
+    // caseId, when given, keeps only that case. The roster outlives a navigation
+    // — Classic walks from case to case within one shell, and sections for a case
+    // the reader has left are still held — so a client that says "who is on THIS
+    // case" has to name it. Modern passes nothing and gets every case in the
+    // roster, which is what it has always had.
+    members: function (ourSectionIds, caseId) {
       var out = [];
       var mine = {};
       var ours = ourSectionIds || [];
@@ -193,6 +199,9 @@ CCPRoster.createRoster = function () {
           continue;
         }
         entry = sections[key];
+        if (caseId && entry.caseId !== caseId) {
+          continue;
+        }
         for (j = 0; j < entry.members.length; j++) {
           out.push({
             userEmail: entry.members[j].userEmail,
