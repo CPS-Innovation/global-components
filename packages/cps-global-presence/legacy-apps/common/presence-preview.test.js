@@ -10,7 +10,7 @@
  */
 var h = require("../../test-harness");
 
-function rig() {
+function rig(onChange) {
   var logged = [];
   var pending = [];
 
@@ -22,7 +22,8 @@ function rig() {
     },
     log: function () {
       logged.push(Array.prototype.slice.call(arguments).join(" "));
-    }
+    },
+    onChange: onChange
   });
 
   return {
@@ -140,6 +141,88 @@ h.test("a retry after a failure keeps the flags it then gets", function () {
   r.reply(FLAGS);
   h.assertEqual(r.preview.flags().caseLocking, true, "picked up on the retry");
   h.assertTrue(r.preview.known(), "now settled");
+});
+
+
+h.describe("counting the reader");
+
+// The web components' rule (shouldCountSelfInCaseLocking): only an explicit true.
+h.test("counts the reader only when the flag is explicitly on", function () {
+  var r = rig();
+  r.reply({ caseLockingCountSelf: true });
+  h.assertEqual(r.preview.countSelf(), true);
+});
+
+// Off is the production behaviour, and what keeps the stripe away from a QA user
+// working alone — so every way of not knowing has to land there too.
+h.test("does not count the reader when the flag is off, unset, unknown or failed", function () {
+  var answers = [{ caseLockingCountSelf: false }, {}, FLAGS, null, { jsonpError: "x" }];
+  var i, r;
+  for (i = 0; i < answers.length; i++) {
+    r = rig();
+    r.reply(answers[i]);
+    h.assertEqual(r.preview.countSelf(), false);
+  }
+});
+
+h.test("does not count the reader before any answer", function () {
+  h.assertEqual(rig().preview.countSelf(), false);
+});
+
+// A truthy non-boolean is not "on": the flag is a checkbox, and anything else in
+// that slot is a malformed cookie, not a request.
+h.test("does not treat a truthy non-boolean as on", function () {
+  var r = rig();
+  r.reply({ caseLockingCountSelf: "true" });
+  h.assertEqual(r.preview.countSelf(), false);
+});
+
+h.describe("telling the client to redraw");
+
+h.test("calls onChange when an answer settles, flags and all", function () {
+  var seen = [];
+  var r = rig(function () {
+    seen.push(r.preview.countSelf());
+  });
+  r.reply({ caseLockingCountSelf: true });
+  h.assertEqual(seen.length, 1);
+  h.assertEqual(seen[0], true);
+});
+
+h.test("calls onChange when the answer is that nothing is set", function () {
+  var calls = 0;
+  var r = rig(function () {
+    calls++;
+  });
+  r.reply(null);
+  h.assertEqual(calls, 1);
+});
+
+// A failed call settles nothing — the flags are still unknown and a retry follows —
+// so there is nothing new to draw.
+h.test("does not call onChange on a failed call", function () {
+  var calls = 0;
+  var r = rig(function () {
+    calls++;
+  });
+  r.reply({ jsonpError: "x" });
+  h.assertEqual(calls, 0);
+});
+
+h.test("a throwing onChange is logged, and the flags still land", function () {
+  var r = rig(function () {
+    throw new Error("boom");
+  });
+  r.reply({ caseLockingCountSelf: true });
+  h.assertEqual(r.preview.countSelf(), true);
+  h.assertEqual(r.preview.known(), true);
+  h.assertEqual(r.logged.join("\n").indexOf("preview onChange threw Error: boom") !== -1, true);
+});
+
+h.test("works without an onChange at all", function () {
+  var r = rig();
+  r.reply({ caseLockingCountSelf: true });
+  h.assertEqual(r.preview.known(), true);
 });
 
 h.summarise();

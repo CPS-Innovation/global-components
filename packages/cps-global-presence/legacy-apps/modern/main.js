@@ -92,7 +92,7 @@ function draw() {
   // An empty roster removes the banner rather than drawing an empty one.
   var me = viewer.email();
   var members = roster.members(activeSectionIds());
-  var people = CCPPeople.collapse(countSelf ? members : CCPPeople.others(members, me), me);
+  var people = CCPPeople.collapse(shouldCountSelf() ? members : CCPPeople.others(members, me), me);
   renderBanner(people, summarise(people));
 }
 
@@ -125,18 +125,27 @@ var call = CCPJsonp.createJsonp({
   log: log
 });
 
-// ON WHILE WE ARE BUILDING THIS. Counting yourself is noise in production —
-// telling someone they are on the case they are looking at says nothing — but
-// while the feature is being proved it is the evidence: a roster that includes
-// you, marked "(current user)", shows that whoami answered and that the address
-// it returned matches what the API reports you as. Filtering silently proves
-// nothing, because an empty banner looks the same whether self-detection works or
-// presence is broken end to end.
+// WHETHER THE READER IS COUNTED: the caseLockingCountSelf preview flag, through
+// preview.countSelf() — the same rule as Classic and the web components. Off
+// unless the flag is explicitly on, so a QA user alone on a case sees nothing and
+// the banner appears only when somebody else really is there.
 //
-// Turn it off here (or with __ccPresence.setCountSelf(false)) to see production
-// behaviour: CCPPeople.others drops the reader and the label stops appearing on
-// its own, since nobody left in the list is them.
-var countSelf = true;
+// On, it is the evidence that self-identification works: a roster that includes
+// you, marked "(current user)", shows that whoami answered and that the address it
+// returned matches what the API reports you as. Off, an empty banner looks the
+// same whether that works or presence is broken end to end — so tick the flag to
+// prove it, rather than reading anything into its absence.
+//
+// __ccPresence.setCountSelf(true|false) overrides the flag for this page;
+// setCountSelf(null) hands control back to it.
+var countSelfOverride = null;
+
+function shouldCountSelf() {
+  if (countSelfOverride !== null) {
+    return countSelfOverride;
+  }
+  return preview.countSelf();
+}
 
 var viewer = CCPViewer.createViewer({ call: call, log: log });
 
@@ -153,7 +162,9 @@ var previewCall = CCPJsonp.createJsonp({
   log: log
 });
 
-var preview = CCPPreview.createPreview({ call: previewCall, log: log });
+// onChange redraws: the flag decides whether the reader is counted, and its answer
+// can land after the roster has already been drawn.
+var preview = CCPPreview.createPreview({ call: previewCall, log: log, onChange: draw });
 
 var sessions = CCPSessions.createSessions({
   call: call,
@@ -277,9 +288,10 @@ window.__ccPresence = {
   // own saves. An empty object after pressing "Copy these settings to CMS" on the
   // preview page means the copy did not arrive; see presence-preview.js.
   //
-  // Nothing acts on these yet.
+  // countSelf is what this page is actually doing, override included — the one
+  // flag that is acted on.
   preview: function () {
-    return { known: preview.known(), flags: preview.flags() };
+    return { known: preview.known(), flags: preview.flags(), countSelf: shouldCountSelf() };
   },
   refreshPreview: function () {
     preview.refresh(true);
@@ -296,11 +308,12 @@ window.__ccPresence = {
     }
     return out;
   },
+  // true/false overrides the preview flag for this page; null follows it again.
   setCountSelf: function (on) {
-    countSelf = !!on;
-    log("countSelf", countSelf ? "on" : "off");
+    countSelfOverride = on === null || on === undefined ? null : !!on;
+    log("countSelf", countSelfOverride === null ? "from preview" : countSelfOverride ? "on" : "off");
     draw();
-    return countSelf;
+    return shouldCountSelf();
   },
   setVerbose: function (on) {
     verbose = !!on;

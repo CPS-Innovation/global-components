@@ -220,7 +220,7 @@ export class CpsGlobalCaseLockingInterstitial {
 
   render() {
     const { isReady, state } = readyState(["caseLockingPresentUsers", "config", "context", "preview", "authHint"], ["auth", "tags", "caseDetails"]);
-    if (!isReady || !FEATURE_FLAGS.shouldShowCaseLockingNotifications(state)) {
+    if (!isReady || !FEATURE_FLAGS.shouldEnableCaseLocking(state)) {
       this.close();
       return null;
     }

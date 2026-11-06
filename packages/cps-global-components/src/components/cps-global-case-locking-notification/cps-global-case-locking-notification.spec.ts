@@ -12,8 +12,8 @@ const present = (...users: string[]): CaseLockingPresentUsers => ({
 const nobody: CaseLockingPresentUsers = { sections: [] };
 
 // The banner is switched on through preview, the same way it is in QA: case locking
-// needs an API URL and the preview opt-in, and the notifications are a second opt-in.
-const preview = (caseLockingNotifications: boolean) => ({ found: true, result: { caseLocking: true, caseLockingNotifications } }) as any;
+// needs an API URL and the preview opt-in. There is no second opt-in to show it.
+const preview = (caseLocking: boolean) => ({ found: true, result: { caseLocking } }) as any;
 
 // Everything render() requires to be ready, with nobody on the case.
 const ready = { config: { CASE_LOCKING_API_URL: "https://example.org" } as any, preview: preview(true), authHint: { found: false } as any, caseLockingPresentUsers: nobody };
