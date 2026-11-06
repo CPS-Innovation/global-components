@@ -102,21 +102,18 @@ const shouldEnableCaseLocking = ({ config, preview, auth, authHint }: FlagInputs
   (!!preview?.result?.caseLocking ||
     getFeatureFlagAssignment({ auth, authHint, config }, "FEATURE_FLAG_CASE_LOCKING_USERS").result);
 
-// Everything the user actually SEES — the pinned banner and the interruption card
-// — separately from the registration above. Requires the feature to be on at all,
-// so this cannot resurrect presence for someone the config excludes: it only ever
-// hides, never enables.
-//
-// The two surfaces share one flag because they are no longer alternatives. Which
-// one appears is decided by the section: see INTERRUPTING_REGION_CODES in
-// cps-global-case-locking-interstitial.
-const shouldShowCaseLockingNotifications = (inputs: FlagInputs) =>
-  shouldEnableCaseLocking(inputs) && !!inputs.preview?.result?.caseLockingNotifications;
+// THERE IS NO SEPARATE "SHOW" FLAG. The banner and the interruption card appear
+// whenever case locking is on and somebody else is genuinely on the case (or the
+// case is locked). There used to be a caseLockingNotifications preview flag that
+// hid them while presence registered regardless; it was dropped on 2026-11-06
+// because counting yourself already does that job — with the flag below off, a
+// QA user alone on a case has nobody to be told about, so nothing appears.
 
 // Count ourselves among the present users. Off by default, because in production
 // telling someone they are viewing the case they are looking at is noise. On, a
 // lone developer can see the banner without a second person — which is the only
-// way to tell a working mechanism from a broken one single-handed.
+// way to tell a working mechanism from a broken one single-handed. Classic and
+// Modern apply the same rule (CCPPreview's countSelf).
 const shouldCountSelfInCaseLocking = ({ preview }: FlagInputs) => !!preview?.result?.caseLockingCountSelf;
 
 const shouldShowOpenInCmsModern = ({ preview }: FlagInputs) => !!preview?.result?.openInCmsModern;
@@ -134,7 +131,6 @@ export const FEATURE_FLAGS = {
   shouldShowHomePageNotification,
   shouldUseFullPageMsalRedirect,
   shouldEnableCaseLocking,
-  shouldShowCaseLockingNotifications,
   shouldCountSelfInCaseLocking,
   shouldShowOpenInCmsModern,
 };

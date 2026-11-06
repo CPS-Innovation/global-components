@@ -452,16 +452,20 @@ declare namespace CCPOrigin {
 declare namespace CCPPreview {
     /**
      * @param {{call: function(string, Object, function(*): void): void,
-     *          log: function(...*): void}} options
+     *          log: function(...*): void,
+     *          onChange: (function(): void|undefined)}} options
      * @returns {{flags: function(): Object, known: function(): boolean,
+     *            countSelf: function(): boolean,
      *            refresh: function(boolean=): void}}
      */
     function createPreview(options: {
         call: (arg0: string, arg1: any, arg2: (arg0: any) => void) => void;
         log: (...args: any[]) => void;
+        onChange: (() => void | undefined);
     }): {
         flags: () => any;
         known: () => boolean;
+        countSelf: () => boolean;
         refresh: (arg0: boolean | undefined) => void;
     };
 }

@@ -35,15 +35,16 @@ export const PreviewSchema = z.object({
   useFullPageMsalRedirect: z.boolean().optional(),
   caseLocking: z.boolean().optional(),
 
-  // Case-locking is deliberately split three ways so the mechanism can run for
-  // real in QA while staying invisible to real users:
+  // Case-locking takes two flags:
   //   caseLocking            register presence — exercises the hub and the API
-  //   caseLockingNotifications  show what presence found: the pinned banner, and
-  //                          the interruption card in the sections that warrant one
   //   caseLockingCountSelf   count yourself as another user, so the banner can be
   //                          seen at all by one developer on a case alone
-  // Registration is the part we want load on; the visible part is what we do not
-  // want a caseworker discovering mid-work.
+  //
+  // THERE WAS A THIRD, caseLockingNotifications, which hid the banner and the
+  // interruption while presence registered regardless. Dropped 2026-11-06: with
+  // counting yourself off, a QA user alone on a case has nobody to be told about,
+  // so it was a second switch doing the first one's job. An old cookie that still
+  // carries it parses fine — z.object strips keys it does not know.
   //
   // THE INTERRUPTION HAD ITS OWN FLAG HERE and no longer needs one. It existed
   // while both surfaces fired on the same "someone else is on this case"
@@ -51,7 +52,6 @@ export const PreviewSchema = z.object({
   // is now the section itself — the case review and witness or victim records
   // interrupt, case-wide presence informs — so the way to see the interruption is
   // to go to a case review, not to flip a switch.
-  caseLockingNotifications: z.boolean().optional(),
   caseLockingCountSelf: z.boolean().optional(),
   requestObservationShim: z.boolean().optional(),
   openInCmsModern: z.boolean().optional(),

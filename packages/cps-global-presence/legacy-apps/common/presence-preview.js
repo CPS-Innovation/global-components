@@ -37,10 +37,13 @@
  * behaviour. A preview flag turning something ON by accident because a call
  * failed would be the worse direction by far.
  *
- * NOTHING READS THIS YET. It is carried, logged and exposed on the console
- * handle so the chain can be seen working end to end before anything depends on
- * it; what the flags should gate is a separate decision from whether they
- * arrive.
+ * ONE FLAG IS READ: caseLockingCountSelf, through countSelf() below, so Classic
+ * and Modern share the one rule rather than each spelling it. The rest are
+ * carried, logged and exposed on the console handle only.
+ *
+ * onChange FIRES WHEN AN ANSWER SETTLES. Both clients redraw only when the roster
+ * or the section changes, so without it a flag that arrives after the first draw
+ * would not show until something else moved.
  *
  * ONE LIMIT WORTH KNOWING. The cookie is written HOST-ONLY, on whichever host
  * serves the preview page, and read on whichever host CCPOrigin.resolve points
@@ -54,14 +57,31 @@ var CCPPreview = {};
 
 /**
  * @param {{call: function(string, Object, function(*): void): void,
- *          log: function(...*): void}} options
+ *          log: function(...*): void,
+ *          onChange: (function(): void|undefined)}} options
  * @returns {{flags: function(): Object, known: function(): boolean,
+ *            countSelf: function(): boolean,
  *            refresh: function(boolean=): void}}
  */
 CCPPreview.createPreview = function (options) {
   var flags = {};
   var known = false;
   var inFlight = false;
+
+  // Guarded: a redraw that throws must not be able to leave the flags half-set or
+  // stop the caller's loop, and at document mode 5 a host page's DOM is not ours.
+  function changed() {
+    if (!options.onChange) {
+      return;
+    }
+    try {
+      options.onChange();
+    } catch (e) {
+      // String(e) gives "Error: boom" for an Error and something readable for a
+      // thrown non-Error, without assuming a shape the checker cannot see.
+      options.log("preview onChange threw", String(e));
+    }
+  }
 
   /**
    * Ask for the preview state, unless it is already known or a call is out.
@@ -90,6 +110,7 @@ CCPPreview.createPreview = function (options) {
         known = true;
         flags = {};
         options.log("preview none");
+        changed();
         return;
       }
       if (data.jsonpError) {
@@ -109,6 +130,7 @@ CCPPreview.createPreview = function (options) {
         }
       }
       options.log("preview", names.length ? names.join(",") : "(empty)");
+      changed();
     });
   }
 
@@ -120,6 +142,13 @@ CCPPreview.createPreview = function (options) {
     },
     known: function () {
       return known;
+    },
+    // Whether the reader is counted among the people on the case. ONLY an explicit
+    // true counts them — the web components' rule (shouldCountSelfInCaseLocking),
+    // so the three UIs agree. Unknown, failed and unset all read as false, which is
+    // the production behaviour: a reader alone on a case sees no stripe at all.
+    countSelf: function () {
+      return flags.caseLockingCountSelf === true;
     },
     refresh: refresh
   };

@@ -166,3 +166,5 @@ h.describe("the all-clear");
 h.test("says the banner has gone away, not that it is empty", function () {
   h.assertEqual(CCPContent.ALL_CLEAR, "Nobody else is working on this case now");
 });
+
+h.summarise();

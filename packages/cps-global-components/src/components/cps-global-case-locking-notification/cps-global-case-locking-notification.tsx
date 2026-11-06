@@ -117,11 +117,10 @@ export class CpsGlobalCaseLockingNotification {
     if (!isReady) {
       return this.renderWithLiveRegion();
     }
-    // Presence REGISTRATION is deliberately NOT gated here — we want the hub and
-    // the API exercised by real traffic in QA. This gates only the manifestation,
-    // so a caseworker does not discover a banner mid-work while we are still
-    // building it. See caseLockingNotifications in Preview.ts.
-    if (!FEATURE_FLAGS.shouldShowCaseLockingNotifications(state)) {
+    // No separate "show" flag: whether anyone is reported is decided by who is on
+    // the case, and whether the reader counts is caseLockingCountSelf. See
+    // feature-flags.ts.
+    if (!FEATURE_FLAGS.shouldEnableCaseLocking(state)) {
       return this.renderWithLiveRegion();
     }
     const present = state.caseLockingPresentUsers;

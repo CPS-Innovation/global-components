@@ -139,13 +139,36 @@ function assertTrue(value, message) {
   assertEqual(!!value, true, message);
 }
 
-function summarise() {
+var summarised = false;
+
+function report() {
   var rule = new Array(57).join("=");
   console.log("\n" + rule);
   console.log("Results: " + passed + " passed, " + failed + " failed");
   console.log(rule);
+}
+
+function summarise() {
+  summarised = true;
+  report();
   process.exit(failed > 0 ? 1 : 0);
 }
+
+// THE EXIT CODE MUST NOT DEPEND ON REMEMBERING summarise(). test() catches every
+// failure and only counts it, so a file that never called summarise() used to exit
+// 0 however many of its tests failed — and test.sh, and CI, read only the exit
+// code. Seven files were in that state on 2026-11-06 (none failing, by luck). This
+// reports and sets the code for them; an explicit summarise() still works and
+// still exits at once.
+process.on("exit", function () {
+  if (summarised) {
+    return;
+  }
+  report();
+  if (failed > 0) {
+    process.exitCode = 1;
+  }
+});
 
 module.exports = {
   load: load,

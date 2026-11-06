@@ -44,8 +44,28 @@ var viewer = null;
 // page's own saves never reach. Created in the same guarded block as the viewer,
 // and for the same reason: createPreview asks on construction.
 //
-// Nothing acts on these yet; see presence-preview.js.
+// One flag is acted on — caseLockingCountSelf, through shouldCountSelf() below.
 var preview = null;
+
+// WHETHER THE READER IS COUNTED among the people on the case: the
+// caseLockingCountSelf preview flag, the same rule as Modern and the web
+// components (see CCPPreview's countSelf). Off unless explicitly on, so a QA user
+// alone on a case sees no stripe, and it appears only when somebody else really
+// is there.
+//
+// Classic used to count the reader unconditionally — it never filtered at all —
+// which is why "(current user)" showed here whatever the preview page said.
+//
+// __ccPresence.setCountSelf(true|false) overrides the flag for this page;
+// setCountSelf(null) hands control back to it.
+var countSelfOverride = null;
+
+function shouldCountSelf() {
+  if (countSelfOverride !== null) {
+    return countSelfOverride;
+  }
+  return preview ? preview.countSelf() : false;
+}
 
 var roster = CCPRoster.createRoster();
 
@@ -117,12 +137,16 @@ function drawStripe(primary) {
   // (so a roster that still holds a case the reader has navigated away from does
   // not report it). The stripe is handed finished words.
   //
-  // An unanswered whoami means viewer.email() is "" and CCPPeople.collapse marks
-  // NOBODY — so the reader is counted among the others and the summary says
-  // "other people". One person too many, which is the safe direction: the opposite
-  // would hide a colleague.
+  // An unanswered whoami means viewer.email() is "": CCPPeople.others then filters
+  // nobody and CCPPeople.collapse marks nobody, so the reader is counted among the
+  // others and the summary says "other people". One person too many, which is the
+  // safe direction: the opposite would hide a colleague.
   var me = viewer ? viewer.email() : "";
-  var people = CCPPeople.collapse(roster.members(activeSectionIds(), primary.caseId), me);
+  var members = roster.members(activeSectionIds(), primary.caseId);
+  if (!shouldCountSelf()) {
+    members = CCPPeople.others(members, me);
+  }
+  var people = CCPPeople.collapse(members, me);
   var text = presenceBuildDetails(people); // "" when nobody is on this case
   var includesSelf = false;
   var i;
@@ -371,7 +395,12 @@ if (CMS_WATCHDOG_ENABLED === true) {
       namePrefix: "__ccpp_",
       log: presenceLog
     }),
-    log: presenceLog
+    log: presenceLog,
+    // Redraw when the answer lands: it decides whether the reader is counted, and
+    // the roster may already have been drawn without it.
+    onChange: function () {
+      drawStripe(primarySection());
+    }
   });
 
   // start/stop/tick so the loop can be driven from the console, and onChange as
@@ -440,11 +469,19 @@ if (CMS_WATCHDOG_ENABLED === true) {
     // empty object after pressing "Copy these settings to CMS" on the preview
     // page means the copy did not arrive; see presence-preview.js.
     //
-    // Nothing acts on these yet.
+    // countSelf is what this page is actually doing, override included — the one
+    // flag that is acted on.
     preview: function () {
       return preview
-        ? { known: preview.known(), flags: preview.flags() }
-        : { known: false, flags: {} };
+        ? { known: preview.known(), flags: preview.flags(), countSelf: shouldCountSelf() }
+        : { known: false, flags: {}, countSelf: shouldCountSelf() };
+    },
+    // true/false overrides the preview flag for this page; null follows it again.
+    setCountSelf: function (on) {
+      countSelfOverride = on === null || on === undefined ? null : !!on;
+      presenceLog("countSelf", countSelfOverride === null ? "from preview" : countSelfOverride ? "on" : "off");
+      drawStripe(primarySection());
+      return shouldCountSelf();
     },
     refreshPreview: function () {
       if (preview) {
