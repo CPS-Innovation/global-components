@@ -53,6 +53,14 @@
  * HttpOnly cookie. Names only, never values. Nothing reads it; it is here so
  * "does our token carry claim X" can be answered off a console in a live session
  * instead of by running the auth flow by hand and decoding a bearer token.
+ *
+ * AND groups — the reader's Entra group IDs, the one VALUE here besides the
+ * identity. The app registration emits only groups ASSIGNED to the app that the
+ * reader is a MEMBER of, so the list is short and of our choosing. It is what lets
+ * these clients gate a feature on group membership the way the web components gate
+ * on a cohort's adGroupIds: inGroup(id) is the question to ask. An empty list means
+ * "in none of them", whatever the reason — no token yet, a token without the claim,
+ * an older adapter — so a gate built on it fails closed.
  */
 
 var CCPViewer = {};
@@ -78,6 +86,7 @@ CCPViewer.ENV_ATTEMPTS = 10;
  *            cmsEnv: function(): string, cmsEnvWhy: function(): string,
  *            tokenExpiresIn: function(): number, tokenAge: function(): number,
  *            claimKeys: function(): string,
+ *            groups: function(): string[], inGroup: function(string): boolean,
  *            refresh: function(boolean=): void, known: function(): boolean}}
  */
 CCPViewer.createViewer = function (options) {
@@ -102,6 +111,9 @@ CCPViewer.createViewer = function (options) {
   // console in a live session rather than by running the auth flow by hand and
   // decoding a bearer token off a diagnostic page.
   var claimKeys = "";
+  // The reader's group IDs, lower-cased by the adapter. [] until whoami answers.
+  /** @type {string[]} */
+  var groups = [];
   var envAttempts = 0;
   var inFlight = false;
   // getTime(), not Date.now(): the floor is document mode 5.
@@ -177,6 +189,7 @@ CCPViewer.createViewer = function (options) {
       // lands on "", which reads the same as a token we could not decode. Both
       // mean "cannot be told", and neither needs telling apart.
       claimKeys = data.claimKeys ? String(data.claimKeys) : "";
+      groups = readGroups(data.groups);
       if (!cmsEnv) {
         envAttempts = envAttempts + 1;
       }
@@ -197,7 +210,10 @@ CCPViewer.createViewer = function (options) {
         "tokenExpiresIn=" + tokenExpiresIn,
         // Last because it is the longest and the least often wanted: a reader
         // scanning for the replay numbers above should not have to step over it.
-        "claims=" + (claimKeys ? claimKeys : "(none)")
+        "claims=" + (claimKeys ? claimKeys : "(none)"),
+        // A COUNT, never the IDs: this ring buffer is what gets copied out of a
+        // console and pasted into a ticket.
+        "groups=" + groups.length
       );
       // Said ONCE, on the pass that stops asking, because this is the line that
       // explains a client which never registered anything at all.
@@ -205,6 +221,29 @@ CCPViewer.createViewer = function (options) {
         options.log("no CMS environment after " + envAttempts + " attempts — presence will not register");
       }
     });
+  }
+
+  // A copy of the strings only. The value came from an evaluated JSONP body, so it
+  // is checked for shape rather than trusted: anything that is not a list of
+  // strings yields fewer groups, never more. No Array.isArray at document mode 5,
+  // hence the length test — and a string has a length too, so it is ruled out first.
+  /**
+   * @param {*} value
+   * @returns {string[]}
+   */
+  function readGroups(value) {
+    /** @type {string[]} */
+    var out = [];
+    var i;
+    if (!value || typeof value === "string" || typeof value.length !== "number") {
+      return out;
+    }
+    for (i = 0; i < value.length; i++) {
+      if (typeof value[i] === "string" && value[i]) {
+        out.push(value[i].toLowerCase());
+      }
+    }
+    return out;
   }
 
   refresh();
@@ -230,6 +269,25 @@ CCPViewer.createViewer = function (options) {
     },
     claimKeys: function () {
       return claimKeys;
+    },
+    // A copy, so a caller cannot edit what the next inGroup reads.
+    groups: function () {
+      return groups.slice(0);
+    },
+    // Whether the reader is a member of this group, case-insensitively. A loop,
+    // not indexOf: arrays have no indexOf at document mode 5.
+    inGroup: function (id) {
+      var want = String(id || "").toLowerCase();
+      var i;
+      if (!want) {
+        return false;
+      }
+      for (i = 0; i < groups.length; i++) {
+        if (groups[i] === want) {
+          return true;
+        }
+      }
+      return false;
     },
     known: function () {
       return !!email;

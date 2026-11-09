@@ -230,6 +230,35 @@ function _tokenExpiresIn(claims: Record<string, unknown> | null): number {
 }
 
 /**
+ * The reader's Entra group IDs, from already-decoded claims.
+ *
+ * WHAT THIS CAN CONTAIN is decided by the app registration, not here. Ours emits
+ * groups as ApplicationGroup-filtered membership: only groups ASSIGNED to the app
+ * that the reader is a MEMBER of (ownership does not count). So the list is short
+ * and bounded by what we chose to assign — today that is FCT Global Navigation —
+ * not the reader's whole directory footprint.
+ *
+ * TOTAL, AND EMPTY MEANS "NOT IN ANY", which is the safe reading for a gate. No
+ * token, no `groups` claim (a Graph-audience token from the consent self-heal
+ * carries none), a non-array, and junk entries all collapse to fewer groups,
+ * never more. Each entry must be a GUID: the list is reflected into an executable
+ * JSONP body, and an ID is the only shape a group claim legitimately takes.
+ */
+function _groupsOf(claims: Record<string, unknown> | null): string[] {
+  const groups = claims ? claims.groups : null;
+  if (!Array.isArray(groups)) {
+    return [];
+  }
+  return groups
+    .filter(function (g) {
+      return typeof g === "string" && /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(g);
+    })
+    .map(function (g) {
+      return String(g).toLowerCase();
+    });
+}
+
+/**
  * Whole seconds since a token was issued, from its `iat` claim. -1 when there is
  * no token or no usable claim.
  *
@@ -1905,6 +1934,20 @@ async function handlePresenceJsonp(r: NginxHTTPRequest): Promise<void> {
           // membership — a cohort mechanism that needs no cookie, and so is
           // immune to the Edge/IE jar split that blocks reading preview state.
           claimKeys: claims ? Object.keys(claims).join(",") : "",
+          // THE READER'S GROUP IDS — a VALUE, unlike claimKeys above, and returned
+          // on the same footing as userEmail: it is the reader's own membership,
+          // told to a page that already acts as them. Bounded by the app
+          // registration (assigned groups only — see _groupsOf), so it is a
+          // handful of IDs we chose to assign, not their directory footprint.
+          //
+          // For the legacy clients to gate features on Entra group membership, the
+          // way the web components already do with a cohort's adGroupIds. A cookie
+          // is not involved, so the Edge/IE jar split that makes preview state
+          // awkward does not apply.
+          //
+          // NOT LOGGED: the log line above is op and environment only, and the
+          // log is a different audience from the response.
+          groups: _groupsOf(claims),
         }) +
         ")",
     );
