@@ -33,18 +33,19 @@ export const PreviewSchema = z.object({
   tabTitleUrn: z.boolean().optional(),
   notifications: z.boolean().optional(),
   useFullPageMsalRedirect: z.boolean().optional(),
-  caseLocking: z.boolean().optional(),
-
-  // Case-locking takes two flags:
-  //   caseLocking            register presence — exercises the hub and the API
+  // Case-locking takes ONE preview flag:
   //   caseLockingCountSelf   count yourself as another user, so the banner can be
   //                          seen at all by one developer on a case alone
   //
-  // THERE WAS A THIRD, caseLockingNotifications, which hid the banner and the
-  // interruption while presence registered regardless. Dropped 2026-11-06: with
-  // counting yourself off, a QA user alone on a case has nobody to be told about,
-  // so it was a second switch doing the first one's job. An old cookie that still
-  // carries it parses fine — z.object strips keys it does not know.
+  // THERE WERE TWO MORE, both dropped on 2026-11-06:
+  //   caseLocking            a per-user way to switch presence on. Whether it runs
+  //                          is now the FEATURE_FLAG_CASE_LOCKING_USERS cohort alone.
+  //   caseLockingNotifications  hid the banner and the interruption while presence
+  //                          registered regardless. With counting yourself off, a QA
+  //                          user alone on a case has nobody to be told about, so it
+  //                          was a second switch doing the first one's job.
+  // An old cookie that still carries either parses fine — z.object strips keys it
+  // does not know.
   //
   // THE INTERRUPTION HAD ITS OWN FLAG HERE and no longer needs one. It existed
   // while both surfaces fired on the same "someone else is on this case"

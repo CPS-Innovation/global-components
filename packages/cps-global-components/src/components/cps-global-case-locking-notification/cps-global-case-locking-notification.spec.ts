@@ -11,12 +11,13 @@ const present = (...users: string[]): CaseLockingPresentUsers => ({
 });
 const nobody: CaseLockingPresentUsers = { sections: [] };
 
-// The banner is switched on through preview, the same way it is in QA: case locking
-// needs an API URL and the preview opt-in. There is no second opt-in to show it.
-const preview = (caseLocking: boolean) => ({ found: true, result: { caseLocking } }) as any;
+// Switched on the way QA has it: an API URL and a generally-available cohort. There
+// is no preview opt-in, and no second opt-in to show it.
+const config = (generallyAvailable: boolean) =>
+  ({ CASE_LOCKING_API_URL: "https://example.org", FEATURE_FLAG_CASE_LOCKING_USERS: { generallyAvailable } }) as any;
 
 // Everything render() requires to be ready, with nobody on the case.
-const ready = { config: { CASE_LOCKING_API_URL: "https://example.org" } as any, preview: preview(true), authHint: { found: false } as any, caseLockingPresentUsers: nobody };
+const ready = { config: config(true), preview: { found: true, result: {} } as any, authHint: { found: false } as any, caseLockingPresentUsers: nobody };
 
 describe("cps-global-case-locking-notification live region", () => {
   let register: Register;
@@ -137,7 +138,7 @@ describe("cps-global-case-locking-notification live region", () => {
       await settle();
       await update({ caseLockingPresentUsers: present("a@cps.gov.uk") });
 
-      await update({ preview: preview(false) });
+      await update({ config: config(false) });
 
       expect(statusText()).toBe("");
     });
