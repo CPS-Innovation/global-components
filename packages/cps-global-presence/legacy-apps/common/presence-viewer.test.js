@@ -362,4 +362,69 @@ h.test("and its absence is equally visible", function () {
   h.assertTrue(r.viewer.claimKeys().split(",").indexOf("groups") === -1, "groups is not emitted");
 });
 
+h.describe("the reader's Entra groups");
+
+var GNAV = "12377eca-b463-4a6c-80ea-95f678f09591";
+
+h.test("are carried through, and inGroup answers for them", function () {
+  var r = rig();
+  r.reply({ userEmail: "someone@cps.gov.uk", cmsEnv: "CIN3", groups: [GNAV] });
+  h.assertEqual(r.viewer.groups(), [GNAV]);
+  h.assertTrue(r.viewer.inGroup(GNAV), "member");
+  h.assertTrue(!r.viewer.inGroup("00000000-0000-0000-0000-000000000000"), "not a member of another");
+});
+
+h.test("inGroup ignores case", function () {
+  var r = rig();
+  r.reply({ userEmail: "someone@cps.gov.uk", cmsEnv: "CIN3", groups: [GNAV.toUpperCase()] });
+  h.assertTrue(r.viewer.inGroup(GNAV), "upper in the answer");
+  h.assertTrue(r.viewer.inGroup(GNAV.toUpperCase()), "upper in the question");
+});
+
+// A gate built on this must fail closed, so every way of not knowing is "none".
+h.test("are empty before whoami answers", function () {
+  var r = rig();
+  h.assertEqual(r.viewer.groups(), []);
+  h.assertTrue(!r.viewer.inGroup(GNAV), "not before an answer");
+});
+
+h.test("are empty from an adapter that does not report them", function () {
+  var r = rig();
+  r.reply(IDENTITY);
+  h.assertEqual(r.viewer.groups(), []);
+});
+
+h.test("a malformed answer yields fewer groups, never more", function () {
+  var shapes = [GNAV, 42, { length: 1, 0: GNAV, hostile: true }, [GNAV, null, 7, ""]];
+  var expected = [[], [], [GNAV], [GNAV]];
+  var i, r;
+  for (i = 0; i < shapes.length; i++) {
+    r = rig();
+    r.reply({ userEmail: "someone@cps.gov.uk", cmsEnv: "CIN3", groups: shapes[i] });
+    h.assertEqual(r.viewer.groups(), expected[i], "shape " + i);
+  }
+});
+
+h.test("an empty or missing id is never a match", function () {
+  var r = rig();
+  r.reply({ userEmail: "someone@cps.gov.uk", cmsEnv: "CIN3", groups: [GNAV] });
+  h.assertTrue(!r.viewer.inGroup(""), "empty");
+  h.assertTrue(!r.viewer.inGroup(undefined), "undefined");
+});
+
+h.test("groups() hands out a copy", function () {
+  var r = rig();
+  r.reply({ userEmail: "someone@cps.gov.uk", cmsEnv: "CIN3", groups: [GNAV] });
+  r.viewer.groups().push("ffffffff-ffff-ffff-ffff-ffffffffffff");
+  h.assertEqual(r.viewer.groups(), [GNAV]);
+});
+
+// The console buffer gets pasted into tickets: a count, never the IDs.
+h.test("are logged as a count, never as IDs", function () {
+  var r = rig();
+  r.reply({ userEmail: "someone@cps.gov.uk", cmsEnv: "CIN3", groups: [GNAV] });
+  h.assertTrue(r.logged[0].indexOf("groups=1") !== -1, r.logged[0]);
+  h.assertTrue(r.logged[0].indexOf(GNAV) === -1, "no id in the log");
+});
+
 h.summarise();

@@ -58,6 +58,7 @@ interface MockRequestOptions {
 
 interface AuthPresenceModule {
   handleStatePreview(r: MockRequest): Promise<void>
+  handlePresenceJsonp(r: MockRequest): Promise<void>
 }
 
 async function build(): Promise<void> {
@@ -385,6 +386,63 @@ async function runTests(): Promise<void> {
     const read = createMockRequest({ cookie: `${COOKIE}=${stored}`, args: { callback: "cb" } })
     await mod.handleStatePreview(read)
     assertEqual(read.returnBody, `cb(${PREVIEW})`, "round trip")
+  })
+
+  // ---------------------------------------------------------------------------
+  // whoami's group IDs. Answered locally from the presence cookie — no upstream —
+  // so unlike the rest of the adapter it can be tested here.
+  // ---------------------------------------------------------------------------
+  console.log("\nwhoami groups:")
+
+  const b64urlJson = (o: unknown) => Buffer.from(JSON.stringify(o)).toString("base64").replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "")
+  const fakeJwt = (claims: Record<string, unknown>) => `${b64urlJson({ alg: "none" })}.${b64urlJson(claims)}.sig`
+  const GNAV = "12377eca-b463-4a6c-80ea-95f678f09591"
+
+  async function whoami(cookie?: string): Promise<Record<string, unknown>> {
+    const r = createMockRequest({ uri: "/global-components/presence-jsonp", cookie, args: { callback: "cb", op: "whoami" } })
+    await mod.handlePresenceJsonp(r)
+    const body = r.returnBody || ""
+    assert(body.indexOf("cb(") === 0 && body.endsWith(")"), `JSONP shape: ${body}`)
+    return JSON.parse(body.slice(3, -1))
+  }
+
+  await test("reports the groups the token carries", async () => {
+    const data = await whoami(`cms-auth-presence-token=${fakeJwt({ preferred_username: "a@cps.gov.uk", groups: [GNAV] })}`)
+    assertEqual(JSON.stringify(data.groups), JSON.stringify([GNAV]), "groups")
+  })
+
+  // ApplicationGroup emits only assigned groups, so "none" is the ordinary answer
+  // for someone outside every assigned group — and must read as an empty list.
+  await test("an empty list when the token has no groups claim", async () => {
+    const data = await whoami(`cms-auth-presence-token=${fakeJwt({ preferred_username: "a@cps.gov.uk" })}`)
+    assertEqual(JSON.stringify(data.groups), "[]", "no claim")
+  })
+
+  await test("an empty list when there is no token at all", async () => {
+    const data = await whoami()
+    assertEqual(JSON.stringify(data.groups), "[]", "no cookie")
+  })
+
+  await test("an empty list when groups is not an array", async () => {
+    const data = await whoami(`cms-auth-presence-token=${fakeJwt({ groups: GNAV })}`)
+    assertEqual(JSON.stringify(data.groups), "[]", "string, not array")
+  })
+
+  // The list is reflected into an executable JSONP body. Only GUIDs get through.
+  await test("drops anything that is not a GUID", async () => {
+    const data = await whoami(`cms-auth-presence-token=${fakeJwt({ groups: [GNAV, "</script><script>alert(1)", 42, null] })}`)
+    assertEqual(JSON.stringify(data.groups), JSON.stringify([GNAV]), "junk filtered")
+  })
+
+  await test("lower-cases IDs so a client compares like with like", async () => {
+    const data = await whoami(`cms-auth-presence-token=${fakeJwt({ groups: [GNAV.toUpperCase()] })}`)
+    assertEqual(JSON.stringify(data.groups), JSON.stringify([GNAV]), "lower-cased")
+  })
+
+  // The log is a different audience from the response: op and environment only.
+  await test("never logs a group ID", async () => {
+    await whoami(`cms-auth-presence-token=${fakeJwt({ groups: [GNAV] })}`)
+    assert(!logged.some((l) => l.indexOf(GNAV) !== -1), `logged: ${logged.join(" | ")}`)
   })
 
   console.log()

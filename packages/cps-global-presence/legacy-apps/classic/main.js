@@ -452,7 +452,10 @@ if (CMS_WATCHDOG_ENABLED === true) {
         // The claim names our presence token carries — names only, no values.
         // Answers "is claim X configured on the app registration" from a live
         // session; nothing in the client reads it.
-        claimKeys: viewer ? viewer.claimKeys() : ""
+        claimKeys: viewer ? viewer.claimKeys() : "",
+        // The reader's Entra group IDs — assigned groups they are a member of. Not
+        // acted on yet; a group-gated feature will read viewer.inGroup(id).
+        groups: viewer ? viewer.groups() : []
       };
     },
     // Re-ask whoami, past the point where it has stopped asking by itself. For

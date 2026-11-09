@@ -591,6 +591,7 @@ declare namespace CCPViewer {
      *            cmsEnv: function(): string, cmsEnvWhy: function(): string,
      *            tokenExpiresIn: function(): number, tokenAge: function(): number,
      *            claimKeys: function(): string,
+     *            groups: function(): string[], inGroup: function(string): boolean,
      *            refresh: function(boolean=): void, known: function(): boolean}}
      */
     function createViewer(options: {
@@ -604,6 +605,8 @@ declare namespace CCPViewer {
         tokenExpiresIn: () => number;
         tokenAge: () => number;
         claimKeys: () => string;
+        groups: () => string[];
+        inGroup: (arg0: string) => boolean;
         refresh: (arg0: boolean | undefined) => void;
         known: () => boolean;
     };

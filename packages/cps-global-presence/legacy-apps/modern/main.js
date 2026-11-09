@@ -274,7 +274,11 @@ window.__ccPresence = {
       // The claim names our presence token carries — names only, no values.
       // Answers "is claim X configured on the app registration" from a live
       // session; nothing in the client reads it.
-      claimKeys: viewer.claimKeys()
+      claimKeys: viewer.claimKeys(),
+      // The reader's Entra group IDs — assigned groups they are a member of. Not
+      // acted on yet; this is the input a group-gated feature will read through
+      // viewer.inGroup(id).
+      groups: viewer.groups()
     };
   },
   // Re-ask whoami, past the point where it has stopped asking by itself. For
