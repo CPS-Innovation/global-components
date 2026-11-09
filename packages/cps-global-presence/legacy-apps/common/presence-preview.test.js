@@ -38,7 +38,7 @@ function rig(onChange) {
   };
 }
 
-var FLAGS = { caseLocking: true, caseMarkers: "b" };
+var FLAGS = { caseSearch: true, caseMarkers: "b" };
 
 h.describe("asking");
 
@@ -74,10 +74,10 @@ h.describe("what it keeps");
 h.test("carries the flags through and logs their names", function () {
   var r = rig();
   r.reply(FLAGS);
-  h.assertEqual(r.preview.flags().caseLocking, true, "boolean flag");
+  h.assertEqual(r.preview.flags().caseSearch, true, "boolean flag");
   h.assertEqual(r.preview.flags().caseMarkers, "b", "enum flag");
   h.assertTrue(r.preview.known(), "known");
-  h.assertTrue(r.logged[0].indexOf("caseLocking") !== -1, r.logged[0]);
+  h.assertTrue(r.logged[0].indexOf("caseSearch") !== -1, r.logged[0]);
   h.assertTrue(r.logged[0].indexOf("caseMarkers") !== -1, r.logged[0]);
 });
 
@@ -126,7 +126,7 @@ h.test("no failure shape can turn a flag on", function () {
     var r = rig();
     r.reply(shapes[i]);
     h.assertTrue(
-      !r.preview.flags().caseLocking,
+      !r.preview.flags().caseSearch,
       "shape " + i + " must not enable anything: " + JSON.stringify(r.preview.flags())
     );
   }
@@ -139,7 +139,7 @@ h.test("a retry after a failure keeps the flags it then gets", function () {
   r.reply({ jsonpError: "transient" });
   r.preview.refresh();
   r.reply(FLAGS);
-  h.assertEqual(r.preview.flags().caseLocking, true, "picked up on the retry");
+  h.assertEqual(r.preview.flags().caseSearch, true, "picked up on the retry");
   h.assertTrue(r.preview.known(), "now settled");
 });
 

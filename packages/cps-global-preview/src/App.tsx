@@ -130,13 +130,6 @@ const FEATURES: Feature[] = [
     disabled: false,
   },
   {
-    key: "caseLocking",
-    label: "Case locking",
-    description:
-      "Enable the case-locking presence feature: register the user as present on the current case via the SignalR hub and notify when other users are working on the same case section.",
-    disabled: false,
-  },
-  {
     key: "caseLockingCountSelf",
     label: "Case locking — count myself",
     description:

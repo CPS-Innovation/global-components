@@ -30,8 +30,8 @@ const setup = (cmsSessionHint = ON_CIN3) => {
 
   const { initialiseCaseLockingForContext } = initialiseCaseLocking({
     window: window as any,
-    config: { CASE_LOCKING_API_URL: "https://example.test/api" } as any,
-    preview: { found: true, result: { caseLocking: true } } as any,
+    config: { CASE_LOCKING_API_URL: "https://example.test/api", FEATURE_FLAG_CASE_LOCKING_USERS: { generallyAvailable: true } } as any,
+    preview: { found: true, result: {} } as any,
     cmsSessionHint,
     register: jest.fn(),
   });

@@ -606,13 +606,12 @@ describe("FEATURE_FLAGS", () => {
       groups?: string[];
       objectId?: string;
       authHint?: any;
-      previewCaseLocking?: boolean;
     }) => ({
       config: {
         CASE_LOCKING_API_URL: overrides.apiUrl,
         FEATURE_FLAG_CASE_LOCKING_USERS: overrides.featureFlag,
       } as any,
-      preview: { found: true, result: { caseLocking: overrides.previewCaseLocking } } as any,
+      preview: { found: true, result: {} } as any,
       auth: {
         isAuthed: overrides.isAuthed ?? true,
         groups: overrides.groups ?? [],
@@ -627,7 +626,7 @@ describe("FEATURE_FLAGS", () => {
       expect(FEATURE_FLAGS.shouldEnableCaseLocking(state)).toBe(false);
     });
 
-    it("returns false when feature flag is not configured and preview override is off", () => {
+    it("returns false when feature flag is not configured", () => {
       const state = makeState({ apiUrl: "https://example.test/api" });
       expect(FEATURE_FLAGS.shouldEnableCaseLocking(state)).toBe(false);
     });
@@ -647,13 +646,11 @@ describe("FEATURE_FLAGS", () => {
       expect(FEATURE_FLAGS.shouldEnableCaseLocking(state)).toBe(false);
     });
 
-    it("returns true when preview override is on (even without group membership)", () => {
-      const state = makeState({ apiUrl: "https://example.test/api", featureFlag: { adGroupIds: ["case-locking-pilots"] }, groups: ["other-group"], previewCaseLocking: true });
-      expect(FEATURE_FLAGS.shouldEnableCaseLocking(state)).toBe(true);
-    });
-
-    it("returns false when preview override is on but api url is missing", () => {
-      const state = makeState({ featureFlag: { adGroupIds: ["case-locking-pilots"] }, previewCaseLocking: true });
+    // The old caseLocking preview flag is gone: a cookie that still carries it must
+    // not be able to switch presence on for someone the cohort leaves out.
+    it("ignores a stale caseLocking preview flag", () => {
+      const state = makeState({ apiUrl: "https://example.test/api", featureFlag: { adGroupIds: ["case-locking-pilots"] }, groups: ["other-group"] });
+      (state as any).preview = { found: true, result: { caseLocking: true } };
       expect(FEATURE_FLAGS.shouldEnableCaseLocking(state)).toBe(false);
     });
 

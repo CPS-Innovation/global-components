@@ -97,10 +97,12 @@ const shouldUseFullPageMsalRedirect = ({ config, preview, auth, authHint }: Flag
   !!preview?.result?.useFullPageMsalRedirect ||
   getFeatureFlagAssignment({ auth, authHint, config }, "FEATURE_FLAG_USE_MSAL_FULL_REDIRECT_USERS").result;
 
-const shouldEnableCaseLocking = ({ config, preview, auth, authHint }: FlagInputs) =>
-  !!config.CASE_LOCKING_API_URL &&
-  (!!preview?.result?.caseLocking ||
-    getFeatureFlagAssignment({ auth, authHint, config }, "FEATURE_FLAG_CASE_LOCKING_USERS").result);
+// THE COHORT IS THE ONLY SWITCH. There used to be a caseLocking preview flag as a
+// per-user way in; it was dropped on 2026-11-06 along with caseLockingNotifications,
+// so whether presence runs is now purely an environment decision: on in QA and dev
+// (generallyAvailable), off in UAT, and off in prod for want of an API URL.
+const shouldEnableCaseLocking = ({ config, auth, authHint }: FlagInputs) =>
+  !!config.CASE_LOCKING_API_URL && getFeatureFlagAssignment({ auth, authHint, config }, "FEATURE_FLAG_CASE_LOCKING_USERS").result;
 
 // THERE IS NO SEPARATE "SHOW" FLAG. The banner and the interruption card appear
 // whenever case locking is on and somebody else is genuinely on the case (or the
