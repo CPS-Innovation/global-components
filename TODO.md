@@ -66,6 +66,18 @@ In this repo:
 - [ ] Hold the **prod** proxy deploy until QA has run for a while. It takes over the
       `config.json` route there too, even though prod has no variants.
 
+### 3a. vnext as the bronze advance copy (2026-11-10)
+
+vnext now carries our changes to Polaris's global-components feature (state JSONP/`?set=`,
+navigate-cms `target=modern`, swagger) as regex locations marked `X-Gloco-Vnext`; see its README.
+
+- [ ] Deploy vnext (`deploy-vnext.local.sh`) **before** cms-augmentation, which no longer serves
+      `state/preview`. QA's deployed vnext is still the old one (`^~` swagger, validate-token).
+- [ ] Verify: `X-Gloco-Vnext` on `/global-components/state/preview?callback=cb` (answers
+      `cb(...)`), on `/global-components/swagger.json`, and absent on other `/api/` routes.
+- [ ] Cut the Polaris PR from vnext (each block names its target and `^~` shape); after it
+      deploys, the header disappears — then retire vnext's sections.
+
 ## 4. OS London/Dublin/oapps switch module (ours) — replaces the vnext switch
 
 The switch now lives in one transitional module, `infra/proxy/config/global-components.os-london-dublin-oapps-switch/`

@@ -11,8 +11,11 @@
  * deploy.local.sh's job, because only the box knows what is deployed.)
  *
  * An exact-match location of ours over a REGEX of Polaris's is fine and
- * deliberate (state/preview, the CMS frameset shell): different modifiers, not a
- * duplicate. What is caught is the same modifier with the same pattern.
+ * deliberate (the config.json overrides, the CMS frameset shell): different
+ * modifiers, not a duplicate. What is caught is the same modifier with the same
+ * pattern — for `=`, `^~`, prefix and named locations only. A duplicate REGEX is
+ * legal (the first loaded wins), and vnext relies on it: its bronze copies of
+ * Polaris's routes are regexes, some identical to Polaris's own (see its conf).
  */
 
 const path = require("path")
@@ -76,6 +79,9 @@ test("no location is defined twice across our confs and Polaris's", () => {
   const dupes = []
   for (const file of [...polarisConfs, ...ourConfs]) {
     for (const loc of locationsOf(file)) {
+      if (/^~\*? /.test(loc)) {
+        continue
+      }
       const prior = seen.get(loc)
       if (prior) {
         dupes.push(`${loc}  (${prior} and ${path.basename(file)})`)
@@ -104,6 +110,35 @@ test("each module imports its own .js from its own features/ folder, under a uni
       }
       names.set(name, stem)
     }
+  }
+})
+
+// vnext is BRONZE: the advance copy of our PR to Polaris's global-components feature.
+// Its locations must be regexes, so that the PR's `=`/`^~` copies beat them on
+// arrival and they can never collide with anything; and each must say it answered
+// (X-Gloco-Vnext), which is how we see the PR has taken over.
+test("vnext defines regex locations only, each marked X-Gloco-Vnext", () => {
+  const file = path.join(CONFIG_DIR, "global-components.vnext", "global-components.vnext.conf")
+  const text = fs
+    .readFileSync(file, "utf8")
+    .split("\n")
+    .filter((l) => !/^\s*#/.test(l))
+    .join("\n")
+  const blocks = text.split(/^(?=[ \t]*location\s)/m).slice(1)
+  if (blocks.length === 0) {
+    throw new Error("no locations found")
+  }
+  const bad = []
+  for (const block of blocks) {
+    const head = block.split("{")[0].trim()
+    if (!/^location\s+~\*?\s/.test(head)) {
+      bad.push(`${head}: not a regex`)
+    } else if (!/add_header\s+X-Gloco-Vnext\s+\S+\s+always;/.test(block)) {
+      bad.push(`${head}: no X-Gloco-Vnext header`)
+    }
+  }
+  if (bad.length) {
+    throw new Error("\n      " + bad.join("\n      "))
   }
 })
 

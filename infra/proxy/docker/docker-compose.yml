@@ -15,19 +15,21 @@ services:
       - global-components.mock.env
     environment:
       - NGINX_ENVSUBST_OUTPUT_DIR=/etc/nginx
+      # Polaris's conf (the legacy /api/navigate-cms block) and the injection locations use it.
+      - WEBSITE_SCHEME=http
       - WEBSITE_DNS_SERVER=127.0.0.11
       - AUTH_HANDOVER_WHITELIST=/auth-refresh-inbound,http://some-destination-domain.example.org
     volumes:
       # Mount directly from config/ (add .template suffix for nginx envsubst)
       - ../config/main/nginx.conf:/etc/nginx/templates/nginx.conf.template:ro
       - ../config/main/nginx.js:/etc/nginx/nginx.js:ro
-      - ../config/main/global-components.conf:/etc/nginx/templates/global-components.conf.template:ro
-      - ../dist/global-components.js:/etc/nginx/templates/global-components.js:ro
+      # Polaris's features layout: features/<feature>/<feature>.conf, the .js beside it.
+      - ../config/main/global-components.conf:/etc/nginx/templates/features/global-components/global-components.conf.template:ro
+      - ../dist/global-components.js:/etc/nginx/templates/features/global-components/global-components.js:ro
       # Test-only conf — exercises the $connection_upgrade `set`/`if` shim
-      # used by the watchdog module's SignalR proxy blocks. Mounted under a name
-      # matching the `global-components*.conf` include glob in nginx.conf so
-      # it gets loaded without changes to the main config.
-      - ./test-only.upgrade-shim.conf:/etc/nginx/global-components.test-upgrade-shim.conf:ro
+      # used by the watchdog module's SignalR proxy blocks. Mounted as a feature
+      # folder so the `features/*/*.conf` include in nginx.conf loads it.
+      - ./test-only.upgrade-shim.conf:/etc/nginx/templates/features/test-only.upgrade-shim/test-only.upgrade-shim.conf.template:ro
     depends_on:
       - mock-upstream
 

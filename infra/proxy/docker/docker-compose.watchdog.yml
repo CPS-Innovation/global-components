@@ -9,5 +9,5 @@
 services:
   nginx:
     volumes:
-      - ../config/global-components.watchdog/global-components.watchdog.conf:/etc/nginx/templates/global-components.watchdog.conf.template:ro
+      - ../config/global-components.watchdog/global-components.watchdog.conf:/etc/nginx/templates/features/global-components.watchdog/global-components.watchdog.conf.template:ro
       - ../dist/global-components.watchdog.js:/etc/nginx/templates/features/global-components.watchdog/global-components.watchdog.js:ro

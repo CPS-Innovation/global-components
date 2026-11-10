@@ -3,7 +3,8 @@
  * Integration tests for global-components.cms-augmentation.conf
  *
  * Light smoke tests: nginx starts with the conf mounted, the client <script> lands
- * in every page the conf injects into, and the temporary state route answers.
+ * in every page the conf injects into. (The preview state route moved to
+ * global-components.vnext; its tests went with it.)
  */
 
 const {
@@ -60,26 +61,11 @@ async function testInjection() {
 }
 
 // =============================================================================
-// Temporary tail — state/preview (moving to Polaris's module)
-// =============================================================================
-
-async function testStatePreview() {
-  console.log("\nState Preview Tests (/global-components/state/preview):")
-
-  await test("the JSONP read answers cb(null) with no cookie", async () => {
-    const response = await fetch(`${PROXY_BASE}/global-components/state/preview?callback=cb`)
-    assertEqual(response.status, 200, "Should return 200")
-    assertEqual(await response.text(), "cb(null)", "No preview, still a callback")
-  })
-}
-
-// =============================================================================
 // Main
 // =============================================================================
 
 async function main() {
   await testInjection()
-  await testStatePreview()
 }
 
 module.exports = main

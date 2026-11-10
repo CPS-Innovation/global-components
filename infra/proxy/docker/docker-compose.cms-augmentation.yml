@@ -13,7 +13,7 @@ services:
       - WEBSITE_SCHEME=http
       - CMS_RATE_LIMIT_QUEUE=100
     volumes:
-      - ../config/global-components.cms-augmentation/global-components.cms-augmentation.conf:/etc/nginx/templates/global-components.cms-augmentation.conf.template:ro
+      - ../config/global-components.cms-augmentation/global-components.cms-augmentation.conf:/etc/nginx/templates/features/global-components.cms-augmentation/global-components.cms-augmentation.conf.template:ro
       - ../dist/global-components.cms-augmentation.js:/etc/nginx/templates/features/global-components.cms-augmentation/global-components.cms-augmentation.js:ro
       # Reduced mock cmsenv for the injection locations — overrides the real cmsenv.js
       # baked into the image, so their js_set/proxy_pass resolve to the mock-upstream.

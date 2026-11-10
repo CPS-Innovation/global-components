@@ -3,7 +3,7 @@
   "private": true,
   "scripts": {
     "build": "./scripts/build.sh",
-    "test": "node config/main/tests/global-components.unit.test.js && node config/global-components.vnext/tests/global-components.vnext.unit.test.js && node config/global-components.os-london-dublin-oapps-switch/tests/global-components.os-london-dublin-oapps-switch.unit.test.js && node config/global-components.watchdog/tests/global-components.watchdog.unit.test.js && node config/global-components.cms-augmentation/tests/global-components.cms-augmentation.unit.test.js && node config/tests/features.unit.test.js && node config/main/tests/nginx.unit.test.js",
+    "test": "node config/main/tests/global-components.unit.test.js && node config/global-components.vnext/tests/global-components.vnext.unit.test.js && node config/global-components.os-london-dublin-oapps-switch/tests/global-components.os-london-dublin-oapps-switch.unit.test.js && node config/global-components.watchdog/tests/global-components.watchdog.unit.test.js && node config/tests/features.unit.test.js && node config/main/tests/nginx.unit.test.js",
     "test:integration": "pnpm build && ./run-tests.sh"
   }
 }

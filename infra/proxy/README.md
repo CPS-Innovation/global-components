@@ -18,10 +18,11 @@ Nginx reverse proxy with njs (JavaScript) for header/cookie manipulation. Used t
 
 ### Global components vnext config (`config/global-components.vnext/`)
 
-- `global-components.vnext.js` - njs module for state endpoint, token validation, swagger filtering
-- `global-components.vnext.conf.template` - nginx location blocks for vnext features (uses env vars: `${GLOBAL_COMPONENTS_APPLICATION_ID}`, `${GLOBAL_COMPONENTS_BLOB_STORAGE_URL}`)
-- `.env` - **gitignored** - contains vnext-specific config
-- `.env.example` - template for the above
+The ADVANCE copy of our changes to Polaris's global-components feature (state JSONP and
+`?set=`, navigate-cms `target=modern`, swagger), deployed ahead of the PR that carries them.
+Regex locations only (bronze), each marked `X-Gloco-Vnext`, so the PR's `=`/`^~` copies take
+over on arrival and the header disappears. Reads only Polaris's settings. See its
+[README](config/global-components.vnext/README.md).
 
 ### OS London/Dublin/oapps switch (`config/global-components.os-london-dublin-oapps-switch/`) — TRANSITIONAL
 
@@ -36,9 +37,8 @@ See its [README](config/global-components.os-london-dublin-oapps-switch/README.m
 ### CMS augmentation (`config/global-components.cms-augmentation/`)
 
 Injects our client scripts into the proxied CMS: Classic's frameset shell and Modern/DCF.
-Deployed by `scripts/deploy.local.sh` (not `deploy/deploy.sh`). Its njs is only a temporary
-tail (state/preview + cookie diagnostics) that is moving to Polaris's global-components
-module; after that it is conf-only. See its README.
+Deployed by `scripts/deploy.local.sh` (not `deploy/deploy.sh`). Its njs is the cookie
+diagnostics pages (`state/preview` moved to vnext). See its README.
 
 ### Watchdog (`config/global-components.watchdog/`)
 
@@ -51,9 +51,11 @@ Everything in front of the Watchdog (presence) API: the SignalR hub routes
 | Setting                            | Read by   | Notes |
 | ---------------------------------- | --------- | ----- |
 | `GLOBAL_COMPONENTS_WATCHDOG_HOST`  | watchdog  | Watchdog API host, bare. Until Terraform sets it, `deploy.local.sh` bakes it in from `config/global-components.watchdog/.env`. |
-| `GLOBAL_COMPONENTS_APPLICATION_ID` | vnext     | Set by hand today, so a Terraform apply that manages the app's settings wipes it. |
 
-Everything else our confs use (`${WEBSITE_DNS_SERVER}`, `${WEBSITE_SCHEME}`,
+(`GLOBAL_COMPONENTS_APPLICATION_ID` was read by vnext's token validation, removed 2026-11-10;
+the legacy `deploy/deploy.sh` still asks for it.)
+
+Everything else our confs use (`${WM_MDS_BASE_URL}`, `${WM_MDS_ACCESS_KEY}`, `${WEBSITE_DNS_SERVER}`, `${WEBSITE_SCHEME}`,
 `${CMS_RATE_LIMIT_QUEUE}`, `${CPS_GLOBAL_COMPONENTS_BLOB_STORAGE_DOMAIN}`) is already one of
 Polaris's.
 
@@ -154,12 +156,11 @@ Containers run as non-root users for security (checkov compliance):
 - `WM_MDS_ACCESS_KEY` - Azure Functions access key
 - `CPS_GLOBAL_COMPONENTS_BLOB_STORAGE_DOMAIN` - Domain for blob storage proxy (e.g., `sacpsglobalcomponents.blob.core.windows.net`)
 
-**VNext features (from `config/global-components.vnext/.env`):**
-- `GLOBAL_COMPONENTS_APPLICATION_ID` - Azure AD application ID for token validation
+**Legacy `deploy/deploy.sh` settings (no longer read by vnext's conf):**
+- `GLOBAL_COMPONENTS_APPLICATION_ID` - was for vnext's token validation (removed 2026-11-10)
 - `GLOBAL_COMPONENTS_BLOB_STORAGE_URL` - Base URL for blob storage (e.g., `https://sacpsglobalcomponents.blob.core.windows.net`)
 - `CPS_GLOBAL_COMPONENTS_BLOB_STORAGE_DOMAIN` - Domain for blob storage (e.g., `sacpsglobalcomponents.blob.core.windows.net`)
 
-Note: `TENANT_ID` is hardcoded in `global-components.vnext.js` as it doesn't change between environments.
 
 ### Environment variable substitution
 
@@ -190,7 +191,7 @@ Deployment is done from a remote machine with network access to Azure blob stora
 
 To blob storage (vnext-specific only):
 - `global-components.vnext.conf.template` - vnext nginx location blocks (with vnext env vars pre-substituted)
-- `global-components.vnext.js` - njs module for vnext features (state, token validation)
+- `global-components.vnext.js` - njs module for vnext features (state, navigate-cms, swagger)
 
 Note: `GLOBAL_COMPONENTS_APPLICATION_ID` and `GLOBAL_COMPONENTS_BLOB_STORAGE_URL` are baked into the config file via envsubst during deployment (from secrets.env). App settings code is commented out but can be re-enabled if needed.
 
@@ -224,7 +225,8 @@ This will:
 5. Restart the Azure web app
 
 There is no version endpoint to poll, so confirm the deploy by hitting a route the
-vnext conf owns once the app is back up, e.g. `/global-components/swagger.json`.
+vnext conf owns once the app is back up: `/global-components/swagger.json` answers with
+`X-Gloco-Vnext: swagger`.
 
 ### Rollback
 

@@ -27,21 +27,18 @@ presence JSONP adapter and the script injections. On 2026-11-10:
 `docs/` and `previous/` are the spike-era record of how the sign-in was designed (not built, not
 deployed; `previous/` is excluded from tsc and Sonar). Read them as history.
 
-## The temporary tail
+## Diagnostics
 
-The bottom of the conf, and all of the `.ts`, is on its way to Polaris's own global-components
-module (we PR from `config/main`):
+The bottom of the conf, and all of the njs, is the debug pages:
+`/global-components/diagnostic` and `/diagnostic/clear-cookies`. They stay here.
 
-- `/global-components/state/preview` — Polaris's state route plus a JSONP read (document mode 5
-  has no `JSON`) and a `?set=` navigation that writes the cookie in both browser engines;
-- `/global-components/diagnostic` and `/diagnostic/clear-cookies` — debug pages.
-
-Once Polaris ships them, delete the tail, the `js_import` and the `.ts`; this module becomes
-conf-only, with no njs and no settings.
+`/global-components/state/preview` (the JSONP read and the both-engines `?set=` write) used to
+be served here. It moved on 2026-11-10 to vnext, the advance copy of our PR to Polaris's
+global-components feature — see [vnext's README](../global-components.vnext/README.md). Deploy
+vnext first.
 
 ## Tests
 
-- `tests/*.unit.test.js` — the state route's `?set=` state machine (`pnpm test` in `infra/proxy`).
 - `tests/*.integration.test.js` — the docker `cms-augmentation` layer: each injection lands in
-  `<head>`, Classic refuses a non-IE browser it cannot flip, the state route answers
+  `<head>`, Classic refuses a non-IE browser it cannot flip, the diagnostics answer
   (`./run-tests.sh`).

@@ -7,6 +7,6 @@
 services:
   nginx:
     volumes:
-      - ../config/global-components.os-london-dublin-oapps-switch/global-components.os-london-dublin-oapps-switch.conf:/etc/nginx/templates/global-components.os-london-dublin-oapps-switch.conf.template:ro
+      - ../config/global-components.os-london-dublin-oapps-switch/global-components.os-london-dublin-oapps-switch.conf:/etc/nginx/templates/features/global-components.os-london-dublin-oapps-switch/global-components.os-london-dublin-oapps-switch.conf.template:ro
       - ../dist/global-components.os-london-dublin-oapps-switch.js:/etc/nginx/templates/features/global-components.os-london-dublin-oapps-switch/global-components.os-london-dublin-oapps-switch.js:ro
-      - ./test-only.polaris-launch.conf:/etc/nginx/global-components.test-polaris-launch.conf:ro
+      - ./test-only.polaris-launch.conf:/etc/nginx/templates/features/test-only.polaris-launch/test-only.polaris-launch.conf.template:ro
