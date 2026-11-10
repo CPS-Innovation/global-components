@@ -6,22 +6,11 @@ const TENANT_ID = "00dd0d1d-d7e6-4338-ac51-565339c7088c";
 const VALIDATE_TOKEN_AGAINST_AD = false; // Set to true when ready to enforce AD token validation
 const AD_AUTH_ENDPOINT = "https://graph.microsoft.com/v1.0/me";
 
-interface TokenClaims {
-  tid?: string;
-  appid?: string;
-  [key: string]: unknown;
-}
-
-interface ClaimsResult {
-  claimsAreValid: boolean;
-  claims: TokenClaims;
-}
-
-function _escapeRegExp(string: string): string {
+function _escapeRegExp(string) {
   return string.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
-function _base64UrlDecode(str: string): string {
+function _base64UrlDecode(str) {
   // Replace base64url chars with base64 chars
   str = str.replace(/-/g, "+").replace(/_/g, "/");
   // Pad if necessary
@@ -31,8 +20,8 @@ function _base64UrlDecode(str: string): string {
   return atob(str);
 }
 
-function _extractAndValidateClaims(r: NginxHTTPRequest): ClaimsResult {
-  const authHeader = r.headersIn["Authorization"] as string | undefined;
+function _extractAndValidateClaims(r) {
+  const authHeader = r.headersIn["Authorization"];
 
   if (!authHeader || !authHeader.startsWith("Bearer ")) {
     return { claimsAreValid: false, claims: {} };
@@ -47,7 +36,7 @@ function _extractAndValidateClaims(r: NginxHTTPRequest): ClaimsResult {
 
   try {
     const payload = _base64UrlDecode(parts[1]);
-    const claims: TokenClaims = JSON.parse(payload);
+    const claims = JSON.parse(payload);
     const claimsAreValid =
       claims &&
       claims.tid === TENANT_ID &&
@@ -58,7 +47,7 @@ function _extractAndValidateClaims(r: NginxHTTPRequest): ClaimsResult {
   }
 }
 
-async function _validateToken(r: NginxHTTPRequest): Promise<boolean> {
+async function _validateToken(r) {
   // Skip validation entirely if not enforcing AD tokens
   if (!VALIDATE_TOKEN_AGAINST_AD) {
     return true;
@@ -71,7 +60,7 @@ async function _validateToken(r: NginxHTTPRequest): Promise<boolean> {
   }
 
   // Second: validate token with Graph API (checks signature, expiry, revocation)
-  const authHeader = r.headersIn["Authorization"] as string;
+  const authHeader = r.headersIn["Authorization"];
   try {
     const response = await ngx.fetch(AD_AUTH_ENDPOINT, {
       method: "GET",
@@ -86,17 +75,13 @@ async function _validateToken(r: NginxHTTPRequest): Promise<boolean> {
   }
 }
 
-async function handleValidateToken(r: NginxHTTPRequest): Promise<void> {
+async function handleValidateToken(r) {
   // Used by auth_request - returns 200 if valid, 401 if not
   const isValid = await _validateToken(r);
   r.return(isValid ? 200 : 401, "");
 }
 
-function filterSwaggerBody(
-  r: NginxHTTPRequest,
-  data: string,
-  flags: NginxHTTPSendBufferOptions,
-): void {
+function filterSwaggerBody(r, data, flags) {
   // Point the doc at the route that actually proxies to MDS.
   //
   // WM_MDS_BASE_URL ends in /api/, and this proxy exposes that same surface at
@@ -109,11 +94,11 @@ function filterSwaggerBody(
   // to /global-components/authenticate, which matches no location block and
   // 404s. Operation paths are deliberately NOT rewritten: swagger-ui joins them
   // onto the server url itself, so touching them here doubles the prefix.
-  const host = (r.headersIn["Host"] as string) || r.variables.host;
+  const host = r.headersIn["Host"] || r.variables.host;
   const proxyBase = "https://" + host + "/global-components/api";
 
   // Strip trailing slash from base URL for matching (swagger may not include it)
-  const baseUrl = (r.variables.wm_mds_base_url as string).replace(/\/$/, "");
+  const baseUrl = r.variables.wm_mds_base_url.replace(/\/$/, "");
   const pattern = new RegExp(_escapeRegExp(baseUrl), "g");
 
   r.sendBuffer(data.replace(pattern, proxyBase), flags);

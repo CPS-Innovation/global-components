@@ -59,7 +59,7 @@ into both, by one route only.
 ## Files
 
 - `global-components.os-london-dublin-oapps-switch.conf` — locations, js_sets, the divert.
-- `global-components.os-london-dublin-oapps-switch.ts` — njs: `readConfigBlobName`,
+- `global-components.os-london-dublin-oapps-switch.js` — njs: `readConfigBlobName`,
   `launchTarget`, `launchSignalled`, `handleSet`, `handleStatus`.
 - `tests/` — unit tests (Node) and the Docker integration layer
   (`docker/docker-compose.os-london-dublin-oapps-switch.yml`, with
@@ -68,7 +68,7 @@ into both, by one route only.
 ## Deploying
 
 QA only. `scripts/deploy-os-london-dublin-oapps-switch.local.sh` (gitignored) uploads the
-compiled js then the conf to `features/global-components.os-london-dublin-oapps-switch/` and
+js then the conf to `features/global-components.os-london-dublin-oapps-switch/` and
 restarts the proxy. Before uploading it deletes the module's pre-rename blobs
 (`features/global-components.multi-os-domain-testing/`): both would define the `config.json`
 locations, and nginx would not start.

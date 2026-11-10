@@ -41,7 +41,7 @@ conf-only, with no njs and no settings.
 
 ## Tests
 
-- `tests/*.unit.test.ts` — the state route's `?set=` state machine (`pnpm test` in `infra/proxy`).
+- `tests/*.unit.test.js` — the state route's `?set=` state machine (`pnpm test` in `infra/proxy`).
 - `tests/*.integration.test.js` — the docker `cms-augmentation` layer: each injection lands in
   `<head>`, Classic refuses a non-IE browser it cannot flip, the state route answers
   (`./run-tests.sh`).

@@ -7,7 +7,7 @@ publishes the presence clients; that part is in `packages/cps-global-presence/RE
 
 - `az` logged in as a principal with **Storage Blob Data Contributor** on the config
   storage account, and rights to restart the App Service.
-- Node + npm (to build via `npx tsc`).
+- Node + pnpm (`pnpm build` copies the njs into `dist/`; there is no compile step).
 
 ## Inputs
 

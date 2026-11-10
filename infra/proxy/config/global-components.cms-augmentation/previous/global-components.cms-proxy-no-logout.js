@@ -9,10 +9,10 @@
 // Helpers
 // ---------------------------------------------------------------------------
 
-function _getCookie(r: NginxHTTPRequest, name: string): string | null {
+function _getCookie(r, name) {
   const cookies = r.headersIn["Cookie"]
   if (!cookies) return null
-  const match = (cookies as string).match(
+  const match = cookies.match(
     new RegExp("(?:^|;\\s*)" + name + "=([^;]*)")
   )
   return match ? match[1] : null
@@ -22,7 +22,7 @@ function _getCookie(r: NginxHTTPRequest, name: string): string | null {
 // CMS Login intercept
 // ---------------------------------------------------------------------------
 
-async function handleCmsLoginIntercept(r: NginxHTTPRequest): Promise<void> {
+async function handleCmsLoginIntercept(r) {
   const cmsAuth = _getCookie(r, ".CMSAUTH")
 
   if (r.method === "GET" && cmsAuth) {

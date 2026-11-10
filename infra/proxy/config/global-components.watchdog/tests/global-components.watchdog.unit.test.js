@@ -1,91 +1,44 @@
-#!/usr/bin/env npx ts-node
+#!/usr/bin/env node
 /**
- * Build and run unit tests for global-components.watchdog.ts — the SignalR hub
+ * Build and run unit tests for global-components.watchdog.js — the SignalR hub
  * route's filters and js_sets, and the presence-jsonp adapter.
  *
- * Uses esbuild to bundle the njs module, then runs the unit tests
- * against the bundled code.
+ * Loads the njs source with njs-loader.js (an .mjs copy, no bundler).
  */
 
-import * as esbuild from "esbuild"
-import * as path from "path"
+const path = require("path")
+const { loadNjs } = require("../../../njs-loader")
 
-// eslint-disable-next-line @typescript-eslint/no-require-imports
-const fs = require("fs") as typeof import("fs")
+const fs = require("fs")
 const CONFIG_DIR = path.join(__dirname, "..", "..")
-const DIST_DIR = path.join(__dirname, "..", "..", "..", ".dist")
 const MODULE_DIR = path.join(CONFIG_DIR, "global-components.watchdog")
 
-if (!fs.existsSync(DIST_DIR)) {
-  fs.mkdirSync(DIST_DIR, { recursive: true })
-}
-
-interface MockRequest {
-  uri: string
-  headersIn: Record<string, string | undefined>
-  headersOut: Record<string, string | undefined>
-  variables: Record<string, string>
-  args: Record<string, string>
-  sentBuffer: string | null
-  sentFlags: Record<string, unknown> | null
-  sendBuffer(buffer: string, flags: Record<string, unknown>): void
-  returnCode: number | null
-  returnBody: string | null
-  return(code: number, body: string): void
-}
-
-interface WatchdogModule {
-  dropContentLengthForNegotiate(r: MockRequest): void
-  filterNegotiateBody(r: MockRequest, data: string, flags: Record<string, unknown>): void
-  presenceBearer(r: MockRequest): string
-  watchdogAppName(r: MockRequest): string
-  watchdogHost(r: MockRequest): string
-  handlePresenceJsonp(r: MockRequest): Promise<void>
-}
-
-interface FetchCall {
-  url: string
-  opts: { method: string; headers: Record<string, string>; body?: string }
-}
-
-async function build(): Promise<void> {
-  await esbuild.build({
-    entryPoints: [path.join(MODULE_DIR, "global-components.watchdog.ts")],
-    bundle: true,
-    outfile: path.join(DIST_DIR, "global-components.watchdog.bundle.js"),
-    format: "esm",
-    platform: "node",
-    logLevel: "error",
-  })
-}
-
-async function runTests(): Promise<void> {
+async function runTests() {
   // The module only touches ngx inside handlers, so stubbing it here is enough.
   // Logs are collected so tests can assert what must NOT be logged; fetches are
   // recorded and answered from `fetchReply`.
-  const logged: string[] = []
-  const fetches: FetchCall[] = []
+  const logged = []
+  const fetches = []
   let fetchReply = { status: 200, text: "{}" }
-  ;(globalThis as Record<string, unknown>).ngx = {
+  ;globalThis.ngx = {
     WARN: 4,
     ERR: 3,
-    log: (_level: number, msg: string) => {
+    log: (_level, msg) => {
       logged.push(msg)
     },
-    fetch: async (url: string, opts: FetchCall["opts"]) => {
+    fetch: async (url, opts) => {
       fetches.push({ url, opts })
       return { status: fetchReply.status, text: async () => fetchReply.text }
     },
   }
 
-  const modulePath = path.join(DIST_DIR, "global-components.watchdog.bundle.js")
-  const module = await import(modulePath)
-  const watchdog: WatchdogModule = module.default
+  const modulePath = path.join(MODULE_DIR, "global-components.watchdog.js")
+  const watchdog = await loadNjs(modulePath)
 
   let passed = 0
   let failed = 0
 
-  function assertEqual(actual: unknown, expected: unknown, message: string): void {
+  function assertEqual(actual, expected, message) {
     if (actual !== expected) {
       throw new Error(
         `${message}\n  Expected: ${JSON.stringify(expected)}\n  Actual:   ${JSON.stringify(actual)}`
@@ -93,13 +46,13 @@ async function runTests(): Promise<void> {
     }
   }
 
-  function assert(condition: boolean, message: string): void {
+  function assert(condition, message) {
     if (!condition) {
       throw new Error(message)
     }
   }
 
-  async function test(name: string, fn: () => Promise<void>): Promise<void> {
+  async function test(name, fn) {
     logged.length = 0
     fetches.length = 0
     fetchReply = { status: 200, text: "{}" }
@@ -110,19 +63,15 @@ async function runTests(): Promise<void> {
     } catch (err) {
       failed++
       console.log(`  \x1b[31m✗\x1b[0m ${name}`)
-      console.log(`    ${(err as Error).message}`)
+      console.log(`    ${err.message}`)
     }
   }
 
   function createMockRequest(
-    uri: string,
-    opts: {
-      headersIn?: Record<string, string>
-      headersOut?: Record<string, string>
-      variables?: Record<string, string>
-      args?: Record<string, string>
-    } = {}
-  ): MockRequest {
+    uri,
+    opts
+    = {}
+  ) {
     return {
       uri,
       headersIn: { Host: "proxy.example.com", ...(opts.headersIn ?? {}) },
@@ -131,13 +80,13 @@ async function runTests(): Promise<void> {
       args: { ...(opts.args ?? {}) },
       sentBuffer: null,
       sentFlags: null,
-      sendBuffer(buffer: string, flags: Record<string, unknown>) {
+      sendBuffer(buffer, flags) {
         this.sentBuffer = buffer
         this.sentFlags = flags
       },
       returnCode: null,
       returnBody: null,
-      return(code: number, body: string) {
+      return(code, body) {
         this.returnCode = code
         this.returnBody = body
       },
@@ -171,7 +120,7 @@ async function runTests(): Promise<void> {
   await test("passes a Buffer body (nginx's own `return` text) through without throwing", async () => {
     const r = createMockRequest("/global-components/case-locking/api/hubs/notifications/negotiate")
     const body = Buffer.from("watchdog: GLOBAL_COMPONENTS_WATCHDOG_HOST not configured\n")
-    watchdog.filterNegotiateBody(r, body as unknown as string, { last: true })
+    watchdog.filterNegotiateBody(r, body, { last: true })
     assertEqual(r.sentBuffer, body.toString(), "the 503 text reaches the client intact")
   })
 
@@ -182,7 +131,7 @@ async function runTests(): Promise<void> {
       accessToken: "the-token",
     })
     watchdog.filterNegotiateBody(r, negotiateBody, { last: true })
-    const out = JSON.parse(r.sentBuffer!)
+    const out = JSON.parse(r.sentBuffer)
     assertEqual(
       out.url,
       "https://proxy.example.com/global-components/case-locking/api/sr/sr-cms-presence/client/?hub=sectionsessionhub&asrs.op=%2Fsection-view",
@@ -200,7 +149,7 @@ async function runTests(): Promise<void> {
       url: "https://sr-cms-presence.service.signalr.net/client/?hub=h",
     })
     watchdog.filterNegotiateBody(r, negotiateBody, { last: true })
-    const out = JSON.parse(r.sentBuffer!)
+    const out = JSON.parse(r.sentBuffer)
     assertEqual(
       out.url,
       "https://proxy.example.com/global-components/case-locking/api/sr/sr-cms-presence/client/?hub=h",
@@ -215,7 +164,7 @@ async function runTests(): Promise<void> {
       accessToken: "x",
     })
     watchdog.filterNegotiateBody(r, negotiateBody, { last: true })
-    const out = JSON.parse(r.sentBuffer!)
+    const out = JSON.parse(r.sentBuffer)
     assertEqual(
       out.url,
       "https://something-else.example.com/client/?hub=foo",
@@ -252,7 +201,7 @@ async function runTests(): Promise<void> {
     const r = createMockRequest("/global-components/case-locking/api/section-view/negotiate")
     watchdog.filterNegotiateBody(r, '{"url":"https://SR-Cms-Presence.service.signalr.net/client/?hub=h"}', { last: true })
     assertEqual(
-      JSON.parse(r.sentBuffer!).url,
+      JSON.parse(r.sentBuffer).url,
       "https://proxy.example.com/global-components/case-locking/api/sr/sr-cms-presence/client/?hub=h",
       "instance lower-cased",
     )
@@ -262,7 +211,7 @@ async function runTests(): Promise<void> {
     const r = createMockRequest("/global-components/case-locking/api/section-view/negotiate")
     watchdog.filterNegotiateBody(r, '{"url":"https://another-instance-2.service.signalr.net/client/?hub=h"}', { last: true })
     assertEqual(
-      JSON.parse(r.sentBuffer!).url,
+      JSON.parse(r.sentBuffer).url,
       "https://proxy.example.com/global-components/case-locking/api/sr/another-instance-2/client/?hub=h",
       "whatever the negotiate names",
     )
@@ -274,14 +223,14 @@ async function runTests(): Promise<void> {
     const conf = fs.readFileSync(path.join(MODULE_DIR, "global-components.watchdog.conf"), "utf8")
     const m = conf.match(/^location ~ "(\^\/global-components\/case-locking\/api\/sr\/[^"]+)" \{/m)
     assert(!!m, "sr location (quoted regex)")
-    const re = new RegExp(m![1]!.replace(/\(\?<\w+>/g, "("))
+    const re = new RegExp(m [1].replace(/\(\?<\w+>/g, "("))
     const r = createMockRequest("/global-components/case-locking/api/section-view/negotiate")
     watchdog.filterNegotiateBody(r, '{"url":"https://Sr-Cms-Presence.service.signalr.net/client/negotiate?hub=h"}', { last: true })
-    const written = new URL(JSON.parse(r.sentBuffer!).url).pathname
+    const written = new URL(JSON.parse(r.sentBuffer).url).pathname
     const hit = written.match(re)
     assert(!!hit, `matches ${written}`)
-    assertEqual(hit![1], "sr-cms-presence", "instance capture")
-    assertEqual(hit![2], "client/negotiate", "path capture")
+    assertEqual(hit [1], "sr-cms-presence", "instance capture")
+    assertEqual(hit [2], "client/negotiate", "path capture")
     for (const bad of [
       "/global-components/case-locking/api/sr/evil.example.com/x",
       "/global-components/case-locking/api/sr/evil.example.com%2F/x",
@@ -385,26 +334,21 @@ async function runTests(): Promise<void> {
 
   // ---------------------------------------------------------------------------
   // Upstream hosts: process.env -> deploy-time baked token -> "". The settings are
-  // read at module load, so each case loads its own copy of the bundle (written to
-  // a distinct file, so the import cache cannot hand back an earlier one).
+  // read at module load, so each case loads its own copy of the module (njs-loader
+  // writes a distinct file each time, so the import cache cannot hand back an earlier one).
   // ---------------------------------------------------------------------------
   const HOST_ENV = ["GLOBAL_COMPONENTS_WATCHDOG_HOST"]
-  let copyN = 0
-  async function loadWith(env: Record<string, string>, bake: Record<string, string> = {}): Promise<WatchdogModule> {
-    const saved: Record<string, string | undefined> = {}
+  async function loadWith(env, bake = {}) {
+    const saved = {}
     for (const k of HOST_ENV) {
       saved[k] = process.env[k]
       delete process.env[k]
     }
     Object.assign(process.env, env)
     try {
-      let code = fs.readFileSync(modulePath, "utf8")
-      for (const [k, v] of Object.entries(bake)) {
-        code = code.split("@@" + k + "@@").join(v)
-      }
-      const copy = path.join(DIST_DIR, `global-components.watchdog.hosts-${copyN++}.mjs`)
-      fs.writeFileSync(copy, code)
-      return (await import(copy)).default
+      return await loadNjs(modulePath, (code) =>
+        Object.entries(bake).reduce((c, [k, v]) => c.split("@@" + k + "@@").join(v), code),
+      )
     } finally {
       for (const k of HOST_ENV) {
         if (saved[k] === undefined) {
@@ -438,7 +382,7 @@ async function runTests(): Promise<void> {
   // The one setting is the only @@token@@ left in the module: deploy.local.sh
   // stops a live run on any token without a value, so a stray one is a failed deploy.
   await test("GLOBAL_COMPONENTS_WATCHDOG_HOST is the only deploy-time token", async () => {
-    const src = fs.readFileSync(path.join(MODULE_DIR, "global-components.watchdog.ts"), "utf8")
+    const src = fs.readFileSync(path.join(MODULE_DIR, "global-components.watchdog.js"), "utf8")
     const tokens = Array.from(new Set(src.match(/@@[A-Z0-9_]+@@/g) || []))
     assertEqual(JSON.stringify(tokens), JSON.stringify(["@@GLOBAL_COMPONENTS_WATCHDOG_HOST@@"]), "tokens")
   })
@@ -449,13 +393,13 @@ async function runTests(): Promise<void> {
   // ---------------------------------------------------------------------------
   console.log("\npresence-jsonp:")
 
-  const b64urlJson = (o: unknown) => Buffer.from(JSON.stringify(o)).toString("base64").replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "")
-  const fakeJwt = (claims: Record<string, unknown>) => `${b64urlJson({ alg: "none" })}.${b64urlJson(claims)}.sig`
+  const b64urlJson = (o) => Buffer.from(JSON.stringify(o)).toString("base64").replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "")
+  const fakeJwt = (claims) => `${b64urlJson({ alg: "none" })}.${b64urlJson(claims)}.sig`
   const GNAV = "12377eca-b463-4a6c-80ea-95f678f09591"
 
   // handlePresenceJsonp reads query args as $arg_<name>: RAW, still percent-encoded.
-  const jsonpRequest = (args: Record<string, string>, cookie?: string): MockRequest => {
-    const variables: Record<string, string> = {}
+  const jsonpRequest = (args, cookie) => {
+    const variables = {}
     for (const [k, v] of Object.entries(args)) {
       variables["arg_" + k] = v
     }
@@ -464,7 +408,7 @@ async function runTests(): Promise<void> {
       headersIn: cookie ? { Cookie: cookie } : {},
     })
   }
-  const unwrap = (r: MockRequest) => {
+  const unwrap = (r) => {
     const body = r.returnBody || ""
     assert(body.indexOf("cb(") === 0 && body.endsWith(")"), `JSONP shape: ${body}`)
     return JSON.parse(body.slice(3, -1))
@@ -482,28 +426,28 @@ async function runTests(): Promise<void> {
     const r = jsonpRequest({ op: "poll", sid: "s1", callback: "cb" }, "cms-auth-presence-token=a.b.c")
     await withHost.handlePresenceJsonp(r)
     assertEqual(fetches.length, 1, "one upstream call")
-    assertEqual(fetches[0]!.url, "https://watchdog.example/api/sessions/s1", "url")
-    assertEqual(fetches[0]!.opts.method, "GET", "verb")
-    assertEqual(fetches[0]!.opts.headers["Authorization"], "Bearer a.b.c", "Bearer, never Bearer-Test")
+    assertEqual(fetches[0].url, "https://watchdog.example/api/sessions/s1", "url")
+    assertEqual(fetches[0].opts.method, "GET", "verb")
+    assertEqual(fetches[0].opts.headers["Authorization"], "Bearer a.b.c", "Bearer, never Bearer-Test")
   })
 
   await test("no cookie, no Authorization — the API's 401 is the signal, not a fallback", async () => {
     const r = jsonpRequest({ op: "poll", sid: "s1", callback: "cb" })
     await withHost.handlePresenceJsonp(r)
-    assertEqual(fetches[0]!.opts.headers["Authorization"], undefined, "no header")
+    assertEqual(fetches[0].opts.headers["Authorization"], undefined, "no header")
   })
 
   await test("an absent or unknown appName reports as CMS Classic; a known one passes", async () => {
     await withHost.handlePresenceJsonp(jsonpRequest({ op: "poll", sid: "s1", callback: "cb", appName: "Nope" }))
     await withHost.handlePresenceJsonp(jsonpRequest({ op: "poll", sid: "s1", callback: "cb", appName: "CMS%20Modern" }))
-    assertEqual(fetches[0]!.opts.headers["X-Watchdog-App-Name"], "CMS Classic", "default")
-    assertEqual(fetches[1]!.opts.headers["X-Watchdog-App-Name"], "CMS Modern", "known")
+    assertEqual(fetches[0].opts.headers["X-Watchdog-App-Name"], "CMS Classic", "default")
+    assertEqual(fetches[1].opts.headers["X-Watchdog-App-Name"], "CMS Modern", "known")
   })
 
   await test("create posts the sectionId", async () => {
     await withHost.handlePresenceJsonp(jsonpRequest({ op: "create", sectionId: "CASE%3A1", callback: "cb" }))
-    assertEqual(fetches[0]!.opts.method, "POST", "verb")
-    assertEqual(fetches[0]!.opts.body, JSON.stringify({ sectionId: "CASE:1" }), "body")
+    assertEqual(fetches[0].opts.method, "POST", "verb")
+    assertEqual(fetches[0].opts.body, JSON.stringify({ sectionId: "CASE:1" }), "body")
   })
 
   await test("an upstream failure comes back through the callback", async () => {
@@ -522,7 +466,7 @@ async function runTests(): Promise<void> {
 
   console.log("\nwhoami groups:")
 
-  const whoami = async (cookie?: string): Promise<Record<string, unknown>> => {
+  const whoami = async (cookie) => {
     const r = jsonpRequest({ op: "whoami", callback: "cb" }, cookie)
     await watchdog.handlePresenceJsonp(r)
     return unwrap(r)
@@ -576,10 +520,9 @@ async function runTests(): Promise<void> {
 
 ;(async () => {
   try {
-    await build()
     await runTests()
   } catch (err) {
-    console.error("Build/test failed:", (err as Error).message)
+    console.error("Build/test failed:", err.message)
     process.exit(1)
   }
 })()

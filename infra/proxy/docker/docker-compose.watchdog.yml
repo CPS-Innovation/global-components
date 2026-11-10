@@ -1,7 +1,7 @@
 # Watchdog layer override
 # Use: docker compose -f docker-compose.yml -f docker-compose.watchdog.yml up --build
 #
-# Mounts the conf and compiled JS. GLOBAL_COMPONENTS_WATCHDOG_HOST is deliberately
+# Mounts the conf and JS. GLOBAL_COMPONENTS_WATCHDOG_HOST is deliberately
 # NOT set: the test pins what an unconfigured box does (the JSONP adapter names the
 # setting, the hub route answers 503, nginx still starts), and whoami — answered
 # locally, no upstream — is the health check.

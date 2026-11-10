@@ -1,4 +1,4 @@
-#!/usr/bin/env npx ts-node
+#!/usr/bin/env node
 /**
  * Our feature confs load side by side: the deployed new-generation config does
  * `include features/*\/*.conf;` in one server block, next to Polaris's own
@@ -15,15 +15,15 @@
  * duplicate. What is caught is the same modifier with the same pattern.
  */
 
-import * as path from "path"
-import * as fs from "fs"
+const path = require("path")
+const fs = require("fs")
 
 const CONFIG_DIR = path.join(__dirname, "..")
 
 let passed = 0
 let failed = 0
 
-function test(name: string, fn: () => void): void {
+function test(name, fn) {
   try {
     fn()
     passed++
@@ -31,24 +31,24 @@ function test(name: string, fn: () => void): void {
   } catch (err) {
     failed++
     console.log(`  \x1b[31m✗\x1b[0m ${name}`)
-    console.log(`    ${(err as Error).message}`)
+    console.log(`    ${err.message}`)
   }
 }
 
 // `location [=|~|~*|^~|@]pattern {` — the pattern may be quoted (a regex with braces).
 const LOCATION = /^\s*location\s+(=|~\*|~|\^~)?\s*("[^"]+"|@?\S+)\s*\{/gm
 
-function locationsOf(file: string): string[] {
+function locationsOf(file) {
   const text = fs
     .readFileSync(file, "utf8")
     .split("\n")
     .filter((l) => !/^\s*#/.test(l))
     .join("\n")
-  const found: string[] = []
-  let m: RegExpExecArray | null
+  const found = []
+  let m
   LOCATION.lastIndex = 0
   while ((m = LOCATION.exec(text)) !== null) {
-    found.push(`${m[1] || ""} ${m[2]!.replace(/^"|"$/g, "")}`.trim())
+    found.push(`${m[1] || ""} ${m[2].replace(/^"|"$/g, "")}`.trim())
   }
   return found
 }
@@ -72,8 +72,8 @@ test("every feature folder has its conf (the layout deploy.local.sh assumes)", (
 })
 
 test("no location is defined twice across our confs and Polaris's", () => {
-  const seen = new Map<string, string>()
-  const dupes: string[] = []
+  const seen = new Map()
+  const dupes = []
   for (const file of [...polarisConfs, ...ourConfs]) {
     for (const loc of locationsOf(file)) {
       const prior = seen.get(loc)
@@ -90,7 +90,7 @@ test("no location is defined twice across our confs and Polaris's", () => {
 })
 
 test("each module imports its own .js from its own features/ folder, under a unique name", () => {
-  const names = new Map<string, string>()
+  const names = new Map()
   for (const file of ourConfs) {
     const stem = path.basename(file, ".conf")
     const text = fs.readFileSync(file, "utf8")
@@ -99,10 +99,10 @@ test("each module imports its own .js from its own features/ folder, under a uni
       if (from !== `templates/features/${stem}/${stem}.js`) {
         throw new Error(`${stem} imports ${from}`)
       }
-      if (names.has(name!)) {
-        throw new Error(`js_import name ${name} used by ${names.get(name!)} and ${stem}`)
+      if (names.has(name)) {
+        throw new Error(`js_import name ${name} used by ${names.get(name)} and ${stem}`)
       }
-      names.set(name!, stem)
+      names.set(name, stem)
     }
   }
 })
@@ -115,7 +115,7 @@ test("each module imports its own .js from its own features/ folder, under a uni
 const MAX_VARIABLE_NAME = 32
 
 test(`every variable our confs define is at most ${MAX_VARIABLE_NAME} characters`, () => {
-  const tooLong: string[] = []
+  const tooLong = []
   for (const file of ourConfs) {
     const text = fs
       .readFileSync(file, "utf8")
@@ -123,9 +123,9 @@ test(`every variable our confs define is at most ${MAX_VARIABLE_NAME} characters
       .filter((l) => !/^\s*#/.test(l))
       .join("\n")
     const defined = [
-      ...Array.from(text.matchAll(/\b(?:set|js_set|js_var)\s+\$(\w+)/g), (m) => m[1]!),
-      ...Array.from(text.matchAll(/\bmap\s+\S+\s+\$(\w+)/g), (m) => m[1]!),
-      ...Array.from(text.matchAll(/\(\?P?<(\w+)>/g), (m) => m[1]!),
+      ...Array.from(text.matchAll(/\b(?:set|js_set|js_var)\s+\$(\w+)/g), (m) => m[1]),
+      ...Array.from(text.matchAll(/\bmap\s+\S+\s+\$(\w+)/g), (m) => m[1]),
+      ...Array.from(text.matchAll(/\(\?P?<(\w+)>/g), (m) => m[1]),
     ]
     for (const name of defined) {
       if (name.length > MAX_VARIABLE_NAME) {
@@ -135,6 +135,27 @@ test(`every variable our confs define is at most ${MAX_VARIABLE_NAME} characters
   }
   if (tooLong.length) {
     throw new Error("variable names too long:\n      " + tooLong.join("\n      "))
+  }
+})
+
+// The unit tests run the njs in node, which accepts syntax njs does not. njs 0.8.5
+// rejects an optional catch binding (`catch {`) when it loads the module, so nginx
+// does not start. tsc used to rewrite it; nothing does now (plain JS since 2026-11-10).
+// The docker layers are the real njs check; this catches the one we have tripped on.
+test("no njs module uses syntax njs rejects", () => {
+  const modules = [...ourConfs.map((f) => f.replace(/\.conf$/, ".js")), path.join(CONFIG_DIR, "main", "global-components.js")]
+  const found = []
+  for (const file of modules.filter((f) => fs.existsSync(f))) {
+    fs.readFileSync(file, "utf8")
+      .split("\n")
+      .forEach((line, i) => {
+        if (/\bcatch\s*\{/.test(line) && !/^\s*(\/\/|\*)/.test(line)) {
+          found.push(`${path.basename(file)}:${i + 1} optional catch binding`)
+        }
+      })
+  }
+  if (found.length) {
+    throw new Error("\n      " + found.join("\n      "))
   }
 })
 

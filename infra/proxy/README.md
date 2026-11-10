@@ -10,7 +10,8 @@ Nginx reverse proxy with njs (JavaScript) for header/cookie manipulation. Used t
 
 - `nginx.conf.template` - main nginx configuration with server block and location routing (uses `${WEBSITE_DNS_SERVER}` env var)
 - `nginx.js` - njs module for auth redirect handlers (`appAuthRedirect`, `polarisAuthRedirect`, `taskListAuthRedirect`)
-- `global-components.ts` - njs module with header/cookie logic for upstream proxying (compiled to JS)
+- `global-components.js` - njs module with header/cookie logic for upstream proxying. Polaris's
+  `features/global-components/global-components.js` is its baseline: keep the two diffable
 - `global-components.conf.template` - nginx location blocks for global-components (uses env vars: `${WM_MDS_BASE_URL}`, `${WM_MDS_ACCESS_KEY}`, `${CPS_GLOBAL_COMPONENTS_BLOB_STORAGE_DOMAIN}`)
 - `.env` - **gitignored** - contains real upstream URL and functions key
 - `.env.example` - template for the above
@@ -72,11 +73,14 @@ Polaris's.
 Run: `pnpm test` (from `infra/proxy`)
 
 Unit tests are located in `tests` subfolders:
-- `config/main/tests/global-components.unit.test.ts` - tests for `global-components.ts`
-- `config/main/tests/nginx.unit.test.ts` - tests for `nginx.js` auth redirect handlers
-- `config/global-components.vnext/tests/global-components.vnext.unit.test.ts` - tests for `global-components.vnext.js`
+- `config/main/tests/global-components.unit.test.js` - tests for `global-components.js`
+- `config/main/tests/nginx.unit.test.js` - tests for `nginx.js` auth redirect handlers
+- `config/global-components.vnext/tests/global-components.vnext.unit.test.js` - tests for `global-components.vnext.js`
 
-Uses esbuild to bundle njs modules with mocked dependencies. Build artifacts go to `.dist/` (gitignored).
+The njs is plain JavaScript (no TypeScript, no build step since 2026-11-10). The tests are plain
+node scripts; `njs-loader.js` loads each module from an `.mjs` copy in `.dist/` (gitignored),
+because the modules are ESM and node would otherwise read a `.js` as CommonJS. Node is not njs,
+so the Docker integration layers are what prove a module runs under njs.
 
 ### Integration tests
 

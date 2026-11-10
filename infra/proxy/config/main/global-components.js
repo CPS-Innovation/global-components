@@ -5,12 +5,12 @@ const CMS_AUTH_VALUES_COOKIE_NAME = "Cms-Auth-Values";
 const CORS_ALLOWED_ORIGINS = [
   "https://cps.outsystemsenterprise.com",
   "https://cps-tst.outsystemsenterprise.com",
-  "https://cps-tst1.outsystemsenterprise.com",
-  "https://cps-dev.outsystemsenterprise.com",
   // London test OS host — the cps-lon variant of test (see OS_HOST_VARIANTS in
-  //  global-components.os-london-dublin-oapps-switch.ts). The oapps-*.int.cps.gov.uk hosts
+  //  global-components.os-london-dublin-oapps-switch.js). The oapps-*.int.cps.gov.uk hosts
   //  need no entry: the .cps.gov.uk suffix check below already admits them.
   "https://cpslon-tst.outsystemsenterprise.com",
+  "https://cps-tst1.outsystemsenterprise.com",
+  "https://cps-dev.outsystemsenterprise.com",
   "http://localhost",
   "https://localhost",
   "http://127.0.0.1",
@@ -21,24 +21,15 @@ const CORS_ALLOWED_ORIGINS = [
 ];
 const STATE_COOKIE_NAME = "cps-global-components-state";
 const STATE_COOKIE_LIFESPAN_MS = 365 * 24 * 60 * 60 * 1000;
-interface CookieOptions {
-  Path?: string;
-  Expires?: Date;
-  Secure?: boolean;
-  SameSite?: "Strict" | "Lax" | "None";
+function _getHeaderValue(r, headerName) {
+  return r.headersIn[headerName] || "";
 }
-
-function _getHeaderValue(r: NginxHTTPRequest, headerName: string): string {
-  return (r.headersIn[headerName] as string) || "";
-}
-
-function _getCookieValue(r: NginxHTTPRequest, cookieName: string): string {
+function _getCookieValue(r, cookieName) {
   const cookies = _getHeaderValue(r, "Cookie");
   const match = cookies.match(new RegExp(`(?:^|;\\s*)${cookieName}=([^;]*)`));
   return match ? match[1] : "";
 }
-
-function _maybeDecodeURIComponent(value: string): string {
+function _maybeDecodeURIComponent(value) {
   // Check if value appears not to be URL-encoded
   // (does not contain %XX patterns)
   if (!/%[0-9A-Fa-f]{2}/.test(value)) {
@@ -50,8 +41,7 @@ function _maybeDecodeURIComponent(value: string): string {
     return value;
   }
 }
-
-function _base64UrlDecode(str: string): string {
+function _base64UrlDecode(str) {
   // Replace base64url chars with base64 chars
   str = str.replace(/-/g, "+").replace(/_/g, "/");
   // Pad if necessary
@@ -60,19 +50,16 @@ function _base64UrlDecode(str: string): string {
   }
   return atob(str);
 }
-
-function _base64UrlEncode(str: string): string {
+function _base64UrlEncode(str) {
   // Encode to base64, then convert to base64url (URL-safe, no padding)
   return btoa(str).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
 }
-
 // Wrap state for storage (encode). Currently base64url, could add encryption later.
-function _wrapState(plaintext: string): string {
+function _wrapState(plaintext) {
   return _base64UrlEncode(plaintext);
 }
-
 // Unwrap state from storage (decode). Currently base64url, could add decryption later.
-function _unwrapState(wrapped: string): string | null {
+function _unwrapState(wrapped) {
   try {
     return _base64UrlDecode(wrapped);
   } catch (e) {
@@ -80,34 +67,23 @@ function _unwrapState(wrapped: string): string | null {
     return null;
   }
 }
-
-function _buildCookieString(
-  name: string,
-  value: string,
-  options?: CookieOptions,
-): string {
+function _buildCookieString(name, value, options) {
   let cookie = name + "=" + value;
-  if (options?.Path) {
+  if (options === null || options === void 0 ? void 0 : options.Path) {
     cookie += "; Path=" + options.Path;
   }
-  if (options?.Expires) {
+  if (options === null || options === void 0 ? void 0 : options.Expires) {
     cookie += "; Expires=" + options.Expires.toUTCString();
   }
-  if (options?.Secure) {
+  if (options === null || options === void 0 ? void 0 : options.Secure) {
     cookie += "; Secure";
   }
-  if (options?.SameSite) {
+  if (options === null || options === void 0 ? void 0 : options.SameSite) {
     cookie += "; SameSite=" + options.SameSite;
   }
   return cookie;
 }
-
-function _setCookie(
-  r: NginxHTTPRequest,
-  name: string,
-  value: string,
-  options?: CookieOptions,
-): void {
+function _setCookie(r, name, value, options) {
   const cookie = _buildCookieString(name, value, options);
   // njs headersOut["Set-Cookie"] accepts either string or string[]
   // For multiple cookies, we need to use an array
@@ -117,16 +93,15 @@ function _setCookie(
       existing.push(cookie);
     } else {
       // Convert single string to array and add new cookie
-      r.headersOut["Set-Cookie"] = [existing as unknown as string, cookie];
+      r.headersOut["Set-Cookie"] = [existing, cookie];
     }
   } else {
     // First cookie - use string for compatibility
-    (r.headersOut as Record<string, string>)["Set-Cookie"] = cookie;
+    r.headersOut["Set-Cookie"] = cookie;
   }
 }
-
-function _extractDomainFromSessionHint(r: NginxHTTPRequest): string {
-  var cookies = (r.headersIn["Cookie"] as string) || "";
+function _extractDomainFromSessionHint(r) {
+  var cookies = r.headersIn["Cookie"] || "";
   var match = cookies.match(/Cms-Session-Hint=([^;]+)/);
   if (!match) return "";
   try {
@@ -140,7 +115,7 @@ function _extractDomainFromSessionHint(r: NginxHTTPRequest): string {
   }
 }
 
-function readCmsAuthValues(r: NginxHTTPRequest): string {
+function readCmsAuthValues(r) {
   const value =
     _getHeaderValue(r, CMS_AUTH_VALUES_COOKIE_NAME) ||
     _getCookieValue(r, CMS_AUTH_VALUES_COOKIE_NAME);
@@ -156,7 +131,7 @@ function readCmsAuthValues(r: NginxHTTPRequest): string {
 }
 
 // For nginx js_set - returns origin if allowed, empty string otherwise
-function readCorsOrigin(r: NginxHTTPRequest): string {
+function readCorsOrigin(r) {
   const origin = _getHeaderValue(r, "Origin");
   if (!origin) {
     return "";
@@ -170,21 +145,17 @@ function readCorsOrigin(r: NginxHTTPRequest): string {
     ? origin
     : "";
 }
-
-function handleSessionHint(r: NginxHTTPRequest): void {
+function handleSessionHint(r) {
   const hintValue = _getCookieValue(r, SESSION_HINT_COOKIE_NAME);
   r.return(200, hintValue ? _maybeDecodeURIComponent(hintValue) : "null");
 }
-
-async function handleState(r: NginxHTTPRequest): Promise<void> {
+async function handleState(r) {
   if (!["GET", "PUT"].includes(r.method)) {
     // Method not allowed
     r.return(405, JSON.stringify({ error: "Method not allowed" }));
     return;
   }
-
   r.headersOut["Content-Type"] = "application/json";
-
   if (r.method === "GET") {
     // Get wrapped state from cookie and unwrap it
     const cookieValue = _getCookieValue(r, STATE_COOKIE_NAME);
@@ -196,10 +167,8 @@ async function handleState(r: NginxHTTPRequest): Promise<void> {
     r.return(200, unwrapped !== null ? unwrapped : "null");
     return;
   }
-
   if (r.method === "PUT") {
     const body = (r.requestText || "").trim();
-
     // If body is "null" or empty, clear the cookie by setting it to expire in the past
     if (body === "null" || body === "") {
       _setCookie(r, STATE_COOKIE_NAME, "", {
@@ -214,22 +183,18 @@ async function handleState(r: NginxHTTPRequest): Promise<void> {
       );
       return;
     }
-
     // Wrap the body and store in cookie
     const wrapped = _wrapState(body);
-
     _setCookie(r, STATE_COOKIE_NAME, wrapped, {
       Path: r.uri,
       Expires: new Date(Date.now() + STATE_COOKIE_LIFESPAN_MS), // 1 year
       Secure: true,
       SameSite: "None",
     });
-
     r.return(200, JSON.stringify({ success: true, path: r.uri }));
     return;
   }
 }
-
 // The IE-mode page that moves an already-open CMS Modern tab to a case.
 //
 // Classic opens Modern with window.open(url, "MODERN_CMS"); window names don't
@@ -238,11 +203,7 @@ async function handleState(r: NginxHTTPRequest): Promise<void> {
 // reload, keeping its session, and the guid-less case route loads the case.
 // No MODERN_CMS window means window.open made a blank one (readable, same
 // origin as us), which we close; Modern can't be opened without Classic's guid.
-function _modernCmsNavigatePage(
-  proto: string,
-  cmsDomain: string,
-  caseId: string,
-): string {
+function _modernCmsNavigatePage(proto, cmsDomain, caseId) {
   const modernUrl =
     proto + "://" + cmsDomain + "/viewer/landing#/case-summary/" + caseId;
   const closeUrl = "/global-components/navigate-cms?step=close";
@@ -281,13 +242,11 @@ function _modernCmsNavigatePage(
     "</body></html>"
   );
 }
-
-function handleNavigateCms(r: NginxHTTPRequest): void {
+function handleNavigateCms(r) {
   var ieaction = r.variables.ieaction || "";
   var step = r.args.step || "";
   var proto = r.headersIn["X-Forwarded-Proto"] || "https";
   var host = r.headersIn["Host"] || "";
-
   // === CLOSE PHASE ===
   if (step === "close") {
     // If in IE mode with configurable: redirect to self to exit IE mode
@@ -301,7 +260,6 @@ function handleNavigateCms(r: NginxHTTPRequest): void {
     r.return(200, "<html><body><script>window.close();</script></body></html>");
     return;
   }
-
   // === OPEN PHASE ===
   // If non-IE browser with configurable IE mode: extract CMS domain from
   // cookie (only available in Edge, not in IE mode) and pass it as a query
@@ -333,7 +291,6 @@ function handleNavigateCms(r: NginxHTTPRequest): void {
     );
     return;
   }
-
   // Now in IE mode (or non-configurable): get domain from query param (IE) or cookie (non-configurable)
   var cmsDomain = r.args.cmsDomain || _extractDomainFromSessionHint(r);
   if (!cmsDomain) {
@@ -344,10 +301,8 @@ function handleNavigateCms(r: NginxHTTPRequest): void {
     );
     return;
   }
-
   var caseId = r.args.caseId || "";
   var taskId = r.args.taskId || "";
-
   if (r.args.target === "modern") {
     // Both are written into script, so only a plain number and a bare host get through
     if (!/^\d+$/.test(caseId) || !/^[a-z0-9.-]+(:\d+)?$/i.test(cmsDomain)) {
@@ -362,7 +317,6 @@ function handleNavigateCms(r: NginxHTTPRequest): void {
     r.return(200, _modernCmsNavigatePage(proto, cmsDomain, caseId));
     return;
   }
-
   var iframeSrc = taskId
     ? proto +
       "://" +
@@ -376,11 +330,8 @@ function handleNavigateCms(r: NginxHTTPRequest): void {
       cmsDomain +
       "/CMSModern/Navigation/Notification.html?action=navigate&screen=case_details&wId=MASTER&caseId=" +
       caseId;
-
   var closeUrl = "/global-components/navigate-cms?step=close";
-
   var heading = taskId ? "Opening task in CMS" : "Opening case in CMS";
-
   r.headersOut["Content-Type"] = "text/html";
   r.return(
     200,
@@ -404,14 +355,11 @@ function handleNavigateCms(r: NginxHTTPRequest): void {
       "</body></html>",
   );
 }
-
 const CASE_REVIEW_OS_HOST_PATTERN =
   /^[a-z0-9-]+(\.[a-z0-9-]+)*\.(cps\.gov\.uk|outsystemsenterprise\.com)$/i;
-
-function handleCaseReviewRedirect(r: NginxHTTPRequest): void {
+function handleCaseReviewRedirect(r) {
   const proto = r.headersIn["X-Forwarded-Proto"] || "https";
   const host = r.headersIn["Host"] || "";
-
   // URI is /case-review-redirect/{osHost}/{envFolder}, where osHost is either
   // an outsystemsenterprise.com subdomain (the original form) or a full host,
   // so OutSystems can move off outsystemsenterprise.com (e.g. to oapps-*.cps.gov.uk)
@@ -420,7 +368,6 @@ function handleCaseReviewRedirect(r: NginxHTTPRequest): void {
   const parts = r.uri.split("/");
   const osHost = parts[2] || "";
   const envFolder = parts[3] || "";
-
   if (!osHost || !envFolder) {
     r.return(
       400,
@@ -428,27 +375,24 @@ function handleCaseReviewRedirect(r: NginxHTTPRequest): void {
     );
     return;
   }
-
   // A full host is only accepted inside our own estate — this segment ends up
   // as a redirect target, and must not make us an open redirector.
-  const isFullHost = osHost.indexOf(".") !== -1;
+  const isFullHost = osHost.includes(".");
   if (isFullHost && !CASE_REVIEW_OS_HOST_PATTERN.test(osHost)) {
     r.return(400, "case-review: unexpected OS host " + osHost);
     return;
   }
-
-  const osDomain = isFullHost ? osHost.toLowerCase() : `${osHost}.outsystemsenterprise.com`;
+  const osDomain = isFullHost
+    ? osHost.toLowerCase()
+    : `${osHost}.outsystemsenterprise.com`;
   const caseId = r.args["CMSCaseId"] || "";
   const urn = r.args["URN"] || "";
-
   if (!caseId) {
     r.return(400, "case-review: CMSCaseId query parameter is required");
     return;
   }
-
   // Final destination: OutSystems CaseReview app
   const finalDest = `https://${osDomain}/CaseReview/LandingPage?CMSCaseId=${caseId}&URN=${urn}`;
-
   // Auth handover page with src (our JS), stage, and encoded final destination
   const authHandoverJs = `${proto}://${host}/global-components/${envFolder}/auth-handover.js`;
   const authHandoverPage =
@@ -456,7 +400,6 @@ function handleCaseReviewRedirect(r: NginxHTTPRequest): void {
     `?src=${encodeURIComponent(authHandoverJs)}` +
     `&stage=os-cookie-return` +
     `&r=${encodeURIComponent(finalDest)}`;
-
   // Redirect through /auth-refresh-outbound which determines the correct
   // CMS polaris endpoint from the Cms-Session-Hint cookie (or default domain)
   r.return(
@@ -464,16 +407,24 @@ function handleCaseReviewRedirect(r: NginxHTTPRequest): void {
     `${proto}://${host}/auth-refresh-outbound?r=${encodeURIComponent(authHandoverPage)}`,
   );
 }
+// Moved from cmsenv.js. Used only by the legacy /api/navigate-cms block in
+// global-components.conf. Self-contained: its own regex, no CMS-env detection.
+// NOTE: throws if the cookie has no *.cps.gov.uk domain (QUIRKS.md C4) —
+// preserved verbatim.
+function getDomainFromCookie(r) {
+  let cookie = r.headersIn.Cookie || "";
+  let domainMatch = cookie.match(/([a-z0-9]+)\.cps\.gov\.uk/);
+  return domainMatch[0];
+}
 
 export default {
   readCmsAuthValues,
   readCorsOrigin,
-
   handleSessionHint,
   handleState,
   handleNavigateCms,
   handleCaseReviewRedirect,
-
+  getDomainFromCookie,
   // Export helper functions for vnext
   _getCookieValue,
   _maybeDecodeURIComponent,

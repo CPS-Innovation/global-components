@@ -1,83 +1,35 @@
-#!/usr/bin/env npx ts-node
+#!/usr/bin/env node
 /**
- * Unit tests for global-components.os-london-dublin-oapps-switch.ts
+ * Unit tests for global-components.os-london-dublin-oapps-switch.js
  *
- * Uses esbuild to bundle the njs module, then runs the tests against the bundle.
+ * Loads the njs source with njs-loader.js (an .mjs copy, no bundler).
  */
 
-import * as esbuild from "esbuild"
-import * as path from "path"
-import * as fs from "fs"
+const path = require("path")
+const fs = require("fs")
+const { loadNjs } = require("../../../njs-loader")
 
 const CONFIG_DIR = path.join(__dirname, "..", "..")
 const MODULE_DIR = path.join(CONFIG_DIR, "global-components.os-london-dublin-oapps-switch")
 const REPO_CONFIGURATION_DIR = path.join(CONFIG_DIR, "..", "..", "..", "configuration")
-const DIST_DIR = path.join(CONFIG_DIR, "..", ".dist")
 
-if (!fs.existsSync(DIST_DIR)) {
-  fs.mkdirSync(DIST_DIR, { recursive: true })
-}
-
-interface MockRequest {
-  method: string
-  uri: string
-  args: Record<string, string>
-  headersIn: Record<string, string>
-  headersOut: Record<string, string | string[]>
-  variables: Record<string, string>
-  returnCode: number | null
-  returnBody: string | null
-  return(code: number, body: string): void
-}
-
-interface MockRequestOptions {
-  method?: string
-  uri?: string
-  args?: Record<string, string>
-  headersIn?: Record<string, string>
-  variables?: Record<string, string>
-}
-
-interface OsLondonDublinOappsSwitchModule {
-  readConfigBlobName(r: MockRequest): string
-  launchSignalled(r: MockRequest): string
-  launchTarget(r: MockRequest): string
-  handleStatus(r: MockRequest): void
-  handleSet(r: MockRequest): void
-  OS_HOST_VARIANTS: Record<string, Record<string, string>>
-  POLARIS_HOSTS: Record<string, string>
-  LAUNCH_ROUTES: Record<string, string>
-}
-
-async function build(): Promise<void> {
-  await esbuild.build({
-    entryPoints: [path.join(MODULE_DIR, "global-components.os-london-dublin-oapps-switch.ts")],
-    bundle: true,
-    outfile: path.join(DIST_DIR, "global-components.os-london-dublin-oapps-switch.bundle.js"),
-    format: "esm",
-    platform: "node",
-    logLevel: "error",
-  })
-}
-
-async function runTests(): Promise<void> {
-  const module = await import(path.join(DIST_DIR, "global-components.os-london-dublin-oapps-switch.bundle.js"))
-  const osSwitch: OsLondonDublinOappsSwitchModule = module.default
+async function runTests() {
+  const osSwitch = await loadNjs(path.join(MODULE_DIR, "global-components.os-london-dublin-oapps-switch.js"))
 
   let passed = 0
   let failed = 0
 
-  function assert(condition: boolean, message: string): void {
+  function assert(condition, message) {
     if (!condition) throw new Error(message)
   }
 
-  function assertEqual(actual: unknown, expected: unknown, message: string): void {
+  function assertEqual(actual, expected, message) {
     if (actual !== expected) {
       throw new Error(`${message}\n  Expected: ${JSON.stringify(expected)}\n  Actual:   ${JSON.stringify(actual)}`)
     }
   }
 
-  async function test(name: string, fn: () => Promise<void>): Promise<void> {
+  async function test(name, fn) {
     try {
       await fn()
       passed++
@@ -85,11 +37,11 @@ async function runTests(): Promise<void> {
     } catch (err) {
       failed++
       console.log(`  \x1b[31m✗\x1b[0m ${name}`)
-      console.log(`    ${(err as Error).message}`)
+      console.log(`    ${err.message}`)
     }
   }
 
-  function createMockRequest(options: MockRequestOptions = {}): MockRequest {
+  function createMockRequest(options = {}) {
     return {
       method: options.method || "GET",
       uri: options.uri || "/",
@@ -99,7 +51,7 @@ async function runTests(): Promise<void> {
       variables: options.variables || {},
       returnCode: null,
       returnBody: null,
-      return(code: number, body: string) {
+      return(code, body) {
         this.returnCode = code
         this.returnBody = body
       },
@@ -117,7 +69,7 @@ async function runTests(): Promise<void> {
   // --- config.json selection ---
   console.log("\nreadConfigBlobName:")
 
-  const configRequest = (headersIn: Record<string, string>, env = "test") =>
+  const configRequest = (headersIn, env = "test") =>
     createMockRequest({
       uri: "/global-components/os-london-dublin-oapps-switch/config",
       headersIn: { Host: "polaris-qa-notprod.cps.gov.uk", ...headersIn },
@@ -159,15 +111,15 @@ async function runTests(): Promise<void> {
   console.log("\nlaunchTarget:")
 
   // Polaris's own hard-coded target for a route, from the reference copy of their nginx config.
-  const polarisTarget = (route: string): string => {
+  const polarisTarget = (route) => {
     const conf = fs.readFileSync(path.join(CONFIG_DIR, "main", "nginx-full.conf"), "utf8")
     const match = conf.match(new RegExp(`location /launch/${route} \\{\\s*return 302 ([^;]+);`))
     if (!match) throw new Error(`no Polaris location for /launch/${route}`)
-    return match[1]!
+    return match[1]
   }
 
   // The conf diverts signalled /launch/<route> requests to this internal URI.
-  const launchRequest = (route: string, cookie?: string) =>
+  const launchRequest = (route, cookie) =>
     createMockRequest({ uri: `/global-components/os-london-dublin-oapps-switch/launch/${route}`, headersIn: cookie ? { Cookie: cookie } : {} })
 
   await test("hands back (empty) when there is no signal", async () => {
@@ -177,8 +129,8 @@ async function runTests(): Promise<void> {
   // Same shape and encoding as Polaris's own target — only the OS host differs.
   await test("builds Polaris's own target with the OS host swapped, for every overridden route", async () => {
     for (const [route, host] of [["cin2-proxy", CPS], ["cin3-proxy", CPS], ["cin4-proxy", LONDON], ["cin5-proxy", LONDON]]) {
-      const expected = polarisTarget(route!).split("oapps-qa-notprod.int.cps.gov.uk").join(host!)
-      assertEqual(osSwitch.launchTarget(launchRequest(route!, `Gloco-Os-Target-test=${host}`)), expected, route!)
+      const expected = polarisTarget(route).split("oapps-qa-notprod.int.cps.gov.uk").join(host)
+      assertEqual(osSwitch.launchTarget(launchRequest(route, `Gloco-Os-Target-test=${host}`)), expected, route)
     }
   })
 
@@ -218,7 +170,7 @@ async function runTests(): Promise<void> {
   await test("GET reports no signal for a stale host", async () => {
     const r = createMockRequest({ uri: "/global-components/multi-os/target/test", headersIn: { Cookie: "Gloco-Os-Target-test=gone.example.com" } })
     osSwitch.handleStatus(r)
-    assertEqual(JSON.parse(r.returnBody!).current, null, "current")
+    assertEqual(JSON.parse(r.returnBody).current, null, "current")
   })
 
   await test("GET gives no options for an environment without variants", async () => {
@@ -238,9 +190,9 @@ async function runTests(): Promise<void> {
 
   const EDGE = "nonie+configurable+"
   const IE = "ie+configurable+"
-  const setRequest = (args: Record<string, string>, ieaction: string) =>
+  const setRequest = (args, ieaction) =>
     createMockRequest({ uri: "/global-components/multi-os/set", args, variables: { ieaction } })
-  const cookieOf = (r: MockRequest) => r.headersOut["Set-Cookie"] as string
+  const cookieOf = (r) => r.headersOut["Set-Cookie"]
 
   await test("from Edge: writes Edge's copy, then flips to IE mode to write that one", async () => {
     const r = setRequest({ env: "test", host: CPS, return: "/global-components/test/preview/" }, EDGE)
@@ -268,7 +220,7 @@ async function runTests(): Promise<void> {
     const first = setRequest({ env: "test", host: CPS, return: "/x" }, IE)
     osSwitch.handleSet(first)
     assertEqual(first.headersOut["X-InternetExplorerMode"], "0", "flip to Edge")
-    assert(first.returnBody!.endsWith("&done=ie"), `hop: ${first.returnBody}`)
+    assert(first.returnBody.endsWith("&done=ie"), `hop: ${first.returnBody}`)
 
     const second = setRequest({ env: "test", host: CPS, return: "/x", done: "ie" }, EDGE)
     osSwitch.handleSet(second)
@@ -318,7 +270,7 @@ async function runTests(): Promise<void> {
   console.log("\nlaunchSignalled:")
 
   await test("fires only for a C-button route carrying a signal cookie", async () => {
-    const gate = (uri: string, Cookie?: string) =>
+    const gate = (uri, Cookie) =>
       osSwitch.launchSignalled(createMockRequest({ uri, headersIn: Cookie ? { Cookie } : {} }))
     assertEqual(gate("/launch/cin3-proxy", `a=1; ${SIGNAL}`), "1", "signalled C-button")
     assertEqual(gate("/launch/cin3-proxy", "a=1"), "", "no signal")
@@ -343,10 +295,10 @@ async function runTests(): Promise<void> {
   await test("OS_HOST_VARIANTS matches configuration/config.<env>.<variant>.json both ways", async () => {
     const fromFiles = fs
       .readdirSync(REPO_CONFIGURATION_DIR)
-      .map((file: string) => file.match(/^config\.([^.]+)\.([^.]+)\.json$/))
-      .filter((m: RegExpMatchArray | null): m is RegExpMatchArray => !!m && m[2] !== "notification")
-      .map(([file, env, variant]: RegExpMatchArray) => {
-        const text = fs.readFileSync(path.join(REPO_CONFIGURATION_DIR, file!), "utf8")
+      .map((file) => file.match(/^config\.([^.]+)\.([^.]+)\.json$/))
+      .filter((m) => !!m && m[2] !== "notification")
+      .map(([file, env, variant]) => {
+        const text = fs.readFileSync(path.join(REPO_CONFIGURATION_DIR, file), "utf8")
         const host = (text.match(/"BANNER_TITLE_HREF": "https:\/\/([^/]+)\//) || [])[1]
         return `${env}/${variant}=${host}`
       })
@@ -365,8 +317,8 @@ async function runTests(): Promise<void> {
     const internal = ours.match(/^location ~ (\^\/global-components\/os-london-dublin-oapps-switch\/launch\/\S+\$) \{/m)
     assert(!!divert, "server-level divert rewrite")
     assert(!!internal, "internal launch location")
-    const divertRe = new RegExp(divert![1]!)
-    const internalRe = new RegExp(internal![1]!)
+    const divertRe = new RegExp(divert [1])
+    const internalRe = new RegExp(internal [1])
     const routes = Object.keys(osSwitch.LAUNCH_ROUTES)
     for (const route of routes) {
       polarisTarget(route)
@@ -389,10 +341,9 @@ async function runTests(): Promise<void> {
 
 ;(async () => {
   try {
-    await build()
     await runTests()
   } catch (err) {
-    console.error("Build/test failed:", (err as Error).message)
+    console.error("Build/test failed:", err.message)
     process.exit(1)
   }
 })()

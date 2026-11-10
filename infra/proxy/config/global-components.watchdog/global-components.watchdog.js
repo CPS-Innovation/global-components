@@ -43,11 +43,11 @@
 // Declared first: njs TDZ-checks forward references to module-level const.
 // ---------------------------------------------------------------------------
 
-const _fromDropzone = (token: string): string =>
+const _fromDropzone = (token) =>
   token.indexOf("@@") === -1 ? token : "";
 
-const _setting = (name: string, token: string): string =>
-  (process.env[name] as string) || _fromDropzone(token);
+const _setting = (name, token) =>
+  process.env[name] || _fromDropzone(token);
 
 // The Watchdog API host, bare (no scheme, no path) — it is also the Host header
 // and the TLS SNI name. e.g. "watchdog-api-dev.gslb-notprod.int.cps.gov.uk".
@@ -94,7 +94,7 @@ const _SESSION_HINT_COOKIE_NAME = "Cms-Session-Hint";
 // Helpers
 // ---------------------------------------------------------------------------
 
-function _base64UrlDecode(str: string): string {
+function _base64UrlDecode(str) {
   // base64url -> utf-8. Buffer tolerates missing padding and decodes multibyte
   // text correctly (atob would only give Latin1 bytes).
   return Buffer.from(
@@ -103,26 +103,26 @@ function _base64UrlDecode(str: string): string {
   ).toString("utf8");
 }
 
-function _getCookie(r: NginxHTTPRequest, name: string): string | null {
+function _getCookie(r, name) {
   const cookies = r.headersIn["Cookie"];
   if (!cookies) return null;
-  const match = (cookies as string).match(
+  const match = cookies.match(
     new RegExp("(?:^|;\\s*)" + name + "=([^;]*)"),
   );
   return match ? match[1] : null;
 }
 
-function _getQueryParam(r: NginxHTTPRequest, name: string): string | null {
+function _getQueryParam(r, name) {
   const v = r.variables["arg_" + name];
-  return v !== undefined ? (v as string) : null;
+  return v !== undefined ? v : null;
 }
 
-function _decodeJwtPayload(token: string): Record<string, unknown> | null {
+function _decodeJwtPayload(token) {
   const parts = token.split(".");
   if (parts.length !== 3) return null;
   try {
     return JSON.parse(_base64UrlDecode(parts[1]));
-  } catch {
+  } catch (_e) {
     return null;
   }
 }
@@ -144,7 +144,7 @@ function _decodeJwtPayload(token: string): Record<string, unknown> | null {
  * @param claims the decoded JWT payload, or null
  * @returns seconds remaining, never negative
  */
-function _tokenExpiresIn(claims: Record<string, unknown> | null): number {
+function _tokenExpiresIn(claims) {
   if (!claims || typeof claims.exp !== "number") {
     return 0;
   }
@@ -167,7 +167,7 @@ function _tokenExpiresIn(claims: Record<string, unknown> | null): number {
  * never more. Each entry must be a GUID: the list is reflected into an executable
  * JSONP body, and an ID is the only shape a group claim legitimately takes.
  */
-function _groupsOf(claims: Record<string, unknown> | null): string[] {
+function _groupsOf(claims) {
   const groups = claims ? claims.groups : null;
   if (!Array.isArray(groups)) {
     return [];
@@ -176,9 +176,7 @@ function _groupsOf(claims: Record<string, unknown> | null): string[] {
     .filter(function (g) {
       return (
         typeof g === "string" &&
-        /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(
-          g,
-        )
+        /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(g)
       );
     })
     .map(function (g) {
@@ -212,7 +210,7 @@ function _groupsOf(claims: Record<string, unknown> | null): string[] {
  * @param claims the decoded JWT payload, or null
  * @returns seconds since issue, or -1 when it cannot be told
  */
-function _tokenAge(claims: Record<string, unknown> | null): number {
+function _tokenAge(claims) {
   if (!claims || typeof claims.iat !== "number") {
     return -1;
   }
@@ -238,20 +236,17 @@ function _tokenAge(claims: Record<string, unknown> | null): number {
 // the writer (Polaris's /init) makes about the F5 cookie: THE TOKEN IS OPAQUE. It reads
 // CIN3/CIN5 in pre-prod, nothing promises that shape in production, and a reader
 // that started inferring "this label means no suffix" would be interpreting it.
-type _CmsEnvRead = {
-  env: string;
-  /** "hint" when env is set; otherwise which of the four empties this is. */
-  why: "hint" | "no-hint" | "bad-hint" | "hint-error" | "no-domain";
-};
-
-function _cmsEnvRead(r: NginxHTTPRequest): _CmsEnvRead {
+//
+// Returns { env, why }. why is "hint" when env is set; otherwise which of the four
+// empties this is: "no-hint", "bad-hint", "hint-error" or "no-domain".
+function _cmsEnvRead(r) {
   const raw = _getCookie(r, _SESSION_HINT_COOKIE_NAME);
   if (!raw) {
     // Nobody wrote it: /init has not run for this session yet, or this is a
     // jar the hint never reached.
     return { env: "", why: "no-hint" };
   }
-  let parsed: any;
+  let parsed;
   try {
     parsed = JSON.parse(decodeURIComponent(raw));
   } catch (e) {
@@ -276,7 +271,7 @@ function _cmsEnvRead(r: NginxHTTPRequest): _CmsEnvRead {
   return label ? { env: label, why: "hint" } : { env: "", why: "no-domain" };
 }
 
-function dropContentLengthForNegotiate(r: NginxHTTPRequest): void {
+function dropContentLengthForNegotiate(r) {
   // The body filter rewrites the negotiate JSON, which changes its byte
   // length. nginx computes the response Content-Length before the body
   // filter runs, so the original (upstream) length leaks through and the
@@ -288,11 +283,7 @@ function dropContentLengthForNegotiate(r: NginxHTTPRequest): void {
   }
 }
 
-function filterNegotiateBody(
-  r: NginxHTTPRequest,
-  data: string,
-  flags: NginxHTTPSendBufferOptions,
-): void {
+function filterNegotiateBody(r, data, flags) {
   // Only intercept SignalR negotiate responses. All other responses (including
   // WebSocket 101 upgrades and SSE/long-poll bodies) pass through unchanged.
   if (!r.uri.endsWith("/negotiate")) {
@@ -318,12 +309,12 @@ function filterNegotiateBody(
   // value that had to name by hand the instance the Watchdog was configured with.)
   // Lower-cased because the sr location only accepts [a-z0-9-]; DNS does not care.
   const scheme =
-    (r.headersIn["X-Forwarded-Proto"] as string | undefined) ||
-    (r.variables.scheme as string) ||
+    r.headersIn["X-Forwarded-Proto"] ||
+    r.variables.scheme ||
     "https";
   const host =
-    (r.headersIn["Host"] as string | undefined) ||
-    (r.variables.host as string);
+    r.headersIn["Host"] ||
+    r.variables.host;
   const replacement = `${scheme}://${host}/global-components/case-locking/api/sr`;
 
   // buffer_type=string is honoured for UPSTREAM bodies only: a body nginx produces
@@ -333,7 +324,7 @@ function filterNegotiateBody(
   const text = typeof data === "string" ? data : String(data == null ? "" : data);
   const result = text.replace(
     /https?:\/\/([a-zA-Z0-9-]+)\.service\.signalr\.net/g,
-    (_m: string, instance: string) => replacement + "/" + instance.toLowerCase(),
+    (_m, instance) => replacement + "/" + instance.toLowerCase(),
   );
   r.sendBuffer(result, flags);
 }
@@ -369,14 +360,14 @@ function filterNegotiateBody(
 // fallback that would mask a broken handover.
 // ---------------------------------------------------------------------------
 
-function presenceBearer(r: NginxHTTPRequest): string {
+function presenceBearer(r) {
   // Client-supplied credential wins — pass it straight through.
-  const supplied = r.headersIn["Authorization"] as string | undefined;
+  const supplied = r.headersIn["Authorization"];
   if (supplied) {
     return supplied;
   }
 
-  const raw = (r.headersIn["Cookie"] as string | undefined) || "";
+  const raw = r.headersIn["Cookie"] || "";
   if (!raw) {
     return "";
   }
@@ -412,13 +403,13 @@ function presenceBearer(r: NginxHTTPRequest): string {
 // Vocabulary per the presence API README; extend here when it does.
 // ---------------------------------------------------------------------------
 
-function watchdogAppName(r: NginxHTTPRequest): string {
-  const args = (r.args || {}) as Record<string, string | undefined>;
+function watchdogAppName(r) {
+  const args = r.args || {};
   const raw = args["appName"] || args["appname"] || "";
   if (!raw) {
     return "";
   }
-  let value: string;
+  let value;
   try {
     value = decodeURIComponent(raw);
   } catch (e) {
@@ -431,7 +422,7 @@ function watchdogAppName(r: NginxHTTPRequest): string {
 // watchdogHost — js_set into the conf's proxy_pass. "" = the conf's 503.
 // ---------------------------------------------------------------------------
 
-function watchdogHost(_r: NginxHTTPRequest): string {
+function watchdogHost(_r) {
   return WATCHDOG_HOST;
 }
 
@@ -449,14 +440,9 @@ function watchdogHost(_r: NginxHTTPRequest): string {
 // see the location in the .conf.
 // ---------------------------------------------------------------------------
 
-type _PresenceOp = {
-  method: string;
-  path: (a: Record<string, string>) => string;
-  body: (a: Record<string, string>) => string | null;
-};
-
 // Browser can only GET; ?op= selects the backend's real verb/path/body.
-const _PRESENCE_OPS: Record<string, _PresenceOp> = {
+// Each op is { method, path(args), body(args) } and body returns null for no body.
+const _PRESENCE_OPS = {
   create: {
     method: "POST",
     path: () => "/sessions",
@@ -479,7 +465,7 @@ const _PRESENCE_OPS: Record<string, _PresenceOp> = {
   },
 };
 
-async function handlePresenceJsonp(r: NginxHTTPRequest): Promise<void> {
+async function handlePresenceJsonp(r) {
   const cb = _getQueryParam(r, "callback") || "";
   // The one non-negotiable JSONP guard: the callback name is reflected verbatim
   // into an executable script response, so it MUST be a bare identifier or it's XSS.
@@ -492,7 +478,7 @@ async function handlePresenceJsonp(r: NginxHTTPRequest): Promise<void> {
   r.headersOut["Content-Type"] = "text/javascript; charset=utf-8";
   r.headersOut["Cache-Control"] = "no-store";
 
-  const args: Record<string, string> = {
+  const args = {
     op: _getQueryParam(r, "op") || "",
     sid: _getQueryParam(r, "sid") || "",
     sectionId: decodeURIComponent(_getQueryParam(r, "sectionId") || ""),
@@ -707,7 +693,7 @@ async function handlePresenceJsonp(r: NginxHTTPRequest): Promise<void> {
   // and no banner shows, so a working banner proves the whole cookie handover
   // end-to-end.
   const cookieTok = _getCookie(r, PRESENCE_TOKEN_COOKIE);
-  const headers: Record<string, string> = {};
+  const headers = {};
 
   const appName =
     WATCHDOG_APP_NAMES.indexOf(args.appName) !== -1
@@ -719,11 +705,8 @@ async function handlePresenceJsonp(r: NginxHTTPRequest): Promise<void> {
   }
 
   try {
-    const fetchOpts: {
-      method: string;
-      headers: Record<string, string>;
-      body?: string;
-    } = {
+    const fetchOpts
+    = {
       method: op.method,
       headers,
     };
@@ -765,23 +748,22 @@ async function handlePresenceJsonp(r: NginxHTTPRequest): Promise<void> {
 // answer plainly instead. No stack in the body: unlike the old auth flow's debug
 // pages, these responses are executed as script by the CMS clients.
 const _guard =
-  (name: string, fn: (r: NginxHTTPRequest) => void | Promise<void>) =>
-  async (r: NginxHTTPRequest): Promise<void> => {
+  (name, fn) =>
+  async (r) => {
     try {
       await fn(r);
     } catch (e) {
-      const err = e as { message?: string; name?: string };
       try {
         ngx.log(
           ngx.ERR,
-          "watchdog unhandled in " + name + ": " + ((err && err.name) || "Error") + ": " + ((err && err.message) || String(e)),
+          "watchdog unhandled in " + name + ": " + ((e && e.name) || "Error") + ": " + ((e && e.message) || String(e)),
         );
-      } catch {
+      } catch (_e) {
         // ignore logging failures
       }
       try {
         r.return(500, "watchdog: " + name + " failed");
-      } catch {
+      } catch (_e) {
         // response already committed
       }
     }

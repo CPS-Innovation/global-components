@@ -1,84 +1,30 @@
-#!/usr/bin/env npx ts-node
+#!/usr/bin/env node
 /**
- * Build and run unit tests for global-components.ts
+ * Build and run unit tests for global-components.js
  *
- * Uses esbuild to bundle the njs module, then runs the unit tests
- * against the bundled code. Environment values are passed via r.variables.
+ * Loads the njs source with njs-loader.js (an .mjs copy, no bundler).
+ * Environment values are passed via r.variables.
  */
 
-import * as esbuild from "esbuild"
-import * as path from "path"
-import * as fs from "fs"
+const path = require("path")
+const fs = require("fs")
+const { loadNjs } = require("../../../njs-loader")
 
 const CONFIG_DIR = path.join(__dirname, "..")
-const DIST_DIR = path.join(__dirname, "..", "..", "..", ".dist")
-
-// Ensure dist directory exists
-if (!fs.existsSync(DIST_DIR)) {
-  fs.mkdirSync(DIST_DIR, { recursive: true })
-}
-
-interface MockRequest {
-  method: string
-  uri: string
-  args: Record<string, string>
-  headersIn: Record<string, string>
-  headersOut: Record<string, string | string[]>
-  variables: Record<string, string>
-  returnCode: number | null
-  returnBody: string | null
-  requestText: string
-  sentBuffer: string | null
-  sentFlags: Record<string, unknown> | null
-  return(code: number, body: string): void
-  sendBuffer(buffer: string, flags: Record<string, unknown>): void
-}
-
-interface MockRequestOptions {
-  method?: string
-  uri?: string
-  args?: Record<string, string>
-  headersIn?: Record<string, string>
-  variables?: Record<string, string>
-  requestText?: string
-}
-
-interface GlocoModule {
-  readCmsAuthValues(r: MockRequest): string
-  readCorsOrigin(r: MockRequest): string
-  handleSessionHint(r: MockRequest): void
-  handleState(r: MockRequest): Promise<void>
-  handleNavigateCms(r: MockRequest): void
-  handleCaseReviewRedirect(r: MockRequest): void
-}
-
-// Bundle the module
-async function build(): Promise<void> {
-  await esbuild.build({
-    entryPoints: [path.join(CONFIG_DIR, "global-components.ts")],
-    bundle: true,
-    outfile: path.join(DIST_DIR, "global-components.bundle.js"),
-    format: "esm",
-    platform: "node",
-    external: ["fs"],
-    logLevel: "error",
-  })
-}
 
 // Run tests
-async function runTests(): Promise<void> {
-  const modulePath = path.join(DIST_DIR, "global-components.bundle.js")
-  const module = await import(modulePath)
-  const gloco: GlocoModule = module.default
+async function runTests() {
+  const modulePath = path.join(CONFIG_DIR, "global-components.js")
+  const gloco = await loadNjs(modulePath)
 
   let passed = 0
   let failed = 0
 
-  function assert(condition: boolean, message: string): void {
+  function assert(condition, message) {
     if (!condition) throw new Error(message)
   }
 
-  function assertEqual(actual: unknown, expected: unknown, message: string): void {
+  function assertEqual(actual, expected, message) {
     if (actual !== expected) {
       throw new Error(
         `${message}\n  Expected: ${JSON.stringify(expected)}\n  Actual:   ${JSON.stringify(actual)}`
@@ -86,7 +32,7 @@ async function runTests(): Promise<void> {
     }
   }
 
-  async function test(name: string, fn: () => Promise<void>): Promise<void> {
+  async function test(name, fn) {
     try {
       await fn()
       passed++
@@ -94,11 +40,11 @@ async function runTests(): Promise<void> {
     } catch (err) {
       failed++
       console.log(`  \x1b[31m✗\x1b[0m ${name}`)
-      console.log(`    ${(err as Error).message}`)
+      console.log(`    ${err.message}`)
     }
   }
 
-  function createMockRequest(options: MockRequestOptions = {}): MockRequest {
+  function createMockRequest(options = {}) {
     return {
       method: options.method || "GET",
       uri: options.uri || "/global-components/test",
@@ -111,11 +57,11 @@ async function runTests(): Promise<void> {
       requestText: options.requestText || "",
       sentBuffer: null,
       sentFlags: null,
-      return(code: number, body: string) {
+      return(code, body) {
         this.returnCode = code
         this.returnBody = body
       },
-      sendBuffer(buffer: string, flags: Record<string, unknown>) {
+      sendBuffer(buffer, flags) {
         this.sentBuffer = buffer
         this.sentFlags = flags
       },
@@ -123,7 +69,7 @@ async function runTests(): Promise<void> {
   }
 
   // Mock ngx.fetch globally (used by _validateToken, currently disabled)
-  ;(globalThis as Record<string, unknown>).ngx = {
+  ;globalThis.ngx = {
     fetch: async () => ({ status: 200, ok: true, text: async () => "" }),
   }
 
@@ -352,7 +298,7 @@ async function runTests(): Promise<void> {
     })
     await gloco.handleState(r)
     assertEqual(r.returnCode, 200, "Should return 200 (validation disabled)")
-    const body = JSON.parse(r.returnBody!)
+    const body = JSON.parse(r.returnBody)
     assertEqual(body.success, true, "Should have success true")
   })
 
@@ -365,10 +311,10 @@ async function runTests(): Promise<void> {
     })
     await gloco.handleState(r)
     assertEqual(r.returnCode, 200, "Should return 200")
-    const body = JSON.parse(r.returnBody!)
+    const body = JSON.parse(r.returnBody)
     assertEqual(body.success, true, "Should have success true")
     assertEqual(body.path, "/global-components/state/my-key", "Should include path")
-    const setCookie = r.headersOut["Set-Cookie"] as string
+    const setCookie = r.headersOut["Set-Cookie"]
     assert(setCookie.includes("cps-global-components-state="), "Should set cookie")
     assert(setCookie.includes("Path=/global-components/state/my-key"), "Should set path")
     assert(setCookie.includes("Secure"), "Should have Secure flag")
@@ -383,10 +329,10 @@ async function runTests(): Promise<void> {
     })
     await gloco.handleState(r)
     assertEqual(r.returnCode, 200, "Should return 200")
-    const body = JSON.parse(r.returnBody!)
+    const body = JSON.parse(r.returnBody)
     assertEqual(body.success, true, "Should have success true")
     assertEqual(body.cleared, true, "Should have cleared true")
-    const setCookie = r.headersOut["Set-Cookie"] as string
+    const setCookie = r.headersOut["Set-Cookie"]
     assert(setCookie.includes("cps-global-components-state=;"), "Should set empty cookie value")
     assert(setCookie.includes("Expires=Thu, 01 Jan 1970"), "Should set cookie to expire in the past")
   })
@@ -399,10 +345,10 @@ async function runTests(): Promise<void> {
     })
     await gloco.handleState(r)
     assertEqual(r.returnCode, 200, "Should return 200")
-    const body = JSON.parse(r.returnBody!)
+    const body = JSON.parse(r.returnBody)
     assertEqual(body.success, true, "Should have success true")
     assertEqual(body.cleared, true, "Should have cleared true")
-    const setCookie = r.headersOut["Set-Cookie"] as string
+    const setCookie = r.headersOut["Set-Cookie"]
     assert(setCookie.includes("Expires=Thu, 01 Jan 1970"), "Should set cookie to expire in the past")
   })
 
@@ -414,7 +360,7 @@ async function runTests(): Promise<void> {
     })
     await gloco.handleState(r)
     assertEqual(r.returnCode, 200, "Should return 200")
-    const body = JSON.parse(r.returnBody!)
+    const body = JSON.parse(r.returnBody)
     assertEqual(body.cleared, true, "Should have cleared true for whitespace body")
   })
 
@@ -426,7 +372,7 @@ async function runTests(): Promise<void> {
     })
     await gloco.handleState(r)
     assertEqual(r.returnCode, 200, "Should return 200")
-    const body = JSON.parse(r.returnBody!)
+    const body = JSON.parse(r.returnBody)
     assertEqual(body.success, true, "Should have success true")
     assertEqual(body.cleared, undefined, "Should not have cleared flag for valid data")
   })
@@ -438,7 +384,7 @@ async function runTests(): Promise<void> {
     })
     await gloco.handleState(r)
     assertEqual(r.returnCode, 405, "Should return 405")
-    const body = JSON.parse(r.returnBody!)
+    const body = JSON.parse(r.returnBody)
     assertEqual(body.error, "Method not allowed", "Should have error message")
   })
 
@@ -460,10 +406,10 @@ async function runTests(): Promise<void> {
     })
     gloco.handleNavigateCms(r)
     assertEqual(r.returnCode, 302, "Should return 302")
-    assertEqual(r.headersOut["X-InternetExplorerMode"] as string, "1", "Should set IE mode header")
-    assert(r.returnBody!.includes("caseId=123"), `Should preserve original args, got: ${r.returnBody}`)
-    assert(r.returnBody!.includes("cmsDomain="), `Should include cmsDomain in redirect, got: ${r.returnBody}`)
-    assert(r.returnBody!.includes("foo.cps.gov.uk"), `cmsDomain should contain extracted domain, got: ${r.returnBody}`)
+    assertEqual(r.headersOut["X-InternetExplorerMode"], "1", "Should set IE mode header")
+    assert(r.returnBody.includes("caseId=123"), `Should preserve original args, got: ${r.returnBody}`)
+    assert(r.returnBody.includes("cmsDomain="), `Should include cmsDomain in redirect, got: ${r.returnBody}`)
+    assert(r.returnBody.includes("foo.cps.gov.uk"), `cmsDomain should contain extracted domain, got: ${r.returnBody}`)
   })
 
   await test("non-IE + configurable without cookie: returns 400", async () => {
@@ -475,7 +421,7 @@ async function runTests(): Promise<void> {
     })
     gloco.handleNavigateCms(r)
     assertEqual(r.returnCode, 400, "Should return 400")
-    assert(r.returnBody!.includes("could not determine CMS domain"), `Should contain error message, got: ${r.returnBody}`)
+    assert(r.returnBody.includes("could not determine CMS domain"), `Should contain error message, got: ${r.returnBody}`)
   })
 
   await test("IE + configurable (case): reads cmsDomain from query param and serves iframe", async () => {
@@ -487,11 +433,11 @@ async function runTests(): Promise<void> {
     })
     gloco.handleNavigateCms(r)
     assertEqual(r.returnCode, 200, "Should return 200")
-    assert(r.returnBody!.includes("iframe"), `Should contain iframe, got: ${r.returnBody}`)
-    assert(r.returnBody!.includes("action=navigate&screen=case_details&wId=MASTER&caseId=123"), `Should contain navigate action with caseId, got: ${r.returnBody}`)
-    assert(r.returnBody!.includes("foo.cps.gov.uk"), `Should use domain from cmsDomain arg, got: ${r.returnBody}`)
-    assert(r.returnBody!.includes("Opening case in CMS"), `Should have case heading, got: ${r.returnBody}`)
-    assert(r.returnBody!.includes("do not close this window"), `Should have inset text, got: ${r.returnBody}`)
+    assert(r.returnBody.includes("iframe"), `Should contain iframe, got: ${r.returnBody}`)
+    assert(r.returnBody.includes("action=navigate&screen=case_details&wId=MASTER&caseId=123"), `Should contain navigate action with caseId, got: ${r.returnBody}`)
+    assert(r.returnBody.includes("foo.cps.gov.uk"), `Should use domain from cmsDomain arg, got: ${r.returnBody}`)
+    assert(r.returnBody.includes("Opening case in CMS"), `Should have case heading, got: ${r.returnBody}`)
+    assert(r.returnBody.includes("do not close this window"), `Should have inset text, got: ${r.returnBody}`)
   })
 
   await test("IE + configurable (task): reads cmsDomain from query param and serves iframe with task heading", async () => {
@@ -503,8 +449,8 @@ async function runTests(): Promise<void> {
     })
     gloco.handleNavigateCms(r)
     assertEqual(r.returnCode, 200, "Should return 200")
-    assert(r.returnBody!.includes("action=activate_task&screen=case_details&wId=MASTER&taskId=456&caseId=123"), `Should contain activate_task action with taskId and caseId, got: ${r.returnBody}`)
-    assert(r.returnBody!.includes("Opening task in CMS"), `Should have task heading, got: ${r.returnBody}`)
+    assert(r.returnBody.includes("action=activate_task&screen=case_details&wId=MASTER&taskId=456&caseId=123"), `Should contain activate_task action with taskId and caseId, got: ${r.returnBody}`)
+    assert(r.returnBody.includes("Opening task in CMS"), `Should have task heading, got: ${r.returnBody}`)
   })
 
   await test("IE + configurable without cmsDomain or cookie: returns 400", async () => {
@@ -516,7 +462,7 @@ async function runTests(): Promise<void> {
     })
     gloco.handleNavigateCms(r)
     assertEqual(r.returnCode, 400, "Should return 400")
-    assert(r.returnBody!.includes("could not determine CMS domain"), `Should contain error message, got: ${r.returnBody}`)
+    assert(r.returnBody.includes("could not determine CMS domain"), `Should contain error message, got: ${r.returnBody}`)
   })
 
   await test("non-configurable: serves iframe page directly (no redirect)", async () => {
@@ -528,8 +474,8 @@ async function runTests(): Promise<void> {
     })
     gloco.handleNavigateCms(r)
     assertEqual(r.returnCode, 200, "Should return 200")
-    assert(r.returnBody!.includes("iframe"), `Should contain iframe, got: ${r.returnBody}`)
-    assert(r.returnBody!.includes("action=navigate&screen=case_details&wId=MASTER&caseId=123"), `Should contain navigate action, got: ${r.returnBody}`)
+    assert(r.returnBody.includes("iframe"), `Should contain iframe, got: ${r.returnBody}`)
+    assert(r.returnBody.includes("action=navigate&screen=case_details&wId=MASTER&caseId=123"), `Should contain navigate action, got: ${r.returnBody}`)
   })
 
   console.log("\nhandleNavigateCms (target=modern):")
@@ -543,8 +489,8 @@ async function runTests(): Promise<void> {
     })
     gloco.handleNavigateCms(r)
     assertEqual(r.returnCode, 302, "Should return 302")
-    assertEqual(r.headersOut["X-InternetExplorerMode"] as string, "1", "Should set IE mode header")
-    assert(r.returnBody!.includes("caseId=123&target=modern&cmsDomain=foo.cps.gov.uk"), `Should preserve args and add cmsDomain, got: ${r.returnBody}`)
+    assertEqual(r.headersOut["X-InternetExplorerMode"], "1", "Should set IE mode header")
+    assert(r.returnBody.includes("caseId=123&target=modern&cmsDomain=foo.cps.gov.uk"), `Should preserve args and add cmsDomain, got: ${r.returnBody}`)
   })
 
   await test("IE + configurable (modern): serves the MODERN_CMS page, not the Classic iframe", async () => {
@@ -556,7 +502,7 @@ async function runTests(): Promise<void> {
     })
     gloco.handleNavigateCms(r)
     assertEqual(r.returnCode, 200, "Should return 200")
-    const body = r.returnBody!
+    const body = r.returnBody
     assert(!body.includes("Notification.html"), `Should not drive Classic, got: ${body}`)
     assert(body.includes("window.open('', 'MODERN_CMS')"), `Should find the MODERN_CMS window, got: ${body}`)
     assert(body.includes("'https://foo.cps.gov.uk/viewer/landing#/case-summary/123'"), `Should target Modern on cmsDomain, got: ${body}`)
@@ -573,7 +519,7 @@ async function runTests(): Promise<void> {
     })
     gloco.handleNavigateCms(r)
     assertEqual(r.returnCode, 200, "Should return 200")
-    assert(r.returnBody!.includes("'https://foo.cps.gov.uk/viewer/landing#/case-summary/123'"), `Should target Modern on cookie domain, got: ${r.returnBody}`)
+    assert(r.returnBody.includes("'https://foo.cps.gov.uk/viewer/landing#/case-summary/123'"), `Should target Modern on cookie domain, got: ${r.returnBody}`)
   })
 
   await test("IE + configurable (modern): non-numeric caseId returns 400", async () => {
@@ -585,7 +531,7 @@ async function runTests(): Promise<void> {
     })
     gloco.handleNavigateCms(r)
     assertEqual(r.returnCode, 400, "Should return 400")
-    assert(!r.returnBody!.includes("alert"), `Should not echo the input, got: ${r.returnBody}`)
+    assert(!r.returnBody.includes("alert"), `Should not echo the input, got: ${r.returnBody}`)
   })
 
   await test("IE + configurable (modern): cmsDomain that isn't a bare host returns 400", async () => {
@@ -597,7 +543,7 @@ async function runTests(): Promise<void> {
     })
     gloco.handleNavigateCms(r)
     assertEqual(r.returnCode, 400, "Should return 400")
-    assert(!r.returnBody!.includes("alert"), `Should not echo the input, got: ${r.returnBody}`)
+    assert(!r.returnBody.includes("alert"), `Should not echo the input, got: ${r.returnBody}`)
   })
 
   console.log("\nhandleNavigateCms (close phase):")
@@ -611,8 +557,8 @@ async function runTests(): Promise<void> {
     })
     gloco.handleNavigateCms(r)
     assertEqual(r.returnCode, 302, "Should return 302")
-    assertEqual(r.headersOut["X-InternetExplorerMode"] as string, "0", "Should set IE mode to 0")
-    assert(r.returnBody!.includes("/global-components/navigate-cms?step=close"), `Should redirect to self with step=close, got: ${r.returnBody}`)
+    assertEqual(r.headersOut["X-InternetExplorerMode"], "0", "Should set IE mode to 0")
+    assert(r.returnBody.includes("/global-components/navigate-cms?step=close"), `Should redirect to self with step=close, got: ${r.returnBody}`)
   })
 
   await test("non-IE (Edge) close: serves window.close script", async () => {
@@ -624,7 +570,7 @@ async function runTests(): Promise<void> {
     })
     gloco.handleNavigateCms(r)
     assertEqual(r.returnCode, 200, "Should return 200")
-    assert(r.returnBody!.includes("window.close()"), `Should contain window.close(), got: ${r.returnBody}`)
+    assert(r.returnBody.includes("window.close()"), `Should contain window.close(), got: ${r.returnBody}`)
   })
 
   await test("close with non-configurable: serves window.close script", async () => {
@@ -636,7 +582,7 @@ async function runTests(): Promise<void> {
     })
     gloco.handleNavigateCms(r)
     assertEqual(r.returnCode, 200, "Should return 200")
-    assert(r.returnBody!.includes("window.close()"), `Should contain window.close(), got: ${r.returnBody}`)
+    assert(r.returnBody.includes("window.close()"), `Should contain window.close(), got: ${r.returnBody}`)
   })
 
   // --- handleCaseReviewRedirect tests ---
@@ -651,12 +597,12 @@ async function runTests(): Promise<void> {
     gloco.handleCaseReviewRedirect(r)
     assertEqual(r.returnCode, 302, "Should return 302")
     assert(
-      r.returnBody!.startsWith("https://polaris-qa.cps.gov.uk/auth-refresh-outbound?r="),
+      r.returnBody.startsWith("https://polaris-qa.cps.gov.uk/auth-refresh-outbound?r="),
       `Should redirect to /auth-refresh-outbound, got: ${r.returnBody}`
     )
 
     // Decode the outer r= param to get the auth-handover URL
-    const outerR = r.returnBody!.split("?r=")[1]
+    const outerR = r.returnBody.split("?r=")[1]
     const authHandoverUrl = decodeURIComponent(outerR)
 
     assert(
@@ -669,7 +615,7 @@ async function runTests(): Promise<void> {
     assertEqual(ahUrl.searchParams.get("stage"), "os-cookie-return", "Should have stage=os-cookie-return")
 
     // Check src (auth-handover.js URL)
-    const src = ahUrl.searchParams.get("src")!
+    const src = ahUrl.searchParams.get("src")
     assertEqual(
       src,
       "https://polaris-qa.cps.gov.uk/global-components/test/auth-handover.js",
@@ -677,7 +623,7 @@ async function runTests(): Promise<void> {
     )
 
     // Check inner r (final destination)
-    const finalDest = ahUrl.searchParams.get("r")!
+    const finalDest = ahUrl.searchParams.get("r")
     assertEqual(
       finalDest,
       "https://cps-tst.outsystemsenterprise.com/CaseReview/LandingPage?CMSCaseId=42&URN=12AB3456789",
@@ -694,7 +640,7 @@ async function runTests(): Promise<void> {
     gloco.handleCaseReviewRedirect(r)
     assertEqual(r.returnCode, 302, "Should return 302")
 
-    const outerR = r.returnBody!.split("?r=")[1]
+    const outerR = r.returnBody.split("?r=")[1]
     const authHandoverUrl = decodeURIComponent(outerR)
     assert(
       authHandoverUrl.includes("cps-dev.outsystemsenterprise.com"),
@@ -711,7 +657,7 @@ async function runTests(): Promise<void> {
     gloco.handleCaseReviewRedirect(r)
     assertEqual(r.returnCode, 302, "Should return 302")
 
-    const authHandoverUrl = decodeURIComponent(r.returnBody!.split("?r=")[1])
+    const authHandoverUrl = decodeURIComponent(r.returnBody.split("?r=")[1])
     assert(
       authHandoverUrl.startsWith("https://oapps-qa-notprod.int.cps.gov.uk/Casework_Patterns/auth-handover.html"),
       `Should use the full OS host, got: ${authHandoverUrl}`
@@ -737,7 +683,7 @@ async function runTests(): Promise<void> {
     gloco.handleCaseReviewRedirect(r)
     assertEqual(r.returnCode, 400, "Should return 400")
     assert(
-      r.returnBody!.includes("CMSCaseId"),
+      r.returnBody.includes("CMSCaseId"),
       `Should mention CMSCaseId in error, got: ${r.returnBody}`
     )
   })
@@ -751,7 +697,7 @@ async function runTests(): Promise<void> {
     gloco.handleCaseReviewRedirect(r)
     assertEqual(r.returnCode, 400, "Should return 400")
     assert(
-      r.returnBody!.includes("expected path"),
+      r.returnBody.includes("expected path"),
       `Should mention expected path format, got: ${r.returnBody}`
     )
   })
@@ -765,7 +711,7 @@ async function runTests(): Promise<void> {
     gloco.handleCaseReviewRedirect(r)
     assertEqual(r.returnCode, 400, "Should return 400")
     assert(
-      r.returnBody!.includes("expected path"),
+      r.returnBody.includes("expected path"),
       `Should mention expected path format, got: ${r.returnBody}`
     )
   })
@@ -779,10 +725,10 @@ async function runTests(): Promise<void> {
     gloco.handleCaseReviewRedirect(r)
     assertEqual(r.returnCode, 302, "Should return 302 even without URN")
 
-    const outerR = r.returnBody!.split("?r=")[1]
+    const outerR = r.returnBody.split("?r=")[1]
     const authHandoverUrl = decodeURIComponent(outerR)
     const ahUrl = new URL(authHandoverUrl)
-    const finalDest = ahUrl.searchParams.get("r")!
+    const finalDest = ahUrl.searchParams.get("r")
     assert(
       finalDest.includes("CMSCaseId=42"),
       `Should include CMSCaseId, got: ${finalDest}`
@@ -802,14 +748,14 @@ async function runTests(): Promise<void> {
     gloco.handleCaseReviewRedirect(r)
     assertEqual(r.returnCode, 302, "Should return 302")
     assert(
-      r.returnBody!.startsWith("http://localhost:8080/auth-refresh-outbound"),
+      r.returnBody.startsWith("http://localhost:8080/auth-refresh-outbound"),
       `Should use http:// from X-Forwarded-Proto, got: ${r.returnBody}`
     )
 
-    const outerR = r.returnBody!.split("?r=")[1]
+    const outerR = r.returnBody.split("?r=")[1]
     const authHandoverUrl = decodeURIComponent(outerR)
     const ahUrl = new URL(authHandoverUrl)
-    const src = ahUrl.searchParams.get("src")!
+    const src = ahUrl.searchParams.get("src")
     assert(
       src.startsWith("http://localhost:8080/"),
       `Auth handover JS URL should use http, got: ${src}`
@@ -825,7 +771,7 @@ async function runTests(): Promise<void> {
     gloco.handleCaseReviewRedirect(r)
     assertEqual(r.returnCode, 302, "Should return 302")
     assert(
-      r.returnBody!.startsWith("https://polaris-qa.cps.gov.uk/auth-refresh-outbound"),
+      r.returnBody.startsWith("https://polaris-qa.cps.gov.uk/auth-refresh-outbound"),
       `Should default to https, got: ${r.returnBody}`
     )
   })
@@ -841,10 +787,9 @@ async function runTests(): Promise<void> {
 // Main
 ;(async () => {
   try {
-    await build()
     await runTests()
   } catch (err) {
-    console.error("Build/test failed:", (err as Error).message)
+    console.error("Build/test failed:", err.message)
     process.exit(1)
   }
 })()

@@ -1,7 +1,7 @@
 # OS London/Dublin/oapps switch layer override (FCT2-22132 — temporary module)
 # Use: docker-compose -f docker-compose.yml -f docker-compose.os-london-dublin-oapps-switch.yml up
 #
-# Mounts the module's conf + compiled JS, plus test-only stand-ins for Polaris's
+# Mounts the module's conf + JS, plus test-only stand-ins for Polaris's
 # /launch routes so the C-button divert and its hand-back can be exercised end to end.
 
 services:

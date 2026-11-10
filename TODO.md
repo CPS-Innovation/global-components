@@ -90,7 +90,7 @@ cookie are never touched. It works in both Polaris proxy worlds (monolith and re
     `Origin: https://oapps-qa-notprod.int.cps.gov.uk`
   - a proxied-CMS C-button click **without** the signal still goes where it always did
 - [ ] Main-conf changes, still needed and deployed with the parent project
-      (`infra/proxy/config/main/global-components.ts` / `.conf`):
+      (`infra/proxy/config/main/global-components.js` / `.conf`):
   - `cpslon-tst` in `CORS_ALLOWED_ORIGINS` (state fetches from London pages)
   - `/case-review-redirect` accepting a full host
 
@@ -114,7 +114,7 @@ cookie are never touched. It works in both Polaris proxy worlds (monolith and re
 - [ ] Find out whether the `cms-auth-presence-token` cookie lands in Edge's cookie store or
       IE mode's (see the presence notes below).
 - [ ] Choose an option (leaning towards not opening the hub connection without a token), then
-      implement it and update the comment in `global-components.watchdog.ts`.
+      implement it and update the comment in `global-components.watchdog.js`.
 
 ## 7. Chunk 2: cutover to oapps, one environment at a time (dev → test → UAT → prod)
 

@@ -11,11 +11,11 @@
 import cryptoModule from "crypto";
 
 // Azure AD endpoints
-function authorizeUrl(tenantId: string): string {
+function authorizeUrl(tenantId) {
   return `https://login.microsoftonline.com/${tenantId}/oauth2/v2.0/authorize`;
 }
 
-function tokenUrl(tenantId: string): string {
+function tokenUrl(tenantId) {
   return `https://login.microsoftonline.com/${tenantId}/oauth2/v2.0/token`;
 }
 
@@ -23,7 +23,7 @@ function tokenUrl(tenantId: string): string {
 // Helpers
 // ---------------------------------------------------------------------------
 
-function _base64UrlDecode(str: string): string {
+function _base64UrlDecode(str) {
   str = str.replace(/-/g, "+").replace(/_/g, "/");
   while (str.length % 4) {
     str += "=";
@@ -31,7 +31,7 @@ function _base64UrlDecode(str: string): string {
   return atob(str);
 }
 
-function _generateRandomString(length: number): string {
+function _generateRandomString(length) {
   const bytes = new Uint8Array(length);
   crypto.getRandomValues(bytes);
   return Array.from(bytes)
@@ -41,21 +41,21 @@ function _generateRandomString(length: number): string {
     .join("");
 }
 
-function _getCookie(r: NginxHTTPRequest, name: string): string | null {
+function _getCookie(r, name) {
   const cookies = r.headersIn["Cookie"];
   if (!cookies) return null;
-  const match = (cookies as string).match(
+  const match = cookies.match(
     new RegExp("(?:^|;\\s*)" + name + "=([^;]*)"),
   );
   return match ? match[1] : null;
 }
 
-function _getQueryParam(r: NginxHTTPRequest, name: string): string | null {
+function _getQueryParam(r, name) {
   const v = r.variables["arg_" + name];
-  return v !== undefined ? (v as string) : null;
+  return v !== undefined ? v : null;
 }
 
-function _decodeJwtPayload(token: string): Record<string, unknown> | null {
+function _decodeJwtPayload(token) {
   const parts = token.split(".");
   if (parts.length !== 3) return null;
   try {
@@ -65,7 +65,7 @@ function _decodeJwtPayload(token: string): Record<string, unknown> | null {
   }
 }
 
-function _htmlPage(title: string, body: string): string {
+function _htmlPage(title, body) {
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -95,12 +95,7 @@ function _htmlPage(title: string, body: string): string {
 // Table Storage helpers
 // ---------------------------------------------------------------------------
 
-function _tableStorageAuth(
-  account: string,
-  key: string,
-  dateStr: string,
-  canonicalizedResource: string,
-): string {
+function _tableStorageAuth(account, key, dateStr, canonicalizedResource) {
   const stringToSign =
     dateStr + "\n" + "/" + account + "/" + canonicalizedResource;
   const keyBuffer = Buffer.from(key, "base64");
@@ -111,13 +106,7 @@ function _tableStorageAuth(
   return "SharedKeyLite " + account + ":" + hmac;
 }
 
-async function _writeTable(
-  account: string,
-  key: string,
-  oid: string,
-  cookieValue: string,
-  email: string,
-): Promise<boolean> {
+async function _writeTable(account, key, oid, cookieValue, email) {
   const table = "cmsauth";
   const resource = `${table}(PartitionKey='${oid}',RowKey='cmsAuth')`;
   const url = `https://${account}.table.core.windows.net/${resource}`;
@@ -160,11 +149,7 @@ async function _writeTable(
   }
 }
 
-async function _readTable(
-  account: string,
-  key: string,
-  oid: string,
-): Promise<{ value: string | null; diag: string }> {
+async function _readTable(account, key, oid) {
   const table = "cmsauth";
   const resource = `${table}(PartitionKey='${oid}',RowKey='cmsAuth')`;
   const url = `https://${account}.table.core.windows.net/${resource}`;
@@ -206,15 +191,15 @@ async function _readTable(
 // Login handler
 // ---------------------------------------------------------------------------
 
-function handleCmsAuthLogin(r: NginxHTTPRequest): void {
+function handleCmsAuthLogin(r) {
   const t0 = Date.now();
 
   const tenantId =
-    (process.env["CPS_GLOBAL_COMPONENTS_CMS_AUTH_TENANT_ID"] as string) || "";
+    process.env["CPS_GLOBAL_COMPONENTS_CMS_AUTH_TENANT_ID"] || "";
   const clientId =
-    (process.env["CPS_GLOBAL_COMPONENTS_CMS_AUTH_CLIENT_ID"] as string) || "";
+    process.env["CPS_GLOBAL_COMPONENTS_CMS_AUTH_CLIENT_ID"] || "";
   const redirectUri =
-    (process.env["CPS_GLOBAL_COMPONENTS_CMS_AUTH_REDIRECT_URI"] as string) ||
+    process.env["CPS_GLOBAL_COMPONENTS_CMS_AUTH_REDIRECT_URI"] ||
     "";
 
   const landingUrl = _getQueryParam(r, "r") || "";
@@ -260,7 +245,7 @@ function handleCmsAuthLogin(r: NginxHTTPRequest): void {
 // Callback handler
 // ---------------------------------------------------------------------------
 
-async function handleCmsAuthCallback(r: NginxHTTPRequest): Promise<void> {
+async function handleCmsAuthCallback(r) {
   r.headersOut["Content-Type"] = "text/html; charset=utf-8";
 
   // Check for Azure AD errors
@@ -287,13 +272,8 @@ async function handleCmsAuthCallback(r: NginxHTTPRequest): Promise<void> {
     return;
   }
 
-  let statePayload: {
-    s: string;
-    n: string;
-    r: string;
-    cc: string;
-    t?: [string, number][];
-  };
+  let statePayload
+  ;
   try {
     statePayload = JSON.parse(_base64UrlDecode(stateCookieRaw));
   } catch {
@@ -305,7 +285,7 @@ async function handleCmsAuthCallback(r: NginxHTTPRequest): Promise<void> {
   }
 
   // Recover timing array from state cookie
-  const timings: [string, number][] = statePayload.t || [];
+  const timings = statePayload.t || [];
   timings.push(["Callback start", Date.now()]);
 
   // Validate state parameter
@@ -332,14 +312,14 @@ async function handleCmsAuthCallback(r: NginxHTTPRequest): Promise<void> {
   }
 
   const tenantId =
-    (process.env["CPS_GLOBAL_COMPONENTS_CMS_AUTH_TENANT_ID"] as string) || "";
+    process.env["CPS_GLOBAL_COMPONENTS_CMS_AUTH_TENANT_ID"] || "";
   const clientId =
-    (process.env["CPS_GLOBAL_COMPONENTS_CMS_AUTH_CLIENT_ID"] as string) || "";
+    process.env["CPS_GLOBAL_COMPONENTS_CMS_AUTH_CLIENT_ID"] || "";
   const clientSecret =
-    (process.env["CPS_GLOBAL_COMPONENTS_CMS_AUTH_CLIENT_SECRET"] as string) ||
+    process.env["CPS_GLOBAL_COMPONENTS_CMS_AUTH_CLIENT_SECRET"] ||
     "";
   const redirectUri =
-    (process.env["CPS_GLOBAL_COMPONENTS_CMS_AUTH_REDIRECT_URI"] as string) ||
+    process.env["CPS_GLOBAL_COMPONENTS_CMS_AUTH_REDIRECT_URI"] ||
     "";
 
   const tokenBody = [
@@ -351,8 +331,8 @@ async function handleCmsAuthCallback(r: NginxHTTPRequest): Promise<void> {
     "scope=" + encodeURIComponent("openid profile email"),
   ].join("&");
 
-  let idToken: string;
-  let claims: Record<string, unknown>;
+  let idToken;
+  let claims;
 
   timings.push(["Token exchange start", Date.now()]);
   try {
@@ -399,7 +379,7 @@ async function handleCmsAuthCallback(r: NginxHTTPRequest): Promise<void> {
 
   // Validate token
   timings.push(["Token validation start", Date.now()]);
-  const validationErrors: string[] = [];
+  const validationErrors = [];
 
   // 1. Nonce
   if (claims.nonce !== statePayload.n) {
@@ -417,7 +397,7 @@ async function handleCmsAuthCallback(r: NginxHTTPRequest): Promise<void> {
   }
 
   // 3. Issuer
-  const iss = claims.iss as string;
+  const iss = claims.iss;
   const validIssuers = [
     `https://sts.windows.net/${tenantId}/`,
     `https://login.microsoftonline.com/${tenantId}/v2.0`,
@@ -427,7 +407,7 @@ async function handleCmsAuthCallback(r: NginxHTTPRequest): Promise<void> {
   }
 
   // 4. Expiry
-  const exp = claims.exp as number;
+  const exp = claims.exp;
   if (!exp || exp < Math.floor(Date.now() / 1000)) {
     validationErrors.push("Token expired");
   }
@@ -444,10 +424,10 @@ async function handleCmsAuthCallback(r: NginxHTTPRequest): Promise<void> {
   let storageReadHtml = '<span class="fail">SKIP — no storage creds</span>';
 
   const storageAccount =
-    (process.env["CPS_GLOBAL_COMPONENTS_CMS_AUTH_STORAGE_ACCOUNT"] as string) ||
+    process.env["CPS_GLOBAL_COMPONENTS_CMS_AUTH_STORAGE_ACCOUNT"] ||
     "";
   const storageKey =
-    (process.env["CPS_GLOBAL_COMPONENTS_CMS_AUTH_STORAGE_KEY"] as string) || "";
+    process.env["CPS_GLOBAL_COMPONENTS_CMS_AUTH_STORAGE_KEY"] || "";
 
   if (storageAccount && storageKey && isValid) {
     const oid = String(claims.oid || "");
@@ -455,13 +435,7 @@ async function handleCmsAuthCallback(r: NginxHTTPRequest): Promise<void> {
 
     timings.push(["Storage write start", Date.now()]);
     const email = String(claims.preferred_username || "");
-    const writeOk = await _writeTable(
-      storageAccount,
-      storageKey,
-      oid,
-      cc,
-      email,
-    );
+    const writeOk = await _writeTable(storageAccount, storageKey, oid, cc, email);
     timings.push(["Storage write done", Date.now()]);
     storageWriteHtml = writeOk
       ? '<span class="pass">PASS</span>'
@@ -556,7 +530,7 @@ async function handleCmsAuthCallback(r: NginxHTTPRequest): Promise<void> {
 // CMS Modern Token — fetch uainGeneratedScript.aspx with CMS cookies
 // ---------------------------------------------------------------------------
 
-async function handleCmsModernToken(r: NginxHTTPRequest): Promise<void> {
+async function handleCmsModernToken(r) {
   const ccRaw = _getQueryParam(r, "cc") || "";
   if (!ccRaw) {
     r.headersOut["Content-Type"] = "text/plain; charset=utf-8";
@@ -573,10 +547,10 @@ async function handleCmsModernToken(r: NginxHTTPRequest): Promise<void> {
     cc = cc + "; " + bigip;
   }
 
-  const host = r.headersIn["Host"] as string;
+  const host = r.headersIn["Host"];
   const url = `https://${host}/CMS.24.0.01/Includes/uainGeneratedScript.aspx`;
 
-  const reqHeaders: Record<string, string> = {
+  const reqHeaders = {
     Cookie: cc,
     Host: host,
     "User-Agent":
@@ -636,7 +610,7 @@ async function handleCmsModernToken(r: NginxHTTPRequest): Promise<void> {
       return;
     }
 
-    var graphqlData: Record<string, unknown>;
+    var graphqlData;
     try {
       graphqlData = JSON.parse(graphqlText);
     } catch {
@@ -644,9 +618,8 @@ async function handleCmsModernToken(r: NginxHTTPRequest): Promise<void> {
       return;
     }
 
-    const userData = (graphqlData as Record<string, unknown>).data as
-      | Record<string, unknown>
-      | undefined;
+    const userData = graphqlData.data
+      ;
     if (userData && userData.user) {
       r.return(200, sessionId + "\nUser: " + JSON.stringify(userData.user));
     } else {
@@ -662,9 +635,9 @@ async function handleCmsModernToken(r: NginxHTTPRequest): Promise<void> {
 // Auth refresh outbound — redirect via Cms-Session-Hint cookie
 // ---------------------------------------------------------------------------
 
-function handleAuthRefreshOutbound(r: NginxHTTPRequest): void {
+function handleAuthRefreshOutbound(r) {
   const SESSION_HINT_COOKIE_NAME = "Cms-Session-Hint";
-  const fallbackDomain = r.variables.defaultUpstreamCmsDomainName as string;
+  const fallbackDomain = r.variables.defaultUpstreamCmsDomainName;
   const fallbackUrl = `https://${fallbackDomain}/polaris-2`;
 
   let redirectBase = fallbackUrl;
@@ -687,8 +660,8 @@ function handleAuthRefreshOutbound(r: NginxHTTPRequest): void {
     }
   }
 
-  const args = r.variables.is_args as string;
-  const queryString = r.variables.args as string;
+  const args = r.variables.is_args;
+  const queryString = r.variables.args;
   r.headersOut["X-InternetExplorerMode"] = "1";
   r.return(302, redirectBase + (args || "") + (queryString || ""));
 }

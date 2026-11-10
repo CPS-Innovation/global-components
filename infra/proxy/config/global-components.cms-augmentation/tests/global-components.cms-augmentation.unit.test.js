@@ -1,6 +1,6 @@
-#!/usr/bin/env npx ts-node
+#!/usr/bin/env node
 /**
- * Unit tests for global-components.cms-augmentation.ts — the PREVIEW STATE route.
+ * Unit tests for global-components.cms-augmentation.js — the PREVIEW STATE route.
  *
  * Scope: handleStatePreview and its ?set= navigation, which is a state machine
  * over $ieaction and `done`, and a state machine wants unit tests rather than a
@@ -14,91 +14,49 @@
  * one cookie written per engine, `done` stopping the second pass from bouncing
  * back again.
  *
- * Uses esbuild to bundle the njs module, then runs the tests against the bundle —
- * the same approach as the other module unit tests here.
+ * Loads the njs source with njs-loader.js (an .mjs copy, no bundler), as the other
+ * module unit tests here do.
  */
 
-import * as esbuild from "esbuild"
-import * as path from "path"
-import * as fs from "fs"
+const path = require("path")
+const fs = require("fs")
+const { loadNjs } = require("../../../njs-loader")
 
 const CONFIG_DIR = path.join(__dirname, "..", "..")
 const MODULE_DIR = path.join(CONFIG_DIR, "global-components.cms-augmentation")
-const DIST_DIR = path.join(CONFIG_DIR, "..", ".dist")
-
-if (!fs.existsSync(DIST_DIR)) {
-  fs.mkdirSync(DIST_DIR, { recursive: true })
-}
 
 const STATE_PATH = "/global-components/state/preview"
 const COOKIE = "cps-global-components-state"
 
-interface MockRequest {
-  method: string
-  uri: string
-  requestText?: string
-  headersIn: Record<string, string>
-  headersOut: Record<string, string | string[]>
-  variables: Record<string, string>
-  returnCode: number | null
-  returnBody: string | null
-  return(code: number, body: string): void
-}
-
-interface MockRequestOptions {
-  method?: string
-  uri?: string
-  requestText?: string
-  args?: Record<string, string>
-  cookie?: string
-  ieaction?: string
-}
-
-interface CmsAugmentationModule {
-  handleStatePreview(r: MockRequest): Promise<void>
-}
-
-async function build(): Promise<void> {
-  await esbuild.build({
-    entryPoints: [path.join(MODULE_DIR, "global-components.cms-augmentation.ts")],
-    bundle: true,
-    outfile: path.join(DIST_DIR, "global-components.cms-augmentation.bundle.js"),
-    format: "esm",
-    platform: "node",
-    logLevel: "error",
-  })
-}
-
-async function runTests(): Promise<void> {
+async function runTests() {
   // The module only touches ngx inside handlers, so stubbing it here is enough.
   // Collected rather than discarded: the "which jars did I write" line is the
   // only signal that a non-configurable site got a partial write, so it is worth
   // asserting on.
-  const logged: string[] = []
-  ;(globalThis as Record<string, unknown>).ngx = {
+  const logged = []
+  ;globalThis.ngx = {
     WARN: 4,
-    log: (_level: number, msg: string) => {
+    log: (_level, msg) => {
       logged.push(msg)
     },
   }
 
-  const module = await import(path.join(DIST_DIR, "global-components.cms-augmentation.bundle.js"))
-  const mod: CmsAugmentationModule = module.default
+  const mod = await loadNjs(path.join(MODULE_DIR, "global-components.cms-augmentation.js"))
 
   let passed = 0
   let failed = 0
 
-  function assert(condition: boolean, message: string): void {
+  function assert(condition, message) {
     if (!condition) throw new Error(message)
   }
 
-  function assertEqual(actual: unknown, expected: unknown, message: string): void {
+  function assertEqual(actual, expected, message) {
     if (actual !== expected) {
       throw new Error(`${message}\n  Expected: ${JSON.stringify(expected)}\n  Actual:   ${JSON.stringify(actual)}`)
     }
   }
 
-  async function test(name: string, fn: () => Promise<void>): Promise<void> {
+  async function test(name, fn) {
     logged.length = 0
     try {
       await fn()
@@ -107,14 +65,14 @@ async function runTests(): Promise<void> {
     } catch (err) {
       failed++
       console.log(`  \x1b[31m✗\x1b[0m ${name}`)
-      console.log(`    ${(err as Error).message}`)
+      console.log(`    ${err.message}`)
     }
   }
 
   // _getQueryParam reads $arg_<name>, so query args go in `variables` as the
   // RAW (still percent-encoded) values nginx would expose.
-  function createMockRequest(options: MockRequestOptions = {}): MockRequest {
-    const variables: Record<string, string> = {
+  function createMockRequest(options = {}) {
+    const variables = {
       ieaction: options.ieaction || "nonie+configurable+",
     }
     for (const [k, v] of Object.entries(options.args || {})) {
@@ -129,18 +87,18 @@ async function runTests(): Promise<void> {
       variables,
       returnCode: null,
       returnBody: null,
-      return(code: number, body: string) {
+      return(code, body) {
         this.returnCode = code
         this.returnBody = body
       },
     }
   }
 
-  const b64url = (s: string) =>
+  const b64url = (s) =>
     Buffer.from(s, "utf8").toString("base64").replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "")
 
-  const setCookieOf = (r: MockRequest) => String(r.headersOut["Set-Cookie"] || "")
-  const cookieValueOf = (r: MockRequest) => setCookieOf(r).split(";")[0].split("=").slice(1).join("=")
+  const setCookieOf = (r) => String(r.headersOut["Set-Cookie"] || "")
+  const cookieValueOf = (r) => setCookieOf(r).split(";")[0].split("=").slice(1).join("=")
 
   const PREVIEW = '{"caseLocking":true}'
 
@@ -261,7 +219,7 @@ async function runTests(): Promise<void> {
   // --- the ?set= navigation: the dual-jar write -----------------------------
   console.log("\nthe ?set= navigation, which writes both cookie jars:")
 
-  const setRequest = (args: Record<string, string>, ieaction: string) =>
+  const setRequest = (args, ieaction) =>
     createMockRequest({ uri: STATE_PATH, args, ieaction })
 
   await test("first pass in Edge writes its jar and hands over to IE", async () => {
@@ -273,7 +231,7 @@ async function runTests(): Promise<void> {
     assertEqual(cookieValueOf(r), b64url(PREVIEW), "Edge jar written")
     assertEqual(r.headersOut["X-InternetExplorerMode"], "1", "flip to IE")
     assertEqual(r.returnCode, 302, "code")
-    assert(r.returnBody!.endsWith("&done=edge"), `hop: ${r.returnBody}`)
+    assert(r.returnBody.endsWith("&done=edge"), `hop: ${r.returnBody}`)
   })
 
   await test("second pass in IE writes its jar and returns to the preview app", async () => {
@@ -297,14 +255,14 @@ async function runTests(): Promise<void> {
   await test("the chain terminates — a pass carrying done never hands over again", async () => {
     const r = setRequest({ set: encodeURIComponent(PREVIEW), return: "%2F", done: "edge" }, "ie+configurable+")
     await mod.handleStatePreview(r)
-    assert(!r.returnBody!.includes("done="), `should not hop again: ${r.returnBody}`)
+    assert(!r.returnBody.includes("done="), `should not hop again: ${r.returnBody}`)
   })
 
   await test("starting in IE hands over to Edge instead", async () => {
     const r = setRequest({ set: encodeURIComponent(PREVIEW), return: "%2F" }, "ie+configurable+")
     await mod.handleStatePreview(r)
     assertEqual(r.headersOut["X-InternetExplorerMode"], "0", "flip to Edge")
-    assert(r.returnBody!.endsWith("&done=ie"), `hop: ${r.returnBody}`)
+    assert(r.returnBody.endsWith("&done=ie"), `hop: ${r.returnBody}`)
   })
 
   // THE PARTIAL SUCCESS. A site Edge will not let us flip gets ONE jar, and the
@@ -395,8 +353,7 @@ async function runTests(): Promise<void> {
   }
 }
 
-build()
-  .then(runTests)
+runTests()
   .catch((err) => {
     console.error(err)
     process.exit(1)

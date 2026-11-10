@@ -23,7 +23,7 @@
 // Helpers
 // ---------------------------------------------------------------------------
 
-function _base64UrlDecode(str: string): string {
+function _base64UrlDecode(str) {
   // base64url -> utf-8. Buffer tolerates missing padding and decodes multibyte
   // text correctly (atob would only give Latin1 bytes).
   return Buffer.from(
@@ -32,7 +32,7 @@ function _base64UrlDecode(str: string): string {
   ).toString("utf8");
 }
 
-function _base64UrlEncode(str: string): string {
+function _base64UrlEncode(str) {
   // utf-8 -> base64url via Buffer (NOT btoa). btoa throws on any char >= U+0100,
   // and the state payload can hold non-Latin1 text from the CMS/GraphQL diag
   // previews, so btoa("...") blows up with "invalid character (>= U+00FF)".
@@ -43,21 +43,21 @@ function _base64UrlEncode(str: string): string {
     .replace(/=+$/, "");
 }
 
-function _getCookie(r: NginxHTTPRequest, name: string): string | null {
+function _getCookie(r, name) {
   const cookies = r.headersIn["Cookie"];
   if (!cookies) return null;
-  const match = (cookies as string).match(
+  const match = cookies.match(
     new RegExp("(?:^|;\\s*)" + name + "=([^;]*)"),
   );
   return match ? match[1] : null;
 }
 
-function _getQueryParam(r: NginxHTTPRequest, name: string): string | null {
+function _getQueryParam(r, name) {
   const v = r.variables["arg_" + name];
-  return v !== undefined ? (v as string) : null;
+  return v !== undefined ? v : null;
 }
 
-function _htmlPage(title: string, body: string): string {
+function _htmlPage(title, body) {
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -83,7 +83,7 @@ function _htmlPage(title: string, body: string): string {
 </html>`;
 }
 
-function _esc(s: string): string {
+function _esc(s) {
   return String(s)
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
@@ -92,21 +92,16 @@ function _esc(s: string): string {
 
 // Render an unhandled exception straight to the HTTP response so it is visible
 // in the browser (the deployed proxy's logs are not reachable). Never throws.
-function _renderException(
-  r: NginxHTTPRequest,
-  where: string,
-  e: unknown,
-): void {
-  const err = e as { message?: string; stack?: string; name?: string };
-  const name = (err && err.name) || "Error";
-  const msg = (err && err.message) || String(e);
-  const stack = (err && err.stack) || "(no stack available)";
+function _renderException(r, where, e) {
+  const name = (e && e.name) || "Error";
+  const msg = (e && e.message) || String(e);
+  const stack = (e && e.stack) || "(no stack available)";
   try {
     ngx.log(
       ngx.ERR,
       "cms-augmentation unhandled in " + where + ": " + name + ": " + msg,
     );
-  } catch {
+  } catch (_e) {
     // ignore logging failures
   }
   try {
@@ -120,7 +115,7 @@ function _renderException(
          <pre>${_esc(stack)}</pre>`,
       ),
     );
-  } catch {
+  } catch (_e) {
     // response already committed — nothing more we can do
   }
 }
@@ -133,13 +128,13 @@ function _renderException(
 // assumed "/" (the common case) — a cookie pinned to a deeper path can't be
 // cleared blind. Runs server-side, so HttpOnly cookies are cleared too. Both
 // Expires (which old IE honours) and Max-Age=0 are set.
-function handleClearCookies(r: NginxHTTPRequest): void {
+function handleClearCookies(r) {
   const raw = r.headersIn["Cookie"] || "";
   const host = (r.headersIn["Host"] || "").split(":")[0];
 
   // Unique cookie names from the request header.
-  const names: string[] = [];
-  const seen: { [k: string]: boolean } = {};
+  const names = [];
+  const seen = {};
   const parts = raw.split(/; */);
   for (let i = 0; i < parts.length; i++) {
     if (parts[i] === "") {
@@ -156,7 +151,7 @@ function handleClearCookies(r: NginxHTTPRequest): void {
   // Domain scopes to attempt: "" = host-only (omit the Domain attribute), the
   // exact host, then each parent domain (drop the leftmost label) down to two
   // labels. (.gov.uk etc. are public suffixes the browser rejects — harmless.)
-  const domains: string[] = ["", host];
+  const domains = ["", host];
   let labels = host.split(".");
   while (labels.length > 2) {
     labels = labels.slice(1);
@@ -164,7 +159,7 @@ function handleClearCookies(r: NginxHTTPRequest): void {
   }
 
   const past = "Thu, 01 Jan 1970 00:00:00 GMT";
-  const setCookies: string[] = [];
+  const setCookies = [];
   for (let n = 0; n < names.length; n++) {
     for (let d = 0; d < domains.length; d++) {
       const domainAttr = domains[d] === "" ? "" : "; Domain=" + domains[d];
@@ -242,8 +237,8 @@ const _STATE_COOKIE_LIFESPAN_MS = 365 * 24 * 60 * 60 * 1000;
 
 // base64url, the same wrapping main uses. Nothing is copied but the two
 // one-line calls.
-const _wrapState = (plaintext: string): string => _base64UrlEncode(plaintext);
-const _unwrapState = (wrapped: string): string | null => {
+const _wrapState = (plaintext) => _base64UrlEncode(plaintext);
+const _unwrapState = (wrapped) => {
   try {
     return _base64UrlDecode(wrapped);
   } catch (e) {
@@ -259,12 +254,12 @@ const _unwrapState = (wrapped: string): string | null => {
  * `null`/empty clears it, matching main's PUT contract where a body of "null"
  * or "" is how the preview app turns everything off.
  */
-function _setStateCookie(r: NginxHTTPRequest, json: string): void {
+function _setStateCookie(r, json) {
   const clearing = json === "" || json === "null";
   const expires = clearing
     ? new Date(0)
     : new Date(Date.now() + _STATE_COOKIE_LIFESPAN_MS);
-  (r.headersOut as Record<string, string>)["Set-Cookie"] =
+  r.headersOut["Set-Cookie"] =
     _STATE_COOKIE_NAME +
     "=" +
     (clearing ? "" : _wrapState(json)) +
@@ -292,7 +287,7 @@ function _setStateCookie(r: NginxHTTPRequest, json: string): void {
  * contract; anything else collapses to "null", which the clients already read
  * as "no preview".
  */
-function _readState(r: NginxHTTPRequest): string {
+function _readState(r) {
   const raw = _getCookie(r, _STATE_COOKIE_NAME);
   if (!raw) {
     return "null";
@@ -327,7 +322,7 @@ function _readState(r: NginxHTTPRequest): string {
  * sent to /global-components/presence-jsonp — a preview op bolted onto the
  * presence adapter could not read the cookie it was asking about.
  */
-async function handleStatePreview(r: NginxHTTPRequest): Promise<void> {
+async function handleStatePreview(r) {
   if (r.method === "PUT") {
     _setStateCookie(r, (r.requestText || "").trim());
     r.headersOut["Content-Type"] = "application/json";
@@ -388,7 +383,7 @@ async function handleStatePreview(r: NginxHTTPRequest): Promise<void> {
  * so it is logged: "my preview did not apply in Classic" is otherwise
  * indistinguishable from a bug anywhere else in this chain.
  */
-function _handleStatePreviewSet(r: NginxHTTPRequest, rawSet: string): void {
+function _handleStatePreviewSet(r, rawSet) {
   const json = decodeURIComponent(rawSet).trim();
   const returnTo = decodeURIComponent(_getQueryParam(r, "return") || "");
   const done = _getQueryParam(r, "done") || "";
@@ -397,7 +392,7 @@ function _handleStatePreviewSet(r: NginxHTTPRequest, rawSet: string): void {
   // to another origin. Matches the OS switch's guard.
   const safeReturn = /^\/(?!\/)/.test(returnTo) ? returnTo : "/";
 
-  const ieaction = (r.variables["ieaction"] as string) || "";
+  const ieaction = r.variables["ieaction"] || "";
   const engine = ieaction.indexOf("ie+") === 0 ? "ie" : "edge";
   const configurable = ieaction.indexOf("+configurable+") !== -1;
 
@@ -444,8 +439,8 @@ function _handleStatePreviewSet(r: NginxHTTPRequest, rawSet: string): void {
 // (with name/message/stack) instead of a blank nginx 500. Works for both sync
 // and async handlers — awaiting a non-promise is a no-op.
 const _guard =
-  (name: string, fn: (r: NginxHTTPRequest) => void | Promise<void>) =>
-  async (r: NginxHTTPRequest): Promise<void> => {
+  (name, fn) =>
+  async (r) => {
     try {
       await fn(r);
     } catch (e) {

@@ -35,7 +35,7 @@
 // configuration/ (config.<env>.<variant>.json) — the unit tests check both ways.
 // test's own host is now oapps-qa-notprod; "cps" is the old outsystemsenterprise
 // host, kept switchable until it is retired.
-const OS_HOST_VARIANTS: Record<string, Record<string, string>> = {
+const OS_HOST_VARIANTS = {
   test: {
     cps: "cps-tst.outsystemsenterprise.com",
     "cps-lon": "cpslon-tst.outsystemsenterprise.com",
@@ -45,7 +45,7 @@ const OS_HOST_VARIANTS: Record<string, Record<string, string>> = {
 // The Polaris host each environment's handover chain runs through: it serves
 // the auth-handover.js bundle (the handover URL's src, which the OS-hosted
 // auth-handover.html allowlists and AAD's redirect URIs embed) and /polaris.
-const POLARIS_HOSTS: Record<string, string> = {
+const POLARIS_HOSTS = {
   test: "polaris-qa-notprod.cps.gov.uk",
 };
 
@@ -53,7 +53,7 @@ const POLARIS_HOSTS: Record<string, string> = {
 // the environment each serves. These mirror Polaris's own /launch/<cin>-proxy
 // routes, which all send the user to the test handover on polaris-qa-notprod.
 // The conf's divert regex must match exactly these (unit-tested).
-const LAUNCH_ROUTES: Record<string, string> = {
+const LAUNCH_ROUTES = {
   "cin2-proxy": "test",
   "cin3-proxy": "test",
   "cin4-proxy": "test",
@@ -63,8 +63,8 @@ const LAUNCH_ROUTES: Record<string, string> = {
 const COOKIE_PREFIX = "Gloco-Os-Target-";
 const COOKIE_LIFESPAN_MS = 365 * 24 * 60 * 60 * 1000;
 
-function _getCookie(r: NginxHTTPRequest, name: string): string | undefined {
-  const cookies = (r.headersIn["Cookie"] as string | undefined) || "";
+function _getCookie(r, name) {
+  const cookies = r.headersIn["Cookie"] || "";
   const parts = cookies.split(";");
   for (let i = 0; i < parts.length; i++) {
     const part = parts[i].trim();
@@ -75,7 +75,7 @@ function _getCookie(r: NginxHTTPRequest, name: string): string | undefined {
   return undefined;
 }
 
-function _variantForHost(env: string, host: string | undefined): string | undefined {
+function _variantForHost(env, host) {
   if (!host) {
     return undefined;
   }
@@ -90,17 +90,17 @@ function _variantForHost(env: string, host: string | undefined): string | undefi
 }
 
 // The switched-to host for an environment, if the request carries a valid signal.
-function _targetHost(r: NginxHTTPRequest, env: string): string | undefined {
+function _targetHost(r, env) {
   const host = _getCookie(r, COOKIE_PREFIX + env);
-  return _variantForHost(env, host) ? host!.toLowerCase() : undefined;
+  return _variantForHost(env, host) ? host.toLowerCase() : undefined;
 }
 
-function _hostOf(url: string | undefined): string | undefined {
+function _hostOf(url) {
   const match = (url || "").match(/^https?:\/\/([^/:]+)/i);
   return match ? match[1].toLowerCase() : undefined;
 }
 
-function _query(r: NginxHTTPRequest, name: string): string {
+function _query(r, name) {
   const value = r.args[name];
   return typeof value === "string" ? value : "";
 }
@@ -115,12 +115,12 @@ function _query(r: NginxHTTPRequest, name: string): string {
 //   - Same-origin (the component on CWA, which sends the cookie but no Origin):
 //     the variant the switch names, if any.
 //   - Anything else, or a host with no variant: config.json.
-function readConfigBlobName(r: NginxHTTPRequest): string {
+function readConfigBlobName(r) {
   // Set by the per-environment config.json location before it hands over to
   // the shared internal location, so read it rather than the (rewritten) URI.
-  const env = (r.variables.gloco_os_switch_config_env as string | undefined) || "";
-  const originHost = _hostOf(r.headersIn["Origin"] as string | undefined);
-  const requestHost = ((r.headersIn["Host"] as string | undefined) || "").split(":")[0].toLowerCase();
+  const env = r.variables.gloco_os_switch_config_env || "";
+  const originHost = _hostOf(r.headersIn["Origin"]);
+  const requestHost = (r.headersIn["Host"] || "").split(":")[0].toLowerCase();
   const isCrossOrigin = !!originHost && originHost !== requestHost;
 
   const variant = isCrossOrigin ? _variantForHost(env, originHost) : _variantForHost(env, _targetHost(r, env));
@@ -133,7 +133,7 @@ function readConfigBlobName(r: NginxHTTPRequest): string {
 // The handover URL Polaris's /launch/<cin>-proxy routes point at, on `osHost`:
 //   https://<polaris>/polaris?r=<handover on osHost, landing on OS home>
 // Same shape and encoding as their hard-coded targets, only the host differs.
-function _launchUrl(env: string, osHost: string): string {
+function _launchUrl(env, osHost) {
   const polaris = POLARIS_HOSTS[env];
   const src = "https://" + polaris + "/global-components/" + env + "/auth-handover.js";
   const home = "https://" + osHost + "/casework_blocks/home?IsFromCMS=True";
@@ -153,12 +153,12 @@ function _launchUrl(env: string, osHost: string): string {
 // request, wherever rewrite_log is switched on in the deployed config. A plain
 // `if ($var)` test is not logged. Nor is the value of a js_set. Don't put the
 // regex back. The URI is checked first so nobody else's Cookie header is read.
-function launchSignalled(r: NginxHTTPRequest): string {
+function launchSignalled(r) {
   const route = (r.uri.match(/^\/launch\/([^/]+)$/) || [])[1] || "";
   if (!LAUNCH_ROUTES[route]) {
     return "";
   }
-  const cookies = (r.headersIn["Cookie"] as string | undefined) || "";
+  const cookies = r.headersIn["Cookie"] || "";
   const parts = cookies.split(";");
   for (let i = 0; i < parts.length; i++) {
     if (parts[i].trim().indexOf(COOKIE_PREFIX) === 0) {
@@ -174,7 +174,7 @@ function launchSignalled(r: NginxHTTPRequest): string {
 // /launch/<route>, i.e. Polaris's own handler, untouched.
 // The C-button is clicked in the proxied CMS, i.e. in IE mode, so this reads the
 // IE-mode copy of the cookie — which the set route wrote.
-function launchTarget(r: NginxHTTPRequest): string {
+function launchTarget(r) {
   const route = (r.uri.match(/^\/global-components\/os-london-dublin-oapps-switch\/launch\/([^/]+)$/) || [])[1] || "";
   const env = LAUNCH_ROUTES[route];
   if (!env || !POLARIS_HOSTS[env]) {
@@ -190,7 +190,7 @@ function launchTarget(r: NginxHTTPRequest): string {
 //   → { current: <host> | null, options: [{ variant, host }] }
 // Reads the Edge copy (the preview page runs in Edge); the set route writes both
 // copies together, so it speaks for both. Same-origin only, so no CORS.
-function handleStatus(r: NginxHTTPRequest): void {
+function handleStatus(r) {
   const env = (r.uri.match(/^\/global-components\/multi-os\/target\/([^/]+)$/) || [])[1] || "";
   const variants = OS_HOST_VARIANTS[env] || {};
   r.headersOut["Content-Type"] = "application/json";
@@ -220,7 +220,7 @@ function handleStatus(r: NginxHTTPRequest): void {
 //   3. redirect to `return`, in Edge.
 // An empty host clears both copies. Only ever one hop, so a flip the browser
 // declines can't loop.
-function handleSet(r: NginxHTTPRequest): void {
+function handleSet(r) {
   const env = _query(r, "env");
   const host = _query(r, "host").toLowerCase();
   const returnTo = _query(r, "return");
@@ -235,14 +235,14 @@ function handleSet(r: NginxHTTPRequest): void {
   // Same-host paths only, so this can't be used to bounce users elsewhere.
   const safeReturn = /^\/(?!\/)/.test(returnTo) ? returnTo : "/";
 
-  const ieaction = (r.variables.ieaction as string | undefined) || "";
+  const ieaction = r.variables.ieaction || "";
   const engine = ieaction.indexOf("ie+") === 0 ? "ie" : "edge";
   const configurable = ieaction.indexOf("+configurable+") !== -1;
 
   const expires = host ? new Date(Date.now() + COOKIE_LIFESPAN_MS) : new Date(0);
   // njs types Set-Cookie as string[]; a single string is fine at runtime
   // (same cast as _setCookie in main/global-components.ts).
-  (r.headersOut as Record<string, string>)["Set-Cookie"] =
+  r.headersOut["Set-Cookie"] =
     COOKIE_PREFIX + env + "=" + encodeURIComponent(host) + "; Path=/; Expires=" + expires.toUTCString() + "; Secure; HttpOnly; SameSite=Lax";
 
   if (!done && configurable) {

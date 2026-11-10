@@ -30,7 +30,7 @@ client that sends its own `Authorization` (global-components, via MSAL) is passe
 
 ## Tests
 
-- `tests/*.unit.test.ts` — filters, js_sets, the sr location regex, the JSONP adapter and whoami
+- `tests/*.unit.test.js` — filters, js_sets, the sr location regex, the JSONP adapter and whoami
   (`pnpm test` in `infra/proxy`).
 - `tests/*.integration.test.js` — the docker `watchdog` layer, run with the setting unset: whoami's
   `cmsEnv` decoding, the "not configured" answers, and a non-instance `sr/` path not reaching

@@ -6,8 +6,8 @@
 /**
  * Parse a Cookie header string into a map of name → value.
  */
-function _parseCookieHeader(cookieHeader: string): Map<string, string> {
-  const result = new Map<string, string>()
+function _parseCookieHeader(cookieHeader) {
+  const result = new Map()
   if (!cookieHeader) return result
 
   const pairs = cookieHeader.split(";")
@@ -26,7 +26,7 @@ function _parseCookieHeader(cookieHeader: string): Map<string, string> {
  * Parse a single Set-Cookie header value, returning the cookie name and value
  * (ignoring attributes like path, expires, httponly, etc.)
  */
-function _parseSetCookie(setCookieValue: string): { name: string; value: string } | null {
+function _parseSetCookie(setCookieValue) {
   const semiIdx = setCookieValue.indexOf(";")
   const nameValue = semiIdx === -1 ? setCookieValue : setCookieValue.substring(0, semiIdx)
   const eqIdx = nameValue.indexOf("=")
@@ -40,8 +40,8 @@ function _parseSetCookie(setCookieValue: string): { name: string; value: string 
 /**
  * Serialize a cookie map back into a Cookie header string.
  */
-function _serializeCookieHeader(cookies: Map<string, string>): string {
-  const parts: string[] = []
+function _serializeCookieHeader(cookies) {
+  const parts = []
   cookies.forEach(function (value, name) {
     parts.push(name + "=" + value)
   })
@@ -51,11 +51,6 @@ function _serializeCookieHeader(cookies: Map<string, string>): string {
 // ---------------------------------------------------------------------------
 // applySetCookie
 // ---------------------------------------------------------------------------
-
-interface ApplySetCookieOptions {
-  /** If provided, only these cookie names will be included in the result. */
-  whitelist?: string[]
-}
 
 /**
  * Merges Set-Cookie response headers into the incoming Cookie request header,
@@ -69,10 +64,10 @@ interface ApplySetCookieOptions {
  * @returns The merged Cookie header string
  */
 function applySetCookie(
-  incomingCookie: string,
-  setCookieHeaders: string[],
-  options?: ApplySetCookieOptions
-): string {
+  incomingCookie,
+  setCookieHeaders,
+  options
+) {
   const cookies = _parseCookieHeader(incomingCookie)
 
   for (let i = 0; i < setCookieHeaders.length; i++) {
@@ -94,7 +89,7 @@ function applySetCookie(
   // Apply whitelist if provided
   if (options && options.whitelist) {
     const allowed = new Set(options.whitelist)
-    const filtered = new Map<string, string>()
+    const filtered = new Map()
     cookies.forEach(function (value, name) {
       if (allowed.has(name)) {
         filtered.set(name, value)
@@ -109,7 +104,7 @@ function applySetCookie(
 /**
  * Check whether a Set-Cookie header contains an expires date in the past.
  */
-function _isExpiredDate(setCookieHeader: string): boolean {
+function _isExpiredDate(setCookieHeader) {
   const match = setCookieHeader.match(/expires=([^;]+)/i)
   if (!match) return false
   const expires = new Date(match[1].trim())
@@ -136,7 +131,7 @@ function _isExpiredDate(setCookieHeader: string): boolean {
  * @param ascii  The ASCII string to compress
  * @returns A Unicode string approximately half the length
  */
-function asciiToUnicode(ascii: string): string {
+function asciiToUnicode(ascii) {
   const len = ascii.length
   const isOdd = len % 2 !== 0
   const pairCount = Math.floor(len / 2)
@@ -165,7 +160,7 @@ function asciiToUnicode(ascii: string): string {
  * @param packed  The Unicode-compressed string
  * @returns The original ASCII string
  */
-function unicodeToAscii(packed: string): string {
+function unicodeToAscii(packed) {
   const len = packed.length
   let result = ""
 

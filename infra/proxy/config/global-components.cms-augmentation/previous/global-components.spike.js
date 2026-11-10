@@ -9,11 +9,11 @@ import cryptoModule from "crypto"
 const SPIKE_HTML_PATH = "/etc/nginx/spike.html"
 
 // Azure AD endpoints (constructed at runtime using tenant ID from r.variables)
-function authorizeUrl(tenantId: string): string {
+function authorizeUrl(tenantId) {
   return `https://login.microsoftonline.com/${tenantId}/oauth2/v2.0/authorize`
 }
 
-function tokenUrl(tenantId: string): string {
+function tokenUrl(tenantId) {
   return `https://login.microsoftonline.com/${tenantId}/oauth2/v2.0/token`
 }
 
@@ -21,7 +21,7 @@ function tokenUrl(tenantId: string): string {
 // Helpers
 // ---------------------------------------------------------------------------
 
-function _base64UrlDecode(str: string): string {
+function _base64UrlDecode(str) {
   str = str.replace(/-/g, "+").replace(/_/g, "/")
   while (str.length % 4) {
     str += "="
@@ -29,11 +29,11 @@ function _base64UrlDecode(str: string): string {
   return atob(str)
 }
 
-function _base64UrlEncode(str: string): string {
+function _base64UrlEncode(str) {
   return btoa(str).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "")
 }
 
-function _generateRandomString(length: number): string {
+function _generateRandomString(length) {
   const bytes = new Uint8Array(length)
   crypto.getRandomValues(bytes)
   return Array.from(bytes)
@@ -41,16 +41,16 @@ function _generateRandomString(length: number): string {
     .join("")
 }
 
-function _getCookie(r: NginxHTTPRequest, name: string): string | null {
+function _getCookie(r, name) {
   const cookies = r.headersIn["Cookie"]
   if (!cookies) return null
-  const match = (cookies as string).match(
+  const match = cookies.match(
     new RegExp("(?:^|;\\s*)" + name + "=([^;]*)")
   )
   return match ? match[1] : null
 }
 
-function _decodeJwtPayload(token: string): Record<string, unknown> | null {
+function _decodeJwtPayload(token) {
   const parts = token.split(".")
   if (parts.length !== 3) return null
   try {
@@ -60,27 +60,27 @@ function _decodeJwtPayload(token: string): Record<string, unknown> | null {
   }
 }
 
-function _getQueryParam(r: NginxHTTPRequest, name: string): string | null {
+function _getQueryParam(r, name) {
   // r.args is the raw query string; use r.variables["arg_" + name] for single params
   const v = r.variables["arg_" + name]
-  return v !== undefined ? v as string : null
+  return v !== undefined ? v: null
 }
 
 // ---------------------------------------------------------------------------
 // Graph API token cache (module-level, sufficient for single-worker spike)
 // ---------------------------------------------------------------------------
 
-let _graphTokenCache: { token: string; expiresAt: number } | null = null
+let _graphTokenCache = null
 
-async function _getGraphToken(r: NginxHTTPRequest): Promise<string | null> {
+async function _getGraphToken(r) {
   const now = Math.floor(Date.now() / 1000)
   if (_graphTokenCache && _graphTokenCache.expiresAt > now) {
     return _graphTokenCache.token
   }
 
-  const tenantId = r.variables.spike_tenant_id as string
-  const clientId = r.variables.spike_client_id as string
-  const clientSecret = r.variables.spike_client_secret as string
+  const tenantId = r.variables.spike_tenant_id
+  const clientId = r.variables.spike_client_id
+  const clientSecret = r.variables.spike_client_secret
 
   const body = [
     "client_id=" + encodeURIComponent(clientId),
@@ -122,14 +122,8 @@ async function _getGraphToken(r: NginxHTTPRequest): Promise<string | null> {
 // Token validation helper
 // ---------------------------------------------------------------------------
 
-interface ValidateResult {
-  valid: boolean
-  claims: Record<string, unknown>
-  error?: string
-}
-
-function _validateBearerToken(r: NginxHTTPRequest): ValidateResult {
-  const authHeader = r.headersIn["Authorization"] as string | undefined
+function _validateBearerToken(r) {
+  const authHeader = r.headersIn["Authorization"]
   if (!authHeader || !authHeader.startsWith("Bearer ")) {
     return { valid: false, claims: {}, error: "Missing or invalid Authorization header" }
   }
@@ -140,7 +134,7 @@ function _validateBearerToken(r: NginxHTTPRequest): ValidateResult {
     return { valid: false, claims: {}, error: "Invalid JWT format" }
   }
 
-  const tenantId = r.variables.spike_tenant_id as string
+  const tenantId = r.variables.spike_tenant_id
 
   // Check tenant ID
   if (claims.tid !== tenantId) {
@@ -148,7 +142,7 @@ function _validateBearerToken(r: NginxHTTPRequest): ValidateResult {
   }
 
   // Check issuer (accept both v1 and v2 formats)
-  const iss = claims.iss as string
+  const iss = claims.iss
   const validIssuers = [
     `https://sts.windows.net/${tenantId}/`,
     `https://login.microsoftonline.com/${tenantId}/v2.0`,
@@ -158,7 +152,7 @@ function _validateBearerToken(r: NginxHTTPRequest): ValidateResult {
   }
 
   // Check expiry
-  const exp = claims.exp as number
+  const exp = claims.exp
   if (!exp || exp < Math.floor(Date.now() / 1000)) {
     return { valid: false, claims, error: "Token expired" }
   }
@@ -170,17 +164,17 @@ function _validateBearerToken(r: NginxHTTPRequest): ValidateResult {
 // Extension property helpers
 // ---------------------------------------------------------------------------
 
-function _extensionName(r: NginxHTTPRequest): string {
-  const clientId = r.variables.spike_client_id as string
+function _extensionName(r) {
+  const clientId = r.variables.spike_client_id
   const noDashes = clientId.replace(/-/g, "")
   return `extension_${noDashes}_spikeValue`
 }
 
 async function _writeExtension(
-  r: NginxHTTPRequest,
-  oid: string,
-  value: string
-): Promise<boolean> {
+  r,
+  oid,
+  value
+) {
   const graphToken = await _getGraphToken(r)
   if (!graphToken) return false
 
@@ -214,9 +208,9 @@ async function _writeExtension(
 }
 
 async function _readExtension(
-  r: NginxHTTPRequest,
-  oid: string
-): Promise<string | null> {
+  r,
+  oid
+) {
   const graphToken = await _getGraphToken(r)
   if (!graphToken) return null
 
@@ -254,11 +248,11 @@ async function _readExtension(
 // ---------------------------------------------------------------------------
 
 function _tableStorageAuth(
-  account: string,
-  key: string,
-  dateStr: string,
-  canonicalizedResource: string
-): string {
+  account,
+  key,
+  dateStr,
+  canonicalizedResource
+) {
   // SharedKeyLite: StringToSign = Date + "\n" + CanonicalizedResource
   const stringToSign = dateStr + "\n" + "/" + account + "/" + canonicalizedResource
   const keyBuffer = Buffer.from(key, "base64")
@@ -267,12 +261,12 @@ function _tableStorageAuth(
 }
 
 async function _writeTable(
-  r: NginxHTTPRequest,
-  oid: string,
-  value: string
-): Promise<boolean> {
-  const account = r.variables.spike_storage_account as string
-  const key = r.variables.spike_storage_key as string
+  r,
+  oid,
+  value
+) {
+  const account = r.variables.spike_storage_account
+  const key = r.variables.spike_storage_key
   const table = "cmsauth"
 
   // Upsert entity: PUT with merge
@@ -313,11 +307,11 @@ async function _writeTable(
 }
 
 async function _readTable(
-  r: NginxHTTPRequest,
-  oid: string
-): Promise<string | null> {
-  const account = r.variables.spike_storage_account as string
-  const key = r.variables.spike_storage_key as string
+  r,
+  oid
+) {
+  const account = r.variables.spike_storage_account
+  const key = r.variables.spike_storage_key
   const table = "cmsauth"
 
   const url = `https://${account}.table.core.windows.net/${table}(PartitionKey='${oid}',RowKey='cmsAuth')`
@@ -359,7 +353,7 @@ async function _readTable(
 // ASCII ↔ Unicode compression (inline from cookie-utils)
 // ---------------------------------------------------------------------------
 
-function _asciiToUnicode(ascii: string): string {
+function _asciiToUnicode(ascii) {
   const len = ascii.length
   const isOdd = len % 2 !== 0
   const pairCount = Math.floor(len / 2)
@@ -379,7 +373,7 @@ function _asciiToUnicode(ascii: string): string {
   return result
 }
 
-function _unicodeToAscii(packed: string): string {
+function _unicodeToAscii(packed) {
   const len = packed.length
   let result = ""
 
@@ -403,22 +397,14 @@ function _unicodeToAscii(packed: string): string {
 // OIDC token exchange helper
 // ---------------------------------------------------------------------------
 
-interface TokenExchangeResult {
-  ok: boolean
-  idToken?: string
-  accessToken?: string
-  claims?: Record<string, unknown>
-  error?: string
-}
-
 async function _exchangeCodeForTokens(
-  r: NginxHTTPRequest,
-  code: string,
-  redirectUri: string
-): Promise<TokenExchangeResult> {
-  const tenantId = r.variables.spike_tenant_id as string
-  const clientId = r.variables.spike_client_id as string
-  const clientSecret = r.variables.spike_client_secret as string
+  r,
+  code,
+  redirectUri
+) {
+  const tenantId = r.variables.spike_tenant_id
+  const clientId = r.variables.spike_client_id
+  const clientSecret = r.variables.spike_client_secret
 
   const body = [
     "client_id=" + encodeURIComponent(clientId),
@@ -465,10 +451,10 @@ async function _exchangeCodeForTokens(
 // Increment 1: OIDC Login + Callback
 // ---------------------------------------------------------------------------
 
-function handleLogin(r: NginxHTTPRequest): void {
-  const tenantId = r.variables.spike_tenant_id as string
-  const clientId = r.variables.spike_client_id as string
-  const redirectUri = r.variables.spike_redirect_uri as string
+function handleLogin(r) {
+  const tenantId = r.variables.spike_tenant_id
+  const clientId = r.variables.spike_client_id
+  const redirectUri = r.variables.spike_redirect_uri
 
   const state = _generateRandomString(16)
   const nonce = _generateRandomString(16)
@@ -493,7 +479,7 @@ function handleLogin(r: NginxHTTPRequest): void {
   r.return(302, authorizeUrl(tenantId) + "?" + params)
 }
 
-async function handleCallback(r: NginxHTTPRequest): Promise<void> {
+async function handleCallback(r) {
   r.headersOut["Content-Type"] = "text/html; charset=utf-8"
 
   // Check for Azure AD errors
@@ -519,7 +505,7 @@ async function handleCallback(r: NginxHTTPRequest): Promise<void> {
     return
   }
 
-  const redirectUri = r.variables.spike_redirect_uri as string
+  const redirectUri = r.variables.spike_redirect_uri
   const result = await _exchangeCodeForTokens(r, code, redirectUri)
 
   if (!result.ok || !result.claims) {
@@ -565,7 +551,7 @@ async function handleCallback(r: NginxHTTPRequest): Promise<void> {
 // Increment 2: Test Page + Validate Endpoint
 // ---------------------------------------------------------------------------
 
-function handleTestPage(r: NginxHTTPRequest): void {
+function handleTestPage(r) {
   r.headersOut["Content-Type"] = "text/html; charset=utf-8"
   try {
     const html = fs.readFileSync(SPIKE_HTML_PATH, "utf8")
@@ -575,9 +561,9 @@ function handleTestPage(r: NginxHTTPRequest): void {
   }
 }
 
-function handleValidate(r: NginxHTTPRequest): void {
+function handleValidate(r) {
   r.headersOut["Content-Type"] = "application/json"
-  r.headersOut["Access-Control-Allow-Origin"] = r.headersIn["Origin"] as string || "*"
+  r.headersOut["Access-Control-Allow-Origin"] = r.headersIn["Origin"] || "*"
   r.headersOut["Access-Control-Allow-Headers"] = "Authorization, Content-Type"
 
   if (r.method === "OPTIONS") {
@@ -610,9 +596,9 @@ function handleValidate(r: NginxHTTPRequest): void {
 // Increment 3: Store Value (Bearer token + POST body)
 // ---------------------------------------------------------------------------
 
-async function handleStore(r: NginxHTTPRequest): Promise<void> {
+async function handleStore(r) {
   r.headersOut["Content-Type"] = "application/json"
-  r.headersOut["Access-Control-Allow-Origin"] = r.headersIn["Origin"] as string || "*"
+  r.headersOut["Access-Control-Allow-Origin"] = r.headersIn["Origin"] || "*"
   r.headersOut["Access-Control-Allow-Headers"] = "Authorization, Content-Type"
 
   if (r.method === "OPTIONS") {
@@ -626,13 +612,13 @@ async function handleStore(r: NginxHTTPRequest): Promise<void> {
     return
   }
 
-  const oid = tokenResult.claims.oid as string
+  const oid = tokenResult.claims.oid
   if (!oid) {
     r.return(401, JSON.stringify({ error: "No oid claim in token" }))
     return
   }
 
-  let body: { value: string }
+  let body
   try {
     body = JSON.parse(r.requestText || "")
   } catch {
@@ -663,9 +649,9 @@ async function handleStore(r: NginxHTTPRequest): Promise<void> {
 // Increment 5: Table Storage Store (Bearer token + POST body)
 // ---------------------------------------------------------------------------
 
-async function handleTableStore(r: NginxHTTPRequest): Promise<void> {
+async function handleTableStore(r) {
   r.headersOut["Content-Type"] = "application/json"
-  r.headersOut["Access-Control-Allow-Origin"] = r.headersIn["Origin"] as string || "*"
+  r.headersOut["Access-Control-Allow-Origin"] = r.headersIn["Origin"] || "*"
   r.headersOut["Access-Control-Allow-Headers"] = "Authorization, Content-Type"
 
   if (r.method === "OPTIONS") {
@@ -679,13 +665,13 @@ async function handleTableStore(r: NginxHTTPRequest): Promise<void> {
     return
   }
 
-  const oid = tokenResult.claims.oid as string
+  const oid = tokenResult.claims.oid
   if (!oid) {
     r.return(401, JSON.stringify({ error: "No oid claim in token" }))
     return
   }
 
-  let body: { value: string }
+  let body
   try {
     body = JSON.parse(r.requestText || "")
   } catch {
@@ -705,7 +691,7 @@ async function handleTableStore(r: NginxHTTPRequest): Promise<void> {
     return
   }
 
-  const account = r.variables.spike_storage_account as string
+  const account = r.variables.spike_storage_account
   r.return(200, JSON.stringify({
     oid,
     storedValue: body.value,
@@ -713,9 +699,9 @@ async function handleTableStore(r: NginxHTTPRequest): Promise<void> {
   }))
 }
 
-async function handleTableRead(r: NginxHTTPRequest): Promise<void> {
+async function handleTableRead(r) {
   r.headersOut["Content-Type"] = "application/json"
-  r.headersOut["Access-Control-Allow-Origin"] = r.headersIn["Origin"] as string || "*"
+  r.headersOut["Access-Control-Allow-Origin"] = r.headersIn["Origin"] || "*"
   r.headersOut["Access-Control-Allow-Headers"] = "Authorization, Content-Type"
 
   if (r.method === "OPTIONS") {
@@ -729,14 +715,14 @@ async function handleTableRead(r: NginxHTTPRequest): Promise<void> {
     return
   }
 
-  const oid = tokenResult.claims.oid as string
+  const oid = tokenResult.claims.oid
   if (!oid) {
     r.return(401, JSON.stringify({ error: "No oid claim in token" }))
     return
   }
 
   const storedValue = await _readTable(r, oid)
-  const account = r.variables.spike_storage_account as string
+  const account = r.variables.spike_storage_account
 
   r.return(
     200,
@@ -752,9 +738,9 @@ async function handleTableRead(r: NginxHTTPRequest): Promise<void> {
 // Increment 4: Read Extension Property
 // ---------------------------------------------------------------------------
 
-async function handleRead(r: NginxHTTPRequest): Promise<void> {
+async function handleRead(r) {
   r.headersOut["Content-Type"] = "application/json"
-  r.headersOut["Access-Control-Allow-Origin"] = r.headersIn["Origin"] as string || "*"
+  r.headersOut["Access-Control-Allow-Origin"] = r.headersIn["Origin"] || "*"
   r.headersOut["Access-Control-Allow-Headers"] = "Authorization, Content-Type"
 
   if (r.method === "OPTIONS") {
@@ -769,7 +755,7 @@ async function handleRead(r: NginxHTTPRequest): Promise<void> {
     return
   }
 
-  const oid = tokenResult.claims.oid as string
+  const oid = tokenResult.claims.oid
   if (!oid) {
     r.return(401, JSON.stringify({ error: "No oid claim in token" }))
     return
@@ -792,9 +778,9 @@ async function handleRead(r: NginxHTTPRequest): Promise<void> {
 // Increment 6: Compressed Extension Property Store (Bearer token + POST body)
 // ---------------------------------------------------------------------------
 
-async function handleExtCompressStore(r: NginxHTTPRequest): Promise<void> {
+async function handleExtCompressStore(r) {
   r.headersOut["Content-Type"] = "application/json"
-  r.headersOut["Access-Control-Allow-Origin"] = r.headersIn["Origin"] as string || "*"
+  r.headersOut["Access-Control-Allow-Origin"] = r.headersIn["Origin"] || "*"
   r.headersOut["Access-Control-Allow-Headers"] = "Authorization, Content-Type"
 
   if (r.method === "OPTIONS") {
@@ -808,13 +794,13 @@ async function handleExtCompressStore(r: NginxHTTPRequest): Promise<void> {
     return
   }
 
-  const oid = tokenResult.claims.oid as string
+  const oid = tokenResult.claims.oid
   if (!oid) {
     r.return(401, JSON.stringify({ error: "No oid claim in token" }))
     return
   }
 
-  let body: { value: string }
+  let body
   try {
     body = JSON.parse(r.requestText || "")
   } catch {
@@ -857,9 +843,9 @@ async function handleExtCompressStore(r: NginxHTTPRequest): Promise<void> {
   }))
 }
 
-async function handleExtCompressRead(r: NginxHTTPRequest): Promise<void> {
+async function handleExtCompressRead(r) {
   r.headersOut["Content-Type"] = "application/json"
-  r.headersOut["Access-Control-Allow-Origin"] = r.headersIn["Origin"] as string || "*"
+  r.headersOut["Access-Control-Allow-Origin"] = r.headersIn["Origin"] || "*"
   r.headersOut["Access-Control-Allow-Headers"] = "Authorization, Content-Type"
 
   if (r.method === "OPTIONS") {
@@ -873,7 +859,7 @@ async function handleExtCompressRead(r: NginxHTTPRequest): Promise<void> {
     return
   }
 
-  const oid = tokenResult.claims.oid as string
+  const oid = tokenResult.claims.oid
   if (!oid) {
     r.return(401, JSON.stringify({ error: "No oid claim in token" }))
     return
@@ -914,7 +900,7 @@ async function handleExtCompressRead(r: NginxHTTPRequest): Promise<void> {
 // HTML helper
 // ---------------------------------------------------------------------------
 
-function _htmlPage(title: string, body: string): string {
+function _htmlPage(title, body) {
   return `<!DOCTYPE html>
 <html lang="en">
 <head>

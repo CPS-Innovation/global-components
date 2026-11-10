@@ -1,7 +1,7 @@
 # CMS augmentation layer override
 # Use: docker compose -f docker-compose.yml -f docker-compose.cms-augmentation.yml up --build
 #
-# Mounts the conf and compiled JS so nginx parses the injection locations and the
+# Mounts the conf and JS so nginx parses the injection locations and the
 # temporary state/diagnostic tail. The conf's @@SCRIPT_BASE@@ is left unsubstituted
 # (deploy.local.sh fills it in) — harmless here, it is only text in a sub_filter.
 

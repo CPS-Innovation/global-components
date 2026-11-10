@@ -1,76 +1,29 @@
-#!/usr/bin/env npx ts-node
+#!/usr/bin/env node
 /**
  * Unit tests for nginx.js (auth redirect handlers)
  *
- * Uses esbuild to bundle the njs module with mocked dependencies,
- * then runs the unit tests against the bundled code.
+ * Loads the njs source with njs-loader.js (an .mjs copy, no bundler).
  */
 
-import * as esbuild from "esbuild"
-import * as path from "path"
-import * as fs from "fs"
+const path = require("path")
+const fs = require("fs")
+const { loadNjs } = require("../../../njs-loader")
 
 const CONFIG_MAIN_DIR = path.join(__dirname, "..")
-const DIST_DIR = path.join(__dirname, "..", "..", "..", ".dist")
-
-// Ensure dist directory exists
-if (!fs.existsSync(DIST_DIR)) {
-  fs.mkdirSync(DIST_DIR, { recursive: true })
-}
-
-interface MockRequest {
-  method: string
-  uri: string
-  args: Record<string, string>
-  headersIn: Record<string, string>
-  headersOut: Record<string, string>
-  variables: Record<string, string>
-  returnCode: number | null
-  returnBody: string | null
-  return(code: number, body: string): void
-}
-
-interface MockRequestOptions {
-  method?: string
-  uri?: string
-  args?: Record<string, string>
-  headersIn?: Record<string, string>
-  variables?: Record<string, string>
-}
-
-interface NginxModule {
-  appAuthRedirect(r: MockRequest): void
-  polarisAuthRedirect(r: MockRequest): void
-  taskListAuthRedirect(r: MockRequest): void
-  handleAuthRefreshOutbound(r: MockRequest): void
-}
-
-// Bundle the module
-async function build(): Promise<void> {
-  await esbuild.build({
-    entryPoints: [path.join(CONFIG_MAIN_DIR, "nginx.js")],
-    bundle: true,
-    outfile: path.join(DIST_DIR, "nginx.bundle.js"),
-    format: "esm",
-    platform: "node",
-    logLevel: "error",
-  })
-}
 
 // Run tests
-async function runTests(): Promise<void> {
-  const modulePath = path.join(DIST_DIR, "nginx.bundle.js")
-  const module = await import(modulePath)
-  const nginx: NginxModule = module.default
+async function runTests() {
+  const modulePath = path.join(CONFIG_MAIN_DIR, "nginx.js")
+  const nginx = await loadNjs(modulePath)
 
   let passed = 0
   let failed = 0
 
-  function assert(condition: boolean, message: string): void {
+  function assert(condition, message) {
     if (!condition) throw new Error(message)
   }
 
-  function assertEqual(actual: unknown, expected: unknown, message: string): void {
+  function assertEqual(actual, expected, message) {
     if (actual !== expected) {
       throw new Error(
         `${message}\n  Expected: ${JSON.stringify(expected)}\n  Actual:   ${JSON.stringify(actual)}`
@@ -78,7 +31,7 @@ async function runTests(): Promise<void> {
     }
   }
 
-  async function test(name: string, fn: () => Promise<void>): Promise<void> {
+  async function test(name, fn) {
     try {
       await fn()
       passed++
@@ -86,11 +39,11 @@ async function runTests(): Promise<void> {
     } catch (err) {
       failed++
       console.log(`  \x1b[31m✗\x1b[0m ${name}`)
-      console.log(`    ${(err as Error).message}`)
+      console.log(`    ${err.message}`)
     }
   }
 
-  function createMockRequest(options: MockRequestOptions = {}): MockRequest {
+  function createMockRequest(options = {}) {
     return {
       method: options.method || "GET",
       uri: options.uri || "/init",
@@ -100,26 +53,20 @@ async function runTests(): Promise<void> {
       variables: options.variables || {},
       returnCode: null,
       returnBody: null,
-      return(code: number, body: string) {
+      return(code, body) {
         this.returnCode = code
         this.returnBody = body
       },
     }
   }
 
-  interface SessionHint {
-    cmsDomains: string[]
-    isProxySession: boolean
-    handoverEndpoint?: string
-  }
-
-  function parseSessionHintCookie(setCookieHeader: string): SessionHint | null {
+  function parseSessionHintCookie(setCookieHeader) {
     const match = setCookieHeader.match(/Cms-Session-Hint=([^;]+)/)
     if (!match) return null
     return JSON.parse(decodeURIComponent(match[1]))
   }
 
-  function assertDeepEqual(actual: unknown, expected: unknown, message: string): void {
+  function assertDeepEqual(actual, expected, message) {
     const actualStr = JSON.stringify(actual, null, 2)
     const expectedStr = JSON.stringify(expected, null, 2)
     if (actualStr !== expectedStr) {
@@ -151,11 +98,11 @@ async function runTests(): Promise<void> {
     nginx.appAuthRedirect(r)
     assertEqual(r.returnCode, 302, "Should return 302 redirect")
     assert(
-      r.returnBody!.includes("http://allowed.example.org/callback"),
+      r.returnBody.includes("http://allowed.example.org/callback"),
       `Should redirect to allowed URL, got: ${r.returnBody}`
     )
     assert(
-      r.returnBody!.includes("cc=.CMSAUTH%3Dabc123"),
+      r.returnBody.includes("cc=.CMSAUTH%3Dabc123"),
       `Should append encoded cookie as cc param, got: ${r.returnBody}`
     )
   })
@@ -175,7 +122,7 @@ async function runTests(): Promise<void> {
     nginx.appAuthRedirect(r)
     assertEqual(r.returnCode, 403, "Should return 403")
     assert(
-      r.returnBody!.includes("403"),
+      r.returnBody.includes("403"),
       `Should include 403 in body, got: ${r.returnBody}`
     )
   })
@@ -232,7 +179,7 @@ async function runTests(): Promise<void> {
     nginx.appAuthRedirect(r)
     const hint = parseSessionHintCookie(r.headersOut["Set-Cookie"])
     assertDeepEqual(
-      hint!.cmsDomains,
+      hint.cmsDomains,
       ["foo.bar.cps.gov.uk", "something.cps.gov.uk"],
       "Should extract CMS domains into array"
     )
@@ -253,12 +200,12 @@ async function runTests(): Promise<void> {
     nginx.appAuthRedirect(r)
     const hint = parseSessionHintCookie(r.headersOut["Set-Cookie"])
     assertDeepEqual(
-      hint!.cmsDomains,
+      hint.cmsDomains,
       ["cin3.cps.gov.uk"],
       "Should derive cin3.cps.gov.uk from the new-style cookie"
     )
     assertEqual(
-      hint!.handoverEndpoint,
+      hint.handoverEndpoint,
       "https://cin3.cps.gov.uk/polaris",
       "handoverEndpoint should use the new-style derived domain"
     )
@@ -279,7 +226,7 @@ async function runTests(): Promise<void> {
     nginx.appAuthRedirect(r)
     const hint = parseSessionHintCookie(r.headersOut["Set-Cookie"])
     assertDeepEqual(
-      hint!.cmsDomains,
+      hint.cmsDomains,
       ["foo.cps.gov.uk"],
       "Should derive foo.cps.gov.uk from the F-FOO cookie"
     )
@@ -301,7 +248,7 @@ async function runTests(): Promise<void> {
     nginx.appAuthRedirect(r)
     const hint = parseSessionHintCookie(r.headersOut["Set-Cookie"])
     assertDeepEqual(
-      hint!.cmsDomains,
+      hint.cmsDomains,
       ["cin4.cps.gov.uk"],
       "New-style cookie should win; old-style foo.cps.gov.uk should be ignored"
     )
@@ -321,7 +268,7 @@ async function runTests(): Promise<void> {
     })
     nginx.appAuthRedirect(r)
     const hint = parseSessionHintCookie(r.headersOut["Set-Cookie"])
-    assertEqual(hint!.isProxySession, false, "isProxySession should be false")
+    assertEqual(hint.isProxySession, false, "isProxySession should be false")
   })
 
   await test("session hint JSON has isProxySession true when param is 'true'", async () => {
@@ -339,7 +286,7 @@ async function runTests(): Promise<void> {
     })
     nginx.appAuthRedirect(r)
     const hint = parseSessionHintCookie(r.headersOut["Set-Cookie"])
-    assertEqual(hint!.isProxySession, true, "isProxySession should be true")
+    assertEqual(hint.isProxySession, true, "isProxySession should be true")
   })
 
   await test("session hint JSON has empty cmsDomains when no CMS cookies present", async () => {
@@ -356,7 +303,7 @@ async function runTests(): Promise<void> {
     })
     nginx.appAuthRedirect(r)
     const hint = parseSessionHintCookie(r.headersOut["Set-Cookie"])
-    assertDeepEqual(hint!.cmsDomains, [], "cmsDomains should be empty array")
+    assertDeepEqual(hint.cmsDomains, [], "cmsDomains should be empty array")
   })
 
   await test("session hint JSON structure is complete", async () => {
@@ -401,11 +348,11 @@ async function runTests(): Promise<void> {
     nginx.appAuthRedirect(r)
     assertEqual(r.returnCode, 302, "Should return 302 redirect")
     assert(
-      r.returnBody!.includes("/auth-refresh-inbound"),
+      r.returnBody.includes("/auth-refresh-inbound"),
       `Should redirect to auth-refresh-inbound, got: ${r.returnBody}`
     )
     assert(
-      r.returnBody!.includes("q=12345"),
+      r.returnBody.includes("q=12345"),
       `Should include q param, got: ${r.returnBody}`
     )
   })
@@ -424,7 +371,7 @@ async function runTests(): Promise<void> {
     })
     nginx.appAuthRedirect(r)
     assert(
-      r.returnBody!.includes("?existing=param&cc="),
+      r.returnBody.includes("?existing=param&cc="),
       `Should append with &, got: ${r.returnBody}`
     )
   })
@@ -443,7 +390,7 @@ async function runTests(): Promise<void> {
     })
     nginx.appAuthRedirect(r)
     assert(
-      r.returnBody!.includes("/callback?cc="),
+      r.returnBody.includes("/callback?cc="),
       `Should append with ?, got: ${r.returnBody}`
     )
   })
@@ -461,13 +408,13 @@ async function runTests(): Promise<void> {
       },
     })
     nginx.appAuthRedirect(r)
-    const cc = new URL(r.returnBody!).searchParams.get("cc")
+    const cc = new URL(r.returnBody).searchParams.get("cc")
     assert(
-      cc!.includes("BIGipServer-shim-CIN3-cin3.cps.gov.uk=1"),
+      cc.includes("BIGipServer-shim-CIN3-cin3.cps.gov.uk=1"),
       `Should append shim BIGipServer cookie, got: ${cc}`
     )
     assert(
-      cc!.includes("C-CIN3-LBsessioncookie="),
+      cc.includes("C-CIN3-LBsessioncookie="),
       `Should preserve original cookie, got: ${cc}`
     )
   })
@@ -485,9 +432,9 @@ async function runTests(): Promise<void> {
       },
     })
     nginx.appAuthRedirect(r)
-    const cc = new URL(r.returnBody!).searchParams.get("cc")
+    const cc = new URL(r.returnBody).searchParams.get("cc")
     assert(
-      cc!.includes("BIGipServer-shim-FOO-foo.cps.gov.uk=1"),
+      cc.includes("BIGipServer-shim-FOO-foo.cps.gov.uk=1"),
       `Should derive the FOO token from an F- cookie, got: ${cc}`
     )
   })
@@ -505,8 +452,8 @@ async function runTests(): Promise<void> {
       },
     })
     nginx.appAuthRedirect(r)
-    const cc = new URL(r.returnBody!).searchParams.get("cc")
-    assert(!cc!.includes("BIGipServer-shim"), `Only -LBsessioncookie cookies should shim, got: ${cc}`)
+    const cc = new URL(r.returnBody).searchParams.get("cc")
+    assert(!cc.includes("BIGipServer-shim"), `Only -LBsessioncookie cookies should shim, got: ${cc}`)
     assertEqual(cc, "", "Should be dropped by the cc whitelist")
   })
 
@@ -524,9 +471,9 @@ async function runTests(): Promise<void> {
       },
     })
     nginx.appAuthRedirect(r)
-    const cc = new URL(r.returnBody!).searchParams.get("cc")
+    const cc = new URL(r.returnBody).searchParams.get("cc")
     assert(
-      !cc!.includes("BIGipServer-shim"),
+      !cc.includes("BIGipServer-shim"),
       `Should not append shim when real BIGipServer cookie present, got: ${cc}`
     )
   })
@@ -544,9 +491,9 @@ async function runTests(): Promise<void> {
       },
     })
     nginx.appAuthRedirect(r)
-    const cc = new URL(r.returnBody!).searchParams.get("cc")
+    const cc = new URL(r.returnBody).searchParams.get("cc")
     assert(
-      !cc!.includes("BIGipServer-shim"),
+      !cc.includes("BIGipServer-shim"),
       `Lowercase cin3 in existing BIGipServer cookie should suppress shim, got: ${cc}`
     )
   })
@@ -564,11 +511,11 @@ async function runTests(): Promise<void> {
       },
     })
     nginx.appAuthRedirect(r)
-    const cc = new URL(r.returnBody!).searchParams.get("cc")
+    const cc = new URL(r.returnBody).searchParams.get("cc")
     assertEqual(cc, "WindowID=MASTER; UID=1; .CMSAUTH=ABC", "Should leave cookie untouched")
   })
 
-  const ccOf = (cookie: string): string | null => {
+  const ccOf = (cookie) => {
     process.env.AUTH_HANDOVER_WHITELIST = "http://allowed.example.org"
     const r = createMockRequest({
       args: { r: "http://allowed.example.org/callback", cookie },
@@ -578,7 +525,7 @@ async function runTests(): Promise<void> {
       },
     })
     nginx.appAuthRedirect(r)
-    return new URL(r.returnBody!).searchParams.get("cc")
+    return new URL(r.returnBody).searchParams.get("cc")
   }
 
   await test("adds WindowID=MASTER when .CMSAUTH is present without it", async () => {
@@ -618,7 +565,7 @@ async function runTests(): Promise<void> {
       },
     })
     nginx.appAuthRedirect(r)
-    const cc = new URL(r.returnBody!).searchParams.get("cc")
+    const cc = new URL(r.returnBody).searchParams.get("cc")
     assertEqual(
       cc,
       "CMSUSER103096=sess; BIGipServer~ent~cin5.cps.gov.uk_POOL=1; ASP.NET_SessionId=sess; WindowID=MASTER; UID=103096; .CMSAUTH=ABC;",
@@ -644,19 +591,19 @@ async function runTests(): Promise<void> {
     nginx.polarisAuthRedirect(r)
     assertEqual(r.returnCode, 302, "Should return 302 redirect")
     assert(
-      r.returnBody!.includes("/init?"),
+      r.returnBody.includes("/init?"),
       `Should redirect to /init, got: ${r.returnBody}`
     )
     assert(
-      r.returnBody!.includes("q=12345"),
+      r.returnBody.includes("q=12345"),
       `Should include original q param, got: ${r.returnBody}`
     )
     assert(
-      r.returnBody!.includes("cookie=session%3Dabc123"),
+      r.returnBody.includes("cookie=session%3Dabc123"),
       `Should include cookie param, got: ${r.returnBody}`
     )
     assert(
-      r.returnBody!.includes("is-proxy-session=true"),
+      r.returnBody.includes("is-proxy-session=true"),
       `Should include is-proxy-session=true, got: ${r.returnBody}`
     )
   })
@@ -673,7 +620,7 @@ async function runTests(): Promise<void> {
     })
     nginx.polarisAuthRedirect(r)
     assert(
-      r.returnBody!.includes("referer="),
+      r.returnBody.includes("referer="),
       `Should include referer param, got: ${r.returnBody}`
     )
   })
@@ -698,11 +645,11 @@ async function runTests(): Promise<void> {
     nginx.taskListAuthRedirect(r)
     assertEqual(r.returnCode, 302, "Should return 302 redirect")
     assert(
-      r.returnBody!.includes("http://tasklist.example.org/WorkManagementApp/Redirect"),
+      r.returnBody.includes("http://tasklist.example.org/WorkManagementApp/Redirect"),
       `Should redirect to task list, got: ${r.returnBody}`
     )
     assert(
-      r.returnBody!.includes("Cookie=session%3Dabc123"),
+      r.returnBody.includes("Cookie=session%3Dabc123"),
       `Should include encoded cookie, got: ${r.returnBody}`
     )
   })
@@ -723,7 +670,7 @@ async function runTests(): Promise<void> {
     })
     nginx.taskListAuthRedirect(r)
     assert(
-      r.returnBody!.includes("Cookie=fallback%3Dcookie"),
+      r.returnBody.includes("Cookie=fallback%3Dcookie"),
       `Should use Cookie header as fallback, got: ${r.returnBody}`
     )
   })
@@ -745,7 +692,7 @@ async function runTests(): Promise<void> {
     })
     nginx.appAuthRedirect(r)
     assert(
-      r.returnBody!.startsWith("https://proxy.example.com/"),
+      r.returnBody.startsWith("https://proxy.example.com/"),
       `Should convert to absolute URL with https, got: ${r.returnBody}`
     )
   })
@@ -764,7 +711,7 @@ async function runTests(): Promise<void> {
     })
     nginx.appAuthRedirect(r)
     assert(
-      r.returnBody!.startsWith("http://external.example.org/"),
+      r.returnBody.startsWith("http://external.example.org/"),
       `Should preserve absolute URL, got: ${r.returnBody}`
     )
   })
@@ -832,7 +779,7 @@ async function runTests(): Promise<void> {
     nginx.handleAuthRefreshOutbound(r)
     assertEqual(r.returnCode, 502, "Should return 502")
     assert(
-      r.returnBody!.includes("no handoverEndpoint"),
+      r.returnBody.includes("no handoverEndpoint"),
       `Should include error message, got: ${r.returnBody}`
     )
   })
@@ -884,10 +831,9 @@ async function runTests(): Promise<void> {
 // Main
 ;(async () => {
   try {
-    await build()
     await runTests()
   } catch (err) {
-    console.error("Build/test failed:", (err as Error).message)
+    console.error("Build/test failed:", err.message)
     process.exit(1)
   }
 })()
