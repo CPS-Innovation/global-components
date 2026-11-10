@@ -378,7 +378,7 @@ async function handleStatePreview(r: NginxHTTPRequest): Promise<void> {
  *
  * The values travel as a query param because a 302 carries no body. That is
  * also why this is a write on a GET: not RESTful, but forced, and the same
- * shape as the proven OS-host switch in global-components.multi-os-domain-testing.
+ * shape as the proven OS-host switch in global-components.os-london-dublin-oapps-switch.
  *
  * `configurable` is Edge telling us, per request, that this site may be flipped
  * (the enterprise IE-mode site list, surfaced as

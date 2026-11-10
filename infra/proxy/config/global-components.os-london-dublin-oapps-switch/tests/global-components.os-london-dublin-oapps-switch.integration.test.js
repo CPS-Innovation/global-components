@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Integration tests for global-components.multi-os-domain-testing.conf.template
+ * Integration tests for global-components.os-london-dublin-oapps-switch.conf.template
  *
  * Runs against the docker stack with the module layer mounted, which also mounts
  * test-only stand-ins for Polaris's /launch routes (docker/test-only.polaris-launch.conf)
@@ -100,7 +100,7 @@ async function testCButton() {
   })
 
   await test("the internal divert route can't be requested directly", async () => {
-    const { status } = await redirectOf("/global-components/multi-os/launch/cin3-proxy", { ...IE_MODE, Cookie: SIGNAL })
+    const { status } = await redirectOf("/global-components/os-london-dublin-oapps-switch/launch/cin3-proxy", { ...IE_MODE, Cookie: SIGNAL })
     assertEqual(status, 404, "Should be internal only")
   })
 
@@ -162,7 +162,7 @@ module.exports = main
 if (require.main === module) {
   resetState()
   console.log("=".repeat(60))
-  console.log("Multi-OS-domain testing Integration Tests")
+  console.log("OS London/Dublin/oapps switch Integration Tests")
   console.log(`Target: ${PROXY_BASE}`)
   console.log("=".repeat(60))
 

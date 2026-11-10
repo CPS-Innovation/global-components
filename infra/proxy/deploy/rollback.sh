@@ -115,9 +115,9 @@ echo -e "\n${YELLOW}Backing up current state before rollback to: $PRE_ROLLBACK_D
 FILES_TO_BACKUP=(
   "global-components.vnext.js"
   "global-components.vnext.conf.template"
-  # Temporary multi-OS-domain testing module (FCT2-22132) — delete with the module.
-  "global-components.multi-os-domain-testing.js"
-  "global-components.multi-os-domain-testing.conf.template"
+  # Transitional OS London/Dublin/oapps switch module (FCT2-22132) — delete with the module.
+  "global-components.os-london-dublin-oapps-switch.js"
+  "global-components.os-london-dublin-oapps-switch.conf.template"
 )
 
 # The blob each file lives in. We deploy to the new-generation proxy config only
@@ -188,6 +188,13 @@ for file in "$SELECTED_BACKUP"/*; do
       echo "  Skipping $file_name (retired)"
       continue
     fi
+    # The OS switch module's pre-rename files. Restoring them beside the renamed
+    # module would define the config.json locations twice and nginx would not start.
+    case "$file_name" in
+      global-components.multi-os-domain-testing.*)
+        echo "  Skipping $file_name (renamed to global-components.os-london-dublin-oapps-switch)"
+        continue ;;
+    esac
     blob="$(blob_name "$file_name")"
     echo "  Uploading $file_name -> $blob..."
     az storage blob upload \

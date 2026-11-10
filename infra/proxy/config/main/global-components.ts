@@ -8,7 +8,7 @@ const CORS_ALLOWED_ORIGINS = [
   "https://cps-tst1.outsystemsenterprise.com",
   "https://cps-dev.outsystemsenterprise.com",
   // London test OS host — the cps-lon variant of test (see OS_HOST_VARIANTS in
-  //  global-components.multi-os-domain-testing.ts). The oapps-*.int.cps.gov.uk hosts
+  //  global-components.os-london-dublin-oapps-switch.ts). The oapps-*.int.cps.gov.uk hosts
   //  need no entry: the .cps.gov.uk suffix check below already admits them.
   "https://cpslon-tst.outsystemsenterprise.com",
   "http://localhost",

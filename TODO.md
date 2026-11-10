@@ -66,22 +66,23 @@ In this repo:
 - [ ] Hold the **prod** proxy deploy until QA has run for a while. It takes over the
       `config.json` route there too, even though prod has no variants.
 
-## 4. Multi-OS-domain testing module (ours) — replaces the vnext switch
+## 4. OS London/Dublin/oapps switch module (ours) — replaces the vnext switch
 
-The switch now lives in one temporary module, `infra/proxy/config/global-components.multi-os-domain-testing/`.
+The switch now lives in one transitional module, `infra/proxy/config/global-components.os-london-dublin-oapps-switch/`
+(renamed from `multi-os-domain-testing` on 2026-11-10; its deploy deletes the old-name blobs first).
 It takes over `config.json` selection and the status route from vnext, adds the both-engines
 set route, and diverts the proxied-CMS C-button for users carrying the signal cookie. Nothing in
 Polaris changes (`/init`, `/launch`, `uainGeneratedScript`), and requests without the signal
 cookie are never touched. It works in both Polaris proxy worlds (monolith and refactor).
 
-- [ ] Run `pnpm -w test:proxy`. There's a new layer, `multi-os-domain-testing`, and vnext has
+- [ ] Run `pnpm -w test:proxy`. There's a new layer, `os-london-dublin-oapps-switch`, and vnext has
       lost its variant tests.
 - [ ] **Deploy order matters.** Both the old vnext and the module define
       `location = /global-components/<env>/config.json`. If both are live, nginx won't start and
       the whole proxy goes down.
   1. Deploy the stripped vnext first (`deploy-vnext.local.sh`). QA briefly loses variant config
      selection until step 2.
-  2. Then deploy the module (`deploy-multi-os-domain-testing.local.sh`). It refuses to upload
+  2. Then deploy the module (`deploy-os-london-dublin-oapps-switch.local.sh`). It refuses to upload
      while the deployed vnext conf still defines `config.json` locations.
 - [ ] Smoke test:
   - `GET /global-components/multi-os/target/test` lists `oapps` and `cps-lon`
@@ -184,7 +185,7 @@ Afterwards:
     `SameSite=Lax`, `HttpOnly`, and its value is the OS host.
   - It's written by `/global-components/multi-os/set` (navigated to from the preview page), which
     visits both engines. Anyone with the preview page can switch.
-  - The multi-os-domain-testing module serves `config.json` by the page's `Origin` host first,
+  - The os-london-dublin-oapps-switch module serves `config.json` by the page's `Origin` host first,
     then the cookie, then the base file.
   - It diverts switched users' proxied-CMS C-button (`/launch/cin2`–`cin5-proxy`) through the
     same `/polaris` → `/init` chain on the chosen host. Everyone else goes straight to

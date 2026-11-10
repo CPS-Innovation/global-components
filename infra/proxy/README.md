@@ -22,43 +22,15 @@ Nginx reverse proxy with njs (JavaScript) for header/cookie manipulation. Used t
 - `.env` - **gitignored** - contains vnext-specific config
 - `.env.example` - template for the above
 
-### Multi-OS-domain testing (`config/global-components.multi-os-domain-testing/`) — TEMPORARY
+### OS London/Dublin/oapps switch (`config/global-components.os-london-dublin-oapps-switch/`) — TRANSITIONAL
 
-A self-contained module (FCT2-22132) that lets designated QA users run against a different
-OutSystems host (the old outsystemsenterprise.com host, the London tenant) while everyone else is untouched. It only
-ADDS locations, plus one server-level divert that fires only for requests carrying the signal
-cookie. It loads unchanged in both Polaris proxy worlds (the live monolith and the refactored
-`features/` config; Polaris `PROXY.md` §6.8), and the deploy writes its conf to both. To end the trial, delete the module directory
-and its lines in `scripts/build.sh`, `deploy/deploy.sh`, `deploy/rollback.sh`, `run-tests.sh`,
-`package.json` and `docker/` (`docker-compose.multi-os-domain-testing.yml`,
-`test-only.polaris-launch.conf`).
-
-- **Signal:** the `Gloco-Os-Target-<env>` cookie (`Path=/`, `HttpOnly`, value = the chosen OS
-  host). Edge and IE mode keep separate cookie stores, so it is written into both by
-  `/global-components/multi-os/set?env=&host=&return=`, the only writer. That route flips the
-  tab between engines with `X-InternetExplorerMode`. An empty `host` clears both copies.
-  `/global-components/multi-os/target/<env>` reports the current value to the preview page.
-- **Variants:** `configuration/config.<env>.<variant>.json` is the environment's config with
-  only the OS host swapped (enforced by `outsystems-host-consistency.spec.ts`), deployed beside
-  `config.json` as `config.<variant>.json`. `OS_HOST_VARIANTS` maps each variant to its host; a
-  unit test checks it against the files both ways.
-- **`config.json`:** served by `readConfigBlobName`:
-  - the variant for the requesting OS page's own host (by `Origin`); else
-  - the variant the cookie names (CWA); else
-  - `config.json`.
-- **Proxied-CMS C-button:** we define no location on Polaris's `/launch/cin2`–`cin5-proxy`
-  (they differ between the two worlds: prefix blocks in the monolith, one exact-name
-  `/launch/` handler in the refactor).
-  - Without a `Gloco-Os-Target-` cookie, nginx never touches the request: Polaris's own route
-    runs unchanged.
-  - With one (tested by njs, `$gloco_multi_os_signalled` — never a regex on `$http_cookie`,
-    which `rewrite_log` would print in full, bearer tokens and all), a server-level rewrite
-    diverts the click to the internal
-    `/global-components/multi-os/launch/<route>`. A valid signal for that route (the click
-    arrives in IE mode, carrying IE mode's copy) redirects to Polaris's same
-    `/polaris?r=<handover>` target, with the OS host swapped. Anything else is rewritten back
-    to the original URI and lands on Polaris's route, whichever world is running.
-  - `/polaris`, `/init`, raw-CMS `/launch/cinN` and prod's `/launch/cms-proxy` are not touched.
+Lets a user pin themselves, per environment, to either OutSystems resilient failover domain
+(Dublin `cps-tst…`, London `cpslon-tst…`) or the oapps front door (the default). Removable when
+the oapps transition is finished. It only adds locations, takes over `config.json` with
+exact-match locations (noted on the main conf's blob route), and diverts the proxied-CMS
+C-button only for requests carrying the `Gloco-Os-Target-<env>` cookie (tested by njs, never a
+regex on `$http_cookie`). Deployed by `scripts/deploy-os-london-dublin-oapps-switch.local.sh`.
+See its [README](config/global-components.os-london-dublin-oapps-switch/README.md).
 
 ### CMS augmentation (`config/global-components.cms-augmentation/`)
 

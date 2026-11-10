@@ -107,10 +107,41 @@ test("each module imports its own .js from its own features/ folder, under a uni
   }
 })
 
+// nginx keeps variable names in a hash whose buckets are variables_hash_bucket_size
+// (64 by default) bytes. A name of roughly 47+ characters cannot fit one, and nginx
+// refuses to START ("could not build variables_hash") — the whole proxy down. Seen
+// 2026-11-10 with $gloco_os_london_dublin_oapps_switch_config_blob. Polaris owns
+// the http block, so we keep our names well inside the default rather than raise it.
+const MAX_VARIABLE_NAME = 32
+
+test(`every variable our confs define is at most ${MAX_VARIABLE_NAME} characters`, () => {
+  const tooLong: string[] = []
+  for (const file of ourConfs) {
+    const text = fs
+      .readFileSync(file, "utf8")
+      .split("\n")
+      .filter((l) => !/^\s*#/.test(l))
+      .join("\n")
+    const defined = [
+      ...Array.from(text.matchAll(/\b(?:set|js_set|js_var)\s+\$(\w+)/g), (m) => m[1]!),
+      ...Array.from(text.matchAll(/\bmap\s+\S+\s+\$(\w+)/g), (m) => m[1]!),
+      ...Array.from(text.matchAll(/\(\?P?<(\w+)>/g), (m) => m[1]!),
+    ]
+    for (const name of defined) {
+      if (name.length > MAX_VARIABLE_NAME) {
+        tooLong.push(`$${name} (${name.length}) in ${path.basename(file)}`)
+      }
+    }
+  }
+  if (tooLong.length) {
+    throw new Error("variable names too long:\n      " + tooLong.join("\n      "))
+  }
+})
+
 // The modules this repo used to deploy under other names. Their folders must not
 // come back: deployed beside their successors, they duplicate every location.
 test("no folder carries a retired module name", () => {
-  for (const retired of ["cms-auth-presence", "cms-auth-v2", "case-locking", "polaris-non-ddei"]) {
+  for (const retired of ["cms-auth-presence", "cms-auth-v2", "case-locking", "polaris-non-ddei", "multi-os-domain-testing"]) {
     if (fs.existsSync(path.join(CONFIG_DIR, `global-components.${retired}`))) {
       throw new Error(`global-components.${retired} is back`)
     }

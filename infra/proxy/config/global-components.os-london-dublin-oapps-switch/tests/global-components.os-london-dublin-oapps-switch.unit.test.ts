@@ -1,6 +1,6 @@
 #!/usr/bin/env npx ts-node
 /**
- * Unit tests for global-components.multi-os-domain-testing.ts
+ * Unit tests for global-components.os-london-dublin-oapps-switch.ts
  *
  * Uses esbuild to bundle the njs module, then runs the tests against the bundle.
  */
@@ -10,7 +10,7 @@ import * as path from "path"
 import * as fs from "fs"
 
 const CONFIG_DIR = path.join(__dirname, "..", "..")
-const MODULE_DIR = path.join(CONFIG_DIR, "global-components.multi-os-domain-testing")
+const MODULE_DIR = path.join(CONFIG_DIR, "global-components.os-london-dublin-oapps-switch")
 const REPO_CONFIGURATION_DIR = path.join(CONFIG_DIR, "..", "..", "..", "configuration")
 const DIST_DIR = path.join(CONFIG_DIR, "..", ".dist")
 
@@ -38,7 +38,7 @@ interface MockRequestOptions {
   variables?: Record<string, string>
 }
 
-interface MultiOsModule {
+interface OsLondonDublinOappsSwitchModule {
   readConfigBlobName(r: MockRequest): string
   launchSignalled(r: MockRequest): string
   launchTarget(r: MockRequest): string
@@ -51,9 +51,9 @@ interface MultiOsModule {
 
 async function build(): Promise<void> {
   await esbuild.build({
-    entryPoints: [path.join(MODULE_DIR, "global-components.multi-os-domain-testing.ts")],
+    entryPoints: [path.join(MODULE_DIR, "global-components.os-london-dublin-oapps-switch.ts")],
     bundle: true,
-    outfile: path.join(DIST_DIR, "global-components.multi-os-domain-testing.bundle.js"),
+    outfile: path.join(DIST_DIR, "global-components.os-london-dublin-oapps-switch.bundle.js"),
     format: "esm",
     platform: "node",
     logLevel: "error",
@@ -61,8 +61,8 @@ async function build(): Promise<void> {
 }
 
 async function runTests(): Promise<void> {
-  const module = await import(path.join(DIST_DIR, "global-components.multi-os-domain-testing.bundle.js"))
-  const multiOs: MultiOsModule = module.default
+  const module = await import(path.join(DIST_DIR, "global-components.os-london-dublin-oapps-switch.bundle.js"))
+  const osSwitch: OsLondonDublinOappsSwitchModule = module.default
 
   let passed = 0
   let failed = 0
@@ -111,7 +111,7 @@ async function runTests(): Promise<void> {
   const SIGNAL = `Gloco-Os-Target-test=${CPS}`
 
   console.log("=".repeat(60))
-  console.log("global-components.multi-os-domain-testing.js Unit Tests")
+  console.log("global-components.os-london-dublin-oapps-switch.js Unit Tests")
   console.log("=".repeat(60))
 
   // --- config.json selection ---
@@ -119,40 +119,40 @@ async function runTests(): Promise<void> {
 
   const configRequest = (headersIn: Record<string, string>, env = "test") =>
     createMockRequest({
-      uri: "/global-components/__config",
+      uri: "/global-components/os-london-dublin-oapps-switch/config",
       headersIn: { Host: "polaris-qa-notprod.cps.gov.uk", ...headersIn },
-      variables: { gloco_config_env: env },
+      variables: { gloco_os_switch_config_env: env },
     })
 
   await test("serves config.json when there is no signal", async () => {
-    assertEqual(multiOs.readConfigBlobName(configRequest({})), "config.json", "blob")
+    assertEqual(osSwitch.readConfigBlobName(configRequest({})), "config.json", "blob")
   })
 
   await test("serves the variant the signal cookie names (CWA, same-origin)", async () => {
-    assertEqual(multiOs.readConfigBlobName(configRequest({ Cookie: `other=1; ${SIGNAL}` })), "config.cps.json", "blob")
+    assertEqual(osSwitch.readConfigBlobName(configRequest({ Cookie: `other=1; ${SIGNAL}` })), "config.cps.json", "blob")
   })
 
   await test("treats an Origin of our own host as same-origin, so the cookie still decides", async () => {
     const r = configRequest({ Origin: "https://polaris-qa-notprod.cps.gov.uk", Cookie: SIGNAL })
-    assertEqual(multiOs.readConfigBlobName(r), "config.cps.json", "blob")
+    assertEqual(osSwitch.readConfigBlobName(r), "config.cps.json", "blob")
   })
 
   await test("serves the variant for the OS page's own host, whatever the cookie says", async () => {
-    assertEqual(multiOs.readConfigBlobName(configRequest({ Origin: `https://${LONDON}`, Cookie: SIGNAL })), "config.cps-lon.json", "blob")
+    assertEqual(osSwitch.readConfigBlobName(configRequest({ Origin: `https://${LONDON}`, Cookie: SIGNAL })), "config.cps-lon.json", "blob")
   })
 
   // Config has to match the page it runs on: auth state is per-origin.
   await test("serves config.json to the environment's own OS host even when switched", async () => {
     const r = configRequest({ Origin: "https://oapps-qa-notprod.int.cps.gov.uk", Cookie: SIGNAL })
-    assertEqual(multiOs.readConfigBlobName(r), "config.json", "blob")
+    assertEqual(osSwitch.readConfigBlobName(r), "config.json", "blob")
   })
 
   await test("ignores a signal for another environment", async () => {
-    assertEqual(multiOs.readConfigBlobName(configRequest({ Cookie: SIGNAL }, "dev")), "config.json", "blob")
+    assertEqual(osSwitch.readConfigBlobName(configRequest({ Cookie: SIGNAL }, "dev")), "config.json", "blob")
   })
 
   await test("ignores a signal naming a host with no variant", async () => {
-    assertEqual(multiOs.readConfigBlobName(configRequest({ Cookie: "Gloco-Os-Target-test=evil.example.com" })), "config.json", "blob")
+    assertEqual(osSwitch.readConfigBlobName(configRequest({ Cookie: "Gloco-Os-Target-test=evil.example.com" })), "config.json", "blob")
   })
 
   // --- C-button ---
@@ -168,37 +168,37 @@ async function runTests(): Promise<void> {
 
   // The conf diverts signalled /launch/<route> requests to this internal URI.
   const launchRequest = (route: string, cookie?: string) =>
-    createMockRequest({ uri: `/global-components/multi-os/launch/${route}`, headersIn: cookie ? { Cookie: cookie } : {} })
+    createMockRequest({ uri: `/global-components/os-london-dublin-oapps-switch/launch/${route}`, headersIn: cookie ? { Cookie: cookie } : {} })
 
   await test("hands back (empty) when there is no signal", async () => {
-    assertEqual(multiOs.launchTarget(launchRequest("cin3-proxy")), "", "target")
+    assertEqual(osSwitch.launchTarget(launchRequest("cin3-proxy")), "", "target")
   })
 
   // Same shape and encoding as Polaris's own target — only the OS host differs.
   await test("builds Polaris's own target with the OS host swapped, for every overridden route", async () => {
     for (const [route, host] of [["cin2-proxy", CPS], ["cin3-proxy", CPS], ["cin4-proxy", LONDON], ["cin5-proxy", LONDON]]) {
       const expected = polarisTarget(route!).split("oapps-qa-notprod.int.cps.gov.uk").join(host!)
-      assertEqual(multiOs.launchTarget(launchRequest(route!, `Gloco-Os-Target-test=${host}`)), expected, route!)
+      assertEqual(osSwitch.launchTarget(launchRequest(route!, `Gloco-Os-Target-test=${host}`)), expected, route!)
     }
   })
 
   await test("hands back for a signal naming a host with no variant", async () => {
-    assertEqual(multiOs.launchTarget(launchRequest("cin3-proxy", "Gloco-Os-Target-test=evil.example.com")), "", "target")
+    assertEqual(osSwitch.launchTarget(launchRequest("cin3-proxy", "Gloco-Os-Target-test=evil.example.com")), "", "target")
   })
 
   await test("hands back for another environment's signal", async () => {
-    assertEqual(multiOs.launchTarget(launchRequest("cin3-proxy", `Gloco-Os-Target-dev=${CPS}`)), "", "target")
+    assertEqual(osSwitch.launchTarget(launchRequest("cin3-proxy", `Gloco-Os-Target-dev=${CPS}`)), "", "target")
   })
 
   await test("never touches routes it doesn't divert (raw CMS, prod)", async () => {
     for (const route of ["cin3", "cms-proxy", "cin3-proxy/"]) {
-      assertEqual(multiOs.launchTarget(launchRequest(route, SIGNAL)), "", route)
+      assertEqual(osSwitch.launchTarget(launchRequest(route, SIGNAL)), "", route)
     }
   })
 
   await test("only answers on the internal divert URI, not the original route", async () => {
     const r = createMockRequest({ uri: "/launch/cin3-proxy", headersIn: { Cookie: SIGNAL } })
-    assertEqual(multiOs.launchTarget(r), "", "target")
+    assertEqual(osSwitch.launchTarget(r), "", "target")
   })
 
   // --- status ---
@@ -206,7 +206,7 @@ async function runTests(): Promise<void> {
 
   await test("GET lists the environment's variants and the current signal", async () => {
     const r = createMockRequest({ uri: "/global-components/multi-os/target/test", headersIn: { Cookie: SIGNAL } })
-    multiOs.handleStatus(r)
+    osSwitch.handleStatus(r)
     assertEqual(r.returnCode, 200, "status")
     assertEqual(
       r.returnBody,
@@ -217,19 +217,19 @@ async function runTests(): Promise<void> {
 
   await test("GET reports no signal for a stale host", async () => {
     const r = createMockRequest({ uri: "/global-components/multi-os/target/test", headersIn: { Cookie: "Gloco-Os-Target-test=gone.example.com" } })
-    multiOs.handleStatus(r)
+    osSwitch.handleStatus(r)
     assertEqual(JSON.parse(r.returnBody!).current, null, "current")
   })
 
   await test("GET gives no options for an environment without variants", async () => {
     const r = createMockRequest({ uri: "/global-components/multi-os/target/prod" })
-    multiOs.handleStatus(r)
+    osSwitch.handleStatus(r)
     assertEqual(r.returnBody, JSON.stringify({ current: null, options: [] }), "body")
   })
 
   await test("only GET is allowed — the set route is the only writer", async () => {
     const r = createMockRequest({ method: "PUT", uri: "/global-components/multi-os/target/test" })
-    multiOs.handleStatus(r)
+    osSwitch.handleStatus(r)
     assertEqual(r.returnCode, 405, "status")
   })
 
@@ -244,7 +244,7 @@ async function runTests(): Promise<void> {
 
   await test("from Edge: writes Edge's copy, then flips to IE mode to write that one", async () => {
     const r = setRequest({ env: "test", host: CPS, return: "/global-components/test/preview/" }, EDGE)
-    multiOs.handleSet(r)
+    osSwitch.handleSet(r)
     assert(cookieOf(r).startsWith(`Gloco-Os-Target-test=${CPS}; Path=/;`), `cookie: ${cookieOf(r)}`)
     assert(cookieOf(r).includes("HttpOnly") && cookieOf(r).includes("Secure"), `cookie: ${cookieOf(r)}`)
     assertEqual(r.headersOut["X-InternetExplorerMode"], "1", "flip to IE mode")
@@ -258,7 +258,7 @@ async function runTests(): Promise<void> {
 
   await test("then in IE mode: writes IE mode's copy and returns to the preview page in Edge", async () => {
     const r = setRequest({ env: "test", host: CPS, return: "/global-components/test/preview/", done: "edge" }, IE)
-    multiOs.handleSet(r)
+    osSwitch.handleSet(r)
     assert(cookieOf(r).startsWith(`Gloco-Os-Target-test=${CPS};`), `cookie: ${cookieOf(r)}`)
     assertEqual(r.headersOut["X-InternetExplorerMode"], "0", "back to Edge")
     assertEqual(r.returnBody, "/global-components/test/preview/", "return")
@@ -266,19 +266,19 @@ async function runTests(): Promise<void> {
 
   await test("started in IE mode: writes that copy first, then flips to Edge for the other", async () => {
     const first = setRequest({ env: "test", host: CPS, return: "/x" }, IE)
-    multiOs.handleSet(first)
+    osSwitch.handleSet(first)
     assertEqual(first.headersOut["X-InternetExplorerMode"], "0", "flip to Edge")
     assert(first.returnBody!.endsWith("&done=ie"), `hop: ${first.returnBody}`)
 
     const second = setRequest({ env: "test", host: CPS, return: "/x", done: "ie" }, EDGE)
-    multiOs.handleSet(second)
+    osSwitch.handleSet(second)
     assertEqual(second.headersOut["X-InternetExplorerMode"], undefined, "already in Edge")
     assertEqual(second.returnBody, "/x", "return")
   })
 
   await test("an empty host clears the signal (expired cookie), through both engines", async () => {
     const r = setRequest({ env: "test", host: "", return: "/x" }, EDGE)
-    multiOs.handleSet(r)
+    osSwitch.handleSet(r)
     assert(cookieOf(r).startsWith("Gloco-Os-Target-test=; Path=/;"), `cookie: ${cookieOf(r)}`)
     assert(cookieOf(r).includes("Expires=Thu, 01 Jan 1970"), "expired")
     assertEqual(r.headersOut["X-InternetExplorerMode"], "1", "still visits IE mode to clear its copy")
@@ -286,13 +286,13 @@ async function runTests(): Promise<void> {
 
   await test("never loops when the browser declines the flip", async () => {
     const r = setRequest({ env: "test", host: CPS, return: "/x", done: "edge" }, EDGE)
-    multiOs.handleSet(r)
+    osSwitch.handleSet(r)
     assertEqual(r.returnBody, "/x", "returns rather than hopping again")
   })
 
   await test("a site that can't flip sets the current engine's copy and returns", async () => {
     const r = setRequest({ env: "test", host: CPS, return: "/x" }, "nonie+nonconfigurable+")
-    multiOs.handleSet(r)
+    osSwitch.handleSet(r)
     assertEqual(r.headersOut["X-InternetExplorerMode"], undefined, "no flip")
     assertEqual(r.returnBody, "/x", "return")
   })
@@ -300,7 +300,7 @@ async function runTests(): Promise<void> {
   await test("refuses an unknown host or environment, writing nothing", async () => {
     for (const args of [{ env: "test", host: "evil.example.com" }, { env: "prod", host: CPS }, { env: "nope", host: "" }]) {
       const r = setRequest({ ...args, return: "/x" }, EDGE)
-      multiOs.handleSet(r)
+      osSwitch.handleSet(r)
       assertEqual(r.returnCode, 400, JSON.stringify(args))
       assertEqual(r.headersOut["Set-Cookie"], undefined, "no cookie")
     }
@@ -309,7 +309,7 @@ async function runTests(): Promise<void> {
   await test("only returns to paths on this host", async () => {
     for (const unsafe of ["https://evil.example.com/", "//evil.example.com/", "evil", ""]) {
       const r = setRequest({ env: "test", host: CPS, return: unsafe, done: "edge" }, IE)
-      multiOs.handleSet(r)
+      osSwitch.handleSet(r)
       assertEqual(r.returnBody, "/", `return for ${unsafe}`)
     }
   })
@@ -319,7 +319,7 @@ async function runTests(): Promise<void> {
 
   await test("fires only for a C-button route carrying a signal cookie", async () => {
     const gate = (uri: string, Cookie?: string) =>
-      multiOs.launchSignalled(createMockRequest({ uri, headersIn: Cookie ? { Cookie } : {} }))
+      osSwitch.launchSignalled(createMockRequest({ uri, headersIn: Cookie ? { Cookie } : {} }))
     assertEqual(gate("/launch/cin3-proxy", `a=1; ${SIGNAL}`), "1", "signalled C-button")
     assertEqual(gate("/launch/cin3-proxy", "a=1"), "", "no signal")
     assertEqual(gate("/launch/cin3-proxy"), "", "no Cookie header")
@@ -331,7 +331,7 @@ async function runTests(): Promise<void> {
   // rewrite_log prints a regex if's whole subject, so a regex on $http_cookie
   // writes every request's Cookie header (bearer tokens, .CMSAUTH) to the log.
   await test("the conf never regex-matches a Cookie header", async () => {
-    const ours = fs.readFileSync(path.join(MODULE_DIR, "global-components.multi-os-domain-testing.conf"), "utf8")
+    const ours = fs.readFileSync(path.join(MODULE_DIR, "global-components.os-london-dublin-oapps-switch.conf"), "utf8")
     assert(!/\$(http_cookie|cookie_\w+)\s*~/.test(ours), "no regex if on a cookie")
   })
 
@@ -350,7 +350,7 @@ async function runTests(): Promise<void> {
         const host = (text.match(/"BANNER_TITLE_HREF": "https:\/\/([^/]+)\//) || [])[1]
         return `${env}/${variant}=${host}`
       })
-    const fromTable = Object.entries(multiOs.OS_HOST_VARIANTS).flatMap(([env, variants]) =>
+    const fromTable = Object.entries(osSwitch.OS_HOST_VARIANTS).flatMap(([env, variants]) =>
       Object.entries(variants).map(([variant, host]) => `${env}/${variant}=${host}`),
     )
     assertEqual(JSON.stringify(fromTable.sort()), JSON.stringify(fromFiles.sort()), "variants")
@@ -360,22 +360,22 @@ async function runTests(): Promise<void> {
   // the conf's two route regexes (the server-level divert and the internal
   // location) must match exactly LAUNCH_ROUTES — no more, no fewer.
   await test("LAUNCH_ROUTES exist upstream and are exactly what the conf diverts", async () => {
-    const ours = fs.readFileSync(path.join(MODULE_DIR, "global-components.multi-os-domain-testing.conf"), "utf8")
-    const divert = ours.match(/^\s*rewrite (\^\/launch\/\S+\$) \/global-components\/multi-os\/launch\/\$1 last;/m)
-    const internal = ours.match(/^location ~ (\^\/global-components\/multi-os\/launch\/\S+\$) \{/m)
+    const ours = fs.readFileSync(path.join(MODULE_DIR, "global-components.os-london-dublin-oapps-switch.conf"), "utf8")
+    const divert = ours.match(/^\s*rewrite (\^\/launch\/\S+\$) \/global-components\/os-london-dublin-oapps-switch\/launch\/\$1 last;/m)
+    const internal = ours.match(/^location ~ (\^\/global-components\/os-london-dublin-oapps-switch\/launch\/\S+\$) \{/m)
     assert(!!divert, "server-level divert rewrite")
     assert(!!internal, "internal launch location")
     const divertRe = new RegExp(divert![1]!)
     const internalRe = new RegExp(internal![1]!)
-    const routes = Object.keys(multiOs.LAUNCH_ROUTES)
+    const routes = Object.keys(osSwitch.LAUNCH_ROUTES)
     for (const route of routes) {
       polarisTarget(route)
       assert(divertRe.test(`/launch/${route}`), `divert matches ${route}`)
-      assert(internalRe.test(`/global-components/multi-os/launch/${route}`), `internal location matches ${route}`)
+      assert(internalRe.test(`/global-components/os-london-dublin-oapps-switch/launch/${route}`), `internal location matches ${route}`)
     }
     for (const other of ["cin1-proxy", "cin6-proxy", "cin3", "cms-proxy", "cin3-proxy/", "cin3-proxyx"]) {
       assert(!divertRe.test(`/launch/${other}`), `divert leaves ${other} alone`)
-      assert(!internalRe.test(`/global-components/multi-os/launch/${other}`), `internal location refuses ${other}`)
+      assert(!internalRe.test(`/global-components/os-london-dublin-oapps-switch/launch/${other}`), `internal location refuses ${other}`)
     }
     assert(!/^location\s+(=\s*)?\/launch\//m.test(ours), "no location of our own on /launch/")
   })

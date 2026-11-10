@@ -38,7 +38,7 @@ wait_for_proxy() {
 # Stop any running stack
 stop_stack() {
   cd "$DOCKER_DIR"
-  docker compose -f docker-compose.yml -f docker-compose.vnext.yml -f docker-compose.cms-augmentation.yml -f docker-compose.watchdog.yml -f docker-compose.multi-os-domain-testing.yml down -t 2 2>/dev/null || true
+  docker compose -f docker-compose.yml -f docker-compose.vnext.yml -f docker-compose.cms-augmentation.yml -f docker-compose.watchdog.yml -f docker-compose.os-london-dublin-oapps-switch.yml down -t 2 2>/dev/null || true
 }
 
 # Run a test layer
@@ -142,14 +142,14 @@ else
   TOTAL_FAILED=$((TOTAL_FAILED + 1))
 fi
 
-# Layer 5: Multi-OS-domain testing (temporary module, FCT2-22132)
-if run_layer "multi-os-domain-testing" \
-  "-f docker-compose.yml -f docker-compose.multi-os-domain-testing.yml" \
+# Layer 5: OS London/Dublin/oapps switch (temporary module, FCT2-22132)
+if run_layer "os-london-dublin-oapps-switch" \
+  "-f docker-compose.yml -f docker-compose.os-london-dublin-oapps-switch.yml" \
   "/health" \
-  "$SCRIPT_DIR/config/global-components.multi-os-domain-testing/tests/global-components.multi-os-domain-testing.integration.test.js"; then
-  LAYER_RESULTS="${LAYER_RESULTS}  ${GREEN}✓${NC} multi-os-domain-testing\n"
+  "$SCRIPT_DIR/config/global-components.os-london-dublin-oapps-switch/tests/global-components.os-london-dublin-oapps-switch.integration.test.js"; then
+  LAYER_RESULTS="${LAYER_RESULTS}  ${GREEN}✓${NC} os-london-dublin-oapps-switch\n"
 else
-  LAYER_RESULTS="${LAYER_RESULTS}  ${RED}✗${NC} multi-os-domain-testing\n"
+  LAYER_RESULTS="${LAYER_RESULTS}  ${RED}✗${NC} os-london-dublin-oapps-switch\n"
   TOTAL_FAILED=$((TOTAL_FAILED + 1))
 fi
 

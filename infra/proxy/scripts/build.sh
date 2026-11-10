@@ -28,8 +28,8 @@ echo "Copying config files..."
 cp "$PROXY_DIR/config/main/nginx.conf" "$DIST_DIR/nginx.conf.template"
 cp "$PROXY_DIR/config/main/global-components.conf" "$DIST_DIR/global-components.conf.template"
 cp "$PROXY_DIR/config/global-components.vnext/global-components.vnext.conf" "$DIST_DIR/global-components.vnext.conf.template"
-# Temporary multi-OS-domain testing module (FCT2-22132) — delete with the module.
-cp "$PROXY_DIR/config/global-components.multi-os-domain-testing/global-components.multi-os-domain-testing.conf" "$DIST_DIR/global-components.multi-os-domain-testing.conf.template"
+# Temporary OS London/Dublin/oapps switch module (FCT2-22132) — delete with the module.
+cp "$PROXY_DIR/config/global-components.os-london-dublin-oapps-switch/global-components.os-london-dublin-oapps-switch.conf" "$DIST_DIR/global-components.os-london-dublin-oapps-switch.conf.template"
 # NOTE: the v1 spike variants (cms-auth, cms-ping, cms-proxy-no-logout, spike) are
 # archived under global-components.cms-augmentation/previous/ for REFERENCE ONLY. They
 # are deliberately NOT built or packaged — tsconfig excludes config/**/previous/**, so
@@ -45,14 +45,14 @@ cp "$PROXY_DIR/config/global-components.multi-os-domain-testing/global-component
 echo "Flattening compiled JS files..."
 mv "$DIST_DIR/main/global-components.js" "$DIST_DIR/global-components.js"
 mv "$DIST_DIR/global-components.vnext/global-components.vnext.js" "$DIST_DIR/global-components.vnext.js"
-mv "$DIST_DIR/global-components.multi-os-domain-testing/global-components.multi-os-domain-testing.js" "$DIST_DIR/global-components.multi-os-domain-testing.js"
+mv "$DIST_DIR/global-components.os-london-dublin-oapps-switch/global-components.os-london-dublin-oapps-switch.js" "$DIST_DIR/global-components.os-london-dublin-oapps-switch.js"
 mv "$DIST_DIR/global-components.cms-augmentation/global-components.cms-augmentation.js" "$DIST_DIR/global-components.cms-augmentation.js"
 mv "$DIST_DIR/global-components.watchdog/global-components.watchdog.js" "$DIST_DIR/global-components.watchdog.js"
 
 # Remove empty directories
 rmdir "$DIST_DIR/main" 2>/dev/null || true
 rmdir "$DIST_DIR/global-components.vnext" 2>/dev/null || true
-rmdir "$DIST_DIR/global-components.multi-os-domain-testing" 2>/dev/null || true
+rmdir "$DIST_DIR/global-components.os-london-dublin-oapps-switch" 2>/dev/null || true
 rmdir "$DIST_DIR/global-components.cms-augmentation" 2>/dev/null || true
 rmdir "$DIST_DIR/global-components.watchdog" 2>/dev/null || true
 

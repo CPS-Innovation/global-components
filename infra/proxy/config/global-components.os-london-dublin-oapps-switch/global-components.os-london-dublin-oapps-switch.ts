@@ -1,14 +1,21 @@
 // ---------------------------------------------------------------------------
-// Multi-OS-domain testing (FCT2-22132)
+// OS London/Dublin/oapps switch (FCT2-22132) — TRANSITIONAL
 //
-// TEMPORARY. Lets designated QA users run against a different OutSystems host
-// (the old outsystemsenterprise.com host, the London tenant) while everyone else stays on their
-// environment's own host. Everything for it lives in this module and its .conf,
-// so ending the trial is deleting this directory (plus its build/deploy/test
-// wiring). Nothing here edits another team's config: it only adds locations
-// (plus a server-level divert that only fires for requests carrying the signal).
-// It loads unchanged in both Polaris proxy worlds, the live monolith and the
-// refactored features/ config (Polaris PROXY.md §6.8).
+// Lets a user pin themselves to one OutSystems host for an environment: either of
+// the resilient OutSystems failover domains (Dublin, *.outsystemsenterprise.com,
+// and London, *lon*.outsystemsenterprise.com) or the oapps front door
+// (oapps-*.int.cps.gov.uk, the environment's default). Users who never pin are
+// untouched. See README.md beside this file.
+//
+// It exists for the move onto the oapps front door and can be deleted when that
+// transition is finished (it may stay useful long term, for failover). Nothing
+// else depends on it: it only ADDS locations, takes over config.json (exact
+// match, see the main global-components conf's blob route), and adds one
+// server-level rewrite that only fires for requests carrying the signal.
+//
+// Loads unchanged in BOTH Polaris proxy worlds (Polaris PROXY.md §6.8): the live
+// monolith (`include global-components*.conf;`) and the refactored config
+// (`include features/*/*.conf;`).
 //
 // The signal is a per-environment cookie on this (polaris) host,
 //   Gloco-Os-Target-<env>=<OS host>
@@ -111,7 +118,7 @@ function _query(r: NginxHTTPRequest, name: string): string {
 function readConfigBlobName(r: NginxHTTPRequest): string {
   // Set by the per-environment config.json location before it hands over to
   // the shared internal location, so read it rather than the (rewritten) URI.
-  const env = (r.variables.gloco_config_env as string | undefined) || "";
+  const env = (r.variables.gloco_os_switch_config_env as string | undefined) || "";
   const originHost = _hostOf(r.headersIn["Origin"] as string | undefined);
   const requestHost = ((r.headersIn["Host"] as string | undefined) || "").split(":")[0].toLowerCase();
   const isCrossOrigin = !!originHost && originHost !== requestHost;
@@ -161,14 +168,14 @@ function launchSignalled(r: NginxHTTPRequest): string {
   return "";
 }
 
-// js_set for the diverted C-button (/global-components/multi-os/launch/<route>,
+// js_set for the diverted C-button (/global-components/os-london-dublin-oapps-switch/launch/<route>,
 // reached only via the conf's signal-gated rewrite of /launch/<route>): where a
 // switched user's C-button goes, or "" to hand the request back to the original
 // /launch/<route>, i.e. Polaris's own handler, untouched.
 // The C-button is clicked in the proxied CMS, i.e. in IE mode, so this reads the
 // IE-mode copy of the cookie — which the set route wrote.
 function launchTarget(r: NginxHTTPRequest): string {
-  const route = (r.uri.match(/^\/global-components\/multi-os\/launch\/([^/]+)$/) || [])[1] || "";
+  const route = (r.uri.match(/^\/global-components\/os-london-dublin-oapps-switch\/launch\/([^/]+)$/) || [])[1] || "";
   const env = LAUNCH_ROUTES[route];
   if (!env || !POLARIS_HOSTS[env]) {
     return "";
