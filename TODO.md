@@ -77,9 +77,9 @@ navigate-cms `target=modern`, swagger) as regex locations marked `X-Gloco-Vnext`
 - [x] Verify: `X-Gloco-Vnext` on `/global-components/state/preview?callback=cb` (answers
       `cb(...)`), on `/global-components/swagger.json`, and absent on other `/api/` routes. Verified on QA 2026-11-10
       (navigate-cms and state/preview).
-- [ ] Redeploy vnext (navigate-cms security headers) and the OS switch (`Content-MD5` hidden on
+- [x] Redeploy vnext (navigate-cms security headers) and the OS switch (`Content-MD5` hidden on
       `config.json`), both fixed after the first deploy. Check: `curl -sI …/navigate-cms?step=close`
-      shows `X-Frame-Options: DENY` beside `X-Gloco-Vnext`; `config.json` has no `content-md5`.
+      shows `X-Frame-Options: DENY` beside `X-Gloco-Vnext`; `config.json` has no `content-md5`. Redeployed and verified on QA 2026-11-10 15:09Z.
 - [ ] Cut the Polaris PR from vnext (each block names its target and `^~` shape); after it
       deploys, the header disappears — then retire vnext's sections.
 
