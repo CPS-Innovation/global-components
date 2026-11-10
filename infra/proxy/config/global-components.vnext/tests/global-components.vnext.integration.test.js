@@ -124,6 +124,21 @@ async function testWhoAnswers() {
     assertEqual(response.headers.get("x-gloco-vnext"), "navigate-cms", "answered by vnext")
   })
 
+  await test("navigate-cms keeps Polaris's security headers despite the signal header", async () => {
+    // Our own add_header turns off inheritance of the server-level ones, so the
+    // block repeats them; QA showed them missing before it did (2026-11-10).
+    const response = await fetch(`${PROXY_BASE}/global-components/navigate-cms?step=close`)
+    assertEqual(response.headers.get("x-frame-options"), "DENY", "X-Frame-Options")
+    assertEqual(response.headers.get("x-content-type-options"), "nosniff", "X-Content-Type-Options")
+    assertEqual(response.headers.get("x-permitted-cross-domain-policies"), "none", "X-Permitted-Cross-Domain-Policies")
+    assertEqual(
+      response.headers.get("strict-transport-security"),
+      "max-age=31536000; includeSubDomains",
+      "Strict-Transport-Security"
+    )
+    assertEqual(response.headers.get("cache-control"), "no-store", "Cache-Control")
+  })
+
   await test("the rest of the api surface stays Polaris's", async () => {
     const response = await fetch(`${PROXY_BASE}/global-components/api/cases`)
     assertEqual(response.headers.get("x-gloco-vnext"), null, "not vnext")

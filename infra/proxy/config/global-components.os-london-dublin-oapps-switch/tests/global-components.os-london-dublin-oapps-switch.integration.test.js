@@ -44,6 +44,12 @@ async function testConfigSelection() {
     assert((response.headers.get("vary") || "").includes("Cookie"), "Should vary on Cookie")
   })
 
+  await test("hides blob storage's Content-MD5, as the mainline blob route does", async () => {
+    // Seen passing through on QA 2026-11-10; it stops matching once nginx gzips.
+    const response = await fetch(CONFIG_URL, { headers: { "Accept-Encoding": "gzip" } })
+    assertEqual(response.headers.get("content-md5"), null, "No Content-MD5")
+  })
+
   await test("serves the variant named by the signal cookie", async () => {
     const response = await fetch(CONFIG_URL, { headers: { Cookie: SIGNAL } })
     assertEqual(blobFileOf(response), "config.cps.json", "Should serve the variant")

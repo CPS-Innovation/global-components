@@ -116,7 +116,9 @@ const server = http.createServer((req, res) => {
     res.writeHead(200, {
       'Content-Type': contentType,
       'X-Mock-Blob-Env': env,
-      'X-Mock-Blob-File': file
+      'X-Mock-Blob-File': file,
+      // Real blob storage sends one for the stored bytes; the artifact routes hide it.
+      'Content-MD5': 'bW9jay1tZDU='
     });
     res.end(body);
     return;

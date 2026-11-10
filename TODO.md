@@ -71,10 +71,15 @@ In this repo:
 vnext now carries our changes to Polaris's global-components feature (state JSONP/`?set=`,
 navigate-cms `target=modern`, swagger) as regex locations marked `X-Gloco-Vnext`; see its README.
 
-- [ ] Deploy vnext (`deploy-vnext.local.sh`) **before** cms-augmentation, which no longer serves
-      `state/preview`. QA's deployed vnext is still the old one (`^~` swagger, validate-token).
-- [ ] Verify: `X-Gloco-Vnext` on `/global-components/state/preview?callback=cb` (answers
-      `cb(...)`), on `/global-components/swagger.json`, and absent on other `/api/` routes.
+- [x] Deploy vnext (`deploy-vnext.local.sh`) **before** cms-augmentation, which no longer serves
+      `state/preview`. Done on QA 2026-11-10: vnext 14:54Z, cms-augmentation + watchdog 14:57Z,
+      os-london-dublin-oapps-switch 15:01Z; only those four `features/global-components.*` folders remain.
+- [x] Verify: `X-Gloco-Vnext` on `/global-components/state/preview?callback=cb` (answers
+      `cb(...)`), on `/global-components/swagger.json`, and absent on other `/api/` routes. Verified on QA 2026-11-10
+      (navigate-cms and state/preview).
+- [ ] Redeploy vnext (navigate-cms security headers) and the OS switch (`Content-MD5` hidden on
+      `config.json`), both fixed after the first deploy. Check: `curl -sI …/navigate-cms?step=close`
+      shows `X-Frame-Options: DENY` beside `X-Gloco-Vnext`; `config.json` has no `content-md5`.
 - [ ] Cut the Polaris PR from vnext (each block names its target and `^~` shape); after it
       deploys, the header disappears — then retire vnext's sections.
 
@@ -87,9 +92,9 @@ set route, and diverts the proxied-CMS C-button for users carrying the signal co
 Polaris changes (`/init`, `/launch`, `uainGeneratedScript`), and requests without the signal
 cookie are never touched. It works in both Polaris proxy worlds (monolith and refactor).
 
-- [ ] Run `pnpm -w test:proxy`. There's a new layer, `os-london-dublin-oapps-switch`, and vnext has
+- [x] Run `pnpm -w test:proxy`. There's a new layer, `os-london-dublin-oapps-switch`, and vnext has
       lost its variant tests.
-- [ ] **Deploy order matters.** Both the old vnext and the module define
+- [x] **Deploy order matters.** Both the old vnext and the module define
       `location = /global-components/<env>/config.json`. If both are live, nginx won't start and
       the whole proxy goes down.
   1. Deploy the stripped vnext first (`deploy-vnext.local.sh`). QA briefly loses variant config
