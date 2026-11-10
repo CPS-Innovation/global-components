@@ -51,12 +51,38 @@ and its lines in `scripts/build.sh`, `deploy/deploy.sh`, `deploy/rollback.sh`, `
   `/launch/` handler in the refactor).
   - Without a `Gloco-Os-Target-` cookie, nginx never touches the request: Polaris's own route
     runs unchanged.
-  - With one, a server-level rewrite diverts the click to the internal
+  - With one (tested by njs, `$gloco_multi_os_signalled` — never a regex on `$http_cookie`,
+    which `rewrite_log` would print in full, bearer tokens and all), a server-level rewrite
+    diverts the click to the internal
     `/global-components/multi-os/launch/<route>`. A valid signal for that route (the click
     arrives in IE mode, carrying IE mode's copy) redirects to Polaris's same
     `/polaris?r=<handover>` target, with the OS host swapped. Anything else is rewritten back
     to the original URI and lands on Polaris's route, whichever world is running.
   - `/polaris`, `/init`, raw-CMS `/launch/cinN` and prod's `/launch/cms-proxy` are not touched.
+
+### CMS augmentation (`config/global-components.cms-augmentation/`)
+
+Injects our client scripts into the proxied CMS: Classic's frameset shell and Modern/DCF.
+Deployed by `scripts/deploy.local.sh` (not `deploy/deploy.sh`). Its njs is only a temporary
+tail (state/preview + cookie diagnostics) that is moving to Polaris's global-components
+module; after that it is conf-only. See its README.
+
+### Watchdog (`config/global-components.watchdog/`)
+
+Everything in front of the Watchdog (presence) API: the SignalR hub routes
+(`/global-components/case-locking/api/…`) and the legacy clients' JSONP adapter
+(`/global-components/presence-jsonp`). Deployed by `scripts/deploy.local.sh`. See its README.
+
+### App settings our modules read (the list for Terraform)
+
+| Setting                            | Read by   | Notes |
+| ---------------------------------- | --------- | ----- |
+| `GLOBAL_COMPONENTS_WATCHDOG_HOST`  | watchdog  | Watchdog API host, bare. Until Terraform sets it, `deploy.local.sh` bakes it in from `config/global-components.watchdog/.env`. |
+| `GLOBAL_COMPONENTS_APPLICATION_ID` | vnext     | Set by hand today, so a Terraform apply that manages the app's settings wipes it. |
+
+Everything else our confs use (`${WEBSITE_DNS_SERVER}`, `${WEBSITE_SCHEME}`,
+`${CMS_RATE_LIMIT_QUEUE}`, `${CPS_GLOBAL_COMPONENTS_BLOB_STORAGE_DOMAIN}`) is already one of
+Polaris's.
 
 ### Docker (`docker/`)
 

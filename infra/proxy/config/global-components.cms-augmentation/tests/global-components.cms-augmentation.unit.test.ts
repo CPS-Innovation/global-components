@@ -1,12 +1,10 @@
 #!/usr/bin/env npx ts-node
 /**
- * Unit tests for global-components.cms-auth-presence.ts — the PREVIEW STATE route.
+ * Unit tests for global-components.cms-augmentation.ts — the PREVIEW STATE route.
  *
- * Scope is deliberately narrow: handleStatePreview and its ?set= navigation. The
- * auth flow and the presence adapter in the same module are covered by the Docker
- * integration test next door, because they need an upstream to talk to; this file
- * exists because the ?set= chain is a state machine over $ieaction and `done`, and
- * a state machine wants unit tests rather than a browser.
+ * Scope: handleStatePreview and its ?set= navigation, which is a state machine
+ * over $ieaction and `done`, and a state machine wants unit tests rather than a
+ * browser. (The presence adapter's tests moved with it to global-components.watchdog.)
  *
  * WHAT THE CHAIN IS FOR. The preview app writes its cookie from Edge with a fetch
  * PUT. The legacy clients (CMS Classic at document mode 5, Modern/DCF at 11) read
@@ -25,7 +23,7 @@ import * as path from "path"
 import * as fs from "fs"
 
 const CONFIG_DIR = path.join(__dirname, "..", "..")
-const MODULE_DIR = path.join(CONFIG_DIR, "global-components.cms-auth-presence")
+const MODULE_DIR = path.join(CONFIG_DIR, "global-components.cms-augmentation")
 const DIST_DIR = path.join(CONFIG_DIR, "..", ".dist")
 
 if (!fs.existsSync(DIST_DIR)) {
@@ -56,16 +54,15 @@ interface MockRequestOptions {
   ieaction?: string
 }
 
-interface AuthPresenceModule {
+interface CmsAugmentationModule {
   handleStatePreview(r: MockRequest): Promise<void>
-  handlePresenceJsonp(r: MockRequest): Promise<void>
 }
 
 async function build(): Promise<void> {
   await esbuild.build({
-    entryPoints: [path.join(MODULE_DIR, "global-components.cms-auth-presence.ts")],
+    entryPoints: [path.join(MODULE_DIR, "global-components.cms-augmentation.ts")],
     bundle: true,
-    outfile: path.join(DIST_DIR, "global-components.cms-auth-presence.bundle.js"),
+    outfile: path.join(DIST_DIR, "global-components.cms-augmentation.bundle.js"),
     format: "esm",
     platform: "node",
     logLevel: "error",
@@ -85,8 +82,8 @@ async function runTests(): Promise<void> {
     },
   }
 
-  const module = await import(path.join(DIST_DIR, "global-components.cms-auth-presence.bundle.js"))
-  const mod: AuthPresenceModule = module.default
+  const module = await import(path.join(DIST_DIR, "global-components.cms-augmentation.bundle.js"))
+  const mod: CmsAugmentationModule = module.default
 
   let passed = 0
   let failed = 0
@@ -148,7 +145,7 @@ async function runTests(): Promise<void> {
   const PREVIEW = '{"caseLocking":true}'
 
   console.log("=".repeat(60))
-  console.log("global-components.cms-auth-presence.js — preview state route")
+  console.log("global-components.cms-augmentation.js — preview state route")
   console.log("=".repeat(60))
 
   // --- main's contract, which we must not change -----------------------------
@@ -386,63 +383,6 @@ async function runTests(): Promise<void> {
     const read = createMockRequest({ cookie: `${COOKIE}=${stored}`, args: { callback: "cb" } })
     await mod.handleStatePreview(read)
     assertEqual(read.returnBody, `cb(${PREVIEW})`, "round trip")
-  })
-
-  // ---------------------------------------------------------------------------
-  // whoami's group IDs. Answered locally from the presence cookie — no upstream —
-  // so unlike the rest of the adapter it can be tested here.
-  // ---------------------------------------------------------------------------
-  console.log("\nwhoami groups:")
-
-  const b64urlJson = (o: unknown) => Buffer.from(JSON.stringify(o)).toString("base64").replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "")
-  const fakeJwt = (claims: Record<string, unknown>) => `${b64urlJson({ alg: "none" })}.${b64urlJson(claims)}.sig`
-  const GNAV = "12377eca-b463-4a6c-80ea-95f678f09591"
-
-  async function whoami(cookie?: string): Promise<Record<string, unknown>> {
-    const r = createMockRequest({ uri: "/global-components/presence-jsonp", cookie, args: { callback: "cb", op: "whoami" } })
-    await mod.handlePresenceJsonp(r)
-    const body = r.returnBody || ""
-    assert(body.indexOf("cb(") === 0 && body.endsWith(")"), `JSONP shape: ${body}`)
-    return JSON.parse(body.slice(3, -1))
-  }
-
-  await test("reports the groups the token carries", async () => {
-    const data = await whoami(`cms-auth-presence-token=${fakeJwt({ preferred_username: "a@cps.gov.uk", groups: [GNAV] })}`)
-    assertEqual(JSON.stringify(data.groups), JSON.stringify([GNAV]), "groups")
-  })
-
-  // ApplicationGroup emits only assigned groups, so "none" is the ordinary answer
-  // for someone outside every assigned group — and must read as an empty list.
-  await test("an empty list when the token has no groups claim", async () => {
-    const data = await whoami(`cms-auth-presence-token=${fakeJwt({ preferred_username: "a@cps.gov.uk" })}`)
-    assertEqual(JSON.stringify(data.groups), "[]", "no claim")
-  })
-
-  await test("an empty list when there is no token at all", async () => {
-    const data = await whoami()
-    assertEqual(JSON.stringify(data.groups), "[]", "no cookie")
-  })
-
-  await test("an empty list when groups is not an array", async () => {
-    const data = await whoami(`cms-auth-presence-token=${fakeJwt({ groups: GNAV })}`)
-    assertEqual(JSON.stringify(data.groups), "[]", "string, not array")
-  })
-
-  // The list is reflected into an executable JSONP body. Only GUIDs get through.
-  await test("drops anything that is not a GUID", async () => {
-    const data = await whoami(`cms-auth-presence-token=${fakeJwt({ groups: [GNAV, "</script><script>alert(1)", 42, null] })}`)
-    assertEqual(JSON.stringify(data.groups), JSON.stringify([GNAV]), "junk filtered")
-  })
-
-  await test("lower-cases IDs so a client compares like with like", async () => {
-    const data = await whoami(`cms-auth-presence-token=${fakeJwt({ groups: [GNAV.toUpperCase()] })}`)
-    assertEqual(JSON.stringify(data.groups), JSON.stringify([GNAV]), "lower-cased")
-  })
-
-  // The log is a different audience from the response: op and environment only.
-  await test("never logs a group ID", async () => {
-    await whoami(`cms-auth-presence-token=${fakeJwt({ groups: [GNAV] })}`)
-    assert(!logged.some((l) => l.indexOf(GNAV) !== -1), `logged: ${logged.join(" | ")}`)
   })
 
   console.log()

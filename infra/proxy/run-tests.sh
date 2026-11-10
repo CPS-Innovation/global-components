@@ -38,7 +38,7 @@ wait_for_proxy() {
 # Stop any running stack
 stop_stack() {
   cd "$DOCKER_DIR"
-  docker compose -f docker-compose.yml -f docker-compose.vnext.yml -f docker-compose.cms-auth-presence.yml -f docker-compose.multi-os-domain-testing.yml down -t 2 2>/dev/null || true
+  docker compose -f docker-compose.yml -f docker-compose.vnext.yml -f docker-compose.cms-augmentation.yml -f docker-compose.watchdog.yml -f docker-compose.multi-os-domain-testing.yml down -t 2 2>/dev/null || true
 }
 
 # Run a test layer
@@ -120,14 +120,25 @@ else
   TOTAL_FAILED=$((TOTAL_FAILED + 1))
 fi
 
-# Layer 4: CMS Auth Presence
-if run_layer "cms-auth-presence" \
-  "-f docker-compose.yml -f docker-compose.cms-auth-presence.yml" \
-  "/init-presence/error" \
-  "$SCRIPT_DIR/config/global-components.cms-auth-presence/tests/global-components.cms-auth-presence.integration.test.js"; then
-  LAYER_RESULTS="${LAYER_RESULTS}  ${GREEN}✓${NC} cms-auth-presence\n"
+# Layer 4: CMS augmentation (client-script injection + the temporary state tail)
+if run_layer "cms-augmentation" \
+  "-f docker-compose.yml -f docker-compose.cms-augmentation.yml" \
+  "/health" \
+  "$SCRIPT_DIR/config/global-components.cms-augmentation/tests/global-components.cms-augmentation.integration.test.js"; then
+  LAYER_RESULTS="${LAYER_RESULTS}  ${GREEN}✓${NC} cms-augmentation\n"
 else
-  LAYER_RESULTS="${LAYER_RESULTS}  ${RED}✗${NC} cms-auth-presence\n"
+  LAYER_RESULTS="${LAYER_RESULTS}  ${RED}✗${NC} cms-augmentation\n"
+  TOTAL_FAILED=$((TOTAL_FAILED + 1))
+fi
+
+# Layer 4b: Watchdog (presence-jsonp + the SignalR hub routes, setting unset)
+if run_layer "watchdog" \
+  "-f docker-compose.yml -f docker-compose.watchdog.yml" \
+  "/global-components/presence-jsonp?op=whoami&callback=cb" \
+  "$SCRIPT_DIR/config/global-components.watchdog/tests/global-components.watchdog.integration.test.js"; then
+  LAYER_RESULTS="${LAYER_RESULTS}  ${GREEN}✓${NC} watchdog\n"
+else
+  LAYER_RESULTS="${LAYER_RESULTS}  ${RED}✗${NC} watchdog\n"
   TOTAL_FAILED=$((TOTAL_FAILED + 1))
 fi
 

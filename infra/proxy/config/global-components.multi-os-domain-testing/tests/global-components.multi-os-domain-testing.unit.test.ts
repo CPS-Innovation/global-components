@@ -40,6 +40,7 @@ interface MockRequestOptions {
 
 interface MultiOsModule {
   readConfigBlobName(r: MockRequest): string
+  launchSignalled(r: MockRequest): string
   launchTarget(r: MockRequest): string
   handleStatus(r: MockRequest): void
   handleSet(r: MockRequest): void
@@ -311,6 +312,27 @@ async function runTests(): Promise<void> {
       multiOs.handleSet(r)
       assertEqual(r.returnBody, "/", `return for ${unsafe}`)
     }
+  })
+
+  // --- the server-level divert gate ---
+  console.log("\nlaunchSignalled:")
+
+  await test("fires only for a C-button route carrying a signal cookie", async () => {
+    const gate = (uri: string, Cookie?: string) =>
+      multiOs.launchSignalled(createMockRequest({ uri, headersIn: Cookie ? { Cookie } : {} }))
+    assertEqual(gate("/launch/cin3-proxy", `a=1; ${SIGNAL}`), "1", "signalled C-button")
+    assertEqual(gate("/launch/cin3-proxy", "a=1"), "", "no signal")
+    assertEqual(gate("/launch/cin3-proxy"), "", "no Cookie header")
+    assertEqual(gate("/launch/cin3-proxy", "x=Gloco-Os-Target-test"), "", "prefix in a value, not a name")
+    assertEqual(gate("/launch/cin1-proxy", SIGNAL), "", "route we do not divert")
+    assertEqual(gate("/polaris", SIGNAL), "", "not a C-button")
+  })
+
+  // rewrite_log prints a regex if's whole subject, so a regex on $http_cookie
+  // writes every request's Cookie header (bearer tokens, .CMSAUTH) to the log.
+  await test("the conf never regex-matches a Cookie header", async () => {
+    const ours = fs.readFileSync(path.join(MODULE_DIR, "global-components.multi-os-domain-testing.conf"), "utf8")
+    assert(!/\$(http_cookie|cookie_\w+)\s*~/.test(ours), "no regex if on a cookie")
   })
 
   // --- tables stay in step with what they describe ---

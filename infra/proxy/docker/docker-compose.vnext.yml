@@ -7,4 +7,4 @@ services:
       - global-components.vnext.mock.env
     volumes:
       - ../config/global-components.vnext/global-components.vnext.conf:/etc/nginx/templates/global-components.vnext.conf.template:ro
-      - ../dist/global-components.vnext.js:/etc/nginx/templates/global-components.vnext.js:ro
+      - ../dist/global-components.vnext.js:/etc/nginx/templates/features/global-components.vnext/global-components.vnext.js:ro

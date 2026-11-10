@@ -1,5 +1,6 @@
-// @ts-ignore - njs runtime import path
-import gloco from "templates/global-components.js";
+// No import of the base global-components.js: nothing here used it, and the import
+// made njs load Polaris's OLD-generation root copy — a hidden cross-generation
+// dependency that would stop nginx starting the day that root file is retired.
 
 const TENANT_ID = "00dd0d1d-d7e6-4338-ac51-565339c7088c";
 const VALIDATE_TOKEN_AGAINST_AD = false; // Set to true when ready to enforce AD token validation

@@ -1,0 +1,20 @@
+# CMS augmentation layer override
+# Use: docker compose -f docker-compose.yml -f docker-compose.cms-augmentation.yml up --build
+#
+# Mounts the conf and compiled JS so nginx parses the injection locations and the
+# temporary state/diagnostic tail. The conf's @@SCRIPT_BASE@@ is left unsubstituted
+# (deploy.local.sh fills it in) — harmless here, it is only text in a sub_filter.
+
+services:
+  nginx:
+    environment:
+      # Envsubst values the injection locations reference; the deployed proxy
+      # provides these itself. Literal http scheme + a burst so nginx starts locally.
+      - WEBSITE_SCHEME=http
+      - CMS_RATE_LIMIT_QUEUE=100
+    volumes:
+      - ../config/global-components.cms-augmentation/global-components.cms-augmentation.conf:/etc/nginx/templates/global-components.cms-augmentation.conf.template:ro
+      - ../dist/global-components.cms-augmentation.js:/etc/nginx/templates/features/global-components.cms-augmentation/global-components.cms-augmentation.js:ro
+      # Reduced mock cmsenv for the injection locations — overrides the real cmsenv.js
+      # baked into the image, so their js_set/proxy_pass resolve to the mock-upstream.
+      - ./cmsenv.mock.js:/etc/nginx/cmsenv.js:ro

@@ -1,10 +1,10 @@
 #!/usr/bin/env node
 /**
- * Integration tests for global-components.cms-auth-presence.conf
+ * Integration tests for global-components.watchdog.conf
  *
- * Light smoke tests: verifies nginx starts with the conf mounted and
- * the sync handlers respond correctly. Does NOT exercise the full OIDC
- * round-trip (that requires real Azure AD credentials).
+ * Runs with GLOBAL_COMPONENTS_WATCHDOG_HOST unset (see docker-compose.watchdog.yml):
+ * nginx must start, whoami must still answer (it never reaches the API), and
+ * everything that does need the API must say which setting is missing.
  */
 
 const {
@@ -17,81 +17,6 @@ const {
 } = require("../../../test-utils")
 
 // =============================================================================
-// /init-presence/error — Sync handler (no external calls)
-// =============================================================================
-
-async function testErrorEndpoint() {
-  console.log("\nError Endpoint Tests (/init-presence/error):")
-
-  await test("returns HTML page with error details", async () => {
-    const response = await fetch(
-      `${PROXY_BASE}/init-presence/error?correlation=test-abc123&error-code=modern-token-fetch-failed`
-    )
-    assertEqual(response.status, 500, "Should return 500")
-    const contentType = response.headers.get("content-type")
-    assert(
-      contentType.includes("text/html"),
-      "Should return HTML content type"
-    )
-    const body = await response.text()
-    assert(body.includes("test-abc123"), "Should contain correlation ID")
-    assert(
-      body.includes("modern-token-fetch-failed"),
-      "Should contain error code"
-    )
-  })
-
-  await test("handles missing query params gracefully", async () => {
-    const response = await fetch(`${PROXY_BASE}/init-presence/error`)
-    assertEqual(response.status, 500, "Should return 500")
-    const body = await response.text()
-    assert(body.includes("(unknown)"), "Should show (unknown) for missing correlation")
-    assert(body.includes("unknown"), "Should show unknown for missing error code")
-  })
-}
-
-// =============================================================================
-// /polaris-presence — Sync redirect handler
-// =============================================================================
-
-async function testPolarisV2Endpoint() {
-  console.log("\nPolaris Presence Endpoint Tests (/polaris-presence):")
-
-  await test("redirects to /init-presence/ with cookies param", async () => {
-    const response = await fetch(`${PROXY_BASE}/polaris-presence`, {
-      redirect: "manual",
-      headers: {
-        Cookie: "test=value; other=123",
-      },
-    })
-    assertEqual(response.status, 302, "Should return 302 redirect")
-    const location = response.headers.get("location")
-    assert(location !== null, "Should have Location header")
-    assert(location.includes("/init-presence/"), "Should redirect to /init-presence/")
-    assert(location.includes("cookies="), "Should include cookies param")
-    assert(
-      location.includes("is-proxy-session=true"),
-      "Should include is-proxy-session param"
-    )
-  })
-
-  await test("preserves existing query params", async () => {
-    const response = await fetch(
-      `${PROXY_BASE}/polaris-presence?polaris-ui-url=/some/path`,
-      {
-        redirect: "manual",
-      }
-    )
-    assertEqual(response.status, 302, "Should return 302 redirect")
-    const location = response.headers.get("location")
-    assert(
-      location.includes("polaris-ui-url"),
-      "Should preserve existing query params"
-    )
-  })
-}
-
-// =============================================================================
 // /global-components/presence-jsonp?op=whoami — the one op the proxy answers itself
 // =============================================================================
 
@@ -99,6 +24,7 @@ async function testPolarisV2Endpoint() {
 // whoami is the only op answered without an upstream, so the real decoder is
 // reachable over HTTP with nothing mocked. Exporting the function to test it
 // would widen the module's surface for no other reason.
+// (Moved here from cms-auth-presence with the adapter, 2026-11-10.)
 //
 // WHAT IS BEING PINNED: that an empty cmsEnv is never ambiguous. Four distinct
 // states used to arrive as "" with nothing to tell them apart, and they need
@@ -171,26 +97,49 @@ async function testWhoamiCmsEnv() {
 }
 
 // =============================================================================
-// /CMS.24.0.01/User/uaulLogin.aspx — login-page shim: RETIRED
-// -----------------------------------------------------------------------------
-// The login-page iframe injection (and its whole `location = .../uaulLogin.aspx`
-// block) was removed from the cms-auth-presence conf. That job moved into the injected
-// shell script (the injected Classic client), which watches frameMain leave the login
-// page and spawns the /polaris-presence iframe itself. That script is a blob asset this
-// docker suite does not serve, so there is nothing to assert here. With the block
-// gone, the login page falls through to the deployed ^/CMS.* catch-all (not part
-// of this mock), so no login-page test runs in this layer.
-// (Previously: testLoginShim() asserted the injected iframe + the 402 IE gate.)
+// Unconfigured — the one setting absent
 // =============================================================================
+
+async function testUnconfigured() {
+  console.log("\nUnconfigured Tests (GLOBAL_COMPONENTS_WATCHDOG_HOST unset):")
+
+  await test("a JSONP op that needs the API names the missing setting", async () => {
+    const response = await fetch(
+      `${PROXY_BASE}/global-components/presence-jsonp?op=poll&sid=s1&callback=cb`
+    )
+    assertEqual(response.status, 200, "JSONP always answers 200")
+    const body = await response.text()
+    assert(
+      body.includes("GLOBAL_COMPONENTS_WATCHDOG_HOST"),
+      `Should name the setting, got: ${body}`
+    )
+  })
+
+  await test("the hub route answers 503 naming the setting", async () => {
+    const response = await fetch(`${PROXY_BASE}/global-components/case-locking/api/hubs/x`)
+    assertEqual(response.status, 503, "Should be 503")
+    const body = await response.text()
+    assert(body.includes("GLOBAL_COMPONENTS_WATCHDOG_HOST"), `Should name the setting, got: ${body}`)
+  })
+
+  // The sr location only takes a DNS-label instance. Anything else is not a
+  // SignalR instance and falls to the hub route — which, here, is the 503 — so a
+  // crafted path can never steer the proxy at another host.
+  await test("a non-instance sr path is not proxied to SignalR", async () => {
+    const response = await fetch(
+      `${PROXY_BASE}/global-components/case-locking/api/sr/evil.example.com/x`
+    )
+    assertEqual(response.status, 503, "Falls through to the (unconfigured) hub route")
+  })
+}
 
 // =============================================================================
 // Main
 // =============================================================================
 
 async function main() {
-  await testErrorEndpoint()
-  await testPolarisV2Endpoint()
   await testWhoamiCmsEnv()
+  await testUnconfigured()
 }
 
 module.exports = main
@@ -199,7 +148,7 @@ module.exports = main
 if (require.main === module) {
   resetState()
   console.log("=".repeat(60))
-  console.log("CMS Auth Presence Integration Tests")
+  console.log("Watchdog Integration Tests")
   console.log(`Target: ${PROXY_BASE}`)
   console.log("=".repeat(60))
 

@@ -8,5 +8,5 @@ services:
   nginx:
     volumes:
       - ../config/global-components.multi-os-domain-testing/global-components.multi-os-domain-testing.conf:/etc/nginx/templates/global-components.multi-os-domain-testing.conf.template:ro
-      - ../dist/global-components.multi-os-domain-testing.js:/etc/nginx/templates/global-components.multi-os-domain-testing.js:ro
+      - ../dist/global-components.multi-os-domain-testing.js:/etc/nginx/templates/features/global-components.multi-os-domain-testing/global-components.multi-os-domain-testing.js:ro
       - ./test-only.polaris-launch.conf:/etc/nginx/global-components.test-polaris-launch.conf:ro

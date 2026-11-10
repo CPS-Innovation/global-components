@@ -31,35 +31,30 @@ cp "$PROXY_DIR/config/global-components.vnext/global-components.vnext.conf" "$DI
 # Temporary multi-OS-domain testing module (FCT2-22132) — delete with the module.
 cp "$PROXY_DIR/config/global-components.multi-os-domain-testing/global-components.multi-os-domain-testing.conf" "$DIST_DIR/global-components.multi-os-domain-testing.conf.template"
 # NOTE: the v1 spike variants (cms-auth, cms-ping, cms-proxy-no-logout, spike) are
-# archived under global-components.cms-auth-presence/previous/ for REFERENCE ONLY. They are
-# deliberately NOT built or packaged — tsconfig excludes config/**/previous/**, so they
-# never reach dist/ or any deploy.
+# archived under global-components.cms-augmentation/previous/ for REFERENCE ONLY. They
+# are deliberately NOT built or packaged — tsconfig excludes config/**/previous/**, so
+# they never reach dist/ or any deploy.
 #
-# NOTE: cms-auth-presence is a POC deployed out-of-band (by hand), NOT via this package.
-# Its .conf is deliberately NOT copied into dist/ so it never enters the deploy
-# bundle. The integration test mounts the .conf straight from source (see
-# docker/docker-compose.cms-auth-presence.yml); only the compiled .js is flattened
-# into dist/ below, which is inert unless a deployed .conf js_imports it.
-cp "$PROXY_DIR/config/global-components.case-locking/global-components.case-locking.conf" "$DIST_DIR/global-components.case-locking.conf.template"
+# NOTE: cms-augmentation and watchdog are deployed by deploy.local.sh, NOT via this
+# package's deploy/deploy.sh. Their confs are not copied into dist/: deploy.local.sh
+# reads each conf from source (cms-augmentation's needs @@SCRIPT_BASE@@ substituted
+# first), and the integration tests mount them from source too. Only the compiled
+# .js files are flattened into dist/ below.
 
 # Flatten the compiled JS files (they're in subdirectories from tsc)
 echo "Flattening compiled JS files..."
 mv "$DIST_DIR/main/global-components.js" "$DIST_DIR/global-components.js"
 mv "$DIST_DIR/global-components.vnext/global-components.vnext.js" "$DIST_DIR/global-components.vnext.js"
 mv "$DIST_DIR/global-components.multi-os-domain-testing/global-components.multi-os-domain-testing.js" "$DIST_DIR/global-components.multi-os-domain-testing.js"
-mv "$DIST_DIR/global-components.cms-auth-presence/global-components.cms-auth-presence.js" "$DIST_DIR/global-components.cms-auth-presence.js"
-mv "$DIST_DIR/global-components.case-locking/global-components.case-locking.js" "$DIST_DIR/global-components.case-locking.js"
-# polaris-non-ddei: another out-of-band POC (like cms-auth-presence) — flatten its
-# compiled .js so the hand-deploy can pick it up; its .conf is NOT bundled here.
-mv "$DIST_DIR/global-components.polaris-non-ddei/global-components.polaris-non-ddei.js" "$DIST_DIR/global-components.polaris-non-ddei.js"
+mv "$DIST_DIR/global-components.cms-augmentation/global-components.cms-augmentation.js" "$DIST_DIR/global-components.cms-augmentation.js"
+mv "$DIST_DIR/global-components.watchdog/global-components.watchdog.js" "$DIST_DIR/global-components.watchdog.js"
 
 # Remove empty directories
 rmdir "$DIST_DIR/main" 2>/dev/null || true
 rmdir "$DIST_DIR/global-components.vnext" 2>/dev/null || true
 rmdir "$DIST_DIR/global-components.multi-os-domain-testing" 2>/dev/null || true
-rmdir "$DIST_DIR/global-components.cms-auth-presence" 2>/dev/null || true
-rmdir "$DIST_DIR/global-components.case-locking" 2>/dev/null || true
-rmdir "$DIST_DIR/global-components.polaris-non-ddei" 2>/dev/null || true
+rmdir "$DIST_DIR/global-components.cms-augmentation" 2>/dev/null || true
+rmdir "$DIST_DIR/global-components.watchdog" 2>/dev/null || true
 
 echo ""
 echo "Build complete! Contents of dist/:"

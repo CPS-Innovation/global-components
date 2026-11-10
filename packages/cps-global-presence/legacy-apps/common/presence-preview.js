@@ -20,7 +20,7 @@
  *   chosen by an X-InternetExplorerMode response header on a top-level document
  *   load — no fetch can do it, and an iframe cannot change its own mode — so the
  *   route visits BOTH engines, one cookie per pass. See handleStatePreview in
- *   infra/proxy/config/global-components.cms-auth-presence.
+ *   infra/proxy/config/global-components.cms-augmentation.
  *
  *   THE READ is JSONP, on that same path with ?callback=. <script src> is not
  *   gated by zone 1406, which is the same reason presence talks JSONP at all. It

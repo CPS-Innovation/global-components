@@ -149,7 +149,7 @@ h.test("the iframe points at the auth entry and is hidden", function () {
   var s = boot(APP);
   s.logIn();
   var f = s.document.__appended[0];
-  h.assertEqual(f.src, "/polaris-presence", "RELATIVE: the capture needs same-origin");
+  h.assertEqual(f.src, "/polaris?terminal=iframe", "RELATIVE: the capture needs same-origin");
   h.assertEqual(f.style.display, "none");
   restoreClock();
 });

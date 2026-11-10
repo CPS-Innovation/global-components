@@ -113,7 +113,7 @@ cookie are never touched. It works in both Polaris proxy worlds (monolith and re
 - [ ] Find out whether the `cms-auth-presence-token` cookie lands in Edge's cookie store or
       IE mode's (see the presence notes below).
 - [ ] Choose an option (leaning towards not opening the hub connection without a token), then
-      implement it and update the comment in `global-components.case-locking.ts`.
+      implement it and update the comment in `global-components.watchdog.ts`.
 
 ## 7. Chunk 2: cutover to oapps, one environment at a time (dev → test → UAT → prod)
 
@@ -214,8 +214,8 @@ https://<host>/Casework_Patterns/auth-handover.html?src=<encoded src>&stage=ad-r
 ### Presence notes (phase 6)
 
 - On oapps pages, which are same-site with Polaris, the `SameSite=Lax`
-  `cms-auth-presence-token` cookie (`Path=/global-components/case-locking`, set by the
-  CMS-estate auth callback) will start being sent with the component's requests.
+  `cms-auth-presence-token` cookie (`Path=/global-components/case-locking`, set by
+  Polaris's /init) will start being sent with the component's requests.
 - `presenceBearer` still lets a client `Authorization` header win. The difference is when the
   component has **no** MSAL token: today that negotiate request gets a 401; on oapps it would
   authenticate with the CMS-estate token instead.

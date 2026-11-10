@@ -137,6 +137,30 @@ function _launchUrl(env: string, osHost: string): string {
   return "https://" + polaris + "/polaris?r=" + encodeURIComponent(handover);
 }
 
+// js_set for the conf's server-level divert: "1" when this request is a C-button
+// route (/launch/<route> in LAUNCH_ROUTES) AND carries a signal cookie, else "".
+//
+// WHY NJS AND NOT `if ($http_cookie ~ ...)`. A regex `if` is logged by
+// rewrite_log as `"<regex>" matches "<subject>"` — the subject being the WHOLE
+// Cookie header (presence bearer tokens, .CMSAUTH), at notice level, for every
+// request, wherever rewrite_log is switched on in the deployed config. A plain
+// `if ($var)` test is not logged. Nor is the value of a js_set. Don't put the
+// regex back. The URI is checked first so nobody else's Cookie header is read.
+function launchSignalled(r: NginxHTTPRequest): string {
+  const route = (r.uri.match(/^\/launch\/([^/]+)$/) || [])[1] || "";
+  if (!LAUNCH_ROUTES[route]) {
+    return "";
+  }
+  const cookies = (r.headersIn["Cookie"] as string | undefined) || "";
+  const parts = cookies.split(";");
+  for (let i = 0; i < parts.length; i++) {
+    if (parts[i].trim().indexOf(COOKIE_PREFIX) === 0) {
+      return "1";
+    }
+  }
+  return "";
+}
+
 // js_set for the diverted C-button (/global-components/multi-os/launch/<route>,
 // reached only via the conf's signal-gated rewrite of /launch/<route>): where a
 // switched user's C-button goes, or "" to hand the request back to the original
@@ -241,6 +265,7 @@ function handleSet(r: NginxHTTPRequest): void {
 
 export default {
   readConfigBlobName,
+  launchSignalled,
   launchTarget,
   handleStatus,
   handleSet,
