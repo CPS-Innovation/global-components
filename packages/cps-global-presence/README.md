@@ -36,7 +36,8 @@ legacy/        Classic + Modern only · document mode 5 floor
   preview.js     CCPPreview      the preview flags
   origin.js      CCPOrigin       which host serves our endpoints
   log.js         CCPLog          the ring buffer behind __ccPresence.dump()
-apps/classic/  document mode 5 · kill-switch, dom, sections, stripe, event-sink, main, auth
+  client.js      CCPClient       the loop both apps are built on: one pass, the roster, __ccPresence
+apps/classic/  document mode 5 · kill-switch, dom, sections, stripe, main, auth
 apps/modern/   document mode 11 · sections (URL detectors), bar, main
 placeholders/  the permanent hello-world stubs (see Deploy)
 bundles.json   which files go into which output, in order
@@ -48,6 +49,7 @@ Tests sit beside the file they test (`roster.test.js` next to `roster.js`).
 
 ```
 find sections   per app      Classic reads frames and hidden fields; Modern reads the URL
+loop            legacy/      CCPClient: read the sections once a pass, register, redraw
 sessions        legacy/      hold one session per section, poll the roster
 roster          core/        who is present, per section, version-guarded
 view            core/        CCPView: who to show and the words, the same in all three UIs
@@ -147,3 +149,18 @@ pre-switch clients. **Order**, if both move: clients first, conf second.
 Both legacy clients expose `window.__ccPresence`. `__ccPresence.dump()` returns the
 last 300 log lines (addresses masked) as one string — the console in this estate is
 IEChooser's, which cannot attach before boot.
+
+The same shape in both (built by `legacy/client.js`):
+
+```
+status() sections() sessions()      what is registered, and how each session is doing
+roster() rosterBySection()          what the banner says (unmasked: console only), and the raw rosters
+whoami() refreshWhoami()            identity, CMS instance, token age
+preview() refreshPreview()          the preview flags; setCountSelf(true|false|null) overrides one
+dump() messages()                   the log
+setConsole(on) setVerbose(on)       echo the log; log every heartbeat
+reconcile() start() stop()          run a pass now; stop leaves every section
+stripe()  (Classic)  location()  (Modern)
+```
+
+The `verboseLogging` preview flag turns the console echo on.

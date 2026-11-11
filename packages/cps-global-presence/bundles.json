@@ -26,7 +26,8 @@
         "legacy/origin.js",
         "legacy/locator.js",
         "legacy/jsonp.js",
-        "legacy/sessions.js"
+        "legacy/sessions.js",
+        "legacy/client.js"
       ]
     },
     "classicSwitch": {
@@ -41,7 +42,6 @@
         "apps/classic/dom.js",
         "apps/classic/sections.js",
         "apps/classic/stripe.js",
-        "apps/classic/event-sink.js",
         "apps/classic/main.js"
       ]
     },

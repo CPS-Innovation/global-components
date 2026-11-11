@@ -32,7 +32,7 @@ function rig() {
   return {
     viewer: viewer,
     logged: logged,
-    ENV_ATTEMPTS: m.CCPViewer.ENV_ATTEMPTS,
+    ATTEMPTS: m.CCPViewer.ATTEMPTS,
     calls: function () {
       return pending;
     },
@@ -98,12 +98,12 @@ h.test("a late environment is picked up by a later pass", function () {
 });
 
 // Unbounded would mean a call every observation pass, for as long as the tab is
-// open, to be told the same thing — see CCPViewer.ENV_ATTEMPTS.
-h.test("gives up on the environment after ENV_ATTEMPTS, and stops asking", function () {
+// open, to be told the same thing — see CCPViewer.ATTEMPTS.
+h.test("gives up on the environment after ATTEMPTS, and stops asking", function () {
   var r = rig();
   var blank = { userEmail: "someone@cps.gov.uk", oid: "", cmsEnv: "", cmsEnvWhy: "no-hint" };
   var i;
-  for (i = 0; i < r.ENV_ATTEMPTS; i++) {
+  for (i = 0; i < r.ATTEMPTS; i++) {
     h.assertEqual(r.calls().length, 1, "attempt " + (i + 1) + " should be in flight");
     r.reply(blank);
     r.viewer.refresh();
@@ -113,6 +113,18 @@ h.test("gives up on the environment after ENV_ATTEMPTS, and stops asking", funct
     r.logged[r.logged.length - 1].indexOf("will not register") !== -1,
     r.logged[r.logged.length - 1]
   );
+});
+
+h.test("gives up on an identity after ATTEMPTS too", function () {
+  var r = rig();
+  var anonymous = { userEmail: "", oid: "", cmsEnv: "CIN3", cmsEnvWhy: "hint" };
+  var i;
+  for (i = 0; i < r.ATTEMPTS; i++) {
+    r.reply(anonymous);
+    r.viewer.refresh();
+  }
+  h.assertEqual(r.calls().length, 0, "the next pass asks nothing");
+  h.assertTrue(r.logged[r.logged.length - 1].indexOf("no identity") !== -1, r.logged[r.logged.length - 1]);
 });
 
 h.describe("what it keeps");

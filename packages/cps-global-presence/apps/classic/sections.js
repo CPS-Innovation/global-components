@@ -12,13 +12,11 @@
  * or null, and add one row to CLASSIC_SECTIONS. Nothing else changes — not the
  * sessions, not the roster, not the banner.
  *
- * PLURAL. The original returned the FIRST match and stopped, so a user on a case
- * review who opened a witness panel was reported as being in one section, not
- * two. Every matching frame is now reported.
+ * PLURAL: every matching frame is reported, so a user on a case review with a
+ * witness panel open is in both sections.
  *
- * `hint` carries what only Classic cares about: the finer contact-edit key and
- * the person/recorder ids and name for the event sink. Shared code passes it
- * through untouched.
+ * The frames are walked ONCE per pass (sameOriginFrames) and every reader looks
+ * through that list: at document mode 5 a walk is not free.
  */
 
 // ---- Sections --------------------------------------------------------------
@@ -96,23 +94,8 @@ function readOpenContact(win) {
   if (!caseId) {
     return null;
   }
-  var first = splitCsv(win, fieldVal(win, "hidContactFirstName"));
-  var sur = splitCsv(win, fieldVal(win, "hidContactSurname"));
-  var recorderId = recorderIdFor(win, personId, idx);
-  var role = row && row.ContactType ? row.ContactType : "";
-  // Subject-scoped: the subject is the PERSON, so the victim and witness rows of
-  // one person share a section id — presence follows the person, not the row.
-  //
-  // hint.key is finer than the section id (it adds role and recorder), so a
-  // victim<->witness switch still logs a closed/editing transition even though
-  // the section itself has not changed.
-  return CCPLocator.section(caseId, CCPKinds.VICTIM_WITNESS, personId, {
-    key: caseId + "/" + personId + "/" + (recorderId || "-") + "/" + role,
-    personId: personId,
-    recorderId: recorderId,
-    name: trim((first[idx] || "") + " " + (sur[idx] || "")),
-    role: role
-  });
+  // Subject-scoped by the PERSON, so their victim and witness rows are one section.
+  return CCPLocator.section(caseId, CCPKinds.VICTIM_WITNESS, personId);
 }
 
 function readWitnessTab(win) {
@@ -146,15 +129,18 @@ function readWitnessTab(win) {
     return null;
   }
 
-  var witnessId = undefined;
-  var selectedWitnesses = win.document.getElementById("hidWitnessIdCSV").value;
-  if (!!selectedWitnesses && selectedWitnesses != "" && selectedWitnesses.indexOf(",") === -1) {
-    witnessId = selectedWitnesses;
+  // One section per ticked witness: a merge or delete acts on all of them, so
+  // someone editing any one of them is a clash. None ticked is no section.
+  var ids = fieldVal(win, "hidWitnessIdCSV").split(",");
+  var out = [];
+  var i, id;
+  for (i = 0; i < ids.length; i++) {
+    id = trim(ids[i]);
+    if (id && id !== "0") {
+      out.push(CCPLocator.section(caseId, CCPKinds.VICTIM_WITNESS, id));
+    }
   }
-
-  return CCPLocator.section(caseId, CCPKinds.VICTIM_WITNESS, witnessId ? witnessId : null, {
-    personId: witnessId ? witnessId : ""
-  });
+  return out.length ? out : null;
 }
 
 // Case review is a CASE-WIDE section spanning MORE THAN ONE page: the review
@@ -180,7 +166,7 @@ function readCaseReview(win) {
   if (!caseId) {
     return null;
   }
-  return CCPLocator.section(caseId, CCPKinds.CASE_REVIEW, null, {});
+  return CCPLocator.section(caseId, CCPKinds.CASE_REVIEW, null);
 }
 
 function readOpenDefendant(win) {
@@ -201,11 +187,7 @@ function readOpenDefendant(win) {
   }
   if (!caseId) { return null; }
 
-  return CCPLocator.section(caseId, CCPKinds.DEFENDANT, partyId, {
-    key: caseId + "/" + partyId + "/defendant",
-    personId: partyId,
-    role: "Defendant"
-  });
+  return CCPLocator.section(caseId, CCPKinds.DEFENDANT, partyId);
 }
 
 // The section registry. fragment -> the frame that shows it; read -> is it active.
@@ -218,61 +200,60 @@ var CLASSIC_SECTIONS = [
   { kind: CCPKinds.VICTIM_WITNESS, fragment: FRAGMENT_DOCUMENTS, read: readWitnessTab }
 ];
 
-// Walk win and its whole same-origin subtree, collecting every section this one
-// spec finds. Cross-origin frames throw on access and are skipped; a reader that
-// throws costs its own frame and nothing more.
-function readSectionsInFrames(win, spec, depth, out) {
-  if (depth > MAXDEPTH) {
-    return;
-  }
-  var href = "";
-  try {
-    href = win.location.href;
-  } catch (e) {
-    href = ""; // cross-origin frame
-  }
-  if (href && href.indexOf(spec.fragment) !== -1) {
-    var section = null;
+// Every same-origin frame under root, root included, with its address. Read ONCE
+// per pass; every detector then looks through the list rather than walking the
+// tree again. Cross-origin frames throw on access and are skipped, but their
+// children are still tried.
+function sameOriginFrames(root) {
+  var out = [];
+  function walk(win, depth) {
+    var href = "";
+    var frames, i;
+    if (depth > MAXDEPTH) {
+      return;
+    }
     try {
-      section = spec.read(win);
+      href = String(win.location.href || "");
+    } catch (e) {
+      href = "";
+    }
+    if (href) {
+      out.push({ win: win, href: href });
+    }
+    try {
+      frames = win.frames;
     } catch (e2) {
-      section = null;
+      return;
     }
-    if (section) {
-      section.hint = section.hint ? section.hint : {};
-      // Most sections are identified finely enough by their id; only the contact
-      // panel needs a finer key, and it sets its own.
-      //
-      // REBUILT FROM THE UNSUFFIXED KIND rather than taken from section.id,
-      // which carries the CIN suffix. The suffix is not known at load — it
-      // arrives with whoami — so an id used as the key would CHANGE under an
-      // open panel the moment it does, and updateEvents reads a changed key as a
-      // different record: "closed" then "editing" for something nobody touched.
-      // section.kind is already stripped by CCPLocator.section.
-      if (!section.hint.key) {
-        section.hint.key = CCPSections.sectionId(section.caseId, section.kind, section.subjectId);
-      }
-      out.push(section);
+    for (i = 0; i < frames.length; i++) {
+      walk(frames[i], depth + 1);
     }
   }
-  var frames;
-  try {
-    frames = win.frames;
-  } catch (e3) {
-    return;
-  }
-  var i;
-  for (i = 0; i < frames.length; i++) {
-    readSectionsInFrames(frames[i], spec, depth + 1, out);
-  }
+  walk(root, 0);
+  return out;
 }
 
+// Every section one registry entry finds, in the frames of this pass. A reader
+// that throws costs its own frame and nothing more.
 function classicDetector(spec) {
   return {
     kind: spec.kind,
-    detect: function (root) {
+    detect: function (scope) {
       var out = [];
-      readSectionsInFrames(root, spec, 0, out);
+      var i, found;
+      for (i = 0; i < scope.frames.length; i++) {
+        if (scope.frames[i].href.indexOf(spec.fragment) !== -1) {
+          found = null;
+          try {
+            found = spec.read(scope.frames[i].win);
+          } catch (e) {
+            found = null;
+          }
+          if (found) {
+            out.push(found);
+          }
+        }
+      }
       return out;
     }
   };
@@ -307,8 +288,8 @@ function mainFrame(root) {
 // nested frame does: we report no case section there and the hand-written client
 // would have. No such screen is known — if one turns up, it belongs here as
 // another source for THIS frame, not as a walk.
-function readCaseContext(root) {
-  var main = mainFrame(root);
+function readCaseContext(scope) {
+  var main = mainFrame(scope.root);
   if (!main) {
     return null;
   }
@@ -336,7 +317,7 @@ function readCaseContext(root) {
   if (!caseId) {
     return null;
   }
-  return CCPLocator.section(caseId, CCPKinds.CASE, null, {});
+  return CCPLocator.section(caseId, CCPKinds.CASE, null);
 }
 
 function buildClassicLocator() {
@@ -355,12 +336,18 @@ function buildClassicLocator() {
 
 var classicLocator = buildClassicLocator();
 
-/** Every section active anywhere in the CMS frameset right now. */
+/** Every section active anywhere in the CMS frameset right now, primary first. */
 function activeSections() {
-  return classicLocator.list(window);
+  return classicLocator.list({ root: window, frames: sameOriginFrames(window) });
 }
 
-/** The same, as ids — what the session layer wants. */
+/** The same, as ids. */
 function activeSectionIds() {
-  return classicLocator.ids(window);
+  var sections = activeSections();
+  var out = [];
+  var i;
+  for (i = 0; i < sections.length; i++) {
+    out.push(sections[i].id);
+  }
+  return out;
 }

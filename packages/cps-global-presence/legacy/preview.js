@@ -60,7 +60,7 @@ var CCPPreview = {};
  *          log: function(...*): void,
  *          onChange: (function(): void|undefined)}} options
  * @returns {{flags: function(): Object, known: function(): boolean,
- *            countSelf: function(): boolean,
+ *            countSelf: function(): boolean, verboseLogging: function(): boolean,
  *            refresh: function(boolean=): void}}
  */
 CCPPreview.createPreview = function (options) {
@@ -149,6 +149,11 @@ CCPPreview.createPreview = function (options) {
     // the production behaviour: a reader alone on a case sees no stripe at all.
     countSelf: function () {
       return flags.caseLockingCountSelf === true;
+    },
+    // The web components' verboseLogging flag: the legacy clients echo their log
+    // to the console when it is on, so one switch serves all three UIs.
+    verboseLogging: function () {
+      return flags.verboseLogging === true;
     },
     refresh: refresh
   };

@@ -117,11 +117,14 @@ function client(top) {
   // script tags the transport appended — that is the only record of what this
   // client actually sent.
   top.__doc = h.fakeDocument();
-  return h.load(
+  var m = h.load(
     BUNDLE,
-    ["tick", "onNotifications", "activeSections", "activeSectionIds", "presenceStripeSnapshot"],
+    ["presenceClient", "activeSections", "activeSectionIds", "presenceStripeSnapshot"],
     { window: top, document: top.__doc }
   );
+  m.tick = m.presenceClient.reconcile;
+  m.onNotifications = m.presenceClient.onNotifications;
+  return m;
 }
 
 // ---- the JSONP wire, as the fake document records it --------------------------
