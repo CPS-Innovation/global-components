@@ -9,5 +9,4 @@
 # protects nothing, and only check-syntax notices.
 packages/cps-global-presence/core/
 packages/cps-global-presence/legacy/
-packages/cps-global-presence/apps/
 packages/cps-global-presence/placeholders/

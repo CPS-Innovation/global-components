@@ -1,6 +1,6 @@
 /* core/util.js — what document mode 5 lacks, written once.
  *
- * Every file in core/ and legacy/ runs in CMS Classic (document mode 5): no
+ * Every file in core/ and legacy/shared/ runs in CMS Classic (document mode 5): no
  * Array.prototype.indexOf, no String.prototype.endsWith, no toISOString.
  * check-syntax.js es3 denies them, so the replacements live here.
  */

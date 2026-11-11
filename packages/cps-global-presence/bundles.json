@@ -20,43 +20,43 @@
     "legacy": {
       "floor": "es3",
       "files": [
-        "legacy/log.js",
-        "legacy/viewer.js",
-        "legacy/preview.js",
-        "legacy/origin.js",
-        "legacy/locator.js",
-        "legacy/jsonp.js",
-        "legacy/sessions.js",
-        "legacy/client.js"
+        "legacy/shared/log.js",
+        "legacy/shared/viewer.js",
+        "legacy/shared/preview.js",
+        "legacy/shared/origin.js",
+        "legacy/shared/locator.js",
+        "legacy/shared/jsonp.js",
+        "legacy/shared/sessions.js",
+        "legacy/shared/client.js"
       ]
     },
     "classicSwitch": {
       "floor": "es3",
       "files": [
-        "apps/classic/kill-switch.js"
+        "legacy/classic/kill-switch.js"
       ]
     },
     "classic": {
       "floor": "es3",
       "files": [
-        "apps/classic/dom.js",
-        "apps/classic/sections.js",
-        "apps/classic/stripe.js",
-        "apps/classic/main.js"
+        "legacy/classic/dom.js",
+        "legacy/classic/sections.js",
+        "legacy/classic/stripe.js",
+        "legacy/classic/main.js"
       ]
     },
     "classicAuth": {
       "floor": "es3",
       "files": [
-        "apps/classic/auth.js"
+        "legacy/classic/auth.js"
       ]
     },
     "modern": {
       "floor": "es5",
       "files": [
-        "apps/modern/sections.js",
-        "apps/modern/bar.js",
-        "apps/modern/main.js"
+        "legacy/modern/sections.js",
+        "legacy/modern/bar.js",
+        "legacy/modern/main.js"
       ]
     }
   },

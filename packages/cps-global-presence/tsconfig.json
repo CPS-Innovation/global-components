@@ -1,6 +1,6 @@
 {
   "// why": [
-    "core/ and legacy/ are plain JavaScript held to the document mode 5 floor (see",
+    "core/ and legacy/shared/ are plain JavaScript held to the document mode 5 floor (see",
     "check-syntax.js). This config does NOT compile it \u2014 nothing is emitted into",
     "the shipping path. It type-checks the JSDoc (checkJs) and generates",
     "types/*.d.ts from it, so the surface global-components would import cannot",
@@ -34,7 +34,7 @@
   },
   "include": [
     "core/*.js",
-    "legacy/*.js",
+    "legacy/shared/*.js",
     "core/wire.d.ts"
   ],
   "exclude": [
