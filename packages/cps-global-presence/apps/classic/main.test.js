@@ -54,6 +54,9 @@ function wire(kind) {
   return kind + "_" + CMS_ENV;
 }
 
+// The section the sessions layer would name as having delivered a poll on case A.
+var HELD_A = CASE_A + ":CASE_" + CMS_ENV;
+
 // ---- the CMS shell, as the frame readers find it -----------------------------
 // Same shape as sections.test.js's helpers; the URLs are real, from HAR captures.
 
@@ -211,7 +214,7 @@ function onCaseWithCompany() {
   var m = client(top);
   answerWhoami(top, whoamiReply(CMS_ENV));
   m.tick();
-  m.onNotifications(poll(CASE_A, "CASE", [member("ann@cps.gov.uk")]));
+  m.onNotifications(poll(CASE_A, "CASE", [member("ann@cps.gov.uk")]), HELD_A);
   return { top: top, m: m };
 }
 
@@ -331,13 +334,13 @@ h.test("counts them for the collapsed summary", function () {
   var m = client(top);
   answerWhoami(top, whoamiReply(CMS_ENV));
   m.tick();
-  m.onNotifications(poll(CASE_A, "CASE", [member("ann@cps.gov.uk"), member("bob@cps.gov.uk")]));
+  m.onNotifications(poll(CASE_A, "CASE", [member("ann@cps.gov.uk"), member("bob@cps.gov.uk")]), HELD_A);
   h.assertEqual(m.presenceStripeSnapshot().state.count, 2);
 });
 
 h.test("a section emptying takes it down", function () {
   var r = onCaseWithCompany();
-  r.m.onNotifications(poll(CASE_A, "CASE", [], 2));
+  r.m.onNotifications(poll(CASE_A, "CASE", [], 2), HELD_A);
   h.assertEqual(shown(r.m), "");
 });
 
@@ -394,16 +397,15 @@ h.test("coming back to the case waits for a poll rather than reusing the old ros
   r.m.tick();
   h.assertEqual(shown(r.m), "");
 
-  r.m.onNotifications(poll(CASE_A, "CASE", [member("ann@cps.gov.uk")]));
+  r.m.onNotifications(poll(CASE_A, "CASE", [member("ann@cps.gov.uk")]), HELD_A);
   h.assertTrue(shown(r.m).indexOf("ann@cps.gov.uk") !== -1, shown(r.m));
 });
 
 // Same rule for sections the hub sent only because they CONFLICT with ours (here
-// case A's review): leaving case A must forget them too. Today only the section
-// we held is forgotten, so the review's roster is shown again on coming back.
-h.knownBug("coming back to the case does not reuse an old conflict roster", function () {
+// case A's review): leaving case A must forget them too.
+h.test("coming back to the case does not reuse an old conflict roster", function () {
   var r = onCaseWithCompany();
-  r.m.onNotifications(poll(CASE_A, "CASE_REVIEW", [member("bob@cps.gov.uk")]));
+  r.m.onNotifications(poll(CASE_A, "CASE_REVIEW", [member("bob@cps.gov.uk")]), HELD_A);
   r.top.navigate(caseDetails(CASE_B));
   r.m.tick();
   r.top.navigate(caseDetails(CASE_A));

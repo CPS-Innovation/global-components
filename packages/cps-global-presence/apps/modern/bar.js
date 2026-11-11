@@ -42,30 +42,6 @@ var ccExpanded = false;
 var ccLines = [];
 var ccTitle = "";
 
-/* One line per person, in the web components' own words — assembled by CCPContent
- * rather than rebuilt here.
- *
- * THIS USED TO CLAIM IT ALREADY MATCHED THEM, and it did not: it omitted the
- * trailing full stop, and it said "is on this case" whenever the section was
- * unknown even when the applications were known, where the web component says
- * that only when BOTH are. A comment cannot keep two copies of a sentence in
- * step — which is the whole reason the sentence now has one home. */
-function ccLines_(people) {
-  var out = [];
-  var i, person;
-  for (i = 0; i < people.length; i++) {
-    person = people[i];
-    out.push(
-      CCPContent.personLine(
-        CCPPeople.displayName(person),
-        CCPSectionNames.describe(person.sections),
-        CCPContent.where(person.apps, CCPJoined.format)
-      )
-    );
-  }
-  return out;
-}
-
 function ccRemoveBanner() {
   try {
     var existing = document.getElementById(BAR_ID);
@@ -142,18 +118,15 @@ function ccMeasure() {
   ccApplyClearance(banner ? banner.offsetHeight : 0);
 }
 
-/**
- * @param {Array} people  CCPPeople.collapse output — one entry per person
- * @param {string} title  the summary line, already worded by the caller
- */
-function renderBanner(people, title) {
+/** @param {{count: number, summary: string, lines: string[]}} view  a CCPView */
+function renderBanner(view) {
   try {
-    if (!people.length) {
+    if (!view.count) {
       ccRemoveBanner();
       return;
     }
-    ccLines = ccLines_(people);
-    ccTitle = title;
+    ccLines = view.lines;
+    ccTitle = view.summary;
 
     var banner = document.getElementById(BAR_ID);
     var header, heading, toggle, content;

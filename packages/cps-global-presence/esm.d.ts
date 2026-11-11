@@ -136,6 +136,23 @@ declare module "cps-global-presence" {
   };
 
   /**
+   * What a presence banner shows, for all three UIs: who, the summary, and one
+   * line per person (never per section).
+   */
+  export const CCPView: {
+    build(options: {
+      members: CCPMember[] | undefined;
+      /** The reader; empty or absent means unknown, and then nobody is filtered or marked. */
+      viewerEmail?: string;
+      /** Keep the reader in, marked "(current user)". */
+      countSelf?: boolean;
+      /** The case lock leads the summary. Only the web components know it. */
+      locked?: boolean;
+      formatTime?: (timeEntered: string | undefined) => string | undefined;
+    }): { people: CCPPerson[]; count: number; includesSelf: boolean; summary: string; lines: string[] };
+  };
+
+  /**
    * EVERY SENTENCE PRESENCE SHOWS, for all three UIs. The web component's wording,
    * which Modern had been tracking by hand and Classic had never matched at all.
    * Assembles words from pieces the caller derived; it reads no data of its own.
