@@ -1,8 +1,10 @@
 // Gate for verbose (`_debug`) console output — RNAV-52.
 //
 // Verbose logging is on when the bundle itself is served from a local origin
-// (someone working on global-components) or when the reader has switched on the
-// `verboseLogging` preview flag. A developer working on a HOST app on localhost
+// (someone working on global-components), when the host origin's localStorage
+// carries the opt-in key, or when the reader has switched on the
+// `verboseLogging` preview flag — see initialise-verbose-logging.ts. A
+// developer working on a HOST app on localhost
 // links to the deployed dev script, so the page being on localhost says nothing
 // — it is the bundle's origin that tells the two apart.
 //

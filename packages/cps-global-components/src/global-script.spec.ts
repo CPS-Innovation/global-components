@@ -228,6 +228,7 @@ jest.mock("./logging/makeConsole", () => ({
   // calls, a long way from the cause.
   makeConsole: () => ({
     _debug: jest.fn(),
+    _debugAlways: jest.fn(),
     _log: jest.fn(),
     _error: jest.fn(),
     _warn: jest.fn(),

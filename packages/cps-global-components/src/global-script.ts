@@ -72,8 +72,9 @@ const initialise = async (window: Window & typeof globalThis) => {
     const build = initialiseBuild({ window, register });
     const rootUrl = initialiseRootUrl({ register });
     // Verbose (_debug) output is buffered until this decides — immediately for a
-    // local bundle, otherwise once the preview state is in. See verbose-logging.ts.
-    const { resolveVerboseLoggingFromPreview } = initialiseVerboseLogging({ rootUrl });
+    // local bundle or a localStorage opt-in, otherwise once the preview state is
+    // in. See verbose-logging.ts.
+    const { resolveVerboseLoggingFromPreview } = initialiseVerboseLogging({ window, rootUrl });
     initialiseNavigateCms({ window, rootUrl });
 
     const flags = initialiseApplicationFlags({ window, rootUrl, register });
