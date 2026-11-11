@@ -150,6 +150,13 @@ const FEATURES: Feature[] = [
       "Show an \"Open in CMS Modern\" link next to \"Open in CMS Classic\". It moves your open CMS Modern tab to the case; it can't open CMS Modern if it isn't already open.",
     disabled: false,
   },
+  {
+    key: "verboseLogging",
+    label: "Verbose logging",
+    description:
+      "Write Global Components' detailed debug messages to the browser console. Warnings and errors are always shown. To see the messages in Chrome or Edge, set the console's level to include Verbose.",
+    disabled: false,
+  },
 ];
 
 type FeatureKey = Feature["key"];

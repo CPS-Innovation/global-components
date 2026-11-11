@@ -56,6 +56,9 @@ export const PreviewSchema = z.object({
   caseLockingCountSelf: z.boolean().optional(),
   requestObservationShim: z.boolean().optional(),
   openInCmsModern: z.boolean().optional(),
+  // Show global-components' verbose (debug) console output. Always on when the
+  // bundle is served from localhost — see verbose-logging.ts (RNAV-52).
+  verboseLogging: z.boolean().optional(),
 });
 
 export type Preview = z.infer<typeof PreviewSchema>;
