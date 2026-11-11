@@ -25,11 +25,14 @@ var CCPRoster = {};
  *   sections: function(): Object,
  *   members: function(string[]|undefined, string=): {userEmail: string, sourceApplication: string, joinedAt: string, sections: {kind: string, isCurrent: boolean}[]}[],
  *   forget: function(string): boolean,
- *   clear: function(): void
+ *   clear: function(): void,
+ *   takeChanges: function(): {joined: string[], left: string[]}
  * }}
  */
 CCPRoster.createRoster = function () {
   var sections = {};
+  // Who was present the last time takeChanges() was asked, by lower-cased address.
+  var lastSeen = {};
 
   /**
    * @param {CCPMember[]|null|undefined} members
@@ -243,6 +246,39 @@ CCPRoster.createRoster = function () {
 
     clear: function () {
       sections = {};
+    },
+
+    // WHO ARRIVED AND WHO LEFT since the last time this was asked, across every
+    // section held. For the log: the whole roster on every change says the same
+    // names over and over, and the arrival or departure that made a banner appear
+    // or vanish is the one thing a reader of the log is looking for.
+    takeChanges: function () {
+      var now = {};
+      var joined = [];
+      var left = [];
+      var key, entry, j, id;
+      for (key in sections) {
+        if (!sections.hasOwnProperty(key)) {
+          continue;
+        }
+        entry = sections[key];
+        for (j = 0; j < entry.members.length; j++) {
+          id = String(entry.members[j].userEmail || "").toLowerCase();
+          if (id && !now.hasOwnProperty(id)) {
+            now[id] = true;
+            if (!lastSeen.hasOwnProperty(id)) {
+              joined.push(id);
+            }
+          }
+        }
+      }
+      for (id in lastSeen) {
+        if (lastSeen.hasOwnProperty(id) && !now.hasOwnProperty(id)) {
+          left.push(id);
+        }
+      }
+      lastSeen = now;
+      return { joined: joined, left: left };
     }
   };
 };

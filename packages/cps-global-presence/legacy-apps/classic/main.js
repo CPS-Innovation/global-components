@@ -69,15 +69,27 @@ function shouldCountSelf() {
 
 var roster = CCPRoster.createRoster();
 
-function presenceLog() {
-  // Classic ships no routine console output: this file runs inside CMS, where an
-  // unexpected console call in an old document mode is a real risk. The
-  // diagnostics seam below is the way to see what is happening. The ONE exception
-  // is presenceConnectionFailed, which says once that presence is not working.
-}
+// EVERYTHING IS RECORDED, NOTHING IS PRINTED. Classic ships no routine console
+// output: this file runs inside CMS, where an unexpected console call in an old
+// document mode is a real risk. But it used to throw every line away, which meant
+// the shared engine's account of timeouts, 410s and failed creates never reached
+// anyone, and an intermittent stripe had nothing to explain it. Now every line
+// goes into a ring buffer from boot: __ccPresence.dump() reads it back, and
+// __ccPresence.setConsole(true) echoes new lines live. The ONE unprompted console
+// line is still presenceConnectionFailed's, said once per page.
+var presenceLogBuffer = CCPLog.createLog({ prefix: "[cc-presence]", echo: false });
+var presenceLog = presenceLogBuffer.log;
 
 function isVerbose() {
-  return false;
+  return presenceLogBuffer.verbose();
+}
+
+// Arrivals and departures, masked, whenever the roster changes.
+function logRosterChanges() {
+  var said = CCPLog.describeChanges(roster.takeChanges());
+  if (said) {
+    presenceLog("roster", said);
+  }
 }
 
 // The record the event sink expects, filled from whatever the reader supplied.
@@ -126,9 +138,14 @@ function subjectSection(sections) {
 //
 // The primary is passed in rather than looked up because tick() has just walked
 // the frames for it, and at document mode 5 that walk is not free.
-function drawStripe(primary) {
+//
+// `reason` says what asked for the redraw. It goes into the log only when what
+// the reader can see changes (see CCPLog's ui), which is how "the stripe went away
+// and came back" becomes a pair of lines that name their causes.
+function drawStripe(primary, reason) {
   if (!primary) {
     presenceRemoveStripe();
+    presenceLogBuffer.ui(false, 0, "no section on screen (" + reason + ")");
     return;
   }
   // COLLAPSED HERE, not in the stripe, because this is where the two things the
@@ -157,8 +174,10 @@ function drawStripe(primary) {
   }
   if (text) {
     presenceShowStripe(text, people.length, includesSelf);
+    presenceLogBuffer.ui(true, people.length, reason);
   } else {
     presenceRemoveStripe();
+    presenceLogBuffer.ui(false, 0, "nobody else on case " + primary.caseId + " (" + reason + ")");
   }
 }
 
@@ -166,15 +185,36 @@ function onNotifications(data) {
   if (!roster.apply(data)) {
     return;
   }
-  drawStripe(primarySection());
+  logRosterChanges();
+  drawStripe(primarySection(), "roster changed");
 }
 
 // A session we no longer hold: left, or the Watchdog forgot it. Its roster is no
 // longer evidence of anything, and the others still stand.
 function onSectionDropped(sectionId) {
   if (roster.forget(sectionId)) {
-    drawStripe(primarySection());
+    logRosterChanges();
+    drawStripe(primarySection(), "section dropped " + sectionId);
   }
+}
+
+// THE STRIPE COMES BACK WHEN THE CALLS DO. A failed call takes it down (see
+// presenceConnectionFailed). It used to stay down until the ROSTER changed,
+// because a redraw was only ever asked for by a roster change or a section change.
+// Polls return deltas, so on a quiet case the polls after an outage say nothing
+// new, and the stripe stayed away until somebody arrived or left. One 8-second
+// timeout could hide the people on a case for as long as nobody moved, and that
+// is a large part of what "sometimes on, sometimes off" looked like.
+//
+// Now the sessions layer says when a troubled section answers again, and once no
+// held section is still in trouble the stripe is redrawn from the roster it
+// already holds.
+function onRecovered(sectionId, downMs) {
+  if (sessions.anyTroubled()) {
+    presenceLog("stripe stays down: another section is still not answering");
+    return;
+  }
+  drawStripe(primarySection(), "calls answering again after " + downMs + "ms");
 }
 
 // Presence is not working. Take the UI away rather than leaving a stale roster on
@@ -183,17 +223,29 @@ function onSectionDropped(sectionId) {
 // a line every three seconds for as long as the outage lasts.
 var presenceFailureLogged = false;
 
-function presenceConnectionFailed(reason) {
+//
+// Every occurrence still reaches the ring buffer, through the sessions layer's
+// "trouble START" line and the UI HIDE below. Only the console line is once.
+function presenceConnectionFailed(reason, sectionId, op) {
   presenceRemoveStripe();
+  presenceLogBuffer.ui(false, 0, "trouble " + (op ? op + " " : "") + (sectionId ? sectionId + " " : "") + reason);
   if (presenceFailureLogged) {
     return;
   }
   presenceFailureLogged = true;
   try {
     if (window.console && window.console.log) {
-      window.console.log("There was an error connecting to The Watchdog: " + reason);
+      window.console.log("There was an error connecting to The Watchdog: " + reason + " (history: window.__ccPresence.dump())");
     }
   } catch (e) { }
+}
+
+// A refused credential is worth one more question: how old is the token? See
+// CCPViewer's recheck, which keeps this to one whoami a minute.
+function presenceAuthRefused(reason) {
+  if (viewer && /\b40[13]\b/.test(reason)) {
+    viewer.recheck(reason);
+  }
 }
 
 // ONE jsonp caller, shared with the viewer: whoami goes out on the same route
@@ -222,9 +274,11 @@ var sessions = CCPSessions.createSessions({
   // shared module stays silent on those for Modern/DCF, which keeps its banner up
   // and simply retries, so this is opt-in per client rather than a change to the
   // failure semantics both share.
-  onTrouble: function (sectionId, reason) {
-    presenceConnectionFailed(reason);
-  }
+  onTrouble: function (sectionId, reason, op) {
+    presenceConnectionFailed(reason, sectionId, op);
+    presenceAuthRefused(reason);
+  },
+  onRecovered: onRecovered
 });
 
 // The stripe follows the primary section: moving to a different one re-asks what
@@ -248,7 +302,7 @@ function updateStripeSection(primary) {
     return;
   }
   lastPrimaryId = id;
-  drawStripe(primary);
+  drawStripe(primary, "section changed to " + (id || "(none)"));
 }
 
 // The contact-edit events, unchanged in meaning: emitted on transition only, and
@@ -280,11 +334,34 @@ function updateEvents(primary) {
 // Only the REGISTRATION waits. The contact-edit events below are a separate
 // concern with no rooms in it, and the stripe reflects a roster that is simply
 // empty until sessions exist.
+var waitingLogged = false;
+
 function environmentReady() {
   if (viewer && viewer.cmsEnv()) {
     CCPEnvironment.adopt(viewer.cmsEnv());
   }
-  return CCPEnvironment.known();
+  if (CCPEnvironment.known()) {
+    return true;
+  }
+  if (!waitingLogged) {
+    waitingLogged = true;
+    presenceLog("waiting for the CMS environment before registering anything");
+  }
+  return false;
+}
+
+// What the frame readers see, whenever that changes. A section that vanishes for
+// one pass and comes back is a frame caught mid-navigation, and it costs a remove,
+// a create and a stripe that blinks; this is the line that shows it happening.
+var lastSectionsKey = "";
+
+function logSections(ids) {
+  var key = ids.join("|");
+  if (key === lastSectionsKey) {
+    return;
+  }
+  lastSectionsKey = key;
+  presenceLog("sections", key || "(none)");
 }
 
 function tick() {
@@ -317,6 +394,7 @@ function tick() {
   for (i = 0; i < sections.length; i++) {
     ids.push(sections[i].id);
   }
+  logSections(ids);
   try {
     if (ready) {
       sessions.setDesired(ids);
@@ -399,7 +477,7 @@ if (CMS_WATCHDOG_ENABLED === true) {
     // Redraw when the answer lands: it decides whether the reader is counted, and
     // the roster may already have been drawn without it.
     onChange: function () {
-      drawStripe(primarySection());
+      drawStripe(primarySection(), "preview flags arrived");
     }
   });
 
@@ -483,7 +561,7 @@ if (CMS_WATCHDOG_ENABLED === true) {
     setCountSelf: function (on) {
       countSelfOverride = on === null || on === undefined ? null : !!on;
       presenceLog("countSelf", countSelfOverride === null ? "from preview" : countSelfOverride ? "on" : "off");
-      drawStripe(primarySection());
+      drawStripe(primarySection(), "countSelf override");
       return shouldCountSelf();
     },
     refreshPreview: function () {
@@ -491,8 +569,25 @@ if (CMS_WATCHDOG_ENABLED === true) {
         preview.refresh(true);
       }
     },
-    tick: tick
+    tick: tick,
+    // THE HISTORY. Everything this client has logged since boot, oldest first, as
+    // one copyable string; see presenceLogBuffer. The first thing to run when the
+    // stripe has been coming and going.
+    dump: function () {
+      return presenceLogBuffer.dump();
+    },
+    messages: presenceLogBuffer.messages,
+    // Echo new lines to the console as they happen. Off by default in Classic.
+    setConsole: function (on) {
+      return presenceLogBuffer.setEcho(on);
+    },
+    // Log every heartbeat and every failed call, not just the first of a run.
+    setVerbose: function (on) {
+      return presenceLogBuffer.setVerbose(on);
+    }
   };
+
+  presenceLog("client loaded", "base=" + CCPOrigin.resolve("/global-components/presence-jsonp"));
 
   // Clean up the timer when the shell unloads.
   window.attachEvent("onunload", shutdown);

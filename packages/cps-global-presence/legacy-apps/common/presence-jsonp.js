@@ -123,7 +123,10 @@ CCPJsonp.createJsonp = function (options) {
       }
       done = true;
       cleanup();
-      log("jsonp timeout", op);
+      // Which call, not just which op: with several sections held, "poll timed
+      // out" is ambiguous, and the session id is what lines this up with the
+      // server's own log.
+      log("jsonp timeout", op, params.sid || params.sectionId || "", timeoutMs + "ms");
       onData(null);
     }, timeoutMs);
 

@@ -121,4 +121,24 @@ h.test("clear() empties everything", function () {
   h.assertEqual(r.people(), []);
 });
 
+h.describe("CCPRoster — who arrived and who left, for the log");
+
+h.test("reports arrivals once, lower-cased, across sections", function () {
+  var r = CCPRoster.createRoster();
+  r.apply(notify("CASE", null, 1, [member("Ann@cps.gov.uk", "CMS Modern")]));
+  r.apply(notify("CASE_REVIEW", null, 1, [member("ann@cps.gov.uk", "CMS Classic"), member("bob@cps.gov.uk", "CMS Classic")]));
+  h.assertEqual(r.takeChanges(), { joined: ["ann@cps.gov.uk", "bob@cps.gov.uk"], left: [] });
+  h.assertEqual(r.takeChanges(), { joined: [], left: [] }, "nothing new since the last ask");
+});
+
+h.test("reports departures, including when a section is forgotten", function () {
+  var r = CCPRoster.createRoster();
+  r.apply(notify("CASE", null, 1, [member("ann@cps.gov.uk", "CMS Modern"), member("bob@cps.gov.uk", "CMS Modern")]));
+  r.takeChanges();
+  r.apply(notify("CASE", null, 2, [member("ann@cps.gov.uk", "CMS Modern")]));
+  h.assertEqual(r.takeChanges(), { joined: [], left: ["bob@cps.gov.uk"] });
+  r.forget("124253:CASE");
+  h.assertEqual(r.takeChanges(), { joined: [], left: ["ann@cps.gov.uk"] });
+});
+
 h.summarise();
