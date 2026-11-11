@@ -5,6 +5,13 @@
 var CCPSections = {};
 
 /**
+ * How often a client must touch each section's session. The Watchdog evicts a
+ * session it has not heard from for 10 seconds, so every client beats well inside
+ * that: one missed beat is survivable, two late ones are not.
+ */
+CCPSections.HEARTBEAT_MS = 3000;
+
+/**
  * A section id as the presence API expects it. Case-wide kinds carry NO subject
  * and NO trailing colon — "544545:CASE", not "544545:CASE:" — while
  * subject-scoped kinds append theirs: "544545:VICTIM_WITNESS:98765".

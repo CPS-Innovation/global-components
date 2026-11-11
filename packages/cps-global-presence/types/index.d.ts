@@ -451,6 +451,7 @@ declare namespace CCPSectionRules {
     function interrupts(kind: string | undefined): boolean;
 }
 declare namespace CCPSections {
+    let HEARTBEAT_MS: number;
     /**
      * A section id as the presence API expects it. Case-wide kinds carry NO subject
      * and NO trailing colon — "544545:CASE", not "544545:CASE:" — while
@@ -538,28 +539,19 @@ declare namespace CCPView {
 declare namespace CCPClient {
     let JSONP_PATH: string;
     let PREVIEW_PATH: string;
-    let TICK_MS: number;
+    let PASS_MS: number;
     let TIMEOUT_MS: number;
     /**
      * @param {{
      *   appName: string,
      *   sections: function(): Array<{id: string, caseId: string}>,
      *   render: function(?{count: number, summary: string, lines: string[]}, string): void,
-     *   passMs: number,
-     *   echo: boolean,
-     *   hideOnTrouble?: boolean,
-     *   dropSectionOnError?: boolean,
      *   afterPass?: function(): void,
      *   diagnostics?: Object<string, function(): *>
      * }} o
      *   appName             sent with every call; the adapter defaults a missing one to "CMS Classic"
      *   sections            what is on screen now, primary first; called once per pass
      *   render              draw a view, or hide when given null; the reason is for logging
-     *   echo                write the log to the console as well (the verboseLogging
-     *                       preview flag turns it on either way)
-     *   hideOnTrouble       hide on any failed call, and redraw once every section
-     *                       answers again (Classic); otherwise just retry (Modern)
-     *   dropSectionOnError  passed to CCPSessions
      *   afterPass           runs at the end of every pass
      *   diagnostics         extra members for window.__ccPresence
      * @returns {{start: function(): void, stop: function(): void, reconcile: function(): void,
@@ -576,10 +568,6 @@ declare namespace CCPClient {
             summary: string;
             lines: string[];
         } | null, arg1: string) => void;
-        passMs: number;
-        echo: boolean;
-        hideOnTrouble?: boolean;
-        dropSectionOnError?: boolean;
         afterPass?: () => void;
         diagnostics?: {
             [x: string]: () => any;
@@ -624,6 +612,7 @@ declare namespace CCPJsonp {
         log?: (...args: any[]) => void;
     }): (arg0: string, arg1: any, arg2: (arg0: any) => void) => void;
 }
+declare var CMS_WATCHDOG_ENABLED: boolean;
 declare namespace CCPLocator {
     /**
      * Normalise the parts of a section into the shape everything downstream expects.
@@ -771,8 +760,6 @@ declare namespace CCPSessions {
      *          log: function(...*): void, verbose: function(): boolean,
      *          onNotifications: function(Array, string=): void,
      *          onSectionDropped: function(string): void,
-     *          dropSectionOnError?: boolean,
-     *          onFatal?: function(string, string): void,
      *          onTrouble?: function(string, string, string=): void,
      *          onRecovered?: function(string, number): void}} options
      * @returns {{setDesired: function(string[]): void, stop: function(): void,
@@ -787,8 +774,6 @@ declare namespace CCPSessions {
         verbose: () => boolean;
         onNotifications: (arg0: any[], arg1: string | undefined) => void;
         onSectionDropped: (arg0: string) => void;
-        dropSectionOnError?: boolean;
-        onFatal?: (arg0: string, arg1: string) => void;
         onTrouble?: (arg0: string, arg1: string, arg2: string | undefined) => void;
         onRecovered?: (arg0: string, arg1: number) => void;
     }): {

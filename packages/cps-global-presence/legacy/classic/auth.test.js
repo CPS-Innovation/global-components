@@ -91,7 +91,7 @@ function boot(mainHref) {
   var doc = h.fakeDocument();
   w.frames = shell(mainHref);
   h.load(
-    ["legacy/classic/kill-switch.js", "legacy/classic/auth.js"],
+    ["legacy/shared/kill-switch.js", "legacy/classic/auth.js"],
     ["CMS_WATCHDOG_ENABLED"],
     { window: w, document: doc }
   );

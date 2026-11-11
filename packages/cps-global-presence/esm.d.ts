@@ -53,6 +53,8 @@ declare module "cps-global-presence" {
 
   /** Section identity: the id we register under, and the key the roster files snapshots by. */
   export const CCPSections: {
+    /** How often every client touches each section's session; the Watchdog evicts after 10s of silence. */
+    HEARTBEAT_MS: number;
     /** "544545:CASE" or "544545:VICTIM_WITNESS:98765"; null with no case or kind. */
     sectionId(caseId: string | number | null | undefined, kind: string | null | undefined, subjectId?: string | number | null): string | null;
   };

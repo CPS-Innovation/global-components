@@ -5,7 +5,7 @@
  * sessions, the roster, waiting for the CMS instance, the log, and
  * window.__ccPresence.
  *
- * ONE PASS every passMs: ask whoami if still needed, adopt the CMS instance, read
+ * ONE PASS every PASS_MS: ask whoami if still needed, adopt the CMS instance, read
  * the sections ONCE, register them, redraw if the primary section changed. Every
  * redraw between passes (a poll answering, a section dropped) uses the sections
  * from the last pass rather than reading the page again.
@@ -20,7 +20,9 @@ CCPClient.JSONP_PATH = "/global-components/presence-jsonp";
 // The preview flags are read on the path their cookie is scoped to, which is not
 // the presence adapter's.
 CCPClient.PREVIEW_PATH = "/global-components/state/preview";
-CCPClient.TICK_MS = 3000; // heartbeat + poll
+// How often a pass reads the page. Frequent because Classic has no event for a
+// frame navigation; the sessions' own calls run on CCPSections.HEARTBEAT_MS.
+CCPClient.PASS_MS = 2000;
 CCPClient.TIMEOUT_MS = 8000; // per JSONP call
 
 /**
@@ -28,28 +30,21 @@ CCPClient.TIMEOUT_MS = 8000; // per JSONP call
  *   appName: string,
  *   sections: function(): Array<{id: string, caseId: string}>,
  *   render: function(?{count: number, summary: string, lines: string[]}, string): void,
- *   passMs: number,
- *   echo: boolean,
- *   hideOnTrouble?: boolean,
- *   dropSectionOnError?: boolean,
  *   afterPass?: function(): void,
  *   diagnostics?: Object<string, function(): *>
  * }} o
  *   appName             sent with every call; the adapter defaults a missing one to "CMS Classic"
  *   sections            what is on screen now, primary first; called once per pass
  *   render              draw a view, or hide when given null; the reason is for logging
- *   echo                write the log to the console as well (the verboseLogging
- *                       preview flag turns it on either way)
- *   hideOnTrouble       hide on any failed call, and redraw once every section
- *                       answers again (Classic); otherwise just retry (Modern)
- *   dropSectionOnError  passed to CCPSessions
  *   afterPass           runs at the end of every pass
  *   diagnostics         extra members for window.__ccPresence
  * @returns {{start: function(): void, stop: function(): void, reconcile: function(): void,
  *            onNotifications: function(Array, string=): void}}
  */
 CCPClient.createClient = function (o) {
-  var logBuffer = CCPLog.createLog({ prefix: "[cc-presence]", echo: o.echo });
+  // Silent on the console unless asked (verboseLogging, or __ccPresence.setConsole):
+  // the page is someone else's, and Classic's is an old document mode.
+  var logBuffer = CCPLog.createLog({ prefix: "[cc-presence]", echo: false });
   var log = logBuffer.log;
   var roster = CCPRoster.createRoster();
   var base = CCPOrigin.resolve(CCPClient.JSONP_PATH);
@@ -156,14 +151,11 @@ CCPClient.createClient = function (o) {
   }
 
   // A refused credential is worth asking the token's age (at most once a minute).
-  // With hideOnTrouble, a failed call also hides the banner rather than leave a
-  // roster on screen we can no longer vouch for, and says so on the console once.
+  // A failed call hides the banner rather than leave a roster on screen we can no
+  // longer vouch for, and says so on the console once.
   function onTrouble(sectionId, reason, op) {
     if (/\b40[13]\b/.test(reason)) {
       viewer.recheck(reason);
-    }
-    if (!o.hideOnTrouble) {
-      return;
     }
     o.render(null, "trouble");
     logBuffer.ui(false, 0, "trouble " + (op ? op + " " : "") + (sectionId ? sectionId + " " : "") + reason);
@@ -181,9 +173,6 @@ CCPClient.createClient = function (o) {
   // Polls return deltas, so on a quiet case nothing changes after an outage: the
   // banner comes back when the calls do, not when the roster next changes.
   function onRecovered(sectionId, downMs) {
-    if (!o.hideOnTrouble) {
-      return;
-    }
     if (sessions.anyTroubled()) {
       log("banner stays down: another section is still not answering");
       return;
@@ -194,12 +183,11 @@ CCPClient.createClient = function (o) {
   var sessions = CCPSessions.createSessions({
     call: call,
     appName: o.appName,
-    tickMs: CCPClient.TICK_MS,
+    tickMs: CCPSections.HEARTBEAT_MS,
     log: log,
     verbose: logBuffer.verbose,
     onNotifications: onNotifications,
     onSectionDropped: onSectionDropped,
-    dropSectionOnError: !!o.dropSectionOnError,
     onTrouble: onTrouble,
     onRecovered: onRecovered
   });
@@ -265,7 +253,7 @@ CCPClient.createClient = function (o) {
       return;
     }
     reconcile();
-    timer = window.setInterval(reconcile, o.passMs);
+    timer = window.setInterval(reconcile, CCPClient.PASS_MS);
   }
 
   // Leaves every section (best effort: the server would otherwise wait out the

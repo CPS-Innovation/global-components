@@ -64,7 +64,7 @@ var text = function (node) {
 
 // ---- the page ------------------------------------------------------------------
 
-var page = function (url) {
+var page = function (url, switchedOff) {
   var win = h.fakeWindow();
   var handlers = {};
   var printed = [];
@@ -81,7 +81,10 @@ var page = function (url) {
   };
   win.location = { href: url, pathname: "", hash: "" };
   win.__doc = fakeDom();
-  h.load(h.bundle("modern"), [], { window: win, document: win.__doc });
+  var files = h.bundle("modern").filter(function (f) {
+    return !switchedOff || f !== "legacy/shared/kill-switch.js";
+  });
+  h.load(files, [], { window: win, document: win.__doc, prelude: switchedOff ? "var CMS_WATCHDOG_ENABLED = false;" : "" });
   return win;
 };
 
@@ -126,6 +129,17 @@ var onCase = function (members) {
   replyLast(win, "poll", poll(CASE_A, "CASE", members));
   return win;
 };
+
+h.describe("the kill switch");
+
+// The operator's one control over a guest script in someone else's application.
+h.test("off means no call, no banner and no handle", function () {
+  var win = page(viewerUrl(CASE_A), true);
+  h.assertEqual(win.__doc.__appended.length, 0, "nothing sent");
+  h.assertEqual(win.__intervals.length, 0, "no pass scheduled");
+  h.assertEqual(win.__ccPresence, undefined, "no console handle");
+  h.assertEqual(banner(win), null);
+});
 
 h.describe("registering");
 
@@ -178,10 +192,15 @@ h.test("goes when the section empties", function () {
   h.assertEqual(banner(win), null);
 });
 
-h.test("stays up through a failed call", function () {
+// The same as Classic's stripe: a roster we can no longer vouch for comes down,
+// and goes back up when the calls answer, without waiting for the roster to change.
+h.test("comes down on a failed call and back when the calls answer", function () {
   var win = onCase([member("ann@cps.gov.uk")]);
   win.__tick();
   replyLast(win, "heartbeat", null);
+  h.assertEqual(banner(win), null);
+  win.__tick();
+  replyLast(win, "heartbeat", {});
   h.assertTrue(banner(win) !== null);
 });
 
