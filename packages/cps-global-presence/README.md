@@ -30,7 +30,8 @@ core/          all three UIs · document mode 5 floor · built into the ESM
   apps.js  section-names.js  joined.js  content.js   the words
   section-rules.js               which sections interrupt (web components only)
   wire.d.ts                      the API's wire shapes (hand-written)
-legacy/        Classic + Modern only · document mode 5 floor
+legacy/        the two IE-mode CMS clients, never the web components
+ shared/       both of them · document mode 5 floor
   jsonp.js       CCPJsonp        the transport, with pooled callback names
   sessions.js    CCPSessions     one session per section: create, heartbeat, poll, remove
   locator.js     CCPLocator      detectors in, active sections out
@@ -39,8 +40,8 @@ legacy/        Classic + Modern only · document mode 5 floor
   origin.js      CCPOrigin       which host serves our endpoints
   log.js         CCPLog          the ring buffer behind __ccPresence.dump()
   client.js      CCPClient       the loop both apps are built on: one pass, the roster, __ccPresence
-apps/classic/  document mode 5 · kill-switch, dom, sections, stripe, main, auth
-apps/modern/   document mode 11 · sections (URL detectors), bar, main
+ classic/      Classic only · document mode 5 · kill-switch, dom, sections, stripe, main, auth
+ modern/       Modern/DCF only · document mode 11 · sections (URL detectors), bar, main
 placeholders/  the permanent hello-world stubs (see Deploy)
 bundles.json   which files go into which output, in order
 ```
@@ -50,25 +51,25 @@ Tests sit beside the file they test (`roster.test.js` next to `roster.js`).
 ## How a client fits together
 
 ```
-find sections   per app      Classic reads frames and hidden fields; Modern reads the URL
-loop            legacy/      CCPClient: read the sections once a pass, register, redraw
-sessions        legacy/      hold one session per section, poll the roster
-roster          core/        who is present, per section, version-guarded
-view            core/        CCPView: who to show and the words, the same in all three UIs
-draw            per app      a stripe in Classic, a bar in Modern, a notification on the web
+find sections   legacy/<app>/    Classic reads frames and hidden fields; Modern reads the URL
+loop            legacy/shared/   CCPClient: read the sections once a pass, register, redraw
+sessions        legacy/shared/   hold one session per section, poll the roster
+roster          core/            who is present, per section, version-guarded
+view            core/            CCPView: who to show and the words, the same in all three UIs
+draw            legacy/<app>/    a stripe in Classic, a bar in Modern, a notification on the web
 ```
 
-To support a new section, add a detector: a URL pattern in `apps/modern/sections.js`,
-or a frame fragment plus a reader in `apps/classic/sections.js`. Nothing else changes.
+To support a new section, add a detector: a URL pattern in `legacy/modern/sections.js`,
+or a frame fragment plus a reader in `legacy/classic/sections.js`. Nothing else changes.
 
 ## Building
 
 `build.sh` runs `build.js`, which reads `bundles.json`, checks every source against
 its floor, type-checks, and concatenates:
 
-- **Modern**: one strict IIFE of `core` + `legacy` + `apps/modern`.
-- **Classic**: the kill switch, then a presence IIFE (`core` + `legacy` +
-  `apps/classic`), then the auth IIFE. Two IIFEs so a failure in one concern cannot
+- **Modern**: one strict IIFE of `core` + `legacy/shared` + `legacy/modern`.
+- **Classic**: the kill switch, then a presence IIFE (`core` + `legacy/shared` +
+  `legacy/classic`), then the auth IIFE. Two IIFEs so a failure in one concern cannot
   reach the other. No `"use strict"`: it has always run sloppy in someone else's app.
 - **ESM**: `core` plus an export list.
 
@@ -78,18 +79,18 @@ infers properties within a file but not across files.
 
 ## The floor
 
-`core/` and `legacy/` run in Classic, so they are held to **document mode 5**. Nothing
+`core/`, `legacy/shared/` and `legacy/classic/` run in Classic, so they are held to **document mode 5**. Nothing
 transpiles that low (TypeScript dropped ES3; Babel cannot conjure `JSON` or
 `Array.prototype.forEach`), so it is hand-written and proven:
 
 ```bash
-node check-syntax.js es3 core/*.js legacy/*.js   # ES3 syntax + a denylist of the ES5 runtime
-node check-syntax.js es5 apps/modern/*.js        # syntax only
+node check-syntax.js es3 core/*.js legacy/shared/*.js legacy/classic/*.js   # ES3 syntax + a denylist of the ES5 runtime
+node check-syntax.js es5 legacy/modern/*.js                                 # syntax only
 ```
 
 ## Types
 
-tsc type-checks `core/` and `legacy/` from their JSDoc and generates
+tsc type-checks `core/` and `legacy/shared/` from their JSDoc and generates
 `types/common.d.ts`. That references the wire shapes without defining them, so
 `types/index.d.ts` is `core/wire.d.ts` followed by the generated file. Nothing is
 emitted into the shipping path. `esm.d.ts` is the hand-written module surface the
@@ -152,7 +153,7 @@ Both legacy clients expose `window.__ccPresence`. `__ccPresence.dump()` returns 
 last 300 log lines (addresses masked) as one string — the console in this estate is
 IEChooser's, which cannot attach before boot.
 
-The same shape in both (built by `legacy/client.js`):
+The same shape in both (built by `legacy/shared/client.js`):
 
 ```
 status() sections() sessions()      what is registered, and how each session is doing
