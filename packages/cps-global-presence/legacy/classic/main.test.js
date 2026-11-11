@@ -127,6 +127,23 @@ function client(top) {
   return m;
 }
 
+h.describe("the kill switch");
+
+// The operator's one control over a guest script in someone else's application.
+h.test("off means no call, no pass, no stripe and no handle", function () {
+  var top = shell();
+  top.__doc = h.fakeDocument();
+  var m = h.load(
+    BUNDLE.filter(function (f) { return f !== "legacy/shared/kill-switch.js"; }),
+    ["presenceClient"],
+    { window: top, document: top.__doc, prelude: "var CMS_WATCHDOG_ENABLED = false;" }
+  );
+  h.assertEqual(m.presenceClient, null, "no client");
+  h.assertEqual(top.__doc.__appended.length, 0, "nothing sent");
+  h.assertEqual(top.__intervals.length, 0, "no pass scheduled");
+  h.assertEqual(top.__ccPresence, undefined, "no console handle");
+});
+
 // ---- the JSONP wire, as the fake document records it --------------------------
 //
 // Every call is a <script src> with its op and its callback name in the query, and

@@ -13,17 +13,14 @@
  *   - a 410 on heartbeat means the Watchdog has forgotten that session. Its roster
  *     is now fiction, so drop the section and let the next pass recreate it.
  *   - a timeout (null) is nothing: retry on the next pass.
+ *   - any other error keeps the session and retries on the next pass. Dropping it
+ *     would abandon a session the server still holds and register a second one.
  *   - a create that fails is retried on the next pass rather than leaving the
- *     section unregistered until the user navigates. Classic's original stopped
- *     permanently on a non-410 error; that is available as dropSectionOnError,
- *     because an observe-only UI is usually better off still trying.
+ *     section unregistered until the user navigates.
  *
- * WHAT A CLIENT DOES ABOUT ALL THAT IS ITS OWN BUSINESS. onTrouble fires on every
- * call that did not answer usefully, including a plain timeout, and says nothing
- * about whether it is worth retrying — the retry happens either way. Classic uses
- * it to take its footer stripe down, because a stale roster beside CMS's own
- * controls reads as fact; Modern/DCF passes nothing and keeps its banner up. The
- * callback is how those two can differ without the failure RULES differing.
+ * WHAT THE UI DOES ABOUT IT IS THE CLIENT'S: onTrouble fires on every call that
+ * did not answer usefully, including a plain timeout, and onRecovered when it
+ * answers again. The retry happens either way.
  *
  * Every callback checks `live[id] !== entry` before acting. Entries are replaced by
  * identity, so a section that was removed and re-added mid-flight correctly ignores
@@ -46,8 +43,6 @@ CCPSessions.SLOW_MS = 2000;
  *          log: function(...*): void, verbose: function(): boolean,
  *          onNotifications: function(Array, string=): void,
  *          onSectionDropped: function(string): void,
- *          dropSectionOnError?: boolean,
- *          onFatal?: function(string, string): void,
  *          onTrouble?: function(string, string, string=): void,
  *          onRecovered?: function(string, number): void}} options
  * @returns {{setDesired: function(string[]): void, stop: function(): void,
@@ -255,16 +250,6 @@ CCPSessions.createSessions = function (options) {
           return;
         }
         trouble(sectionId, entry, "heartbeat", data.jsonpError, ms);
-        if (options.dropSectionOnError) {
-          log("dropping section after error", sectionId);
-          forget(sectionId);
-          // Distinct from onSectionDropped, which also fires for an ordinary
-          // leave: this one says the section went away because something broke,
-          // which a UI may want to show rather than just going quiet.
-          if (options.onFatal) {
-            options.onFatal(sectionId, data.jsonpError);
-          }
-        }
         return;
       }
       stats.heartbeats = stats.heartbeats + 1;

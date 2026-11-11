@@ -1,6 +1,6 @@
 import { CaseLockingPresenceService, createCaseLockingPresence, PresenceRegion, regionKey } from "./case-locking-presence";
 import { CaseLockingPresentUsers } from "./CaseLockingPresentUsers";
-import { CCPEnvironment, CCPView } from "cps-global-presence";
+import { CCPEnvironment, CCPSections, CCPView } from "cps-global-presence";
 
 type FakeHubConnection = {
   start: jest.Mock<Promise<void>, []>;
@@ -961,8 +961,9 @@ describe("createCaseLockingPresence", () => {
   describe("keeping the session alive", () => {
     // The server evicts a session it has not heard from for 10 seconds. Without
     // this the socket stays open while the session quietly dies, and presence
-    // disappears ten seconds after it appears.
+    // disappears ten seconds after it appears. The beat is the legacy clients'.
     it("beats inside the server's eviction window", async () => {
+      expect(CCPSections.HEARTBEAT_MS).toBeLessThan(5000);
       const { service, hubFor } = setup();
       service.setCaseId("123");
       service.addRegion("witness");
@@ -970,11 +971,11 @@ describe("createCaseLockingPresence", () => {
       const hub = hubFor(sid("123", "WITNESS"))!;
       hub.invoke.mockClear();
 
-      jest.advanceTimersByTime(5000);
+      jest.advanceTimersByTime(CCPSections.HEARTBEAT_MS);
       await flush();
       expect(hub.invoke).toHaveBeenCalledWith("KeepAlive");
 
-      jest.advanceTimersByTime(5000);
+      jest.advanceTimersByTime(CCPSections.HEARTBEAT_MS);
       await flush();
       expect(hub.invoke.mock.calls.filter(([method]) => method === "KeepAlive")).toHaveLength(2);
     });
@@ -990,7 +991,7 @@ describe("createCaseLockingPresence", () => {
         method === "KeepAlive" ? Promise.reject(new Error("SESSION_EVICTED: gone")) : Promise.resolve(),
       );
 
-      jest.advanceTimersByTime(5000);
+      jest.advanceTimersByTime(CCPSections.HEARTBEAT_MS);
       await flush();
       expect(hub.invoke).toHaveBeenCalledWith("Connect", sid("123", "WITNESS"), "test-app");
     });

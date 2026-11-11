@@ -33,7 +33,8 @@ function bundle(name) {
  * Build the concatenated scope and pull names out of it.
  * @param {string[]} files  paths relative to this folder, in build order
  * @param {string[]} names  identifiers to return from the built scope
- * @param {{window?: Object, document?: Object}} [env]
+ * @param {{window?: Object, document?: Object, prelude?: string}} [env]
+ *   prelude  source run before the files, e.g. a different kill switch
  */
 function load(files, names, env) {
   env = env || {};
@@ -44,6 +45,7 @@ function load(files, names, env) {
       return fs.readFileSync(path.join(__dirname, f), "utf8");
     })
     .join("\n");
+  src = (env.prelude || "") + "\n" + src;
   var factory = new Function("window", "document", src + "\n; return { " + names.join(", ") + " };");
   return factory(env.window || fakeWindow(), env.document || fakeDocument());
 }

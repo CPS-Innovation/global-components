@@ -44,11 +44,10 @@ type Props = {
 const NOTIFICATION_EVENT = "ReceiveNotification";
 const NOTIFICATION_TYPE_PRESENCE = 0;
 
-// The server evicts a session it has not heard from for 10 seconds, so we beat at
-// 5: one missed tick is survivable, two are not. Without this the connection stays
-// open while the SESSION quietly dies, and presence vanishes ten seconds after it
-// appears — which reads exactly like "the API does not notify".
-const KEEPALIVE_MS = 5000;
+// The keepalive runs at CCPSections.HEARTBEAT_MS, the same beat as the legacy
+// clients'. Without it the connection stays open while the SESSION quietly dies,
+// and presence vanishes ten seconds after it appears — which reads exactly like
+// "the API does not notify".
 
 // The hub's error text when our session has been reaped. Not a failure to retry
 // blindly: the session is gone, so the cure is to Connect again.
@@ -228,7 +227,7 @@ export const createCaseLockingPresence = ({
       } finally {
         c.keepAliveInFlight = false;
       }
-    }, KEEPALIVE_MS);
+    }, CCPSections.HEARTBEAT_MS);
   };
 
   const startConnection = async (caseId: string, key: string, region: PresenceRegion) => {

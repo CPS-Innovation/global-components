@@ -18,6 +18,7 @@ const ON_CIN3 = { found: true, result: { cmsDomains: ["cin3.cps.gov.uk"], isProx
 // the previous test would refuse the next one's.
 beforeEach(() => {
   CCPEnvironment.CIN = null;
+  jest.clearAllMocks();
 });
 
 const setup = (cmsSessionHint = ON_CIN3) => {
@@ -40,12 +41,12 @@ const setup = (cmsSessionHint = ON_CIN3) => {
     register: jest.fn(),
   });
 
-  const authed = () =>
+  const authed = (context: object = { found: true, caseLockingAppName: "Case Review App" }) =>
     initialiseCaseLockingForContext({
       auth: { isAuthed: true, username: "me@cps.gov.uk" } as any,
       caseIdentifiers: { caseId: "123" } as any,
       getToken: (async () => "token") as any,
-      context: { found: true, caseLockingAppName: "Case Review App" } as any,
+      context: context as any,
     });
 
   const enter = (code: string, subjectId?: string) => document.dispatchEvent(new RegionEnterEvent({ code, subjectId }));
@@ -116,6 +117,22 @@ describe("region precedence", () => {
     authed();
 
     expect(holding()).toEqual(["case_review"]);
+  });
+});
+
+describe("the application we register as", () => {
+  it("is the one the matched context names", () => {
+    const { authed } = setup();
+    authed();
+    expect(presenceModule.createCaseLockingPresence).toHaveBeenCalledWith(expect.objectContaining({ appName: "Case Review App" }));
+  });
+
+  // Guessing would tell everyone else on the case the user is somewhere they are not.
+  it("registers nothing when the context names no application", () => {
+    const { authed, enter } = setup();
+    authed({ found: true });
+    enter("case");
+    expect(presenceModule.createCaseLockingPresence).not.toHaveBeenCalled();
   });
 });
 

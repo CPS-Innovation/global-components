@@ -220,20 +220,13 @@ h.test("is recreated on the next pass, and only that section", function () {
   h.assertEqual(r.opsFor(B), ["create", "heartbeat", "poll", "heartbeat", "poll"]);
 });
 
-h.test("any other heartbeat error keeps the session by default", function () {
+// Dropping it would abandon a session the server still holds and register a second.
+h.test("any other heartbeat error keeps the session", function () {
   var r = rig();
   r.join([A]);
   r.last("heartbeat").reply({ jsonpError: "502 Bad Gateway" });
   h.assertEqual(r.dropped, []);
   h.assertEqual(r.sessions.ids(), [A]);
-});
-
-h.test("...unless dropSectionOnError is set — Classic's original behaviour", function () {
-  var r = rig({ dropSectionOnError: true });
-  r.join([A]);
-  r.last("heartbeat").reply({ jsonpError: "502 Bad Gateway" });
-  h.assertEqual(r.dropped, [A]);
-  h.assertEqual(r.sessions.ids(), []);
 });
 
 h.describe("polling");

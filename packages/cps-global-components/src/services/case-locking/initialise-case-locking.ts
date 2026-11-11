@@ -17,18 +17,6 @@ type Props = {
 };
 
 /**
- * What we register as when the matched context does not name an application.
- *
- * It is a legacy default, not a sensible one: every SPA registration used to send
- * this regardless of which OutSystems app the user was actually in, so two of the
- * three were misreported. Contexts now carry caseLockingAppName (see Config.ts) and
- * this exists only so an environment whose config has not been updated behaves as
- * it did rather than registering something the API would reject. Delete it once
- * every context names its app.
- */
-const FALLBACK_APP_NAME = "Work Management App";
-
-/**
  * The region our own header registers on every case page.
  *
  * It is a FALLBACK: something must claim presence before any host app has been
@@ -164,11 +152,13 @@ export const initialiseCaseLocking = ({ window, config, preview, cmsSessionHint,
     // there rather than inferred here. Read on every context pass, but only ever
     // used at creation below — crossing between apps is a page load, not an SPA
     // navigation, so the value cannot change under a live presence service.
-    const appName = (context.found && context.caseLockingAppName) || FALLBACK_APP_NAME;
+    // A context that names no app registers nothing: guessing one misreports
+    // where the user is to everyone else on the case.
+    const appName = context.found ? context.caseLockingAppName : undefined;
     const flagPasses = FEATURE_FLAGS.shouldEnableCaseLocking({ config, preview, auth, authHint: undefined });
     _debug("forContext", { isAuthed: auth.isAuthed, flagPasses, caseId: caseIdentifiers?.caseId, presenceCreated: !!presence });
 
-    if (!presence && auth.isAuthed && flagPasses) {
+    if (!presence && auth.isAuthed && flagPasses && appName) {
       _debug("creating presence service for user", { username: auth.username });
       presence = createCaseLockingPresence({
         apiUrl,
