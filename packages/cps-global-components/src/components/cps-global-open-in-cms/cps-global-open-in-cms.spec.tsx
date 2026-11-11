@@ -110,9 +110,21 @@ describe("cps-global-open-in-cms", () => {
     expect(isOpen()).toBe(true);
   });
 
-  it("opens from the keyboard with the down arrow", async () => {
+  it("opens from the keyboard with the down arrow, focusing the first option once it can take focus", async () => {
+    const focus = jest.spyOn(option("classic"), "focus");
+
     await key(trigger(), "ArrowDown");
 
     expect(isOpen()).toBe(true);
+    expect(focus).toHaveBeenCalled();
+  });
+
+  it("opens from the keyboard with the up arrow, focusing the last option", async () => {
+    const focus = jest.spyOn(option("modern"), "focus");
+
+    await key(trigger(), "ArrowUp");
+
+    expect(isOpen()).toBe(true);
+    expect(focus).toHaveBeenCalled();
   });
 });

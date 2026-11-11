@@ -1,6 +1,7 @@
 import { Component, Element, h, Listen, Prop, State } from "@stencil/core";
 import { WithLogging } from "../../logging/WithLogging";
 import { dispatchCmsNavigate, dispatchModernCmsNavigate } from "../../services/navigate-cms/initialise-navigate-cms";
+import { FocusTarget, focusTargetIndex } from "./focus-target-index";
 
 type Option = { key: string; label: string; navigate: (caseId: number) => void };
 
@@ -8,6 +9,13 @@ const OPTIONS: Option[] = [
   { key: "classic", label: "CMS Classic", navigate: dispatchCmsNavigate },
   { key: "modern", label: "CMS Modern", navigate: dispatchModernCmsNavigate },
 ];
+
+// Unique per instance so aria-controls always resolves to THIS dropdown's own panel
+let panelCount = 0;
+const nextPanelId = () => {
+  panelCount += 1;
+  return `cps-open-in-cms-panel-${panelCount}`;
+};
 
 /**
  * "Open in…" dropdown offering CMS Classic and CMS Modern. The look follows the UCD
@@ -38,8 +46,12 @@ export class CpsGlobalOpenInCms {
   // viewport, which is what happens under heavy zoom when the menu wraps.
   @State() alignStart = false;
 
-  private static idCount = 0;
-  private panelId = `cps-open-in-cms-panel-${(CpsGlobalOpenInCms.idCount += 1)}`;
+  private readonly panelId = nextPanelId();
+
+  // Set when the keyboard asks to focus an option while the panel is closed: the
+  // options are `hidden` until the next render, and hidden buttons can't take focus,
+  // so the focusing waits for componentDidRender.
+  private pendingFocus?: FocusTarget;
 
   private triggerEl?: HTMLButtonElement;
   private panelEl?: HTMLElement;
@@ -54,15 +66,20 @@ export class CpsGlobalOpenInCms {
   }
 
   componentDidRender() {
-    if (!this.open || !this.panelEl || this.alignStart) {
+    if (!this.open) {
       return;
     }
-    if (this.panelEl.getBoundingClientRect().left < 0) {
+    if (this.pendingFocus) {
+      const target = this.pendingFocus;
+      this.pendingFocus = undefined;
+      this.focusOption(target);
+    }
+    if (this.panelEl && !this.alignStart && this.panelEl.getBoundingClientRect().left < 0) {
       this.alignStart = true;
     }
   }
 
-  private optionButtons = () => Array.from(this.el.querySelectorAll<HTMLButtonElement>(".open-in-cms-dropdown__option"));
+  private readonly optionButtons = () => Array.from(this.el.querySelectorAll<HTMLButtonElement>(".open-in-cms-dropdown__option"));
 
   private close(returnFocus: boolean) {
     this.open = false;
@@ -72,7 +89,7 @@ export class CpsGlobalOpenInCms {
     }
   }
 
-  private toggle = () => {
+  private readonly toggle = () => {
     if (this.open) {
       this.close(false);
     } else {
@@ -80,35 +97,29 @@ export class CpsGlobalOpenInCms {
     }
   };
 
-  private select = (option: Option) => {
+  private readonly select = (option: Option) => {
     this.close(true);
     option.navigate(this.caseId);
   };
 
-  // Move focus among the trigger and the options; Tab works regardless.
-  private focusOption = async (which: "first" | "last" | "next" | "previous") => {
+  // Move focus among the options, opening the panel first if need be; Tab works regardless.
+  private readonly focusOption = (target: FocusTarget) => {
     if (!this.open) {
+      this.pendingFocus = target;
       this.open = true;
-      // Options are `hidden` until the next render, and hidden buttons can't take focus
-      await new Promise(resolve => requestAnimationFrame(resolve));
+      return;
     }
     const options = this.optionButtons();
     if (!options.length) {
       return;
     }
     const current = options.indexOf(document.activeElement as HTMLButtonElement);
-    const index =
-      which === "first"
-        ? 0
-        : which === "last"
-          ? options.length - 1
-          : which === "next"
-            ? (current + 1) % options.length
-            : (current - 1 + options.length) % options.length;
-    options[index].focus();
+    options[focusTargetIndex(target, current, options.length)].focus();
   };
 
-  private handleKeyDown = (event: KeyboardEvent) => {
+  // On the trigger and each option rather than on the <li> wrapping them, so the
+  // listeners sit on the elements that actually take focus.
+  private readonly handleKeyDown = (event: KeyboardEvent) => {
     const fromTrigger = event.target === this.triggerEl;
     switch (event.key) {
       case "Escape":
@@ -142,7 +153,7 @@ export class CpsGlobalOpenInCms {
 
   // Tabbing (or anything else) out of the component closes it, so an open panel is
   // never left floating over the page after the user has moved on.
-  private handleFocusOut = (event: FocusEvent) => {
+  private readonly handleFocusOut = (event: FocusEvent) => {
     const next = event.relatedTarget as Node | null;
     if (this.open && next && !this.el.contains(next)) {
       this.close(false);
@@ -154,13 +165,15 @@ export class CpsGlobalOpenInCms {
     return (
       // An <li>, because this element sits directly in the sub-menu's <ul>: without one
       // the dropdown is not one of the list's items to a screen reader (nav-link does the same)
-      <li class="open-in-cms-dropdown" onKeyDown={this.handleKeyDown} onFocusout={this.handleFocusOut}>
+      <li class="open-in-cms-dropdown">
         <button
           type="button"
           class="linkButton open-in-cms-dropdown__trigger"
           aria-expanded={this.open ? "true" : "false"}
           aria-controls={this.panelId}
           onClick={this.toggle}
+          onKeyDown={this.handleKeyDown}
+          onFocusout={this.handleFocusOut}
           ref={el => (this.triggerEl = el)}
         >
           Open in…
@@ -175,7 +188,15 @@ export class CpsGlobalOpenInCms {
           ref={el => (this.panelEl = el)}
         >
           {OPTIONS.map(option => (
-            <button type="button" class="open-in-cms-dropdown__option" data-option={option.key} onClick={() => this.select(option)}>
+            <button
+              key={option.key}
+              type="button"
+              class="open-in-cms-dropdown__option"
+              data-option={option.key}
+              onClick={() => this.select(option)}
+              onKeyDown={this.handleKeyDown}
+              onFocusout={this.handleFocusOut}
+            >
               {/* Spoken as "Open in CMS Classic", so the option makes sense out of context
                   (a screen reader's list of buttons). The visible label is still in the
                   name, so voice control's "click CMS Classic" works. */}
