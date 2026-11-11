@@ -2,23 +2,16 @@ import { Component, h, Host, State, VNode } from "@stencil/core";
 import { readyState } from "../../store/store";
 import { FEATURE_FLAGS } from "cps-global-configuration";
 import { formatJoined } from "../../services/case-locking/format-joined";
-import { CCPContent, CCPPeople, CCPSectionNames } from "cps-global-presence";
+import { CCPContent, CCPView } from "cps-global-presence";
 import { CaseLockingPresentSection } from "../../services/case-locking/CaseLockingPresentUsers";
 import { describeCaseLock, getCaseLock } from "../../services/case-locking/get-case-lock";
 
-// COLLAPSED IN THE SHARED CODE, not here. The API's records are denormalised —
-// one per user, per section, per application — so the same person on the case and
-// editing a witness within it, from two OutSystems apps, arrives four times. What a
-// reader wants is the person once, with the applications they are in; and because
-// Work Management and Case Review both display as RCMS, someone in both is in one
-// application, not two. CCPPeople.collapse is the single implementation of that,
-// shared with the Classic and Modern clients so all three agree.
-const collapsePeople = (sections: CaseLockingPresentSection[], viewer: string | undefined) =>
-  CCPPeople.collapse(
-    sections.flatMap(section =>
-      section.users.map(user => ({ userEmail: user.user, sourceApplication: user.appName, joinedAt: user.joinedAt, sections: user.sections })),
-    ),
-    viewer,
+// The API's records are denormalised (one per user, per section, per application);
+// CCPView collapses them to one line per person, exactly as the Classic and Modern
+// clients do.
+const toMembers = (sections: CaseLockingPresentSection[]) =>
+  sections.flatMap(section =>
+    section.users.map(user => ({ userEmail: user.user, sourceApplication: user.appName, joinedAt: user.joinedAt, sections: user.sections })),
   );
 
 // Long enough for assistive tech to have registered the empty live region before
@@ -134,26 +127,21 @@ export class CpsGlobalCaseLockingNotification {
       return this.renderWithLiveRegion(this.announceAllClear());
     }
 
-    // WHO IS READING, so the reader can be marked rather than silently dropped.
-    // While the feature is being built we count ourselves: a roster that includes
-    // you, and says so, is the only evidence from outside that the identification
-    // works — filtering proves nothing, because an empty banner looks the same
-    // whether self-detection works or presence is broken.
-    // Narrowed rather than optional-chained: AuthResult is a union and only the
-    // authenticated arm carries a username. Unauthenticated means nobody is marked,
-    // which is the same safe default as an unanswered whoami on the legacy clients.
+    // WHO IS READING, so their row can be marked. Narrowed rather than
+    // optional-chained: only the authenticated arm of AuthResult has a username.
+    // countSelf is true because the presence service has already applied the
+    // caseLockingCountSelf preview flag; what reaches the store is what to show.
     const viewer = state.auth?.isAuthed ? state.auth.username : undefined;
-    const sections = present?.sections ?? [];
-    const collapsed = collapsePeople(sections, viewer);
-    const people = collapsed.length;
-    const includesSelf = collapsed.some(person => person.isCurrentUser);
-    // THE WORDING, AND THE REASONING THAT PRODUCED IT, ARE SHARED. Why "other"
-    // disappears when the count includes the reader, why the lock leads and
-    // presence follows as a subordinate clause, and why we never say "editing" or
-    // "viewing" — all of it now sits beside the sentences in CCPContent.summary,
-    // which the Classic and Modern clients call too. This is the only UI that can
-    // pass `locked`: the other two have no route to the case-details API.
-    const summary = CCPContent.summary(people, includesSelf, locked);
+    // The lock leads the summary and presence follows; only this UI can pass
+    // `locked`, because the legacy clients have no route to the case-details API.
+    const view = CCPView.build({
+      members: toMembers(present?.sections ?? []),
+      viewerEmail: viewer,
+      countSelf: true,
+      locked,
+      formatTime: formatJoined,
+    });
+    const summary = view.summary;
 
     return this.renderWithLiveRegion(
       this.announce(summary),
@@ -163,32 +151,8 @@ export class CpsGlobalCaseLockingNotification {
             to the people in the roster below — that reconciliation is a separate
             problem and a wrong guess would read worse than two unjoined facts. */}
         {locked && <p class="govuk-body">{describeCaseLock(lock)}</p>}
-        {sections.map(section => (
-          <div>
-            {/* Collapsed WITHIN the section, not across them: a person in two
-                sections is genuinely in two sections and is listed under each. What
-                must never happen is one person reading as two because the API sent a
-                record per application. */}
-            {collapsePeople([section], viewer).map(person => {
-              // "RCMS since 3.38pm on 8 September 2026", one clause per application,
-              // assembled by the shared content module so Modern and Classic read
-              // the same. formatJoined is passed in rather than imported there,
-              // because the words are shared but the clock is not.
-              const where = CCPContent.where(person.apps, formatJoined);
-              // WHICH PART OF THE CASE they are in, in words. A case-wide session
-              // reports everyone anywhere in the case, so "this case" was true of
-              // everybody and told the reader nothing; naming the section is the
-              // difference between "someone is here" and "someone is on the review".
-              //
-              // "this witness or victim" when their subject is the one in focus,
-              // "a witness or victim" when it is another one in the same case —
-              // the difference between a collision and a coincidence.
-              const sections = CCPSectionNames.describe(person.sections ?? []);
-              return (
-                <p class="govuk-body">{CCPContent.personLine(CCPPeople.displayName(person), sections, where)}</p>
-              );
-            })}
-          </div>
+        {view.lines.map(line => (
+          <p class="govuk-body">{line}</p>
         ))}
       </cps-global-pinned-notification>,
     );

@@ -45,7 +45,7 @@ var PRESENCE_ACTION_BAR_ROW_INDEX = 3;
 // Only a successful poll populates this. Expansion is kept across polls and
 // across a navigation within the same case, so a reader who opened the details
 // does not have to reopen them every three seconds.
-var presenceStripeState = null; // { text, count, includesSelf }; null = no presence UI
+var presenceStripeState = null; // { summary, text, count }; null = no presence UI
 var presenceStripeEl = null;
 var presenceStripeExpanded = false;
 // Bound to the actual FRAMESET element, not to a frame name: that is what lets us
@@ -75,64 +75,6 @@ var presenceStripeWarned = false;
 //
 // What is left below is layout, not language. Every sentence now comes from
 // CCPContent.
-
-// The details panel text: ONE SENTENCE PER PERSON, in the web components' words.
-//
-//   A Name is in the case review — RCMS since 3.38pm on 8 September 2026.
-//   Another Name (current user) is in a witness or victim — CMS since 9.02am on 8 September 2026.
-//
-// NO HEADINGS, and that is the substantive change rather than a tidy-up. This
-// used to group by section under "Who's working where:" and "Currently these users
-// are working on Case:". The web component names the section INSIDE each person's
-// sentence, which carries the same fact in one place instead of two and reads as
-// prose rather than as a report — so the groupings and both headings went with
-// them.
-//
-// COLLAPSED, so a person is one line. The API denormalises: one record per user,
-// per section, per application, so somebody on the case and on a witness within it
-// from two apps arrives four times. CCPPeople.collapse is the shared
-// implementation of that reduction, and the other two clients already used it
-// while this one iterated raw records.
-//
-// `people` is already collapsed by the caller, because main.js is where the
-// viewer's identity and the primary case live. Returns "" when nobody is on the
-// case, which is what main.js reads as "take the stripe away".
-function presenceBuildDetails(people) {
-  var lines = [];
-  var i, person;
-  if (!people || people.length === 0) { return ""; }
-  for (i = 0; i < people.length; i++) {
-    person = people[i];
-    lines[lines.length] = CCPContent.personLine(
-      CCPPeople.displayName(person),
-      CCPSectionNames.describe(person.sections),
-      CCPContent.where(person.apps, CCPJoined.format)
-    );
-  }
-  return lines.join("\n");
-}
-
-// The one line the reader sees while the accordion is shut.
-//
-// IT USED TO SAY "4 users currently working on the case" — its own sentence, in
-// its own register, agreeing with neither other client. It now says what the web
-// component says: "4 other people are working on this case", and "4 people" once
-// the reader is one of them.
-//
-// THE READER IS NOW COUNTED CONSCIOUSLY rather than incidentally. The old count
-// included them and the old wording never acknowledged it, so a reader alone on a
-// case was told "1 users currently working on the case" — true, and useless.
-// includesSelf comes from the collapsed roster, which marks the viewer's own row.
-//
-// A state with no count falls back to the detail text, so a stripe never renders
-// as an empty red bar.
-function presenceStripeSummary(state) {
-  if (!state) { return ""; }
-  if (typeof state.count === "number") {
-    return CCPContent.summary(state.count, !!state.includesSelf);
-  }
-  return state.text ? state.text : "";
-}
 
 // ---- Footer geometry --------------------------------------------------------
 // Pure, because getting it wrong resizes someone else's application. Both
@@ -439,7 +381,7 @@ function presenceRenderStripe() {
     var summaryEl = doc.getElementById(PRESENCE_STRIPE_SUMMARY_ID);
     var toggleEl = doc.getElementById(PRESENCE_STRIPE_TOGGLE_ID);
     var detailsEl = doc.getElementById(PRESENCE_STRIPE_DETAILS_ID);
-    var summaryText = presenceStripeSummary(state);
+    var summaryText = state.summary;
     if (summaryEl && summaryEl.innerText !== summaryText) {
       summaryEl.innerText = summaryText;
     }
@@ -472,9 +414,9 @@ function presenceStripeUnplaceable() {
   } catch (e) { }
 }
 
-// The entry point main.js uses on every successful poll.
-function presenceShowStripe(text, count, includesSelf) {
-  presenceStripeState = { text: text, count: count, includesSelf: !!includesSelf };
+// The entry point main.js uses on every successful poll, with a CCPView.
+function presenceShowStripe(view) {
+  presenceStripeState = { summary: view.summary, text: view.lines.join("\n"), count: view.count };
   presenceRenderStripe();
 }
 

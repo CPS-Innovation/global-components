@@ -142,47 +142,37 @@ function subjectSection(sections) {
 // `reason` says what asked for the redraw. It goes into the log only when what
 // the reader can see changes (see CCPLog's ui), which is how "the stripe went away
 // and came back" becomes a pair of lines that name their causes.
+// What the stripe shows for one case. An unanswered whoami means an empty viewer
+// address, so nobody is filtered: one person too many, never a colleague hidden.
+function currentView(caseId) {
+  return CCPView.build({
+    members: roster.members(activeSectionIds(), caseId),
+    viewerEmail: viewer ? viewer.email() : "",
+    countSelf: shouldCountSelf()
+  });
+}
+
 function drawStripe(primary, reason) {
   if (!primary) {
     presenceRemoveStripe();
     presenceLogBuffer.ui(false, 0, "no section on screen (" + reason + ")");
     return;
   }
-  // COLLAPSED HERE, not in the stripe, because this is where the two things the
-  // reduction needs live: the viewer's address (so their own row can be marked, and
-  // the summary can say "people" rather than "other people") and the primary case
-  // (so a roster that still holds a case the reader has navigated away from does
-  // not report it). The stripe is handed finished words.
-  //
-  // An unanswered whoami means viewer.email() is "": CCPPeople.others then filters
-  // nobody and CCPPeople.collapse marks nobody, so the reader is counted among the
-  // others and the summary says "other people". One person too many, which is the
-  // safe direction: the opposite would hide a colleague.
-  var me = viewer ? viewer.email() : "";
-  var members = roster.members(activeSectionIds(), primary.caseId);
-  if (!shouldCountSelf()) {
-    members = CCPPeople.others(members, me);
-  }
-  var people = CCPPeople.collapse(members, me);
-  var text = presenceBuildDetails(people); // "" when nobody is on this case
-  var includesSelf = false;
-  var i;
-  for (i = 0; i < people.length; i++) {
-    if (people[i].isCurrentUser) {
-      includesSelf = true;
-    }
-  }
-  if (text) {
-    presenceShowStripe(text, people.length, includesSelf);
-    presenceLogBuffer.ui(true, people.length, reason);
+  // Filtered to the primary case: the stripe is about the case on screen, while the
+  // roster can still hold another case's sections between a navigation and the
+  // sessions layer dropping them.
+  var view = currentView(primary.caseId);
+  if (view.count) {
+    presenceShowStripe(view);
+    presenceLogBuffer.ui(true, view.count, reason);
   } else {
     presenceRemoveStripe();
     presenceLogBuffer.ui(false, 0, "nobody else on case " + primary.caseId + " (" + reason + ")");
   }
 }
 
-function onNotifications(data) {
-  if (!roster.apply(data)) {
+function onNotifications(data, sectionId) {
+  if (!roster.apply(data, sectionId)) {
     return;
   }
   logRosterChanges();
@@ -492,11 +482,10 @@ if (CMS_WATCHDOG_ENABLED === true) {
     sessions: function () {
       return sessions.stats();
     },
+    // What the stripe would say for the case on screen.
     roster: function () {
-      return roster.people();
-    },
-    describeRoster: function () {
-      return roster.describe();
+      var primary = primarySection();
+      return primary ? currentView(primary.caseId).lines : [];
     },
     rosterBySection: function () {
       return roster.sections();

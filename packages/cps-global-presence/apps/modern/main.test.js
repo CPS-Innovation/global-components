@@ -195,9 +195,8 @@ h.test("moving to another case leaves the old one and takes the banner down", fu
 });
 
 // The hub also sends the sections a session CONFLICTS with — here, someone in
-// case A's review while we are on case A. Leaving case A forgets only the section
-// we held, so the review's roster stays, and draw() does not filter by case.
-h.knownBug("moving to another case does not keep showing the old case's conflicts", function () {
+// case A's review while we are on case A. Leaving case A must forget those too.
+h.test("moving to another case does not keep showing the old case's conflicts", function () {
   var win = onCase([]);
   win.__tick();
   replyLast(win, "poll", [{ payload: { snapshots: [

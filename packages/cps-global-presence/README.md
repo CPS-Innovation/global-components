@@ -9,7 +9,8 @@ Watchdog presence — "who else is working on this case" — for the three UIs:
 | the web components | `dist/esm/index.js` (+ `esm.d.ts`) | modern bundler |
 
 The two legacy clients register over JSONP and draw their own banner. The web
-components hold a SignalR connection of their own and use `core/` for the words.
+components hold a SignalR connection of their own and use `core/` for what the
+banner says (`CCPView`).
 Everything under `dist/` and
 `types/` is generated: edit the sources and run `./build.sh`.
 
@@ -23,6 +24,7 @@ core/          all three UIs · document mode 5 floor · built into the ESM
   sections.js    CCPSections     section id / key (they must agree)
   roster.js      CCPRoster       snapshots in, who is present out, version-guarded
   people.js      CCPPeople       one row per person
+  view.js        CCPView         what a banner shows: who, the summary, a line per person
   apps.js  section-names.js  joined.js  content.js   the words
   section-rules.js               which sections interrupt (web components only)
   wire.d.ts                      the API's wire shapes (hand-written)
@@ -48,7 +50,8 @@ Tests sit beside the file they test (`roster.test.js` next to `roster.js`).
 find sections   per app      Classic reads frames and hidden fields; Modern reads the URL
 sessions        legacy/      hold one session per section, poll the roster
 roster          core/        who is present, per section, version-guarded
-words + draw    core/ + app  the shared sentences, drawn as a stripe or a bar
+view            core/        CCPView: who to show and the words, the same in all three UIs
+draw            per app      a stripe in Classic, a bar in Modern, a notification on the web
 ```
 
 To support a new section, add a detector: a URL pattern in `apps/modern/sections.js`,

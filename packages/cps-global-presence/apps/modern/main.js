@@ -10,7 +10,7 @@
  *   modern/sections.js       which sections we are in (URL detectors)
  *   legacy/sessions which sessions to hold, and what to do when they fail
  *   core/roster   who is present, reconciled by version
- *   core/people   one row per person, collapsing apps that display alike
+ *   core/view     who to show, and the words for them
  *   modern/bar.js            what that looks like on screen
  * This file owns only the loop that connects them, and the diagnostics surface.
  *
@@ -50,42 +50,22 @@ function isVerbose() {
 var BASE = CCPOrigin.resolve(JSONP_PATH);
 var roster = CCPRoster.createRoster();
 
-/**
- * The summary line — the web components' sentence, from the shared content module
- * rather than a copy of it. It used to be a copy, with a comment promising it was
- * "worded as the web components word it"; see CCPContent for why that promise was
- * not keepable.
- *
- * NO LOCK CLAUSE. This client does not read the lock — it has no route to the
- * case-details API and no token for it — so it omits the third argument and gets
- * the presence-only sentence, which is the same one the web component shows for an
- * unlocked case.
- */
-function summarise(people) {
-  var includesSelf = false;
-  var i;
-  for (i = 0; i < people.length; i++) {
-    if (people[i].isCurrentUser) {
-      includesSelf = true;
-    }
-  }
-  return CCPContent.summary(people.length, includesSelf);
+// What the banner shows. An unanswered whoami means an empty viewer address, so
+// nobody is filtered: one person too many, never a colleague hidden.
+function currentView() {
+  return CCPView.build({
+    members: roster.members(activeSectionIds()),
+    viewerEmail: viewer.email(),
+    countSelf: shouldCountSelf()
+  });
 }
 
 // `reason` says what asked for the redraw, and is logged only when what the reader
-// can see changes (CCPLog's ui).
+// can see changes (CCPLog's ui). An empty view removes the banner.
 function draw(reason) {
-  // Through CCPPeople rather than roster.people(): the banner names applications
-  // and when each person arrived in them, and collapses two applications that
-  // display alike into one. roster.people() predates that and reports raw names
-  // with no times.
-  //
-  // An empty roster removes the banner rather than drawing an empty one.
-  var me = viewer.email();
-  var members = roster.members(activeSectionIds());
-  var people = CCPPeople.collapse(shouldCountSelf() ? members : CCPPeople.others(members, me), me);
-  renderBanner(people, summarise(people));
-  modernLog.ui(people.length > 0, people.length, people.length ? reason : "nobody else here (" + reason + ")");
+  var view = currentView();
+  renderBanner(view);
+  modernLog.ui(view.count > 0, view.count, view.count ? reason : "nobody else here (" + reason + ")");
 }
 
 // Arrivals and departures, masked, whenever the roster changes. Replaces logging
@@ -100,8 +80,8 @@ function logRosterChanges() {
 
 // Snapshots arrive per section and are version-guarded inside the roster, so
 // polls from several sections merge without ordering assumptions.
-function onNotifications(list) {
-  if (roster.apply(list)) {
+function onNotifications(list, sectionId) {
+  if (roster.apply(list, sectionId)) {
     logRosterChanges();
     draw("roster changed");
   } else if (isVerbose()) {
@@ -253,11 +233,9 @@ window.__ccPresence = {
       sessions: sessions.stats()
     };
   },
+  // What the banner would say.
   roster: function () {
-    return roster.people();
-  },
-  describeRoster: function () {
-    return roster.describe();
+    return currentView().lines;
   },
   sections: function () {
     return activeSections();

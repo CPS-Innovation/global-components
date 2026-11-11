@@ -168,3 +168,32 @@ describe("cps-global-case-locking-notification live region", () => {
     expect(statusText()).toBe("1 other person is working on this case");
   });
 });
+
+describe("cps-global-case-locking-notification roster", () => {
+  beforeEach(() => {
+    initialiseStore().register({
+      ...ready,
+      caseLockingPresentUsers: {
+        sections: [
+          { code: "CASE", occupiedOnEntry: false, users: [{ user: "a@cps.gov.uk", appName: "CMS Classic", sections: [{ kind: "CASE", isCurrent: true }] }] },
+          {
+            code: "VICTIM_WITNESS",
+            occupiedOnEntry: false,
+            users: [{ user: "a@cps.gov.uk", appName: "CMS Classic", sections: [{ kind: "VICTIM_WITNESS", isCurrent: false }] }],
+          },
+        ],
+      },
+    });
+  });
+
+  it("lists someone in two sections once, naming both", async () => {
+    const page = await newSpecPage({
+      components: [CpsGlobalCaseLockingNotification],
+      html: `<cps-global-case-locking-notification></cps-global-case-locking-notification>`,
+    });
+
+    const lines = Array.from(page.root!.querySelectorAll("p.govuk-body")).map(p => p.textContent);
+
+    expect(lines).toEqual(["a@cps.gov.uk is in the case and a witness or victim — CMS Classic."]);
+  });
+});

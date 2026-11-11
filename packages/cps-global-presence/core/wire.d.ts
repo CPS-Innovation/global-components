@@ -37,11 +37,18 @@ interface CCPNotification {
   payload?: { snapshots?: CCPSnapshot[] };
 }
 
-/** One person, deduped across sections. */
+/* Not wire shapes, but published with them: what core/ hands its callers. */
+
+/** A member record with the sections it puts the user in (CCPRoster.members). */
+interface CCPRosterMember extends CCPMember {
+  sections?: { kind: string; isCurrent?: boolean }[];
+}
+
+/** One person, collapsed across sections and applications (CCPPeople.collapse). */
 interface CCPPerson {
-  userEmail: string;
-  /** e.g. ["CASE_REVIEW", "VICTIM_WITNESS:98765"] */
-  regions: string[];
-  /** distinct sourceApplication values seen for them */
-  apps: string[];
+  username: string;
+  /** Is this the reader? Only when the caller said who the reader is. */
+  isCurrentUser: boolean;
+  apps: { appDisplayName: string; timeEntered: string | undefined }[];
+  sections: { kind: string; isCurrent: boolean }[];
 }

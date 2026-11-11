@@ -11,6 +11,7 @@
         "core/joined.js",
         "core/people.js",
         "core/content.js",
+        "core/view.js",
         "core/section-rules.js",
         "core/sections.js",
         "core/roster.js"
@@ -96,7 +97,8 @@
         "CCPJoined",
         "CCPPeople",
         "CCPSectionNames",
-        "CCPSectionRules"
+        "CCPSectionRules",
+        "CCPView"
       ]
     }
   },

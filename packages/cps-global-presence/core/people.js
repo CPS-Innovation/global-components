@@ -38,7 +38,8 @@ var CCPPeople = {};
  *        Every member record, from every section, flattened. Callers hold the
  *        sections differently; this deliberately takes the flat list they can all
  *        produce.
- * @returns {Array<{username: string, apps: Array<{appDisplayName: string, timeEntered: string|undefined}>, sections: Array<{kind: string, isCurrent: boolean}>}>}
+ * @param {string=} viewerEmail
+ * @returns {CCPPerson[]}
  */
 CCPPeople.collapse = function (members, viewerEmail) {
   var byUser = {};

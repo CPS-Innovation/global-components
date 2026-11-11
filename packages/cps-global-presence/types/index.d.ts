@@ -47,13 +47,20 @@ interface CCPNotification {
   payload?: { snapshots?: CCPSnapshot[] };
 }
 
-/** One person, deduped across sections. */
+/* Not wire shapes, but published with them: what core/ hands its callers. */
+
+/** A member record with the sections it puts the user in (CCPRoster.members). */
+interface CCPRosterMember extends CCPMember {
+  sections?: { kind: string; isCurrent?: boolean }[];
+}
+
+/** One person, collapsed across sections and applications (CCPPeople.collapse). */
 interface CCPPerson {
-  userEmail: string;
-  /** e.g. ["CASE_REVIEW", "VICTIM_WITNESS:98765"] */
-  regions: string[];
-  /** distinct sourceApplication values seen for them */
-  apps: string[];
+  username: string;
+  /** Is this the reader? Only when the caller said who the reader is. */
+  isCurrentUser: boolean;
+  apps: { appDisplayName: string; timeEntered: string | undefined }[];
+  sections: { kind: string; isCurrent: boolean }[];
 }
 
 declare namespace CCPApps {
@@ -281,7 +288,8 @@ declare namespace CCPPeople {
      *        Every member record, from every section, flattened. Callers hold the
      *        sections differently; this deliberately takes the flat list they can all
      *        produce.
-     * @returns {Array<{username: string, apps: Array<{appDisplayName: string, timeEntered: string|undefined}>, sections: Array<{kind: string, isCurrent: boolean}>}>}
+     * @param {string=} viewerEmail
+     * @returns {CCPPerson[]}
      */
     function collapse(members: Array<{
         userEmail?: string;
@@ -291,17 +299,7 @@ declare namespace CCPPeople {
             kind: string;
             isCurrent?: boolean;
         }>;
-    }>, viewerEmail: any): Array<{
-        username: string;
-        apps: Array<{
-            appDisplayName: string;
-            timeEntered: string | undefined;
-        }>;
-        sections: Array<{
-            kind: string;
-            isCurrent: boolean;
-        }>;
-    }>;
+    }>, viewerEmail?: string | undefined): CCPPerson[];
     /**
      * Everyone BUT the reader.
      *
@@ -351,32 +349,35 @@ declare namespace CCPPeople {
 }
 declare namespace CCPRoster {
     /**
-     * A roster: apply the API's notifications, ask who is present.
+     * @typedef {{caseId: string, kind: string, subjectId: string, version: number,
+     *            members: {userEmail: string, sourceApplication: string, joinedAt: string}[],
+     *            via: Object<string, boolean>}} CCPRosterEntry
+     */
+    /**
+     * @param {CCPMember[]|null|undefined} members
+     * @returns {{userEmail: string, sourceApplication: string, joinedAt: string}[]}
+     */
+    function normaliseMembers(members: CCPMember[] | null | undefined): {
+        userEmail: string;
+        sourceApplication: string;
+        joinedAt: string;
+    }[];
+    /**
      * @returns {{
-     *   apply: function(CCPNotification[]|null|undefined): boolean,
-     *   people: function(): CCPPerson[],
-     *   describe: function(): string,
-     *   sections: function(): Object,
-     *   members: function(string[]|undefined, string=): {userEmail: string, sourceApplication: string, joinedAt: string, sections: {kind: string, isCurrent: boolean}[]}[],
+     *   apply: function((CCPNotification[]|null|undefined), string=): boolean,
+     *   sections: function(): Object<string, CCPRosterEntry>,
+     *   members: function((string[]|undefined), string=): CCPRosterMember[],
      *   forget: function(string): boolean,
      *   clear: function(): void,
      *   takeChanges: function(): {joined: string[], left: string[]}
      * }}
      */
     function createRoster(): {
-        apply: (arg0: CCPNotification[] | null | undefined) => boolean;
-        people: () => CCPPerson[];
-        describe: () => string;
-        sections: () => any;
-        members: (arg0: string[] | undefined, arg1: string | undefined) => {
-            userEmail: string;
-            sourceApplication: string;
-            joinedAt: string;
-            sections: {
-                kind: string;
-                isCurrent: boolean;
-            }[];
-        }[];
+        apply: (arg0: (CCPNotification[] | null | undefined), arg1: string | undefined) => boolean;
+        sections: () => {
+            [x: string]: CCPRosterEntry;
+        };
+        members: (arg0: (string[] | undefined), arg1: string | undefined) => CCPRosterMember[];
         forget: (arg0: string) => boolean;
         clear: () => void;
         takeChanges: () => {
@@ -385,6 +386,20 @@ declare namespace CCPRoster {
         };
     };
 }
+type CCPRosterEntry = {
+    caseId: string;
+    kind: string;
+    subjectId: string;
+    version: number;
+    members: {
+        userEmail: string;
+        sourceApplication: string;
+        joinedAt: string;
+    }[];
+    via: {
+        [x: string]: boolean;
+    };
+};
 declare namespace CCPSectionNames {
     namespace DISPLAY_NAMES {
         let CASE: string;
@@ -487,6 +502,36 @@ declare namespace CCPUtil {
      * @returns {string}
      */
     function stamp(date?: Date): string;
+}
+declare namespace CCPView {
+    /**
+     * @param {{
+     *   members: CCPRosterMember[] | undefined,
+     *   viewerEmail?: string,
+     *   countSelf?: boolean,
+     *   locked?: boolean,
+     *   formatTime?: function((string|undefined)): (string|undefined)
+     * }} options
+     *   viewerEmail  the reader; "" or absent means unknown, and then nobody is
+     *                filtered or marked (one person too many beats hiding a colleague)
+     *   countSelf    true keeps the reader in, marked "(current user)"
+     *   locked       web components only: the case lock leads the summary
+     *   formatTime   how to say when someone arrived; CCPJoined.format by default
+     * @returns {{people: CCPPerson[], count: number, includesSelf: boolean, summary: string, lines: string[]}}
+     */
+    function build(options: {
+        members: CCPRosterMember[] | undefined;
+        viewerEmail?: string;
+        countSelf?: boolean;
+        locked?: boolean;
+        formatTime?: (arg0: (string | undefined)) => (string | undefined);
+    }): {
+        people: CCPPerson[];
+        count: number;
+        includesSelf: boolean;
+        summary: string;
+        lines: string[];
+    };
 }
 declare namespace CCPJsonp {
     /**

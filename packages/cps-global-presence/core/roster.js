@@ -1,202 +1,138 @@
-/* core/roster.js — snapshot reconciliation + roster. SHARED, MODE 5 FLOOR.
+/* core/roster.js — who is present, per section, from the API's notifications.
  *
- * The one piece of logic worth never writing twice: given the notifications the
- * presence API returns — over JSONP for the legacy clients, over SignalR for the
- * current apps — work out who is present, once per person, across sections.
- *
- * Wire shape (identical on both transports):
+ * Wire shape (the same over JSONP and SignalR):
  *   notifications[] -> { payload: { snapshots: [ ... ] } }
  *   snapshot        -> { section: {caseId, kind, subjectId}, version, members[] }
  *   member          -> { userEmail, sourceApplication, joinedAt }
  *
- * Poll returns DELTAS with no ordering guarantee, so a snapshot replaces a
- * section's cached roster only when its version is strictly NEWER. An empty
- * members array at a newer version correctly clears that section.
+ * Snapshots arrive as unordered deltas, so one replaces a section's roster only
+ * when its version is strictly newer. An empty members list at a newer version
+ * clears the section.
+ *
+ * The hub sends a session every section that CONFLICTS with it, not just its own
+ * — someone in the case review while we are on the case. So each entry remembers
+ * which of our sections delivered it (`via`), and forgetting one of our sections
+ * also drops whatever only it delivered. Without that, a conflict roster outlives
+ * the session that reported it, for the life of the page.
+ *
+ * `delete` is barred at the mode 5 floor, so maps are rebuilt rather than edited.
+ * Keys are prefixed "s" where they are section ids, so no id can collide with an
+ * Object.prototype name.
  */
 
 var CCPRoster = {};
 
 /**
- * A roster: apply the API's notifications, ask who is present.
+ * @typedef {{caseId: string, kind: string, subjectId: string, version: number,
+ *            members: {userEmail: string, sourceApplication: string, joinedAt: string}[],
+ *            via: Object<string, boolean>}} CCPRosterEntry
+ */
+
+/**
+ * @param {CCPMember[]|null|undefined} members
+ * @returns {{userEmail: string, sourceApplication: string, joinedAt: string}[]}
+ */
+CCPRoster.normaliseMembers = function (members) {
+  var out = [];
+  var i, m;
+  if (!members || typeof members.length !== "number") {
+    return out;
+  }
+  for (i = 0; i < members.length; i++) {
+    m = members[i];
+    if (m && m.userEmail) {
+      out.push({
+        userEmail: m.userEmail,
+        sourceApplication: m.sourceApplication ? m.sourceApplication : "",
+        joinedAt: m.joinedAt ? m.joinedAt : ""
+      });
+    }
+  }
+  return out;
+};
+
+/**
  * @returns {{
- *   apply: function(CCPNotification[]|null|undefined): boolean,
- *   people: function(): CCPPerson[],
- *   describe: function(): string,
- *   sections: function(): Object,
- *   members: function(string[]|undefined, string=): {userEmail: string, sourceApplication: string, joinedAt: string, sections: {kind: string, isCurrent: boolean}[]}[],
+ *   apply: function((CCPNotification[]|null|undefined), string=): boolean,
+ *   sections: function(): Object<string, CCPRosterEntry>,
+ *   members: function((string[]|undefined), string=): CCPRosterMember[],
  *   forget: function(string): boolean,
  *   clear: function(): void,
  *   takeChanges: function(): {joined: string[], left: string[]}
  * }}
  */
 CCPRoster.createRoster = function () {
+  /** @type {Object<string, CCPRosterEntry>} */
   var sections = {};
   // Who was present the last time takeChanges() was asked, by lower-cased address.
   var lastSeen = {};
 
-  /**
-   * @param {CCPMember[]|null|undefined} members
-   * @returns {{userEmail: string, sourceApplication: string, joinedAt: string}[]}
-   */
-  function normaliseMembers(members) {
-    var out = [];
-    var i, m;
-    if (!members || typeof members.length !== "number") {
-      return out;
-    }
-    for (i = 0; i < members.length; i++) {
-      m = members[i];
-      if (m && m.userEmail) {
-        out.push({
-          userEmail: m.userEmail,
-          sourceApplication: m.sourceApplication ? m.sourceApplication : "",
-          joinedAt: m.joinedAt ? m.joinedAt : ""
-        });
-      }
-    }
-    return out;
-  }
-
   return {
-    // Apply one poll response (or one SignalR notification, wrapped in an array).
-    // Returns true only if something actually changed, so callers redraw and log
-    // on real news rather than on every tick.
-    apply: function (notifications) {
+    // Apply notifications, delivered by our section `via` (optional: SignalR has
+    // one roster per connection and needs no attribution). True only when a
+    // roster actually changed, so callers redraw on news, not on every poll.
+    apply: function (notifications, via) {
       var changed = false;
       var n, notif, snaps, s, snap, key, version, current;
 
       if (!notifications || typeof notifications.length !== "number") {
         return false;
       }
-
       for (n = 0; n < notifications.length; n++) {
         notif = notifications[n];
-        if (!notif || !notif.payload) {
-          continue;
-        }
-        snaps = notif.payload.snapshots;
+        snaps = notif && notif.payload ? notif.payload.snapshots : null;
         if (!snaps || typeof snaps.length !== "number") {
           continue;
         }
         for (s = 0; s < snaps.length; s++) {
           snap = snaps[s];
-          if (!snap) {
-            continue;
-          }
-          key = CCPSections.sectionKey(snap.section);
+          key = snap ? CCPSections.sectionKey(snap.section) : "";
           if (!key) {
             continue;
           }
-          version = snap.version;
-          if (typeof version !== "number") {
-            // A missing or non-numeric version cannot be ordered. String() keeps
-            // parseInt honest about undefined, and the resulting NaN makes every
-            // comparison below false — so an unversioned snapshot is always
-            // accepted, which is the best available behaviour when the server
-            // gives us nothing to order by.
-            version = parseInt(String(version), 10);
-          }
           current = sections[key];
-          if (current && typeof current.version === "number" && !isNaN(version) && version <= current.version) {
-            continue; // stale / out-of-order — keep the newer cached roster
+          if (current && via) {
+            current.via["s" + via] = true;
+          }
+          // A missing version cannot be ordered: parseInt gives NaN, every
+          // comparison is false, and the snapshot is accepted.
+          version = typeof snap.version === "number" ? snap.version : parseInt(String(snap.version), 10);
+          if (current && !isNaN(version) && version <= current.version) {
+            continue;
           }
           sections[key] = {
-            caseId: snap.section && snap.section.caseId != null ? String(snap.section.caseId) : "",
-            kind: snap.section && snap.section.kind != null ? String(snap.section.kind) : "",
-            subjectId: snap.section && snap.section.subjectId != null ? String(snap.section.subjectId) : "",
+            caseId: String(snap.section && snap.section.caseId != null ? snap.section.caseId : ""),
+            kind: String(snap.section && snap.section.kind != null ? snap.section.kind : ""),
+            subjectId: String(snap.section && snap.section.subjectId != null ? snap.section.subjectId : ""),
             version: version,
-            members: normaliseMembers(snap.members)
+            members: CCPRoster.normaliseMembers(snap.members),
+            via: current ? current.via : {}
           };
+          if (via) {
+            sections[key].via["s" + via] = true;
+          }
           changed = true;
         }
       }
       return changed;
     },
 
-    // ONE PERSON, ONE ENTRY. Someone can be in several sections at once — on the
-    // case AND editing a witness within it — and a UI must say that once, listing
-    // their regions, rather than showing them twice.
-    people: function () {
-      var byUser = {};
-      var order = [];
-      var out = [];
-      var key, entry, j, member, id, i;
-
-      for (key in sections) {
-        if (!sections.hasOwnProperty(key)) {
-          continue;
-        }
-        entry = sections[key];
-        for (j = 0; j < entry.members.length; j++) {
-          member = entry.members[j];
-          id = String(member.userEmail ? member.userEmail : "").toLowerCase();
-          if (!id) {
-            continue;
-          }
-          if (!byUser.hasOwnProperty(id)) {
-            byUser[id] = { userEmail: member.userEmail, regions: [], apps: [] };
-            order.push(id);
-          }
-          byUser[id].regions.push(entry.kind + (entry.subjectId ? ":" + entry.subjectId : ""));
-          if (member.sourceApplication && CCPUtil.indexOf(byUser[id].apps, member.sourceApplication) === -1) {
-            byUser[id].apps.push(member.sourceApplication);
-          }
-        }
-      }
-
-      for (i = 0; i < order.length; i++) {
-        out.push(byUser[order[i]]);
-      }
-      return out;
-    },
-
-    describe: function () {
-      var people = this.people();
-      var parts = [];
-      var i, person;
-      if (!people.length) {
-        return "(nobody)";
-      }
-      for (i = 0; i < people.length; i++) {
-        person = people[i];
-        parts.push(person.userEmail + " [" + person.regions.join(",") + "]" + (person.apps.length ? " via " + person.apps.join(",") : ""));
-      }
-      return parts.join(" | ");
-    },
-
     sections: function () {
       return sections;
     },
 
-    // EVERY MEMBER RECORD, FLATTENED, in the shape CCPPeople.collapse takes.
-    //
-    // people() predates the shared collapse and reports raw application names with
-    // no arrival times; this hands the shared code what it needs instead, so both
-    // Modern skins can say the same things the web components do.
-    //
-    // ourSectionIds is what makes isCurrent meaningful. The hub sends a session
-    // every section it CONFLICTS with, not just the one it bound to, so this roster
-    // legitimately holds sections we never registered — someone on the case while
-    // we are reviewing it. Those are news, but they are not the section in front of
-    // the reader, and only the caller knows which sections it asked for.
-    //
-    // caseId, when given, keeps only that case. The roster outlives a navigation
-    // — Classic walks from case to case within one shell, and sections for a case
-    // the reader has left are still held — so a client that says "who is on THIS
-    // case" has to name it. Modern passes nothing and gets every case in the
-    // roster, which is what it has always had.
+    // Every member record, flattened, in the shape CCPView takes. Each record's
+    // section is marked isCurrent when it is one of ours (ourSectionIds), and its
+    // kind loses the CIN suffix, which the naming tables do not know. caseId, when
+    // given, keeps only that case.
     members: function (ourSectionIds, caseId) {
       var out = [];
       var mine = {};
       var ours = ourSectionIds || [];
       var key, entry, i, j;
-
-      // Prefixed so a section id can never collide with a name on Object.prototype
-      // — "constructor" as a key would otherwise read as already present.
       for (i = 0; i < ours.length; i++) {
         mine["s" + ours[i]] = true;
       }
-
       for (key in sections) {
         if (!sections.hasOwnProperty(key)) {
           continue;
@@ -210,8 +146,6 @@ CCPRoster.createRoster = function () {
             userEmail: entry.members[j].userEmail,
             sourceApplication: entry.members[j].sourceApplication,
             joinedAt: entry.members[j].joinedAt,
-            // The wire kind carries the CIN suffix; the shared naming and rules
-            // tables know only the documented kinds, so it comes off here.
             sections: [{ kind: CCPEnvironment.baseKind(entry.kind), isCurrent: mine.hasOwnProperty("s" + key) }]
           });
         }
@@ -219,39 +153,47 @@ CCPRoster.createRoster = function () {
       return out;
     },
 
-    // Forget ONE section — its session has gone, so its roster is no longer
-    // evidence of anything. Distinct from clear(): the other sections a user is
-    // in are still live and their rosters still true.
-    // Rebuilt rather than deleted: `delete` is barred at the mode 5 floor (it
-    // cannot remove a window expando there, and the checker cannot tell a plain
-    // object from a window). A roster holds a handful of sections, so copying is
-    // free.
+    // Our section `sectionId` has gone (left, or evicted). Drop its own roster, and
+    // every conflict roster it alone delivered. True when anything was dropped.
     forget: function (sectionId) {
+      /** @type {Object<string, CCPRosterEntry>} */
       var next = {};
-      var key;
-      var found = false;
+      var dropped = false;
+      var key, entry, via, k, others;
       for (key in sections) {
         if (!sections.hasOwnProperty(key)) {
           continue;
         }
+        entry = sections[key];
         if (key === sectionId) {
-          found = true;
-        } else {
-          next[key] = sections[key];
+          dropped = true;
+          continue;
         }
+        via = {};
+        others = false;
+        for (k in entry.via) {
+          if (entry.via.hasOwnProperty(k) && k !== "s" + sectionId) {
+            via[k] = true;
+            others = true;
+          }
+        }
+        if (entry.via.hasOwnProperty("s" + sectionId) && !others) {
+          dropped = true;
+          continue;
+        }
+        entry.via = via;
+        next[key] = entry;
       }
       sections = next;
-      return found;
+      return dropped;
     },
 
     clear: function () {
       sections = {};
     },
 
-    // WHO ARRIVED AND WHO LEFT since the last time this was asked, across every
-    // section held. For the log: the whole roster on every change says the same
-    // names over and over, and the arrival or departure that made a banner appear
-    // or vanish is the one thing a reader of the log is looking for.
+    // Who arrived and who left since the last call, across every section held:
+    // the log's account of what made a banner appear or vanish.
     takeChanges: function () {
       var now = {};
       var joined = [];
