@@ -38,6 +38,7 @@ import { initialisePageLifecycle } from "./services/browser/navigation/page-life
 import { TrackException } from "./services/analytics/TrackException";
 import { summariseResults } from "./utils/summarise-results";
 import { exposeDevStore } from "./services/dev/expose-dev-store";
+import { initialiseVerboseLogging } from "./services/verbose-logging/initialise-verbose-logging";
 
 const { _error } = makeConsole("global-script");
 
@@ -70,6 +71,9 @@ const initialise = async (window: Window & typeof globalThis) => {
 
     const build = initialiseBuild({ window, register });
     const rootUrl = initialiseRootUrl({ register });
+    // Verbose (_debug) output is buffered until this decides — immediately for a
+    // local bundle, otherwise once the preview state is in. See verbose-logging.ts.
+    const { resolveVerboseLoggingFromPreview } = initialiseVerboseLogging({ rootUrl });
     initialiseNavigateCms({ window, rootUrl });
 
     const flags = initialiseApplicationFlags({ window, rootUrl, register });
@@ -89,6 +93,8 @@ const initialise = async (window: Window & typeof globalThis) => {
       initialiseCmsSessionHint({ rootUrl, flags, register }),
       initialiseConfig({ rootUrl, flags, register }),
     ]);
+
+    resolveVerboseLoggingFromPreview(preview);
 
     initialiseOutSystemsReconcileAuth({ window, flags, config });
 
