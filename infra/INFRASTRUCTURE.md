@@ -186,6 +186,17 @@ Both registrations request **more than the runtime code uses**. At runtime the c
 | Delegated | **User.Read**        |
 | Delegated | GroupMember.Read.All |
 
+**Consent and assignment as granted** (`az ad app permission list-grants` / `az ad sp show`, 2026-11-11):
+
+| | Pre-prod (`8d6133af`) | Prod (`295ecc3c`) |
+| --- | --- | --- |
+| Admin consent (`AllPrincipals`) | `GroupMember.Read.All GroupMember.ReadWrite.All User.Read User.Read.All`, plus a separate `user_impersonation` grant | `GroupMember.Read.All User.Read` |
+| User assignment required | `false` | `false` |
+| Service principal enabled | `true` | `true` |
+| Service principal object ID | — | `d8abf9cd-c67b-4091-ae93-bb56b8caf2e1` |
+
+The prod reg's tenant-wide `User.Read` grant is what lets the runtime sign anyone in without a consent prompt. With assignment not required, any tenant user can sign in, subject to Conditional Access.
+
 #### 2.4.2 Registered redirect URIs (authoritative, from `az ad app show`)
 
 Entra matches redirect URIs by exact string, so the registrations are the source of truth — **not** the config. Redirect URIs are **split by tier**: prod handovers on the prod reg (`295ecc3c`), dev/test/uat handovers on the pre-prod reg (`8d6133af`).
@@ -224,9 +235,23 @@ LACC pages omit `&stage=ad-redirect`; housekeeping pages have no query at all. C
 Notes:
 
 - **The three `polaris-dev-notprod`-`src` dev rows were added 2026-10-09** (FCT2-22288), when `config.dev.json` moved from borrowing Polaris QA's host onto Polaris dev's own. The three `polaris-qa-notprod`-`src` dev rows are the pre-move equivalents, kept so dev keeps working across the deploy; remove them once the dev config is live.
-- **The two prod rows contradict the tier split** — prod handovers belong on `295ecc3c`. Likely leftovers from before the prod reg existed; candidates for removal once prod's `AD_CLIENT_ID` is confirmed as `295ecc3c`.
+- **The two prod rows contradict the tier split.** Prod handovers belong on `295ecc3c`, which has carried them since before RNAV-44 (see the prod table below). These rows are what prod signs in with until RNAV-44's `AD_CLIENT_ID` switch is deployed, and they stay the rollback path after it. Remove them only once the switch has been live and stable for a while.
 - **No `oapps-dev-notprod` row yet** — needed at the dev step of the oapps cutover (`TODO.md`), with the `polaris-dev-notprod` `src`.
-- **Not yet captured here:** the pre-prod reg's **Web** redirect URIs (CMS-auth OIDC) and the prod reg's SPA list.
+- **Not yet captured here:** the pre-prod reg's **Web** redirect URIs (CMS-auth OIDC).
+
+**Prod reg (`295ecc3c`) — SPA redirect URIs** (`az ad app show --id 295ecc3c-ae64-45c1-941d-b54b539b30aa --query "spa.redirectUris"`, 2026-11-11):
+
+| Env  | Page                                                                       | `src` bundle host / env | `&stage=ad-redirect` |
+| ---- | -------------------------------------------------------------------------- | ----------------------- | :------------------: |
+| prod | `https://polaris.cps.gov.uk/global-components/prod/auth-handover.html`     | `polaris` / `prod`      | ✓ |
+| prod | `https://cps.outsystemsenterprise.com/Casework_Patterns/auth-handover.html` | `polaris` / `prod`      | ✓ |
+| —    | `https://housekeeping.cps.gov.uk/global-components-msal-redirect.html`     | _(no query)_            | — |
+
+Notes:
+
+- **These match `config.prod.json`'s `msalRedirectUrl`s exactly**, apart from the `{scheme}://localhost` fallback context. That one is local-development only and isn't registered on either reg.
+- **Verified end to end on 2026-11-11, before RNAV-44 was deployed.** Prod `config.json` was overridden in the tester's browser only, using Chrome DevTools Local Overrides. Silent SSO and the full-page redirect both completed on Polaris and on OutSystems: `client_id=295ecc3c` sent, token POST 200, user landed back at the expected page. To exercise the redirect leg directly, open `auth-handover.html?src=…&stage=ad-redirect&returnTo=<same-origin URL>`.
+- **An AADSTS53003 seen in Incognito during that test came from `as-web-polaris-appreg` (`1484c178`), not this reg.** That's Polaris UI's own app hitting device-based Conditional Access on an unregistered device. Conditional Access scoped to particular user groups was not checked.
 
 ---
 
