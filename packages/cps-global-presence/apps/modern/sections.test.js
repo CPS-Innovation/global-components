@@ -78,9 +78,8 @@ h.test("Classic is not ours — it has its own client and its own detectors", fu
 
 h.describe("the section, not just its id");
 
-h.test("carries the app it was found in, for diagnostics", function () {
+h.test("carries its case", function () {
   var m = at("https://polaris-qa-notprod.cps.gov.uk/dcf/review/124253/guid");
-  h.assertEqual(m.activeSections()[0].hint, { app: "DCF" });
   h.assertEqual(m.activeSections()[0].caseId, "124253");
 });
 

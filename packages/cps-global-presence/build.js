@@ -170,7 +170,7 @@ write(classic.out, lines([
   " * Injected into the persistent CMS Classic frameset shell (uaglCMS.aspx <head>),",
   " * which loads once per session and persists THROUGH login. Two independent",
   " * concerns, each its own IIFE so a failure in one cannot affect the other:",
-  " *   1. section presence + the contact-edit logger",
+  " *   1. section presence",
   " *   2. the login -> auth iframe hand-off",
   " *",
   " * Document mode 5 (old JScript): no const/let/arrow, no trailing commas, no",

@@ -6,19 +6,14 @@
  * module rather than as a function buried in each client.
  *
  * A DETECTOR is `{ kind, detect: function (scope) -> section | section[] | null }`.
- * `scope` is whatever the host app hands over — Classic passes a frame's window,
- * Modern passes a URL string — because how you FIND a section is irreducibly
+ * `scope` is whatever the host app hands over — Classic passes the frames it
+ * found, Modern passes a URL string — because how you FIND a section is irreducibly
  * app-specific, while what a section IS is not.
  *
  * PLURAL ON PURPOSE. A user can be in several sections at once: on the case AND
  * editing a witness within it. The roster is keyed by section and has always
  * coped; it was the locators that returned only the first match and silently
  * dropped the rest.
- *
- * `hint` travels with a section untouched by shared code. Classic uses it to
- * remember which frame a section was found in; Modern uses it for diagnostics.
- * Anything app-specific goes there rather than widening the section shape for
- * everyone.
  *
  * THE CIN SUFFIX IS APPLIED HERE, and this is the only place it is applied. It is
  * a property of the wire identity, so it goes on where the wire identity is built
@@ -49,10 +44,9 @@ var CCPLocator = {};
  * @param {string|number|null|undefined} caseId
  * @param {string|null|undefined} kind the documented kind, unsuffixed
  * @param {string|number|null=} subjectId
- * @param {*=} hint app-specific payload, passed through untouched
- * @returns {{id: string, caseId: string, kind: string, subjectId: string, hint: *}|null}
+ * @returns {{id: string, caseId: string, kind: string, subjectId: string}|null}
  */
-CCPLocator.section = function (caseId, kind, subjectId, hint) {
+CCPLocator.section = function (caseId, kind, subjectId) {
   // Suffixed for the id, stripped for the kind. baseKind is not merely the input
   // echoed back: a caller that passes an already-suffixed kind (the hand-written
   // Classic client's constants, a kind read back off the wire) gets the same
@@ -65,8 +59,7 @@ CCPLocator.section = function (caseId, kind, subjectId, hint) {
     id: id,
     caseId: String(caseId),
     kind: CCPEnvironment.baseKind(kind),
-    subjectId: subjectId !== undefined && subjectId !== null ? String(subjectId) : "",
-    hint: hint
+    subjectId: subjectId !== undefined && subjectId !== null ? String(subjectId) : ""
   };
 };
 
@@ -75,8 +68,7 @@ CCPLocator.section = function (caseId, kind, subjectId, hint) {
  * where the address IS the context: on /dcf/ you are reviewing a case, and in the
  * viewer you are on one.
  *
- * @param {{kind: string, pattern: RegExp, caseIdGroup?: number, subjectIdGroup?: number,
- *          hint?: *}} spec
+ * @param {{kind: string, pattern: RegExp, caseIdGroup?: number, subjectIdGroup?: number}} spec
  * @returns {{kind: string, detect: function(*): Object|null}}
  */
 CCPLocator.urlDetector = function (spec) {
@@ -93,7 +85,7 @@ CCPLocator.urlDetector = function (spec) {
         return null;
       }
       var subjectId = spec.subjectIdGroup ? match[spec.subjectIdGroup] : null;
-      return CCPLocator.section(match[caseIdGroup], spec.kind, subjectId, spec.hint);
+      return CCPLocator.section(match[caseIdGroup], spec.kind, subjectId);
     }
   };
 };

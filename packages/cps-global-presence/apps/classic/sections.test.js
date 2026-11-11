@@ -248,27 +248,40 @@ h.test("the case never outranks a finer section — the stripe follows the first
   h.assertEqual(m.activeSections()[m.activeSections().length - 1].kind, "CASE");
 });
 
-h.describe("the contact-edit key");
+h.describe("the witness list");
 
-// hint.key drives the contact-edit events (updateEvents in main.js), which fire
-// on TRANSITION: a changed key is read as a different record and emits "closed"
-// then "editing". The CIN suffix is not known at load — it arrives with whoami —
-// so a key taken from section.id would change under an open panel the moment it
-// did, for a record nobody touched. Rebuilt from the unsuffixed kind instead.
-h.test("is free of the CIN suffix, so it cannot move when the suffix arrives", function () {
-  var m = locate(shell(caseReviewFrame()));
-  var sections = m.activeSections();
-  h.assertEqual(sections[0].id, CASE + ":" + wire("CASE_REVIEW"), "precondition: the id IS suffixed");
-  h.assertEqual(sections[0].hint.key, CASE + ":CASE_REVIEW");
+// The witness tab of the documents screen, with the edit panel open (or a merge or
+// delete chosen) and these witness ids ticked.
+function witnessTab(ticked, action) {
+  var win = frame(BASE + "Case/uacgSelectDocument.aspx?intCaseID=" + CASE, { sCallMode: "witness" }, {
+    cboNWitnessMode: "2",
+    cboYAction: action || "",
+    hidWitnessIdCSV: ticked
+  });
+  var fields = win.document.getElementById;
+  win.document.getElementById = function (id) {
+    return id === "tblWitnessDetails" ? { currentStyle: { display: action ? "none" : "block" } } : fields(id);
+  };
+  return win;
+}
+
+h.test("one ticked witness is one section", function () {
+  var m = locate(shell(CASE_DETAILS, [witnessTab("501")]));
+  h.assertEqual(m.activeSectionIds(), [CASE + ":" + wire("VICTIM_WITNESS") + ":501", CASE + ":" + wire("CASE")]);
 });
 
-// Only the contact panel needs a finer key, and it sets its own — that one must
-// still win over the fallback.
-h.test("a reader that sets its own key keeps it", function () {
-  var m = locate(shell(CASE_DETAILS, [defendantFrame()]));
-  var sections = m.activeSections();
-  h.assertEqual(sections[0].kind, "DEFENDANT", "precondition: the panel is first");
-  h.assertEqual(sections[0].hint.key, CASE + "/88112/defendant");
+h.test("several ticked witnesses are a section each — a merge acts on all of them", function () {
+  var m = locate(shell(CASE_DETAILS, [witnessTab("501,502", "5")]));
+  h.assertEqual(m.activeSectionIds(), [
+    CASE + ":" + wire("VICTIM_WITNESS") + ":501",
+    CASE + ":" + wire("VICTIM_WITNESS") + ":502",
+    CASE + ":" + wire("CASE")
+  ]);
+});
+
+h.test("none ticked is no witness section", function () {
+  var m = locate(shell(CASE_DETAILS, [witnessTab("")]));
+  h.assertEqual(m.activeSectionIds(), [CASE + ":" + wire("CASE")]);
 });
 
 h.describe("frames we cannot read");

@@ -5,8 +5,8 @@
  * that is all. It cannot change CMS behaviour, which is the whole licence for
  * running inside someone else's application.
  *
- * Moved verbatim out of the single-file client. Document mode 5 is why these
- * exist at all — no querySelector, no URL/URLSearchParams, no String.trim.
+ * Document mode 5 is why these exist at all — no querySelector, no
+ * URL/URLSearchParams, no String.trim.
  */
 
 // How deep to recurse into nested frames before giving up. CMS nests several
@@ -44,33 +44,6 @@ function splitCsv(win, s) {
     }
   } catch (e) { }
   return String(s == null ? "" : s).split(",");
-}
-
-// The contact-recorder id for a person: prefer the per-index witness column,
-// else look the person up in the "personId,version,recorderId|..." cache so it
-// resolves whichever role row (Victim or Witness) was clicked.
-function recorderIdFor(win, personId, idx) {
-  var perIdx = splitCsv(win, fieldVal(win, "hidint64OldContactRecorderIdCSV"));
-  var v = perIdx[idx];
-  if (v && v !== "0") {
-    return v;
-  }
-  var cache = fieldVal(win, "hidContactRecorderWitnessCache");
-  if (cache) {
-    var rows = cache.split("|");
-    var i;
-    var cells;
-    for (i = 0; i < rows.length; i++) {
-      if (!rows[i]) {
-        continue;
-      }
-      cells = rows[i].split(",");
-      if (cells[0] === personId) {
-        return cells[2];
-      }
-    }
-  }
-  return "";
 }
 
 // Reproduce customClickedRow's row->slot-index math from the selected row.

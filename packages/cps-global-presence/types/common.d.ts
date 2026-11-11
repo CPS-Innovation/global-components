@@ -468,6 +468,62 @@ declare namespace CCPView {
         lines: string[];
     };
 }
+declare namespace CCPClient {
+    let JSONP_PATH: string;
+    let PREVIEW_PATH: string;
+    let TICK_MS: number;
+    let TIMEOUT_MS: number;
+    /**
+     * @param {{
+     *   appName: string,
+     *   sections: function(): Array<{id: string, caseId: string}>,
+     *   render: function(?{count: number, summary: string, lines: string[]}, string): void,
+     *   passMs: number,
+     *   echo: boolean,
+     *   hideOnTrouble?: boolean,
+     *   dropSectionOnError?: boolean,
+     *   afterPass?: function(): void,
+     *   diagnostics?: Object<string, function(): *>
+     * }} o
+     *   appName             sent with every call; the adapter defaults a missing one to "CMS Classic"
+     *   sections            what is on screen now, primary first; called once per pass
+     *   render              draw a view, or hide when given null; the reason is for logging
+     *   echo                write the log to the console as well (the verboseLogging
+     *                       preview flag turns it on either way)
+     *   hideOnTrouble       hide on any failed call, and redraw once every section
+     *                       answers again (Classic); otherwise just retry (Modern)
+     *   dropSectionOnError  passed to CCPSessions
+     *   afterPass           runs at the end of every pass
+     *   diagnostics         extra members for window.__ccPresence
+     * @returns {{start: function(): void, stop: function(): void, reconcile: function(): void,
+     *            onNotifications: function(Array, string=): void}}
+     */
+    function createClient(o: {
+        appName: string;
+        sections: () => Array<{
+            id: string;
+            caseId: string;
+        }>;
+        render: (arg0: {
+            count: number;
+            summary: string;
+            lines: string[];
+        } | null, arg1: string) => void;
+        passMs: number;
+        echo: boolean;
+        hideOnTrouble?: boolean;
+        dropSectionOnError?: boolean;
+        afterPass?: () => void;
+        diagnostics?: {
+            [x: string]: () => any;
+        };
+    }): {
+        start: () => void;
+        stop: () => void;
+        reconcile: () => void;
+        onNotifications: (arg0: any[], arg1: string | undefined) => void;
+    };
+}
 declare namespace CCPJsonp {
     /**
      * window[name] = value. JSONP callbacks must be real top-level globals (the njs
@@ -514,23 +570,20 @@ declare namespace CCPLocator {
      * @param {string|number|null|undefined} caseId
      * @param {string|null|undefined} kind the documented kind, unsuffixed
      * @param {string|number|null=} subjectId
-     * @param {*=} hint app-specific payload, passed through untouched
-     * @returns {{id: string, caseId: string, kind: string, subjectId: string, hint: *}|null}
+     * @returns {{id: string, caseId: string, kind: string, subjectId: string}|null}
      */
-    function section(caseId: string | number | null | undefined, kind: string | null | undefined, subjectId?: (string | number | null) | undefined, hint?: any | undefined): {
+    function section(caseId: string | number | null | undefined, kind: string | null | undefined, subjectId?: (string | number | null) | undefined): {
         id: string;
         caseId: string;
         kind: string;
         subjectId: string;
-        hint: any;
     } | null;
     /**
      * A detector driven entirely by the page URL — the whole story for Modern and DCF,
      * where the address IS the context: on /dcf/ you are reviewing a case, and in the
      * viewer you are on one.
      *
-     * @param {{kind: string, pattern: RegExp, caseIdGroup?: number, subjectIdGroup?: number,
-     *          hint?: *}} spec
+     * @param {{kind: string, pattern: RegExp, caseIdGroup?: number, subjectIdGroup?: number}} spec
      * @returns {{kind: string, detect: function(*): Object|null}}
      */
     function urlDetector(spec: {
@@ -538,7 +591,6 @@ declare namespace CCPLocator {
         pattern: RegExp;
         caseIdGroup?: number;
         subjectIdGroup?: number;
-        hint?: any;
     }): {
         kind: string;
         detect: (arg0: any) => any | null;
@@ -629,7 +681,7 @@ declare namespace CCPPreview {
      *          log: function(...*): void,
      *          onChange: (function(): void|undefined)}} options
      * @returns {{flags: function(): Object, known: function(): boolean,
-     *            countSelf: function(): boolean,
+     *            countSelf: function(): boolean, verboseLogging: function(): boolean,
      *            refresh: function(boolean=): void}}
      */
     function createPreview(options: {
@@ -640,6 +692,7 @@ declare namespace CCPPreview {
         flags: () => any;
         known: () => boolean;
         countSelf: () => boolean;
+        verboseLogging: () => boolean;
         refresh: (arg0: boolean | undefined) => void;
     };
 }
@@ -680,7 +733,7 @@ declare namespace CCPSessions {
     };
 }
 declare namespace CCPViewer {
-    let ENV_ATTEMPTS: number;
+    let ATTEMPTS: number;
     let RECHECK_MS: number;
     /**
      * @param {{call: function(string, Object, function(*): void): void,

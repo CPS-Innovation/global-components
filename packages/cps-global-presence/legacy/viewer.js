@@ -66,18 +66,12 @@
 var CCPViewer = {};
 
 /**
- * How many answered whoami calls to spend waiting for an environment we did not
- * get first time, before accepting that there is not one to get.
- *
- * The identity has always been allowed to arrive late — the reconcile timer is
- * calling refresh() anyway, so a whoami that lost a race with the cookie
- * recovered on the next pass. The environment needs the same grace for the same
- * reason, but it cannot be open-ended: presence does not register without one,
- * so an absent session hint would otherwise mean a whoami every three seconds
- * for as long as the tab is open, forever, to be told the same thing. Ten passes
- * is half a minute, which is a lost race; a minute is a missing cookie.
+ * How many answered whoami calls to spend waiting for an identity or environment
+ * we did not get first time. Either can lose a race with the cookie, so the next
+ * pass asks again; but not forever, or a token without them would mean a whoami
+ * every pass for the life of the tab. Ten passes is half a minute.
  */
-CCPViewer.ENV_ATTEMPTS = 10;
+CCPViewer.ATTEMPTS = 10;
 
 /**
  * The least time between two auth-failure rechecks. A 401 arrives on every call
@@ -123,7 +117,7 @@ CCPViewer.createViewer = function (options) {
   // The reader's group IDs, lower-cased by the adapter. [] until whoami answers.
   /** @type {string[]} */
   var groups = [];
-  var envAttempts = 0;
+  var incomplete = 0;
   var inFlight = false;
   var lastRecheck = 0;
   // getTime(), not Date.now(): the floor is document mode 5.
@@ -138,7 +132,7 @@ CCPViewer.createViewer = function (options) {
   // waits on, so it gets a bounded retry of its own rather than the first
   // answer's silence standing for the session.
   function settled() {
-    return !!email && (!!cmsEnv || envAttempts >= CCPViewer.ENV_ATTEMPTS);
+    return (!!email && !!cmsEnv) || incomplete >= CCPViewer.ATTEMPTS;
   }
 
   /**
@@ -200,8 +194,8 @@ CCPViewer.createViewer = function (options) {
       // mean "cannot be told", and neither needs telling apart.
       claimKeys = data.claimKeys ? String(data.claimKeys) : "";
       groups = readGroups(data.groups);
-      if (!cmsEnv) {
-        envAttempts = envAttempts + 1;
+      if (!email || !cmsEnv) {
+        incomplete = incomplete + 1;
       }
       options.log(
         "whoami",
@@ -227,8 +221,8 @@ CCPViewer.createViewer = function (options) {
       );
       // Said ONCE, on the pass that stops asking, because this is the line that
       // explains a client which never registered anything at all.
-      if (!cmsEnv && envAttempts === CCPViewer.ENV_ATTEMPTS) {
-        options.log("no CMS environment after " + envAttempts + " attempts — presence will not register");
+      if (incomplete === CCPViewer.ATTEMPTS) {
+        options.log("still " + (cmsEnv ? "no identity" : "no CMS environment") + " after " + incomplete + " attempts — giving up" + (cmsEnv ? "" : "; presence will not register"));
       }
     });
   }

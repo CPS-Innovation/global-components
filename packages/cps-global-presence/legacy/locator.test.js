@@ -78,11 +78,6 @@ h.test("no case means no section, so a detector can just return this", function 
   h.assertEqual(CCPLocator.section("2148456", null), null);
 });
 
-h.test("the hint travels untouched — it is the app's business, not ours", function () {
-  var hint = { popupFrame: "framePage" };
-  h.assertEqual(CCPLocator.section("1", "CASE", null, hint).hint, hint);
-});
-
 h.describe("CCPLocator.urlDetector");
 
 h.test("pulls the case out of the matching group", function () {
