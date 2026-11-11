@@ -1,0 +1,82 @@
+{
+  "groups": {
+    "shared": {
+      "floor": "es3",
+      "files": [
+        "common/presence-environment.js",
+        "common/presence-apps.js",
+        "common/presence-section-names.js",
+        "common/presence-joined.js",
+        "common/presence-people.js",
+        "common/presence-content.js"
+      ]
+    },
+    "esmOnly": {
+      "floor": "es3",
+      "files": ["common/presence-section-rules.js"]
+    },
+    "legacy": {
+      "floor": "es3",
+      "files": [
+        "legacy-apps/common/presence-log.js",
+        "legacy-apps/common/presence-viewer.js",
+        "legacy-apps/common/presence-preview.js",
+        "legacy-apps/common/presence-sections.js",
+        "legacy-apps/common/presence-origin.js",
+        "legacy-apps/common/presence-roster.js",
+        "legacy-apps/common/presence-locator.js",
+        "legacy-apps/common/presence-jsonp.js",
+        "legacy-apps/common/presence-sessions.js"
+      ]
+    },
+    "classicSwitch": {
+      "floor": "es3",
+      "files": ["legacy-apps/classic/kill-switch.js"]
+    },
+    "classic": {
+      "floor": "es3",
+      "files": [
+        "legacy-apps/classic/dom.js",
+        "legacy-apps/classic/sections.js",
+        "legacy-apps/classic/stripe.js",
+        "legacy-apps/classic/event-sink.js",
+        "legacy-apps/classic/main.js"
+      ]
+    },
+    "classicAuth": {
+      "floor": "es3",
+      "files": ["legacy-apps/classic/auth.js"]
+    },
+    "modern": {
+      "floor": "es5",
+      "files": [
+        "legacy-apps/modern/sections.js",
+        "legacy-apps/modern/bar.js",
+        "legacy-apps/modern/main.js"
+      ]
+    }
+  },
+  "bundles": {
+    "modern": {
+      "out": "dist/cms-augmentation/client-modern-unstable.js",
+      "floor": "es5",
+      "iife": ["shared", "legacy", "modern"]
+    },
+    "classic": {
+      "out": "dist/cms-augmentation/client-classic-unstable.js",
+      "floor": "es3",
+      "before": ["classicSwitch"],
+      "iife": ["shared", "legacy", "classic"],
+      "after": ["classicAuth"]
+    },
+    "esm": {
+      "out": "dist/esm/index.js",
+      "esm": ["shared", "esmOnly"],
+      "exports": ["CCPApps", "CCPContent", "CCPEnvironment", "CCPJoined", "CCPPeople", "CCPSectionNames", "CCPSectionRules"]
+    }
+  },
+  "placeholders": {
+    "dist/cms-augmentation/client-classic.js": { "from": "cms-augmentation-placeholders/client-classic.js", "floor": "es3" },
+    "dist/cms-augmentation/client-modern.js": { "from": "cms-augmentation-placeholders/client-modern.js", "floor": "es5" }
+  }
+}

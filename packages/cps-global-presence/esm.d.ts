@@ -4,7 +4,7 @@
  * Hand-written and deliberately small. The generated types/ describe common/ as
  * GLOBALS (that is how the legacy bundles consume it); this describes the same
  * code as an ES module, which is how the web components consume it. Keep the two
- * exports here in step with ESM_EXPORTS in build.sh — the list is short precisely
+ * exports here in step with bundles.esm.exports in bundles.json — the list is short precisely
  * so that staying in step is easy.
  */
 declare module "cps-global-presence" {

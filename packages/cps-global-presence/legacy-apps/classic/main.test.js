@@ -30,7 +30,7 @@
  * reasoning as stripe.test.js and modern/bar.test.js). The rendering is exercised
  * in CMS, where the document mode is the thing under test.
  *
- * This loads the WHOLE Classic presence bundle, in build.sh's order, because the
+ * This loads the WHOLE Classic presence bundle, from bundles.json, because the
  * subject is the composition — sessions and roster included — rather than any one
  * function. main.js starts its loop on load, which is why the window below has
  * timers and attachEvent on it.
@@ -106,30 +106,8 @@ function shell() {
   return top;
 }
 
-// build.sh's CLASSIC bundle: the kill switch, then common/, then classic/.
-var BUNDLE = [
-  "legacy-apps/classic/kill-switch.js",
-  "common/presence-environment.js",
-  "common/presence-apps.js",
-  "common/presence-section-names.js",
-  "common/presence-joined.js",
-  "common/presence-people.js",
-  "common/presence-content.js",
-  "legacy-apps/common/presence-log.js",
-  "legacy-apps/common/presence-viewer.js",
-  "legacy-apps/common/presence-preview.js",
-  "legacy-apps/common/presence-sections.js",
-  "legacy-apps/common/presence-origin.js",
-  "legacy-apps/common/presence-roster.js",
-  "legacy-apps/common/presence-locator.js",
-  "legacy-apps/common/presence-jsonp.js",
-  "legacy-apps/common/presence-sessions.js",
-  "legacy-apps/classic/dom.js",
-  "legacy-apps/classic/sections.js",
-  "legacy-apps/classic/stripe.js",
-  "legacy-apps/classic/event-sink.js",
-  "legacy-apps/classic/main.js"
-];
+// The CLASSIC bundle from bundles.json: the kill switch, then common/, then classic/.
+var BUNDLE = h.bundle("classic");
 
 function client(top) {
   // The document is kept on the window so the JSONP helpers below can read the
@@ -418,6 +396,19 @@ h.test("coming back to the case waits for a poll rather than reusing the old ros
 
   r.m.onNotifications(poll(CASE_A, "CASE", [member("ann@cps.gov.uk")]));
   h.assertTrue(shown(r.m).indexOf("ann@cps.gov.uk") !== -1, shown(r.m));
+});
+
+// Same rule for sections the hub sent only because they CONFLICT with ours (here
+// case A's review): leaving case A must forget them too. Today only the section
+// we held is forgotten, so the review's roster is shown again on coming back.
+h.knownBug("coming back to the case does not reuse an old conflict roster", function () {
+  var r = onCaseWithCompany();
+  r.m.onNotifications(poll(CASE_A, "CASE_REVIEW", [member("bob@cps.gov.uk")]));
+  r.top.navigate(caseDetails(CASE_B));
+  r.m.tick();
+  r.top.navigate(caseDetails(CASE_A));
+  r.m.tick();
+  h.assertEqual(shown(r.m), "");
 });
 
 h.describe("saying so when there is nowhere to put it");

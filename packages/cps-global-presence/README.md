@@ -130,7 +130,8 @@ __ccPresence.rosterBySection() // the same, grouped
 
 ## Building
 
-`build.sh` concatenates `common/` then `modern/` into one IIFE. Each common module
+`build.sh` runs `build.js`, which concatenates the files listed in `bundles.json`,
+in that order, into each output. Each common module
 declares its own `CCP*` namespace — one per file, not one shared — because tsc
 infers expando properties within a file but not across files, and that inference is
 what generates the types below. Concatenation rather than modules because the
@@ -218,8 +219,8 @@ when you open `presence-roster.js` is `presence-roster.test.js` beside it. The
 proxy's njs suites live under `tests/` because they need a bundler; these need
 nothing but node.
 
-`test-harness.js` rebuilds the concatenated scope exactly as `build.sh` does —
-same files, same order — so the tests exercise the real composition rather than a
+`test-harness.js` rebuilds the concatenated scope from the same `bundles.json`
+(`h.bundle("classic")`, `h.bundle("modern")`) — so the tests exercise the real composition rather than a
 stand-in, and supplies the small `window`/`document` fakes the transport needs. If
 a test ever needs more of those fakes, treat it as a signal that the code is
 reaching further into the host page than a guest script should.
@@ -227,6 +228,10 @@ reaching further into the host page than a guest script should.
 `build.sh` does not run the tests: a build should not depend on a test pass, and
 the floor checks it *does* run answer a different question — whether the code can
 execute at all.
+
+A bug that is known but not yet fixed is pinned with `h.knownBug(name, fn)`: `fn`
+asserts the correct behaviour, the test passes while it fails, and it starts
+failing once the bug is fixed, so the fix has to turn it into a normal `test()`.
 
 ## Relative URLs resolve against the PAGE, not the script
 

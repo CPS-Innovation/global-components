@@ -1,7 +1,7 @@
 /* test-harness.js — the smallest thing that runs these tests.
  *
  * The sources are concatenated ES3/ES5 scripts sharing one scope, not modules, so
- * there is nothing to require(). load() rebuilds that scope exactly as build.sh
+ * there is nothing to require(). load() rebuilds that scope exactly as build.js
  * does — same files, same order — and hands back the names you ask for, so the
  * tests exercise the real composition rather than a stand-in.
  *
@@ -11,6 +11,21 @@
  */
 var fs = require("fs");
 var path = require("path");
+
+/**
+ * The files of one bundles.json bundle, in build order, for load(): what runs in
+ * the one scope (the kill switch and the IIFE body; not Classic's separate auth
+ * IIFE).
+ * @param {string} name  "classic" | "modern"
+ * @returns {string[]}
+ */
+function bundle(name) {
+  var manifest = JSON.parse(fs.readFileSync(path.join(__dirname, "bundles.json"), "utf8"));
+  var b = manifest.bundles[name];
+  return [].concat(b.before || [], b.iife || b.esm).reduce(function (out, g) {
+    return out.concat(manifest.groups[g].files);
+  }, []);
+}
 
 /**
  * Build the concatenated scope and pull names out of it.
@@ -127,6 +142,32 @@ function test(name, fn) {
   }
 }
 
+// A KNOWN BUG, pinned: fn asserts the CORRECT behaviour and is expected to fail.
+// It passes while the bug is there, and fails once it is fixed, so the fix has
+// to flip it to test() rather than leave a stale marker behind.
+var knownBugs = 0;
+
+function knownBug(name, fn) {
+  var fixed = true;
+  var why = "";
+  try {
+    fn();
+  } catch (err) {
+    fixed = false;
+    why = String(err.message).split("\n").join("\n        ");
+  }
+  if (fixed) {
+    failed = failed + 1;
+    console.log("  FAIL  " + name);
+    console.log("        now passes: change knownBug() to test()");
+  } else {
+    passed = passed + 1;
+    knownBugs = knownBugs + 1;
+    console.log("  bug   " + name);
+    console.log("        " + why);
+  }
+}
+
 function assertEqual(actual, expected, message) {
   var a = JSON.stringify(actual);
   var e = JSON.stringify(expected);
@@ -144,7 +185,7 @@ var summarised = false;
 function report() {
   var rule = new Array(57).join("=");
   console.log("\n" + rule);
-  console.log("Results: " + passed + " passed, " + failed + " failed");
+  console.log("Results: " + passed + " passed, " + failed + " failed" + (knownBugs ? " (" + knownBugs + " known bug(s) pinned)" : ""));
   console.log(rule);
 }
 
@@ -172,8 +213,10 @@ process.on("exit", function () {
 
 module.exports = {
   load: load,
+  bundle: bundle,
   describe: describe,
   test: test,
+  knownBug: knownBug,
   assertEqual: assertEqual,
   assertTrue: assertTrue,
   summarise: summarise,
