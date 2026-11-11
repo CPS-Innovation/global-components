@@ -665,4 +665,48 @@ describe("FEATURE_FLAGS", () => {
       expect(FEATURE_FLAGS.shouldEnableCaseLocking(state)).toBe(true);
     });
   });
+
+  describe("shouldShowOpenInCmsModern", () => {
+    const state = (overrides: { config?: any; preview?: any; flags?: Partial<ApplicationFlags>; authHint?: any } = {}) => ({
+      config: overrides.config ?? ({} as any),
+      preview: overrides.preview ?? { found: true as const, result: {} },
+      flags: (overrides.flags ?? {}) as ApplicationFlags,
+      authHint: overrides.authHint,
+    });
+
+    it("is off with no preview opt-in, no cohort and not local dev (dev and UAT today)", () => {
+      expect(FEATURE_FLAGS.shouldShowOpenInCmsModern(state())).toBe(false);
+    });
+
+    it("is off when the cohort says generallyAvailable: false (prod)", () => {
+      expect(FEATURE_FLAGS.shouldShowOpenInCmsModern(state({ config: { FEATURE_FLAG_OPEN_IN_CMS_MODERN_USERS: { generallyAvailable: false } } }))).toBe(false);
+    });
+
+    it("is on for everyone when the cohort is generallyAvailable (QA)", () => {
+      expect(FEATURE_FLAGS.shouldShowOpenInCmsModern(state({ config: { FEATURE_FLAG_OPEN_IN_CMS_MODERN_USERS: { generallyAvailable: true } } }))).toBe(true);
+    });
+
+    it("is on for a user in a cohort AD group, ahead of general availability", () => {
+      expect(
+        FEATURE_FLAGS.shouldShowOpenInCmsModern(
+          state({
+            config: { FEATURE_FLAG_OPEN_IN_CMS_MODERN_USERS: { generallyAvailable: false, adGroupIds: ["group-a"] } },
+            authHint: { found: true as const, result: { authResult: { isAuthed: true, objectId: "obj-1", groups: ["group-a"] } } },
+          }),
+        ),
+      ).toBe(true);
+    });
+
+    it("is on with the openInCmsModern preview opt-in, whatever the cohort says", () => {
+      expect(
+        FEATURE_FLAGS.shouldShowOpenInCmsModern(
+          state({ config: { FEATURE_FLAG_OPEN_IN_CMS_MODERN_USERS: { generallyAvailable: false } }, preview: { found: true as const, result: { openInCmsModern: true } } }),
+        ),
+      ).toBe(true);
+    });
+
+    it("is on in local development", () => {
+      expect(FEATURE_FLAGS.shouldShowOpenInCmsModern(state({ flags: { isLocalDevelopment: true } }))).toBe(true);
+    });
+  });
 });

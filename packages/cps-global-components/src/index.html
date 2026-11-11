@@ -35,6 +35,8 @@
         if (url.indexOf("/state/preview") !== -1) {
           var body = {
             enabled: true,
+            // "cps" for the CPS theme, "gds" for the plain GOV.UK rebrand, remove for neither
+            newHeader: "cps",
           };
           return Promise.resolve(new Response(JSON.stringify(body), {
             status: 200,
