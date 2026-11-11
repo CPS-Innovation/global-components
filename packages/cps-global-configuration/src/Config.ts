@@ -295,6 +295,12 @@ export const configBaseSchema = z.object({
   // across pre-prod); adGroupIds/adHocUserObjectIds let us pilot with named groups
   // in prod ahead of GA. ORs with the per-user preview flag and local-dev.
   FEATURE_FLAG_ACCESSIBILITY_MODE_USERS: featureFlagUsersSchema.optional(),
+  // Who gets the menu's "Open in…" dropdown (CMS Classic / CMS Modern) in place of
+  // the single "Open in CMS Classic" link. On only where the proxy understands
+  // navigate-cms?target=modern — today that is QA's vnext module; elsewhere CMS
+  // Modern would silently open Classic until the Polaris PR lands. ORs with the
+  // per-user openInCmsModern preview flag and local-dev.
+  FEATURE_FLAG_OPEN_IN_CMS_MODERN_USERS: featureFlagUsersSchema.optional(),
   // Broad on/off for the OutSystems Triage XHR observation shim. The shim
   // also installs when the per-user preview flag is set, so flipping this off
   // disables observation for everyone except preview-flag opt-ins (which is

@@ -4,7 +4,7 @@ import { readyState } from "../../store/store";
 import { FEATURE_FLAGS } from "cps-global-configuration";
 import { renderError } from "../common/render-error";
 import { WithLogging } from "../../logging/WithLogging";
-import { dispatchCmsNavigate, dispatchModernCmsNavigate } from "../../services/navigate-cms/initialise-navigate-cms";
+import { dispatchCmsNavigate } from "../../services/navigate-cms/initialise-navigate-cms";
 
 @Component({
   tag: "cps-global-menu",
@@ -72,20 +72,14 @@ export class CpsGlobalMenu {
                 {level2Links.map(link => (
                   <nav-link {...link}></nav-link>
                 ))}
-                {caseId && (
+                {caseId && !shouldShowOpenInCmsModern && (
                   <li class="inline-link open-in-cms">
                     <button class="linkButton" onClick={() => dispatchCmsNavigate(caseId)}>
                       Open in CMS Classic
                     </button>
                   </li>
                 )}
-                {caseId && shouldShowOpenInCmsModern && (
-                  <li class="inline-link">
-                    <button class="linkButton" onClick={() => dispatchModernCmsNavigate(caseId)}>
-                      Open in CMS Modern
-                    </button>
-                  </li>
-                )}
+                {caseId && shouldShowOpenInCmsModern && <cps-global-open-in-cms caseId={caseId}></cps-global-open-in-cms>}
               </ul>
             </nav>
             <div class={shouldShowCaseDetails ? "background-divider-content-width" : classes.divider}></div>

@@ -27,6 +27,9 @@
   "FEATURE_FLAG_ACCESSIBILITY_MODE_USERS": {
     "generallyAvailable": true
   },
+  "FEATURE_FLAG_OPEN_IN_CMS_MODERN_USERS": {
+    "generallyAvailable": true
+  },
   "FEATURE_FLAG_MENU_USERS": {
     "adGroupIds": ["12377eca-b463-4a6c-80ea-95f678f09591"]
   },

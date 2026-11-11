@@ -115,6 +115,19 @@ export namespace Components {
     interface CpsGlobalNotifications {
     }
     /**
+     * "Open in…" dropdown offering CMS Classic and CMS Modern. The look follows the UCD
+     * prototype's CMS Classic dropdown; the behaviour does not, because the prototype's
+     * is mouse-only.
+     * WHY A DISCLOSURE, NOT role="menu": the ARIA menu pattern promises application-style
+     * keyboard handling (roving focus, typeahead) and takes the options out of the Tab
+     * order. A disclosure button that reveals ordinary buttons is what W3C recommends for
+     * site navigation, and it works with plain Tab as well as with the arrow keys we add.
+     * Closed means `hidden`, so assistive tech and the Tab order see what the eye sees.
+     */
+    interface CpsGlobalOpenInCms {
+        "caseId": number;
+    }
+    /**
      * The pinned notification from the UCD prototype's app-notification-banner-pinned.
      * WHY THIS IS NOT A FLAG ON cps-gds-notification-banner
      * It began as one, and the specialisation outgrew it. This component positions
@@ -330,6 +343,22 @@ declare global {
         prototype: HTMLCpsGlobalNotificationsElement;
         new (): HTMLCpsGlobalNotificationsElement;
     };
+    /**
+     * "Open in…" dropdown offering CMS Classic and CMS Modern. The look follows the UCD
+     * prototype's CMS Classic dropdown; the behaviour does not, because the prototype's
+     * is mouse-only.
+     * WHY A DISCLOSURE, NOT role="menu": the ARIA menu pattern promises application-style
+     * keyboard handling (roving focus, typeahead) and takes the options out of the Tab
+     * order. A disclosure button that reveals ordinary buttons is what W3C recommends for
+     * site navigation, and it works with plain Tab as well as with the arrow keys we add.
+     * Closed means `hidden`, so assistive tech and the Tab order see what the eye sees.
+     */
+    interface HTMLCpsGlobalOpenInCmsElement extends Components.CpsGlobalOpenInCms, HTMLStencilElement {
+    }
+    var HTMLCpsGlobalOpenInCmsElement: {
+        prototype: HTMLCpsGlobalOpenInCmsElement;
+        new (): HTMLCpsGlobalOpenInCmsElement;
+    };
     interface HTMLCpsGlobalPinnedNotificationElementEventMap {
         "cpsDismissed": void;
     }
@@ -418,6 +447,7 @@ declare global {
         "cps-global-home-page-notification": HTMLCpsGlobalHomePageNotificationElement;
         "cps-global-menu": HTMLCpsGlobalMenuElement;
         "cps-global-notifications": HTMLCpsGlobalNotificationsElement;
+        "cps-global-open-in-cms": HTMLCpsGlobalOpenInCmsElement;
         "cps-global-pinned-notification": HTMLCpsGlobalPinnedNotificationElement;
         "cps-global-recent-cases": HTMLCpsGlobalRecentCasesElement;
         "cps-region": HTMLCpsRegionElement;
@@ -538,6 +568,19 @@ declare namespace LocalJSX {
     interface CpsGlobalNotifications {
     }
     /**
+     * "Open in…" dropdown offering CMS Classic and CMS Modern. The look follows the UCD
+     * prototype's CMS Classic dropdown; the behaviour does not, because the prototype's
+     * is mouse-only.
+     * WHY A DISCLOSURE, NOT role="menu": the ARIA menu pattern promises application-style
+     * keyboard handling (roving focus, typeahead) and takes the options out of the Tab
+     * order. A disclosure button that reveals ordinary buttons is what W3C recommends for
+     * site navigation, and it works with plain Tab as well as with the arrow keys we add.
+     * Closed means `hidden`, so assistive tech and the Tab order see what the eye sees.
+     */
+    interface CpsGlobalOpenInCms {
+        "caseId"?: number;
+    }
+    /**
      * The pinned notification from the UCD prototype's app-notification-banner-pinned.
      * WHY THIS IS NOT A FLAG ON cps-gds-notification-banner
      * It began as one, and the specialisation outgrew it. This component positions
@@ -647,6 +690,9 @@ declare namespace LocalJSX {
         "isDcf": boolean;
         "chromeOnly": boolean;
     }
+    interface CpsGlobalOpenInCmsAttributes {
+        "caseId": number;
+    }
     interface CpsGlobalPinnedNotificationAttributes {
         "titleText": string;
         "titleHeadingLevel": number;
@@ -688,6 +734,7 @@ declare namespace LocalJSX {
         "cps-global-home-page-notification": CpsGlobalHomePageNotification;
         "cps-global-menu": CpsGlobalMenu;
         "cps-global-notifications": CpsGlobalNotifications;
+        "cps-global-open-in-cms": Omit<CpsGlobalOpenInCms, keyof CpsGlobalOpenInCmsAttributes> & { [K in keyof CpsGlobalOpenInCms & keyof CpsGlobalOpenInCmsAttributes]?: CpsGlobalOpenInCms[K] } & { [K in keyof CpsGlobalOpenInCms & keyof CpsGlobalOpenInCmsAttributes as `attr:${K}`]?: CpsGlobalOpenInCmsAttributes[K] } & { [K in keyof CpsGlobalOpenInCms & keyof CpsGlobalOpenInCmsAttributes as `prop:${K}`]?: CpsGlobalOpenInCms[K] };
         "cps-global-pinned-notification": Omit<CpsGlobalPinnedNotification, keyof CpsGlobalPinnedNotificationAttributes> & { [K in keyof CpsGlobalPinnedNotification & keyof CpsGlobalPinnedNotificationAttributes]?: CpsGlobalPinnedNotification[K] } & { [K in keyof CpsGlobalPinnedNotification & keyof CpsGlobalPinnedNotificationAttributes as `attr:${K}`]?: CpsGlobalPinnedNotificationAttributes[K] } & { [K in keyof CpsGlobalPinnedNotification & keyof CpsGlobalPinnedNotificationAttributes as `prop:${K}`]?: CpsGlobalPinnedNotification[K] };
         "cps-global-recent-cases": Omit<CpsGlobalRecentCases, keyof CpsGlobalRecentCasesAttributes> & { [K in keyof CpsGlobalRecentCases & keyof CpsGlobalRecentCasesAttributes]?: CpsGlobalRecentCases[K] } & { [K in keyof CpsGlobalRecentCases & keyof CpsGlobalRecentCasesAttributes as `attr:${K}`]?: CpsGlobalRecentCasesAttributes[K] } & { [K in keyof CpsGlobalRecentCases & keyof CpsGlobalRecentCasesAttributes as `prop:${K}`]?: CpsGlobalRecentCases[K] };
         "cps-region": Omit<CpsRegion, keyof CpsRegionAttributes> & { [K in keyof CpsRegion & keyof CpsRegionAttributes]?: CpsRegion[K] } & { [K in keyof CpsRegion & keyof CpsRegionAttributes as `attr:${K}`]?: CpsRegionAttributes[K] } & { [K in keyof CpsRegion & keyof CpsRegionAttributes as `prop:${K}`]?: CpsRegion[K] } & OneOf<"code", CpsRegion["code"], CpsRegionAttributes["code"]>;
@@ -751,6 +798,17 @@ declare module "@stencil/core" {
             "cps-global-home-page-notification": LocalJSX.IntrinsicElements["cps-global-home-page-notification"] & JSXBase.HTMLAttributes<HTMLCpsGlobalHomePageNotificationElement>;
             "cps-global-menu": LocalJSX.IntrinsicElements["cps-global-menu"] & JSXBase.HTMLAttributes<HTMLCpsGlobalMenuElement>;
             "cps-global-notifications": LocalJSX.IntrinsicElements["cps-global-notifications"] & JSXBase.HTMLAttributes<HTMLCpsGlobalNotificationsElement>;
+            /**
+             * "Open in…" dropdown offering CMS Classic and CMS Modern. The look follows the UCD
+             * prototype's CMS Classic dropdown; the behaviour does not, because the prototype's
+             * is mouse-only.
+             * WHY A DISCLOSURE, NOT role="menu": the ARIA menu pattern promises application-style
+             * keyboard handling (roving focus, typeahead) and takes the options out of the Tab
+             * order. A disclosure button that reveals ordinary buttons is what W3C recommends for
+             * site navigation, and it works with plain Tab as well as with the arrow keys we add.
+             * Closed means `hidden`, so assistive tech and the Tab order see what the eye sees.
+             */
+            "cps-global-open-in-cms": LocalJSX.IntrinsicElements["cps-global-open-in-cms"] & JSXBase.HTMLAttributes<HTMLCpsGlobalOpenInCmsElement>;
             /**
              * The pinned notification from the UCD prototype's app-notification-banner-pinned.
              * WHY THIS IS NOT A FLAG ON cps-gds-notification-banner
