@@ -3,16 +3,7 @@ import { readyState } from "../../store/store";
 import { FEATURE_FLAGS } from "cps-global-configuration";
 import { formatJoined } from "../../services/case-locking/format-joined";
 import { CCPContent, CCPView } from "cps-global-presence";
-import { CaseLockingPresentSection } from "../../services/case-locking/CaseLockingPresentUsers";
 import { describeCaseLock, getCaseLock } from "../../services/case-locking/get-case-lock";
-
-// The API's records are denormalised (one per user, per section, per application);
-// CCPView collapses them to one line per person, exactly as the Classic and Modern
-// clients do.
-const toMembers = (sections: CaseLockingPresentSection[]) =>
-  sections.flatMap(section =>
-    section.users.map(user => ({ userEmail: user.user, sourceApplication: user.appName, joinedAt: user.joinedAt, sections: user.sections })),
-  );
 
 // Long enough for assistive tech to have registered the empty live region before
 // it is first given text. See liveRegionReady.
@@ -116,31 +107,29 @@ export class CpsGlobalCaseLockingNotification {
     if (!FEATURE_FLAGS.shouldEnableCaseLocking(state)) {
       return this.renderWithLiveRegion();
     }
-    const present = state.caseLockingPresentUsers;
     // EITHER IS ENOUGH. A lock with nobody present is the ordinary result of someone
     // closing their browser on the Classic case screen — the lock outlives the
     // session — and it is the more consequential of the two facts, so it must be
     // able to raise this banner on its own.
     const lock = getCaseLock(state.caseDetails);
     const locked = !!lock?.locked;
-    if ((!present || present.sections.length === 0) && !locked) {
-      return this.renderWithLiveRegion(this.announceAllClear());
-    }
-
-    // WHO IS READING, so their row can be marked. Narrowed rather than
+    // The store holds the API's records as they came (one per person, per section,
+    // per application, the reader included); CCPView collapses them to one line per
+    // person and leaves the reader out unless caseLockingCountSelf keeps them in —
+    // exactly as the Classic and Modern clients do. Narrowed rather than
     // optional-chained: only the authenticated arm of AuthResult has a username.
-    // countSelf is true because the presence service has already applied the
-    // caseLockingCountSelf preview flag; what reaches the store is what to show.
-    const viewer = state.auth?.isAuthed ? state.auth.username : undefined;
-    // The lock leads the summary and presence follows; only this UI can pass
-    // `locked`, because the legacy clients have no route to the case-details API.
+    // The lock leads the summary; only this UI can pass it, because the legacy
+    // clients have no route to the case-details API.
     const view = CCPView.build({
-      members: toMembers(present?.sections ?? []),
-      viewerEmail: viewer,
-      countSelf: true,
+      members: (state.caseLockingPresentUsers?.sections ?? []).flatMap(section => section.members),
+      viewerEmail: state.auth?.isAuthed ? state.auth.username : undefined,
+      countSelf: FEATURE_FLAGS.shouldCountSelfInCaseLocking(state),
       locked,
       formatTime: formatJoined,
     });
+    if (!view.count && !locked) {
+      return this.renderWithLiveRegion(this.announceAllClear());
+    }
     const summary = view.summary;
 
     return this.renderWithLiveRegion(

@@ -5,7 +5,7 @@ import { Result } from "../../utils/Result";
 import { RegionEnterEvent, RegionLeaveEvent, RegionDetail } from "../../components/cps-global-locking-region/region-events";
 import { CaseIdentifiers } from "../context/CaseIdentifiers";
 import { GetToken } from "../auth/GetToken";
-import { createCaseLockingPresence, CaseLockingPresenceService } from "./case-locking-presence";
+import { createCaseLockingPresence, CaseLockingPresenceService, PresenceRegion, regionKey } from "./case-locking-presence";
 import { makeConsole } from "../../logging/makeConsole";
 
 type Props = {
@@ -33,7 +33,7 @@ const FALLBACK_APP_NAME = "Work Management App";
  *
  * It is a FALLBACK: something must claim presence before any host app has been
  * changed to say where in the case the user actually is. Any other region
- * supersedes it — see applyDesired.
+ * supersedes it — see held().
  */
 const CASE_REGION_CODE = "case";
 
@@ -91,14 +91,7 @@ export const initialiseCaseLocking = ({ window, config, preview, cmsSessionHint,
   // Regions on screen, ref-counted by SECTION IDENTITY (code + subject) rather
   // than by code, so two witness regions for different people are two sections and
   // two regions for the same person are one.
-  const regionKey = (code: string, subjectId?: string) => (subjectId ? `${code}:${subjectId}` : code);
-  const refCounts = new Map<string, number>();
-  const activeRegions = new Map<string, { code: string; subjectId?: string }>();
-  // Only needed to stand down a region whose parts we have already forgotten.
-  const parseRegionKey = (key: string): [string, string | undefined] => {
-    const at = key.indexOf(":");
-    return at === -1 ? [key, undefined] : [key.slice(0, at), key.slice(at + 1)];
-  };
+  const onScreen = new Map<string, { region: PresenceRegion; count: number }>();
 
   /**
    * THE MORE SPECIFIC REGION WINS.
@@ -109,63 +102,43 @@ export const initialiseCaseLocking = ({ window, config, preview, cmsSessionHint,
    * DOM, that section is what we hold and the case-wide one stands down; when the
    * last specific region goes, the fallback comes back.
    *
-   * They cannot both be held. A case-wide session already receives notifications for
-   * every section of its case (see applyNotification), so holding both would
-   * register us twice for one presence and report us to other users as two people.
-   *
-   * Computed from the whole active set rather than decided per event, because the
-   * answer depends on what else is on screen: an enter can retire a region, and a
-   * leave can bring one back.
+   * They cannot both be held: a case-wide session already hears about every
+   * section of its case, so holding both would register us twice for one presence
+   * and report us to other users as two people.
    */
-  const applied = new Set<string>();
+  const held = (): PresenceRegion[] => {
+    const all = Array.from(onScreen.values()).map(({ region }) => region);
+    const specific = all.filter(region => region.code !== CASE_REGION_CODE);
+    return specific.length ? specific : all;
+  };
 
-  const applyDesired = () => {
-    const active = Array.from(activeRegions.entries());
-    const specific = active.filter(([, region]) => region.code !== CASE_REGION_CODE);
-    const desired = new Map(specific.length ? specific : active);
-
-    Array.from(applied).forEach(key => {
-      if (desired.has(key)) {
-        return;
-      }
-      const region = activeRegions.get(key);
-      const [code, subjectId] = region ? [region.code, region.subjectId] : parseRegionKey(key);
-      _debug("standing down region", { key });
-      presence?.removeRegion(code, subjectId);
-      applied.delete(key);
-    });
-    desired.forEach((region, key) => {
-      if (applied.has(key)) {
-        return;
-      }
-      _debug("holding region", { key, code: region.code, subjectId: region.subjectId });
-      presence?.addRegion(region.code, region.subjectId);
-      applied.add(key);
-    });
+  const apply = () => {
+    const regions = held();
+    _debug("holding regions", { regions });
+    presence?.setRegions(regions);
   };
 
   const onEnter = (event: Event) => {
     const { code, subjectId } = (event as RegionEnterEvent).detail as RegionDetail;
-    const key = regionKey(code, subjectId);
-    const next = (refCounts.get(key) ?? 0) + 1;
-    refCounts.set(key, next);
-    activeRegions.set(key, { code, subjectId });
-    _debug("region enter", { key, code, subjectId, refCount: next });
-    applyDesired();
+    const key = regionKey({ code, subjectId });
+    const count = (onScreen.get(key)?.count ?? 0) + 1;
+    onScreen.set(key, { region: { code, subjectId }, count });
+    _debug("region enter", { key, count });
+    apply();
   };
 
   const onLeave = (event: Event) => {
     const { code, subjectId } = (event as RegionLeaveEvent).detail as RegionDetail;
-    const key = regionKey(code, subjectId);
-    const current = refCounts.get(key) ?? 0;
-    if (current <= 1) {
-      refCounts.delete(key);
-      activeRegions.delete(key);
-      _debug("region leave (last)", { key, code, subjectId });
-      applyDesired();
-    } else {
-      refCounts.set(key, current - 1);
-      _debug("region leave (still active)", { key, refCount: current - 1 });
+    const key = regionKey({ code, subjectId });
+    const entry = onScreen.get(key);
+    if (!entry) {
+      return;
+    }
+    entry.count -= 1;
+    _debug("region leave", { key, count: entry.count });
+    if (entry.count <= 0) {
+      onScreen.delete(key);
+      apply();
     }
   };
 
@@ -213,9 +186,6 @@ export const initialiseCaseLocking = ({ window, config, preview, cmsSessionHint,
         // Authorization header at all — the right failure for a guest component
         // that must never trigger an interactive consent prompt.
         getAccessToken: () => getToken({ config: { AD_GATEWAY_SCOPES: config.CASE_LOCKING_SCOPES ?? [] } }),
-        // Read once, at construction: a preview change takes effect on reload,
-        // which is fine for a development switch.
-        countSelf: FEATURE_FLAGS.shouldCountSelfInCaseLocking({ config, preview, auth, authHint: undefined }),
         // EVERY PRESENCE CHANGE RE-READS THE LOCK, on every page that shows one.
         //
         // This was briefly gated to interruption-worthy sections, to spare the
@@ -235,11 +205,8 @@ export const initialiseCaseLocking = ({ window, config, preview, cmsSessionHint,
           onPresenceChanged?.();
         },
       });
-      // Regions that appeared before auth completed. Replayed through the same rule
-      // rather than added wholesale, or a page that already had a specific region on
-      // screen would register the case-wide fallback alongside it.
-      applied.clear();
-      applyDesired();
+      // Regions that appeared before auth completed.
+      apply();
     }
     presence?.setCaseId(caseIdentifiers?.caseId);
   };

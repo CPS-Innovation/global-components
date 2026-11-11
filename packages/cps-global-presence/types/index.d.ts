@@ -368,6 +368,7 @@ declare namespace CCPRoster {
      *   sections: function(): Object<string, CCPRosterEntry>,
      *   members: function((string[]|undefined), string=): CCPRosterMember[],
      *   forget: function(string): boolean,
+     *   rewind: function(): void,
      *   clear: function(): void,
      *   takeChanges: function(): {joined: string[], left: string[]}
      * }}
@@ -379,6 +380,7 @@ declare namespace CCPRoster {
         };
         members: (arg0: (string[] | undefined), arg1: string | undefined) => CCPRosterMember[];
         forget: (arg0: string) => boolean;
+        rewind: () => void;
         clear: () => void;
         takeChanges: () => {
             joined: string[];

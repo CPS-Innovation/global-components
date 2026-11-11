@@ -95,9 +95,12 @@
         "CCPContent",
         "CCPEnvironment",
         "CCPJoined",
+        "CCPKinds",
         "CCPPeople",
+        "CCPRoster",
         "CCPSectionNames",
         "CCPSectionRules",
+        "CCPSections",
         "CCPView"
       ]
     }

@@ -1,4 +1,5 @@
 export {
+  CASE_LOCKING_REGION_CODES,
   configSchema,
   type CmsAuthStorageKeys,
   type Config,

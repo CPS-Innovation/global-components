@@ -9,8 +9,10 @@ Watchdog presence — "who else is working on this case" — for the three UIs:
 | the web components | `dist/esm/index.js` (+ `esm.d.ts`) | modern bundler |
 
 The two legacy clients register over JSONP and draw their own banner. The web
-components hold a SignalR connection of their own and use `core/` for what the
-banner says (`CCPView`).
+components hold a SignalR connection per section and share everything else from
+`core/`: section ids (`CCPSections`), the roster (`CCPRoster`, one per connection),
+the kinds config may name (`CCPKinds`) and what the banner says (`CCPView`).
+
 Everything under `dist/` and
 `types/` is generated: edit the sources and run `./build.sh`.
 

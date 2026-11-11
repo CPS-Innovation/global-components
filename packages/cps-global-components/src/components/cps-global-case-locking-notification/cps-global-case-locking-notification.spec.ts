@@ -7,7 +7,7 @@ const SETTLE_MS = 500;
 const ALL_CLEAR = "Nobody else is working on this case now";
 
 const present = (...users: string[]): CaseLockingPresentUsers => ({
-  sections: [{ code: "CASE", occupiedOnEntry: false, users: users.map(user => ({ user, appName: "CMS", sections: [{ kind: "CASE", isCurrent: true }] })) }],
+  sections: [{ code: "case", occupiedOnEntry: false, members: users.map(userEmail => ({ userEmail, sourceApplication: "CMS", sections: [{ kind: "CASE", isCurrent: true }] })) }],
 });
 const nobody: CaseLockingPresentUsers = { sections: [] };
 
@@ -96,7 +96,7 @@ describe("cps-global-case-locking-notification live region", () => {
 
     // A different object, so the store does see a change and re-renders.
     const again = present("a@cps.gov.uk");
-    again!.sections[0].users[0].joinedAt = "2026-10-26T09:00:00Z";
+    again!.sections[0].members[0].joinedAt = "2026-10-26T09:00:00Z";
     await update({ caseLockingPresentUsers: again });
 
     expect(statusText()).toBe("1 other person is working on this case");
@@ -175,11 +175,11 @@ describe("cps-global-case-locking-notification roster", () => {
       ...ready,
       caseLockingPresentUsers: {
         sections: [
-          { code: "CASE", occupiedOnEntry: false, users: [{ user: "a@cps.gov.uk", appName: "CMS Classic", sections: [{ kind: "CASE", isCurrent: true }] }] },
+          { code: "case", occupiedOnEntry: false, members: [{ userEmail: "a@cps.gov.uk", sourceApplication: "CMS Classic", sections: [{ kind: "CASE", isCurrent: true }] }] },
           {
-            code: "VICTIM_WITNESS",
+            code: "victim_witness",
             occupiedOnEntry: false,
-            users: [{ user: "a@cps.gov.uk", appName: "CMS Classic", sections: [{ kind: "VICTIM_WITNESS", isCurrent: false }] }],
+            members: [{ userEmail: "a@cps.gov.uk", sourceApplication: "CMS Classic", sections: [{ kind: "VICTIM_WITNESS", isCurrent: false }] }],
           },
         ],
       },
@@ -195,5 +195,29 @@ describe("cps-global-case-locking-notification roster", () => {
     const lines = Array.from(page.root!.querySelectorAll("p.govuk-body")).map(p => p.textContent);
 
     expect(lines).toEqual(["a@cps.gov.uk is in the case and a witness or victim — CMS Classic."]);
+  });
+});
+
+// The store holds the roster as the API reported it, the reader included. Leaving
+// the reader out is CCPView's job, here as in the legacy clients, and the
+// caseLockingCountSelf preview flag is what keeps them in.
+describe("cps-global-case-locking-notification and the reader", () => {
+  const me = { isAuthed: true, username: "Me@cps.gov.uk" } as any;
+
+  const linesWith = async (preview: object) => {
+    initialiseStore().register({ ...ready, preview: { found: true, result: preview } as any, auth: me, caseLockingPresentUsers: present("me@cps.gov.uk") });
+    const page = await newSpecPage({
+      components: [CpsGlobalCaseLockingNotification],
+      html: `<cps-global-case-locking-notification></cps-global-case-locking-notification>`,
+    });
+    return Array.from(page.root!.querySelectorAll("p.govuk-body")).map(p => p.textContent);
+  };
+
+  it("shows nothing when the reader is alone, whatever the address casing", async () => {
+    expect(await linesWith({})).toEqual([]);
+  });
+
+  it("lists the reader, marked, when caseLockingCountSelf is on", async () => {
+    expect(await linesWith({ caseLockingCountSelf: true })).toEqual(["me@cps.gov.uk (current user) is in the case — CMS."]);
   });
 });
