@@ -12,6 +12,8 @@
 var fs = require("fs");
 var path = require("path");
 
+var FLOOR = ["core/util.js", "core/kinds.js"];
+
 /**
  * The files of one bundles.json bundle, in build order, for load(): what runs in
  * the one scope (the kill switch and the IIFE body; not Classic's separate auth
@@ -35,6 +37,8 @@ function bundle(name) {
  */
 function load(files, names, env) {
   env = env || {};
+  // Every bundle starts with the floor helpers, so every load does too.
+  files = FLOOR.filter(function (f) { return files.indexOf(f) === -1; }).concat(files);
   var src = files
     .map(function (f) {
       return fs.readFileSync(path.join(__dirname, f), "utf8");

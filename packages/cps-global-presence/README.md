@@ -1,358 +1,146 @@
-# cps-global-presence — presence for the legacy CMS apps
+# cps-global-presence
 
-> **This code lives in `packages/` and ships three ways.** It was under
-> `infra/proxy/config/global-components.cms-auth-v2/cms-presence-client/` until
-> 2026-09-07, on the assumption that it was proxy configuration. It is not: it is
-> client code that the proxy happens to inject, and the web components need the
-> same shared modules. `build.sh` emits both legacy bundles into `dist/` (the
-> deploy script uploads them from there) plus `dist/esm/index.js` for the
-> bundler-based consumers.
+Watchdog presence — "who else is working on this case" — for the three UIs:
 
-Source for **both** injected clients. One build, two artefacts, one shared core:
+| consumer | gets | engine |
+|---|---|---|
+| CMS Classic frameset shell | `dist/cms-augmentation/client-classic-unstable.js` | document mode **5** |
+| CMS Modern (`/viewer/`), DCF (`/dcf/`) | `dist/cms-augmentation/client-modern-unstable.js` | document mode 11 |
+| the web components | `dist/esm/index.js` (+ `esm.d.ts`) | modern bundler |
 
-| artefact | injected into | engine | sections |
-|---|---|---|---|
-| `client-modern-unstable.js` | CMS Modern (`/viewer/`), DCF (`/dcf/`) | document mode 11 | `<caseId>:CASE`, `<caseId>:CASE_REVIEW` |
-| `client-classic-unstable.js` | the CMS Classic frameset shell | document mode **5** | `:VICTIM_WITNESS:<id>`, `:CASE_REVIEW`, `:DEFENDANT:<id>` |
-
-Both register against the case-locking API over JSONP and show who else is on the
-case. The Classic artefact also carries the contact-edit event sink and the auth
-iframe hand-off, which have nothing to do with Modern.
-
-App names — `"CMS Modern"` (covering DCF too: one app in users' minds) and
-`"CMS Classic"` — **must** be sent, because the njs adapter defaults a missing
-`appName` to `"CMS Classic"` and would mislabel Modern.
-
-> Everything under `dist/` is **generated**. Classic was a hand-edited single file
-> until 2026-08-28; edit the sources here and run `./build.sh`.
->
-> Published under these names since 2026-11-03, and injected by the proxy since
-> 2026-11-04 — so this is what the estate runs. See **Deploy** below for the
-> injection sites and the rollback.
+The two legacy clients register over JSONP and draw their own banner. The web
+components hold a SignalR connection of their own and use `core/` for the words.
+Everything under `dist/` and
+`types/` is generated: edit the sources and run `./build.sh`.
 
 ## Layout
 
 ```
-common/   shared with the Classic client — DOCUMENT MODE 5 floor
-  presence-sections.js   CCPSections: section id + key (they must agree)
-  presence-origin.js     CCPOrigin: which host serves our endpoints
-  presence-roster.js     CCPRoster: reconciliation by version, per-user dedupe
-  presence-jsonp.js      CCPJsonp: the JSONP call, with pooled callback names
-  presence-locator.js    CCPLocator: detectors in, active sections out
-  presence-sessions.js   CCPSessions: a session per active section, and the
-                         failure semantics (410, timeout, create retry)
-  *.test.js              unit tests, beside the file they test
-  types.d.ts             the API's wire shapes (hand-written: they describe the
-                         SERVER's contract, so there is nothing to infer them from)
-types/    GENERATED — do not edit
-  common.d.ts            tsc's output: our functions, inferred from the JSDoc
-  index.d.ts             THE PUBLISHED FILE: wire shapes + our functions, merged
-classic/  CMS Classic only — document mode 5, so the SAME floor as common/
-  kill-switch.js         CMS_WATCHDOG_ENABLED, outside both IIFEs
-  dom.js                 reading CMS's own state: hidden fields, frame walking
-  sections.js            the frame readers, and the section registry
-  stripe.js              the red footer stripe, its accordion, and the words
-  event-sink.js          contact-edit events, and the parked HTTP helpers
-  main.js                the observation loop and wiring
-  auth.js                concern 2: the login -> auth iframe hand-off
-  *.test.js              unit tests, beside the file they test
-modern/   Modern/DCF only — document mode 11, ES5 floor
-  sections.js            the URL detectors, and the JSONP base
-  bar.js                 the pinned notification, recreated by hand from the web
-                         components' measurements (govuk-frontend v5 dropped IE11)
-  main.js                wiring, diagnostics, boot
-  *.test.js              unit tests, beside the file they test
-check-syntax.js          the floor gate (see below)
-test-harness.js          load() + assertions for the tests
+core/          all three UIs · document mode 5 floor · built into the ESM
+  util.js        CCPUtil         what mode 5 lacks: indexOf, find, hasSuffix, pad, stamp
+  kinds.js       CCPKinds        CASE, CASE_REVIEW, VICTIM_WITNESS, DEFENDANT
+  environment.js CCPEnvironment  which CMS instance (CIN suffix on the wire)
+  sections.js    CCPSections     section id / key (they must agree)
+  roster.js      CCPRoster       snapshots in, who is present out, version-guarded
+  people.js      CCPPeople       one row per person
+  apps.js  section-names.js  joined.js  content.js   the words
+  section-rules.js               which sections interrupt (web components only)
+  wire.d.ts                      the API's wire shapes (hand-written)
+legacy/        Classic + Modern only · document mode 5 floor
+  jsonp.js       CCPJsonp        the transport, with pooled callback names
+  sessions.js    CCPSessions     one session per section: create, heartbeat, poll, remove
+  locator.js     CCPLocator      detectors in, active sections out
+  viewer.js      CCPViewer       whoami: identity, CMS instance, token age
+  preview.js     CCPPreview      the preview flags
+  origin.js      CCPOrigin       which host serves our endpoints
+  log.js         CCPLog          the ring buffer behind __ccPresence.dump()
+apps/classic/  document mode 5 · kill-switch, dom, sections, stripe, event-sink, main, auth
+apps/modern/   document mode 11 · sections (URL detectors), bar, main
+placeholders/  the permanent hello-world stubs (see Deploy)
+bundles.json   which files go into which output, in order
 ```
 
-`build.sh` writes nothing into the source tree. Its outputs:
+Tests sit beside the file they test (`roster.test.js` next to `roster.js`).
+
+## How a client fits together
 
 ```
-dist/cms-augmentation/   the PUBLICATION names — one file per blob, named as uploaded
-  client-classic.js               hello-world stub, every environment, prod included
-  client-modern.js                  "
-  client-classic-unstable.js      the built Classic client
-  client-modern-unstable.js       the built Modern client
-dist/esm/index.js        the shared modules for the web components
+find sections   per app      Classic reads frames and hidden fields; Modern reads the URL
+sessions        legacy/      hold one session per section, poll the roster
+roster          core/        who is present, per section, version-guarded
+words + draw    core/ + app  the shared sentences, drawn as a stripe or a bar
 ```
 
-Both clients are written straight to their publication name — one build of each, so
-an intermediate copy would only be a second name for one file.
-
-> **There used to be three Modern presentations.** `legacy-apps/modern{,-2,-3}/` were
-> built side by side into `dist/skins/` and a `MODERN_SKIN` env var in
-> `deploy.local.sh` chose which one shipped, so the design could be compared live
-> without a rebuild. The pinned notification (`modern-3`) won on 2026-11-03; the
-> other two, the selector and the `cc3*` identifier prefix are gone, and `modern-3/`
-> was collapsed back into `modern/`.
-
-The reference SignalR client is archived under
-`infra/proxy/reference/signalr-presence-transport/`.
-
-## How a client is put together
-
-Four layers, and the middle two are shared with Classic:
-
-```
-locator    "which sections am I in?"      app-specific detectors, shared runner
-sessions   "hold one session per section"  common/  — create, heartbeat, poll, remove
-roster     "who is present?"               common/  — reconciled by version, deduped
-UI         "show it"                       app-specific (a GDS bar here, a menu-bar
-                                           icon in Classic)
-```
-
-**Transport is JSONP**, the same as Classic — one mechanism for both legacy apps.
-A working SignalR transport is archived, with rehydration instructions, under
-[`infra/proxy/reference/signalr-presence-transport/`](../../infra/proxy/reference/signalr-presence-transport/).
-It was retired on merit, not on feasibility: cross-origin SignalR is *proven* to
-work in this estate.
-
-**Sections are plural.** A user can be on a case review and have a defendant panel
-open at the same time, and both are reported. Both clients used to return the first
-match and stop.
-
-**To support a new section, add a detector.** In `modern/sections.js` that is a URL
-pattern and nothing else, because there the address is the whole context. In
-`classic/sections.js` it is a URL fragment (which frame) plus a reader (is it
-active, and for which subject), because Classic has no addressable state. Either
-way nothing else changes — not the sessions, not the roster, not the UI.
-
-**Detector order is priority.** Classic's stripe is about one case, so it follows
-the first section found. It renders above the action bar wherever that is, so —
-unlike the hover popup it replaced — no section has to declare where it is drawn.
-
-```js
-__ccPresence.status()          // location, active sections, session stats
-__ccPresence.describeRoster()  // who is present, across all sections
-__ccPresence.rosterBySection() // the same, grouped
-```
+To support a new section, add a detector: a URL pattern in `apps/modern/sections.js`,
+or a frame fragment plus a reader in `apps/classic/sections.js`. Nothing else changes.
 
 ## Building
 
-`build.sh` runs `build.js`, which concatenates the files listed in `bundles.json`,
-in that order, into each output. Each common module
-declares its own `CCP*` namespace — one per file, not one shared — because tsc
-infers expando properties within a file but not across files, and that inference is
-what generates the types below. Concatenation rather than modules because the
-injected script has no loader and document mode 5 has no module system, so **order
-matters**: `presence-sections` defines what the others use.
+`build.sh` runs `build.js`, which reads `bundles.json`, checks every source against
+its floor, type-checks, and concatenates:
 
-## Types without a compile step
+- **Modern**: one strict IIFE of `core` + `legacy` + `apps/modern`.
+- **Classic**: the kill switch, then a presence IIFE (`core` + `legacy` +
+  `apps/classic`), then the auth IIFE. Two IIFEs so a failure in one concern cannot
+  reach the other. No `"use strict"`: it has always run sloppy in someone else's app.
+- **ESM**: `core` plus an export list.
 
-`common/` is plain JavaScript, but tsc type-checks it from its JSDoc (`checkJs`)
-and **generates** `types/common.d.ts` from it. Nothing is emitted into the shipping
-path — the deployed file is still the file you wrote, which matters when the only
-way to debug an IE-mode tab is to fetch the deployed bytes and read them.
+Concatenation, not modules: the injected script has no loader and mode 5 has no
+module system. Each file declares one `CCP*` namespace with `var`, because tsc
+infers properties within a file but not across files.
 
-```bash
-../../../../../node_modules/.bin/tsc -p .    # check + regenerate (build.sh does this)
-```
+## The floor
 
-Two halves make up the published `types/index.d.ts`, and the split is not arbitrary:
-
-| | `common/types.d.ts` | `types/common.d.ts` |
-|---|---|---|
-| describes | the **server's** wire contract | **our** functions |
-| written by | hand | tsc, from the JSDoc |
-| why | nothing in our code constructs these shapes — we only consume them, so there is nothing to infer from | inferring beats maintaining |
-
-tsc's output *references* `CCPSection`, `CCPNotification` and `CCPPerson` without
-defining them, so it is not usable alone. `build.sh` concatenates the two into
-`types/index.d.ts` — one self-contained file for consumers.
-
-Generated rather than hand-written so the published surface cannot drift:
-
-```ts
-declare namespace CCPSections {
-    function sectionId(caseId: string|number|null|undefined, kind: string|null|undefined,
-                       subjectId?: (string|number|null)|undefined): string | null;
-    function sectionKey(section: CCPSection|null|undefined): string;
-}
-```
-
-It earns its keep already: it caught an unsound `window[name] = fn` (the DOM lib
-types a string index on `Window` as a named frame) and a real latent case where an
-unversioned snapshot reached `parseInt(undefined)`. Both are now explicit and
-commented rather than accidental.
-
-TypeScript *sources* were considered and rejected for this folder: `--target ES5`
-emit is mostly fine, but object spread pulls in `Object.assign` via `__assign` and
-accessors emit `Object.defineProperty` — neither exists at document mode 5 — and
-the emitted output is harder to read in the field. JSDoc gives the types without
-either cost.
-
-## The floor, and why it is enforced rather than compiled
-
-`common/` runs in Classic too, so it is held to **document mode 5** — old JScript.
-Nothing transpiles down that far: TypeScript **removed** its ES3 target (`TS5108`),
-esbuild's floor is a partial `es5`, and Babel can lower syntax but cannot conjure a
-missing `JSON`, `Array.prototype.forEach` or `Object.keys`. So the floor is written
-by hand and proven mechanically:
+`core/` and `legacy/` run in Classic, so they are held to **document mode 5**. Nothing
+transpiles that low (TypeScript dropped ES3; Babel cannot conjure `JSON` or
+`Array.prototype.forEach`), so it is hand-written and proven:
 
 ```bash
-node check-syntax.js es3 common/*.js     # ES3 syntax + a denylist of the ES5 runtime
-node check-syntax.js es5 modern/*.js     # syntax only
+node check-syntax.js es3 core/*.js legacy/*.js   # ES3 syntax + a denylist of the ES5 runtime
+node check-syntax.js es5 apps/modern/*.js        # syntax only
 ```
 
-`build.sh` runs both **before** assembling, so a violation fails the build naming
-the file and line, rather than surfacing as a blank page in an IE-mode tab. It uses
-acorn, already present for the existing ES5 gate — no new tooling, no config file.
+## Types
 
-Transpiling *up* is free: ES3 is valid ES2022, so `common/` can be consumed as-is
-by a modern build. That is the route to sharing the reconciliation logic with
-global-components' TypeScript service — the same "who is present" rules, written
-once. Moving `common/` into `packages/` is then a lift-and-shift.
+tsc type-checks `core/` and `legacy/` from their JSDoc and generates
+`types/common.d.ts`. That references the wire shapes without defining them, so
+`types/index.d.ts` is `core/wire.d.ts` followed by the generated file. Nothing is
+emitted into the shipping path. `esm.d.ts` is the hand-written module surface the
+web components import; keep it in step with `bundles.esm.exports`.
 
 ## Tests
 
 ```bash
-./test.sh          # every *.test.js, colocated with the file it tests
-node common/presence-roster.test.js   # or just one
+./test.sh                 # every *.test.js
+node core/roster.test.js  # one file
 ```
 
-Run by this package's own `pnpm test`. They used to be invoked from `infra/proxy`'s
-test script, which no longer knows about the client code.
+`test-harness.js` loads the same files the build does (`h.bundle("classic")`), with
+small `window`/`document` fakes. A test that needs more fakes is a sign the code
+reaches too far into the host page.
 
-Colocated deliberately: these are unit tests of small modules, and what you want
-when you open `presence-roster.js` is `presence-roster.test.js` beside it. The
-proxy's njs suites live under `tests/` because they need a bundler; these need
-nothing but node.
+A known, unfixed bug is pinned with `h.knownBug(name, fn)`: `fn` asserts the correct
+behaviour, the test passes while it fails, and it fails once the bug is fixed, so the
+fix has to make it a normal `test()`.
 
-`test-harness.js` rebuilds the concatenated scope from the same `bundles.json`
-(`h.bundle("classic")`, `h.bundle("modern")`) — so the tests exercise the real composition rather than a
-stand-in, and supplies the small `window`/`document` fakes the transport needs. If
-a test ever needs more of those fakes, treat it as a signal that the code is
-reaching further into the host page than a guest script should.
+## Relative URLs resolve against the page
 
-`build.sh` does not run the tests: a build should not depend on a test pass, and
-the floor checks it *does* run answer a different question — whether the code can
-execute at all.
+A relative path in an injected script resolves against the host page, not the
+script's own host. `CCPOrigin.resolve(path)` prefixes `CCPOrigin.IMPL_ORIGIN`, which
+ships as `""` (same origin, right for every CI deploy) and is rewritten by
+`deploy.local.sh` only for cross-domain deploys. That script matches the exact line
+`CCPOrigin.IMPL_ORIGIN = "";` — keep it byte-identical.
 
-A bug that is known but not yet fixed is pinned with `h.knownBug(name, fn)`: `fn`
-asserts the correct behaviour, the test passes while it fails, and it starts
-failing once the bug is fixed, so the fix has to turn it into a normal `test()`.
+## Why JSONP
 
-## Relative URLs resolve against the PAGE, not the script
-
-Worth stating plainly, because it is the trap in this topology: a relative path in
-an injected script resolves against the host document. `"/global-components/presence-jsonp"`
-in a file fetched from `polaris-uat-notprod`, injected into a CMS page served by
-`polaris-qa-notprod`, resolves to **QA** — the page's origin. Deploying the script
-elsewhere changes nothing; the page decides.
-
-`CCPOrigin.resolve(path)` prefixes `CCPOrigin.IMPL_ORIGIN`, which is **baked in at
-deploy time**: `deploy.local.sh` rewrites it when the implementation is on another
-host (`IMPL_ENV != ENV`), and it ships as `""` — "same origin as the page" — which is
-correct for every same-host deploy and for every CI deploy, since the pipeline has no
-`IMPL_ENV` concept. Both legacy clients need this the moment the UI and the API are
-on different domains, and the auth flow needs it most: the callback sets the presence
-cookie HOST-ONLY, so the auth iframe must land on the same host as the API or the
-adapter never sees the cookie.
-
-> **This used to be derived in the browser** by scanning the page's `<script>` tags
-> for one whose `src` contained a marker — a distinctive part of our own filename —
-> and taking its origin. It needed no configuration, but it coupled the client to the
-> name the nginx conf injects: rename the blob and the marker matched nothing, and
-> `resolve` fell back to the host page's origin **silently**. Indistinguishable from
-> correct in the same-origin proxied estate; quietly wrong anywhere cross-domain. The
-> rename to `client-*-unstable.js` on 2026-11-04 is what forced the issue, and baking
-> the origin removed the coupling rather than renaming the marker to something that
-> could go stale again. `document.currentScript` was never an option — it does not
-> exist at document mode 11, let alone 5.
-
-## Why JSONP and not SignalR
-
-The SignalR client works proxied but cannot work unproxied: negotiate is an XHR,
-Windows zone setting 1406 answers a cross-domain XHR with a security dialog, and
-skipping negotiate removes the client from Azure SignalR Service's delivery path —
-you can invoke but never receive. JSONP uses `<script src>`, which the zone does
-not gate, so it works in both topologies. Classic already relies on it and must be
-supported long-term, so both legacy apps now share one transport, the injected
-script drops from ~154KB to ~24KB, and no end-of-life dependency ships to
-production. The current apps stay pure SignalR.
+Cross-origin XHR in this estate is gated by IE zone setting 1406; `<script src>` is
+not. The njs adapter (`/global-components/presence-jsonp`) turns each GET into the
+Watchdog's REST call and adds the bearer from the presence cookie and
+`X-Watchdog-App-Name`, so the clients carry no credential. The app name **must** be
+sent (`"CMS Classic"`, `"CMS Modern"` — DCF included): the adapter defaults a missing
+one to `"CMS Classic"`.
 
 ## Deploy
 
-Four blobs per environment, in `sacpsglobalcomponents`, container = environment.
-CI and `infra/proxy/scripts/deploy.local.sh` publish **the same four**, so a local
-deploy and a pipeline deploy put the same bytes at the same names:
+CI and `infra/proxy/scripts/deploy.local.sh` publish the same four blobs under
+`cms-augmentation/`, named as in `dist/`:
 
-| blob under `cms-augmentation/` | contents | who points at it |
+| blob | contents | linked by |
 |---|---|---|
-| `client-classic.js` | hello-world stub, **always**, prod included | the CMS maintainers' link |
-| `client-modern.js` | hello-world stub, **always**, prod included | the CMS maintainers' link |
-| `client-classic-unstable.js` | the built Classic client | our own proxy (after the switch) |
-| `client-modern-unstable.js` | the built Modern client | our own proxy (after the switch) |
+| `client-classic.js`, `client-modern.js` | hello-world stub, every environment, prod included | the CMS maintainers |
+| `client-classic-unstable.js`, `client-modern-unstable.js` | the built clients | our proxy's `sub_filter` injections |
 
-The stub pair never varies by environment, so no env guard exists that could misfire
-and drop a guest script into someone else's production application. `-unstable` is
-**not secret**, only unlinked: the containers are `--public-access container`, so the
-blob list is readable — the suffix stops the maintainers wiring it up by accident.
+The stubs let the maintainers link the URLs before we are ready. The reveal is
+dropping `-unstable` from the injected `src` in
+`infra/proxy/config/global-components.cms-augmentation/` — no rebuild. `-unstable` is
+unlinked, not secret: the container is publicly listable.
 
-The client carries no credential: the njs adapter lifts the bearer from the presence
-cookie and adds `X-Watchdog-App-Name`.
+**Rollback** is reverting that conf: the historic `cms-auth-v2-client.js` /
+`cms-presence-client.js` blobs are written by no deploy and still hold the
+pre-switch clients. **Order**, if both move: clients first, conf second.
 
-### Switched over on 2026-11-04
+## Diagnostics
 
-The four `sub_filter` injections in
-`infra/proxy/config/global-components.cms-augmentation/` (`cms-auth-presence` until
-2026-11-10) name the `-unstable` pair,
-so the proxied estate runs the clients built here:
-
-| `location` | injects |
-|---|---|
-| `= /CMS.24.0.01/uaglCMS.aspx` | `client-classic-unstable.js` |
-| `= /CMS.24.0.01/` | `client-classic-unstable.js` |
-| `= /viewer/landing` | `client-modern-unstable.js` |
-| `~ ^/dcf/review/` | `client-modern-unstable.js` |
-
-`@@SCRIPT_BASE@@` is unchanged, and the blob route already passes the
-`cms-augmentation/` subdirectory through, so no new location block was needed.
-
-**Rollback is reverting the conf and restarting.** The blobs at the historic
-`cms-auth-v2-client.js` / `cms-presence-client.js` names are written by no deploy, so
-they still hold the pre-switch generation — there is nothing to re-upload.
-
-**Deploy order, if both ever move again:** clients first, conf second. They ship in
-different units (client blob vs config blob), and a conf pointing at a blob that is
-not there yet is a 404 and no presence, whereas a blob nothing points at is inert.
-
-## What it does
-
-1. Reads the case from the URL:
-   - DCF `/dcf/review/<caseId>/<userGuid>` → path
-   - Modern `/viewer/landing#/case-summary/<caseId>` or `#/disclosure/<caseId>` → **hash**
-     (never sent to the server, so this can only be read client-side)
-2. Builds `sectionKey = "<caseId>:CASE"` — `CASE` is the top-level doll: on this case at all.
-3. Connects to `/global-components/case-locking/api/hubs/notifications` (same origin —
-   no CORS, no JSONP) with the dev bearer via `accessTokenFactory`, then
-   `invoke("Connect", sectionKey, appName)`.
-4. Logs every `Notify` payload.
-5. Re-reconciles every 2s and on `hashchange` — Modern changes case without a page load.
-
-## Poking at it
-
-Everything is mirrored on `window.__ccPresence`, so state is inspectable even if the
-host app has stubbed `console`:
-
-```js
-__ccPresence.status()     // { connectedKey, busy, context }
-__ccPresence.messages     // last 200 log entries, newest last
-__ccPresence.context()    // { app, screen, caseId } for the current URL
-__ccPresence.reconcile()  // force a re-check
-__ccPresence.stop()       // drop the connection
-```
-
-## Known unknowns
-
-- **SignalR 3.1 client against a .NET 8 server.** The JSON hub protocol is stable and
-  this should be fine, but it is the first thing to suspect if `start()` succeeds and
-  `Connect` does not.
-- **Token transport.** With WebSockets the token goes as an `access_token` query
-  param (browsers cannot set headers on a WS handshake); with long-polling it is an
-  `Authorization` header. If the Bearer-Test scheme only reads the header, force
-  long-polling via the `transport` option in `buildConnection()`.
-- **`CASE` vs the header's code.** global-components' witness region joins
-  `<caseId>:WITNESS`. To watch the two estates see each other, both sides must use the
-  same kind.
+Both legacy clients expose `window.__ccPresence`. `__ccPresence.dump()` returns the
+last 300 log lines (addresses masked) as one string — the console in this estate is
+IEChooser's, which cannot attach before boot.
