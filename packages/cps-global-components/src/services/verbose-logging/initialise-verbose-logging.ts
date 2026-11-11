@@ -71,7 +71,7 @@ export const initialiseVerboseLogging = ({ window, rootUrl }: { window: Window; 
     // Deliberately ungated: written at debug level so it shows only to someone
     // with the console's Verbose level on — exactly the reader who would want
     // to know how to switch our output on or off.
-    _debugAlways(describeVerboseLogging({ reasons, previewUrl: getArtifactUrl(rootUrl, "preview/") }));
+    _debugAlways(describeVerboseLogging({ reasons, previewUrl: getArtifactUrl(rootUrl, "preview/index.html") }));
   };
 
   return { resolveVerboseLoggingFromPreview };

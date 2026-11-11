@@ -17,7 +17,7 @@ const { describeVerboseLogging, initialiseVerboseLogging, isLocalBundle, VERBOSE
 
 const LOCAL = "http://localhost:3333/build/global-components.js";
 const DEPLOYED = "https://polaris-dev-notprod.cps.gov.uk/global-components/dev/global-components.js";
-const PREVIEW_URL = "https://polaris-dev-notprod.cps.gov.uk/global-components/dev/preview/";
+const PREVIEW_URL = "https://polaris-dev-notprod.cps.gov.uk/global-components/dev/preview/index.html";
 
 const makeWindow = (stored: Record<string, string> = {}) =>
   ({
