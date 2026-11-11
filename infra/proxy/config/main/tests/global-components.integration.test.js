@@ -834,8 +834,8 @@ async function testCaseReviewRedirect() {
 // =============================================================================
 // Exercises the `set $connection_upgrade ""; if ($http_upgrade) { ... }` shim
 // mounted from docker/test-only.upgrade-shim.conf. Same lines are used by the
-// case-locking SignalR proxy blocks in
-// config/global-components.case-locking/global-components.case-locking.conf
+// SignalR proxy blocks in
+// config/global-components.watchdog/global-components.watchdog.conf
 // after we removed the http-context `map` from main/nginx.conf.
 
 const http = require("http")

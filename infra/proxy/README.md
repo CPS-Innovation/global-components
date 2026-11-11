@@ -10,53 +10,54 @@ Nginx reverse proxy with njs (JavaScript) for header/cookie manipulation. Used t
 
 - `nginx.conf.template` - main nginx configuration with server block and location routing (uses `${WEBSITE_DNS_SERVER}` env var)
 - `nginx.js` - njs module for auth redirect handlers (`appAuthRedirect`, `polarisAuthRedirect`, `taskListAuthRedirect`)
-- `global-components.ts` - njs module with header/cookie logic for upstream proxying (compiled to JS)
+- `global-components.js` - njs module with header/cookie logic for upstream proxying. Polaris's
+  `features/global-components/global-components.js` is its baseline: keep the two diffable
 - `global-components.conf.template` - nginx location blocks for global-components (uses env vars: `${WM_MDS_BASE_URL}`, `${WM_MDS_ACCESS_KEY}`, `${CPS_GLOBAL_COMPONENTS_BLOB_STORAGE_DOMAIN}`)
 - `.env` - **gitignored** - contains real upstream URL and functions key
 - `.env.example` - template for the above
 
 ### Global components vnext config (`config/global-components.vnext/`)
 
-- `global-components.vnext.js` - njs module for state endpoint, token validation, swagger filtering
-- `global-components.vnext.conf.template` - nginx location blocks for vnext features (uses env vars: `${GLOBAL_COMPONENTS_APPLICATION_ID}`, `${GLOBAL_COMPONENTS_BLOB_STORAGE_URL}`)
-- `.env` - **gitignored** - contains vnext-specific config
-- `.env.example` - template for the above
+The ADVANCE copy of our changes to Polaris's global-components feature (state JSONP and
+`?set=`, navigate-cms `target=modern`, swagger), deployed ahead of the PR that carries them.
+Regex locations only (bronze), each marked `X-Gloco-Vnext`, so the PR's `=`/`^~` copies take
+over on arrival and the header disappears. Reads only Polaris's settings. See its
+[README](config/global-components.vnext/README.md).
 
-### Multi-OS-domain testing (`config/global-components.multi-os-domain-testing/`) — TEMPORARY
+### OS London/Dublin/oapps switch (`config/global-components.os-london-dublin-oapps-switch/`) — TRANSITIONAL
 
-A self-contained module (FCT2-22132) that lets designated QA users run against a different
-OutSystems host (the old outsystemsenterprise.com host, the London tenant) while everyone else is untouched. It only
-ADDS locations, plus one server-level divert that fires only for requests carrying the signal
-cookie. It loads unchanged in both Polaris proxy worlds (the live monolith and the refactored
-`features/` config; Polaris `PROXY.md` §6.8), and the deploy writes its conf to both. To end the trial, delete the module directory
-and its lines in `scripts/build.sh`, `deploy/deploy.sh`, `deploy/rollback.sh`, `run-tests.sh`,
-`package.json` and `docker/` (`docker-compose.multi-os-domain-testing.yml`,
-`test-only.polaris-launch.conf`).
+Lets a user pin themselves, per environment, to either OutSystems resilient failover domain
+(Dublin `cps-tst…`, London `cpslon-tst…`) or the oapps front door (the default). Removable when
+the oapps transition is finished. It only adds locations, takes over `config.json` with
+exact-match locations (noted on the main conf's blob route), and diverts the proxied-CMS
+C-button only for requests carrying the `Gloco-Os-Target-<env>` cookie (tested by njs, never a
+regex on `$http_cookie`). Deployed by `scripts/deploy-os-london-dublin-oapps-switch.local.sh`.
+See its [README](config/global-components.os-london-dublin-oapps-switch/README.md).
 
-- **Signal:** the `Gloco-Os-Target-<env>` cookie (`Path=/`, `HttpOnly`, value = the chosen OS
-  host). Edge and IE mode keep separate cookie stores, so it is written into both by
-  `/global-components/multi-os/set?env=&host=&return=`, the only writer. That route flips the
-  tab between engines with `X-InternetExplorerMode`. An empty `host` clears both copies.
-  `/global-components/multi-os/target/<env>` reports the current value to the preview page.
-- **Variants:** `configuration/config.<env>.<variant>.json` is the environment's config with
-  only the OS host swapped (enforced by `outsystems-host-consistency.spec.ts`), deployed beside
-  `config.json` as `config.<variant>.json`. `OS_HOST_VARIANTS` maps each variant to its host; a
-  unit test checks it against the files both ways.
-- **`config.json`:** served by `readConfigBlobName`:
-  - the variant for the requesting OS page's own host (by `Origin`); else
-  - the variant the cookie names (CWA); else
-  - `config.json`.
-- **Proxied-CMS C-button:** we define no location on Polaris's `/launch/cin2`–`cin5-proxy`
-  (they differ between the two worlds: prefix blocks in the monolith, one exact-name
-  `/launch/` handler in the refactor).
-  - Without a `Gloco-Os-Target-` cookie, nginx never touches the request: Polaris's own route
-    runs unchanged.
-  - With one, a server-level rewrite diverts the click to the internal
-    `/global-components/multi-os/launch/<route>`. A valid signal for that route (the click
-    arrives in IE mode, carrying IE mode's copy) redirects to Polaris's same
-    `/polaris?r=<handover>` target, with the OS host swapped. Anything else is rewritten back
-    to the original URI and lands on Polaris's route, whichever world is running.
-  - `/polaris`, `/init`, raw-CMS `/launch/cinN` and prod's `/launch/cms-proxy` are not touched.
+### CMS augmentation (`config/global-components.cms-augmentation/`)
+
+Injects our client scripts into the proxied CMS: Classic's frameset shell and Modern/DCF.
+Deployed by `scripts/deploy.local.sh` (not `deploy/deploy.sh`). Its njs is the cookie
+diagnostics pages (`state/preview` moved to vnext). See its README.
+
+### Watchdog (`config/global-components.watchdog/`)
+
+Everything in front of the Watchdog (presence) API: the SignalR hub routes
+(`/global-components/case-locking/api/…`) and the legacy clients' JSONP adapter
+(`/global-components/presence-jsonp`). Deployed by `scripts/deploy.local.sh`. See its README.
+
+### App settings our modules read (the list for Terraform)
+
+| Setting                            | Read by   | Notes |
+| ---------------------------------- | --------- | ----- |
+| `GLOBAL_COMPONENTS_WATCHDOG_HOST`  | watchdog  | Watchdog API host, bare. Until Terraform sets it, `deploy.local.sh` bakes it in from `config/global-components.watchdog/.env`. |
+
+(`GLOBAL_COMPONENTS_APPLICATION_ID` was read by vnext's token validation, removed 2026-11-10;
+the legacy `deploy/deploy.sh` still asks for it.)
+
+Everything else our confs use (`${WM_MDS_BASE_URL}`, `${WM_MDS_ACCESS_KEY}`, `${WEBSITE_DNS_SERVER}`, `${WEBSITE_SCHEME}`,
+`${CMS_RATE_LIMIT_QUEUE}`, `${CPS_GLOBAL_COMPONENTS_BLOB_STORAGE_DOMAIN}`) is already one of
+Polaris's.
 
 ### Docker (`docker/`)
 
@@ -74,11 +75,14 @@ and its lines in `scripts/build.sh`, `deploy/deploy.sh`, `deploy/rollback.sh`, `
 Run: `pnpm test` (from `infra/proxy`)
 
 Unit tests are located in `tests` subfolders:
-- `config/main/tests/global-components.unit.test.ts` - tests for `global-components.ts`
-- `config/main/tests/nginx.unit.test.ts` - tests for `nginx.js` auth redirect handlers
-- `config/global-components.vnext/tests/global-components.vnext.unit.test.ts` - tests for `global-components.vnext.js`
+- `config/main/tests/global-components.unit.test.js` - tests for `global-components.js`
+- `config/main/tests/nginx.unit.test.js` - tests for `nginx.js` auth redirect handlers
+- `config/global-components.vnext/tests/global-components.vnext.unit.test.js` - tests for `global-components.vnext.js`
 
-Uses esbuild to bundle njs modules with mocked dependencies. Build artifacts go to `.dist/` (gitignored).
+The njs is plain JavaScript (no TypeScript, no build step since 2026-11-10). The tests are plain
+node scripts; `njs-loader.js` loads each module from an `.mjs` copy in `.dist/` (gitignored),
+because the modules are ESM and node would otherwise read a `.js` as CommonJS. Node is not njs,
+so the Docker integration layers are what prove a module runs under njs.
 
 ### Integration tests
 
@@ -152,12 +156,11 @@ Containers run as non-root users for security (checkov compliance):
 - `WM_MDS_ACCESS_KEY` - Azure Functions access key
 - `CPS_GLOBAL_COMPONENTS_BLOB_STORAGE_DOMAIN` - Domain for blob storage proxy (e.g., `sacpsglobalcomponents.blob.core.windows.net`)
 
-**VNext features (from `config/global-components.vnext/.env`):**
-- `GLOBAL_COMPONENTS_APPLICATION_ID` - Azure AD application ID for token validation
+**Legacy `deploy/deploy.sh` settings (no longer read by vnext's conf):**
+- `GLOBAL_COMPONENTS_APPLICATION_ID` - was for vnext's token validation (removed 2026-11-10)
 - `GLOBAL_COMPONENTS_BLOB_STORAGE_URL` - Base URL for blob storage (e.g., `https://sacpsglobalcomponents.blob.core.windows.net`)
 - `CPS_GLOBAL_COMPONENTS_BLOB_STORAGE_DOMAIN` - Domain for blob storage (e.g., `sacpsglobalcomponents.blob.core.windows.net`)
 
-Note: `TENANT_ID` is hardcoded in `global-components.vnext.js` as it doesn't change between environments.
 
 ### Environment variable substitution
 
@@ -188,7 +191,7 @@ Deployment is done from a remote machine with network access to Azure blob stora
 
 To blob storage (vnext-specific only):
 - `global-components.vnext.conf.template` - vnext nginx location blocks (with vnext env vars pre-substituted)
-- `global-components.vnext.js` - njs module for vnext features (state, token validation)
+- `global-components.vnext.js` - njs module for vnext features (state, navigate-cms, swagger)
 
 Note: `GLOBAL_COMPONENTS_APPLICATION_ID` and `GLOBAL_COMPONENTS_BLOB_STORAGE_URL` are baked into the config file via envsubst during deployment (from secrets.env). App settings code is commented out but can be re-enabled if needed.
 
@@ -222,7 +225,8 @@ This will:
 5. Restart the Azure web app
 
 There is no version endpoint to poll, so confirm the deploy by hitting a route the
-vnext conf owns once the app is back up, e.g. `/global-components/swagger.json`.
+vnext conf owns once the app is back up: `/global-components/swagger.json` answers with
+`X-Gloco-Vnext: swagger`.
 
 ### Rollback
 

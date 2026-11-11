@@ -263,7 +263,7 @@ echo "built $CLASSIC_OUT ($(wc -c < "$CLASSIC_OUT" | tr -d ' ') bytes), no crede
 #     /global-components/<env>/cms-augmentation/client-modern-unstable.js
 #
 # Our OWN proxied CMS is what points at the -unstable pair (the sub_filter
-# injections in infra/proxy/config/global-components.cms-auth-presence/), so we run
+# injections in infra/proxy/config/global-components.cms-augmentation/), so we run
 # the built clients from the to-be location while the maintainers' URLs stay inert.
 # THE REVEAL IS THEN A ONE-LINE NGINX CHANGE -- drop "-unstable" from the injected
 # src -- with no deploy and no rebuild.

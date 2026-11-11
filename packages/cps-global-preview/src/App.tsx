@@ -8,7 +8,7 @@ const ENV_MATCH = window.location.pathname.match(/\/global-components\/([^/]+)\/
 const ENV = ENV_MATCH?.[1] ?? "test";
 const NOTIFICATIONS_ENDPOINT = `/global-components/${ENV}/notification.json`;
 // The per-environment OS host switch, owned by the proxy's temporary
-// multi-os-domain-testing module (infra/proxy/config/global-components.multi-os-domain-testing).
+// os-london-dublin-oapps-switch module (infra/proxy/config/global-components.os-london-dublin-oapps-switch).
 // It lives in its own cookie rather than preview state because the proxy reads it
 // server-side, in both Edge and IE mode — so switching is a NAVIGATION through
 // the set route, which visits both engines to write both cookie copies.

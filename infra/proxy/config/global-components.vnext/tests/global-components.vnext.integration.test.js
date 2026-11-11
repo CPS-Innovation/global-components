@@ -2,13 +2,17 @@
 /**
  * Integration tests for global-components.vnext.conf.template
  *
- * Tests the vnext-only functionality: swagger URL rewriting and the
- * MDS API proxy (monitoring-codes).
+ * vnext is the ADVANCE copy of our changes to Polaris's global-components
+ * feature: bronze (regex) locations that win today and yield to the PR's `=`/`^~`
+ * once it deploys. These prove it on a real nginx, in the features layout:
+ * vnext answers the routes it takes over (X-Gloco-Vnext), including one that
+ * only a load-order win can take from Polaris's regex, and leaves the rest alone.
  */
 
 const {
   PROXY_BASE,
   assert,
+  assertEqual,
   test,
   fetchJson,
   getState,
@@ -96,6 +100,107 @@ async function testSwaggerRewriting() {
 }
 
 // =============================================================================
+// Bronze: who answers
+// =============================================================================
+
+async function testWhoAnswers() {
+  console.log("\nWho answers (X-Gloco-Vnext):")
+
+  await test("/global-components/api/swagger.json is vnext's, despite Polaris's api regex", async () => {
+    // Both are regexes, so only include order decides: features/global-components.vnext/
+    // loads before features/global-components/. If this fails, the bronze model is wrong.
+    const response = await fetch(`${PROXY_BASE}/global-components/api/swagger.json`)
+    assertEqual(response.headers.get("x-gloco-vnext"), "swagger", "answered by vnext")
+  })
+
+  await test("the state route is vnext's", async () => {
+    const response = await fetch(`${PROXY_BASE}/global-components/state/settings`)
+    assertEqual(response.headers.get("x-gloco-vnext"), "state", "answered by vnext")
+    assertEqual(await response.text(), "null", "Polaris's GET contract: no cookie reads null")
+  })
+
+  await test("navigate-cms is vnext's (a regex beats Polaris's prefix)", async () => {
+    const response = await fetch(`${PROXY_BASE}/global-components/navigate-cms?step=close`)
+    assertEqual(response.headers.get("x-gloco-vnext"), "navigate-cms", "answered by vnext")
+  })
+
+  await test("navigate-cms keeps Polaris's security headers despite the signal header", async () => {
+    // Our own add_header turns off inheritance of the server-level ones, so the
+    // block repeats them; QA showed them missing before it did (2026-11-10).
+    const response = await fetch(`${PROXY_BASE}/global-components/navigate-cms?step=close`)
+    assertEqual(response.headers.get("x-frame-options"), "DENY", "X-Frame-Options")
+    assertEqual(response.headers.get("x-content-type-options"), "nosniff", "X-Content-Type-Options")
+    assertEqual(response.headers.get("x-permitted-cross-domain-policies"), "none", "X-Permitted-Cross-Domain-Policies")
+    assertEqual(
+      response.headers.get("strict-transport-security"),
+      "max-age=31536000; includeSubDomains",
+      "Strict-Transport-Security"
+    )
+    assertEqual(response.headers.get("cache-control"), "no-store", "Cache-Control")
+  })
+
+  await test("the rest of the api surface stays Polaris's", async () => {
+    const response = await fetch(`${PROXY_BASE}/global-components/api/cases`)
+    assertEqual(response.headers.get("x-gloco-vnext"), null, "not vnext")
+  })
+}
+
+// =============================================================================
+// State: the additions
+// =============================================================================
+
+async function testState() {
+  console.log("\nState additions:")
+
+  await test("the JSONP read answers cb(null) with no cookie", async () => {
+    const response = await fetch(`${PROXY_BASE}/global-components/state/preview?callback=cb`)
+    assertEqual(response.status, 200, "Should return 200")
+    assertEqual(await response.text(), "cb(null)", "No preview, still a callback")
+  })
+
+  await test("the JSONP read serves the stored value", async () => {
+    const value = JSON.stringify({ caseLocking: true })
+    const cookie = "cps-global-components-state=" + Buffer.from(value).toString("base64url")
+    const response = await fetch(`${PROXY_BASE}/global-components/state/preview?callback=cb`, {
+      headers: { Cookie: cookie },
+    })
+    assertEqual(await response.text(), `cb(${value})`, "callback around the value")
+  })
+
+  await test("?set= writes the cookie and returns to the given path", async () => {
+    const value = encodeURIComponent(JSON.stringify({ caseLocking: true }))
+    const response = await fetch(
+      `${PROXY_BASE}/global-components/state/preview?set=${value}&return=%2Fdone&done=edge`,
+      { redirect: "manual" }
+    )
+    assertEqual(response.status, 302, "redirects")
+    assert(/(^|[^/])\/done$/.test(response.headers.get("location") || ""), `back to the return path, got ${response.headers.get("location")}`)
+    assert(
+      (response.headers.get("set-cookie") || "").startsWith("cps-global-components-state="),
+      "writes the state cookie"
+    )
+  })
+}
+
+// =============================================================================
+// navigate-cms: target=modern (RNAV-43)
+// =============================================================================
+
+async function testNavigateModern() {
+  console.log("\nnavigate-cms target=modern:")
+
+  await test("serves the CMS Modern page for the session's CMS domain", async () => {
+    const hint = encodeURIComponent(JSON.stringify({ handoverEndpoint: "https://foo.cps.gov.uk/polaris" }))
+    const response = await fetch(`${PROXY_BASE}/global-components/navigate-cms?caseId=123&target=modern`, {
+      headers: { Cookie: `Cms-Session-Hint=${hint}` },
+    })
+    const body = await response.text()
+    assertEqual(response.status, 200, "Should return 200")
+    assert(body.includes("/viewer/landing#/case-summary/123"), `Should target Modern, got: ${body.slice(0, 300)}`)
+  })
+}
+
+// =============================================================================
 // Main
 // =============================================================================
 
@@ -104,6 +209,9 @@ async function main() {
   process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0"
 
   await testSwaggerRewriting()
+  await testWhoAnswers()
+  await testState()
+  await testNavigateModern()
 }
 
 module.exports = main

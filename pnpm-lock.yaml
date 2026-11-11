@@ -89,23 +89,7 @@ importers:
         specifier: ^5.3.3
         version: 5.9.3
 
-  infra/proxy:
-    devDependencies:
-      '@types/node':
-        specifier: ^26.0.0
-        version: 26.6.5
-      esbuild:
-        specifier: ^0.28.0
-        version: 0.28.2
-      njs-types:
-        specifier: ^1.0.0
-        version: 1.0.0
-      ts-node:
-        specifier: ^10.9.2
-        version: 10.9.2(@types/node@26.6.5)(typescript@5.9.3)
-      typescript:
-        specifier: ^5.7.2
-        version: 5.9.3
+  infra/proxy: {}
 
   packages/cps-global-accessibility:
     dependencies:

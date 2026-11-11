@@ -66,22 +66,40 @@ In this repo:
 - [ ] Hold the **prod** proxy deploy until QA has run for a while. It takes over the
       `config.json` route there too, even though prod has no variants.
 
-## 4. Multi-OS-domain testing module (ours) — replaces the vnext switch
+### 3a. vnext as the bronze advance copy (2026-11-10)
 
-The switch now lives in one temporary module, `infra/proxy/config/global-components.multi-os-domain-testing/`.
+vnext now carries our changes to Polaris's global-components feature (state JSONP/`?set=`,
+navigate-cms `target=modern`, swagger) as regex locations marked `X-Gloco-Vnext`; see its README.
+
+- [x] Deploy vnext (`deploy-vnext.local.sh`) **before** cms-augmentation, which no longer serves
+      `state/preview`. Done on QA 2026-11-10: vnext 14:54Z, cms-augmentation + watchdog 14:57Z,
+      os-london-dublin-oapps-switch 15:01Z; only those four `features/global-components.*` folders remain.
+- [x] Verify: `X-Gloco-Vnext` on `/global-components/state/preview?callback=cb` (answers
+      `cb(...)`), on `/global-components/swagger.json`, and absent on other `/api/` routes. Verified on QA 2026-11-10
+      (navigate-cms and state/preview).
+- [x] Redeploy vnext (navigate-cms security headers) and the OS switch (`Content-MD5` hidden on
+      `config.json`), both fixed after the first deploy. Check: `curl -sI …/navigate-cms?step=close`
+      shows `X-Frame-Options: DENY` beside `X-Gloco-Vnext`; `config.json` has no `content-md5`. Redeployed and verified on QA 2026-11-10 15:09Z.
+- [ ] Cut the Polaris PR from vnext (each block names its target and `^~` shape); after it
+      deploys, the header disappears — then retire vnext's sections.
+
+## 4. OS London/Dublin/oapps switch module (ours) — replaces the vnext switch
+
+The switch now lives in one transitional module, `infra/proxy/config/global-components.os-london-dublin-oapps-switch/`
+(renamed from `multi-os-domain-testing` on 2026-11-10; its deploy deletes the old-name blobs first).
 It takes over `config.json` selection and the status route from vnext, adds the both-engines
 set route, and diverts the proxied-CMS C-button for users carrying the signal cookie. Nothing in
 Polaris changes (`/init`, `/launch`, `uainGeneratedScript`), and requests without the signal
 cookie are never touched. It works in both Polaris proxy worlds (monolith and refactor).
 
-- [ ] Run `pnpm -w test:proxy`. There's a new layer, `multi-os-domain-testing`, and vnext has
+- [x] Run `pnpm -w test:proxy`. There's a new layer, `os-london-dublin-oapps-switch`, and vnext has
       lost its variant tests.
-- [ ] **Deploy order matters.** Both the old vnext and the module define
+- [x] **Deploy order matters.** Both the old vnext and the module define
       `location = /global-components/<env>/config.json`. If both are live, nginx won't start and
       the whole proxy goes down.
   1. Deploy the stripped vnext first (`deploy-vnext.local.sh`). QA briefly loses variant config
      selection until step 2.
-  2. Then deploy the module (`deploy-multi-os-domain-testing.local.sh`). It refuses to upload
+  2. Then deploy the module (`deploy-os-london-dublin-oapps-switch.local.sh`). It refuses to upload
      while the deployed vnext conf still defines `config.json` locations.
 - [ ] Smoke test:
   - `GET /global-components/multi-os/target/test` lists `oapps` and `cps-lon`
@@ -89,7 +107,7 @@ cookie are never touched. It works in both Polaris proxy worlds (monolith and re
     `Origin: https://oapps-qa-notprod.int.cps.gov.uk`
   - a proxied-CMS C-button click **without** the signal still goes where it always did
 - [ ] Main-conf changes, still needed and deployed with the parent project
-      (`infra/proxy/config/main/global-components.ts` / `.conf`):
+      (`infra/proxy/config/main/global-components.js` / `.conf`):
   - `cpslon-tst` in `CORS_ALLOWED_ORIGINS` (state fetches from London pages)
   - `/case-review-redirect` accepting a full host
 
@@ -113,7 +131,7 @@ cookie are never touched. It works in both Polaris proxy worlds (monolith and re
 - [ ] Find out whether the `cms-auth-presence-token` cookie lands in Edge's cookie store or
       IE mode's (see the presence notes below).
 - [ ] Choose an option (leaning towards not opening the hub connection without a token), then
-      implement it and update the comment in `global-components.case-locking.ts`.
+      implement it and update the comment in `global-components.watchdog.js`.
 
 ## 7. Chunk 2: cutover to oapps, one environment at a time (dev → test → UAT → prod)
 
@@ -184,7 +202,7 @@ Afterwards:
     `SameSite=Lax`, `HttpOnly`, and its value is the OS host.
   - It's written by `/global-components/multi-os/set` (navigated to from the preview page), which
     visits both engines. Anyone with the preview page can switch.
-  - The multi-os-domain-testing module serves `config.json` by the page's `Origin` host first,
+  - The os-london-dublin-oapps-switch module serves `config.json` by the page's `Origin` host first,
     then the cookie, then the base file.
   - It diverts switched users' proxied-CMS C-button (`/launch/cin2`–`cin5-proxy`) through the
     same `/polaris` → `/init` chain on the chosen host. Everyone else goes straight to
@@ -214,8 +232,8 @@ https://<host>/Casework_Patterns/auth-handover.html?src=<encoded src>&stage=ad-r
 ### Presence notes (phase 6)
 
 - On oapps pages, which are same-site with Polaris, the `SameSite=Lax`
-  `cms-auth-presence-token` cookie (`Path=/global-components/case-locking`, set by the
-  CMS-estate auth callback) will start being sent with the component's requests.
+  `cms-auth-presence-token` cookie (`Path=/global-components/case-locking`, set by
+  Polaris's /init) will start being sent with the component's requests.
 - `presenceBearer` still lets a client `Authorization` header win. The difference is when the
   component has **no** MSAL token: today that negotiate request gets a 401; on oapps it would
   authenticate with the CMS-estate token instead.

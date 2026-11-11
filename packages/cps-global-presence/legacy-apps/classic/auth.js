@@ -46,21 +46,28 @@
     return; // no login watcher, no auth iframe, no __ccAuthHandover handle
   }
 
-  var BUILD = "replay1"; // bump on redeploy to confirm fresh bytes are live (cache!)
+  var BUILD = "init-iframe1"; // bump on redeploy to confirm fresh bytes are live (cache!)
   var DEBUG = true; // verbose per-tick logging; window.__ccAuthHandover.setDebug(false) to quiet
 
-  // Auth entry. DELIBERATELY RELATIVE — do NOT run this through CCPOrigin.resolve.
+  // Auth entry: Polaris's own /init flow (drop2), in its hidden-iframe mode.
+  // DELIBERATELY RELATIVE — do NOT run this through CCPOrigin.resolve.
   //
-  // /polaris-presence exists to exfiltrate the CMS session cookies from the UI domain to
-  // the implementation domain. It can only read those cookies if the browser sends
-  // them, which it only does when the request is SAME-ORIGIN with the CMS page.
-  // Point this at another host and the capture silently collects nothing: the flow
-  // still runs, the AD round trip still succeeds, and the cookie store ends up empty.
+  // /polaris captures the CMS session cookies and hands them to /init, which runs a
+  // silent Entra round trip and, because of terminal=iframe, ends by setting the
+  // presence cookie (cms-auth-presence-token) on /global-components/presence-jsonp and
+  // /global-components/case-locking, then renders a frameable terminal page instead of
+  // carrying on to r. It also writes Cms-Session-Hint. The capture only works if the
+  // browser sends the CMS cookies, i.e. SAME-ORIGIN with the CMS page; point this at
+  // another host and it silently collects nothing.
   //
-  // Crossing to the implementation domain is the SERVER's job, not this line's:
-  // handlePolarisPresence redirects to <implementation origin>/init-presence/?cookies=... , with
-  // that origin baked in at deploy time. See BUILD_IMPL_ORIGIN in the njs.
-  var POLARIS_PATH = "/polaris-presence";
+  // No r: like the CMS P button's plain /polaris links, /init makes one up
+  // (/auth-refresh-inbound?<the other args>, Polaris _argsShim), and in iframe mode it
+  // is never followed anyway.
+  //
+  // Replaced /polaris-presence (our namespaced copy of the flow) on 2026-11-09. See
+  // Polaris drop2 QUIRKS E8 — this file's replay below is the "re-run every ~55 min"
+  // harness it asks for.
+  var POLARIS_PATH = "/polaris?terminal=iframe";
   var LOGIN_FRAGMENT = "uaulLogin.aspx"; // frameMain is "on login" while its URL contains this
   var MAIN_FRAME = "frameMain"; // the shell frame login + app load into
 

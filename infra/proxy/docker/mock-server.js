@@ -80,18 +80,14 @@ const server = http.createServer((req, res) => {
     return;
   }
 
-  // CMS classic login page stub. The cms-auth-presence login-page shim proxies
-  // uaulLogin.aspx here and sub_filters a hidden /polaris-presence capture iframe into
-  // it, so the body MUST contain the exact sub_filter target
-  // 'location.href = sNewHref;</script>'.
-  if (/^CMS\.[^/]+\/User\/uaulLogin\.aspx$/i.test(path)) {
-    console.log('  -> CMS login page stub (uaulLogin.aspx)');
+  // The CMS pages the cms-augmentation conf injects our client <script> into:
+  // Classic's frameset shell (both URLs it is served at), CMS Modern's landing page
+  // and DCF's review screens. Each body has the '</head>' the conf's sub_filter
+  // anchors on, so the integration test can see the injection land.
+  if (/^(CMS\.[^/]+\/(uaglCMS\.aspx)?|viewer\/landing|dcf\/review\/.*)$/i.test(path)) {
+    console.log('  -> CMS page stub (injection target)');
     res.writeHead(200, { 'Content-Type': 'text/html' });
-    res.end(
-      '<html><head><title>CMS Login</title></head><body>' +
-        '<script>var sNewHref = "/CMS.24.0.01/home";location.href = sNewHref;</script>' +
-        '</body></html>'
-    );
+    res.end('<html><head><title>CMS stub</title></head><body></body></html>');
     return;
   }
 
@@ -120,7 +116,9 @@ const server = http.createServer((req, res) => {
     res.writeHead(200, {
       'Content-Type': contentType,
       'X-Mock-Blob-Env': env,
-      'X-Mock-Blob-File': file
+      'X-Mock-Blob-File': file,
+      // Real blob storage sends one for the stored bytes; the artifact routes hide it.
+      'Content-MD5': 'bW9jay1tZDU='
     });
     res.end(body);
     return;

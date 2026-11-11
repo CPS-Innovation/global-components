@@ -291,7 +291,8 @@ cookie and adds `X-Watchdog-App-Name`.
 ### Switched over on 2026-11-04
 
 The four `sub_filter` injections in
-`infra/proxy/config/global-components.cms-auth-presence/` name the `-unstable` pair,
+`infra/proxy/config/global-components.cms-augmentation/` (`cms-auth-presence` until
+2026-11-10) name the `-unstable` pair,
 so the proxied estate runs the clients built here:
 
 | `location` | injects |

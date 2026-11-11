@@ -79,27 +79,38 @@ CONTENT_DIR="${HOME}/.gc-deploy-content"
 # are deployed by the parent project - we only deploy vnext-specific files
 # Source files are .conf but build.sh adds .template suffix for nginx envsubst
 FILES_TO_DEPLOY=(
-  "global-components.vnext.conf.template"
   "global-components.vnext.js"
-  # Temporary multi-OS-domain testing module (FCT2-22132) — delete with the module.
-  "global-components.multi-os-domain-testing.conf.template"
-  "global-components.multi-os-domain-testing.js"
+  "global-components.vnext.conf.template"
+  # Transitional OS London/Dublin/oapps switch module (FCT2-22132) — delete with the module.
+  "global-components.os-london-dublin-oapps-switch.js"
+  "global-components.os-london-dublin-oapps-switch.conf.template"
 )
 
-# Blob name(s) each deployed file is uploaded to. The proxy App Service may run either
-# the live monolith or the refactored "next" config (Polaris repo, proxy/config/) — both
-# read this same container. Live loads root `global-components*.conf`; next has no root
-# include and loads only `features/*/*.conf`. So every global-components.<x>.conf.template
-# goes to BOTH places (identical content); .js files stay at the root, shared by both
-# worlds (the confs `js_import templates/global-components.<x>.js`). Contract:
-# Polaris polaris-terraform/main-terraform/proxy/docs/PROXY.md §6.8.
-blob_names() {
+# The blob each file lives in. We deploy to the new-generation proxy config only
+# (Polaris repo, proxy/config/, booted by start-next.sh): it loads only
+# `features/*/*.conf`. A module's conf AND its .js both live in
+# features/global-components.<x>/ — the conf does
+# `js_import templates/features/global-components.<x>/global-components.<x>.js`.
+# Each .js is listed before its conf above, so it is uploaded first: a restart
+# between the two never meets a conf whose .js is missing.
+#
+# The old monolith's root copies of our confs are no longer written; deploy.local.sh
+# removes them. Backups are kept under the flat file name (not the blob path) so
+# rollback.sh can map each one back through this same function.
+blob_name() {
   local file="$1"
-  echo "$file"
-  if [[ "$file" == global-components.*.conf.template ]]; then
-    local stem="${file%.conf.template}"
-    echo "features/$stem/$stem.conf.template"
-  fi
+  case "$file" in
+    global-components.*.conf.template)
+      local stem="${file%.conf.template}"
+      echo "features/$stem/$file" ;;
+    # A module .js (global-components.<x>.js) goes beside its conf. Polaris's own
+    # base global-components.js has no <x>, never matches, and is never ours anyway.
+    global-components.?*.js)
+      local stem="${file%.js}"
+      echo "features/$stem/$file" ;;
+    *)
+      echo "$file" ;;
+  esac
 }
 
 # App settings to deploy (vnext-specific only)
@@ -198,21 +209,19 @@ echo -e "\n${YELLOW}Backing up current files to $BACKUP_DIR...${NC}"
 
 # Download current files from blob storage (for backup/rollback)
 for file in "${FILES_TO_DEPLOY[@]}"; do
-  for blob in $(blob_names "$file"); do
-    echo "  Downloading $blob..."
-    mkdir -p "$(dirname "$BACKUP_DIR/$blob")"
-    if az storage blob download \
-      --account-name "$AZURE_STORAGE_ACCOUNT" \
-      --container-name "$AZURE_STORAGE_CONTAINER" \
-      --name "$blob" \
-      --file "$BACKUP_DIR/$blob" \
-      --auth-mode login \
-      2>&1 | sed 's/^/    /'; then
-      echo -e "    ${GREEN}✓ Downloaded${NC}"
-    else
-      echo -e "    ${YELLOW}⚠ File may not exist yet${NC}"
-    fi
-  done
+  blob="$(blob_name "$file")"
+  echo "  Downloading $blob..."
+  if az storage blob download \
+    --account-name "$AZURE_STORAGE_ACCOUNT" \
+    --container-name "$AZURE_STORAGE_CONTAINER" \
+    --name "$blob" \
+    --file "$BACKUP_DIR/$file" \
+    --auth-mode login \
+    2>&1 | sed 's/^/    /'; then
+    echo -e "    ${GREEN}✓ Downloaded${NC}"
+  else
+    echo -e "    ${YELLOW}⚠ File may not exist yet${NC}"
+  fi
 done
 echo -e "${GREEN}Backup complete${NC}"
 
@@ -231,19 +240,38 @@ echo -e "${GREEN}Backup complete${NC}"
 #   --output none
 # echo -e "${GREEN}App settings updated${NC}"
 
-# Upload files to blob storage
-echo -e "\n${YELLOW}Uploading files to blob storage...${NC}"
-for file in "${FILES_TO_DEPLOY[@]}"; do
-  for blob in $(blob_names "$file"); do
-    echo "  Uploading $file -> $blob..."
-    az storage blob upload \
+# Blobs of a module deployed under a name it no longer has. Both copies would be
+# loaded by `include features/*/*.conf` and define the same locations, so nginx
+# would not start: they are deleted BEFORE the uploads (delete-if-present). A
+# restart in between meets neither copy (that feature degraded), never both (down).
+RETIRED_BLOBS=(
+  "features/global-components.multi-os-domain-testing/global-components.multi-os-domain-testing.conf.template"
+  "features/global-components.multi-os-domain-testing/global-components.multi-os-domain-testing.js"
+)
+echo -e "\n${YELLOW}Removing retired blobs...${NC}"
+for blob in "${RETIRED_BLOBS[@]}"; do
+  if [ "$(az storage blob exists --account-name "$AZURE_STORAGE_ACCOUNT" --container-name "$AZURE_STORAGE_CONTAINER" --name "$blob" --auth-mode login --query exists --output tsv)" = "true" ]; then
+    echo "  Deleting $blob..."
+    az storage blob delete \
       --account-name "$AZURE_STORAGE_ACCOUNT" \
       --container-name "$AZURE_STORAGE_CONTAINER" \
       --name "$blob" \
-      --file "$CONTENT_DIR/$file" \
-      --overwrite \
       --auth-mode login
-  done
+  fi
+done
+
+# Upload files to blob storage
+echo -e "\n${YELLOW}Uploading files to blob storage...${NC}"
+for file in "${FILES_TO_DEPLOY[@]}"; do
+  blob="$(blob_name "$file")"
+  echo "  Uploading $file -> $blob..."
+  az storage blob upload \
+    --account-name "$AZURE_STORAGE_ACCOUNT" \
+    --container-name "$AZURE_STORAGE_CONTAINER" \
+    --name "$blob" \
+    --file "$CONTENT_DIR/$file" \
+    --overwrite \
+    --auth-mode login
 done
 echo -e "${GREEN}Upload complete${NC}"
 
