@@ -38,7 +38,7 @@ export const exposeDevStore = ({ window, register }: Props) => {
             sections: [
               {
                 code: "case",
-                users: users.map(user => ({ user, appName: APP_NAME, joinedAt: new Date().toISOString() })),
+                members: users.map(userEmail => ({ userEmail, sourceApplication: APP_NAME, joinedAt: new Date().toISOString() })),
                 occupiedOnEntry: wasOccupiedOnEntry,
               },
             ],
@@ -56,7 +56,8 @@ export const exposeDevStore = ({ window, register }: Props) => {
   const arrives = (...users: string[]) => roster(users, false);
 
   // The full shape, for section combinations and missing joinedAt:
-  //   __cps.sections([{ code: "witness", users: [{ user: "a@b", appName: "CMS" }] }])
+  //   __cps.sections([{ code: "victim_witness", occupiedOnEntry: true,
+  //     members: [{ userEmail: "a@b", sourceApplication: "CMS Classic", sections: [{ kind: "VICTIM_WITNESS", isCurrent: true }] }] }])
   const sections = (next: CaseLockingPresentSection[]) => register({ caseLockingPresentUsers: next.length ? { sections: next } : undefined });
 
   const clear = () => register({ caseLockingPresentUsers: undefined });

@@ -37,6 +37,16 @@ h.test("a stale or equal version is ignored — poll gives no ordering guarantee
   h.assertEqual(who(r), ["stef@cps.gov.uk CASE"]);
 });
 
+h.test("after a rewind the next snapshot is taken whatever its version, and ordering resumes", function () {
+  var r = CCPRoster.createRoster();
+  r.apply(notify("CASE", null, 9, [member("stef@cps.gov.uk")]));
+  r.rewind();
+  h.assertEqual(who(r), ["stef@cps.gov.uk CASE"]);
+  h.assertEqual(r.apply(notify("CASE", null, 2, [member("other@cps.gov.uk")])), true);
+  h.assertEqual(r.apply(notify("CASE", null, 1, [member("stef@cps.gov.uk")])), false);
+  h.assertEqual(who(r), ["other@cps.gov.uk CASE"]);
+});
+
 h.test("an empty poll changes nothing", function () {
   var r = CCPRoster.createRoster();
   r.apply(notify("CASE", null, 1, [member("stef@cps.gov.uk")]));

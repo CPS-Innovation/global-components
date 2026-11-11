@@ -86,12 +86,20 @@ const skipLinksSchema = z.object({
 
 export type SkipLinks = z.infer<typeof skipLinksSchema>;
 
+/**
+ * The section kinds a region may name: CCPKinds (cps-global-presence) in their
+ * lower-case config form. Listed here because this package depends on nothing but
+ * zod; a spec in cps-global-components holds the two lists together.
+ */
+export const CASE_LOCKING_REGION_CODES = ["case", "case_review", "victim_witness", "defendant"] as const;
+
 const caseLockingRegionSchema = z.object({
   // The section kind, lower-case by local convention; the wire form upper-cases it,
   // so "victim_witness" becomes VICTIM_WITNESS. Must match what CMS Classic and CMS
   // Modern register for the same thing, or the two systems register different
-  // sections and never see each other.
-  code: z.string(),
+  // sections and never see each other — so a code the shared table does not know is
+  // a config error, not a silently empty room.
+  code: z.enum(CASE_LOCKING_REGION_CODES),
   // The subject, for kinds scoped to one person. A TEMPLATE, substituted from the
   // current tags exactly as msalRedirectUrl and the menu hrefs are — so a named
   // group captured by this context's own path regex is all it takes:

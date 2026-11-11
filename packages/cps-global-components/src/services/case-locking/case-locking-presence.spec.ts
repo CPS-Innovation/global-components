@@ -1,6 +1,6 @@
-import { createCaseLockingPresence } from "./case-locking-presence";
+import { CaseLockingPresenceService, createCaseLockingPresence, PresenceRegion, regionKey } from "./case-locking-presence";
 import { CaseLockingPresentUsers } from "./CaseLockingPresentUsers";
-import { CCPEnvironment } from "cps-global-presence";
+import { CCPEnvironment, CCPView } from "cps-global-presence";
 
 type FakeHubConnection = {
   start: jest.Mock<Promise<void>, []>;
@@ -74,20 +74,37 @@ const presence = (users: { user: string; appName: string }[], { caseId = "123", 
 const sid = (caseId: string, kind: string, subjectId?: string) =>
   `${caseId}:${CCPEnvironment.suffixKind(kind)}` + (subjectId ? `:${subjectId}` : "");
 
-const setup = (options: { countSelf?: boolean; onPresenceChanged?: () => void } = {}) => {
+// The region bookkeeping initialise-case-locking does, so these tests can say
+// "this region appeared" and "that one went" while the service sees whole lists.
+const withRegions = (presence: CaseLockingPresenceService) => {
+  const regions = new Map<string, PresenceRegion>();
+  const push = () => presence.setRegions(Array.from(regions.values()));
+  return {
+    setCaseId: presence.setCaseId,
+    addRegion: (code: string, subjectId?: string) => {
+      regions.set(regionKey({ code, subjectId }), { code, subjectId });
+      push();
+    },
+    removeRegion: (code: string, subjectId?: string) => {
+      regions.delete(regionKey({ code, subjectId }));
+      push();
+    },
+  };
+};
+
+const setup = (options: { onPresenceChanged?: () => void } = {}) => {
   const hubs: FakeHubConnection[] = [];
   let presentUsers: CaseLockingPresentUsers;
   const register = jest.fn((arg: { caseLockingPresentUsers: CaseLockingPresentUsers }) => {
     presentUsers = arg.caseLockingPresentUsers;
   });
-  const service = createCaseLockingPresence({
+  const presence = createCaseLockingPresence({
     apiUrl: "https://example.test/api",
     username: "alice",
     appName: "test-app",
     // Unused here — every test injects a hubFactory, so the real one (which is
     // what consumes this) is never built. Present because the type requires it.
     getAccessToken: async () => "test-token",
-    countSelf: options.countSelf,
     onClassicPresenceChanged: options.onPresenceChanged,
     register,
     hubFactory: () => {
@@ -103,8 +120,11 @@ const setup = (options: { countSelf?: boolean; onPresenceChanged?: () => void } 
   // Everyone published, across every section — what most of these tests mean by
   // "the present users". Sections that end up empty are dropped entirely, so the
   // whole payload is undefined when there is nobody to show.
-  const allUsers = () => (presentUsers?.sections ?? []).flatMap(section => section.users);
-  return { service, hubs, register, hubFor, allUsers, getPresentUsers: () => presentUsers };
+  const allUsers = () => (presentUsers?.sections ?? []).flatMap(section => section.members);
+  // What a banner would show for this roster, with the reader left out — the
+  // collapsing into people is CCPView's, so it is what these tests read people through.
+  const people = () => CCPView.build({ members: allUsers(), viewerEmail: "alice" }).people;
+  return { service: withRegions(presence), hubs, register, hubFor, allUsers, people, getPresentUsers: () => presentUsers };
 };
 
 describe("createCaseLockingPresence", () => {
@@ -254,6 +274,48 @@ describe("createCaseLockingPresence", () => {
     expect(hub.invoke).toHaveBeenLastCalledWith("Connect", sid("123", "A"), "test-app");
   });
 
+  // A new session may count versions afresh, so after a reconnect the next snapshot
+  // is taken whatever its number — but the roster stays up until it arrives.
+  it("on reconnect, keeps the roster and takes the new session's first snapshot", async () => {
+    const { service, hubFor, allUsers } = setup();
+    service.setCaseId("123");
+    service.addRegion("witness");
+    await flush();
+    const hub = hubFor(sid("123", "WITNESS"))!;
+    hub.__notify?.({ type: 0, payload: { snapshots: [{ section: { caseId: "123", kind: CCPEnvironment.suffixKind("WITNESS") }, version: 50, members: [{ userEmail: "bob" }] }] } });
+    await flush();
+
+    hub.__reconnectedHandler?.();
+    await flush();
+    expect(allUsers().map(u => u.userEmail)).toEqual(["bob"]);
+
+    hub.__notify?.({ type: 0, payload: { snapshots: [{ section: { caseId: "123", kind: CCPEnvironment.suffixKind("WITNESS") }, version: 1, members: [{ userEmail: "carol" }] }] } });
+    await flush();
+    expect(allUsers().map(u => u.userEmail)).toEqual(["carol"]);
+  });
+
+  it("setRegions with the same regions changes nothing", async () => {
+    const hubs: unknown[] = [];
+    const service = createCaseLockingPresence({
+      apiUrl: "https://example.test/api",
+      username: "alice",
+      appName: "test-app",
+      getAccessToken: async () => "test-token",
+      register: jest.fn(),
+      hubFactory: () => {
+        const hub = makeFakeHub();
+        hubs.push(hub);
+        return hub as any;
+      },
+    });
+    service.setCaseId("123");
+    service.setRegions([{ code: "a" }, { code: "b", subjectId: "1" }]);
+    await flush();
+    service.setRegions([{ code: "b", subjectId: "1" }, { code: "a" }]);
+    await flush();
+    expect(hubs).toHaveLength(2);
+  });
+
   it("on start failure, drops the connection and does not leak it to the active set", async () => {
     const hubs: FakeHubConnection[] = [];
     const register = jest.fn();
@@ -261,9 +323,7 @@ describe("createCaseLockingPresence", () => {
       apiUrl: "https://example.test/api",
       username: "alice",
       appName: "test-app",
-    // Unused here — every test injects a hubFactory, so the real one (which is
-    // what consumes this) is never built. Present because the type requires it.
-    getAccessToken: async () => "test-token",
+      getAccessToken: async () => "test-token",
       register,
       hubFactory: () => {
         const hub = makeFakeHub();
@@ -274,11 +334,11 @@ describe("createCaseLockingPresence", () => {
     });
 
     service.setCaseId("123");
-    service.addRegion("a");
+    service.setRegions([{ code: "a" }]);
     await flush();
 
-    service.removeRegion("a");
-    service.addRegion("a");
+    service.setRegions([]);
+    service.setRegions([{ code: "a" }]);
     await flush();
     expect(hubs.length).toBeGreaterThan(1);
   });
@@ -311,7 +371,7 @@ describe("createCaseLockingPresence", () => {
     // CCPSectionRules key on the kinds the API documents, and must never need an
     // entry per CMS instance.
     it("strips the suffix before a kind becomes display data", async () => {
-      const { service, hubFor, allUsers } = setup({ countSelf: true });
+      const { service, hubFor, allUsers } = setup();
       service.setCaseId("123");
       service.addRegion("witness");
       await flush();
@@ -436,10 +496,11 @@ describe("createCaseLockingPresence", () => {
   });
 
   describe("presence publication", () => {
-    // countSelf mirrors the caseLockingCountSelf preview flag. ON, we match the
-    // Classic banner and the Modern bar, which both count and list you.
-    it("publishes everyone in the section, ourselves included, when countSelf is on", async () => {
-      const { service, hubFor, register, allUsers } = setup({ countSelf: true });
+    // The roster goes to the store as the API reported it, the reader included:
+    // leaving them out (or keeping them in, under caseLockingCountSelf) is
+    // CCPView's job where the roster is drawn, the same in all three UIs.
+    it("publishes everyone in the section, ourselves included", async () => {
+      const { service, hubFor, register } = setup();
       service.setCaseId("123");
       service.addRegion("witness");
       await flush();
@@ -450,63 +511,32 @@ describe("createCaseLockingPresence", () => {
       ]));
       await flush();
 
-      expect(register).toHaveBeenCalledWith({
+      expect(register).toHaveBeenLastCalledWith({
         caseLockingPresentUsers: {
           sections: [
             {
               code: "witness",
-              users: [
-                { user: "alice", appName: "test-app", joinedAt: undefined, sections: [{ kind: "WITNESS", isCurrent: true }] },
-                { user: "bob@cps.gov.uk", appName: "CMS", joinedAt: undefined, sections: [{ kind: "WITNESS", isCurrent: true }] },
+              members: [
+                { userEmail: "alice", sourceApplication: "test-app", joinedAt: "", sections: [{ kind: "WITNESS", isCurrent: true }] },
+                { userEmail: "bob@cps.gov.uk", sourceApplication: "CMS", joinedAt: "", sections: [{ kind: "WITNESS", isCurrent: true }] },
               ],
               occupiedOnEntry: true,
             },
           ],
         },
       });
-      expect(allUsers()).toHaveLength(2);
     });
 
-    it("publishes a list of one when we are the only user present and countSelf is on", async () => {
-      // The observability case, and the whole reason the flag exists: with self
-      // hidden, a lone developer on a case sees an empty list and cannot tell a
-      // working mechanism from a broken one.
-      const { service, hubFor, allUsers } = setup({ countSelf: true });
-      service.setCaseId("123");
-      service.addRegion("witness");
-      await flush();
-
-      hubFor(sid("123", "WITNESS"))!.__notify?.(presence([{ user: "alice", appName: "test-app" }]));
-      await flush();
-      expect(allUsers()).toEqual([{ user: "alice", appName: "test-app", joinedAt: undefined, sections: [{ kind: "WITNESS", isCurrent: true }] }]);
-    });
-
-    it("removes us case-insensitively by default — the hub echoes token-claim casing", async () => {
-      // Default (production) behaviour: self is dropped, and the comparison must
-      // survive the server's casing, which comes from token claims we do not
-      // control.
-      const { service, hubFor, getPresentUsers } = setup();
+    it("leaves it to the view to drop the reader, whatever the hub's casing", async () => {
+      const { service, hubFor, allUsers, people } = setup();
       service.setCaseId("123");
       service.addRegion("witness");
       await flush();
 
       hubFor(sid("123", "WITNESS"))!.__notify?.(presence([{ user: "ALICE", appName: "CMS" }]));
       await flush();
-      expect(getPresentUsers()).toBeUndefined();
-    });
-
-    it("publishes only the others by default, so a lone user is told nothing", async () => {
-      const { service, hubFor, allUsers } = setup();
-      service.setCaseId("123");
-      service.addRegion("witness");
-      await flush();
-
-      hubFor(sid("123", "WITNESS"))!.__notify?.(presence([
-        { user: "alice", appName: "test-app" },
-        { user: "bob@cps.gov.uk", appName: "CMS" },
-      ]));
-      await flush();
-      expect(allUsers()).toEqual([{ user: "bob@cps.gov.uk", appName: "CMS", joinedAt: undefined, sections: [{ kind: "WITNESS", isCurrent: true }] }]);
+      expect(allUsers()).toHaveLength(1);
+      expect(people()).toEqual([]);
     });
 
     it("subsequent Notifys overwrite the published list", async () => {
@@ -595,7 +625,7 @@ describe("createCaseLockingPresence", () => {
       hubFor(sid("123", "WITNESS"))!.__notify?.(presence([{ user: "bob@cps.gov.uk", appName: "CMS" }]));
       await flush();
 
-      expect(sectionOf(getPresentUsers, "witness")?.users).toHaveLength(1);
+      expect(sectionOf(getPresentUsers, "witness")?.members).toHaveLength(1);
       expect(sectionOf(getPresentUsers, "witness")?.occupiedOnEntry).toBe(false);
     });
 
@@ -652,7 +682,7 @@ describe("createCaseLockingPresence", () => {
       const { hub, allUsers } = await onWitness();
       hub.__notify?.(notification(1, ["bob@cps.gov.uk"]));
       await flush();
-      expect(allUsers()).toEqual([{ user: "bob@cps.gov.uk", appName: "CMS", joinedAt: undefined, sections: [{ kind: "WITNESS", isCurrent: true }] }]);
+      expect(allUsers()).toEqual([{ userEmail: "bob@cps.gov.uk", sourceApplication: "CMS", joinedAt: "", sections: [{ kind: "WITNESS", isCurrent: true }] }]);
     });
 
     it("discards a snapshot older than one already applied — they arrive out of order", async () => {
@@ -662,7 +692,7 @@ describe("createCaseLockingPresence", () => {
       hub.__notify?.(notification(3, ["carol@cps.gov.uk", "dave@cps.gov.uk"]));
       await flush();
       // The late arrival must not resurrect a roster that has moved on.
-      expect(allUsers()).toEqual([{ user: "bob@cps.gov.uk", appName: "CMS", joinedAt: undefined, sections: [{ kind: "WITNESS", isCurrent: true }] }]);
+      expect(allUsers()).toEqual([{ userEmail: "bob@cps.gov.uk", sourceApplication: "CMS", joinedAt: "", sections: [{ kind: "WITNESS", isCurrent: true }] }]);
     });
 
     it("accepts a newer snapshot, including one that empties the section", async () => {
@@ -692,7 +722,7 @@ describe("createCaseLockingPresence", () => {
       hub.__notify?.(notification(1, ["bob@cps.gov.uk"], { caseId: "123", kind: "CASE" }));
       await flush();
       expect(allUsers()).toEqual([
-        { user: "bob@cps.gov.uk", appName: "CMS", joinedAt: undefined, sections: [{ kind: "CASE", isCurrent: false }] },
+        { userEmail: "bob@cps.gov.uk", sourceApplication: "CMS", joinedAt: "", sections: [{ kind: "CASE", isCurrent: false }] },
       ]);
     });
 
@@ -711,15 +741,15 @@ describe("createCaseLockingPresence", () => {
     // You cannot clash with yourself. countSelf exists so a lone developer can SEE
     // the roster working, not so it can manufacture a collision — without this,
     // turning it on would raise the interruption on every case review opened alone.
-    it("never counts us as occupying our own section, even with countSelf on", async () => {
-      const { service, hubFor, getPresentUsers } = setup({ countSelf: true });
+    it("never counts us as occupying our own section, whatever the hub's casing", async () => {
+      const { service, hubFor, getPresentUsers } = setup();
       service.setCaseId("123");
       service.addRegion("witness");
       await flush();
-      hubFor(sid("123", "WITNESS"))!.__notify?.(presence([{ user: "alice", appName: "test-app" }]));
+      hubFor(sid("123", "WITNESS"))!.__notify?.(presence([{ user: "Alice", appName: "test-app" }]));
       await flush();
-      // Published — that is what countSelf is for — but not an interruption.
-      expect(getPresentUsers()?.sections[0].users).toHaveLength(1);
+      // Published — countSelf may want to show it — but not an interruption.
+      expect(getPresentUsers()?.sections[0].members).toHaveLength(1);
       expect(getPresentUsers()?.sections[0].occupiedOnEntry).toBe(false);
     });
 
@@ -759,7 +789,7 @@ describe("createCaseLockingPresence", () => {
         const { hub, allUsers } = await onCase();
         hub.__notify?.(notification(1, ["bob@cps.gov.uk"], { caseId: "123", kind: "CASE_REVIEW" }));
         await flush();
-        expect(allUsers()).toEqual([{ user: "bob@cps.gov.uk", appName: "CMS", joinedAt: undefined, sections: [{ kind: "CASE_REVIEW", isCurrent: false }] }]);
+        expect(allUsers()).toEqual([{ userEmail: "bob@cps.gov.uk", sourceApplication: "CMS", joinedAt: "", sections: [{ kind: "CASE_REVIEW", isCurrent: false }] }]);
       });
 
       it("counts a subject-scoped sub-section too", async () => {
@@ -769,13 +799,14 @@ describe("createCaseLockingPresence", () => {
         expect(allUsers()).toHaveLength(1);
       });
 
-      // The same person in two sections is one person on this case.
+      // The same person in two sections is one person on this case, in both.
       it("reports someone in several sections once", async () => {
-        const { hub, allUsers } = await onCase();
+        const { hub, people } = await onCase();
         hub.__notify?.(notification(1, ["bob@cps.gov.uk"], { caseId: "123", kind: "CASE" }));
         hub.__notify?.(notification(1, ["bob@cps.gov.uk"], { caseId: "123", kind: "CASE_REVIEW" }));
         await flush();
-        expect(allUsers()).toHaveLength(1);
+        expect(people()).toHaveLength(1);
+        expect(people()[0].sections.map(section => section.kind).sort()).toEqual(["CASE", "CASE_REVIEW"]);
       });
 
       it("merges different people across sections", async () => {
@@ -783,7 +814,7 @@ describe("createCaseLockingPresence", () => {
         hub.__notify?.(notification(1, ["bob@cps.gov.uk"], { caseId: "123", kind: "CASE" }));
         hub.__notify?.(notification(1, ["ann@cps.gov.uk"], { caseId: "123", kind: "CASE_REVIEW" }));
         await flush();
-        expect(allUsers().map(u => u.user).sort()).toEqual(["ann@cps.gov.uk", "bob@cps.gov.uk"]);
+        expect(allUsers().map(u => u.userEmail).sort()).toEqual(["ann@cps.gov.uk", "bob@cps.gov.uk"]);
       });
 
       // Versions are issued PER SECTION. A single counter would let a high version
@@ -793,7 +824,7 @@ describe("createCaseLockingPresence", () => {
         hub.__notify?.(notification(7, ["ann@cps.gov.uk"], { caseId: "123", kind: "CASE_REVIEW" }));
         hub.__notify?.(notification(5, ["bob@cps.gov.uk"], { caseId: "123", kind: "CASE" }));
         await flush();
-        expect(allUsers().map(u => u.user).sort()).toEqual(["ann@cps.gov.uk", "bob@cps.gov.uk"]);
+        expect(allUsers().map(u => u.userEmail).sort()).toEqual(["ann@cps.gov.uk", "bob@cps.gov.uk"]);
       });
 
       it("still ignores another case entirely", async () => {
@@ -814,7 +845,7 @@ describe("createCaseLockingPresence", () => {
         hub.__notify?.(notification(1, ["bob@cps.gov.uk"], { caseId: "123", kind: "CASE" }));
         hub.__notify?.(notification(1, ["ann@cps.gov.uk"], { caseId: "123", kind: "VICTIM_WITNESS", subjectId: "543231" }));
         await flush();
-        const byUser = Object.fromEntries(allUsers().map(user => [user.user, user.sections]));
+        const byUser = Object.fromEntries(allUsers().map(user => [user.userEmail, user.sections]));
         expect(byUser["bob@cps.gov.uk"]).toEqual([{ kind: "CASE", isCurrent: true }]);
         expect(byUser["ann@cps.gov.uk"]).toEqual([{ kind: "VICTIM_WITNESS", isCurrent: false }]);
       });
@@ -824,7 +855,7 @@ describe("createCaseLockingPresence", () => {
       // banner names the applications, so dropping the later one would report them
       // as being somewhere they have also left.
       it("keeps both systems when one person is in two", async () => {
-        const { hub, allUsers } = await onCase();
+        const { hub, people } = await onCase();
         hub.__notify?.({
           type: 0,
           payload: {
@@ -841,12 +872,13 @@ describe("createCaseLockingPresence", () => {
           },
         });
         await flush();
-        expect(allUsers().map(u => u.appName).sort()).toEqual(["CMS Classic", "Work Management App"]);
+        expect(people()).toHaveLength(1);
+        expect(people()[0].apps).toHaveLength(2);
       });
 
       // The same person, same application, reported by two sections is ONE arrival.
-      it("keeps one entry per system, at the earliest arrival", async () => {
-        const { hub, allUsers } = await onCase();
+      it("keeps one entry per system", async () => {
+        const { hub, people } = await onCase();
         const inApp = (kind: string, joinedAt: string) => ({
           type: 0,
           payload: {
@@ -862,8 +894,8 @@ describe("createCaseLockingPresence", () => {
         hub.__notify?.(inApp("CASE", "2026-09-09T15:00:00Z"));
         hub.__notify?.(inApp("CASE_REVIEW", "2026-09-09T14:00:00Z"));
         await flush();
-        expect(allUsers()).toHaveLength(1);
-        expect(allUsers()[0].joinedAt).toBe("2026-09-09T14:00:00Z");
+        expect(people()).toHaveLength(1);
+        expect(people()[0].apps).toHaveLength(1);
       });
 
       it("a section emptying removes only its own members", async () => {
@@ -872,7 +904,7 @@ describe("createCaseLockingPresence", () => {
         hub.__notify?.(notification(1, ["ann@cps.gov.uk"], { caseId: "123", kind: "CASE_REVIEW" }));
         hub.__notify?.(notification(2, [], { caseId: "123", kind: "CASE_REVIEW" }));
         await flush();
-        expect(allUsers().map(u => u.user)).toEqual(["bob@cps.gov.uk"]);
+        expect(allUsers().map(u => u.userEmail)).toEqual(["bob@cps.gov.uk"]);
       });
     });
 

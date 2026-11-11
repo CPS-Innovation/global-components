@@ -57,6 +57,7 @@ CCPRoster.normaliseMembers = function (members) {
  *   sections: function(): Object<string, CCPRosterEntry>,
  *   members: function((string[]|undefined), string=): CCPRosterMember[],
  *   forget: function(string): boolean,
+ *   rewind: function(): void,
  *   clear: function(): void,
  *   takeChanges: function(): {joined: string[], left: string[]}
  * }}
@@ -186,6 +187,18 @@ CCPRoster.createRoster = function () {
       }
       sections = next;
       return dropped;
+    },
+
+    // A new session (a reconnect, or a rejoin after eviction) may count versions
+    // afresh, so the next snapshot of every section is taken whatever its number.
+    // The members stay until it arrives, so the banner does not blink.
+    rewind: function () {
+      var key;
+      for (key in sections) {
+        if (sections.hasOwnProperty(key)) {
+          sections[key].version = NaN;
+        }
+      }
     },
 
     clear: function () {
