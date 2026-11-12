@@ -27,6 +27,10 @@ export type CspRelevantConfig = Pick<
   | "OS_HANDOVER_URL"
 >;
 
+// The Watchdog's negotiate names its Azure SignalR instance at runtime, so no
+// config value can; every instance lives under this domain.
+const SIGNALR_SERVICE_SOURCE = "https://*.service.signalr.net";
+
 const originOf = (url: string | undefined): string | undefined => {
   if (!url) {
     return undefined;
@@ -140,9 +144,17 @@ const deriveHostAppRequirements = (
     requirement(
       "connect-src",
       originOf(config.CASE_LOCKING_API_URL),
-      "Case-locking SignalR hub. Server-sent events and long-polling today — both connect-src. " +
-        "WebSockets is commented out in case-locking-presence.ts; re-enabling it needs the same " +
-        "host as wss:, which is why this is derived rather than pinned to a scheme.",
+      "Case-locking hub (the Watchdog API), connected to directly: the negotiate request. " +
+        "The connection itself goes to the SignalR service below.",
+    ),
+    requirement(
+      "connect-src",
+      config.CASE_LOCKING_API_URL ? SIGNALR_SERVICE_SOURCE : undefined,
+      "Azure SignalR Service, which the hub's negotiate hands the browser to, connected to " +
+        "directly. A wildcard because the instance is named only in the negotiate reply, " +
+        "and so moves whenever the Watchdog does. Server-sent events and long-polling " +
+        "today — both connect-src. WebSockets is commented out in case-locking-presence.ts; " +
+        "re-enabling it may need wss://*.service.signalr.net in older browsers.",
     ),
     requirement(
       "connect-src",

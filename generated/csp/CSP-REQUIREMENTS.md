@@ -16,16 +16,17 @@ Regenerate with `pnpm --filter cps-global-configuration generate:csp`.
 
 | Directive | Source | Why |
 | --- | --- | --- |
+| `connect-src` | `https://*.service.signalr.net` | Azure SignalR Service, which the hub's negotiate hands the browser to, connected to directly. A wildcard because the instance is named only in the negotiate reply, and so moves whenever the Watchdog does. Server-sent events and long-polling today — both connect-src. WebSockets is commented out in case-locking-presence.ts; re-enabling it may need wss://*.service.signalr.net in older browsers. |
 | `connect-src` | `https://graph.microsoft.com` | getMe() fetches /v1.0/me?$select=department,jobTitle (cps-global-auth/src/get-me.ts). Soft-fails silently when blocked — the caller in handle-msal-termination passes no logError — so a missing entry costs the department/jobTitle slice with no error anywhere. |
 | `connect-src` | `https://js.monitor.azure.com` | @microsoft/applicationinsights-web's CfgSyncPlugin fetches /scripts/b/ai.config.1.cfg.json at runtime. Enabled by default; disabling it via featureOptIn in initialise-ai-analytics.ts would remove this requirement entirely. |
 | `connect-src` | `https://login.microsoftonline.com` | MSAL token endpoint (derived from AD_TENANT_AUTHORITY). |
 | `connect-src` | `https://polaris-dev-notprod.cps.gov.uk` | Serves the state endpoints the bundle fetches: ../state/* and ../cms-session-hint. ALSO: App Insights ingestion (derived from IngestionEndpoint in APP_INSIGHTS_CONNECTION_STRING). |
-| `connect-src` | `https://polaris-qa-notprod.cps.gov.uk` | Case-locking SignalR hub. Server-sent events and long-polling today — both connect-src. WebSockets is commented out in case-locking-presence.ts; re-enabling it needs the same host as wss:, which is why this is derived rather than pinned to a scheme. |
+| `connect-src` | `https://watchdog-api-dev.gslb-notprod.int.cps.gov.uk` | Case-locking hub (the Watchdog API), connected to directly: the negotiate request. The connection itself goes to the SignalR service below. |
 | `frame-src` | `https://login.microsoftonline.com` | MSAL uses a hidden iframe for ssoSilent and acquireTokenSilent. A host app whose policy sets only the legacy child-src also satisfies this. |
 | `script-src` | `https://polaris-dev-notprod.cps.gov.uk` | Serves global-components.js (derived from OS_HANDOVER_URL's ?src= parameter). |
 
 ```
-connect-src https://graph.microsoft.com https://js.monitor.azure.com https://login.microsoftonline.com https://polaris-dev-notprod.cps.gov.uk https://polaris-qa-notprod.cps.gov.uk; frame-src https://login.microsoftonline.com; script-src https://polaris-dev-notprod.cps.gov.uk;
+connect-src https://*.service.signalr.net https://graph.microsoft.com https://js.monitor.azure.com https://login.microsoftonline.com https://polaris-dev-notprod.cps.gov.uk https://watchdog-api-dev.gslb-notprod.int.cps.gov.uk; frame-src https://login.microsoftonline.com; script-src https://polaris-dev-notprod.cps.gov.uk;
 ```
 
 ### `dev`: `/Casework_Patterns/auth-handover.html`
@@ -53,15 +54,17 @@ connect-src 'self' https://graph.microsoft.com https://login.microsoftonline.com
 
 | Directive | Source | Why |
 | --- | --- | --- |
+| `connect-src` | `https://*.service.signalr.net` | Azure SignalR Service, which the hub's negotiate hands the browser to, connected to directly. A wildcard because the instance is named only in the negotiate reply, and so moves whenever the Watchdog does. Server-sent events and long-polling today — both connect-src. WebSockets is commented out in case-locking-presence.ts; re-enabling it may need wss://*.service.signalr.net in older browsers. |
 | `connect-src` | `https://graph.microsoft.com` | getMe() fetches /v1.0/me?$select=department,jobTitle (cps-global-auth/src/get-me.ts). Soft-fails silently when blocked — the caller in handle-msal-termination passes no logError — so a missing entry costs the department/jobTitle slice with no error anywhere. |
 | `connect-src` | `https://js.monitor.azure.com` | @microsoft/applicationinsights-web's CfgSyncPlugin fetches /scripts/b/ai.config.1.cfg.json at runtime. Enabled by default; disabling it via featureOptIn in initialise-ai-analytics.ts would remove this requirement entirely. |
 | `connect-src` | `https://login.microsoftonline.com` | MSAL token endpoint (derived from AD_TENANT_AUTHORITY). |
-| `connect-src` | `https://polaris-qa-notprod.cps.gov.uk` | Serves the state endpoints the bundle fetches: ../state/* and ../cms-session-hint. ALSO: App Insights ingestion (derived from IngestionEndpoint in APP_INSIGHTS_CONNECTION_STRING). ALSO: Case-locking SignalR hub. Server-sent events and long-polling today — both connect-src. WebSockets is commented out in case-locking-presence.ts; re-enabling it needs the same host as wss:, which is why this is derived rather than pinned to a scheme. |
+| `connect-src` | `https://polaris-qa-notprod.cps.gov.uk` | Serves the state endpoints the bundle fetches: ../state/* and ../cms-session-hint. ALSO: App Insights ingestion (derived from IngestionEndpoint in APP_INSIGHTS_CONNECTION_STRING). |
+| `connect-src` | `https://watchdog-api-dev.gslb-notprod.int.cps.gov.uk` | Case-locking hub (the Watchdog API), connected to directly: the negotiate request. The connection itself goes to the SignalR service below. |
 | `frame-src` | `https://login.microsoftonline.com` | MSAL uses a hidden iframe for ssoSilent and acquireTokenSilent. A host app whose policy sets only the legacy child-src also satisfies this. |
 | `script-src` | `https://polaris-qa-notprod.cps.gov.uk` | Serves global-components.js (derived from OS_HANDOVER_URL's ?src= parameter). |
 
 ```
-connect-src https://graph.microsoft.com https://js.monitor.azure.com https://login.microsoftonline.com https://polaris-qa-notprod.cps.gov.uk; frame-src https://login.microsoftonline.com; script-src https://polaris-qa-notprod.cps.gov.uk;
+connect-src https://*.service.signalr.net https://graph.microsoft.com https://js.monitor.azure.com https://login.microsoftonline.com https://polaris-qa-notprod.cps.gov.uk https://watchdog-api-dev.gslb-notprod.int.cps.gov.uk; frame-src https://login.microsoftonline.com; script-src https://polaris-qa-notprod.cps.gov.uk;
 ```
 
 ### `test`: `/Casework_Patterns/auth-handover.html`
@@ -89,15 +92,16 @@ connect-src 'self' https://graph.microsoft.com https://login.microsoftonline.com
 
 | Directive | Source | Why |
 | --- | --- | --- |
+| `connect-src` | `https://*.service.signalr.net` | Azure SignalR Service, which the hub's negotiate hands the browser to, connected to directly. A wildcard because the instance is named only in the negotiate reply, and so moves whenever the Watchdog does. Server-sent events and long-polling today — both connect-src. WebSockets is commented out in case-locking-presence.ts; re-enabling it may need wss://*.service.signalr.net in older browsers. |
 | `connect-src` | `https://graph.microsoft.com` | getMe() fetches /v1.0/me?$select=department,jobTitle (cps-global-auth/src/get-me.ts). Soft-fails silently when blocked — the caller in handle-msal-termination passes no logError — so a missing entry costs the department/jobTitle slice with no error anywhere. |
 | `connect-src` | `https://js.monitor.azure.com` | @microsoft/applicationinsights-web's CfgSyncPlugin fetches /scripts/b/ai.config.1.cfg.json at runtime. Enabled by default; disabling it via featureOptIn in initialise-ai-analytics.ts would remove this requirement entirely. |
 | `connect-src` | `https://login.microsoftonline.com` | MSAL token endpoint (derived from AD_TENANT_AUTHORITY). |
-| `connect-src` | `https://polaris-uat-notprod.cps.gov.uk` | Serves the state endpoints the bundle fetches: ../state/* and ../cms-session-hint. ALSO: App Insights ingestion (derived from IngestionEndpoint in APP_INSIGHTS_CONNECTION_STRING). ALSO: Case-locking SignalR hub. Server-sent events and long-polling today — both connect-src. WebSockets is commented out in case-locking-presence.ts; re-enabling it needs the same host as wss:, which is why this is derived rather than pinned to a scheme. |
+| `connect-src` | `https://polaris-uat-notprod.cps.gov.uk` | Serves the state endpoints the bundle fetches: ../state/* and ../cms-session-hint. ALSO: App Insights ingestion (derived from IngestionEndpoint in APP_INSIGHTS_CONNECTION_STRING). ALSO: Case-locking hub (the Watchdog API), connected to directly: the negotiate request. The connection itself goes to the SignalR service below. |
 | `frame-src` | `https://login.microsoftonline.com` | MSAL uses a hidden iframe for ssoSilent and acquireTokenSilent. A host app whose policy sets only the legacy child-src also satisfies this. |
 | `script-src` | `https://polaris-uat-notprod.cps.gov.uk` | Serves global-components.js (derived from OS_HANDOVER_URL's ?src= parameter). |
 
 ```
-connect-src https://graph.microsoft.com https://js.monitor.azure.com https://login.microsoftonline.com https://polaris-uat-notprod.cps.gov.uk; frame-src https://login.microsoftonline.com; script-src https://polaris-uat-notprod.cps.gov.uk;
+connect-src https://*.service.signalr.net https://graph.microsoft.com https://js.monitor.azure.com https://login.microsoftonline.com https://polaris-uat-notprod.cps.gov.uk; frame-src https://login.microsoftonline.com; script-src https://polaris-uat-notprod.cps.gov.uk;
 ```
 
 ### `uat`: `/Casework_Patterns/auth-handover.html`

@@ -121,16 +121,6 @@ async function testUnconfigured() {
     const body = await response.text()
     assert(body.includes("GLOBAL_COMPONENTS_WATCHDOG_HOST"), `Should name the setting, got: ${body}`)
   })
-
-  // The sr location only takes a DNS-label instance. Anything else is not a
-  // SignalR instance and falls to the hub route — which, here, is the 503 — so a
-  // crafted path can never steer the proxy at another host.
-  await test("a non-instance sr path is not proxied to SignalR", async () => {
-    const response = await fetch(
-      `${PROXY_BASE}/global-components/case-locking/api/sr/evil.example.com/x`
-    )
-    assertEqual(response.status, 503, "Falls through to the (unconfigured) hub route")
-  })
 }
 
 // =============================================================================

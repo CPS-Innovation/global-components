@@ -79,6 +79,11 @@ export const makeHubFactory =
       .withUrl(url, {
         transport: /*HttpTransportType.WebSockets | */ HttpTransportType.ServerSentEvents | HttpTransportType.LongPolling,
         accessTokenFactory: async () => (await getAccessToken()) ?? "",
+        // The hub and the SignalR service are other origins, reached directly. We
+        // authenticate with the bearer token alone, so no cookies: a credentialed
+        // cross-origin request would need both to allow credentials for every host
+        // app's origin, for nothing we use.
+        withCredentials: false,
       })
       .withAutomaticReconnect()
       .build();

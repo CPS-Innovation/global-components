@@ -4,10 +4,10 @@
 // Two transports into the ONE API, and they must agree on which Watchdog that is,
 // which is why they share a module, a setting and a cookie name:
 //
-//   /global-components/case-locking/api/...   the SignalR hub (and the Azure
-//       SignalR Service it hands clients to, under .../api/sr/<instance>/...).
-//       Used by global-components in the current apps. URL kept from when this
-//       module was called case-locking: clients and config name it.
+//   /global-components/case-locking/api/...   the SignalR hub, for UAT's
+//       global-components only: QA's negotiate with the Watchdog directly, and
+//       every environment's browsers reach the Azure SignalR Service directly.
+//       Delete the route (and presenceBearer, watchdogAppName) when UAT goes direct.
 //   /global-components/presence-jsonp         the JSONP adapter, for the legacy
 //       CMS clients (Classic, Modern, DCF), which run in IE mode and can neither
 //       XHR cross-domain nor set an Authorization header.
@@ -269,64 +269,6 @@ function _cmsEnvRead(r) {
   }
   const label = domain.split(".")[0].toUpperCase();
   return label ? { env: label, why: "hint" } : { env: "", why: "no-domain" };
-}
-
-function dropContentLengthForNegotiate(r) {
-  // The body filter rewrites the negotiate JSON, which changes its byte
-  // length. nginx computes the response Content-Length before the body
-  // filter runs, so the original (upstream) length leaks through and the
-  // browser sees ERR_HTTP2_PROTOCOL_ERROR when actual bytes < declared.
-  // Remove Content-Length here in the header-output phase; HTTP/2 signals
-  // end-of-body via END_STREAM and doesn't require it.
-  if (r.uri.endsWith("/negotiate")) {
-    delete r.headersOut["Content-Length"];
-  }
-}
-
-function filterNegotiateBody(r, data, flags) {
-  // Only intercept SignalR negotiate responses. All other responses (including
-  // WebSocket 101 upgrades and SSE/long-poll bodies) pass through unchanged.
-  if (!r.uri.endsWith("/negotiate")) {
-    r.sendBuffer(data, flags);
-    return;
-  }
-
-  // Per-chunk regex replace, matching filterSwaggerBody's pattern. This avoids
-  // the buffer-then-emit-once approach which (under HTTP/2) can leave the
-  // client's content-length expectation misaligned with the rewritten body
-  // and trigger ERR_HTTP2_PROTOCOL_ERROR. Negotiate responses are small
-  // enough that the URL won't span a chunk boundary in practice.
-  //
-  // Rewrite to an absolute same-origin URL (not path-relative) because the
-  // SignalR client constructs `new URL(response.url)` without supplying a
-  // base — a relative URL there throws "Invalid URL".
-  //
-  // THE INSTANCE TRAVELS IN THE PATH: https://<instance>.service.signalr.net/x
-  // becomes <us>/global-components/case-locking/api/sr/<instance>/x, and the sr
-  // location proxies back to <instance>.service.signalr.net. So the SignalR host
-  // is whatever the Watchdog's negotiate names — there is no setting for it to
-  // drift out of step with. (Until 2026-11-10 there was: SIGNALR_HOST, a second
-  // value that had to name by hand the instance the Watchdog was configured with.)
-  // Lower-cased because the sr location only accepts [a-z0-9-]; DNS does not care.
-  const scheme =
-    r.headersIn["X-Forwarded-Proto"] ||
-    r.variables.scheme ||
-    "https";
-  const host =
-    r.headersIn["Host"] ||
-    r.variables.host;
-  const replacement = `${scheme}://${host}/global-components/case-locking/api/sr`;
-
-  // buffer_type=string is honoured for UPSTREAM bodies only: a body nginx produces
-  // itself (the conf's `return 503 "…"` when the Watchdog host is not configured)
-  // arrives as a Buffer, and calling .replace on it threw — the client got a
-  // truncated response instead of the 503. Coerce; String(Buffer) is its UTF-8 text.
-  const text = typeof data === "string" ? data : String(data == null ? "" : data);
-  const result = text.replace(
-    /https?:\/\/([a-zA-Z0-9-]+)\.service\.signalr\.net/g,
-    (_m, instance) => replacement + "/" + instance.toLowerCase(),
-  );
-  r.sendBuffer(result, flags);
 }
 
 // ---------------------------------------------------------------------------
@@ -770,8 +712,6 @@ const _guard =
   };
 
 export default {
-  dropContentLengthForNegotiate,
-  filterNegotiateBody,
   presenceBearer,
   watchdogAppName,
   watchdogHost,
