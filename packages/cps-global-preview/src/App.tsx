@@ -46,6 +46,10 @@ type Feature = {
   textInputs?: TextInput[];
   subOptions?: SubOption[];
   radioOptions?: RadioOption<string>[];
+  // Also read in IE mode — by the CMS Classic and CMS Modern clients, which see
+  // IE mode's own cookie jar, not Edge's. Changing one of these raises the
+  // pinned "Copy to IE mode" bar until the settings have been copied across.
+  copyToIeMode?: boolean;
 };
 
 const CASE_MARKERS_OPTIONS: RadioOption<string>[] = [
@@ -107,8 +111,9 @@ const FEATURES: Feature[] = [
     key: "caseLockingCountSelf",
     label: "Case locking — count myself",
     description:
-      "Count yourself among the present users, shown as \"(current user)\" after your name, in the web components and in CMS Classic and Modern. Off, you see the banner only when somebody else really is on the case — which is what keeps it out of the way of QA users working alone. On, it is the evidence that self-identification works at all: filtered out, an empty banner looks the same whether the mechanism works or presence is broken. You are never counted as a CLASH with yourself, so this cannot raise the interruption on a case only you are on. For CMS, press \"Copy these settings to CMS\" after changing it.",
+      "Count yourself among the present users, shown as \"(current user)\" after your name, in the web components and in CMS Classic and Modern. Off, you see the banner only when somebody else really is on the case — which is what keeps it out of the way of QA users working alone. On, it is the evidence that self-identification works at all: filtered out, an empty banner looks the same whether the mechanism works or presence is broken. You are never counted as a CLASH with yourself, so this cannot raise the interruption on a case only you are on.",
     disabled: false,
+    copyToIeMode: true,
   },
   {
     key: "requestObservationShim",
@@ -128,12 +133,40 @@ const FEATURES: Feature[] = [
     key: "verboseLogging",
     label: "Verbose logging",
     description:
-      "Write Global Components' detailed debug messages to the browser console. Warnings and errors are always shown. To see the messages in Chrome or Edge, set the console's level to include Verbose.",
+      "Write Global Components' detailed debug messages to the browser console. Warnings and errors are always shown. To see the messages in Chrome or Edge, set the console's level to include Verbose. The CMS Classic and CMS Modern case locking clients follow it too.",
     disabled: false,
+    copyToIeMode: true,
   },
 ];
 
 type FeatureKey = Feature["key"];
+
+// The settings IE mode reads, and a comparable snapshot of their values.
+const IE_MODE_KEYS = FEATURES.filter((f) => f.copyToIeMode).map((f) => f.key);
+const IE_MODE_LABELS = FEATURES.filter((f) => f.copyToIeMode).map((f) => f.label);
+const ieModeSnapshot = (state: Preview) =>
+  JSON.stringify(IE_MODE_KEYS.map((key) => state[key] ?? null));
+
+// The IE-mode values as last copied (or as loaded, when nothing has been copied
+// in this tab). Kept in sessionStorage so reloading the page before copying does
+// not quietly drop the reminder. Best-effort: storage can throw or be missing,
+// and if it does not survive the copy's trip through IE mode, the values loaded
+// on return are the ones just copied — the same baseline anyway.
+const IE_MODE_BASELINE_KEY = "cps-preview-ie-mode-baseline";
+const readIeModeBaseline = (): string | null => {
+  try {
+    return window.sessionStorage.getItem(IE_MODE_BASELINE_KEY);
+  } catch {
+    return null;
+  }
+};
+const writeIeModeBaseline = (snapshot: string) => {
+  try {
+    window.sessionStorage.setItem(IE_MODE_BASELINE_KEY, snapshot);
+  } catch {
+    // best-effort
+  }
+};
 
 // A section heading that is its own #anchor, so sections can be linked to directly.
 // Ids are prefixed "section-" to stay clear of the form inputs' ids.
@@ -150,6 +183,7 @@ type StatusType = "info" | "error" | "success";
 export function App() {
   const [state, setState] = useState<Preview>({});
   const [loading, setLoading] = useState(true);
+  const [ieModeBaseline, setIeModeBaseline] = useState<string | null>(null);
   const [status, setStatus] = useState<{
     message: string;
     type: StatusType;
@@ -176,6 +210,7 @@ export function App() {
       if (data) {
         setState(data);
       }
+      setIeModeBaseline(readIeModeBaseline() ?? ieModeSnapshot(data ?? {}));
     } catch (err) {
       showStatus(
         `Failed to load settings: ${
@@ -295,6 +330,7 @@ export function App() {
   // fast save stays as it is and this is a separate, explicit action — at the
   // cost that Edge can be a few toggles ahead of CMS until it is pressed.
   const handlePushToCms = () => {
+    writeIeModeBaseline(ieModeSnapshot(state));
     const hasAnyValue = Object.values(state).some((v) => v);
     const query = new URLSearchParams({
       set: hasAnyValue ? JSON.stringify(state) : "null",
@@ -374,13 +410,41 @@ export function App() {
     }
   }, [showStatus]);
 
+  const ieModeOutOfDate =
+    !loading && ieModeBaseline !== null && ieModeSnapshot(state) !== ieModeBaseline;
+
   return (
-    <div className="preview-container">
+    <div className={`preview-container${ieModeOutOfDate ? " preview-container--with-ie-bar" : ""}`}>
       <style>{`
         .preview-container {
           max-width: 1200px;
           margin: 0;
           padding: 20px;
+        }
+        /* Room for the pinned bar, so it never covers the last settings or the footer. */
+        .preview-container--with-ie-bar {
+          padding-bottom: 160px;
+        }
+        .ie-mode-bar {
+          position: fixed;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          z-index: 1000;
+          background: #ffffff;
+          border-top: 5px solid #1d70b8;
+          box-shadow: 0 -2px 8px rgba(11, 12, 12, 0.15);
+          padding: 15px 0 0;
+        }
+        .ie-mode-bar__inner {
+          display: flex;
+          flex-wrap: wrap;
+          align-items: center;
+          justify-content: space-between;
+          gap: 0 20px;
+        }
+        .ie-mode-bar__text {
+          flex: 1 1 400px;
         }
       `}</style>
 
@@ -413,6 +477,7 @@ export function App() {
                   textInputs,
                   subOptions,
                   radioOptions,
+                  copyToIeMode,
                 }) => (
                   <div
                     key={key}
@@ -443,6 +508,12 @@ export function App() {
                         htmlFor={key}
                       >
                         {label}
+                        {copyToIeMode && (
+                          <>
+                            {" "}
+                            <strong className="govuk-tag govuk-tag--blue">Also IE mode</strong>
+                          </>
+                        )}
                       </label>
                       <div
                         id={`${key}-hint`}
@@ -755,14 +826,15 @@ export function App() {
             <p className="govuk-body govuk-!-font-size-16">
               Everything above takes effect in this browser straight away, but CMS
               Classic and CMS Modern run in Internet Explorer mode, which keeps its
-              own separate set of cookies. They cannot see the choices on this page
-              until they are copied across.
+              own separate set of cookies. The settings tagged <strong className="govuk-tag govuk-tag--blue">Also IE mode</strong>{" "}
+              are read there too, so they need copying across: change one and a bar
+              appears at the bottom of the page to do it.
             </p>
             <p className="govuk-body govuk-!-font-size-16">
-              This copies whatever is currently set above into IE mode as well. It
-              briefly reloads this page, because the only way to write IE mode&rsquo;s
-              cookies is to visit it. Reload any CMS tab afterwards to pick the
-              changes up.
+              Copying briefly reloads this page, because the only way to write IE
+              mode&rsquo;s cookies is to visit it. Reload any CMS tab afterwards to
+              pick the changes up. You can also copy from here at any time — for
+              example on a machine where IE mode has never had these settings.
             </p>
             <button
               type="button"
@@ -771,12 +843,42 @@ export function App() {
               disabled={loading}
               onClick={handlePushToCms}
             >
-              Copy these settings to CMS
+              Copy to IE mode
             </button>
           </fieldset>
         </div>
       </form>
 
+      {/* Always in the DOM, so screen readers announce the bar when it appears. */}
+      <div aria-live="polite">
+        {ieModeOutOfDate && (
+          <div className="ie-mode-bar" role="region" aria-label="Copy settings to IE mode">
+            <div className="govuk-width-container">
+              <div className="ie-mode-bar__inner">
+                <div className="ie-mode-bar__text">
+                  <h2 className="govuk-heading-s govuk-!-margin-bottom-1">
+                    CMS will not see this change yet
+                  </h2>
+                  <p className="govuk-body govuk-!-font-size-16">
+                    {IE_MODE_LABELS.join(" and ")}{" "}
+                    {IE_MODE_LABELS.length === 1 ? "is" : "are"} also read by CMS
+                    Classic and CMS Modern, which run in IE mode with their own
+                    cookies. Copy your settings across, then reload any CMS tab.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  className="govuk-button"
+                  data-module="govuk-button"
+                  onClick={handlePushToCms}
+                >
+                  Copy to IE mode
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
