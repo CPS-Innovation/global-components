@@ -89,6 +89,27 @@ describe("cps-global-case-locking-notification live region", () => {
     expect(statusText()).toBe("This case is locked");
   });
 
+  // The presence service publishes undefined, not an empty roster, when nobody is
+  // present, and publishes nothing at all while it cannot connect.
+  it("speaks a lock when presence has never been published", async () => {
+    const { caseLockingPresentUsers, ...withoutPresence } = ready;
+    await mount(withoutPresence);
+    await settle();
+
+    await update({ caseDetails: { found: true, result: { isLocked: true } } as any });
+
+    expect(statusText()).toBe("This case is locked");
+  });
+
+  it("speaks a lock when presence reports nobody as undefined", async () => {
+    await mount({ ...ready, caseLockingPresentUsers: undefined });
+    await settle();
+
+    await update({ caseDetails: { found: true, result: { isLocked: true } } as any });
+
+    expect(statusText()).toBe("This case is locked");
+  });
+
   it("leaves the text alone when a poll finds the same people", async () => {
     await mount(ready);
     await settle();
@@ -143,12 +164,22 @@ describe("cps-global-case-locking-notification live region", () => {
       expect(statusText()).toBe("");
     });
 
-    it("says nothing when the store stops being ready", async () => {
+    it("says nobody else is on the case when presence goes back to undefined", async () => {
       await mount(ready);
       await settle();
       await update({ caseLockingPresentUsers: present("a@cps.gov.uk") });
 
       await update({ caseLockingPresentUsers: undefined });
+
+      expect(statusText()).toBe(ALL_CLEAR);
+    });
+
+    it("says nothing when the store stops being ready", async () => {
+      await mount(ready);
+      await settle();
+      await update({ caseLockingPresentUsers: present("a@cps.gov.uk") });
+
+      await update({ config: undefined });
 
       expect(statusText()).toBe("");
     });

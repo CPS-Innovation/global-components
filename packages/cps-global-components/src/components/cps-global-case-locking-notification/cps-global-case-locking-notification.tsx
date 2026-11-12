@@ -97,10 +97,13 @@ export class CpsGlobalCaseLockingNotification {
   }
 
   render() {
-    const { isReady, state } = readyState(["caseLockingPresentUsers", "config", "preview", "authHint"], ["auth", "caseDetails"]);
+    const { isReady, state } = readyState(["config", "preview", "authHint"], ["caseLockingPresentUsers", "auth", "caseDetails"]);
     if (!isReady) {
       return this.renderWithLiveRegion();
     }
+    // Presence is OPTIONAL: the service publishes undefined when nobody is present,
+    // and never publishes at all while it cannot connect. Requiring it would hide a
+    // lock in exactly those cases.
     // No separate "show" flag: whether anyone is reported is decided by who is on
     // the case, and whether the reader counts is caseLockingCountSelf. See
     // feature-flags.ts.

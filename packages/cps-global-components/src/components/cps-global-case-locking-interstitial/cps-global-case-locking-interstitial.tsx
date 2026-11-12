@@ -219,11 +219,13 @@ export class CpsGlobalCaseLockingInterstitial {
   };
 
   render() {
-    const { isReady, state } = readyState(["caseLockingPresentUsers", "config", "context", "preview", "authHint"], ["auth", "tags", "caseDetails"]);
+    const { isReady, state } = readyState(["config", "context", "preview", "authHint"], ["caseLockingPresentUsers", "auth", "tags", "caseDetails"]);
     if (!isReady || !FEATURE_FLAGS.shouldEnableCaseLocking(state)) {
       this.close();
       return null;
     }
+    // Optional, as in the notification: undefined is "nobody present" or "presence
+    // not connected", and the lock must still interrupt in both.
     const present = state.caseLockingPresentUsers;
     // TWO CONDITIONS FOR PRESENCE, and both are about not crying wolf.
     //
