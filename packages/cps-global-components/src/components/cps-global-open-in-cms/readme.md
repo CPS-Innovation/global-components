@@ -7,7 +7,7 @@
 
 ## Overview
 
-"Open in…" dropdown offering CMS Classic and CMS Modern. The look follows the UCD
+"Open in CMS…" dropdown offering CMS Classic and CMS Modern. The look follows the UCD
 prototype's CMS Classic dropdown; the behaviour does not, because the prototype's
 is mouse-only.
 

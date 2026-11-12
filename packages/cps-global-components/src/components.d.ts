@@ -115,7 +115,7 @@ export namespace Components {
     interface CpsGlobalNotifications {
     }
     /**
-     * "Open in…" dropdown offering CMS Classic and CMS Modern. The look follows the UCD
+     * "Open in CMS…" dropdown offering CMS Classic and CMS Modern. The look follows the UCD
      * prototype's CMS Classic dropdown; the behaviour does not, because the prototype's
      * is mouse-only.
      * WHY A DISCLOSURE, NOT role="menu": the ARIA menu pattern promises application-style
@@ -344,7 +344,7 @@ declare global {
         new (): HTMLCpsGlobalNotificationsElement;
     };
     /**
-     * "Open in…" dropdown offering CMS Classic and CMS Modern. The look follows the UCD
+     * "Open in CMS…" dropdown offering CMS Classic and CMS Modern. The look follows the UCD
      * prototype's CMS Classic dropdown; the behaviour does not, because the prototype's
      * is mouse-only.
      * WHY A DISCLOSURE, NOT role="menu": the ARIA menu pattern promises application-style
@@ -568,7 +568,7 @@ declare namespace LocalJSX {
     interface CpsGlobalNotifications {
     }
     /**
-     * "Open in…" dropdown offering CMS Classic and CMS Modern. The look follows the UCD
+     * "Open in CMS…" dropdown offering CMS Classic and CMS Modern. The look follows the UCD
      * prototype's CMS Classic dropdown; the behaviour does not, because the prototype's
      * is mouse-only.
      * WHY A DISCLOSURE, NOT role="menu": the ARIA menu pattern promises application-style
@@ -799,7 +799,7 @@ declare module "@stencil/core" {
             "cps-global-menu": LocalJSX.IntrinsicElements["cps-global-menu"] & JSXBase.HTMLAttributes<HTMLCpsGlobalMenuElement>;
             "cps-global-notifications": LocalJSX.IntrinsicElements["cps-global-notifications"] & JSXBase.HTMLAttributes<HTMLCpsGlobalNotificationsElement>;
             /**
-             * "Open in…" dropdown offering CMS Classic and CMS Modern. The look follows the UCD
+             * "Open in CMS…" dropdown offering CMS Classic and CMS Modern. The look follows the UCD
              * prototype's CMS Classic dropdown; the behaviour does not, because the prototype's
              * is mouse-only.
              * WHY A DISCLOSURE, NOT role="menu": the ARIA menu pattern promises application-style
