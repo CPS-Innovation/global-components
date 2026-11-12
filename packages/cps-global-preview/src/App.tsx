@@ -147,7 +147,7 @@ const FEATURES: Feature[] = [
     key: "openInCmsModern",
     label: "Open in CMS Modern",
     description:
-      "Replace \"Open in CMS Classic\" with an \"Open in…\" menu offering CMS Classic and CMS Modern. CMS Modern moves your open CMS Modern tab to the case; it can't open CMS Modern if it isn't already open. Already on for everyone in QA.",
+      "Replace \"Open in CMS Classic\" with an \"Open in CMS…\" menu offering CMS Classic and CMS Modern. CMS Modern moves your open CMS Modern tab to the case; it can't open CMS Modern if it isn't already open. Already on for everyone in QA.",
     disabled: false,
   },
   {

@@ -118,7 +118,7 @@ const shouldEnableCaseLocking = ({ config, auth, authHint }: FlagInputs) =>
 // Modern apply the same rule (CCPPreview's countSelf).
 const shouldCountSelfInCaseLocking = ({ preview }: FlagInputs) => !!preview?.result?.caseLockingCountSelf;
 
-// The "Open in…" dropdown offering CMS Classic and CMS Modern. The cohort is the
+// The "Open in CMS…" dropdown offering CMS Classic and CMS Modern. The cohort is the
 // per-env switch (on where the proxy can drive CMS Modern); the preview flag lets a
 // user opt in anywhere else, and local dev always has it.
 const shouldShowOpenInCmsModern = ({ config, preview, flags, auth, authHint }: FlagInputs) =>

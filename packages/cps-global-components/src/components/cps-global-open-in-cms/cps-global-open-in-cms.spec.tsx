@@ -33,7 +33,7 @@ describe("cps-global-open-in-cms", () => {
   });
 
   it("starts closed, with the options hidden and the trigger pointing at them", () => {
-    expect(trigger().textContent).toContain("Open in…");
+    expect(trigger().textContent).toContain("Open in CMS…");
     expect(isOpen()).toBe(false);
     expect(panel().hidden).toBe(true);
     expect(trigger().getAttribute("aria-controls")).toBe(panel().id);
