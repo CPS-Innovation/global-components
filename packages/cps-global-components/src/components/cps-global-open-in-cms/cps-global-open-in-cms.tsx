@@ -18,7 +18,7 @@ const nextPanelId = () => {
 };
 
 /**
- * "Open in…" dropdown offering CMS Classic and CMS Modern. The look follows the UCD
+ * "Open in CMS…" dropdown offering CMS Classic and CMS Modern. The look follows the UCD
  * prototype's CMS Classic dropdown; the behaviour does not, because the prototype's
  * is mouse-only.
  *
@@ -176,7 +176,7 @@ export class CpsGlobalOpenInCms {
           onFocusout={this.handleFocusOut}
           ref={el => (this.triggerEl = el)}
         >
-          Open in…
+          Open in CMS…
           <svg class="open-in-cms-dropdown__chevron" viewBox="0 0 12 8" aria-hidden="true" focusable="false">
             <path d="M0 0h12L6 8z" fill="currentColor" />
           </svg>
