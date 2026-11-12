@@ -498,6 +498,74 @@ declare namespace CCPLocator {
         ids: (arg0: any) => string[];
     };
 }
+declare namespace CCPLog {
+    let LIMIT: number;
+    function pad(n: any, width: any): string;
+    /**
+     * An ISO-8601 UTC timestamp WITH MILLISECONDS. CCPSessions.stamp stops at the
+     * second, which cannot order two calls that answered in the same second, and
+     * ordering is the whole question when reading a buffer back. Built by hand,
+     * because Date.prototype.toISOString does not exist at document mode 5.
+     *
+     * @param {Date} [date] defaults to now
+     * @returns {string}
+     */
+    function stamp(date?: Date): string;
+    /**
+     * An address, shortened before it goes into a buffer that people paste into
+     * tickets: "ann.smith@cps.gov.uk" becomes "an***@cps.gov.uk". The domain is kept
+     * because it says which estate someone is in, and two people seldom share the
+     * first two letters on one case.
+     *
+     * @param {string|undefined} email
+     * @returns {string}
+     */
+    function mask(email: string | undefined): string;
+    /**
+     * A list of addresses, masked and comma-joined; "" when empty.
+     * @param {string[]} emails
+     * @returns {string}
+     */
+    function maskAll(emails: string[]): string;
+    /**
+     * A roster's arrivals and departures as one log phrase: "+an***@cps.gov.uk
+     * -bo***@cps.gov.uk". "" when nobody came or went, so a caller can skip the line.
+     *
+     * @param {{joined: string[], left: string[]}} changes from CCPRoster's takeChanges()
+     * @returns {string}
+     */
+    function describeChanges(changes: {
+        joined: string[];
+        left: string[];
+    }): string;
+    /**
+     * @param {{prefix: string, echo: boolean, limit?: number}} options
+     * @returns {{log: function(...*): void, dump: function(): string,
+     *            messages: Array<{at: string, line: string}>,
+     *            setEcho: function(boolean): boolean, echoing: function(): boolean,
+     *            setVerbose: function(boolean): boolean, verbose: function(): boolean,
+     *            ui: function(boolean, number, string): void,
+     *            since: function(): string}}
+     */
+    function createLog(options: {
+        prefix: string;
+        echo: boolean;
+        limit?: number;
+    }): {
+        log: (...args: any[]) => void;
+        dump: () => string;
+        messages: Array<{
+            at: string;
+            line: string;
+        }>;
+        setEcho: (arg0: boolean) => boolean;
+        echoing: () => boolean;
+        setVerbose: (arg0: boolean) => boolean;
+        verbose: () => boolean;
+        ui: (arg0: boolean, arg1: number, arg2: string) => void;
+        since: () => string;
+    };
+}
 declare namespace CCPOrigin {
     let IMPL_ORIGIN: string;
     /**
@@ -537,7 +605,8 @@ declare namespace CCPRoster {
      *   sections: function(): Object,
      *   members: function(string[]|undefined, string=): {userEmail: string, sourceApplication: string, joinedAt: string, sections: {kind: string, isCurrent: boolean}[]}[],
      *   forget: function(string): boolean,
-     *   clear: function(): void
+     *   clear: function(): void,
+     *   takeChanges: function(): {joined: string[], left: string[]}
      * }}
      */
     function createRoster(): {
@@ -556,6 +625,10 @@ declare namespace CCPRoster {
         }[];
         forget: (arg0: string) => boolean;
         clear: () => void;
+        takeChanges: () => {
+            joined: string[];
+            left: string[];
+        };
     };
 }
 declare namespace CCPSections {
@@ -610,17 +683,20 @@ declare namespace CCPSessions {
      * @returns {string} e.g. "2026-11-04T09:30:00Z"
      */
     function stamp(): string;
+    let SLOW_MS: number;
     /**
      * @param {{call: function(string, Object, function(*): void): void,
      *          appName: string, tickMs: number,
      *          log: function(...*): void, verbose: function(): boolean,
-     *          onNotifications: function(Array): void,
+     *          onNotifications: function(Array, string=): void,
      *          onSectionDropped: function(string): void,
      *          dropSectionOnError?: boolean,
      *          onFatal?: function(string, string): void,
-     *          onTrouble?: function(string, string): void}} options
+     *          onTrouble?: function(string, string, string=): void,
+     *          onRecovered?: function(string, number): void}} options
      * @returns {{setDesired: function(string[]): void, stop: function(): void,
-     *            ids: function(): string[], stats: function(): Object}}
+     *            ids: function(): string[], stats: function(): Object,
+     *            anyTroubled: function(): boolean}}
      */
     function createSessions(options: {
         call: (arg0: string, arg1: any, arg2: (arg0: any) => void) => void;
@@ -628,20 +704,23 @@ declare namespace CCPSessions {
         tickMs: number;
         log: (...args: any[]) => void;
         verbose: () => boolean;
-        onNotifications: (arg0: any[]) => void;
+        onNotifications: (arg0: any[], arg1: string | undefined) => void;
         onSectionDropped: (arg0: string) => void;
         dropSectionOnError?: boolean;
         onFatal?: (arg0: string, arg1: string) => void;
-        onTrouble?: (arg0: string, arg1: string) => void;
+        onTrouble?: (arg0: string, arg1: string, arg2: string | undefined) => void;
+        onRecovered?: (arg0: string, arg1: number) => void;
     }): {
         setDesired: (arg0: string[]) => void;
         stop: () => void;
         ids: () => string[];
         stats: () => any;
+        anyTroubled: () => boolean;
     };
 }
 declare namespace CCPViewer {
     let ENV_ATTEMPTS: number;
+    let RECHECK_MS: number;
     /**
      * @param {{call: function(string, Object, function(*): void): void,
      *          log: function(...*): void}} options
@@ -650,7 +729,8 @@ declare namespace CCPViewer {
      *            tokenExpiresIn: function(): number, tokenAge: function(): number,
      *            claimKeys: function(): string,
      *            groups: function(): string[], inGroup: function(string): boolean,
-     *            refresh: function(boolean=): void, known: function(): boolean}}
+     *            refresh: function(boolean=): void, known: function(): boolean,
+     *            recheck: function(string): boolean}}
      */
     function createViewer(options: {
         call: (arg0: string, arg1: any, arg2: (arg0: any) => void) => void;
@@ -667,5 +747,6 @@ declare namespace CCPViewer {
         inGroup: (arg0: string) => boolean;
         refresh: (arg0: boolean | undefined) => void;
         known: () => boolean;
+        recheck: (arg0: string) => boolean;
     };
 }

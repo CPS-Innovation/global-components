@@ -427,4 +427,25 @@ h.test("are logged as a count, never as IDs", function () {
   h.assertTrue(r.logged[0].indexOf(GNAV) === -1, "no id in the log");
 });
 
+h.describe("an API call refused for its credential");
+
+h.test("asks whoami again even once settled, and logs why", function () {
+  var r = rig();
+  r.reply(IDENTITY);
+  var before = r.calls().length;
+  h.assertEqual(r.viewer.recheck("upstream 401"), true);
+  h.assertEqual(r.calls().length, before + 1);
+  h.assertTrue(r.logged.join("\n").indexOf("auth refused (upstream 401)") !== -1, r.logged.join("\n"));
+});
+
+h.test("asks at most once a minute, however many calls are refused", function () {
+  var r = rig();
+  r.reply(IDENTITY);
+  r.viewer.recheck("upstream 401");
+  r.reply(IDENTITY);
+  var before = r.calls().length;
+  h.assertEqual(r.viewer.recheck("upstream 401"), false);
+  h.assertEqual(r.calls().length, before);
+});
+
 h.summarise();

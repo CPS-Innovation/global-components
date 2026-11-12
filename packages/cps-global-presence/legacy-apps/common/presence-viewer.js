@@ -80,6 +80,14 @@ var CCPViewer = {};
 CCPViewer.ENV_ATTEMPTS = 10;
 
 /**
+ * The least time between two auth-failure rechecks. A 401 arrives on every call
+ * of every section until the token is replaced, which is two calls every three
+ * seconds per section. One whoami a minute is enough to put the token's age in
+ * the log beside the failures.
+ */
+CCPViewer.RECHECK_MS = 60000;
+
+/**
  * @param {{call: function(string, Object, function(*): void): void,
  *          log: function(...*): void}} options
  * @returns {{email: function(): string, oid: function(): string,
@@ -87,7 +95,8 @@ CCPViewer.ENV_ATTEMPTS = 10;
  *            tokenExpiresIn: function(): number, tokenAge: function(): number,
  *            claimKeys: function(): string,
  *            groups: function(): string[], inGroup: function(string): boolean,
- *            refresh: function(boolean=): void, known: function(): boolean}}
+ *            refresh: function(boolean=): void, known: function(): boolean,
+ *            recheck: function(string): boolean}}
  */
 CCPViewer.createViewer = function (options) {
   var email = "";
@@ -116,6 +125,7 @@ CCPViewer.createViewer = function (options) {
   var groups = [];
   var envAttempts = 0;
   var inFlight = false;
+  var lastRecheck = 0;
   // getTime(), not Date.now(): the floor is document mode 5.
   var startedAt = new Date().getTime();
 
@@ -292,6 +302,25 @@ CCPViewer.createViewer = function (options) {
     known: function () {
       return !!email;
     },
-    refresh: refresh
+    refresh: refresh,
+    /**
+     * An API call was refused for its credential. Ask whoami again, at most once a
+     * RECHECK_MS, so the whoami line it logs puts tokenAge and tokenExpiresIn next
+     * to the failure. That separates "the token ran out because the auth replay is
+     * not working" from a network problem, which otherwise look the same.
+     *
+     * @param {string} reason what the API said, for the log
+     * @returns {boolean} whether a whoami was sent
+     */
+    recheck: function (reason) {
+      var at = new Date().getTime();
+      if (lastRecheck && at - lastRecheck < CCPViewer.RECHECK_MS) {
+        return false;
+      }
+      lastRecheck = at;
+      options.log("auth refused (" + reason + ") — re-asking whoami for the token's age", sinceStart());
+      refresh(true);
+      return true;
+    }
   };
 };

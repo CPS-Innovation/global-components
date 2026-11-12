@@ -69,7 +69,7 @@ SHARED="$DIR/common/presence-environment.js $DIR/common/presence-apps.js $DIR/co
 SHARED_ESM_ONLY="$DIR/common/presence-section-rules.js"
 # legacy-apps/common/ is shared between Classic and Modern/DCF and nothing else —
 # JSONP, sessions and the script-origin trick have no meaning in a bundled app.
-LEGACY_COMMON="$DIR/legacy-apps/common/presence-viewer.js $DIR/legacy-apps/common/presence-preview.js $DIR/legacy-apps/common/presence-sections.js $DIR/legacy-apps/common/presence-origin.js $DIR/legacy-apps/common/presence-roster.js $DIR/legacy-apps/common/presence-locator.js $DIR/legacy-apps/common/presence-jsonp.js $DIR/legacy-apps/common/presence-sessions.js"
+LEGACY_COMMON="$DIR/legacy-apps/common/presence-log.js $DIR/legacy-apps/common/presence-viewer.js $DIR/legacy-apps/common/presence-preview.js $DIR/legacy-apps/common/presence-sections.js $DIR/legacy-apps/common/presence-origin.js $DIR/legacy-apps/common/presence-roster.js $DIR/legacy-apps/common/presence-locator.js $DIR/legacy-apps/common/presence-jsonp.js $DIR/legacy-apps/common/presence-sessions.js"
 COMMON="$SHARED $LEGACY_COMMON"
 # The web components' pinned notification, rebuilt by hand. govuk-frontend v5 dropped
 # IE11 and these pages are document mode 11, so the design is recreated from its
