@@ -36,26 +36,15 @@ var TICK_MS = 3000; // heartbeat + poll, matching the Classic client
 var TIMEOUT_MS = 8000; // per-call watchdog
 var POLL_MS = 2000; // how often to re-read the URL
 
-var messages = [];
-var verbose = false;
-
-function log() {
-  var args = Array.prototype.slice.call(arguments);
-  messages.push({ at: new Date().toISOString(), args: args });
-  if (messages.length > 200) {
-    messages.shift();
-  }
-  try {
-    if (window.console && window.console.log) {
-      window.console.log.apply(window.console, ["[cc-presence]"].concat(args));
-    }
-  } catch (e) {
-    // a host app with a hostile console must never break presence
-  }
-}
+// The shared ring buffer, echoing to the console as this client always has. See
+// CCPLog: the same buffer Classic keeps, so __ccPresence.dump() reads the same way
+// in both apps.
+var modernLog = CCPLog.createLog({ prefix: "[cc-presence]", echo: true });
+var log = modernLog.log;
+var messages = modernLog.messages;
 
 function isVerbose() {
-  return verbose;
+  return modernLog.verbose();
 }
 
 var BASE = resolveJsonpBase(JSONP_PATH);
@@ -83,7 +72,9 @@ function summarise(people) {
   return CCPContent.summary(people.length, includesSelf);
 }
 
-function draw() {
+// `reason` says what asked for the redraw, and is logged only when what the reader
+// can see changes (CCPLog's ui).
+function draw(reason) {
   // Through CCPPeople rather than roster.people(): the banner names applications
   // and when each person arrived in them, and collapses two applications that
   // display alike into one. roster.people() predates that and reports raw names
@@ -94,15 +85,26 @@ function draw() {
   var members = roster.members(activeSectionIds());
   var people = CCPPeople.collapse(shouldCountSelf() ? members : CCPPeople.others(members, me), me);
   renderBanner(people, summarise(people));
+  modernLog.ui(people.length > 0, people.length, people.length ? reason : "nobody else here (" + reason + ")");
+}
+
+// Arrivals and departures, masked, whenever the roster changes. Replaces logging
+// the whole roster on every change, which repeated the same names each time and
+// put full addresses into a buffer that gets pasted into tickets.
+function logRosterChanges() {
+  var said = CCPLog.describeChanges(roster.takeChanges());
+  if (said) {
+    log("roster", said);
+  }
 }
 
 // Snapshots arrive per section and are version-guarded inside the roster, so
 // polls from several sections merge without ordering assumptions.
 function onNotifications(list) {
   if (roster.apply(list)) {
-    log("roster", roster.describe());
-    draw();
-  } else if (verbose) {
+    logRosterChanges();
+    draw("roster changed");
+  } else if (isVerbose()) {
     log("no change");
   }
 }
@@ -112,7 +114,8 @@ function onNotifications(list) {
 function onSectionDropped(sectionId) {
   if (roster.forget(sectionId)) {
     log("forgot section", sectionId);
-    draw();
+    logRosterChanges();
+    draw("section dropped " + sectionId);
   }
 }
 
@@ -164,7 +167,13 @@ var previewCall = CCPJsonp.createJsonp({
 
 // onChange redraws: the flag decides whether the reader is counted, and its answer
 // can land after the roster has already been drawn.
-var preview = CCPPreview.createPreview({ call: previewCall, log: log, onChange: draw });
+var preview = CCPPreview.createPreview({
+  call: previewCall,
+  log: log,
+  onChange: function () {
+    draw("preview flags arrived");
+  }
+});
 
 var sessions = CCPSessions.createSessions({
   call: call,
@@ -173,7 +182,17 @@ var sessions = CCPSessions.createSessions({
   log: log,
   verbose: isVerbose,
   onNotifications: onNotifications,
-  onSectionDropped: onSectionDropped
+  onSectionDropped: onSectionDropped,
+  // The banner stays up through trouble, unlike Classic's stripe: a failed call
+  // here is logged by the sessions layer and retried. The one thing worth doing on
+  // top is asking how old the token is when the API refuses it, which is the
+  // difference between "Classic's auth replay has stopped working" (Modern rides
+  // the cookie it refreshes) and a network problem.
+  onTrouble: function (sectionId, reason) {
+    if (/\b40[13]\b/.test(reason)) {
+      viewer.recheck(reason);
+    }
+  }
 });
 
 var lastReported = "";
@@ -250,7 +269,7 @@ window.__ccPresence = {
   leave: function () {
     sessions.stop();
     roster.clear();
-    draw();
+    draw("left from the console");
   },
   // The dev override, and the way to see why filtering is or is not happening.
   whoami: function () {
@@ -306,23 +325,21 @@ window.__ccPresence = {
   // (a 200-line ring buffer written BEFORE the console is touched), so attaching
   // late loses nothing -- this just makes it readable and copyable in one go.
   dump: function () {
-    var out = "";
-    for (var i = 0; i < messages.length; i++) {
-      out = out + messages[i].at + "  " + messages[i].args.join(" ") + "\n";
-    }
-    return out;
+    return modernLog.dump();
   },
   // true/false overrides the preview flag for this page; null follows it again.
   setCountSelf: function (on) {
     countSelfOverride = on === null || on === undefined ? null : !!on;
     log("countSelf", countSelfOverride === null ? "from preview" : countSelfOverride ? "on" : "off");
-    draw();
+    draw("countSelf override");
     return shouldCountSelf();
   },
   setVerbose: function (on) {
-    verbose = !!on;
-    log("verbose", verbose ? "on" : "off");
-    return verbose;
+    return modernLog.setVerbose(on);
+  },
+  // Stop (or restart) echoing to the console. The buffer keeps recording either way.
+  setConsole: function (on) {
+    return modernLog.setEcho(on);
   }
 };
 

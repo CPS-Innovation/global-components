@@ -349,6 +349,139 @@ h.test("a client that passes no handler is unaffected by any of it", function ()
   h.assertEqual(r.sessions.ids(), [A]);
 });
 
+h.describe("a troubled run, start to finish");
+
+// The log has to survive an outage: a line per failed call would push the start
+// of it out of the ring buffer within minutes. So a run is one START and one
+// "recovered", with the calls in between counted.
+function withRecovery() {
+  var recovered = [];
+  var trouble = [];
+  var r = rig({
+    onTrouble: function (sectionId, reason, op) {
+      trouble.push(op + " " + sectionId + " " + reason);
+    },
+    onRecovered: function (sectionId, ms) {
+      recovered.push(sectionId + " " + (typeof ms));
+    }
+  });
+  r.recovered = recovered;
+  r.trouble = trouble;
+  return r;
+}
+
+function count(list, fragment) {
+  var n = 0;
+  for (var i = 0; i < list.length; i++) {
+    if (list[i].indexOf(fragment) !== -1) {
+      n = n + 1;
+    }
+  }
+  return n;
+}
+
+h.test("onTrouble is told which call failed", function () {
+  var r = withRecovery();
+  r.join([A]);
+  r.last("heartbeat").reply(null);
+  h.assertEqual(r.trouble, ["heartbeat " + A + " no response (timeout)"]);
+});
+
+h.test("a run of failures is logged once, and its end once", function () {
+  var r = withRecovery();
+  r.join([A]);
+  r.last("heartbeat").reply(null);
+  r.last("poll").reply(null);
+  r.window.__tick();
+  r.last("heartbeat").reply(null);
+  r.last("poll").reply(null);
+  h.assertEqual(count(r.logged, "trouble START"), 1, r.logged.join("\n"));
+  h.assertEqual(r.sessions.anyTroubled(), true);
+
+  r.window.__tick();
+  r.last("heartbeat").reply({});
+  h.assertEqual(count(r.logged, "recovered " + A), 1, r.logged.join("\n"));
+  h.assertTrue(r.logged.join("\n").indexOf("4 failed call(s)") !== -1, r.logged.join("\n"));
+  h.assertEqual(r.recovered, [A + " number"]);
+  h.assertEqual(r.sessions.anyTroubled(), false);
+});
+
+h.test("a change of reason mid-run is logged", function () {
+  var r = withRecovery();
+  r.join([A]);
+  r.last("heartbeat").reply(null);
+  r.last("poll").reply({ jsonpError: "upstream 401" });
+  h.assertEqual(count(r.logged, "trouble START"), 1);
+  h.assertEqual(count(r.logged, "upstream 401"), 1, r.logged.join("\n"));
+});
+
+h.test("a healthy section never reports a recovery", function () {
+  var r = withRecovery();
+  r.join([A]);
+  r.last("heartbeat").reply({});
+  r.last("poll").reply([]);
+  h.assertEqual(r.recovered, []);
+});
+
+h.test("stats name the troubled section and count the timeouts", function () {
+  var r = withRecovery();
+  r.join([A, B]);
+  r.last("heartbeat", "S-" + A).reply(null);
+  var stats = r.sessions.stats();
+  h.assertEqual(stats.timeouts, 1);
+  h.assertEqual(stats.troubled.length, 1);
+  h.assertTrue(stats.troubled[0].indexOf(A) === 0, stats.troubled[0]);
+  h.assertEqual(stats.lastTrouble.op, "heartbeat");
+});
+
+h.test("the 410 line says how long the section had gone unheard", function () {
+  var r = withRecovery();
+  r.join([A]);
+  r.last("heartbeat").reply({ jsonpError: "upstream 410" });
+  h.assertTrue(r.logged.join("\n").indexOf("good heartbeat(s)") !== -1, r.logged.join("\n"));
+});
+
+h.describe("what the client asked to hold");
+
+h.test("logs each change to the desired set, and not a repeat", function () {
+  var r = rig();
+  r.sessions.setDesired([A]);
+  r.sessions.setDesired([A]);
+  r.sessions.setDesired([B]);
+  h.assertEqual(count(r.logged, "desired"), 2, r.logged.join("\n"));
+  h.assertTrue(r.logged.join("\n").indexOf("+" + B) !== -1);
+  h.assertTrue(r.logged.join("\n").indexOf("-" + A) !== -1);
+});
+
+h.describe("a pass the browser held back");
+
+// The fake window's interval runs only when told, so a held-back timer is made by
+// moving the clock between two passes.
+h.test("is logged with how late it was, and counted", function () {
+  var r = rig();
+  r.join([A]);
+  var realDate = Date;
+  var base = new realDate().getTime();
+  try {
+    global.Date = function () {
+      return new realDate(base + 60000);
+    };
+    global.Date.UTC = realDate.UTC;
+    r.window.__tick();
+  } finally {
+    global.Date = realDate;
+  }
+  h.assertEqual(count(r.logged, "tick late by"), 1, r.logged.join("\n"));
+  h.assertEqual(r.sessions.stats().lateTicks, 1);
+});
+
+h.test("an on-time pass says nothing", function () {
+  var r = rig();
+  r.join([A]);
+  r.window.__tick();
+  h.assertEqual(count(r.logged, "tick late by"), 0, r.logged.join("\n"));
+});
+
 h.describe("the pass, at document mode 5");
 
 // WHY THIS IS HERE. stats.lastTickAt was stamped with Date.prototype.toISOString —

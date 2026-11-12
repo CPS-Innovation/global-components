@@ -115,6 +115,7 @@ var BUNDLE = [
   "common/presence-joined.js",
   "common/presence-people.js",
   "common/presence-content.js",
+  "legacy-apps/common/presence-log.js",
   "legacy-apps/common/presence-viewer.js",
   "legacy-apps/common/presence-preview.js",
   "legacy-apps/common/presence-sections.js",
@@ -452,6 +453,117 @@ h.test("names the reason, and does not claim to be on the page", function () {
   var snap = r.m.presenceStripeSnapshot();
   h.assertTrue(snap.reason !== "", "a failed placement must say which lookup failed");
   h.assertEqual(snap.inDom, false);
+});
+
+h.describe("coming back after a call fails");
+
+// Deliver a reply to the most recent call of one op, through the global callback
+// the transport registered, as the response body would when it executed. null is
+// what the transport hands over on a timeout.
+function replyLast(top, op, payload) {
+  var calls = sent(top, op);
+  var name = /[?&]callback=([^&]+)/.exec(calls[calls.length - 1])[1];
+  top[name](payload);
+}
+
+// On the case, registered through the real sessions layer this time rather than
+// with onNotifications called by hand, because recovery is the sessions layer
+// telling main.js that a section is answering again.
+function registeredWithCompany() {
+  var top = shell();
+  var m = client(top);
+  answerWhoami(top, whoamiReply(CMS_ENV));
+  m.tick();
+  replyLast(top, "create", { sessionId: "S-1" });
+  replyLast(top, "poll", poll(CASE_A, "CASE", [member("ann@cps.gov.uk")]));
+  replyLast(top, "heartbeat", {});
+  return { top: top, m: m };
+}
+
+h.test("a timed-out call takes the stripe down", function () {
+  var r = registeredWithCompany();
+  h.assertTrue(shown(r.m).indexOf("ann@cps.gov.uk") !== -1, "precondition: up");
+  r.top.__tick();
+  replyLast(r.top, "heartbeat", null);
+  h.assertEqual(shown(r.m), "");
+});
+
+// THE BUG. Polls return deltas, so the poll after an outage on a quiet case says
+// nothing new and the roster does not change. The stripe used to wait for a
+// roster change to come back, which on a quiet case could be never.
+h.test("the next good answer puts it back, though the roster has not changed", function () {
+  var r = registeredWithCompany();
+  r.top.__tick();
+  replyLast(r.top, "heartbeat", null);
+  h.assertEqual(shown(r.m), "", "precondition: down");
+
+  r.top.__tick();
+  replyLast(r.top, "heartbeat", {});
+  h.assertTrue(shown(r.m).indexOf("ann@cps.gov.uk") !== -1, shown(r.m));
+});
+
+h.test("stays down while another held section is still failing", function () {
+  var r = registeredWithCompany();
+  r.top.navigate(caseDetails(CASE_A), [defendantPanel(CASE_A)]);
+  r.m.tick();
+  replyLast(r.top, "create", { sessionId: "S-2" });
+  var defendantPoll = sent(r.top, "poll");
+  r.top.__tick();
+  // Fail BOTH heartbeats of this pass, then let only one section recover.
+  var beats = sent(r.top, "heartbeat");
+  var i, name;
+  for (i = beats.length - 2; i < beats.length; i++) {
+    name = /[?&]callback=([^&]+)/.exec(beats[i])[1];
+    r.top[name](null);
+  }
+  h.assertEqual(shown(r.m), "", "precondition: down");
+
+  r.top.__tick();
+  beats = sent(r.top, "heartbeat");
+  name = /[?&]callback=([^&]+)/.exec(beats[beats.length - 1])[1];
+  r.top[name]({});
+  h.assertEqual(shown(r.m), "", "one section still troubled");
+  h.assertTrue(defendantPoll.length > 0);
+});
+
+h.describe("the history it keeps");
+
+h.test("records why the stripe went and came back, without touching the console", function () {
+  var r = registeredWithCompany();
+  r.top.__tick();
+  replyLast(r.top, "heartbeat", null);
+  r.top.__tick();
+  replyLast(r.top, "heartbeat", {});
+  var dump = r.top.__ccPresence.dump();
+  h.assertTrue(dump.indexOf("UI SHOW 1 person reason=roster changed") !== -1, dump);
+  h.assertTrue(dump.indexOf("UI HIDE reason=trouble heartbeat") !== -1, dump);
+  h.assertTrue(dump.indexOf("trouble START heartbeat") !== -1, dump);
+  h.assertTrue(dump.indexOf("recovered") !== -1, dump);
+  h.assertTrue(dump.indexOf("UI SHOW 1 person reason=calls answering again") !== -1, dump);
+  h.assertTrue(dump.indexOf("ann@cps.gov.uk") === -1, "addresses are masked in the history");
+  // Nothing from the buffer reaches the console unasked. The console lines that
+  // remain are the two deliberate one-off notices: the first failure, and (in
+  // these fake frames, which have no footer) the unplaceable stripe.
+  var printed = r.top.__logged.join(" | ");
+  h.assertTrue(printed.indexOf("[cc-presence]") === -1, printed);
+  h.assertTrue(printed.indexOf("There was an error connecting") !== -1, printed);
+});
+
+h.test("setConsole(true) echoes new lines", function () {
+  var r = registeredWithCompany();
+  r.top.__ccPresence.setConsole(true);
+  r.top.navigate(frame(BASE + "Tasks/uatlTaskList.aspx"));
+  r.m.tick();
+  var printed = r.top.__logged.join("\n");
+  h.assertTrue(printed.indexOf("[cc-presence] sections (none)") !== -1, printed);
+});
+
+h.test("a refused credential asks how old the token is", function () {
+  var r = registeredWithCompany();
+  var before = sent(r.top, "whoami").length;
+  r.top.__tick();
+  replyLast(r.top, "poll", { jsonpError: "upstream 401" });
+  h.assertEqual(sent(r.top, "whoami").length, before + 1);
 });
 
 h.summarise();
