@@ -52,7 +52,8 @@ var checkFloor = function (level, paths) {
   if (!paths.length) {
     return;
   }
-  execFileSync("node", [path.join(DIR, "check-syntax.js"), level].concat(paths), { stdio: "inherit" });
+  // process.execPath, not "node": the node already running this build, with no PATH lookup.
+  execFileSync(process.execPath, [path.join(DIR, "check-syntax.js"), level].concat(paths), { stdio: "inherit" });
 };
 
 var write = function (rel, text) {
