@@ -165,6 +165,7 @@ async function testState() {
       headers: { Cookie: cookie },
     })
     assertEqual(await response.text(), `cb(${value})`, "callback around the value")
+    assertEqual(response.headers.get("cache-control"), "no-store", "Cache-Control")
   })
 
   await test("?set= writes the cookie and returns to the given path", async () => {
