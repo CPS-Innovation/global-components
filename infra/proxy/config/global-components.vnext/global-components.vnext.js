@@ -260,6 +260,10 @@ async function handleState(r) {
         return;
       }
       r.headersOut["Content-Type"] = "application/javascript; charset=utf-8";
+      // The answer depends on a cookie the client cannot see change, and the
+      // legacy clients' cache-buster restarts every page load, so the URL repeats.
+      // Without this, IE mode reuses an old script and serves stale flags.
+      r.headersOut["Cache-Control"] = "no-store";
       r.return(200, callback + "(" + _readStateStrict(r) + ")");
       return;
     }
