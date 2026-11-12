@@ -4,6 +4,7 @@ import { MergeTags, Register } from "../../../store/store";
 import { DomMutationObserver } from "./DomMutationObserver";
 import "arrive";
 import { Result } from "../../../utils/Result";
+import { TrackEvent } from "../../analytics/analytics-event";
 
 type Subscription = ReturnType<DomMutationObserver>["subscriptions"][number];
 
@@ -19,6 +20,7 @@ export const initialiseDomObservation = (
     flags,
     config,
     authHint,
+    trackEvent,
   }: {
     window: Window;
     register: Register;
@@ -28,6 +30,7 @@ export const initialiseDomObservation = (
     flags: ApplicationFlags;
     config: Config;
     authHint: Result<AuthHint>;
+    trackEvent: TrackEvent;
   },
   ...subscribers: DomMutationObserver[]
 ) => {
@@ -67,7 +70,7 @@ export const initialiseDomObservation = (
       activeSubscriptions.forEach(subscription => unBindHandler(subscription));
 
       subscribers.forEach(subscriber => {
-        const { isActiveForContext, subscriptions } = subscriber({ context, register, mergeTags, window, preview, settings, flags, config, authHint });
+        const { isActiveForContext, subscriptions } = subscriber({ context, register, mergeTags, window, preview, settings, flags, config, authHint, trackEvent });
         subscriptions.forEach(subscription => (isActiveForContext ? bindHandler(subscription) : unBindHandler(subscription)));
       });
       log("Subscriptions set up.");

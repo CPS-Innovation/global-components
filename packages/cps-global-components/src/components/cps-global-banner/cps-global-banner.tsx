@@ -19,27 +19,23 @@ export class CpsGlobalBanner {
       if (state.fatalInitialisationError) {
         // If there is an error we still want to show our branding.
         //  Use suitable fallback values
-        return { showBanner: true, showGovUkRebrand: false, showRecentCases: false, href: "" };
+        return { showBanner: true, showRecentCases: false, href: "" };
       } else if (!isReady) {
         // Otherwise, we are not ready to show anything until our required state is ready
         //  so that we avoid e.g. flashes of incorrect styling
-        return { showBanner: false, showGovUkRebrand: false, showRecentCases: false, href: "" };
+        return { showBanner: false, showRecentCases: false, href: "" };
       } else {
         // Out state is ready
-        const showGovUkRebrand = FEATURE_FLAGS.shouldShowGovUkRebrand(state);
         const showRecentCases = FEATURE_FLAGS.shouldShowRecentCases(state);
-        return { showBanner: true, showGovUkRebrand, showRecentCases, href: linkHandoverAdapter(state)(state.config.BANNER_TITLE_HREF) };
+        return { showBanner: true, showRecentCases, href: linkHandoverAdapter(state)(state.config.BANNER_TITLE_HREF) };
       }
     };
 
-    const { showBanner, showGovUkRebrand, href, showRecentCases } = resolveValues();
+    const { showBanner, href, showRecentCases } = resolveValues();
     if (!showBanner) {
       return <></>;
     }
 
-    const { backgroundColourClass, dividerCssClass, recentCasesStyles } = showGovUkRebrand
-      ? { backgroundColourClass: "background-blue", dividerCssClass: "", recentCasesStyles: { marginTop: "10px" } }
-      : { backgroundColourClass: "background-black", dividerCssClass: "header-divider", recentCasesStyles: { marginTop: "-5px" } };
 
     const handleChange = (event: Event) => {
       const caseId = Number((event.target as HTMLSelectElement).value);
@@ -57,7 +53,7 @@ export class CpsGlobalBanner {
     return (
       <div>
         <cps-skip-links />
-        <header class={`govuk-header govuk-header--with-js-navigation ${backgroundColourClass}`} data-module="govuk-header" data-govuk-header-init="">
+        <header class={`govuk-header govuk-header--with-js-navigation background-blue`} data-module="govuk-header" data-govuk-header-init="">
           <div class="govuk-header__container" style={{ display: "flex", flexDirection: "row" }}>
             <div class="govuk-header__logo">
               <a href={href} class="govuk-header__link govuk-header__link--homepage">
@@ -67,7 +63,7 @@ export class CpsGlobalBanner {
 
             <div style={{ marginLeft: "auto", display: "flex", gap: "2rem" }}>
               {showRecentCases && state.recentCases?.result?.length && (
-                <div style={recentCasesStyles}>
+                <div style={{ marginTop: "10px" }}>
                   <select class="govuk-select" onChange={handleChange} style={{ border: "1px solid #fff" }}>
                     <option value="" disabled selected>
                       Recent cases
@@ -83,7 +79,6 @@ export class CpsGlobalBanner {
             </div>
           </div>
         </header>
-        <div class={dividerCssClass}></div>
       </div>
     );
   }

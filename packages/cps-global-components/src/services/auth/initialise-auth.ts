@@ -54,7 +54,7 @@ export const initialiseAuth = ({
   // Resolve the redirect-vs-silent decision once at startup. auth itself is
   // not yet established here — the predicate falls back to authHint for
   // identity, sufficient for both the AD-group rollout check and the
-  // preview-token override.
+  // preview forceSilentSso opt-out.
   const useFullPageRedirect = FEATURE_FLAGS.shouldUseFullPageMsalRedirect({ config, preview, auth: undefined, authHint });
 
   // Single error delegate handed down to cps-global-auth: console-log under

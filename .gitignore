@@ -17,3 +17,6 @@ PLAN*
 # regenerated on every run. The derived requirements in generated/csp ARE
 # committed (and freshness-tested); these results are not.
 generated/csp-check/
+
+# Added by ggshield
+.cache_ggshield

@@ -1,9 +1,8 @@
 import { useState, useEffect, useCallback, useRef, type ReactNode } from "react";
-import type { AuthHint, Notification, Preview } from "cps-global-configuration";
+import type { Notification, Preview } from "cps-global-configuration";
 
 const STATE_ENDPOINT = "/global-components/state/preview";
 const DISMISSED_NOTIFICATIONS_ENDPOINT = "/global-components/state/dismissed-notifications";
-const AUTH_HINT_ENDPOINT = "/global-components/state/auth-hint";
 const ENV_MATCH = window.location.pathname.match(/\/global-components\/([^/]+)\//);
 const ENV = ENV_MATCH?.[1] ?? "test";
 const NOTIFICATIONS_ENDPOINT = `/global-components/${ENV}/notification.json`;
@@ -47,17 +46,16 @@ type Feature = {
   textInputs?: TextInput[];
   subOptions?: SubOption[];
   radioOptions?: RadioOption<string>[];
+  // Also read in IE mode — by the CMS Classic and CMS Modern clients, which see
+  // IE mode's own cookie jar, not Edge's. Changing one of these raises the
+  // pinned "Copy to IE mode" bar until the settings have been copied across.
+  copyToIeMode?: boolean;
 };
 
 const CASE_MARKERS_OPTIONS: RadioOption<string>[] = [
   { value: "a", label: "Design A" },
   { value: "b", label: "Design B" },
   { value: "off", label: "Off (force hide)" },
-];
-
-const COLOUR_PALETTE_OPTIONS: RadioOption<string>[] = [
-  { value: "gds", label: "GDS" },
-  { value: "cps", label: "CPS" },
 ];
 
 const FEATURES: Feature[] = [
@@ -68,19 +66,6 @@ const FEATURES: Feature[] = [
       "Show the case details line in the header: URN, lead defendant name and case markers (monitoring codes).",
     disabled: false,
     radioOptions: CASE_MARKERS_OPTIONS,
-  },
-  {
-    key: "newHeader",
-    label: "New header",
-    description: "Display the header with the latest blue GDS styling.",
-    disabled: false,
-    radioOptions: COLOUR_PALETTE_OPTIONS,
-  },
-  {
-    key: "footer",
-    label: "Global footer",
-    description: "Display the same global footer on every app",
-    disabled: false,
   },
   {
     key: "myRecentCasesOnHeader",
@@ -109,13 +94,6 @@ const FEATURES: Feature[] = [
     disabled: true,
   },
   {
-    key: "homePageNotification",
-    label: "Home page notification",
-    description:
-      "Force the home page introductory sessions notification banner to appear, regardless of feature flag group membership.",
-    disabled: false,
-  },
-  {
     key: "tabTitleUrn",
     label: "Tab title URN",
     description:
@@ -123,18 +101,19 @@ const FEATURES: Feature[] = [
     disabled: false,
   },
   {
-    key: "useFullPageMsalRedirect",
-    label: "Full-page MSAL redirect",
+    key: "forceSilentSso",
+    label: "Force silent SSO",
     description:
-      "Replace the silent SSO cascade with a full-page loginRedirect when the cached token is exhausted. Use only as an opt-in test of the redirect flow — it will navigate the page to AAD on a cold cache.",
+      "Use the silent SSO cascade (ssoSilent) instead of the full-page MSAL redirect when the cached token is exhausted. Full-page redirect is what everyone gets; this is the way to exercise the silent path by hand.",
     disabled: false,
   },
   {
     key: "caseLockingCountSelf",
     label: "Case locking — count myself",
     description:
-      "Count yourself among the present users, shown as \"(current user)\" after your name, in the web components and in CMS Classic and Modern. Off, you see the banner only when somebody else really is on the case — which is what keeps it out of the way of QA users working alone. On, it is the evidence that self-identification works at all: filtered out, an empty banner looks the same whether the mechanism works or presence is broken. You are never counted as a CLASH with yourself, so this cannot raise the interruption on a case only you are on. For CMS, press \"Copy these settings to CMS\" after changing it.",
+      "Count yourself among the present users, shown as \"(current user)\" after your name, in the web components and in CMS Classic and Modern. Off, you see the banner only when somebody else really is on the case — which is what keeps it out of the way of QA users working alone. On, it is the evidence that self-identification works at all: filtered out, an empty banner looks the same whether the mechanism works or presence is broken. You are never counted as a CLASH with yourself, so this cannot raise the interruption on a case only you are on.",
     disabled: false,
+    copyToIeMode: true,
   },
   {
     key: "requestObservationShim",
@@ -154,12 +133,40 @@ const FEATURES: Feature[] = [
     key: "verboseLogging",
     label: "Verbose logging",
     description:
-      "Write Global Components' detailed debug messages to the browser console. Warnings and errors are always shown. To see the messages in Chrome or Edge, set the console's level to include Verbose.",
+      "Write Global Components' detailed debug messages to the browser console. Warnings and errors are always shown. To see the messages in Chrome or Edge, set the console's level to include Verbose. The CMS Classic and CMS Modern case locking clients follow it too.",
     disabled: false,
+    copyToIeMode: true,
   },
 ];
 
 type FeatureKey = Feature["key"];
+
+// The settings IE mode reads, and a comparable snapshot of their values.
+const IE_MODE_KEYS = FEATURES.filter((f) => f.copyToIeMode).map((f) => f.key);
+const IE_MODE_LABELS = FEATURES.filter((f) => f.copyToIeMode).map((f) => f.label);
+const ieModeSnapshot = (state: Preview) =>
+  JSON.stringify(IE_MODE_KEYS.map((key) => state[key] ?? null));
+
+// The IE-mode values as last copied (or as loaded, when nothing has been copied
+// in this tab). Kept in sessionStorage so reloading the page before copying does
+// not quietly drop the reminder. Best-effort: storage can throw or be missing,
+// and if it does not survive the copy's trip through IE mode, the values loaded
+// on return are the ones just copied — the same baseline anyway.
+const IE_MODE_BASELINE_KEY = "cps-preview-ie-mode-baseline";
+const readIeModeBaseline = (): string | null => {
+  try {
+    return window.sessionStorage.getItem(IE_MODE_BASELINE_KEY);
+  } catch {
+    return null;
+  }
+};
+const writeIeModeBaseline = (snapshot: string) => {
+  try {
+    window.sessionStorage.setItem(IE_MODE_BASELINE_KEY, snapshot);
+  } catch {
+    // best-effort
+  }
+};
 
 // A section heading that is its own #anchor, so sections can be linked to directly.
 // Ids are prefixed "section-" to stay clear of the form inputs' ids.
@@ -176,14 +183,13 @@ type StatusType = "info" | "error" | "success";
 export function App() {
   const [state, setState] = useState<Preview>({});
   const [loading, setLoading] = useState(true);
+  const [ieModeBaseline, setIeModeBaseline] = useState<string | null>(null);
   const [status, setStatus] = useState<{
     message: string;
     type: StatusType;
   } | null>(null);
   const [notificationsResult, setNotificationsResult] =
     useState<NotificationsResult | null>(null);
-  const [authHint, setAuthHint] = useState<AuthHint | null>(null);
-  const [sidInput, setSidInput] = useState<string>("");
   const [osTarget, setOsTarget] = useState<OsTarget | null>(null);
   const scrolledToHash = useRef(false);
 
@@ -204,6 +210,7 @@ export function App() {
       if (data) {
         setState(data);
       }
+      setIeModeBaseline(readIeModeBaseline() ?? ieModeSnapshot(data ?? {}));
     } catch (err) {
       showStatus(
         `Failed to load settings: ${
@@ -296,7 +303,7 @@ export function App() {
       scrolledToHash.current = true;
       target.scrollIntoView();
     }
-  }, [loading, osTarget, notificationsResult, authHint]);
+  }, [loading, osTarget, notificationsResult]);
 
   // Leaves the page: the set route writes the cookie in Edge, flips the tab to IE
   // mode to write IE mode's copy, then brings the tab back here.
@@ -323,18 +330,13 @@ export function App() {
   // fast save stays as it is and this is a separate, explicit action — at the
   // cost that Edge can be a few toggles ahead of CMS until it is pressed.
   const handlePushToCms = () => {
+    writeIeModeBaseline(ieModeSnapshot(state));
     const hasAnyValue = Object.values(state).some((v) => v);
     const query = new URLSearchParams({
       set: hasAnyValue ? JSON.stringify(state) : "null",
       return: window.location.pathname + window.location.search + "#section-cms-preview",
     });
     window.location.assign(`${STATE_ENDPOINT}?${query}`);
-  };
-
-  const handleEnabledChange = (checked: boolean) => {
-    const newState = { ...state, enabled: checked || undefined };
-    setState(newState);
-    saveState(newState);
   };
 
   const handleFeatureChange = (
@@ -386,66 +388,6 @@ export function App() {
     saveState(newState);
   };
 
-  const loadAuthHint = useCallback(async () => {
-    try {
-      const response = await fetch(AUTH_HINT_ENDPOINT, { credentials: "include" });
-      if (!response.ok) {
-        return;
-      }
-      const data: AuthHint | null = await response.json();
-      if (data) {
-        setAuthHint(data);
-        setSidInput(data.lastKnownSid ?? "");
-      }
-    } catch {
-      // best-effort; user will see "(no auth hint stored)" below
-    }
-  }, []);
-
-  useEffect(() => {
-    loadAuthHint();
-  }, [loadAuthHint]);
-
-  const writeAuthHint = useCallback(
-    async (next: AuthHint) => {
-      try {
-        const response = await fetch(AUTH_HINT_ENDPOINT, {
-          method: "PUT",
-          credentials: "include",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(next),
-        });
-        if (!response.ok) {
-          throw new Error(`HTTP ${response.status}`);
-        }
-        setAuthHint(next);
-        setSidInput(next.lastKnownSid ?? "");
-        showStatus("Auth hint updated.", "success");
-      } catch (err) {
-        showStatus(
-          `Failed to update auth hint: ${
-            err instanceof Error ? err.message : "Unknown error"
-          }`,
-          "error"
-        );
-      }
-    },
-    [showStatus]
-  );
-
-  const handleSaveSid = () => {
-    if (!authHint) return;
-    const trimmed = sidInput.trim();
-    const { lastKnownSid: _, ...rest } = authHint;
-    writeAuthHint(trimmed ? { ...rest, lastKnownSid: trimmed } : rest);
-  };
-
-  const handleClearSid = () => {
-    if (!authHint) return;
-    const { lastKnownSid: _, ...rest } = authHint;
-    writeAuthHint(rest);
-  };
-
   const handleClearDismissedNotifications = useCallback(async () => {
     try {
       const response = await fetch(DISMISSED_NOTIFICATIONS_ENDPOINT, {
@@ -468,13 +410,41 @@ export function App() {
     }
   }, [showStatus]);
 
+  const ieModeOutOfDate =
+    !loading && ieModeBaseline !== null && ieModeSnapshot(state) !== ieModeBaseline;
+
   return (
-    <div className="preview-container">
+    <div className={`preview-container${ieModeOutOfDate ? " preview-container--with-ie-bar" : ""}`}>
       <style>{`
         .preview-container {
           max-width: 1200px;
           margin: 0;
           padding: 20px;
+        }
+        /* Room for the pinned bar, so it never covers the last settings or the footer. */
+        .preview-container--with-ie-bar {
+          padding-bottom: 160px;
+        }
+        .ie-mode-bar {
+          position: fixed;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          z-index: 1000;
+          background: #ffffff;
+          border-top: 5px solid #1d70b8;
+          box-shadow: 0 -2px 8px rgba(11, 12, 12, 0.15);
+          padding: 15px 0 0;
+        }
+        .ie-mode-bar__inner {
+          display: flex;
+          flex-wrap: wrap;
+          align-items: center;
+          justify-content: space-between;
+          gap: 0 20px;
+        }
+        .ie-mode-bar__text {
+          flex: 1 1 400px;
         }
       `}</style>
 
@@ -507,6 +477,7 @@ export function App() {
                   textInputs,
                   subOptions,
                   radioOptions,
+                  copyToIeMode,
                 }) => (
                   <div
                     key={key}
@@ -537,6 +508,12 @@ export function App() {
                         htmlFor={key}
                       >
                         {label}
+                        {copyToIeMode && (
+                          <>
+                            {" "}
+                            <strong className="govuk-tag govuk-tag--blue">Also IE mode</strong>
+                          </>
+                        )}
                       </label>
                       <div
                         id={`${key}-hint`}
@@ -807,64 +784,6 @@ export function App() {
           </fieldset>
         </div>
 
-        <div className="govuk-form-group">
-          <fieldset className="govuk-fieldset">
-            <legend className="govuk-fieldset__legend govuk-fieldset__legend--m">
-              <SectionHeading className="govuk-fieldset__heading" id="auth-hint">Auth hint</SectionHeading>
-            </legend>
-            <p className="govuk-body govuk-!-font-size-16">
-              Overwrite the <code>lastKnownSid</code> stored against your auth-hint cookie.
-              Use to drive testing of the stale-sid path (AADSTS160021 → retry without
-              hint) without waiting for AAD to rotate your real session. Requires that
-              you've already signed in via one of the apps so that an auth-hint cookie
-              exists.
-            </p>
-            {!authHint && (
-              <p className="govuk-body govuk-!-font-size-16">
-                <em>No auth hint stored — sign in via one of the apps first.</em>
-              </p>
-            )}
-            {authHint && (
-              <>
-                <div className="govuk-form-group">
-                  <label className="govuk-label govuk-!-font-size-16" htmlFor="lastKnownSid">
-                    Last known sid
-                  </label>
-                  <div
-                    id="lastKnownSid-hint"
-                    className="govuk-hint govuk-!-font-size-16"
-                  >
-                    Current value: <code>{authHint.lastKnownSid ?? "(unset)"}</code>
-                  </div>
-                  <input
-                    className="govuk-input govuk-!-font-size-16"
-                    id="lastKnownSid"
-                    name="lastKnownSid"
-                    type="text"
-                    value={sidInput}
-                    onChange={(e) => setSidInput(e.target.value)}
-                  />
-                </div>
-                <button
-                  type="button"
-                  className="govuk-button"
-                  onClick={handleSaveSid}
-                >
-                  Save sid
-                </button>
-                {" "}
-                <button
-                  type="button"
-                  className="govuk-button govuk-button--secondary"
-                  onClick={handleClearSid}
-                >
-                  Clear sid
-                </button>
-              </>
-            )}
-          </fieldset>
-        </div>
-
         {osTarget && osTarget.options.length > 0 && (
           <div className="govuk-form-group">
             <fieldset className="govuk-fieldset">
@@ -907,14 +826,15 @@ export function App() {
             <p className="govuk-body govuk-!-font-size-16">
               Everything above takes effect in this browser straight away, but CMS
               Classic and CMS Modern run in Internet Explorer mode, which keeps its
-              own separate set of cookies. They cannot see the choices on this page
-              until they are copied across.
+              own separate set of cookies. The settings tagged <strong className="govuk-tag govuk-tag--blue">Also IE mode</strong>{" "}
+              are read there too, so they need copying across: change one and a bar
+              appears at the bottom of the page to do it.
             </p>
             <p className="govuk-body govuk-!-font-size-16">
-              This copies whatever is currently set above into IE mode as well. It
-              briefly reloads this page, because the only way to write IE mode&rsquo;s
-              cookies is to visit it. Reload any CMS tab afterwards to pick the
-              changes up.
+              Copying briefly reloads this page, because the only way to write IE
+              mode&rsquo;s cookies is to visit it. Reload any CMS tab afterwards to
+              pick the changes up. You can also copy from here at any time — for
+              example on a machine where IE mode has never had these settings.
             </p>
             <button
               type="button"
@@ -923,48 +843,42 @@ export function App() {
               disabled={loading}
               onClick={handlePushToCms}
             >
-              Copy these settings to CMS
+              Copy to IE mode
             </button>
-          </fieldset>
-        </div>
-
-        <div className="govuk-form-group">
-          <fieldset className="govuk-fieldset">
-            <legend className="govuk-fieldset__legend govuk-fieldset__legend--m">
-              <SectionHeading className="govuk-fieldset__heading" id="override-mode">Override mode</SectionHeading>
-            </legend>
-            <div className="govuk-checkboxes" data-module="govuk-checkboxes">
-              <div className="govuk-checkboxes__item">
-                <input
-                  className="govuk-checkboxes__input"
-                  id="enabled"
-                  name="enabled"
-                  type="checkbox"
-                  checked={state.enabled ?? false}
-                  disabled={loading}
-                  onChange={(e) => handleEnabledChange(e.target.checked)}
-                />
-                <label
-                  className="govuk-label govuk-checkboxes__label"
-                  htmlFor="enabled"
-                >
-                  Enable override configuration
-                </label>
-                <div
-                  id="enabled-hint"
-                  className="govuk-hint govuk-checkboxes__hint govuk-!-font-size-16"
-                >
-                  The override configuration file allows us to investigate
-                  configuration changes in QA environment before making them
-                  available to users. Don't enable this unless you know what you
-                  are doing!
-                </div>
-              </div>
-            </div>
           </fieldset>
         </div>
       </form>
 
+      {/* Always in the DOM, so screen readers announce the bar when it appears. */}
+      <div aria-live="polite">
+        {ieModeOutOfDate && (
+          <div className="ie-mode-bar" role="region" aria-label="Copy settings to IE mode">
+            <div className="govuk-width-container">
+              <div className="ie-mode-bar__inner">
+                <div className="ie-mode-bar__text">
+                  <h2 className="govuk-heading-s govuk-!-margin-bottom-1">
+                    CMS will not see this change yet
+                  </h2>
+                  <p className="govuk-body govuk-!-font-size-16">
+                    {IE_MODE_LABELS.join(" and ")}{" "}
+                    {IE_MODE_LABELS.length === 1 ? "is" : "are"} also read by CMS
+                    Classic and CMS Modern, which run in IE mode with their own
+                    cookies. Copy your settings across, then reload any CMS tab.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  className="govuk-button"
+                  data-module="govuk-button"
+                  onClick={handlePushToCms}
+                >
+                  Copy to IE mode
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

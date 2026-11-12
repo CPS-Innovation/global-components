@@ -1,8 +1,6 @@
 import { z } from "zod";
 
 export const PreviewSchema = z.object({
-  enabled: z.boolean().optional(),
-
   // Backwards compatibility: migrate boolean true to "a"
   caseMarkers: z.preprocess(
     (val) => (val === true ? "a" : val),
@@ -10,13 +8,6 @@ export const PreviewSchema = z.object({
   ),
   caseSearch: z.boolean().optional(),
   myRecentCasesOnHeader: z.boolean().optional(),
-
-  // Backwards compatibility: migrate boolean true to "gds"
-  newHeader: z.preprocess(
-    (val) => (val === true ? "gds" : val),
-    z.union([z.literal("gds"), z.literal("cps")]).optional(),
-  ),
-  footer: z.boolean().optional(),
   accessibility: z.boolean().optional(),
 
   // Whether the Settings page shows the "Low contrast background" control and
@@ -29,10 +20,18 @@ export const PreviewSchema = z.object({
   // part of it that is being held back. Read by SettingsApp; it does not gate
   // the paint, so a user who already chose a tone keeps it.
   accessibilityBackground: z.boolean().optional(),
-  homePageNotification: z.boolean().optional(),
   tabTitleUrn: z.boolean().optional(),
   notifications: z.boolean().optional(),
-  useFullPageMsalRedirect: z.boolean().optional(),
+  // Force the silent SSO cascade (ssoSilent) instead of the full-page MSAL
+  // redirect, which is the generally-available path. Lets us exercise the
+  // silent branch by hand now that almost nobody lands on it.
+  //
+  // RETIRED 2026-11-12, all now mainline in prod: enabled (override config, dead
+  // since #909), newHeader (header is always the CPS rebrand), footer (the shim
+  // is FOOTER_SHIM_ENABLED alone), homePageNotification (banner removed),
+  // useFullPageMsalRedirect (redirect is GA — this flag is its inverse). An old
+  // cookie that still carries any of them parses fine — z.object strips them.
+  forceSilentSso: z.boolean().optional(),
   // Case-locking takes ONE preview flag:
   //   caseLockingCountSelf   count yourself as another user, so the banner can be
   //                          seen at all by one developer on a case alone

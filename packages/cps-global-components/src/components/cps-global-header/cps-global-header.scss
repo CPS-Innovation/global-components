@@ -30,9 +30,9 @@
 // .cps-theme ancestor can win) so the change is robust. Brand accent colours are left as-is —
 // only the neutral surface warms. #ece4d3 == the warm theme's "raised" surface.
 :host-context([data-grey-mode="warm"]) {
-  .background-light-blue, // rebranded theme
+  .background-light-blue, // menu band
   .background-grey {
-    // classic theme
+    // wait / error band
     @include background(#ece4d3);
   }
 }

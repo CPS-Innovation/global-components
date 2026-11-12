@@ -4,7 +4,6 @@ import { readyState, mergeTags } from "../../store/store";
 import { replaceTagsInString } from "../cps-global-menu/menu-config/helpers/replace-tags-in-string";
 import { WithLogging } from "../../logging/WithLogging";
 import { makeConsole } from "../../logging/makeConsole";
-import { FEATURE_FLAGS } from "cps-global-configuration";
 
 const { _debug } = makeConsole("CpsGlobalHeader");
 
@@ -53,9 +52,9 @@ export class CpsGlobalHeader {
     const { headerCustomCssClasses, headerCustomCssStyles } =
       isReady && state?.context.found ? state.context : { headerCustomCssClasses: undefined, headerCustomCssStyles: undefined };
 
-    const showGovUkRebrand = isReady && FEATURE_FLAGS.shouldShowGovUkRebrand(state);
-
-    const cssClass = `${showGovUkRebrand ? "govuk-template--rebranded" : ""} ${showGovUkRebrand === "cps" ? "cps-theme" : ""}`;
+    // Always the CPS-themed GOV.UK rebrand. The pre-rebrand black header and the
+    // GDS-blue-only variant were retired once "cps" was live everywhere.
+    const cssClass = "govuk-template--rebranded cps-theme";
 
     // The subject is a template over the current tags — a named group in this
     // context's own path regex — resolved the same way msalRedirectUrl and the menu
