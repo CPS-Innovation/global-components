@@ -90,6 +90,7 @@ declare namespace CCPContent {
     /** @param {boolean} expanded @returns {string} */
     function detailsToggle(expanded: boolean): string;
     let LOCKED_ONLY: string;
+    let LOCKED_BY_READER: string;
     /**
      * The one line a reader sees before opening anything.
      *
@@ -118,9 +119,10 @@ declare namespace CCPContent {
      * @param {number} people how many people the roster holds
      * @param {boolean} includesSelf whether the reader is one of them
      * @param {boolean} [locked] whether the case is also locked
+     * @param {boolean} [lockedByReader] whether the reader is the one holding it
      * @returns {string}
      */
-    function summary(people: number, includesSelf: boolean, locked?: boolean): string;
+    function summary(people: number, includesSelf: boolean, locked?: boolean, lockedByReader?: boolean): string;
     /**
      * One application clause: "RCMS since 3.38pm on 8 September 2026", or just the
      * application when the API gave no time.
@@ -150,6 +152,33 @@ declare namespace CCPContent {
         timeEntered: (string | undefined);
     }>, format: (arg0: string | undefined) => (string | undefined)): string;
     /**
+     * The lock, as a clause to follow a name: "has this case locked in CMS Classic
+     * since 3.38pm". Each part after the verb is dropped when CMS did not say it.
+     *
+     * Web components only, like the lock itself: the legacy clients never call it.
+     *
+     * @param {string} application already through CCPApps; "" when unknown
+     * @param {string|undefined} since already formatted; falsy when there is none
+     * @param {boolean} [byReader] "have" rather than "has", to follow "You"
+     * @returns {string}
+     */
+    function lockClause(application: string, since: string | undefined, byReader?: boolean): string;
+    /**
+     * The lock as a line of its own, for when its holder is not among the people
+     * present — the ordinary result of closing a browser on a locked case. "Someone"
+     * when CMS named nobody.
+     *
+     * "You" when the reader holds it: "You have this case locked in CMS Classic
+     * since 3.38pm." — their own name would read as a colleague's.
+     *
+     * @param {string} holder the name CMS gives; "" when none
+     * @param {string} application
+     * @param {string|undefined} since
+     * @param {boolean} [byReader] the reader holds the lock
+     * @returns {string}
+     */
+    function lockLine(holder: string, application: string, since: string | undefined, byReader?: boolean): string;
+    /**
      * One person, as a sentence.
      *
      *   "A Name is in the case review — RCMS since 3.38pm on 8 September 2026."
@@ -163,12 +192,21 @@ declare namespace CCPContent {
      * review". The fallback sentence is only for a person whose sections and
      * applications are both unknown.
      *
+     * THE LOCK HOLDER'S OWN LINE carries the lock, so a reader is told once that
+     * one person has the case locked and where they are, not twice in two sentences
+     * that leave them to work out it is the same person:
+     *
+     *   "A Name has this case locked in CMS Classic since 3.38pm, and is in the
+     *    case review — RCMS since 3.40pm."
+     *   "A Name has this case locked in CMS Classic, and is in RCMS since 3.40pm."
+     *
      * @param {string} name from CCPPeople.displayName
      * @param {string} sections from CCPSectionNames.describe, "" when none
      * @param {string} where from CCPContent.where, "" when none
+     * @param {string} [lock] from CCPContent.lockClause, when this person holds the lock
      * @returns {string}
      */
-    function personLine(name: string, sections: string, where: string): string;
+    function personLine(name: string, sections: string, where: string, lock?: string): string;
 }
 declare namespace CCPEnvironment {
     let CIN: string | null;
@@ -282,6 +320,59 @@ declare namespace CCPKinds {
     let VICTIM_WITNESS: string;
     let DEFENDANT: string;
 }
+declare namespace CCPNames {
+    let STAFF_DOMAINS: string[];
+    /**
+     * Capitalise each run of letters, unless the address already gave it a mixed
+     * case — "McDonald" as typed is better than anything we would make of it.
+     *
+     * @param {string} part
+     * @returns {string}
+     */
+    function capitalise(part: string): string;
+    /**
+     * The first name and surname an address spells, or null when it does not spell
+     * one (see the shapes above).
+     *
+     * @param {string|undefined|null} email
+     * @returns {{given: string, surname: string}|null}
+     */
+    function parse(email: string | undefined | null): {
+        given: string;
+        surname: string;
+    } | null;
+    /**
+     * What to call someone: "Mary-Jane O'Brien", or the address itself when it is
+     * not a name. "" when there is no address.
+     *
+     * @param {string|undefined|null} email
+     * @returns {string}
+     */
+    function displayName(email: string | undefined | null): string;
+    function letters(text: any): string;
+    /**
+     * Is this address the person CMS names? For the case lock, which arrives as first
+     * names and a surname rather than an address.
+     *
+     * The surname must agree, and the address's first name must be either the first
+     * of CMS's first names or all of them run together — "mary-jane" matches
+     * "Mary Jane" and "Mary-Jane". Compared on letters alone, so case, hyphens and
+     * apostrophes cannot make one person look like two.
+     *
+     * FALSE WHEN UNSURE. An address that is not a name never matches, and nor does
+     * anyone whose address uses a different name than CMS holds ("chris" for
+     * Christopher). Calling two facts unrelated is the safe mistake; tying a lock to
+     * the wrong person is not.
+     *
+     * @param {string|undefined|null} email
+     * @param {string|undefined|null} firstNames
+     * @param {string|undefined|null} surname
+     * @returns {boolean}
+     */
+    function matches(email: string | undefined | null, firstNames: string | undefined | null, surname: string | undefined | null): boolean;
+}
+declare var CCP_NAMES_GIVEN: RegExp;
+declare var CCP_NAMES_SURNAME: RegExp;
 declare namespace CCPPeople {
     /**
      * @param {Array<{userEmail?: string, sourceApplication?: string, joinedAt?: string, sections?: Array<{kind: string, isCurrent?: boolean}>}>} members
@@ -327,7 +418,9 @@ declare namespace CCPPeople {
         userEmail?: string;
     }> | undefined, viewerEmail: string | undefined): any[];
     /**
-     * WHAT TO SHOW AS SOMEONE'S NAME, marking the reader.
+     * WHAT TO SHOW AS SOMEONE'S NAME, marking the reader. The name is read off the
+     * address by CCPNames; username itself stays the address, because that is what
+     * people are told apart and recognised by.
      *
      * While the feature is being built we deliberately count and show ourselves: a
      * roster that includes you, and says so, is the only evidence from the outside
@@ -512,29 +605,65 @@ declare namespace CCPView {
      *   members: CCPRosterMember[] | undefined,
      *   viewerEmail?: string,
      *   countSelf?: boolean,
-     *   locked?: boolean,
+     *   lock?: {firstNames?: string, surname?: string, application?: string, since?: string},
      *   formatTime?: function((string|undefined)): (string|undefined)
      * }} options
      *   viewerEmail  the reader; "" or absent means unknown, and then nobody is
      *                filtered or marked (one person too many beats hiding a colleague)
      *   countSelf    true keeps the reader in, marked "(current user)"
-     *   locked       web components only: the case lock leads the summary
+     *   lock         web components only, and only when the case IS locked: who
+     *                holds it as CMS names them, and where and since when. It leads
+     *                the summary and the lines, and joins its holder's own line when
+     *                exactly one person present is them (CCPNames.matches); otherwise
+     *                it is a line of its own
      *   formatTime   how to say when someone arrived; CCPJoined.format by default
-     * @returns {{people: CCPPerson[], count: number, includesSelf: boolean, summary: string, lines: string[]}}
+     * @returns {{people: CCPPerson[], count: number, includesSelf: boolean, summary: string, lockedByReader: boolean, lines: string[]}}
      */
     function build(options: {
         members: CCPRosterMember[] | undefined;
         viewerEmail?: string;
         countSelf?: boolean;
-        locked?: boolean;
+        lock?: {
+            firstNames?: string;
+            surname?: string;
+            application?: string;
+            since?: string;
+        };
         formatTime?: (arg0: (string | undefined)) => (string | undefined);
     }): {
         people: CCPPerson[];
         count: number;
         includesSelf: boolean;
         summary: string;
+        lockedByReader: boolean;
         lines: string[];
     };
+    /**
+     * Which of the people holds the lock: their index, or -1. Only a SINGLE match
+     * counts — two namesakes on one case (john.smith and john.smith2) could be either,
+     * and the lock then stands on its own line rather than on a guess.
+     *
+     * The reader is never the answer here, even when counted in: a lock of theirs is
+     * said as "You", on its own line (see build).
+     *
+     * @param {CCPPerson[]} people
+     * @param {{firstNames?: string, surname?: string}|null} lock
+     * @returns {number}
+     */
+    function lockHolder(people: CCPPerson[], lock: {
+        firstNames?: string;
+        surname?: string;
+    } | null): number;
+    /**
+     * The holder as CMS names them, "" when it names nobody.
+     *
+     * @param {{firstNames?: string, surname?: string}} lock
+     * @returns {string}
+     */
+    function lockHolderName(lock: {
+        firstNames?: string;
+        surname?: string;
+    }): string;
 }
 declare namespace CCPClient {
     let JSONP_PATH: string;

@@ -164,7 +164,9 @@ CCPPeople.others = function (members, viewerEmail) {
 };
 
 /**
- * WHAT TO SHOW AS SOMEONE'S NAME, marking the reader.
+ * WHAT TO SHOW AS SOMEONE'S NAME, marking the reader. The name is read off the
+ * address by CCPNames; username itself stays the address, because that is what
+ * people are told apart and recognised by.
  *
  * While the feature is being built we deliberately count and show ourselves: a
  * roster that includes you, and says so, is the only evidence from the outside
@@ -182,10 +184,10 @@ CCPPeople.displayName = function (person) {
   if (!person || !person.username) {
     return "";
   }
-  return person.isCurrentUser ? person.username + CCPPeople.CURRENT_USER_SUFFIX : person.username;
+  var name = CCPNames.displayName(person.username);
+  return person.isCurrentUser ? name + CCPPeople.CURRENT_USER_SUFFIX : name;
 };
 
-// In brackets after the name rather than replacing it with "you": the address is
-// still the thing a reader matches against what the API reported, and a roster
-// that renamed one row would be harder to check, not easier.
+// In brackets after the name rather than replacing it with "you": a roster that
+// renamed one row would be harder to check against everyone else's, not easier.
 CCPPeople.CURRENT_USER_SUFFIX = " (current user)";

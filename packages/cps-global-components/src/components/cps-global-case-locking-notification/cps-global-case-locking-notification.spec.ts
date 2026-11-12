@@ -252,3 +252,49 @@ describe("cps-global-case-locking-notification and the reader", () => {
     expect(await linesWith({ caseLockingCountSelf: true })).toEqual(["me@cps.gov.uk (current user) is in the case — CMS."]);
   });
 });
+
+// The lock joins its holder's own line when they are present, so the reader is
+// told once, not in two sentences about what turns out to be one person.
+describe("cps-global-case-locking-notification and the lock", () => {
+  const lockedBy = (byFirstNames: string, bySurname: string) =>
+    ({ found: true, result: { locking: { locked: true, byFirstNames, bySurname, application: "CMS Classic" } } }) as any;
+  const someone = (userEmail: string): CaseLockingPresentUsers => ({
+    sections: [{ code: "case", occupiedOnEntry: false, members: [{ userEmail, sourceApplication: "CMS Modern", sections: [{ kind: "CASE", isCurrent: true }] }] }],
+  });
+
+  const linesFor = async (state: object) => {
+    initialiseStore().register({ ...ready, ...state });
+    const page = await newSpecPage({
+      components: [CpsGlobalCaseLockingNotification],
+      html: `<cps-global-case-locking-notification></cps-global-case-locking-notification>`,
+    });
+    return Array.from(page.root!.querySelectorAll("p.govuk-body")).map(p => p.textContent);
+  };
+
+  it("folds the lock into the holder's line, by name", async () => {
+    expect(await linesFor({ caseDetails: lockedBy("Jane", "Doe"), caseLockingPresentUsers: someone("jane.doe@cps.gov.uk") })).toEqual([
+      "Jane Doe has this case locked in CMS Classic, and is in the case — CMS Modern.",
+    ]);
+  });
+
+  it("gives the lock its own line, first, when the holder is not present", async () => {
+    expect(await linesFor({ caseDetails: lockedBy("Jane", "Doe"), caseLockingPresentUsers: someone("ann.other@cps.gov.uk") })).toEqual([
+      "Jane Doe has this case locked in CMS Classic.",
+      "Ann Other is in the case — CMS Modern.",
+    ]);
+  });
+
+  it("tells the reader when the lock is their own", async () => {
+    initialiseStore().register({ ...ready, auth: { isAuthed: true, username: "jane.doe@cps.gov.uk" } as any, caseDetails: lockedBy("Jane", "Doe") });
+    const page = await newSpecPage({
+      components: [CpsGlobalCaseLockingNotification],
+      html: `<cps-global-case-locking-notification></cps-global-case-locking-notification>`,
+    });
+
+    expect(Array.from(page.root!.querySelectorAll("p.govuk-body")).map(p => p.textContent)).toEqual(["You have this case locked in CMS Classic."]);
+  });
+
+  it("says the lock alone when nobody is present", async () => {
+    expect(await linesFor({ caseDetails: lockedBy("Jane", "Doe"), caseLockingPresentUsers: undefined })).toEqual(["Jane Doe has this case locked in CMS Classic."]);
+  });
+});

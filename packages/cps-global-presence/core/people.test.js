@@ -6,7 +6,7 @@
  */
 var h = require("../test-harness");
 
-var loaded = h.load(["core/apps.js", "core/people.js"], ["CCPPeople"]);
+var loaded = h.load(["core/apps.js", "core/names.js", "core/people.js"], ["CCPPeople"]);
 var CCPPeople = loaded.CCPPeople;
 
 function member(email, app, joinedAt) {

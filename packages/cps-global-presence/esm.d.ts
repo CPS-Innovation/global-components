@@ -88,6 +88,25 @@ declare module "cps-global-presence" {
     };
   };
 
+  /**
+   * A person's name from the address the presence API reports. Rules come from a
+   * survey of every enabled Entra account; see core/names.js.
+   */
+  export const CCPNames: {
+    /** The domains whose addresses are people's names. */
+    STAFF_DOMAINS: string[];
+    /** Capitalise each run of letters, leaving a mixed case as typed. */
+    capitalise(part: string): string;
+    /** "mary-jane.o'brien2@cps.gov.uk" -> { given: "Mary-Jane", surname: "O'Brien" }; null when not a name. */
+    parse(email: string | null | undefined): { given: string; surname: string } | null;
+    /** "Mary-Jane O'Brien", or the address unchanged when it is not a name; "" when absent. */
+    displayName(email: string | null | undefined): string;
+    /** Letters only, lower-cased: "O'Brien-Smith" -> "obriensmith". */
+    letters(text: string | null | undefined): string;
+    /** Is this address the person CMS names? False when unsure (see core/names.js). */
+    matches(email: string | null | undefined, firstNames: string | null | undefined, surname: string | null | undefined): boolean;
+  };
+
   export const CCPApps: {
     DISPLAY_NAMES: Record<string, string>;
     /** The name to show for an API application name; the name itself if unmapped, "" if absent. */
@@ -186,10 +205,14 @@ declare module "cps-global-presence" {
       viewerEmail?: string;
       /** Keep the reader in, marked "(current user)". */
       countSelf?: boolean;
-      /** The case lock leads the summary. Only the web components know it. */
-      locked?: boolean;
+      /**
+       * The case lock, only when the case IS locked. Leads the summary and the lines,
+       * folded into its holder's own line when exactly one person present is them.
+       * Only the web components know it.
+       */
+      lock?: { firstNames?: string; surname?: string; application?: string; since?: string };
       formatTime?: (timeEntered: string | undefined) => string | undefined;
-    }): { people: CCPPerson[]; count: number; includesSelf: boolean; summary: string; lines: string[] };
+    }): { people: CCPPerson[]; count: number; includesSelf: boolean; summary: string; lockedByReader: boolean; lines: string[] };
   };
 
   /**
@@ -206,12 +229,14 @@ declare module "cps-global-presence" {
     detailsToggle(expanded: boolean): string;
     /** Locked, with nobody to report. */
     LOCKED_ONLY: string;
+    /** Locked by the reader themselves. */
+    LOCKED_BY_READER: string;
     /**
      * The one line before anything is opened. "other" is dropped when the count
      * includes the reader; the lock, when known, leads and presence follows as a
      * subordinate clause. The legacy clients never pass `locked` — neither can know.
      */
-    summary(people: number, includesSelf: boolean, locked?: boolean): string;
+    summary(people: number, includesSelf: boolean, locked?: boolean, lockedByReader?: boolean): string;
     /**
      * One application: "RCMS since 3.38pm on 8 September 2026", or just the
      * application when there is no time to give.
@@ -227,7 +252,15 @@ declare module "cps-global-presence" {
       apps: { appDisplayName: string; timeEntered?: string }[] | undefined,
       format: (timeEntered: string | undefined) => string | undefined,
     ): string;
-    /** One person as a sentence: "A Name is in the case review — RCMS since ...". */
-    personLine(name: string, sections: string, where: string): string;
+    /** "has this case locked in CMS Classic since 3.38pm"; parts dropped when unknown. Web components only. */
+    lockClause(application: string, since: string | undefined, byReader?: boolean): string;
+    /** The lock on a line of its own: "Jane Doe has this case locked ...". "Someone" when unnamed; "You have ..." when byReader. */
+    lockLine(holder: string, application: string, since: string | undefined, byReader?: boolean): string;
+    /**
+     * One person as a sentence: "A Name is in the case review — RCMS since ...". With
+     * `lock` (from lockClause) the lock comes first: "A Name has this case locked ...,
+     * and is in the case review — RCMS since ...".
+     */
+    personLine(name: string, sections: string, where: string, lock?: string): string;
   };
 }
