@@ -2,8 +2,8 @@ import { Component, h, State, Element, Listen } from "@stencil/core";
 import { readyState } from "../../store/store";
 import { FEATURE_FLAGS } from "cps-global-configuration";
 import { replaceTagsInString } from "../cps-global-menu/menu-config/helpers/replace-tags-in-string";
-import { CCPPeople, CCPSectionNames, CCPSectionRules } from "cps-global-presence";
-import { describeCaseLock, getCaseLock } from "../../services/case-locking/get-case-lock";
+import { CCPContent, CCPPeople, CCPSectionNames, CCPSectionRules } from "cps-global-presence";
+import { describeCaseLock, getCaseLock, isLockedByReader } from "../../services/case-locking/get-case-lock";
 import { MIN_REAL_HEADER_WIDTH_PX } from "../../services/browser/dom/footer-subscriber";
 
 /**
@@ -282,8 +282,9 @@ export class CpsGlobalCaseLockingInterstitial {
     // Everyone in those sections but the reader: you cannot clash with yourself,
     // whatever caseLockingCountSelf says.
     const viewer = state.auth?.isAuthed ? state.auth.username : undefined;
+    const lockedByReader = isLockedByReader(lock, viewer);
     const others = CCPPeople.others(sections.flatMap(section => section.members), viewer);
-    const who = CCPPeople.collapse(others).map(person => person.username).join(", ");
+    const who = CCPPeople.collapse(others).map(CCPPeople.displayName).join(", ");
     /**
      * WHERE THE CLASH IS, in the same words the pinned notification uses.
      *
@@ -320,7 +321,7 @@ export class CpsGlobalCaseLockingInterstitial {
                             is something you may choose to ignore; "this case is
                             locked" is something that will stop you saving, and the
                             heading is the only line some readers take in. */}
-                        {lockInterrupts ? "This case is locked" : `Someone else is working on ${where}`}
+                        {lockInterrupts ? (lockedByReader ? CCPContent.LOCKED_BY_READER : CCPContent.LOCKED_ONLY) : `Someone else is working on ${where}`}
                       </h1>
                       {/* Wording is deliberately plain. The presence API tells us who is
                           in a section and when they arrived — NOT whether they are
@@ -330,7 +331,7 @@ export class CpsGlobalCaseLockingInterstitial {
                             this card is the banner's more insistent twin, and a reader
                             who dismisses one and meets the other should not have to
                             work out whether two wordings mean one lock. */}
-                        {lockInterrupts && <p>{describeCaseLock(lock)}</p>}
+                        {lockInterrupts && <p>{describeCaseLock(lock, viewer)}</p>}
                         {who && (
                           <p>
                             {who} is also working on {where}.

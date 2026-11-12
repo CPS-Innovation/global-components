@@ -1,4 +1,4 @@
-import { CCPApps } from "cps-global-presence";
+import { CCPApps, CCPContent, CCPNames } from "cps-global-presence";
 import { CaseDetails } from "../data/CaseDetails";
 import { Result } from "../../utils/Result";
 import { makeConsole } from "../../logging/makeConsole";
@@ -18,6 +18,9 @@ export type CaseLock = {
   locked: boolean;
   /** "John Smith", or "" when the API named nobody. */
   by: string;
+  /** The two halves of `by`, for matching the holder to a person present (CCPNames.matches). */
+  firstNames: string;
+  surname: string;
   /** Through CCPApps so the lock names an application the way the roster does. */
   application: string;
   /** ISO timestamp, for formatJoined. Absent if the server omits it. */
@@ -45,32 +48,33 @@ export const getCaseLock = (caseDetails: Result<CaseDetails> | undefined): CaseL
   return {
     locked,
     by: [locking?.byFirstNames, locking?.bySurname].filter(Boolean).join(" "),
+    firstNames: locking?.byFirstNames ?? "",
+    surname: locking?.bySurname ?? "",
     application: CCPApps.displayName(locking?.application ?? undefined),
     since: locking?.since ?? undefined,
   };
 };
 
 /**
- * The lock as one sentence: "John Smith is locking this case in RCMS, since 3.38pm".
+ * The lock as a line of its own: "John Smith has this case locked in RCMS since
+ * 3.38pm." The interruption says this; the banner says the same words through
+ * CCPView, which also folds them into the holder's own line when they are present.
+ * Both come from CCPContent so the two surfaces cannot drift apart.
  *
- * ONE SENTENCE, TWO SURFACES. The banner and the interruption both say this, and
- * they must say it identically — the interruption is the banner's more insistent
- * twin, and a reader who dismisses one and then reads the other should not have to
- * work out whether two differently-worded lines describe the same lock.
- *
- * Every clause after the name is dropped when the API did not send it, so an
- * incomplete record degrades to a shorter true sentence rather than one with a
- * gap in it. Returns "" when there is no lock, so callers can omit the line.
+ * Returns "" when there is no lock, so callers can omit the line.
  */
-export const describeCaseLock = (lock: CaseLock | undefined): string => {
+export const describeCaseLock = (lock: CaseLock | undefined, viewerEmail?: string): string => {
   if (!lock?.locked) {
     return "";
   }
-  const since = formatJoined(lock.since);
-  return (
-    (lock.by ? `${lock.by} is locking this case` : "Someone is locking this case") +
-    (lock.application ? ` in ${lock.application}` : "") +
-    (since ? `, since ${since}` : "") +
-    "."
-  );
+  return CCPContent.lockLine(lock.by, lock.application, formatJoined(lock.since), isLockedByReader(lock, viewerEmail));
 };
+
+/**
+ * Does the reader hold this lock themselves — locked in Classic, say, and now
+ * looking here? Then it is said as "You have this case locked", because their own
+ * name reads as a colleague's. False when the reader is unknown or the names do
+ * not clearly match (CCPNames.matches).
+ */
+export const isLockedByReader = (lock: CaseLock | undefined, viewerEmail: string | undefined): boolean =>
+  !!lock?.locked && CCPNames.matches(viewerEmail, lock.firstNames, lock.surname);

@@ -168,3 +168,37 @@ h.test("says the banner has gone away, not that it is empty", function () {
 });
 
 h.summarise();
+
+h.describe("CCPContent: the lock's words");
+
+h.test("a lock line drops what CMS did not say", function () {
+  h.assertEqual(CCPContent.lockLine("Jane Doe", "CMS Classic", "3.38pm"), "Jane Doe has this case locked in CMS Classic since 3.38pm.");
+  h.assertEqual(CCPContent.lockLine("Jane Doe", "", ""), "Jane Doe has this case locked.");
+  h.assertEqual(CCPContent.lockLine("", "RCMS", undefined), "Someone has this case locked in RCMS.");
+});
+
+h.test("the holder's line says the lock first, then where they are", function () {
+  var lock = CCPContent.lockClause("CMS Classic", "3.38pm");
+  h.assertEqual(
+    CCPContent.personLine("Jane Doe", "the case review", "RCMS since 3.40pm", lock),
+    "Jane Doe has this case locked in CMS Classic since 3.38pm, and is in the case review — RCMS since 3.40pm."
+  );
+  h.assertEqual(CCPContent.personLine("Jane Doe", "", "RCMS", lock), "Jane Doe has this case locked in CMS Classic since 3.38pm, and is in RCMS.");
+  h.assertEqual(CCPContent.personLine("Jane Doe", "the case", "", lock), "Jane Doe has this case locked in CMS Classic since 3.38pm, and is in the case.");
+  h.assertEqual(CCPContent.personLine("Jane Doe", "", "", lock), "Jane Doe has this case locked in CMS Classic since 3.38pm.");
+});
+
+h.describe("CCPContent: the reader's own lock");
+
+h.test("says 'You have' rather than the reader's name", function () {
+  h.assertEqual(CCPContent.lockLine("Jane Doe", "CMS Classic", "3.38pm", true), "You have this case locked in CMS Classic since 3.38pm.");
+  h.assertEqual(CCPContent.lockLine("", "", "", true), "You have this case locked.");
+});
+
+h.test("leads the summary with the reader's lock", function () {
+  h.assertEqual(CCPContent.summary(0, false, true, true), "You have this case locked");
+  h.assertEqual(
+    CCPContent.summary(1, false, true, true),
+    "You have this case locked, and 1 other person is currently working on this case"
+  );
+});

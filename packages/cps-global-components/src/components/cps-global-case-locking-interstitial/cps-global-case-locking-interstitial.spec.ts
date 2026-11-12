@@ -10,8 +10,8 @@ const locked = { found: true, result: { isLocked: true } } as any;
 // Everything render() requires, on a case review page, with NO presence at all.
 const ready = { config, context: inRegion("case_review"), preview: { found: true, result: {} } as any, authHint: { found: false } as any };
 
-const occupied = (code: string, kind: string): CaseLockingPresentUsers => ({
-  sections: [{ code, occupiedOnEntry: true, members: [{ userEmail: "a@cps.gov.uk", sourceApplication: "CMS", sections: [{ kind, isCurrent: true }] }] }],
+const occupied = (code: string, kind: string, userEmail = "a@cps.gov.uk"): CaseLockingPresentUsers => ({
+  sections: [{ code, occupiedOnEntry: true, members: [{ userEmail, sourceApplication: "CMS", sections: [{ kind, isCurrent: true }] }] }],
 });
 
 describe("cps-global-case-locking-interstitial", () => {
@@ -62,6 +62,30 @@ describe("cps-global-case-locking-interstitial", () => {
     await mount({ ...ready, caseLockingPresentUsers: occupied("case_review", "CASE_REVIEW") });
 
     expect(page.root!.querySelector("dialog")).not.toBeNull();
+  });
+
+  it("says the lock in the same words as the banner", async () => {
+    await mount({ ...ready, caseDetails: { found: true, result: { locking: { locked: true, byFirstNames: "Jane", bySurname: "Doe", application: "CMS Classic" } } } as any });
+
+    expect(page.root!.textContent).toContain("Jane Doe has this case locked in CMS Classic.");
+  });
+
+  it("tells the reader when the lock is their own", async () => {
+    await mount({
+      ...ready,
+      auth: { isAuthed: true, username: "jane.doe@cps.gov.uk" } as any,
+      caseDetails: { found: true, result: { locking: { locked: true, byFirstNames: "Jane", bySurname: "Doe", application: "CMS Classic" } } } as any,
+    });
+
+    expect(heading()).toBe("You have this case locked");
+    expect(page.root!.textContent).toContain("You have this case locked in CMS Classic.");
+  });
+
+  it("names the people it interrupts for", async () => {
+    await mount({ ...ready, caseLockingPresentUsers: occupied("case_review", "CASE_REVIEW", "jane.doe@cps.gov.uk") });
+
+    expect(page.root!.textContent).toContain("Jane Doe");
+    expect(page.root!.textContent).not.toContain("jane.doe@cps.gov.uk");
   });
 
   it("does not interrupt for a lock in a region that does not interrupt", async () => {

@@ -3,7 +3,7 @@ import { readyState } from "../../store/store";
 import { FEATURE_FLAGS } from "cps-global-configuration";
 import { formatJoined } from "../../services/case-locking/format-joined";
 import { CCPContent, CCPView } from "cps-global-presence";
-import { describeCaseLock, getCaseLock } from "../../services/case-locking/get-case-lock";
+import { getCaseLock } from "../../services/case-locking/get-case-lock";
 
 // Long enough for assistive tech to have registered the empty live region before
 // it is first given text. See liveRegionReady.
@@ -127,7 +127,9 @@ export class CpsGlobalCaseLockingNotification {
       members: (state.caseLockingPresentUsers?.sections ?? []).flatMap(section => section.members),
       viewerEmail: state.auth?.isAuthed ? state.auth.username : undefined,
       countSelf: FEATURE_FLAGS.shouldCountSelfInCaseLocking(state),
-      locked,
+      // The holder joins their own line when they are present; otherwise the lock
+      // is a line of its own. Either way it leads.
+      lock: locked ? lock : undefined,
       formatTime: formatJoined,
     });
     if (!view.count && !locked) {
@@ -138,11 +140,6 @@ export class CpsGlobalCaseLockingNotification {
     return this.renderWithLiveRegion(
       this.announce(summary),
       <cps-global-pinned-notification titleText={summary} collapsible dismissible={false}>
-        {/* FIRST IN THE BODY, above the roster, for the same reason it leads the
-            heading. The name is whatever CMS recorded; we make no attempt to match it
-            to the people in the roster below — that reconciliation is a separate
-            problem and a wrong guess would read worse than two unjoined facts. */}
-        {locked && <p class="govuk-body">{describeCaseLock(lock)}</p>}
         {view.lines.map(line => (
           <p class="govuk-body">{line}</p>
         ))}

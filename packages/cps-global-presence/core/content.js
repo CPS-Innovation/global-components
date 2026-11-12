@@ -60,6 +60,13 @@ CCPContent.detailsToggle = function (expanded) {
 CCPContent.LOCKED_ONLY = "This case is locked";
 
 /**
+ * The same, when the reader holds the lock. Said in so many words because the
+ * other wording reads as someone else's lock: a reader who locked the case in
+ * Classic and then opened it here would otherwise be warned about themselves.
+ */
+CCPContent.LOCKED_BY_READER = "You have this case locked";
+
+/**
  * The one line a reader sees before opening anything.
  *
  * IT SAYS ONLY WHAT WE KNOW. The prototype's heading read "Case locked as 1 user
@@ -87,9 +94,10 @@ CCPContent.LOCKED_ONLY = "This case is locked";
  * @param {number} people how many people the roster holds
  * @param {boolean} includesSelf whether the reader is one of them
  * @param {boolean} [locked] whether the case is also locked
+ * @param {boolean} [lockedByReader] whether the reader is the one holding it
  * @returns {string}
  */
-CCPContent.summary = function (people, includesSelf, locked) {
+CCPContent.summary = function (people, includesSelf, locked, lockedByReader) {
   var working = includesSelf
     ? people === 1
       ? "1 person is working on this case"
@@ -100,11 +108,12 @@ CCPContent.summary = function (people, includesSelf, locked) {
   if (!locked) {
     return working;
   }
+  var lockedSentence = lockedByReader ? CCPContent.LOCKED_BY_READER : CCPContent.LOCKED_ONLY;
   if (!people) {
-    return CCPContent.LOCKED_ONLY;
+    return lockedSentence;
   }
   return (
-    "This case is locked, and " +
+    lockedSentence + ", and " +
     working
       .replace(" is working", " is currently working")
       .replace(" are working", " are currently working")
@@ -154,6 +163,45 @@ CCPContent.where = function (apps, format) {
 };
 
 /**
+ * The lock, as a clause to follow a name: "has this case locked in CMS Classic
+ * since 3.38pm". Each part after the verb is dropped when CMS did not say it.
+ *
+ * Web components only, like the lock itself: the legacy clients never call it.
+ *
+ * @param {string} application already through CCPApps; "" when unknown
+ * @param {string|undefined} since already formatted; falsy when there is none
+ * @param {boolean} [byReader] "have" rather than "has", to follow "You"
+ * @returns {string}
+ */
+CCPContent.lockClause = function (application, since, byReader) {
+  return (
+    (byReader ? "have" : "has") +
+    " this case locked" +
+    (application ? " in " + application : "") +
+    (since ? " since " + since : "")
+  );
+};
+
+/**
+ * The lock as a line of its own, for when its holder is not among the people
+ * present — the ordinary result of closing a browser on a locked case. "Someone"
+ * when CMS named nobody.
+ *
+ * "You" when the reader holds it: "You have this case locked in CMS Classic
+ * since 3.38pm." — their own name would read as a colleague's.
+ *
+ * @param {string} holder the name CMS gives; "" when none
+ * @param {string} application
+ * @param {string|undefined} since
+ * @param {boolean} [byReader] the reader holds the lock
+ * @returns {string}
+ */
+CCPContent.lockLine = function (holder, application, since, byReader) {
+  var who = byReader ? "You" : holder || "Someone";
+  return who + " " + CCPContent.lockClause(application, since, byReader) + ".";
+};
+
+/**
  * One person, as a sentence.
  *
  *   "A Name is in the case review — RCMS since 3.38pm on 8 September 2026."
@@ -167,12 +215,28 @@ CCPContent.where = function (apps, format) {
  * review". The fallback sentence is only for a person whose sections and
  * applications are both unknown.
  *
+ * THE LOCK HOLDER'S OWN LINE carries the lock, so a reader is told once that
+ * one person has the case locked and where they are, not twice in two sentences
+ * that leave them to work out it is the same person:
+ *
+ *   "A Name has this case locked in CMS Classic since 3.38pm, and is in the
+ *    case review — RCMS since 3.40pm."
+ *   "A Name has this case locked in CMS Classic, and is in RCMS since 3.40pm."
+ *
  * @param {string} name from CCPPeople.displayName
  * @param {string} sections from CCPSectionNames.describe, "" when none
  * @param {string} where from CCPContent.where, "" when none
+ * @param {string} [lock] from CCPContent.lockClause, when this person holds the lock
  * @returns {string}
  */
-CCPContent.personLine = function (name, sections, where) {
+CCPContent.personLine = function (name, sections, where, lock) {
+  if (lock) {
+    return (
+      name + " " + lock +
+      (sections ? ", and is in " + sections + (where ? " — " + where : "") : where ? ", and is in " + where : "") +
+      "."
+    );
+  }
   return (
     name +
     (sections ? " is in " + sections : "") +
