@@ -5,6 +5,7 @@ import { replaceTagsInString } from "../cps-global-menu/menu-config/helpers/repl
 import { CCPContent, CCPPeople, CCPSectionNames, CCPSectionRules } from "cps-global-presence";
 import { describeCaseLock, getCaseLock, isLockedByReader } from "../../services/case-locking/get-case-lock";
 import { MIN_REAL_HEADER_WIDTH_PX } from "../../services/browser/dom/footer-subscriber";
+import { INTERSTITIAL_OPTIONS } from "./interstitial-options";
 
 /**
  * The interruption, rebuilt as a top-layer dialog.
@@ -62,6 +63,8 @@ export class CpsGlobalCaseLockingInterstitial {
 
   private currentCode?: string;
   private showing = false;
+  /** Whether this render offered a way to carry on; Escape follows it. */
+  private canContinue = true;
   private headerObserver?: ResizeObserver;
   /** The document's inline `overflow` before we hid its scrollbar. */
   private previousOverflow: string | null = null;
@@ -79,7 +82,9 @@ export class CpsGlobalCaseLockingInterstitial {
   @Listen("cancel")
   onCancel(event: Event) {
     event.preventDefault();
-    this.dismiss();
+    if (this.canContinue) {
+      this.dismiss();
+    }
   }
 
   componentDidRender() {
@@ -279,6 +284,7 @@ export class CpsGlobalCaseLockingInterstitial {
     // nowhere; absent tags mean the same, since a case id is the whole point.
     const template = state.config.CASE_LOCKING_CASE_DETAILS_URL;
     const caseDetailsUrl = template && state.tags?.caseId ? replaceTagsInString(template, state.tags) : undefined;
+    this.canContinue = INTERSTITIAL_OPTIONS.allowContinue || !caseDetailsUrl;
     // Everyone in those sections but the reader: you cannot clash with yourself,
     // whatever caseLockingCountSelf says.
     const viewer = state.auth?.isAuthed ? state.auth.username : undefined;
@@ -343,9 +349,11 @@ export class CpsGlobalCaseLockingInterstitial {
                         <p>{lockInterrupts ? "While it is locked, changes you make may not be saved." : "If you both make changes, one set of changes could be lost."}</p>
                       </div>
                       <div class="govuk-button-group moj-interruption-card__actions">
-                        <button type="button" class="govuk-button govuk-button--inverse" autofocus onClick={this.dismiss}>
-                          Continue anyway
-                        </button>
+                        {this.canContinue && (
+                          <button type="button" class="govuk-button govuk-button--inverse" autofocus onClick={this.dismiss}>
+                            Continue anyway
+                          </button>
+                        )}
                         {/* AN ANCHOR, not a button: this is a plain navigation to
                             another page, and saying so in the markup is what makes
                             it work. govuk-link--inverse colours through
@@ -354,7 +362,7 @@ export class CpsGlobalCaseLockingInterstitial {
                             rendered black. Middle-click and "open in new tab" come
                             free with the right element too. */}
                         {caseDetailsUrl && (
-                          <a class="govuk-link govuk-link--inverse" href={caseDetailsUrl}>
+                          <a class="govuk-link govuk-link--inverse" href={caseDetailsUrl} autofocus={!this.canContinue}>
                             Go to case details
                           </a>
                         )}

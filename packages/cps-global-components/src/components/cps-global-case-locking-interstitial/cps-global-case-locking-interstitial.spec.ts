@@ -1,5 +1,6 @@
 import { newSpecPage, SpecPage } from "@stencil/core/testing";
 import { CpsGlobalCaseLockingInterstitial } from "./cps-global-case-locking-interstitial";
+import { INTERSTITIAL_OPTIONS } from "./interstitial-options";
 import { initialiseStore, Register } from "../../store/store";
 import { CaseLockingPresentUsers } from "../../services/case-locking/CaseLockingPresentUsers";
 
@@ -92,5 +93,48 @@ describe("cps-global-case-locking-interstitial", () => {
     await mount({ ...ready, context: inRegion("case"), caseDetails: locked });
 
     expect(page.root!.querySelector("dialog")).toBeNull();
+  });
+
+  describe("carrying on past it", () => {
+    const withLink = { ...ready, config: { ...config, CASE_LOCKING_CASE_DETAILS_URL: "https://example.org/cases/{caseId}" }, tags: { caseId: "123" } as any, caseDetails: locked };
+    const button = () => Array.from(page.root!.querySelectorAll("button")).find(b => b.textContent?.includes("Continue anyway"));
+    const escape = async () => {
+      page.root!.querySelector("dialog")!.dispatchEvent(new Event("cancel", { bubbles: true, cancelable: true }));
+      await page.waitForChanges();
+    };
+
+    afterEach(() => {
+      INTERSTITIAL_OPTIONS.allowContinue = false;
+    });
+
+    it("offers only 'Go to case details' while the switch is off", async () => {
+      await mount(withLink);
+
+      expect(button()).toBeUndefined();
+      expect(page.root!.querySelector("a")!.getAttribute("href")).toBe("https://example.org/cases/123");
+    });
+
+    it("ignores Escape while the switch is off", async () => {
+      await mount(withLink);
+      await escape();
+
+      expect(page.root!.querySelector("dialog")).not.toBeNull();
+    });
+
+    it("never traps the reader: with nowhere to go, Continue comes back", async () => {
+      await mount({ ...ready, caseDetails: locked });
+
+      expect(button()).toBeDefined();
+    });
+
+    it("offers Continue, and lets Escape dismiss, when the switch is on", async () => {
+      INTERSTITIAL_OPTIONS.allowContinue = true;
+      await mount(withLink);
+      expect(button()).toBeDefined();
+
+      await escape();
+
+      expect(page.root!.querySelector("dialog")).toBeNull();
+    });
   });
 });
