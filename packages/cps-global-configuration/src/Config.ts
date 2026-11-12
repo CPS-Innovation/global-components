@@ -120,7 +120,6 @@ const contextPathsSchema = z.object({
   // See contextsBaseSchema — likewise for the section this path represents.
   caseLockingRegion: caseLockingRegionSchema.optional(),
   domTagDefinitions: z.array(domTagDefinitionsSchema).optional(),
-  showNotification: z.boolean().optional(),
   preventADAndDataCalls: z.boolean().optional(),
   preventPageViewAnalytics: z.boolean().optional(),
   takeTagsFromHandover: z.boolean().optional(),
@@ -191,7 +190,6 @@ const contextSchema = contextsBaseSchema.extend({
   path: z.string(),
   contextIds: z.string(),
   msalRedirectUrl: z.string(), // redefine as required, not optional in app config
-  showNotification: z.boolean().optional(),
   preventADAndDataCalls: z.boolean().optional(),
   preventPageViewAnalytics: z.boolean().optional(),
   takeTagsFromHandover: z.boolean().optional(),
@@ -281,7 +279,10 @@ export const configBaseSchema = z.object({
   SHOW_MENU: z.boolean().optional(),
   SHOW_RECENT_CASES: z.boolean().optional(),
   SHOW_MONITORING_CODES: z.boolean().optional(),
-  SHOW_HEADER_REBRAND: z.union([z.literal("cps"), z.literal("gds")]).optional(),
+  // SHOW_HEADER_REBRAND is gone from the schema: the header is always the CPS-themed
+  // rebrand now. The env configs still carry "cps" ON PURPOSE until every cached
+  // bundle that reads it has aged out — an old bundle reading a config without it
+  // would fall back to the pre-rebrand black header. z.object strips the unknown key.
   SHOW_CASE_DETAILS: z.union([z.literal("a"), z.literal("b")]).optional(),
   SHOW_NOTIFICATIONS: z.boolean().optional(),
   OS_HANDOVER_URL: z.string().optional(),
@@ -320,11 +321,11 @@ export const configBaseSchema = z.object({
   // kill the probe en masse for an environment. Absent is treated as off by the consumer, so
   // keep it set true in each env config.
   PROBE_DARK_READER_USAGE: z.boolean().optional(),
-  // Broad on/off (GA gate) for the footer shim — the DOM surgery that hides the
-  // host <footer> and swaps in cps-global-footer. ORs with the per-user preview
-  // flag and local-dev: true switches the shim on for everyone, false reverts to
-  // preview opt-ins + local dev only. Kept as an env-config kill-switch so ops can
-  // cut the feature instantly if it misbehaves in prod, without a code change.
+  // On/off for the footer shim — the DOM surgery that hides the host <footer> and
+  // swaps in cps-global-footer. ORs with the local-dev default only: true switches
+  // the shim on for everyone in that env, false (or absent) leaves host footers
+  // alone. On in prod only. Kept as an env-config kill-switch so ops can cut the
+  // feature instantly if it misbehaves, without a code change.
   FOOTER_SHIM_ENABLED: z.boolean().optional(),
   SSO_SILENT_DELAY_MS: z.number().optional(),
   CACHE_CONFIG: cacheConfigSchema.optional(),

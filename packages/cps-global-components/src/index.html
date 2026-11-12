@@ -33,11 +33,9 @@
       window.fetch = function (input) {
         var url = typeof input === "string" ? input : (input && input.url) || "";
         if (url.indexOf("/state/preview") !== -1) {
-          var body = {
-            enabled: true,
-            // "cps" for the CPS theme, "gds" for the plain GOV.UK rebrand, remove for neither
-            newHeader: "cps",
-          };
+          // Add any PreviewSchema flags you want on locally, e.g. caseMarkers: "b".
+          // (The header is always the CPS theme now — there is no newHeader flag.)
+          var body = {};
           return Promise.resolve(new Response(JSON.stringify(body), {
             status: 200,
             headers: { "Content-Type": "application/json" },

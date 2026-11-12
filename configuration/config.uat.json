@@ -47,7 +47,7 @@
   },
   "OS_TRIAGE_REQUEST_OBSERVATION_ENABLED": true,
   "PROBE_DARK_READER_USAGE": true,
-  "FOOTER_SHIM_ENABLED": true,
+  "FOOTER_SHIM_ENABLED": false,
   "FEATURE_FLAG_ACCESSIBILITY_MODE_USERS": {
     "generallyAvailable": true
   },
@@ -72,8 +72,7 @@
       "contexts": [
         {
           "path": "https://cps-tst1\\.outsystemsenterprise\\.com/casework(_blocks)?/home",
-          "contextIds": "home",
-          "showNotification": true
+          "contextIds": "home"
         },
         {
           "path": "https://cps-tst1\\.outsystemsenterprise\\.com/casework(_blocks)?(?![a-z0-9_])",

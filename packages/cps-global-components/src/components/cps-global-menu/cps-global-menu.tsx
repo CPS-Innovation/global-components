@@ -44,14 +44,10 @@ export class CpsGlobalMenu {
     const caseId = state.tags?.caseId ? Number(state.tags.caseId) : undefined;
     const shouldShowOpenInCmsModern = FEATURE_FLAGS.shouldShowOpenInCmsModern(state);
 
-    const classes = FEATURE_FLAGS.shouldShowGovUkRebrand(state)
-      ? { level1Background: "background-light-blue", divider: "background-divider-blue" }
-      : { level1Background: "background-grey", divider: "background-divider" };
-
     return (
       <>
         <div>
-          <nav class={`level level-1 ${classes.level1Background}`} aria-label="Menu" data-testid="menu-level-1">
+          <nav class={`level level-1 background-light-blue`} aria-label="Menu" data-testid="menu-level-1">
             <ul>
               {level1Links?.map(link => (
                 <nav-link {...link}></nav-link>
@@ -61,7 +57,7 @@ export class CpsGlobalMenu {
             </ul>
           </nav>
         </div>
-        <div class={classes.divider}></div>
+        <div class="background-divider-blue"></div>
 
         {shouldShowCaseDetails && <cps-global-case-details></cps-global-case-details>}
 
@@ -82,7 +78,7 @@ export class CpsGlobalMenu {
                 {caseId && shouldShowOpenInCmsModern && <cps-global-open-in-cms caseId={caseId}></cps-global-open-in-cms>}
               </ul>
             </nav>
-            <div class={shouldShowCaseDetails ? "background-divider-content-width" : classes.divider}></div>
+            <div class={shouldShowCaseDetails ? "background-divider-content-width" : "background-divider-blue"}></div>
           </>
         )}
       </>

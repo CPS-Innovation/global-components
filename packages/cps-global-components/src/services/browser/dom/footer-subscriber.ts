@@ -24,6 +24,11 @@ export const MIN_REAL_HEADER_WIDTH_PX = 100;
 // permanent header-watcher is bound to a given footer instance we're done.
 const widthSyncWired = new WeakSet<HTMLElement>();
 
+// Documents we have already reported a footer-shimmed event for. One event per
+// page load is enough to tell which apps get shimmed — SPA hosts remount their
+// <footer> on navigation and would otherwise send one per route change.
+const shimReported = new WeakSet<Document>();
+
 const extractEmail = (el: Element) => el.textContent?.match(EMAIL_REGEX)?.[0];
 
 // Wire the cps-global-footer wrapper's width to match the cps-global-header
@@ -95,8 +100,8 @@ const wireWidthSync = (cpsGlobalFooter: HTMLElement, doc: Document, win: Window)
   checkAndBindHeader();
 };
 
-export const footerSubscriber: DomMutationObserver = ({ preview, flags, config, window }) => ({
-  isActiveForContext: FEATURE_FLAGS.shouldShimFooter({ config, preview, flags }),
+export const footerSubscriber: DomMutationObserver = ({ context, flags, config, window, trackEvent }) => ({
+  isActiveForContext: FEATURE_FLAGS.shouldShimFooter({ config, flags }),
   subscriptions: [
     {
       // Host apps can use <footer> for things that aren't the page footer
@@ -136,6 +141,10 @@ export const footerSubscriber: DomMutationObserver = ({ preview, flags, config, 
         }
         wireWidthSync(cpsGlobalFooter, element.ownerDocument, window);
         element.style.display = "none";
+        if (!shimReported.has(element.ownerDocument)) {
+          shimReported.add(element.ownerDocument);
+          trackEvent({ name: "footer-shimmed", contextIds: context.contextIds });
+        }
       },
     },
   ],

@@ -85,24 +85,12 @@ $level-height: 3rem;
   background-color: $color;
 }
 
-.header-divider {
-  height: 10px;
-  box-shadow: 0 0 0 100vmax govuk-colour("blue");
-  clip-path: inset(0 -100vmax);
-  background-color: govuk-colour("blue");
-  z-index: -1;
-}
-
 .background-white {
   @include background(govuk-colour("white"));
 }
 
 .background-grey {
   @include background(govuk-colour("light-grey"));
-}
-
-.background-black {
-  @include background(govuk-colour("black"));
 }
 
 .background-blue {
@@ -115,14 +103,6 @@ $level-height: 3rem;
 
 .background-divider-content-width {
   border-bottom: 1px solid $govuk-border-colour;
-}
-
-.background-divider {
-  height: 1px;
-  box-shadow: 0 0 0 100vmax $govuk-border-colour;
-  clip-path: inset(0 -100vmax);
-  background-color: $govuk-border-colour;
-  z-index: -1;
 }
 
 .background-divider-blue {

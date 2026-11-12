@@ -20,7 +20,6 @@ export class CpsGlobalFooterContent {
 
   render() {
     const { isReady, state } = readyState(["config", "preview"], ["flags", "rootUrl", "authHint", "auth"]);
-    const showGovUkRebrand = isReady && FEATURE_FLAGS.shouldShowGovUkRebrand(state);
     const accessibilityStatement = isReady ? FEATURE_FLAGS.accessibilityStatementLink(state) : { showLink: false, url: undefined };
     // Accessibility settings link (moved here from the header). authHint/auth are optional
     // state: they only matter for the group/ad-hoc enrolment paths of the flag, and keeping
@@ -29,7 +28,7 @@ export class CpsGlobalFooterContent {
     // rootUrl is guarded so we never build the artifact URL against an undefined base.
     const accessibilitySettingsUrl =
       isReady && state.rootUrl && FEATURE_FLAGS.shouldEnableAccessibilityMode(state) ? getArtifactUrl(state.rootUrl, "accessibility/settings.html") : undefined;
-    const cssClass = `${showGovUkRebrand ? "govuk-template--rebranded" : ""} ${showGovUkRebrand === "cps" ? "cps-theme" : ""}`;
+    const cssClass = "govuk-template--rebranded cps-theme";
     return (
       <div class={cssClass}>
         <footer class="govuk-footer">

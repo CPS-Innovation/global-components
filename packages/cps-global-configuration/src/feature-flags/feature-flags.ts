@@ -50,15 +50,9 @@ const shouldEnableAccessibilityMode = ({ config, preview, flags, auth, authHint 
   getFeatureFlagAssignment({ auth, authHint, config }, "FEATURE_FLAG_ACCESSIBILITY_MODE_USERS").result;
 
 // Used by the DOM subscriber that swaps host <footer>s for cps-global-footer.
-// FOOTER_SHIM_ENABLED is the env-config GA gate (on for everyone); it ORs with
-// the per-user preview opt-in and the local-dev default, so flipping it to false
-// reverts to preview opt-ins + local dev only — the pre-GA behaviour — without a
-// code change.
-const shouldShimFooter = ({ config, preview, flags }: Pick<FlagInputs, "config" | "preview" | "flags">) =>
-  !!config.FOOTER_SHIM_ENABLED || !!preview?.result?.footer || !!flags?.isLocalDevelopment;
-
-const shouldShowGovUkRebrand = ({ preview, config }: FlagInputs): Preview["newHeader"] =>
-  preview?.result?.newHeader ?? config.SHOW_HEADER_REBRAND;
+// FOOTER_SHIM_ENABLED is the env-config switch (on in prod only); it ORs with the
+// local-dev default. There is no per-user preview opt-in any more.
+const shouldShimFooter = ({ config, flags }: Pick<FlagInputs, "config" | "flags">) => !!config.FOOTER_SHIM_ENABLED || !!flags?.isLocalDevelopment;
 
 const shouldShowRecentCases = ({ preview, flags }: FlagInputs) =>
   !!preview?.result?.myRecentCasesOnHeader || !!flags?.isLocalDevelopment;
@@ -82,20 +76,14 @@ const accessibilityStatementLink = ({ config }: FlagInputs) => ({
   url: config.ACCESSIBILITY_STATEMENT_URL,
 });
 
-const shouldShowHomePageNotification = ({ config, auth, authHint, preview }: FlagInputs) =>
-  !!preview?.result?.homePageNotification ||
-  !getFeatureFlagAssignment({ auth, authHint, config }, "FEATURE_FLAG_MENU_USERS").result;
-
 // Whether to use full-page MSAL redirect (loginRedirect) instead of the
-// silent / popup cascade. Two paths to opt-in:
-//   - preview override (preview.result.useFullPageMsalRedirect) — for ad-hoc
-//     testing without a config push
-//   - eligibility (and any variant bucketing) under FEATURE_FLAG_USE_MSAL_FULL_REDIRECT_USERS
+// silent SSO cascade. FEATURE_FLAG_USE_MSAL_FULL_REDIRECT_USERS decides (GA in
+// test, uat and prod; a variant share in dev). The preview forceSilentSso opt-out
+// always wins, so the silent branch can still be exercised by hand.
 // Evaluated by the host before initialising auth, and by the handover bundle
 // before doing any preemptive AD validation on the OS handover paths.
 const shouldUseFullPageMsalRedirect = ({ config, preview, auth, authHint }: FlagInputs): boolean =>
-  !!preview?.result?.useFullPageMsalRedirect ||
-  getFeatureFlagAssignment({ auth, authHint, config }, "FEATURE_FLAG_USE_MSAL_FULL_REDIRECT_USERS").result;
+  !preview?.result?.forceSilentSso && getFeatureFlagAssignment({ auth, authHint, config }, "FEATURE_FLAG_USE_MSAL_FULL_REDIRECT_USERS").result;
 
 // THE COHORT IS THE ONLY SWITCH. There used to be a caseLocking preview flag as a
 // per-user way in; it was dropped on 2026-11-06 along with caseLockingNotifications,
@@ -130,13 +118,11 @@ export const FEATURE_FLAGS = {
   shouldShowCaseDetails,
   shouldEnableAccessibilityMode,
   shouldShimFooter,
-  shouldShowGovUkRebrand,
   shouldShowRecentCases,
   shouldShowMenu,
   surveyLink,
   reportIssueLink,
   accessibilityStatementLink,
-  shouldShowHomePageNotification,
   shouldUseFullPageMsalRedirect,
   shouldEnableCaseLocking,
   shouldCountSelfInCaseLocking,

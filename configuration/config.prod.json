@@ -64,8 +64,7 @@
       "contexts": [
         {
           "path": "https://cps\\.outsystemsenterprise\\.com/casework(_blocks)?/home",
-          "contextIds": "home",
-          "showNotification": true
+          "contextIds": "home"
         },
         {
           "path": "https://cps\\.outsystemsenterprise\\.com/casework(_blocks)?(?![a-z0-9_])",
