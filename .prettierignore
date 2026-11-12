@@ -5,11 +5,8 @@
 # so the whole file fails to parse and silently never runs. Keep every hand-written
 # source for those engines out of Prettier.
 #
-# These paths moved from infra/proxy/config/global-components.cms-auth-v2/ into
-# packages/cps-global-presence/ on 2026-09-07. The old entries were left pointing
-# at the old location, so for a while NOTHING here was protected; build.sh's
-# check-syntax floor is what caught it, when the cms-augmentation placeholders were
-# formatted on save. If this package moves again, move these with it.
-packages/cps-global-presence/common/
-packages/cps-global-presence/legacy-apps/
-packages/cps-global-presence/cms-augmentation-placeholders/
+# If this package's source folders move, move these with them: a stale entry
+# protects nothing, and only check-syntax notices.
+packages/cps-global-presence/core/
+packages/cps-global-presence/legacy/
+packages/cps-global-presence/placeholders/

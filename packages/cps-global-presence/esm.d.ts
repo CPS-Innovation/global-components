@@ -1,10 +1,10 @@
 /**
  * The module surface of dist/esm/index.js, which build.sh generates.
  *
- * Hand-written and deliberately small. The generated types/ describe common/ as
+ * Hand-written and deliberately small. The generated types/ describe core/ as
  * GLOBALS (that is how the legacy bundles consume it); this describes the same
- * code as an ES module, which is how the web components consume it. Keep the two
- * exports here in step with ESM_EXPORTS in build.sh — the list is short precisely
+ * code as an ES module, which is how the web components consume it. Keep the
+ * exports here in step with bundles.esm.exports in bundles.json — the list is short precisely
  * so that staying in step is easy.
  */
 declare module "cps-global-presence" {
@@ -46,6 +46,46 @@ declare module "cps-global-presence" {
     suffixKind(kind: string | undefined): string;
     /** "CASE_CIN3" -> "CASE". Strips only our own instance's suffix. */
     baseKind(kind: string | undefined): string;
+  };
+
+  /** The section kinds as the API names them. Config region codes are the lower-case forms. */
+  export const CCPKinds: { CASE: "CASE"; CASE_REVIEW: "CASE_REVIEW"; VICTIM_WITNESS: "VICTIM_WITNESS"; DEFENDANT: "DEFENDANT" };
+
+  /** Section identity: the id we register under, and the key the roster files snapshots by. */
+  export const CCPSections: {
+    /** How often every client touches each section's session; the Watchdog evicts after 10s of silence. */
+    HEARTBEAT_MS: number;
+    /** "544545:CASE" or "544545:VICTIM_WITNESS:98765"; null with no case or kind. */
+    sectionId(caseId: string | number | null | undefined, kind: string | null | undefined, subjectId?: string | number | null): string | null;
+  };
+
+  /** One section of a snapshot, as the API names it. */
+  export type CCPWireSection = { caseId?: string | number | null; kind?: string | null; subjectId?: string | number | null };
+  export type CCPNotification = {
+    type?: number;
+    payload?: { snapshots?: { section?: CCPWireSection; version?: number; members?: CCPMember[] }[] };
+  };
+
+  /**
+   * Who is present, per section, from the API's notifications: version-guarded,
+   * and attributed to the section of ours that delivered each roster.
+   */
+  export const CCPRoster: {
+    createRoster(): {
+      /** True only when a roster actually changed. */
+      apply(notifications: CCPNotification[] | null | undefined, via?: string): boolean;
+      /** Every snapshot held, by section id. */
+      sections(): Record<string, { caseId: string; kind: string; subjectId: string; version: number; members: CCPMember[] }>;
+      /**
+       * Every member record, flattened. A record's section isCurrent when it is one of
+       * ourSectionIds; kinds lose the CIN suffix; caseId keeps only that case.
+       */
+      members(ourSectionIds?: string[], caseId?: string): (CCPMember & { userEmail: string; sections: CCPSection[] })[];
+      forget(sectionId: string): boolean;
+      /** Take the next snapshot of every section whatever its version (a new session). */
+      rewind(): void;
+      clear(): void;
+    };
   };
 
   export const CCPApps: {
@@ -133,6 +173,23 @@ declare module "cps-global-presence" {
      * is not known yet.
      */
     others<T extends { userEmail?: string }>(members: T[] | undefined, viewerEmail: string | undefined): T[];
+  };
+
+  /**
+   * What a presence banner shows, for all three UIs: who, the summary, and one
+   * line per person (never per section).
+   */
+  export const CCPView: {
+    build(options: {
+      members: CCPMember[] | undefined;
+      /** The reader; empty or absent means unknown, and then nobody is filtered or marked. */
+      viewerEmail?: string;
+      /** Keep the reader in, marked "(current user)". */
+      countSelf?: boolean;
+      /** The case lock leads the summary. Only the web components know it. */
+      locked?: boolean;
+      formatTime?: (timeEntered: string | undefined) => string | undefined;
+    }): { people: CCPPerson[]; count: number; includesSelf: boolean; summary: string; lines: string[] };
   };
 
   /**

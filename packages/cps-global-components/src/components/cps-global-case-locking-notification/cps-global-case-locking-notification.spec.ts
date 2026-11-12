@@ -7,7 +7,7 @@ const SETTLE_MS = 500;
 const ALL_CLEAR = "Nobody else is working on this case now";
 
 const present = (...users: string[]): CaseLockingPresentUsers => ({
-  sections: [{ code: "CASE", occupiedOnEntry: false, users: users.map(user => ({ user, appName: "CMS", sections: [{ kind: "CASE", isCurrent: true }] })) }],
+  sections: [{ code: "case", occupiedOnEntry: false, members: users.map(userEmail => ({ userEmail, sourceApplication: "CMS", sections: [{ kind: "CASE", isCurrent: true }] })) }],
 });
 const nobody: CaseLockingPresentUsers = { sections: [] };
 
@@ -89,6 +89,27 @@ describe("cps-global-case-locking-notification live region", () => {
     expect(statusText()).toBe("This case is locked");
   });
 
+  // The presence service publishes undefined, not an empty roster, when nobody is
+  // present, and publishes nothing at all while it cannot connect.
+  it("speaks a lock when presence has never been published", async () => {
+    const { caseLockingPresentUsers, ...withoutPresence } = ready;
+    await mount(withoutPresence);
+    await settle();
+
+    await update({ caseDetails: { found: true, result: { isLocked: true } } as any });
+
+    expect(statusText()).toBe("This case is locked");
+  });
+
+  it("speaks a lock when presence reports nobody as undefined", async () => {
+    await mount({ ...ready, caseLockingPresentUsers: undefined });
+    await settle();
+
+    await update({ caseDetails: { found: true, result: { isLocked: true } } as any });
+
+    expect(statusText()).toBe("This case is locked");
+  });
+
   it("leaves the text alone when a poll finds the same people", async () => {
     await mount(ready);
     await settle();
@@ -96,7 +117,7 @@ describe("cps-global-case-locking-notification live region", () => {
 
     // A different object, so the store does see a change and re-renders.
     const again = present("a@cps.gov.uk");
-    again!.sections[0].users[0].joinedAt = "2026-10-26T09:00:00Z";
+    again!.sections[0].members[0].joinedAt = "2026-10-26T09:00:00Z";
     await update({ caseLockingPresentUsers: again });
 
     expect(statusText()).toBe("1 other person is working on this case");
@@ -143,12 +164,22 @@ describe("cps-global-case-locking-notification live region", () => {
       expect(statusText()).toBe("");
     });
 
-    it("says nothing when the store stops being ready", async () => {
+    it("says nobody else is on the case when presence goes back to undefined", async () => {
       await mount(ready);
       await settle();
       await update({ caseLockingPresentUsers: present("a@cps.gov.uk") });
 
       await update({ caseLockingPresentUsers: undefined });
+
+      expect(statusText()).toBe(ALL_CLEAR);
+    });
+
+    it("says nothing when the store stops being ready", async () => {
+      await mount(ready);
+      await settle();
+      await update({ caseLockingPresentUsers: present("a@cps.gov.uk") });
+
+      await update({ config: undefined });
 
       expect(statusText()).toBe("");
     });
@@ -166,5 +197,58 @@ describe("cps-global-case-locking-notification live region", () => {
     await settle();
 
     expect(statusText()).toBe("1 other person is working on this case");
+  });
+});
+
+describe("cps-global-case-locking-notification roster", () => {
+  beforeEach(() => {
+    initialiseStore().register({
+      ...ready,
+      caseLockingPresentUsers: {
+        sections: [
+          { code: "case", occupiedOnEntry: false, members: [{ userEmail: "a@cps.gov.uk", sourceApplication: "CMS Classic", sections: [{ kind: "CASE", isCurrent: true }] }] },
+          {
+            code: "victim_witness",
+            occupiedOnEntry: false,
+            members: [{ userEmail: "a@cps.gov.uk", sourceApplication: "CMS Classic", sections: [{ kind: "VICTIM_WITNESS", isCurrent: false }] }],
+          },
+        ],
+      },
+    });
+  });
+
+  it("lists someone in two sections once, naming both", async () => {
+    const page = await newSpecPage({
+      components: [CpsGlobalCaseLockingNotification],
+      html: `<cps-global-case-locking-notification></cps-global-case-locking-notification>`,
+    });
+
+    const lines = Array.from(page.root!.querySelectorAll("p.govuk-body")).map(p => p.textContent);
+
+    expect(lines).toEqual(["a@cps.gov.uk is in the case and a witness or victim — CMS Classic."]);
+  });
+});
+
+// The store holds the roster as the API reported it, the reader included. Leaving
+// the reader out is CCPView's job, here as in the legacy clients, and the
+// caseLockingCountSelf preview flag is what keeps them in.
+describe("cps-global-case-locking-notification and the reader", () => {
+  const me = { isAuthed: true, username: "Me@cps.gov.uk" } as any;
+
+  const linesWith = async (preview: object) => {
+    initialiseStore().register({ ...ready, preview: { found: true, result: preview } as any, auth: me, caseLockingPresentUsers: present("me@cps.gov.uk") });
+    const page = await newSpecPage({
+      components: [CpsGlobalCaseLockingNotification],
+      html: `<cps-global-case-locking-notification></cps-global-case-locking-notification>`,
+    });
+    return Array.from(page.root!.querySelectorAll("p.govuk-body")).map(p => p.textContent);
+  };
+
+  it("shows nothing when the reader is alone, whatever the address casing", async () => {
+    expect(await linesWith({})).toEqual([]);
+  });
+
+  it("lists the reader, marked, when caseLockingCountSelf is on", async () => {
+    expect(await linesWith({ caseLockingCountSelf: true })).toEqual(["me@cps.gov.uk (current user) is in the case — CMS."]);
   });
 });

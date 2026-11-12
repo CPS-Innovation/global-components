@@ -2,7 +2,7 @@ import { Component, h, State, Element, Listen } from "@stencil/core";
 import { readyState } from "../../store/store";
 import { FEATURE_FLAGS } from "cps-global-configuration";
 import { replaceTagsInString } from "../cps-global-menu/menu-config/helpers/replace-tags-in-string";
-import { CCPSectionNames, CCPSectionRules } from "cps-global-presence";
+import { CCPPeople, CCPSectionNames, CCPSectionRules } from "cps-global-presence";
 import { describeCaseLock, getCaseLock } from "../../services/case-locking/get-case-lock";
 import { MIN_REAL_HEADER_WIDTH_PX } from "../../services/browser/dom/footer-subscriber";
 
@@ -219,11 +219,13 @@ export class CpsGlobalCaseLockingInterstitial {
   };
 
   render() {
-    const { isReady, state } = readyState(["caseLockingPresentUsers", "config", "context", "preview", "authHint"], ["auth", "tags", "caseDetails"]);
+    const { isReady, state } = readyState(["config", "context", "preview", "authHint"], ["caseLockingPresentUsers", "auth", "tags", "caseDetails"]);
     if (!isReady || !FEATURE_FLAGS.shouldEnableCaseLocking(state)) {
       this.close();
       return null;
     }
+    // Optional, as in the notification: undefined is "nobody present" or "presence
+    // not connected", and the lock must still interrupt in both.
     const present = state.caseLockingPresentUsers;
     // TWO CONDITIONS FOR PRESENCE, and both are about not crying wolf.
     //
@@ -277,8 +279,11 @@ export class CpsGlobalCaseLockingInterstitial {
     // nowhere; absent tags mean the same, since a case id is the whole point.
     const template = state.config.CASE_LOCKING_CASE_DETAILS_URL;
     const caseDetailsUrl = template && state.tags?.caseId ? replaceTagsInString(template, state.tags) : undefined;
-    const names = Array.from(new Set(sections.flatMap(section => section.users.map(user => user.user))));
-    const who = names.join(", ");
+    // Everyone in those sections but the reader: you cannot clash with yourself,
+    // whatever caseLockingCountSelf says.
+    const viewer = state.auth?.isAuthed ? state.auth.username : undefined;
+    const others = CCPPeople.others(sections.flatMap(section => section.members), viewer);
+    const who = CCPPeople.collapse(others).map(person => person.username).join(", ");
     /**
      * WHERE THE CLASH IS, in the same words the pinned notification uses.
      *
@@ -297,7 +302,7 @@ export class CpsGlobalCaseLockingInterstitial {
      * carries no sections at all is the everyday shape on the legacy clients, and
      * "is also working on ." would be a worse card than a vague one.
      */
-    const where = CCPSectionNames.describe(sections.flatMap(section => section.users.flatMap(user => user.sections ?? []))) || "this case";
+    const where = CCPSectionNames.describe(others.flatMap(member => member.sections ?? [])) || "this case";
 
     return (
       <dialog class="app-interruption" role="alertdialog" aria-labelledby="cps-interruption-heading" aria-describedby="cps-interruption-body">

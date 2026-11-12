@@ -4,9 +4,8 @@ The proxy in front of the Watchdog (presence) API. Two transports, one API, one 
 
 | Route                                                | For                                                          |
 | ---------------------------------------------------- | ------------------------------------------------------------ |
-| `/global-components/case-locking/api/…`              | The SignalR hub — global-components in the current apps      |
-| `/global-components/case-locking/api/sr/<instance>/…` | The Azure SignalR Service instance the hub's negotiate names |
-| `/global-components/presence-jsonp`                  | The JSONP adapter — the legacy CMS clients (IE mode)         |
+| `/global-components/case-locking/api/…` | The SignalR hub — UAT's global-components only (QA's go direct) |
+| `/global-components/presence-jsonp`     | The JSONP adapter — the legacy CMS clients (IE mode)    |
 
 The URLs keep their `case-locking` name: clients and config name them. The module was called
 `case-locking` until 2026-11-10, when the JSONP adapter moved in from `cms-auth-presence`.
@@ -18,9 +17,13 @@ it owns it), else the value `deploy.local.sh` bakes in from `.env` / `.env.uat` 
 (gitignored; see `.env.example`), else empty: the routes answer "not configured" and nginx still
 starts.
 
-There is no SignalR setting. `filterNegotiateBody` rewrites the negotiate response's
-`https://<instance>.service.signalr.net/…` to `…/api/sr/<instance>/…`, and the sr location proxies
-back to whichever instance that names (DNS-label shaped, fixed domain, our cookies stripped).
+There is no SignalR setting here. The hub's negotiate hands the browser to the Azure SignalR
+Service (`https://<instance>.service.signalr.net`), and the browser connects there **directly**,
+not through this proxy. Until 2026-11-12 the proxy rewrote that URL to a same-origin
+`…/api/sr/<instance>/…` route and relayed it; the dev Watchdog's instance is a private endpoint that
+user devices reach through the corporate access client but the proxy cannot, so the relay was
+removed. Host apps that enforce a CSP must allow `https://*.service.signalr.net` in `connect-src`
+(see `generated/csp`); a wildcard, because only the negotiate reply names the instance.
 
 ## Authentication
 
@@ -30,8 +33,7 @@ client that sends its own `Authorization` (global-components, via MSAL) is passe
 
 ## Tests
 
-- `tests/*.unit.test.js` — filters, js_sets, the sr location regex, the JSONP adapter and whoami
+- `tests/*.unit.test.js` — the js_sets, the JSONP adapter and whoami
   (`pnpm test` in `infra/proxy`).
 - `tests/*.integration.test.js` — the docker `watchdog` layer, run with the setting unset: whoami's
-  `cmsEnv` decoding, the "not configured" answers, and a non-instance `sr/` path not reaching
-  SignalR (`./run-tests.sh`).
+  `cmsEnv` decoding and the "not configured" answers (`./run-tests.sh`).

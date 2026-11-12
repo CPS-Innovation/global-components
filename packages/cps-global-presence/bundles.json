@@ -1,0 +1,121 @@
+{
+  "groups": {
+    "core": {
+      "floor": "es3",
+      "files": [
+        "core/util.js",
+        "core/kinds.js",
+        "core/environment.js",
+        "core/apps.js",
+        "core/section-names.js",
+        "core/joined.js",
+        "core/people.js",
+        "core/content.js",
+        "core/view.js",
+        "core/section-rules.js",
+        "core/sections.js",
+        "core/roster.js"
+      ]
+    },
+    "legacy": {
+      "floor": "es3",
+      "files": [
+        "legacy/shared/log.js",
+        "legacy/shared/viewer.js",
+        "legacy/shared/preview.js",
+        "legacy/shared/origin.js",
+        "legacy/shared/locator.js",
+        "legacy/shared/jsonp.js",
+        "legacy/shared/sessions.js",
+        "legacy/shared/client.js"
+      ]
+    },
+    "killSwitch": {
+      "floor": "es3",
+      "files": [
+        "legacy/shared/kill-switch.js"
+      ]
+    },
+    "classic": {
+      "floor": "es3",
+      "files": [
+        "legacy/classic/dom.js",
+        "legacy/classic/sections.js",
+        "legacy/classic/stripe.js",
+        "legacy/classic/main.js"
+      ]
+    },
+    "classicAuth": {
+      "floor": "es3",
+      "files": [
+        "legacy/classic/auth.js"
+      ]
+    },
+    "modern": {
+      "floor": "es5",
+      "files": [
+        "legacy/modern/sections.js",
+        "legacy/modern/bar.js",
+        "legacy/modern/main.js"
+      ]
+    }
+  },
+  "bundles": {
+    "modern": {
+      "out": "dist/cms-augmentation/client-modern-unstable.js",
+      "floor": "es5",
+      "before": [
+        "killSwitch"
+      ],
+      "iife": [
+        "core",
+        "legacy",
+        "modern"
+      ]
+    },
+    "classic": {
+      "out": "dist/cms-augmentation/client-classic-unstable.js",
+      "floor": "es3",
+      "before": [
+        "killSwitch"
+      ],
+      "iife": [
+        "core",
+        "legacy",
+        "classic"
+      ],
+      "after": [
+        "classicAuth"
+      ]
+    },
+    "esm": {
+      "out": "dist/esm/index.js",
+      "esm": [
+        "core"
+      ],
+      "exports": [
+        "CCPApps",
+        "CCPContent",
+        "CCPEnvironment",
+        "CCPJoined",
+        "CCPKinds",
+        "CCPPeople",
+        "CCPRoster",
+        "CCPSectionNames",
+        "CCPSectionRules",
+        "CCPSections",
+        "CCPView"
+      ]
+    }
+  },
+  "placeholders": {
+    "dist/cms-augmentation/client-classic.js": {
+      "from": "placeholders/client-classic.js",
+      "floor": "es3"
+    },
+    "dist/cms-augmentation/client-modern.js": {
+      "from": "placeholders/client-modern.js",
+      "floor": "es5"
+    }
+  }
+}
