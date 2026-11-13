@@ -53,7 +53,7 @@ const makeDocument = (initialTitle: string) => {
 
 type OnTagsChange = (tags: Tags | undefined) => void;
 
-const setup = (doc: Document, previewEnabled: boolean, environment: string = "prod", preventUrnPrependInTabTitle: boolean = false) => {
+const setup = (doc: Document, previewEnabled: boolean, cohortGenerallyAvailable: boolean = false, preventUrnPrependInTabTitle: boolean = false) => {
   let onTagsChange: OnTagsChange;
 
   const subscribe = (...factories: SubscriptionFactory[]) => {
@@ -65,7 +65,9 @@ const setup = (doc: Document, previewEnabled: boolean, environment: string = "pr
     window: { document: doc } as any,
     preview: previewEnabled ? { found: true, result: { tabTitleUrn: true } } : { found: false, error: new Error("off") },
     settings: { found: true, result: { preventUrnPrependInTabTitle: preventUrnPrependInTabTitle || undefined } },
-    flags: { environment } as any,
+    flags: { isLocalDevelopment: false } as any,
+    config: { FEATURE_FLAG_TAB_TITLE_URN_USERS: { generallyAvailable: cohortGenerallyAvailable } } as any,
+    authHint: { found: false, error: new Error("no hint") },
     subscribe: subscribe as any,
   });
 
@@ -112,7 +114,7 @@ describe("initialiseTabTitle", () => {
     expect(doc.title).toBe("My Page");
   });
 
-  it("does not prepend URN when preview flag is disabled", () => {
+  it("does not prepend URN when neither the preview flag nor the cohort is on (prod kill switch)", () => {
     const { doc } = makeDocument("My Page");
     const { onTagsChange } = setup(doc, false);
 
@@ -120,9 +122,9 @@ describe("initialiseTabTitle", () => {
     expect(doc.title).toBe("My Page");
   });
 
-  it("prepends URN in test environment even when preview flag is disabled", () => {
+  it("prepends URN when the cohort is generally available even without the preview flag", () => {
     const { doc } = makeDocument("My Page");
-    const { onTagsChange } = setup(doc, false, "test");
+    const { onTagsChange } = setup(doc, false, true);
 
     onTagsChange({ urn: "URN123" });
     expect(doc.title).toBe("URN123 My Page");
@@ -130,15 +132,15 @@ describe("initialiseTabTitle", () => {
 
   it("does not prepend URN when the accessibility setting opts out", () => {
     const { doc } = makeDocument("My Page");
-    const { onTagsChange } = setup(doc, true, "prod", true);
+    const { onTagsChange } = setup(doc, true, false, true);
 
     onTagsChange({ urn: "URN123" });
     expect(doc.title).toBe("My Page");
   });
 
-  it("accessibility opt-out overrides the test environment force-on", () => {
+  it("accessibility opt-out overrides the generally available cohort", () => {
     const { doc } = makeDocument("My Page");
-    const { onTagsChange } = setup(doc, false, "test", true);
+    const { onTagsChange } = setup(doc, false, true, true);
 
     onTagsChange({ urn: "URN123" });
     expect(doc.title).toBe("My Page");

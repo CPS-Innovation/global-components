@@ -310,6 +310,10 @@ export const configBaseSchema = z.object({
   // Modern would silently open Classic until the Polaris PR lands. ORs with the
   // per-user openInCmsModern preview flag and local-dev.
   FEATURE_FLAG_OPEN_IN_CMS_MODERN_USERS: featureFlagUsersSchema.optional(),
+  // Who gets the case URN prepended to the browser tab title. GA in every env;
+  // flip generallyAvailable to false to kill it (preview tabTitleUrn opt-ins
+  // keep it). Users opt out individually via preventUrnPrependInTabTitle.
+  FEATURE_FLAG_TAB_TITLE_URN_USERS: featureFlagUsersSchema.optional(),
   // Broad on/off for the OutSystems Triage XHR observation shim. The shim
   // also installs when the per-user preview flag is set, so flipping this off
   // disables observation for everyone except preview-flag opt-ins (which is

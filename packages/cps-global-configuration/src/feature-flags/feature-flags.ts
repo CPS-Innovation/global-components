@@ -114,6 +114,16 @@ const shouldShowOpenInCmsModern = ({ config, preview, flags, auth, authHint }: F
   !!flags?.isLocalDevelopment ||
   getFeatureFlagAssignment({ auth, authHint, config }, "FEATURE_FLAG_OPEN_IN_CMS_MODERN_USERS").result;
 
+// Prepend the case URN to the browser tab title. The cohort is the per-env switch
+// (GA everywhere, prod included) and doubles as the prod kill switch: set
+// generallyAvailable false and only preview opt-ins keep it. The user's own
+// preventUrnPrependInTabTitle setting is applied on top by initialise-tab-title.
+// Deliberately NO local-dev default: the e2e harness is served from localhost, so
+// one would make the feature impossible to see switched off there.
+const shouldPrependUrnToTabTitle = ({ config, preview, auth, authHint }: FlagInputs) =>
+  !!preview?.result?.tabTitleUrn ||
+  getFeatureFlagAssignment({ auth, authHint, config }, "FEATURE_FLAG_TAB_TITLE_URN_USERS").result;
+
 export const FEATURE_FLAGS = {
   shouldShowCaseDetails,
   shouldEnableAccessibilityMode,
@@ -127,4 +137,5 @@ export const FEATURE_FLAGS = {
   shouldEnableCaseLocking,
   shouldCountSelfInCaseLocking,
   shouldShowOpenInCmsModern,
+  shouldPrependUrnToTabTitle,
 };

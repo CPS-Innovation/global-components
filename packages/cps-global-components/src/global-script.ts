@@ -102,7 +102,7 @@ const initialise = async (window: Window & typeof globalThis) => {
     // presence room is keyed on it — see CCPEnvironment and initialiseCaseLocking.
     const { initialiseCaseLockingForContext } = initialiseCaseLocking({ window, config, preview, cmsSessionHint, register });
 
-    initialiseTabTitle({ window, preview, settings, subscribe, flags });
+    initialiseTabTitle({ window, preview, settings, subscribe, flags, config, authHint });
     const { setNextRecentCases } = initialiseRecentCases({ rootUrl, config, register });
 
     const {
