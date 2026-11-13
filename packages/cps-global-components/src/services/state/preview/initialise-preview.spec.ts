@@ -14,9 +14,8 @@ describe("initialisePreview", () => {
 
   describe("when fetch succeeds with valid data", () => {
     const validPreview: Preview = {
-      enabled: true,
       caseMarkers: "a",
-      newHeader: undefined,
+      tabTitleUrn: true,
     };
 
     beforeEach(() => {
@@ -92,7 +91,7 @@ describe("initialisePreview", () => {
     beforeEach(() => {
       mockFetch.mockResolvedValue({
         ok: true,
-        json: () => Promise.resolve({ enabled: "not-a-boolean" }),
+        json: () => Promise.resolve({ tabTitleUrn: "not-a-boolean" }),
       });
     });
 
@@ -107,7 +106,6 @@ describe("initialisePreview", () => {
   describe("backwards compatibility", () => {
     it("should migrate caseMarkers: true to caseMarkers: 'a'", async () => {
       const legacyPreview = {
-        enabled: true,
         caseMarkers: true,
       };
 
@@ -121,6 +119,21 @@ describe("initialisePreview", () => {
       expect(result.found).toBe(true);
       if (result.found) {
         expect(result.result.caseMarkers).toBe("a");
+      }
+    });
+
+    it("should accept and strip flags retired on 2026-11-12 that old cookies still carry", async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        json: () =>
+          Promise.resolve({ enabled: true, newHeader: "gds", footer: true, homePageNotification: true, useFullPageMsalRedirect: true, tabTitleUrn: true }),
+      });
+
+      const result = await initialisePreview({ rootUrl, register: () => {} });
+
+      expect(result.found).toBe(true);
+      if (result.found) {
+        expect(result.result).toEqual({ tabTitleUrn: true });
       }
     });
   });

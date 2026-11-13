@@ -24,7 +24,6 @@ import { accessibilitySubscriber } from "./services/browser/accessibility/access
 import { skipLinkSubscriber } from "./services/browser/dom/skip-link-subscriber";
 import { initialiseSettings } from "./services/state/settings/initialise-settings";
 import { initialiseOutSystemsReconcileAuth } from "./services/outsystems-shim/initialise-outsytems-reconcile-auth";
-import { initialiseOutSystemsShowAlert } from "./services/outsystems-shim/outsystems-show-alert";
 import { initialiseNavigateCms } from "./services/navigate-cms/initialise-navigate-cms";
 import { initialiseAuthHint } from "./services/state/auth-hint/initialise-auth-hint";
 import { initialiseUserDataHint } from "./services/state/user-data/initialise-user-data-hint";
@@ -103,16 +102,7 @@ const initialise = async (window: Window & typeof globalThis) => {
     // presence room is keyed on it — see CCPEnvironment and initialiseCaseLocking.
     const { initialiseCaseLockingForContext } = initialiseCaseLocking({ window, config, preview, cmsSessionHint, register });
 
-    const { initialiseDomForContext } = initialiseDomObservation(
-      { window, register, mergeTags, preview, settings, flags, config, authHint },
-      domTagMutationSubscriber,
-      footerSubscriber,
-      hostAppEventSubscriber,
-      accessibilitySubscriber,
-      skipLinkSubscriber,
-    );
-
-    initialiseTabTitle({ window, preview, settings, subscribe, flags });
+    initialiseTabTitle({ window, preview, settings, subscribe, flags, config, authHint });
     const { setNextRecentCases } = initialiseRecentCases({ rootUrl, config, register });
 
     const {
@@ -131,6 +121,17 @@ const initialise = async (window: Window & typeof globalThis) => {
       userDataHint,
     });
     trackException = _trackException;
+
+    // After analytics, so subscribers can report what they do (footer-shimmed).
+    // Nothing binds until initialiseDomForContext runs per context, below.
+    const { initialiseDomForContext } = initialiseDomObservation(
+      { window, register, mergeTags, preview, settings, flags, config, authHint, trackEvent },
+      domTagMutationSubscriber,
+      footerSubscriber,
+      hostAppEventSubscriber,
+      accessibilitySubscriber,
+      skipLinkSubscriber,
+    );
 
     /* do not await this — notification fetches shouldn't block auth/analytics/etc. */
     initialiseNotifications({ rootUrl, register, handlers, config, trackEvent });
@@ -166,7 +167,6 @@ const initialise = async (window: Window & typeof globalThis) => {
     });
     const { initialiseCorrelationIdsForContext } = initialiseCorrelationIds({ register, registerCorrelationIdsWithAnalytics });
     const { initialiseContextForContext } = initialiseContext({ window, config, handover, register, resetContextSpecificTags });
-    const { initialiseOutSystemsShowAlertForContext } = initialiseOutSystemsShowAlert({ config, authHint, preview });
     const { initialiseUserDataForContext } = initialiseUserData({ config, userDataHint, setUserDataHint, trackEvent, trackException, register });
 
     runNowAndOnNavigation(() => {
@@ -181,7 +181,6 @@ const initialise = async (window: Window & typeof globalThis) => {
         register({ initialisationStatus: "complete" });
 
         const authPromise = initialiseAuthForContext(context);
-        authPromise.then(({ auth }) => initialiseOutSystemsShowAlertForContext({ context, auth })).catch(handleError);
         // auth is passed in; the service decides whether to fetch (it no-ops when
         // not authed, so we don't call getToken with no account → no 401 churn).
         authPromise.then(({ getToken, auth }) => initialiseUserDataForContext({ context, getToken, correlationIds, auth })).catch(handleError);

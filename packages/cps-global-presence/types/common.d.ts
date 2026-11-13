@@ -25,6 +25,7 @@ declare namespace CCPContent {
     /** @param {boolean} expanded @returns {string} */
     function detailsToggle(expanded: boolean): string;
     let LOCKED_ONLY: string;
+    let LOCKED_BY_READER: string;
     /**
      * The one line a reader sees before opening anything.
      *
@@ -53,9 +54,10 @@ declare namespace CCPContent {
      * @param {number} people how many people the roster holds
      * @param {boolean} includesSelf whether the reader is one of them
      * @param {boolean} [locked] whether the case is also locked
+     * @param {boolean} [lockedByReader] whether the reader is the one holding it
      * @returns {string}
      */
-    function summary(people: number, includesSelf: boolean, locked?: boolean): string;
+    function summary(people: number, includesSelf: boolean, locked?: boolean, lockedByReader?: boolean): string;
     /**
      * One application clause: "RCMS since 3.38pm on 8 September 2026", or just the
      * application when the API gave no time.
@@ -85,6 +87,33 @@ declare namespace CCPContent {
         timeEntered: (string | undefined);
     }>, format: (arg0: string | undefined) => (string | undefined)): string;
     /**
+     * The lock, as a clause to follow a name: "has this case locked in CMS Classic
+     * since 3.38pm". Each part after the verb is dropped when CMS did not say it.
+     *
+     * Web components only, like the lock itself: the legacy clients never call it.
+     *
+     * @param {string} application already through CCPApps; "" when unknown
+     * @param {string|undefined} since already formatted; falsy when there is none
+     * @param {boolean} [byReader] "have" rather than "has", to follow "You"
+     * @returns {string}
+     */
+    function lockClause(application: string, since: string | undefined, byReader?: boolean): string;
+    /**
+     * The lock as a line of its own, for when its holder is not among the people
+     * present — the ordinary result of closing a browser on a locked case. "Someone"
+     * when CMS named nobody.
+     *
+     * "You" when the reader holds it: "You have this case locked in CMS Classic
+     * since 3.38pm." — their own name would read as a colleague's.
+     *
+     * @param {string} holder the name CMS gives; "" when none
+     * @param {string} application
+     * @param {string|undefined} since
+     * @param {boolean} [byReader] the reader holds the lock
+     * @returns {string}
+     */
+    function lockLine(holder: string, application: string, since: string | undefined, byReader?: boolean): string;
+    /**
      * One person, as a sentence.
      *
      *   "A Name is in the case review — RCMS since 3.38pm on 8 September 2026."
@@ -98,12 +127,21 @@ declare namespace CCPContent {
      * review". The fallback sentence is only for a person whose sections and
      * applications are both unknown.
      *
+     * THE LOCK HOLDER'S OWN LINE carries the lock, so a reader is told once that
+     * one person has the case locked and where they are, not twice in two sentences
+     * that leave them to work out it is the same person:
+     *
+     *   "A Name has this case locked in CMS Classic since 3.38pm, and is in the
+     *    case review — RCMS since 3.40pm."
+     *   "A Name has this case locked in CMS Classic, and is in RCMS since 3.40pm."
+     *
      * @param {string} name from CCPPeople.displayName
      * @param {string} sections from CCPSectionNames.describe, "" when none
      * @param {string} where from CCPContent.where, "" when none
+     * @param {string} [lock] from CCPContent.lockClause, when this person holds the lock
      * @returns {string}
      */
-    function personLine(name: string, sections: string, where: string): string;
+    function personLine(name: string, sections: string, where: string, lock?: string): string;
 }
 declare namespace CCPEnvironment {
     let CIN: string | null;
@@ -182,7 +220,6 @@ declare namespace CCPEnvironment {
      * @returns {string}
      */
     function baseKind(kind: string | null | undefined): string;
-    function hasSuffix(text: any, suffix: any): boolean;
 }
 declare namespace CCPJoined {
     let MONTHS: string[];
@@ -212,27 +249,73 @@ declare namespace CCPJoined {
      */
     function format(iso: string | undefined, now?: Date): string;
 }
-declare function findSection(sections: any, kind: any): any;
-/**
- * @param {Array<{appDisplayName: string, timeEntered: string|undefined}>} apps
- * @param {string} appDisplayName
- * @returns {{appDisplayName: string, timeEntered: string|undefined}|null}
- */
-declare function findApp(apps: Array<{
-    appDisplayName: string;
-    timeEntered: string | undefined;
-}>, appDisplayName: string): {
-    appDisplayName: string;
-    timeEntered: string | undefined;
-} | null;
+declare namespace CCPKinds {
+    let CASE: string;
+    let CASE_REVIEW: string;
+    let VICTIM_WITNESS: string;
+    let DEFENDANT: string;
+}
+declare namespace CCPNames {
+    let STAFF_DOMAINS: string[];
+    /**
+     * Capitalise each run of letters, unless the address already gave it a mixed
+     * case — "McDonald" as typed is better than anything we would make of it.
+     *
+     * @param {string} part
+     * @returns {string}
+     */
+    function capitalise(part: string): string;
+    /**
+     * The first name and surname an address spells, or null when it does not spell
+     * one (see the shapes above).
+     *
+     * @param {string|undefined|null} email
+     * @returns {{given: string, surname: string}|null}
+     */
+    function parse(email: string | undefined | null): {
+        given: string;
+        surname: string;
+    } | null;
+    /**
+     * What to call someone: "Mary-Jane O'Brien", or the address itself when it is
+     * not a name. "" when there is no address.
+     *
+     * @param {string|undefined|null} email
+     * @returns {string}
+     */
+    function displayName(email: string | undefined | null): string;
+    function letters(text: any): string;
+    /**
+     * Is this address the person CMS names? For the case lock, which arrives as first
+     * names and a surname rather than an address.
+     *
+     * The surname must agree, and the address's first name must be either the first
+     * of CMS's first names or all of them run together — "mary-jane" matches
+     * "Mary Jane" and "Mary-Jane". Compared on letters alone, so case, hyphens and
+     * apostrophes cannot make one person look like two.
+     *
+     * FALSE WHEN UNSURE. An address that is not a name never matches, and nor does
+     * anyone whose address uses a different name than CMS holds ("chris" for
+     * Christopher). Calling two facts unrelated is the safe mistake; tying a lock to
+     * the wrong person is not.
+     *
+     * @param {string|undefined|null} email
+     * @param {string|undefined|null} firstNames
+     * @param {string|undefined|null} surname
+     * @returns {boolean}
+     */
+    function matches(email: string | undefined | null, firstNames: string | undefined | null, surname: string | undefined | null): boolean;
+}
+declare var CCP_NAMES_GIVEN: RegExp;
+declare var CCP_NAMES_SURNAME: RegExp;
 declare namespace CCPPeople {
-    function indexOf(list: any, value: any): number;
     /**
      * @param {Array<{userEmail?: string, sourceApplication?: string, joinedAt?: string, sections?: Array<{kind: string, isCurrent?: boolean}>}>} members
      *        Every member record, from every section, flattened. Callers hold the
      *        sections differently; this deliberately takes the flat list they can all
      *        produce.
-     * @returns {Array<{username: string, apps: Array<{appDisplayName: string, timeEntered: string|undefined}>, sections: Array<{kind: string, isCurrent: boolean}>}>}
+     * @param {string=} viewerEmail
+     * @returns {CCPPerson[]}
      */
     function collapse(members: Array<{
         userEmail?: string;
@@ -242,17 +325,7 @@ declare namespace CCPPeople {
             kind: string;
             isCurrent?: boolean;
         }>;
-    }>, viewerEmail: any): Array<{
-        username: string;
-        apps: Array<{
-            appDisplayName: string;
-            timeEntered: string | undefined;
-        }>;
-        sections: Array<{
-            kind: string;
-            isCurrent: boolean;
-        }>;
-    }>;
+    }>, viewerEmail?: string | undefined): CCPPerson[];
     /**
      * Everyone BUT the reader.
      *
@@ -280,7 +353,9 @@ declare namespace CCPPeople {
         userEmail?: string;
     }> | undefined, viewerEmail: string | undefined): any[];
     /**
-     * WHAT TO SHOW AS SOMEONE'S NAME, marking the reader.
+     * WHAT TO SHOW AS SOMEONE'S NAME, marking the reader. The name is read off the
+     * address by CCPNames; username itself stays the address, because that is what
+     * people are told apart and recognised by.
      *
      * While the feature is being built we deliberately count and show ourselves: a
      * roster that includes you, and says so, is the only evidence from the outside
@@ -300,6 +375,61 @@ declare namespace CCPPeople {
     }): string;
     let CURRENT_USER_SUFFIX: string;
 }
+declare namespace CCPRoster {
+    /**
+     * @typedef {{caseId: string, kind: string, subjectId: string, version: number,
+     *            members: {userEmail: string, sourceApplication: string, joinedAt: string}[],
+     *            via: Object<string, boolean>}} CCPRosterEntry
+     */
+    /**
+     * @param {CCPMember[]|null|undefined} members
+     * @returns {{userEmail: string, sourceApplication: string, joinedAt: string}[]}
+     */
+    function normaliseMembers(members: CCPMember[] | null | undefined): {
+        userEmail: string;
+        sourceApplication: string;
+        joinedAt: string;
+    }[];
+    /**
+     * @returns {{
+     *   apply: function((CCPNotification[]|null|undefined), string=): boolean,
+     *   sections: function(): Object<string, CCPRosterEntry>,
+     *   members: function((string[]|undefined), string=): CCPRosterMember[],
+     *   forget: function(string): boolean,
+     *   rewind: function(): void,
+     *   clear: function(): void,
+     *   takeChanges: function(): {joined: string[], left: string[]}
+     * }}
+     */
+    function createRoster(): {
+        apply: (arg0: (CCPNotification[] | null | undefined), arg1: string | undefined) => boolean;
+        sections: () => {
+            [x: string]: CCPRosterEntry;
+        };
+        members: (arg0: (string[] | undefined), arg1: string | undefined) => CCPRosterMember[];
+        forget: (arg0: string) => boolean;
+        rewind: () => void;
+        clear: () => void;
+        takeChanges: () => {
+            joined: string[];
+            left: string[];
+        };
+    };
+}
+type CCPRosterEntry = {
+    caseId: string;
+    kind: string;
+    subjectId: string;
+    version: number;
+    members: {
+        userEmail: string;
+        sourceApplication: string;
+        joinedAt: string;
+    }[];
+    via: {
+        [x: string]: boolean;
+    };
+};
 declare namespace CCPSectionNames {
     namespace DISPLAY_NAMES {
         let CASE: string;
@@ -330,7 +460,6 @@ declare namespace CCPSectionNames {
         kind: string;
         isCurrent?: boolean;
     }>): string;
-    function indexOf(list: any, value: any): number;
 }
 declare namespace CCPSectionRules {
     namespace INTERRUPTS {
@@ -349,17 +478,180 @@ declare namespace CCPSectionRules {
      */
     function interrupts(kind: string | undefined): boolean;
 }
-/**
- * window[name] = value, spelled out because TypeScript objects otherwise: the DOM
- * lib types a string index on Window as a named frame, not an arbitrary value.
- * JSONP callbacks MUST be real top-level globals — the njs adapter reflects the
- * name verbatim and rejects anything but a bare identifier — so this is a
- * deliberate use of the global namespace, not an accident.
- * @param {string} name
- * @param {*} value
- */
-declare function setGlobalCallback(name: string, value: any): void;
+declare namespace CCPSections {
+    let HEARTBEAT_MS: number;
+    /**
+     * A section id as the presence API expects it. Case-wide kinds carry NO subject
+     * and NO trailing colon — "544545:CASE", not "544545:CASE:" — while
+     * subject-scoped kinds append theirs: "544545:VICTIM_WITNESS:98765".
+     * @param {string|number|null|undefined} caseId
+     * @param {string|null|undefined} kind
+     * @param {string|number|null=} subjectId
+     * @returns {string|null} null when there is no case or kind to name
+     */
+    function sectionId(caseId: string | number | null | undefined, kind: string | null | undefined, subjectId?: (string | number | null) | undefined): string | null;
+    /**
+     * The same identity, derived from a snapshot's section object rather than parts.
+     * Used to key the roster cache, so it MUST agree with sectionId above.
+     * @param {CCPSection|null|undefined} section
+     * @returns {string} "" when the section cannot be identified
+     */
+    function sectionKey(section: CCPSection | null | undefined): string;
+}
+declare namespace CCPUtil {
+    /**
+     * @param {Array<*>} list
+     * @param {*} value
+     * @returns {number} the index, or -1
+     */
+    function indexOf(list: Array<any>, value: any): number;
+    /**
+     * The first item whose `key` property equals `value`, or null.
+     * @template T
+     * @param {T[]} list
+     * @param {string} key
+     * @param {*} value
+     * @returns {T|null}
+     */
+    function find<T>(list: T[], key: string, value: any): T | null;
+    /**
+     * @param {string} text
+     * @param {string} suffix
+     * @returns {boolean}
+     */
+    function hasSuffix(text: string, suffix: string): boolean;
+    /**
+     * Left-pad with zeros to `width` digits.
+     * @param {number} n
+     * @param {number} width
+     * @returns {string}
+     */
+    function pad(n: number, width: number): string;
+    /**
+     * An ISO-8601 UTC timestamp with milliseconds: "2026-11-04T09:30:00.123Z".
+     * @param {Date} [date] defaults to now
+     * @returns {string}
+     */
+    function stamp(date?: Date): string;
+}
+declare namespace CCPView {
+    /**
+     * @param {{
+     *   members: CCPRosterMember[] | undefined,
+     *   viewerEmail?: string,
+     *   countSelf?: boolean,
+     *   lock?: {firstNames?: string, surname?: string, application?: string, since?: string},
+     *   formatTime?: function((string|undefined)): (string|undefined)
+     * }} options
+     *   viewerEmail  the reader; "" or absent means unknown, and then nobody is
+     *                filtered or marked (one person too many beats hiding a colleague)
+     *   countSelf    true keeps the reader in, marked "(current user)"
+     *   lock         web components only, and only when the case IS locked: who
+     *                holds it as CMS names them, and where and since when. It leads
+     *                the summary and the lines, and joins its holder's own line when
+     *                exactly one person present is them (CCPNames.matches); otherwise
+     *                it is a line of its own
+     *   formatTime   how to say when someone arrived; CCPJoined.format by default
+     * @returns {{people: CCPPerson[], count: number, includesSelf: boolean, summary: string, lockedByReader: boolean, lines: string[]}}
+     */
+    function build(options: {
+        members: CCPRosterMember[] | undefined;
+        viewerEmail?: string;
+        countSelf?: boolean;
+        lock?: {
+            firstNames?: string;
+            surname?: string;
+            application?: string;
+            since?: string;
+        };
+        formatTime?: (arg0: (string | undefined)) => (string | undefined);
+    }): {
+        people: CCPPerson[];
+        count: number;
+        includesSelf: boolean;
+        summary: string;
+        lockedByReader: boolean;
+        lines: string[];
+    };
+    /**
+     * Which of the people holds the lock: their index, or -1. Only a SINGLE match
+     * counts — two namesakes on one case (john.smith and john.smith2) could be either,
+     * and the lock then stands on its own line rather than on a guess.
+     *
+     * The reader is never the answer here, even when counted in: a lock of theirs is
+     * said as "You", on its own line (see build).
+     *
+     * @param {CCPPerson[]} people
+     * @param {{firstNames?: string, surname?: string}|null} lock
+     * @returns {number}
+     */
+    function lockHolder(people: CCPPerson[], lock: {
+        firstNames?: string;
+        surname?: string;
+    } | null): number;
+    /**
+     * The holder as CMS names them, "" when it names nobody.
+     *
+     * @param {{firstNames?: string, surname?: string}} lock
+     * @returns {string}
+     */
+    function lockHolderName(lock: {
+        firstNames?: string;
+        surname?: string;
+    }): string;
+}
+declare namespace CCPClient {
+    let JSONP_PATH: string;
+    let PREVIEW_PATH: string;
+    let PASS_MS: number;
+    let TIMEOUT_MS: number;
+    /**
+     * @param {{
+     *   appName: string,
+     *   sections: function(): Array<{id: string, caseId: string}>,
+     *   render: function(?{count: number, summary: string, lines: string[]}, string): void,
+     *   afterPass?: function(): void,
+     *   diagnostics?: Object<string, function(): *>
+     * }} o
+     *   appName             sent with every call; the adapter defaults a missing one to "CMS Classic"
+     *   sections            what is on screen now, primary first; called once per pass
+     *   render              draw a view, or hide when given null; the reason is for logging
+     *   afterPass           runs at the end of every pass
+     *   diagnostics         extra members for window.__ccPresence
+     * @returns {{start: function(): void, stop: function(): void, reconcile: function(): void,
+     *            onNotifications: function(Array, string=): void}}
+     */
+    function createClient(o: {
+        appName: string;
+        sections: () => Array<{
+            id: string;
+            caseId: string;
+        }>;
+        render: (arg0: {
+            count: number;
+            summary: string;
+            lines: string[];
+        } | null, arg1: string) => void;
+        afterPass?: () => void;
+        diagnostics?: {
+            [x: string]: () => any;
+        };
+    }): {
+        start: () => void;
+        stop: () => void;
+        reconcile: () => void;
+        onNotifications: (arg0: any[], arg1: string | undefined) => void;
+    };
+}
 declare namespace CCPJsonp {
+    /**
+     * window[name] = value. JSONP callbacks must be real top-level globals (the njs
+     * adapter reflects the name verbatim), and the DOM lib types a string index on
+     * Window as a frame, hence the cast.
+     * @param {string} name
+     * @param {*} value
+     */
+    function setGlobal(name: string, value: any): void;
     /**
      * Build the JSONP caller. Returns call(op, params, onData); onData receives the
      * executed object/array, or null when the call timed out.
@@ -384,6 +676,7 @@ declare namespace CCPJsonp {
         log?: (...args: any[]) => void;
     }): (arg0: string, arg1: any, arg2: (arg0: any) => void) => void;
 }
+declare var CMS_WATCHDOG_ENABLED: boolean;
 declare namespace CCPLocator {
     /**
      * Normalise the parts of a section into the shape everything downstream expects.
@@ -397,23 +690,20 @@ declare namespace CCPLocator {
      * @param {string|number|null|undefined} caseId
      * @param {string|null|undefined} kind the documented kind, unsuffixed
      * @param {string|number|null=} subjectId
-     * @param {*=} hint app-specific payload, passed through untouched
-     * @returns {{id: string, caseId: string, kind: string, subjectId: string, hint: *}|null}
+     * @returns {{id: string, caseId: string, kind: string, subjectId: string}|null}
      */
-    function section(caseId: string | number | null | undefined, kind: string | null | undefined, subjectId?: (string | number | null) | undefined, hint?: any | undefined): {
+    function section(caseId: string | number | null | undefined, kind: string | null | undefined, subjectId?: (string | number | null) | undefined): {
         id: string;
         caseId: string;
         kind: string;
         subjectId: string;
-        hint: any;
     } | null;
     /**
      * A detector driven entirely by the page URL — the whole story for Modern and DCF,
      * where the address IS the context: on /dcf/ you are reviewing a case, and in the
      * viewer you are on one.
      *
-     * @param {{kind: string, pattern: RegExp, caseIdGroup?: number, subjectIdGroup?: number,
-     *          hint?: *}} spec
+     * @param {{kind: string, pattern: RegExp, caseIdGroup?: number, subjectIdGroup?: number}} spec
      * @returns {{kind: string, detect: function(*): Object|null}}
      */
     function urlDetector(spec: {
@@ -421,7 +711,6 @@ declare namespace CCPLocator {
         pattern: RegExp;
         caseIdGroup?: number;
         subjectIdGroup?: number;
-        hint?: any;
     }): {
         kind: string;
         detect: (arg0: any) => any | null;
@@ -442,17 +731,6 @@ declare namespace CCPLocator {
 }
 declare namespace CCPLog {
     let LIMIT: number;
-    function pad(n: any, width: any): string;
-    /**
-     * An ISO-8601 UTC timestamp WITH MILLISECONDS. CCPSessions.stamp stops at the
-     * second, which cannot order two calls that answered in the same second, and
-     * ordering is the whole question when reading a buffer back. Built by hand,
-     * because Date.prototype.toISOString does not exist at document mode 5.
-     *
-     * @param {Date} [date] defaults to now
-     * @returns {string}
-     */
-    function stamp(date?: Date): string;
     /**
      * An address, shortened before it goes into a buffer that people paste into
      * tickets: "ann.smith@cps.gov.uk" becomes "an***@cps.gov.uk". The domain is kept
@@ -523,7 +801,7 @@ declare namespace CCPPreview {
      *          log: function(...*): void,
      *          onChange: (function(): void|undefined)}} options
      * @returns {{flags: function(): Object, known: function(): boolean,
-     *            countSelf: function(): boolean,
+     *            countSelf: function(): boolean, verboseLogging: function(): boolean,
      *            refresh: function(boolean=): void}}
      */
     function createPreview(options: {
@@ -534,97 +812,11 @@ declare namespace CCPPreview {
         flags: () => any;
         known: () => boolean;
         countSelf: () => boolean;
+        verboseLogging: () => boolean;
         refresh: (arg0: boolean | undefined) => void;
     };
 }
-declare namespace CCPRoster {
-    /**
-     * A roster: apply the API's notifications, ask who is present.
-     * @returns {{
-     *   apply: function(CCPNotification[]|null|undefined): boolean,
-     *   people: function(): CCPPerson[],
-     *   describe: function(): string,
-     *   sections: function(): Object,
-     *   members: function(string[]|undefined, string=): {userEmail: string, sourceApplication: string, joinedAt: string, sections: {kind: string, isCurrent: boolean}[]}[],
-     *   forget: function(string): boolean,
-     *   clear: function(): void,
-     *   takeChanges: function(): {joined: string[], left: string[]}
-     * }}
-     */
-    function createRoster(): {
-        apply: (arg0: CCPNotification[] | null | undefined) => boolean;
-        people: () => CCPPerson[];
-        describe: () => string;
-        sections: () => any;
-        members: (arg0: string[] | undefined, arg1: string | undefined) => {
-            userEmail: string;
-            sourceApplication: string;
-            joinedAt: string;
-            sections: {
-                kind: string;
-                isCurrent: boolean;
-            }[];
-        }[];
-        forget: (arg0: string) => boolean;
-        clear: () => void;
-        takeChanges: () => {
-            joined: string[];
-            left: string[];
-        };
-    };
-}
-declare namespace CCPSections {
-    /**
-     * A section id as the presence API expects it. Case-wide kinds carry NO subject
-     * and NO trailing colon — "544545:CASE", not "544545:CASE:" — while
-     * subject-scoped kinds append theirs: "544545:VICTIM_WITNESS:98765".
-     * @param {string|number|null|undefined} caseId
-     * @param {string|null|undefined} kind
-     * @param {string|number|null=} subjectId
-     * @returns {string|null} null when there is no case or kind to name
-     */
-    function sectionId(caseId: string | number | null | undefined, kind: string | null | undefined, subjectId?: (string | number | null) | undefined): string | null;
-    /**
-     * The same identity, derived from a snapshot's section object rather than parts.
-     * Used to key the roster cache, so it MUST agree with sectionId above.
-     * @param {CCPSection|null|undefined} section
-     * @returns {string} "" when the section cannot be identified
-     */
-    function sectionKey(section: CCPSection | null | undefined): string;
-    /**
-     * Array.prototype.indexOf does not exist at document mode 5.
-     * @param {string[]} list
-     * @param {string} value
-     * @returns {number} the index, or -1
-     */
-    function indexOfString(list: string[], value: string): number;
-}
 declare namespace CCPSessions {
-    /**
-     * An ISO-8601 UTC timestamp, built by hand.
-     *
-     * NOT Date.prototype.toISOString, which this used until 2026-11-04. That method is
-     * an ES5 addition and DOES NOT EXIST at document mode 5 — and this file is held to
-     * the mode 5 floor because CMS Classic runs it. The call was the FIRST statement of
-     * pump(), the pass that heartbeats and polls every held section, inside the
-     * try/catch that exists so a throw there cannot kill the interval. So in Classic it
-     * threw on every pass, silently, and swallowing it was exactly the wrong mercy:
-     *
-     *   - createSession() is called directly by setDesired and so still worked, and its
-     *     callback beats and polls once — which is why presence appeared to work, and
-     *     why a roster could be read out of __ccPresence while nothing ever updated;
-     *   - every heartbeat after that was dead, so the Watchdog expired the session on
-     *     its TTL and the 410 recovery (in pump) never ran either;
-     *   - Modern and DCF are document mode 11, where toISOString exists, so the same
-     *     shared module worked there. "Works in Modern, not reliably in Classic" was
-     *     the only symptom, and it pointed at Classic's own files rather than here.
-     *
-     * check-syntax.js's es3 denylist now carries toISOString, so this cannot come back
-     * the same way.
-     *
-     * @returns {string} e.g. "2026-11-04T09:30:00Z"
-     */
-    function stamp(): string;
     let SLOW_MS: number;
     /**
      * @param {{call: function(string, Object, function(*): void): void,
@@ -632,8 +824,6 @@ declare namespace CCPSessions {
      *          log: function(...*): void, verbose: function(): boolean,
      *          onNotifications: function(Array, string=): void,
      *          onSectionDropped: function(string): void,
-     *          dropSectionOnError?: boolean,
-     *          onFatal?: function(string, string): void,
      *          onTrouble?: function(string, string, string=): void,
      *          onRecovered?: function(string, number): void}} options
      * @returns {{setDesired: function(string[]): void, stop: function(): void,
@@ -648,8 +838,6 @@ declare namespace CCPSessions {
         verbose: () => boolean;
         onNotifications: (arg0: any[], arg1: string | undefined) => void;
         onSectionDropped: (arg0: string) => void;
-        dropSectionOnError?: boolean;
-        onFatal?: (arg0: string, arg1: string) => void;
         onTrouble?: (arg0: string, arg1: string, arg2: string | undefined) => void;
         onRecovered?: (arg0: string, arg1: number) => void;
     }): {
@@ -661,7 +849,7 @@ declare namespace CCPSessions {
     };
 }
 declare namespace CCPViewer {
-    let ENV_ATTEMPTS: number;
+    let ATTEMPTS: number;
     let RECHECK_MS: number;
     /**
      * @param {{call: function(string, Object, function(*): void): void,

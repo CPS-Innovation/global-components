@@ -2,11 +2,12 @@
   "environment": "dev",
   "directives": {
     "connect-src": [
+      "https://*.service.signalr.net",
       "https://graph.microsoft.com",
       "https://js.monitor.azure.com",
       "https://login.microsoftonline.com",
       "https://polaris-dev-notprod.cps.gov.uk",
-      "https://polaris-qa-notprod.cps.gov.uk"
+      "https://watchdog-api-dev.gslb-notprod.int.cps.gov.uk"
     ],
     "frame-src": [
       "https://login.microsoftonline.com"
@@ -15,8 +16,13 @@
       "https://polaris-dev-notprod.cps.gov.uk"
     ]
   },
-  "policy": "connect-src https://graph.microsoft.com https://js.monitor.azure.com https://login.microsoftonline.com https://polaris-dev-notprod.cps.gov.uk https://polaris-qa-notprod.cps.gov.uk; frame-src https://login.microsoftonline.com; script-src https://polaris-dev-notprod.cps.gov.uk;",
+  "policy": "connect-src https://*.service.signalr.net https://graph.microsoft.com https://js.monitor.azure.com https://login.microsoftonline.com https://polaris-dev-notprod.cps.gov.uk https://watchdog-api-dev.gslb-notprod.int.cps.gov.uk; frame-src https://login.microsoftonline.com; script-src https://polaris-dev-notprod.cps.gov.uk;",
   "requirements": [
+    {
+      "directive": "connect-src",
+      "value": "https://*.service.signalr.net",
+      "reason": "Azure SignalR Service, which the hub's negotiate hands the browser to, connected to directly. A wildcard because the instance is named only in the negotiate reply, and so moves whenever the Watchdog does. Server-sent events and long-polling today — both connect-src. WebSockets is commented out in case-locking-presence.ts; re-enabling it may need wss://*.service.signalr.net in older browsers."
+    },
     {
       "directive": "connect-src",
       "value": "https://graph.microsoft.com",
@@ -39,8 +45,8 @@
     },
     {
       "directive": "connect-src",
-      "value": "https://polaris-qa-notprod.cps.gov.uk",
-      "reason": "Case-locking SignalR hub. Server-sent events and long-polling today — both connect-src. WebSockets is commented out in case-locking-presence.ts; re-enabling it needs the same host as wss:, which is why this is derived rather than pinned to a scheme."
+      "value": "https://watchdog-api-dev.gslb-notprod.int.cps.gov.uk",
+      "reason": "Case-locking hub (the Watchdog API), connected to directly: the negotiate request. The connection itself goes to the SignalR service below."
     },
     {
       "directive": "frame-src",

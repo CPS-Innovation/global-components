@@ -122,7 +122,24 @@ describe("Tab title", () => {
     expect(await page.title()).not.toContain(`${C.URN_PREFIX}321`);
   });
 
-  it("should not prepend URN when preview flag is disabled", async () => {
+  it("should prepend URN when the FEATURE_FLAG_TAB_TITLE_URN_USERS cohort is generally available", async () => {
+    // No preview interception: the env cohort alone turns the feature on
+    await arrange({
+      ...settings,
+      config: { ...settings.config, FEATURE_FLAG_TAB_TITLE_URN_USERS: { generallyAvailable: true } },
+    });
+    await act("/cases/321");
+
+    await page.waitForFunction(
+      (prefix: string) => document.title.startsWith(prefix),
+      { timeout: 5000, polling: 100 },
+      `${C.URN_PREFIX}321`
+    );
+
+    expect(await page.title()).toBe(`${C.URN_PREFIX}321`);
+  });
+
+  it("should not prepend URN when neither the preview flag nor the cohort is on", async () => {
     // No preview interception — preview will 404, flag is off
     await arrange(settings);
     await act("/cases/321");

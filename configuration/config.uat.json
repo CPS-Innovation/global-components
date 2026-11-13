@@ -51,6 +51,9 @@
   "FEATURE_FLAG_ACCESSIBILITY_MODE_USERS": {
     "generallyAvailable": true
   },
+  "FEATURE_FLAG_TAB_TITLE_URN_USERS": {
+    "generallyAvailable": true
+  },
   "SSO_SILENT_DELAY_MS": 2000,
   "USER_DATA_REFRESH_PERIOD_MINS": 5,
   "PROBE_NAVIGATOR_PERMISSIONS_REFRESH_PERIOD_MINS": 120,
@@ -72,8 +75,7 @@
       "contexts": [
         {
           "path": "https://cps-tst1\\.outsystemsenterprise\\.com/casework(_blocks)?/home",
-          "contextIds": "home",
-          "showNotification": true
+          "contextIds": "home"
         },
         {
           "path": "https://cps-tst1\\.outsystemsenterprise\\.com/casework(_blocks)?(?![a-z0-9_])",

@@ -569,6 +569,14 @@ async function runTests() {
     assert(String(r.headersOut["Content-Type"]).includes("javascript"), "content type")
   })
 
+  // The legacy clients' first call repeats the same URL on every page load, so a
+  // cacheable answer keeps serving flags the cookie no longer holds.
+  await test("forbids caching, so IE mode never reuses an old answer", async () => {
+    const r = createStateRequest({ cookie: `${COOKIE}=${b64url(PREVIEW)}`, args: { callback: "cb" } })
+    await vnext.handleState(r)
+    assertEqual(r.headersOut["Cache-Control"], "no-store", "Cache-Control")
+  })
+
   await test("yields cb(null) when there is no preview, so the client still settles", async () => {
     const r = createStateRequest({ args: { callback: "cb" } })
     await vnext.handleState(r)

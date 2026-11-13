@@ -45,13 +45,11 @@ component every notification in the app renders through.
 
 ### Used by
 
- - [cps-global-home-page-notification](../cps-global-home-page-notification)
  - [cps-global-notifications](../cps-global-notifications)
 
 ### Graph
 ```mermaid
 graph TD;
-  cps-global-home-page-notification --> cps-gds-notification-banner
   cps-global-notifications --> cps-gds-notification-banner
   style cps-gds-notification-banner fill:#f9f,stroke:#333,stroke-width:4px
 ```

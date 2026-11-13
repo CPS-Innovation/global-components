@@ -25,7 +25,7 @@ jest.mock("@microsoft/signalr", () => {
   };
 });
 
-import { makeHubFactory, buildSectionId } from "./case-locking-presence";
+import { makeHubFactory } from "./case-locking-presence";
 
 // The accessTokenFactory the hub was configured with.
 const tokenFactoryFrom = (): (() => Promise<string>) => {
@@ -69,22 +69,5 @@ describe("the presence access token", () => {
   it("passes the hub url through untouched", () => {
     makeHubFactory(async () => "t")("https://example.test/hub");
     expect(mockWithUrl.mock.calls[0][0]).toBe("https://example.test/hub");
-  });
-});
-
-describe("buildSectionId", () => {
-  // Must agree with CCPSections.sectionId in the legacy clients, or one section is
-  // tracked under two names and the rosters never meet.
-  it("upper-cases the kind — region codes are lower-case by local convention", () => {
-    expect(buildSectionId("544545", "case")).toBe("544545:CASE");
-  });
-
-  it("carries no subject and no trailing colon for case-wide kinds", () => {
-    expect(buildSectionId("544545", "CASE")).toBe("544545:CASE");
-    expect(buildSectionId("544545", "CASE", null)).toBe("544545:CASE");
-  });
-
-  it("appends the subject for subject-scoped kinds", () => {
-    expect(buildSectionId("544545", "victim_witness", "98765")).toBe("544545:VICTIM_WITNESS:98765");
   });
 });

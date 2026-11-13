@@ -857,16 +857,23 @@ describe("dispatchHandover", () => {
       );
     });
 
-    test("ensure-ad: preview override enables the AD cascade even when config flag is off", async () => {
-      withConfigOverrides({
-        FEATURE_FLAG_USE_MSAL_FULL_REDIRECT_USERS: undefined,
-      });
+    test("ensure-ad: when FF is on, runs the AD cascade", async () => {
+      const win = makeWindow(
+        "https://cps-tst.outsystemsenterprise.com/Casework_Patterns/auth-handover.html?src=x&stage=ensure-ad&returnTo=https%3A%2F%2Fcps-tst.outsystemsenterprise.com%2Fcasework_blocks%2Fhome",
+      );
+
+      await dispatchHandover(win, scriptUrl);
+
+      expect(mockHandleMsalEnsureAd).toHaveBeenCalledTimes(1);
+    });
+
+    test("ensure-ad: preview forceSilentSso skips the AD cascade even when the FF is GA", async () => {
       mockFetch.mockImplementation(async (input: unknown) => {
         const url = String(input);
         if (url.includes("/state/preview")) {
           return {
             ok: true,
-            json: async () => ({ useFullPageMsalRedirect: true }),
+            json: async () => ({ forceSilentSso: true }),
           } as never;
         }
         return { ok: false, status: 404, statusText: "Not Found" } as never;
@@ -877,7 +884,10 @@ describe("dispatchHandover", () => {
 
       await dispatchHandover(win, scriptUrl);
 
-      expect(mockHandleMsalEnsureAd).toHaveBeenCalledTimes(1);
+      expect(mockHandleMsalEnsureAd).not.toHaveBeenCalled();
+      expect(win.location.replace).toHaveBeenCalledWith(
+        "https://cps-tst.outsystemsenterprise.com/casework_blocks/home",
+      );
     });
   });
 

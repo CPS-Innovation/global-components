@@ -116,127 +116,62 @@ describe("FEATURE_FLAGS", () => {
     });
   });
 
-  describe("shouldShowGovUkRebrand", () => {
-    it("should return 'gds' when preview newHeader is 'gds'", () => {
-      const state = {
-        preview: { found: true as const, result: { newHeader: "gds" as const } },
-        config: {} as any,
-      };
-
-      const result = FEATURE_FLAGS.shouldShowGovUkRebrand(state);
-      expect(result).toBe("gds");
+  describe("shouldShimFooter", () => {
+    it("should return true when config.FOOTER_SHIM_ENABLED is true", () => {
+      const state = { flags: {} as ApplicationFlags, config: { FOOTER_SHIM_ENABLED: true } as any };
+      expect(FEATURE_FLAGS.shouldShimFooter(state)).toBe(true);
     });
 
-    it("should return 'cps' when preview newHeader is 'cps'", () => {
-      const state = {
-        preview: { found: true as const, result: { newHeader: "cps" as const } },
-        config: {} as any,
-      };
-
-      const result = FEATURE_FLAGS.shouldShowGovUkRebrand(state);
-      expect(result).toBe("cps");
+    it("should return true in local dev even though the config gate is off", () => {
+      const state = { flags: { isLocalDevelopment: true } as ApplicationFlags, config: { FOOTER_SHIM_ENABLED: false } as any };
+      expect(FEATURE_FLAGS.shouldShimFooter(state)).toBe(true);
     });
 
-    it("should return undefined when preview newHeader is undefined and config has no SHOW_HEADER_REBRAND", () => {
-      const state = {
-        preview: { found: true as const, result: {} },
-        config: {} as any,
-      };
-
-      const result = FEATURE_FLAGS.shouldShowGovUkRebrand(state);
-      expect(result).toBeUndefined();
+    it("should return false when the config gate is off and not local dev", () => {
+      const state = { flags: {} as ApplicationFlags, config: { FOOTER_SHIM_ENABLED: false } as any };
+      expect(FEATURE_FLAGS.shouldShimFooter(state)).toBe(false);
     });
 
-    it("should return undefined when preview is not found and config has no SHOW_HEADER_REBRAND", () => {
-      const state = {
-        preview: { found: false as const, error: {} as Error },
-        config: {} as any,
-      };
-
-      const result = FEATURE_FLAGS.shouldShowGovUkRebrand(state);
-      expect(result).toBeUndefined();
+    it("should return false when the config gate is absent and not local dev", () => {
+      const state = { flags: {} as ApplicationFlags, config: {} as any };
+      expect(FEATURE_FLAGS.shouldShimFooter(state)).toBe(false);
     });
 
-    it("should fall back to config.SHOW_HEADER_REBRAND when preview newHeader is undefined", () => {
+    it("should ignore a legacy preview footer opt-in", () => {
       const state = {
-        preview: { found: true as const, result: {} },
-        config: { SHOW_HEADER_REBRAND: "cps" } as any,
+        preview: { found: true as const, result: { footer: true } as any },
+        flags: {} as ApplicationFlags,
+        config: { FOOTER_SHIM_ENABLED: false } as any,
       };
-
-      const result = FEATURE_FLAGS.shouldShowGovUkRebrand(state);
-      expect(result).toBe("cps");
-    });
-
-    it("should fall back to config.SHOW_HEADER_REBRAND when preview is not found", () => {
-      const state = {
-        preview: { found: false as const, error: {} as Error },
-        config: { SHOW_HEADER_REBRAND: "gds" } as any,
-      };
-
-      const result = FEATURE_FLAGS.shouldShowGovUkRebrand(state);
-      expect(result).toBe("gds");
-    });
-
-    it("should let preview newHeader override config.SHOW_HEADER_REBRAND", () => {
-      const state = {
-        preview: { found: true as const, result: { newHeader: "gds" as const } },
-        config: { SHOW_HEADER_REBRAND: "cps" } as any,
-      };
-
-      const result = FEATURE_FLAGS.shouldShowGovUkRebrand(state);
-      expect(result).toBe("gds");
+      expect(FEATURE_FLAGS.shouldShimFooter(state)).toBe(false);
     });
   });
 
-  describe("shouldShimFooter", () => {
-    it("should return true when config.FOOTER_SHIM_ENABLED is true (GA gate, on for everyone)", () => {
-      const state = {
-        preview: { found: true as const, result: {} },
-        flags: {} as ApplicationFlags,
-        config: { FOOTER_SHIM_ENABLED: true } as any,
-      };
-
-      expect(FEATURE_FLAGS.shouldShimFooter(state)).toBe(true);
+  describe("shouldUseFullPageMsalRedirect", () => {
+    it("should return true when the user is in FEATURE_FLAG_USE_MSAL_FULL_REDIRECT_USERS", () => {
+      const state = { config: { FEATURE_FLAG_USE_MSAL_FULL_REDIRECT_USERS: { generallyAvailable: true } } as any };
+      expect(FEATURE_FLAGS.shouldUseFullPageMsalRedirect(state)).toBe(true);
     });
 
-    it("should return true when preview footer is set even though config gate is off", () => {
-      const state = {
-        preview: { found: true as const, result: { footer: true } },
-        flags: {} as ApplicationFlags,
-        config: { FOOTER_SHIM_ENABLED: false } as any,
-      };
-
-      expect(FEATURE_FLAGS.shouldShimFooter(state)).toBe(true);
+    it("should return false when the flag is not configured", () => {
+      const state = { config: {} as any };
+      expect(FEATURE_FLAGS.shouldUseFullPageMsalRedirect(state)).toBe(false);
     });
 
-    it("should return true in local dev even though config gate is off and no preview opt-in", () => {
+    it("should return false when preview forceSilentSso is set, even if the flag is GA", () => {
       const state = {
-        preview: { found: true as const, result: {} },
-        flags: { isLocalDevelopment: true } as ApplicationFlags,
-        config: { FOOTER_SHIM_ENABLED: false } as any,
+        config: { FEATURE_FLAG_USE_MSAL_FULL_REDIRECT_USERS: { generallyAvailable: true } } as any,
+        preview: { found: true as const, result: { forceSilentSso: true } },
       };
-
-      expect(FEATURE_FLAGS.shouldShimFooter(state)).toBe(true);
+      expect(FEATURE_FLAGS.shouldUseFullPageMsalRedirect(state)).toBe(false);
     });
 
-    it("should return false when the config gate is off, no preview opt-in, and not local dev (emergency rollback)", () => {
+    it("should ignore a legacy preview useFullPageMsalRedirect opt-in", () => {
       const state = {
-        preview: { found: true as const, result: {} },
-        flags: {} as ApplicationFlags,
-        config: { FOOTER_SHIM_ENABLED: false } as any,
-      };
-
-      expect(FEATURE_FLAGS.shouldShimFooter(state)).toBe(false);
-    });
-
-    it("should return false when the config gate is absent, no preview opt-in, and not local dev", () => {
-      const state = {
-        preview: { found: true as const, result: {} },
-        flags: {} as ApplicationFlags,
         config: {} as any,
+        preview: { found: true as const, result: { useFullPageMsalRedirect: true } as any },
       };
-
-      expect(FEATURE_FLAGS.shouldShimFooter(state)).toBe(false);
+      expect(FEATURE_FLAGS.shouldUseFullPageMsalRedirect(state)).toBe(false);
     });
   });
 
@@ -492,62 +427,6 @@ describe("FEATURE_FLAGS", () => {
     });
   });
 
-  describe("shouldShowHomePageNotification", () => {
-    const makeState = (overrides: {
-      FEATURE_FLAG_MENU_USERS?: any;
-      isAuthed?: boolean;
-      groups?: string[];
-      objectId?: string;
-      homePageNotification?: boolean;
-      authHint?: any;
-    }) => ({
-      config: { FEATURE_FLAG_MENU_USERS: overrides.FEATURE_FLAG_MENU_USERS } as any,
-      auth: {
-        isAuthed: overrides.isAuthed ?? true,
-        groups: overrides.groups ?? [],
-        username: "testuser",
-        objectId: overrides.objectId ?? "test-object-id",
-      } as any,
-      authHint: overrides.authHint ?? undefined,
-      preview: { found: true, result: { homePageNotification: overrides.homePageNotification } } as any,
-    });
-
-    it("should return false when user is in the feature flag AD group", () => {
-      const state = makeState({ FEATURE_FLAG_MENU_USERS: { adGroupIds: ["admin-group"] }, groups: ["admin-group"] });
-      expect(FEATURE_FLAGS.shouldShowHomePageNotification(state)).toBe(false);
-    });
-
-    it("should return false when user is in adHocUsers list", () => {
-      const state = makeState({ FEATURE_FLAG_MENU_USERS: { adHocUserObjectIds: ["test-object-id"] }, objectId: "test-object-id" });
-      expect(FEATURE_FLAGS.shouldShowHomePageNotification(state)).toBe(false);
-    });
-
-    it("should return false when feature is generally available", () => {
-      const state = makeState({ FEATURE_FLAG_MENU_USERS: { generallyAvailable: true } });
-      expect(FEATURE_FLAGS.shouldShowHomePageNotification(state)).toBe(false);
-    });
-
-    it("should return true when user is not in the feature flag group", () => {
-      const state = makeState({ FEATURE_FLAG_MENU_USERS: { adGroupIds: ["admin-group"] }, groups: ["other-group"] });
-      expect(FEATURE_FLAGS.shouldShowHomePageNotification(state)).toBe(true);
-    });
-
-    it("should return true when user is not authenticated", () => {
-      const state = makeState({ FEATURE_FLAG_MENU_USERS: { adGroupIds: ["admin-group"] }, isAuthed: false });
-      expect(FEATURE_FLAGS.shouldShowHomePageNotification(state)).toBe(true);
-    });
-
-    it("should return true when FEATURE_FLAG_MENU_USERS is not configured", () => {
-      const state = makeState({});
-      expect(FEATURE_FLAGS.shouldShowHomePageNotification(state)).toBe(true);
-    });
-
-    it("should return true when preview homePageNotification is set, even if user is in the feature group", () => {
-      const state = makeState({ FEATURE_FLAG_MENU_USERS: { adGroupIds: ["admin-group"] }, groups: ["admin-group"], homePageNotification: true });
-      expect(FEATURE_FLAGS.shouldShowHomePageNotification(state)).toBe(true);
-    });
-  });
-
   describe("reportIssueLink", () => {
     it("should return showLink true and url when REPORT_ISSUE_LINK is set", () => {
       const state = {
@@ -707,6 +586,39 @@ describe("FEATURE_FLAGS", () => {
 
     it("is on in local development", () => {
       expect(FEATURE_FLAGS.shouldShowOpenInCmsModern(state({ flags: { isLocalDevelopment: true } }))).toBe(true);
+    });
+  });
+
+  describe("shouldPrependUrnToTabTitle", () => {
+    const state = (overrides: { config?: any; preview?: any; flags?: Partial<ApplicationFlags>; authHint?: any } = {}) => ({
+      config: overrides.config ?? ({} as any),
+      preview: overrides.preview ?? { found: true as const, result: {} },
+      flags: (overrides.flags ?? {}) as ApplicationFlags,
+      authHint: overrides.authHint,
+    });
+
+    it("is off with no preview opt-in, no cohort and not local dev", () => {
+      expect(FEATURE_FLAGS.shouldPrependUrnToTabTitle(state())).toBe(false);
+    });
+
+    it("is off when the cohort says generallyAvailable: false (prod kill switch)", () => {
+      expect(FEATURE_FLAGS.shouldPrependUrnToTabTitle(state({ config: { FEATURE_FLAG_TAB_TITLE_URN_USERS: { generallyAvailable: false } } }))).toBe(false);
+    });
+
+    it("is on for everyone when the cohort is generallyAvailable", () => {
+      expect(FEATURE_FLAGS.shouldPrependUrnToTabTitle(state({ config: { FEATURE_FLAG_TAB_TITLE_URN_USERS: { generallyAvailable: true } } }))).toBe(true);
+    });
+
+    it("is on with the tabTitleUrn preview opt-in, whatever the cohort says", () => {
+      expect(
+        FEATURE_FLAGS.shouldPrependUrnToTabTitle(
+          state({ config: { FEATURE_FLAG_TAB_TITLE_URN_USERS: { generallyAvailable: false } }, preview: { found: true as const, result: { tabTitleUrn: true } } }),
+        ),
+      ).toBe(true);
+    });
+
+    it("is NOT on by default in local development (the e2e harness runs on localhost)", () => {
+      expect(FEATURE_FLAGS.shouldPrependUrnToTabTitle(state({ flags: { isLocalDevelopment: true } }))).toBe(false);
     });
   });
 });

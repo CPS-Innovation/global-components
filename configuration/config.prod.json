@@ -43,6 +43,9 @@
   "FEATURE_FLAG_OPEN_IN_CMS_MODERN_USERS": {
     "generallyAvailable": false
   },
+  "FEATURE_FLAG_TAB_TITLE_URN_USERS": {
+    "generallyAvailable": true
+  },
   "SSO_SILENT_DELAY_MS": 2000,
   "USER_DATA_REFRESH_PERIOD_MINS": 120,
   "PROBE_NAVIGATOR_PERMISSIONS_REFRESH_PERIOD_MINS": 120,
@@ -64,8 +67,7 @@
       "contexts": [
         {
           "path": "https://cps\\.outsystemsenterprise\\.com/casework(_blocks)?/home",
-          "contextIds": "home",
-          "showNotification": true
+          "contextIds": "home"
         },
         {
           "path": "https://cps\\.outsystemsenterprise\\.com/casework(_blocks)?(?![a-z0-9_])",

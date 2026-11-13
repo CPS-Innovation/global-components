@@ -12,7 +12,7 @@
     "VCA_COOKIES": "$OS_Users$VictimsCaseApplication$ClientVars$Cookies"
   },
   "REDIRECT_SCRIPT_URL": "https://polaris-qa-notprod.cps.gov.uk/global-components/test/global-components.js",
-  "CASE_LOCKING_API_URL": "https://polaris-qa-notprod.cps.gov.uk/global-components/case-locking/api/hubs/notifications",
+  "CASE_LOCKING_API_URL": "https://watchdog-api-dev.gslb-notprod.int.cps.gov.uk/hubs/notifications",
   "CASE_LOCKING_SCOPES": [
     "api://dev.api.watchdog.cps.gov.uk/api.presence.user.readwrite"
   ],
@@ -54,6 +54,9 @@
   "FEATURE_FLAG_OPEN_IN_CMS_MODERN_USERS": {
     "generallyAvailable": true
   },
+  "FEATURE_FLAG_TAB_TITLE_URN_USERS": {
+    "generallyAvailable": true
+  },
   "SSO_SILENT_DELAY_MS": 2000,
   "USER_DATA_REFRESH_PERIOD_MINS": 5,
   "PROBE_NAVIGATOR_PERMISSIONS_REFRESH_PERIOD_MINS": 120,
@@ -75,8 +78,7 @@
       "contexts": [
         {
           "path": "https://cps-tst\\.outsystemsenterprise\\.com/casework(_blocks)?/home",
-          "contextIds": "home",
-          "showNotification": true
+          "contextIds": "home"
         },
         {
           "path": "https://cps-tst\\.outsystemsenterprise\\.com/casework(_blocks)?(?![a-z0-9_])",

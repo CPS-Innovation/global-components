@@ -86,12 +86,20 @@ const skipLinksSchema = z.object({
 
 export type SkipLinks = z.infer<typeof skipLinksSchema>;
 
+/**
+ * The section kinds a region may name: CCPKinds (cps-global-presence) in their
+ * lower-case config form. Listed here because this package depends on nothing but
+ * zod; a spec in cps-global-components holds the two lists together.
+ */
+export const CASE_LOCKING_REGION_CODES = ["case", "case_review", "victim_witness", "defendant"] as const;
+
 const caseLockingRegionSchema = z.object({
   // The section kind, lower-case by local convention; the wire form upper-cases it,
   // so "victim_witness" becomes VICTIM_WITNESS. Must match what CMS Classic and CMS
   // Modern register for the same thing, or the two systems register different
-  // sections and never see each other.
-  code: z.string(),
+  // sections and never see each other — so a code the shared table does not know is
+  // a config error, not a silently empty room.
+  code: z.enum(CASE_LOCKING_REGION_CODES),
   // The subject, for kinds scoped to one person. A TEMPLATE, substituted from the
   // current tags exactly as msalRedirectUrl and the menu hrefs are — so a named
   // group captured by this context's own path regex is all it takes:
@@ -112,7 +120,6 @@ const contextPathsSchema = z.object({
   // See contextsBaseSchema — likewise for the section this path represents.
   caseLockingRegion: caseLockingRegionSchema.optional(),
   domTagDefinitions: z.array(domTagDefinitionsSchema).optional(),
-  showNotification: z.boolean().optional(),
   preventADAndDataCalls: z.boolean().optional(),
   preventPageViewAnalytics: z.boolean().optional(),
   takeTagsFromHandover: z.boolean().optional(),
@@ -183,7 +190,6 @@ const contextSchema = contextsBaseSchema.extend({
   path: z.string(),
   contextIds: z.string(),
   msalRedirectUrl: z.string(), // redefine as required, not optional in app config
-  showNotification: z.boolean().optional(),
   preventADAndDataCalls: z.boolean().optional(),
   preventPageViewAnalytics: z.boolean().optional(),
   takeTagsFromHandover: z.boolean().optional(),
@@ -273,7 +279,10 @@ export const configBaseSchema = z.object({
   SHOW_MENU: z.boolean().optional(),
   SHOW_RECENT_CASES: z.boolean().optional(),
   SHOW_MONITORING_CODES: z.boolean().optional(),
-  SHOW_HEADER_REBRAND: z.union([z.literal("cps"), z.literal("gds")]).optional(),
+  // SHOW_HEADER_REBRAND is gone from the schema: the header is always the CPS-themed
+  // rebrand now. The env configs still carry "cps" ON PURPOSE until every cached
+  // bundle that reads it has aged out — an old bundle reading a config without it
+  // would fall back to the pre-rebrand black header. z.object strips the unknown key.
   SHOW_CASE_DETAILS: z.union([z.literal("a"), z.literal("b")]).optional(),
   SHOW_NOTIFICATIONS: z.boolean().optional(),
   OS_HANDOVER_URL: z.string().optional(),
@@ -301,6 +310,10 @@ export const configBaseSchema = z.object({
   // Modern would silently open Classic until the Polaris PR lands. ORs with the
   // per-user openInCmsModern preview flag and local-dev.
   FEATURE_FLAG_OPEN_IN_CMS_MODERN_USERS: featureFlagUsersSchema.optional(),
+  // Who gets the case URN prepended to the browser tab title. GA in every env;
+  // flip generallyAvailable to false to kill it (preview tabTitleUrn opt-ins
+  // keep it). Users opt out individually via preventUrnPrependInTabTitle.
+  FEATURE_FLAG_TAB_TITLE_URN_USERS: featureFlagUsersSchema.optional(),
   // Broad on/off for the OutSystems Triage XHR observation shim. The shim
   // also installs when the per-user preview flag is set, so flipping this off
   // disables observation for everyone except preview-flag opt-ins (which is
@@ -312,11 +325,11 @@ export const configBaseSchema = z.object({
   // kill the probe en masse for an environment. Absent is treated as off by the consumer, so
   // keep it set true in each env config.
   PROBE_DARK_READER_USAGE: z.boolean().optional(),
-  // Broad on/off (GA gate) for the footer shim — the DOM surgery that hides the
-  // host <footer> and swaps in cps-global-footer. ORs with the per-user preview
-  // flag and local-dev: true switches the shim on for everyone, false reverts to
-  // preview opt-ins + local dev only. Kept as an env-config kill-switch so ops can
-  // cut the feature instantly if it misbehaves in prod, without a code change.
+  // On/off for the footer shim — the DOM surgery that hides the host <footer> and
+  // swaps in cps-global-footer. ORs with the local-dev default only: true switches
+  // the shim on for everyone in that env, false (or absent) leaves host footers
+  // alone. On in prod only. Kept as an env-config kill-switch so ops can cut the
+  // feature instantly if it misbehaves, without a code change.
   FOOTER_SHIM_ENABLED: z.boolean().optional(),
   SSO_SILENT_DELAY_MS: z.number().optional(),
   CACHE_CONFIG: cacheConfigSchema.optional(),

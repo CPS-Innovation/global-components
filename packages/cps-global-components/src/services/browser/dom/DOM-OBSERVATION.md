@@ -16,7 +16,7 @@ library with `{ fireOnAttributesModification: true, existing: true }`.
 | # | Subscriber | Selector(s) | Enabled when (`isActiveForContext`) | Effect | Disposes (handler → `true`) |
 |---|-----------|-------------|--------------------------------------|--------|------------------------------|
 | 1 | **domTagMutationSubscriber** | per-context `cssSelector`(s) | `!!context.domTagDefinitions?.length` | Extracts regex-named tags → `mergeTags` into store | Yes — when all tags found |
-| 2 | **footerSubscriber** | `footer` | `!!preview.result?.footer` | Injects `<cps-global-footer>`, hides host footer | No (stays bound) |
+| 2 | **footerSubscriber** | `footer:not(.cps-component-footer)` | `config.FOOTER_SHIM_ENABLED \|\| flags.isLocalDevelopment` (on in prod only) | Injects `<cps-global-footer>`, hides host footer; one `footer-shimmed` analytics event per page load | No (stays bound) |
 | 3 | **hostAppEventSubscriber** | per-context `target.selector`(s) | `!!context.hostAppEventTargets?.length` | `appear` → fire analytics now; else one-shot click → fire | Yes — per target after first match |
 | 4 | **accessibilitySubscriber** | `html` + `*:not(input)…:not(html):not(body)` | `!!preview.result?.accessibility && !!theme && !forcedColors` | Grey/warm mode: `#grey-mode-styles` + `data-grey-mode`, recolours surfaces/text | `html` sub: yes; per-element sub: no |
 | 5 | **witnessAreaSubscriber** | `div[data-block="MainFlow.Witnesses"]` | `enabled && currentHref.includes("/workmanagementapp/caseoverview")` | Injects `<cps-region code="witness">` | No (no-ops if region present) |
@@ -37,9 +37,10 @@ Every subscriber is gated at two independent levels:
 | Gating value | Source | How it's set |
 |---|---|---|
 | `context.domTagDefinitions`, `.hostAppEventTargets`, `.skipLinks`, `.currentHref` | **`FoundContext`** — matched per-URL from `Config.CONTEXTS` (with parent→child inheritance, see `transform-config`) | Authored in the config JSON per context node; present only on contexts that opt in |
-| `preview.result?.footer`, `.accessibility` | **`Preview`** — fetched once at startup from the `../state/preview` endpoint (`initialisePreview`) | Preview/feature-toggle state (Zod `PreviewSchema`); booleans, optional → default off |
+| `preview.result?.accessibility` | **`Preview`** — fetched once at startup from the `../state/preview` endpoint (`initialisePreview`) | Preview/feature-toggle state (Zod `PreviewSchema`); booleans, optional → default off |
 | `settings.result?.accessibilityBackground` → `theme` | **`Settings`** — user setting (`SettingsSchema`), persisted in a 365-day cookie | `"soft-grey"` \| `"warm"` (legacy `"light-grey"` coerced to `"soft-grey"`); `undefined` = feature off |
 | `forcedColors` | **Runtime** — `window.matchMedia("(forced-colors: active)")` | Windows High Contrast Mode; when active it *disables* #4 (we step aside) |
+| `config.FOOTER_SHIM_ENABLED` (footer) | **`Config`** — per-env config JSON | `true` in prod only; local dev (`flags.isLocalDevelopment`) shims regardless |
 | `enabled` (witness) | **`Config.CASE_LOCKING_API_URL`** | `initialiseCaseLocking` returns `createWitnessAreaSubscriber(true)` only if the URL is configured; otherwise `(false)` makes it permanently inert |
 
 ## Notable interactions
