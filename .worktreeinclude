@@ -1,0 +1,33 @@
+# Gitignored files every worktree needs from the main checkout (gitignore syntax).
+#
+# `wt` (shell function) SYMLINKS these to the main checkout, so there is one real
+# copy and edits made from any worktree land there. `claude -w` reads the same
+# list but COPIES. Anchor patterns with a leading / so they don't match inside
+# node_modules. Paths only — never put secret values here. A directory listed with a
+# trailing slash is linked whole, so it must be gitignored WITHOUT one (a symlink
+# is a file to git); otherwise list the files inside it, as certs does.
+
+# Secrets and env
+/.env
+/scripts/secrets.env
+/jira/.env
+/infra/analytics/scripts/.env
+/infra/proxy/deploy/secrets.env
+/infra/proxy/config/main/.env
+/infra/proxy/config/global-components.vnext/.env
+/infra/proxy/config/global-components.watchdog/.env
+/infra/proxy/config/global-components.watchdog/.env.uat
+/infra/proxy/docker/certs/*
+
+# Local deploy scripts
+/infra/proxy/scripts/**/*.local.sh
+/scripts/auth-handover-wrapper.sh
+
+# Local dev config
+/packages/cps-global-components/src/config.development.json
+/apps/harness-html/src/assets/config.json
+
+# Notes, plans and Claude permissions
+/not-tracked/
+/PLAN*
+**/.claude/settings.local.json

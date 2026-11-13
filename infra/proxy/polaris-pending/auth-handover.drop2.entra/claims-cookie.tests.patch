@@ -1,0 +1,95 @@
+diff --git a/polaris-terraform/main-terraform/proxy/config/features/auth-handover.drop2.entra/auth-handover.drop2.entra.unit.test.js b/polaris-terraform/main-terraform/proxy/config/features/auth-handover.drop2.entra/auth-handover.drop2.entra.unit.test.js
+index 48bbde4..e7f24c8 100644
+--- a/polaris-terraform/main-terraform/proxy/config/features/auth-handover.drop2.entra/auth-handover.drop2.entra.unit.test.js
++++ b/polaris-terraform/main-terraform/proxy/config/features/auth-handover.drop2.entra/auth-handover.drop2.entra.unit.test.js
+@@ -1343,6 +1343,82 @@ async function d7Tests(authHandover, entra) {
+   })
+ }
+ 
++// RPLT-246: the handover-claims cookie (the reader's app-assigned groups, for global-components'
++// legacy CMS clients). Contract: name, payload {k:"claims",v:1,oid,iat,g}, Path = whoami's sub-path.
++async function claimsTests(entra) {
++  console.log("\nhandover claims (RPLT-246) — groups from our id_token, iframe only:")
++
++  const G1 = "12377eca-b463-4a6c-80ea-95f678f09591"
++  const G2 = "2af0c0de-0000-4000-8000-000000000002"
++  const OID = "0b1c2d3e-4f50-6172-8394-a5b6c7d8e9f0"
++  const ID = (extra) => ({ preferred_username: "user@cps.gov.uk", oid: OID, tid: "tid-1", exp: nowSec() + 3000, ...extra })
++  const PREFIX = entra.__test.constants.CLAIMS_COOKIE + "="
++  const claimsOf = (r) => findCookie(r.headersOut["Set-Cookie"], PREFIX)
++  const payloadOf = (c) => entra.__test.unpackState(c.split(";")[0].substring(PREFIX.length))
++
++  await test("iframe success: the cookie carries the id_token's groups, signed, on whoami's path only", async () => {
++    const r = await callbackScenario({ term: "iframe", idClaims: ID({ groups: [G1, G2] }) })
++    const c = claimsOf(r)
++    assert(c !== undefined, "claims cookie set")
++    const p = payloadOf(c)
++    assertEqual(p.k, "claims", "kind marker")
++    assertEqual(p.v, 1, "version")
++    assertEqual(p.oid, OID, "bound to the signed-in account")
++    assertEqual(JSON.stringify(p.g), JSON.stringify([G1, G2]), "groups")
++    assert(typeof p.iat === "number", "iat")
++    assertIncludes(c, "; Path=/global-components/presence-jsonp/whoami;", "whoami's sub-path")
++    assertIncludes(c, "; HttpOnly; Secure; SameSite=Lax;", "attributes")
++    const age = Number(/Max-Age=(\d+)$/.exec(c)[1])
++    assert(age > 2900 && age <= 3000, "Max-Age = the id_token's remaining life, got " + age)
++  })
++
++  await test("top-level: no claims cookie (the legacy clients run in the iframe's jar)", async () => {
++    const r = await callbackScenario({ term: "top-level", idClaims: ID({ groups: [G1] }) })
++    assertEqual(claimsOf(r), undefined, "none at top level")
++  })
++
++  await test("no groups claim: g:[] (in no assigned group), logged", async () => {
++    const r = await callbackScenario({ term: "iframe", idClaims: ID() })
++    assertEqual(JSON.stringify(payloadOf(claimsOf(r)).g), "[]", "empty")
++    assert(logLines.some((l) => l === "drop2 entra claims — no groups claim"), logLines.join(" | "))
++  })
++
++  await test("groups overage (_claim_names): g:[], logged as overage", async () => {
++    const r = await callbackScenario({ term: "iframe", idClaims: ID({ _claim_names: { groups: "src1" } }) })
++    assertEqual(JSON.stringify(payloadOf(claimsOf(r)).g), "[]", "empty")
++    assert(logLines.some((l) => l.indexOf("(overage)") !== -1), logLines.join(" | "))
++  })
++
++  await test("over the size cap: no cookie, the byte count logged", async () => {
++    const many = Array.from({ length: 40 }, (_, i) => G1.slice(0, -2) + String(i).padStart(2, "0"))
++    const r = await callbackScenario({ term: "iframe", idClaims: ID({ groups: many }) })
++    assertEqual(claimsOf(r), undefined, "not set")
++    assert(logLines.some((l) => l.indexOf("drop2 entra claims cookie too large — bytes=") === 0), logLines.join(" | "))
++  })
++
++  await test("no oid in the id_token: no cookie (nothing to bind it to)", async () => {
++    const r = await callbackScenario({ term: "iframe", idClaims: { preferred_username: "user@cps.gov.uk", groups: [G1] } })
++    assertEqual(claimsOf(r), undefined, "not set")
++  })
++
++  await test("set even when the swaps fail: no refresh token, presence swap and MDS swap failures", async () => {
++    for (const opts of [{ rt: false }, { watchdogSwap: "fail" }, { mdsSwap: "fail" }]) {
++      const r = await callbackScenario({ term: "iframe", idClaims: ID({ groups: [G1] }), ...opts })
++      assert(claimsOf(r) !== undefined, "set with " + JSON.stringify(opts))
++    }
++  })
++
++  await test("no exp in the id_token: Max-Age falls back to 3600", async () => {
++    const c = entra.__test.claimsCookie(jwt({ oid: OID, groups: [G1] }))
++    assert(/Max-Age=3600$/.test(c), c)
++  })
++
++  await test("never logs a group id", async () => {
++    await callbackScenario({ term: "iframe", idClaims: ID({ groups: [G1] }) })
++    assert(!logLines.some((l) => l.indexOf(G1) !== -1), logLines.join(" | "))
++  })
++}
++
+ const ENTRA_TERMINAL = (entra) => entra.__test.constants.TERMINAL_HTML
+ 
+ async function main() {
+@@ -1360,6 +1436,7 @@ async function main() {
+   await iframeTerminalTests(authHandover, entra)
+   await reviewFixTests(authHandover, entra)
+   await d7Tests(authHandover, entra)
++  await claimsTests(entra)
+ 
+   restore()
+   process.exit(summarise("auth-handover.drop2.entra (unit)"))
