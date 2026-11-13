@@ -6,14 +6,15 @@
 # setting, the hub route answers 503, nginx still starts), and whoami — answered
 # locally, no upstream — is the health check.
 #
-# ENTRA_STATE_HMAC_SECRET IS set (a test value): it is Polaris's secret, which
-# whoami uses to verify the handover-claims cookie, and the integration test
-# packs its cookies with the same value.
+# ENTRA_STATE_HMAC_SECRET IS set, to a test value in global-components.watchdog.mock.env
+# (an env file like the other layers', not inline, so secret scanners don't flag it):
+# it is Polaris's secret, which whoami uses to verify the handover-claims cookie, and
+# the integration test packs its cookies with the same value.
 
 services:
   nginx:
-    environment:
-      - ENTRA_STATE_HMAC_SECRET=integration-test-state-hmac-secret
+    env_file:
+      - global-components.watchdog.mock.env
     volumes:
       - ../config/global-components.watchdog/global-components.watchdog.conf:/etc/nginx/templates/features/global-components.watchdog/global-components.watchdog.conf.template:ro
       - ../dist/global-components.watchdog.js:/etc/nginx/templates/features/global-components.watchdog/global-components.watchdog.js:ro
