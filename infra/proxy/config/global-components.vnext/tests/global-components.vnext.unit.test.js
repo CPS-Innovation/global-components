@@ -577,6 +577,23 @@ async function runTests() {
     assertEqual(r.headersOut["Cache-Control"], "no-store", "Cache-Control")
   })
 
+  // Polaris's server-level no-store does not reach this location (its CORS
+  // add_header switches inheritance off), so every branch must set its own.
+  await test("forbids caching on every state response, not just JSONP", async () => {
+    const cases = [
+      createStateRequest(),
+      createStateRequest({ cookie: `${COOKIE}=${b64url(PREVIEW)}` }),
+      createStateRequest({ method: "PUT", requestText: PREVIEW }),
+      createStateRequest({ method: "PUT", requestText: "null" }),
+      createStateRequest({ method: "DELETE" }),
+      createStateRequest({ args: { set: encodeURIComponent(PREVIEW), return: "%2Fdone", done: "edge" } }),
+    ]
+    for (const r of cases) {
+      await vnext.handleState(r)
+      assertEqual(r.headersOut["Cache-Control"], "no-store", `${r.method} ${JSON.stringify(r.variables)} -> ${r.returnCode}`)
+    }
+  })
+
   await test("yields cb(null) when there is no preview, so the client still settles", async () => {
     const r = createStateRequest({ args: { callback: "cb" } })
     await vnext.handleState(r)

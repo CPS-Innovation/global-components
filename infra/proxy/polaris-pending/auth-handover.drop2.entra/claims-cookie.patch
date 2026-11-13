@@ -1,0 +1,87 @@
+diff --git a/polaris-terraform/main-terraform/proxy/config/features/auth-handover.drop2.entra/auth-handover.drop2.entra.js b/polaris-terraform/main-terraform/proxy/config/features/auth-handover.drop2.entra/auth-handover.drop2.entra.js
+index 5041a66..cdde857 100644
+--- a/polaris-terraform/main-terraform/proxy/config/features/auth-handover.drop2.entra/auth-handover.drop2.entra.js
++++ b/polaris-terraform/main-terraform/proxy/config/features/auth-handover.drop2.entra/auth-handover.drop2.entra.js
+@@ -177,6 +177,21 @@ const PRESENCE_PATHS = [
+ // ~4 KB (name + value + attributes), silently.
+ const MAX_PRESENCE_TOKEN = 3900;
+ 
++// Handover claims (RPLT-246): the reader's Entra groups, for global-components' legacy CMS clients
++// (Classic, Modern, DCF), which gate features on group membership. Contract with global-components
++// (name + payload + path, like the presence cookie): their whoami (watchdog module) verifies it with
++// the SAME secret (ENTRA_STATE_HMAC_SECRET), checks k/v, and binds oid to the presence token's.
++// The groups come from OUR id_token: the app reg emits ApplicationGroup membership (only groups
++// assigned to our app), so a handful of ids, and the same switches the web components use via MSAL.
++// Path-scoped to whoami's own sub-path, so it rides that once-a-minute call and never the 3s polls.
++// IFRAME only (the CMS shell's IE-mode jar, where whoami is called), set whatever the swaps do.
++// Max-Age = the id_token's own remaining life: the groups are exactly as fresh as that token.
++const CLAIMS_COOKIE = "cps-handover-claims";
++const CLAIMS_PATH = "/global-components/presence-jsonp/whoami";
++// Over this the cookie is not set (logged): a handful of GUIDs is ~200 bytes, so this is a
++// misconfigured app reg, not a user to serve partially.
++const MAX_CLAIMS_COOKIE = 1024;
++
+ // ---------------------------------------------------------------------------
+ // Helpers
+ // ---------------------------------------------------------------------------
+@@ -308,6 +323,31 @@ function _hintCookie(idToken, st) {
+   return HINT_COOKIE + "=" + _packState(h) + HINT_OPTS + HINT_MAX_AGE_S;
+ }
+ 
++// The Set-Cookie for the handover claims from a sign-in's id_token, or null (no oid, or too large).
++// No groups claim (in no assigned group) or an overage pointer (_claim_names: too many groups to
++// list) both give g:[] — "in none", which every consumer reads as off — and are logged.
++function _claimsCookie(idToken) {
++  const c = _idClaims(idToken);
++  if (!c || !c.oid) {
++    return null;
++  }
++  let g = c.groups;
++  if (!Array.isArray(g)) {
++    _log("drop2 entra claims — no groups claim" + (c._claim_names ? " (overage)" : ""));
++    g = [];
++  }
++  const v = _packState({ k: "claims", v: 1, oid: String(c.oid), iat: Math.floor(Date.now() / 1000), g: g });
++  if (v.length > MAX_CLAIMS_COOKIE) {
++    _log("drop2 entra claims cookie too large — bytes=" + v.length);
++    return null;
++  }
++  const left = typeof c.exp === "number" ? Math.floor(c.exp - Date.now() / 1000) : 0;
++  return (
++    CLAIMS_COOKIE + "=" + v +
++    "; Path=" + CLAIMS_PATH + "; HttpOnly; Secure; SameSite=Lax; Max-Age=" + (left > 0 ? left : 3600)
++  );
++}
++
+ // The hint's `via`: m = the probe found several accounts this flow; the picker leg (n) names why
+ // it was needed (ra = the silent leg's AADSTS); otherwise "silent". A hinted silent sign-in can't
+ // tell whether other accounts exist (the hint picks one), which is why /init probes first (_probe).
+@@ -736,6 +776,12 @@ async function _swapAndDeposit(r, st, tok) {
+   let extra = [];
+   const hc = _hintCookie(tok.idToken, st);
+   if (hc) extra.push(hc);
++  // RPLT-246: the handover claims (iframe only), likewise whatever happens next — set before the
++  // refresh-token check, so a failed swap or deposit never costs the legacy clients their groups.
++  if (st.term === "iframe") {
++    const cc = _claimsCookie(tok.idToken);
++    if (cc) extra.push(cc);
++  }
+ 
+   const rt = tok.refreshToken;
+   if (!rt) {
+@@ -934,6 +980,7 @@ export default {
+     authorizeUrl: _authorizeUrl,
+     pkceChallenge: _pkceChallenge,
+     hintCookie: _hintCookie,
++    claimsCookie: _claimsCookie,
+     tokenUrl: _tokenUrl,
+     constants: {
+       STATE_COOKIE_PREFIX: STATE_COOKIE_PREFIX,
+@@ -941,6 +988,7 @@ export default {
+       TERMINAL_HTML: TERMINAL_HTML,
+       PRESENCE_COOKIE: PRESENCE_COOKIE,
+       HINT_COOKIE: HINT_COOKIE,
++      CLAIMS_COOKIE: CLAIMS_COOKIE,
+     },
+   },
+ };

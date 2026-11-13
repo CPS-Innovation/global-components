@@ -190,7 +190,7 @@ async function runTests() {
   // read at module load, so each case loads its own copy of the module (njs-loader
   // writes a distinct file each time, so the import cache cannot hand back an earlier one).
   // ---------------------------------------------------------------------------
-  const HOST_ENV = ["GLOBAL_COMPONENTS_WATCHDOG_HOST"]
+  const HOST_ENV = ["GLOBAL_COMPONENTS_WATCHDOG_HOST", "ENTRA_STATE_HMAC_SECRET"]
   async function loadWith(env, bake = {}) {
     const saved = {}
     for (const k of HOST_ENV) {
@@ -317,51 +317,171 @@ async function runTests() {
     assertEqual(unwrap(r).jsonpError, "presence API not configured (GLOBAL_COMPONENTS_WATCHDOG_HOST)", "message")
   })
 
-  console.log("\nwhoami groups:")
+  // ---------------------------------------------------------------------------
+  // whoami groups (RPLT-246): ONLY from Polaris's signed handover-claims cookie,
+  // bound to the presence token's oid. Never from the presence token itself.
+  // ---------------------------------------------------------------------------
+  console.log("\nwhoami groups (handover-claims cookie):")
 
-  const whoami = async (cookie) => {
-    const r = jsonpRequest({ op: "whoami", callback: "cb" }, cookie)
-    await watchdog.handlePresenceJsonp(r)
-    return unwrap(r)
+  const crypto = require("crypto")
+  const SECRET = "test-state-hmac-secret"
+  const OID = "0b1c2d3e-4f50-6172-8394-a5b6c7d8e9f0"
+  const OTHER_OID = "ffffffff-4f50-6172-8394-a5b6c7d8e9f0"
+  const b64url = (s) => Buffer.from(s, "utf8").toString("base64").replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "")
+  // Polaris's _packState, reproduced: base64url(JSON) "." base64url(HMAC-SHA256).
+  const packState = (st, secret = SECRET) => {
+    const payload = b64url(JSON.stringify(st))
+    const mac = crypto.createHmac("sha256", secret).update(payload).digest("base64").replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "")
+    return payload + "." + mac
   }
+  const claims = (over = {}) => ({ k: "claims", v: 1, oid: OID, iat: Math.floor(Date.now() / 1000), g: [GNAV], ...over })
+  const presence = (extra = {}) => `cms-auth-presence-token=${fakeJwt({ preferred_username: "a@cps.gov.uk", oid: OID, ...extra })}`
+  const handover = (value) => `cps-handover-claims=${value}`
+  const both = (value, extra) => `${presence(extra)}; ${handover(value)}`
 
-  await test("reports the groups the token carries", async () => {
-    const data = await whoami(`cms-auth-presence-token=${fakeJwt({ preferred_username: "a@cps.gov.uk", groups: [GNAV] })}`)
+  const withSecret = await loadWith({ ENTRA_STATE_HMAC_SECRET: SECRET })
+
+  // The sub-path handler, the one clients move to.
+  const whoamiAt = async (m, cookie, callback = "cb") => {
+    const r = createMockRequest("/global-components/presence-jsonp/whoami", {
+      variables: { arg_callback: callback },
+      headersIn: cookie ? { Cookie: cookie } : {},
+    })
+    await m.handlePresenceWhoami(r)
+    return r
+  }
+  const groupsAt = async (m, cookie) => unwrap(await whoamiAt(m, cookie))
+
+  await test("a signed cookie for this reader gives its groups", async () => {
+    const data = await groupsAt(withSecret, both(packState(claims())))
     assertEqual(JSON.stringify(data.groups), JSON.stringify([GNAV]), "groups")
+    assertEqual(data.groupsFrom, "cookie", "source")
   })
 
-  // ApplicationGroup emits only assigned groups, so "none" is the ordinary answer
-  // for someone outside every assigned group — and must read as an empty list.
-  await test("an empty list when the token has no groups claim", async () => {
-    const data = await whoami(`cms-auth-presence-token=${fakeJwt({ preferred_username: "a@cps.gov.uk" })}`)
-    assertEqual(JSON.stringify(data.groups), "[]", "no claim")
+  await test("the sub-path answers the same identity fields as the base path", async () => {
+    const data = await groupsAt(withSecret, both(packState(claims())))
+    assertEqual(data.userEmail, "a@cps.gov.uk", "userEmail")
+    assertEqual(data.oid, OID, "oid")
   })
 
-  await test("an empty list when there is no token at all", async () => {
-    const data = await whoami()
-    assertEqual(JSON.stringify(data.groups), "[]", "no cookie")
+  await test("the sub-path is uncacheable script", async () => {
+    const r = await whoamiAt(withSecret, both(packState(claims())))
+    assertEqual(r.headersOut["Cache-Control"], "no-store", "Cache-Control")
+    assert(String(r.headersOut["Content-Type"]).includes("javascript"), "content type")
   })
 
-  await test("an empty list when groups is not an array", async () => {
-    const data = await whoami(`cms-auth-presence-token=${fakeJwt({ groups: GNAV })}`)
-    assertEqual(JSON.stringify(data.groups), "[]", "string, not array")
+  await test("the sub-path refuses a callback that is not a bare identifier", async () => {
+    const r = await whoamiAt(withSecret, both(packState(claims())), "alert(1)")
+    assertEqual(r.returnCode, 400, "never reflected")
+  })
+
+  // The decision this whole mechanism rests on: the Watchdog's token is another
+  // app registration's, so its groups are never ours to read.
+  await test("ignores the presence token's own groups claim", async () => {
+    const data = await groupsAt(withSecret, presence({ groups: [GNAV] }))
+    assertEqual(JSON.stringify(data.groups), "[]", "not from the presence token")
+    assertEqual(data.groupsFrom, "no-cookie", "source")
+  })
+
+  await test("g:[] is a verified 'in no assigned group'", async () => {
+    const data = await groupsAt(withSecret, both(packState(claims({ g: [] }))))
+    assertEqual(JSON.stringify(data.groups), "[]", "none")
+    assertEqual(data.groupsFrom, "cookie", "still from the cookie")
+  })
+
+  await test("no cookie: no groups", async () => {
+    const data = await groupsAt(withSecret)
+    assertEqual(JSON.stringify(data.groups), "[]", "none")
+    assertEqual(data.groupsFrom, "no-cookie", "source")
+  })
+
+  await test("no secret on this box: no groups, even from a good cookie", async () => {
+    const data = await groupsAt(watchdog, both(packState(claims())))
+    assertEqual(JSON.stringify(data.groups), "[]", "fails closed")
+    assertEqual(data.groupsFrom, "no-secret", "source")
+  })
+
+  await test("a tampered payload fails the MAC", async () => {
+    const good = packState(claims())
+    const mac = good.substring(good.lastIndexOf(".") + 1)
+    const forged = b64url(JSON.stringify(claims({ g: [GNAV, "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"] }))) + "." + mac
+    const data = await groupsAt(withSecret, both(forged))
+    assertEqual(JSON.stringify(data.groups), "[]", "none")
+    assertEqual(data.groupsFrom, "bad-mac", "source")
+  })
+
+  await test("another secret (another environment) fails the MAC", async () => {
+    const data = await groupsAt(withSecret, both(packState(claims(), "some-other-secret")))
+    assertEqual(data.groupsFrom, "bad-mac", "source")
+  })
+
+  await test("no MAC at all fails the MAC", async () => {
+    const data = await groupsAt(withSecret, both(b64url(JSON.stringify(claims()))))
+    assertEqual(data.groupsFrom, "bad-mac", "source")
+  })
+
+  await test("a signed non-JSON payload is refused", async () => {
+    const payload = b64url("not json")
+    const mac = crypto.createHmac("sha256", SECRET).update(payload).digest("base64").replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "")
+    const data = await groupsAt(withSecret, both(payload + "." + mac))
+    assertEqual(data.groupsFrom, "bad-payload", "source")
+  })
+
+  // Polaris signs its state and login-hint cookies with the same secret.
+  await test("another of Polaris's signed cookies cannot stand in (k marker)", async () => {
+    const data = await groupsAt(withSecret, both(packState({ oid: OID, g: [GNAV] })))
+    assertEqual(JSON.stringify(data.groups), "[]", "none")
+    assertEqual(data.groupsFrom, "wrong-kind", "source")
+  })
+
+  await test("an unknown payload version is refused", async () => {
+    const data = await groupsAt(withSecret, both(packState(claims({ v: 2 }))))
+    assertEqual(data.groupsFrom, "wrong-version", "source")
+  })
+
+  await test("a cookie for another reader is refused", async () => {
+    const data = await groupsAt(withSecret, both(packState(claims({ oid: OTHER_OID }))))
+    assertEqual(JSON.stringify(data.groups), "[]", "none")
+    assertEqual(data.groupsFrom, "oid-mismatch", "source")
+  })
+
+  await test("no presence token to bind to: refused", async () => {
+    const data = await groupsAt(withSecret, handover(packState(claims())))
+    assertEqual(JSON.stringify(data.groups), "[]", "none")
+    assertEqual(data.groupsFrom, "oid-mismatch", "source")
   })
 
   // The list is reflected into an executable JSONP body. Only GUIDs get through.
   await test("drops anything that is not a GUID", async () => {
-    const data = await whoami(`cms-auth-presence-token=${fakeJwt({ groups: [GNAV, "</script><script>alert(1)", 42, null] })}`)
+    const data = await groupsAt(withSecret, both(packState(claims({ g: [GNAV, "</script><script>alert(1)", 42, null] }))))
     assertEqual(JSON.stringify(data.groups), JSON.stringify([GNAV]), "junk filtered")
   })
 
+  await test("a non-array g is no groups", async () => {
+    const data = await groupsAt(withSecret, both(packState(claims({ g: GNAV }))))
+    assertEqual(JSON.stringify(data.groups), "[]", "string, not array")
+  })
+
   await test("lower-cases IDs so a client compares like with like", async () => {
-    const data = await whoami(`cms-auth-presence-token=${fakeJwt({ groups: [GNAV.toUpperCase()] })}`)
+    const data = await groupsAt(withSecret, both(packState(claims({ g: [GNAV.toUpperCase()] }))))
     assertEqual(JSON.stringify(data.groups), JSON.stringify([GNAV]), "lower-cased")
   })
 
-  // The log is a different audience from the response: op and environment only.
-  await test("never logs a group ID", async () => {
-    await whoami(`cms-auth-presence-token=${fakeJwt({ groups: [GNAV] })}`)
+  // The base path keeps answering until clients move; the cookie never reaches it
+  // in a browser, but if it did the answer would be the same.
+  await test("the base path's ?op=whoami still answers, through the same code", async () => {
+    const r = jsonpRequest({ op: "whoami", callback: "cb" }, both(packState(claims())))
+    await withSecret.handlePresenceJsonp(r)
+    const data = unwrap(r)
+    assertEqual(data.userEmail, "a@cps.gov.uk", "userEmail")
+    assertEqual(data.groupsFrom, "cookie", "same reader")
+  })
+
+  // The log is a different audience from the response: a reason and a count.
+  await test("logs where the groups came from and how many, never an ID", async () => {
+    await groupsAt(withSecret, both(packState(claims())))
     assert(!logged.some((l) => l.indexOf(GNAV) !== -1), `logged: ${logged.join(" | ")}`)
+    assert(logged.some((l) => l.indexOf("groupsFrom=cookie groups=1") !== -1), `logged: ${logged.join(" | ")}`)
   })
 
   console.log("\n" + "=".repeat(60))

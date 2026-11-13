@@ -1,0 +1,60 @@
+diff --git a/polaris-terraform/main-terraform/proxy/config/features/auth-handover.drop2.entra/APP-SETTINGS.md b/polaris-terraform/main-terraform/proxy/config/features/auth-handover.drop2.entra/APP-SETTINGS.md
+index a1f0936..14591e5 100644
+--- a/polaris-terraform/main-terraform/proxy/config/features/auth-handover.drop2.entra/APP-SETTINGS.md
++++ b/polaris-terraform/main-terraform/proxy/config/features/auth-handover.drop2.entra/APP-SETTINGS.md
+@@ -30,6 +30,9 @@ with `polaris_auth_handover=drop2`):
+   strands users on a Microsoft error page — the one blocking misconfiguration);
+ - the MDS delegated permission on our app reg, with our client **pre-authorised** on the MDS app reg
+   (MDS terraform `global_components_client_id`) for consent;
++- the `groups` optional claim on the id_token, with `groupMembershipClaims: ApplicationGroup`, on our
++  app reg, for the handover claims cookie (QUIRKS E15). Verified on `8d6133af` and `295ecc3c`
++  (2026-11-13); without it the cookie carries `g: []` (nothing switched on), not an error;
+ - Graph `openid profile offline_access` usable without a prompt. Neither `8d6133af` nor `295ecc3c`
+   has a tenant-wide grant for them (2026-10-27), yet silent sign-in works on pre-prod, so the tenant
+   allows them; confirm on prod's first enrolled-browser run. drop2 needs our app reg to expose **no** API (there is no
+diff --git a/polaris-terraform/main-terraform/proxy/config/features/auth-handover.drop2.entra/QUIRKS.md b/polaris-terraform/main-terraform/proxy/config/features/auth-handover.drop2.entra/QUIRKS.md
+index 6a4b16c..bdb74ef 100644
+--- a/polaris-terraform/main-terraform/proxy/config/features/auth-handover.drop2.entra/QUIRKS.md
++++ b/polaris-terraform/main-terraform/proxy/config/features/auth-handover.drop2.entra/QUIRKS.md
+@@ -351,3 +351,41 @@ its own `ok`/`degraded` line with `int=1`. A stale hint's degrade adds `hint-cle
+ 
+ **Not covered.** An env with `mds_scope = ""` skips Entra for top-level handovers, so no hint or
+ retry there. The wrong account silently winning with no hint is still invisible.
++
++### E15. 🟠 Handover claims cookie: the reader's groups for global-components' legacy clients (RPLT-246)
++
++**Why.** global-components' legacy CMS clients (Classic, Modern, DCF) run in IE mode and gate
++features on Entra group membership. Their only route to the reader's identity is the presence
++`whoami` (global-components' watchdog module), and the presence token is issued for the watchdog's
++app reg, so its groups (if any) are assigned to THEIR app, not ours. Our app reg is the one place
++groups are set up as feature switches (the web components read the same app-assigned groups via
++MSAL), and its id_token exists only in this callback (the refresh token never leaves it).
++
++**What.** In the IFRAME callback only, as soon as the code exchange succeeds (before the
++refresh-token check, so a failed swap or deposit doesn't cost the groups), `_claimsCookie` sets:
++
++| | |
++|---|---|
++| Name | `cps-handover-claims` |
++| Value | `_packState({ k: "claims", v: 1, oid, iat, g: [group ids] })` — HMAC with `ENTRA_STATE_HMAC_SECRET` |
++| Groups | the id_token's `groups` claim: app-assigned only (`groupMembershipClaims: ApplicationGroup`) |
++| Path | `/global-components/presence-jsonp/whoami` only (whoami's own sub-path: never the 3 s polls) |
++| Attributes | `HttpOnly; Secure; SameSite=Lax` |
++| Max-Age | the id_token's remaining life (`exp`), else 3600: the groups are as fresh as that token |
++
++- **No groups claim** (in no assigned group) or an **overage** pointer (`_claim_names`) → `g: []`,
++  logged (`drop2 entra claims — no groups claim [(overage)]`). Empty means "in none": every
++  consumer reads it as off.
++- **Over 1 KB** → not set, logged with the byte count (a handful of GUIDs is ~200 bytes).
++- **No `oid`** in the id_token → not set (nothing to bind it to).
++- Never logs a group id.
++
++**The contract (global-components' side).** whoami at `/global-components/presence-jsonp/whoami`
++verifies the HMAC with the same secret, requires `k === "claims"` and `v === 1`, and binds `oid` to
++the presence token's; anything else answers no groups (`groupsFrom` says why). The `k` marker stops
++the state and hint cookies (same secret) standing in for it. Rename or reshape only in step with
++global-components.
++
++**Prerequisite.** The `groups` optional claim on the id_token, with `ApplicationGroup` membership
++claims, on our app reg (`8d6133af` and `295ecc3c` both verified 2026-11-13). Without it every
++reader gets `g: []` — safe, just nothing switched on.
