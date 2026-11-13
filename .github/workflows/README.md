@@ -59,7 +59,7 @@ in `config.json`. Fallback: `./global-components.js` (same-origin sibling).
 
 | Env           | Stub target                                                                         |
 | ------------- | ----------------------------------------------------------------------------------- |
-| dev           | `https://polaris-qa-notprod.cps.gov.uk/global-components/dev/global-components.js`  |
+| dev           | `https://polaris-dev-notprod.cps.gov.uk/global-components/dev/global-components.js` |
 | test          | `https://polaris-qa-notprod.cps.gov.uk/global-components/test/global-components.js` |
 | uat           | `https://polaris-uat-notprod.cps.gov.uk/global-components/uat/global-components.js` |
 | prod          | `https://polaris.cps.gov.uk/global-components/prod/global-components.js`            |

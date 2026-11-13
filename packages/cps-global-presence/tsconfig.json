@@ -1,6 +1,6 @@
 {
   "// why": [
-    "common/*.js is plain JavaScript held to the document mode 5 floor (see",
+    "core/ and legacy/shared/ are plain JavaScript held to the document mode 5 floor (see",
     "check-syntax.js). This config does NOT compile it \u2014 nothing is emitted into",
     "the shipping path. It type-checks the JSDoc (checkJs) and generates",
     "types/*.d.ts from it, so the surface global-components would import cannot",
@@ -9,7 +9,7 @@
     "types: [] matters \u2014 without it tsc pulls in @types/node and reports",
     "unrelated errors from undici-types.",
     "",
-    "lib is ES5 + DOM: common/ must not reach for anything newer, and the floor",
+    "lib is ES5 + DOM: they must not reach for anything newer, and the floor",
     "checker enforces the runtime gaps ES5's lib does not describe.",
     "",
     "*.test.js and test-harness.js are Node, not browser code held to the",
@@ -33,9 +33,9 @@
     "module": "none"
   },
   "include": [
-    "common/*.js",
-    "legacy-apps/common/*.js",
-    "legacy-apps/common/types.d.ts"
+    "core/*.js",
+    "legacy/shared/*.js",
+    "core/wire.d.ts"
   ],
   "exclude": [
     "**/*.test.js",

@@ -66,14 +66,25 @@ global-components-deploy/
   {AZURE_STORAGE_CONTAINER}/     # Content folder (created by deploy)
     global-components.vnext.conf.template
     global-components.vnext.js
-  backups/                       # Timestamped backups (created by deploy)
+  backups/                       # Timestamped backups (created by deploy), flat file names
 ```
 
 ## Files deployed
 
-To blob storage (vnext-specific only):
-- `global-components.vnext.conf.template` - vnext nginx location blocks
-- `global-components.vnext.js` - njs module for vnext features (state, token validation)
+To blob storage (vnext-specific only), both in the module's own features folder:
+- `features/global-components.vnext/global-components.vnext.js` - njs module for vnext features (uploaded first)
+- `features/global-components.vnext/global-components.vnext.conf.template` - vnext nginx location blocks
+
+**New-generation proxy config only.** The proxy App Service boots the refactored
+config (Polaris repo, `proxy/config/`, Startup Command `sh /etc/nginx/templates/start-next.sh`),
+which loads only `features/*/*.conf`. Each module's conf and `.js` live together in
+`features/global-components.<x>/`; the conf does
+`js_import templates/features/global-components.<x>/global-components.<x>.js`. The mapping
+lives in `blob_name()`, and each `.js` is uploaded before its conf. Nothing of ours is
+written to the container root; `scripts/deploy.local.sh` removes the old root copies.
+
+`rollback.sh` refuses a backup taken before this layout (its confs import a root `.js`);
+restore one of those by hand.
 
 As app settings:
 - `GLOBAL_COMPONENTS_APPLICATION_ID`

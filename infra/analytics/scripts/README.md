@@ -22,6 +22,13 @@ isn't tracked in git — `GloCo_UserDimension`.
 ./functions-deploy.sh --prune                # list deployed GloCo_ functions with no .kql in ../kql; delete on y
 ```
 
+**Two workspaces.** The scripts above act on the legacy workspace (`la-global-nav-dev`) by default. Prefix
+with `ANALYTICS_TARGET=prod` to act on `la-global-nav` instead (needs the `PROD_*` values in `.env`; see
+`target.sh`). Each target has its own export file. The same `.kql` files deploy to both, except the
+primitives (`GloCo__AppPageViews`, `GloCo__AppEvents`, `GloCo__AppExceptions`): prod's versions live in
+`../kql/prod/` and union in the legacy workspace's data. `functions-deploy.sh` swaps in the prod version
+for the prod target and refuses to send one to dev.
+
 `../kql/` is the source of truth for which functions exist. Removing a function = delete its `.kql`,
 then run `--prune` AFTER deploying everything else, so nothing is deleted while a function that still
 calls it is live. `GloCo_UserDimension` is deployed-only by design and is never pruned.

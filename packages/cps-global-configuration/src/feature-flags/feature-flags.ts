@@ -50,15 +50,9 @@ const shouldEnableAccessibilityMode = ({ config, preview, flags, auth, authHint 
   getFeatureFlagAssignment({ auth, authHint, config }, "FEATURE_FLAG_ACCESSIBILITY_MODE_USERS").result;
 
 // Used by the DOM subscriber that swaps host <footer>s for cps-global-footer.
-// FOOTER_SHIM_ENABLED is the env-config GA gate (on for everyone); it ORs with
-// the per-user preview opt-in and the local-dev default, so flipping it to false
-// reverts to preview opt-ins + local dev only — the pre-GA behaviour — without a
-// code change.
-const shouldShimFooter = ({ config, preview, flags }: Pick<FlagInputs, "config" | "preview" | "flags">) =>
-  !!config.FOOTER_SHIM_ENABLED || !!preview?.result?.footer || !!flags?.isLocalDevelopment;
-
-const shouldShowGovUkRebrand = ({ preview, config }: FlagInputs): Preview["newHeader"] =>
-  preview?.result?.newHeader ?? config.SHOW_HEADER_REBRAND;
+// FOOTER_SHIM_ENABLED is the env-config switch (on in prod only); it ORs with the
+// local-dev default. There is no per-user preview opt-in any more.
+const shouldShimFooter = ({ config, flags }: Pick<FlagInputs, "config" | "flags">) => !!config.FOOTER_SHIM_ENABLED || !!flags?.isLocalDevelopment;
 
 const shouldShowRecentCases = ({ preview, flags }: FlagInputs) =>
   !!preview?.result?.myRecentCasesOnHeader || !!flags?.isLocalDevelopment;
@@ -82,56 +76,55 @@ const accessibilityStatementLink = ({ config }: FlagInputs) => ({
   url: config.ACCESSIBILITY_STATEMENT_URL,
 });
 
-const shouldShowHomePageNotification = ({ config, auth, authHint, preview }: FlagInputs) =>
-  !!preview?.result?.homePageNotification ||
-  !getFeatureFlagAssignment({ auth, authHint, config }, "FEATURE_FLAG_MENU_USERS").result;
-
 // Whether to use full-page MSAL redirect (loginRedirect) instead of the
-// silent / popup cascade. Two paths to opt-in:
-//   - preview override (preview.result.useFullPageMsalRedirect) — for ad-hoc
-//     testing without a config push
-//   - eligibility (and any variant bucketing) under FEATURE_FLAG_USE_MSAL_FULL_REDIRECT_USERS
+// silent SSO cascade. FEATURE_FLAG_USE_MSAL_FULL_REDIRECT_USERS decides (GA in
+// test, uat and prod; a variant share in dev). The preview forceSilentSso opt-out
+// always wins, so the silent branch can still be exercised by hand.
 // Evaluated by the host before initialising auth, and by the handover bundle
 // before doing any preemptive AD validation on the OS handover paths.
 const shouldUseFullPageMsalRedirect = ({ config, preview, auth, authHint }: FlagInputs): boolean =>
-  !!preview?.result?.useFullPageMsalRedirect ||
-  getFeatureFlagAssignment({ auth, authHint, config }, "FEATURE_FLAG_USE_MSAL_FULL_REDIRECT_USERS").result;
+  !preview?.result?.forceSilentSso && getFeatureFlagAssignment({ auth, authHint, config }, "FEATURE_FLAG_USE_MSAL_FULL_REDIRECT_USERS").result;
 
-const shouldEnableCaseLocking = ({ config, preview, auth, authHint }: FlagInputs) =>
-  !!config.CASE_LOCKING_API_URL &&
-  (!!preview?.result?.caseLocking ||
-    getFeatureFlagAssignment({ auth, authHint, config }, "FEATURE_FLAG_CASE_LOCKING_USERS").result);
+// THE COHORT IS THE ONLY SWITCH. There used to be a caseLocking preview flag as a
+// per-user way in; it was dropped on 2026-11-06 along with caseLockingNotifications,
+// so whether presence runs is now purely an environment decision: on in QA and dev
+// (generallyAvailable), off in UAT, and off in prod for want of an API URL.
+const shouldEnableCaseLocking = ({ config, auth, authHint }: FlagInputs) =>
+  !!config.CASE_LOCKING_API_URL && getFeatureFlagAssignment({ auth, authHint, config }, "FEATURE_FLAG_CASE_LOCKING_USERS").result;
 
-// Everything the user actually SEES — the pinned banner and the interruption card
-// — separately from the registration above. Requires the feature to be on at all,
-// so this cannot resurrect presence for someone the config excludes: it only ever
-// hides, never enables.
-//
-// The two surfaces share one flag because they are no longer alternatives. Which
-// one appears is decided by the section: see INTERRUPTING_REGION_CODES in
-// cps-global-case-locking-interstitial.
-const shouldShowCaseLockingNotifications = (inputs: FlagInputs) =>
-  shouldEnableCaseLocking(inputs) && !!inputs.preview?.result?.caseLockingNotifications;
+// THERE IS NO SEPARATE "SHOW" FLAG. The banner and the interruption card appear
+// whenever case locking is on and somebody else is genuinely on the case (or the
+// case is locked). There used to be a caseLockingNotifications preview flag that
+// hid them while presence registered regardless; it was dropped on 2026-11-06
+// because counting yourself already does that job — with the flag below off, a
+// QA user alone on a case has nobody to be told about, so nothing appears.
 
 // Count ourselves among the present users. Off by default, because in production
 // telling someone they are viewing the case they are looking at is noise. On, a
 // lone developer can see the banner without a second person — which is the only
-// way to tell a working mechanism from a broken one single-handed.
+// way to tell a working mechanism from a broken one single-handed. Classic and
+// Modern apply the same rule (CCPPreview's countSelf).
 const shouldCountSelfInCaseLocking = ({ preview }: FlagInputs) => !!preview?.result?.caseLockingCountSelf;
+
+// The "Open in CMS…" dropdown offering CMS Classic and CMS Modern. The cohort is the
+// per-env switch (on where the proxy can drive CMS Modern); the preview flag lets a
+// user opt in anywhere else, and local dev always has it.
+const shouldShowOpenInCmsModern = ({ config, preview, flags, auth, authHint }: FlagInputs) =>
+  !!preview?.result?.openInCmsModern ||
+  !!flags?.isLocalDevelopment ||
+  getFeatureFlagAssignment({ auth, authHint, config }, "FEATURE_FLAG_OPEN_IN_CMS_MODERN_USERS").result;
 
 export const FEATURE_FLAGS = {
   shouldShowCaseDetails,
   shouldEnableAccessibilityMode,
   shouldShimFooter,
-  shouldShowGovUkRebrand,
   shouldShowRecentCases,
   shouldShowMenu,
   surveyLink,
   reportIssueLink,
   accessibilityStatementLink,
-  shouldShowHomePageNotification,
   shouldUseFullPageMsalRedirect,
   shouldEnableCaseLocking,
-  shouldShowCaseLockingNotifications,
   shouldCountSelfInCaseLocking,
+  shouldShowOpenInCmsModern,
 };

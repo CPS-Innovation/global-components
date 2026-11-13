@@ -1,4 +1,5 @@
 export {
+  CASE_LOCKING_REGION_CODES,
   configSchema,
   type CmsAuthStorageKeys,
   type Config,
@@ -58,7 +59,6 @@ export {
 export { assignBuckets } from "./feature-flags/assign-buckets";
 export {
   deriveCspRequirements,
-  deriveHandoverPagePolicy,
   mergeCspRequirements,
   groupByDirective,
   formatCspPolicy,

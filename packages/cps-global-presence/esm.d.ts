@@ -1,10 +1,10 @@
 /**
  * The module surface of dist/esm/index.js, which build.sh generates.
  *
- * Hand-written and deliberately small. The generated types/ describe common/ as
+ * Hand-written and deliberately small. The generated types/ describe core/ as
  * GLOBALS (that is how the legacy bundles consume it); this describes the same
- * code as an ES module, which is how the web components consume it. Keep the two
- * exports here in step with ESM_EXPORTS in build.sh — the list is short precisely
+ * code as an ES module, which is how the web components consume it. Keep the
+ * exports here in step with bundles.esm.exports in bundles.json — the list is short precisely
  * so that staying in step is easy.
  */
 declare module "cps-global-presence" {
@@ -13,13 +13,98 @@ declare module "cps-global-presence" {
    * isolate by suffixing every section kind, so we must use the same suffix as the
    * Classic client or be invisible to it. Wire-only: on when registering, off when
    * a kind is read back.
+   *
+   * DISCOVERED, not configured: each client learns the environment at runtime and
+   * adopt()s it before registering anything. Ours comes from the session hint we
+   * already fetch at boot (see initialise-case-locking); the two legacy CMS
+   * clients ask the proxy's whoami op for it.
    */
   export const CCPEnvironment: {
-    CIN: string;
+    /**
+     * The suffix in force. null means NOT YET KNOWN; "" means known, and that this
+     * environment takes none. The difference matters: naming a section while the
+     * answer is still missing joins a room nobody is in, which looks exactly like
+     * working presence on a quiet case. Assign directly only in tests.
+     */
+    CIN: string | null;
+    /** Whether anyone has said which environment this is. */
+    known(): boolean;
+    /**
+     * Take a cmsEnv label as the answer, mapping it through suffixFor. Set-once: a
+     * later label meaning the same suffix is accepted, a different one is REFUSED
+     * (false) because the roster is already keyed under the first.
+     *
+     * Known-ness is the CALLER's assertion, so adopt("") means "known, no suffix" —
+     * a source's own unknown-empty must be filtered out before it gets here.
+     */
+    adopt(label: string | null | undefined): boolean;
+    /** The mapping all three clients share: "CIN3" -> "CIN3", "CMS" -> "", else "". */
+    suffixFor(label: string | null | undefined): string;
+    /** "cin3.cps.gov.uk" -> "CIN3". For clients holding the session hint itself. */
+    labelFor(domain: string | null | undefined): string;
     /** "CASE" -> "CASE_CIN3". Never doubles an existing suffix. */
     suffixKind(kind: string | undefined): string;
     /** "CASE_CIN3" -> "CASE". Strips only our own instance's suffix. */
     baseKind(kind: string | undefined): string;
+  };
+
+  /** The section kinds as the API names them. Config region codes are the lower-case forms. */
+  export const CCPKinds: { CASE: "CASE"; CASE_REVIEW: "CASE_REVIEW"; VICTIM_WITNESS: "VICTIM_WITNESS"; DEFENDANT: "DEFENDANT" };
+
+  /** Section identity: the id we register under, and the key the roster files snapshots by. */
+  export const CCPSections: {
+    /** How often every client touches each section's session; the Watchdog evicts after 10s of silence. */
+    HEARTBEAT_MS: number;
+    /** "544545:CASE" or "544545:VICTIM_WITNESS:98765"; null with no case or kind. */
+    sectionId(caseId: string | number | null | undefined, kind: string | null | undefined, subjectId?: string | number | null): string | null;
+  };
+
+  /** One section of a snapshot, as the API names it. */
+  export type CCPWireSection = { caseId?: string | number | null; kind?: string | null; subjectId?: string | number | null };
+  export type CCPNotification = {
+    type?: number;
+    payload?: { snapshots?: { section?: CCPWireSection; version?: number; members?: CCPMember[] }[] };
+  };
+
+  /**
+   * Who is present, per section, from the API's notifications: version-guarded,
+   * and attributed to the section of ours that delivered each roster.
+   */
+  export const CCPRoster: {
+    createRoster(): {
+      /** True only when a roster actually changed. */
+      apply(notifications: CCPNotification[] | null | undefined, via?: string): boolean;
+      /** Every snapshot held, by section id. */
+      sections(): Record<string, { caseId: string; kind: string; subjectId: string; version: number; members: CCPMember[] }>;
+      /**
+       * Every member record, flattened. A record's section isCurrent when it is one of
+       * ourSectionIds; kinds lose the CIN suffix; caseId keeps only that case.
+       */
+      members(ourSectionIds?: string[], caseId?: string): (CCPMember & { userEmail: string; sections: CCPSection[] })[];
+      forget(sectionId: string): boolean;
+      /** Take the next snapshot of every section whatever its version (a new session). */
+      rewind(): void;
+      clear(): void;
+    };
+  };
+
+  /**
+   * A person's name from the address the presence API reports. Rules come from a
+   * survey of every enabled Entra account; see core/names.js.
+   */
+  export const CCPNames: {
+    /** The domains whose addresses are people's names. */
+    STAFF_DOMAINS: string[];
+    /** Capitalise each run of letters, leaving a mixed case as typed. */
+    capitalise(part: string): string;
+    /** "mary-jane.o'brien2@cps.gov.uk" -> { given: "Mary-Jane", surname: "O'Brien" }; null when not a name. */
+    parse(email: string | null | undefined): { given: string; surname: string } | null;
+    /** "Mary-Jane O'Brien", or the address unchanged when it is not a name; "" when absent. */
+    displayName(email: string | null | undefined): string;
+    /** Letters only, lower-cased: "O'Brien-Smith" -> "obriensmith". */
+    letters(text: string | null | undefined): string;
+    /** Is this address the person CMS names? False when unsure (see core/names.js). */
+    matches(email: string | null | undefined, firstNames: string | null | undefined, surname: string | null | undefined): boolean;
   };
 
   export const CCPApps: {
@@ -107,5 +192,75 @@ declare module "cps-global-presence" {
      * is not known yet.
      */
     others<T extends { userEmail?: string }>(members: T[] | undefined, viewerEmail: string | undefined): T[];
+  };
+
+  /**
+   * What a presence banner shows, for all three UIs: who, the summary, and one
+   * line per person (never per section).
+   */
+  export const CCPView: {
+    build(options: {
+      members: CCPMember[] | undefined;
+      /** The reader; empty or absent means unknown, and then nobody is filtered or marked. */
+      viewerEmail?: string;
+      /** Keep the reader in, marked "(current user)". */
+      countSelf?: boolean;
+      /**
+       * The case lock, only when the case IS locked. Leads the summary and the lines,
+       * folded into its holder's own line when exactly one person present is them.
+       * Only the web components know it.
+       */
+      lock?: { firstNames?: string; surname?: string; application?: string; since?: string };
+      formatTime?: (timeEntered: string | undefined) => string | undefined;
+    }): { people: CCPPerson[]; count: number; includesSelf: boolean; summary: string; lockedByReader: boolean; lines: string[] };
+  };
+
+  /**
+   * EVERY SENTENCE PRESENCE SHOWS, for all three UIs. The web component's wording,
+   * which Modern had been tracking by hand and Classic had never matched at all.
+   * Assembles words from pieces the caller derived; it reads no data of its own.
+   */
+  export const CCPContent: {
+    /** What the banner says as it goes away. Only the web component announces it. */
+    ALL_CLEAR: string;
+    /** The collapsed/expanded toggle all three surfaces carry. */
+    DETAILS_SHOW: string;
+    DETAILS_HIDE: string;
+    detailsToggle(expanded: boolean): string;
+    /** Locked, with nobody to report. */
+    LOCKED_ONLY: string;
+    /** Locked by the reader themselves. */
+    LOCKED_BY_READER: string;
+    /**
+     * The one line before anything is opened. "other" is dropped when the count
+     * includes the reader; the lock, when known, leads and presence follows as a
+     * subordinate clause. The legacy clients never pass `locked` — neither can know.
+     */
+    summary(people: number, includesSelf: boolean, locked?: boolean, lockedByReader?: boolean): string;
+    /**
+     * One application: "RCMS since 3.38pm on 8 September 2026", or just the
+     * application when there is no time to give.
+     *
+     * `since` IS WIDE ON PURPOSE. The two real formatters express "nothing usable"
+     * differently — CCPJoined.format returns "", and the web components'
+     * formatJoined maps that to undefined — and this treats either the same way, so
+     * neither caller needs a conversion at the call site to satisfy the other.
+     */
+    appClause(appDisplayName: string, since: string | undefined): string;
+    /** Every application one person is in, as one clause. */
+    where(
+      apps: { appDisplayName: string; timeEntered?: string }[] | undefined,
+      format: (timeEntered: string | undefined) => string | undefined,
+    ): string;
+    /** "has this case locked in CMS Classic since 3.38pm"; parts dropped when unknown. Web components only. */
+    lockClause(application: string, since: string | undefined, byReader?: boolean): string;
+    /** The lock on a line of its own: "Jane Doe has this case locked ...". "Someone" when unnamed; "You have ..." when byReader. */
+    lockLine(holder: string, application: string, since: string | undefined, byReader?: boolean): string;
+    /**
+     * One person as a sentence: "A Name is in the case review — RCMS since ...". With
+     * `lock` (from lockClause) the lock comes first: "A Name has this case locked ...,
+     * and is in the case review — RCMS since ...".
+     */
+    personLine(name: string, sections: string, where: string, lock?: string): string;
   };
 }

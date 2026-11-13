@@ -1,4 +1,4 @@
-import { describeCaseLock, getCaseLock } from "./get-case-lock";
+import { describeCaseLock, getCaseLock, isLockedByReader } from "./get-case-lock";
 import { CaseDetails } from "../data/CaseDetails";
 import { Result } from "../../utils/Result";
 
@@ -19,7 +19,7 @@ describe("getCaseLock", () => {
     const lock = getCaseLock(
       found({ locking: { locked: true, byFirstNames: "John", bySurname: "Smith", application: "Work Management App", since: "2026-09-10T09:00:00Z" } }),
     );
-    expect(lock).toEqual({ locked: true, by: "John Smith", application: "RCMS", since: "2026-09-10T09:00:00Z" });
+    expect(lock).toEqual({ locked: true, by: "John Smith", firstNames: "John", surname: "Smith", application: "RCMS", since: "2026-09-10T09:00:00Z" });
   });
 
   // The API's application vocabulary is the backend's, not the user's — the same
@@ -47,7 +47,7 @@ describe("getCaseLock", () => {
   // missing block must read as "not locked" rather than throwing.
   it("survives a payload with no locking information at all", () => {
     expect(getCaseLock(found({ isLocked: null, locking: null }))?.locked).toBe(false);
-    expect(getCaseLock(found({}))).toEqual({ locked: false, by: "", application: "", since: undefined });
+    expect(getCaseLock(found({}))).toEqual({ locked: false, by: "", firstNames: "", surname: "", application: "", since: undefined });
   });
 });
 
@@ -60,21 +60,36 @@ describe("describeCaseLock", () => {
   // time formatting, which has its own tests.
   it("reads as one sentence", () => {
     expect(describeCaseLock(lockedBy({ byFirstNames: "John", bySurname: "Smith", application: "Work Management App" }))).toBe(
-      "John Smith is locking this case in RCMS.",
+      "John Smith has this case locked in RCMS.",
     );
   });
 
   // An incomplete record degrades to a shorter TRUE sentence rather than one with
   // a hole in it — the API does not promise us every field.
   it("drops the clauses the API did not send", () => {
-    expect(describeCaseLock(lockedBy({ byFirstNames: "John", bySurname: "Smith" }))).toBe("John Smith is locking this case.");
-    expect(describeCaseLock(lockedBy({ application: "Casework App" }))).toBe("Someone is locking this case in RCMS.");
-    expect(describeCaseLock(lockedBy({}))).toBe("Someone is locking this case.");
+    expect(describeCaseLock(lockedBy({ byFirstNames: "John", bySurname: "Smith" }))).toBe("John Smith has this case locked.");
+    expect(describeCaseLock(lockedBy({ application: "Casework App" }))).toBe("Someone has this case locked in RCMS.");
+    expect(describeCaseLock(lockedBy({}))).toBe("Someone has this case locked.");
   });
 
   // "" so a caller can omit the line entirely rather than render an empty paragraph.
   it("says nothing when there is no lock", () => {
     expect(describeCaseLock(undefined)).toBe("");
     expect(describeCaseLock(getCaseLock(found({ isLocked: false })))).toBe("");
+  });
+});
+
+describe("the reader's own lock", () => {
+  const lock = getCaseLock({ found: true, result: { locking: { locked: true, byFirstNames: "Jane", bySurname: "Doe", application: "CMS Classic" } } } as any);
+
+  it("is said as 'You have this case locked'", () => {
+    expect(isLockedByReader(lock, "jane.doe@cps.gov.uk")).toBe(true);
+    expect(describeCaseLock(lock, "jane.doe@cps.gov.uk")).toBe("You have this case locked in CMS Classic.");
+  });
+
+  it("names the holder for anyone else, or an unknown reader", () => {
+    expect(describeCaseLock(lock, "ann.other@cps.gov.uk")).toBe("Jane Doe has this case locked in CMS Classic.");
+    expect(describeCaseLock(lock, undefined)).toBe("Jane Doe has this case locked in CMS Classic.");
+    expect(isLockedByReader(undefined, "jane.doe@cps.gov.uk")).toBe(false);
   });
 });

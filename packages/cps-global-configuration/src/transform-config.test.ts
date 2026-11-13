@@ -127,7 +127,7 @@ describe("transformConfig", () => {
             {
               path: "/first",
               contextIds: "ctx1",
-              showNotification: true,
+              preventPageViewAnalytics: true,
             },
             {
               forceCmsAuthRefresh: true,
@@ -147,7 +147,7 @@ describe("transformConfig", () => {
     expect(result.CONTEXTS[0].msalRedirectUrl).toBe(
       "https://redirect.example.com"
     );
-    expect(result.CONTEXTS[0].showNotification).toBe(true);
+    expect(result.CONTEXTS[0].preventPageViewAnalytics).toBe(true);
     expect(result.CONTEXTS[0].forceCmsAuthRefresh).toBeUndefined();
 
     // Second context inherits from both root and intermediate node
@@ -155,7 +155,7 @@ describe("transformConfig", () => {
     expect(result.CONTEXTS[1].msalRedirectUrl).toBe(
       "https://redirect.example.com"
     );
-    expect(result.CONTEXTS[1].showNotification).toBeUndefined();
+    expect(result.CONTEXTS[1].preventPageViewAnalytics).toBeUndefined();
     expect(result.CONTEXTS[1].forceCmsAuthRefresh).toBe(true);
   });
 
@@ -176,7 +176,7 @@ describe("transformConfig", () => {
                 {
                   path: "/first",
                   contextIds: "ctx1",
-                  showNotification: true,
+                  preventPageViewAnalytics: true,
                 },
               ],
             },
@@ -192,7 +192,7 @@ describe("transformConfig", () => {
     expect(result.CONTEXTS[0].msalRedirectUrl).toBe(
       "https://child.example.com"
     );
-    expect(result.CONTEXTS[0].showNotification).toBe(true);
+    expect(result.CONTEXTS[0].preventPageViewAnalytics).toBe(true);
   });
 
   test("preserves order with multiple root-level context nodes", () => {

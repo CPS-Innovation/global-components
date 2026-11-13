@@ -12,8 +12,9 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 source "${SCRIPT_DIR}/.env"
+source "${SCRIPT_DIR}/target.sh"
 
-DEPLOYED="${SCRIPT_DIR}/output/deployed-functions.json"
+DEPLOYED="${SCRIPT_DIR}/output/${DEPLOYED_FILE}"
 KQLDIR="${SCRIPT_DIR}/../kql"
 
 # Deployed on purpose with no .kql in the repo (it contains emails / ObjectIds): never pruned.
@@ -59,7 +60,7 @@ if [[ "${1:-}" == "--prune" ]]; then
     echo "Deleted: ${ALIAS}"
   done
   "${SCRIPT_DIR}/functions-export.sh" < /dev/null > /dev/null
-  echo "Done: re-exported deployed-functions.json"
+  echo "Done: re-exported ${DEPLOYED_FILE}"
   exit 0
 fi
 
@@ -76,12 +77,26 @@ if [[ ! -f "$DEPLOYED" ]]; then
 fi
 
 ALIAS=$(basename "$INFILE" .kql)
+
+# ../kql/prod/ holds the prod-only versions of functions that differ per workspace (the primitives that
+# union in the legacy workspace). Make sure each workspace only ever gets its own version.
+PROD_OVERRIDE="${KQLDIR}/prod/${ALIAS}.kql"
+if [[ "${ANALYTICS_TARGET:-dev}" == "prod" ]]; then
+  if [[ -f "$PROD_OVERRIDE" && ! "$INFILE" -ef "$PROD_OVERRIDE" ]]; then
+    echo "→ ${ALIAS} has a prod version: deploying ${PROD_OVERRIDE} instead"
+    INFILE="$PROD_OVERRIDE"
+  fi
+elif [[ "$INFILE" -ef "$PROD_OVERRIDE" ]]; then
+  echo "Error: ${INFILE} is the prod version of ${ALIAS}. Use ANALYTICS_TARGET=prod, or deploy ../kql/${ALIAS}.kql" >&2
+  exit 1
+fi
+
 TMP_REMOTE="/tmp/deploy-fn-$$-${ALIAS}.kql"
 
 EXISTING=$(jq --arg a "$ALIAS" '[.[] | select(.functionAlias == $a)] | .[0]' "$DEPLOYED")
 
 if [[ "$EXISTING" == "null" ]]; then
-  echo "→ ${ALIAS} not in deployed-functions.json — will create as new function"
+  echo "→ ${ALIAS} not in ${DEPLOYED_FILE} — will create as new function"
   echo "  category    = GloCo"
   echo "  displayName = ${ALIAS}"
   read -r -p "Proceed? [y/N] " REPLY
@@ -104,7 +119,8 @@ fi
 echo "→ ${AWS_REMOTE}"
 echo "→ ${ACTION} ${ALIAS} (id=${SAVED_ID}, category=${CATEGORY})"
 
-scp -q "$INFILE" "${AWS_REMOTE}:${TMP_REMOTE}"
+# Ids are kept out of the repo: fill the placeholder the prod primitives carry.
+sed "s/__LEGACY_WORKSPACE_ID__/${LEGACY_WORKSPACE_ID}/g" "$INFILE" | ssh "$AWS_REMOTE" "cat > '${TMP_REMOTE}'"
 
 ssh "$AWS_REMOTE" "
   set -euo pipefail

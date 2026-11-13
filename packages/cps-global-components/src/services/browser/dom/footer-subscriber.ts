@@ -9,6 +9,8 @@ import { DomMutationObserver } from "./DomMutationObserver";
 const EMAIL_REGEX = /[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/;
 const OBSERVED_MARKER = "cpsFooterEmailObserved";
 
+const IGNORED_FOOTER_CLASS = "cps-component-footer";
+
 // During a host SPA route transition the header is briefly hidden or
 // zero-sized (display:none flash, parent collapsing, mid-paint state). The
 // ResizeObserver faithfully fires with that tiny rect and — left unguarded —
@@ -21,6 +23,11 @@ export const MIN_REAL_HEADER_WIDTH_PX = 100;
 // footer is re-anchored (not recreated) across SPA navigations, so once the
 // permanent header-watcher is bound to a given footer instance we're done.
 const widthSyncWired = new WeakSet<HTMLElement>();
+
+// Documents we have already reported a footer-shimmed event for. One event per
+// page load is enough to tell which apps get shimmed — SPA hosts remount their
+// <footer> on navigation and would otherwise send one per route change.
+const shimReported = new WeakSet<Document>();
 
 const extractEmail = (el: Element) => el.textContent?.match(EMAIL_REGEX)?.[0];
 
@@ -93,11 +100,16 @@ const wireWidthSync = (cpsGlobalFooter: HTMLElement, doc: Document, win: Window)
   checkAndBindHeader();
 };
 
-export const footerSubscriber: DomMutationObserver = ({ preview, flags, config, window }) => ({
-  isActiveForContext: FEATURE_FLAGS.shouldShimFooter({ config, preview, flags }),
+export const footerSubscriber: DomMutationObserver = ({ context, flags, config, window, trackEvent }) => ({
+  isActiveForContext: FEATURE_FLAGS.shouldShimFooter({ config, flags }),
   subscriptions: [
     {
-      cssSelector: "footer",
+      // Host apps can use <footer> for things that aren't the page footer
+      // (sidebars, modals, cards). Agreed contract: host apps mark those with
+      // `.cps-component-footer` and we leave them alone. The class must be
+      // present when the element is rendered - if it's added later we'll
+      // already have hidden it and re-anchored cps-global-footer next to it.
+      cssSelector: `footer:not(.${IGNORED_FOOTER_CLASS})`,
       handler: (element: HTMLElement) => {
         let cpsGlobalFooter = element.ownerDocument.querySelector<HTMLCpsGlobalFooterElement>("cps-global-footer");
         if (!cpsGlobalFooter) {
@@ -129,6 +141,10 @@ export const footerSubscriber: DomMutationObserver = ({ preview, flags, config, 
         }
         wireWidthSync(cpsGlobalFooter, element.ownerDocument, window);
         element.style.display = "none";
+        if (!shimReported.has(element.ownerDocument)) {
+          shimReported.add(element.ownerDocument);
+          trackEvent({ name: "footer-shimmed", contextIds: context.contextIds });
+        }
       },
     },
   ],

@@ -1,0 +1,120 @@
+@use "../common/common.scss" as *;
+
+// Sits as a direct child of the level-2 <ul>, pushed right like the single
+// "Open in CMS Classic" link it replaces.
+cps-global-open-in-cms {
+  display: block;
+  margin-left: auto;
+  align-self: stretch;
+}
+
+.open-in-cms-dropdown {
+  list-style: none;
+  position: relative;
+  height: 100%;
+  display: flex;
+  align-items: center;
+}
+
+// Doubled class so we beat .linkButton's display/margin whichever stylesheet lands last
+.open-in-cms-dropdown .open-in-cms-dropdown__trigger {
+  // .linkButton (cps-global-menu.scss) supplies the font, colour and GOV.UK focus style
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4em;
+  margin: 0 0 0 $level-height / 5;
+  white-space: nowrap;
+}
+
+// em-sized so it scales with the text under zoom
+.open-in-cms-dropdown__chevron {
+  width: 0.65em;
+  height: 0.45em;
+  flex: none;
+  transition: transform 0.1s ease-in-out;
+
+  [aria-expanded="true"] > & {
+    transform: rotate(180deg);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    transition: none;
+  }
+}
+
+.open-in-cms-dropdown__panel {
+  position: absolute;
+  z-index: 1000;
+  top: 100%;
+  right: 0;
+  box-sizing: border-box;
+  // The prototype's 250px, but never wider than the viewport: under extreme zoom the
+  // labels wrap rather than run off the screen
+  min-width: min(15.625rem, calc(100vw - 2rem));
+  max-width: calc(100vw - 2rem);
+  padding: 5px 0 10px;
+  display: flex;
+  flex-direction: column;
+  background: govuk-colour("light-grey");
+  border-top: 5px solid $govuk-link-colour;
+  // Transparent sides become visible in Windows high-contrast (forced colours), where
+  // the shadow and background that otherwise mark the panel's edge are dropped
+  border-left: 1px solid transparent;
+  border-right: 1px solid transparent;
+  border-bottom: 1px solid transparent;
+  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.2);
+
+  &[hidden] {
+    display: none;
+  }
+}
+
+// Themed like the level-1 menu band: grey ordinarily, the brand's pale and strong
+// colours under the GOV.UK rebrand. cps-global-header puts govuk-template--rebranded
+// (and cps-theme, which re-points the vars at CPS blues) on the wrapper around the menu.
+.govuk-template--rebranded .open-in-cms-dropdown__panel {
+  background: var(--brand-secondary-colour);
+  border-top-color: var(--brand-primary-colour);
+}
+
+// Warm low-contrast mode warms the neutral surface and leaves the accent alone, as
+// cps-global-header.scss does for the band. After the rule above so it wins on order.
+:host-context([data-grey-mode="warm"]) .open-in-cms-dropdown__panel {
+  background: #ece4d3;
+}
+
+.open-in-cms-dropdown__panel--align-start {
+  right: auto;
+  left: 0;
+}
+
+.open-in-cms-dropdown__option {
+  @include govuk-font($size: 19);
+  display: block;
+  width: 100%;
+  // min-height rather than the prototype's fixed height, so wrapped labels grow the row
+  min-height: 2.75rem;
+  padding: 0.5rem 15px;
+  margin: 0;
+  border: 0;
+  background: transparent;
+  color: $govuk-link-colour;
+  text-align: left;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  cursor: pointer;
+
+  // The prototype's #5694ca hover fails contrast on the grey; GOV.UK's hover colour doesn't
+  &:hover {
+    color: $govuk-link-hover-colour;
+    text-decoration: underline;
+  }
+
+  &:focus {
+    outline: 3px solid transparent;
+    color: $govuk-focus-text-colour;
+    background-color: $govuk-focus-colour;
+    box-shadow: inset 0 -4px $govuk-focus-text-colour;
+    text-decoration: none;
+  }
+}

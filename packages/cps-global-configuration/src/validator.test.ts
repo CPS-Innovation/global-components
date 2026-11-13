@@ -7,7 +7,7 @@ const load = (filename: string) => JSON.parse(readFileSync(join(CONFIG_DIR, file
 
 describe("transformAndValidateConfig filename check", () => {
   it("accepts an OS host variant carrying its environment's ENVIRONMENT", () => {
-    expect(transformAndValidateConfig(load("config.test.oapps.json"), "config.test.oapps.json").success).toBe(true);
+    expect(transformAndValidateConfig(load("config.test.cps.json"), "config.test.cps.json").success).toBe(true);
   });
 
   it.each(["config.uat.json", "config.uat.oapps.json"])("rejects %s when ENVIRONMENT names another environment", filename => {

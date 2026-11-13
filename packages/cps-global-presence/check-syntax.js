@@ -4,16 +4,17 @@
  * Usage: node check-syntax.js <es3|es5> <file> [file...]
  *
  * WHY THIS EXISTS
- * Shared code has to run in BOTH legacy clients. Classic (cms-auth-v2-client.js)
- * is document mode 5 — old JScript — and Modern/DCF are document mode 11. There
- * is no build tool that transpiles down to mode 5: TypeScript REMOVED its ES3
+ * Shared code has to run in BOTH legacy clients. Classic
+ * (dist/cms-augmentation/client-classic-unstable.js) is document mode 5 — old
+ * JScript — and Modern/DCF are document mode 11. There is no build tool that
+ * transpiles down to mode 5: TypeScript REMOVED its ES3
  * target (TS5108), esbuild's floor is a partial es5, and Babel can lower the
  * syntax but not the missing runtime (no JSON, no Array.prototype.forEach, no
  * Object.keys, no String.trim, no addEventListener, no delete-on-window).
  *
  * So common/ is written to the floor by hand — and this proves it, rather than
- * trusting anyone to remember. acorn is already used by build.sh for the ES5
- * gate; acorn-walk comes with it.
+ * trusting anyone to remember. acorn and acorn-walk are devDependencies of
+ * this package.
  *
  *   es3  syntax at ecmaVersion 3 (rejects const/let, arrow, trailing commas,
  *        getters in object literals) PLUS a denylist of ES5+ runtime APIs.
@@ -22,11 +23,10 @@
 var path = require("path");
 var fs = require("fs");
 
-// The workspace root, for the pnpm store paths below. Two levels up now this
-// lives in packages/ — it was five when it sat under infra/proxy/config/.
-var ROOT = path.resolve(__dirname, "../..");
-var acorn = require(path.join(ROOT, "node_modules/.pnpm/acorn@8.16.0/node_modules/acorn"));
-var walk = require(path.join(ROOT, "node_modules/.pnpm/acorn-walk@8.3.5/node_modules/acorn-walk"));
+// Declared devDependencies of this package — never reach into the pnpm store by
+// version, any lockfile change that moves acorn breaks the build.
+var acorn = require("acorn");
+var walk = require("acorn-walk");
 
 // Members and globals that document mode 5 does not have. Not exhaustive — it is
 // a net for the ones we would actually reach for. Add to it when something slips.
@@ -40,7 +40,7 @@ var BANNED_MEMBERS = [
   "some", "every", "trim", "trimStart", "trimEnd", "includes", "startsWith",
   "endsWith", "keys", "values", "entries", "assign", "freeze", "create",
   "defineProperty", "getPrototypeOf", "setPrototypeOf", "bind", "isArray",
-  "now", "querySelector", "querySelectorAll", "addEventListener",
+  "now", "toISOString", "querySelector", "querySelectorAll", "addEventListener",
   "removeEventListener", "textContent", "classList", "dataset"
 ];
 var BANNED_GLOBALS = ["JSON", "Promise", "Map", "Set", "Symbol", "WeakMap", "MutationObserver", "Proxy", "Reflect"];

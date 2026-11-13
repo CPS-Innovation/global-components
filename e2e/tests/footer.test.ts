@@ -112,4 +112,44 @@ describe("Footer", () => {
 
     expect(hasLink).toBe(false);
   });
+
+  it("leaves footers marked .cps-component-footer alone and anchors to the page footer", async () => {
+    await arrange({});
+    await act();
+
+    // A host app using <footer> inside a modal alongside the real page footer.
+    // The modal footer carries the opt-out class, so the shim must neither hide
+    // it nor anchor cps-global-footer next to it.
+    await page.evaluate(() => {
+      const modal = document.createElement("div");
+      modal.id = "host-modal";
+      const modalFooter = document.createElement("footer");
+      modalFooter.id = "host-modal-footer";
+      modalFooter.className = "cps-component-footer";
+      modalFooter.textContent = "modal footer";
+      modal.appendChild(modalFooter);
+      document.body.appendChild(modal);
+
+      const pageFooter = document.createElement("footer");
+      pageFooter.id = "host-page-footer";
+      pageFooter.textContent = "page footer";
+      document.body.appendChild(pageFooter);
+    });
+
+    // The page footer being hidden is our signal that the subscriber has run.
+    await page.waitForFunction(() => document.getElementById("host-page-footer")?.style.display === "none", { timeout: 5000, polling: 100 });
+
+    const result = await page.evaluate(() => {
+      const modalFooter = document.getElementById("host-modal-footer")!;
+      return {
+        modalFooterDisplay: window.getComputedStyle(modalFooter).display,
+        modalFooterObserved: !!modalFooter.dataset.cpsFooterEmailObserved,
+        globalFooterPrevSiblingId: document.querySelector("cps-global-footer")?.previousElementSibling?.id,
+      };
+    });
+
+    expect(result.modalFooterDisplay).not.toBe("none");
+    expect(result.modalFooterObserved).toBe(false);
+    expect(result.globalFooterPrevSiblingId).toBe("host-page-footer");
+  });
 });

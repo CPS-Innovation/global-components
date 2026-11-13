@@ -40,9 +40,10 @@ export type CspRequirement = {
  * own policy for us to function. It says nothing about 'self', 'unsafe-inline'
  * or anything else the host needs for its own sake — that is their business.
  *
- * `handoverPage` is a COMPLETE POLICY: auth-handover.html is a file we own, so
- * the profile describes everything that page's meta CSP should contain,
- * keyword sources included.
+ * `handoverPage` is what the host's policy must allow on auth-handover.html.
+ * That page carries no CSP of its own (any CSP there is the host's), but its
+ * inline bootstrap script and same-origin fetches are ours, so unlike `hostApp`
+ * it names the keyword sources they need too.
  */
 export type CspProfileName = "hostApp" | "handoverPage";
 
@@ -90,18 +91,15 @@ export const HANDOVER_INLINE_SCRIPT_REQUIREMENT: CspRequirement = {
   value: "'unsafe-inline'",
   reason:
     "The bootstrap <script> in auth-handover.html is inline. It does no eval / new Function / " +
-    "dynamic code construction — it only injects a remote <script> whose src is gated by both " +
-    "this policy and the runtime allowlist.",
+    "dynamic code construction — it only injects a remote <script> whose src is gated by this " +
+    "policy.",
 };
 
-// polaris-dev-notprod.cps.gov.uk was listed in auth-handover.html's meta CSP
-// and runtime allowlist but referenced by no configuration/*.json. It was
-// removed on 2026-09-21 by decision, not by derivation.
-//
-// Left here as a note so it is not reinstated on the assumption it was an
-// oversight. If a Polaris dev host is needed again, the fix is a committed
-// config that references it — at which point the derivation picks it up and no
-// hand-editing of the handover page is required.
+// polaris-dev-notprod.cps.gov.uk was listed in auth-handover.html's (since
+// removed) meta CSP but referenced by no configuration/*.json, so it was
+// removed on 2026-09-21. It returned on 2026-10-09 (FCT2-22288) when
+// config.dev.json moved from borrowing Polaris QA's host onto Polaris dev's
+// own — this time derived from a committed config, as it should be.
 /**
  * Hosts we used to require and no longer do.
  *

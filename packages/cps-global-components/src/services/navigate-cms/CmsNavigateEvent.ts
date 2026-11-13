@@ -1,6 +1,7 @@
 export type CmsNavigateDetail =
   | { action: "case"; caseId: number }
-  | { action: "task"; caseId: number; taskId: number };
+  | { action: "task"; caseId: number; taskId: number }
+  | { action: "modern-case"; caseId: number };
 
 export class CmsNavigateEvent extends CustomEvent<CmsNavigateDetail> {
   static type = "cps-global-cms-navigate" as const;

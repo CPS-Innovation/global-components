@@ -68,6 +68,7 @@ graph TD;
   cps-skip-links --> cps-skip-link
   cps-global-menu --> nav-link
   cps-global-menu --> cps-global-case-details
+  cps-global-menu --> cps-global-open-in-cms
   cps-global-notifications --> cps-gds-notification-banner
   cps-global-case-locking-notification --> cps-global-pinned-notification
   cps-global-pinned-notification --> cps-global-footer

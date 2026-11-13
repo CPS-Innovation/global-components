@@ -371,7 +371,7 @@ async function testBigIpCookieShim() {
   await test("does not shim a C- cookie that is not an LBsessioncookie", async () => {
     const cc = await getCcFromInit("C-CIN3-somethingelse=!Bxw")
     assert(!cc.includes("BIGipServer-shim"), `Only -LBsessioncookie cookies should shim, got: ${cc}`)
-    assertEqual(cc, "C-CIN3-somethingelse=!Bxw", "Should pass through unchanged")
+    assertEqual(cc, "", "Should be dropped by the cc whitelist")
   })
 
   await test("does not shim when a BIGipServer cookie already references that CIN", async () => {
@@ -395,8 +395,8 @@ async function testBigIpCookieShim() {
   })
 
   await test("does not alter cookie when no C-CINx cookies present", async () => {
-    const cc = await getCcFromInit("session=abc123")
-    assertEqual(cc, "session=abc123", "Should leave cookie untouched")
+    const cc = await getCcFromInit("WindowID=MASTER; UID=1; .CMSAUTH=ABC")
+    assertEqual(cc, "WindowID=MASTER; UID=1; .CMSAUTH=ABC", "Should leave cookie untouched")
   })
 }
 

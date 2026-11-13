@@ -228,6 +228,7 @@ jest.mock("./logging/makeConsole", () => ({
   // calls, a long way from the cause.
   makeConsole: () => ({
     _debug: jest.fn(),
+    _debugAlways: jest.fn(),
     _log: jest.fn(),
     _error: jest.fn(),
     _warn: jest.fn(),
@@ -1343,7 +1344,7 @@ describe("global-script", () => {
       );
     });
 
-    it("should pass preview, settings and authHint to initialiseDomObservation for accessibilitySubscriber", async () => {
+    it("should pass preview, settings, authHint and trackEvent to initialiseDomObservation", async () => {
       const testPreview = { result: { accessibility: true } };
       const testSettings = { fontSize: "large" };
       const testAuthHint = { found: true, result: { authResult: { isAuthed: true, objectId: "obj-1", groups: ["group-a"] } } };
@@ -1364,6 +1365,9 @@ describe("global-script", () => {
           preview: testPreview,
           settings: testSettings,
           authHint: testAuthHint,
+          // DOM observation is set up after analytics so subscribers can report
+          // what they do (the footer shim's footer-shimmed event).
+          trackEvent: expect.any(Function),
         }),
       );
       // accessibilitySubscriber should be in the args

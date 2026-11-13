@@ -949,7 +949,7 @@
                 {
                   "isOptional": true,
                   "name": "Query",
-                  "value": "AppExceptions\n| extend ErrorCode = strcat_array(array_slice(split(OuterMessage, \":\"), 0, 2), \":\")\n| summarize count() by ErrorCode, bin(TimeGenerated, 1d)"
+                  "value": "GloCo__AppExceptions\n| extend ErrorCode = strcat_array(array_slice(split(OuterMessage, \":\"), 0, 2), \":\")\n| summarize count() by ErrorCode, bin(TimeGenerated, 1d)"
                 },
                 {
                   "isOptional": true,

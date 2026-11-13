@@ -7,13 +7,30 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 source "${SCRIPT_DIR}/.env"
+source "${SCRIPT_DIR}/target.sh"
 
 INFILE="${1:?Usage: workbook-deploy.sh <notebook-json-file>}"
 
 echo "→ Deploying ${INFILE} to ${AWS_REMOTE}"
 echo "→ Workbook: ${WORKBOOK_ID}"
 
-SERIALIZED=$(sed "s/__SUBSCRIPTION_ID__/${SUBSCRIPTION}/g" "$INFILE" | jq -c '.')
+: "${WORKBOOK_ID:?No workbook id for this target (PROD_WORKBOOK_ID in .env)}"
+
+SERIALIZED=$(retarget < "$INFILE" | jq -c '.')
+
+# First deploy to a target: there is nothing to PATCH, so create it with a full PUT.
+if ! ssh -n "$AWS_REMOTE" "az rest --method GET --uri 'https://management.azure.com${WORKBOOK_ID}?api-version=${WORKBOOK_API_VERSION}' > /dev/null 2>&1"; then
+  echo "→ Workbook does not exist yet: creating"
+  WORKSPACE_ARM="/subscriptions/${SUBSCRIPTION}/resourcegroups/${RESOURCE_GROUP}/providers/microsoft.operationalinsights/workspaces/${WORKSPACE_NAME}"
+  jq -n --arg s "$SERIALIZED" --arg title "${WORKBOOK_DISPLAY_NAME:-MaCD global nav all-time analytics}" --arg source "$WORKSPACE_ARM" --arg location "${WORKBOOK_LOCATION:-uksouth}" '{
+    kind: "shared",
+    location: $location,
+    tags: {"hidden-title": $title},
+    properties: {displayName: $title, category: "workbook", sourceId: $source, version: "Notebook/1.0", serializedData: $s}
+  }' | ssh "$AWS_REMOTE" "az rest --method PUT --headers Content-Type=application/json --uri 'https://management.azure.com${WORKBOOK_ID}?api-version=${WORKBOOK_API_VERSION}' --body @- --query '{name:name, displayName:properties.displayName}' -o json"
+  echo "Done"
+  exit 0
+fi
 
 ssh "$AWS_REMOTE" "
   set -euo pipefail

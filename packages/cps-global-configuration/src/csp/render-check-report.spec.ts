@@ -1,7 +1,8 @@
 import {
   renderHtmlReport,
   renderMarkdownReport,
-  renderTldr,
+  CSP_REQUIREMENTS_URL,
+  REPO_HANDOVER_HTML_URL,
   statusOf,
   type TargetResult,
 } from "./render-check-report";
@@ -68,7 +69,8 @@ describe("statusOf", () => {
     ).toBe("warn");
   });
 
-  it("warns on a stale grant even when nothing is missing", () => {
+  // Their header serves the whole page; other software may need it.
+  it("does not warn on a stale entry in the host's own policy", () => {
     expect(
       statusOf(
         result({
@@ -81,12 +83,12 @@ describe("statusOf", () => {
           },
         }),
       ),
-    ).toBe("warn");
+    ).toBe("ok");
   });
 
   it("fails when the deployed handover page differs from the repository", () => {
     // The drift nothing else can see, since that file is uploaded by hand.
-    expect(statusOf(result({ handoverMetaMatchesRepo: false }))).toBe("fail");
+    expect(statusOf(result({ handoverMatchesRepo: false }))).toBe("fail");
   });
 
   it("is unknown when the target could not be reached", () => {
@@ -97,74 +99,47 @@ describe("statusOf", () => {
 });
 
 describe("renderMarkdownReport", () => {
-  it("summarises counts", () => {
+  it("opens with the checklist", () => {
     const md = renderMarkdownReport(
-      [result(), result({ handoverMetaMatchesRepo: false })],
+      [result({ check: { findings: [{ requirement, verdict: "absent" }], stale: [], ok: false } })],
       "2026-09-21T00:00:00Z",
     );
 
-    expect(md).toContain("1 failing");
-    expect(md).toContain("1 clean");
+    expect(md.startsWith("# OutSystems CSP checklist")).toBe(true);
+    expect(md).toContain("| test | `/WorkManagementApp` | Add | `connect-src https://graph.microsoft.com` |");
+    expect(md).toContain("Checked 2026-09-21T00:00:00Z");
   });
 
-  it("names the missing origin and why it is needed", () => {
-    const md = renderMarkdownReport(
-      [
-        result({
-          check: {
-            findings: [{ requirement, verdict: "absent" }],
-            stale: [],
-            ok: false,
-          },
-        }),
-      ],
-      "now",
-    );
-
-    expect(md).toContain("https://graph.microsoft.com");
-    expect(md).toContain("getMe fetches the department slice");
+  // The "why" lives in one place; the report links it rather than repeating it.
+  it("links the requirements for why each origin is needed", () => {
+    expect(renderMarkdownReport([result()], "now")).toContain(`[CSP-REQUIREMENTS.md](${CSP_REQUIREMENTS_URL})`);
   });
 
-  it("records a redirect rather than hiding it", () => {
-    // An app root that 302s to a login screen may not carry the policy that
-    // governs the screen our component runs on.
+  // The policy belongs to the app module; a login-screen redirect is not where
+  // the fix goes.
+  it("names the page asked for, not where it redirected", () => {
     const md = renderMarkdownReport(
       [
         result({
           finalUrl: "https://cps-tst.outsystemsenterprise.com/Login",
-          check: {
-            findings: [{ requirement, verdict: "absent" }],
-            stale: [],
-            ok: false,
-          },
+          check: { findings: [{ requirement, verdict: "absent" }], stale: [], ok: false },
         }),
       ],
       "now",
     );
 
-    expect(md).toContain("redirected to");
+    expect(md).toContain("`/WorkManagementApp`");
+    expect(md).not.toContain("/Login");
   });
 
-  it("omits a details section for a clean target", () => {
-    expect(renderMarkdownReport([result()], "now")).not.toContain("### ");
-  });
-
-  it("notes when no enforced policy came back at all", () => {
+  it("is only the checklist: no diagnostic detail", () => {
     const md = renderMarkdownReport(
-      [
-        result({
-          enforced: [],
-          check: {
-            findings: [{ requirement, verdict: "absent" }],
-            stale: [],
-            ok: false,
-          },
-        }),
-      ],
+      [result({ check: { findings: [{ requirement, verdict: "absent" }], stale: [], ok: false } })],
       "now",
     );
 
-    expect(md).toContain("No enforced Content-Security-Policy header");
+    expect(md).not.toContain("##");
+    expect(md).not.toContain(requirement.reason);
   });
 });
 
@@ -179,8 +154,8 @@ describe("renderHtmlReport", () => {
     expect(html).toContain("&lt;script&gt;");
   });
 
-  it("includes the raw policy for inspection", () => {
-    expect(renderHtmlReport([result()], "now")).toContain(
+  it("does not dump raw policies", () => {
+    expect(renderHtmlReport([result()], "now")).not.toContain(
       "connect-src https://graph.microsoft.com",
     );
   });
@@ -210,8 +185,8 @@ describe("results that must not read as clean", () => {
       "now",
     );
 
-    expect(md).toContain("redirected off-host");
-    expect(md).toContain("says nothing about this target");
+    expect(md).toContain("Could not be checked");
+    expect(md).toContain("redirected to https://www.outsystems.com/");
   });
 
   it("warns rather than passing when no CSP header is served at all", () => {
@@ -220,98 +195,147 @@ describe("results that must not read as clean", () => {
     expect(statusOf(result({ enforced: [] }))).toBe("warn");
   });
 
-  it("says so in the notes column", () => {
-    expect(renderMarkdownReport([result({ enforced: [] })], "now")).toContain(
-      "no CSP header served",
-    );
+  // ...but nothing is blocked either, so there is nothing to ask of the host.
+  it("puts no row on the checklist for it", () => {
+    expect(renderMarkdownReport([result({ enforced: [] })], "now")).toContain("Nothing to do");
   });
 });
 
-describe("the HTML page is self-contained", () => {
-  // Every status writes its name as a CSS class on the row. `unknown` was used
-  // without being defined, so unreachable targets rendered unstyled — found by
-  // parsing the output rather than by any assertion here.
-  it("defines a style for every status class it emits", () => {
+describe("the HTML page", () => {
+  it("emits a row per checklist item plus a header", () => {
     const html = renderHtmlReport(
       [
         result(),
-        result({ redirectedOffHost: true, finalUrl: "https://elsewhere.example" }),
-        result({
-          check: { findings: [{ requirement, verdict: "absent" }], stale: [], ok: false },
-        }),
-        result({
-          check: {
-            findings: [{ requirement, verdict: "narrower" }],
-            stale: [],
-            ok: false,
-          },
-        }),
+        result({ check: { findings: [{ requirement, verdict: "absent" }], stale: [], ok: false } }),
+        result({ check: { findings: [{ requirement, verdict: "narrower" }], stale: [], ok: false } }),
       ],
       "now",
     );
 
-    const used = new Set([...html.matchAll(/<tr class="([a-z-]+)"/g)].map(m => m[1]!));
-    const defined = new Set([...html.matchAll(/\.([a-z-]+)\s*\{/g)].map(m => m[1]!));
-
-    expect([...used].filter(c => !defined.has(c))).toEqual([]);
-    expect(used.size).toBeGreaterThan(1);
+    expect([...html.matchAll(/<tr>/g)]).toHaveLength(3);
   });
 
-  it("emits one table row per result plus a header", () => {
-    const html = renderHtmlReport([result(), result()], "now");
+  it("links the handover file on a redeploy row", () => {
+    const html = renderHtmlReport(
+      [result({ target: { ...target, kind: "auth-handover" }, handoverMatchesRepo: false })],
+      "now",
+    );
 
-    expect([...html.matchAll(/<tr/g)]).toHaveLength(3);
+    expect(html).toContain(`<a href="${REPO_HANDOVER_HTML_URL}">auth-handover.html</a>`);
   });
 });
 
-describe("renderTldr", () => {
-  const target = (environment: string, url: string) => ({ environment, url, kind: "screen" as const });
-  const finding = (directive: string, value: string, verdict: "allowed" | "narrower" | "absent") => ({
+describe("the checklist", () => {
+  const render = (results: TargetResult[]) => renderMarkdownReport(results, "now");
+
+  const finding = (
+    directive: string,
+    value: string,
+    verdict: "allowed" | "narrower" | "absent",
+    extra: { narrowSource?: string } = {},
+  ) => ({
     requirement: { directive, value, reason: "because" } as never,
     verdict,
+    ...extra,
   });
+  const stale = (directive: string, source: string) => ({ directive, source, reason: "gone" });
 
-  const result = (environment: string, url: string, findings: ReturnType<typeof finding>[]): TargetResult => ({
-    target: target(environment, url),
-    enforced: [],
-    reportOnly: [],
-    check: { findings, stale: [], ok: findings.every(f => f.verdict === "allowed") } as never,
-  });
+  const page = (
+    environment: string,
+    url: string,
+    findings: ReturnType<typeof finding>[],
+    extra: Partial<TargetResult> & { kind?: "screen" | "auth-handover"; stale?: ReturnType<typeof stale>[] } = {},
+  ): TargetResult => {
+    const { kind = "screen", stale: staleFindings = [], ...rest } = extra;
+    return {
+      target: { environment, url, kind },
+      enforced: ["default-src 'self'"],
+      reportOnly: [],
+      check: { findings, stale: staleFindings, ok: findings.every(f => f.verdict === "allowed") } as never,
+      ...rest,
+    };
+  };
 
-  // The answer people hope for should be stated, not inferred from an empty page.
-  it("says so plainly when there is nothing to add", () => {
-    const out = renderTldr([result("test", "https://a.example", [finding("connect-src", "https://x", "allowed")])]);
-    expect(out).toContain("nothing to add");
+  const rowsOf = (out: string) => out.split("\n").filter(line => /^\| (?!Env \||---)/.test(line));
+
+  it("says so plainly when there is nothing to do", () => {
+    const out = render([page("test", "https://a.example/App", [finding("connect-src", "https://x", "allowed")])]);
+    expect(out).toContain("Nothing to do: every environment already grants everything we need.");
+    expect(out).not.toContain("| Env |");
   });
 
   // Only the gaps. A policy's own entries are theirs, and the detail belongs in
-  // the full report.
-  it("lists only what is missing or too narrow, grouped by environment and url", () => {
-    const out = renderTldr([
-      result("test", "https://a.example", [
-        finding("connect-src", "https://js.monitor.azure.com", "absent"),
+  // the full report. The host is implied by the environment, so only the path.
+  it("lists each page's additions as pasteable rules, one line per directive", () => {
+    const out = render([
+      page("test", "https://a.example/App", [
+        finding("connect-src", "https://two.example", "absent"),
+        finding("connect-src", "https://one.example", "absent"),
+        finding("script-src", "https://three.example", "absent"),
         finding("connect-src", "https://graph.microsoft.com", "allowed"),
-        finding("script-src", "https://polaris.example", "narrower"),
       ]),
-      result("uat", "https://b.example", [finding("connect-src", "https://graph.microsoft.com", "allowed")]),
+      page("uat", "https://b.example/App", [finding("connect-src", "https://graph.microsoft.com", "allowed")]),
     ]);
-    expect(out).toContain("## test");
-    expect(out).toContain("https://a.example");
-    expect(out).toContain("connect-src https://js.monitor.azure.com");
-    expect(out).toContain("script-src https://polaris.example");
-    // uat had no gaps, so it is not mentioned at all.
-    expect(out).not.toContain("## uat");
-    expect(out).not.toContain("graph.microsoft.com");
+    expect(out).toContain("| Env | Page | Change | Notes |");
+    expect(rowsOf(out)).toEqual([
+      "| test | `/App` | Add | `connect-src https://one.example https://two.example`<br>`script-src https://three.example` |",
+    ]);
   });
 
-  // One line per directive, pasteable straight into a policy.
-  it("collapses several sources for one directive onto a single line", () => {
-    const out = renderTldr([
-      result("test", "https://a.example", [
-        finding("connect-src", "https://one.example", "absent"),
-        finding("connect-src", "https://two.example", "absent"),
-      ]),
+  // Their header serves the whole page; other software may need what we don't.
+  it("orders additions, then widenings, across all pages, and never asks for removals", () => {
+    const out = render([
+      page("dev", "https://a.example/One", [finding("script-src", "https://p.example", "narrower", { narrowSource: "https://p.example/bundle/" })], {
+        stale: [stale("connect-src", "https://old.example")],
+      }),
+      page("test", "https://b.example/Two", [finding("connect-src", "https://q.example", "absent")]),
     ]);
-    expect(out).toContain("connect-src https://one.example https://two.example");
+    expect(rowsOf(out)).toEqual([
+      "| test | `/Two` | Add | `connect-src https://q.example` |",
+      "| dev | `/One` | Widen | `script-src: replace https://p.example/bundle/ with https://p.example` |",
+    ]);
+  });
+
+  // An out-of-date upload is one linked row, not a policy edit.
+  it("asks for the latest handover file, linked, when the deployed one differs", () => {
+    const out = render([
+      page("dev", "https://os.example/Casework_Patterns/auth-handover.html?src=x&stage=y", [], {
+        kind: "auth-handover",
+        handoverMatchesRepo: false,
+      }),
+    ]);
+    expect(rowsOf(out)).toEqual([
+      `| dev | \`/Casework_Patterns/auth-handover.html\` | Redeploy | Upload the latest [auth-handover.html](${REPO_HANDOVER_HTML_URL}) |`,
+    ]);
+    expect(out).not.toContain("?src=");
+  });
+
+  // The file carries no CSP; the host's header on that page is a separate fix.
+  it("lists a gap in the handover page's header alongside the redeploy", () => {
+    const out = render([
+      page("dev", "https://os.example/Casework_Patterns/auth-handover.html", [finding("script-src", "https://p.example", "absent")], {
+        kind: "auth-handover",
+        handoverMatchesRepo: false,
+      }),
+    ]);
+    expect(rowsOf(out).map(row => row.split(" | ")[2])).toEqual(["Redeploy", "Add"]);
+  });
+
+  it("does not ask for a redeploy when the handover file matches the repo", () => {
+    const out = render([
+      page("dev", "https://os.example/Casework_Patterns/auth-handover.html", [], { kind: "auth-handover", handoverMatchesRepo: true }),
+    ]);
+    expect(out).toContain("Nothing to do");
+  });
+
+  // No evidence is not good news.
+  it("lists pages that could not be checked instead of claiming all is well", () => {
+    const out = render([
+      page("dev", "https://a.example/App", [finding("connect-src", "https://x", "allowed")]),
+      { ...page("dev", "https://b.example/Other", []), error: "fetch failed", check: undefined },
+    ]);
+    expect(out).toContain("Nothing to do on the pages that could be checked.");
+    expect(out).toContain("- dev `/Other` — fetch failed");
+    expect(out).not.toContain("every environment already grants");
   });
 });

@@ -146,65 +146,57 @@ function _shimBigIpCookies(args) {
   return clonedArgs
 }
 
-// OS host switch (global-components multi-targeting). Named users can be switched
-// onto another OutSystems host than the rest of their environment (e.g. the oapps
-// proxy, or the London tenant) via a per-environment cookie on this host, set from
-// the global-components preview page:
-//   Gloco-Os-Target-<env>=<OS host>
-// Every route into OutSystems — the C-button, the menu's outbound links, the
-// case-review redirect — reaches here with r pointing at the OS auth handover, so
-// this is the one place that moves the user onto the switched host. It runs before
-// anything is written to OS-origin storage, which is per-host.
+// The CMS cookies a downstream app is handed as `cc`. The `cookie` arg is the
+// WHOLE jar as captured on the CMS domain, so without this anything any party
+// sets on that host rides along: Dynatrace cookies, __CMSENV, and (the case that
+// bit us) Cms-Session-Hint, whose URL-encoded JSON value broke the
+// Cms-Auth-Values header the OutSystems apps build from `cc`.
 //
-// The environment comes from the handover's own src param
-// (.../global-components/<env>/auth-handover.js): dev and test share this host, so
-// the cookie has to be per environment. Both the handover host and the host of its
-// final destination (the nested r) are swapped, as the handover only returns users
-// to its own origin.
-//
-// Returns the rewritten URL, or the original one when there's no switch or the URL
-// isn't an OS handover. The caller only uses a rewrite that AUTH_HANDOVER_WHITELIST
-// accepts, so a stale or tampered cookie falls back to the original target rather
-// than a 403.
-const OS_TARGET_COOKIE_PREFIX = "Gloco-Os-Target-"
+// Same roots as DDEI CookieHelpers.WhitelistedCookieNameRoots, plus the newer F5
+// form ([CF]-<TOKEN>-LBsessioncookie) matched by suffix. Mirrors the Polaris
+// repo's nginx.js and features/auth-handover/auth-handover.js.
+const CC_WHITELIST_ROOTS = [
+  "ASP.NET_SessionId",
+  "UID",
+  "WindowID",
+  "CMSUSER",
+  ".CMSAUTH",
+  "BIGipServer",
+]
 
-function _escapeRegExp(value) {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
+function _isWhitelistedCookie(tok) {
+  if (/LBsessioncookie$/i.test(tok.split("=")[0])) {
+    return true
+  }
+  return CC_WHITELIST_ROOTS.some((root) => tok.indexOf(root) === 0)
 }
 
-function _toOsTarget(r, url) {
-  const match = /^(https:\/\/)([^/?#]+)([^?#]*)(\?[^#]*)?(#.*)?$/.exec(url || "")
-  if (!match) {
-    return url
+// CMS will not accept calls without WindowID=MASTER, and it is not one of the
+// cookies shared from IE mode into Edge, so a jar gathered that way arrives
+// without it (DDEI CookieHelpers.GetWhitelistedCookies tops it up for the same
+// reason). Only a jar that carries a CMS session gets the top-up: one with
+// neither ASP.NET_SessionId nor .CMSAUTH is not a session, and must stay empty
+// so "no cookies" still reads as no cookies downstream.
+function _ensureWindowId(kept) {
+  const toks = kept.split(" ")
+  const has = (root) => toks.some((tok) => tok.indexOf(root) === 0)
+  if (has("WindowID") || !(has("ASP.NET_SessionId") || has(".CMSAUTH"))) {
+    return kept
   }
-  // Indexed rather than destructured: njs has no destructuring assignment.
-  const scheme = match[1]
-  const fromHost = match[2]
-  const path = match[3]
-  const query = match[4] || ""
-  const hash = match[5] || ""
-  if (!/\/auth-handover\.html$/i.test(path)) {
-    return url
-  }
+  const delim = kept.charAt(kept.length - 1) === ";" ? "" : ";"
+  return kept + delim + " WindowID=MASTER"
+}
 
-  const src = qs.parse(query.replace(/^\?/, ""))["src"] || ""
-  const env = (/\/global-components\/([^/]+)\/auth-handover\.js/.exec(src) || [])[1]
-  if (!env) {
-    return url
-  }
-
-  const toHost = _maybeDecodeURIComponent(_getCookieValue(r, OS_TARGET_COOKIE_PREFIX + env)).toLowerCase()
-  if (!/^[a-z0-9.-]+$/.test(toHost) || toHost === fromHost.toLowerCase()) {
-    return url
-  }
-
-  // The nested final destination, in the r param: percent-encoded when it came
-  // from a URL builder, plain when hand-written.
-  const nestedDestination = new RegExp(
-    "([?&]r=https(?:%3A%2F%2F|://))" + _escapeRegExp(fromHost) + "(?=%2F|%3F|%23|/|&|$)",
-    "i"
+// Split on SPACE (as DDEI does) and keep each surviving token byte-for-byte, so a
+// jar holding only whitelisted cookies (WindowID among them) passes through
+// unchanged.
+function _whitelistCookies(cookie) {
+  return _ensureWindowId(
+    cookie
+      .split(" ")
+      .filter((tok) => tok !== "" && _isWhitelistedCookie(tok))
+      .join(" ")
   )
-  return scheme + toHost + path + query.replace(nestedDestination, "$1" + toHost) + hash
 }
 
 function appAuthRedirect(r) {
@@ -214,23 +206,17 @@ function appAuthRedirect(r) {
   args = _shimBigIpCookies(args)
 
   const whitelistedUrls = process.env.AUTH_HANDOVER_WHITELIST ?? ""
-  const isWhitelistedUrl = (url) =>
-    whitelistedUrls.split(",").some((prefix) => url.startsWith(prefix))
-
-  const requestedUrl = args["r"]
-  const osTargetUrl = _toOsTarget(r, requestedUrl)
-  const redirectUrl =
-    osTargetUrl !== requestedUrl && isWhitelistedUrl(osTargetUrl)
-      ? osTargetUrl
-      : requestedUrl
-  const isWhitelisted = isWhitelistedUrl(redirectUrl)
+  const redirectUrl = args["r"]
+  const isWhitelisted = whitelistedUrls
+    .split(",")
+    .some((url) => redirectUrl.startsWith(url))
 
   if (isWhitelisted) {
     _redirectToAbsoluteUrl(
       r,
       `${redirectUrl}${
         redirectUrl.includes("?") ? "&" : "?"
-      }cc=${encodeURIComponent(args["cookie"] ?? "")}`
+      }cc=${encodeURIComponent(_whitelistCookies(args["cookie"] ?? ""))}`
     )
   } else {
     r.return(

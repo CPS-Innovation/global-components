@@ -113,16 +113,48 @@ echo -e "\n${YELLOW}Backing up current state before rollback to: $PRE_ROLLBACK_D
 # Note: nginx.js, global-components.conf.template, and global-components.js
 # are deployed by the parent project - we only backup/restore vnext-specific files
 FILES_TO_BACKUP=(
-  "global-components.vnext.conf.template"
   "global-components.vnext.js"
+  "global-components.vnext.conf.template"
+  # Transitional OS London/Dublin/oapps switch module (FCT2-22132) — delete with the module.
+  "global-components.os-london-dublin-oapps-switch.js"
+  "global-components.os-london-dublin-oapps-switch.conf.template"
 )
 
+# The blob each file lives in. We deploy to the new-generation proxy config only
+# (Polaris repo, proxy/config/, booted by start-next.sh): it loads only
+# `features/*/*.conf`. A module's conf AND its .js both live in
+# features/global-components.<x>/ — the conf does
+# `js_import templates/features/global-components.<x>/global-components.<x>.js`.
+# Each .js is listed before its conf above, so it is uploaded first: a restart
+# between the two never meets a conf whose .js is missing.
+#
+# Backups hold flat file names, never blob paths, so this one function is the only
+# place the layout is known. A backup taken before this change (root copy plus a
+# features/ subfolder copy, identical) restores correctly too: the root file maps
+# to the features/ blob, and the subfolder is not a top-level file so it is skipped.
+blob_name() {
+  local file="$1"
+  case "$file" in
+    global-components.*.conf.template)
+      local stem="${file%.conf.template}"
+      echo "features/$stem/$file" ;;
+    # A module .js (global-components.<x>.js) goes beside its conf. Polaris's own
+    # base global-components.js has no <x>, never matches, and is never ours anyway.
+    global-components.?*.js)
+      local stem="${file%.js}"
+      echo "features/$stem/$file" ;;
+    *)
+      echo "$file" ;;
+  esac
+}
+
 for file in "${FILES_TO_BACKUP[@]}"; do
-  echo "  Downloading $file..."
+  blob="$(blob_name "$file")"
+  echo "  Downloading $blob..."
   if az storage blob download \
     --account-name "$AZURE_STORAGE_ACCOUNT" \
     --container-name "$AZURE_STORAGE_CONTAINER" \
-    --name "$file" \
+    --name "$blob" \
     --file "$PRE_ROLLBACK_DIR/$file" \
     --auth-mode login \
     2>&1 | sed 's/^/    /'; then
@@ -132,22 +164,43 @@ for file in "${FILES_TO_BACKUP[@]}"; do
   fi
 done
 
+# Refuse a backup from before the .js moved into features/ (2026-11-09). Its confs
+# js_import templates/global-components.<x>.js (the root), but this script restores
+# every .js into features/ — the conf would import a file that is not there, and
+# nginx would not start. Restore such a backup by hand, both files at the root.
+for file in "$SELECTED_BACKUP"/*.conf.template; do
+  if [ -f "$file" ] && grep -qE 'js_import[^;]* templates/global-components\.[^/;]*\.js' "$file"; then
+    echo -e "${RED}$(basename "$file") imports its .js from the container root — this backup predates${NC}"
+    echo -e "${RED}the features/ layout and cannot be restored by this script. Nothing has been uploaded.${NC}"
+    exit 1
+  fi
+done
+
 # Upload backup files
 echo -e "\n${YELLOW}Uploading backup files...${NC}"
+# Restore from the top-level (flat-named) files only, each mapped through blob_name.
 for file in "$SELECTED_BACKUP"/*; do
   if [ -f "$file" ]; then
-    blob_name=$(basename "$file")
+    file_name=$(basename "$file")
     # Backups taken before the status endpoint was removed may still hold this;
     # nothing reads it any more, so don't resurrect it.
-    if [ "$blob_name" = "global-components-deployment.json" ]; then
-      echo "  Skipping $blob_name (retired)"
+    if [ "$file_name" = "global-components-deployment.json" ]; then
+      echo "  Skipping $file_name (retired)"
       continue
     fi
-    echo "  Uploading $blob_name..."
+    # The OS switch module's pre-rename files. Restoring them beside the renamed
+    # module would define the config.json locations twice and nginx would not start.
+    case "$file_name" in
+      global-components.multi-os-domain-testing.*)
+        echo "  Skipping $file_name (renamed to global-components.os-london-dublin-oapps-switch)"
+        continue ;;
+    esac
+    blob="$(blob_name "$file_name")"
+    echo "  Uploading $file_name -> $blob..."
     az storage blob upload \
       --account-name "$AZURE_STORAGE_ACCOUNT" \
       --container-name "$AZURE_STORAGE_CONTAINER" \
-      --name "$blob_name" \
+      --name "$blob" \
       --file "$file" \
       --overwrite \
       --auth-mode login

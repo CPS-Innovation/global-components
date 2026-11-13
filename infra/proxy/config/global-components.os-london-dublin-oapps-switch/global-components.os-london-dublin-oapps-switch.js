@@ -1,0 +1,282 @@
+// ---------------------------------------------------------------------------
+// OS London/Dublin/oapps switch (FCT2-22132) — TRANSITIONAL
+//
+// Lets a user pin themselves to one OutSystems host for an environment: either of
+// the resilient OutSystems failover domains (Dublin, *.outsystemsenterprise.com,
+// and London, *lon*.outsystemsenterprise.com) or the oapps front door
+// (oapps-*.int.cps.gov.uk, the environment's default). Users who never pin are
+// untouched. See README.md beside this file.
+//
+// It exists for the move onto the oapps front door and can be deleted when that
+// transition is finished (it may stay useful long term, for failover). Nothing
+// else depends on it: it only ADDS locations, takes over config.json (exact
+// match, see the main global-components conf's blob route), and adds one
+// server-level rewrite that only fires for requests carrying the signal.
+//
+// Loads unchanged in BOTH Polaris proxy worlds (Polaris PROXY.md §6.8): the live
+// monolith (`include global-components*.conf;`) and the refactored config
+// (`include features/*/*.conf;`).
+//
+// The signal is a per-environment cookie on this (polaris) host,
+//   Gloco-Os-Target-<env>=<OS host>
+// written into BOTH browser engines' cookie stores (Edge, and Edge's IE mode,
+// which keeps its own) by the set route below, which is the only writer. Three
+// things read it:
+//   - config.json selection, so the component on CWA gets the variant config;
+//   - the proxied-CMS C-button (/launch/<cin>-proxy, clicked in IE mode): when
+//     the cookie is present the conf diverts it here, and a valid signal sends
+//     the user through the handover chain on the chosen host;
+//   - the status route, for the preview page's display.
+//
+// Without the cookie, nothing here touches a request that already had a home.
+// ---------------------------------------------------------------------------
+
+// Each environment's OS host variants. Must match the variant config files in
+// configuration/ (config.<env>.<variant>.json) — the unit tests check both ways.
+// test's own host is now oapps-qa-notprod; "cps" is the old outsystemsenterprise
+// host, kept switchable until it is retired.
+const OS_HOST_VARIANTS = {
+  test: {
+    cps: "cps-tst.outsystemsenterprise.com",
+    "cps-lon": "cpslon-tst.outsystemsenterprise.com",
+  },
+};
+
+// The Polaris host each environment's handover chain runs through: it serves
+// the auth-handover.js bundle (the handover URL's src, which the OS-hosted
+// auth-handover.html allowlists and AAD's redirect URIs embed) and /polaris.
+const POLARIS_HOSTS = {
+  test: "polaris-qa-notprod.cps.gov.uk",
+};
+
+// The proxied-CMS C-button routes we divert (for signalled requests only), and
+// the environment each serves. These mirror Polaris's own /launch/<cin>-proxy
+// routes, which all send the user to the test handover on polaris-qa-notprod.
+// The conf's divert regex must match exactly these (unit-tested).
+const LAUNCH_ROUTES = {
+  "cin2-proxy": "test",
+  "cin3-proxy": "test",
+  "cin4-proxy": "test",
+  "cin5-proxy": "test",
+};
+
+const COOKIE_PREFIX = "Gloco-Os-Target-";
+const COOKIE_LIFESPAN_MS = 365 * 24 * 60 * 60 * 1000;
+
+function _getCookie(r, name) {
+  const cookies = r.headersIn["Cookie"] || "";
+  const parts = cookies.split(";");
+  for (let i = 0; i < parts.length; i++) {
+    const part = parts[i].trim();
+    if (part.indexOf(name + "=") === 0) {
+      return decodeURIComponent(part.substring(name.length + 1));
+    }
+  }
+  return undefined;
+}
+
+function _variantForHost(env, host) {
+  if (!host) {
+    return undefined;
+  }
+  const variants = OS_HOST_VARIANTS[env] || {};
+  const names = Object.keys(variants);
+  for (let i = 0; i < names.length; i++) {
+    if (variants[names[i]] === host.toLowerCase()) {
+      return names[i];
+    }
+  }
+  return undefined;
+}
+
+// The switched-to host for an environment, if the request carries a valid signal.
+function _targetHost(r, env) {
+  const host = _getCookie(r, COOKIE_PREFIX + env);
+  return _variantForHost(env, host) ? host.toLowerCase() : undefined;
+}
+
+function _hostOf(url) {
+  const match = (url || "").match(/^https?:\/\/([^/:]+)/i);
+  return match ? match[1].toLowerCase() : undefined;
+}
+
+function _query(r, name) {
+  const value = r.args[name];
+  return typeof value === "string" ? value : "";
+}
+
+// ---- config.json selection ------------------------------------------------
+
+// js_set for the config.json locations: which blob to serve.
+//   - Cross-origin (the component or the handover on an OS page, which sends
+//     Origin): the config for THAT page's host, whatever the switch says. MSAL
+//     tokens, OS ClientVars and CMS auth are all per-origin, so config has to
+//     match the page it runs on.
+//   - Same-origin (the component on CWA, which sends the cookie but no Origin):
+//     the variant the switch names, if any.
+//   - Anything else, or a host with no variant: config.json.
+function readConfigBlobName(r) {
+  // Set by the per-environment config.json location before it hands over to
+  // the shared internal location, so read it rather than the (rewritten) URI.
+  const env = r.variables.gloco_os_switch_config_env || "";
+  const originHost = _hostOf(r.headersIn["Origin"]);
+  const requestHost = (r.headersIn["Host"] || "").split(":")[0].toLowerCase();
+  const isCrossOrigin = !!originHost && originHost !== requestHost;
+
+  const variant = isCrossOrigin ? _variantForHost(env, originHost) : _variantForHost(env, _targetHost(r, env));
+
+  return variant ? "config." + variant + ".json" : "config.json";
+}
+
+// ---- C-button (/launch/<cin>-proxy) --------------------------------------
+
+// The handover URL Polaris's /launch/<cin>-proxy routes point at, on `osHost`:
+//   https://<polaris>/polaris?r=<handover on osHost, landing on OS home>
+// Same shape and encoding as their hard-coded targets, only the host differs.
+function _launchUrl(env, osHost) {
+  const polaris = POLARIS_HOSTS[env];
+  const src = "https://" + polaris + "/global-components/" + env + "/auth-handover.js";
+  const home = "https://" + osHost + "/casework_blocks/home?IsFromCMS=True";
+  // src is left raw and only the nested r is encoded, exactly as Polaris's own
+  // targets have it (the unit tests compare against them).
+  const handover =
+    "https://" + osHost + "/Casework_Patterns/auth-handover.html?src=" + src + "&stage=os-cookie-return&r=" + encodeURIComponent(home);
+  return "https://" + polaris + "/polaris?r=" + encodeURIComponent(handover);
+}
+
+// js_set for the conf's server-level divert: "1" when this request is a C-button
+// route (/launch/<route> in LAUNCH_ROUTES) AND carries a signal cookie, else "".
+//
+// WHY NJS AND NOT `if ($http_cookie ~ ...)`. A regex `if` is logged by
+// rewrite_log as `"<regex>" matches "<subject>"` — the subject being the WHOLE
+// Cookie header (presence bearer tokens, .CMSAUTH), at notice level, for every
+// request, wherever rewrite_log is switched on in the deployed config. A plain
+// `if ($var)` test is not logged. Nor is the value of a js_set. Don't put the
+// regex back. The URI is checked first so nobody else's Cookie header is read.
+function launchSignalled(r) {
+  const route = (r.uri.match(/^\/launch\/([^/]+)$/) || [])[1] || "";
+  if (!LAUNCH_ROUTES[route]) {
+    return "";
+  }
+  const cookies = r.headersIn["Cookie"] || "";
+  const parts = cookies.split(";");
+  for (let i = 0; i < parts.length; i++) {
+    if (parts[i].trim().indexOf(COOKIE_PREFIX) === 0) {
+      return "1";
+    }
+  }
+  return "";
+}
+
+// js_set for the diverted C-button (/global-components/os-london-dublin-oapps-switch/launch/<route>,
+// reached only via the conf's signal-gated rewrite of /launch/<route>): where a
+// switched user's C-button goes, or "" to hand the request back to the original
+// /launch/<route>, i.e. Polaris's own handler, untouched.
+// The C-button is clicked in the proxied CMS, i.e. in IE mode, so this reads the
+// IE-mode copy of the cookie — which the set route wrote.
+function launchTarget(r) {
+  const route = (r.uri.match(/^\/global-components\/os-london-dublin-oapps-switch\/launch\/([^/]+)$/) || [])[1] || "";
+  const env = LAUNCH_ROUTES[route];
+  if (!env || !POLARIS_HOSTS[env]) {
+    return "";
+  }
+  const host = _targetHost(r, env);
+  return host ? _launchUrl(env, host) : "";
+}
+
+// ---- The switch: status + set ---------------------------------------------
+
+// GET /global-components/multi-os/target/<env>
+//   → { current: <host> | null, options: [{ variant, host }] }
+// Reads the Edge copy (the preview page runs in Edge); the set route writes both
+// copies together, so it speaks for both. Same-origin only, so no CORS.
+function handleStatus(r) {
+  const env = (r.uri.match(/^\/global-components\/multi-os\/target\/([^/]+)$/) || [])[1] || "";
+  const variants = OS_HOST_VARIANTS[env] || {};
+  r.headersOut["Content-Type"] = "application/json";
+  if (r.method !== "GET") {
+    r.return(405, JSON.stringify({ error: "Method not allowed" }));
+    return;
+  }
+  r.return(
+    200,
+    JSON.stringify({
+      current: _targetHost(r, env) || null,
+      options: Object.keys(variants).map(variant => ({ variant, host: variants[variant] })),
+    }),
+  );
+}
+
+// GET /global-components/multi-os/set?env=<env>&host=<variant host or empty>&return=<path>
+//
+// The ONLY writer of the signal. Edge and IE mode keep separate cookie stores for
+// this host, and the signal must be in both: Edge for CWA's config.json, IE mode
+// for the proxied-CMS C-button. So this is a navigation (not a fetch) that
+// visits both engines, the same way Polaris's own routes flip engines:
+//   1. set the cookie in the engine the request arrived in;
+//   2. if the site is IE-configurable, answer with X-InternetExplorerMode and a
+//      redirect to itself (done=<engine>), so the browser re-requests in the
+//      other engine, which sets its copy;
+//   3. redirect to `return`, in Edge.
+// An empty host clears both copies. Only ever one hop, so a flip the browser
+// declines can't loop.
+function handleSet(r) {
+  const env = _query(r, "env");
+  const host = _query(r, "host").toLowerCase();
+  const returnTo = _query(r, "return");
+  const done = _query(r, "done");
+
+  if (!OS_HOST_VARIANTS[env] || (host && !_variantForHost(env, host))) {
+    r.headersOut["Content-Type"] = "application/json";
+    r.return(400, JSON.stringify({ error: "unknown environment or OS host" }));
+    return;
+  }
+
+  // Same-host paths only, so this can't be used to bounce users elsewhere.
+  const safeReturn = /^\/(?!\/)/.test(returnTo) ? returnTo : "/";
+
+  const ieaction = r.variables.ieaction || "";
+  const engine = ieaction.indexOf("ie+") === 0 ? "ie" : "edge";
+  const configurable = ieaction.indexOf("+configurable+") !== -1;
+
+  const expires = host ? new Date(Date.now() + COOKIE_LIFESPAN_MS) : new Date(0);
+  // njs types Set-Cookie as string[]; a single string is fine at runtime
+  // (same cast as _setCookie in main/global-components.ts).
+  r.headersOut["Set-Cookie"] =
+    COOKIE_PREFIX + env + "=" + encodeURIComponent(host) + "; Path=/; Expires=" + expires.toUTCString() + "; Secure; HttpOnly; SameSite=Lax";
+
+  if (!done && configurable) {
+    // Over to the other engine to write its copy.
+    r.headersOut["X-InternetExplorerMode"] = engine === "edge" ? "1" : "0";
+    r.return(
+      302,
+      "/global-components/multi-os/set?env=" +
+        encodeURIComponent(env) +
+        "&host=" +
+        encodeURIComponent(host) +
+        "&return=" +
+        encodeURIComponent(safeReturn) +
+        "&done=" +
+        engine,
+    );
+    return;
+  }
+
+  // Both copies written (or the site can't flip). Finish in Edge: the preview
+  // page lives there.
+  if (engine === "ie" && configurable) {
+    r.headersOut["X-InternetExplorerMode"] = "0";
+  }
+  r.return(302, safeReturn);
+}
+
+export default {
+  readConfigBlobName,
+  launchSignalled,
+  launchTarget,
+  handleStatus,
+  handleSet,
+  OS_HOST_VARIANTS,
+  POLARIS_HOSTS,
+  LAUNCH_ROUTES,
+};

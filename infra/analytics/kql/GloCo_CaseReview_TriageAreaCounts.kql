@@ -1,5 +1,5 @@
-// Submitted triage per area per week — the triage-only sibling of GloCo_CaseReview_AreaCounts (same structure,
-// same bracketed "Submitted (adjusted)" cells, same area rule). One per triage TASK (rows of
+// Submitted triage per area per week — the triage-only sibling of GloCo_CaseReview_AreaCounts (same structure and area rule,
+// plus bracketed "Submitted (adjusted)" cells). One per triage TASK (rows of
 // GloCo_CaseReview_Activity), by the week of submission.
 let Cells = GloCo_CaseReview_Activity
     | where Status == "Submitted" and Kind == "Triage"

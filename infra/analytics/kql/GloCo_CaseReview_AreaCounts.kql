@@ -1,25 +1,23 @@
-// Submitted case work per area per week: reviews, admin finalise and triage, counted as PIECES OF WORK (rows of
-// GloCo_CaseReview_Activity), by the week of submission. Regions via GloCo__AreaRegionMapping, each with a
-// synthetic "{Region}, Total" row; an area with no region falls under "Unmapped".
+// Submitted reviews per area per week, counted as PIECES OF WORK (rows of GloCo_CaseReview_Activity), by the week
+// of submission. Reviews only (first, subsequent and their early-advice forms): triage has its own sibling,
+// GloCo_CaseReview_TriageAreaCounts, and admin finalise is not counted. Regions via GloCo__AreaRegionMapping, each
+// with a synthetic "{Region}, Total" row; an area with no region falls under "Unmapped".
 //
-// Each cell reads "Submitted (adjusted)": the captured figure, then in brackets the figure including the triage
-// submissions inferred for the periods capture was down. A cell with nothing inferred is just the number.
-// Cells are therefore text: sorting a week column in the workbook sorts alphabetically.
+// Reviews are always observed (never inferred), so each cell is a plain number.
 //
 // Area = the credited person's area at the time of the work (back-filled where it was not captured then); work
 // with no known area at all is kept, under "(unknown)".
 let Cells = GloCo_CaseReview_Activity
-    | where Status == "Submitted"
-    | project SubmittedObserved, Area = coalesce(User_AreaOrCPSD, "(unknown)"), Week = format_datetime(startofweek(SubmittedAt), "yyyy-MM-dd")
-    | summarize Obs = countif(SubmittedObserved), Adj = count() by Area, Week
+    | where Status == "Submitted" and Kind == "Review"
+    | project Area = coalesce(User_AreaOrCPSD, "(unknown)"), Week = format_datetime(startofweek(SubmittedAt), "yyyy-MM-dd")
+    | summarize N = count() by Area, Week
     | join kind=leftouter (GloCo__AreaRegionMapping | distinct User_Area, Region) on $left.Area == $right.User_Area
-    | project Region = coalesce(Region, "Unmapped"), Area, Week, Obs, Adj;
+    | project Region = coalesce(Region, "Unmapped"), Area, Week, N;
 union Cells,
-      (Cells | summarize Obs = sum(Obs), Adj = sum(Adj) by Region, Area | extend Week = "Total"),
-      (Cells | summarize Obs = sum(Obs), Adj = sum(Adj) by Region, Week | extend Area = strcat(Region, ", Total")),
-      (Cells | summarize Obs = sum(Obs), Adj = sum(Adj) by Region | extend Area = strcat(Region, ", Total"), Week = "Total")
-| extend Cell = iif(Adj == Obs, tostring(Obs), strcat(Obs, " (", Adj, ")"))
-| evaluate pivot(Week, take_any(Cell), Region, Area)
+      (Cells | summarize N = sum(N) by Region, Area | extend Week = "Total"),
+      (Cells | summarize N = sum(N) by Region, Week | extend Area = strcat(Region, ", Total")),
+      (Cells | summarize N = sum(N) by Region | extend Area = strcat(Region, ", Total"), Week = "Total")
+| evaluate pivot(Week, take_any(N), Region, Area)
 | extend SortKey = iff(Area endswith ", Total" and Area startswith Region, 1, 0)
 | order by Region asc, SortKey asc, Area asc
 | project-away SortKey

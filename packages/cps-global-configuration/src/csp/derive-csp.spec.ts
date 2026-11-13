@@ -2,7 +2,6 @@ import { readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import {
   deriveCspRequirements,
-  deriveHandoverPagePolicy,
   formatCspPolicy,
   groupByDirective,
   mergeCspRequirements,
@@ -69,6 +68,14 @@ describe("deriveCspRequirements", () => {
       ]);
     });
 
+    it("requires connect-src for any Azure SignalR instance negotiate may hand the browser to", () => {
+      const { hostApp } = deriveCspRequirements(aConfig());
+
+      expect(valuesFor(hostApp, "connect-src")).toContain(
+        "https://*.service.signalr.net",
+      );
+    });
+
     it("omits the case-locking host when the feature is off for that environment", () => {
       const { hostApp } = deriveCspRequirements(
         aConfig({
@@ -80,6 +87,9 @@ describe("deriveCspRequirements", () => {
 
       expect(valuesFor(hostApp, "connect-src")).not.toContain(
         "https://polaris-qa-notprod.cps.gov.uk",
+      );
+      expect(valuesFor(hostApp, "connect-src")).not.toContain(
+        "https://*.service.signalr.net",
       );
     });
 
@@ -267,15 +277,5 @@ describe("the committed environment configs", () => {
       .filter(r => r.value.includes("applicationinsights.azure.com"));
 
     expect(azureIngestion).toEqual([]);
-  });
-
-  it("unions the handover policy across environments without duplicating", () => {
-    const policy = deriveHandoverPagePolicy(configFiles.map(load));
-    const scriptSrc = valuesFor(policy, "script-src");
-
-    expect(new Set(scriptSrc).size).toBe(scriptSrc.length);
-    expect(scriptSrc).toContain("https://polaris.cps.gov.uk");
-    expect(scriptSrc).toContain("https://polaris-qa-notprod.cps.gov.uk");
-    expect(scriptSrc).toContain("https://polaris-uat-notprod.cps.gov.uk");
   });
 });

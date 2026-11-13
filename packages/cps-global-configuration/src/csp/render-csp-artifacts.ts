@@ -1,6 +1,5 @@
 import {
   deriveCspRequirements,
-  deriveHandoverPagePolicy,
   formatCspPolicy,
   groupByDirective,
   type CspRelevantConfig,
@@ -19,7 +18,7 @@ import type { CspRequirement } from "./csp-requirements";
 
 // config.accessibility.json is excluded deliberately — the standalone
 // blob-hosted demo site, not an OutSystems tenant. Kept identical to the lists
-// in derive-csp.spec.ts and auth-handover-csp.spec.ts.
+// in derive-csp.spec.ts.
 export const CSP_ENVIRONMENTS = ["dev", "test", "uat", "prod"];
 
 export const GENERATED_BANNER =
@@ -34,10 +33,22 @@ const renderTable = (requirements: CspRequirement[]): string =>
     ),
   ].join("\n");
 
-const renderMarkdown = (
-  perEnvironment: { env: string; requirements: CspRequirement[] }[],
-  handoverPolicy: CspRequirement[],
-): string =>
+type EnvironmentRequirements = {
+  env: string;
+  requirements: CspRequirement[];
+  handoverRequirements: CspRequirement[];
+};
+
+const renderPolicySection = (requirements: CspRequirement[]): string[] => [
+  renderTable(requirements),
+  "",
+  "```",
+  formatCspPolicy(requirements),
+  "```",
+  "",
+];
+
+const renderMarkdown = (perEnvironment: EnvironmentRequirements[]): string =>
   [
     GENERATED_BANNER,
     "",
@@ -53,32 +64,18 @@ const renderMarkdown = (
     "",
     "Regenerate with `pnpm --filter cps-global-configuration generate:csp`.",
     "",
-    ...perEnvironment.flatMap(({ env, requirements }) => [
+    ...perEnvironment.flatMap(({ env, requirements, handoverRequirements }) => [
       `## \`${env}\``,
       "",
-      renderTable(requirements),
+      ...renderPolicySection(requirements),
+      `### \`${env}\`: \`/Casework_Patterns/auth-handover.html\``,
       "",
-      "```",
-      formatCspPolicy(requirements),
-      "```",
+      "The handover page carries no CSP of its own. If the host serves one on",
+      "this page, it must allow the following -- including the keyword sources the",
+      "page's inline bootstrap script and same-origin fetches need.",
       "",
+      ...renderPolicySection(handoverRequirements),
     ]),
-    "## `auth-handover.html`",
-    "",
-    "The complete meta CSP for the handover page. Unioned across every",
-    "environment rather than generated per-environment, because that one file is",
-    "uploaded to all the OutSystems tenants by hand and a single file that works",
-    "wherever it lands beats four variants someone has to match up correctly.",
-    "",
-    "Asserted against the shipped file by",
-    "`packages/cps-global-handover/src/auth-handover-csp.spec.ts`.",
-    "",
-    renderTable(handoverPolicy),
-    "",
-    "```",
-    formatCspPolicy(handoverPolicy),
-    "```",
-    "",
   ].join("\n");
 
 const asJson = (value: unknown): string => `${JSON.stringify(value, null, 2)}\n`;
@@ -90,33 +87,28 @@ const asJson = (value: unknown): string => `${JSON.stringify(value, null, 2)}\n`
 export const buildCspArtifacts = (
   configsByEnvironment: Record<string, CspRelevantConfig>,
 ): Record<string, string> => {
-  const perEnvironment = CSP_ENVIRONMENTS.map(env => ({
-    env,
-    requirements: deriveCspRequirements(configsByEnvironment[env]!).hostApp,
-  }));
-
-  const handoverPolicy = deriveHandoverPagePolicy(
-    CSP_ENVIRONMENTS.map(env => configsByEnvironment[env]!),
-  );
+  const perEnvironment: EnvironmentRequirements[] = CSP_ENVIRONMENTS.map(env => {
+    const { hostApp, handoverPage } = deriveCspRequirements(configsByEnvironment[env]!);
+    return { env, requirements: hostApp, handoverRequirements: handoverPage };
+  });
 
   return {
     ...Object.fromEntries(
-      perEnvironment.map(({ env, requirements }) => [
+      perEnvironment.map(({ env, requirements, handoverRequirements }) => [
         `csp.${env}.json`,
         asJson({
           environment: env,
           directives: groupByDirective(requirements),
           policy: formatCspPolicy(requirements),
           requirements,
+          authHandover: {
+            directives: groupByDirective(handoverRequirements),
+            policy: formatCspPolicy(handoverRequirements),
+            requirements: handoverRequirements,
+          },
         }),
       ]),
     ),
-    "csp.auth-handover.json": asJson({
-      target: "auth-handover.html",
-      directives: groupByDirective(handoverPolicy),
-      policy: formatCspPolicy(handoverPolicy),
-      requirements: handoverPolicy,
-    }),
-    "CSP-REQUIREMENTS.md": renderMarkdown(perEnvironment, handoverPolicy),
+    "CSP-REQUIREMENTS.md": renderMarkdown(perEnvironment),
   };
 };

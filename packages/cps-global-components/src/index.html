@@ -12,8 +12,12 @@
      * unregisters ANY service worker and reloads. MSW is a service worker, so the
      * mock API is killed at random on reload — the two race, and the preview
      * endpoint 404s on whichever load MSW loses. preview.result is then undefined,
-     * every preview-gated feature switches off, and the case-locking UI silently
-     * renders nothing. It presents as "it worked yesterday".
+     * and every preview-gated feature switches off. It presents as "it worked
+     * yesterday".
+     *
+     * CASE LOCKING IS NOT SWITCHED ON HERE. It has no preview flag any more: give
+     * config.development.json a FEATURE_FLAG_CASE_LOCKING_USERS of
+     * { "generallyAvailable": true } instead.
      *
      * A fetch shim has nothing to unregister, so it cannot lose that race. Runs
      * before the module below, which is why it is a classic script.
@@ -29,11 +33,9 @@
       window.fetch = function (input) {
         var url = typeof input === "string" ? input : (input && input.url) || "";
         if (url.indexOf("/state/preview") !== -1) {
-          var body = {
-            enabled: true,
-            caseLocking: true,
-            caseLockingNotifications: true,
-          };
+          // Add any PreviewSchema flags you want on locally, e.g. caseMarkers: "b".
+          // (The header is always the CPS theme now — there is no newHeader flag.)
+          var body = {};
           return Promise.resolve(new Response(JSON.stringify(body), {
             status: 200,
             headers: { "Content-Type": "application/json" },

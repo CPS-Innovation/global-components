@@ -1,0 +1,7 @@
+// Casework app vs Materials app (its rework) page views since launch, by page: take-up of the new app
+// against the existing one, and which of its pages are used.
+let Launch = datetime(2026-03-09T12:00:01);
+GloCo_PageViews
+| where TimeGenerated > Launch and App in ("Casework app", "Materials app")
+| summarize PageViews = count(), Users = dcountif(Auth_ObjectId, Auth_IsAuthed) by App, App_Page
+| order by App desc, PageViews desc

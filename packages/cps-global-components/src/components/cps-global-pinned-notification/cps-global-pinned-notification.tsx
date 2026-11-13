@@ -1,5 +1,6 @@
 import { Component, h, Prop, State, Element, Event, EventEmitter } from "@stencil/core";
 import { MIN_REAL_HEADER_WIDTH_PX } from "../../services/browser/dom/footer-subscriber";
+import { CCPContent } from "cps-global-presence";
 
 /**
  * The pinned notification from the UCD prototype's app-notification-banner-pinned.
@@ -54,6 +55,8 @@ export class CpsGlobalPinnedNotification {
   @Event() cpsDismissed: EventEmitter<void>;
 
   private previousBodyPaddingBottom: string | null = null;
+  /** The banner's height just before the reader toggled it; null when no toggle is pending. */
+  private heightBeforeToggle: number | null = null;
   private previousFooterBottom: { el: HTMLElement; bottom: string } | null = null;
   private bannerObserver?: ResizeObserver;
   private headerObserver?: ResizeObserver;
@@ -71,6 +74,7 @@ export class CpsGlobalPinnedNotification {
   componentDidRender() {
     this.syncWidth();
     this.applyFooterClearance();
+    this.keepContentInView();
   }
 
   disconnectedCallback() {
@@ -153,8 +157,42 @@ export class CpsGlobalPinnedNotification {
   }
 
   private toggle = () => {
+    this.heightBeforeToggle = this.bannerHeight();
     this.expanded = !this.expanded;
   };
+
+  private bannerHeight = (): number => this.el.querySelector<HTMLElement>(".app-notification-banner-pinned")?.getBoundingClientRect().height ?? 0;
+
+  /**
+   * EXPAND INTO ITS OWN SPACE, not over the page.
+   *
+   * The banner is fixed to the bottom of the viewport, so opening the details grows
+   * it UPWARD, over whatever the reader was looking at. The footer clearance below
+   * keeps the end of the page reachable, but does nothing for the middle of it.
+   *
+   * So after a toggle the page scrolls by exactly how much the banner grew: what
+   * was visible above it stays visible, and the top of the view gives way instead
+   * — the same as if the banner sat in the page and pushed it up. Closing the
+   * details scrolls back by the same amount. The clearance has already been
+   * re-applied by then, so there is always room to scroll into.
+   *
+   * ONLY ON THE READER'S OWN TOGGLE. A roster that changes while open also changes
+   * the height, but moving the page under someone who did nothing is worse than
+   * the few pixels it would save.
+   *
+   * ASSUMES THE DOCUMENT SCROLLS, like the clearance: a host that scrolls an inner
+   * container is not moved.
+   */
+  private keepContentInView() {
+    if (this.heightBeforeToggle === null) {
+      return;
+    }
+    const grewBy = Math.round(this.bannerHeight() - this.heightBeforeToggle);
+    this.heightBeforeToggle = null;
+    if (grewBy !== 0 && typeof window.scrollBy === "function") {
+      window.scrollBy(0, grewBy);
+    }
+  }
 
   private dismiss = () => {
     this.cpsDismissed.emit();
@@ -299,7 +337,7 @@ export class CpsGlobalPinnedNotification {
                 aria-controls={this.contentId}
                 onClick={this.toggle}
               >
-                {this.expanded ? "Hide details" : "Show details"}
+                {CCPContent.detailsToggle(this.expanded)}
               </button>
             )}
           </div>

@@ -1,6 +1,7 @@
 import { ApplicationFlags, AuthHint, Config, FoundContext, Preview, Settings } from "cps-global-configuration";
 import { MergeTags, Register } from "../../../store/store";
 import { Result } from "../../../utils/Result";
+import { TrackEvent } from "../../analytics/analytics-event";
 
 export type DomMutationObserver = ({
   context,
@@ -12,6 +13,7 @@ export type DomMutationObserver = ({
   flags,
   config,
   authHint,
+  trackEvent,
 }: {
   context: FoundContext;
   register: Register;
@@ -25,6 +27,7 @@ export type DomMutationObserver = ({
   // deliberately absent: subscribers are bound before the auth promise starts
   // (see global-script), so anything identity-driven here reads the hint.
   authHint: Result<AuthHint>;
+  trackEvent: TrackEvent;
 }) => {
   isActiveForContext: boolean;
   subscriptions: {

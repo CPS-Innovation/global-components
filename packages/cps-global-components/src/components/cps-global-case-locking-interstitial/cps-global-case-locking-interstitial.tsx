@@ -2,9 +2,10 @@ import { Component, h, State, Element, Listen } from "@stencil/core";
 import { readyState } from "../../store/store";
 import { FEATURE_FLAGS } from "cps-global-configuration";
 import { replaceTagsInString } from "../cps-global-menu/menu-config/helpers/replace-tags-in-string";
-import { CCPSectionNames, CCPSectionRules } from "cps-global-presence";
-import { describeCaseLock, getCaseLock } from "../../services/case-locking/get-case-lock";
+import { CCPContent, CCPPeople, CCPSectionNames, CCPSectionRules } from "cps-global-presence";
+import { describeCaseLock, getCaseLock, isLockedByReader } from "../../services/case-locking/get-case-lock";
 import { MIN_REAL_HEADER_WIDTH_PX } from "../../services/browser/dom/footer-subscriber";
+import { INTERSTITIAL_OPTIONS } from "./interstitial-options";
 
 /**
  * The interruption, rebuilt as a top-layer dialog.
@@ -62,6 +63,8 @@ export class CpsGlobalCaseLockingInterstitial {
 
   private currentCode?: string;
   private showing = false;
+  /** Whether this render offered a way to carry on; Escape follows it. */
+  private canContinue = true;
   private headerObserver?: ResizeObserver;
   /** The document's inline `overflow` before we hid its scrollbar. */
   private previousOverflow: string | null = null;
@@ -79,7 +82,9 @@ export class CpsGlobalCaseLockingInterstitial {
   @Listen("cancel")
   onCancel(event: Event) {
     event.preventDefault();
-    this.dismiss();
+    if (this.canContinue) {
+      this.dismiss();
+    }
   }
 
   componentDidRender() {
@@ -219,11 +224,13 @@ export class CpsGlobalCaseLockingInterstitial {
   };
 
   render() {
-    const { isReady, state } = readyState(["caseLockingPresentUsers", "config", "context", "preview", "authHint"], ["auth", "tags", "caseDetails"]);
-    if (!isReady || !FEATURE_FLAGS.shouldShowCaseLockingNotifications(state)) {
+    const { isReady, state } = readyState(["config", "context", "preview", "authHint"], ["caseLockingPresentUsers", "auth", "tags", "caseDetails"]);
+    if (!isReady || !FEATURE_FLAGS.shouldEnableCaseLocking(state)) {
       this.close();
       return null;
     }
+    // Optional, as in the notification: undefined is "nobody present" or "presence
+    // not connected", and the lock must still interrupt in both.
     const present = state.caseLockingPresentUsers;
     // TWO CONDITIONS FOR PRESENCE, and both are about not crying wolf.
     //
@@ -277,8 +284,13 @@ export class CpsGlobalCaseLockingInterstitial {
     // nowhere; absent tags mean the same, since a case id is the whole point.
     const template = state.config.CASE_LOCKING_CASE_DETAILS_URL;
     const caseDetailsUrl = template && state.tags?.caseId ? replaceTagsInString(template, state.tags) : undefined;
-    const names = Array.from(new Set(sections.flatMap(section => section.users.map(user => user.user))));
-    const who = names.join(", ");
+    this.canContinue = INTERSTITIAL_OPTIONS.allowContinue || !caseDetailsUrl;
+    // Everyone in those sections but the reader: you cannot clash with yourself,
+    // whatever caseLockingCountSelf says.
+    const viewer = state.auth?.isAuthed ? state.auth.username : undefined;
+    const lockedByReader = isLockedByReader(lock, viewer);
+    const others = CCPPeople.others(sections.flatMap(section => section.members), viewer);
+    const who = CCPPeople.collapse(others).map(CCPPeople.displayName).join(", ");
     /**
      * WHERE THE CLASH IS, in the same words the pinned notification uses.
      *
@@ -297,7 +309,7 @@ export class CpsGlobalCaseLockingInterstitial {
      * carries no sections at all is the everyday shape on the legacy clients, and
      * "is also working on ." would be a worse card than a vague one.
      */
-    const where = CCPSectionNames.describe(sections.flatMap(section => section.users.flatMap(user => user.sections ?? []))) || "this case";
+    const where = CCPSectionNames.describe(others.flatMap(member => member.sections ?? [])) || "this case";
 
     return (
       <dialog class="app-interruption" role="alertdialog" aria-labelledby="cps-interruption-heading" aria-describedby="cps-interruption-body">
@@ -315,7 +327,7 @@ export class CpsGlobalCaseLockingInterstitial {
                             is something you may choose to ignore; "this case is
                             locked" is something that will stop you saving, and the
                             heading is the only line some readers take in. */}
-                        {lockInterrupts ? "This case is locked" : `Someone else is working on ${where}`}
+                        {lockInterrupts ? (lockedByReader ? CCPContent.LOCKED_BY_READER : CCPContent.LOCKED_ONLY) : `Someone else is working on ${where}`}
                       </h1>
                       {/* Wording is deliberately plain. The presence API tells us who is
                           in a section and when they arrived — NOT whether they are
@@ -325,7 +337,7 @@ export class CpsGlobalCaseLockingInterstitial {
                             this card is the banner's more insistent twin, and a reader
                             who dismisses one and meets the other should not have to
                             work out whether two wordings mean one lock. */}
-                        {lockInterrupts && <p>{describeCaseLock(lock)}</p>}
+                        {lockInterrupts && <p>{describeCaseLock(lock, viewer)}</p>}
                         {who && (
                           <p>
                             {who} is also working on {where}.
@@ -337,9 +349,11 @@ export class CpsGlobalCaseLockingInterstitial {
                         <p>{lockInterrupts ? "While it is locked, changes you make may not be saved." : "If you both make changes, one set of changes could be lost."}</p>
                       </div>
                       <div class="govuk-button-group moj-interruption-card__actions">
-                        <button type="button" class="govuk-button govuk-button--inverse" autofocus onClick={this.dismiss}>
-                          Continue anyway
-                        </button>
+                        {this.canContinue && (
+                          <button type="button" class="govuk-button govuk-button--inverse" autofocus onClick={this.dismiss}>
+                            Continue anyway
+                          </button>
+                        )}
                         {/* AN ANCHOR, not a button: this is a plain navigation to
                             another page, and saying so in the markup is what makes
                             it work. govuk-link--inverse colours through
@@ -348,7 +362,7 @@ export class CpsGlobalCaseLockingInterstitial {
                             rendered black. Middle-click and "open in new tab" come
                             free with the right element too. */}
                         {caseDetailsUrl && (
-                          <a class="govuk-link govuk-link--inverse" href={caseDetailsUrl}>
+                          <a class="govuk-link govuk-link--inverse" href={caseDetailsUrl} autofocus={!this.canContinue}>
                             Go to case details
                           </a>
                         )}

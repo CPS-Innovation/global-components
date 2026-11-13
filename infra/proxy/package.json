@@ -3,15 +3,7 @@
   "private": true,
   "scripts": {
     "build": "./scripts/build.sh",
-    "build:watch": "tsc --watch",
-    "test": "pnpm exec ts-node --project tsconfig.test.json config/main/tests/global-components.unit.test.ts && pnpm exec ts-node --project tsconfig.test.json config/global-components.vnext/tests/global-components.vnext.unit.test.ts && pnpm exec ts-node --project tsconfig.test.json config/global-components.case-locking/tests/global-components.case-locking.unit.test.ts && pnpm exec ts-node --project tsconfig.test.json config/main/tests/nginx.unit.test.ts",
+    "test": "node config/main/tests/global-components.unit.test.js && node config/global-components.vnext/tests/global-components.vnext.unit.test.js && node config/global-components.os-london-dublin-oapps-switch/tests/global-components.os-london-dublin-oapps-switch.unit.test.js && node config/global-components.watchdog/tests/global-components.watchdog.unit.test.js && node config/tests/features.unit.test.js && node config/main/tests/nginx.unit.test.js",
     "test:integration": "pnpm build && ./run-tests.sh"
-  },
-  "devDependencies": {
-    "@types/node": "^24.0.0",
-    "esbuild": "^0.28.0",
-    "njs-types": "^0.9.4",
-    "ts-node": "^10.9.2",
-    "typescript": "^5.7.2"
   }
 }
