@@ -3,5 +3,5 @@
 let Launch = datetime(2026-03-09T12:00:01);
 GloCo_PageViews
 | where TimeGenerated > Launch and App in ("Casework app", "Materials app")
-| summarize PageViews = count(), Users = dcountif(Auth_ObjectId, Auth_IsAuthed) by App, App_Page
+| summarize PageViews = count(), Users = count_distinctif(Auth_ObjectId, Auth_IsAuthed) by App, App_Page
 | order by App desc, PageViews desc

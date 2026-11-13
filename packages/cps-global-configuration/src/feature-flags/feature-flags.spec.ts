@@ -588,4 +588,37 @@ describe("FEATURE_FLAGS", () => {
       expect(FEATURE_FLAGS.shouldShowOpenInCmsModern(state({ flags: { isLocalDevelopment: true } }))).toBe(true);
     });
   });
+
+  describe("shouldPrependUrnToTabTitle", () => {
+    const state = (overrides: { config?: any; preview?: any; flags?: Partial<ApplicationFlags>; authHint?: any } = {}) => ({
+      config: overrides.config ?? ({} as any),
+      preview: overrides.preview ?? { found: true as const, result: {} },
+      flags: (overrides.flags ?? {}) as ApplicationFlags,
+      authHint: overrides.authHint,
+    });
+
+    it("is off with no preview opt-in, no cohort and not local dev", () => {
+      expect(FEATURE_FLAGS.shouldPrependUrnToTabTitle(state())).toBe(false);
+    });
+
+    it("is off when the cohort says generallyAvailable: false (prod kill switch)", () => {
+      expect(FEATURE_FLAGS.shouldPrependUrnToTabTitle(state({ config: { FEATURE_FLAG_TAB_TITLE_URN_USERS: { generallyAvailable: false } } }))).toBe(false);
+    });
+
+    it("is on for everyone when the cohort is generallyAvailable", () => {
+      expect(FEATURE_FLAGS.shouldPrependUrnToTabTitle(state({ config: { FEATURE_FLAG_TAB_TITLE_URN_USERS: { generallyAvailable: true } } }))).toBe(true);
+    });
+
+    it("is on with the tabTitleUrn preview opt-in, whatever the cohort says", () => {
+      expect(
+        FEATURE_FLAGS.shouldPrependUrnToTabTitle(
+          state({ config: { FEATURE_FLAG_TAB_TITLE_URN_USERS: { generallyAvailable: false } }, preview: { found: true as const, result: { tabTitleUrn: true } } }),
+        ),
+      ).toBe(true);
+    });
+
+    it("is NOT on by default in local development (the e2e harness runs on localhost)", () => {
+      expect(FEATURE_FLAGS.shouldPrependUrnToTabTitle(state({ flags: { isLocalDevelopment: true } }))).toBe(false);
+    });
+  });
 });

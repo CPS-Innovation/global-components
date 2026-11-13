@@ -715,7 +715,7 @@ describe("global-script", () => {
       );
     });
 
-    it("should pass flags to initialiseTabTitle so it can enable by default in the test environment", async () => {
+    it("should pass flags to initialiseTabTitle", async () => {
       const testFlags = {
         e2eTestMode: { isE2eTestMode: true },
         isLocalDevelopment: false,

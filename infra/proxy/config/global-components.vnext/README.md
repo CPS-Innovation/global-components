@@ -11,7 +11,7 @@ anything.
 | Route                                   | Change                                                                                                                                                                                                |
 | --------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `/global-components/state/<key>`        | Polaris's GET/PUT unchanged, plus a JSONP read (`?callback=`) for the IE-mode legacy clients and the dual-engine write (`?set=&return=&done=`) that fills both the Edge and IE cookie jars. UTF-8 safe. |
-| `/global-components/navigate-cms`       | Polaris's handler plus `target=modern` (RNAV-43): drives CMS Modern (`/viewer/landing#/case-summary/<id>`) instead of Classic.                                                                         |
+| `/global-components/navigate-cms`       | Polaris's handler plus `target=modern` (RNAV-43): drives CMS Modern (`/viewer/landing#/case-summary/<id>`) instead of Classic; un-proxied, on the Classic host's paired Modern host (e.g. `cin3` → `cmsmodcin3`).                                                                         |
 | `/global-components/[api/]swagger…`     | MDS's Swagger doc + UI, with the doc rewritten to point at this proxy, so "Try it out" works from the CPS network.                                                                                     |
 
 `/global-components/state/preview` (the preview page and the legacy clients) used to be served

@@ -47,11 +47,14 @@
   },
   "OS_TRIAGE_REQUEST_OBSERVATION_ENABLED": true,
   "PROBE_DARK_READER_USAGE": true,
-  "FOOTER_SHIM_ENABLED": false,
+  "FOOTER_SHIM_ENABLED": true,
   "FEATURE_FLAG_ACCESSIBILITY_MODE_USERS": {
     "generallyAvailable": true
   },
   "FEATURE_FLAG_OPEN_IN_CMS_MODERN_USERS": {
+    "generallyAvailable": true
+  },
+  "FEATURE_FLAG_TAB_TITLE_URN_USERS": {
     "generallyAvailable": true
   },
   "SSO_SILENT_DELAY_MS": 2000,

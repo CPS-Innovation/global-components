@@ -1095,6 +1095,100 @@
               "x": 8,
               "y": 22
             }
+          },
+          {
+            "metadata": {
+              "inputs": [
+                {
+                  "isOptional": true,
+                  "name": "resourceTypeMode"
+                },
+                {
+                  "isOptional": true,
+                  "name": "ComponentId"
+                },
+                {
+                  "isOptional": true,
+                  "name": "Scope",
+                  "value": {
+                    "resourceIds": [
+                      "/subscriptions/__SUBSCRIPTION_ID__/resourcegroups/rg-global-nav-dev/providers/microsoft.operationalinsights/workspaces/la-global-nav-dev"
+                    ]
+                  }
+                },
+                {
+                  "isOptional": true,
+                  "name": "PartId",
+                  "value": "46357670-0c94-4225-b931-508ea581dfd5"
+                },
+                {
+                  "isOptional": true,
+                  "name": "Version",
+                  "value": "2.0"
+                },
+                {
+                  "isOptional": true,
+                  "name": "TimeRange"
+                },
+                {
+                  "isOptional": true,
+                  "name": "DashboardId"
+                },
+                {
+                  "isOptional": true,
+                  "name": "DraftRequestParameters"
+                },
+                {
+                  "isOptional": true,
+                  "name": "Query",
+                  "value": "GloCo_PageViews\n| where App in (\"Casework app\", \"Materials app\")\n| summarize PageViews = count(), Users = count_distinctif(Auth_ObjectId, Auth_IsAuthed) by App, App_Page\n| order by App desc, PageViews desc\n"
+                },
+                {
+                  "isOptional": true,
+                  "name": "ControlType",
+                  "value": "AnalyticsGrid"
+                },
+                {
+                  "isOptional": true,
+                  "name": "SpecificChart"
+                },
+                {
+                  "isOptional": true,
+                  "name": "PartTitle",
+                  "value": "Analytics"
+                },
+                {
+                  "isOptional": true,
+                  "name": "PartSubTitle",
+                  "value": "la-global-nav-dev"
+                },
+                {
+                  "isOptional": true,
+                  "name": "Dimensions"
+                },
+                {
+                  "isOptional": true,
+                  "name": "LegendOptions"
+                },
+                {
+                  "isOptional": true,
+                  "name": "IsQueryContainTimeRange",
+                  "value": false
+                }
+              ],
+              "partHeader": {
+                "subtitle": "",
+                "title": "Casework and Materials apps: page views by page in last 30 days"
+              },
+              "settings": {},
+              "type": "Extension/Microsoft_OperationsManagementSuite_Workspace/PartType/LogsDashboardPart"
+            },
+            "position": {
+              "colSpan": 8,
+              "rowSpan": 4,
+              "x": 0,
+              "y": 22
+            }
           }
         ]
       }

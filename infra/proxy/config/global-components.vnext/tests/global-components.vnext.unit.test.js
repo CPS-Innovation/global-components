@@ -403,6 +403,103 @@ async function runTests() {
     assert(r.returnBody.includes("'https://foo.cps.gov.uk/viewer/landing#/case-summary/123'"), `Should target Modern on cookie domain, got: ${r.returnBody}`)
   })
 
+  // Runs the Modern page's inline script against a fake IE window. openNamed is
+  // what window.open('', 'MODERN_CMS') does: return a window, or throw (IE's
+  // "Access is denied" for a Modern tab on another origin).
+  const runModernPage = (openNamed) => {
+    const r = createMockRequest({
+      uri: "/global-components/navigate-cms",
+      args: { caseId: "123", target: "modern", cmsDomain: "cin3.cps.gov.uk" },
+      variables: { ieaction: "ie+configurable+" },
+      headersIn: { "X-Forwarded-Proto": "https", Host: "polaris.cps.gov.uk" },
+    })
+    vnext.handleNavigateCms(r)
+    const script = r.returnBody.match(/<script>([\s\S]*)<\/script>/)[1]
+    const opens = []
+    const status = { innerHTML: "" }
+    const window = {
+      location: { href: "page" },
+      open: (url, name) => {
+        opens.push([url, name])
+        return url === "" ? openNamed() : undefined
+      },
+    }
+    require("vm").runInNewContext(script, { window, document: { getElementById: () => status } })
+    return { opens, status, selfHref: window.location.href }
+  }
+  const MODERN_URL = "https://cmsmodcin3.cps.gov.uk/viewer/landing#/case-summary/123"
+  const CLOSE_URL = "/global-components/navigate-cms?step=close"
+
+  await test("modern page: same-origin Modern tab is moved to the case and focused", async () => {
+    const tab = { location: { href: "https://polaris.cps.gov.uk/viewer/landing#/dashboard" }, focused: false }
+    tab.focus = () => {
+      tab.focused = true
+    }
+    const { selfHref } = runModernPage(() => tab)
+    assertEqual(tab.location.href, MODERN_URL, "Should move the Modern tab")
+    assert(tab.focused, "Should focus the Modern tab")
+    assertEqual(selfHref, CLOSE_URL, "Should go to the close phase")
+  })
+
+  await test("modern page: cross-origin Modern tab (IE Access is denied) is navigated by name", async () => {
+    const { opens, selfHref } = runModernPage(() => {
+      throw new Error("Access is denied.")
+    })
+    assertEqual(JSON.stringify(opens[1]), JSON.stringify([MODERN_URL, "MODERN_CMS"]), "Should navigate MODERN_CMS by name")
+    assertEqual(selfHref, CLOSE_URL, "Should go to the close phase")
+  })
+
+  await test("modern page: no Modern tab closes the blank window and explains", async () => {
+    const blank = { location: { href: "about:blank" }, closed: false }
+    blank.close = () => {
+      blank.closed = true
+    }
+    const { opens, status, selfHref } = runModernPage(() => blank)
+    assert(blank.closed, "Should close the blank window")
+    assertEqual(opens.length, 1, "Should not open Modern")
+    assert(status.innerHTML.includes("CMS Modern is not open"), `Should explain, got: ${status.innerHTML}`)
+    assertEqual(selfHref, "page", "Should stay on the page")
+  })
+
+  // Polaris's tfvars pairs: *_upstream_cms_domain_name -> *_upstream_cms_modern_domain_name
+  const modernTargetFor = (cmsDomain) => {
+    const r = createMockRequest({
+      uri: "/global-components/navigate-cms",
+      args: { caseId: "123", target: "modern", cmsDomain },
+      variables: { ieaction: "ie+configurable+" },
+      headersIn: { "X-Forwarded-Proto": "https", Host: "polaris.cps.gov.uk" },
+    })
+    vnext.handleNavigateCms(r)
+    return r.returnBody.match(/'(https:\/\/[^']*\/viewer\/landing#[^']*)'/)[1]
+  }
+
+  await test("modern page: un-proxied Classic hosts map to their Modern hosts", async () => {
+    const pairs = {
+      "cms.cps.gov.uk": "cmsmodern.cps.gov.uk",
+      "cmo.cps.gov.uk": "cmsmodtrain.cps.gov.uk",
+      "cmscpt.cps.gov.uk": "cmsmodcpt.cps.gov.uk",
+      "cin2.cps.gov.uk": "cmsmodcin2.cps.gov.uk",
+      "cin3.cps.gov.uk": "cmsmodcin3.cps.gov.uk",
+      "cin4.cps.gov.uk": "cmsmodstage.cps.gov.uk",
+      "CIN5.cps.gov.uk": "cmsmodcin5.cps.gov.uk",
+    }
+    for (const [classic, modern] of Object.entries(pairs)) {
+      assertEqual(modernTargetFor(classic), `https://${modern}/viewer/landing#/case-summary/123`, `Modern host for ${classic}`)
+    }
+  })
+
+  await test("modern page: proxied (our own host) is used as-is", async () => {
+    assertEqual(
+      modernTargetFor("polaris-qa-notprod.cps.gov.uk"),
+      "https://polaris-qa-notprod.cps.gov.uk/viewer/landing#/case-summary/123",
+      "Proxy host serves Modern itself",
+    )
+  })
+
+  await test("modern page: inherited object keys are not taken as mappings", async () => {
+    assertEqual(modernTargetFor("constructor"), "https://constructor/viewer/landing#/case-summary/123", "No prototype lookup")
+  })
+
   await test("IE + configurable (modern): non-numeric caseId returns 400", async () => {
     const r = createMockRequest({
       uri: "/global-components/navigate-cms",
