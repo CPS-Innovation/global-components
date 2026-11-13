@@ -199,6 +199,16 @@ async function testNavigateModern() {
     assertEqual(response.status, 200, "Should return 200")
     assert(body.includes("/viewer/landing#/case-summary/123"), `Should target Modern, got: ${body.slice(0, 300)}`)
   })
+
+  await test("un-proxied CMS targets the paired Modern host", async () => {
+    const hint = encodeURIComponent(JSON.stringify({ handoverEndpoint: "https://cin3.cps.gov.uk/polaris" }))
+    const response = await fetch(`${PROXY_BASE}/global-components/navigate-cms?caseId=123&target=modern`, {
+      headers: { Cookie: `Cms-Session-Hint=${hint}` },
+    })
+    const body = await response.text()
+    assertEqual(response.status, 200, "Should return 200")
+    assert(body.includes("https://cmsmodcin3.cps.gov.uk/viewer/landing#/case-summary/123"), `Should target cmsmodcin3, got: ${body.slice(0, 300)}`)
+  })
 }
 
 // =============================================================================
