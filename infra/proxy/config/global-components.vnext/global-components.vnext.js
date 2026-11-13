@@ -318,25 +318,65 @@ async function handleState(r) {
 // reload, keeping its session, and the guid-less case route loads the case.
 // No MODERN_CMS window means window.open made a blank one (readable, same
 // origin as us), which we close; Modern can't be opened without Classic's guid.
+//
+// Un-proxied CMS runs Modern on the CMS host, not ours. IE then throws "Access
+// is denied" from window.open('', 'MODERN_CMS') itself (it won't hand back a
+// reference to another origin's window), which tells us a Modern tab does
+// exist. window.open(url, name) still navigates it by name, as Classic does,
+// but leaves us no handle to focus it with.
+//
+// Un-proxied, Modern also lives on its own host, paired with the Classic one.
+// The pairs are Polaris's *_upstream_cms_domain_name /
+// *_upstream_cms_modern_domain_name tfvars (the same in every env bar the
+// default). Proxied, cmsDomain is our own host, which serves both, so anything
+// not in the table is used as-is.
+const MODERN_CMS_DOMAINS = {
+  "cms.cps.gov.uk": "cmsmodern.cps.gov.uk",
+  "cmo.cps.gov.uk": "cmsmodtrain.cps.gov.uk",
+  "cmscpt.cps.gov.uk": "cmsmodcpt.cps.gov.uk",
+  "cin2.cps.gov.uk": "cmsmodcin2.cps.gov.uk",
+  "cin3.cps.gov.uk": "cmsmodcin3.cps.gov.uk",
+  "cin4.cps.gov.uk": "cmsmodstage.cps.gov.uk",
+  "cin5.cps.gov.uk": "cmsmodcin5.cps.gov.uk",
+};
+
+function _modernCmsDomain(cmsDomain) {
+  const key = cmsDomain.toLowerCase();
+  // Own keys only: "constructor" is a valid-looking host
+  return Object.prototype.hasOwnProperty.call(MODERN_CMS_DOMAINS, key)
+    ? MODERN_CMS_DOMAINS[key]
+    : cmsDomain;
+}
+
 function _modernCmsNavigatePage(proto, cmsDomain, caseId) {
   const modernUrl =
-    proto + "://" + cmsDomain + "/viewer/landing#/case-summary/" + caseId;
+    proto +
+    "://" +
+    _modernCmsDomain(cmsDomain) +
+    "/viewer/landing#/case-summary/" +
+    caseId;
   const closeUrl = "/global-components/navigate-cms?step=close";
   const heading = "Opening case in CMS Modern";
 
-  // ES3 only: this runs in IE mode. An existing Modern tab on another origin
-  // makes reading its location throw.
+  // ES3 only: this runs in IE mode.
   const script =
-    "var w = window.open('', 'MODERN_CMS');" +
-    "var href = null;" +
-    "try { href = w.location.href; } catch (e) {}" +
-    "if (href === 'about:blank') {" +
-    "  w.close();" +
-    "  document.getElementById('status').innerHTML = 'CMS Modern is not open. Open it from CMS Classic, then try again.';" +
-    "} else {" +
-    "  w.location.href = '" + modernUrl + "';" +
-    "  w.focus();" +
+    "var w = null;" +
+    "var crossOrigin = false;" +
+    "try { w = window.open('', 'MODERN_CMS'); } catch (e) { crossOrigin = true; }" +
+    "if (crossOrigin) {" +
+    "  try { window.open('" + modernUrl + "', 'MODERN_CMS'); } catch (e) {}" +
     "  window.location.href = '" + closeUrl + "';" +
+    "} else {" +
+    "  var href = null;" +
+    "  try { href = w.location.href; } catch (e) {}" +
+    "  if (href === 'about:blank') {" +
+    "    w.close();" +
+    "    document.getElementById('status').innerHTML = 'CMS Modern is not open. Open it from CMS Classic, then try again.';" +
+    "  } else {" +
+    "    w.location.href = '" + modernUrl + "';" +
+    "    w.focus();" +
+    "    window.location.href = '" + closeUrl + "';" +
+    "  }" +
     "}";
 
   return (
