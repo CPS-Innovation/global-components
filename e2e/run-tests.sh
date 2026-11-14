@@ -14,6 +14,6 @@ if [ "$1" = "--log" ]; then
 fi
 
 pnpm -w build
-pnpm --filter cps-global-components rollup --intro 'window.cps_global_components_build = window.cps_global_components_build || {Sha: "local", RunId: 0, Timestamp: "2000-01-01T00:00:00Z" };'
+BUILD_INFO='window.cps_global_components_build = window.cps_global_components_build || {Sha: "local", RunId: 0, Timestamp: "2000-01-01T00:00:00Z" };' pnpm --filter cps-global-components rollup
 cp -r ./packages/cps-global-components/dist/global-components.js ./e2e/harness
 pnpm --filter e2e test$E2E_FLAG
