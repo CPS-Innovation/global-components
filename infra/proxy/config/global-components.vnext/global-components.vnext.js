@@ -315,24 +315,29 @@ async function handleState(r) {
   }
 }
 
-// ---- OURS (RNAV-43): CMS Modern navigation page ----------------------------
+// ---- OURS (RNAV-43/RNAV-53): CMS Modern navigation page --------------------
 //
 // PR: add to global-components.js, beside handleNavigateCms.
 //
-// The IE-mode page that moves an already-open CMS Modern tab to a case.
+// The IE-mode page that moves the user's CMS Modern tab to a case, or opens one.
 //
 // Classic opens Modern with window.open(url, "MODERN_CMS"); window names don't
 // resolve across the Edge/IE-mode boundary, hence IE mode. Modern routes on the
 // hash, so a URL differing only after /viewer/landing# moves the tab without a
-// reload, keeping its session, and the guid-less case route loads the case.
-// No MODERN_CMS window means window.open made a blank one (readable, same
-// origin as us), which we close; Modern can't be opened without Classic's guid.
+// reload.
 //
-// Un-proxied CMS runs Modern on the CMS host, not ours. IE then throws "Access
-// is denied" from window.open('', 'MODERN_CMS') itself (it won't hand back a
-// reference to another origin's window), which tells us a Modern tab does
-// exist. window.open(url, name) still navigates it by name, as Classic does,
-// but leaves us no handle to focus it with.
+// Three cases, by what window.open('', 'MODERN_CMS') does:
+//   - throws "Access is denied": IE won't hand back another origin's window,
+//     so a Modern tab exists on the CMS's own Modern host (un-proxied CMS).
+//     window.open(url, name) still navigates it by name, as Classic does, but
+//     leaves us no handle to focus it with.
+//   - returns a tab on our origin (proxied CMS: Modern runs on our host): move it.
+//   - returns about:blank: no Modern tab, so IE just made one, named MODERN_CMS.
+//     Opening Modern from cold needs the Modern session GUID (Classic's
+//     SESS_MODERN_USER_SESSION_ID, the `Token` in Cms-Auth-Values): with it the
+//     blank tab goes to /case-summary/<caseId>/<guid>?wid=MASTER, which logs in
+//     and lands on the case (proved by the RNAV-53 spike, proxied and not), and
+//     later clicks find that tab by name. Without it we close the tab and say so.
 //
 // Un-proxied, Modern also lives on its own host, paired with the Classic one.
 // The pairs are Polaris's *_upstream_cms_domain_name /
@@ -349,6 +354,13 @@ const MODERN_CMS_DOMAINS = {
   "cin5.cps.gov.uk": "cmsmodcin5.cps.gov.uk",
 };
 
+const MODERN_CMS_NAVIGATE_PATH = "/api/global-components/navigate-cms-modern";
+const CMS_AUTH_VALUES_COOKIE_NAME = "Cms-Auth-Values";
+const GUID_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const CASE_ID_PATTERN = /^\d+$/;
+const HOST_PATTERN = /^[a-z0-9.-]+(:\d+)?$/i;
+
 function _modernCmsDomain(cmsDomain) {
   const key = cmsDomain.toLowerCase();
   // Own keys only: "constructor" is a valid-looking host
@@ -357,8 +369,42 @@ function _modernCmsDomain(cmsDomain) {
     : cmsDomain;
 }
 
-function _modernCmsNavigatePage(proto, cmsDomain, caseId) {
-  const modernUrl =
+// The Modern session GUID from Cms-Auth-Values (DDEI sets it at /init:
+// HttpOnly, Path=/api/, URL-encoded JSON), or "" for anything else.
+//
+// When the CMS cookies and token move into MDS, this cookie may stop being
+// set. Opening Modern from cold then needs another source for the GUID; the
+// planned one is Classic itself (our Classic client opening Modern from
+// Classic's own globals, once it is live). Moving an open tab doesn't need it.
+function _readModernToken(r) {
+  let value = _getCookieValue(r, CMS_AUTH_VALUES_COOKIE_NAME);
+  for (let i = 0; i < 3 && value; i++) {
+    try {
+      const parsed = JSON.parse(value);
+      const token = (parsed && (parsed.Token || parsed.token)) || "";
+      return GUID_PATTERN.test(token) ? token : "";
+    } catch (e) {
+      const decoded = _maybeDecodeURIComponent(value);
+      if (decoded === value) {
+        return "";
+      }
+      value = decoded;
+    }
+  }
+  return "";
+}
+
+function _htmlResponse(r, code, body) {
+  r.headersOut["Content-Type"] = "text/html";
+  r.return(code, body);
+}
+
+// token, when given, is a validated GUID read on the server (a leg that can
+// see the cookie). Otherwise the page looks for #t=<guid>, which the Edge leg
+// puts in the fragment: a fragment is never sent to a server, so the session
+// key stays out of every access log.
+function _modernCmsNavigatePage(proto, cmsDomain, caseId, token) {
+  const caseUrl =
     proto +
     "://" +
     _modernCmsDomain(cmsDomain) +
@@ -369,21 +415,27 @@ function _modernCmsNavigatePage(proto, cmsDomain, caseId) {
 
   // ES3 only: this runs in IE mode.
   const script =
+    "var t = '" + (token || "") + "';" +
+    "if (!t) {" +
+    "  var m = /[#&]t=([0-9a-fA-F-]{36})(&|$)/.exec(window.location.hash);" +
+    "  if (m) { t = m[1]; }" +
+    "}" +
+    "var url = t ? '" + caseUrl + "/' + t + '?wid=MASTER' : '" + caseUrl + "';" +
     "var w = null;" +
     "var crossOrigin = false;" +
     "try { w = window.open('', 'MODERN_CMS'); } catch (e) { crossOrigin = true; }" +
     "if (crossOrigin) {" +
-    "  try { window.open('" + modernUrl + "', 'MODERN_CMS'); } catch (e) {}" +
+    "  try { window.open(url, 'MODERN_CMS'); } catch (e) {}" +
     "  window.location.href = '" + closeUrl + "';" +
     "} else {" +
     "  var href = null;" +
     "  try { href = w.location.href; } catch (e) {}" +
-    "  if (href === 'about:blank') {" +
+    "  if (href === 'about:blank' && !t) {" +
     "    w.close();" +
     "    document.getElementById('status').innerHTML = 'CMS Modern is not open. Open it from CMS Classic, then try again.';" +
     "  } else {" +
-    "    w.location.href = '" + modernUrl + "';" +
-    "    w.focus();" +
+    "    w.location.href = url;" +
+    "    try { w.focus(); } catch (e) {}" +
     "    window.location.href = '" + closeUrl + "';" +
     "  }" +
     "}";
@@ -405,6 +457,80 @@ function _modernCmsNavigatePage(proto, cmsDomain, caseId) {
     "</script>" +
     "</body></html>"
   );
+}
+
+// Everything the page writes into script is checked here first.
+function _serveModernCmsNavigatePage(r, proto, cmsDomain, caseId, token) {
+  if (!CASE_ID_PATTERN.test(caseId) || !HOST_PATTERN.test(cmsDomain)) {
+    _htmlResponse(
+      r,
+      400,
+      "<html><body><p>Error: caseId must be a number and cmsDomain a host.</p></body></html>",
+    );
+    return;
+  }
+  _htmlResponse(
+    r,
+    200,
+    _modernCmsNavigatePage(
+      proto,
+      cmsDomain,
+      caseId,
+      GUID_PATTERN.test(token || "") ? token : "",
+    ),
+  );
+}
+
+// GET /api/global-components/navigate-cms-modern?caseId=<n>
+//
+// Under /api/ because that is Cms-Auth-Values' path: the browser sends the
+// cookie here and nowhere else. The cookie lives in Edge's jar only, so the
+// Edge leg reads it and hands the token to the IE leg in the fragment, as
+// navigate-cms hands over cmsDomain in the query.
+function handleNavigateCmsModern(r) {
+  const ieaction = r.variables.ieaction || "";
+  const proto = r.headersIn["X-Forwarded-Proto"] || "https";
+  const host = r.headersIn["Host"] || "";
+  const caseId = r.args.caseId || "";
+  const noDomain =
+    "<html><body><p>Error: could not determine CMS domain from session.</p></body></html>";
+
+  if (ieaction === "nonie+configurable+") {
+    const domain = _extractDomainFromSessionHint(r);
+    if (!domain) {
+      _htmlResponse(r, 400, noDomain);
+      return;
+    }
+    if (!CASE_ID_PATTERN.test(caseId)) {
+      _htmlResponse(r, 400, "<html><body><p>Error: caseId must be a number.</p></body></html>");
+      return;
+    }
+    const token = _readModernToken(r);
+    r.headersOut["X-InternetExplorerMode"] = "1";
+    r.return(
+      302,
+      proto +
+        "://" +
+        host +
+        MODERN_CMS_NAVIGATE_PATH +
+        "?caseId=" +
+        caseId +
+        "&cmsDomain=" +
+        encodeURIComponent(domain) +
+        (token ? "#t=" + token : ""),
+    );
+    return;
+  }
+
+  // IE leg: cmsDomain from the query, token from the fragment (client side).
+  // A site that cannot flip stays in Edge, where the cookies are readable here.
+  const cmsDomain = r.args.cmsDomain || _extractDomainFromSessionHint(r);
+  if (!cmsDomain) {
+    _htmlResponse(r, 400, noDomain);
+    return;
+  }
+  const token = r.args.cmsDomain ? "" : _readModernToken(r);
+  _serveModernCmsNavigatePage(r, proto, cmsDomain, caseId, token);
 }
 
 // ---- COPIED from Polaris, with OURS marked inline: handleNavigateCms -------
@@ -472,18 +598,11 @@ function handleNavigateCms(r) {
   var caseId = r.args.caseId || "";
   var taskId = r.args.taskId || "";
   // OURS (RNAV-43): target=modern drives CMS Modern instead of Classic.
+  // Superseded by /api/global-components/navigate-cms-modern (which can open
+  // Modern from cold); kept for bundles still cached in browsers, so it only
+  // moves an open tab. Drop it, and keep it out of the PR, once they have aged out.
   if (r.args.target === "modern") {
-    // Both are written into script, so only a plain number and a bare host get through
-    if (!/^\d+$/.test(caseId) || !/^[a-z0-9.-]+(:\d+)?$/i.test(cmsDomain)) {
-      r.headersOut["Content-Type"] = "text/html";
-      r.return(
-        400,
-        "<html><body><p>Error: caseId must be a number and cmsDomain a host.</p></body></html>",
-      );
-      return;
-    }
-    r.headersOut["Content-Type"] = "text/html";
-    r.return(200, _modernCmsNavigatePage(proto, cmsDomain, caseId));
+    _serveModernCmsNavigatePage(r, proto, cmsDomain, caseId, "");
     return;
   }
   var iframeSrc = taskId
@@ -559,5 +678,6 @@ function filterSwaggerBody(r, data, flags) {
 export default {
   handleState,
   handleNavigateCms,
+  handleNavigateCmsModern,
   filterSwaggerBody,
 };
