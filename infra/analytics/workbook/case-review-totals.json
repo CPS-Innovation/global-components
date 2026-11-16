@@ -125,6 +125,22 @@
         }
       },
       "name": "query - casework-pages-by-app"
+    },
+    {
+      "type": 3,
+      "content": {
+        "version": "KqlItem/1.0",
+        "query": "GloCo_Users_AreaBaseline\n",
+        "size": 1,
+        "title": "Area baseline",
+        "showExportToExcel": true,
+        "queryType": 0,
+        "resourceType": "microsoft.operationalinsights/workspaces",
+        "gridSettings": {
+          "rowLimit": 10000
+        }
+      },
+      "name": "query - area-baseline"
     }
   ],
   "isLocked": false,

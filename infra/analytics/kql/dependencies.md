@@ -2,8 +2,7 @@
 
 Every function here feeds the workbook (`workbook/case-review-totals.json`, "MaCD global nav all-time
 analytics") or the dashboard (`dashboard/dashboard.json`, "MaCD global nav - last 30 days") — marked
-**[WB]** / **[DB]** on the function the page calls — or is a building block of one that does. The only
-exception is `GloCo_Users_CpsdReviewTriage`, kept deliberately and due to join the foot of the workbook.
+**[WB]** / **[DB]** on the function the page calls — or is a building block of one that does.
 Functions that fed no page were removed on 28 Sep 2026; they are in git history. Keep it that way:
 `functions-deploy.sh --prune` lists (and, on confirmation, deletes) deployed functions with no `.kql` here.
 
@@ -36,7 +35,8 @@ GloCo_PageViews  (also joins GloCo_ExcludedUsers; lookups GloCo_UserDimension fo
   |               |       '---> GloCo_CaseReview_Duration_Chart  [DB "Review duration distribution"]
   |               |---> GloCo_CaseReview_PerDay  [DB "Reviews by day"]
   |               |---> GloCo_Users_VisitsPerApp  [WB + DB "Top users by visit"]  (case-work columns from here — reviews incl admin finalise, triage twice; ALSO reads GloCo_PageViews for visits per app and joins GloCo_UserAreas. Resolver: an INLINE copy in a test harness can fail SEM0100 on GloCo_PageViews depending on surrounding text — test the deployed function by name)
-  |               '---> GloCo_Users_CpsdReviewTriage  [none yet — due at the foot of WB]  (per-user, CPS Direct by EITHER signal: ReviewCount, TriageSubmitted, TriageSubmittedAdjusted from here; ALSO reads GloCo_PageViews for email, job title, Entra department and unit counts (the two CPSD signals); GloCo_LawyerStatus scalar. Launch-date floor, but set the LA time picker to cover it too)
+  |               |---> GloCo_Users_CpsdReviewTriage  [WB "CPS Direct users: reviews and triage"]  (per-user, CPS Direct by EITHER signal: ReviewCount, TriageSubmitted, TriageSubmittedAdjusted from here; ALSO reads GloCo_PageViews for email, job title, Entra department and unit counts (the two CPSD signals); GloCo_LawyerStatus scalar. Launch-date floor, but set the LA time picker to cover it too)
+  |               '---> GloCo_Users_AreaBaseline  [WB "Area baseline"]  (one row per user with ANY submitted case work ever — review, triage (adjusted) or admin finalise; STT excluded, it has no submission; area at their last submission, its date and days ago)
   |
   |---> GloCo_App_UsersPerDay  [DB "Cumulative users by app"]
   |       |
