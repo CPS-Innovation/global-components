@@ -97,6 +97,65 @@ async function testWhoamiCmsEnv() {
 }
 
 // =============================================================================
+// /global-components/presence-jsonp/whoami — the sub-path and the claims cookie
+// =============================================================================
+
+// Through real nginx + njs (crypto included): the exact location exists, beats
+// nothing else, and verifies a cookie packed the way Polaris packs it. The
+// secret is docker-compose.watchdog.yml's ENTRA_STATE_HMAC_SECRET.
+async function testWhoamiHandoverClaims() {
+  console.log("\nWhoami handover-claims Tests (/global-components/presence-jsonp/whoami):")
+
+  const crypto = require("crypto")
+  const SECRET = "integration-test-state-hmac-secret"
+  const OID = "0b1c2d3e-4f50-6172-8394-a5b6c7d8e9f0"
+  const GROUP = "12377eca-b463-4a6c-80ea-95f678f09591"
+  const b64url = (s) => Buffer.from(s, "utf8").toString("base64url")
+  const pack = (st, secret = SECRET) => {
+    const payload = b64url(JSON.stringify(st))
+    return payload + "." + crypto.createHmac("sha256", secret).update(payload).digest("base64url")
+  }
+  const presence = `cms-auth-presence-token=${b64url('{"alg":"none"}')}.${b64url(JSON.stringify({ preferred_username: "a@cps.gov.uk", oid: OID }))}.sig`
+  const claims = (over = {}) => ({ k: "claims", v: 1, oid: OID, iat: Math.floor(Date.now() / 1000), g: [GROUP], ...over })
+
+  const whoami = async (cookie, path = "/global-components/presence-jsonp/whoami?callback=cb") => {
+    const response = await fetch(`${PROXY_BASE}${path}`, cookie ? { headers: { Cookie: cookie } } : undefined)
+    assertEqual(response.status, 200, "Should return 200")
+    assertEqual(response.headers.get("cache-control"), "no-store", "Cache-Control")
+    const body = await response.text()
+    return JSON.parse(body.replace(/^cb\(/, "").replace(/\)\s*$/, ""))
+  }
+
+  await test("a cookie packed like Polaris's gives its groups", async () => {
+    const data = await whoami(`${presence}; cps-handover-claims=${pack(claims())}`)
+    assertEqual(JSON.stringify(data.groups), JSON.stringify([GROUP]), "groups")
+    assertEqual(data.groupsFrom, "cookie", "source")
+    assertEqual(data.userEmail, "a@cps.gov.uk", "identity still answered")
+  })
+
+  await test("a cookie under another secret is refused", async () => {
+    const data = await whoami(`${presence}; cps-handover-claims=${pack(claims(), "nope")}`)
+    assertEqual(JSON.stringify(data.groups), "[]", "none")
+    assertEqual(data.groupsFrom, "bad-mac", "source")
+  })
+
+  await test("no cookie: no groups", async () => {
+    const data = await whoami(presence)
+    assertEqual(data.groupsFrom, "no-cookie", "source")
+  })
+
+  await test("the sub-path refuses a callback that is not a bare identifier", async () => {
+    const response = await fetch(`${PROXY_BASE}/global-components/presence-jsonp/whoami?callback=alert(1)`)
+    assertEqual(response.status, 400, "Should refuse to reflect it")
+  })
+
+  await test("the base path's ?op=whoami still answers", async () => {
+    const data = await whoami(presence, "/global-components/presence-jsonp?op=whoami&callback=cb")
+    assertEqual(data.userEmail, "a@cps.gov.uk", "identity")
+  })
+}
+
+// =============================================================================
 // Unconfigured — the one setting absent
 // =============================================================================
 
@@ -129,6 +188,7 @@ async function testUnconfigured() {
 
 async function main() {
   await testWhoamiCmsEnv()
+  await testWhoamiHandoverClaims()
   await testUnconfigured()
 }
 

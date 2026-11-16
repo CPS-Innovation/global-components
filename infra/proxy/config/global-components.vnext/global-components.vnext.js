@@ -12,6 +12,9 @@
 //
 // Mapping onto the PR is then mechanical: OURS goes into their file, COPIED is
 // already there.
+//
+// COPIED is as of Polaris 6e509401a (2026-10-30), checked 2026-11-13. See the
+// README's "Base" section for how to tell whether Polaris has moved since.
 // ---------------------------------------------------------------------------
 
 // ---- COPIED from Polaris's global-components.js: state helpers ------------
@@ -236,6 +239,12 @@ function _handleStateSet(r, rawSet) {
 //
 // PR: replaces handleState in global-components.js.
 async function handleState(r) {
+  // OURS: no response from this route is cacheable. Every answer depends on a
+  // cookie (and the ?set= 302s write one), so a cached copy is someone's stale
+  // state. Polaris's server block would add no-store, but the location's own
+  // add_header (CORS) switches that inheritance off, so the plain GET went out
+  // with no Cache-Control at all. Set here, once, so the PR copy carries it.
+  r.headersOut["Cache-Control"] = "no-store";
   if (!["GET", "PUT"].includes(r.method)) {
     // Method not allowed
     r.return(405, JSON.stringify({ error: "Method not allowed" }));
@@ -260,10 +269,10 @@ async function handleState(r) {
         return;
       }
       r.headersOut["Content-Type"] = "application/javascript; charset=utf-8";
-      // The answer depends on a cookie the client cannot see change, and the
-      // legacy clients' cache-buster restarts every page load, so the URL repeats.
-      // Without this, IE mode reuses an old script and serves stale flags.
-      r.headersOut["Cache-Control"] = "no-store";
+      // no-store (set above) matters most here: the answer depends on a cookie
+      // the client cannot see change, and the legacy clients' cache-buster
+      // restarts every page load, so the URL repeats. Without it, IE mode reuses
+      // an old script and serves stale flags.
       r.return(200, callback + "(" + _readStateStrict(r) + ")");
       return;
     }

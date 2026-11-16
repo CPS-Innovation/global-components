@@ -54,6 +54,27 @@ Each block in the conf and the njs says where it goes:
 Retire a section here only once every environment this module is deployed to runs the PR
 version. A bronze section left behind is harmless meanwhile.
 
+### Base: which Polaris the COPIED sections match
+
+| | |
+|---|---|
+| Polaris file | `polaris-terraform/main-terraform/proxy/config/features/global-components/global-components.js` |
+| Base commit | `6e509401a` (2026-10-30, the file's last change on `origin/development`) |
+| Checked | 2026-11-13: the state helpers are byte-identical, and `handleState` / `handleNavigateCms` contain every Polaris line (ours only add) |
+
+COPIED code is a full copy, so nothing flags it when Polaris changes underneath. When cutting the
+PR, or after any Polaris change to that file, see what moved since the base (from the Polaris
+repo root):
+
+```
+git log --oneline 6e509401a..origin/development -- polaris-terraform/main-terraform/proxy/config/features/global-components/global-components.js
+```
+
+Empty output means the COPIED sections are still verbatim. Otherwise, fold the change into the
+COPIED sections here first, so the PR's OURS sections land on Polaris's current code. Then update
+the base commit and the date above. Changes that vnext can't carry (exact-match routes, code that
+isn't a route) go in [`../../polaris-pending/`](../../polaris-pending/README.md) instead.
+
 ## Files
 
 - `global-components.vnext.conf` — the locations, and the header explaining the tiers.

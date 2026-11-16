@@ -11,6 +11,9 @@
 //   /global-components/presence-jsonp         the JSONP adapter, for the legacy
 //       CMS clients (Classic, Modern, DCF), which run in IE mode and can neither
 //       XHR cross-domain nor set an Authorization header.
+//   /global-components/presence-jsonp/whoami  whoami on its own sub-path, so the
+//       handover-claims cookie (the reader's groups) rides whoami and not the 3s
+//       polls. Answered here, never proxied.
 //
 // Until 2026-11-10 the JSONP adapter lived in cms-auth-presence, beside the auth
 // flow that wrote its cookie, with its own copies of the setting, the cookie name
@@ -42,6 +45,8 @@
 //
 // Declared first: njs TDZ-checks forward references to module-level const.
 // ---------------------------------------------------------------------------
+
+import cryptoModule from "crypto"; // njs built-in: verifies the handover-claims cookie's HMAC
 
 const _fromDropzone = (token) =>
   token.indexOf("@@") === -1 ? token : "";
@@ -89,6 +94,39 @@ const JSONP_APP_DEFAULT = "CMS Classic";
 // Cms-Session-Hint: which CMS (CIN3, CIN5, ...) this session is in. Written by
 // Polaris's /init; read here for whoami and the create log line.
 const _SESSION_HINT_COOKIE_NAME = "Cms-Session-Hint";
+
+// ---------------------------------------------------------------------------
+// The handover-claims cookie (RPLT-246) — the reader's Entra groups, for whoami
+//
+// CONTRACT WITH POLARIS (name, payload, path; grep both repos before changing):
+// Polaris's /init/entra-callback, iframe terminal only, reads `groups` from the ID
+// token it has just exchanged for OUR app registration and sets
+//
+//   cps-handover-claims = _packState({ k: "claims", v: 1, oid, iat, g: [guid, ...] })
+//   Path=/global-components/presence-jsonp/whoami; HttpOnly; Secure; SameSite=Lax
+//
+// _packState is `base64url(JSON) "." base64url(HMAC-SHA256(that, ENTRA_STATE_HMAC_SECRET))`,
+// the same envelope as its state and login-hint cookies. `k` stops one of those
+// standing in for this one: all three share the secret.
+//
+// WHY OUR APP REG'S ID TOKEN, NOT THE PRESENCE TOKEN. The app registration is the
+// one place groups are set up as switches (ApplicationGroup: only groups assigned
+// to OUR app), shared with the web components' FEATURE_FLAG_*_USERS. The presence
+// token is issued for the Watchdog's registration, so its groups (if any) are
+// assigned to THEIR app. We never read groups from it, even while it carries some.
+//
+// WHY ITS OWN PATH. Every other JSONP op shares the base path and polls every 3s;
+// whoami runs at start and once a minute. A cookie on the sub-path rides whoami
+// alone (verified in IE mode on QA, 2026-11-13: WinINet matches by string prefix,
+// so the presence token's base path still reaches the sub-path too).
+// ---------------------------------------------------------------------------
+const CLAIMS_COOKIE = "cps-handover-claims";
+const CLAIMS_KIND = "claims";
+const CLAIMS_VERSION = 1;
+
+// Polaris's secret, read the way Polaris reads it (an app setting, at module load).
+// Empty fails closed: every cookie is unverifiable, so nobody has any groups.
+const STATE_HMAC_SECRET = process.env.ENTRA_STATE_HMAC_SECRET || "";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -153,22 +191,20 @@ function _tokenExpiresIn(claims) {
 }
 
 /**
- * The reader's Entra group IDs, from already-decoded claims.
+ * Group IDs, lower-cased, from a list that should hold nothing else.
  *
- * WHAT THIS CAN CONTAIN is decided by the app registration, not here. Ours emits
- * groups as ApplicationGroup-filtered membership: only groups ASSIGNED to the app
- * that the reader is a MEMBER of (ownership does not count). So the list is short
- * and bounded by what we chose to assign — today that is FCT Global Navigation —
- * not the reader's whole directory footprint.
+ * WHAT THE LIST CAN CONTAIN is decided by our app registration, not here: it
+ * emits ApplicationGroup-filtered membership, only groups ASSIGNED to the app that
+ * the reader is a MEMBER of. So it is a handful of IDs we chose to assign, not the
+ * reader's whole directory footprint.
  *
- * TOTAL, AND EMPTY MEANS "NOT IN ANY", which is the safe reading for a gate. No
- * token, no `groups` claim (a Graph-audience token from the consent self-heal
- * carries none), a non-array, and junk entries all collapse to fewer groups,
- * never more. Each entry must be a GUID: the list is reflected into an executable
- * JSONP body, and an ID is the only shape a group claim legitimately takes.
+ * TOTAL, AND EMPTY MEANS "NOT IN ANY", which is the safe reading for a gate. A
+ * non-array and junk entries collapse to fewer groups, never more. Each entry must
+ * be a GUID: the list is reflected into an executable JSONP body, and an ID is the
+ * only shape a group claim legitimately takes. (The cookie is signed, so junk here
+ * would mean a Polaris bug, not an attacker; filtering costs nothing.)
  */
-function _groupsOf(claims) {
-  const groups = claims ? claims.groups : null;
+function _guidList(groups) {
   if (!Array.isArray(groups)) {
     return [];
   }
@@ -182,6 +218,93 @@ function _groupsOf(claims) {
     .map(function (g) {
       return String(g).toLowerCase();
     });
+}
+
+// HMAC-SHA256 under Polaris's state secret, base64url — byte-for-byte Polaris's
+// _stateMac, so a cookie it packs verifies here.
+function _claimsMac(payload) {
+  return cryptoModule
+    .createHmac("sha256", STATE_HMAC_SECRET)
+    .update(payload)
+    .digest("base64")
+    .replace(/\+/g, "-")
+    .replace(/\//g, "_")
+    .replace(/=+$/, "");
+}
+
+// Constant-time compare (njs has no crypto.timingSafeEqual). A MAC's length is
+// fixed and not secret, so the early length check gives nothing away.
+function _constEq(a, b) {
+  if (a.length !== b.length) {
+    return false;
+  }
+  let d = 0;
+  for (let i = 0; i < a.length; i++) {
+    d |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  }
+  return d === 0;
+}
+
+/**
+ * The reader's groups from the handover-claims cookie, bound to the presence token.
+ *
+ * Returns { groups, why }. why is "cookie" when the groups came from a verified
+ * cookie (which may still hold none: g:[] is "in no assigned group"); otherwise it
+ * names the reason there are none, for the response and the log:
+ *   no-cookie     not sent: /init has not run in this jar since the Polaris
+ *                 change, or the caller used the base path (?op=whoami)
+ *   no-secret     ENTRA_STATE_HMAC_SECRET is not set on this box
+ *   bad-mac       no MAC, or one that does not verify (tampered, or another
+ *                 environment's secret)
+ *   bad-payload   verified, but not JSON
+ *   wrong-kind    verified, but another of Polaris's signed cookies (k !== "claims")
+ *   wrong-version a payload shape this code does not know
+ *   oid-mismatch  verified, but for a different reader than the presence token,
+ *                 or there is no presence token to bind it to
+ *
+ * THE OID BINDING is what makes the cookie mean "this reader's groups". Both
+ * cookies are written by the same callback in the same jar, so they agree unless
+ * the jar holds leftovers from another account. The presence token is the
+ * identity every other op acts as, so a groups answer for anyone else is refused.
+ *
+ * FAILS CLOSED, every way: each `why` other than "cookie" answers no groups.
+ *
+ * No iat check: the cookie's Max-Age matches the presence token's, and /init
+ * rewrites both every 45 minutes. A stale cookie is the reader's own, bound to
+ * their own token, and loses at most the one change since it was written.
+ */
+function _handoverGroups(r, presenceOid) {
+  const raw = _getCookie(r, CLAIMS_COOKIE);
+  if (!raw) {
+    return { groups: [], why: "no-cookie" };
+  }
+  if (!STATE_HMAC_SECRET) {
+    return { groups: [], why: "no-secret" };
+  }
+  const dot = raw.lastIndexOf(".");
+  if (dot === -1) {
+    return { groups: [], why: "bad-mac" };
+  }
+  const payload = raw.substring(0, dot);
+  if (!_constEq(raw.substring(dot + 1), _claimsMac(payload))) {
+    return { groups: [], why: "bad-mac" };
+  }
+  let claims;
+  try {
+    claims = JSON.parse(_base64UrlDecode(payload));
+  } catch (_e) {
+    return { groups: [], why: "bad-payload" };
+  }
+  if (!claims || claims.k !== CLAIMS_KIND) {
+    return { groups: [], why: "wrong-kind" };
+  }
+  if (claims.v !== CLAIMS_VERSION) {
+    return { groups: [], why: "wrong-version" };
+  }
+  if (!presenceOid || String(claims.oid || "") !== presenceOid) {
+    return { groups: [], why: "oid-mismatch" };
+  }
+  return { groups: _guidList(claims.g), why: "cookie" };
 }
 
 /**
@@ -407,18 +530,38 @@ const _PRESENCE_OPS = {
   },
 };
 
-async function handlePresenceJsonp(r) {
+// The callback name, or null after answering 400. The one non-negotiable JSONP
+// guard: the name is reflected verbatim into an executable script response, so it
+// MUST be a bare identifier or it's XSS. On success the response is set up as
+// uncacheable script.
+function _jsonpCallback(r) {
   const cb = _getQueryParam(r, "callback") || "";
-  // The one non-negotiable JSONP guard: the callback name is reflected verbatim
-  // into an executable script response, so it MUST be a bare identifier or it's XSS.
   if (!/^[A-Za-z_$][A-Za-z0-9_$]*$/.test(cb)) {
     r.headersOut["Content-Type"] = "text/plain; charset=utf-8";
     r.return(400, "invalid callback");
-    return;
+    return null;
   }
-
   r.headersOut["Content-Type"] = "text/javascript; charset=utf-8";
   r.headersOut["Cache-Control"] = "no-store";
+  return cb;
+}
+
+// whoami on its own sub-path, the one the handover-claims cookie is scoped to.
+// The base path's ?op=whoami answers the same way, minus the groups (the cookie
+// never reaches it); it goes once every client has moved here.
+function handlePresenceWhoami(r) {
+  const cb = _jsonpCallback(r);
+  if (cb === null) {
+    return;
+  }
+  _answerWhoami(r, cb);
+}
+
+async function handlePresenceJsonp(r) {
+  const cb = _jsonpCallback(r);
+  if (cb === null) {
+    return;
+  }
 
   const args = {
     op: _getQueryParam(r, "op") || "",
@@ -427,165 +570,8 @@ async function handlePresenceJsonp(r) {
     appName: decodeURIComponent(_getQueryParam(r, "appName") || ""),
   };
 
-  // whoami — ANSWERED HERE, not proxied. The legacy clients cannot filter the
-  // reader out of their own roster because nothing on the page knows who the
-  // reader is: the identity lives in the presence token, which is an HttpOnly
-  // cookie they can never read. RCMS has the email to hand and filters on it; this
-  // is how the JSONP clients get the same fact.
-  //
-  // preferred_username IS the claim. Verified against a real capture: the presence
-  // access token (scp api.presence.user.readwrite) carries preferred_username, oid,
-  // sub and sid — and NOT email or upn — and its preferred_username is byte-for-byte
-  // what the API puts in member.userEmail. email and upn are tried first for a token
-  // that carries them; for this token it is the third entry that fires.
-  //
-  // NEVER THE TOKEN ITSELF, only the claim. The page already acts as this user, so
-  // telling it their own username exposes nothing new — handing back the bearer
-  // token would be another matter entirely.
-  //
-  // An unreadable or absent cookie yields "" rather than an error, and the client
-  // reads "" as FILTER NOBODY. Getting this wrong in the other direction would hide
-  // every colleague rather than one, which is the failure worth designing against.
   if (args.op === "whoami") {
-    const tok = _getCookie(r, PRESENCE_TOKEN_COOKIE);
-    const claims = tok ? _decodeJwtPayload(decodeURIComponent(tok)) : null;
-    const userEmail = claims
-      ? String(claims.email || claims.upn || claims.preferred_username || "")
-      : "";
-    const whoami = _cmsEnvRead(r);
-    // Logged HERE as well as returned, because the browser-side log is hard to
-    // reach: the CMS estate's only console is IEChooser's, which cannot be
-    // attached before a tab boots — and the Modern tab is opened BY Classic, so
-    // there is no moment to get in first. error_log runs at debug (see
-    // nginx.conf), so this reaches the app service log stream, where the request
-    // timestamps also show whether create preceded whoami and by how long.
-    //
-    // op and environment only. No email, no oid, no token: a pool label is not
-    // an identity, and the log is a different audience from the response.
-    //
-    // `why` is logged even when the environment is known, so a log line is
-    // self-describing rather than needing the empty case to be inferred from a
-    // missing value.
-    ngx.log(
-      ngx.WARN,
-      "[presence] whoami cmsEnv=" +
-        (whoami.env || "(none)") +
-        " why=" +
-        whoami.why +
-        " identity=" +
-        (userEmail ? "yes" : "no") +
-        // Neither is an identity, so both belong in the log by the rule above, and
-        // the client-side console is hard to reach in this estate. AGE is the one
-        // that answers "did the replay land" — it resets to near zero every time a
-        // new token is written, so a session's worth of these never going back down
-        // is a replay that is failing silently. Remaining life is here for sizing
-        // the interval, not for deciding whether a refresh happened: AAD varies the
-        // lifetime, so it can fall after a SUCCESSFUL replay (see _tokenAge).
-        " expiresIn=" +
-        _tokenExpiresIn(claims) +
-        " age=" +
-        _tokenAge(claims),
-    );
-    r.return(
-      200,
-      cb +
-        "(" +
-        JSON.stringify({
-          userEmail,
-          // Diagnostics only — the client matches on userEmail, because that is the
-          // only identity the API's member records carry. Here so that "presence
-          // works but nobody is filtered" can be told apart from "no token at all"
-          // without decoding a cookie by hand.
-          oid: claims ? String(claims.oid || "") : "",
-          // Which CMS this session belongs to (CIN3, CIN5, ...), or "" — which
-          // means UNKNOWN and nothing else. See _cmsEnvRead: there is no
-          // "known to be blank", because a suffix-less environment is a
-          // client-side mapping from a known label, not an empty value here.
-          //
-          // STILL DIAGNOSTIC, but no longer only that: the client may now treat
-          // "" as "do not register yet, ask again next pass". Registration is
-          // synchronous at boot and sectionId travels on create, the first op
-          // out, so acting on this costs a deferred create — measured at 151ms
-          // (QA, warm cookie) against the 3s observation cadence that would
-          // retry it anyway.
-          cmsEnv: whoami.env,
-          // WHICH empty, for the client's log and for operators. "hint" when
-          // cmsEnv is set; otherwise no-hint (nobody wrote it), bad-hint
-          // (present, unreadable), hint-error (the writer said it could not work
-          // it out) or no-domain (written, but no CMS domain in it). These need
-          // different people to fix them, which is why one empty string was not
-          // enough.
-          cmsEnvWhy: whoami.why,
-          // HOW LONG THE PRESENCE TOKEN HAS LEFT, in whole seconds, from its own
-          // `exp` claim. 0 means no token, an unreadable one, or one already past
-          // its expiry — all of which the client treats the same way: replay the
-          // auth flow.
-          //
-          // THIS IS THE REPLAY CLOCK, and the reason it is here rather than
-          // anywhere else. The cookie is HttpOnly and Path-scoped, so no page
-          // script can read it, let alone decode it — the client cannot time its
-          // own refresh. It also cannot learn the outcome from the auth iframe: the
-          // flow ends cross-origin at document mode 5, where there is no
-          // postMessage and no readable contentDocument. So the client asks the
-          // SERVER what it has, after the fact, and schedules from the answer.
-          //
-          // A FRESH VALUE IS THE ONLY PROOF A REPLAY WORKED. The silent round trip
-          // can fail (an expired AD session, AADSTS16000 for a multi-account user)
-          // and a hidden iframe cannot prompt, so it fails invisibly: same cookie
-          // name, same two paths, nothing thrown, nothing logged client-side.
-          // Watching this number go back up is what distinguishes a working replay
-          // from a dead one.
-          //
-          // Diagnostic until the client drives its interval from it; the auth flow
-          // writes the cookie with a long Max-Age today, so the cookie and the token
-          // inside it do not expire together.
-          tokenExpiresIn: _tokenExpiresIn(claims),
-          // HOW OLD THE TOKEN IS, and the field to read when the question is "did
-          // the replay land". -1 means there is no token to age. See _tokenAge for
-          // why the expiry above cannot answer that on its own: AAD's token
-          // lifetime varies, so a successful replay can report LESS time remaining
-          // than the token it replaced, and two expiry readings are therefore
-          // ambiguous. Age is not — a number near zero is a token minted moments
-          // ago, whatever its lifetime.
-          tokenAge: _tokenAge(claims),
-          // WHICH CLAIMS THE TOKEN ACTUALLY CARRIES — names only, comma
-          // separated, "" when there is no readable token.
-          //
-          // NAMES, NEVER VALUES, and that is the whole reason this is safe to
-          // return: a key list is a SHAPE, not data. It answers "is this claim
-          // configured on the app registration" without disclosing a single
-          // claim's content, so it stays on the right side of the rule above —
-          // the one that lets us hand back an email the page already acts as,
-          // but never the bearer token.
-          //
-          // HERE because this is the token that matters: the cookie holds the
-          // ACCESS token we present to the presence API, not the ID token, whose
-          // optional claims are configured separately. It also arrives on a call
-          // a normal session already makes, so the answer needs no hand-run of
-          // the auth flow.
-          //
-          // The question it was added for: whether a `groups` claim reaches us,
-          // which would let the legacy UI gate features on Entra group
-          // membership — a cohort mechanism that needs no cookie, and so is
-          // immune to the Edge/IE jar split that blocks reading preview state.
-          claimKeys: claims ? Object.keys(claims).join(",") : "",
-          // THE READER'S GROUP IDS — a VALUE, unlike claimKeys above, and returned
-          // on the same footing as userEmail: it is the reader's own membership,
-          // told to a page that already acts as them. Bounded by the app
-          // registration (assigned groups only — see _groupsOf), so it is a
-          // handful of IDs we chose to assign, not their directory footprint.
-          //
-          // For the legacy clients to gate features on Entra group membership, the
-          // way the web components already do with a cohort's adGroupIds. A cookie
-          // is not involved, so the Edge/IE jar split that makes preview state
-          // awkward does not apply.
-          //
-          // NOT LOGGED: the log line above is op and environment only, and the
-          // log is a different audience from the response.
-          groups: _groupsOf(claims),
-        }) +
-        ")",
-    );
+    _answerWhoami(r, cb);
     return;
   }
 
@@ -682,6 +668,180 @@ async function handlePresenceJsonp(r) {
   }
 }
 
+function _answerWhoami(r, cb) {
+  // whoami — ANSWERED HERE, not proxied. The legacy clients cannot filter the
+  // reader out of their own roster because nothing on the page knows who the
+  // reader is: the identity lives in the presence token, which is an HttpOnly
+  // cookie they can never read. RCMS has the email to hand and filters on it; this
+  // is how the JSONP clients get the same fact.
+  //
+  // preferred_username IS the claim. Verified against a real capture: the presence
+  // access token (scp api.presence.user.readwrite) carries preferred_username, oid,
+  // sub and sid — and NOT email or upn — and its preferred_username is byte-for-byte
+  // what the API puts in member.userEmail. email and upn are tried first for a token
+  // that carries them; for this token it is the third entry that fires.
+  //
+  // NEVER THE TOKEN ITSELF, only the claim. The page already acts as this user, so
+  // telling it their own username exposes nothing new — handing back the bearer
+  // token would be another matter entirely.
+  //
+  // An unreadable or absent cookie yields "" rather than an error, and the client
+  // reads "" as FILTER NOBODY. Getting this wrong in the other direction would hide
+  // every colleague rather than one, which is the failure worth designing against.
+  const tok = _getCookie(r, PRESENCE_TOKEN_COOKIE);
+  const claims = tok ? _decodeJwtPayload(decodeURIComponent(tok)) : null;
+  const userEmail = claims
+    ? String(claims.email || claims.upn || claims.preferred_username || "")
+    : "";
+  const whoami = _cmsEnvRead(r);
+  const handover = _handoverGroups(r, claims ? String(claims.oid || "") : "");
+  // Logged HERE as well as returned, because the browser-side log is hard to
+  // reach: the CMS estate's only console is IEChooser's, which cannot be
+  // attached before a tab boots — and the Modern tab is opened BY Classic, so
+  // there is no moment to get in first. error_log runs at debug (see
+  // nginx.conf), so this reaches the app service log stream, where the request
+  // timestamps also show whether create preceded whoami and by how long.
+  //
+  // op and environment only. No email, no oid, no token: a pool label is not
+  // an identity, and the log is a different audience from the response.
+  //
+  // `why` is logged even when the environment is known, so a log line is
+  // self-describing rather than needing the empty case to be inferred from a
+  // missing value.
+  ngx.log(
+    ngx.WARN,
+    "[presence] whoami cmsEnv=" +
+      (whoami.env || "(none)") +
+      " why=" +
+      whoami.why +
+      " identity=" +
+      (userEmail ? "yes" : "no") +
+      // Neither is an identity, so both belong in the log by the rule above, and
+      // the client-side console is hard to reach in this estate. AGE is the one
+      // that answers "did the replay land" — it resets to near zero every time a
+      // new token is written, so a session's worth of these never going back down
+      // is a replay that is failing silently. Remaining life is here for sizing
+      // the interval, not for deciding whether a refresh happened: AAD varies the
+      // lifetime, so it can fall after a SUCCESSFUL replay (see _tokenAge).
+      " expiresIn=" +
+      _tokenExpiresIn(claims) +
+      " age=" +
+      _tokenAge(claims) +
+      // Where the groups came from, and how many: a reason and a count, never an
+      // ID. "cookie" with 0 is someone in no assigned group; anything else is
+      // why there were none to give (see _handoverGroups).
+      " groupsFrom=" +
+      handover.why +
+      " groups=" +
+      handover.groups.length,
+  );
+  r.return(
+    200,
+    cb +
+      "(" +
+      JSON.stringify({
+        userEmail,
+        // Diagnostics only — the client matches on userEmail, because that is the
+        // only identity the API's member records carry. Here so that "presence
+        // works but nobody is filtered" can be told apart from "no token at all"
+        // without decoding a cookie by hand.
+        oid: claims ? String(claims.oid || "") : "",
+        // Which CMS this session belongs to (CIN3, CIN5, ...), or "" — which
+        // means UNKNOWN and nothing else. See _cmsEnvRead: there is no
+        // "known to be blank", because a suffix-less environment is a
+        // client-side mapping from a known label, not an empty value here.
+        //
+        // STILL DIAGNOSTIC, but no longer only that: the client may now treat
+        // "" as "do not register yet, ask again next pass". Registration is
+        // synchronous at boot and sectionId travels on create, the first op
+        // out, so acting on this costs a deferred create — measured at 151ms
+        // (QA, warm cookie) against the 3s observation cadence that would
+        // retry it anyway.
+        cmsEnv: whoami.env,
+        // WHICH empty, for the client's log and for operators. "hint" when
+        // cmsEnv is set; otherwise no-hint (nobody wrote it), bad-hint
+        // (present, unreadable), hint-error (the writer said it could not work
+        // it out) or no-domain (written, but no CMS domain in it). These need
+        // different people to fix them, which is why one empty string was not
+        // enough.
+        cmsEnvWhy: whoami.why,
+        // HOW LONG THE PRESENCE TOKEN HAS LEFT, in whole seconds, from its own
+        // `exp` claim. 0 means no token, an unreadable one, or one already past
+        // its expiry — all of which the client treats the same way: replay the
+        // auth flow.
+        //
+        // THIS IS THE REPLAY CLOCK, and the reason it is here rather than
+        // anywhere else. The cookie is HttpOnly and Path-scoped, so no page
+        // script can read it, let alone decode it — the client cannot time its
+        // own refresh. It also cannot learn the outcome from the auth iframe: the
+        // flow ends cross-origin at document mode 5, where there is no
+        // postMessage and no readable contentDocument. So the client asks the
+        // SERVER what it has, after the fact, and schedules from the answer.
+        //
+        // A FRESH VALUE IS THE ONLY PROOF A REPLAY WORKED. The silent round trip
+        // can fail (an expired AD session, AADSTS16000 for a multi-account user)
+        // and a hidden iframe cannot prompt, so it fails invisibly: same cookie
+        // name, same two paths, nothing thrown, nothing logged client-side.
+        // Watching this number go back up is what distinguishes a working replay
+        // from a dead one.
+        //
+        // Diagnostic until the client drives its interval from it; the auth flow
+        // writes the cookie with a long Max-Age today, so the cookie and the token
+        // inside it do not expire together.
+        tokenExpiresIn: _tokenExpiresIn(claims),
+        // HOW OLD THE TOKEN IS, and the field to read when the question is "did
+        // the replay land". -1 means there is no token to age. See _tokenAge for
+        // why the expiry above cannot answer that on its own: AAD's token
+        // lifetime varies, so a successful replay can report LESS time remaining
+        // than the token it replaced, and two expiry readings are therefore
+        // ambiguous. Age is not — a number near zero is a token minted moments
+        // ago, whatever its lifetime.
+        tokenAge: _tokenAge(claims),
+        // WHICH CLAIMS THE TOKEN ACTUALLY CARRIES — names only, comma
+        // separated, "" when there is no readable token.
+        //
+        // NAMES, NEVER VALUES, and that is the whole reason this is safe to
+        // return: a key list is a SHAPE, not data. It answers "is this claim
+        // configured on the app registration" without disclosing a single
+        // claim's content, so it stays on the right side of the rule above —
+        // the one that lets us hand back an email the page already acts as,
+        // but never the bearer token.
+        //
+        // HERE because this is the token that matters: the cookie holds the
+        // ACCESS token we present to the presence API, not the ID token, whose
+        // optional claims are configured separately. It also arrives on a call
+        // a normal session already makes, so the answer needs no hand-run of
+        // the auth flow.
+        //
+        // The question it was added for: whether a `groups` claim reaches us,
+        // which would let the legacy UI gate features on Entra group
+        // membership — a cohort mechanism that needs no cookie, and so is
+        // immune to the Edge/IE jar split that blocks reading preview state.
+        claimKeys: claims ? Object.keys(claims).join(",") : "",
+        // THE READER'S GROUP IDS — a VALUE, unlike claimKeys above, and returned
+        // on the same footing as userEmail: it is the reader's own membership,
+        // told to a page that already acts as them. From the handover-claims
+        // cookie ONLY (our app registration's ID token, captured by Polaris at
+        // /init), never from the presence token above, whose groups belong to
+        // the Watchdog's registration. Assigned groups only, so a handful.
+        //
+        // For the legacy clients to gate features on Entra group membership, the
+        // way the web components already do with a cohort's adGroupIds. Empty
+        // means "in none", which every gate reads as "off".
+        //
+        // NOT LOGGED: the log line above carries a count, never an ID.
+        groups: handover.groups,
+        // WHY the groups are what they are: "cookie" when they came from a
+        // verified cookie, else the reason there are none (no-cookie,
+        // no-secret, bad-mac, bad-payload, wrong-kind, wrong-version,
+        // oid-mismatch; see _handoverGroups). Diagnostic: the client gates on
+        // `groups` alone.
+        groupsFrom: handover.why,
+      }) +
+      ")",
+  );
+}
+
 // ---------------------------------------------------------------------------
 // Exports
 // ---------------------------------------------------------------------------
@@ -716,4 +876,5 @@ export default {
   watchdogAppName,
   watchdogHost,
   handlePresenceJsonp: _guard("handlePresenceJsonp", handlePresenceJsonp),
+  handlePresenceWhoami: _guard("handlePresenceWhoami", handlePresenceWhoami),
 };

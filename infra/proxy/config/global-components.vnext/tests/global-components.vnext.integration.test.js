@@ -117,6 +117,9 @@ async function testWhoAnswers() {
     const response = await fetch(`${PROXY_BASE}/global-components/state/settings`)
     assertEqual(response.headers.get("x-gloco-vnext"), "state", "answered by vnext")
     assertEqual(await response.text(), "null", "Polaris's GET contract: no cookie reads null")
+    // The plain GET had no Cache-Control at all until RPLT-246 (the location's
+    // own add_header switches off the server-level no-store).
+    assertEqual(response.headers.get("cache-control"), "no-store", "Cache-Control")
   })
 
   await test("navigate-cms is vnext's (a regex beats Polaris's prefix)", async () => {
