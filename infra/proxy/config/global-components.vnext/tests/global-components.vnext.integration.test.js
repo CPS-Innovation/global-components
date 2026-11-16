@@ -142,6 +142,18 @@ async function testWhoAnswers() {
     assertEqual(response.headers.get("cache-control"), "no-store", "Cache-Control")
   })
 
+  await test("navigate-cms-modern is vnext's, despite Polaris's /api/global-components/ rewrite", async () => {
+    // Both are regexes: include order decides, as for swagger above.
+    const response = await fetch(`${PROXY_BASE}/api/global-components/navigate-cms-modern?caseId=123`, { redirect: "manual" })
+    assertEqual(response.headers.get("x-gloco-vnext"), "navigate-cms-modern", "answered by vnext")
+    assertEqual(response.headers.get("x-frame-options"), "DENY", "X-Frame-Options")
+  })
+
+  await test("other /api/global-components/ paths still go to MDS", async () => {
+    const response = await fetch(`${PROXY_BASE}/api/global-components/navigate-cms-modernx`, { redirect: "manual" })
+    assertEqual(response.headers.get("x-gloco-vnext"), null, "not vnext")
+  })
+
   await test("the rest of the api surface stays Polaris's", async () => {
     const response = await fetch(`${PROXY_BASE}/global-components/api/cases`)
     assertEqual(response.headers.get("x-gloco-vnext"), null, "not vnext")
@@ -211,6 +223,22 @@ async function testNavigateModern() {
     const body = await response.text()
     assertEqual(response.status, 200, "Should return 200")
     assert(body.includes("https://cmsmodcin3.cps.gov.uk/viewer/landing#/case-summary/123"), `Should target cmsmodcin3, got: ${body.slice(0, 300)}`)
+  })
+
+  await test("navigate-cms-modern: Edge leg carries the Cms-Auth-Values token in the fragment", async () => {
+    const hint = encodeURIComponent(JSON.stringify({ handoverEndpoint: "https://cin3.cps.gov.uk/polaris" }))
+    const auth = encodeURIComponent(JSON.stringify({ Cookies: "x=y", Token: "11111111-2222-3333-4444-555555555555" }))
+    const response = await fetch(`${PROXY_BASE}/api/global-components/navigate-cms-modern?caseId=123`, {
+      redirect: "manual",
+      headers: { Cookie: `Cms-Session-Hint=${hint}; Cms-Auth-Values=${auth}`, "X-InternetExplorerModeConfigurable": "1" },
+    })
+    assertEqual(response.status, 302, "Should flip to IE mode")
+    assertEqual(response.headers.get("x-internetexplorermode"), "1", "IE mode header")
+    const location = response.headers.get("location") || ""
+    assert(
+      location.endsWith("/api/global-components/navigate-cms-modern?caseId=123&cmsDomain=cin3.cps.gov.uk#t=11111111-2222-3333-4444-555555555555"),
+      `Location, got: ${location}`
+    )
   })
 }
 
