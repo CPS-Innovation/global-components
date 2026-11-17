@@ -49,7 +49,7 @@ describe("initialiseNavigateCms", () => {
 
     mockWindow.document.dispatchEvent(new CmsNavigateEvent({ action: "modern-case", caseId: 123 }));
 
-    expect(mockOpen).toHaveBeenCalledWith("https://example.com/global-components/navigate-cms?caseId=123&target=modern", "_blank", expect.stringContaining("width=500"));
+    expect(mockOpen).toHaveBeenCalledWith("https://example.com/api/global-components/navigate-cms-modern?caseId=123", "_blank", expect.stringContaining("width=500"));
   });
 });
 

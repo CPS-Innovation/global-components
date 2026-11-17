@@ -470,7 +470,7 @@ async function runTests() {
       headersIn: { "X-Forwarded-Proto": "https", Host: "polaris.cps.gov.uk" },
     })
     vnext.handleNavigateCms(r)
-    return r.returnBody.match(/'(https:\/\/[^']*\/viewer\/landing#[^']*)'/)[1]
+    return r.returnBody.match(/'(https:\/\/[^']*\/viewer\/landing#[^']*)'/)[1].replace(/\/$/, "")
   }
 
   await test("modern page: un-proxied Classic hosts map to their Modern hosts", async () => {
@@ -522,6 +522,152 @@ async function runTests() {
     vnext.handleNavigateCms(r)
     assertEqual(r.returnCode, 400, "Should return 400")
     assert(!r.returnBody.includes("alert"), `Should not echo the input, got: ${r.returnBody}`)
+  })
+
+  console.log("\nhandleNavigateCmsModern (/api/global-components/navigate-cms-modern):")
+
+  const MODERN_GUID = "11111111-2222-3333-4444-555555555555"
+  const authValuesCookie = (value) => "Cms-Auth-Values=" + encodeURIComponent(JSON.stringify(value))
+  const modernRequest = ({ args = {}, ieaction = "nonie+configurable+", cookie = SESSION_HINT_COOKIE } = {}) =>
+    createMockRequest({
+      uri: "/api/global-components/navigate-cms-modern",
+      args: { caseId: "123", ...args },
+      variables: { ieaction },
+      headersIn: { "X-Forwarded-Proto": "https", Host: "polaris.cps.gov.uk", Cookie: cookie },
+    })
+  // The new route's page, run against a fake IE window (as runModernPage).
+  const runModernRoutePage = ({ args = {}, ieaction = "ie+configurable+", cookie = "", hash = "", openNamed }) => {
+    const r = modernRequest({ args: { cmsDomain: "cin3.cps.gov.uk", ...args }, ieaction, cookie })
+    vnext.handleNavigateCmsModern(r)
+    assertEqual(r.returnCode, 200, "Should serve the page")
+    const script = r.returnBody.match(/<script>([\s\S]*)<\/script>/)[1]
+    const opens = []
+    const status = { innerHTML: "" }
+    const window = {
+      location: { href: "page", hash },
+      open: (url, name) => {
+        opens.push([url, name])
+        return url === "" ? openNamed() : undefined
+      },
+    }
+    require("vm").runInNewContext(script, { window, document: { getElementById: () => status } })
+    return { body: r.returnBody, opens, status, selfHref: window.location.href }
+  }
+  const blankTab = () => {
+    const tab = { location: { href: "about:blank" }, closed: false, focused: false }
+    tab.close = () => {
+      tab.closed = true
+    }
+    tab.focus = () => {
+      tab.focused = true
+    }
+    return tab
+  }
+  const MODERN_CASE_URL = `https://cmsmodcin3.cps.gov.uk/viewer/landing#/case-summary/123/${MODERN_GUID}?wid=MASTER`
+
+  await test("Edge leg: flips to IE mode with the token in the fragment, not the query", async () => {
+    const r = modernRequest({ cookie: `${SESSION_HINT_COOKIE}; ${authValuesCookie({ Cookies: "x=y", Token: MODERN_GUID })}` })
+    vnext.handleNavigateCmsModern(r)
+    assertEqual(r.returnCode, 302, "Should return 302")
+    assertEqual(r.headersOut["X-InternetExplorerMode"], "1", "Should set IE mode header")
+    assertEqual(
+      r.returnBody,
+      `https://polaris.cps.gov.uk/api/global-components/navigate-cms-modern?caseId=123&cmsDomain=foo.cps.gov.uk#t=${MODERN_GUID}`,
+      "Location",
+    )
+  })
+
+  await test("Edge leg: no Cms-Auth-Values still flips, without a fragment", async () => {
+    const r = modernRequest()
+    vnext.handleNavigateCmsModern(r)
+    assertEqual(r.returnCode, 302, "Should return 302")
+    assert(!r.returnBody.includes("#"), `Should carry no token, got: ${r.returnBody}`)
+  })
+
+  await test("Edge leg: a Token that isn't a GUID is not passed on", async () => {
+    const r = modernRequest({ cookie: `${SESSION_HINT_COOKIE}; ${authValuesCookie({ Token: "x';alert(1)//" })}` })
+    vnext.handleNavigateCmsModern(r)
+    assert(!r.returnBody.includes("#") && !r.returnBody.includes("alert"), r.returnBody)
+  })
+
+  await test("Edge leg: un-encoded JSON and a camelCase token are read too", async () => {
+    const r = modernRequest({ cookie: `${SESSION_HINT_COOKIE}; Cms-Auth-Values=${JSON.stringify({ token: MODERN_GUID })}` })
+    vnext.handleNavigateCmsModern(r)
+    assert(r.returnBody.endsWith(`#t=${MODERN_GUID}`), r.returnBody)
+  })
+
+  await test("Edge leg: no session hint is a 400", async () => {
+    const r = modernRequest({ cookie: "" })
+    vnext.handleNavigateCmsModern(r)
+    assertEqual(r.returnCode, 400, "Should return 400")
+  })
+
+  await test("Edge leg: non-numeric caseId is a 400", async () => {
+    const r = modernRequest({ args: { caseId: "1'" } })
+    vnext.handleNavigateCmsModern(r)
+    assertEqual(r.returnCode, 400, "Should return 400")
+  })
+
+  await test("IE leg: no Modern tab + token opens Modern on the case in the blank tab", async () => {
+    const tab = blankTab()
+    const { selfHref } = runModernRoutePage({ hash: `#t=${MODERN_GUID}`, openNamed: () => tab })
+    assertEqual(tab.location.href, MODERN_CASE_URL, "Should open Modern on the case")
+    assert(!tab.closed && tab.focused, "Should keep and focus the tab")
+    assertEqual(selfHref, CLOSE_URL, "Should go to the close phase")
+  })
+
+  await test("IE leg: cross-origin Modern tab is navigated by name, with the token", async () => {
+    const { opens, selfHref } = runModernRoutePage({
+      hash: `#t=${MODERN_GUID}`,
+      openNamed: () => {
+        throw new Error("Access is denied.")
+      },
+    })
+    assertEqual(JSON.stringify(opens[1]), JSON.stringify([MODERN_CASE_URL, "MODERN_CMS"]), "Should navigate MODERN_CMS by name")
+    assertEqual(selfHref, CLOSE_URL, "Should go to the close phase")
+  })
+
+  await test("IE leg: no Modern tab and no token closes the blank tab and explains", async () => {
+    const tab = blankTab()
+    const { status, selfHref } = runModernRoutePage({ openNamed: () => tab })
+    assert(tab.closed, "Should close the blank tab")
+    assert(status.innerHTML.includes("CMS Modern is not open"), status.innerHTML)
+    assertEqual(selfHref, "page", "Should stay on the page")
+  })
+
+  await test("IE leg: the token is never in the served page (it stays in the fragment)", async () => {
+    const { body } = runModernRoutePage({ hash: `#t=${MODERN_GUID}`, openNamed: blankTab })
+    assert(!body.includes(MODERN_GUID), "Should not echo the token")
+  })
+
+  await test("IE leg: a fragment that isn't a GUID is ignored", async () => {
+    const tab = blankTab()
+    runModernRoutePage({ hash: "#t=x';alert(1);'", openNamed: () => tab })
+    assert(tab.closed, "Should treat it as no token")
+  })
+
+  await test("IE leg: cmsDomain that isn't a bare host returns 400", async () => {
+    const r = modernRequest({ args: { cmsDomain: "foo.cps.gov.uk/';alert(1);'" }, ieaction: "ie+configurable+" })
+    vnext.handleNavigateCmsModern(r)
+    assertEqual(r.returnCode, 400, "Should return 400")
+    assert(!r.returnBody.includes("alert"), r.returnBody)
+  })
+
+  await test("non-configurable: reads the token from the cookie and writes it into the page", async () => {
+    const tab = blankTab()
+    runModernRoutePage({
+      args: { cmsDomain: undefined },
+      ieaction: "nonie+nonconfigurable+",
+      cookie: `Cms-Session-Hint=${encodeURIComponent(JSON.stringify({ handoverEndpoint: "https://cin3.cps.gov.uk/polaris" }))}; ${authValuesCookie({ Token: MODERN_GUID })}`,
+      openNamed: () => tab,
+    })
+    assertEqual(tab.location.href, MODERN_CASE_URL, "Should open Modern on the case")
+  })
+
+  await test("IE leg: ignores a token-looking query arg (only the fragment carries it)", async () => {
+    const tab = blankTab()
+    runModernRoutePage({ args: { t: MODERN_GUID }, openNamed: () => tab })
+    assert(tab.closed, "Should not take the token from the query")
   })
 
   console.log("\nhandleNavigateCms (close phase):")

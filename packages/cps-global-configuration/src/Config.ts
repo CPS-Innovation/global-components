@@ -305,10 +305,11 @@ export const configBaseSchema = z.object({
   // in prod ahead of GA. ORs with the per-user preview flag and local-dev.
   FEATURE_FLAG_ACCESSIBILITY_MODE_USERS: featureFlagUsersSchema.optional(),
   // Who gets the menu's "Open in CMS…" dropdown (CMS Classic / CMS Modern) in place of
-  // the single "Open in CMS Classic" link. On only where the proxy understands
-  // navigate-cms?target=modern — today that is QA's vnext module; elsewhere CMS
-  // Modern would silently open Classic until the Polaris PR lands. ORs with the
-  // per-user openInCmsModern preview flag and local-dev.
+  // the single "Open in CMS Classic" link. On only where the proxy serves
+  // /api/global-components/navigate-cms-modern — today that is QA's vnext module;
+  // elsewhere that path falls through to the MDS api route and CMS Modern fails
+  // until the Polaris PR lands. ORs with the per-user openInCmsModern preview
+  // flag and local-dev.
   FEATURE_FLAG_OPEN_IN_CMS_MODERN_USERS: featureFlagUsersSchema.optional(),
   // Who gets the case URN prepended to the browser tab title. GA in every env;
   // flip generallyAvailable to false to kill it (preview tabTitleUrn opt-ins
