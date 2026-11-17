@@ -36,7 +36,7 @@ GloCo_PageViews  (also joins GloCo_ExcludedUsers; lookups GloCo_UserDimension fo
   |               |---> GloCo_CaseReview_PerDay  [DB "Reviews by day"]
   |               |---> GloCo_Users_VisitsPerApp  [WB + DB "Top users by visit"]  (case-work columns from here — reviews incl admin finalise, triage twice; ALSO reads GloCo_PageViews for visits per app and joins GloCo_UserAreas. Resolver: an INLINE copy in a test harness can fail SEM0100 on GloCo_PageViews depending on surrounding text — test the deployed function by name)
   |               |---> GloCo_Users_CpsdReviewTriage  [WB "CPS Direct users: reviews and triage"]  (per-user, CPS Direct by EITHER signal: ReviewCount, TriageSubmitted, TriageSubmittedAdjusted from here; ALSO reads GloCo_PageViews for email, job title, Entra department and unit counts (the two CPSD signals); GloCo_LawyerStatus scalar. Launch-date floor, but set the LA time picker to cover it too)
-  |               '---> GloCo_Users_AreaBaseline  [WB "Area baseline"]  (one row per user with ANY submitted case work ever — review, triage (adjusted) or admin finalise; STT excluded, it has no submission; area at their last submission, its date and days ago; reviews submitted, triages submitted twice — captured and adjusted)
+  |               '---> GloCo_Users_AreaBaseline  [WB "Area baseline"]  (joins GloCo__AreaRegionMapping; one row per user with ANY submitted case work ever — review, triage (adjusted) or admin finalise; STT excluded, it has no submission; area at their last submission, its date and days ago; reviews submitted, triages submitted twice — captured and adjusted)
   |
   |---> GloCo_App_UsersPerDay  [DB "Cumulative users by app"]
   |       |

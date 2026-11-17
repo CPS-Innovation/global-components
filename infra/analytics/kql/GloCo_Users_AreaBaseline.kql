@@ -10,6 +10,8 @@
 // was signed in for is credited to no one and is not listed.
 //
 // COLUMNS
+//   Region                    the Area's region via GloCo__AreaRegionMapping ("CPSD" for CPSD, as in the area grids);
+//                             "Unmapped" when the mapping has no entry, which includes "(unknown)" areas.
 //   Area                      the user's area AT THEIR LAST SUBMISSION (User_AreaOrCPSD of that piece of work,
 //                             so CPS Direct shows as "CPSD"); "(unknown)" when none was ever captured.
 //   Username                  email, as credited on that piece of work.
@@ -35,11 +37,14 @@ GloCo_CaseReview_Activity
             Triages = countif(Kind == "Triage" and SubmittedObserved),
             TriagesAdjusted = countif(Kind == "Triage")
     by User_ObjectId
-| project Area = coalesce(User_AreaOrCPSD, "(unknown)"),
+| extend Area = coalesce(User_AreaOrCPSD, "(unknown)")
+| join kind=leftouter (GloCo__AreaRegionMapping | distinct User_Area, Region) on $left.Area == $right.User_Area
+| project Region = coalesce(Region, "Unmapped"),
+          Area,
           Username = User_Email,
           ["Last submission"] = format_datetime(SubmittedAt, "yyyy-MM-dd"),
           ["Last submission (days ago)"] = datetime_diff("day", startofday(now()), startofday(SubmittedAt)),
           ["Reviews submitted"] = Reviews,
           ["Triages submitted"] = Triages,
           ["Triages submitted (adjusted)"] = TriagesAdjusted
-| order by Area asc, ["Last submission (days ago)"] asc, Username asc
+| order by Region asc, Area asc, ["Last submission (days ago)"] asc, Username asc
