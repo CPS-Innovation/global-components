@@ -215,13 +215,13 @@ importers:
         version: 2.38.2
       '@stencil/core':
         specifier: ^4.36.2
-        version: 4.45.2
+        version: 4.45.3
       '@stencil/sass':
         specifier: ^3.0.12
-        version: 3.3.3(@stencil/core@4.45.2)
+        version: 3.3.3(@stencil/core@4.45.3)
       '@stencil/store':
         specifier: ^2.2.0
-        version: 2.2.5(@stencil/core@4.45.2)
+        version: 2.2.5(@stencil/core@4.45.3)
       '@types/jest':
         specifier: ^29.5.6
         version: 29.5.14
@@ -1579,6 +1579,7 @@ packages:
     resolution: {integrity: sha512-ZTR2mxBHb4tK4wGf9b8SYg0Y6KQPjGpR4UWwTFdnmjB4qRtoATZ5dWn3KsDwGa5Z2ZBOE7K52L36J9LueKBdOQ==}
     cpu: [arm64]
     os: [linux]
+    libc: [glibc]
 
   '@rollup/rollup-linux-arm64-gnu@4.68.0':
     resolution: {integrity: sha512-wejnVabl92oFC/o4sr/EEJuJZMHtMq4C+LBIPphN4EUiVHe9qvZNw+biqhVHpX2ggs1+Z3ugXGwJxT+qhyaaYQ==}
@@ -1590,6 +1591,7 @@ packages:
     resolution: {integrity: sha512-GFWfAhVhWGd4r6UxmnKRTBwP1qmModHtd5gkraeW2G490BpFOZkFtem8yuX2NyafIP/mGpRJgTJ2PwohQkUY/Q==}
     cpu: [arm64]
     os: [linux]
+    libc: [musl]
 
   '@rollup/rollup-linux-arm64-musl@4.68.0':
     resolution: {integrity: sha512-tyu+hrsCWHHqV6+2tligV/recJH+HVvNV2Sp4nS1C+MKQPkNXRovKIzyHy0V0xXjm6igCLgsT2vTky5CvWP37g==}
@@ -1643,6 +1645,7 @@ packages:
     resolution: {integrity: sha512-iUVJc3c0o8l9Sa/qlDL2Z9UP92UZZW1+EmQ4xfjTc1akr0iUFZNfxrXJ/R1T90h/ILm9iXEY6+iPrmYB3pXKjw==}
     cpu: [x64]
     os: [linux]
+    libc: [glibc]
 
   '@rollup/rollup-linux-x64-gnu@4.68.0':
     resolution: {integrity: sha512-GDOmvgephpRCNyNGRQOZh0KD2gTyRVM1Bb1iOo759xeCUpCAoRCmJioOOSu2MwyWfNOocGd0V5I9vYLfteC6/A==}
@@ -1654,6 +1657,7 @@ packages:
     resolution: {integrity: sha512-PQUobbhLTQT5yz/SPg116VJBgz+XOtXt8D1ck+sfJJhuEsMj2jSej5yTdp8CvWBSceu+WW+ibVL6dm0ptG5fcA==}
     cpu: [x64]
     os: [linux]
+    libc: [musl]
 
   '@rollup/rollup-linux-x64-musl@4.68.0':
     resolution: {integrity: sha512-HADRxkvl5eg3hbemCmv81UwTfdQy/CiSJDOabLE+p5tpm3OTjuRtzpLXy5zPfGY9FQD4Qv7qHptXmG/YjmNmyw==}
@@ -1727,8 +1731,8 @@ packages:
   '@standard-schema/spec@1.1.0':
     resolution: {integrity: sha512-l2aFy5jALhniG5HgqrD6jXLi/rUWrKvqN/qJx6yoJsgKhblVd+iqqU4RCXavm/jPityDo5TCvKMnpjKnOriy0w==}
 
-  '@stencil/core@4.45.2':
-    resolution: {integrity: sha512-CNkPVZsqyNMjFMX9bEkMJsvBbQxjLw480OaoamoqiLPdQCFjJQReeOjnWX1A5ivSn3UYEIJ6MoN5VXDkaHGt8Q==}
+  '@stencil/core@4.45.3':
+    resolution: {integrity: sha512-QcQv3786blBPbINSIXXqpufsQGJosp++GCjcPpSwcxks2/UtVV2ILggpGG4SSd+AteSbMv+8ewpGea00nGqOEw==}
     engines: {node: '>=16.0.0', npm: '>=7.10.0'}
     hasBin: true
 
@@ -6087,7 +6091,7 @@ snapshots:
 
   '@standard-schema/spec@1.1.0': {}
 
-  '@stencil/core@4.45.2':
+  '@stencil/core@4.45.3':
     optionalDependencies:
       '@rollup/rollup-darwin-arm64': 4.44.0
       '@rollup/rollup-darwin-x64': 4.44.0
@@ -6098,14 +6102,14 @@ snapshots:
       '@rollup/rollup-win32-arm64-msvc': 4.44.0
       '@rollup/rollup-win32-x64-msvc': 4.44.0
 
-  '@stencil/sass@3.3.3(@stencil/core@4.45.2)':
+  '@stencil/sass@3.3.3(@stencil/core@4.45.3)':
     dependencies:
-      '@stencil/core': 4.45.2
+      '@stencil/core': 4.45.3
       sass-embedded: 1.98.0
 
-  '@stencil/store@2.2.5(@stencil/core@4.45.2)':
+  '@stencil/store@2.2.5(@stencil/core@4.45.3)':
     dependencies:
-      '@stencil/core': 4.45.2
+      '@stencil/core': 4.45.3
 
   '@testing-library/dom@10.4.1':
     dependencies:
