@@ -15,6 +15,13 @@
 //   Username                  email, as credited on that piece of work.
 //   Last submission           date (UTC) of the most recent submission, yyyy-MM-dd.
 //   Last submission (days ago) whole calendar days from that date to today; 0 = today.
+//   Reviews submitted         submitted reviews credited to the user, all time: first and subsequent, early advice
+//                             included; each piece of work counts once (a first and a subsequent review on the
+//                             same case are two). Admin finalise is not a review and is not counted.
+//   Triages submitted         submitted triage TASKS credited to the user, as captured (SubmittedObserved).
+//   Triages submitted (adjusted)  plus the submissions inferred for the periods capture was down — the house
+//                             rule for any triage figure (see GloCo_CaseReview_Activity, REPORTING A TRIAGE FIGURE).
+//   Admin finalise, which also qualifies a user, has no column: a user can appear with zero reviews and triage.
 //
 // TIME: all history, via GloCo_CaseReview_Activity's launch-date floor; the Log Analytics time picker still
 // bounds the tables read, so set it to cover launch when running this by name.
@@ -23,9 +30,16 @@
 GloCo_CaseReview_Activity
 | where Status == "Submitted"
 | where isnotempty(User_ObjectId) and isnotempty(User_Email)
-| summarize arg_max(SubmittedAt, User_Email, User_AreaOrCPSD) by User_ObjectId
+| summarize arg_max(SubmittedAt, User_Email, User_AreaOrCPSD),
+            Reviews = countif(Kind == "Review"),
+            Triages = countif(Kind == "Triage" and SubmittedObserved),
+            TriagesAdjusted = countif(Kind == "Triage")
+    by User_ObjectId
 | project Area = coalesce(User_AreaOrCPSD, "(unknown)"),
           Username = User_Email,
           ["Last submission"] = format_datetime(SubmittedAt, "yyyy-MM-dd"),
-          ["Last submission (days ago)"] = datetime_diff("day", startofday(now()), startofday(SubmittedAt))
+          ["Last submission (days ago)"] = datetime_diff("day", startofday(now()), startofday(SubmittedAt)),
+          ["Reviews submitted"] = Reviews,
+          ["Triages submitted"] = Triages,
+          ["Triages submitted (adjusted)"] = TriagesAdjusted
 | order by Area asc, ["Last submission (days ago)"] asc, Username asc
