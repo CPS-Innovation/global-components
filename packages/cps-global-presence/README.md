@@ -19,30 +19,32 @@ Everything under `dist/` and
 ## Layout
 
 ```
-core/          all three UIs · document mode 5 floor · built into the ESM
-  util.js        CCPUtil         what mode 5 lacks: indexOf, find, hasSuffix, pad, stamp
-  kinds.js       CCPKinds        CASE, CASE_REVIEW, VICTIM_WITNESS, DEFENDANT
-  environment.js CCPEnvironment  which CMS instance (CIN suffix on the wire)
-  sections.js    CCPSections     section id / key (they must agree)
-  roster.js      CCPRoster       snapshots in, who is present out, version-guarded
-  people.js      CCPPeople       one row per person
-  view.js        CCPView         what a banner shows: who, the summary, a line per person
-  apps.js  section-names.js  joined.js  content.js   the words
-  section-rules.js               which sections interrupt (web components only)
-  wire.d.ts                      the API's wire shapes (hand-written)
-legacy/        the two IE-mode CMS clients, never the web components
- shared/       both of them · document mode 5 floor
+platform/      what every feature stands on · document mode 5 floor
+  launcher.js    CCPLauncher     starts and stops features: kill switch, Entra rollout, each gate
+  platform.js    CCPPlatform     the log, calls, reader, preview flags and gates, one per page
   jsonp.js       CCPJsonp        the transport, with pooled callback names
-  sessions.js    CCPSessions     one session per section: create, heartbeat, poll, remove
-  locator.js     CCPLocator      detectors in, active sections out
   viewer.js      CCPViewer       whoami: identity, CMS instance, token age
+  gates.js       CCPGates        named gates from LEGACY_UI.gates
   preview.js     CCPPreview      the preview flags
   origin.js      CCPOrigin       which host serves our endpoints
-  log.js         CCPLog          the ring buffer behind __ccPresence.dump()
-  client.js      CCPClient       the loop both apps are built on: one pass, the roster, __ccPresence
+  log.js         CCPLog          the ring buffer behind dump()
+  util.js        CCPUtil         small helpers the older browsers lack
+  config.js                      CCP_CONFIG, baked per environment at deploy
   kill-switch.js                 LEGACY_CLIENT_AUGMENTATION_ENABLED: false and redeploy stops both clients
- classic/      Classic only · document mode 5 · dom, sections, stripe, main, auth
- modern/       Modern/DCF only · document mode 11 · sections (URL detectors), bar, main
+hosts/         one folder per application: its feature list and its own plumbing
+ classic/      document mode 5 · main, auth (login watcher), dom (frame helpers)
+ modern/       document mode 11 · main
+features/      what the clients do; each one is gated on its own
+ watchdog/     who else is on this case
+  watchdog.js    CCPWatchdog     the feature: one pass, the roster, __ccPresence
+  sessions.js    CCPSessions     one session per section: create, heartbeat, poll, remove
+  locator.js     CCPLocator      detectors in, active sections out
+  core/          also imported by the web components · document mode 5 floor
+   kinds.js environment.js sections.js roster.js people.js view.js
+   apps.js section-names.js joined.js content.js section-rules.js
+   wire.d.ts                     the API's wire shapes (hand-written)
+  classic/       sections (frame readers), stripe
+  modern/        sections (URL detectors), bar
 placeholders/  the permanent hello-world stubs (see Deploy)
 bundles.json   which files go into which output, in order
 ```
@@ -52,27 +54,39 @@ Tests sit beside the file they test (`roster.test.js` next to `roster.js`).
 ## How a client fits together
 
 ```
-find sections   legacy/<app>/    Classic reads frames and hidden fields; Modern reads the URL
-loop            legacy/shared/   CCPClient: read the sections once a pass, register, redraw
-sessions        legacy/shared/   hold one session per section, poll the roster
-roster          core/            who is present, per section, version-guarded
-view            core/            CCPView: who to show and the words, the same in all three UIs
-draw            legacy/<app>/    a stripe in Classic, a bar in Modern, a notification on the web
+kill switch     platform/        off means nothing below is created
+platform        platform/        the log, the calls, whoami, preview flags, gates
+launcher        platform/        every 2s: re-ask the gates, start or stop each feature, run a pass
+features        features/        listed in each host's main.js
 ```
 
-To support a new section, add a detector: a URL pattern in `legacy/modern/sections.js`,
-or a frame fragment plus a reader in `legacy/classic/sections.js`. Nothing else changes.
+A feature is a factory returning `{name, gate, observe?, start?, pass?, stop?}`
+(see `platform/launcher.js`). To add one, create `features/<name>/`, add its files to
+`bundles.json`, and list it in the host's `main.js`.
+
+Watchdog's own path through a pass:
+
+```
+find sections   features/watchdog/<app>/   Classic reads frames and hidden fields; Modern reads the URL
+sessions        features/watchdog/         hold one session per section, poll the roster
+roster          features/watchdog/core/    who is present, per section, version-guarded
+view            features/watchdog/core/    CCPView: who to show and the words, the same in all three UIs
+draw            features/watchdog/<app>/   a stripe in Classic, a bar in Modern, a notification on the web
+```
+
+To support a new section, add a detector: a URL pattern in `features/watchdog/modern/sections.js`,
+or a frame fragment plus a reader in `features/watchdog/classic/sections.js`. Nothing else changes.
 
 ## Building
 
 `build.sh` runs `build.js`, which reads `bundles.json`, checks every source against
 its floor, type-checks, and concatenates:
 
-- **Modern**: one strict IIFE of `core` + `legacy/shared` + `legacy/modern`.
-- **Classic**: the kill switch, then a presence IIFE (`core` + `legacy/shared` +
-  `legacy/classic`), then the auth IIFE. Two IIFEs so a failure in one concern cannot
+- **Modern**: one strict IIFE of the platform, the features and `hosts/modern`.
+- **Classic**: the kill switch, then an IIFE of the platform, the features and
+  `hosts/classic`, then the auth IIFE. Two IIFEs so a failure in one concern cannot
   reach the other. No `"use strict"`: it has always run sloppy in someone else's app.
-- **ESM**: `core` plus an export list.
+- **ESM**: `features/watchdog/core` and `platform/util.js`, plus an export list.
 
 Concatenation, not modules: the injected script has no loader and mode 5 has no
 module system. Each file declares one `CCP*` namespace with `var`, because tsc
@@ -80,28 +94,28 @@ infers properties within a file but not across files.
 
 ## The floor
 
-`core/`, `legacy/shared/` and `legacy/classic/` run in Classic, so they are held to **document mode 5**. Nothing
+Everything except the Modern-only files runs in Classic, so it is held to **document mode 5**. Nothing
 transpiles that low (TypeScript dropped ES3; Babel cannot conjure `JSON` or
 `Array.prototype.forEach`), so it is hand-written and proven:
 
 ```bash
-node check-syntax.js es3 core/*.js legacy/shared/*.js legacy/classic/*.js   # ES3 syntax + a denylist of the ES5 runtime
-node check-syntax.js es5 legacy/modern/*.js                                 # syntax only
+node check-syntax.js es3 platform/*.js hosts/classic/*.js   # ES3 syntax + a denylist of the ES5 runtime
+node check-syntax.js es5 hosts/modern/*.js                  # syntax only
 ```
 
 ## Types
 
-tsc type-checks `core/` and `legacy/shared/` from their JSDoc and generates
+tsc type-checks `platform/` and `features/watchdog/` from their JSDoc and generates
 `types/common.d.ts`. That references the wire shapes without defining them, so
-`types/index.d.ts` is `core/wire.d.ts` followed by the generated file. Nothing is
+`types/index.d.ts` is `features/watchdog/core/wire.d.ts` followed by the generated file. Nothing is
 emitted into the shipping path. `esm.d.ts` is the hand-written module surface the
 web components import; keep it in step with `bundles.esm.exports`.
 
 ## Tests
 
 ```bash
-./test.sh                 # every *.test.js
-node core/roster.test.js  # one file
+./test.sh                                   # every *.test.js
+node features/watchdog/core/roster.test.js  # one file
 ```
 
 `test-harness.js` loads the same files the build does (`h.bundle("classic")`), with
@@ -150,11 +164,12 @@ pre-switch clients. **Order**, if both move: clients first, conf second.
 
 ## Diagnostics
 
-Both legacy clients expose `window.__ccPresence`. `__ccPresence.dump()` returns the
+Both legacy clients expose `window.__ccPlatform` (`features()`, `whoami()`, `inRollout()`,
+`dump()`, `reconcile()`) and `window.__ccPresence`. `dump()` returns the
 last 300 log lines (addresses masked) as one string — the console in this estate is
 IEChooser's, which cannot attach before boot.
 
-The same shape in both (built by `legacy/shared/client.js`):
+The same shape in both (built by `features/watchdog/watchdog.js`):
 
 ```
 status() sections() sessions()      what is registered, and how each session is doing

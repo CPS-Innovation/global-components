@@ -7,6 +7,7 @@
 #
 # If this package's source folders move, move these with them: a stale entry
 # protects nothing, and only check-syntax notices.
-packages/cps-global-presence/core/
-packages/cps-global-presence/legacy/
+packages/cps-global-presence/platform/
+packages/cps-global-presence/hosts/
+packages/cps-global-presence/features/
 packages/cps-global-presence/placeholders/

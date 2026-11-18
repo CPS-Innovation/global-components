@@ -237,7 +237,7 @@ export type CmsAuthStorageKeys = z.infer<typeof cmsAuthStorageKeysSchema>;
 
 // Settings for the legacy CMS clients (packages/cps-global-presence), which have
 // no config fetch: CI bakes this section into their bundles at deploy time (see
-// legacy/shared/config.js there). The web components do not read it; it is in the
+// platform/config.js there). The web components do not read it; it is in the
 // schema so the file validates as a whole and the shape is written down.
 const legacyUiSchema = z.object({
   // Gate name -> who it is open for, in the FEATURE_FLAG_*_USERS shape minus

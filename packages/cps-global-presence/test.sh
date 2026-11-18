@@ -17,7 +17,7 @@ failed=0
 
 # Every *.test.js under the source folders, so a new folder cannot be missed.
 # Plus the package root's own (the deploy-time scripts beside build.js).
-for f in $( (find "$DIR/core" "$DIR/legacy" "$DIR/apps" "$DIR/placeholders" -name "*.test.js"; find "$DIR" -maxdepth 1 -name "*.test.js") | sort); do
+for f in $( (find "$DIR/platform" "$DIR/hosts" "$DIR/features" "$DIR/placeholders" -name "*.test.js"; find "$DIR" -maxdepth 1 -name "*.test.js") | sort); do
   [ -f "$f" ] || continue
   echo
   echo "=== ${f#$DIR/} ==="

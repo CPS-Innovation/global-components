@@ -22,7 +22,7 @@ function writeJson(dir, value) {
   return p;
 }
 
-// A client shaped like a built bundle: the marker line from legacy/shared/config.js.
+// A client shaped like a built bundle: the marker line from platform/config.js.
 function writeClient(dir, name, body) {
   var p = path.join(dir, name);
   fs.writeFileSync(p, body !== undefined ? body : "var X = 1;\nvar CCP_CONFIG = " + bakeConfig.MARKER + ";\nvar Y = 2;\n");
@@ -259,6 +259,6 @@ h.test("QA maps both presence gates", function () {
 });
 
 h.test("the marker matches the one the bundles carry", function () {
-  var src = fs.readFileSync(path.join(__dirname, "legacy", "shared", "config.js"), "utf8");
+  var src = fs.readFileSync(path.join(__dirname, "platform", "config.js"), "utf8");
   h.assertEqual(src.split(bakeConfig.MARKER).length - 1, 1);
 });
