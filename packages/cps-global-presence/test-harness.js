@@ -12,8 +12,8 @@
 var fs = require("fs");
 var path = require("path");
 
-var FLOOR = ["core/util.js", "core/kinds.js"];
-// The marker bake-config.js replaces at deploy time (see legacy/shared/config.js).
+var FLOOR = ["platform/util.js", "features/watchdog/core/kinds.js"];
+// The marker bake-config.js replaces at deploy time (see platform/config.js).
 var CCP_CONFIG_MARKER = "/*@@CCP_CONFIG@@*/ {}";
 
 /**
@@ -37,7 +37,7 @@ function bundle(name) {
  * @param {string[]} names  identifiers to return from the built scope
  * @param {{window?: Object, document?: Object, prelude?: string, ccpConfig?: Object}} [env]
  *   prelude    source run before the files, e.g. a different kill switch
- *   ccpConfig  bake this into legacy/shared/config.js's marker, as a deploy would
+ *   ccpConfig  bake this into platform/config.js's marker, as a deploy would
  *              (bake-config.js); without it the bundle loads unbaked, i.e. {}
  */
 function load(files, names, env) {
@@ -47,7 +47,7 @@ function load(files, names, env) {
   var src = files
     .map(function (f) {
       var text = fs.readFileSync(path.join(__dirname, f), "utf8");
-      if (env.ccpConfig && f === "legacy/shared/config.js") {
+      if (env.ccpConfig && f === "platform/config.js") {
         text = text.split(CCP_CONFIG_MARKER).join(JSON.stringify(env.ccpConfig));
       }
       return text;

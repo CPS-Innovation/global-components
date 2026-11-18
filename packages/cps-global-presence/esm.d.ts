@@ -90,7 +90,7 @@ declare module "cps-global-presence" {
 
   /**
    * A person's name from the address the presence API reports. Rules come from a
-   * survey of every enabled Entra account; see core/names.js.
+   * survey of every enabled Entra account; see features/watchdog/core/names.js.
    */
   export const CCPNames: {
     /** The domains whose addresses are people's names. */
@@ -103,7 +103,7 @@ declare module "cps-global-presence" {
     displayName(email: string | null | undefined): string;
     /** Letters only, lower-cased: "O'Brien-Smith" -> "obriensmith". */
     letters(text: string | null | undefined): string;
-    /** Is this address the person CMS names? False when unsure (see core/names.js). */
+    /** Is this address the person CMS names? False when unsure (see features/watchdog/core/names.js). */
     matches(email: string | null | undefined, firstNames: string | null | undefined, surname: string | null | undefined): boolean;
   };
 

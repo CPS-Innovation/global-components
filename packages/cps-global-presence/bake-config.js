@@ -3,7 +3,7 @@
  *
  *   node bake-config.js <config.json> <client.js> [<client.js> ...]
  *
- * Replaces the CCP_CONFIG marker (see legacy/shared/config.js) in each client, in
+ * Replaces the CCP_CONFIG marker (see platform/config.js) in each client, in
  * place, with the config's LEGACY_UI section as a JSON object literal. A config
  * without LEGACY_UI bakes {}, the same as unbaked: every gate closed.
  *
@@ -32,7 +32,7 @@ var isPlainObject = function (value) {
   return !!value && typeof value === "object" && !Array.isArray(value);
 };
 
-// The FEATURE_FLAG_*_USERS fields the legacy gates understand (legacy/shared/gates.js).
+// The FEATURE_FLAG_*_USERS fields the legacy gates understand (platform/gates.js).
 var GATE_FIELDS = ["adGroupIds", "adHocUserObjectIds", "generallyAvailable"];
 
 var checkIdList = function (where, value) {

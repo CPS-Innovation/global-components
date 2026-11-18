@@ -1,6 +1,6 @@
 {
   "// why": [
-    "core/ and legacy/shared/ are plain JavaScript held to the document mode 5 floor (see",
+    "platform/ and features/watchdog/ are plain JavaScript held to the document mode 5 floor (see",
     "check-syntax.js). This config does NOT compile it \u2014 nothing is emitted into",
     "the shipping path. It type-checks the JSDoc (checkJs) and generates",
     "types/*.d.ts from it, so the surface global-components would import cannot",
@@ -33,9 +33,10 @@
     "module": "none"
   },
   "include": [
-    "core/*.js",
-    "legacy/shared/*.js",
-    "core/wire.d.ts"
+    "platform/*.js",
+    "features/watchdog/*.js",
+    "features/watchdog/core/*.js",
+    "features/watchdog/core/wire.d.ts"
   ],
   "exclude": [
     "**/*.test.js",
