@@ -42,7 +42,7 @@
  * functions, var + function declarations, no trailing commas, and no Date.now).
  * ==========================================================================*/
 (function () {
-  if (CMS_WATCHDOG_ENABLED !== true) {
+  if (LEGACY_CLIENT_AUGMENTATION_ENABLED !== true) {
     return; // no login watcher, no auth iframe, no __ccAuthHandover handle
   }
 

@@ -394,6 +394,29 @@ function _cmsEnvRead(r) {
   return label ? { env: label, why: "hint" } : { env: "", why: "no-domain" };
 }
 
+// Is this reader in the Entra rollout? Polaris's /init decides (the global switch, a
+// drop2 enrolment, or the CMS user id inside ENTRA_ROLLOUT_PERCENT) and records the
+// answer as `entraEnabled` in the hint on EVERY pass, so the hint is the one record
+// of it and leaving the rollout clears it at the next /init. Only a boolean counts:
+// true or false. Anything else (no hint, an unreadable one, a hint from a Polaris
+// that predates the flag) is null, UNKNOWN, which the client treats as "not yet"
+// and keeps asking, exactly as before the flag existed. The legacy clients cannot
+// read the hint themselves: it is a Polaris-host cookie and, in the real
+// deployment, the CMS pages are on other domains.
+function _entraEnabledRead(r) {
+  const raw = _getCookie(r, _SESSION_HINT_COOKIE_NAME);
+  if (!raw) {
+    return null;
+  }
+  try {
+    const parsed = JSON.parse(decodeURIComponent(raw));
+    const flag = parsed ? parsed.entraEnabled : undefined;
+    return typeof flag === "boolean" ? flag : null;
+  } catch (e) {
+    return null;
+  }
+}
+
 // ---------------------------------------------------------------------------
 // presenceBearer — cookie -> Authorization header, for js_set
 //
@@ -694,6 +717,7 @@ function _answerWhoami(r, cb) {
     ? String(claims.email || claims.upn || claims.preferred_username || "")
     : "";
   const whoami = _cmsEnvRead(r);
+  const entraEnabled = _entraEnabledRead(r);
   const handover = _handoverGroups(r, claims ? String(claims.oid || "") : "");
   // Logged HERE as well as returned, because the browser-side log is hard to
   // reach: the CMS estate's only console is IEChooser's, which cannot be
@@ -733,7 +757,10 @@ function _answerWhoami(r, cb) {
       " groupsFrom=" +
       handover.why +
       " groups=" +
-      handover.groups.length,
+      handover.groups.length +
+      // The rollout decision /init recorded: true, false, or "unknown" (no flag).
+      " entraEnabled=" +
+      (entraEnabled === null ? "unknown" : entraEnabled),
   );
   r.return(
     200,
@@ -765,6 +792,12 @@ function _answerWhoami(r, cb) {
         // different people to fix them, which is why one empty string was not
         // enough.
         cmsEnvWhy: whoami.why,
+        // IN THE ENTRA ROLLOUT? true, false, or null for unknown (see
+        // _entraEnabledRead). false is FINAL for the page: /init ran and said no,
+        // so no Entra flow ran and no groups are coming; the client stops asking
+        // and every payload stands down. null keeps the client asking, because
+        // on a first load whoami can beat the iframe's /init.
+        entraEnabled,
         // HOW LONG THE PRESENCE TOKEN HAS LEFT, in whole seconds, from its own
         // `exp` claim. 0 means no token, an unreadable one, or one already past
         // its expiry — all of which the client treats the same way: replay the

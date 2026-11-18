@@ -23,6 +23,7 @@
       "files": [
         "legacy/shared/log.js",
         "legacy/shared/viewer.js",
+        "legacy/shared/gates.js",
         "legacy/shared/preview.js",
         "legacy/shared/origin.js",
         "legacy/shared/locator.js",
@@ -35,6 +36,12 @@
       "floor": "es3",
       "files": [
         "legacy/shared/kill-switch.js"
+      ]
+    },
+    "config": {
+      "floor": "es3",
+      "files": [
+        "legacy/shared/config.js"
       ]
     },
     "classic": {
@@ -66,7 +73,8 @@
       "out": "dist/cms-augmentation/client-modern-unstable.js",
       "floor": "es5",
       "before": [
-        "killSwitch"
+        "killSwitch",
+        "config"
       ],
       "iife": [
         "core",
@@ -78,7 +86,8 @@
       "out": "dist/cms-augmentation/client-classic-unstable.js",
       "floor": "es3",
       "before": [
-        "killSwitch"
+        "killSwitch",
+        "config"
       ],
       "iife": [
         "core",

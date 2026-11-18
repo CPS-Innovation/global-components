@@ -92,7 +92,7 @@ function boot(mainHref) {
   w.frames = shell(mainHref);
   h.load(
     ["legacy/shared/kill-switch.js", "legacy/classic/auth.js"],
-    ["CMS_WATCHDOG_ENABLED"],
+    ["LEGACY_CLIENT_AUGMENTATION_ENABLED"],
     { window: w, document: doc }
   );
   return {
@@ -303,7 +303,7 @@ h.test("debug says the replay clock has not started yet", function () {
 h.describe("the kill switch");
 
 // Built by hand rather than through the harness: the point is a FALSE
-// CMS_WATCHDOG_ENABLED, and the only kill-switch.js on disk says true. This is the
+// LEGACY_CLIENT_AUGMENTATION_ENABLED, and the only kill-switch.js on disk says true. This is the
 // operator's sole emergency control over a guest script in someone else's
 // application, so it is worth pinning that auth.js honours it.
 h.test("off means no handle, no timer and no iframe", function () {
@@ -315,7 +315,7 @@ h.test("off means no handle, no timer and no iframe", function () {
     path.join(__dirname, "auth.js"),
     "utf8"
   );
-  new Function("window", "document", "var CMS_WATCHDOG_ENABLED = false;\n" + src)(w, doc);
+  new Function("window", "document", "var LEGACY_CLIENT_AUGMENTATION_ENABLED = false;\n" + src)(w, doc);
   h.assertEqual(w.__ccAuthHandover, undefined, "no console handle");
   h.assertEqual(w.__intervals.length, 0, "no poll started");
   h.assertEqual(doc.__appended.length, 0, "nothing appended");

@@ -1,0 +1,128 @@
+diff --git a/polaris-terraform/main-terraform/proxy/config/features/auth-handover/auth-handover.unit.test.js b/polaris-terraform/main-terraform/proxy/config/features/auth-handover/auth-handover.unit.test.js
+index 6817783..aaa25df 100644
+--- a/polaris-terraform/main-terraform/proxy/config/features/auth-handover/auth-handover.unit.test.js
++++ b/polaris-terraform/main-terraform/proxy/config/features/auth-handover/auth-handover.unit.test.js
+@@ -345,6 +345,115 @@ async function sessionHint(authHandover) {
+   })
+ }
+ 
++// The drop2 decision at /init and its record in the hint (entraEnabled). Rollout cases set
++// ENTRA_STORE_ENABLED off explicitly; with no ENTRA_* settings drop2 is "not-configured", so a
++// request inside the rollout still ends where an untouched one would (it starts, then skips).
++async function entraRollout(authHandover) {
++  console.log("\nappAuthRedirect — the Entra rollout (ENTRA_ROLLOUT_PERCENT) and hint.entraEnabled:")
++
++  const OFF = { ENTRA_STORE_ENABLED: "false", ENTRA_ROLLOUT_PERCENT: undefined }
++  const run = (env, args, headersIn) =>
++    withEnv({ AUTH_HANDOVER_WHITELIST: WHITELIST, ...OFF, ...env }, async () => {
++      const r = req({ r: "/auth-refresh-inbound", ...args }, headersIn)
++      await authHandover.appAuthRedirect(r)
++      return r
++    })
++  const enabledFor = async (env, cookie, headersIn) =>
++    hintOf(await run(env, cookie === undefined ? {} : { cookie }, headersIn)).entraEnabled
++
++  await test("no rollout setting: entraEnabled false (today's behaviour)", async () => {
++    assertEqual(await enabledFor({}, "UID=103007; .CMSAUTH=A"), false, "false")
++  })
++
++  await test("UID in the first PERCENT buckets (id mod 100): true", async () => {
++    assertEqual(await enabledFor({ ENTRA_ROLLOUT_PERCENT: "10" }, "UID=103007; .CMSAUTH=A"), true, "bucket 7 < 10")
++  })
++
++  await test("UID outside them: false", async () => {
++    assertEqual(await enabledFor({ ENTRA_ROLLOUT_PERCENT: "10" }, "UID=103096; .CMSAUTH=A"), false, "bucket 96")
++    assertEqual(await enabledFor({ ENTRA_ROLLOUT_PERCENT: "10" }, "UID=103010; .CMSAUTH=A"), false, "bucket 10 is the 11th")
++  })
++
++  await test("ramping up only adds people: a bucket in at 10 is still in at 50", async () => {
++    assertEqual(await enabledFor({ ENTRA_ROLLOUT_PERCENT: "50" }, "UID=103007"), true, "still in")
++    assertEqual(await enabledFor({ ENTRA_ROLLOUT_PERCENT: "50" }, "UID=103049"), true, "newly in")
++  })
++
++  await test("no UID: falls back to the id in CMSUSER<id>", async () => {
++    assertEqual(await enabledFor({ ENTRA_ROLLOUT_PERCENT: "10" }, "CMSUSER103007=sess; .CMSAUTH=A"), true, "7")
++    assertEqual(await enabledFor({ ENTRA_ROLLOUT_PERCENT: "10" }, "CMSUSER103096=sess; .CMSAUTH=A"), false, "96")
++  })
++
++  await test("UID wins over a CMSUSER<id> naming someone else", async () => {
++    assertEqual(await enabledFor({ ENTRA_ROLLOUT_PERCENT: "10" }, "CMSUSER103096=s; UID=103007"), true, "UID's 7")
++  })
++
++  await test("no UID and CMSUSER cookies for two ids: not a guess, false", async () => {
++    assertEqual(await enabledFor({ ENTRA_ROLLOUT_PERCENT: "10" }, "CMSUSER104007=s; CMSUSER103096=s"), false, "ambiguous, though either alone would answer")
++  })
++
++  await test("no UID and the same CMSUSER id twice is still one id", async () => {
++    assertEqual(await enabledFor({ ENTRA_ROLLOUT_PERCENT: "10" }, "CMSUSER104007=a; CMSUSER104007=b"), true, "7")
++  })
++
++  await test("UID must be the whole cookie name and a number", async () => {
++    assertEqual(await enabledFor({ ENTRA_ROLLOUT_PERCENT: "10" }, "XUID=103007"), false, "XUID is not UID")
++    assertEqual(await enabledFor({ ENTRA_ROLLOUT_PERCENT: "10" }, "UID=abc"), false, "not a number")
++  })
++
++  await test("no user id at all: false, even at 100", async () => {
++    assertEqual(await enabledFor({ ENTRA_ROLLOUT_PERCENT: "100" }, ".CMSAUTH=A"), false, "nobody to bucket")
++  })
++
++  await test("reads the forwarded CMS jar (cookie arg), never this request's own Cookie header", async () => {
++    assertEqual(await enabledFor({ ENTRA_ROLLOUT_PERCENT: "10" }, ".CMSAUTH=A", { Cookie: "UID=103007" }), false, "header ignored")
++  })
++
++  await test("a bad or out-of-range setting holds back (0); above 100 is everyone", async () => {
++    for (const bad of ["", "abc", "-5", "10.5", "0"]) {
++      assertEqual(await enabledFor({ ENTRA_ROLLOUT_PERCENT: bad }, "UID=103000"), false, `'${bad}' is 0`)
++    }
++    assertEqual(await enabledFor({ ENTRA_ROLLOUT_PERCENT: "150" }, "UID=103099"), true, "150 is 100")
++  })
++
++  await test("the global switch and a drop2 enrolment still win, with or without an id", async () => {
++    assertEqual(await enabledFor({ ENTRA_STORE_ENABLED: "true" }, ".CMSAUTH=A"), true, "global")
++    assertEqual(await enabledFor({}, ".CMSAUTH=A", { Cookie: "polaris_auth_handover=drop2" }), true, "enrolled")
++    assertEqual(await enabledFor({}, ".CMSAUTH=A", { Cookie: "polaris_auth_handover=drop1" }), false, "drop1 is not drop2")
++  })
++
++  await test("written on every pass, so leaving the rollout clears it", async () => {
++    assertEqual(await enabledFor({ ENTRA_ROLLOUT_PERCENT: "10" }, "UID=103007"), true, "in")
++    assertEqual(await enabledFor({ ENTRA_ROLLOUT_PERCENT: "5" }, "UID=103007"), false, "out after the next /init")
++  })
++
++  await test("the {error} hint payload still carries the decision", async () => {
++    const hint = hintOf(await run({ ENTRA_STORE_ENABLED: "true" }, {}))
++    assert("error" in hint, "error payload")
++    assertEqual(hint.entraEnabled, true, "decision kept")
++  })
++
++  await test("hidden iframe outside the rollout: the terminal page, no Entra", async () => {
++    const r = await run({ ENTRA_ROLLOUT_PERCENT: "10" }, { q: "Q", r: undefined, cookie: "UID=103096; .CMSAUTH=A", terminal: "iframe" })
++    assertEqual(r.returnCode, 302, "302")
++    assertEqual(r.returnBody, "https://proxy.example.org/init/terminal", "the terminal page")
++    assertEqual(hintOf(r).entraEnabled, false, "recorded")
++  })
++
++  await test("hidden iframe inside the rollout: drop2 starts (here it skips: not configured), hint true", async () => {
++    const r = await run({ ENTRA_ROLLOUT_PERCENT: "10" }, { q: "Q", r: undefined, cookie: "UID=103007; .CMSAUTH=A", terminal: "iframe" })
++    assertEqual(r.returnBody, "https://proxy.example.org/init/terminal", "skip falls back to the terminal page")
++    assertEqual(hintOf(r).entraEnabled, true, "recorded")
++  })
++
++  await test("the P button outside the rollout: the cc 302, as today", async () => {
++    const r = await run({ ENTRA_ROLLOUT_PERCENT: "10" }, { cookie: "UID=103096; .CMSAUTH=A" })
++    assertEqual(r.returnCode, 302, "302")
++    assertIncludes(r.returnBody, "/auth-refresh-inbound", "to r")
++    assertIncludes(r.returnBody, "cc=UID%3D103096", "with cc")
++  })
++}
++
+ async function polarisAuthRedirect(authHandover) {
+   console.log("\npolarisAuthRedirect (/polaris) — simulated CMS handover:")
+ 
+@@ -543,6 +652,7 @@ async function main() {
+   const authHandover = await loadNjs("features/auth-handover/auth-handover.js")
+   await appAuthRedirect(authHandover)
+   await sessionHint(authHandover)
++  await entraRollout(authHandover)
+   await polarisAuthRedirect(authHandover)
+   await authRefreshOutbound(authHandover)
+   await devLogin(authHandover)

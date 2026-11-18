@@ -37,9 +37,11 @@
  * behaviour. A preview flag turning something ON by accident because a call
  * failed would be the worse direction by far.
  *
- * ONE FLAG IS READ: caseLockingCountSelf, through countSelf() below, so Classic
- * and Modern share the one rule rather than each spelling it. The rest are
- * carried, logged and exposed on the console handle only.
+ * THREE FLAGS ARE READ, each through an accessor below so Classic and Modern
+ * share the one rule rather than each spelling it: caseLockingCountSelf
+ * (countSelf), verboseLogging, and legacyClientsWatchdog (enrols the reader in
+ * the presence gates, see client.js). The rest are carried, logged and exposed on
+ * the console handle only.
  *
  * onChange FIRES WHEN AN ANSWER SETTLES. Both clients redraw only when the roster
  * or the section changes, so without it a flag that arrives after the first draw
@@ -61,6 +63,7 @@ var CCPPreview = {};
  *          onChange: (function(): void|undefined)}} options
  * @returns {{flags: function(): Object, known: function(): boolean,
  *            countSelf: function(): boolean, verboseLogging: function(): boolean,
+ *            legacyClientsWatchdog: function(): boolean,
  *            refresh: function(boolean=): void}}
  */
 CCPPreview.createPreview = function (options) {
@@ -154,6 +157,12 @@ CCPPreview.createPreview = function (options) {
     // to the console when it is on, so one switch serves all three UIs.
     verboseLogging: function () {
       return flags.verboseLogging === true;
+    },
+    // Enrols the reader in both presence gates (client.js), whatever their groups.
+    // Only an explicit true: unknown, failed and unset leave the gates to the
+    // groups, so a failed read can never switch presence ON.
+    legacyClientsWatchdog: function () {
+      return flags.legacyClientsWatchdog === true;
     },
     refresh: refresh
   };

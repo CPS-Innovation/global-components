@@ -33,6 +33,24 @@ h.test("carries the op, the params and the base", function () {
   h.assertTrue(url.indexOf("&sectionId=124253%3ACASE") !== -1, "params are encoded, not raw: " + url);
 });
 
+h.test("whoami goes to its own sub-path — the groups cookie is Path-scoped to it", function () {
+  var t = build();
+  t.call("whoami", {}, function () {});
+  var url = lastUrl(t.doc);
+  h.assertTrue(url.indexOf("https://proxy.example/global-components/presence-jsonp/whoami?op=whoami") === 0, url);
+  h.assertTrue(url.indexOf("&appName=CMS%20Modern") !== -1, "still sends appName: " + url);
+});
+
+h.test("every other op stays on the base path", function () {
+  var t = build();
+  var ops = ["create", "poll", "heartbeat", "leave", "state"];
+  var i;
+  for (i = 0; i < ops.length; i++) {
+    t.call(ops[i], { sid: "abc" }, function () {});
+    h.assertTrue(lastUrl(t.doc).indexOf("https://proxy.example/global-components/presence-jsonp?op=" + ops[i]) === 0, lastUrl(t.doc));
+  }
+});
+
 h.test("always sends appName — the adapter defaults a missing one to CMS Classic", function () {
   var t = build();
   t.call("poll", { sid: "abc" }, function () {});

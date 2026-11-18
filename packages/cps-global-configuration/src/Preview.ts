@@ -53,6 +53,13 @@ export const PreviewSchema = z.object({
   // interrupt, case-wide presence informs — so the way to see the interruption is
   // to go to a case review, not to flip a switch.
   caseLockingCountSelf: z.boolean().optional(),
+  // Switch Watchdog presence on in the LEGACY clients (CMS Classic, Modern, DCF)
+  // for this reader. Positive enrolment only: it ORs with the LEGACY_UI.gates
+  // definitions (CASE_PRESENCE_GATE_1_CONNECT, CASE_PRESENCE_GATE_2_SHOW_UI) and opens
+  // both, so one switch lets a developer see it end to end without an Entra
+  // change. Unset never takes anyone out of a group. The web components' case
+  // locking is unaffected: it is the FEATURE_FLAG_CASE_LOCKING_USERS cohort alone.
+  legacyClientsWatchdog: z.boolean().optional(),
   requestObservationShim: z.boolean().optional(),
   openInCmsModern: z.boolean().optional(),
   // Show global-components' verbose (debug) console output. Always on when the

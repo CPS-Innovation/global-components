@@ -670,6 +670,8 @@ declare namespace CCPClient {
     let PREVIEW_PATH: string;
     let PASS_MS: number;
     let TIMEOUT_MS: number;
+    let GATE_1_CONNECT: string;
+    let GATE_2_SHOW_UI: string;
     /**
      * @param {{
      *   appName: string,
@@ -708,6 +710,43 @@ declare namespace CCPClient {
         onNotifications: (arg0: any[], arg1: string | undefined) => void;
     };
 }
+/** @type {{gates?: Object<string, CCPGateDefinition>}} */
+declare var CCP_CONFIG: {
+    gates?: {
+        [x: string]: CCPGateDefinition;
+    };
+};
+declare namespace CCPGates {
+    /**
+     * @typedef {{adGroupIds?: string[], adHocUserObjectIds?: string[],
+     *            generallyAvailable?: boolean}} CCPGateDefinition
+     */
+    /**
+     * @param {{definitions?: Object<string, CCPGateDefinition>,
+     *          viewer: {inGroup: function(string): boolean, oid: function(): string}}} options
+     * @returns {{open: function(string): boolean, why: function(string): string,
+     *            names: function(): string[], openNames: function(): string[]}}
+     */
+    function createGates(options: {
+        definitions?: {
+            [x: string]: CCPGateDefinition;
+        };
+        viewer: {
+            inGroup: (arg0: string) => boolean;
+            oid: () => string;
+        };
+    }): {
+        open: (arg0: string) => boolean;
+        why: (arg0: string) => string;
+        names: () => string[];
+        openNames: () => string[];
+    };
+}
+type CCPGateDefinition = {
+    adGroupIds?: string[];
+    adHocUserObjectIds?: string[];
+    generallyAvailable?: boolean;
+};
 declare namespace CCPJsonp {
     /**
      * window[name] = value. JSONP callbacks must be real top-level globals (the njs
@@ -741,7 +780,7 @@ declare namespace CCPJsonp {
         log?: (...args: any[]) => void;
     }): (arg0: string, arg1: any, arg2: (arg0: any) => void) => void;
 }
-declare var CMS_WATCHDOG_ENABLED: boolean;
+declare var LEGACY_CLIENT_AUGMENTATION_ENABLED: boolean;
 declare namespace CCPLocator {
     /**
      * Normalise the parts of a section into the shape everything downstream expects.
@@ -867,6 +906,7 @@ declare namespace CCPPreview {
      *          onChange: (function(): void|undefined)}} options
      * @returns {{flags: function(): Object, known: function(): boolean,
      *            countSelf: function(): boolean, verboseLogging: function(): boolean,
+     *            legacyClientsWatchdog: function(): boolean,
      *            refresh: function(boolean=): void}}
      */
     function createPreview(options: {
@@ -878,6 +918,7 @@ declare namespace CCPPreview {
         known: () => boolean;
         countSelf: () => boolean;
         verboseLogging: () => boolean;
+        legacyClientsWatchdog: () => boolean;
         refresh: (arg0: boolean | undefined) => void;
     };
 }
@@ -917,13 +958,17 @@ declare namespace CCPViewer {
     let ATTEMPTS: number;
     let RECHECK_MS: number;
     /**
+     * Named gates over these facts are CCPGates (gates.js), not this.
+     *
      * @param {{call: function(string, Object, function(*): void): void,
      *          log: function(...*): void}} options
      * @returns {{email: function(): string, oid: function(): string,
      *            cmsEnv: function(): string, cmsEnvWhy: function(): string,
      *            tokenExpiresIn: function(): number, tokenAge: function(): number,
      *            claimKeys: function(): string,
-     *            groups: function(): string[], inGroup: function(string): boolean,
+     *            groups: function(): string[], groupsFrom: function(): string,
+     *            entraEnabled: function(): ?boolean,
+     *            inGroup: function(string): boolean,
      *            refresh: function(boolean=): void, known: function(): boolean,
      *            recheck: function(string): boolean}}
      */
@@ -939,6 +984,8 @@ declare namespace CCPViewer {
         tokenAge: () => number;
         claimKeys: () => string;
         groups: () => string[];
+        groupsFrom: () => string;
+        entraEnabled: () => boolean | null;
         inGroup: (arg0: string) => boolean;
         refresh: (arg0: boolean | undefined) => void;
         known: () => boolean;

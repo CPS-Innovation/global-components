@@ -94,6 +94,12 @@ async function testWhoamiCmsEnv() {
     assertEqual(data.cmsEnv, "CMS", "Should report what it found")
     assertEqual(data.cmsEnvWhy, "hint", "Should not treat an unfamiliar label as unknown")
   })
+
+  await test("entraEnabled: the hint's rollout decision, or null with no flag", async () => {
+    assertEqual((await whoami(hint({ cmsDomains: ["cin3.cps.gov.uk"], entraEnabled: false }))).entraEnabled, false, "false")
+    assertEqual((await whoami(hint({ cmsDomains: ["cin3.cps.gov.uk"], entraEnabled: true }))).entraEnabled, true, "true")
+    assertEqual((await whoami(hint({ cmsDomains: ["cin3.cps.gov.uk"] }))).entraEnabled, null, "unknown")
+  })
 }
 
 // =============================================================================

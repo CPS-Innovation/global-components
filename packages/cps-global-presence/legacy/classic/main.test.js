@@ -112,7 +112,23 @@ function shell() {
 // The CLASSIC bundle from bundles.json: the kill switch, then core/ and legacy/shared/, then legacy/classic/.
 var BUNDLE = h.bundle("classic");
 
-function client(top) {
+// Both presence gates name one group, as QA's config does, and the reader below is
+// in it: every test is a member unless it says otherwise (see "the gates").
+var GATE_GROUP = "12377eca-b463-4a6c-80ea-95f678f09591";
+// LEGACY_UI.gates, as baked: each gate in the web components' cohort shape.
+function gatesFor(connect, showUi) {
+  var out = {};
+  if (connect) {
+    out.CASE_PRESENCE_GATE_1_CONNECT = connect;
+  }
+  if (showUi) {
+    out.CASE_PRESENCE_GATE_2_SHOW_UI = showUi;
+  }
+  return { gates: out };
+}
+var GATES = gatesFor({ adGroupIds: [GATE_GROUP] }, { adGroupIds: [GATE_GROUP] });
+
+function client(top, ccpConfig) {
   // The document is kept on the window so the JSONP helpers below can read the
   // script tags the transport appended — that is the only record of what this
   // client actually sent.
@@ -120,7 +136,7 @@ function client(top) {
   var m = h.load(
     BUNDLE,
     ["presenceClient", "activeSections", "activeSectionIds", "presenceStripeSnapshot"],
-    { window: top, document: top.__doc }
+    { window: top, document: top.__doc, ccpConfig: ccpConfig || GATES }
   );
   m.tick = m.presenceClient.reconcile;
   m.onNotifications = m.presenceClient.onNotifications;
@@ -136,7 +152,7 @@ h.test("off means no call, no pass, no stripe and no handle", function () {
   var m = h.load(
     BUNDLE.filter(function (f) { return f !== "legacy/shared/kill-switch.js"; }),
     ["presenceClient"],
-    { window: top, document: top.__doc, prelude: "var CMS_WATCHDOG_ENABLED = false;" }
+    { window: top, document: top.__doc, prelude: "var LEGACY_CLIENT_AUGMENTATION_ENABLED = false;" }
   );
   h.assertEqual(m.presenceClient, null, "no client");
   h.assertEqual(top.__doc.__appended.length, 0, "nothing sent");
@@ -192,7 +208,10 @@ function whoamiReply(env, why) {
     userEmail: "me@cps.gov.uk",
     oid: "00000000-1111-2222-3333-444444444444",
     cmsEnv: env,
-    cmsEnvWhy: why ? why : "hint"
+    cmsEnvWhy: why ? why : "hint",
+    // A complete answer: without it the viewer keeps asking (the groups race).
+    groupsFrom: "cookie",
+    groups: [GATE_GROUP]
   };
 }
 
@@ -340,6 +359,265 @@ h.test("says why, when there is no environment to be had", function () {
   h.assertEqual(who.cmsEnvWhy, "no-hint");
   h.assertEqual(who.cin, null, "nothing adopted means nothing registered");
   h.assertEqual(sent(top, "create").length, 0, ops(top).join(","));
+});
+
+h.describe("the gates (LEGACY_UI.gates, or the legacyClientsWatchdog preview flag)");
+
+var OTHER_GROUP = "aaaaaaaa-0000-0000-0000-000000000000";
+
+// The preview read the client sent on boot, answered with these flags.
+function answerPreview(top, flags) {
+  replyLast(top, "preview", flags);
+}
+
+function notMember(env) {
+  var reply = whoamiReply(env);
+  reply.groups = [OTHER_GROUP];
+  return reply;
+}
+
+h.test("outside both groups, with no preview flag: nothing registers", function () {
+  var top = shell();
+  var m = client(top);
+  answerPreview(top, {});
+  answerWhoami(top, notMember(CMS_ENV));
+  m.tick();
+  m.tick();
+  h.assertEqual(sent(top, "create").length, 0, ops(top).join(","));
+  var g = top.__ccPresence.gates();
+  h.assertEqual(g.connect, false);
+  h.assertEqual(g.showUi, false);
+});
+
+// Fail closed: a bundle nobody baked has no gates at all.
+h.test("an unbaked bundle registers nothing, whatever the groups", function () {
+  var top = shell();
+  var m = client(top, {});
+  answerPreview(top, {});
+  answerWhoami(top, whoamiReply(CMS_ENV));
+  m.tick();
+  h.assertEqual(sent(top, "create").length, 0, ops(top).join(","));
+});
+
+h.test("the preview flag alone opens both gates", function () {
+  var top = shell();
+  var m = client(top);
+  answerPreview(top, { legacyClientsWatchdog: true });
+  answerWhoami(top, notMember(CMS_ENV));
+  m.tick();
+  h.assertEqual(sent(top, "create").length, 1, ops(top).join(","));
+  m.onNotifications(poll(CASE_A, "CASE", [member("ann@cps.gov.uk")]), HELD_A);
+  h.assertTrue(shown(m).indexOf("ann@cps.gov.uk") !== -1, shown(m));
+  h.assertEqual(top.__ccPresence.gates().byPreview, true);
+});
+
+// A preview flag can only enrol: false is the same as unset, never an opt-out.
+h.test("a false preview flag does not take a member out", function () {
+  var top = shell();
+  var m = client(top);
+  answerPreview(top, { legacyClientsWatchdog: false });
+  answerWhoami(top, whoamiReply(CMS_ENV));
+  m.tick();
+  h.assertEqual(sent(top, "create").length, 1, ops(top).join(","));
+});
+
+// The dark launch: real Watchdog traffic to observe, nothing on screen.
+h.test("gate 1 without gate 2 connects but never shows the stripe", function () {
+  var top = shell();
+  var m = client(top, gatesFor({ adGroupIds: [GATE_GROUP] }, { adGroupIds: [OTHER_GROUP] }));
+  answerPreview(top, {});
+  answerWhoami(top, whoamiReply(CMS_ENV));
+  m.tick();
+  h.assertEqual(sent(top, "create").length, 1, "traffic flows: " + ops(top).join(","));
+  m.onNotifications(poll(CASE_A, "CASE", [member("ann@cps.gov.uk")]), HELD_A);
+  h.assertEqual(shown(m), "", "but nothing is shown");
+});
+
+h.test("the dark launch says nothing on the console when a call fails", function () {
+  var top = shell();
+  var printed = [];
+  top.console = { log: function (line) { printed.push(String(line)); } };
+  var m = client(top, gatesFor({ adGroupIds: [GATE_GROUP] }, null));
+  answerPreview(top, {});
+  answerWhoami(top, whoamiReply(CMS_ENV));
+  m.tick();
+  replyLast(top, "create", { jsonpError: "upstream 500" });
+  m.tick();
+  var said = printed.join("\n");
+  h.assertTrue(said.indexOf("Watchdog") === -1, said);
+});
+
+h.test("gate 2 without gate 1 shows nothing and sends nothing", function () {
+  var top = shell();
+  var m = client(top, gatesFor(null, { adGroupIds: [GATE_GROUP] }));
+  answerPreview(top, {});
+  answerWhoami(top, whoamiReply(CMS_ENV));
+  m.tick();
+  h.assertEqual(sent(top, "create").length, 0, ops(top).join(","));
+  h.assertEqual(top.__ccPresence.gates().showUi, false);
+});
+
+// The flag and the groups each settle a pass or two after boot.
+h.test("a preview flag that arrives late opens the gate on the next pass", function () {
+  var top = shell();
+  var m = client(top);
+  answerWhoami(top, notMember(CMS_ENV));
+  m.tick();
+  h.assertEqual(sent(top, "create").length, 0, "closed before the flag");
+  answerPreview(top, { legacyClientsWatchdog: true });
+  m.tick();
+  h.assertEqual(sent(top, "create").length, 1, ops(top).join(","));
+});
+
+// A forced whoami can come back without the groups (a re-minted cookie bound to
+// another reader, say). The gate closing must leave, not just stop drawing.
+h.test("a gate that closes leaves every section it held", function () {
+  var r = registeredWithCompany();
+  h.assertTrue(shown(r.m) !== "", "precondition: up");
+  r.top.__ccPresence.refreshWhoami();
+  answerWhoami(r.top, notMember(CMS_ENV));
+  r.m.tick();
+  h.assertEqual(sent(r.top, "remove").length, 1, ops(r.top).join(","));
+  h.assertEqual(shown(r.m), "", "and the stripe is down");
+});
+
+h.test("the history says why the gates are as they are", function () {
+  var top = shell();
+  var m = client(top);
+  answerPreview(top, {});
+  answerWhoami(top, notMember(CMS_ENV));
+  m.tick();
+  var said = top.__ccPresence.dump();
+  h.assertTrue(said.indexOf("gates connect=closed showUi=closed") !== -1, said);
+  h.assertTrue(said.indexOf("legacyClientsWatchdog=false") !== -1, said);
+});
+
+h.describe("generallyAvailable and ad-hoc enrolment (the cohort shape)");
+
+h.test("generallyAvailable on both gates: everyone, in no group, gets the stripe", function () {
+  var top = shell();
+  var m = client(top, gatesFor({ generallyAvailable: true }, { generallyAvailable: true }));
+  answerPreview(top, {});
+  answerWhoami(top, notMember(CMS_ENV));
+  m.tick();
+  h.assertEqual(sent(top, "create").length, 1, ops(top).join(","));
+  m.onNotifications(poll(CASE_A, "CASE", [member("ann@cps.gov.uk")]), HELD_A);
+  h.assertTrue(shown(m).indexOf("ann@cps.gov.uk") !== -1, shown(m));
+  var g = top.__ccPresence.gates();
+  h.assertEqual(g.byConfig.connect, "generallyAvailable");
+  h.assertEqual(g.byConfig.showUi, "generallyAvailable");
+});
+
+// The dark launch for everyone: traffic from the whole population, nothing shown
+// except to the show-UI group.
+h.test("generallyAvailable on gate 1 alone: everyone connects, only the group sees it", function () {
+  var top = shell();
+  var m = client(top, gatesFor({ generallyAvailable: true }, { adGroupIds: [GATE_GROUP] }));
+  answerPreview(top, {});
+  answerWhoami(top, notMember(CMS_ENV));
+  m.tick();
+  h.assertEqual(sent(top, "create").length, 1, "connects: " + ops(top).join(","));
+  m.onNotifications(poll(CASE_A, "CASE", [member("ann@cps.gov.uk")]), HELD_A);
+  h.assertEqual(shown(m), "", "but sees nothing");
+});
+
+h.test("generallyAvailable does not override the Entra rollout's false", function () {
+  var top = shell();
+  var m = client(top, gatesFor({ generallyAvailable: true }, { generallyAvailable: true }));
+  answerPreview(top, {});
+  var reply = notMember(CMS_ENV);
+  reply.entraEnabled = false;
+  answerWhoami(top, reply);
+  m.tick();
+  h.assertEqual(sent(top, "create").length, 0, ops(top).join(","));
+});
+
+h.test("an oid in adHocUserObjectIds opens the gate without the group", function () {
+  var top = shell();
+  var oid = whoamiReply(CMS_ENV).oid;
+  h.assertTrue(!!oid, "precondition: the fixture has an oid");
+  var m = client(top, gatesFor({ adHocUserObjectIds: [oid] }, { adHocUserObjectIds: [oid] }));
+  answerPreview(top, {});
+  answerWhoami(top, notMember(CMS_ENV));
+  m.tick();
+  h.assertEqual(sent(top, "create").length, 1, ops(top).join(","));
+  h.assertEqual(top.__ccPresence.gates().byConfig.connect, "adHoc");
+  h.assertEqual(top.__ccPresence.whoami().gatesOpen, ["CASE_PRESENCE_GATE_1_CONNECT", "CASE_PRESENCE_GATE_2_SHOW_UI"]);
+});
+
+h.describe("the Entra rollout (whoami entraEnabled)");
+
+function withEntra(reply, value) {
+  reply.entraEnabled = value;
+  return reply;
+}
+
+// /init said no: no Entra flow ran, so no token and no groups are coming. Nothing
+// can work, so nothing tries — not even for the preview flag.
+h.test("outside the rollout: nothing registers, preview flag or not", function () {
+  var top = shell();
+  var m = client(top);
+  answerPreview(top, { legacyClientsWatchdog: true });
+  answerWhoami(top, withEntra(whoamiReply(CMS_ENV), false));
+  m.tick();
+  m.tick();
+  h.assertEqual(sent(top, "create").length, 0, ops(top).join(","));
+  var g = top.__ccPresence.gates();
+  h.assertEqual(g.connect, false);
+  h.assertEqual(g.showUi, false);
+  h.assertEqual(g.entraEnabled, false);
+  h.assertEqual(top.__ccPresence.whoami().entraEnabled, false);
+});
+
+// What whoami really says for them: an environment, but no token and no groups cookie,
+// which without the flag would be ATTEMPTS whoamis.
+function outsideRollout() {
+  var reply = whoamiReply(CMS_ENV);
+  reply.userEmail = "";
+  reply.oid = "";
+  reply.groups = [];
+  reply.groupsFrom = "no-cookie";
+  return withEntra(reply, false);
+}
+
+h.test("outside the rollout: one whoami, then the client asks nothing more", function () {
+  var top = shell();
+  var m = client(top);
+  answerPreview(top, {});
+  answerWhoami(top, outsideRollout());
+  var before = sent(top, "whoami").length;
+  m.tick();
+  m.tick();
+  m.tick();
+  h.assertEqual(sent(top, "whoami").length, before, ops(top).join(","));
+});
+
+h.test("inside the rollout, or not yet known: the groups decide, as before", function () {
+  var inside = shell();
+  var m1 = client(inside);
+  answerPreview(inside, {});
+  answerWhoami(inside, withEntra(whoamiReply(CMS_ENV), true));
+  m1.tick();
+  h.assertEqual(sent(inside, "create").length, 1, "true: " + ops(inside).join(","));
+
+  var unknown = shell();
+  var m2 = client(unknown);
+  answerPreview(unknown, {});
+  answerWhoami(unknown, whoamiReply(CMS_ENV));
+  m2.tick();
+  h.assertEqual(sent(unknown, "create").length, 1, "no flag: " + ops(unknown).join(","));
+  h.assertEqual(unknown.__ccPresence.gates().entraEnabled, null);
+});
+
+h.test("the history says the rollout is why", function () {
+  var top = shell();
+  var m = client(top);
+  answerPreview(top, {});
+  answerWhoami(top, withEntra(whoamiReply(CMS_ENV), false));
+  m.tick();
+  var said = top.__ccPresence.dump();
+  h.assertTrue(said.indexOf("not in the Entra rollout") !== -1, said);
+  h.assertTrue(said.indexOf("entraEnabled=false") !== -1, said);
 });
 
 h.describe("a roster for the case you are on");

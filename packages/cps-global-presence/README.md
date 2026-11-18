@@ -40,7 +40,7 @@ legacy/        the two IE-mode CMS clients, never the web components
   origin.js      CCPOrigin       which host serves our endpoints
   log.js         CCPLog          the ring buffer behind __ccPresence.dump()
   client.js      CCPClient       the loop both apps are built on: one pass, the roster, __ccPresence
-  kill-switch.js                 CMS_WATCHDOG_ENABLED: false and redeploy stops both clients
+  kill-switch.js                 LEGACY_CLIENT_AUGMENTATION_ENABLED: false and redeploy stops both clients
  classic/      Classic only · document mode 5 · dom, sections, stripe, main, auth
  modern/       Modern/DCF only · document mode 11 · sections (URL detectors), bar, main
 placeholders/  the permanent hello-world stubs (see Deploy)

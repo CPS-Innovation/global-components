@@ -66,6 +66,18 @@ var write = function (rel, text) {
   console.log("built " + rel + " (" + Buffer.byteLength(text) + " bytes)");
 };
 
+// The text CI replaces with the environment's LEGACY_UI (see legacy/shared/config.js).
+var CONFIG_MARKER = "/*@@CCP_CONFIG@@*/ {}";
+
+// A bundle CI cannot bake would silently ship {} — every group gate closed in that
+// environment, with nothing to say why. Fail the build instead.
+var requireConfigMarker = function (rel) {
+  var count = read(rel).split(CONFIG_MARKER).length - 1;
+  if (count !== 1) {
+    throw new Error(rel + " carries the CCP_CONFIG marker " + count + " times; CI needs exactly one");
+  }
+};
+
 var lines = function (arr) {
   return arr.join("\n") + "\n";
 };
@@ -135,8 +147,10 @@ write(modern.out, lines([
   " *   legacy/shared/  shared with the Classic client — mode 5 floor",
   " *   legacy/modern/  this app only",
   " *",
-  " * CMS_WATCHDOG_ENABLED (legacy/shared/kill-switch.js) is emitted at the top,",
+  " * LEGACY_CLIENT_AUGMENTATION_ENABLED (legacy/shared/kill-switch.js) is emitted at the top,",
   " * outside the IIFE: set it false and redeploy to stop the client dead.",
+  " * CCP_CONFIG (legacy/shared/config.js) follows it: CI bakes the environment's",
+  " * LEGACY_UI settings into its marker at deploy time.",
   " *",
   " * Edit those sources and re-run build.sh.",
   " */",
@@ -187,8 +201,10 @@ write(classic.out, lines([
   " *   core/, legacy/shared/  shared with the Modern/DCF client",
   " *   legacy/classic/        this app only",
   " *",
-  " * CMS_WATCHDOG_ENABLED (legacy/shared/kill-switch.js) is emitted at the top, outside",
+  " * LEGACY_CLIENT_AUGMENTATION_ENABLED (legacy/shared/kill-switch.js) is emitted at the top, outside",
   " * both IIFEs: set it false and redeploy to stop both concerns dead.",
+  " * CCP_CONFIG (legacy/shared/config.js) follows it: CI bakes the environment's",
+  " * LEGACY_UI settings into its marker at deploy time.",
   " *",
   " * Edit those sources and re-run build.sh.",
   " */",
@@ -198,6 +214,8 @@ write(classic.out, lines([
 // ---- the outputs themselves pass their floor ---------------------------------
 checkFloor(modern.floor, [path.join(DIR, modern.out)]);
 checkFloor(classic.floor, [path.join(DIR, classic.out)]);
+requireConfigMarker(modern.out);
+requireConfigMarker(classic.out);
 
 // ---- placeholders, copied as-is ------------------------------------------------
 Object.keys(manifest.placeholders).forEach(function (out) {

@@ -318,6 +318,39 @@ async function runTests() {
   })
 
   // ---------------------------------------------------------------------------
+  // whoami entraEnabled: the Entra rollout decision Polaris's /init records in
+  // Cms-Session-Hint. Only a boolean counts; anything else is null (unknown).
+  // ---------------------------------------------------------------------------
+  console.log("\nwhoami entraEnabled (from Cms-Session-Hint):")
+
+  const hintCookie = (o) => "Cms-Session-Hint=" + encodeURIComponent(JSON.stringify(o))
+  const entraOf = async (cookie) => {
+    const r = jsonpRequest({ op: "whoami", callback: "cb" }, cookie)
+    await watchdog.handlePresenceJsonp(r)
+    return unwrap(r).entraEnabled
+  }
+
+  await test("true and false are passed through as they are", async () => {
+    assertEqual(await entraOf(hintCookie({ cmsDomains: ["cin3.cps.gov.uk"], entraEnabled: true })), true, "true")
+    assertEqual(await entraOf(hintCookie({ cmsDomains: ["cin3.cps.gov.uk"], entraEnabled: false })), false, "false")
+  })
+
+  await test("no hint, a hint without the flag, or an unreadable one: null (unknown)", async () => {
+    assertEqual(await entraOf(undefined), null, "no hint")
+    assertEqual(await entraOf(hintCookie({ cmsDomains: ["cin3.cps.gov.uk"] })), null, "Polaris before the flag")
+    assertEqual(await entraOf("Cms-Session-Hint=%7Bnot-json"), null, "unreadable")
+  })
+
+  await test("only a real boolean counts: \"false\" and 0 are unknown, not false", async () => {
+    assertEqual(await entraOf(hintCookie({ entraEnabled: "false" })), null, "string")
+    assertEqual(await entraOf(hintCookie({ entraEnabled: 0 })), null, "number")
+  })
+
+  await test("the writer's {error} payload still carries the decision", async () => {
+    assertEqual(await entraOf(hintCookie({ error: {}, entraEnabled: false })), false, "kept")
+  })
+
+  // ---------------------------------------------------------------------------
   // whoami groups (RPLT-246): ONLY from Polaris's signed handover-claims cookie,
   // bound to the presence token's oid. Never from the presence token itself.
   // ---------------------------------------------------------------------------

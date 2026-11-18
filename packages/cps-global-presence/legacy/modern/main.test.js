@@ -8,6 +8,11 @@ var h = require("../../test-harness");
 var CASE_A = "2121407";
 var CASE_B = "2131508";
 var CMS_ENV = "CIN3";
+
+// Both presence gates name one group, as QA's config does, and `me` below is in
+// it: every test is a member unless it says otherwise (see "the gates").
+var GATE_GROUP = "12377eca-b463-4a6c-80ea-95f678f09591";
+var GATES = { gates: { CASE_PRESENCE_GATE_1_CONNECT: { adGroupIds: [GATE_GROUP] }, CASE_PRESENCE_GATE_2_SHOW_UI: { adGroupIds: [GATE_GROUP] } } };
 var ORIGIN = "https://polaris-qa-notprod.cps.gov.uk";
 
 var wire = function (kind) {
@@ -84,7 +89,12 @@ var page = function (url, switchedOff) {
   var files = h.bundle("modern").filter(function (f) {
     return !switchedOff || f !== "legacy/shared/kill-switch.js";
   });
-  h.load(files, [], { window: win, document: win.__doc, prelude: switchedOff ? "var CMS_WATCHDOG_ENABLED = false;" : "" });
+  h.load(files, [], {
+    window: win,
+    document: win.__doc,
+    prelude: switchedOff ? "var LEGACY_CLIENT_AUGMENTATION_ENABLED = false;" : "",
+    ccpConfig: GATES
+  });
   return win;
 };
 
@@ -99,7 +109,8 @@ var replyLast = function (win, op, payload) {
   win[/[?&]callback=([^&]+)/.exec(calls[calls.length - 1])[1]](payload);
 };
 
-var me = { userEmail: "me@cps.gov.uk", oid: "oid-1", cmsEnv: CMS_ENV, cmsEnvWhy: "hint" };
+// groupsFrom "cookie" makes it a complete answer; without it the viewer keeps asking.
+var me = { userEmail: "me@cps.gov.uk", oid: "oid-1", cmsEnv: CMS_ENV, cmsEnvWhy: "hint", groupsFrom: "cookie", groups: [GATE_GROUP] };
 
 var member = function (email) {
   return { userEmail: email, sourceApplication: "CMS Classic", joinedAt: "2026-11-04T09:30:00.000+00:00" };
@@ -165,6 +176,20 @@ h.test("DCF registers the case review", function () {
   replyLast(win, "whoami", me);
   win.__tick();
   h.assertTrue(sent(win, "create")[0].indexOf(encodeURIComponent(CASE_A + ":" + wire("CASE_REVIEW"))) !== -1);
+});
+
+// Shared client.js, so the same stand-down as Classic: /init said no.
+h.test("outside the Entra rollout: one whoami, then nothing — in Modern and DCF", function () {
+  [viewerUrl(CASE_A), dcfUrl(CASE_A)].forEach(function (url) {
+    var win = page(url);
+    replyLast(win, "whoami", { userEmail: "", oid: "", cmsEnv: CMS_ENV, cmsEnvWhy: "hint", groupsFrom: "no-cookie", groups: [], entraEnabled: false });
+    win.__tick();
+    win.__tick();
+    win.__tick();
+    h.assertEqual(sent(win, "create").length, 0, url);
+    h.assertEqual(sent(win, "whoami").length, 1, url);
+    h.assertEqual(win.__ccPresence.gates().entraEnabled, false, url);
+  });
 });
 
 h.describe("the banner");

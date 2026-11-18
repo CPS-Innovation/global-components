@@ -90,6 +90,15 @@ jobs:
           echo "Redirect stub target: $REDIRECT_SCRIPT_URL"
           sed -i "s|{{SCRIPT_URL}}|$REDIRECT_SCRIPT_URL|g" ./to-deploy/cps-global-components.js
 
+          # The legacy CMS clients have no config fetch: bake this env's LEGACY_UI
+          # (the gate definitions) into them. Fails the deploy if a client lacks the
+          # marker, rather than shipping one with every group gate closed. The same
+          # script runs in infra/proxy/scripts/deploy.local.sh, which uploads to
+          # the same blobs.
+          node ./packages/cps-global-presence/bake-config.js ./to-deploy/config.json \
+            ./to-deploy/cms-augmentation/client-classic-unstable.js \
+            ./to-deploy/cms-augmentation/client-modern-unstable.js
+
           # The stub also fires a beacon (dummy 404) so blob logs capture the host page URL —
           # the referer header is stripped by most browsers so this is our only signal.
           ACCOUNT_NAME=$(echo "${{ secrets.BLOB_STORAGE_CONNECTION_STRING }}" | grep -oP 'AccountName=\K[^;]+')

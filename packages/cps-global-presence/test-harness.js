@@ -13,6 +13,8 @@ var fs = require("fs");
 var path = require("path");
 
 var FLOOR = ["core/util.js", "core/kinds.js"];
+// The marker bake-config.js replaces at deploy time (see legacy/shared/config.js).
+var CCP_CONFIG_MARKER = "/*@@CCP_CONFIG@@*/ {}";
 
 /**
  * The files of one bundles.json bundle, in build order, for load(): what runs in
@@ -33,8 +35,10 @@ function bundle(name) {
  * Build the concatenated scope and pull names out of it.
  * @param {string[]} files  paths relative to this folder, in build order
  * @param {string[]} names  identifiers to return from the built scope
- * @param {{window?: Object, document?: Object, prelude?: string}} [env]
- *   prelude  source run before the files, e.g. a different kill switch
+ * @param {{window?: Object, document?: Object, prelude?: string, ccpConfig?: Object}} [env]
+ *   prelude    source run before the files, e.g. a different kill switch
+ *   ccpConfig  bake this into legacy/shared/config.js's marker, as a deploy would
+ *              (bake-config.js); without it the bundle loads unbaked, i.e. {}
  */
 function load(files, names, env) {
   env = env || {};
@@ -42,7 +46,11 @@ function load(files, names, env) {
   files = FLOOR.filter(function (f) { return files.indexOf(f) === -1; }).concat(files);
   var src = files
     .map(function (f) {
-      return fs.readFileSync(path.join(__dirname, f), "utf8");
+      var text = fs.readFileSync(path.join(__dirname, f), "utf8");
+      if (env.ccpConfig && f === "legacy/shared/config.js") {
+        text = text.split(CCP_CONFIG_MARKER).join(JSON.stringify(env.ccpConfig));
+      }
+      return text;
     })
     .join("\n");
   src = (env.prelude || "") + "\n" + src;

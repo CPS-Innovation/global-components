@@ -1,4 +1,10 @@
-/* legacy/shared/kill-switch.js — the one deployment-time switch, in both legacy bundles.
+/* legacy/shared/kill-switch.js — the uber switch for everything the legacy bundles do.
+ *
+ * NAMED FOR THE WHOLE VEHICLE, NOT ONE PAYLOAD. It was CMS_WATCHDOG_ENABLED until
+ * 2026-11-18, but it has always stopped more than Watchdog: the Entra hand-off
+ * below is what tells every other feature who the reader is, so switching that
+ * off switches everything off. Per-feature gates (e.g. presence's, in client.js)
+ * sit beneath it and cannot reopen what it closes.
  *
  * Everything the legacy bundles start reads it: section presence in both clients
  * (classic/main.js, modern/main.js) and Classic's login -> auth-iframe hand-off
@@ -15,4 +21,4 @@
  * does not depend on us shipping a code change first.
  */
 
-var CMS_WATCHDOG_ENABLED = true;
+var LEGACY_CLIENT_AUGMENTATION_ENABLED = true;
