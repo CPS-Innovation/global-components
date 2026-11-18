@@ -115,7 +115,18 @@ var BUNDLE = h.bundle("classic");
 // Both presence gates name one group, as QA's config does, and the reader below is
 // in it: every test is a member unless it says otherwise (see "the gates").
 var GATE_GROUP = "12377eca-b463-4a6c-80ea-95f678f09591";
-var GATES = { groups: { CASE_PRESENCE_GATE_1_CONNECT: GATE_GROUP, CASE_PRESENCE_GATE_2_SHOW_UI: GATE_GROUP } };
+// LEGACY_UI.gates, as baked: each gate in the web components' cohort shape.
+function gatesFor(connect, showUi) {
+  var out = {};
+  if (connect) {
+    out.CASE_PRESENCE_GATE_1_CONNECT = connect;
+  }
+  if (showUi) {
+    out.CASE_PRESENCE_GATE_2_SHOW_UI = showUi;
+  }
+  return { gates: out };
+}
+var GATES = gatesFor({ adGroupIds: [GATE_GROUP] }, { adGroupIds: [GATE_GROUP] });
 
 function client(top, ccpConfig) {
   // The document is kept on the window so the JSONP helpers below can read the
@@ -350,7 +361,7 @@ h.test("says why, when there is no environment to be had", function () {
   h.assertEqual(sent(top, "create").length, 0, ops(top).join(","));
 });
 
-h.describe("the gates (LEGACY_UI groups, or the legacyClientsWatchdog preview flag)");
+h.describe("the gates (LEGACY_UI.gates, or the legacyClientsWatchdog preview flag)");
 
 var OTHER_GROUP = "aaaaaaaa-0000-0000-0000-000000000000";
 
@@ -378,7 +389,7 @@ h.test("outside both groups, with no preview flag: nothing registers", function 
   h.assertEqual(g.showUi, false);
 });
 
-// Fail closed: a bundle nobody baked has no group names at all.
+// Fail closed: a bundle nobody baked has no gates at all.
 h.test("an unbaked bundle registers nothing, whatever the groups", function () {
   var top = shell();
   var m = client(top, {});
@@ -413,7 +424,7 @@ h.test("a false preview flag does not take a member out", function () {
 // The dark launch: real Watchdog traffic to observe, nothing on screen.
 h.test("gate 1 without gate 2 connects but never shows the stripe", function () {
   var top = shell();
-  var m = client(top, { groups: { CASE_PRESENCE_GATE_1_CONNECT: GATE_GROUP, CASE_PRESENCE_GATE_2_SHOW_UI: OTHER_GROUP } });
+  var m = client(top, gatesFor({ adGroupIds: [GATE_GROUP] }, { adGroupIds: [OTHER_GROUP] }));
   answerPreview(top, {});
   answerWhoami(top, whoamiReply(CMS_ENV));
   m.tick();
@@ -426,7 +437,7 @@ h.test("the dark launch says nothing on the console when a call fails", function
   var top = shell();
   var printed = [];
   top.console = { log: function (line) { printed.push(String(line)); } };
-  var m = client(top, { groups: { CASE_PRESENCE_GATE_1_CONNECT: GATE_GROUP } });
+  var m = client(top, gatesFor({ adGroupIds: [GATE_GROUP] }, null));
   answerPreview(top, {});
   answerWhoami(top, whoamiReply(CMS_ENV));
   m.tick();
@@ -438,7 +449,7 @@ h.test("the dark launch says nothing on the console when a call fails", function
 
 h.test("gate 2 without gate 1 shows nothing and sends nothing", function () {
   var top = shell();
-  var m = client(top, { groups: { CASE_PRESENCE_GATE_2_SHOW_UI: GATE_GROUP } });
+  var m = client(top, gatesFor(null, { adGroupIds: [GATE_GROUP] }));
   answerPreview(top, {});
   answerWhoami(top, whoamiReply(CMS_ENV));
   m.tick();
@@ -479,6 +490,59 @@ h.test("the history says why the gates are as they are", function () {
   var said = top.__ccPresence.dump();
   h.assertTrue(said.indexOf("gates connect=closed showUi=closed") !== -1, said);
   h.assertTrue(said.indexOf("legacyClientsWatchdog=false") !== -1, said);
+});
+
+h.describe("generallyAvailable and ad-hoc enrolment (the cohort shape)");
+
+h.test("generallyAvailable on both gates: everyone, in no group, gets the stripe", function () {
+  var top = shell();
+  var m = client(top, gatesFor({ generallyAvailable: true }, { generallyAvailable: true }));
+  answerPreview(top, {});
+  answerWhoami(top, notMember(CMS_ENV));
+  m.tick();
+  h.assertEqual(sent(top, "create").length, 1, ops(top).join(","));
+  m.onNotifications(poll(CASE_A, "CASE", [member("ann@cps.gov.uk")]), HELD_A);
+  h.assertTrue(shown(m).indexOf("ann@cps.gov.uk") !== -1, shown(m));
+  var g = top.__ccPresence.gates();
+  h.assertEqual(g.byConfig.connect, "generallyAvailable");
+  h.assertEqual(g.byConfig.showUi, "generallyAvailable");
+});
+
+// The dark launch for everyone: traffic from the whole population, nothing shown
+// except to the show-UI group.
+h.test("generallyAvailable on gate 1 alone: everyone connects, only the group sees it", function () {
+  var top = shell();
+  var m = client(top, gatesFor({ generallyAvailable: true }, { adGroupIds: [GATE_GROUP] }));
+  answerPreview(top, {});
+  answerWhoami(top, notMember(CMS_ENV));
+  m.tick();
+  h.assertEqual(sent(top, "create").length, 1, "connects: " + ops(top).join(","));
+  m.onNotifications(poll(CASE_A, "CASE", [member("ann@cps.gov.uk")]), HELD_A);
+  h.assertEqual(shown(m), "", "but sees nothing");
+});
+
+h.test("generallyAvailable does not override the Entra rollout's false", function () {
+  var top = shell();
+  var m = client(top, gatesFor({ generallyAvailable: true }, { generallyAvailable: true }));
+  answerPreview(top, {});
+  var reply = notMember(CMS_ENV);
+  reply.entraEnabled = false;
+  answerWhoami(top, reply);
+  m.tick();
+  h.assertEqual(sent(top, "create").length, 0, ops(top).join(","));
+});
+
+h.test("an oid in adHocUserObjectIds opens the gate without the group", function () {
+  var top = shell();
+  var oid = whoamiReply(CMS_ENV).oid;
+  h.assertTrue(!!oid, "precondition: the fixture has an oid");
+  var m = client(top, gatesFor({ adHocUserObjectIds: [oid] }, { adHocUserObjectIds: [oid] }));
+  answerPreview(top, {});
+  answerWhoami(top, notMember(CMS_ENV));
+  m.tick();
+  h.assertEqual(sent(top, "create").length, 1, ops(top).join(","));
+  h.assertEqual(top.__ccPresence.gates().byConfig.connect, "adHoc");
+  h.assertEqual(top.__ccPresence.whoami().gatesOpen, ["CASE_PRESENCE_GATE_1_CONNECT", "CASE_PRESENCE_GATE_2_SHOW_UI"]);
 });
 
 h.describe("the Entra rollout (whoami entraEnabled)");

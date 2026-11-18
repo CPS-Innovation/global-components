@@ -14,7 +14,7 @@
  */
 var h = require("../../test-harness");
 
-function rig(groupIds) {
+function rig() {
   var logged = [];
   var pending = [];
 
@@ -26,8 +26,7 @@ function rig(groupIds) {
     },
     log: function () {
       logged.push(Array.prototype.slice.call(arguments).join(" "));
-    },
-    groupIds: groupIds
+    }
   });
 
   return {
@@ -489,69 +488,6 @@ h.test("are logged as a count, never as IDs", function () {
   r.reply({ userEmail: "someone@cps.gov.uk", cmsEnv: "CIN3", groups: [GNAV] });
   h.assertTrue(r.logged[0].indexOf("groups=1") !== -1, r.logged[0]);
   h.assertTrue(r.logged[0].indexOf(GNAV) === -1, "no id in the log");
-});
-
-h.describe("groups by configured name (CCP_CONFIG.groups)");
-
-var SHOW = "1e5874e3-1c88-4506-8b9f-4f469acc1a42";
-var NAMES = { SHOW_UI: SHOW, CONNECT: "aaaaaaaa-0000-0000-0000-000000000000" };
-
-function member(groupIds, groups) {
-  var r = rig(groupIds);
-  r.reply({ userEmail: "someone@cps.gov.uk", cmsEnv: "CIN3", groups: groups, groupsFrom: "cookie" });
-  return r.viewer;
-}
-
-h.test("a configured name the reader is in answers true", function () {
-  h.assertTrue(member(NAMES, [SHOW]).inGroupNamed("SHOW_UI"));
-});
-
-h.test("a configured name the reader is not in answers false", function () {
-  h.assertTrue(!member(NAMES, [SHOW]).inGroupNamed("CONNECT"));
-});
-
-h.test("the configured id is matched case-insensitively", function () {
-  h.assertTrue(member({ SHOW_UI: SHOW.toUpperCase() }, [SHOW]).inGroupNamed("SHOW_UI"));
-});
-
-// Fail closed, every way of not knowing.
-h.test("an unknown name answers false", function () {
-  h.assertTrue(!member(NAMES, [SHOW]).inGroupNamed("NOT_CONFIGURED"));
-});
-
-h.test("an unbaked build (no names at all) answers false", function () {
-  h.assertTrue(!member(undefined, [SHOW]).inGroupNamed("SHOW_UI"));
-  h.assertTrue(!member({}, [SHOW]).inGroupNamed("SHOW_UI"));
-});
-
-h.test("before whoami answers, a configured name answers false", function () {
-  h.assertTrue(!rig(NAMES).viewer.inGroupNamed("SHOW_UI"));
-});
-
-h.test("Object.prototype names are not configured names", function () {
-  var v = member(NAMES, [SHOW]);
-  h.assertTrue(!v.inGroupNamed("toString"), "toString");
-  h.assertTrue(!v.inGroupNamed("hasOwnProperty"), "hasOwnProperty");
-});
-
-h.test("a junk config value is treated as unconfigured", function () {
-  var v = member({ A: 42, B: "", C: null, D: [SHOW] }, [SHOW]);
-  h.assertTrue(!v.inGroupNamed("A") && !v.inGroupNamed("B") && !v.inGroupNamed("C") && !v.inGroupNamed("D"));
-});
-
-h.test("a non-object config means no names", function () {
-  h.assertTrue(!member(/** @type {*} */ ("SHOW_UI"), [SHOW]).inGroupNamed("SHOW_UI"));
-});
-
-h.test("an empty or missing name answers false", function () {
-  var v = member(NAMES, [SHOW]);
-  h.assertTrue(!v.inGroupNamed("") && !v.inGroupNamed(/** @type {*} */ (undefined)));
-});
-
-h.test("groupNames lists the configured names the reader is in", function () {
-  h.assertEqual(member(NAMES, [SHOW]).groupNames(), ["SHOW_UI"]);
-  h.assertEqual(member(NAMES, []).groupNames(), []);
-  h.assertEqual(member(undefined, [SHOW]).groupNames(), []);
 });
 
 h.describe("the Entra rollout (entraEnabled)");

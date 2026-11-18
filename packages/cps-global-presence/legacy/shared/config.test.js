@@ -26,13 +26,13 @@ h.test("carries the CI marker exactly once", function () {
   h.assertEqual(SOURCE.split(MARKER).length - 1, 1);
 });
 
-h.test("unbaked, it is an empty object, so every named group gate fails closed", function () {
+h.test("unbaked, it is an empty object, so every gate fails closed", function () {
   var m = h.load(["legacy/shared/config.js"], ["CCP_CONFIG"]);
   h.assertEqual(m.CCP_CONFIG, {});
 });
 
 h.test("baked, it is the object CI substituted", function () {
-  var ui = { groups: { CASE_PRESENCE_SHOW_UI: "1e5874e3-1c88-4506-8b9f-4f469acc1a42" } };
+  var ui = { gates: { CASE_PRESENCE_GATE_2_SHOW_UI: { adGroupIds: ["1e5874e3-1c88-4506-8b9f-4f469acc1a42"], generallyAvailable: false } } };
   h.assertEqual(run(baked(ui)), ui);
 });
 

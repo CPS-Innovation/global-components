@@ -15,16 +15,17 @@
  * passes the mode 5 floor.
  *
  * UNBAKED MEANS {}. A local build, or a deploy that skipped the substitution,
- * leaves an empty object: every named group lookup then answers "not a member",
- * so whatever is gated on this fails closed rather than open.
+ * leaves an empty object: no gate is defined, so every gate is closed and
+ * whatever is gated on this fails closed rather than open.
  *
  * Emitted OUTSIDE the IIFEs, like the kill switch, because Classic's auth.js is a
  * second IIFE and a `var` inside either would be invisible to the other.
  *
  * Shape (see LEGACY_UI in packages/cps-global-configuration/src/Config.ts):
- *   groups  friendly name -> Entra group object id, e.g.
- *           {"CASE_PRESENCE_SHOW_UI": "1e5874e3-..."}
+ *   gates  gate name -> the web components' cohort shape (gates.js), e.g.
+ *          {"CASE_PRESENCE_GATE_1_CONNECT": {"adGroupIds": ["12377eca-..."]},
+ *           "CASE_PRESENCE_GATE_2_SHOW_UI": {"generallyAvailable": true}}
  */
 
-/** @type {{groups?: Object<string, string>}} */
+/** @type {{gates?: Object<string, CCPGateDefinition>}} */
 var CCP_CONFIG = /*@@CCP_CONFIG@@*/ {};

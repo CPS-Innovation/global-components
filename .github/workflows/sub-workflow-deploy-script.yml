@@ -91,7 +91,7 @@ jobs:
           sed -i "s|{{SCRIPT_URL}}|$REDIRECT_SCRIPT_URL|g" ./to-deploy/cps-global-components.js
 
           # The legacy CMS clients have no config fetch: bake this env's LEGACY_UI
-          # (group names -> ids) into them. Fails the deploy if a client lacks the
+          # (the gate definitions) into them. Fails the deploy if a client lacks the
           # marker, rather than shipping one with every group gate closed. The same
           # script runs in infra/proxy/scripts/deploy.local.sh, which uploads to
           # the same blobs.

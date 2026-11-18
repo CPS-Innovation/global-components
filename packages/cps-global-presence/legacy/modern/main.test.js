@@ -12,7 +12,7 @@ var CMS_ENV = "CIN3";
 // Both presence gates name one group, as QA's config does, and `me` below is in
 // it: every test is a member unless it says otherwise (see "the gates").
 var GATE_GROUP = "12377eca-b463-4a6c-80ea-95f678f09591";
-var GATES = { groups: { CASE_PRESENCE_GATE_1_CONNECT: GATE_GROUP, CASE_PRESENCE_GATE_2_SHOW_UI: GATE_GROUP } };
+var GATES = { gates: { CASE_PRESENCE_GATE_1_CONNECT: { adGroupIds: [GATE_GROUP] }, CASE_PRESENCE_GATE_2_SHOW_UI: { adGroupIds: [GATE_GROUP] } } };
 var ORIGIN = "https://polaris-qa-notprod.cps.gov.uk";
 
 var wire = function (kind) {

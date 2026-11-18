@@ -90,13 +90,10 @@ CCPViewer.ATTEMPTS = 10;
 CCPViewer.RECHECK_MS = 60000;
 
 /**
- * `groupIds` is the environment's friendly-name -> Entra group id map (CCP_CONFIG's
- * `groups`, baked from LEGACY_UI at deploy time). Code asks inGroupNamed("NAME")
- * rather than carrying a GUID, so the same client works in every environment.
+ * Named gates over these facts are CCPGates (gates.js), not this.
  *
  * @param {{call: function(string, Object, function(*): void): void,
- *          log: function(...*): void,
- *          groupIds?: Object<string, string>}} options
+ *          log: function(...*): void}} options
  * @returns {{email: function(): string, oid: function(): string,
  *            cmsEnv: function(): string, cmsEnvWhy: function(): string,
  *            tokenExpiresIn: function(): number, tokenAge: function(): number,
@@ -104,16 +101,10 @@ CCPViewer.RECHECK_MS = 60000;
  *            groups: function(): string[], groupsFrom: function(): string,
  *            entraEnabled: function(): ?boolean,
  *            inGroup: function(string): boolean,
- *            inGroupNamed: function(string): boolean,
- *            groupNames: function(): string[],
  *            refresh: function(boolean=): void, known: function(): boolean,
  *            recheck: function(string): boolean}}
  */
 CCPViewer.createViewer = function (options) {
-  // Checked for shape, not trusted: anything but a plain object means no names.
-  /** @type {Object<string, string>} */
-  var groupIds =
-    options.groupIds && typeof options.groupIds === "object" ? options.groupIds : {};
   var email = "";
   var oid = "";
   var cmsEnv = "";
@@ -320,32 +311,6 @@ CCPViewer.createViewer = function (options) {
     return !!want && CCPUtil.indexOf(groups, want) !== -1;
   }
 
-  // Own properties only: CCP_CONFIG is an object literal, so without this a name
-  // like "toString" would find Object.prototype's and look configured.
-  /**
-   * @param {Object} obj
-   * @param {string} key
-   * @returns {boolean}
-   */
-  function hasOwn(obj, key) {
-    return Object.prototype.hasOwnProperty.call(obj, key);
-  }
-
-  // The group id configured for `name`, or "" — never a guess. A value that is
-  // not a non-empty string (a typo'd config) is treated as unconfigured.
-  /**
-   * @param {string} name
-   * @returns {string}
-   */
-  function groupIdFor(name) {
-    var key = String(name || "");
-    if (!key || !hasOwn(groupIds, key)) {
-      return "";
-    }
-    var id = groupIds[key];
-    return typeof id === "string" ? id : "";
-  }
-
   refresh();
 
   return {
@@ -382,25 +347,6 @@ CCPViewer.createViewer = function (options) {
     },
     // Whether the reader is a member of this group, case-insensitively.
     inGroup: inGroup,
-    // Whether the reader is in the group this environment calls `name`. A name the
-    // config does not define is "not a member": an unbaked build has no names at
-    // all, so every gate built on this fails closed.
-    inGroupNamed: function (name) {
-      return inGroup(groupIdFor(name));
-    },
-    // The configured names the reader is a member of: for the console, so a
-    // gate's answer can be checked without knowing any GUIDs.
-    groupNames: function () {
-      /** @type {string[]} */
-      var out = [];
-      var name;
-      for (name in groupIds) {
-        if (hasOwn(groupIds, name) && inGroup(groupIdFor(name))) {
-          out.push(name);
-        }
-      }
-      return out;
-    },
     known: function () {
       return !!email;
     },

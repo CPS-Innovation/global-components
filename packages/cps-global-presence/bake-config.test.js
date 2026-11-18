@@ -58,7 +58,7 @@ h.describe("bake-config — baking");
 
 h.test("puts LEGACY_UI into every client named", function () {
   var d = tmp();
-  var ui = { groups: { CASE_PRESENCE_GATE_1_CONNECT: GNAV } };
+  var ui = { gates: { CASE_PRESENCE_GATE_1_CONNECT: { adGroupIds: [GNAV] } } };
   var cfg = writeJson(d, { ENVIRONMENT: "test", LEGACY_UI: ui });
   var a = writeClient(d, "a.js");
   var b = writeClient(d, "b.js");
@@ -92,7 +92,7 @@ h.test("leaves the rest of the client untouched", function () {
 
 h.test("keeps sections it does not know, so later ones need no change here", function () {
   var d = tmp();
-  var ui = { groups: {}, buttons: { items: [] } };
+  var ui = { gates: {}, buttons: { items: [] } };
   var a = writeClient(d, "a.js");
   quietly(function () {
     bakeConfig.bake(writeJson(d, { LEGACY_UI: ui }), [a]);
@@ -102,7 +102,7 @@ h.test("keeps sections it does not know, so later ones need no change here", fun
 
 h.test("a $ in a value is written literally, not read as a replace pattern", function () {
   var d = tmp();
-  var ui = { groups: { A: "$&$1$$" } };
+  var ui = { gates: { A: { adGroupIds: ["$&$1$$"] } } };
   var a = writeClient(d, "a.js");
   quietly(function () {
     bakeConfig.bake(writeJson(d, { LEGACY_UI: ui }), [a]);
@@ -128,7 +128,7 @@ h.test("a client without the marker fails", function () {
 
 h.test("baking twice fails rather than silently doing nothing", function () {
   var d = tmp();
-  var cfg = writeJson(d, { LEGACY_UI: { groups: { A: GNAV } } });
+  var cfg = writeJson(d, { LEGACY_UI: { gates: { A: { generallyAvailable: true } } } });
   var a = writeClient(d, "a.js");
   quietly(function () {
     bakeConfig.bake(cfg, [a]);
@@ -173,18 +173,69 @@ h.test("LEGACY_UI that is not an object fails", function () {
   });
 });
 
-h.test("groups that are not an object fail", function () {
+h.test("the old groups shape fails, naming its replacement", function () {
   throwsWith(function () {
-    bakeConfig.legacyUi({ LEGACY_UI: { groups: [GNAV] } });
-  }, "LEGACY_UI.groups");
+    bakeConfig.legacyUi({ LEGACY_UI: { groups: { CASE_PRESENCE_GATE_1_CONNECT: GNAV } } });
+  }, "replaced by LEGACY_UI.gates");
 });
 
-h.test("a group id that is not a non-empty string fails, naming the group", function () {
-  [42, "", null, [GNAV]].forEach(function (id) {
+h.test("gates that are not an object fail", function () {
+  [[], "x", null].forEach(function (gates) {
     throwsWith(function () {
-      bakeConfig.legacyUi({ LEGACY_UI: { groups: { CASE_PRESENCE_GATE_1_CONNECT: id } } });
-    }, "CASE_PRESENCE_GATE_1_CONNECT");
+      bakeConfig.legacyUi({ LEGACY_UI: { gates: gates } });
+    }, "LEGACY_UI.gates must be an object");
   });
+});
+
+h.test("a gate that is not an object fails, naming the gate", function () {
+  [GNAV, [GNAV], true, null].forEach(function (gate) {
+    throwsWith(function () {
+      bakeConfig.legacyUi({ LEGACY_UI: { gates: { CASE_PRESENCE_GATE_1_CONNECT: gate } } });
+    }, "LEGACY_UI.gates.CASE_PRESENCE_GATE_1_CONNECT must be an object");
+  });
+});
+
+h.test("ids that are not a list of non-empty strings fail", function () {
+  ["adGroupIds", "adHocUserObjectIds"].forEach(function (field) {
+    [GNAV, [42], [""], [null]].forEach(function (ids) {
+      var gate = {};
+      gate[field] = ids;
+      throwsWith(function () {
+        bakeConfig.legacyUi({ LEGACY_UI: { gates: { G: gate } } });
+      }, "LEGACY_UI.gates.G." + field);
+    });
+  });
+});
+
+h.test("generallyAvailable must be a real boolean", function () {
+  ["true", 1, null].forEach(function (ga) {
+    throwsWith(function () {
+      bakeConfig.legacyUi({ LEGACY_UI: { gates: { G: { generallyAvailable: ga } } } });
+    }, "generallyAvailable must be true or false");
+  });
+});
+
+// Valid for the web components, but ignoring it here would quietly leave out the
+// share it was meant to let in.
+h.test("variants and variantSalt fail: the legacy clients do not bucket", function () {
+  ["variants", "variantSalt"].forEach(function (key) {
+    var gate = { adGroupIds: [GNAV] };
+    gate[key] = key === "variants" ? { on: 10 } : "salt";
+    throwsWith(function () {
+      bakeConfig.legacyUi({ LEGACY_UI: { gates: { G: gate } } });
+    }, "G." + key + " is not supported");
+  });
+});
+
+h.test("an unknown gate field fails rather than being ignored", function () {
+  throwsWith(function () {
+    bakeConfig.legacyUi({ LEGACY_UI: { gates: { G: { adGroupId: [GNAV] } } } });
+  }, "G.adGroupId is not a gate field");
+});
+
+h.test("every supported field together passes", function () {
+  var ui = { gates: { G: { adGroupIds: [GNAV], adHocUserObjectIds: [GNAV], generallyAvailable: false } } };
+  h.assertEqual(bakeConfig.legacyUi({ LEGACY_UI: ui }), ui);
 });
 
 h.describe("bake-config — the real configs");
@@ -202,9 +253,9 @@ h.test("every configuration/config.*.json passes the shape check", function () {
 // The names client.js asks about (CCPClient.GATE_1_CONNECT / GATE_2_SHOW_UI).
 h.test("QA maps both presence gates", function () {
   var cfg = JSON.parse(fs.readFileSync(path.join(__dirname, "..", "..", "configuration", "config.test.json"), "utf8"));
-  var groups = bakeConfig.legacyUi(cfg).groups;
-  h.assertEqual(groups.CASE_PRESENCE_GATE_1_CONNECT, GNAV);
-  h.assertEqual(groups.CASE_PRESENCE_GATE_2_SHOW_UI, GNAV);
+  var gates = bakeConfig.legacyUi(cfg).gates;
+  h.assertEqual(gates.CASE_PRESENCE_GATE_1_CONNECT, { adGroupIds: [GNAV] });
+  h.assertEqual(gates.CASE_PRESENCE_GATE_2_SHOW_UI, { adGroupIds: [GNAV] });
 });
 
 h.test("the marker matches the one the bundles carry", function () {

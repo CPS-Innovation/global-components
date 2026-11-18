@@ -645,11 +645,42 @@ declare namespace CCPClient {
         onNotifications: (arg0: any[], arg1: string | undefined) => void;
     };
 }
-/** @type {{groups?: Object<string, string>}} */
+/** @type {{gates?: Object<string, CCPGateDefinition>}} */
 declare var CCP_CONFIG: {
-    groups?: {
-        [x: string]: string;
+    gates?: {
+        [x: string]: CCPGateDefinition;
     };
+};
+declare namespace CCPGates {
+    /**
+     * @typedef {{adGroupIds?: string[], adHocUserObjectIds?: string[],
+     *            generallyAvailable?: boolean}} CCPGateDefinition
+     */
+    /**
+     * @param {{definitions?: Object<string, CCPGateDefinition>,
+     *          viewer: {inGroup: function(string): boolean, oid: function(): string}}} options
+     * @returns {{open: function(string): boolean, why: function(string): string,
+     *            names: function(): string[], openNames: function(): string[]}}
+     */
+    function createGates(options: {
+        definitions?: {
+            [x: string]: CCPGateDefinition;
+        };
+        viewer: {
+            inGroup: (arg0: string) => boolean;
+            oid: () => string;
+        };
+    }): {
+        open: (arg0: string) => boolean;
+        why: (arg0: string) => string;
+        names: () => string[];
+        openNames: () => string[];
+    };
+}
+type CCPGateDefinition = {
+    adGroupIds?: string[];
+    adHocUserObjectIds?: string[];
+    generallyAvailable?: boolean;
 };
 declare namespace CCPJsonp {
     /**
@@ -862,13 +893,10 @@ declare namespace CCPViewer {
     let ATTEMPTS: number;
     let RECHECK_MS: number;
     /**
-     * `groupIds` is the environment's friendly-name -> Entra group id map (CCP_CONFIG's
-     * `groups`, baked from LEGACY_UI at deploy time). Code asks inGroupNamed("NAME")
-     * rather than carrying a GUID, so the same client works in every environment.
+     * Named gates over these facts are CCPGates (gates.js), not this.
      *
      * @param {{call: function(string, Object, function(*): void): void,
-     *          log: function(...*): void,
-     *          groupIds?: Object<string, string>}} options
+     *          log: function(...*): void}} options
      * @returns {{email: function(): string, oid: function(): string,
      *            cmsEnv: function(): string, cmsEnvWhy: function(): string,
      *            tokenExpiresIn: function(): number, tokenAge: function(): number,
@@ -876,17 +904,12 @@ declare namespace CCPViewer {
      *            groups: function(): string[], groupsFrom: function(): string,
      *            entraEnabled: function(): ?boolean,
      *            inGroup: function(string): boolean,
-     *            inGroupNamed: function(string): boolean,
-     *            groupNames: function(): string[],
      *            refresh: function(boolean=): void, known: function(): boolean,
      *            recheck: function(string): boolean}}
      */
     function createViewer(options: {
         call: (arg0: string, arg1: any, arg2: (arg0: any) => void) => void;
         log: (...args: any[]) => void;
-        groupIds?: {
-            [x: string]: string;
-        };
     }): {
         email: () => string;
         oid: () => string;
@@ -899,8 +922,6 @@ declare namespace CCPViewer {
         groupsFrom: () => string;
         entraEnabled: () => boolean | null;
         inGroup: (arg0: string) => boolean;
-        inGroupNamed: (arg0: string) => boolean;
-        groupNames: () => string[];
         refresh: (arg0: boolean | undefined) => void;
         known: () => boolean;
         recheck: (arg0: string) => boolean;

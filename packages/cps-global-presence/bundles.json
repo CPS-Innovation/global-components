@@ -23,6 +23,7 @@
       "files": [
         "legacy/shared/log.js",
         "legacy/shared/viewer.js",
+        "legacy/shared/gates.js",
         "legacy/shared/preview.js",
         "legacy/shared/origin.js",
         "legacy/shared/locator.js",

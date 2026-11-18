@@ -240,10 +240,16 @@ export type CmsAuthStorageKeys = z.infer<typeof cmsAuthStorageKeysSchema>;
 // legacy/shared/config.js there). The web components do not read it; it is in the
 // schema so the file validates as a whole and the shape is written down.
 const legacyUiSchema = z.object({
-  // Friendly name -> Entra group object id. The legacy clients ask
-  // inGroupNamed("NAME") so one bundle works in every environment; a name an
-  // environment leaves out answers "not a member".
-  groups: z.record(z.string(), z.string()).optional(),
+  // Gate name -> who it is open for, in the FEATURE_FLAG_*_USERS shape minus
+  // `variants` (the legacy clients do not bucket; bake-config refuses it rather
+  // than let it be ignored). The clients ask open("NAME"), so one bundle works in
+  // every environment; a gate an environment leaves out is closed.
+  gates: z
+    .record(
+      z.string(),
+      featureFlagUsersSchema.pick({ adGroupIds: true, adHocUserObjectIds: true, generallyAvailable: true }),
+    )
+    .optional(),
 });
 
 export type LegacyUi = z.infer<typeof legacyUiSchema>;

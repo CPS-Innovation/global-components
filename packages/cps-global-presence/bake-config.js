@@ -5,7 +5,7 @@
  *
  * Replaces the CCP_CONFIG marker (see legacy/shared/config.js) in each client, in
  * place, with the config's LEGACY_UI section as a JSON object literal. A config
- * without LEGACY_UI bakes {}, the same as unbaked: every named group gate closed.
+ * without LEGACY_UI bakes {}, the same as unbaked: every gate closed.
  *
  * ONE SCRIPT FOR EVERY DEPLOY PATH. CI (sub-workflow-deploy-script.yml) and the
  * hand deploy (infra/proxy/scripts/deploy.local.sh) both upload the clients to the
@@ -32,6 +32,46 @@ var isPlainObject = function (value) {
   return !!value && typeof value === "object" && !Array.isArray(value);
 };
 
+// The FEATURE_FLAG_*_USERS fields the legacy gates understand (legacy/shared/gates.js).
+var GATE_FIELDS = ["adGroupIds", "adHocUserObjectIds", "generallyAvailable"];
+
+var checkIdList = function (where, value) {
+  if (!Array.isArray(value)) {
+    fail(where + " must be a list of ids");
+  }
+  value.forEach(function (id, i) {
+    if (typeof id !== "string" || !id) {
+      fail(where + "[" + i + "] must be a non-empty string");
+    }
+  });
+};
+
+var checkGate = function (name, gate) {
+  var where = "LEGACY_UI.gates." + name;
+  if (!isPlainObject(gate)) {
+    fail(where + " must be an object (adGroupIds, adHocUserObjectIds, generallyAvailable)");
+  }
+  Object.keys(gate).forEach(function (key) {
+    if (key === "variants" || key === "variantSalt") {
+      // Valid in the web components' shape, but the legacy clients do not bucket:
+      // ignoring it would quietly leave out the share it was meant to let in.
+      fail(where + "." + key + " is not supported by the legacy clients");
+    }
+    if (GATE_FIELDS.indexOf(key) === -1) {
+      fail(where + "." + key + " is not a gate field (" + GATE_FIELDS.join(", ") + ")");
+    }
+  });
+  if (gate.adGroupIds !== undefined) {
+    checkIdList(where + ".adGroupIds", gate.adGroupIds);
+  }
+  if (gate.adHocUserObjectIds !== undefined) {
+    checkIdList(where + ".adHocUserObjectIds", gate.adHocUserObjectIds);
+  }
+  if (gate.generallyAvailable !== undefined && typeof gate.generallyAvailable !== "boolean") {
+    fail(where + ".generallyAvailable must be true or false");
+  }
+};
+
 /**
  * The LEGACY_UI section, checked for the shape the clients read. Unknown keys are
  * kept (later sections, e.g. button rules, ride through without a change here);
@@ -48,13 +88,16 @@ var legacyUi = function (config) {
     fail("LEGACY_UI must be an object");
   }
   if (ui.groups !== undefined) {
-    if (!isPlainObject(ui.groups)) {
-      fail("LEGACY_UI.groups must be an object of name -> group id");
+    // The first shape (name -> one group id). Nothing reads it any more, so a config
+    // still carrying it would deploy with every gate closed.
+    fail("LEGACY_UI.groups was replaced by LEGACY_UI.gates (name -> {adGroupIds, adHocUserObjectIds, generallyAvailable})");
+  }
+  if (ui.gates !== undefined) {
+    if (!isPlainObject(ui.gates)) {
+      fail("LEGACY_UI.gates must be an object of gate name -> gate");
     }
-    Object.keys(ui.groups).forEach(function (name) {
-      if (typeof ui.groups[name] !== "string" || !ui.groups[name]) {
-        fail("LEGACY_UI.groups." + name + " must be a non-empty string");
-      }
+    Object.keys(ui.gates).forEach(function (name) {
+      checkGate(name, ui.gates[name]);
     });
   }
   return ui;

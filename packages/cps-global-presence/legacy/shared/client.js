@@ -13,14 +13,15 @@
  * The banner is about the PRIMARY section's case: the first section the app
  * reports, so the app's detector order is its priority order.
  *
- * TWO PROGRESSIVE GATES, both failing closed (RPLT-246):
- *   gate 1, CONNECT  no create/poll/heartbeat/leave unless the reader is in the
- *                    group LEGACY_UI names CASE_PRESENCE_GATE_1_CONNECT
- *   gate 2, SHOW_UI  no stripe unless gate 1 is open AND the reader is in
- *                    CASE_PRESENCE_GATE_2_SHOW_UI
+ * TWO PROGRESSIVE GATES, both failing closed (RPLT-246), each defined per
+ * environment in LEGACY_UI.gates in the web components' cohort shape (adGroupIds,
+ * adHocUserObjectIds, generallyAvailable — see gates.js):
+ *   gate 1, CONNECT  no create/poll/heartbeat/leave unless CASE_PRESENCE_GATE_1_CONNECT
+ *                    is open for the reader
+ *   gate 2, SHOW_UI  no stripe unless gate 1 is open AND CASE_PRESENCE_GATE_2_SHOW_UI is
  * Gate 1 without gate 2 is a dark launch: real Watchdog traffic to observe, with
- * nothing on screen. The legacyClientsWatchdog preview flag opens both (OR, never
- * AND: it can only enrol). whoami and the preview read run regardless — our own
+ * nothing on screen; generallyAvailable on gate 1 alone is that for everyone. The
+ * legacyClientsWatchdog preview flag opens both (OR, never AND: it can only enrol). whoami and the preview read run regardless — our own
  * proxy answers both, and they are how the gates learn anything. The groups and
  * the flag both settle within a few passes of boot, so each pass re-asks, and a
  * gate that closes (a forced whoami losing the groups) leaves every section.
@@ -28,7 +29,8 @@
  * ABOVE BOTH, THE ENTRA ROLLOUT. Polaris's /init decides who is in it and whoami
  * reports the answer (viewer.entraEnabled). A reader /init said no to has no
  * presence token and no groups, so nothing can work for them: an explicit false
- * shuts both gates, the preview flag included, and the viewer stops asking. null
+ * shuts both gates, the preview flag and generallyAvailable included, and the
+ * viewer stops asking. null
  * (no flag yet, or a Polaris without it) leaves the gates to the groups and the
  * flag, as before the rollout existed.
  */
@@ -43,7 +45,7 @@ CCPClient.PREVIEW_PATH = "/global-components/state/preview";
 // frame navigation; the sessions' own calls run on CCPSections.HEARTBEAT_MS.
 CCPClient.PASS_MS = 2000;
 CCPClient.TIMEOUT_MS = 8000; // per JSONP call
-// The LEGACY_UI group names the gates ask about (see the header).
+// The LEGACY_UI.gates names the gates ask about (see the header).
 CCPClient.GATE_1_CONNECT = "CASE_PRESENCE_GATE_1_CONNECT";
 CCPClient.GATE_2_SHOW_UI = "CASE_PRESENCE_GATE_2_SHOW_UI";
 
@@ -84,12 +86,12 @@ CCPClient.createClient = function (o) {
   var lastGates = "";
 
   var call = CCPJsonp.createJsonp({ base: base, appName: o.appName, timeoutMs: CCPClient.TIMEOUT_MS, log: log });
+  var viewer = CCPViewer.createViewer({ call: call, log: log });
   // CCP_CONFIG is emitted at the top of every legacy bundle (legacy/shared/config.js);
-  // typeof guards a load that left it out, which then simply has no group names.
-  var viewer = CCPViewer.createViewer({
-    call: call,
-    log: log,
-    groupIds: typeof CCP_CONFIG !== "undefined" && CCP_CONFIG.groups ? CCP_CONFIG.groups : {}
+  // typeof guards a load that left it out, which then simply has no gates.
+  var named = CCPGates.createGates({
+    definitions: typeof CCP_CONFIG !== "undefined" && CCP_CONFIG.gates ? CCP_CONFIG.gates : {},
+    viewer: viewer
   });
   // A second caller, so its callback names need their own prefix: two callers
   // sharing one would overwrite each other's window properties.
@@ -132,20 +134,22 @@ CCPClient.createClient = function (o) {
     if (outsideEntraRollout()) {
       return false;
     }
-    return viewer.inGroupNamed(CCPClient.GATE_1_CONNECT) || enrolled();
+    return named.open(CCPClient.GATE_1_CONNECT) || enrolled();
   }
 
   function showOpen() {
-    return connectOpen() && (viewer.inGroupNamed(CCPClient.GATE_2_SHOW_UI) || enrolled());
+    return connectOpen() && (named.open(CCPClient.GATE_2_SHOW_UI) || enrolled());
   }
 
   function gates() {
     return {
       connect: connectOpen(),
       showUi: showOpen(),
-      byGroup: {
-        connect: viewer.inGroupNamed(CCPClient.GATE_1_CONNECT),
-        showUi: viewer.inGroupNamed(CCPClient.GATE_2_SHOW_UI)
+      // What LEGACY_UI.gates says on its own: "generallyAvailable", "group",
+      // "adHoc", or "" for closed.
+      byConfig: {
+        connect: named.why(CCPClient.GATE_1_CONNECT),
+        showUi: named.why(CCPClient.GATE_2_SHOW_UI)
       },
       byPreview: enrolled(),
       // true, false, or null (unknown); false shuts both gates.
@@ -295,7 +299,8 @@ CCPClient.createClient = function (o) {
       "gates",
       "connect=" + (g.connect ? "open" : "closed"),
       "showUi=" + (g.showUi ? "open" : "closed"),
-      "(group: connect=" + g.byGroup.connect + " showUi=" + g.byGroup.showUi +
+      "(config: connect=" + (g.byConfig.connect || "closed") +
+        " showUi=" + (g.byConfig.showUi || "closed") +
         "; preview legacyClientsWatchdog=" + g.byPreview +
         "; entraEnabled=" + (g.entraEnabled === null ? "(unknown)" : g.entraEnabled) + ")"
     );
@@ -414,8 +419,8 @@ CCPClient.createClient = function (o) {
         groupsFrom: viewer.groupsFrom(),
         // In the Entra rollout (Polaris /init's decision): true, false or null (unknown).
         entraEnabled: viewer.entraEnabled(),
-        // The configured names (CCP_CONFIG.groups) the reader is in.
-        groupNames: viewer.groupNames()
+        // The LEGACY_UI gates open for the reader (before the rollout and preview).
+        gatesOpen: named.openNames()
       };
     },
     // whoami() is a cache of the last answer; this asks again.
