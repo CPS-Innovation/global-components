@@ -1,0 +1,110 @@
+diff --git a/polaris-terraform/main-terraform/app-service-proxy-staging.tf b/polaris-terraform/main-terraform/app-service-proxy-staging.tf
+index 1dfff14..a8f8d83 100644
+--- a/polaris-terraform/main-terraform/app-service-proxy-staging.tf
++++ b/polaris-terraform/main-terraform/app-service-proxy-staging.tf
+@@ -82,6 +82,7 @@ resource "azurerm_linux_web_app_slot" "polaris_proxy_staging1" {
+     "NON_DDEI_INIT_ENABLED"                           = var.non_ddei_init_enabled
+     "ENTRA_STORE_ENABLED"                             = var.proxy_entra.store_enabled
+     "ENTRA_INTERACTIVE_ENABLED"                       = var.proxy_entra.interactive_enabled
++    "ENTRA_ROLLOUT_PERCENT"                           = var.proxy_entra.rollout_percent
+     "ENTRA_TENANT_ID"                                 = data.azurerm_client_config.current.tenant_id
+     "ENTRA_CLIENT_ID"                                 = var.proxy_entra.client_id
+     "ENTRA_CLIENT_SECRET"                             = local.proxy_entra_client_secret
+diff --git a/polaris-terraform/main-terraform/app-service-proxy.tf b/polaris-terraform/main-terraform/app-service-proxy.tf
+index 04396c4..c857114 100644
+--- a/polaris-terraform/main-terraform/app-service-proxy.tf
++++ b/polaris-terraform/main-terraform/app-service-proxy.tf
+@@ -82,6 +82,7 @@ resource "azurerm_linux_web_app" "polaris_proxy" {
+     "NON_DDEI_INIT_ENABLED"                           = var.non_ddei_init_enabled
+     "ENTRA_STORE_ENABLED"                             = var.proxy_entra.store_enabled
+     "ENTRA_INTERACTIVE_ENABLED"                       = var.proxy_entra.interactive_enabled
++    "ENTRA_ROLLOUT_PERCENT"                           = var.proxy_entra.rollout_percent
+     "ENTRA_TENANT_ID"                                 = data.azurerm_client_config.current.tenant_id
+     "ENTRA_CLIENT_ID"                                 = var.proxy_entra.client_id
+     "ENTRA_CLIENT_SECRET"                             = local.proxy_entra_client_secret
+diff --git a/polaris-terraform/main-terraform/dev.tfvars b/polaris-terraform/main-terraform/dev.tfvars
+index 7cac73b..4d865bf 100644
+--- a/polaris-terraform/main-terraform/dev.tfvars
++++ b/polaris-terraform/main-terraform/dev.tfvars
+@@ -99,6 +99,8 @@ proxy_entra = {
+   # Pre-prod: a silent sign-in that fails for several accounts / no session / MFA retries once
+   # with the account picker (developers on Workspaces / Linux, several accounts).
+   interactive_enabled = true
++  # Moot while store_enabled = true (everyone).
++  rollout_percent = 0
+ }
+ 
+ app_service_log_retention       = 90
+diff --git a/polaris-terraform/main-terraform/prod.tfvars b/polaris-terraform/main-terraform/prod.tfvars
+index a072caf..a17b117 100644
+--- a/polaris-terraform/main-terraform/prod.tfvars
++++ b/polaris-terraform/main-terraform/prod.tfvars
+@@ -97,6 +97,8 @@ proxy_entra = {
+   watchdog_scope = ""
+   # Silent only (prompt=none) until the drop2-outcome ad=/aadsts= counts say prod needs the picker.
+   interactive_enabled = false
++  # The gradual drop2 rollout: the share of CMS users (by id mod 100) /init runs it for.
++  rollout_percent = 0
+ }
+ 
+ app_service_log_retention       = 90
+diff --git a/polaris-terraform/main-terraform/proxy/tests/integration/docker/cmsproxy.mock.env b/polaris-terraform/main-terraform/proxy/tests/integration/docker/cmsproxy.mock.env
+index ccc98b6..1c7c069 100644
+--- a/polaris-terraform/main-terraform/proxy/tests/integration/docker/cmsproxy.mock.env
++++ b/polaris-terraform/main-terraform/proxy/tests/integration/docker/cmsproxy.mock.env
+@@ -109,6 +109,7 @@ NON_DDEI_INIT_ENABLED=false
+ # starts the Entra round trip even with the switch on; set them as app settings to try it.
+ ENTRA_STORE_ENABLED=false
+ ENTRA_INTERACTIVE_ENABLED=false
++ENTRA_ROLLOUT_PERCENT=0
+ ENTRA_TENANT_ID=00dd0d1d-d7e6-4338-ac51-565339c7088c
+ ENTRA_CLIENT_ID=8d6133af-9593-47c6-94d0-5c65e9e310f1
+ ENTRA_CLIENT_SECRET=
+diff --git a/polaris-terraform/main-terraform/qa.tfvars b/polaris-terraform/main-terraform/qa.tfvars
+index 9c8c293..a5c24e7 100644
+--- a/polaris-terraform/main-terraform/qa.tfvars
++++ b/polaris-terraform/main-terraform/qa.tfvars
+@@ -99,6 +99,8 @@ proxy_entra = {
+   # Pre-prod: a silent sign-in that fails for several accounts / no session / MFA retries once
+   # with the account picker (developers on Workspaces / Linux, several accounts).
+   interactive_enabled = true
++  # Moot while store_enabled = true (everyone).
++  rollout_percent = 0
+ }
+ 
+ app_service_log_retention       = 90
+diff --git a/polaris-terraform/main-terraform/uat.tfvars b/polaris-terraform/main-terraform/uat.tfvars
+index 90d5f29..90cb0cf 100644
+--- a/polaris-terraform/main-terraform/uat.tfvars
++++ b/polaris-terraform/main-terraform/uat.tfvars
+@@ -101,6 +101,8 @@ proxy_entra = {
+   # Pre-prod: a silent sign-in that fails for several accounts / no session / MFA retries once
+   # with the account picker (developers on Workspaces / Linux, several accounts).
+   interactive_enabled = true
++  # Moot while store_enabled = true (everyone).
++  rollout_percent = 0
+ }
+ 
+ app_service_log_retention       = 90
+diff --git a/polaris-terraform/main-terraform/variables.tf b/polaris-terraform/main-terraform/variables.tf
+index f4c5a77..f013dc4 100644
+--- a/polaris-terraform/main-terraform/variables.tf
++++ b/polaris-terraform/main-terraform/variables.tf
+@@ -175,6 +175,9 @@ variable "proxy_entra" {
+   #  interactive_enabled  -> ENTRA_INTERACTIVE_ENABLED. true: a top-level handover whose silent
+   #                 sign-in fails in a way a person can fix (several accounts, no session, MFA)
+   #                 retries once with Entra's account picker. false: silent only (prompt=none).
++  #  rollout_percent -> ENTRA_ROLLOUT_PERCENT. 0-100: drop2 also runs for the CMS users whose id
++  #                 (UID, else CMSUSER<id>) mod 100 is below this, for the P button and the hidden
++  #                 iframe alike. Raise it to ramp up; store_enabled = true makes it moot.
+   #  Only the "next" proxy config acts on these; the live monolith ignores them.
+   type = object({
+     store_enabled       = bool
+@@ -182,6 +185,7 @@ variable "proxy_entra" {
+     mds_scope           = string
+     watchdog_scope      = string
+     interactive_enabled = bool
++    rollout_percent     = number
+   })
+ }
+ 

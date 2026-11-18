@@ -1,0 +1,26 @@
+diff --git a/polaris-terraform/main-terraform/proxy/config/features/auth-handover.drop2.entra/APP-SETTINGS.md b/polaris-terraform/main-terraform/proxy/config/features/auth-handover.drop2.entra/APP-SETTINGS.md
+index a1f0936..207af2d 100644
+--- a/polaris-terraform/main-terraform/proxy/config/features/auth-handover.drop2.entra/APP-SETTINGS.md
++++ b/polaris-terraform/main-terraform/proxy/config/features/auth-handover.drop2.entra/APP-SETTINGS.md
+@@ -8,6 +8,7 @@ All terraform-managed, on both the production slot (`app-service-proxy.tf`) and
+ | ------------------------- | ----------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
+ | `NON_DDEI_INIT_ENABLED`   | `var.non_ddei_init_enabled`                                 | Arm drop1 (`"true"`): `/auth-refresh-inbound`, `/auth-refresh-termination`, `/auth-refresh-cms-modern-token` and dev-login answered in njs, no DDEI call (a browser enrolled via `/auth-refresh-enrol` gets the same; `ENTRA_STORE_ENABLED` plays no part). |
+ | `ENTRA_STORE_ENABLED`     | `var.proxy_entra.store_enabled`                             | Arm drop2 (`"true"`).                                                                      |
++| `ENTRA_ROLLOUT_PERCENT`   | `var.proxy_entra.rollout_percent`                           | Gradual rollout (`0`-`100`): drop2 also runs for the CMS users whose id (`UID`, else a single `CMSUSER<id>`, from the jar `/polaris` forwards) mod 100 is below it. P button and hidden iframe alike; unset/invalid = `0`. Each `/init` records its decision as `entraEnabled` in `Cms-Session-Hint` and logs an `entra-decision` line. |
+ | `ENTRA_TENANT_ID`         | `data.azurerm_client_config.current.tenant_id`              | Entra tenant id.                                                                           |
+ | `ENTRA_CLIENT_ID`         | `var.proxy_entra.client_id`                                 | Our client app reg (pre-prod: `8d6133af-9593-47c6-94d0-5c65e9e310f1`).                     |
+ | `ENTRA_CLIENT_SECRET`     | Key Vault `GlobalComponents-Entra-ClientSecret` (manual)    | Its client secret. Used for the code exchange AND every refresh-token swap.                   |
+diff --git a/polaris-terraform/main-terraform/proxy/config/features/auth-handover/auth-handover.conf b/polaris-terraform/main-terraform/proxy/config/features/auth-handover/auth-handover.conf
+index 5b80cea..a709740 100644
+--- a/polaris-terraform/main-terraform/proxy/config/features/auth-handover/auth-handover.conf
++++ b/polaris-terraform/main-terraform/proxy/config/features/auth-handover/auth-handover.conf
+@@ -25,7 +25,8 @@ location /polaris {
+ 
+ location /init {
+   # Edge-mode coercion (Edge Mode Desired) is now in appAuthRedirect via ieMode.coerce.
+-  # drop2 (R0): with ENTRA_STORE_ENABLED (or a drop2 enrolment) appAuthRedirect looks the CMS
++  # drop2 (R0): with ENTRA_STORE_ENABLED (or a drop2 enrolment, or a CMS user inside
++  # ENTRA_ROLLOUT_PERCENT) appAuthRedirect looks the CMS
+   # session up and starts the silent Entra round trip here, for EVERY destination — resolver +
+   # js_fetch_verify off are for those $host CMS loopbacks (as /auth-refresh-inbound's drop1).
+   # js_fetch_timeout bounds each CMS call, not the whole lookup (up to 3 calls, so ~30s worst

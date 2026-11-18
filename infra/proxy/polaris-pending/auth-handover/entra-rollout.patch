@@ -1,0 +1,136 @@
+diff --git a/polaris-terraform/main-terraform/proxy/config/features/auth-handover/auth-handover.js b/polaris-terraform/main-terraform/proxy/config/features/auth-handover/auth-handover.js
+index 9958931..4f1c87b 100644
+--- a/polaris-terraform/main-terraform/proxy/config/features/auth-handover/auth-handover.js
++++ b/polaris-terraform/main-terraform/proxy/config/features/auth-handover/auth-handover.js
+@@ -74,7 +74,12 @@ function _maybeDecodeURIComponent(value) {
+   }
+ }
+ 
+-function setSessionHintCookie(r) {
++// `entraEnabled` is this /init's drop2 decision (_entraDecision), written on EVERY pass so the
++// hint is the one record of it: a browser that leaves the rollout loses the flag on its next
++// /init. global-components' legacy CMS clients read it back through the watchdog whoami (the
++// hint is a Polaris-host cookie, so the CMS pages cannot read it themselves) and stand down
++// when it is false. It records the decision, not the outcome: drop2 can still skip.
++function setSessionHintCookie(r, entraEnabled) {
+   let cookieValue;
+   try {
+     const isProxySession = r.args[IS_PROXY_SESSION_PARAM_NAME] === "true";
+@@ -109,10 +114,12 @@ function setSessionHintCookie(r) {
+       cmsDomains,
+       isProxySession,
+       handoverEndpoint,
++      entraEnabled,
+     };
+   } catch (error) {
+     cookieValue = {
+       error,
++      entraEnabled,
+     };
+   } finally {
+     const expires = new Date(Date.now() + SESSION_HINT_COOKIE_LIFESPAN_MS);
+@@ -184,7 +191,9 @@ function appAuthRedirect(r) {
+   // (X-InternetExplorerMode: 0 redirects) or 402. It also MUST stay in IE mode: the presence
+   // cookie it ends with belongs in the IE-mode jar. Absent terminal=iframe, behaviour is unchanged.
+   if (r.args.terminal !== "iframe" && ieMode.coerce(r, "edge", true)) return;
+-  setSessionHintCookie(r);
++  const entraDecision = _entraDecision(r);
++  _logEntraDecision(r, entraDecision);
++  setSessionHintCookie(r, entraDecision.on);
+ 
+   const args = _argsShim(r.args);
+ 
+@@ -211,7 +220,7 @@ function appAuthRedirect(r) {
+     // drop2 (R0): deposit this user's CMS auth to MDS for EVERY destination, via a silent Entra
+     // round trip that ends back on the same 302 (auth-handover.drop2.entra). Any failure there
+     // resolves false and we carry on exactly as below. Off: synchronous, unchanged.
+-    if (_entraOn(r)) {
++    if (entraDecision.on) {
+       return entra
+         .beginFromInit(r, { redirectUrl, cookies: cc, terminal: r.args.terminal })
+         .then((began) => {
+@@ -421,12 +430,78 @@ function enrol(r) {
+ }
+ 
+ // drop2 at /init: the global switch, or this browser's enrolment (the same cookie the
+-// /auth-refresh-inbound gate reads — enrolling in drop2 means "Entra at /init + drop1 behind").
+-function _entraOn(r) {
+-  return (
+-    process.env.ENTRA_STORE_ENABLED === "true" ||
+-    _getCookieValue(r, ENROL_COOKIE) === "drop2"
+-  );
++// /auth-refresh-inbound gate reads — enrolling in drop2 means "Entra at /init + drop1 behind"),
++// or the gradual rollout: the CMS users whose id falls in the first ENTRA_ROLLOUT_PERCENT of
++// 100 buckets. The P button and the hidden iframe both come through here, so one setting ramps
++// both. `via` and `bucket` are for the log line only.
++function _entraDecision(r) {
++  const percent = _rolloutPercent();
++  const userId = _cmsUserId(typeof r.args.cookie === "string" ? r.args.cookie : "");
++  const bucket = userId === null ? null : userId % 100;
++  const decide = (on, via) => ({ on, via, bucket, percent });
++  if (process.env.ENTRA_STORE_ENABLED === "true") {
++    return decide(true, "global");
++  }
++  if (_getCookieValue(r, ENROL_COOKIE) === "drop2") {
++    return decide(true, "enrolled");
++  }
++  if (bucket !== null && bucket < percent) {
++    return decide(true, "rollout");
++  }
++  return decide(false, bucket === null ? "no-user-id" : "outside-rollout");
++}
++
++// 0-100; anything unset or unreadable is 0 (nobody), so a bad setting can only hold the rollout back.
++function _rolloutPercent() {
++  const n = Number(process.env.ENTRA_ROLLOUT_PERCENT);
++  if (!Number.isInteger(n) || n <= 0) {
++    return 0;
++  }
++  return Math.min(n, 100);
++}
++
++// The CMS user id, from the CMS jar /polaris forwards as the `cookie` arg (never this request's
++// own Cookie header: in the real deployment /init is on the Polaris host, which never receives
++// the CMS domain's cookies). CMS sets UID=<id> at login, but a jar can arrive with UID missing
++// while CMSUSER<id>=<session> is present, so that is the fallback. CMSUSER cookies outlive the
++// session, so a shared machine can carry several; if they name more than one id we cannot tell
++// whose session this is, and the answer is null (outside the rollout) rather than a guess.
++function _cmsUserId(cookie) {
++  const uid = cookie.match(/(?:^|;\s*)UID=(\d+)(?:;|\s|$)/);
++  if (uid) {
++    return parseInt(uid[1], 10);
++  }
++  const ids = [];
++  const re = /(?:^|;\s*)CMSUSER(\d+)=/g;
++  let m;
++  while ((m = re.exec(cookie)) !== null) {
++    if (ids.indexOf(m[1]) === -1) {
++      ids.push(m[1]);
++    }
++  }
++  return ids.length === 1 ? parseInt(ids[0], 10) : null;
++}
++
++// One line per /init, so the ramp can be watched. The bucket (id mod 100), never the id itself.
++// ERR like drop2's outcome lines, the level the App Service log keeps.
++function _logEntraDecision(r, d) {
++  try {
++    ngx.log(
++      ngx.ERR,
++      "auth-handover entra-decision on=" +
++        d.on +
++        " via=" +
++        d.via +
++        " bucket=" +
++        (d.bucket === null ? "-" : d.bucket) +
++        " percent=" +
++        d.percent +
++        " term=" +
++        (r.args.terminal === "iframe" ? "iframe" : "top-level"),
++    );
++  } catch (e) {
++    // logging is best-effort
++  }
+ }
+ 
+ export default {
