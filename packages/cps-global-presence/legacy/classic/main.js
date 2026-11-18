@@ -1,13 +1,13 @@
 /* legacy/classic/main.js — CMS Classic's presence client: the frame readers
  * (sections.js) and the footer stripe (stripe.js) on the shared loop (CCPClient).
  *
- * NOTHING STARTS unless CMS_WATCHDOG_ENABLED (shared/kill-switch.js): no call, no
+ * NOTHING STARTS unless LEGACY_CLIENT_AUGMENTATION_ENABLED (shared/kill-switch.js): no call, no
  * stripe, no handle.
  */
 
 var presenceClient = null;
 
-if (CMS_WATCHDOG_ENABLED === true) {
+if (LEGACY_CLIENT_AUGMENTATION_ENABLED === true) {
   presenceClient = CCPClient.createClient({
     appName: "CMS Classic",
     sections: activeSections,

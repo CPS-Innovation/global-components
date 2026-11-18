@@ -11,6 +11,12 @@
     "VCA_JSON": "$OS_Users$VictimsCaseApplication$ClientVars$JSONString",
     "VCA_COOKIES": "$OS_Users$VictimsCaseApplication$ClientVars$Cookies"
   },
+  "LEGACY_UI": {
+    "groups": {
+      "CASE_PRESENCE_GATE_1_CONNECT": "12377eca-b463-4a6c-80ea-95f678f09591",
+      "CASE_PRESENCE_GATE_2_SHOW_UI": "12377eca-b463-4a6c-80ea-95f678f09591"
+    }
+  },
   "REDIRECT_SCRIPT_URL": "https://polaris-qa-notprod.cps.gov.uk/global-components/test/global-components.js",
   "CASE_LOCKING_API_URL": "https://watchdog-api-dev.gslb-notprod.int.cps.gov.uk/hubs/notifications",
   "CASE_LOCKING_SCOPES": [

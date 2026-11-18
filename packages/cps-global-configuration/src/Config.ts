@@ -235,6 +235,19 @@ const cmsAuthStorageKeysSchema = z.object({
 
 export type CmsAuthStorageKeys = z.infer<typeof cmsAuthStorageKeysSchema>;
 
+// Settings for the legacy CMS clients (packages/cps-global-presence), which have
+// no config fetch: CI bakes this section into their bundles at deploy time (see
+// legacy/shared/config.js there). The web components do not read it; it is in the
+// schema so the file validates as a whole and the shape is written down.
+const legacyUiSchema = z.object({
+  // Friendly name -> Entra group object id. The legacy clients ask
+  // inGroupNamed("NAME") so one bundle works in every environment; a name an
+  // environment leaves out answers "not a member".
+  groups: z.record(z.string(), z.string()).optional(),
+});
+
+export type LegacyUi = z.infer<typeof legacyUiSchema>;
+
 export const configBaseSchema = z.object({
   ENVIRONMENT: z.string(),
   REDIRECT_SCRIPT_URL: z.string().optional(),
@@ -341,6 +354,9 @@ export const configBaseSchema = z.object({
   USER_DATA_REFRESH_PERIOD_MINS: z.number().int().min(0).optional(),
   USER_DATA_ATTEMPT_RETRY_ON_SPA_NAVIGATION: z.boolean().optional(),
   CMS_AUTH_STORAGE_KEYS: cmsAuthStorageKeysSchema,
+  // Optional, and old bundles strip it (z.object is not strict), so adding it
+  // to a config needs no code-first deploy.
+  LEGACY_UI: legacyUiSchema.optional(),
 });
 
 export const configStorageSchema = configBaseSchema.extend({

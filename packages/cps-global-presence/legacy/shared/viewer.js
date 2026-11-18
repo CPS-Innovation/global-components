@@ -61,6 +61,14 @@
  * on a cohort's adGroupIds: inGroup(id) is the question to ask. An empty list means
  * "in none of them", whatever the reason — no token yet, a token without the claim,
  * an older adapter — so a gate built on it fails closed.
+ *
+ * AND entraEnabled — whether Polaris's /init put this reader in the Entra rollout
+ * (true / false), or null when it cannot be told: no hint yet, or a Polaris that
+ * predates the flag. FALSE IS FINAL FOR THE PAGE. /init ran and said no, so no
+ * Entra flow ran, no presence token or groups cookie is coming, and asking again
+ * would only spend the retries; the viewer settles on the spot and the client
+ * stands every payload down. null keeps today's behaviour: on a first load whoami
+ * can beat the iframe's /init, so unknown means "not yet", never "no".
  */
 
 var CCPViewer = {};
@@ -82,17 +90,30 @@ CCPViewer.ATTEMPTS = 10;
 CCPViewer.RECHECK_MS = 60000;
 
 /**
+ * `groupIds` is the environment's friendly-name -> Entra group id map (CCP_CONFIG's
+ * `groups`, baked from LEGACY_UI at deploy time). Code asks inGroupNamed("NAME")
+ * rather than carrying a GUID, so the same client works in every environment.
+ *
  * @param {{call: function(string, Object, function(*): void): void,
- *          log: function(...*): void}} options
+ *          log: function(...*): void,
+ *          groupIds?: Object<string, string>}} options
  * @returns {{email: function(): string, oid: function(): string,
  *            cmsEnv: function(): string, cmsEnvWhy: function(): string,
  *            tokenExpiresIn: function(): number, tokenAge: function(): number,
  *            claimKeys: function(): string,
- *            groups: function(): string[], inGroup: function(string): boolean,
+ *            groups: function(): string[], groupsFrom: function(): string,
+ *            entraEnabled: function(): ?boolean,
+ *            inGroup: function(string): boolean,
+ *            inGroupNamed: function(string): boolean,
+ *            groupNames: function(): string[],
  *            refresh: function(boolean=): void, known: function(): boolean,
  *            recheck: function(string): boolean}}
  */
 CCPViewer.createViewer = function (options) {
+  // Checked for shape, not trusted: anything but a plain object means no names.
+  /** @type {Object<string, string>} */
+  var groupIds =
+    options.groupIds && typeof options.groupIds === "object" ? options.groupIds : {};
   var email = "";
   var oid = "";
   var cmsEnv = "";
@@ -117,6 +138,13 @@ CCPViewer.createViewer = function (options) {
   // The reader's group IDs, lower-cased by the adapter. [] until whoami answers.
   /** @type {string[]} */
   var groups = [];
+  // Where the adapter got them: "cookie" is the only answer that means the list is
+  // the truth (an empty list then means "in no group"). Anything else — no-cookie,
+  // oid-mismatch, an older adapter's "" — is why there were none to give.
+  var groupsFrom = "";
+  // The Entra rollout decision: true, false, or null (cannot be told). See the header.
+  /** @type {?boolean} */
+  var entraEnabled = null;
   var incomplete = 0;
   var inFlight = false;
   var lastRecheck = 0;
@@ -127,12 +155,34 @@ CCPViewer.createViewer = function (options) {
     return "+" + (new Date().getTime() - startedAt) + "ms";
   }
 
-  // Both facts have to arrive before there is nothing left to ask for. The
+  // All three facts have to arrive before there is nothing left to ask for. The
   // identity could be left to turn up whenever; the environment is what presence
   // waits on, so it gets a bounded retry of its own rather than the first
   // answer's silence standing for the session.
+  //
+  // THE GROUPS RACE THE COOKIE TOO. On a fresh login the first whoami can beat
+  // Polaris's /init callback to setting the handover-claims cookie, and that answer
+  // carries an identity and an environment but groups:[] (no-cookie). Taking it as
+  // final would gate the tab on "in no group" until it is reopened. Same bounded
+  // retry: an adapter that never has the cookie costs ATTEMPTS calls, then stops.
+  function complete() {
+    return !!email && !!cmsEnv && groupsFrom === "cookie";
+  }
+
+  // Outside the Entra rollout there is nothing more to learn: /init said no.
   function settled() {
-    return (!!email && !!cmsEnv) || incomplete >= CCPViewer.ATTEMPTS;
+    return complete() || entraEnabled === false || incomplete >= CCPViewer.ATTEMPTS;
+  }
+
+  // What the giving-up line names, most consequential first.
+  function missing() {
+    if (!cmsEnv) {
+      return "no CMS environment";
+    }
+    if (!email) {
+      return "no identity";
+    }
+    return "no groups cookie (groupsFrom=" + (groupsFrom ? groupsFrom : "(not reported)") + ")";
   }
 
   /**
@@ -194,7 +244,10 @@ CCPViewer.createViewer = function (options) {
       // mean "cannot be told", and neither needs telling apart.
       claimKeys = data.claimKeys ? String(data.claimKeys) : "";
       groups = readGroups(data.groups);
-      if (!email || !cmsEnv) {
+      groupsFrom = data.groupsFrom ? String(data.groupsFrom) : "";
+      // A real boolean or nothing: "false" from a confused adapter is unknown, not no.
+      entraEnabled = typeof data.entraEnabled === "boolean" ? data.entraEnabled : null;
+      if (!complete()) {
         incomplete = incomplete + 1;
       }
       options.log(
@@ -217,12 +270,20 @@ CCPViewer.createViewer = function (options) {
         "claims=" + (claimKeys ? claimKeys : "(none)"),
         // A COUNT, never the IDs: this ring buffer is what gets copied out of a
         // console and pasted into a ticket.
-        "groups=" + groups.length
+        "groups=" + groups.length,
+        // The reason, not an identity: says whether an empty list is the truth.
+        "groupsFrom=" + (groupsFrom ? groupsFrom : "(not reported)"),
+        "entraEnabled=" + (entraEnabled === null ? "(unknown)" : entraEnabled)
       );
+      // Said once: the line that explains a client which then does nothing at all.
+      if (entraEnabled === false) {
+        options.log("not in the Entra rollout — standing down");
+        return;
+      }
       // Said ONCE, on the pass that stops asking, because this is the line that
       // explains a client which never registered anything at all.
       if (incomplete === CCPViewer.ATTEMPTS) {
-        options.log("still " + (cmsEnv ? "no identity" : "no CMS environment") + " after " + incomplete + " attempts — giving up" + (cmsEnv ? "" : "; presence will not register"));
+        options.log("still " + missing() + " after " + incomplete + " attempts — giving up" + (cmsEnv ? "" : "; presence will not register"));
       }
     });
   }
@@ -248,6 +309,41 @@ CCPViewer.createViewer = function (options) {
       }
     }
     return out;
+  }
+
+  /**
+   * @param {string} id
+   * @returns {boolean}
+   */
+  function inGroup(id) {
+    var want = String(id || "").toLowerCase();
+    return !!want && CCPUtil.indexOf(groups, want) !== -1;
+  }
+
+  // Own properties only: CCP_CONFIG is an object literal, so without this a name
+  // like "toString" would find Object.prototype's and look configured.
+  /**
+   * @param {Object} obj
+   * @param {string} key
+   * @returns {boolean}
+   */
+  function hasOwn(obj, key) {
+    return Object.prototype.hasOwnProperty.call(obj, key);
+  }
+
+  // The group id configured for `name`, or "" — never a guess. A value that is
+  // not a non-empty string (a typo'd config) is treated as unconfigured.
+  /**
+   * @param {string} name
+   * @returns {string}
+   */
+  function groupIdFor(name) {
+    var key = String(name || "");
+    if (!key || !hasOwn(groupIds, key)) {
+      return "";
+    }
+    var id = groupIds[key];
+    return typeof id === "string" ? id : "";
   }
 
   refresh();
@@ -278,10 +374,32 @@ CCPViewer.createViewer = function (options) {
     groups: function () {
       return groups.slice(0);
     },
+    groupsFrom: function () {
+      return groupsFrom;
+    },
+    entraEnabled: function () {
+      return entraEnabled;
+    },
     // Whether the reader is a member of this group, case-insensitively.
-    inGroup: function (id) {
-      var want = String(id || "").toLowerCase();
-      return !!want && CCPUtil.indexOf(groups, want) !== -1;
+    inGroup: inGroup,
+    // Whether the reader is in the group this environment calls `name`. A name the
+    // config does not define is "not a member": an unbaked build has no names at
+    // all, so every gate built on this fails closed.
+    inGroupNamed: function (name) {
+      return inGroup(groupIdFor(name));
+    },
+    // The configured names the reader is a member of: for the console, so a
+    // gate's answer can be checked without knowing any GUIDs.
+    groupNames: function () {
+      /** @type {string[]} */
+      var out = [];
+      var name;
+      for (name in groupIds) {
+        if (hasOwn(groupIds, name) && inGroup(groupIdFor(name))) {
+          out.push(name);
+        }
+      }
+      return out;
     },
     known: function () {
       return !!email;

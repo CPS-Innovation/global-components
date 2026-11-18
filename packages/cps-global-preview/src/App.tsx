@@ -116,6 +116,14 @@ const FEATURES: Feature[] = [
     copyToIeMode: true,
   },
   {
+    key: "legacyClientsWatchdog",
+    label: "Watchdog in CMS Classic and Modern",
+    description:
+      "Switch Watchdog presence on in the legacy CMS clients (Classic, Modern and DCF) for you, whatever your group membership: the clients connect to Watchdog and show the stripe. Without it, only members of the configured Entra groups get it, in two steps — connecting first, then the stripe. It only ever adds you; it never takes you out of a group. The web components are unaffected.",
+    disabled: false,
+    copyToIeMode: true,
+  },
+  {
     key: "requestObservationShim",
     label: "Request observation shim",
     description:

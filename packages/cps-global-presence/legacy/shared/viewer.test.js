@@ -14,7 +14,7 @@
  */
 var h = require("../../test-harness");
 
-function rig() {
+function rig(groupIds) {
   var logged = [];
   var pending = [];
 
@@ -26,7 +26,8 @@ function rig() {
     },
     log: function () {
       logged.push(Array.prototype.slice.call(arguments).join(" "));
-    }
+    },
+    groupIds: groupIds
   });
 
   return {
@@ -46,7 +47,8 @@ var IDENTITY = {
   userEmail: "someone@cps.gov.uk",
   oid: "00000000-1111-2222-3333-444444444444",
   cmsEnv: "CIN3",
-  cmsEnvWhy: "hint"
+  cmsEnvWhy: "hint",
+  groupsFrom: "cookie"
 };
 
 h.describe("asking");
@@ -125,6 +127,56 @@ h.test("gives up on an identity after ATTEMPTS too", function () {
   }
   h.assertEqual(r.calls().length, 0, "the next pass asks nothing");
   h.assertTrue(r.logged[r.logged.length - 1].indexOf("no identity") !== -1, r.logged[r.logged.length - 1]);
+});
+
+// The race this exists for: on a fresh login the first whoami can beat /init to
+// setting the handover-claims cookie, and that answer has everything but groups.
+h.test("an answer without the groups cookie is not settled — it asks again", function () {
+  var r = rig();
+  r.reply({ userEmail: "someone@cps.gov.uk", cmsEnv: "CIN3", groups: [], groupsFrom: "no-cookie" });
+  r.viewer.refresh();
+  h.assertEqual(r.calls().length, 1);
+});
+
+h.test("late groups are picked up by a later pass, and then it stops", function () {
+  var r = rig();
+  r.reply({ userEmail: "someone@cps.gov.uk", cmsEnv: "CIN3", groups: [], groupsFrom: "no-cookie" });
+  r.viewer.refresh();
+  r.reply({ userEmail: "someone@cps.gov.uk", cmsEnv: "CIN3", groups: ["12377eca-b463-4a6c-80ea-95f678f09591"], groupsFrom: "cookie" });
+  h.assertEqual(r.viewer.groups().length, 1);
+  h.assertEqual(r.viewer.groupsFrom(), "cookie");
+  r.viewer.refresh();
+  h.assertEqual(r.calls().length, 0);
+});
+
+// "cookie" with no groups is a reader assigned to none: the truth, not a race.
+h.test("an empty list from the cookie is final", function () {
+  var r = rig();
+  r.reply({ userEmail: "someone@cps.gov.uk", cmsEnv: "CIN3", groups: [], groupsFrom: "cookie" });
+  r.viewer.refresh();
+  h.assertEqual(r.calls().length, 0);
+});
+
+// An environment without the Polaris half (or an older adapter) never has the
+// cookie: that must cost ATTEMPTS calls, not a whoami every pass forever.
+h.test("gives up on the groups cookie after ATTEMPTS, and says why", function () {
+  var r = rig();
+  var noCookie = { userEmail: "someone@cps.gov.uk", cmsEnv: "CIN3", groupsFrom: "no-cookie" };
+  var i;
+  for (i = 0; i < r.ATTEMPTS; i++) {
+    r.reply(noCookie);
+    r.viewer.refresh();
+  }
+  h.assertEqual(r.calls().length, 0, "the next pass asks nothing");
+  var last = r.logged[r.logged.length - 1];
+  h.assertTrue(last.indexOf("no groups cookie (groupsFrom=no-cookie)") !== -1, last);
+  h.assertTrue(last.indexOf("will not register") === -1, "presence still registers: " + last);
+});
+
+h.test("the whoami line says where the groups came from", function () {
+  var r = rig();
+  r.reply(IDENTITY);
+  h.assertTrue(r.logged[0].indexOf("groupsFrom=cookie") !== -1, r.logged[0]);
 });
 
 h.describe("what it keeps");
@@ -251,7 +303,7 @@ h.test("a junk value reads as 0", function () {
 // a diagnostic is not worth a whoami every three seconds in every tab.
 h.test("a plain refresh once settled still asks nothing", function () {
   var r = rig();
-  r.reply({ userEmail: "someone@cps.gov.uk", cmsEnv: "CIN3", tokenExpiresIn: 120 });
+  r.reply({ userEmail: "someone@cps.gov.uk", cmsEnv: "CIN3", groupsFrom: "cookie", tokenExpiresIn: 120 });
   r.viewer.refresh();
   h.assertEqual(r.calls().length, 0, "settled means settled");
 });
@@ -437,6 +489,134 @@ h.test("are logged as a count, never as IDs", function () {
   r.reply({ userEmail: "someone@cps.gov.uk", cmsEnv: "CIN3", groups: [GNAV] });
   h.assertTrue(r.logged[0].indexOf("groups=1") !== -1, r.logged[0]);
   h.assertTrue(r.logged[0].indexOf(GNAV) === -1, "no id in the log");
+});
+
+h.describe("groups by configured name (CCP_CONFIG.groups)");
+
+var SHOW = "1e5874e3-1c88-4506-8b9f-4f469acc1a42";
+var NAMES = { SHOW_UI: SHOW, CONNECT: "aaaaaaaa-0000-0000-0000-000000000000" };
+
+function member(groupIds, groups) {
+  var r = rig(groupIds);
+  r.reply({ userEmail: "someone@cps.gov.uk", cmsEnv: "CIN3", groups: groups, groupsFrom: "cookie" });
+  return r.viewer;
+}
+
+h.test("a configured name the reader is in answers true", function () {
+  h.assertTrue(member(NAMES, [SHOW]).inGroupNamed("SHOW_UI"));
+});
+
+h.test("a configured name the reader is not in answers false", function () {
+  h.assertTrue(!member(NAMES, [SHOW]).inGroupNamed("CONNECT"));
+});
+
+h.test("the configured id is matched case-insensitively", function () {
+  h.assertTrue(member({ SHOW_UI: SHOW.toUpperCase() }, [SHOW]).inGroupNamed("SHOW_UI"));
+});
+
+// Fail closed, every way of not knowing.
+h.test("an unknown name answers false", function () {
+  h.assertTrue(!member(NAMES, [SHOW]).inGroupNamed("NOT_CONFIGURED"));
+});
+
+h.test("an unbaked build (no names at all) answers false", function () {
+  h.assertTrue(!member(undefined, [SHOW]).inGroupNamed("SHOW_UI"));
+  h.assertTrue(!member({}, [SHOW]).inGroupNamed("SHOW_UI"));
+});
+
+h.test("before whoami answers, a configured name answers false", function () {
+  h.assertTrue(!rig(NAMES).viewer.inGroupNamed("SHOW_UI"));
+});
+
+h.test("Object.prototype names are not configured names", function () {
+  var v = member(NAMES, [SHOW]);
+  h.assertTrue(!v.inGroupNamed("toString"), "toString");
+  h.assertTrue(!v.inGroupNamed("hasOwnProperty"), "hasOwnProperty");
+});
+
+h.test("a junk config value is treated as unconfigured", function () {
+  var v = member({ A: 42, B: "", C: null, D: [SHOW] }, [SHOW]);
+  h.assertTrue(!v.inGroupNamed("A") && !v.inGroupNamed("B") && !v.inGroupNamed("C") && !v.inGroupNamed("D"));
+});
+
+h.test("a non-object config means no names", function () {
+  h.assertTrue(!member(/** @type {*} */ ("SHOW_UI"), [SHOW]).inGroupNamed("SHOW_UI"));
+});
+
+h.test("an empty or missing name answers false", function () {
+  var v = member(NAMES, [SHOW]);
+  h.assertTrue(!v.inGroupNamed("") && !v.inGroupNamed(/** @type {*} */ (undefined)));
+});
+
+h.test("groupNames lists the configured names the reader is in", function () {
+  h.assertEqual(member(NAMES, [SHOW]).groupNames(), ["SHOW_UI"]);
+  h.assertEqual(member(NAMES, []).groupNames(), []);
+  h.assertEqual(member(undefined, [SHOW]).groupNames(), []);
+});
+
+h.describe("the Entra rollout (entraEnabled)");
+
+// What a reader /init said no to looks like: an environment, no token, no groups.
+var OUTSIDE = { userEmail: "", cmsEnv: "CIN3", cmsEnvWhy: "hint", groups: [], groupsFrom: "no-cookie", entraEnabled: false };
+
+h.test("false is final: one whoami, and no more", function () {
+  var r = rig();
+  r.reply(OUTSIDE);
+  r.viewer.refresh();
+  h.assertEqual(r.calls().length, 0, "no second call");
+  h.assertEqual(r.viewer.entraEnabled(), false);
+});
+
+h.test("false says it is standing down, once", function () {
+  var r = rig();
+  r.reply(OUTSIDE);
+  var all = r.logged.join("\n");
+  h.assertTrue(all.indexOf("entraEnabled=false") !== -1, all);
+  h.assertEqual(all.split("not in the Entra rollout").length - 1, 1, all);
+  h.assertTrue(all.indexOf("giving up") === -1, "not a give-up: " + all);
+});
+
+// A first load: whoami beats the iframe's /init, so there is no flag yet.
+h.test("unknown (no flag) keeps asking, as before the flag existed", function () {
+  var r = rig();
+  r.reply({ userEmail: "", cmsEnv: "CIN3", groupsFrom: "no-cookie" });
+  h.assertEqual(r.viewer.entraEnabled(), null);
+  r.viewer.refresh();
+  h.assertEqual(r.calls().length, 1, "asks again");
+});
+
+h.test("unknown then false: stops at the false", function () {
+  var r = rig();
+  r.reply({ userEmail: "", cmsEnv: "CIN3", groupsFrom: "no-cookie" });
+  r.viewer.refresh();
+  r.reply(OUTSIDE);
+  r.viewer.refresh();
+  h.assertEqual(r.calls().length, 0);
+});
+
+h.test("true changes nothing about the retry: groups are still waited for", function () {
+  var r = rig();
+  r.reply({ userEmail: "someone@cps.gov.uk", cmsEnv: "CIN3", groupsFrom: "no-cookie", entraEnabled: true });
+  h.assertEqual(r.viewer.entraEnabled(), true);
+  r.viewer.refresh();
+  h.assertEqual(r.calls().length, 1, "still asking for the groups cookie");
+});
+
+h.test("only a real boolean counts", function () {
+  var r = rig();
+  r.reply({ userEmail: "", cmsEnv: "CIN3", groupsFrom: "no-cookie", entraEnabled: "false" });
+  h.assertEqual(r.viewer.entraEnabled(), null, "a string is unknown, not no");
+  r.viewer.refresh();
+  h.assertEqual(r.calls().length, 1, "so it keeps asking");
+});
+
+h.test("a forced refresh still asks, and its answer wins", function () {
+  var r = rig();
+  r.reply(OUTSIDE);
+  r.viewer.refresh(true);
+  h.assertEqual(r.calls().length, 1);
+  r.reply({ userEmail: "someone@cps.gov.uk", cmsEnv: "CIN3", groupsFrom: "cookie", entraEnabled: true });
+  h.assertEqual(r.viewer.entraEnabled(), true);
 });
 
 h.describe("an API call refused for its credential");

@@ -670,6 +670,8 @@ declare namespace CCPClient {
     let PREVIEW_PATH: string;
     let PASS_MS: number;
     let TIMEOUT_MS: number;
+    let GATE_1_CONNECT: string;
+    let GATE_2_SHOW_UI: string;
     /**
      * @param {{
      *   appName: string,
@@ -708,6 +710,12 @@ declare namespace CCPClient {
         onNotifications: (arg0: any[], arg1: string | undefined) => void;
     };
 }
+/** @type {{groups?: Object<string, string>}} */
+declare var CCP_CONFIG: {
+    groups?: {
+        [x: string]: string;
+    };
+};
 declare namespace CCPJsonp {
     /**
      * window[name] = value. JSONP callbacks must be real top-level globals (the njs
@@ -741,7 +749,7 @@ declare namespace CCPJsonp {
         log?: (...args: any[]) => void;
     }): (arg0: string, arg1: any, arg2: (arg0: any) => void) => void;
 }
-declare var CMS_WATCHDOG_ENABLED: boolean;
+declare var LEGACY_CLIENT_AUGMENTATION_ENABLED: boolean;
 declare namespace CCPLocator {
     /**
      * Normalise the parts of a section into the shape everything downstream expects.
@@ -867,6 +875,7 @@ declare namespace CCPPreview {
      *          onChange: (function(): void|undefined)}} options
      * @returns {{flags: function(): Object, known: function(): boolean,
      *            countSelf: function(): boolean, verboseLogging: function(): boolean,
+     *            legacyClientsWatchdog: function(): boolean,
      *            refresh: function(boolean=): void}}
      */
     function createPreview(options: {
@@ -878,6 +887,7 @@ declare namespace CCPPreview {
         known: () => boolean;
         countSelf: () => boolean;
         verboseLogging: () => boolean;
+        legacyClientsWatchdog: () => boolean;
         refresh: (arg0: boolean | undefined) => void;
     };
 }
@@ -917,19 +927,31 @@ declare namespace CCPViewer {
     let ATTEMPTS: number;
     let RECHECK_MS: number;
     /**
+     * `groupIds` is the environment's friendly-name -> Entra group id map (CCP_CONFIG's
+     * `groups`, baked from LEGACY_UI at deploy time). Code asks inGroupNamed("NAME")
+     * rather than carrying a GUID, so the same client works in every environment.
+     *
      * @param {{call: function(string, Object, function(*): void): void,
-     *          log: function(...*): void}} options
+     *          log: function(...*): void,
+     *          groupIds?: Object<string, string>}} options
      * @returns {{email: function(): string, oid: function(): string,
      *            cmsEnv: function(): string, cmsEnvWhy: function(): string,
      *            tokenExpiresIn: function(): number, tokenAge: function(): number,
      *            claimKeys: function(): string,
-     *            groups: function(): string[], inGroup: function(string): boolean,
+     *            groups: function(): string[], groupsFrom: function(): string,
+     *            entraEnabled: function(): ?boolean,
+     *            inGroup: function(string): boolean,
+     *            inGroupNamed: function(string): boolean,
+     *            groupNames: function(): string[],
      *            refresh: function(boolean=): void, known: function(): boolean,
      *            recheck: function(string): boolean}}
      */
     function createViewer(options: {
         call: (arg0: string, arg1: any, arg2: (arg0: any) => void) => void;
         log: (...args: any[]) => void;
+        groupIds?: {
+            [x: string]: string;
+        };
     }): {
         email: () => string;
         oid: () => string;
@@ -939,7 +961,11 @@ declare namespace CCPViewer {
         tokenAge: () => number;
         claimKeys: () => string;
         groups: () => string[];
+        groupsFrom: () => string;
+        entraEnabled: () => boolean | null;
         inGroup: (arg0: string) => boolean;
+        inGroupNamed: (arg0: string) => boolean;
+        groupNames: () => string[];
         refresh: (arg0: boolean | undefined) => void;
         known: () => boolean;
         recheck: (arg0: string) => boolean;

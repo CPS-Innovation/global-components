@@ -12,6 +12,25 @@
  *
  * The banner is about the PRIMARY section's case: the first section the app
  * reports, so the app's detector order is its priority order.
+ *
+ * TWO PROGRESSIVE GATES, both failing closed (RPLT-246):
+ *   gate 1, CONNECT  no create/poll/heartbeat/leave unless the reader is in the
+ *                    group LEGACY_UI names CASE_PRESENCE_GATE_1_CONNECT
+ *   gate 2, SHOW_UI  no stripe unless gate 1 is open AND the reader is in
+ *                    CASE_PRESENCE_GATE_2_SHOW_UI
+ * Gate 1 without gate 2 is a dark launch: real Watchdog traffic to observe, with
+ * nothing on screen. The legacyClientsWatchdog preview flag opens both (OR, never
+ * AND: it can only enrol). whoami and the preview read run regardless — our own
+ * proxy answers both, and they are how the gates learn anything. The groups and
+ * the flag both settle within a few passes of boot, so each pass re-asks, and a
+ * gate that closes (a forced whoami losing the groups) leaves every section.
+ *
+ * ABOVE BOTH, THE ENTRA ROLLOUT. Polaris's /init decides who is in it and whoami
+ * reports the answer (viewer.entraEnabled). A reader /init said no to has no
+ * presence token and no groups, so nothing can work for them: an explicit false
+ * shuts both gates, the preview flag included, and the viewer stops asking. null
+ * (no flag yet, or a Polaris without it) leaves the gates to the groups and the
+ * flag, as before the rollout existed.
  */
 
 var CCPClient = {};
@@ -24,6 +43,9 @@ CCPClient.PREVIEW_PATH = "/global-components/state/preview";
 // frame navigation; the sessions' own calls run on CCPSections.HEARTBEAT_MS.
 CCPClient.PASS_MS = 2000;
 CCPClient.TIMEOUT_MS = 8000; // per JSONP call
+// The LEGACY_UI group names the gates ask about (see the header).
+CCPClient.GATE_1_CONNECT = "CASE_PRESENCE_GATE_1_CONNECT";
+CCPClient.GATE_2_SHOW_UI = "CASE_PRESENCE_GATE_2_SHOW_UI";
 
 /**
  * @param {{
@@ -58,9 +80,17 @@ CCPClient.createClient = function (o) {
   var lastPrimaryId = "";
   var waitingLogged = false;
   var troubleNoticed = false;
+  // What the gates said last pass, so a change is logged (and redrawn) once.
+  var lastGates = "";
 
   var call = CCPJsonp.createJsonp({ base: base, appName: o.appName, timeoutMs: CCPClient.TIMEOUT_MS, log: log });
-  var viewer = CCPViewer.createViewer({ call: call, log: log });
+  // CCP_CONFIG is emitted at the top of every legacy bundle (legacy/shared/config.js);
+  // typeof guards a load that left it out, which then simply has no group names.
+  var viewer = CCPViewer.createViewer({
+    call: call,
+    log: log,
+    groupIds: typeof CCP_CONFIG !== "undefined" && CCP_CONFIG.groups ? CCP_CONFIG.groups : {}
+  });
   // A second caller, so its callback names need their own prefix: two callers
   // sharing one would overwrite each other's window properties.
   var preview = CCPPreview.createPreview({
@@ -85,6 +115,42 @@ CCPClient.createClient = function (o) {
       return countSelfOverride;
     }
     return preview ? preview.countSelf() : false;
+  }
+
+  // Each gate: the group, or the preview flag. Read fresh every time — both
+  // answers can arrive after boot.
+  function enrolled() {
+    return preview ? preview.legacyClientsWatchdog() : false;
+  }
+
+  // false only: unknown is "not yet", and changes nothing (see the header).
+  function outsideEntraRollout() {
+    return viewer.entraEnabled() === false;
+  }
+
+  function connectOpen() {
+    if (outsideEntraRollout()) {
+      return false;
+    }
+    return viewer.inGroupNamed(CCPClient.GATE_1_CONNECT) || enrolled();
+  }
+
+  function showOpen() {
+    return connectOpen() && (viewer.inGroupNamed(CCPClient.GATE_2_SHOW_UI) || enrolled());
+  }
+
+  function gates() {
+    return {
+      connect: connectOpen(),
+      showUi: showOpen(),
+      byGroup: {
+        connect: viewer.inGroupNamed(CCPClient.GATE_1_CONNECT),
+        showUi: viewer.inGroupNamed(CCPClient.GATE_2_SHOW_UI)
+      },
+      byPreview: enrolled(),
+      // true, false, or null (unknown); false shuts both gates.
+      entraEnabled: viewer.entraEnabled()
+    };
   }
 
   function ids() {
@@ -118,6 +184,11 @@ CCPClient.createClient = function (o) {
   function redraw(reason) {
     var p = primary();
     var v = view();
+    if (!showOpen()) {
+      o.render(null, reason);
+      logBuffer.ui(false, 0, "gate 2 (show UI) closed (" + reason + ")");
+      return;
+    }
     if (v && v.count) {
       o.render(v, reason);
       logBuffer.ui(true, v.count, reason);
@@ -159,7 +230,9 @@ CCPClient.createClient = function (o) {
     }
     o.render(null, "trouble");
     logBuffer.ui(false, 0, "trouble " + (op ? op + " " : "") + (sectionId ? sectionId + " " : "") + reason);
-    if (troubleNoticed) {
+    // A dark-launch reader (gate 1 open, gate 2 closed) is not meant to know
+    // presence exists, so the console line is for gate 2 readers only.
+    if (troubleNoticed || !showOpen()) {
       return;
     }
     troubleNoticed = true;
@@ -208,6 +281,29 @@ CCPClient.createClient = function (o) {
     return false;
   }
 
+  // Logged, and redrawn for, only when the answer changes: the groups and the
+  // preview flag each arrive a pass or two after boot.
+  function logGates() {
+    var g = gates();
+    var key = (g.connect ? "1" : "0") + (g.showUi ? "1" : "0") + String(g.entraEnabled);
+    if (key === lastGates) {
+      return;
+    }
+    var first = lastGates === "";
+    lastGates = key;
+    log(
+      "gates",
+      "connect=" + (g.connect ? "open" : "closed"),
+      "showUi=" + (g.showUi ? "open" : "closed"),
+      "(group: connect=" + g.byGroup.connect + " showUi=" + g.byGroup.showUi +
+        "; preview legacyClientsWatchdog=" + g.byPreview +
+        "; entraEnabled=" + (g.entraEnabled === null ? "(unknown)" : g.entraEnabled) + ")"
+    );
+    if (!first) {
+      redraw("gates changed");
+    }
+  }
+
   // Each step guarded on its own: the page is someone else's, and a throw in one
   // must not stop the others, or the interval.
   function reconcile() {
@@ -231,7 +327,13 @@ CCPClient.createClient = function (o) {
       log("sections", key || "(none)");
     }
     try {
-      if (ready) {
+      logGates();
+    } catch (e6) { }
+    try {
+      if (!connectOpen()) {
+        // Leaves anything held (a gate that closed); a no-op when nothing is.
+        sessions.setDesired([]);
+      } else if (ready) {
         sessions.setDesired(ids());
       }
     } catch (e4) { }
@@ -307,13 +409,21 @@ CCPClient.createClient = function (o) {
         tokenAge: viewer.tokenAge(),
         tokenExpiresIn: viewer.tokenExpiresIn(),
         claimKeys: viewer.claimKeys(),
-        groups: viewer.groups()
+        groups: viewer.groups(),
+        // Whether an empty list is the truth ("cookie") or a reason there were none.
+        groupsFrom: viewer.groupsFrom(),
+        // In the Entra rollout (Polaris /init's decision): true, false or null (unknown).
+        entraEnabled: viewer.entraEnabled(),
+        // The configured names (CCP_CONFIG.groups) the reader is in.
+        groupNames: viewer.groupNames()
       };
     },
     // whoami() is a cache of the last answer; this asks again.
     refreshWhoami: function () {
       viewer.refresh(true);
     },
+    // Whether each presence gate is open, and why.
+    gates: gates,
     // The flags in the IE-mode cookie jar, and whether the reader is counted.
     preview: function () {
       return { known: preview.known(), flags: preview.flags(), countSelf: countSelf() };

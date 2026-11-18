@@ -177,6 +177,28 @@ h.test("does not treat a truthy non-boolean as on", function () {
   h.assertEqual(r.preview.countSelf(), false);
 });
 
+h.describe("enrolling in Watchdog (legacyClientsWatchdog)");
+
+// It ORs with the groups to OPEN the presence gates, so a failed read turning it
+// on would be presence for someone outside the groups: only an explicit true.
+h.test("enrols only when the flag is explicitly on", function () {
+  var r = rig();
+  r.reply({ legacyClientsWatchdog: true });
+  h.assertEqual(r.preview.legacyClientsWatchdog(), true);
+});
+
+h.test("does not enrol when the flag is off, unset, truthy junk, unknown or failed", function () {
+  [{ legacyClientsWatchdog: false }, {}, { legacyClientsWatchdog: "true" }, { legacyClientsWatchdog: 1 }, null, { jsonpError: "500" }].forEach(function (answer) {
+    var r = rig();
+    r.reply(answer);
+    h.assertEqual(r.preview.legacyClientsWatchdog(), false, JSON.stringify(answer));
+  });
+});
+
+h.test("does not enrol before any answer", function () {
+  h.assertEqual(rig().preview.legacyClientsWatchdog(), false);
+});
+
 h.describe("telling the client to redraw");
 
 h.test("calls onChange when an answer settles, flags and all", function () {

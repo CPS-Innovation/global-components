@@ -4,13 +4,13 @@
  * Modern changes case without a page load, so a hashchange runs a pass straight
  * away.
  *
- * NOTHING STARTS unless CMS_WATCHDOG_ENABLED (shared/kill-switch.js): no call, no
+ * NOTHING STARTS unless LEGACY_CLIENT_AUGMENTATION_ENABLED (shared/kill-switch.js): no call, no
  * banner, no handle.
  */
 
 var presenceClient = null;
 
-if (CMS_WATCHDOG_ENABLED === true) {
+if (LEGACY_CLIENT_AUGMENTATION_ENABLED === true) {
   presenceClient = CCPClient.createClient({
     appName: "CMS Modern", // DCF too: one application in users' minds
     sections: activeSections,

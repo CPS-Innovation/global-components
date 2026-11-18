@@ -37,6 +37,12 @@
         "legacy/shared/kill-switch.js"
       ]
     },
+    "config": {
+      "floor": "es3",
+      "files": [
+        "legacy/shared/config.js"
+      ]
+    },
     "classic": {
       "floor": "es3",
       "files": [
@@ -66,7 +72,8 @@
       "out": "dist/cms-augmentation/client-modern-unstable.js",
       "floor": "es5",
       "before": [
-        "killSwitch"
+        "killSwitch",
+        "config"
       ],
       "iife": [
         "core",
@@ -78,7 +85,8 @@
       "out": "dist/cms-augmentation/client-classic-unstable.js",
       "floor": "es3",
       "before": [
-        "killSwitch"
+        "killSwitch",
+        "config"
       ],
       "iife": [
         "core",

@@ -104,7 +104,12 @@ CCPJsonp.createJsonp = function (options) {
       onData(data);
     });
 
-    var url = base + "?op=" + encodeURIComponent(op);
+    // whoami has its own sub-path (RPLT-246): the handover-claims cookie that
+    // carries the reader's Entra groups is Path-scoped to it, so on the base path
+    // whoami answers groups:[] ("no-cookie"). The sub-path ignores ?op; it stays
+    // so the request reads the same in a HAR as every other op.
+    var path = op === "whoami" ? base + "/whoami" : base;
+    var url = path + "?op=" + encodeURIComponent(op);
     var key;
     for (key in params) {
       if (params.hasOwnProperty(key)) {
