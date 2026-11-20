@@ -1,0 +1,10 @@
+# /launch-vca layer override (experimental module)
+# Use: docker-compose -f docker-compose.yml -f docker-compose.launch-vca.yml up
+#
+# Mounts the module's conf + JS as a feature folder, as the deploy places them.
+
+services:
+  nginx:
+    volumes:
+      - ../config/global-components.launch-vca/global-components.launch-vca.conf:/etc/nginx/templates/features/global-components.launch-vca/global-components.launch-vca.conf.template:ro
+      - ../dist/global-components.launch-vca.js:/etc/nginx/templates/features/global-components.launch-vca/global-components.launch-vca.js:ro

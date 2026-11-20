@@ -1,0 +1,102 @@
+diff --git a/polaris-terraform/main-terraform/proxy/config/features/auth-handover.drop2.entra/auth-handover.drop2.entra.unit.test.js b/polaris-terraform/main-terraform/proxy/config/features/auth-handover.drop2.entra/auth-handover.drop2.entra.unit.test.js
+index 48bbde4..ebf79d6 100644
+--- a/polaris-terraform/main-terraform/proxy/config/features/auth-handover.drop2.entra/auth-handover.drop2.entra.unit.test.js
++++ b/polaris-terraform/main-terraform/proxy/config/features/auth-handover.drop2.entra/auth-handover.drop2.entra.unit.test.js
+@@ -360,6 +360,66 @@ async function initTests(authHandover, entra) {
+     const q = form(r.returnBody.split("?")[1])
+     assert(/^i\.[0-9a-f]{32}$/.test(q.state), "state = i.<handle> (iframe): " + q.state)
+   })
++
++  // QUIRK N3: a script-tag probe (JSONP to /auth-refresh-termination) cannot follow Entra's HTML reply.
++  const PROBE_DEST = "/auth-refresh-inbound?polaris-ui-url=%2Fauth-refresh-termination%3Fcb%3Dprobe_1"
++
++  await test("skip-entra=1: no CMS lookup, no sign-in, carry on exactly as Entra off; one skipped line", async () => {
++    fetchLog = []
++    logLines = []
++    fetchImpl = establishRouter()
++    const restore = applyEnv(on)
++    const r = initRequest({ r: PROBE_DEST, "skip-entra": "1" })
++    await authHandover.appAuthRedirect(r)
++    restore()
++    assertEqual(fetchLog.length, 0, "no fetch")
++    assertEqual(r.returnCode, 302, "302")
++    assertEqual(r.returnBody, continuation(PROBE_DEST), "plain 302 to r with cc")
++    const cookies = [].concat(r.headersOut["Set-Cookie"] || [])
++    assertEqual(findCookie(cookies, STATE_PREFIX), undefined, "no state cookie")
++    assert(cookies.some((c) => c.indexOf("Cms-Session-Hint=") === 0), "the session hint is still set")
++    assertEqual(r.headersOut["X-Polaris-Auth-Init"], undefined, "no entra / entra-degraded marker")
++    assertEqual(outcomeLines().length, 1, "one line")
++    const o = outcomeOf(outcomeLines()[0])
++    assertEqual([o.result, o.reason, o.dest, o.term].join(","), "skipped,skip-entra-requested,polaris,top-level", "fields")
++  })
++
++  await test("skip-entra other than exactly 1 does not skip: still signs in", async () => {
++    for (const v of ["0", "true", "", "yes", "11"]) {
++      fetchImpl = establishRouter()
++      const restore = applyEnv(on)
++      const r = initRequest({ r: PROBE_DEST, "skip-entra": v })
++      await authHandover.appAuthRedirect(r)
++      restore()
++      assert(r.returnBody.indexOf("https://login.microsoftonline.com/") === 0, "skip-entra=" + JSON.stringify(v) + " -> AD: " + r.returnBody)
++    }
++  })
++
++  await test("skip-entra=1 also wins over the enrol cookie", async () => {
++    fetchLog = []
++    const r = initRequest({ r: PROBE_DEST, "skip-entra": "1" }, { Cookie: "polaris_auth_handover=drop2" })
++    await authHandover.appAuthRedirect(r)
++    assertEqual(fetchLog.length, 0, "no fetch")
++    assertEqual(r.returnBody, continuation(PROBE_DEST), "carry on")
++  })
++
++  await test("skip-entra=1 with terminal=iframe: ends on the terminal page, as any drop2 skip does", async () => {
++    fetchLog = []
++    const restore = applyEnv(on)
++    const r = initRequest({ terminal: "iframe", q: "x", "skip-entra": "1" })
++    await authHandover.appAuthRedirect(r)
++    restore()
++    assertEqual(fetchLog.length, 0, "no fetch")
++    assertEqual(r.returnBody, "https://proxy.example/init/terminal", "terminal page")
++  })
++
++  await test("skip-entra=1 does not bypass the whitelist: 403", async () => {
++    const restore = applyEnv(on)
++    const r = initRequest({ r: "https://evil.example/x", "skip-entra": "1" })
++    await authHandover.appAuthRedirect(r)
++    restore()
++    assertEqual(r.returnCode, 403, "403")
++  })
+ }
+ 
+ // Drive the callback with a valid state cookie + code, routing the exchange, the refresh-token swaps
+diff --git a/polaris-terraform/main-terraform/proxy/config/features/auth-handover/auth-handover.unit.test.js b/polaris-terraform/main-terraform/proxy/config/features/auth-handover/auth-handover.unit.test.js
+index 6817783..f2a1c78 100644
+--- a/polaris-terraform/main-terraform/proxy/config/features/auth-handover/auth-handover.unit.test.js
++++ b/polaris-terraform/main-terraform/proxy/config/features/auth-handover/auth-handover.unit.test.js
+@@ -363,6 +363,13 @@ async function polarisAuthRedirect(authHandover) {
+     authHandover.polarisAuthRedirect(r)
+     assertIncludes(r.returnBody, "extra=1", "original args kept")
+   })
++
++  // QUIRK N3: the probe's opt-out must reach /init through the proxied /polaris.
++  await test("forwards skip-entra=1 to /init", async () => {
++    const r = req({ r: "/target", "skip-entra": "1" }, { Cookie: "a=1" })
++    authHandover.polarisAuthRedirect(r)
++    assertIncludes(r.returnBody, "skip-entra=1", "skip-entra kept")
++  })
+ }
+ 
+ async function authRefreshOutbound(authHandover) {
+@@ -391,6 +398,12 @@ async function authRefreshOutbound(authHandover) {
+     assertEqual(r.returnBody, "https://cin4.cps.gov.uk/polaris?a=1&b=2", "args appended")
+   })
+ 
++  // QUIRK N3: the probe's opt-out must reach whichever /polaris the hint names.
++  await test("forwards skip-entra=1 with the rest of the query string", async () => {
++    const r = await call("", "skip-entra=1&r=%2Fauth-refresh-inbound")
++    assertEqual(r.returnBody, `https://${DEFAULT_CMS}/polaris?skip-entra=1&r=%2Fauth-refresh-inbound`, "kept verbatim")
++  })
++
+   await test("sets X-InternetExplorerMode: 1", async () => {
+     const r = await call("")
+     assertEqual(r.headersOut["X-InternetExplorerMode"], "1", "forces IE mode")

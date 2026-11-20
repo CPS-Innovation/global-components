@@ -1,0 +1,27 @@
+diff --git a/polaris-terraform/main-terraform/proxy/config/features/auth-handover.drop2.entra/auth-handover.drop2.entra.js b/polaris-terraform/main-terraform/proxy/config/features/auth-handover.drop2.entra/auth-handover.drop2.entra.js
+index 5041a66..5b39056 100644
+--- a/polaris-terraform/main-terraform/proxy/config/features/auth-handover.drop2.entra/auth-handover.drop2.entra.js
++++ b/polaris-terraform/main-terraform/proxy/config/features/auth-handover.drop2.entra/auth-handover.drop2.entra.js
+@@ -528,6 +528,13 @@ function _skipReason(term, opts) {
+   return "";
+ }
+ 
++// `skip-entra=1` on /init: the caller asks drop2 to stand aside for this one handover
++// (auth-handover QUIRK N3). A script-tag probe cannot follow the round trip — Entra's silent
++// reply is an HTML page, which the browser refuses as a script. Only exactly "1" counts.
++function _skipRequested(r) {
++  return r.args["skip-entra"] === "1";
++}
++
+ // Called by appAuthRedirect after its whitelist check, with the destination and the FILTERED
+ // cookies it would otherwise 302 to. Resolves true once it has responded (302 to Entra); false
+ // WITHOUT responding on any failure — /init then carries on exactly as today. Any Set-Cookie
+@@ -539,7 +546,7 @@ async function beginFromInit(r, opts) {
+     return false;
+   };
+   try {
+-    const why = _skipReason(term, opts);
++    const why = _skipRequested(r) ? "skip-entra-requested" : _skipReason(term, opts);
+     if (why) return skip(why);
+ 
+     const found = await replaceDdei.lookupCmsSession(_header(r, "Host"), opts.cookies);

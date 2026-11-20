@@ -34,6 +34,14 @@ C-button only for requests carrying the `Gloco-Os-Target-<env>` cookie (tested b
 regex on `$http_cookie`). Deployed by `scripts/deploy-os-london-dublin-oapps-switch.local.sh`.
 See its [README](config/global-components.os-london-dublin-oapps-switch/README.md).
 
+### /launch-vca (`config/global-components.launch-vca/`) — EXPERIMENTAL
+
+One URL that opens the Victims Case Application logged in, with no `Cms-Session-Hint` needed.
+Its page finds the user's live CMS session with JSONP probes of each CMS handover endpoint
+(first success wins) and hands over to VCA through that endpoint. One exact-match location.
+Needs Polaris's `skip-entra` patch (`polaris-pending/`) wherever `/init` runs Entra. Deployed by
+`scripts/deploy-launch-vca.local.sh`. See its [README](config/global-components.launch-vca/README.md).
+
 ### CMS augmentation (`config/global-components.cms-augmentation/`)
 
 Injects our client scripts into the proxied CMS: Classic's frameset shell and Modern/DCF.

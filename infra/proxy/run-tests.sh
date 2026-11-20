@@ -38,7 +38,7 @@ wait_for_proxy() {
 # Stop any running stack
 stop_stack() {
   cd "$DOCKER_DIR"
-  docker compose -f docker-compose.yml -f docker-compose.vnext.yml -f docker-compose.cms-augmentation.yml -f docker-compose.watchdog.yml -f docker-compose.os-london-dublin-oapps-switch.yml down -t 2 2>/dev/null || true
+  docker compose -f docker-compose.yml -f docker-compose.vnext.yml -f docker-compose.cms-augmentation.yml -f docker-compose.watchdog.yml -f docker-compose.os-london-dublin-oapps-switch.yml -f docker-compose.launch-vca.yml down -t 2 2>/dev/null || true
 }
 
 # Run a test layer
@@ -150,6 +150,17 @@ if run_layer "os-london-dublin-oapps-switch" \
   LAYER_RESULTS="${LAYER_RESULTS}  ${GREEN}✓${NC} os-london-dublin-oapps-switch\n"
 else
   LAYER_RESULTS="${LAYER_RESULTS}  ${RED}✗${NC} os-london-dublin-oapps-switch\n"
+  TOTAL_FAILED=$((TOTAL_FAILED + 1))
+fi
+
+# Layer 6: /launch-vca (experimental module)
+if run_layer "launch-vca" \
+  "-f docker-compose.yml -f docker-compose.launch-vca.yml" \
+  "/health" \
+  "$SCRIPT_DIR/config/global-components.launch-vca/tests/global-components.launch-vca.integration.test.js"; then
+  LAYER_RESULTS="${LAYER_RESULTS}  ${GREEN}✓${NC} launch-vca\n"
+else
+  LAYER_RESULTS="${LAYER_RESULTS}  ${RED}✗${NC} launch-vca\n"
   TOTAL_FAILED=$((TOTAL_FAILED + 1))
 fi
 
