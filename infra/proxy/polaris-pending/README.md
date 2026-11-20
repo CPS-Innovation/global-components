@@ -69,6 +69,22 @@ Our side of each contract is tested here, in our own modules.
 | Verify | `curl -sI "https://polaris-qa-notprod.cps.gov.uk/launch/cin3-proxy?q=%7B%22caseId%22%3A2194728%7D"` answers a `location` containing `CaseOverview`; without `q` it contains `casework`. Then press C on a case and off a case in Classic. |
 | Retire | Delete this entry and its folder once the PR has merged and deployed to every environment. |
 
+### `/launch-vca` groundwork — `skip-entra=1` on `/init` (`auth-handover.drop2.entra`)
+
+| | |
+|---|---|
+| What | `/init` with `skip-entra=1` (exactly `1`) skips drop2's Entra round trip for that one handover and carries on as if Entra were off. It logs a `drop2-outcome` `skipped` line with reason `skip-entra-requested`. The whitelist, the session hint and `terminal=iframe` behave as before. |
+| Why | A page that searches for a live CMS session with JSONP script tags (`/polaris?skip-entra=1&r=/auth-refresh-inbound?…polaris-ui-url=/auth-refresh-termination?cb=…`, as polaris-ui's in-situ reauth does) can't follow the Entra step. Entra answers `prompt=none` with an HTML page, the browser blocks it as a script (`ERR_BLOCKED_BY_ORB`), and a live session reads as "failed to load". Seen on QA 2026-11-20. |
+| Why not vnext | `/init` is Polaris's `auth-handover` feature, not a route vnext can shadow. |
+| Our side | `config/global-components.launch-vca/`: the `/launch-vca` page adds `skip-entra=1` to every probe, and the real launch that follows goes through `/init` without the flag, so the MDS deposit still happens. Tested in its unit tests (the page script in a fake browser). |
+| Patches | [`auth-handover.drop2.entra/`](auth-handover.drop2.entra/): `skip-entra.patch` (drop2's `.js` only, +9), `skip-entra.tests.patch` (5 drop2 tests, plus 2 in `auth-handover` showing the arg survives `/polaris` and `/auth-refresh-outbound`; the drop2 suite is 107/107), `skip-entra.docs.patch` (`auth-handover` QUIRK N3). |
+| Base | Polaris `origin/development` @ `e7fd48270`. Applies alone and together with every other patch here, in either case with the whole Polaris njs unit suite passing. |
+| QA | **Hand-patched 2026-11-20** on top of `claims-cookie.patch` (blob `features/auth-handover.drop2.entra/auth-handover.drop2.entra.js` in `sacpsqapolaris/content`). Verified: the JSONP search answered `isSuccess: true` via `/auth-refresh-outbound` (proxied session) and via `https://cin3.cps.gov.uk/polaris` (real cin3), whichever was logged in. Any Polaris deploy to QA erases it. |
+| UAT, prod | Not applied. Prod (`store_enabled = false`) has no Entra step at `/init`, so it isn't needed there until the Phase A rollout. |
+| PR | Not raised yet. |
+| Verify | `curl -sI "https://polaris-qa-notprod.cps.gov.uk/init?skip-entra=1&r=%2Fauth-refresh-inbound&cookie=ASP.NET_SessionId%3Dx"` has **no** `x-polaris-auth-init` header; the same URL without `skip-entra=1` has `x-polaris-auth-init: entra-degraded` (the fake cookie fails the CMS lookup, so both carry on to `/auth-refresh-inbound`, and only the header tells them apart). Then the JSONP search with a live session reaches `/auth-refresh-termination` instead of failing to load. |
+| Retire | Delete this entry and its patches once the PR has merged and deployed to every environment. |
+
 ## Applying
 
 **For the PR**, in a Polaris worktree off `origin/development` (from its repo root). The path below is the main checkout; use this branch's worktree until it merges:
@@ -88,7 +104,7 @@ features, `auth-handover.drop2.entra` and `auth-handover`):
 bash tests/unit/run-tests.sh
 ```
 
-**To re-apply to an environment by hand** (only `claims-cookie.patch`, `entra-rollout.patch` and `c-button-case-context.patch`;
+**To re-apply to an environment by hand** (only `claims-cookie.patch`, `skip-entra.patch`, `entra-rollout.patch` and `c-button-case-context.patch`;
 the others are tests, terraform and docs. `entra-rollout.patch` without its terraform reads an
 unset `ENTRA_ROLLOUT_PERCENT` as 0, which changes nothing but adds the hint flag and the log line):
 

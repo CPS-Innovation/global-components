@@ -25,6 +25,8 @@ cp "$PROXY_DIR/config/main/global-components.conf" "$DIST_DIR/global-components.
 cp "$PROXY_DIR/config/global-components.vnext/global-components.vnext.conf" "$DIST_DIR/global-components.vnext.conf.template"
 # Temporary OS London/Dublin/oapps switch module (FCT2-22132) — delete with the module.
 cp "$PROXY_DIR/config/global-components.os-london-dublin-oapps-switch/global-components.os-london-dublin-oapps-switch.conf" "$DIST_DIR/global-components.os-london-dublin-oapps-switch.conf.template"
+# Experimental /launch-vca module — delete with the module.
+cp "$PROXY_DIR/config/global-components.launch-vca/global-components.launch-vca.conf" "$DIST_DIR/global-components.launch-vca.conf.template"
 # NOTE: the v1 spike variants (cms-auth, cms-ping, cms-proxy-no-logout, spike) are
 # archived under global-components.cms-augmentation/previous/ for REFERENCE ONLY. They
 # are deliberately NOT copied, so they never reach dist/ or any deploy.
@@ -39,7 +41,7 @@ cp "$PROXY_DIR/config/global-components.os-london-dublin-oapps-switch/global-com
 # keeps the flat names the deploy scripts and docker layers read.
 echo "Copying njs modules..."
 cp "$PROXY_DIR/config/main/global-components.js" "$DIST_DIR/global-components.js"
-for module in vnext os-london-dublin-oapps-switch cms-augmentation watchdog; do
+for module in vnext os-london-dublin-oapps-switch cms-augmentation watchdog launch-vca; do
   cp "$PROXY_DIR/config/global-components.$module/global-components.$module.js" "$DIST_DIR/global-components.$module.js"
 done
 

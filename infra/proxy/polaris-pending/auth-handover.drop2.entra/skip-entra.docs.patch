@@ -1,0 +1,27 @@
+diff --git a/polaris-terraform/main-terraform/proxy/config/features/auth-handover/QUIRKS.md b/polaris-terraform/main-terraform/proxy/config/features/auth-handover/QUIRKS.md
+index a342adc..e0213a3 100644
+--- a/polaris-terraform/main-terraform/proxy/config/features/auth-handover/QUIRKS.md
++++ b/polaris-terraform/main-terraform/proxy/config/features/auth-handover/QUIRKS.md
+@@ -127,3 +127,22 @@ forces **legacy DDEI when a global switch is ON** — an escape hatch (a `ddei`
+ routing to an internal DDEI `proxy_pass` location, ahead of the global `if`s). **Now
+ due:** a drop is the global default (`NON_DDEI_INIT_ENABLED` true in every env, Entra in
+ dev/QA/UAT; #2190), and it is still not built.
++
++### N3. ⚪ `skip-entra=1` opts one `/init` out of drop2
++
++**Where:** `auth-handover.drop2.entra.js` (`beginFromInit` → `_skipRequested`, reason
++`skip-entra-requested`), reached from this feature's `appAuthRedirect`.
++**Test:** `auth-handover.drop2.entra.unit.test.js` → "skip-entra=1 …".
++
++A caller that finds a live CMS session with a `<script>` tag (JSONP to
++`/auth-refresh-termination?cb=…`, as polaris-ui's in-situ reauth does) cannot follow drop2's
++silent Entra round trip: Entra answers `prompt=none` with an HTML page, which the browser
++refuses as a script (`ERR_BLOCKED_BY_ORB`), so a live session reads as "failed to load".
++With `skip-entra=1`, `/init` carries on exactly as with Entra off and logs a `skipped` outcome
++with reason `skip-entra-requested`. Only exactly `1` counts.
++
++The arg reaches `/init` from every entry: `/auth-refresh-outbound` forwards its whole query
++string, the proxied `/polaris` clones its args, and the real CMS `/polaris` forwards extra args
++(as it does `terminal=iframe`). It changes nothing a user could not already get: drop2 is
++best-effort and every failure carries on the same way. The handover that follows a successful
++probe goes through `/init` without the flag, so the MDS deposit still happens then.
