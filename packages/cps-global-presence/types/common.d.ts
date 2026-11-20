@@ -955,6 +955,9 @@ declare namespace CCPSections {
      */
     function sectionKey(section: CCPSection | null | undefined): string;
 }
+declare namespace CCPStyle {
+    let STRIPE_COLOUR: string;
+}
 declare namespace CCPView {
     /**
      * @param {{

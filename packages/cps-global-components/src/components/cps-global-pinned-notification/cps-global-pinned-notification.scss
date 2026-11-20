@@ -18,11 +18,13 @@
  * and with the class on the banner itself that margin holds the whole thing clear
  * of the viewport floor. Ours was on the banner, which is exactly why it floated.
  *
- * COLOUR. Only the banner's border and background go red. GDS keeps
- * .govuk-notification-banner__content on a white panel, so the result is a red
- * frame with a red header bar and white content — not a wall of red. #ca3535 is
- * the prototype's error colour, which is not GDS red (#d4351c); it comes through
- * the --govuk-error-colour custom property with that fallback, kept verbatim.
+ * COLOUR. GDS blue, govuk-colour("blue") — the design team's call (2026-11-20),
+ * replacing the prototype's red. Only the banner's border and background take it:
+ * GDS keeps .govuk-notification-banner__content on a white panel, so the result is
+ * a blue frame with a blue header bar and white content. The two legacy stripes
+ * cannot load this stylesheet and take the same value from CCPStyle.STRIPE_COLOUR
+ * (cps-global-presence features/watchdog/core/style.js), whose test fails if the
+ * two ever disagree.
  *
  * NO SHADOW — the prototype has none.
  *
@@ -70,8 +72,8 @@
 }
 
 .app-notification-banner-pinned .govuk-notification-banner {
-  border-color: var(--govuk-error-colour, #ca3535);
-  background-color: var(--govuk-error-colour, #ca3535);
+  border-color: govuk-colour("blue");
+  background-color: govuk-colour("blue");
   margin-bottom: 0;
 }
 
