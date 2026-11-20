@@ -2,7 +2,7 @@
 var h = require("../../../test-harness");
 
 var CCPView = h.load(
-  ["features/watchdog/core/apps.js", "features/watchdog/core/names.js", "features/watchdog/core/section-names.js", "features/watchdog/core/joined.js", "features/watchdog/core/people.js", "features/watchdog/core/content.js", "features/watchdog/core/view.js"],
+  ["features/watchdog/core/apps.js", "features/watchdog/core/names.js", "features/watchdog/core/order.js", "features/watchdog/core/section-names.js", "features/watchdog/core/joined.js", "features/watchdog/core/people.js", "features/watchdog/core/content.js", "features/watchdog/core/view.js"],
   ["CCPView"]
 ).CCPView;
 
@@ -20,7 +20,7 @@ h.describe("CCPView.build");
 h.test("one line per person, naming where they are and which application", function () {
   var v = CCPView.build({ members: [rec("ann@cps.gov.uk", "Work Management App", "CASE", todayAt(15, 38))] });
   h.assertEqual(v.lines, ["ann@cps.gov.uk is in the case — RCMS since 3.38pm."]);
-  h.assertEqual(v.summary, "1 other person is working on this case");
+  h.assertEqual(v.summary, "One other person is working on this case");
   h.assertEqual(v.count, 1);
 });
 
@@ -31,7 +31,7 @@ h.test("someone in two sections and two applications is one line", function () {
       rec("ann@cps.gov.uk", "CMS Classic", "CASE", "")
     ]
   });
-  h.assertEqual(v.lines, ["ann@cps.gov.uk is in the case review and the case — RCMS since 9.05am, CMS Classic."]);
+  h.assertEqual(v.lines, ["ann@cps.gov.uk is in the case and the case review — RCMS since 9.05am, CMS Classic."]);
   h.assertEqual(v.count, 1);
 });
 
@@ -54,7 +54,7 @@ h.test("countSelf keeps the reader in, marked, and drops 'other'", function () {
   var v = CCPView.build({ members: [rec("me@cps.gov.uk", "CMS Modern", "CASE", "")], viewerEmail: "me@cps.gov.uk", countSelf: true });
   h.assertEqual(v.includesSelf, true);
   h.assertEqual(v.lines, ["me@cps.gov.uk (current user) is in the case — CMS Modern."]);
-  h.assertEqual(v.summary, "1 person is working on this case");
+  h.assertEqual(v.summary, "One person is working on this case");
 });
 
 h.test("an unknown reader filters nobody", function () {
@@ -98,7 +98,7 @@ h.test("folds the lock into its holder's line, which leads", function () {
     "Jane Doe has this case locked in CMS Classic since noon, and is in the case review — RCMS since noon.",
     "Ann Other is in the case — CMS Modern."
   ]);
-  h.assertEqual(v.summary, "This case is locked, and 2 other people are currently working on this case");
+  h.assertEqual(v.summary, "This case is locked, and two other people are currently working on this case");
 });
 
 h.test("matches CMS's first names however they are spelt", function () {
@@ -124,7 +124,8 @@ h.test("will not guess between namesakes", function () {
     members: [rec("jane.doe@cps.gov.uk", "CMS Modern", "CASE", ""), rec("jane.doe2@cps.gov.uk", "CMS Classic", "CASE", "")],
     lock: { firstNames: "Jane", surname: "Doe" }
   });
-  h.assertEqual(v.lines, ["Jane Doe has this case locked.", "Jane Doe is in the case — CMS Modern.", "Jane Doe is in the case — CMS Classic."]);
+  // Neither has a time, so they go by address: jane.doe2 sorts before jane.doe@.
+  h.assertEqual(v.lines, ["Jane Doe has this case locked.", "Jane Doe is in the case — CMS Classic.", "Jane Doe is in the case — CMS Modern."]);
 });
 
 h.test("ties the lock to nobody whose address uses another name", function () {
@@ -142,7 +143,7 @@ h.test("says 'You have this case locked', leading, when the reader holds it", fu
     formatTime: noon
   });
   h.assertEqual(v.lines, ["You have this case locked in CMS Classic since noon.", "Ann Other is in the case — CMS Modern."]);
-  h.assertEqual(v.summary, "You have this case locked, and 1 other person is currently working on this case");
+  h.assertEqual(v.summary, "You have this case locked, and one other person is currently working on this case");
   h.assertEqual(v.lockedByReader, true);
 });
 
@@ -166,7 +167,7 @@ h.test("keeps 'You' on its own line when the reader is counted in", function () 
 h.test("assumes nobody when a colleague present could equally be the holder", function () {
   var v = CCPView.build({ members: [rec("jane.doe2@cps.gov.uk", "CMS Modern", "CASE", "")], viewerEmail: "jane.doe@cps.gov.uk", lock: LOCK, formatTime: noon });
   h.assertEqual(v.lines, ["Jane Doe has this case locked in CMS Classic since noon.", "Jane Doe is in the case — CMS Modern."]);
-  h.assertEqual(v.summary, "This case is locked, and 1 other person is currently working on this case");
+  h.assertEqual(v.summary, "This case is locked, and one other person is currently working on this case");
   h.assertEqual(v.lockedByReader, false);
 });
 
@@ -179,7 +180,19 @@ h.test("an unknown reader is never the holder", function () {
 h.test("says nothing of locks when none is given", function () {
   var v = CCPView.build({ members: [rec("jane.doe@cps.gov.uk", "CMS Modern", "CASE", "")] });
   h.assertEqual(v.lines, ["Jane Doe is in the case — CMS Modern."]);
-  h.assertEqual(v.summary, "1 other person is working on this case");
+  h.assertEqual(v.summary, "One other person is working on this case");
+});
+
+// THE REPORTED BUG: one arrival reshuffled every line. Same people, the server
+// listing them in a different order, plus a newcomer — only the newcomer moves.
+h.test("a newcomer is added at the bottom and every other line keeps its place", function () {
+  var ann = rec("ann.other@cps.gov.uk", "CMS Modern", "CASE", todayAt(9, 0));
+  var bob = rec("bob.other@cps.gov.uk", "CMS Classic", "CASE", todayAt(9, 30));
+  var cat = rec("cat.other@cps.gov.uk", "Casework App", "CASE", todayAt(10, 0));
+  var before = CCPView.build({ members: [ann, bob] }).lines;
+  var after = CCPView.build({ members: [cat, bob, ann] }).lines;
+  h.assertEqual(after.slice(0, 2), before);
+  h.assertEqual(after[2], "Cat Other is in the case — RCMS since 10.00am.");
 });
 
 h.test("takes the caller's time formatter", function () {

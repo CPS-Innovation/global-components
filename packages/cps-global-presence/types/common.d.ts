@@ -492,7 +492,7 @@ declare namespace CCPContent {
      * API reports neither — the lock below is a separate fact from a separate API.
      *
      * "OTHER" IS DROPPED WHEN THE COUNT INCLUDES US, because it would be a lie —
-     * "2 other people" above a list that names you as one of them. The production
+     * "Two other people" above a list that names you as one of them. The production
      * wording is the "other" branch, and it returns on its own once a client stops
      * counting the reader.
      *
@@ -515,6 +515,19 @@ declare namespace CCPContent {
      * @returns {string}
      */
     function summary(people: number, includesSelf: boolean, locked?: boolean, lockedByReader?: boolean): string;
+    /**
+     * A count as a reader would write it: "one" to "nine" in words, numerals from 10
+     * on — GOV.UK style for small numbers in running text. Lower case, so it can sit
+     * mid-sentence ("This case is locked, and two other people…"); capitalise() it to
+     * start one.
+     *
+     * @param {number} n
+     * @returns {string}
+     */
+    function number(n: number): string;
+    let NUMBER_WORDS: string[];
+    /** @param {string} text @returns {string} */
+    function capitalise(text: string): string;
     /**
      * One application clause: "RCMS since 3.38pm on 8 September 2026", or just the
      * application when the API gave no time.
@@ -765,6 +778,69 @@ declare namespace CCPNames {
 }
 declare var CCP_NAMES_GIVEN: RegExp;
 declare var CCP_NAMES_SURNAME: RegExp;
+declare namespace CCPOrder {
+    let SECTION_KINDS: string[];
+    /**
+     * Earlier first; a missing time after any real one.
+     *
+     * @param {string|undefined} a
+     * @param {string|undefined} b
+     * @returns {number}
+     */
+    function compareTimes(a: string | undefined, b: string | undefined): number;
+    /**
+     * @param {string|undefined} a
+     * @param {string|undefined} b
+     * @returns {number}
+     */
+    function compareText(a: string | undefined, b: string | undefined): number;
+    /**
+     * When someone first arrived in any application: the earliest timeEntered, or
+     * undefined when none is known.
+     *
+     * @param {{apps: Array<{timeEntered: (string|undefined)}>}} person
+     * @returns {string|undefined}
+     */
+    function arrival(person: {
+        apps: Array<{
+            timeEntered: (string | undefined);
+        }>;
+    }): string | undefined;
+    /**
+     * People, in place: by arrival, then by address.
+     *
+     * @param {CCPPerson[]} people
+     * @returns {CCPPerson[]}
+     */
+    function people(people: CCPPerson[]): CCPPerson[];
+    /**
+     * One person's applications, in place: by arrival in each, then by name.
+     *
+     * @param {Array<{appDisplayName: string, timeEntered: (string|undefined)}>} apps
+     * @returns {Array<{appDisplayName: string, timeEntered: (string|undefined)}>}
+     */
+    function apps(apps: Array<{
+        appDisplayName: string;
+        timeEntered: (string | undefined);
+    }>): Array<{
+        appDisplayName: string;
+        timeEntered: (string | undefined);
+    }>;
+    /**
+     * Where a section kind falls in SECTION_KINDS; unknown kinds after every known one.
+     *
+     * @param {string} kind
+     * @returns {number}
+     */
+    function sectionRank(kind: string): number;
+    /**
+     * Section kinds, in place: the fixed order, then the alphabet.
+     *
+     * @param {string[]} kinds
+     * @returns {string[]}
+     */
+    function sectionKinds(kinds: string[]): string[];
+}
 declare namespace CCPPeople {
     /**
      * @param {Array<{userEmail?: string, sourceApplication?: string, joinedAt?: string, sections?: Array<{kind: string, isCurrent?: boolean}>}>} members

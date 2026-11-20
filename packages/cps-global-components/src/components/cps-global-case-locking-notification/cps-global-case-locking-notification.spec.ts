@@ -67,7 +67,7 @@ describe("cps-global-case-locking-notification live region", () => {
 
     await settle();
 
-    expect(statusText()).toBe("1 other person is working on this case");
+    expect(statusText()).toBe("One other person is working on this case");
   });
 
   it("speaks a summary that arrives after the region has settled", async () => {
@@ -77,7 +77,7 @@ describe("cps-global-case-locking-notification live region", () => {
 
     await update({ caseLockingPresentUsers: present("a@cps.gov.uk", "b@cps.gov.uk") });
 
-    expect(statusText()).toBe("2 other people are working on this case");
+    expect(statusText()).toBe("Two other people are working on this case");
   });
 
   it("speaks a lock on its own, with nobody present", async () => {
@@ -120,7 +120,7 @@ describe("cps-global-case-locking-notification live region", () => {
     again!.sections[0].members[0].joinedAt = "2026-10-26T09:00:00Z";
     await update({ caseLockingPresentUsers: again });
 
-    expect(statusText()).toBe("1 other person is working on this case");
+    expect(statusText()).toBe("One other person is working on this case");
   });
 
   describe("when the banner goes away", () => {
@@ -196,7 +196,7 @@ describe("cps-global-case-locking-notification live region", () => {
 
     await settle();
 
-    expect(statusText()).toBe("1 other person is working on this case");
+    expect(statusText()).toBe("One other person is working on this case");
   });
 });
 

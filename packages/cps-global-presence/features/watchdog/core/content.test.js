@@ -13,15 +13,22 @@ h.describe("CCPContent.summary");
 
 // The production wording: a client that filters the reader out reports only others.
 h.test("counts other people when the reader is not in the list", function () {
-  h.assertEqual(CCPContent.summary(1, false), "1 other person is working on this case");
-  h.assertEqual(CCPContent.summary(2, false), "2 other people are working on this case");
-  h.assertEqual(CCPContent.summary(7, false), "7 other people are working on this case");
+  h.assertEqual(CCPContent.summary(1, false), "One other person is working on this case");
+  h.assertEqual(CCPContent.summary(2, false), "Two other people are working on this case");
+  h.assertEqual(CCPContent.summary(7, false), "Seven other people are working on this case");
 });
 
-// "2 other people" above a list naming you as one of them is a lie, so "other" goes.
+// GOV.UK style: words for one to nine, numerals from 10.
+h.test("spells out one to nine and uses numerals from 10", function () {
+  h.assertEqual(CCPContent.summary(9, false), "Nine other people are working on this case");
+  h.assertEqual(CCPContent.summary(10, false), "10 other people are working on this case");
+  h.assertEqual(CCPContent.summary(12, true, true), "This case is locked, and 12 people are currently working on this case");
+});
+
+// "Two other people" above a list naming you as one of them is a lie, so "other" goes.
 h.test("drops 'other' when the reader is one of the people counted", function () {
-  h.assertEqual(CCPContent.summary(1, true), "1 person is working on this case");
-  h.assertEqual(CCPContent.summary(3, true), "3 people are working on this case");
+  h.assertEqual(CCPContent.summary(1, true), "One person is working on this case");
+  h.assertEqual(CCPContent.summary(3, true), "Three people are working on this case");
 });
 
 h.test("agrees the verb with the count", function () {
@@ -36,11 +43,11 @@ h.describe("CCPContent.summary and the lock");
 h.test("puts the lock first and presence second", function () {
   h.assertEqual(
     CCPContent.summary(2, false, true),
-    "This case is locked, and 2 other people are currently working on this case"
+    "This case is locked, and two other people are currently working on this case"
   );
   h.assertEqual(
     CCPContent.summary(1, false, true),
-    "This case is locked, and 1 other person is currently working on this case"
+    "This case is locked, and one other person is currently working on this case"
   );
 });
 
@@ -199,6 +206,6 @@ h.test("leads the summary with the reader's lock", function () {
   h.assertEqual(CCPContent.summary(0, false, true, true), "You have this case locked");
   h.assertEqual(
     CCPContent.summary(1, false, true, true),
-    "You have this case locked, and 1 other person is currently working on this case"
+    "You have this case locked, and one other person is currently working on this case"
   );
 });
