@@ -1,0 +1,50 @@
+// GloCo_Users_AreaBaseline — one row per user who has ever submitted a piece of case work (review, triage or admin
+// finalise), with the date of their most recent submission and how many days ago that was.
+// A baseline of who in each area has used the Case Review / Work Management apps for real, and who has gone quiet.
+//
+// POPULATION: users credited with at least one submitted piece of work in GloCo_CaseReview_Activity, all time:
+// a review (incl. early advice), triage or admin finalise with Status == "Submitted". Streamlined threshold tests
+// are excluded: they have no submission step (the Activity function always leaves them "Started"). Triage counts
+// "adjusted": a triage submission inferred for a period capture was down qualifies, dated at its start (see
+// GloCo_CaseReview_Activity, TAINT). Reviews and triage started but never submitted do not qualify. Work nobody
+// was signed in for is credited to no one and is not listed.
+//
+// COLUMNS
+//   Region                    the Area's region via GloCo__AreaRegionMapping ("CPSD" for CPSD, as in the area grids);
+//                             "Unmapped" when the mapping has no entry, which includes "(unknown)" areas.
+//   Area                      the user's area AT THEIR LAST SUBMISSION (User_AreaOrCPSD of that piece of work,
+//                             so CPS Direct shows as "CPSD"); "(unknown)" when none was ever captured.
+//   Username                  email, as credited on that piece of work.
+//   Last submission           date (UTC) of the most recent submission, yyyy-MM-dd.
+//   Last submission (days ago) whole calendar days from that date to today; 0 = today.
+//   Reviews submitted         submitted reviews credited to the user, all time: first and subsequent, early advice
+//                             included; each piece of work counts once (a first and a subsequent review on the
+//                             same case are two). Admin finalise is not a review and is not counted.
+//   Triages submitted         submitted triage TASKS credited to the user, as captured (SubmittedObserved).
+//   Triages submitted (adjusted)  plus the submissions inferred for the periods capture was down — the house
+//                             rule for any triage figure (see GloCo_CaseReview_Activity, REPORTING A TRIAGE FIGURE).
+//   Admin finalise, which also qualifies a user, has no column: a user can appear with zero reviews and triage.
+//
+// TIME: all history, via GloCo_CaseReview_Activity's launch-date floor; the Log Analytics time picker still
+// bounds the tables read, so set it to cover launch when running this by name.
+//
+// Contains no PII itself (it is committable); its OUTPUT contains email addresses.
+GloCo_CaseReview_Activity
+| where Status == "Submitted"
+| where isnotempty(User_ObjectId) and isnotempty(User_Email)
+| summarize arg_max(SubmittedAt, User_Email, User_AreaOrCPSD),
+            Reviews = countif(Kind == "Review"),
+            Triages = countif(Kind == "Triage" and SubmittedObserved),
+            TriagesAdjusted = countif(Kind == "Triage")
+    by User_ObjectId
+| extend Area = coalesce(User_AreaOrCPSD, "(unknown)")
+| join kind=leftouter (GloCo__AreaRegionMapping | distinct User_Area, Region) on $left.Area == $right.User_Area
+| project Region = coalesce(Region, "Unmapped"),
+          Area,
+          Username = User_Email,
+          ["Last submission"] = format_datetime(SubmittedAt, "yyyy-MM-dd"),
+          ["Last submission (days ago)"] = datetime_diff("day", startofday(now()), startofday(SubmittedAt)),
+          ["Reviews submitted"] = Reviews,
+          ["Triages submitted"] = Triages,
+          ["Triages submitted (adjusted)"] = TriagesAdjusted
+| order by Region asc, Area asc, ["Last submission (days ago)"] asc, Username asc

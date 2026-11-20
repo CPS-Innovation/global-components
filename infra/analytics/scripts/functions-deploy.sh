@@ -71,10 +71,10 @@ if [[ ! -f "$INFILE" ]]; then
   exit 1
 fi
 
-if [[ ! -f "$DEPLOYED" ]]; then
-  echo "Error: $DEPLOYED not found. Run functions-export.sh first." >&2
-  exit 1
-fi
+# Always refresh the export first: deciding create-vs-update from a stale file creates a SECOND saved search
+# with the same alias (e.g. a function created since the last export), and every query that calls it then
+# fails with "Detected multiple functions with the same name".
+"${SCRIPT_DIR}/functions-export.sh" < /dev/null > /dev/null
 
 ALIAS=$(basename "$INFILE" .kql)
 
@@ -92,6 +92,13 @@ elif [[ "$INFILE" -ef "$PROD_OVERRIDE" ]]; then
 fi
 
 TMP_REMOTE="/tmp/deploy-fn-$$-${ALIAS}.kql"
+
+MATCHES=$(jq --arg a "$ALIAS" '[.[] | select(.functionAlias == $a)] | length' "$DEPLOYED")
+if [[ "$MATCHES" -gt 1 ]]; then
+  echo "Error: ${MATCHES} saved searches in ${WORKSPACE_NAME} already have alias ${ALIAS}; delete the extras first:" >&2
+  jq -r --arg a "$ALIAS" '.[] | select(.functionAlias == $a) | "  \(.name)  \(.etag)"' "$DEPLOYED" >&2
+  exit 1
+fi
 
 EXISTING=$(jq --arg a "$ALIAS" '[.[] | select(.functionAlias == $a)] | .[0]' "$DEPLOYED")
 
@@ -138,6 +145,3 @@ ssh "$AWS_REMOTE" "
 "
 
 echo "Done: ${ALIAS}"
-if [[ "$ACTION" == "create" ]]; then
-  echo "Tip: re-run functions-export.sh so subsequent deploys can find ${ALIAS} by alias"
-fi
