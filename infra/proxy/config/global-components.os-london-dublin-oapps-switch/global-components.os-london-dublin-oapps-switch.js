@@ -130,17 +130,37 @@ function readConfigBlobName(r) {
 
 // ---- C-button (/launch/<cin>-proxy) --------------------------------------
 
+// The case a C button press came from, or "" if there isn't one. On a case page CMS
+// adds q={"caseId":<id>} to the launch URL. The same rule as Polaris's /launch handler
+// (polaris-pending/app-launch), so a pinned user gets the same landing page as anyone
+// else. Digits only, because the id goes into the URL we redirect to.
+function _caseIdFromQuery(q) {
+  let text = q;
+  // CMS encodes q before adding it to the URL, so it can still be encoded after njs decodes r.args.
+  if (text.indexOf("%") !== -1) {
+    try {
+      text = decodeURIComponent(text);
+    } catch (e) {
+      return "";
+    }
+  }
+  const match = /^\s*\{\s*"caseId"\s*:\s*([1-9][0-9]{0,9})\s*\}\s*$/.exec(text);
+  return match ? match[1] : "";
+}
+
 // The handover URL Polaris's /launch/<cin>-proxy routes point at, on `osHost`:
-//   https://<polaris>/polaris?r=<handover on osHost, landing on OS home>
+//   https://<polaris>/polaris?r=<handover on osHost, landing on the case or OS home>
 // Same shape and encoding as their hard-coded targets, only the host differs.
-function _launchUrl(env, osHost) {
+function _launchUrl(env, osHost, caseId) {
   const polaris = POLARIS_HOSTS[env];
   const src = "https://" + polaris + "/global-components/" + env + "/auth-handover.js";
-  const home = "https://" + osHost + "/casework_blocks/home?IsFromCMS=True";
+  const landing = caseId
+    ? "https://" + osHost + "/WorkManagementApp/CaseOverview?CaseId=" + caseId
+    : "https://" + osHost + "/casework_blocks/home?IsFromCMS=True";
   // src is left raw and only the nested r is encoded, exactly as Polaris's own
   // targets have it (the unit tests compare against them).
   const handover =
-    "https://" + osHost + "/Casework_Patterns/auth-handover.html?src=" + src + "&stage=os-cookie-return&r=" + encodeURIComponent(home);
+    "https://" + osHost + "/Casework_Patterns/auth-handover.html?src=" + src + "&stage=os-cookie-return&r=" + encodeURIComponent(landing);
   return "https://" + polaris + "/polaris?r=" + encodeURIComponent(handover);
 }
 
@@ -181,7 +201,7 @@ function launchTarget(r) {
     return "";
   }
   const host = _targetHost(r, env);
-  return host ? _launchUrl(env, host) : "";
+  return host ? _launchUrl(env, host, _caseIdFromQuery(_query(r, "q"))) : "";
 }
 
 // ---- The switch: status + set ---------------------------------------------

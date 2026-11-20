@@ -42,8 +42,9 @@ into both, by one route only.
   ours. Only when a signal cookie is present (an njs flag, never a regex on `$http_cookie`, which
   `rewrite_log` would print in full), a server-level rewrite diverts the click to the internal
   `/global-components/os-london-dublin-oapps-switch/launch/<route>`. A valid pin sends the user
-  through the same `/polaris?r=<handover>` chain with the OS host swapped; anything else is
-  rewritten back to the original URI and lands on Polaris's own handler.
+  through the same `/polaris?r=<handover>` chain with the OS host swapped, landing on the case's
+  overview when pressed on a case and on home otherwise; anything else is rewritten back to the
+  original URI and lands on Polaris's own handler.
 
 ## What it overrides in mainline
 

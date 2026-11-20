@@ -54,6 +54,21 @@ Our side of each contract is tested here, in our own modules.
 | Verify | In Classic after `__ccAuthHandover.runNow()`, `__ccPresence.whoami().entraEnabled` is `true`/`false`, not `null`. The App Service log has `auth-handover entra-decision on=… via=… bucket=… percent=…` per `/init`. |
 | Retire | With the claims-cookie entry. |
 
+### RNAV-2 — C button keeps the case (`app-launch`)
+
+| | |
+|---|---|
+| What | `/launch/<key>` reads the `q={"caseId":<id>}` CMS already adds on a case page, and lands on `/WorkManagementApp/CaseOverview?CaseId=<id>` on that target's OutSystems host. No valid `q` lands on the casework home page, as before. |
+| Why not vnext | It could be: `location /launch/` is a prefix, so a regex of ours would beat it. A patch was chosen so the Polaris PR carries one reviewed commit. |
+| Our side | `global-components.os-london-dublin-oapps-switch` builds its own launch URL for users pinned to an OS domain, and applies the same rule. `cps-global-os-handover` also sets the CMS session hint when landing on `/WorkManagementApp/`. |
+| Patches | [`app-launch/`](app-launch/): `c-button-case-context.patch` (the `.js`), `c-button-case-context.tests.patch` (21 tests; the feature suite is 39/39), `c-button-case-context.docs.patch` (QUIRKS). |
+| Base | Polaris `origin/development` @ `e7fd48270`. |
+| QA | **Hand-patched 2026-11-18** (blob `features/app-launch/app-launch.js` in `sacpsqapolaris/content`). Any Polaris deploy to QA erases it. |
+| UAT, prod | Not applied. |
+| PR | Not raised yet. |
+| Verify | `curl -sI "https://polaris-qa-notprod.cps.gov.uk/launch/cin3-proxy?q=%7B%22caseId%22%3A2194728%7D"` answers a `location` containing `CaseOverview`; without `q` it contains `casework`. Then press C on a case and off a case in Classic. |
+| Retire | Delete this entry and its folder once the PR has merged and deployed to every environment. |
+
 ## Applying
 
 **For the PR**, in a Polaris worktree off `origin/development` (from its repo root). The path below is the main checkout; use this branch's worktree until it merges:
@@ -73,7 +88,7 @@ features, `auth-handover.drop2.entra` and `auth-handover`):
 bash tests/unit/run-tests.sh
 ```
 
-**To re-apply to an environment by hand** (only `claims-cookie.patch` and `entra-rollout.patch`;
+**To re-apply to an environment by hand** (only `claims-cookie.patch`, `entra-rollout.patch` and `c-button-case-context.patch`;
 the others are tests, terraform and docs. `entra-rollout.patch` without its terraform reads an
 unset `ENTRA_ROLLOUT_PERCENT` as 0, which changes nothing but adds the hint flag and the log line):
 

@@ -76,9 +76,13 @@ const maybeSetCmsSessionHint = async ({
     const path = new URL(nextUrl).pathname.toLowerCase();
     if (
       !path.startsWith("/casework_blocks/") &&
-      !path.startsWith("/casework/")
+      !path.startsWith("/casework/") &&
+      !path.startsWith("/workmanagementapp/")
     ) {
-      // Only set the hint when handing the user back to the OS home page.
+      // Only set the hint when handing the user back to the OS home page, or to
+      // a case page from the CMS C button. A later launch to the home page goes
+      // straight through while the CMS cookies are unchanged, so a handover that
+      // skipped the hint here would leave the home page without it.
       return;
     }
 

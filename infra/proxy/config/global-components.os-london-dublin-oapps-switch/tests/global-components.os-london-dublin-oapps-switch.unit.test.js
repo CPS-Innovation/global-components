@@ -119,8 +119,8 @@ async function runTests() {
   }
 
   // The conf diverts signalled /launch/<route> requests to this internal URI.
-  const launchRequest = (route, cookie) =>
-    createMockRequest({ uri: `/global-components/os-london-dublin-oapps-switch/launch/${route}`, headersIn: cookie ? { Cookie: cookie } : {} })
+  const launchRequest = (route, cookie, args) =>
+    createMockRequest({ uri: `/global-components/os-london-dublin-oapps-switch/launch/${route}`, headersIn: cookie ? { Cookie: cookie } : {}, args })
 
   await test("hands back (empty) when there is no signal", async () => {
     assertEqual(osSwitch.launchTarget(launchRequest("cin3-proxy")), "", "target")
@@ -131,6 +131,34 @@ async function runTests() {
     for (const [route, host] of [["cin2-proxy", CPS], ["cin3-proxy", CPS], ["cin4-proxy", LONDON], ["cin5-proxy", LONDON]]) {
       const expected = polarisTarget(route).split("oapps-qa-notprod.int.cps.gov.uk").join(host)
       assertEqual(osSwitch.launchTarget(launchRequest(route, `Gloco-Os-Target-test=${host}`)), expected, route)
+    }
+  })
+
+  // The C button pressed on a case: Polaris's target again, landing on the case.
+  const caseTarget = (route, host, caseId) =>
+    polarisTarget(route)
+      .split("oapps-qa-notprod.int.cps.gov.uk")
+      .join(host)
+      .split(encodeURIComponent(encodeURIComponent(`https://${host}/casework_blocks/home?IsFromCMS=True`)))
+      .join(encodeURIComponent(encodeURIComponent(`https://${host}/WorkManagementApp/CaseOverview?CaseId=${caseId}`)))
+
+  await test("a C button press on a case lands on that case, on the pinned host", async () => {
+    for (const [route, host] of [["cin3-proxy", CPS], ["cin5-proxy", LONDON]]) {
+      const target = osSwitch.launchTarget(launchRequest(route, `Gloco-Os-Target-test=${host}`, { q: '{"caseId":2194728}' }))
+      assertEqual(target, caseTarget(route, host, "2194728"), route)
+      assert(target.indexOf("CaseOverview") !== -1, `${route} lands on the case`)
+    }
+  })
+
+  await test("a q that is still encoded after njs decoded it finds the same case", async () => {
+    const q = encodeURIComponent('{"caseId":2194728}')
+    assertEqual(osSwitch.launchTarget(launchRequest("cin3-proxy", SIGNAL, { q })), caseTarget("cin3-proxy", CPS, "2194728"), "target")
+  })
+
+  await test("anything but a valid case id lands on home, as before", async () => {
+    const home = osSwitch.launchTarget(launchRequest("cin3-proxy", SIGNAL))
+    for (const q of ["", '{"caseId":0}', '{"caseId":-1}', '{"caseId":"abc"}', '{"caseId":12345678901}', '{"taskId":1}', 'x{"caseId":1}', '{"caseId":1}&r=https://example.org', "1", "%E0%A4%A", ['{"caseId":1}', '{"caseId":2}']]) {
+      assertEqual(osSwitch.launchTarget(launchRequest("cin3-proxy", SIGNAL, { q })), home, JSON.stringify(q))
     }
   })
 

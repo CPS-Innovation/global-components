@@ -116,9 +116,22 @@ describe("handleOsTokenReturn", () => {
     expect(localStorage[keys.HOME_IS_FROM_PROXY]).toBe("true");
   });
 
-  test("does NOT call getCmsSessionHint when target is not under /casework_blocks/", async () => {
+  test("sets CmsSessionHint when target lands on a /WorkManagementApp/ case page (the CMS C button)", async () => {
+    mockGetCmsSessionHint.mockResolvedValue({ cmsDomains: [], isProxySession: true, handoverEndpoint: null });
+
     const win = makeWindow(
-      "https://cps-dev.outsystemsenterprise.com/AuthHandover/index.html?r=https%3A%2F%2Fexample.com%2FWorkManagementApp%2Fpage&stage=os-token-return&cc=test-cookies&cms-modern-token=test-token",
+      "https://cps-dev.outsystemsenterprise.com/AuthHandover/index.html?r=https%3A%2F%2Fexample.com%2FWorkManagementApp%2FCaseOverview%3FCaseId%3D2194728&stage=os-token-return&cc=test-cookies&cms-modern-token=test-token",
+    );
+
+    await handleOsTokenReturn(win, { cmsAuthStorageKeys: keys });
+
+    expect(mockGetCmsSessionHint).toHaveBeenCalledTimes(1);
+    expect(localStorage[keys.HOME_IS_FROM_PROXY]).toBe("true");
+  });
+
+  test("does NOT call getCmsSessionHint when target is under another OS app", async () => {
+    const win = makeWindow(
+      "https://cps-dev.outsystemsenterprise.com/AuthHandover/index.html?r=https%3A%2F%2Fexample.com%2FCaseReview%2Fpage&stage=os-token-return&cc=test-cookies&cms-modern-token=test-token",
     );
 
     await handleOsTokenReturn(win, { cmsAuthStorageKeys: keys });
