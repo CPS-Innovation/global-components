@@ -492,7 +492,7 @@ declare namespace CCPContent {
      * API reports neither — the lock below is a separate fact from a separate API.
      *
      * "OTHER" IS DROPPED WHEN THE COUNT INCLUDES US, because it would be a lie —
-     * "2 other people" above a list that names you as one of them. The production
+     * "Two other people" above a list that names you as one of them. The production
      * wording is the "other" branch, and it returns on its own once a client stops
      * counting the reader.
      *
@@ -515,6 +515,19 @@ declare namespace CCPContent {
      * @returns {string}
      */
     function summary(people: number, includesSelf: boolean, locked?: boolean, lockedByReader?: boolean): string;
+    /**
+     * A count as a reader would write it: "one" to "nine" in words, numerals from 10
+     * on — GOV.UK style for small numbers in running text. Lower case, so it can sit
+     * mid-sentence ("This case is locked, and two other people…"); capitalise() it to
+     * start one.
+     *
+     * @param {number} n
+     * @returns {string}
+     */
+    function number(n: number): string;
+    let NUMBER_WORDS: string[];
+    /** @param {string} text @returns {string} */
+    function capitalise(text: string): string;
     /**
      * One application clause: "RCMS since 3.38pm on 8 September 2026", or just the
      * application when the API gave no time.

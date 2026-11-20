@@ -197,7 +197,7 @@ h.describe("the banner");
 h.test("shows who else is on the case", function () {
   var win = onCase([member("ann@cps.gov.uk")]);
   h.assertEqual(banner(win), {
-    title: "1 other person is working on this case",
+    title: "One other person is working on this case",
     lines: ["ann@cps.gov.uk is in the case — CMS Classic since 9.30am on 4 November 2026."]
   });
 });
@@ -206,7 +206,7 @@ h.test("leaves the reader out unless asked to count them", function () {
   var win = onCase([member("me@cps.gov.uk")]);
   h.assertEqual(banner(win), null);
   win.__ccPresence.setCountSelf(true);
-  h.assertEqual(banner(win).title, "1 person is working on this case");
+  h.assertEqual(banner(win).title, "One person is working on this case");
   h.assertTrue(banner(win).lines[0].indexOf("me@cps.gov.uk (current user)") === 0, banner(win).lines[0]);
 });
 

@@ -75,7 +75,7 @@ CCPContent.LOCKED_BY_READER = "You have this case locked";
  * API reports neither — the lock below is a separate fact from a separate API.
  *
  * "OTHER" IS DROPPED WHEN THE COUNT INCLUDES US, because it would be a lie —
- * "2 other people" above a list that names you as one of them. The production
+ * "Two other people" above a list that names you as one of them. The production
  * wording is the "other" branch, and it returns on its own once a client stops
  * counting the reader.
  *
@@ -98,15 +98,10 @@ CCPContent.LOCKED_BY_READER = "You have this case locked";
  * @returns {string}
  */
 CCPContent.summary = function (people, includesSelf, locked, lockedByReader) {
-  var working = includesSelf
-    ? people === 1
-      ? "1 person is working on this case"
-      : people + " people are working on this case"
-    : people === 1
-      ? "1 other person is working on this case"
-      : people + " other people are working on this case";
+  var who = CCPContent.number(people) + (includesSelf ? "" : " other") + (people === 1 ? " person is" : " people are");
+  var working = who + " working on this case";
   if (!locked) {
-    return working;
+    return CCPContent.capitalise(working);
   }
   var lockedSentence = lockedByReader ? CCPContent.LOCKED_BY_READER : CCPContent.LOCKED_ONLY;
   if (!people) {
@@ -118,6 +113,26 @@ CCPContent.summary = function (people, includesSelf, locked, lockedByReader) {
       .replace(" is working", " is currently working")
       .replace(" are working", " are currently working")
   );
+};
+
+/**
+ * A count as a reader would write it: "one" to "nine" in words, numerals from 10
+ * on — GOV.UK style for small numbers in running text. Lower case, so it can sit
+ * mid-sentence ("This case is locked, and two other people…"); capitalise() it to
+ * start one.
+ *
+ * @param {number} n
+ * @returns {string}
+ */
+CCPContent.number = function (n) {
+  return n >= 0 && n < CCPContent.NUMBER_WORDS.length ? CCPContent.NUMBER_WORDS[n] : String(n);
+};
+
+CCPContent.NUMBER_WORDS = ["no", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine"];
+
+/** @param {string} text @returns {string} */
+CCPContent.capitalise = function (text) {
+  return text.charAt(0).toUpperCase() + text.substring(1);
 };
 
 /**
