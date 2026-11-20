@@ -1,0 +1,52 @@
+diff --git a/polaris-terraform/main-terraform/proxy/config/features/app-launch/app-launch.js b/polaris-terraform/main-terraform/proxy/config/features/app-launch/app-launch.js
+index 18a5995..054bc33 100644
+--- a/polaris-terraform/main-terraform/proxy/config/features/app-launch/app-launch.js
++++ b/polaris-terraform/main-terraform/proxy/config/features/app-launch/app-launch.js
+@@ -78,6 +78,36 @@ function proxyLaunchKey(host) {
+   return key || "";
+ }
+ 
++// The case a C button press came from, or "" if there isn't one. On a case page CMS's own
++// openCaseworkTools adds q={"caseId":<id>} to the launch URL, as it does for the P button.
++// Anything else (no q, a repeated q, another shape) is "no case". Digits only, because the id
++// goes into the URL we redirect to.
++function caseIdFromQuery(q) {
++  if (typeof q !== "string") {
++    return "";
++  }
++  let text = q;
++  // CMS encodes q before adding it to the URL, so it can still be encoded after njs decodes r.args.
++  if (text.indexOf("%") !== -1) {
++    try {
++      text = decodeURIComponent(text);
++    } catch (e) {
++      return "";
++    }
++  }
++  const match = /^\s*\{\s*"caseId"\s*:\s*([1-9][0-9]{0,9})\s*\}\s*$/.exec(text);
++  return match ? match[1] : "";
++}
++
++// Where the launch ends up: the case's overview page when launched from a case, otherwise the
++// casework home page. Every tier lands on the same pages (FCT2-21520 moved prod off
++// casework_blocks/home, the last per-target difference).
++function landingUrl(os, caseId) {
++  return caseId
++    ? `https://${os}/WorkManagementApp/CaseOverview?CaseId=${caseId}`
++    : `https://${os}/casework/home?IsFromCMS=True`;
++}
++
+ function launch(r) {
+   const t = TARGETS[r.uri.substring("/launch/".length)];
+   if (!t) {
+@@ -86,9 +116,7 @@ function launch(r) {
+   }
+ 
+   const os = t.os;
+-  // Every tier lands on the same casework home page (FCT2-21520 moved prod off
+-  // casework_blocks/home, the last per-target difference).
+-  const finalUrl = `https://${os}/casework/home?IsFromCMS=True`;
++  const finalUrl = landingUrl(os, caseIdFromQuery(r.args.q));
+   const hop =
+     `https://${os}/Casework_Patterns/auth-handover.html` +
+     `?src=https://${t.polaris}.cps.gov.uk/global-components/${t.stage}/auth-handover.js` +

@@ -105,6 +105,17 @@ async function testCButton() {
     )
   })
 
+  await test("with the signal, a press on a case lands on that case on the chosen host", async () => {
+    const q = encodeURIComponent('{"caseId":2194728}')
+    const { status, location } = await redirectOf(`/launch/cin3-proxy?q=${q}`, { ...IE_MODE, Cookie: SIGNAL })
+    assertEqual(status, 302, "Should redirect")
+    const handover = decodeURIComponent(location.split("?r=")[1])
+    assert(
+      decodeURIComponent(handover.split("&r=")[1]) === `https://${CPS}/WorkManagementApp/CaseOverview?CaseId=2194728`,
+      `Should land on the case on the chosen host, got: ${handover}`
+    )
+  })
+
   await test("the internal divert route can't be requested directly", async () => {
     const { status } = await redirectOf("/global-components/os-london-dublin-oapps-switch/launch/cin3-proxy", { ...IE_MODE, Cookie: SIGNAL })
     assertEqual(status, 404, "Should be internal only")

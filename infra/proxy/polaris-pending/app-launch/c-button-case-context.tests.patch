@@ -1,0 +1,88 @@
+diff --git a/polaris-terraform/main-terraform/proxy/config/features/app-launch/app-launch.unit.test.js b/polaris-terraform/main-terraform/proxy/config/features/app-launch/app-launch.unit.test.js
+index c7045aa..b27ea0a 100644
+--- a/polaris-terraform/main-terraform/proxy/config/features/app-launch/app-launch.unit.test.js
++++ b/polaris-terraform/main-terraform/proxy/config/features/app-launch/app-launch.unit.test.js
+@@ -60,6 +60,75 @@ async function launches(appLaunch) {
+   })
+ }
+ 
++// The Location a launch from a case should produce, spelled out rather than built from the handler.
++const caseLocation = (polaris, os, stage, caseId) => {
++  const landing = `https://${os}/WorkManagementApp/CaseOverview?CaseId=${caseId}`
++  const hop =
++    `https://${os}/Casework_Patterns/auth-handover.html` +
++    `?src=https://${stage.host}.cps.gov.uk/global-components/${stage.name}/auth-handover.js` +
++    `&stage=os-cookie-return&r=${encodeURIComponent(landing)}`
++  return `https://${polaris}/polaris?r=${encodeURIComponent(hop)}`
++}
++
++const launchWith = (appLaunch, uri, q) => {
++  const r = createMockRequest({ uri, args: { q } })
++  appLaunch.launch(r)
++  return r
++}
++
++async function caseContext(appLaunch) {
++  console.log("\n/launch/*?q= — the C button pressed on a case lands on that case:")
++
++  const QA = { host: "polaris-qa-notprod", name: "test" }
++  const q = '{"caseId":2194728}'
++
++  for (const [uri, polaris, os, stage] of [
++    ["/launch/cin3", "cin3.cps.gov.uk", "oapps-qa-notprod.int.cps.gov.uk", QA],
++    ["/launch/cin3-proxy", "polaris-qa-notprod.cps.gov.uk", "oapps-qa-notprod.int.cps.gov.uk", QA],
++    ["/launch/cms", "cms.cps.gov.uk", "cps.outsystemsenterprise.com", { host: "polaris", name: "prod" }],
++    ["/launch/cms-proxy", "polaris.cps.gov.uk", "cps.outsystemsenterprise.com", { host: "polaris", name: "prod" }],
++    ["/launch/cpt-proxy", "polaris-uat-notprod.cps.gov.uk", "cps-tst1.outsystemsenterprise.com", { host: "polaris-uat-notprod", name: "uat" }],
++    ["/launch/dev-proxy", "polaris-dev-notprod.cps.gov.uk", "cps-dev.outsystemsenterprise.com", { host: "polaris-dev-notprod", name: "dev" }],
++  ]) {
++    await test(`${uri} on a case -> that tier's case overview`, () => {
++      const r = launchWith(appLaunch, uri, q)
++      assertEqual(r.returnCode, 302, "302")
++      assertEqual(r.returnBody, caseLocation(polaris, os, stage, "2194728"), "byte-exact Location")
++    })
++  }
++
++  const expected = caseLocation("polaris-qa-notprod.cps.gov.uk", "oapps-qa-notprod.int.cps.gov.uk", QA, "2194728")
++
++  await test("q still encoded after njs decoded it -> the same case", () => {
++    assertEqual(launchWith(appLaunch, "/launch/cin3-proxy", encodeURIComponent(q)).returnBody, expected, "Location")
++  })
++
++  await test("spaces inside q -> the same case", () => {
++    assertEqual(launchWith(appLaunch, "/launch/cin3-proxy", '{ "caseId" : 2194728 }').returnBody, expected, "Location")
++  })
++
++  const home = expect("polaris-qa-notprod.cps.gov.uk", TEST_R)
++  for (const [why, bad] of [
++    ["no q", undefined],
++    ["empty q", ""],
++    ["case 0 (CMS's own 'no case')", '{"caseId":0}'],
++    ["a negative id", '{"caseId":-1}'],
++    ["a non-numeric id", '{"caseId":"abc"}'],
++    ["an id too long to be one", '{"caseId":12345678901}'],
++    ["another key", '{"taskId":2194728}'],
++    ["extra keys", '{"caseId":2194728,"x":1}'],
++    ["text after the id", '{"caseId":2194728}&r=https://example.org'],
++    ["text before the id", 'x{"caseId":2194728}'],
++    ["not JSON", "2194728"],
++    ["broken encoding", "%E0%A4%A"],
++    ["a repeated q (njs gives an array)", [q, q]],
++  ]) {
++    await test(`${why} -> the casework home page, unchanged`, () => {
++      assertEqual(launchWith(appLaunch, "/launch/cin3-proxy", bad).returnBody, home, "byte-exact home Location")
++    })
++  }
++}
++
+ async function proxyKeys(appLaunch) {
+   console.log("\nproxyLaunchKey — the -proxy key that hands over from a proxy host:")
+   for (const [host, key] of [
+@@ -80,6 +149,7 @@ async function main() {
+   const restoreEnv = applyEnv(cmsEnvObject())
+   const appLaunch = await loadNjs("features/app-launch/app-launch.js")
+   await launches(appLaunch)
++  await caseContext(appLaunch)
+   await proxyKeys(appLaunch)
+   restoreEnv()
+   process.exit(summarise("app-launch.js (unit)"))

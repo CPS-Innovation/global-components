@@ -1,0 +1,19 @@
+diff --git a/polaris-terraform/main-terraform/proxy/config/features/app-launch/QUIRKS.md b/polaris-terraform/main-terraform/proxy/config/features/app-launch/QUIRKS.md
+index 6c31de3..a3b5654 100644
+--- a/polaris-terraform/main-terraform/proxy/config/features/app-launch/QUIRKS.md
++++ b/polaris-terraform/main-terraform/proxy/config/features/app-launch/QUIRKS.md
+@@ -20,3 +20,14 @@ Only `/launch/cms` uses `${DEFAULT_UPSTREAM_CMS_DOMAIN_NAME}`; `/launch/cmo`, `/
+ `/launch/cin2`–`cin5` and all seven `-proxy` variants hardcode `cmo` / `cmscpt` /
+ `cinN.cps.gov.uk` / `polaris-{uat,qa}-notprod.cps.gov.uk`, including prod-only and test-only OutSystems URLs
+ in the same file. §4 notes they "can be collapsed into one (maybe needs njs)".
++
++---
++
++## Behaviour worth knowing
++
++### The C button keeps the reader's case
++
++On a case page, CMS's `openCaseworkTools` adds `q={"caseId":<id>}` to `CASEWORK_TOOLS_URL`, the same
++way the P button does. `/launch/<key>` turns that into the case's overview page
++(`/WorkManagementApp/CaseOverview?CaseId=<id>`) on the target's OutSystems host. Without a valid
++`q` it lands on the casework home page, as it always has.
