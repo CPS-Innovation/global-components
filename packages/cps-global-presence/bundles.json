@@ -35,6 +35,7 @@
       "floor": "es3",
       "files": [
         "features/watchdog/core/kinds.js",
+        "features/watchdog/core/style.js",
         "features/watchdog/core/environment.js",
         "features/watchdog/core/apps.js",
         "features/watchdog/core/names.js",

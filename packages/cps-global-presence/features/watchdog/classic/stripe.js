@@ -1,4 +1,4 @@
-/* features/watchdog/classic/stripe.js — the red footer stripe and its details accordion. CLASSIC ONLY.
+/* features/watchdog/classic/stripe.js — the blue footer stripe and its details accordion. CLASSIC ONLY.
  *
  * THE ONLY PRESENCE UI IN CLASSIC. It replaced banner.js (a meeting icon appended
  * to the yellow menu bar, with a beige hover popup anchored to whichever frame was
@@ -30,8 +30,7 @@ var PRESENCE_STRIPE_HEADER_ID = "ccPresenceStripeHeader";
 var PRESENCE_STRIPE_SUMMARY_ID = "ccPresenceStripeSummary";
 var PRESENCE_STRIPE_TOGGLE_ID = "ccPresenceStripeToggle";
 var PRESENCE_STRIPE_DETAILS_ID = "ccPresenceStripeDetails";
-var PRESENCE_STRIPE_COLOR = "#b10e1e"; // GDS/CPS red
-var PRESENCE_STRIPE_HEIGHT = 23; // the red header only; the details panel grows
+var PRESENCE_STRIPE_HEIGHT = 23; // the blue header only; the details panel grows
 
 // The footer lives in the action-bar table, which is either frameMain's own
 // document or — when frameMain is itself a frameset — the frameActionBar frame
@@ -317,7 +316,7 @@ function presenceRenderStripe() {
       header.style.lineHeight = PRESENCE_STRIPE_HEIGHT + "px";
       header.style.margin = "0";
       header.style.padding = "0";
-      header.style.backgroundColor = PRESENCE_STRIPE_COLOR;
+      header.style.backgroundColor = CCPStyle.STRIPE_COLOUR;
       header.style.color = "#ffffff";
       header.style.fontWeight = "bold";
       header.style.overflow = "hidden";
@@ -365,7 +364,7 @@ function presenceRenderStripe() {
       details.id = PRESENCE_STRIPE_DETAILS_ID;
       details.style.backgroundColor = "#ffffff";
       details.style.color = "#000000";
-      details.style.border = "1px solid " + PRESENCE_STRIPE_COLOR;
+      details.style.border = "1px solid " + CCPStyle.STRIPE_COLOUR;
       details.style.borderTop = "0";
       details.style.padding = "6px 8px";
       details.style.whiteSpace = "pre"; // the detail text is "\n"-separated

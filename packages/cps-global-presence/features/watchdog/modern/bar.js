@@ -8,7 +8,7 @@
  * styles, because we are a guest on a page whose stylesheet we do not control and
  * have no shadow DOM to hide behind.
  *
- * WHAT MATCHES: the layout, the red header over white content, the 5px border, the
+ * WHAT MATCHES: the layout, the blue header over white content, the 5px border, the
  * type scale and weights, the "Show details" / "Hide details" toggle.
  *
  * WHAT CANNOT: the typeface. govuk-font asks for "GDS Transport" and falls back to
@@ -27,7 +27,6 @@ var BAR_CONTENT_ID = "ccPresenceBannerContent";
 var BAR_TOGGLE_ID = "ccPresenceBannerToggle";
 
 /* Straight from the compiled stylesheet, so a reader can check them against it. */
-var BAR_RED = "#ca3535"; /* govuk-error-colour, via the pinned wrapper */
 var BAR_WHITE = "#ffffff";
 var BAR_INK = "#0b0c0c"; /* govuk text colour on the white content */
 var BAR_FONT = '"GDS Transport", arial, sans-serif';
@@ -144,8 +143,8 @@ function renderBanner(view) {
       banner.style.overflowY = "auto";
       banner.style.font = BAR_FONT_SIZE + "/" + BAR_LINE_HEIGHT + " " + BAR_FONT;
       /* border AND background the same colour, as govuk-notification-banner does */
-      banner.style.border = "5px solid " + BAR_RED;
-      banner.style.backgroundColor = BAR_RED;
+      banner.style.border = "5px solid " + CCPStyle.STRIPE_COLOUR;
+      banner.style.backgroundColor = CCPStyle.STRIPE_COLOUR;
 
       header = document.createElement("div");
       header.id = BAR_ID + "Header";
