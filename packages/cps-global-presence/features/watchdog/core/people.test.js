@@ -6,7 +6,7 @@
  */
 var h = require("../../../test-harness");
 
-var loaded = h.load(["features/watchdog/core/apps.js", "features/watchdog/core/names.js", "features/watchdog/core/people.js"], ["CCPPeople"]);
+var loaded = h.load(["features/watchdog/core/apps.js", "features/watchdog/core/names.js", "features/watchdog/core/order.js", "features/watchdog/core/people.js"], ["CCPPeople"]);
 var CCPPeople = loaded.CCPPeople;
 
 function member(email, app, joinedAt) {
@@ -79,13 +79,23 @@ h.test("skips a record with nobody in it", function () {
   h.assertEqual(CCPPeople.collapse([member("", "CMS Classic", "x"), null]).length, 0);
 });
 
-h.test("preserves first-appearance order so a UI does not reshuffle", function () {
+// Arrival order, whatever order the server lists them in (see CCPOrder).
+h.test("lists people by arrival, not by the order the server sent them", function () {
   var people = CCPPeople.collapse([
     member("b@cps.gov.uk", "CMS Classic", "2026-09-08T09:00:00Z"),
     member("a@cps.gov.uk", "CMS Classic", "2026-09-08T08:00:00Z")
   ]);
-  h.assertEqual(people[0].username, "b@cps.gov.uk");
-  h.assertEqual(people[1].username, "a@cps.gov.uk");
+  h.assertEqual(people[0].username, "a@cps.gov.uk");
+  h.assertEqual(people[1].username, "b@cps.gov.uk");
+});
+
+h.test("lists a person's applications by when they arrived in each", function () {
+  var people = CCPPeople.collapse([
+    member("a@cps.gov.uk", "CMS Modern", "2026-09-08T10:00:00Z"),
+    member("a@cps.gov.uk", "CMS Classic", "2026-09-08T08:00:00Z")
+  ]);
+  h.assertEqual(people[0].apps[0].appDisplayName, "CMS Classic");
+  h.assertEqual(people[0].apps[1].appDisplayName, "CMS Modern");
 });
 
 h.test("an empty or missing list is an empty result", function () {
@@ -197,8 +207,10 @@ h.test("marks the reader and nobody else", function () {
     [member("me@cps.gov.uk", "CMS Classic", "x"), member("ann@cps.gov.uk", "CMS Classic", "x")],
     "me@cps.gov.uk"
   );
-  h.assertEqual(people[0].isCurrentUser, true);
-  h.assertEqual(people[1].isCurrentUser, false);
+  // Same arrival time, so ann comes first alphabetically (CCPOrder).
+  h.assertEqual(people[0].username, "ann@cps.gov.uk");
+  h.assertEqual(people[0].isCurrentUser, false);
+  h.assertEqual(people[1].isCurrentUser, true);
 });
 
 h.test("recognises the reader whatever the server's casing", function () {

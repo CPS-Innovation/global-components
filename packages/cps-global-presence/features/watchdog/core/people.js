@@ -26,9 +26,10 @@
  * Each client formats dates its own way, and the two legacy ones cannot use the
  * facilities the web components have.
  *
- * ORDER is first appearance, for people and for their applications. Stable across
- * polls as long as the server's own order is stable, so a UI does not reshuffle
- * under the reader.
+ * ORDER is ARRIVAL, for people and for their applications — see CCPOrder, which
+ * holds every ordering rule. Not first appearance: that is whatever order the
+ * server listed members in, which does not hold still, and one arrival used to
+ * reshuffle every line.
  */
 
 var CCPPeople = {};
@@ -113,9 +114,10 @@ CCPPeople.collapse = function (members, viewerEmail) {
   }
 
   for (i = 0; i < order.length; i++) {
+    CCPOrder.apps(byUser[order[i]].apps);
     out.push(byUser[order[i]]);
   }
-  return out;
+  return CCPOrder.people(out);
 };
 
 /**

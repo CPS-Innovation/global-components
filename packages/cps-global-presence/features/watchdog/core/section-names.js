@@ -91,6 +91,8 @@ CCPSectionNames.describe = function (sections) {
     }
   }
 
+  // In CCPOrder's fixed reading order, not the order the records arrived in.
+  CCPOrder.sectionKinds(kinds);
   for (i = 0; i < kinds.length; i++) {
     name = CCPSectionNames.displayName(kinds[i], currentByKind[String(kinds[i]).toUpperCase()]);
     // Still de-duplicated by name as well as by kind: two unmapped kinds fall

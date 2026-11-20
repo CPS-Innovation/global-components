@@ -1,7 +1,7 @@
 /* Unit tests for features/watchdog/core/section-names.js */
 var h = require("../../../test-harness");
 
-var CCPSectionNames = h.load(["features/watchdog/core/section-names.js"], ["CCPSectionNames"]).CCPSectionNames;
+var CCPSectionNames = h.load(["features/watchdog/core/order.js", "features/watchdog/core/section-names.js"], ["CCPSectionNames"]).CCPSectionNames;
 
 h.describe("CCPSectionNames.displayName");
 
@@ -61,7 +61,7 @@ h.test("leaves the case-wide kinds alone", function () {
 h.test("mixes both in one phrase", function () {
   h.assertEqual(
     CCPSectionNames.describe([{ kind: "VICTIM_WITNESS", isCurrent: true }, { kind: "CASE" }]),
-    "this witness or victim and the case"
+    "the case and this witness or victim"
   );
 });
 
@@ -88,12 +88,11 @@ h.test("kinds are matched case-insensitively when collapsing", function () {
   h.assertEqual(CCPSectionNames.describe([{ kind: "victim_witness" }, { kind: "VICTIM_WITNESS", isCurrent: true }]), "this witness or victim");
 });
 
-// First-appearance order, so a caller controls the reading order by the order it
-// collects sections in rather than by an alphabet nobody asked for.
-h.test("keeps first-appearance order across kinds", function () {
+// CCPOrder's fixed reading order, broadest first, whatever order the records came in.
+h.test("names sections in the fixed order, not the order they arrived in", function () {
   h.assertEqual(
     CCPSectionNames.describe([{ kind: "VICTIM_WITNESS", isCurrent: true }, { kind: "CASE" }, { kind: "VICTIM_WITNESS" }]),
-    "this witness or victim and the case"
+    "the case and this witness or victim"
   );
 });
 
