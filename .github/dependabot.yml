@@ -1,0 +1,94 @@
+# Dependabot version updates (security updates are enabled in repo settings).
+# Mirrors the previous renovate.json: config:recommended monorepo groups,
+# 5-day release-age wait on npm, nginx image pinned.
+version: 2
+
+updates:
+  - package-ecosystem: "npm"
+    directories:
+      - "/"
+      - "/packages/*"
+      - "/apps/*"
+      - "/e2e"
+      - "/infra/proxy"
+      - "/case-locking-support/bundled"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "06:00"
+      timezone: "Europe/London"
+    # Lockfile-only when the new version already satisfies the range
+    # (Renovate's "-lockfile" branches); bump package.json only when it doesn't.
+    versioning-strategy: "increase-if-necessary"
+    cooldown:
+      default-days: 5
+    open-pull-requests-limit: 15
+    groups:
+      react:
+        patterns:
+          - "react"
+          - "react-dom"
+          - "@types/react"
+          - "@types/react-dom"
+      react-router:
+        patterns:
+          - "react-router"
+          - "react-router-dom"
+      msal:
+        patterns:
+          - "@azure/msal-*"
+      jest:
+        patterns:
+          - "jest"
+          - "jest-cli"
+          - "jest-environment-*"
+          - "@jest/*"
+          - "@types/jest"
+        exclude-patterns:
+          - "jest-environment-puppeteer"
+      jest-puppeteer:
+        patterns:
+          - "jest-puppeteer"
+          - "expect-puppeteer"
+          - "jest-environment-puppeteer"
+      testing-library:
+        patterns:
+          - "@testing-library/*"
+      stencil:
+        patterns:
+          - "@stencil/*"
+      rollup:
+        patterns:
+          - "rollup"
+          - "@rollup/*"
+      vite:
+        patterns:
+          - "vite"
+          - "@vitejs/*"
+      application-insights:
+        patterns:
+          - "@microsoft/applicationinsights-*"
+
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "06:00"
+      timezone: "Europe/London"
+    groups:
+      artifact-actions:
+        patterns:
+          - "actions/upload-artifact"
+          - "actions/download-artifact"
+
+  - package-ecosystem: "docker"
+    directory: "/infra/proxy/docker"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "06:00"
+      timezone: "Europe/London"
+    ignore:
+      # Pinned - requires coordinated infrastructure change
+      - dependency-name: "nginx"
